@@ -25,15 +25,44 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds `NURBSCurve::isLinear()` to check if a curve is (nearly) flat (corresponding to `BezierCurve::isLinear()`)
 - Primal: Adds `NURBSPatch::isTriviallyTrimmed()` to check if the trimming curves for a patch lie on the patch boundaries
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
+- Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
+- Quest: Adds OMP supported, fast and accurate GWN method for NURBS curves and trimmed NURBS surfaces.
+- Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
+- Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
+  anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
+  a new ``setQuadratureType`` method that accepts an enum value from ``mfem::Quadrature1D``. The number of samples in
+  each direction is selected with a new ``setSamplingResolution`` method that accepts an ``axom::ArrayView<int>`` of
+  sample values, one value per mesh dimension. Values can be the same for isotropic sampling or different for anisotropic
+  sampling. The new method replaces the ``setQuadratureOrder`` method, which has been marked as deprecated and will be
+  removed in a future version of Axom.
+- Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
+- Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
+  and handle the error appropriately.
+- Primal: Adds a `primal::BezierTriangle` class
+- Inlet: Added the ability to have collections (array and dictionary) with variant values.
+- Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
 
 ### Removed
 
 ### Deprecated
+- Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
+- Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
+- Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 
 ### Fixed
+- Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
+- Quest: Improves error handling/reporting when loading an invalid c2c contour
+- Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
+- Core: ArrayView assigments/copies now copy the stride
+- Core: Array construction from strided ArrayView now correctly copies the strided elements
+- Core: A moved-from Array is valid, e.g. it can be pushed to
+- Core: Improved `axom::FlatMap` insertion performance by fusing duplicate-key lookup with empty-slot probing.
+- Core: Updated DeviceHash to use 64-bit hash results and improved coverage for integer and floating-point hashing.
+- Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
@@ -46,6 +75,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   leverage error-controlled approximation and a spatial index (BVH).
 - Slic: Adds new Slic macros that allow you to selectively print messages once per call-site. For example,
   `SLIC_INFO_ONCE(msg)` and `SLIC_INFO_ROOT_IF_ONCE(EXP, msg)`.
+- Primal: Adds a new `slice()` operator to slice tetrahedron with a plane, producing a polygon.
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.

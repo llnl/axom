@@ -54,6 +54,7 @@ class IteratorBase
   static_assert(std::is_integral<PosType>::value, "PosType must be integral");
 
 protected:
+  AXOM_HOST_DEVICE
   IteratorBase() : m_pos(PosType()) { }
 
   AXOM_HOST_DEVICE

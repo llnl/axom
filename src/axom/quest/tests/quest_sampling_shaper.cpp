@@ -18,6 +18,7 @@
 #include "axom/sidre.hpp"
 #include "axom/slic.hpp"
 #include "axom/quest/SamplingShaper.hpp"
+#include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
 
 #ifndef AXOM_USE_MFEM
@@ -35,6 +36,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <utility>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -45,6 +47,9 @@ namespace fs = axom::utilities::filesystem;
 
 namespace
 {
+using Point2D = primal::Point<double, 2>;
+using Point3D = primal::Point<double, 3>;
+
 const std::string unit_circle_contour =
   "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)";
 
@@ -61,49 +66,183 @@ const std::string proe_tet_fmt_str = R"(
 1 1 2 3 4
 )";
 
+const std::string oversized_unit_box_stl = R"(solid oversized_unit_box
+facet normal 0 0 -1
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 1.001 -0.001
+    vertex 1.001 -0.001 -0.001
+  endloop
+endfacet
+facet normal 0 0 -1
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 1.001 -0.001
+    vertex 1.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 0 0 1
+  outer loop
+    vertex -0.001 -0.001 1.001
+    vertex 1.001 -0.001 1.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+facet normal 0 0 1
+  outer loop
+    vertex -0.001 -0.001 1.001
+    vertex 1.001 1.001 1.001
+    vertex -0.001 1.001 1.001
+  endloop
+endfacet
+facet normal 0 -1 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 0 -1 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 -0.001 1.001
+    vertex -0.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex -0.001 1.001 -0.001
+    vertex 1.001 1.001 1.001
+    vertex 1.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex -0.001 1.001 -0.001
+    vertex -0.001 1.001 1.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+facet normal -1 0 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 -0.001 1.001
+    vertex -0.001 1.001 1.001
+  endloop
+endfacet
+facet normal -1 0 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 1.001 1.001
+    vertex -0.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 1 0 0
+  outer loop
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 1.001 1.001
+    vertex 1.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 1 0 0
+  outer loop
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 1.001 -0.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+endsolid oversized_unit_box
+)";
+
 // Set the following to true for verbose output and for saving vis files
 constexpr bool very_verbose_output = false;
 
-// Utility function to slice a tetrahedron along a plane
-primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
-                                 const primal::Plane<double, 3>& plane)
+struct IdentityProjector22
 {
-  primal::Polygon<double, 3> intersectionPolygon;
+  AXOM_HOST_DEVICE Point2D operator()(const Point2D& pt) const { return Point2D {pt[0], pt[1]}; }
+};
 
-  // find intersection vertices
-  for(int i = 0; i < 4; ++i)
+struct IdentityProjector33
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point3D& pt) const
   {
-    for(int j = i + 1; j < 4; ++j)
-    {
-      primal::Segment<double, 3> edge(tet[i], tet[j]);
-      double t {};
-      if(primal::intersect(plane, edge, t))
-      {
-        intersectionPolygon.addVertex(edge.at(t));
-      }
-    }
+    return Point3D {pt[0], pt[1], pt[2]};
   }
-  SLIC_ASSERT(intersectionPolygon.numVertices() <= 4);
+};
 
-  // fix the polygon if it bowties
-  if(intersectionPolygon.numVertices() == 4)
+struct Projector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(const Point3D& pt) const { return Point2D {pt[0], pt[1]}; }
+};
+
+struct Projector23
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point2D& pt) const
   {
-    // note: using BezierCurve since Axom doesn't currently have intersect(segment, segment)
-    primal::BezierCurve<double, 2> seg1(1);
-    seg1[0] = Point2D(intersectionPolygon[0][0], intersectionPolygon[0][1]);
-    seg1[1] = Point2D(intersectionPolygon[1][0], intersectionPolygon[1][1]);
-    primal::BezierCurve<double, 2> seg2(1);
-    seg2[0] = Point2D(intersectionPolygon[2][0], intersectionPolygon[2][1]);
-    seg2[1] = Point2D(intersectionPolygon[3][0], intersectionPolygon[3][1]);
-    axom::Array<double> sp, tp;
-
-    if(!primal::intersect(seg1, seg2, sp, tp))
-    {
-      axom::utilities::swap(intersectionPolygon[2], intersectionPolygon[3]);
-    }
+    return Point3D {pt[0], pt[1], 0.};
   }
-  return intersectionPolygon;
-}
+};
+
+struct ScaleProjector22
+{
+  double scale_a;
+  double scale_b;
+
+  AXOM_HOST_DEVICE Point2D operator()(const Point2D& pt) const
+  {
+    return Point2D {pt[0] / scale_a, pt[1] / scale_b};
+  }
+};
+
+struct ZeroProjector33
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point3D&) const { return Point3D {0., 0., 0.}; }
+};
+
+struct HalfScaleProjector33
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point3D& pt) const
+  {
+    return Point3D {pt[0] / 2., pt[1] / 2., pt[2] / 2.};
+  }
+};
+
+struct ZeroProjector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(const Point3D&) const { return Point2D {0., 0.}; }
+};
+
+struct AxisymmetricProjector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(Point3D pt) const
+  {
+    const double& x = pt[0];
+    const double& y = pt[1];
+    const double& z = pt[2];
+    return Point2D {z, sqrt(x * x + y * y)};
+  }
+};
+
+struct PlaneProjector23
+{
+  double z;
+
+  AXOM_HOST_DEVICE Point3D operator()(Point2D pt) const
+  {
+    const double& x = pt[0];
+    const double& y = pt[1];
+    return Point3D {x, y, z};
+  }
+};
+
+const std::pair<const char*, int> supported_quadrature_types[] = {
+  {"default", static_cast<int>(mfem::Quadrature1D::Invalid)},
+  {"gausslegendre", static_cast<int>(mfem::Quadrature1D::GaussLegendre)},
+  {"gausslobatto", static_cast<int>(mfem::Quadrature1D::GaussLobatto)},
+  {"openuniform", static_cast<int>(mfem::Quadrature1D::OpenUniform)},
+  {"closeduniform", static_cast<int>(mfem::Quadrature1D::ClosedUniform)},
+  {"openhalfuniform", static_cast<int>(mfem::Quadrature1D::OpenHalfUniform)},
+  {"closedgl", static_cast<int>(mfem::Quadrature1D::ClosedGL)}};
 
 }  // namespace
 
@@ -351,7 +490,6 @@ protected:
 class SamplingShaperTest2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -478,7 +616,6 @@ public:
 class SampleTester2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -523,6 +660,62 @@ public:
     getMesh().GetBoundingBox(bbmin, bbmax);
 
     return BBox2D(Point2D(bbmin.GetData()), Point2D(bbmax.GetData()));
+  }
+};
+
+/// Test fixture for SamplingShaper tests on a single 3D MFEM hex element
+class SampleTester3D : public SamplingShaperTest
+{
+public:
+  using Point3D = primal::Point<double, 3>;
+  using BBox3D = primal::BoundingBox<double, 3>;
+
+public:
+  virtual ~SampleTester3D() { }
+
+  void SetUp() override
+  {
+    const int polynomialOrder = 1;
+    const BBox3D bbox({0, 0, 0}, {1, 1, 1});
+    const axom::NumericArray<int, 3> celldims {1, 1, 1};
+
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, celldims, polynomialOrder);
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
+  }
+};
+
+/// Test fixture for SamplingShaper tests on a single curved 2D MFEM element
+class CurvedSampleTester2D : public SamplingShaperTest
+{
+public:
+  using Point2D = primal::Point<double, 2>;
+  using BBox2D = primal::BoundingBox<double, 2>;
+
+public:
+  virtual ~CurvedSampleTester2D() { }
+
+  void SetUp() override
+  {
+    const int polynomialOrder = 2;
+    const BBox2D bbox({0., 0.}, {1., 1.});
+    const axom::NumericArray<int, 2> celldims {1, 1};
+
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, celldims, polynomialOrder);
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
   }
 };
 
@@ -592,11 +785,39 @@ shapes:
   }
 }
 
+TEST_F(SamplingShaperTest2D, duplicate_point_linear_contour_aborts)
+{
+#if defined(AXOM_USE_C2C) && defined(AXOM_DATA_DIR)
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const auto contour_file = fs::joinPath(AXOM_DATA_DIR, "contours/duplicate_point_linear.contour");
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: dup_linear
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "dupMat", contour_file));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(this->runShaping(), slic::SlicAbortException);
+#else
+  GTEST_SKIP() << "Test requires AXOM_USE_C2C and AXOM_DATA_DIR";
+#endif
+}
+
 TEST_F(SamplingShaperTest2D, basic_circle_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -624,10 +845,10 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector33([](const Point3D& pt) { return Point3D {pt[0], pt[1], pt[2]}; });
-  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector33(IdentityProjector33 {});
+  this->m_shaper->setPointProjector22(IdentityProjector22 {});
+  this->m_shaper->setPointProjector32(Projector32 {});
+  this->m_shaper->setPointProjector23(Projector23 {});
 
   this->runShaping();
 
@@ -644,9 +865,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -676,10 +894,9 @@ shapes:
   // creating an ellipse by scaling input x and y by scale_a and scale_b
   constexpr double scale_a = 3. / 2.;
   constexpr double scale_b = 3. / 4.;
-  this->m_shaper->setPointProjector22(
-    [](const Point2D& pt) { return Point2D {pt[0] / scale_a, pt[1] / scale_b}; });
+  this->m_shaper->setPointProjector22(ScaleProjector22 {scale_a, scale_b});
   // check that we can register another projector that's not used
-  this->m_shaper->setPointProjector33([](const Point3D&) { return Point3D {0., 0.}; });
+  this->m_shaper->setPointProjector33(ZeroProjector33 {});
 
   this->runShaping();
 
@@ -753,8 +970,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_via_replacement_with_background)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -861,10 +1076,43 @@ shapes:
   }
 }
 
+TEST_F(SamplingShaperTest2D, replacement_background_without_initial_material_aborts)
+{
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+units: cm
+
+shapes:
+- name: background
+  material: {1}
+  geometry:
+    format: none
+- name: circle_outer
+  material: {2}
+  geometry:
+    format: c2c
+    path: {0}
+    units: cm
+)";
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getPath(), "void", "disk"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(this->runShaping(), slic::SlicAbortException);
+}
+
 TEST_F(SamplingShaperTest2D, preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -944,8 +1192,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_with_multiple_preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1146,9 +1392,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_stl_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1215,9 +1458,9 @@ shapes:
   this->initializeShaping(shape_file.getPath(), initialGridFunctions);
 
   // set projector from 2D mesh points to 3D query points within STL
-  this->m_shaper->setPointProjector23([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
+  this->m_shaper->setPointProjector23(Projector23 {});
 
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -1243,8 +1486,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_mfem_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   // Shape file
@@ -1362,7 +1603,7 @@ Ordering: 1
   // Use WindingNumber shaping!
   this->m_shaper->setSamplingMethod(quest::SamplingShaper::SamplingMethod::WindingNumber);
 
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
   this->runShaping();
 
   // Check that the result has a volume fraction field associated with square materials
@@ -1646,9 +1887,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_boundary_identity_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1678,10 +1916,10 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector33([](const Point3D& pt) { return Point3D {pt[0], pt[1], pt[2]}; });
-  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector33(IdentityProjector33 {});
+  this->m_shaper->setPointProjector22(IdentityProjector22 {});
+  this->m_shaper->setPointProjector32(Projector32 {});
+  this->m_shaper->setPointProjector23(Projector23 {});
 
   this->runShaping();
 
@@ -1700,9 +1938,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_doubling_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1731,11 +1966,10 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   // scale input points by a factor of 1/2 in each dimension
-  this->m_shaper->setPointProjector33(
-    [](const Point3D& pt) { return Point3D {pt[0] / 2, pt[1] / 2, pt[2] / 2}; });
+  this->m_shaper->setPointProjector33(HalfScaleProjector33 {});
 
   // for good measure, add a 3D->2D projector that will not be used
-  this->m_shaper->setPointProjector32([](const Point3D&) { return Point2D {0, 0}; });
+  this->m_shaper->setPointProjector32(ZeroProjector32 {});
 
   this->runShaping();
 
@@ -1753,9 +1987,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, circle_2D_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1795,15 +2026,10 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector32([](Point3D pt) {
-    const double& x = pt[0];
-    const double& y = pt[1];
-    const double& z = pt[2];
-    return Point2D {z, sqrt(x * x + y * y)};
-  });
+  this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -1820,9 +2046,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, contour_and_stl_3D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1874,15 +2097,10 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector32([](Point3D pt) {
-    const double& x = pt[0];
-    const double& y = pt[1];
-    const double& z = pt[2];
-    return Point2D {z, sqrt(x * x + y * y)};
-  });
+  this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -1901,9 +2119,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, shape_proe_tet_with_2D_projection)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1963,19 +2178,15 @@ shapes:
     this->initializeShaping(shape_file.getPath());
 
     primal::Plane<double, 3> plane({0, 0, 1}, z);
-    const auto polygon = slice(tet, plane);
+    const auto polygon = primal::slice(tet, plane);
     const double intersectionArea = polygon.area();
     SLIC_INFO(axom::fmt::format("Area of intersection polygon: {}", intersectionArea));
 
     // set projector from 2D points to 3-space, z-coord is lambda captured
-    this->m_shaper->setPointProjector23([z](Point2D pt) -> Point3D {
-      const double& x = pt[0];
-      const double& y = pt[1];
-      return Point3D {x, y, z};
-    });
+    this->m_shaper->setPointProjector23(PlaneProjector23 {z});
 
     // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-    this->m_shaper->setQuadratureOrder(8);
+    this->m_shaper->setSamplingResolution(8);
 
     this->runShaping();
 
@@ -2073,7 +2284,7 @@ piece = line(end=start)
       this->initializeShaping(shape_file.getPath());
 
       this->m_shaper->setVolumeFractionOrder(0);
-      this->m_shaper->setQuadratureOrder(qorder);
+      this->m_shaper->setSamplingResolution(qorder);
 
       this->runShaping();
 
@@ -2123,6 +2334,293 @@ piece = line(end=start)
       }
     }
   }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, anisotropic_closeduniform_projection_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=(-0.001cm, -0.001cm), end=(-0.001cm, 1.001cm))
+piece = line()
+piece = line(start=(1.001cm, 1.001cm), end=(1.001cm, -0.001cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(rectangle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  int sampleRes[3] = {3, 5};
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 2});
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setVolumeFractionOrder(0);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(rect_material, 1.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, supported_quadrature_types_generate_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=(-0.001cm, -0.001cm), end=(-0.001cm, 1.001cm))
+piece = line()
+piece = line(start=(1.001cm, 1.001cm), end=(1.001cm, -0.001cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(rectangle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  int sampleRes[3] = {3, 5};
+
+  for(const auto& quadrature : supported_quadrature_types)
+  {
+    this->validateShapeFile(shape_file.getPath());
+    this->initializeShaping(shape_file.getPath());
+
+    this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 2});
+    this->m_shaper->setQuadratureType(quadrature.second);
+    this->m_shaper->setVolumeFractionOrder(0);
+
+    this->runShaping();
+
+    this->checkExpectedVolumeFractions(rect_material, 1.0, 1e-12);
+
+    this->resetShaping();
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, invalid_quadrature_type_values_abort)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::Invalid) - 1),
+               slic::SlicAbortException);
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedGL) + 1),
+               slic::SlicAbortException);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester3D, anisotropic_closeduniform_projection_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: stl
+    path: {}
+)";
+
+  const std::string box_shape = "boxShape";
+  const std::string box_material = "boxMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile stl_file(testname, ".stl");
+  stl_file.write(oversized_unit_box_stl);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), box_shape, box_material, stl_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  int sampleRes[3] = {3, 5, 2};
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setVolumeFractionOrder(0);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(box_material, 1.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester3D, background_import_with_custom_openuniform_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: background
+  material: void
+  geometry:
+    format: none
+- name: {}
+  material: {}
+  geometry:
+    format: stl
+    path: {}
+)";
+
+  const std::string box_shape = "boxShape";
+  const std::string box_material = "boxMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile stl_file(testname, ".stl");
+  stl_file.write(oversized_unit_box_stl);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), box_shape, box_material, stl_file.getPath()));
+
+  std::map<std::string, mfem::GridFunction*> initialGridFunctions;
+  auto* vf = this->registerVolFracGridFunction("init_vf_bg", 0);
+  this->initializeVolFracGridFunction<3>(vf, [](int, const Point3D&, int) -> double { return 1.; });
+  initialGridFunctions["void"] = vf;
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
+
+  int sampleRes[3] = {3, 4, 5};
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::OpenUniform));
+  this->m_shaper->setVolumeFractionOrder(4);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(box_material, 1.0, 1e-12);
+  this->checkExpectedVolumeFractions("void", 0.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_quadrature)
+{
+  auto& mesh = this->getMesh();
+  auto* nodes = mesh.GetNodes();
+  ASSERT_NE(nodes, nullptr);
+
+  mfem::VectorFunctionCoefficient warp(2, [](const mfem::Vector& x, mfem::Vector& y) {
+    constexpr double PI_LOCAL = 3.14159265358979323846;
+    y.SetSize(2);
+    y[0] = x[0] + 0.08 * std::sin(PI_LOCAL * x[0]) * std::sin(PI_LOCAL * x[1]);
+    y[1] = x[1] + 0.05 * std::sin(PI_LOCAL * x[0]) * std::sin(0.5 * PI_LOCAL * x[1]);
+  });
+  nodes->ProjectCoefficient(warp);
+
+  int sampleRes[3] = {5, 3};
+  quest::shaping::QFunctionCollection qfuncs;
+  quest::shaping::generatePositionsQFunction(&mesh,
+                                             qfuncs,
+                                             axom::ArrayView<int> {sampleRes, 2},
+                                             static_cast<int>(mfem::Quadrature1D::OpenUniform));
+
+  auto* positions = qfuncs.Get("positions");
+  ASSERT_NE(positions, nullptr);
+
+  auto* qspace = dynamic_cast<mfem::QuadratureSpace*>(positions->GetSpace());
+  ASSERT_NE(qspace, nullptr);
+
+  const auto& ir = qspace->GetElementIntRule(0);
+  const int nq = ir.GetNPoints();
+  const auto pos = mfem::Reshape(positions->HostRead(), 2, nq, mesh.GetNE());
+
+  mfem::DenseMatrix expected(2, nq);
+  constexpr double EPS = 1e-12;
+  EXPECT_EQ(nq, sampleRes[0] * sampleRes[1]);
+
+  for(int e = 0; e < mesh.GetNE(); ++e)
+  {
+    auto* transform = qspace->GetTransformation(e);
+    transform->Transform(ir, expected);
+
+    for(int q = 0; q < nq; ++q)
+    {
+      for(int d = 0; d < 2; ++d)
+      {
+        EXPECT_NEAR(pos(d, q, e), expected(d, q), EPS)
+          << axom::fmt::format("Element {}, point {}, component {}", e, q, d);
+      }
+    }
+  }
+
+  qfuncs.DeleteData(true);
 }
 
 //-----------------------------------------------------------------------------

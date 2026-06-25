@@ -70,6 +70,7 @@ set(slam_headers
     # Topological mesh headers
     mesh_struct/IA.hpp
     mesh_struct/IA_impl.hpp
+    mesh_struct/detail/FacetPairingMap.hpp
     )
 
 set(slam_sources

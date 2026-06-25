@@ -46,6 +46,7 @@ set(core_serial_tests
     numerics_lu.hpp
     numerics_matrix.hpp
     numerics_matvecops.hpp
+    numerics_transforms.hpp
     numerics_polynomial_solvers.hpp
 
     utils_endianness.hpp
@@ -211,10 +212,16 @@ endforeach()
 if (ENABLE_BENCHMARKS)
 
   set(core_benchmarks
-      core_benchmark_array.cpp )
+      core_benchmark_array.cpp
+      core_benchmark_flatmap.cpp )
 
   foreach(test ${core_benchmarks})
     get_filename_component(test_name ${test} NAME_WE)
+
+    set(_num_threads)
+    if(test STREQUAL "core_benchmark_flatmap.cpp" AND AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
 
     axom_add_executable(NAME       ${test_name}
                         SOURCES    ${test}
@@ -223,7 +230,7 @@ if (ENABLE_BENCHMARKS)
                         FOLDER     axom/core/benchmarks)
 
     blt_add_benchmark(NAME    ${test_name}
-                      COMMAND ${test_name} --benchmark_min_time=0.0001s)
+                      COMMAND ${test_name} --benchmark_min_time=0.0001s
+                      NUM_OMP_THREADS ${_num_threads})
   endforeach()
 endif()
-

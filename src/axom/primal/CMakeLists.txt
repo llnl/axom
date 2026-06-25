@@ -23,6 +23,7 @@ set( primal_headers
     ## geometry
     geometry/BezierCurve.hpp
     geometry/BezierPatch.hpp
+    geometry/BezierTriangle.hpp
     geometry/BoundingBox.hpp
     geometry/CoordinateTransformer.hpp
     geometry/Cone.hpp
@@ -67,6 +68,7 @@ set( primal_headers
     operators/in_polygon.hpp
     operators/in_sphere.hpp
     operators/is_convex.hpp
+    operators/slice.hpp
     operators/split.hpp
     operators/winding_number.hpp
 
@@ -81,6 +83,8 @@ set( primal_headers
     operators/detail/intersect_patch_impl.hpp
     operators/detail/intersect_impl.hpp
     operators/detail/intersect_ray_impl.hpp
+    operators/detail/predicate_determinants.hpp
+    operators/detail/slice_impl.hpp
     operators/detail/winding_number_2d_impl.hpp
     operators/detail/winding_number_2d_memoization.hpp
     operators/detail/winding_number_3d_impl.hpp

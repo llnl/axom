@@ -140,12 +140,12 @@ if(AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND MFEM_FOUND)
         
     axom_add_test(
         NAME    data_collection_util_box2D
-        COMMAND data_collection_util --min -1 -1 --max 1 1 --res 16 16 -p 1
+        COMMAND data_collection_util --min -1 -1 --max 1 1 --resolution 16 16 -p 1
         NUM_MPI_TASKS ${_nranks}
     )
     axom_add_test(
         NAME    data_collection_util_box3D
-        COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --res 16 16 16 -p 1
+        COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --resolution 16 16 16 -p 1
         NUM_MPI_TASKS ${_nranks}
     )
 
@@ -187,12 +187,13 @@ if(AXOM_ENABLE_QUEST)
     endif()
 endif()
 
-#------------------------------------------------------------------------------
-# run_python_with_axom.sh.in is a utility that allows running python with
-# nanobind-generated extensions in the PYTHONPATH.
-# Based on Conduit's run_python_with_conduit.sh.in script.
-#------------------------------------------------------------------------------
+
 if(NANOBIND_FOUND)
+    #--------------------------------------------------------------------------
+    # run_python_with_axom.sh.in is a utility that allows running python with
+    # nanobind-generated extensions in the PYTHONPATH.
+    # Based on Conduit's run_python_with_conduit.sh.in script.
+    #--------------------------------------------------------------------------
 
     # gen python helper to build directory
     set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
@@ -208,10 +209,57 @@ if(NANOBIND_FOUND)
 
     unset(_PYEXT_DIR)
 
-    # Add smoke test to check script
+    # Smoke tests for the script.
+    # The wrapper provides the runtime environment only:
+    # Axom extensions, conduit (Node interop), numpy (ndarray returns), plus mpi4py in MPI configurations. 
+    # nanobind is a build-time dependency (statically linked into the extensions).
+    # pytest/pluggy/iniconfig are test-harness dependencies.
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
         axom_add_test(
             NAME    run_python_with_axom_build
-            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre, nanobind, conduit, numpy, pytest")
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre, conduit, numpy")
+
+        if(AXOM_ENABLE_PYTHON_TESTS)
+            # The pytest harness is provided per-test via the ENVIRONMENT property;
+            # verify that the wrapper + injected ENVIRONMENT combination resolves.
+            axom_add_test(
+                NAME    run_python_with_axom_pytest_harness
+                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pytest")
+            axom_python_test_environment(_py_test_env)
+            if(_py_test_env)
+                set_tests_properties(run_python_with_axom_pytest_harness
+                                     PROPERTIES ENVIRONMENT "${_py_test_env}")
+            endif()
+            unset(_py_test_env)
+        endif()
+    endif()
+
+    #--------------------------------------------------------------------------
+    # convert_sidre_protocol.py is a python version of the
+    # convert_sidre_protocol.cpp utility
+    #--------------------------------------------------------------------------
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
+                         "${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py" COPYONLY)
+
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
+                         "${CMAKE_INSTALL_PREFIX}/bin/convert_sidre_protocol.py" COPYONLY)
+
+    if(AXOM_ENABLE_MPI AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+
+        set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
+
+        set(_testname "convert_sidre_protocol_py")
+        axom_add_test(
+          NAME ${_testname}
+          COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                  ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
+                  --input ${box_dir}
+                  --output csp_output
+                  --protocol json
+                  --verbose
+        )
+
+        set_tests_properties(${_testname} PROPERTIES
+            PASS_REGULAR_EXPRESSION  "Writing out datastore")
     endif()
 endif()

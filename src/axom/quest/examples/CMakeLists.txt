@@ -88,13 +88,13 @@ axom_add_executable(
     FOLDER      axom/quest/examples
     )
 
-# BVH silo example ------------------------------------------------------------
-if (CONDUIT_FOUND AND UMPIRE_FOUND)
+# BVH Blueprint candidate example -------------------------------------------------
+if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
     axom_add_executable(
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit umpire
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire
         FOLDER      axom/quest/examples
         )
 
@@ -136,7 +136,7 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 
                 # Match either one comma or none for portability
                 set_tests_properties(${_testname} PROPERTIES
-                    PASS_REGULAR_EXPRESSION  "Mesh had 6[,]?859 candidates pairs")
+                    PASS_REGULAR_EXPRESSION  "Mesh had 6[,]?859 candidate pairs")
             endforeach()
         endforeach()
     endif()
@@ -165,7 +165,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 COMMAND  quest_shaping_driver_ex 
                             -i ${shaping_data_dir}/circles.yaml
                             --method sampling
-                            inline_mesh --min -6 -6 --max 6 6 --res 25 25 -d 2
+                            inline_mesh --min -6 -6 --max 6 6 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~58.905
             set_tests_properties(${_testname} PROPERTIES 
@@ -177,7 +177,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 COMMAND  quest_shaping_driver_ex 
                         -i ${shaping_data_dir}/circles_opposite.yaml
                         --method sampling
-                        inline_mesh --min -6 -6 --max 6 6 --res 25 25 -d 2
+                        inline_mesh --min -6 -6 --max 6 6 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~65.97
             set_tests_properties(${_testname} PROPERTIES 
@@ -190,7 +190,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                         -i ${shaping_data_dir}/balls_and_jacks.yaml
                         --method sampling
                         --background-material air
-                        inline_mesh --min -10 0 --max 60 50 --res 25 25 -d 2
+                        inline_mesh --min -10 0 --max 60 50 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # background: 3500; balls: ~373; jacks: ~230; air ~2897
             set_tests_properties(${_testname} PROPERTIES 
@@ -203,7 +203,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                         -i ${shaping_data_dir}/ball_impact.yaml
                         --method sampling
                         --background-material air
-                        inline_mesh --min -10 0 --max 40 30 --res 25 25 -d 2
+                        inline_mesh --min -10 0 --max 40 30 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # steel ball: semi-cirle of radius 5.5 has area ~47.516
             set_tests_properties(${_testname} PROPERTIES 
@@ -217,7 +217,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                         -i ${shaping_data_dir}/ball_impact.yaml
                         --method sampling
                         --background-material air
-                        inline_mesh --min -30 -30 -10 --max 30 30 40 --res 16 16 16 -d3
+                        inline_mesh --min -30 -30 -10 --max 30 30 40 --resolution 16 16 16 -d3
                 NUM_MPI_TASKS ${_nranks})
             # steel ball: cirle of radius 5.5 has analytic volume ~696.91
             set_tests_properties(${_testname} PROPERTIES 
@@ -231,7 +231,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex
                     -i ${shaping_data_dir}/flat_star.yaml
                     --method intersection
-                    inline_mesh --min 0 0 --max 1 1 --res 4 4 -d 2
+                    inline_mesh --min 0 0 --max 1 1 --resolution 4 4 -d 2
             NUM_MPI_TASKS ${_nranks})
         # steel triangle: star composed of 16 right triangles with
         # leg length 0.25 has analytic volume 0.5
@@ -265,7 +265,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                             --policy ${_policy}
                             --segments-per-knot-span 50
                             --method intersection
-                            inline_mesh --min 0 0 --max 3 3 --res 3 3 -d 2
+                            inline_mesh --min 0 0 --max 3 3 --resolution 3 3 -d 2
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
                 # steel unit semi-circle with an area of pi/2
@@ -283,7 +283,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex 
                      -i ${shaping_data_dir}/heroic_roses_mfem.yaml
                      --method sampling
-                     inline_mesh --min 0 0 --max 300 400 --res 150 200 -d 2
+                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?595.")
@@ -295,7 +295,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex 
                      -i ${shaping_data_dir}/heroic_roses_mfem_cp.yaml
                      --method sampling --sampling windingnumber
-                     inline_mesh --min 0 0 --max 300 400 --res 150 200 -d 2
+                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?654.")
@@ -308,7 +308,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex 
                     -i ${shaping_data_dir}/sphere.yaml
                     --method sampling
-                    inline_mesh --min -6 -6 -6 --max 6 6 6 --res 16 16 16 -d 3
+                    inline_mesh --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
             NUM_MPI_TASKS ${_nranks})
         # sphere of radius 5 has volume: 4/3 pi * r^3 ~523.6
         # input sphere is discretized and mesh is coarse; accuracy is within ~1%
@@ -322,7 +322,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                     -i ${shaping_data_dir}/spheres.yaml
                     --method sampling
                     --background-material void
-                    inline_mesh --min -6 -6 -6 --max 6 6 6 --res 16 16 16 -d 3
+                    inline_mesh --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
             NUM_MPI_TASKS ${_nranks})
         # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
         # expected analytic volume when fully resolved: ~1237.9
@@ -336,7 +336,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                     -i ${shaping_data_dir}/plane.yaml
                     --method sampling
                     --background-material air
-                    inline_mesh --min -430 -45 -35 --max 430 855 210 --res 16 16 16 -d 3
+                    inline_mesh --min -430 -45 -35 --max 430 855 210 --resolution 16 16 16 -d 3
             NUM_MPI_TASKS ${_nranks})
         # background: 860*900*245=189,630,000; airplane volume from meshlab: 7,420,578.5
         # expected volume when fully resolved: 182,209,421.5
@@ -556,6 +556,16 @@ if(AXOM_ENABLE_SIDRE)
                 COMMAND quest_scattered_interpolation_ex -d ${d} -n 10000 -q 20000
                 )
         endforeach()
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_2d_test
+            COMMAND quest_scattered_interpolation_ex -d 2 --grid-res 20 20 -q 200
+            )
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_3d_test
+            COMMAND quest_scattered_interpolation_ex -d 3 --grid-res 3 3 3 -q 200
+            )
     endif()
 endif()
 
@@ -719,6 +729,7 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
                         --output-prefix wn3d_${_model}_res${_res_i}
                         --no-vis
                         --stats
+                        --policy seq
                         query_mesh --res ${_res_i} ${_res_j} ${_res_k} --order 1)
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION "${_pass_regex}")
@@ -788,4 +799,3 @@ if(OPENCASCADE_FOUND)
 
     endif()
 endif()
-

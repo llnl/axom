@@ -7,7 +7,15 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 ##-----------------------------------------------------------------------------
-## Convenience script that runs python interpreter with Axom extension(s) in
-## the PYTHONPATH.
+## Convenience script that runs the python interpreter with Axom's extension(s) 
+## and their runtime dependencies in the PYTHONPATH:
+##   - Axom's extension modules (e.g. pysidre)
+##   - conduit's python module (conduit::Node interop)
+##   - numpy (ndarray returns)
+##   - mpi4py (only populated in MPI-enabled configurations)
+##
+## Build-time (nanobind) and testing dependencies (pytest/pluggy/iniconfig) 
+## are intentionally NOT added here. They are expected to be added to the PYTHONPATH
+## via the test's ENVIRONMENT property
 ##-----------------------------------------------------------------------------
-env PYTHONPATH=@_PYEXT_DIR@:@CONDUIT_PYTHON_MODULE_DIR@:@PY_NANOBIND_DIR@:@PY_NUMPY_DIR@:@PY_PYTEST_DIR@:@PY_PLUGGY_DIR@:@PY_INICONFIG_DIR@:$PYTHONPATH @Python_EXECUTABLE@ "$@"
+env PYTHONPATH=@_PYEXT_DIR@:@CONDUIT_PYTHON_MODULE_DIR@:@PY_NUMPY_DIR@:@PY_MPI4PY_DIR@:$PYTHONPATH @Python_EXECUTABLE@ "$@"

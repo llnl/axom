@@ -604,9 +604,32 @@ macro(axom_configure_file _source _target)
 endmacro(axom_configure_file)
 
 ##------------------------------------------------------------------------------
-## axom_add_python_test(NAME       [name]
-##                      SOURCE     [source]
-##                      OUTPUT_DIR [dir])
+## axom_python_test_environment(<output_var>)
+##
+## Composes the ENVIRONMENT entry ("PYTHONPATH=<dir>:<dir>:...") that provides
+## the pytest paths (pytest and its dependencies) from their respective CMake cache variables.
+##
+## Note: runtime dependencies (e.g. axom, conduit, numpy) are expected to be preprended
+## via the run_python_with_axom.sh script.
+##------------------------------------------------------------------------------
+function(axom_python_test_environment output_var)
+    set(_paths "")
+    foreach(_var PY_PYTEST_DIR PY_PLUGGY_DIR PY_INICONFIG_DIR)
+        blt_list_append(TO _paths ELEMENTS "${${_var}}" IF ${_var})
+    endforeach()
+    if(_paths)
+        list(JOIN _paths ":" _joined)
+        set(${output_var} "PYTHONPATH=${_joined}" PARENT_SCOPE)
+    else()
+        set(${output_var} "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+##------------------------------------------------------------------------------
+## axom_add_python_test(NAME          [name]
+##                      SOURCE        [source]
+##                      OUTPUT_DIR    [dir]
+##                      NUM_MPI_TASKS [n])
 ##
 ## Wrapper around add_test() that handles functionality
 ## that Axom applies to all python tests.
@@ -614,7 +637,7 @@ endmacro(axom_configure_file)
 macro(axom_add_python_test)
 
     set(options)
-    set(singleValueArgs NAME SOURCE OUTPUT_DIR)
+    set(singleValueArgs NAME SOURCE OUTPUT_DIR NUM_MPI_TASKS)
     set(multiValueArgs)
 
     # Parse the arguments to the macro
@@ -626,12 +649,27 @@ macro(axom_add_python_test)
                          "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
 
     # Run unit test with pytest ("python3 -m pytest").
-    # Use convenience script that has
-    # pytest, pysidre, and conduit added to PYTHONPATH.
+    # The run_python_with_axom.sh wrapper provides the runtime environment
+    # and the testing dependencies are injected via the test's ENVIRONMENT property when provided.
     # "-p no:cacheprovider" disables caching.
-    add_test (NAME    ${arg_NAME}
-      COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE}
-    )
+    set(_test_command ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                      -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE})
+    blt_add_test(NAME          ${arg_NAME}
+                 COMMAND       ${_test_command}
+                 NUM_MPI_TASKS ${arg_NUM_MPI_TASKS})
+
+    set_property(TEST ${arg_NAME}
+                 APPEND
+                 PROPERTY ENVIRONMENT  "OMPI_MCA_rmaps_base_oversubscribe=1")
+
+    axom_python_test_environment(_py_test_env)
+    if(_py_test_env)
+        set_property(TEST ${arg_NAME}
+                     APPEND
+                     PROPERTY ENVIRONMENT "${_py_test_env}")
+    endif()
+    unset(_py_test_env)
+    unset(_test_command)
 
 endmacro(axom_add_python_test)
 

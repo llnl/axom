@@ -33,6 +33,8 @@ namespace experimental
 class SORClipper : public MeshClipperStrategy
 {
 public:
+  using MeshClipperStrategy::specializedClipCells;
+
   /*!
    * @brief Constructor.
    *

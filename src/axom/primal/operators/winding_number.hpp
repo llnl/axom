@@ -347,6 +347,23 @@ double winding_number(const Point<T, 2>& query,
   return gwn;
 }
 
+/// \brief Overload for views
+template <typename T>
+double winding_number(const Point<T, 2>& query,
+                      const axom::ArrayView<const detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  double gwn = 0;
+  bool dummy_isOnCurve = false;
+  for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+  {
+    gwn += winding_number(query, nurbs_curve_arr[i], dummy_isOnCurve, edge_tol, EPS);
+  }
+
+  return gwn;
+}
+
 //! \brief Overload without optional return parameter
 template <typename T>
 double winding_number(const Point<T, 2>& query,
@@ -549,12 +566,26 @@ double winding_number(const Point<T, 3>& q,
     return 0;
   }
 
-  const double num = Vec3::scalar_triple_product(a, b, c);
-  if(axom::utilities::isNearlyEqual(num, 0.0, EPS))
+  // Explicitly compute distance from the triangle plane to the point.
+  // Use the triangle's (query-independent) normal here instead of (b x c),
+  // which can be zero when the query lies on the line through tri[1] and tri[2].
+  const auto tri_normal = Vec3::cross_product(tri[1] - tri[0], tri[2] - tri[0]);
+  const double tri_normal_norm = tri_normal.norm();
+  if(axom::utilities::isNearlyEqual(tri_normal_norm, 0.0, PRIMAL_TINY))
+  {
+    return 0;
+  }
+
+  if(axom::utilities::isNearlyEqual(Vec3::dot_product(q - tri[0], tri_normal) / tri_normal_norm,
+                                    0.0,
+                                    edge_tol))
   {
     isOnFace = true;
     return 0;
   }
+
+  const auto bxc = Vec3::cross_product(b, c);
+  const double num = Vec3::dot_product(a, bxc);
 
   const double denom =
     a_norm * b_norm * c_norm + a_norm * b.dot(c) + b_norm * a.dot(c) + c_norm * a.dot(b);
@@ -742,28 +773,40 @@ double winding_number(const Point<T, 3>& query,
                       const double disk_size = 0.01,
                       const double EPS = 1e-8)
 {
-  // Select the cast direction as an average normal of the untrimmed surface
-  auto cast_direction = nurbs.getAverageNormal();
-  if(cast_direction.norm() < 1e-10)
-  {
-    // ...unless the average direction is zero
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
-    cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-  }
-  else
-  {
-    cast_direction = cast_direction.unitVector();
-  }
-
   return detail::nurbs_winding_number(query,
                                       nurbs,
-                                      cast_direction,
+                                      nurbs.getCastDirection(),
                                       edge_tol,
                                       ls_tol,
                                       quad_tol,
                                       disk_size,
                                       EPS);
+}
+
+/// \brief Overload for a single query and an ArrayView
+template <typename T>
+double winding_number(const Point<T, 3>& query,
+                      const axom::ArrayView<const detail::NURBSPatchGWNCache<T>>& nurbs_arr,
+                      const double edge_tol = 1e-8,
+                      const double ls_tol = 1e-8,
+                      const double quad_tol = 1e-8,
+                      const double disk_size = 0.01,
+                      const double EPS = 1e-8)
+{
+  double ret_val = 0.0;
+  for(int i = 0; i < nurbs_arr.size(); ++i)
+  {
+    ret_val += detail::nurbs_winding_number(query,
+                                            nurbs_arr[i],
+                                            nurbs_arr[i].getCastDirection(),
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol,
+                                            disk_size,
+                                            EPS);
+  }
+
+  return ret_val;
 }
 
 /*!
@@ -830,26 +873,6 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
                                    const double disk_size = 0.01,
                                    const double EPS = 1e-8)
 {
-  // Pull precomputed cast directions for each patch
-  axom::Array<Vector<T, 3>> cast_direction_arr(0, nurbs_arr.size());
-  for(int i = 0; i < nurbs_arr.size(); ++i)
-  {
-    // Select the cast direction as an average normal of the untrimmed surface
-    cast_direction_arr.emplace_back(nurbs_arr[i].getAverageNormal());
-    if(cast_direction_arr[i].norm() < 1e-10)
-    {
-      // ...unless the average direction is zero
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      cast_direction_arr[i] =
-        Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-    }
-    else
-    {
-      cast_direction_arr[i] = cast_direction_arr[i].unitVector();
-    }
-  }
-
   axom::Array<double> ret_val(query_arr.size());
   for(int n = 0; n < query_arr.size(); ++n)
   {
@@ -859,7 +882,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
     {
       ret_val[n] += detail::nurbs_winding_number(query_arr[n],
                                                  nurbs_arr[i],
-                                                 cast_direction_arr[i],
+                                                 nurbs_arr[i].getCastDirection(),
                                                  edge_tol,
                                                  ls_tol,
                                                  quad_tol,

@@ -40,6 +40,8 @@ using BoundingBox3D = primal::BoundingBox<double, 3>;
 using NURBSPatch3D = quest::STEPReader::NURBSPatch;
 using Triangle3D = primal::Triangle<double, 3>;
 
+using RuntimePolicy = axom::runtime_policy::Policy;
+
 //------------------------------------------------------------------------------
 // CLI input
 //------------------------------------------------------------------------------
@@ -57,7 +59,9 @@ public:
   bool validate {false};
   bool stats {false};
 
-  const std::array<std::string, 2> valid_algorithms {"direct", "fast-approximation"};
+  axom::runtime_policy::Policy policy = RuntimePolicy::seq;
+
+  const std::array<std::string, 2> valid_algorithms {"direct", "fast_approximate"};
   std::string algorithm {valid_algorithms[1]};  // fast-approximation
 
   bool triangulate {false};
@@ -117,19 +121,6 @@ public:
         "Is linear deflection in relative to local edge lengths (true) or mesh units (false)")
       ->capture_default_str();
 
-    triangulate_step_subcommand->add_option("--algorithm", algorithm)
-      ->description(
-        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
-        "slower, slightly more precise)")
-      ->capture_default_str()
-      ->check(axom::CLI::IsMember(valid_algorithms));
-    triangulate_step_subcommand
-      ->add_option("--expansion-order",
-                   approximation_order,
-                   "The order of the Taylor expansion (lower is faster, less precise)")
-      ->expected(0, 2)
-      ->capture_default_str();
-
     // Options for query tolerances; for now, only expose the line search and quadrature tolerances
     app.add_option("--ls-tol", tol.ls_tol)
       ->description("Tolerance for line-surface intersection")
@@ -152,6 +143,19 @@ public:
       ->check(axom::CLI::PositiveNumber)
       ->capture_default_str();
 
+    app.add_option("--algorithm", algorithm)
+      ->description(
+        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
+        "slower, slightly more precise)")
+      ->capture_default_str()
+      ->check(axom::CLI::IsMember(valid_algorithms));
+    app
+      .add_option("--expansion-order",
+                  approximation_order,
+                  "The order of the Taylor expansion (lower is faster, less precise)")
+      ->expected(0, 2)
+      ->capture_default_str();
+
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
       ->description(
@@ -160,6 +164,16 @@ public:
       ->capture_default_str()
       ->check(axom::utilities::ValidCaliperMode);
 #endif
+    std::stringstream pol_sstr;
+    pol_sstr << "Set runtime policy method.";
+    pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
+#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+    pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
+#endif
+
+    app.add_option("-p, --policy", policy, pol_sstr.str())
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
     auto* query_mesh_subcommand =
       app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
@@ -231,30 +245,63 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::DirectGWN3D,
-                                  axom::quest::TriangleGWN3D<0>,
-                                  axom::quest::TriangleGWN3D<1>,
-                                  axom::quest::TriangleGWN3D<2>>;
+using GWNQueryType = std::variant<axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC, 0>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC, 1>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC, 2>,
+                                  axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 0>,
+                                  axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 1>,
+                                  axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 2>
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+                                  ,
+                                  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC, 0>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC, 1>,
+                                  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC, 2>,
+                                  axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 0>,
+                                  axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 1>,
+                                  axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 2>
+#endif
+                                  >;
 
-GWNQueryType make_gwn_query(Input input)
+template <typename ExecSpace>
+GWNQueryType pick_gwn_method(bool triangulate, int approximation_order)
 {
-  if(input.triangulate)
+  if(approximation_order == 0)
   {
-    if(input.approximation_order == 0)
-    {
-      return axom::quest::TriangleGWN3D<0> {};
-    }
-    else if(input.approximation_order == 1)
-    {
-      return axom::quest::TriangleGWN3D<1> {};
-    }
+    if(triangulate)
+      return axom::quest::TriangleGWNQuery<ExecSpace, 0> {};
     else
-    {
-      return axom::quest::TriangleGWN3D<2> {};
-    }
+      return axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> {};
   }
+  else if(approximation_order == 1)
+  {
+    if(triangulate)
+      return axom::quest::TriangleGWNQuery<ExecSpace, 1> {};
+    else
+      return axom::quest::NURBSPatchGWNQuery<ExecSpace, 1> {};
+  }
+  else  // approximation_order == 2
+  {
+    if(triangulate)
+      return axom::quest::TriangleGWNQuery<ExecSpace, 2> {};
+    else
+      return axom::quest::NURBSPatchGWNQuery<ExecSpace, 2> {};
+  }
+}
 
-  return axom::quest::DirectGWN3D {};
+GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
+                            bool triangulate,
+                            int approximation_order)
+{
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  if(policy == RuntimePolicy::omp)
+  {
+    SLIC_INFO(axom::fmt::format("Using policy omp with {} threads", omp_get_max_threads()));
+    return pick_gwn_method<axom::OMP_EXEC>(triangulate, approximation_order);
+  }
+#endif
+
+  SLIC_INFO("Using policy seq");
+  return pick_gwn_method<axom::SEQ_EXEC>(triangulate, approximation_order);
 }
 
 int main(int argc, char** argv)
@@ -293,7 +340,6 @@ int main(int argc, char** argv)
     axom::quest::STLReader stl_reader;
     stl_reader.setFileName(input.inputFile);
 
-    axom::utilities::Timer read_timer(true);
     const int ret = stl_reader.read();
 
     if(ret != 0)
@@ -303,7 +349,6 @@ int main(int argc, char** argv)
     }
 
     stl_reader.getMesh(&tri_mesh);
-    read_timer.stop();
 
     BoundingBox3D* shape_bbox_ptr = &shape_bbox;
     axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
@@ -312,10 +357,8 @@ int main(int argc, char** argv)
         shape_bbox_ptr->addPoint(Point3D {x, y, z});
       });
 
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Loaded {} triangles in {:.3Lf} seconds",
-                                stl_reader.getNumFaces(),
-                                read_timer.elapsed()));
+    SLIC_INFO(
+      axom::fmt::format(axom::utilities::locale(), "Loaded {} triangles", stl_reader.getNumFaces()));
   }
   else if(axom::utilities::string::endsWith(input.inputFile, ".step"))
   {
@@ -325,14 +368,12 @@ int main(int argc, char** argv)
     step_reader.setFileName(input.inputFile);
     step_reader.setVerbosity(input.verbose);
 
-    axom::utilities::Timer read_timer(true);
     const int ret = step_reader.read(input.validate);
     if(ret != 0)
     {
       SLIC_ERROR(axom::fmt::format("Failed to read STEP file '{}'", input.inputFile));
       return 1;
     }
-    read_timer.stop();
 
     shape_bbox = step_reader.getBRepBoundingBox();
 
@@ -344,17 +385,13 @@ int main(int argc, char** argv)
 
     SLIC_INFO(step_reader.getBRepStats());
     SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Loaded {} trimmed NURBS patches (with {} trimming curves) in {:.3Lf} seconds",
-      patches.size(),
-      num_trimming_curves,
-      read_timer.elapsed()));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Loaded {} trimmed NURBS patches (with {} trimming curves)",
+                                step_reader.numPatches(),
+                                num_trimming_curves));
 
     if(input.triangulate)
     {
-      read_timer.reset();
-      read_timer.start();
       AXOM_ANNOTATE_SCOPE("triangulation");
       const int tc = step_reader.getTriangleMesh(&tri_mesh,
                                                  input.linear_deflection,
@@ -366,16 +403,14 @@ int main(int argc, char** argv)
         SLIC_ERROR("Failed to triangulate STEP geometry.");
         return 1;
       }
-      read_timer.stop();
 
       SLIC_INFO(
         axom::fmt::format(axom::utilities::locale(),
                           "Triangulated geometry with deflection {} and angular deflection {}"
-                          " containing {:L} triangles in {:.3Lf} seconds",
+                          " containing {:L} triangles",
                           input.linear_deflection,
                           input.angular_deflection,
-                          tri_mesh.getNumberOfCells(),
-                          read_timer.elapsed()));
+                          tri_mesh.getNumberOfCells()));
     }
     else
     {
@@ -398,7 +433,7 @@ int main(int argc, char** argv)
   mfem::DataCollection dc("winding_query");
   {
     // Create the desired winding number query instance
-    auto wn_query = make_gwn_query(input);
+    auto wn_query = make_gwn_query(input.policy, input.triangulate, input.approximation_order);
 
     // Generate the query grid and fields
     quest::generate_gwn_query_mesh(dc,
@@ -414,7 +449,7 @@ int main(int argc, char** argv)
         using T = std::decay_t<decltype(wn)>;
         if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Surface)
         {
-          wn.preprocess(patches, input.memoized);
+          wn.preprocess(patches, input.algorithm == "direct", input.memoized);
         }
         else if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Triangulation)
         {

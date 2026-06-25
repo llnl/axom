@@ -9,6 +9,7 @@
 
 set(quest_tests
     quest_all_nearest_neighbors.cpp
+    quest_delaunay.cpp
     quest_inout_octree.cpp
     quest_inout_quadtree.cpp
     quest_linearize_curves.cpp
@@ -297,7 +298,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
                         --scale .99 .99 .99
                         --dir 8 4 2
                         --meshType ${_meshType}
-                        inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
+                        inline_mesh --min -2 -2 -2 --max 2 2 2 --resolution 16 16 16
             NUM_MPI_TASKS ${_nranks}
             NUM_OMP_THREADS ${_num_threads})
         endforeach()

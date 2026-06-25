@@ -15,6 +15,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <mutex>
 
 namespace axom
 {
@@ -158,7 +159,7 @@ void compute_gauss_legendre_data(int npts,
  * \note If this method has already been called for a given order, it will reuse the same quadrature points
  *  without needing to recompute them
  *
- * \warning The use of a static variable to store cached nodes makes this method not threadsafe.
+ * \note This implementation uses a process-wide cache protected by a mutex for thread safety.
  * 
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
@@ -166,8 +167,10 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
 {
   assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
-  // Store cached rules keyed by (npts, allocatorID). This cache is not thread-safe.
+  // Store cached rules keyed by (npts, allocatorID).
   static axom::FlatMap<std::uint64_t, GaussLegendreRuleStorage> rule_library(64);
+  static std::mutex rule_library_mutex;
+  const std::lock_guard<std::mutex> lock(rule_library_mutex);
 
   const std::uint64_t key = make_gauss_legendre_key(npts, allocatorID);
 

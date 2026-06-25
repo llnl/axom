@@ -73,7 +73,7 @@ private:
 
 MeshClipperStrategy::MeshClipperStrategy(const klee::Geometry& kGeom)
   : m_info(kGeom.asHierarchy())
-  , m_extTrans(computeTransformationMatrix(kGeom.getGeometryOperator()))
+  , m_extTrans(kGeom.getTransform())
 { }
 
 const std::string& MeshClipperStrategy::name() const
@@ -92,49 +92,6 @@ const axom::primal::BoundingBox<double, 3>& MeshClipperStrategy::getBoundingBox3
 {
   static const axom::primal::BoundingBox<double, 3> invalidBb3d;
   return invalidBb3d;
-}
-
-numerics::Matrix<double> MeshClipperStrategy::computeTransformationMatrix(
-  const std::shared_ptr<const axom::klee::GeometryOperator>& op) const
-{
-  const auto identity4x4 = numerics::Matrix<double>::identity(4);
-  numerics::Matrix<double> transformation(identity4x4);
-  if(op)
-  {
-    auto composite = std::dynamic_pointer_cast<const klee::CompositeOperator>(op);
-    if(composite)
-    {
-      // Concatenate the transformations
-
-      // Why don't we multiply the matrices in CompositeOperator::addOperator()?
-      // Why keep the matrices factored and multiply them here repeatedly?
-      // Combining them would also avoid this if-else logic.  BTNG
-      for(auto op : composite->getOperators())
-      {
-        // Use visitor pattern to extract the affine matrix from supported operators
-        internal::AffineMatrixVisitor visitor;
-        op->accept(visitor);
-        if(!visitor.isValid())
-        {
-          continue;
-        }
-        const auto& matrix = visitor.getMatrix();
-        numerics::Matrix<double> res(identity4x4);
-        numerics::matrix_multiply(matrix, transformation, res);
-        transformation = res;
-      }
-    }
-    else
-    {
-      internal::AffineMatrixVisitor visitor;
-      op->accept(visitor);
-      if(visitor.isValid())
-      {
-        transformation = visitor.getMatrix();
-      }
-    }
-  }
-  return transformation;
 }
 
 }  // namespace experimental

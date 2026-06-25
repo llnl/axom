@@ -14,6 +14,7 @@
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/NURBSCurve.hpp"
+#include "axom/primal/operators/intersect.hpp"
 #include <math.h>
 
 namespace primal = axom::primal;
@@ -1160,7 +1161,7 @@ TEST(primal_nurbscurve, circular_arc_constructor)
 //------------------------------------------------------------------------------
 TEST(primal_nurbscurve, linear_segment_constructor)
 {
-  // Define a nurbs curve that represents a circle
+  // Define a nurbs curve that represents a line segment
   const int DIM = 2;
   using CoordType = double;
   using PointType = primal::Point<CoordType, DIM>;
@@ -1196,6 +1197,166 @@ TEST(primal_nurbscurve, linear_segment_constructor)
     for(int i = 0; i < DIM; ++i)
     {
       EXPECT_NEAR(p[i], start[i], 1e-13);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_intersections)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+  using Point2D = primal::Point<CoordType, DIM>;
+
+  constexpr int max_degree = 3;
+
+  // Define two nurbs curves in 2D intersecting at one point.
+  const Point2D data1_2d[max_degree + 1] = {Point2D {0.6, 1.2},
+                                            Point2D {1.3, 1.6},
+                                            Point2D {2.9, 2.4},
+                                            Point2D {3.2, 3.5}};
+
+  const Point2D data2_2d[max_degree + 1] = {Point2D {0.5, 3.4},
+                                            Point2D {1.2, 2.3},
+                                            Point2D {2.8, 1.5},
+                                            Point2D {3.1, 1.1}};
+
+  constexpr double weights[4] = {1.0, 2.0, 3.0, 4.0};
+
+  constexpr int degree = 3;
+  constexpr int npts = 4;
+
+  NURBSCurveType curve1(data1_2d, weights, npts, degree);
+  NURBSCurveType curve2(data2_2d, weights, npts, degree);
+
+  Point2D intersection1, intersection2;
+
+  axom::Array<CoordType> p1, p2, q1, q2;
+  const bool found = intersect(curve1, curve2, p1, p2);
+  const int num_intersections = p1.size();
+  EXPECT_TRUE(found && num_intersections == 1 && num_intersections == p2.size());
+
+  for(int j = 0; j < num_intersections; ++j)
+  {
+    intersection1 = curve1.evaluate(p1[j]);
+    intersection2 = curve2.evaluate(p2[j]);
+
+    for(int i = 0; i < DIM; ++i) EXPECT_NEAR(intersection1[i], intersection2[i], 1e-8);
+  }
+
+  // Test two curves that do not intersect.
+  const Point2D data3_2d[max_degree + 1] = {Point2D {0.5, -3.4},
+                                            Point2D {1.2, -2.3},
+                                            Point2D {2.8, -1.5},
+                                            Point2D {3.1, -1.1}};
+
+  NURBSCurveType curve3(data3_2d, weights, npts, degree);
+  const bool not_found = !intersect(curve2, curve3, q1, q2);
+  EXPECT_TRUE(not_found && q1.size() == 0 && q2.size() == 0);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_circle_intersections)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  // Test two circles that intersect at two points.
+  const auto circle1 = NURBSCurveType::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 0.0, 0.0, 1.0);
+  const auto circle2 = NURBSCurveType::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 1.0, 0.0, 1.0);
+
+  axom::Array<CoordType> p1, p2;
+  const bool found = intersect(circle1, circle2, p1, p2);
+  EXPECT_TRUE(found && p1.size() == 2 && p2.size() == 2);
+}
+
+primal::NURBSCurve<double, 2> make_cubic_shape()
+{
+  // Open cubic NURBS curve (degree 3), non-rational.
+  // 24 control points, 28 knots (n + p + 2: 24 + 3 + 1 = 28).
+  using Point2D = primal::Point<double, 2>;
+
+  axom::Array<double> weights(24);
+  for(int i = 0; i < 24; ++i) weights[i] = 1.0;
+
+  return primal::NURBSCurve<double, 2>(
+    axom::Array<Point2D> {
+      Point2D {-5.0, +3.6}, Point2D {-3.4, +3.0}, Point2D {-1.8, +2.2}, Point2D {-0.4, +1.0},
+      Point2D {+1.0, -0.4}, Point2D {+2.4, -1.6}, Point2D {+3.6, -2.4}, Point2D {+4.4, -1.0},
+      Point2D {+3.6, +0.8}, Point2D {+2.0, +2.0}, Point2D {+0.0, +2.8}, Point2D {-2.0, +2.0},
+      Point2D {-3.2, +0.8}, Point2D {-2.6, -0.8}, Point2D {-1.0, -1.6}, Point2D {+0.4, -2.2},
+      Point2D {+1.6, -2.6}, Point2D {+0.0, -3.4}, Point2D {-2.2, -3.0}, Point2D {-2.8, -1.4},
+      Point2D {-1.0, +0.4}, Point2D {+1.8, +1.8}, Point2D {+3.4, +3.0}, Point2D {+5.0, +3.6}},
+    weights,
+    axom::Array<double> {0.0,          0.0,          0.0,          0.0,          0.0476190476,
+                         0.0952380952, 0.1428571429, 0.1904761905, 0.2380952381, 0.2857142857,
+                         0.3333333333, 0.3809523810, 0.4285714286, 0.4761904762, 0.5238095238,
+                         0.5714285714, 0.6190476190, 0.6666666667, 0.7142857143, 0.7619047619,
+                         0.8095238095, 0.8571428571, 0.9047619048, 0.9523809524, 1.0,
+                         1.0,          1.0,          1.0});
+}
+
+primal::NURBSCurve<double, 2> make_ellipse_curve()
+{
+  // Quadratic rational NURBS ellipse (degree 2), 9-control-point 4-arc construction.
+  // Center, semi-axes:
+  //   center      = (+0.055509, +0.246636)
+  //   semi-axes   = (2.506091, 2.506234)   (a == b -> circle in this case)
+  //   rotation    = +0.0000 degrees
+  // Corner control-point weights are w = cos(pi/4) = sqrt(2)/2.
+  using Point2D = primal::Point<double, 2>;
+  const double w = 1.0 / std::sqrt(2.0);
+
+  return primal::NURBSCurve<double, 2>(
+    axom::Array<Point2D> {Point2D {+2.5615994286, +0.2466357797},
+                          Point2D {+2.5615994286, +2.7528699841},
+                          Point2D {+0.0555086484, +2.7528699841},
+                          Point2D {-2.4505821318, +2.7528699841},
+                          Point2D {-2.4505821318, +0.2466357797},
+                          Point2D {-2.4505821318, -2.2595984246},
+                          Point2D {+0.0555086484, -2.2595984246},
+                          Point2D {+2.5615994286, -2.2595984246},
+                          Point2D {+2.5615994286, +0.2466357797}},
+    axom::Array<double> {1.0, w, 1.0, w, 1.0, w, 1.0, w, 1.0},
+    axom::Array<double> {0.0, 0.0, 0.0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 1.0});
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_self_intersections)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using Point2D = primal::Point<double, 2>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  NURBSCurveType curve1 = make_cubic_shape();
+  NURBSCurveType curve2 = make_ellipse_curve();
+
+  // Note: This pair of NURBS curves has eight intersections at five unique intersection points
+  axom::Array<CoordType> p1, p2;
+  const bool found = intersect(curve1, curve2, p1, p2);
+  EXPECT_TRUE(found && p1.size() == 8 && p2.size() == 8);
+
+  axom::Array<Point2D> intersections {Point2D {-1.7060766733448747, 2.0292202966044366},
+                                      Point2D {2.044376271360025, -1.2782097206437852},
+                                      Point2D {1.884074237582652, 1.9604430112255964},
+                                      Point2D {-2.1644784828526533, -0.9161966686461217},
+                                      Point2D {0.5039968961448462, -2.2191102081421588}};
+
+  primal::Point<double, 2> int1, int2;
+  std::array<int, 8> intid = {0, 1, 2, 0, 3, 4, 3, 2};
+
+  for(int i = 0; i < p1.size(); ++i)
+  {
+    int1 = curve1.evaluate(p1[i]);
+    int2 = curve2.evaluate(p2[i]);
+
+    for(int j = 0; j < DIM; ++j)
+    {
+      EXPECT_NEAR(int1[j], int2[j], 1e-8);
+      EXPECT_NEAR(int1[j], intersections[intid[i]][j], 1e-4);
     }
   }
 }
