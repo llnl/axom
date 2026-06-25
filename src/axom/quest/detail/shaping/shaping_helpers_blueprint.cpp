@@ -68,10 +68,6 @@ numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureTy
                                                     int allocatorID)
 {
   SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
-  SLIC_ERROR_IF(
-    !axom::numerics::is_supported_quadrature_type(quadratureType),
-    axom::fmt::format("Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
-                      static_cast<int>(quadratureType)));
 
   return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
 }

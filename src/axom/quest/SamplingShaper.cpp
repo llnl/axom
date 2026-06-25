@@ -24,34 +24,14 @@ namespace quest
 
 void SamplingShaper::setQuadratureType(axom::numerics::QuadratureType qtype)
 {
-#if defined(AXOM_USE_CONDUIT)
-  if(m_bp_state != nullptr)
+  if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
   {
-    // For Blueprint, we rely on Axom quadrature types and not all are implemented yet.
-    if(axom::numerics::is_supported_quadrature_type(qtype))
-    {
-      m_quadratureType = qtype;
-    }
-    else
-    {
-      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
-    }
+    m_quadratureType = qtype;
   }
-#endif
-#if defined(AXOM_USE_MFEM)
-  if(m_mfem_state != nullptr)
+  else
   {
-    // Check that the value is valid.
-    if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
-    {
-      m_quadratureType = qtype;
-    }
-    else
-    {
-      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
-    }
+    SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
   }
-#endif
 }
 
 void SamplingShaper::setSamplingResolution(int sampleRes)
