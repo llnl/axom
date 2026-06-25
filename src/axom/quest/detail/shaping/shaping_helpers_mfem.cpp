@@ -59,11 +59,10 @@ std::string formatSamplesPerDimension(axom::ArrayView<int> sampleResolution, int
   case 2:
     return axom::fmt::format(" ({} * {})", sampleResolution[0], sampleResolution[1]);
   case 3:
-    return axom::fmt::format(
-      " ({} * {} * {})",
-      sampleResolution[0],
-      sampleResolution[1],
-      sampleResolution[2]);
+    return axom::fmt::format(" ({} * {} * {})",
+                             sampleResolution[0],
+                             sampleResolution[1],
+                             sampleResolution[2]);
   default:
     return std::string();
   }
@@ -84,17 +83,15 @@ void logVolumeFractionInputs(int sampleNQ,
                                    sampleOrder,
                                    sampleSZ));
 
-  SLIC_INFO_ROOT(axom::fmt::format(
-    axom::utilities::locale(),
-    "Mesh has dim {} and {:L} elements",
-    dim,
-    numElements));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "Mesh has dim {} and {:L} elements",
+                                   dim,
+                                   numElements));
 }
 
-VolumeFractionMassConfig makeVolumeFractionMassConfig(
-  const mfem::FiniteElementSpace& fes,
-  axom::ArrayView<int> sampleResolution,
-  axom::numerics::QuadratureType quadratureType)
+VolumeFractionMassConfig makeVolumeFractionMassConfig(const mfem::FiniteElementSpace& fes,
+                                                      axom::ArrayView<int> sampleResolution,
+                                                      axom::numerics::QuadratureType quadratureType)
 {
   constexpr std::int64_t MAX_CACHED_MASS_BYTES = 1LL << 30;
 
@@ -107,15 +104,13 @@ VolumeFractionMassConfig makeVolumeFractionMassConfig(
 
   const std::int64_t totalTensorEntries = config.elemTensorEntries * config.numElements;
   config.cachedMassBytes = totalTensorEntries * 3 * sizeof(double);
-  config.useChunkedMassProcessing =
-    totalTensorEntries > std::numeric_limits<int>::max() ||
+  config.useChunkedMassProcessing = totalTensorEntries > std::numeric_limits<int>::max() ||
     config.cachedMassBytes > MAX_CACHED_MASS_BYTES;
 
   return config;
 }
 
-void logChunkedMassProcessing(const std::string& vfName,
-                              const VolumeFractionMassConfig& config)
+void logChunkedMassProcessing(const std::string& vfName, const VolumeFractionMassConfig& config)
 {
   if(!config.useChunkedMassProcessing)
   {
@@ -129,8 +124,7 @@ void logChunkedMassProcessing(const std::string& vfName,
                       vfName,
                       config.dofs,
                       config.numElements,
-                      static_cast<double>(config.cachedMassBytes) /
-                        (1024.0 * 1024.0 * 1024.0)));
+                      static_cast<double>(config.cachedMassBytes) / (1024.0 * 1024.0 * 1024.0)));
 }
 
 void assembleVolumeFractionRHSVector(const mfem::FiniteElementSpace& fes,
@@ -177,10 +171,9 @@ mfem::DenseTensor* getOrAssembleMassMatrix(MFEMState& mfemState,
     massMat->HostWrite();
     for(int elem = 0; elem < config.numElements; ++elem)
     {
-      mass_integrator.AssembleElementMatrix(
-        *fes.GetFE(elem),
-        *fes.GetElementTransformation(elem),
-        elemMat);
+      mass_integrator.AssembleElementMatrix(*fes.GetFE(elem),
+                                            *fes.GetElementTransformation(elem),
+                                            elemMat);
       for(int j = 0; j < config.dofs; ++j)
       {
         for(int i = 0; i < config.dofs; ++i)
@@ -266,14 +259,7 @@ void applyFCTProjection(mfem::DenseTensor& massMat,
 
   AXOM_ANNOTATE_BEGIN("fct project");
   axom::for_all<axom::SEQ_EXEC>(0, numElements, [=](int elem) {
-    FCT_correct(
-      &m_d(0, 0, elem),
-      dofs,
-      &b_d(0, elem),
-      minY,
-      maxY,
-      &vf_d(0, elem),
-      &fct_mat_d(0, 0, elem));
+    FCT_correct(&m_d(0, 0, elem), dofs, &b_d(0, elem), minY, maxY, &vf_d(0, elem), &fct_mat_d(0, 0, elem));
   });
   AXOM_ANNOTATE_END("fct project");
 }
@@ -309,8 +295,7 @@ void solveVolumeFractionsCached(MFEMState& mfemState,
 int computeChunkSize(const VolumeFractionMassConfig& config)
 {
   constexpr std::int64_t TARGET_CHUNK_BYTES = 256LL * 1024 * 1024;
-  const std::int64_t bytesPerElement =
-    (3 * config.elemTensorEntries * sizeof(double)) +
+  const std::int64_t bytesPerElement = (3 * config.elemTensorEntries * sizeof(double)) +
     (static_cast<std::int64_t>(config.dofs) * sizeof(int));
   const std::int64_t elemsPerChunk =
     std::max<std::int64_t>(1, TARGET_CHUNK_BYTES / std::max<std::int64_t>(1, bytesPerElement));
@@ -333,10 +318,9 @@ void assembleChunkMassMatrices(const mfem::FiniteElementSpace& fes,
   for(int elem = 0; elem < chunkNE; ++elem)
   {
     const int globalElem = elemBegin + elem;
-    massIntegrator.AssembleElementMatrix(
-      *fes.GetFE(globalElem),
-      *fes.GetElementTransformation(globalElem),
-      elemMat);
+    massIntegrator.AssembleElementMatrix(*fes.GetFE(globalElem),
+                                         *fes.GetElementTransformation(globalElem),
+                                         elemMat);
     for(int j = 0; j < config.dofs; ++j)
     {
       for(int i = 0; i < config.dofs; ++i)
@@ -414,14 +398,7 @@ void solveVolumeFractionsChunked(const mfem::FiniteElementSpace& fes,
     mfem::Vector rhsChunk(config.dofs * chunkNE);
     mfem::Vector vfChunk(config.dofs * chunkNE);
 
-    assembleChunkMassMatrices(
-      fes,
-      massIntegrator,
-      config,
-      elemBegin,
-      chunkNE,
-      massMat,
-      massMatInv);
+    assembleChunkMassMatrices(fes, massIntegrator, config, elemBegin, chunkNE, massMat, massMatInv);
 
     copyChunkRHS(rhs, config, elemBegin, chunkNE, rhsChunk, vfChunk);
 
@@ -950,12 +927,7 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
   {
     mfem::Vector b(fes->GetVSize());
     SLIC_ASSERT(b.Size() == config.dofs * config.numElements);
-    assembleVolumeFractionRHSVector(
-      *fes,
-      *inout,
-      sampleIR,
-      config.usesAnisotropicQuadrature,
-      b);
+    assembleVolumeFractionRHSVector(*fes, *inout, sampleIR, config.usesAnisotropicQuadrature, b);
 
     if(config.useChunkedMassProcessing)
     {
