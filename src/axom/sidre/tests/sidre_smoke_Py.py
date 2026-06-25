@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import pysidre
+import axom.sidre as pysidre
 from conduit import Node
 
 

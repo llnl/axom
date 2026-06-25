@@ -29,7 +29,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-import pysidre
+import axom.sidre as pysidre
 
 VALID_PROTOCOLS = (
     "json",

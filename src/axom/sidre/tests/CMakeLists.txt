@@ -58,6 +58,7 @@ set(python_sidre_tests
    sidre_external_Py.py
    sidre_attribute_Py.py
    sidre_lifetime_Py.py
+   sidre_pysidre_shim_Py.py
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)

@@ -138,49 +138,91 @@ endif()
 
 
 if(NANOBIND_FOUND)
-    nanobind_add_module(pysidre nanobind_sidre.cpp)
+    # Python bindings for Sidre.
+    # The pure-Python package scaffolding lives once under src/python/src/
+
+    # site-packages-shaped install root for Axom's Python package(s).
+    set(AXOM_PYTHON_MODULE_INSTALL_PREFIX
+        "${CMAKE_INSTALL_PREFIX}/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
+        CACHE PATH
+        "Install destination for Axom's Python package(s), relative to which 'axom/' is created")
+
+    # Root of the staged package tree in the build directory. 
+    # The build-tree interpreter (and run_python_with_axom.sh, via _PYEXT_DIR) 
+    # puts this single directory on PYTHONPATH and then 'import axom.sidre' works.
+    set(_axom_py_build_root "${PROJECT_BINARY_DIR}/python")
+    set(_pysidre_pkg_src    "${CMAKE_CURRENT_SOURCE_DIR}/../../python/src")
+
+    nanobind_add_module(_sidre nanobind_sidre.cpp)
     # conduit::conduit_python provides conduit_python.hpp
     # and is needed only by the binding translation unit, not by libsidre
-    target_link_libraries(pysidre PRIVATE sidre conduit::conduit_python)
+    target_link_libraries(_sidre PRIVATE sidre conduit::conduit_python)
+
+    # Place the built extension directly into the staged package tree so the
+    # build tree is import-ready without an extra copy step.
+    set_target_properties(_sidre PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${_axom_py_build_root}/axom/sidre")
 
     # Use HIP executable linker flags for the python module
     # (CMake treats modules separately from executables,
     # executable flags not automatically applied)
     if(AXOM_ENABLE_HIP)
-        # Make CMake compile the pysidre file with the HIP compiler.
+        # Make CMake compile the binding file with the HIP compiler.
         set_source_files_properties(nanobind_sidre.cpp PROPERTIES LANGUAGE HIP)
 
         string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
-        target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
+        target_link_options(_sidre PRIVATE ${MODULE_LINK_FLAGS})
     endif()
 
-    install(TARGETS pysidre LIBRARY DESTINATION lib)
+    # Stage the pure-Python package scaffolding into the build tree at configure
+    # time (axom/ namespace root + py.typed, axom/sidre/ re-export, pysidre shim).
+    axom_configure_file("${_pysidre_pkg_src}/axom/__init__.py"
+                        "${_axom_py_build_root}/axom/__init__.py" COPYONLY)
+    axom_configure_file("${_pysidre_pkg_src}/axom/py.typed"
+                        "${_axom_py_build_root}/axom/py.typed" COPYONLY)
+    axom_configure_file("${_pysidre_pkg_src}/axom/sidre/__init__.py"
+                        "${_axom_py_build_root}/axom/sidre/__init__.py" COPYONLY)
+    axom_configure_file("${_pysidre_pkg_src}/pysidre/__init__.py"
+                        "${_axom_py_build_root}/pysidre/__init__.py" COPYONLY)
 
-    # Type stubs (PEP 561). nanobind_add_stub imports the module to introspect it,
-    # so its runtime dependencies (conduit for Node interop, numpy for ndarray returns)
-    # must be importable during the build. We seed PYTHON_PATH with the module's 
-    # output directory plus the conduit/numpy install dirs from their cache variables when set;
-    # on an interpreter that already has conduit and numpy on its path these extra entries are harmless.
-    set(_pysidre_stub_pythonpath $<TARGET_FILE_DIR:pysidre>)
+    # Type stubs (PEP 561). nanobind_add_stub imports the module by its bare name
+    # ('import _sidre'), so the directory holding the built extension must be on
+    # PYTHON_PATH, along with the module's runtime deps (conduit for Node interop,
+    # numpy for ndarray returns). On an interpreter that already has conduit/numpy
+    # these extra entries are harmless.
+    set(_sidre_stub_pythonpath "${_axom_py_build_root}/axom/sidre")
     if(CONDUIT_PYTHON_MODULE_DIR)
-        list(APPEND _pysidre_stub_pythonpath ${CONDUIT_PYTHON_MODULE_DIR})
+        list(APPEND _sidre_stub_pythonpath ${CONDUIT_PYTHON_MODULE_DIR})
     endif()
     if(PY_NUMPY_DIR)
-        list(APPEND _pysidre_stub_pythonpath ${PY_NUMPY_DIR})
+        list(APPEND _sidre_stub_pythonpath ${PY_NUMPY_DIR})
     endif()
 
     nanobind_add_stub(
-        pysidre_stub
-        MODULE pysidre
-        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/pysidre.pyi"
-        MARKER_FILE "${CMAKE_CURRENT_BINARY_DIR}/py.typed"
-        PYTHON_PATH ${_pysidre_stub_pythonpath}
-        DEPENDS pysidre)
+        _sidre_stub
+        MODULE _sidre
+        OUTPUT "${_axom_py_build_root}/axom/sidre/_sidre.pyi"
+        PYTHON_PATH ${_sidre_stub_pythonpath}
+        DEPENDS _sidre)
 
-    # Install the stub and py.typed marker next to the extension module so type checkers (mypy, pyright) can find them
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pysidre.pyi"
-                  "${CMAKE_CURRENT_BINARY_DIR}/py.typed"
-            DESTINATION lib)
+    #--------------------------------------------------------------------------
+    # Install the package tree into the site-packages-shaped prefix.
+    #--------------------------------------------------------------------------
+    install(TARGETS _sidre
+            LIBRARY DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom/sidre")
+
+    install(FILES "${_axom_py_build_root}/axom/sidre/_sidre.pyi"
+                  "${_pysidre_pkg_src}/axom/sidre/__init__.py"
+            DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom/sidre")
+
+    # Namespace-root package files install once (not per component).
+    install(FILES "${_pysidre_pkg_src}/axom/__init__.py"
+                  "${_pysidre_pkg_src}/axom/py.typed"
+            DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom")
+
+    # Deprecation shim for the historical top-level 'pysidre' module.
+    install(FILES "${_pysidre_pkg_src}/pysidre/__init__.py"
+            DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/pysidre")
 endif()
 
 

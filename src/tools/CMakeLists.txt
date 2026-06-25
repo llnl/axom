@@ -190,14 +190,24 @@ if(NANOBIND_FOUND)
     # Based on Conduit's run_python_with_conduit.sh.in script.
     #--------------------------------------------------------------------------
 
-    # gen python helper to build directory
-    set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
+    # gen python helper to build directory.
+    # _PYEXT_DIR is the site-packages-shaped root that holds the 'axom' package
+    # (and the 'pysidre' shim); a single PYTHONPATH entry makes 'import axom.sidre'
+    # and 'import pysidre' resolve. The Sidre bindings stage that tree under
+    # ${PROJECT_BINARY_DIR}/python (see src/axom/sidre/CMakeLists.txt).
+    set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/python)
 
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
                          "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
 
-    # gen python helper to install directory
-    set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+    # gen python helper to install directory.
+    # Mirror the installed package root. Fall back to the lib dir if the
+    # Python package prefix was never set (e.g. Sidre/bindings disabled).
+    if(AXOM_PYTHON_MODULE_INSTALL_PREFIX)
+        set(_PYEXT_DIR ${AXOM_PYTHON_MODULE_INSTALL_PREFIX})
+    else()
+        set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+    endif()
 
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
                          "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
@@ -212,7 +222,7 @@ if(NANOBIND_FOUND)
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
         axom_add_test(
             NAME    run_python_with_axom_build
-            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre, conduit, numpy")
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import axom.sidre, conduit, numpy")
 
         if(AXOM_ENABLE_PYTHON_TESTS)
             # The pytest harness is provided per-test via the ENVIRONMENT property;

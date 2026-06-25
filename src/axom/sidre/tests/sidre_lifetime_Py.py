@@ -5,16 +5,8 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 """Lifetime-soundness regression tests for the sidre python bindings.
 
-Each test obtains a sidre-owned object (child proxy, ancestor proxy, harvested
-iterator element, or zero-copy numpy array), drops every Python owner, forces a
-garbage collection, and then *uses* the object. Before the lifetime audit these
-patterns dereferenced freed memory and segfaulted; with reference_internal on
-owner-chain accessors, keep_alive on iterator elements, and self-as-owner on
-returned arrays, the keep_alive graph keeps the backing DataStore alive and the
-accesses are safe.
-
-These tests therefore only "pass" against the audited bindings; against the
-prior bindings they crash the interpreter (the failure mode the audit fixes).
+Each test obtains a sidre-owned object (child or ancestor proxy, iterator, zero-copy numpy array),
+drops every Python owner, forces a garbage collection, and then uses the object.
 """
 
 import gc
@@ -23,7 +15,7 @@ import weakref
 import numpy as np
 import pytest
 
-import pysidre
+import axom.sidre as pysidre
 
 
 def _force_gc():

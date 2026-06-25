@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import pysidre
+import axom.sidre as pysidre
 import numpy as np
 
 NUM_BYTES_INT_32 = 4

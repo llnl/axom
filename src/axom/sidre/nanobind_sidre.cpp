@@ -511,7 +511,9 @@ private:
 };
 #endif
 
-NB_MODULE(pysidre, m_sidre)
+// The extension installs as ``axom/sidre/_sidre.<tag>.so`` and is re-exported
+// by the ``axom.sidre`` package (see src/python/src/axom/sidre/__init__.py).
+NB_MODULE(_sidre, m_sidre)
 {
   m_sidre.doc() = R"pbdoc(
     A python extension for Axom's Sidre component.

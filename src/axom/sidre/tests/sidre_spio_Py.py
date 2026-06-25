@@ -17,7 +17,7 @@ import os
 
 import pytest
 
-import pysidre
+import axom.sidre as pysidre
 
 if not pysidre.AXOM_ENABLE_MPI:
     pytest.skip("pysidre built without MPI", allow_module_level=True)
