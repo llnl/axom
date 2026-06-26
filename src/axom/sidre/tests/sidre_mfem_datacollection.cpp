@@ -35,6 +35,85 @@ void checkMcarrayFieldValues(axom::sidre::Group* bp_grp,
                              int vdim,
                              int ndof);
 
+double quadratureValueFor(int element, int qpt, int component)
+{
+  return 1000. * element + 10. * qpt + 0.5 * component + 0.25;
+}
+
+void setQuadratureFunctionValues(mfem::QuadratureFunction& qf)
+{
+  auto* qspace = qf.GetSpace();
+  ASSERT_NE(qspace, nullptr);
+
+  for(int el = 0; el < qspace->GetNE(); ++el)
+  {
+    const auto& ir = qspace->GetIntRule(el);
+    for(int qpt = 0; qpt < ir.Size(); ++qpt)
+    {
+      mfem::Vector values;
+      qf.GetValues(el, qpt, values);
+      ASSERT_EQ(values.Size(), qf.GetVDim());
+
+      for(int comp = 0; comp < qf.GetVDim(); ++comp)
+      {
+        values(comp) = quadratureValueFor(el, qpt, comp);
+      }
+    }
+  }
+}
+
+void checkQuadratureFunctionValues(const mfem::QuadratureFunction& qf)
+{
+  auto* qspace = qf.GetSpace();
+  ASSERT_NE(qspace, nullptr);
+
+  for(int el = 0; el < qspace->GetNE(); ++el)
+  {
+    const auto& ir = qspace->GetIntRule(el);
+    for(int qpt = 0; qpt < ir.Size(); ++qpt)
+    {
+      mfem::Vector values;
+      qf.GetValues(el, qpt, values);
+      ASSERT_EQ(values.Size(), qf.GetVDim());
+
+      for(int comp = 0; comp < qf.GetVDim(); ++comp)
+      {
+        EXPECT_DOUBLE_EQ(values(comp), quadratureValueFor(el, qpt, comp));
+      }
+    }
+  }
+}
+
+void checkQuadratureFunctionMcarrayData(axom::sidre::Group* bp_grp,
+                                        const std::string& field_name,
+                                        const mfem::QuadratureSpaceBase& qspace,
+                                        int vdim)
+{
+  auto* values_grp = bp_grp->getGroup("fields/" + field_name + "/values");
+  ASSERT_NE(values_grp, nullptr);
+
+  for(int el = 0; el < qspace.GetNE(); ++el)
+  {
+    const int offset = qspace.Offset(el);
+    const auto& ir = qspace.GetIntRule(el);
+    for(int qpt = 0; qpt < ir.Size(); ++qpt)
+    {
+      for(int comp = 0; comp < vdim; ++comp)
+      {
+        const std::string view_name = "x" + std::to_string(comp);
+        auto* component_view = values_grp->getView(view_name);
+        ASSERT_NE(component_view, nullptr);
+        const double* component_data = component_view->getData<double*>();
+        ASSERT_NE(component_data, nullptr);
+        const auto stride =
+          static_cast<axom::sidre::IndexType>(component_view->getStride());
+        EXPECT_DOUBLE_EQ(component_data[(offset + qpt) * stride],
+                         quadratureValueFor(el, qpt, comp));
+      }
+    }
+  }
+}
+
 TEST(sidre_datacollection, dc_alloc_no_mesh)
 {
   MFEMSidreDataCollection sdc(testName());
@@ -389,10 +468,8 @@ TEST(sidre_datacollection, dc_reload_mesh)
 
 TEST(sidre_datacollection, dc_reload_qf)
 {
-  //Set up a small mesh and a couple of grid function on that mesh
+  // Set up a high-order quadrature space so each element has multiple quadrature points.
   auto mesh = mfem::Mesh::MakeCartesian2D(2, 3, mfem::Element::QUADRILATERAL, 0, 2., 3.);
-  mfem::LinearFECollection fec;
-  mfem::FiniteElementSpace fes(&mesh, &fec);
 
   const int intOrder = 3;
   const int qs_vdim = 1;
@@ -406,8 +483,6 @@ TEST(sidre_datacollection, dc_reload_qf)
 
   mfem::QuadratureFunction qv(&qspace, qv_vdim);
   qv.NewDataAndSize(nullptr, qv_vdim * qspace.GetSize());
-
-  int Nq = qs.Size();
 
   // The mesh and field(s) must be owned by Sidre to properly manage data in case of
   // a simulated restart (save -> load)
@@ -428,14 +503,14 @@ TEST(sidre_datacollection, dc_reload_qf)
   EXPECT_FALSE(writer_bp_grp->hasGroup("fields/qs/values"));
   EXPECT_FALSE(writer_bp_grp->hasView("fields/qv/values"));
   checkMcarrayFieldValues(writer_bp_grp, "qv", qv_vdim, qspace.GetSize());
+  EXPECT_GT(qspace.GetIntRule(0).Size(), 1);
 
-  // The data needs to be instantiated before we save it off
-  for(int i = 0; i < Nq; ++i)
-  {
-    qs(i) = double(i);
-    qv(2 * i + 0) = double(i);
-    qv(2 * i + 1) = double(Nq - i - 1);
-  }
+  // Fill by element/quadrature point/component so we test high-order layout explicitly.
+  setQuadratureFunctionValues(qs);
+  setQuadratureFunctionValues(qv);
+  checkQuadratureFunctionValues(qs);
+  checkQuadratureFunctionValues(qv);
+  checkQuadratureFunctionMcarrayData(writer_bp_grp, "qv", qspace, qv_vdim);
 
   sdc_writer.SetCycle(5);
   sdc_writer.SetTime(8.0);
@@ -464,6 +539,10 @@ TEST(sidre_datacollection, dc_reload_qf)
   EXPECT_FALSE(reader_bp_grp->hasGroup("fields/qs/values"));
   EXPECT_FALSE(reader_bp_grp->hasView("fields/qv/values"));
   checkMcarrayFieldValues(reader_bp_grp, "qv", qv_vdim, qspace.GetSize());
+  checkQuadratureFunctionMcarrayData(reader_bp_grp,
+                                     "qv",
+                                     *reader_qv->GetSpace(),
+                                     reader_qv->GetVDim());
 
   // order_qs should also equal order_qv in this trivial case
   EXPECT_EQ(reader_qs->GetSpace()->GetOrder(), intOrder);
@@ -471,6 +550,9 @@ TEST(sidre_datacollection, dc_reload_qf)
 
   EXPECT_EQ(reader_qs->GetVDim(), qs_vdim);
   EXPECT_EQ(reader_qv->GetVDim(), qv_vdim);
+
+  checkQuadratureFunctionValues(*reader_qs);
+  checkQuadratureFunctionValues(*reader_qv);
 
   *(reader_qs) -= qs;
   *(reader_qv) -= qv;
