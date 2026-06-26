@@ -45,6 +45,7 @@ set(bump_headers
     views/BasicIndexing.hpp
     views/dispatch_coordset.hpp
     views/dispatch_material.hpp
+    views/dispatch_material_field.hpp
     views/dispatch_rectilinear_topology.hpp
     views/dispatch_structured_topology.hpp
     views/dispatch_topology.hpp
@@ -53,6 +54,7 @@ set(bump_headers
     views/dispatch_utilities.hpp
     views/ExplicitCoordsetView.hpp
     views/MaterialView.hpp
+    views/MixedFieldView.hpp
     views/NodeArrayView.hpp
     views/RectilinearCoordsetView.hpp
     views/Shapes.hpp

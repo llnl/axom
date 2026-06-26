@@ -1557,6 +1557,11 @@ TEST(core_array, check_move_copy)
     EXPECT_EQ(v_int_copy_assign.data(), nullptr);
     EXPECT_EQ(v_int_copy_ctor.data(), nullptr);
 
+    /* Moved-from arrays are valid and should be reusable */
+    v_int_copy_assign.push_back(MAGIC_INT);
+    EXPECT_EQ(v_int_copy_assign.size(), 1);
+    EXPECT_EQ(v_int_copy_assign[0], MAGIC_INT);
+
     /* Check copy and move semantics for array of doubles */
     axom::Array<double> v_double(size, capacity);
     v_double.fill(MAGIC_DOUBLE);
@@ -1574,6 +1579,11 @@ TEST(core_array, check_move_copy)
     EXPECT_EQ(v_double, v_double_move_ctor);
     EXPECT_EQ(v_double_copy_assign.data(), nullptr);
     EXPECT_EQ(v_double_copy_ctor.data(), nullptr);
+
+    /* Moved-from arrays are valid and should be reusable */
+    v_double_copy_assign.push_back(MAGIC_DOUBLE);
+    EXPECT_EQ(v_double_copy_assign.size(), 1);
+    EXPECT_EQ(v_double_copy_assign[0], MAGIC_DOUBLE);
   }
 }
 

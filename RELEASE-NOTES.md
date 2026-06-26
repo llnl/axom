@@ -28,6 +28,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
 - Quest: Adds OMP supported, fast and accurate GWN method for NURBS curves and trimmed NURBS surfaces.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
+- Bump: The `MergeMeshes` class was enhanced so it supports material-dependent/mixed Blueprint fields that are "element-associated". These fields contain per-material values for the materials in a zone.
+- Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view and a material-dependent or mixed field view.
 - Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
   anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
   a new ``setQuadratureType`` method that accepts an enum value from ``mfem::Quadrature1D``. The number of samples in
@@ -48,6 +50,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
 
 ### Removed
+- Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
 
 ### Deprecated
 - Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
@@ -63,8 +66,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
 - Core: ArrayView assigments/copies now copy the stride
 - Core: Array construction from strided ArrayView now correctly copies the strided elements
+- Core: A moved-from Array is valid, e.g. it can be pushed to
 - Core: Improved `axom::FlatMap` insertion performance by fusing duplicate-key lookup with empty-slot probing.
 - Core: Updated DeviceHash to use 64-bit hash results and improved coverage for integer and floating-point hashing.
+- Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 

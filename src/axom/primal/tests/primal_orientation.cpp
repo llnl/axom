@@ -188,6 +188,124 @@ TEST(primal_orientation, orient2D)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_orientation, determinant_helpers)
+{
+  namespace primal = axom::primal;
+
+  using Point2 = primal::Point<double, 2>;
+  using Point3 = primal::Point<double, 3>;
+
+  EXPECT_GT(primal::orientation_determinant(Point2 {0., 0.}, Point2 {1., 0.}, Point2 {0., 1.}), 0.);
+  EXPECT_LT(primal::orientation_determinant(Point2 {0., 0.}, Point2 {0., 1.}, Point2 {1., 0.}), 0.);
+
+  EXPECT_GT(primal::orientation_determinant(Point3 {0., 0., 0.},
+                                            Point3 {1., 0., 0.},
+                                            Point3 {0., 1., 0.},
+                                            Point3 {0., 0., 1.}),
+            0.);
+  EXPECT_LT(primal::orientation_determinant(Point3 {0., 0., 0.},
+                                            Point3 {0., 1., 0.},
+                                            Point3 {1., 0., 0.},
+                                            Point3 {0., 0., 1.}),
+            0.);
+}
+
+//------------------------------------------------------------------------------
+// Characterizes the double-precision orientation predicate near degeneracy.
+//
+// These tests document where the bare double-precision sign is and is not
+// reliable (see the precision note in detail/predicate_determinants.hpp).
+// They intentionally pin the current behavior so a future exact adaptive
+// predicate can be swapped in and validated against the same cases.
+//------------------------------------------------------------------------------
+TEST(primal_orientation, degeneracy_characterization_2d)
+{
+  namespace primal = axom::primal;
+  using Point2 = primal::Point<double, 2>;
+  using Segment = primal::Segment<double, 2>;
+
+  // Exactly collinear points: the orientation determinant is exactly zero,
+  // so the classifier reports ON_BOUNDARY for any non-negative tolerance.
+  {
+    Point2 a {0., 0.}, b {1., 1.}, c {2., 2.};  // all on the line y = x
+    const double det = primal::orientation_determinant(a, b, c);
+    EXPECT_EQ(det, 0.);
+    Segment seg2(a, b);
+    EXPECT_EQ(primal::orientation(c, seg2), primal::ON_BOUNDARY);
+  }
+
+  // Clearly non-degenerate points classify with a definite (non-boundary) sign.
+  {
+    Point2 a {0., 0.}, b {1., 0.};
+    Segment seg2(a, b);
+    EXPECT_NE(primal::orientation(Point2 {0.5, 0.5}, seg2), primal::ON_BOUNDARY);
+    EXPECT_NE(primal::orientation(Point2 {0.5, -0.5}, seg2), primal::ON_BOUNDARY);
+    // and the two sides receive opposite classifications
+    EXPECT_NE(primal::orientation(Point2 {0.5, 0.5}, seg2),
+              primal::orientation(Point2 {0.5, -0.5}, seg2));
+  }
+
+  // The determinant is not normalized: for a fixed shape, translating the points
+  // far from the origin and scaling them up inflates the determinant magnitude.
+  // This is why a fixed absolute EPS is inadequate for large coordinates
+  // and why callers (e.g. quest::Delaunay) use a scale-aware tolerance.
+  {
+    Point2 a {0., 0.}, b {1., 0.}, c {0.5, 1.};
+    const double small_det = primal::orientation_determinant(a, b, c);
+
+    const double S = 1e6;
+    Point2 A {S * a[0], S * a[1]}, B {S * b[0], S * b[1]}, C {S * c[0], S * c[1]};
+    const double big_det = primal::orientation_determinant(A, B, C);
+
+    // 2D orientation determinant has degree 2 in the coordinates,
+    // so scaling by S multiplies it by ~S^2.
+    EXPECT_GT(axom::utilities::abs(big_det), axom::utilities::abs(small_det));
+    EXPECT_NEAR(big_det, small_det * S * S, axom::utilities::abs(big_det) * 1e-9);
+  }
+}
+
+TEST(primal_orientation, degeneracy_characterization_3d)
+{
+  namespace primal = axom::primal;
+  using Point3 = primal::Point<double, 3>;
+  using Tri = primal::Triangle<double, 3>;
+
+  // Exactly coplanar query point: determinant is exactly zero -> ON_BOUNDARY.
+  {
+    Tri tri(Point3 {0., 0., 0.}, Point3 {1., 0., 0.}, Point3 {0., 1., 0.});  // z = 0 plane
+    Point3 coplanar {0.25, 0.25, 0.};
+    const double det = primal::orientation_determinant(coplanar, tri[0], tri[1], tri[2]);
+    EXPECT_EQ(det, 0.);
+    EXPECT_EQ(primal::orientation(coplanar, tri), primal::ON_BOUNDARY);
+  }
+
+  // Points clearly above / below the plane get opposite, non-boundary signs.
+  {
+    Tri tri(Point3 {0., 0., 0.}, Point3 {1., 0., 0.}, Point3 {0., 1., 0.});
+    const int above = primal::orientation(Point3 {0.25, 0.25, 1.}, tri);
+    const int below = primal::orientation(Point3 {0.25, 0.25, -1.}, tri);
+    EXPECT_NE(above, primal::ON_BOUNDARY);
+    EXPECT_NE(below, primal::ON_BOUNDARY);
+    EXPECT_NE(above, below);
+  }
+
+  // Degree-3 scaling of the 3D orientation determinant: scaling coordinates by S
+  // multiplies the determinant by ~S^3
+  {
+    Point3 q {0.25, 0.25, 0.5}, p0 {0., 0., 0.}, p1 {1., 0., 0.}, p2 {0., 1., 0.};
+    const double small_det = primal::orientation_determinant(q, p0, p1, p2);
+    ASSERT_NE(small_det, 0.);
+
+    const double S = 1.0e4;
+    auto scaled = [S](const Point3& p) { return Point3 {S * p[0], S * p[1], S * p[2]}; };
+    const double big_det =
+      primal::orientation_determinant(scaled(q), scaled(p0), scaled(p1), scaled(p2));
+
+    EXPECT_NEAR(big_det, small_det * S * S * S, axom::utilities::abs(big_det) * 1e-9);
+  }
+}
+
+//------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
 int main(int argc, char* argv[])
