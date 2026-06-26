@@ -66,7 +66,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 - Changed to `#pragma once` instead of unique header guard defines
-- Python: Sidre's bindings now install as an `axom` namespace package (`import axom.sidre`)
+- Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`

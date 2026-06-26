@@ -304,26 +304,26 @@ Python Interfaces
 
 We use the `nanobind <https://nanobind.readthedocs.io/en/latest/>`_ library
 to build Python APIs from our C++ interface code. A component's bindings are
-hand-written in a nanobind translation unit (e.g., ``src/axom/sidre/nanobind_sidre.cpp``) 
-that describes the classes and functions to expose. 
+hand-written in a nanobind translation unit (e.g., ``src/axom/sidre/nanobind_sidre.cpp``)
+that describes the classes and functions to expose.
 nanobind compiles this into an extension module.
 
 The bindings install as a Python package. Each bound component is an extension
-under the ``axom`` namespace package (for example ``axom.sidre``), with type stubs
+under the ``axom`` package (for example ``axom.sidre``), with type stubs
 and a ``py.typed`` marker so editors and type checkers can introspect it.
 The pure-Python package scaffolding lives once under ``src/python/src/`` and is
 installed by the CMake build (and, in the future, will be reused verbatim by a pip/uv wheel).
 
 The end-user view of the Python interface, e.g. how to install and import it,
-is documented in the Sidre user guide's Python interface page. 
+is documented in the Sidre user guide's Python interface page.
 This section covers how the bindings are built and how to add more of them.
 
-To build the bindings, configure Axom with nanobind (Python with the ``Development.Module`` component, 
+To build the bindings, configure Axom with nanobind (Python with the ``Development.Module`` component,
 and nanobind discoverable by the interpreter). This requirement differs from Shroud, which generates Fortran interface files that do not require Shroud at build time once generated.
 
 .. note:: A spack environment with a view, or (in the future) the pip/uv wheel,
-          makes ``import axom.sidre`` work in a plain interpreter. 
-          For running ad hoc Python scripts against a build tree, we provide a 
+          makes ``import axom.sidre`` work in a plain interpreter.
+          For running ad hoc Python scripts against a build tree, we provide a
           generated ``run_python_with_axom.sh`` helper to resolve the runtime dependencies
           (Conduit, NumPy, mpi4py) on ``PYTHONPATH``.
 

@@ -201,8 +201,8 @@ if(NANOBIND_FOUND)
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
                          "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
 
-    # gen python helper to install directory.
-    # Mirror the installed package root. 
+    # gen python helper for install.
+    # Mirror the installed package root.
     # Keep relative package install dirs relative in the generated script too.
     # It resolves them from its own bin/ directory at runtime so `cmake --install --prefix` remains usable.
     if(AXOM_PYTHON_MODULE_INSTALL_PREFIX)
@@ -217,11 +217,17 @@ if(NANOBIND_FOUND)
         set(_PYEXT_DIR_IS_RELATIVE FALSE)
     endif()
 
+    set(_AXOM_INSTALL_PYTHON_HELPER
+        "${PROJECT_BINARY_DIR}/bin/run_python_with_axom_install.sh")
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
-                         "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
+                         "${_AXOM_INSTALL_PYTHON_HELPER}" @ONLY)
+    install(PROGRAMS "${_AXOM_INSTALL_PYTHON_HELPER}"
+            DESTINATION bin
+            RENAME run_python_with_axom.sh)
 
     unset(_PYEXT_DIR)
     unset(_PYEXT_DIR_IS_RELATIVE)
+    unset(_AXOM_INSTALL_PYTHON_HELPER)
 
     # Smoke test for the script: verify it makes Axom's bindings and runtime dependencies importable
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)

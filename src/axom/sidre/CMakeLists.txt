@@ -169,8 +169,8 @@ if(NANOBIND_FOUND)
     unset(_axom_python_install_default)
     unset(_axom_python_install_description)
 
-    # Root of the staged package tree in the build directory. 
-    # The build-tree interpreter (and run_python_with_axom.sh, via _PYEXT_DIR) 
+    # Root of the staged package tree in the build directory.
+    # The build-tree interpreter (and run_python_with_axom.sh, via _PYEXT_DIR)
     # puts this single directory on PYTHONPATH and then 'import axom.sidre' works.
     set(_axom_py_build_root "${PROJECT_BINARY_DIR}/python")
     set(_pysidre_pkg_src    "${CMAKE_CURRENT_SOURCE_DIR}/../../python/src")

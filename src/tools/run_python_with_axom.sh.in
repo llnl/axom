@@ -9,7 +9,7 @@
 ##-----------------------------------------------------------------------------
 ## Convenience script that runs the python interpreter with Axom's Python package(s)
 ## and their runtime dependencies already on PYTHONPATH:
-##   - Axom's Python package tree (the 'axom' namespace package; e.g. axom.sidre)
+##   - Axom's Python package tree (the 'axom' package; e.g. axom.sidre)
 ##   - conduit's python module (conduit::Node interop)
 ##   - numpy (ndarray returns)
 ##   - mpi4py (only populated in MPI-enabled configurations)
@@ -18,7 +18,7 @@
 ## build tree that has the bindings enabled -- it assembles conduit/numpy/mpi4py
 ## from their spack prefixes so a one-off script "just works" without a venv.
 ##
-## Caveats: this script is bash-only and, since it prepends the PYTHONPATH, 
+## Caveats: this script is bash-only and, since it prepends the PYTHONPATH,
 ## does not compose with Jupyter kernels, IDE runners, or debuggers.
 ##
 ## Build-time (nanobind) and testing dependencies (pytest/pluggy/iniconfig)
