@@ -34,21 +34,41 @@ The module carries a ``__version__`` matching the Axom release, and exposes
 feature flags (``AXOM_USE_HDF5``, ``AXOM_ENABLE_MPI``) so Python code can
 branch on how Axom was built.
 
-====================================
+=======================================
 Getting a working ``import axom.sidre``
-====================================
+=======================================
 
-There are two supported ways to make the interface importable
-with a  plain ``python`` that can ``import axom.sidre`` without explicitly extending the ``PYTHONPATH``.
+How to make the interface importable depends on whether you are using an
+installed Axom package or a build tree from an Axom development environment.
+The two workflows are intentionally different.
 
-Spack environment
------------------
+Development build tree
+----------------------
+
+Axom's uberenv-generated TPL environments intentionally use ``view: false``.
+Those environments are for configuring and building Axom from a worktree.
+They do not make the build-tree package importable by a plain interpreter when activated.
+
+For development builds, use CTest or the generated ``run_python_with_axom.sh`` helper. 
+These paths set the build-tree ``PYTHONPATH`` entries needed for Axom's staged package
+and its Python runtime dependencies.
+
+.. code-block:: bash
+
+   $ cd build-axom
+   $ ctest -R sidre_smoke_Py --output-on-failure
+   $ ./bin/run_python_with_axom.sh -c "import axom.sidre as sidre; print(sidre.__version__)"
+
+Spack environment view
+----------------------
 
 Axom declares itself a Python extension (``extends("python")``), so a spack
-environment with a view installs the bindings into the view's
-``site-packages`` alongside their dependencies. 
+environment view can expose the bindings in the view's ``site-packages`` alongside their dependencies.
+This is useful for testing or using an installed Axom package with a plain interpreter,
+but it is not the normal Axom development-build workflow.
 
-To use this, build Axom with the ``+python`` variant in an environment whose ``spack.yaml`` enables a view:
+To use this, install Axom with the ``+python`` variant in a dedicated
+environment whose ``spack.yaml`` enables a view:
 
 .. code-block:: yaml
 
@@ -56,6 +76,7 @@ To use this, build Axom with the ``+python`` variant in an environment whose ``s
      specs:
        - axom+python
      view: true
+     ...
 
 After ``spack install``, the environment's interpreter should have a working Axom Python installation:
 
@@ -72,7 +93,8 @@ pip / uv wheel (thin, external Axom)
 
    The pip/uv-installable wheel is planned and not yet available. 
    This section is a placeholder for the workflow it will enable.
-   Until it lands, use the spack environment above.
+   Until it lands, use the build-tree helper for development builds
+   or a dedicated Spack environment view for installed-package testing.
 
 The wheel will compile only the binding code against an already-installed Axom
 (located via ``CMAKE_PREFIX_PATH``); it will not build Axom or its third-party
