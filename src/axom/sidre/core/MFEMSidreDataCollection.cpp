@@ -1343,11 +1343,10 @@ void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& fiel
 }
 
 // private method
-void MFEMSidreDataCollection::addVectorBasedQuadratureFunction(
-  const std::string& field_name,
-  mfem::QuadratureFunction* qf,
-  const std::string& buffer_name,
-  IndexType offset)
+void MFEMSidreDataCollection::addVectorBasedQuadratureFunction(const std::string& field_name,
+                                                               mfem::QuadratureFunction* qf,
+                                                               const std::string& buffer_name,
+                                                               IndexType offset)
 {
   /*
    *  Mesh blueprint for a vector-based quadrature function is of the form

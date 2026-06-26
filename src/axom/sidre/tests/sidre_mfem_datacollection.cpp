@@ -105,10 +105,8 @@ void checkQuadratureFunctionMcarrayData(axom::sidre::Group* bp_grp,
         ASSERT_NE(component_view, nullptr);
         const double* component_data = component_view->getData<double*>();
         ASSERT_NE(component_data, nullptr);
-        const auto stride =
-          static_cast<axom::sidre::IndexType>(component_view->getStride());
-        EXPECT_DOUBLE_EQ(component_data[(offset + qpt) * stride],
-                         quadratureValueFor(el, qpt, comp));
+        const auto stride = static_cast<axom::sidre::IndexType>(component_view->getStride());
+        EXPECT_DOUBLE_EQ(component_data[(offset + qpt) * stride], quadratureValueFor(el, qpt, comp));
       }
     }
   }
@@ -539,10 +537,7 @@ TEST(sidre_datacollection, dc_reload_qf)
   EXPECT_FALSE(reader_bp_grp->hasGroup("fields/qs/values"));
   EXPECT_FALSE(reader_bp_grp->hasView("fields/qv/values"));
   checkMcarrayFieldValues(reader_bp_grp, "qv", qv_vdim, qspace.GetSize());
-  checkQuadratureFunctionMcarrayData(reader_bp_grp,
-                                     "qv",
-                                     *reader_qv->GetSpace(),
-                                     reader_qv->GetVDim());
+  checkQuadratureFunctionMcarrayData(reader_bp_grp, "qv", *reader_qv->GetSpace(), reader_qv->GetVDim());
 
   // order_qs should also equal order_qv in this trivial case
   EXPECT_EQ(reader_qs->GetSpace()->GetOrder(), intOrder);
