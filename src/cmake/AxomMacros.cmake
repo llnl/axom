@@ -648,41 +648,57 @@ endfunction()
 ## axom_add_python_test(NAME          [name]
 ##                      SOURCE        [source]
 ##                      OUTPUT_DIR    [dir]
+##                      COMMAND       [command]
 ##                      NUM_MPI_TASKS [n])
 ##
-## Wrapper around add_test() that handles functionality
+## Wrapper around axom_add_test() that handles functionality
 ## that Axom applies to all python tests.
+##
+## When SOURCE is provided, the test file is copied to OUTPUT_DIR and run under
+## pytest. When COMMAND is provided, it is registered directly as the test
+## command. SOURCE and COMMAND are mutually exclusive.
 ##------------------------------------------------------------------------------
 macro(axom_add_python_test)
 
     set(options)
     set(singleValueArgs NAME SOURCE OUTPUT_DIR NUM_MPI_TASKS)
-    set(multiValueArgs)
+    set(multiValueArgs COMMAND)
 
     # Parse the arguments to the macro
     cmake_parse_arguments(arg
          "${options}" "${singleValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    # Copy python test file to build
-    axom_configure_file ("${arg_SOURCE}"
-                         "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
+    if(arg_SOURCE AND arg_COMMAND)
+        message(FATAL_ERROR
+                "axom_add_python_test accepts either SOURCE or COMMAND, not both")
+    endif()
 
-    # Run unit test with pytest ("python3 -m pytest"), invoked directly rather
-    # than through the run_python_with_axom.sh wrapper. The full runtime + test
-    # environment is supplied via the test's ENVIRONMENT property (a single
-    # combined PYTHONPATH; see axom_python_test_environment). Running pytest
-    # natively keeps the tests composable with IDEs/debuggers and removes the
-    # bash-only wrapper from the test path.
-    # "-p no:cacheprovider" disables caching.
-    set(_test_command ${Python_EXECUTABLE}
-                      -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE})
-    blt_add_test(NAME          ${arg_NAME}
-                 COMMAND       ${_test_command}
-                 NUM_MPI_TASKS ${arg_NUM_MPI_TASKS})
+    if(arg_COMMAND)
+        set(_test_command ${arg_COMMAND})
+    else()
+        if((NOT arg_SOURCE) OR (NOT arg_OUTPUT_DIR))
+            message(FATAL_ERROR
+                    "axom_add_python_test requires SOURCE and OUTPUT_DIR, or COMMAND")
+        endif()
 
-    set_property(TEST ${arg_NAME}
-                 APPEND
-                 PROPERTY ENVIRONMENT  "OMPI_MCA_rmaps_base_oversubscribe=1")
+        # Copy python test file to build
+        axom_configure_file ("${arg_SOURCE}"
+                             "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
+
+        # Run unit test with pytest ("python3 -m pytest"), invoked directly
+        # rather than through the run_python_with_axom.sh wrapper. The full
+        # runtime + test environment is supplied via the test's ENVIRONMENT
+        # property (a single combined PYTHONPATH; see axom_python_test_environment).
+        # Running pytest natively keeps the tests composable with IDEs/debuggers
+        # and removes the bash-only wrapper from the test path.
+        # "-p no:cacheprovider" disables caching.
+        set(_test_command ${Python_EXECUTABLE}
+                          -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE})
+    endif()
+
+    axom_add_test(NAME          ${arg_NAME}
+                  COMMAND       ${_test_command}
+                  NUM_MPI_TASKS ${arg_NUM_MPI_TASKS})
 
     axom_python_test_environment(_py_test_env)
     if(_py_test_env)

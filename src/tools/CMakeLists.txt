@@ -240,31 +240,35 @@ if(NANOBIND_FOUND)
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
                          "${CMAKE_INSTALL_PREFIX}/bin/convert_sidre_protocol.py" COPYONLY)
 
-    if(AXOM_ENABLE_MPI AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-
-        set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
-
+    if(AXOM_ENABLE_PYTHON_TESTS AND AXOM_ENABLE_SIDRE)
         set(_testname "convert_sidre_protocol_py")
-        axom_add_test(
-          NAME ${_testname}
-          COMMAND ${Python_EXECUTABLE}
-                  ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
-                  --input ${box_dir}
-                  --output csp_output
-                  --protocol json
-                  --verbose
-          NUM_MPI_TASKS 3
-        )
 
-        axom_python_test_environment(_csp_py_env)
-        if(_csp_py_env)
-            set_property(TEST ${_testname}
-                         APPEND
-                         PROPERTY ENVIRONMENT "${_csp_py_env}")
+        if(AXOM_ENABLE_MPI AND AXOM_DATA_DIR)
+            set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
+
+            axom_add_python_test(
+              NAME ${_testname}
+              COMMAND ${Python_EXECUTABLE}
+                      ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
+                      --input ${box_dir}
+                      --output csp_output
+                      --protocol json
+                      --verbose
+              NUM_MPI_TASKS 3
+            )
+
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Writing out datastore")
+        else()
+            axom_add_python_test(
+              NAME ${_testname}
+              COMMAND ${Python_EXECUTABLE}
+                      ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
+                      --help
+            )
+
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Sidre protocol converter")
         endif()
-        unset(_csp_py_env)
-
-        set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Writing out datastore")
     endif()
 endif()

@@ -155,18 +155,11 @@ if(NANOBIND_FOUND)
                              "${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}" COPYONLY)
 
         # Run python examples directly under the interpreter (no wrapper).
-        # The runtime environment is supplied via the test's ENVIRONMENT property
         if(AXOM_ENABLE_PYTHON_TESTS)
-            axom_add_test (
+            axom_add_python_test(
                 NAME    ${exe_name}
                 COMMAND ${Python_EXECUTABLE} ${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}
             )
-            axom_python_test_environment(_py_example_env)
-            if(_py_example_env)
-                set_property(TEST ${exe_name}
-                             APPEND PROPERTY ENVIRONMENT "${_py_example_env}")
-            endif()
-            unset(_py_example_env)
         endif()
     endforeach()
 endif()
