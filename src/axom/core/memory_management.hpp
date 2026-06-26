@@ -36,12 +36,22 @@ namespace axom
 #ifdef AXOM_USE_UMPIRE
 namespace detail
 {
+/*!
+ * \brief Cache for Umpire data used in axom::copy.
+ */
 struct UmpireCopyContext
 {
   umpire::strategy::AllocationStrategy* hostStrategy {nullptr};
   umpire::op::MemoryOperationRegistry* operationRegistry {nullptr};
 };
 
+/*!
+ * \brief Gets a reference to an UmpireCopyContext object, initializing it on demand.
+ *        The static UmpireCopyContext is initialized via std::call_once so multiple
+ *        threads can call this function and only initialize the object once.
+ *
+ * \return A reference to the cached UmpireCopyContext.
+ */
 inline const UmpireCopyContext& getUmpireCopyContext() noexcept
 {
   static std::once_flag once;
