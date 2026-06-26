@@ -11,6 +11,7 @@ These tests check that the import keeps working, warns once, and exposes the sam
 """
 
 import importlib
+from pathlib import Path
 import sys
 import warnings
 
@@ -37,13 +38,16 @@ def _clear_axom_imports():
 
 
 def _sidre_init_source():
-    _clear_axom_imports()
-    import axom.sidre as sidre
+    # Exercise the staged package initializer verbatim instead of keeping a
+    # test-local copy of its import-error handling logic. Locate the file on
+    # sys.path without importing axom.sidre; re-importing the real nanobind
+    # extension after removing it from sys.modules can abort in some builds.
+    for entry in sys.path:
+        sidre_init = Path(entry) / "axom" / "sidre" / "__init__.py"
+        if sidre_init.is_file():
+            return sidre_init.read_text(encoding="utf-8")
 
-    # Exercise the installed package initializer verbatim instead of keeping a
-    # test-local copy of its import-error handling logic.
-    with open(sidre.__file__, "r", encoding="utf-8") as sidre_init:
-        return sidre_init.read()
+    raise RuntimeError("Could not locate axom.sidre.__init__.py on sys.path")
 
 
 def _write_fake_axom_sidre(tmp_path, monkeypatch, sidre_init_source, sidre_extension_source=None):
