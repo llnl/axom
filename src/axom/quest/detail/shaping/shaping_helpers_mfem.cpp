@@ -14,6 +14,8 @@
   #include <memory>
   #include <vector>
 
+  #include "mfem/linalg/kernels.hpp"
+
 namespace axom
 {
 namespace quest
@@ -493,6 +495,48 @@ void copyChunkRHS(mfem::Vector& rhs,
   }
 }
 
+template <typename ExecSpace>
+void factorChunkMassMatricesImpl(const VolumeFractionMassConfig& config,
+                                 int chunkNE,
+                                 mfem::DenseTensor& massMatInv,
+                                 mfem::Array<int>& massMatPivots)
+{
+  auto massMatInv_d = mfem::Reshape(massMatInv.HostReadWrite(), config.dofs, config.dofs, chunkNE);
+  auto massMatPivots_d = mfem::Reshape(massMatPivots.Write(), config.dofs, chunkNE);
+
+  axom::for_all<ExecSpace>(0, chunkNE, [=](int elem) {
+    mfem::kernels::LUFactor(&massMatInv_d(0, 0, elem), config.dofs, &massMatPivots_d(0, elem));
+  });
+}
+
+void factorChunkMassMatrices(const VolumeFractionMassConfig& config,
+                             axom::runtime_policy::Policy execPolicy,
+                             int chunkNE,
+                             mfem::DenseTensor& massMatInv,
+                             mfem::Array<int>& massMatPivots)
+{
+  using RuntimePolicy = axom::runtime_policy::Policy;
+
+  switch(execPolicy)
+  {
+  case RuntimePolicy::seq:
+    massMatInv.ReadWrite();
+    massMatPivots.Write();
+    mfem::BatchLUFactor(massMatInv, massMatPivots);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    factorChunkMassMatricesImpl<omp_exec>(config, chunkNE, massMatInv, massMatPivots);
+    break;
+#endif
+  default:
+    massMatInv.ReadWrite();
+    massMatPivots.Write();
+    mfem::BatchLUFactor(massMatInv, massMatPivots);
+    break;
+  }
+}
+
 void copyChunkResultToGridFunction(const VolumeFractionMassConfig& config,
                                    int elemBegin,
                                    int chunkNE,
@@ -556,9 +600,7 @@ void solveVolumeFractionsChunked(const mfem::FiniteElementSpace& fes,
 
     {
       AXOM_ANNOTATE_SCOPE("chunk batch lu factor");
-      massMatInv.ReadWrite();
-      massMatPivots.Write();
-      mfem::BatchLUFactor(massMatInv, massMatPivots);
+      factorChunkMassMatrices(config, execPolicy, chunkNE, massMatInv, massMatPivots);
     }
 
     {
