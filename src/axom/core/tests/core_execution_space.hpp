@@ -184,46 +184,82 @@ TEST(core_execution_space, check_omp_exec)
 
 TEST(core_execution_space, host_exec_uses_configured_host_allocator)
 {
-  ScopedDefaultHostAllocatorStateForExecution scopedState;
-  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  EXPECT_EXIT(([]() {
+                axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
 
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+                if(axom::MALLOC_ALLOCATOR_ID != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+                {
+                  std::exit(1);
+                }
 
   #if defined(AXOM_USE_OPENMP)
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+                if(axom::MALLOC_ALLOCATOR_ID != axom::execution_space<axom::OMP_EXEC>::allocatorID())
+                {
+                  std::exit(1);
+                }
   #endif
+
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 
 TEST(core_execution_space, host_exec_uses_umpire_host_allocator)
 {
-  ScopedDefaultAllocatorStateForExecution scopedState;
-  const int hostAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+  EXPECT_EXIT(([]() {
+                const int hostAllocatorID =
+                  axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 
-  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+                axom::setDefaultHostAllocator(axom::MemorySpace::Host);
 
-  EXPECT_EQ(hostAllocatorID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+                if(hostAllocatorID != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+                {
+                  std::exit(1);
+                }
 
   #if defined(AXOM_USE_OPENMP)
-  EXPECT_EQ(hostAllocatorID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+                if(hostAllocatorID != axom::execution_space<axom::OMP_EXEC>::allocatorID())
+                {
+                  std::exit(1);
+                }
   #endif
+
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 
 TEST(core_execution_space, host_exec_ignores_global_default_allocator)
 {
-  ScopedDefaultAllocatorStateForExecution scopedState;
-  const int hostAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+  EXPECT_EXIT(([]() {
+                const int hostAllocatorID =
+                  axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 
-  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
-  axom::setDefaultAllocator(axom::MemorySpace::Host);
+                axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+                axom::setDefaultAllocator(axom::MemorySpace::Host);
 
-  EXPECT_EQ(hostAllocatorID, axom::getDefaultAllocatorID());
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+                if(hostAllocatorID != axom::getDefaultAllocatorID())
+                {
+                  std::exit(1);
+                }
+                if(axom::MALLOC_ALLOCATOR_ID != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+                {
+                  std::exit(1);
+                }
 
   #if defined(AXOM_USE_OPENMP)
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+                if(axom::MALLOC_ALLOCATOR_ID != axom::execution_space<axom::OMP_EXEC>::allocatorID())
+                {
+                  std::exit(1);
+                }
   #endif
+
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 
   //------------------------------------------------------------------------------

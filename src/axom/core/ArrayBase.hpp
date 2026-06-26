@@ -894,6 +894,7 @@ struct DeviceStagingBuffer
                       T* data,
                       IndexType begin,
                       IndexType nelems,
+                      HostAllocator host_allocator,
                       bool read_from_data = false)
     : m_data(data)
     , m_begin(begin)
@@ -911,8 +912,7 @@ struct DeviceStagingBuffer
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     if(m_deviceStage)
     {
-      int allocator_id = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
-      m_staging_buf = axom::allocate<T>(nelems, allocator_id);
+      m_staging_buf = axom::allocate<T>(nelems, host_allocator.getID());
       if(read_from_data)
       {
         axom::copy(m_staging_buf, m_data + begin, sizeof(T) * nelems);
@@ -921,6 +921,7 @@ struct DeviceStagingBuffer
 #else
     AXOM_UNUSED_VAR(space);
     AXOM_UNUSED_VAR(read_from_data);
+    AXOM_UNUSED_VAR(host_allocator);
 #endif
   }
 
@@ -986,9 +987,18 @@ struct ArrayOps
   using StagingBuffer = DeviceStagingBuffer<T>;
 
 public:
-  ArrayOps(int allocId, bool preferDevice)
+  AXOM_HOST_DEVICE ArrayOps() : m_host_allocator(axom::MALLOC_ALLOCATOR_ID) { }
+
+  AXOM_HOST_DEVICE ArrayOps(int allocId,
+                            bool preferDevice,
+                            HostAllocator hostAllocator = HostAllocator {axom::MALLOC_ALLOCATOR_ID})
+    : m_host_allocator(hostAllocator)
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_DEVICE_CODE)
+    AXOM_UNUSED_VAR(allocId);
+    AXOM_UNUSED_VAR(preferDevice);
+  #else
     space = getAllocatorSpace(allocId);
     if(space == MemorySpace::Malloc)
     {
@@ -1004,6 +1014,7 @@ public:
     {
       space = MemorySpace::Host;
     }
+  #endif
 #else
     AXOM_UNUSED_VAR(allocId);
     AXOM_UNUSED_VAR(preferDevice);
@@ -1046,7 +1057,7 @@ public:
 #endif
       // Object is neither trivially default-constructible nor trivially-
       // copyable. Construct instances on the host.
-      StagingBuffer tmp_buf(space, data, begin, nelems);
+      StagingBuffer tmp_buf(space, data, begin, nelems, m_host_allocator);
       T* data_host = tmp_buf.getStagingBuffer();
       for(IndexType i = 0; i < nelems; ++i)
       {
@@ -1078,7 +1089,7 @@ public:
 #endif
     // Object is not trivially-copyable, so ensure copy constructors are
     // called on the host.
-    StagingBuffer tmp_buf(space, array, begin, nelems);
+    StagingBuffer tmp_buf(space, array, begin, nelems, m_host_allocator);
     std::uninitialized_fill_n(tmp_buf.getStagingBuffer(), nelems, value);
   }
 
@@ -1101,8 +1112,13 @@ public:
     {
       // HostOp::fill_range will handle the copy to our "staging" host buffer,
       // regardless of the source memory space.
-      StagingBuffer dst_buf(space, array, begin, nelems);
-      DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems, true);
+      StagingBuffer dst_buf(space, array, begin, nelems, m_host_allocator);
+      DeviceStagingBuffer<T> src_buf(valueSpace,
+                                     const_cast<T*>(values),
+                                     0,
+                                     nelems,
+                                     m_host_allocator,
+                                     true);
       std::uninitialized_copy(src_buf.getStagingBuffer(),
                               src_buf.getStagingBuffer() + nelems,
                               dst_buf.getStagingBuffer());
@@ -1140,8 +1156,13 @@ public:
       else
       {
         // Strided case - element-by-element copy
-        StagingBuffer dst_buf(space, array, begin, nelems);
-        DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems * src_stride, true);
+        StagingBuffer dst_buf(space, array, begin, nelems, m_host_allocator);
+        DeviceStagingBuffer<T> src_buf(valueSpace,
+                                       const_cast<T*>(values),
+                                       0,
+                                       nelems * src_stride,
+                                       m_host_allocator,
+                                       true);
 
         T* dst = dst_buf.getStagingBuffer();
         const T* src = src_buf.getStagingBuffer();
@@ -1156,8 +1177,13 @@ public:
     else
     {
       // Non-trivially copyable - use placement new with stride
-      StagingBuffer dst_buf(space, array, begin, nelems);
-      DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems * src_stride, true);
+      StagingBuffer dst_buf(space, array, begin, nelems, m_host_allocator);
+      DeviceStagingBuffer<T> src_buf(valueSpace,
+                                     const_cast<T*>(values),
+                                     0,
+                                     nelems * src_stride,
+                                     m_host_allocator,
+                                     true);
 
       T* dst = dst_buf.getStagingBuffer();
       const T* src = src_buf.getStagingBuffer();
@@ -1210,7 +1236,7 @@ public:
   {
     if constexpr(!std::is_trivially_destructible_v<T>)
     {
-      StagingBuffer tmp_buf(space, array, begin, nelems, true);
+      StagingBuffer tmp_buf(space, array, begin, nelems, m_host_allocator, true);
       T* array_host = tmp_buf.getStagingBuffer();
       for(IndexType i = 0; i < nelems; i++)
       {
@@ -1229,18 +1255,15 @@ public:
    */
   void move(T* array, IndexType src_begin, IndexType src_end, IndexType dst)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  #ifdef AXOM_USE_CUDA
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
     // CUDA-only: we require non-trivial types to be trivially-relocatable.
     // This enables us to do simple memcpys for move operations.
     bool presume_trivially_relocatable = (space == MemorySpace::Device);
-  #else
-    constexpr bool presume_trivially_relocatable = false;
-  #endif
-    if(std::is_trivially_copyable_v<T> || presume_trivially_relocatable)
+    if(space == MemorySpace::Device &&
+       (std::is_trivially_copyable_v<T> || presume_trivially_relocatable))
     {
-      // Since this memory is on the device-side, we copy it to a temporary buffer
-      // first.
+      // Device-only CUDA memory cannot be shifted from the host in-place.
+      // Copy it through a temporary device buffer instead.
       IndexType nelems = src_end - src_begin;
       T* tmp_buf = axom::allocate<T>(nelems, axom::execution_space<ExecSpace>::allocatorID());
       axom::copy(tmp_buf, array + src_begin, nelems * sizeof(T));
@@ -1303,6 +1326,9 @@ public:
       destroy(values, 0, nelems);
     }
   }
+
+private:
+  HostAllocator m_host_allocator;
 };
 
 template <typename T, int SliceDim, typename BaseArray>

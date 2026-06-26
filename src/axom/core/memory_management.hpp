@@ -387,6 +387,46 @@ private:
   int m_id;
 };
 
+/*!
+ * \brief Wrapper type representing an allocator ID that is valid for host allocations.
+ *
+ * This type is intended for APIs where the allocator specifically refers to host-resident
+ * storage or host staging memory.
+ */
+struct HostAllocator
+{
+public:
+  AXOM_HOST_DEVICE explicit HostAllocator(int alloc_id = defaultID()) : m_id {alloc_id}
+  {
+#if !defined(AXOM_DEVICE_CODE)
+    if(!axom::isAllocatorCompatibleWithMemorySpace(m_id, MemorySpace::Host))
+    {
+      std::cerr << "Allocator id " << m_id << " is not compatible with Axom's host memory space."
+                << std::endl;
+      axom::utilities::processAbort();
+    }
+#endif
+  }
+
+  /// \brief Returns the allocator ID.
+  AXOM_HOST_DEVICE int getID() const { return m_id; }
+
+  /// \brief Returns the MemorySpace type for the given allocator.
+  MemorySpace getSpace() const;
+
+private:
+  AXOM_HOST_DEVICE static int defaultID()
+  {
+#if defined(AXOM_DEVICE_CODE)
+    return axom::MALLOC_ALLOCATOR_ID;
+#else
+    return axom::getDefaultHostAllocatorID();
+#endif
+  }
+
+  int m_id;
+};
+
 //------------------------------------------------------------------------------
 //                        IMPLEMENTATION
 //------------------------------------------------------------------------------
@@ -924,6 +964,8 @@ inline bool isDeviceAllocator(int AXOM_UNUSED_PARAM(allocator_id)) { return fals
 #endif
 
 inline MemorySpace Allocator::getSpace() const { return axom::detail::getAllocatorSpace(m_id); }
+
+inline MemorySpace HostAllocator::getSpace() const { return axom::detail::getAllocatorSpace(m_id); }
 
 }  // namespace axom
 

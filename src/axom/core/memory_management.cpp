@@ -87,7 +87,8 @@ namespace detail
 
 void markDefaultHostAllocatorUsed(int allocId, const void* pointer) noexcept
 {
-  if(pointer != nullptr && allocId == defaultHostAllocatorConfig().get())
+  const int defaultHostAllocId = defaultHostAllocatorConfig().get();
+  if(pointer != nullptr && defaultHostAllocId != MALLOC_ALLOCATOR_ID && allocId == defaultHostAllocId)
   {
     defaultHostAllocatorConfig().markUsed();
   }
