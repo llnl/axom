@@ -140,13 +140,13 @@ TEST(numerics_quadrature, get_nodes_hip) { test_device_quadrature<axom::HIP_EXEC
 
 namespace
 {
-template <typename RuleGetter>
-void check_polynomial_exactness(RuleGetter&& getRule, int maxNpts)
+template <typename RuleGetter, typename ExactDegreeGetter>
+void check_polynomial_exactness(RuleGetter&& getRule, ExactDegreeGetter&& getExactDegree, int maxNpts)
 {
   for(int npts = 1; npts <= maxNpts; ++npts)
   {
     const auto rule = getRule(npts);
-    const int exactDegree = npts - 1 + npts % 2;
+    const int exactDegree = getExactDegree(npts);
     axom::Array<double> coeffs(exactDegree + 1, exactDegree + 1);
 
     for(int j = 0; j <= exactDegree; ++j)
@@ -204,6 +204,25 @@ TEST(numerics_quadrature, open_uniform_small_rules)
   EXPECT_DOUBLE_EQ(rule.weight(2), 2.0 / 3.0);
 }
 
+TEST(numerics_quadrature, gauss_lobatto_small_rules)
+{
+  auto rule = axom::numerics::get_gauss_lobatto(1);
+  ASSERT_EQ(rule.getNumPoints(), 1);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.5);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 1.0);
+
+  rule = axom::numerics::get_gauss_lobatto(4);
+  ASSERT_EQ(rule.getNumPoints(), 4);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.0);
+  EXPECT_NEAR(rule.node(1), 0.27639320225002103, 1e-15);
+  EXPECT_NEAR(rule.node(2), 0.7236067977499789, 1e-15);
+  EXPECT_DOUBLE_EQ(rule.node(3), 1.0);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 1.0 / 12.0);
+  EXPECT_DOUBLE_EQ(rule.weight(1), 5.0 / 12.0);
+  EXPECT_DOUBLE_EQ(rule.weight(2), 5.0 / 12.0);
+  EXPECT_DOUBLE_EQ(rule.weight(3), 1.0 / 12.0);
+}
+
 TEST(numerics_quadrature, closed_uniform_small_rules)
 {
   auto rule = axom::numerics::get_closed_uniform(1);
@@ -219,6 +238,43 @@ TEST(numerics_quadrature, closed_uniform_small_rules)
   EXPECT_DOUBLE_EQ(rule.weight(0), 1.0 / 6.0);
   EXPECT_DOUBLE_EQ(rule.weight(1), 4.0 / 6.0);
   EXPECT_DOUBLE_EQ(rule.weight(2), 1.0 / 6.0);
+}
+
+TEST(numerics_quadrature, open_half_uniform_small_rules)
+{
+  auto rule = axom::numerics::get_open_half_uniform(1);
+  ASSERT_EQ(rule.getNumPoints(), 1);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.5);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 1.0);
+
+  rule = axom::numerics::get_open_half_uniform(2);
+  ASSERT_EQ(rule.getNumPoints(), 2);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.25);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.75);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 0.5);
+  EXPECT_DOUBLE_EQ(rule.weight(1), 0.5);
+}
+
+TEST(numerics_quadrature, closed_gl_small_rules)
+{
+  auto rule = axom::numerics::get_closed_gl(1);
+  ASSERT_EQ(rule.getNumPoints(), 1);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.5);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 1.0);
+
+  rule = axom::numerics::get_closed_gl(4);
+  ASSERT_EQ(rule.getNumPoints(), 4);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.0);
+  EXPECT_NEAR(rule.node(1), 0.30635083268962916, 1e-15);
+  EXPECT_NEAR(rule.node(2), 0.6936491673103709, 1e-15);
+  EXPECT_DOUBLE_EQ(rule.node(3), 1.0);
+
+  double weightSum = 0.0;
+  for(int i = 0; i < rule.getNumPoints(); ++i)
+  {
+    weightSum += rule.weight(i);
+  }
+  EXPECT_NEAR(weightSum, 1.0, 1e-15);
 }
 
 TEST(numerics_quadrature, quadrature_type_dispatch)
@@ -242,14 +298,55 @@ TEST(numerics_quadrature, quadrature_type_dispatch)
   EXPECT_DOUBLE_EQ(rule.node(0), 0.0);
   EXPECT_DOUBLE_EQ(rule.node(1), 0.5);
   EXPECT_DOUBLE_EQ(rule.node(2), 1.0);
+
+  rule = axom::numerics::get_quadrature_rule(QuadratureType::GaussLobatto, 4);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.0);
+  EXPECT_NEAR(rule.node(1), 0.27639320225002103, 1e-15);
+  EXPECT_NEAR(rule.node(2), 0.7236067977499789, 1e-15);
+  EXPECT_DOUBLE_EQ(rule.node(3), 1.0);
+
+  rule = axom::numerics::get_quadrature_rule(QuadratureType::OpenHalfUniform, 2);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.25);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.75);
+
+  rule = axom::numerics::get_quadrature_rule(QuadratureType::ClosedGL, 4);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.0);
+  EXPECT_NEAR(rule.node(1), 0.30635083268962916, 1e-15);
+  EXPECT_NEAR(rule.node(2), 0.6936491673103709, 1e-15);
+  EXPECT_DOUBLE_EQ(rule.node(3), 1.0);
 }
 
 TEST(numerics_quadrature, open_uniform_exactness)
 {
-  check_polynomial_exactness([](int npts) { return axom::numerics::get_open_uniform(npts); }, 10);
+  check_polynomial_exactness([](int npts) { return axom::numerics::get_open_uniform(npts); },
+                             [](int npts) { return npts - 1 + npts % 2; },
+                             10);
 }
 
 TEST(numerics_quadrature, closed_uniform_exactness)
 {
-  check_polynomial_exactness([](int npts) { return axom::numerics::get_closed_uniform(npts); }, 10);
+  check_polynomial_exactness([](int npts) { return axom::numerics::get_closed_uniform(npts); },
+                             [](int npts) { return npts - 1 + npts % 2; },
+                             10);
+}
+
+TEST(numerics_quadrature, gauss_lobatto_exactness)
+{
+  check_polynomial_exactness([](int npts) { return axom::numerics::get_gauss_lobatto(npts); },
+                             [](int npts) { return npts == 1 ? 1 : 2 * npts - 3; },
+                             10);
+}
+
+TEST(numerics_quadrature, open_half_uniform_exactness)
+{
+  check_polynomial_exactness([](int npts) { return axom::numerics::get_open_half_uniform(npts); },
+                             [](int npts) { return npts - 1 + npts % 2; },
+                             10);
+}
+
+TEST(numerics_quadrature, closed_gl_exactness)
+{
+  check_polynomial_exactness([](int npts) { return axom::numerics::get_closed_gl(npts); },
+                             [](int npts) { return npts - 1 + npts % 2; },
+                             10);
 }

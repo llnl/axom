@@ -90,6 +90,59 @@ TEST(SamplingShaperBlueprintTest, sidre_blueprint_quadrature_persists)
   EXPECT_TRUE(refreshedMesh.has_path(axom::fmt::format("fields/{}/values", backgroundMatInOutName)));
 }
 
+TEST(SamplingShaperBlueprintTest, sidre_blueprint_accepts_all_axom_quadratures)
+{
+  const axom::numerics::QuadratureType quadratures[] = {
+    axom::numerics::QuadratureType::GaussLobatto,
+    axom::numerics::QuadratureType::OpenHalfUniform,
+    axom::numerics::QuadratureType::ClosedGL};
+
+  for(const auto quadrature : quadratures)
+  {
+    sidre::DataStore dataStore;
+    auto* meshGroup = dataStore.getRoot()->createGroup("mesh");
+
+    const primal::BoundingBox<double, 2> bbox {{0., 0.}, {1., 1.}};
+    const axom::NumericArray<int, 2> res {{2, 2}};
+    quest::util::make_unstructured_blueprint_box_mesh_2d(meshGroup, bbox, res, "mesh", "coords");
+
+    constexpr axom::IndexType cellCount = 4;
+    const std::string backgroundVolFracName = quest::shaping::volumeFractionFieldName("background");
+    auto* fieldGroup = meshGroup->createGroup(axom::fmt::format("fields/{}", backgroundVolFracName));
+    fieldGroup->createViewString("association", "element");
+    fieldGroup->createViewString("topology", "mesh");
+    auto* valuesView =
+      fieldGroup->createViewAndAllocate("values", axom::sidre::DataTypeId::FLOAT64_ID, cellCount);
+    auto* values = static_cast<double*>(valuesView->getVoidPtr());
+    for(axom::IndexType i = 0; i < cellCount; ++i)
+    {
+      values[i] = 1.;
+    }
+
+    klee::ShapeSet shapeSet;
+    quest::SamplingShaper shaper(axom::runtime_policy::Policy::seq,
+                                 axom::policyToDefaultAllocatorID(axom::runtime_policy::Policy::seq),
+                                 shapeSet,
+                                 meshGroup,
+                                 "mesh");
+    shaper.setSamplingResolution(3);
+    shaper.setQuadratureType(quadrature);
+
+    auto* bpState = shaper.getBlueprintState();
+    ASSERT_NE(bpState, nullptr);
+
+    std::map<std::string, conduit::Node*> initialVolumeFractions;
+    initialVolumeFractions["background"] = &bpState->getField(backgroundVolFracName);
+    EXPECT_NO_THROW(shaper.importInitialVolumeFractions(initialVolumeFractions));
+
+    conduit::Node refreshedMesh;
+    meshGroup->createNativeLayout(refreshedMesh);
+    EXPECT_TRUE(refreshedMesh.has_path("coordsets/quadrature_points"));
+    EXPECT_TRUE(refreshedMesh.has_path("topologies/quadrature_points"));
+    EXPECT_TRUE(refreshedMesh.has_path("fields/quadratureWeights/values"));
+  }
+}
+
 int main(int argc, char* argv[])
 {
   axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);

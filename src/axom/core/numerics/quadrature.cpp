@@ -40,28 +40,22 @@ bool is_valid_quadrature_type(int quadratureType)
   }
 }
 
-bool is_supported_quadrature_type(QuadratureType quadratureType)
-{
-  switch(quadratureType)
-  {
-  case QuadratureType::Invalid:
-  case QuadratureType::GaussLegendre:
-  case QuadratureType::OpenUniform:
-  case QuadratureType::ClosedUniform:
-    return true;
-  case QuadratureType::GaussLobatto:
-  case QuadratureType::OpenHalfUniform:
-  case QuadratureType::ClosedGL:
-    return false;
-  }
-
-  return false;
-}
-
 void compute_gauss_legendre_data(int npts,
                                  axom::Array<double>& nodes,
                                  axom::Array<double>& weights,
                                  int allocatorID);
+void compute_gauss_lobatto_data(int npts,
+                                axom::Array<double>& nodes,
+                                axom::Array<double>& weights,
+                                int allocatorID);
+void compute_open_half_uniform_data(int npts,
+                                    axom::Array<double>& nodes,
+                                    axom::Array<double>& weights,
+                                    int allocatorID);
+void compute_closed_gl_data(int npts,
+                            axom::Array<double>& nodes,
+                            axom::Array<double>& weights,
+                            int allocatorID);
 
 namespace
 {
@@ -272,6 +266,77 @@ void compute_open_uniform_data(int npts,
   compute_interpolatory_weights(nodes, weights, allocatorID);
 }
 
+void compute_gauss_lobatto_data(int npts,
+                                axom::Array<double>& nodes,
+                                axom::Array<double>& weights,
+                                int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  nodes = axom::Array<double>(npts, npts, allocatorID);
+  weights = axom::Array<double>(npts, npts, allocatorID);
+
+  if(npts == 1)
+  {
+    nodes[0] = 0.5;
+    weights[0] = 1.0;
+    return;
+  }
+
+  nodes[0] = 0.0;
+  nodes[npts - 1] = 1.0;
+  weights[0] = weights[npts - 1] = 1.0 / (npts * (npts - 1.0));
+
+  constexpr int MaxIterations = 16;
+  const double tol = axom::numeric_limits<double>::epsilon();
+
+  for(int i = 1; i <= (npts - 1) / 2; ++i)
+  {
+    double x = std::sin(M_PI * (static_cast<double>(i) / (npts - 1) - 0.5));
+    double pNm2 = 1.0;
+    double pNm1 = x;
+
+    for(int iter = 0; iter < MaxIterations; ++iter)
+    {
+      pNm2 = 1.0;
+      pNm1 = x;
+      for(int l = 1; l < (npts - 1); ++l)
+      {
+        const double p = ((2 * l + 1) * x * pNm1 - l * pNm2) / (l + 1);
+        pNm2 = pNm1;
+        pNm1 = p;
+      }
+
+      const double dx = (x * pNm1 - pNm2) / (npts * pNm1);
+      x -= dx;
+
+      if(std::fabs(dx) <= tol * (1.0 + std::fabs(x)))
+      {
+        break;
+      }
+
+      assert("Gauss-Lobatto Newton iteration did not converge." && iter + 1 < MaxIterations);
+    }
+
+    pNm2 = 1.0;
+    pNm1 = x;
+    for(int l = 1; l < (npts - 1); ++l)
+    {
+      const double p = ((2 * l + 1) * x * pNm1 - l * pNm2) / (l + 1);
+      pNm2 = pNm1;
+      pNm1 = p;
+    }
+
+    const double node = 0.5 * (1.0 + x);
+    const double weight = 1.0 / (npts * (npts - 1.0) * pNm1 * pNm1);
+
+    nodes[i] = node;
+    nodes[npts - 1 - i] = 1.0 - node;
+    weights[i] = weight;
+    weights[npts - 1 - i] = weight;
+  }
+}
+
 void compute_closed_uniform_data(int npts,
                                  axom::Array<double>& nodes,
                                  axom::Array<double>& weights,
@@ -291,6 +356,56 @@ void compute_closed_uniform_data(int npts,
   for(int i = 0; i < npts; ++i)
   {
     nodes[i] = static_cast<double>(i) / static_cast<double>(npts - 1);
+  }
+
+  compute_interpolatory_weights(nodes, weights, allocatorID);
+}
+
+void compute_open_half_uniform_data(int npts,
+                                    axom::Array<double>& nodes,
+                                    axom::Array<double>& weights,
+                                    int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  nodes = axom::Array<double>(npts, npts, allocatorID);
+  for(int i = 0; i < npts; ++i)
+  {
+    nodes[i] = static_cast<double>(2 * i + 1) / static_cast<double>(2 * npts);
+  }
+
+  compute_interpolatory_weights(nodes, weights, allocatorID);
+}
+
+void compute_closed_gl_data(int npts,
+                            axom::Array<double>& nodes,
+                            axom::Array<double>& weights,
+                            int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  nodes = axom::Array<double>(npts, npts, allocatorID);
+  if(npts == 1)
+  {
+    nodes[0] = 0.5;
+    weights = axom::Array<double>(1, 1, allocatorID);
+    weights[0] = 1.0;
+    return;
+  }
+
+  nodes[0] = 0.0;
+  nodes[npts - 1] = 1.0;
+
+  if(npts > 2)
+  {
+    axom::Array<double> glNodes;
+    axom::Array<double> glWeights;
+    compute_gauss_legendre_data(npts - 1, glNodes, glWeights, allocatorID);
+
+    for(int i = 1; i < npts - 1; ++i)
+    {
+      nodes[i] = 0.5 * (glNodes[i - 1] + glNodes[i]);
+    }
   }
 
   compute_interpolatory_weights(nodes, weights, allocatorID);
@@ -326,28 +441,43 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
   return QuadratureRule {storage.nodes.view(), storage.weights.view()};
 }
 
+QuadratureRule get_gauss_lobatto(int npts, int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
+  static std::mutex rule_library_mutex;
+  auto& storage = get_cached_rule_storage(npts,
+                                          allocatorID,
+                                          rule_library,
+                                          rule_library_mutex,
+                                          compute_gauss_lobatto_data);
+  return QuadratureRule {storage.nodes.view(), storage.weights.view()};
+}
+
 QuadratureRule get_quadrature_rule(QuadratureType quadratureType, int npts, int allocatorID)
 {
   assert("Invalid Axom quadrature type." &&
          is_valid_quadrature_type(static_cast<int>(quadratureType)));
-  assert("Unsupported Axom quadrature type." && is_supported_quadrature_type(quadratureType));
 
   switch(quadratureType)
   {
   case QuadratureType::Invalid:
   case QuadratureType::GaussLegendre:
     return get_gauss_legendre(npts, allocatorID);
+  case QuadratureType::GaussLobatto:
+    return get_gauss_lobatto(npts, allocatorID);
   case QuadratureType::OpenUniform:
     return get_open_uniform(npts, allocatorID);
   case QuadratureType::ClosedUniform:
     return get_closed_uniform(npts, allocatorID);
-  case QuadratureType::GaussLobatto:
   case QuadratureType::OpenHalfUniform:
+    return get_open_half_uniform(npts, allocatorID);
   case QuadratureType::ClosedGL:
-    break;
+    return get_closed_gl(npts, allocatorID);
   }
 
-  assert("Unsupported Axom quadrature type." && false);
+  assert("Unhandled Axom quadrature type." && false);
   return get_gauss_legendre(npts, allocatorID);
 }
 
@@ -376,6 +506,31 @@ QuadratureRule get_closed_uniform(int npts, int allocatorID)
                                           rule_library,
                                           rule_library_mutex,
                                           compute_closed_uniform_data);
+  return QuadratureRule {storage.nodes.view(), storage.weights.view()};
+}
+
+QuadratureRule get_open_half_uniform(int npts, int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
+  static std::mutex rule_library_mutex;
+  auto& storage = get_cached_rule_storage(npts,
+                                          allocatorID,
+                                          rule_library,
+                                          rule_library_mutex,
+                                          compute_open_half_uniform_data);
+  return QuadratureRule {storage.nodes.view(), storage.weights.view()};
+}
+
+QuadratureRule get_closed_gl(int npts, int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
+  static std::mutex rule_library_mutex;
+  auto& storage =
+    get_cached_rule_storage(npts, allocatorID, rule_library, rule_library_mutex, compute_closed_gl_data);
   return QuadratureRule {storage.nodes.view(), storage.weights.view()};
 }
 

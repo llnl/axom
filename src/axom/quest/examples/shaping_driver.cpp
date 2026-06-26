@@ -1073,6 +1073,7 @@ int main(int argc, char** argv)
   SLIC_INFO(axom::fmt::format("{:=^80}", "Generating volume fraction fields for materials"));
 
   shaper->adjustVolumeFractions();
+  AXOM_ANNOTATE_END("adjust");
 
   //---------------------------------------------------------------------------
   // Compute and print volumes of each material's volume fraction
@@ -1093,7 +1094,6 @@ int main(int argc, char** argv)
     printSummaryMFEM(shaper);
   }
 #endif
-  AXOM_ANNOTATE_END("adjust");
 
   //---------------------------------------------------------------------------
   // Save meshes and fields
@@ -1192,14 +1192,14 @@ void printSummaryBlueprint(axom::quest::SamplingShaper* shaper)
   const auto measure =
     axom::bump::utilities::make_array_view<double>(n_fields.fetch_existing("measure/values"));
 
-  // Compute the volumes for all of the "vol_frac_" fields.
+  // Compute the volumes for all material volume-fraction fields.
   for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
   {
     conduit::Node& n_field = n_fields[i];
     const std::string name = n_field.name();
-    if(axom::utilities::string::startsWith(name, "vol_frac_"))
+    if(quest::shaping::isVolumeFractionFieldName(name))
     {
-      const auto mat_name = name.substr(9);
+      const auto mat_name = quest::shaping::materialNameFromVolumeFractionFieldName(name);
       const auto values =
         axom::bump::utilities::make_array_view<double>(n_field.fetch_existing("values"));
 
@@ -1226,11 +1226,13 @@ void printSummaryBlueprint(axom::quest::SamplingShaper* shaper)
  */
 void printSummaryMFEM(axom::quest::Shaper* shaper)
 {
+  AXOM_ANNOTATE_SCOPE("printSummaryMFEM");
+
   for(auto& kv : shaper->getDC()->GetFieldMap())
   {
-    if(axom::utilities::string::startsWith(kv.first, "vol_frac_"))
+    if(quest::shaping::isVolumeFractionFieldName(kv.first))
     {
-      const auto mat_name = kv.first.substr(9);
+      const auto mat_name = quest::shaping::materialNameFromVolumeFractionFieldName(kv.first);
       auto* gf = kv.second;
 
       mfem::ConstantCoefficient one(1.0);
