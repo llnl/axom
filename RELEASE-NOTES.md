@@ -66,6 +66,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Improved `axom::FlatMap` insertion performance by fusing duplicate-key lookup with empty-slot probing.
 - Core: Updated DeviceHash to use 64-bit hash results and improved coverage for integer and floating-point hashing.
 - Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
+- Sidre: Vector-valued MFEM `QuadratureFunction` fields exported through `MFEMSidreDataCollection` now use Blueprint mcarray component storage under `values`, instead of a single scalar array.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 

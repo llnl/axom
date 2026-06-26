@@ -17,6 +17,8 @@
 #include "mfem.hpp"
 #include "gtest/gtest.h"
 
+#include "conduit_blueprint.hpp"
+
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
 #endif
@@ -27,6 +29,11 @@ using axom::sidre::MFEMSidreDataCollection;
 constexpr double EPSILON = 1.0e-6;
 
 std::string testName() { return ::testing::UnitTest::GetInstance()->current_test_info()->name(); }
+
+void checkMcarrayFieldValues(axom::sidre::Group* bp_grp,
+                             const std::string& field_name,
+                             int vdim,
+                             int ndof);
 
 TEST(sidre_datacollection, dc_alloc_no_mesh)
 {
@@ -415,6 +422,13 @@ TEST(sidre_datacollection, dc_reload_qf)
   sdc_writer.RegisterQField("qs", &qs);
   sdc_writer.RegisterQField("qv", &qv);
 
+  auto* writer_bp_grp = sdc_writer.GetBPGroup();
+  ASSERT_NE(writer_bp_grp, nullptr);
+  EXPECT_TRUE(writer_bp_grp->hasView("fields/qs/values"));
+  EXPECT_FALSE(writer_bp_grp->hasGroup("fields/qs/values"));
+  EXPECT_FALSE(writer_bp_grp->hasView("fields/qv/values"));
+  checkMcarrayFieldValues(writer_bp_grp, "qv", qv_vdim, qspace.GetSize());
+
   // The data needs to be instantiated before we save it off
   for(int i = 0; i < Nq; ++i)
   {
@@ -443,6 +457,13 @@ TEST(sidre_datacollection, dc_reload_qf)
   ASSERT_TRUE(sdc_reader.HasQField("qv"));
   mfem::QuadratureFunction* reader_qs = sdc_reader.GetQField("qs");
   mfem::QuadratureFunction* reader_qv = sdc_reader.GetQField("qv");
+
+  auto* reader_bp_grp = sdc_reader.GetBPGroup();
+  ASSERT_NE(reader_bp_grp, nullptr);
+  EXPECT_TRUE(reader_bp_grp->hasView("fields/qs/values"));
+  EXPECT_FALSE(reader_bp_grp->hasGroup("fields/qs/values"));
+  EXPECT_FALSE(reader_bp_grp->hasView("fields/qv/values"));
+  checkMcarrayFieldValues(reader_bp_grp, "qv", qv_vdim, qspace.GetSize());
 
   // order_qs should also equal order_qv in this trivial case
   EXPECT_EQ(reader_qs->GetSpace()->GetOrder(), intOrder);
@@ -476,6 +497,32 @@ void checkReferentialEquality(axom::sidre::Group* grp,
     const double* second_data = grp->getView(second)->getData();
     EXPECT_EQ(first_data, second_data);
   }
+}
+
+void checkMcarrayFieldValues(axom::sidre::Group* bp_grp,
+                             const std::string& field_name,
+                             int vdim,
+                             int ndof)
+{
+  ASSERT_TRUE(bp_grp->hasGroup("fields/" + field_name + "/values"));
+  auto* values_grp = bp_grp->getGroup("fields/" + field_name + "/values");
+  ASSERT_NE(values_grp, nullptr);
+  EXPECT_EQ(values_grp->getNumViews(), vdim);
+
+  for(int d = 0; d < vdim; ++d)
+  {
+    const std::string view_name = "x" + std::to_string(d);
+    ASSERT_TRUE(values_grp->hasView(view_name));
+    auto* component_view = values_grp->getView(view_name);
+    ASSERT_NE(component_view, nullptr);
+    EXPECT_EQ(component_view->getNumElements(), ndof);
+    EXPECT_EQ(component_view->getStride(), static_cast<axom::sidre::IndexType>(vdim));
+  }
+
+  conduit::Node values_node;
+  conduit::Node info;
+  EXPECT_TRUE(values_grp->createNativeLayout(values_node));
+  EXPECT_TRUE(conduit::blueprint::verify("mcarray", values_node, info)) << info.to_string();
 }
 
 TEST(sidre_datacollection, create_matset)
