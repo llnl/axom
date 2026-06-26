@@ -196,23 +196,32 @@ if(NANOBIND_FOUND)
     # and 'import pysidre' resolve. The Sidre bindings stage that tree under
     # ${PROJECT_BINARY_DIR}/python (see src/axom/sidre/CMakeLists.txt).
     set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/python)
+    set(_PYEXT_DIR_IS_RELATIVE FALSE)
 
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
                          "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
 
     # gen python helper to install directory.
-    # Mirror the installed package root. Fall back to the lib dir if the
-    # Python package prefix was never set (e.g. Sidre/bindings disabled).
+    # Mirror the installed package root. 
+    # Keep relative package install dirs relative in the generated script too.
+    # It resolves them from its own bin/ directory at runtime so `cmake --install --prefix` remains usable.
     if(AXOM_PYTHON_MODULE_INSTALL_PREFIX)
         set(_PYEXT_DIR ${AXOM_PYTHON_MODULE_INSTALL_PREFIX})
+        if(IS_ABSOLUTE "${_PYEXT_DIR}")
+            set(_PYEXT_DIR_IS_RELATIVE FALSE)
+        else()
+            set(_PYEXT_DIR_IS_RELATIVE TRUE)
+        endif()
     else()
         set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+        set(_PYEXT_DIR_IS_RELATIVE FALSE)
     endif()
 
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
                          "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
 
     unset(_PYEXT_DIR)
+    unset(_PYEXT_DIR_IS_RELATIVE)
 
     # Smoke test for the script: verify it makes Axom's bindings and runtime dependencies importable
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)

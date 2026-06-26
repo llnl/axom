@@ -763,12 +763,11 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("+python"):
             # Install Axom's Python package(s) so a spack environment view merges them into
             # a single site-packages and `import axom.sidre` works without updating PYTHONPATH
-            axom_prefix = os.path.realpath(spec.prefix)
-            for key in path_replacements:
-                axom_prefix = axom_prefix.replace(key, path_replacements[key])
-            py_platlib = pjoin(axom_prefix, spec["python"].package.platlib)
             entries.append(
-                cmake_cache_path("AXOM_PYTHON_MODULE_INSTALL_PREFIX", py_platlib)
+                cmake_cache_path(
+                    "AXOM_PYTHON_MODULE_INSTALL_PREFIX",
+                    spec["python"].package.platlib,
+                )
             )
 
         if spec.satisfies("^py-jsonschema"):

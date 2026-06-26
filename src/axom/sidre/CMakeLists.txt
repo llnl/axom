@@ -141,11 +141,33 @@ if(NANOBIND_FOUND)
     # Python bindings for Sidre.
     # The pure-Python package scaffolding lives once under src/python/src/
 
-    # site-packages-shaped install root for Axom's Python package(s).
+    # site-packages-shaped install directory for Axom's Python package(s).
+    # Keep this relative to the install prefix so `cmake --install --prefix`
+    # relocates the Python package along with Axom's other install artifacts.
+    set(_axom_python_install_default
+        "lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages")
+    set(_axom_python_install_description
+        "Install destination for Axom's Python package(s), relative to the install prefix")
     set(AXOM_PYTHON_MODULE_INSTALL_PREFIX
-        "${CMAKE_INSTALL_PREFIX}/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
+        "${_axom_python_install_default}"
         CACHE PATH
-        "Install destination for Axom's Python package(s), relative to which 'axom/' is created")
+        "${_axom_python_install_description}")
+
+    if(IS_ABSOLUTE "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}")
+        file(RELATIVE_PATH _axom_python_install_relpath
+             "${CMAKE_INSTALL_PREFIX}"
+             "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}")
+        if(NOT _axom_python_install_relpath MATCHES "^\\.\\.")
+            set(AXOM_PYTHON_MODULE_INSTALL_PREFIX
+                "${_axom_python_install_relpath}"
+                CACHE PATH
+                "${_axom_python_install_description}"
+                FORCE)
+        endif()
+        unset(_axom_python_install_relpath)
+    endif()
+    unset(_axom_python_install_default)
+    unset(_axom_python_install_description)
 
     # Root of the staged package tree in the build directory. 
     # The build-tree interpreter (and run_python_with_axom.sh, via _PYEXT_DIR) 

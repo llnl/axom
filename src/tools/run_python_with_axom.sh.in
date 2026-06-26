@@ -18,11 +18,16 @@
 ## build tree that has the bindings enabled -- it assembles conduit/numpy/mpi4py
 ## from their spack prefixes so a one-off script "just works" without a venv.
 ##
-##
 ## Caveats: this script is bash-only and, since it prepends the PYTHONPATH, 
 ## does not compose with Jupyter kernels, IDE runners, or debuggers.
 ##
 ## Build-time (nanobind) and testing dependencies (pytest/pluggy/iniconfig)
 ## are intentionally NOT added here.
 ##-----------------------------------------------------------------------------
-env PYTHONPATH=@_PYEXT_DIR@:@CONDUIT_PYTHON_MODULE_DIR@:@PY_NUMPY_DIR@:@PY_MPI4PY_DIR@:$PYTHONPATH @Python_EXECUTABLE@ "$@"
+_AXOM_PYEXT_DIR="@_PYEXT_DIR@"
+if [ "@_PYEXT_DIR_IS_RELATIVE@" = "TRUE" ]; then
+    _AXOM_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    _AXOM_PYEXT_DIR="${_AXOM_SCRIPT_DIR}/../${_AXOM_PYEXT_DIR}"
+fi
+
+env PYTHONPATH=${_AXOM_PYEXT_DIR}:@CONDUIT_PYTHON_MODULE_DIR@:@PY_NUMPY_DIR@:@PY_MPI4PY_DIR@:$PYTHONPATH @Python_EXECUTABLE@ "$@"
