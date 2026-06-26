@@ -51,9 +51,8 @@ struct VolumeFractionMassConfig
 /*!
  * \brief Select an execution policy supported by the host-side MFEM volume fraction path.
  */
-axom::runtime_policy::Policy selectVolumeFractionExecutionPolicy(
-  axom::runtime_policy::Policy execPolicy,
-  const std::string& vfName)
+axom::runtime_policy::Policy selectVolumeFractionExecutionPolicy(axom::runtime_policy::Policy execPolicy,
+                                                                 const std::string& vfName)
 {
   using RuntimePolicy = axom::runtime_policy::Policy;
 
@@ -61,25 +60,27 @@ axom::runtime_policy::Policy selectVolumeFractionExecutionPolicy(
   {
   case RuntimePolicy::seq:
     return RuntimePolicy::seq;
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
     return RuntimePolicy::omp;
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case RuntimePolicy::cuda:
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case RuntimePolicy::hip:
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP)
-    SLIC_WARNING_ROOT(axom::fmt::format(
-      "MFEM volume fraction processing for '{}' uses host data and currently falls back to sequential execution for device runtime policies.",
-      vfName));
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP)
+    SLIC_WARNING_ROOT(
+      axom::fmt::format("MFEM volume fraction processing for '{}' uses host data and currently "
+                        "falls back to sequential execution for device runtime policies.",
+                        vfName));
     return RuntimePolicy::seq;
-#endif
+  #endif
   default:
     SLIC_WARNING_ROOT(axom::fmt::format(
-      "MFEM volume fraction processing for '{}' falls back to sequential execution because the requested runtime policy is not available in this build.",
+      "MFEM volume fraction processing for '{}' falls back to sequential execution because the "
+      "requested runtime policy is not available in this build.",
       vfName));
     return RuntimePolicy::seq;
   }
@@ -332,11 +333,11 @@ void applyFCTProjection(mfem::DenseTensor& massMat,
   case RuntimePolicy::seq:
     applyFCTProjectionImpl<seq_exec>(massMat, rhs, dofs, numElements, vfData, scratchBuffer);
     break;
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
     applyFCTProjectionImpl<omp_exec>(massMat, rhs, dofs, numElements, vfData, scratchBuffer);
     break;
-#endif
+  #endif
   default:
     applyFCTProjectionImpl<seq_exec>(massMat, rhs, dofs, numElements, vfData, scratchBuffer);
     break;
@@ -478,18 +479,27 @@ void assembleChunkMassMatrices(const mfem::FiniteElementSpace& fes,
   switch(execPolicy)
   {
   case RuntimePolicy::seq:
-    assembleChunkMassMatricesSequential(
-      fes, massIntegrator, config, elemBegin, chunkNE, massMat, massMatInv);
+    assembleChunkMassMatricesSequential(fes,
+                                        massIntegrator,
+                                        config,
+                                        elemBegin,
+                                        chunkNE,
+                                        massMat,
+                                        massMatInv);
     break;
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
-    assembleChunkMassMatricesImpl<omp_exec>(
-      fes, sampleIR, config, elemBegin, chunkNE, massMat, massMatInv);
+    assembleChunkMassMatricesImpl<omp_exec>(fes, sampleIR, config, elemBegin, chunkNE, massMat, massMatInv);
     break;
-#endif
+  #endif
   default:
-    assembleChunkMassMatricesSequential(
-      fes, massIntegrator, config, elemBegin, chunkNE, massMat, massMatInv);
+    assembleChunkMassMatricesSequential(fes,
+                                        massIntegrator,
+                                        config,
+                                        elemBegin,
+                                        chunkNE,
+                                        massMat,
+                                        massMatInv);
     break;
   }
 }
@@ -552,11 +562,11 @@ void factorChunkMassMatrices(const VolumeFractionMassConfig& config,
     massMatPivots.Write();
     mfem::BatchLUFactor(massMatInv, massMatPivots);
     break;
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
     factorChunkMassMatricesImpl<omp_exec>(config, chunkNE, massMatInv, massMatPivots);
     break;
-#endif
+  #endif
   default:
     massMatInv.ReadWrite();
     massMatPivots.Write();
@@ -1157,8 +1167,7 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
   const VolumeFractionMassConfig config =
     makeVolumeFractionMassConfig(*fes, sampleResolution, quadratureType);
   logChunkedMassProcessing(vf_name, config);
-  const auto volumeFractionExecPolicy =
-    selectVolumeFractionExecutionPolicy(execPolicy, vf_name);
+  const auto volumeFractionExecPolicy = selectVolumeFractionExecutionPolicy(execPolicy, vf_name);
 
   axom::utilities::Timer timer(true);
   {
@@ -1172,8 +1181,7 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
     }
     else
     {
-      solveVolumeFractionsCached(
-        mfemState, *fes, sampleIR, config, volumeFractionExecPolicy, b, *vf);
+      solveVolumeFractionsCached(mfemState, *fes, sampleIR, config, volumeFractionExecPolicy, b, *vf);
     }
   }
   timer.stop();
