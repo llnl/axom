@@ -41,7 +41,6 @@ public:
    *
    * \param topoView The input topology view.
    * \param coordsetView The input coordset view.
-   * \param matsetView The input matset view.
    */
   ExtractZones(const TopologyView &topoView, const CoordsetView &coordsetView)
     : m_topologyView(topoView)
