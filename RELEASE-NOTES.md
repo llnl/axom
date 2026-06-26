@@ -55,6 +55,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Deprecated
 - Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
+- Python: The top-level `pysidre` module is deprecated in favor of `axom.sidre`.
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
@@ -65,6 +66,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 - Changed to `#pragma once` instead of unique header guard defines
+- Python: Sidre's bindings now install as an `axom` namespace package (`import axom.sidre`)
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
