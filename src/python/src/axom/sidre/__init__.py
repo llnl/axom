@@ -12,9 +12,14 @@ If it is missing, importing :mod:`axom.sidre` raises a :class:`ImportError` that
 rather than surfacing an opaque loader error.
 """
 
+import importlib.util as _importlib_util
+
 try:
     from . import _sidre
 except ImportError as exc:  # pragma: no cover - exercised only in partial installs
+    if _importlib_util.find_spec(f"{__name__}._sidre") is not None:
+        raise
+
     raise ImportError(
         "The 'axom.sidre' extension module ('_sidre') is not available in this "
         "installation. It is built only when Axom is configured with the Sidre "
