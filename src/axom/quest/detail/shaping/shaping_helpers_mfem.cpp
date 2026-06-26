@@ -48,8 +48,12 @@ struct VolumeFractionMassConfig
   std::int64_t cachedMassBytes {};
 };
 
-axom::runtime_policy::Policy selectFCTExecutionPolicy(axom::runtime_policy::Policy execPolicy,
-                                                      const std::string& vfName)
+/*!
+ * \brief Select an execution policy supported by the host-side MFEM volume fraction path.
+ */
+axom::runtime_policy::Policy selectVolumeFractionExecutionPolicy(
+  axom::runtime_policy::Policy execPolicy,
+  const std::string& vfName)
 {
   using RuntimePolicy = axom::runtime_policy::Policy;
 
@@ -69,13 +73,13 @@ axom::runtime_policy::Policy selectFCTExecutionPolicy(axom::runtime_policy::Poli
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP)
     SLIC_WARNING_ROOT(axom::fmt::format(
-      "FCT projection for '{}' uses MFEM host data and currently falls back to sequential execution for device runtime policies.",
+      "MFEM volume fraction processing for '{}' uses host data and currently falls back to sequential execution for device runtime policies.",
       vfName));
     return RuntimePolicy::seq;
 #endif
   default:
     SLIC_WARNING_ROOT(axom::fmt::format(
-      "FCT projection for '{}' falls back to sequential execution because the requested runtime policy is not available in this build.",
+      "MFEM volume fraction processing for '{}' falls back to sequential execution because the requested runtime policy is not available in this build.",
       vfName));
     return RuntimePolicy::seq;
   }
@@ -124,6 +128,9 @@ void logVolumeFractionInputs(int sampleNQ,
                                    numElements));
 }
 
+/*!
+ * \brief Compute the cached and chunked mass-solve settings for this volume fraction field.
+ */
 VolumeFractionMassConfig makeVolumeFractionMassConfig(const mfem::FiniteElementSpace& fes,
                                                       axom::ArrayView<int> sampleResolution,
                                                       axom::numerics::QuadratureType quadratureType)
@@ -170,15 +177,17 @@ void assembleVolumeFractionRHSVector(const mfem::FiniteElementSpace& fes,
 {
   AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
 
-  inout.ReadWrite();
+  inout.Read();
   rhs.HostWrite();
   rhs = 0.;
   rhs.ReadWrite();
 
   assembleVolumeFractionRHS(fes, inout, sampleIR, usesAnisotropicQuadrature, rhs);
-  inout.HostReadWrite();
 }
 
+/*!
+ * \brief Assemble or reuse the whole-mesh local mass matrices for the cached solve path.
+ */
 mfem::DenseTensor* getOrAssembleMassMatrix(MFEMState& mfemState,
                                            const mfem::FiniteElementSpace& fes,
                                            const mfem::IntegrationRule& sampleIR,
@@ -246,7 +255,7 @@ std::pair<mfem::DenseTensor*, mfem::Array<int>*> getOrFactorMassMatrix(
 
   AXOM_ANNOTATE_SCOPE("batch lu factor");
 
-  massMat.ReadWrite();
+  massMat.Read();
   auto* massMatInv = new mfem::DenseTensor(massMat);
   auto* massMatPivots = new mfem::Array<int>(config.dofs * config.numElements);
 
@@ -298,8 +307,8 @@ void applyFCTProjectionImpl(mfem::DenseTensor& massMat,
 
   AXOM_ANNOTATE_SCOPE("fct project");
 
-  auto m_d = mfem::Reshape(massMat.HostReadWrite(), dofs, dofs, numElements);
-  auto b_d = mfem::Reshape(rhs.HostReadWrite(), dofs, numElements);
+  auto m_d = mfem::Reshape(massMat.HostRead(), dofs, dofs, numElements);
+  auto b_d = mfem::Reshape(rhs.HostRead(), dofs, numElements);
   auto vf_d = mfem::Reshape(vfData.HostReadWrite(), dofs, numElements);
   auto fct_mat_d = mfem::Reshape(scratchBuffer.HostReadWrite(), dofs, dofs, numElements);
 
@@ -334,6 +343,9 @@ void applyFCTProjection(mfem::DenseTensor& massMat,
   }
 }
 
+/*!
+ * \brief Solve the cached whole-mesh mass systems and apply FCT to the result.
+ */
 void solveVolumeFractionsCached(MFEMState& mfemState,
                                 const mfem::FiniteElementSpace& fes,
                                 const mfem::IntegrationRule& sampleIR,
@@ -363,6 +375,9 @@ void solveVolumeFractionsCached(MFEMState& mfemState,
   applyFCTProjection(*massMat, execPolicy, rhs, config.dofs, config.numElements, vf, *scratchBuffer);
 }
 
+/*!
+ * \brief Choose a chunk size that bounds the temporary chunk workspace near the target size.
+ */
 int computeChunkSize(const VolumeFractionMassConfig& config)
 {
   constexpr std::int64_t TARGET_CHUNK_BYTES = 256LL * 1024 * 1024;
@@ -374,7 +389,9 @@ int computeChunkSize(const VolumeFractionMassConfig& config)
   return static_cast<int>(std::min<std::int64_t>(config.numElements, elemsPerChunk));
 }
 
-/// Serial version that does not have to create MFEM objects each iteration.
+/*!
+ * \brief Assemble chunk mass matrices serially while reusing MFEM objects across elements.
+ */
 void assembleChunkMassMatricesSequential(const mfem::FiniteElementSpace& fes,
                                          mfem::MassIntegrator& massIntegrator,
                                          const VolumeFractionMassConfig& config,
@@ -405,7 +422,9 @@ void assembleChunkMassMatricesSequential(const mfem::FiniteElementSpace& fes,
   }
 }
 
-/// OpenMP parallelizable version that builds MFEM objects in the for_all.
+/*!
+ * \brief Assemble chunk mass matrices with per-element MFEM state for host parallel execution.
+ */
 template <typename ExecSpace>
 void assembleChunkMassMatricesImpl(const mfem::FiniteElementSpace& fes,
                                    const mfem::IntegrationRule& sampleIR,
@@ -441,6 +460,9 @@ void assembleChunkMassMatricesImpl(const mfem::FiniteElementSpace& fes,
   });
 }
 
+/*!
+ * \brief Dispatch chunk mass assembly to the requested host execution policy.
+ */
 void assembleChunkMassMatrices(const mfem::FiniteElementSpace& fes,
                                const mfem::IntegrationRule& sampleIR,
                                mfem::MassIntegrator& massIntegrator,
@@ -479,7 +501,7 @@ void copyChunkRHS(mfem::Vector& rhs,
                   mfem::Vector& rhsChunk,
                   mfem::Vector& vfChunk)
 {
-  auto rhs_d = mfem::Reshape(rhs.HostReadWrite(), config.dofs, config.numElements);
+  auto rhs_d = mfem::Reshape(rhs.HostRead(), config.dofs, config.numElements);
   auto rhs_chunk_d = mfem::Reshape(rhsChunk.HostWrite(), config.dofs, chunkNE);
   auto vf_chunk_d = mfem::Reshape(vfChunk.HostWrite(), config.dofs, chunkNE);
 
@@ -495,6 +517,9 @@ void copyChunkRHS(mfem::Vector& rhs,
   }
 }
 
+/*!
+ * \brief Factor each element mass matrix in a chunk for the OpenMP chunked solve path.
+ */
 template <typename ExecSpace>
 void factorChunkMassMatricesImpl(const VolumeFractionMassConfig& config,
                                  int chunkNE,
@@ -502,13 +527,16 @@ void factorChunkMassMatricesImpl(const VolumeFractionMassConfig& config,
                                  mfem::Array<int>& massMatPivots)
 {
   auto massMatInv_d = mfem::Reshape(massMatInv.HostReadWrite(), config.dofs, config.dofs, chunkNE);
-  auto massMatPivots_d = mfem::Reshape(massMatPivots.Write(), config.dofs, chunkNE);
+  auto massMatPivots_d = mfem::Reshape(massMatPivots.HostWrite(), config.dofs, chunkNE);
 
   axom::for_all<ExecSpace>(0, chunkNE, [=](int elem) {
     mfem::kernels::LUFactor(&massMatInv_d(0, 0, elem), config.dofs, &massMatPivots_d(0, elem));
   });
 }
 
+/*!
+ * \brief Dispatch chunk LU factorization to the requested host execution policy.
+ */
 void factorChunkMassMatrices(const VolumeFractionMassConfig& config,
                              axom::runtime_policy::Policy execPolicy,
                              int chunkNE,
@@ -543,7 +571,7 @@ void copyChunkResultToGridFunction(const VolumeFractionMassConfig& config,
                                    mfem::Vector& vfChunk,
                                    mfem::GridFunction& vf)
 {
-  auto vf_chunk_d = mfem::Reshape(vfChunk.HostReadWrite(), config.dofs, chunkNE);
+  auto vf_chunk_d = mfem::Reshape(vfChunk.HostRead(), config.dofs, chunkNE);
   auto vf_d = mfem::Reshape(vf.HostReadWrite(), config.dofs, config.numElements);
 
   for(int elem = 0; elem < chunkNE; ++elem)
@@ -556,6 +584,9 @@ void copyChunkResultToGridFunction(const VolumeFractionMassConfig& config,
   }
 }
 
+/*!
+ * \brief Solve the chunked mass systems and apply FCT when the cached path is too large.
+ */
 void solveVolumeFractionsChunked(const mfem::FiniteElementSpace& fes,
                                  const mfem::IntegrationRule& sampleIR,
                                  const VolumeFractionMassConfig& config,
@@ -711,7 +742,7 @@ mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
     }
 
     gf->MakeOwner(fec);
-    gf->HostReadWrite();
+    gf->HostWrite();
     *gf = 0.;
 
     dc->RegisterField(gf_name, gf);
@@ -1126,7 +1157,8 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
   const VolumeFractionMassConfig config =
     makeVolumeFractionMassConfig(*fes, sampleResolution, quadratureType);
   logChunkedMassProcessing(vf_name, config);
-  const auto fctExecPolicy = selectFCTExecutionPolicy(execPolicy, vf_name);
+  const auto volumeFractionExecPolicy =
+    selectVolumeFractionExecutionPolicy(execPolicy, vf_name);
 
   axom::utilities::Timer timer(true);
   {
@@ -1136,11 +1168,12 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
 
     if(config.useChunkedMassProcessing)
     {
-      solveVolumeFractionsChunked(*fes, sampleIR, config, fctExecPolicy, b, *vf);
+      solveVolumeFractionsChunked(*fes, sampleIR, config, volumeFractionExecPolicy, b, *vf);
     }
     else
     {
-      solveVolumeFractionsCached(mfemState, *fes, sampleIR, config, fctExecPolicy, b, *vf);
+      solveVolumeFractionsCached(
+        mfemState, *fes, sampleIR, config, volumeFractionExecPolicy, b, *vf);
     }
   }
   timer.stop();
