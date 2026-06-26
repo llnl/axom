@@ -1343,6 +1343,35 @@ void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& fiel
 }
 
 // private method
+void MFEMSidreDataCollection::addVectorBasedQuadratureFunction(
+  const std::string& field_name,
+  mfem::QuadratureFunction* qf,
+  const std::string& buffer_name,
+  IndexType offset)
+{
+  /*
+   *  Mesh blueprint for a vector-based quadrature function is of the form
+   *    /fields/field_name/basis
+   *              -- string value encodes the QuadratureSpace order and vdim
+   *    /fields/field_name/values/x0
+   *    /fields/field_name/values/x1
+   *    ...
+   *    /fields/field_name/values/xn
+   *              -- each component is an array of size QuadratureSpace::GetSize()
+   *
+   *  MFEM stores QuadratureFunction vectors in byVDIM order, i.e. one tuple per
+   *  quadrature point with component data interleaved in memory.
+   */
+  addVectorBasedField(field_name,
+                      qf,
+                      buffer_name,
+                      offset,
+                      qf->GetVDim(),
+                      qf->GetSpace()->GetSize(),
+                      Ordering::byVDIM);
+}
+
+// private method
 // Should only be called on mpi rank 0 ( or if serial problem ).
 void MFEMSidreDataCollection::RegisterFieldInBPIndex(const std::string& field_name,
                                                      const int number_of_components)
@@ -1547,13 +1576,7 @@ void MFEMSidreDataCollection::RegisterQField(const std::string& field_name,
   else
   {
     // Set the Group "<m_bp_grp>/fields/<field_name>/values"
-    addVectorBasedField(field_name,
-                        qf,
-                        buffer_name,
-                        offset,
-                        qf->GetVDim(),
-                        qf->GetSpace()->GetSize(),
-                        Ordering::byVDIM);
+    addVectorBasedQuadratureFunction(field_name, qf, buffer_name, offset);
   }
 
   // Register field_name in the blueprint_index group.

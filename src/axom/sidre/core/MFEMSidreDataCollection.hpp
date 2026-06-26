@@ -675,6 +675,20 @@ private:
                                   const std::string& buffer_name,
                                   IndexType offset);
 
+  /**
+   * \brief A private helper function to set up the views associated with the
+      data of a vector valued quadrature function in the blueprint style.
+   * \pre qf is not null
+   * \note This function is expected to be called by RegisterQField()
+   * \note QuadratureFunction data is always interpreted with MFEM's byVDIM
+   *      layout, with one mcarray component per vector component and one entry
+   *      per quadrature tuple in the associated QuadratureSpace.
+   */
+  void addVectorBasedQuadratureFunction(const std::string& field_name,
+                                        mfem::QuadratureFunction* qf,
+                                        const std::string& buffer_name,
+                                        IndexType offset);
+
   /** @brief A private helper function to set up the Views associated with
       attribute field named @a field_name */
   void addIntegerAttributeField(const std::string& field_name, bool is_bdry);
