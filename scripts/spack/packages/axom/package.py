@@ -16,6 +16,8 @@ from spack_repo.builtin.build_systems.cached_cmake import (
 from spack_repo.builtin.build_systems.cuda import CudaPackage
 from spack_repo.builtin.build_systems.rocm import ROCmPackage
 
+from spack.package import *
+
 # Axom components we expose to Spack. Core is always built and is not listed here.
 _AXOM_COMPONENTS = (
     "bump",
@@ -33,9 +35,6 @@ _AXOM_COMPONENTS = (
     "slic",
     "spin",
 )
-
-
-from spack.package import *
 
 
 def get_spec_path(spec, package_name, path_replacements={}, use_bin=False, use_lib=False):
@@ -145,10 +144,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         values=any_combination_of("all", *_AXOM_COMPONENTS).with_default("all"),
     )
 
+    variant("int64", default=True, description="Use 64bit integers for IndexType")
+
     # variants for package dependencies
     variant("adiak", default=False, when="@0.13:", description="Build with adiak")
-    variant("caliper", default=False, when="@0.13:", description="Build with caliper")
     variant("c2c", default=False, description="Build with c2c")
+    variant("caliper", default=False, when="@0.13:", description="Build with caliper")
     variant("conduit", default=True, description="Build with conduit")
     variant("hdf5", default=True, description="Build with hdf5")
     variant("lua", default=True, description="Build with Lua")
@@ -157,8 +158,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant("raja", default=True, description="Build with raja")
     variant("scr", default=False, description="Build with SCR")
     variant("umpire", default=True, description="Build with umpire")
-
-    variant("int64", default=True, description="Use 64bit integers for IndexType")
 
     varmsg = "Build development tools (such as Sphinx, Doxygen, etc...)"
     variant("devtools", default=False, description=varmsg)
@@ -176,10 +175,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("cmake@3.21:", type="build", when="+rocm")
 
     depends_on("blt", type="build")
-    depends_on("blt@0.5.1:0.5.3", type="build", when="@0.6.1:0.8")
-    depends_on("blt@0.6.2:", type="build", when="@0.9:")
-    depends_on("blt@0.7", type="build", when="@0.11:")
     depends_on("blt@0.7.1:", type="build", when="@0.12:")
+    depends_on("blt@0.7", type="build", when="@0.11:")
+    depends_on("blt@0.6.2", type="build", when="@0.9:0.10")
+    depends_on("blt@0.5.1:0.5.3", type="build", when="@0.6.1:0.8")
 
     depends_on("mpi", when="+mpi")
 
@@ -201,8 +200,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     with when("+umpire"):
         depends_on("umpire")
         depends_on("umpire@2025.12:", when="@0.13:")
-        depends_on("umpire@2025.09.0:", when="@0.10:")
-        depends_on("umpire@2024.02.0:", when="@0.9:")
+        depends_on("umpire@2025.09:", when="@0.12:")
+        depends_on("umpire@2025.03", when="@0.11")
+        depends_on("umpire@2024.07", when="@0.10")
+        depends_on("umpire@2024.02", when="@0.9")
         depends_on("umpire@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("umpire@6.0.0", when="@0.6.0")
         depends_on("umpire@5:5.0.1", when="@:0.5.0")
@@ -212,8 +213,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     with when("+raja"):
         depends_on("raja")
         depends_on("raja@2025.12.1:", when="@0.13:")
-        depends_on("raja@2025.09.0:", when="@0.10:")
-        depends_on("raja@2024.02.0:", when="@0.9:")
+        depends_on("raja@2025.09:", when="@0.12:")
+        depends_on("raja@2025.03", when="@0.11")
+        depends_on("raja@2024.07", when="@0.10")
+        depends_on("raja@2024.02", when="@0.9")
         depends_on("raja@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("raja@0.14.0", when="@0.6.0")
         depends_on("raja@:0.13.0", when="@:0.5.0")
@@ -226,7 +229,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
-        depends_on("caliper")
+        depends_on("caliper+adiak")
 
         depends_on("caliper+cuda", when="+cuda")
         depends_on("caliper~cuda", when="~cuda")
@@ -254,7 +257,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on(f"umpire {ext_cuda_dep}", when=f"+umpire {ext_cuda_dep}")
         depends_on(f"caliper {ext_cuda_dep}", when=f"+caliper {ext_cuda_dep}")
         depends_on(f"caliper {ext_cuda_dep}", when=f"+profiling {ext_cuda_dep}")
-
         depends_on(f"mfem {ext_cuda_dep}", when=f"+mfem {ext_cuda_dep}")
 
     for val in ROCmPackage.amdgpu_targets:
@@ -415,11 +417,14 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("%cce"):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
 
+            # Remove unusable -Mfreeform flag injected by spack
+            entries = [entry.replace("-Mfreeform", "") for entry in entries]
+
+        # Disable intrusive warning:
+        #   icpx: remark: note that use of '-g' without any optimization-level
+        #   option will turn off most compiler optimizations similar to use of
+        #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
         if spec.satisfies("%oneapi"):
-            # Disable intrusive warning:
-            #   icpx: remark: note that use of '-g' without any optimization-level
-            #   option will turn off most compiler optimizations similar to use of
-            #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
             entries.append(
                 cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization")
             )
@@ -496,9 +501,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             # Additional library path for cray compiler
             if spec.satisfies("%cce"):
-                hip_link_flags += "-L/opt/cray/pe/cce/{0}/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/{0}/cce/x86_64/lib ".format(
-                    spec.compiler.version
-                )
+                lib_path = "/opt/cray/pe/cce/{0}/cce/x86_64/lib".format(spec.compiler.version)
+                hip_link_flags += "-L{0} -Wl,-rpath,{0}".format(lib_path)
 
             if spec.satisfies("+fortran"):
                 link_remove_list = []
@@ -698,7 +702,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             else:
                 entries.append(f"# {dep.upper()} not built\n")
 
-        if spec.satisfies("+umpire") and spec.satisfies("^camp"):
+        if (spec.satisfies("+raja") or spec.satisfies("+umpire")) and spec.satisfies("^camp"):
             dep_dir = get_spec_path(spec, "camp", path_replacements)
             entries.append(cmake_cache_path("CAMP_DIR", dep_dir))
 
@@ -750,7 +754,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
-            # Get path to python executable
             python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
 
@@ -837,7 +840,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             print("Running Axom Unit Tests...")
             make("test")
 
-    @run_after("install")
+    @run_after("install", when="+examples")
     @on_package_attributes(run_tests=True)
     def test_install_using_cmake(self):
         """build example with cmake and run"""
@@ -853,7 +856,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             example()
             make("clean")
 
-    @run_after("install")
+    @run_after("install", when="+examples")
     @on_package_attributes(run_tests=True)
     def test_install_using_make(self):
         """build example with make and run"""
