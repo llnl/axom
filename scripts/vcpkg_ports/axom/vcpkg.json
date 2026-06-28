@@ -1,10 +1,11 @@
 {
+  "$comment": "Umpire removed from default-features due to fmt link errors",
   "name": "axom",
   "version-string": "develop",
-  "homepage": "https://github.com/llnl/axom",
   "description": "Host-config generator for Axom TPLs",
-  "dependencies": ["blt"],
-  "$comment":"Umpire removed from default-features due to fmt link errors",
+  "homepage": "https://github.com/llnl/axom",
+  "license": "BSD-3-Clause",
+  "supports": "!uwp",
   "default-features": [
     "conduit",
     "lua",
@@ -16,45 +17,36 @@
   "features": {
     "conduit": {
       "description": "conduit functionality for axom",
-      "dependencies": ["conduit"]
+      "dependencies": [
+        "conduit"
+      ]
     },
     "lua": {
       "description": "lua functionality for axom",
-      "dependencies": ["lua"]
+      "dependencies": [
+        "lua"
+      ]
     },
     "mfem": {
       "description": "mfem functionality for axom",
-      "dependencies" : ["mfem"]
+      "dependencies": [
+        "mfem"
+      ]
     },
     "opencascade": {
       "description": "opencascade functionality for axom",
       "dependencies": [
         {
           "name": "opencascade",
-          "default-features": false,
-          "features": []
+          "default-features": false
         }
       ]
-    },
-    "raja": {
-      "description": "raja functionality for axom",
-      "dependencies": ["raja"]
-    },
-    "umpire": {
-      "description": "umpire functionality for axom",
-      "dependencies": ["umpire"]
     },
     "openmp": {
       "description": "openmp functionality for axom",
       "dependencies": [
         {
           "name": "raja",
-          "features": [
-            "openmp"
-          ]
-        },
-        {
-          "name": "umpire",
           "features": [
             "openmp"
           ]
@@ -70,14 +62,25 @@
             "python"
           ]
         },
-        "python3",
         "nanobind",
+        "python3",
         {
           "name": "vcpkg-get-python-packages",
           "host": true
         }
       ]
+    },
+    "raja": {
+      "description": "raja functionality for axom",
+      "dependencies": [
+        "raja"
+      ]
+    },
+    "umpire": {
+      "description": "umpire functionality for axom",
+      "dependencies": [
+        "umpire"
+      ]
     }
-  },
-  "supports": "!uwp"
+  }
 }

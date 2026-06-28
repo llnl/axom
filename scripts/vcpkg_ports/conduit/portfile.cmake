@@ -95,6 +95,12 @@ vcpkg_cmake_config_fixup(
         TOOLS_PATH   tools/conduit)
 vcpkg_copy_pdbs()
 
+set(_conduit_config "${CURRENT_PACKAGES_DIR}/share/conduit/ConduitConfig.cmake")
+vcpkg_replace_string("${_conduit_config}"
+    "cmake_minimum_required(VERSION 3.8 FATAL_ERROR)"
+    "cmake_minimum_required(VERSION 3.10 FATAL_ERROR)"
+    IGNORE_UNCHANGED)
+
 if("python" IN_LIST FEATURES)
     # The helper environment above is only for building Conduit.
     # Also stage numpy into vcpkg's installed python site so downstream imports work.
@@ -120,7 +126,6 @@ if("python" IN_LIST FEATURES)
 
     # Conduit exports absolute package-staging paths for custom python installs.
     # Rewrite them so consumers resolve modules from the installed vcpkg prefix.
-    set(_conduit_config "${CURRENT_PACKAGES_DIR}/share/conduit/ConduitConfig.cmake")
     file(READ "${_conduit_config}" _conduit_config_contents)
     string(REGEX REPLACE
         "set\\(CONDUIT_INSTALL_PREFIX \"[^\"]*\"\\)"

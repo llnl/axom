@@ -1,6 +1,8 @@
-message(STATUS "Building dependencies for Axom")
-message(STATUS "CURRENT_INSTALLED_DIR -- ${CURRENT_INSTALLED_DIR}")
-message(STATUS "PORT -- ${PORT}")
+# This port generates an uberenv host-config, so absolute paths to the active
+# vcpkg prefix are intentional.
+set(VCPKG_POLICY_SKIP_ABSOLUTE_PATHS_CHECK enabled)
+
+set(_hc_template "${CURRENT_BUILDTREES_DIR}/${PORT}-hc.cmake.in")
 
 set(_copyright [=[
 Copyright (c) Lawrence Livermore National Security, LLC and other
@@ -242,41 +244,50 @@ if(python IN_LIST FEATURES)
       LOGNAME "pip-install-axom-python-packages-${TARGET_TRIPLET}")
 endif()
 
-# Create a copyright file
-file(MAKE_DIRECTORY ${CURRENT_PACKAGES_DIR}/share/${PORT} )
-set(_copyright_file ${CURRENT_PACKAGES_DIR}/share/${PORT}/copyright)
-file(WRITE ${_copyright_file} "${_copyright}")
+# Create package metadata and host-config output directories. Uberenv currently
+# reads the include copy; the share copy follows normal vcpkg package layout.
+file(MAKE_DIRECTORY
+    "${CURRENT_PACKAGES_DIR}/include/${PORT}"
+    "${CURRENT_PACKAGES_DIR}/share/${PORT}")
+set(_hc_file_include "${CURRENT_PACKAGES_DIR}/include/${PORT}/hc.cmake")
+set(_hc_file_share "${CURRENT_PACKAGES_DIR}/share/${PORT}/hc.cmake")
+set(_copyright_file "${CURRENT_PACKAGES_DIR}/share/${PORT}/copyright")
+file(WRITE "${_copyright_file}" "${_copyright}")
 
-# Create a host-config file
-file(MAKE_DIRECTORY ${CURRENT_PACKAGES_DIR}/include/${PORT} )
-set(_hc_file ${CURRENT_PACKAGES_DIR}/include/${PORT}/hc.cmake)
-
-# Add enabled features to host-config
-message(STATUS "FEATURES: ${FEATURES}")
-
-file(WRITE ${_hc_file}.in "${_host-config_hdr}")
+file(WRITE "${_hc_template}" "${_host-config_hdr}")
 
 if(conduit IN_LIST FEATURES OR python IN_LIST FEATURES)
-  file(APPEND ${_hc_file}.in "${_conduit_dep_on}")
+  file(APPEND "${_hc_template}" "${_conduit_dep_on}")
 else()
-  file(APPEND ${_hc_file}.in "${_conduit_dep_off}")
+  file(APPEND "${_hc_template}" "${_conduit_dep_off}")
 endif()
 
 if(python IN_LIST FEATURES)
-  file(APPEND ${_hc_file}.in "${_python_dep}")
+  file(APPEND "${_hc_template}" "${_python_dep}")
+endif()
+
+set(_hc_features ${FEATURES})
+if(openmp IN_LIST _hc_features)
+  if(NOT raja IN_LIST _hc_features)
+    # The openmp feature depends on raja[openmp], so the host-config should
+    # expose RAJA even when users request openmp without also naming raja.
+    list(APPEND _hc_features raja)
+  endif()
 endif()
 
 foreach(_dep lua mfem openmp raja umpire opencascade)
-  if(${_dep} IN_LIST FEATURES)
-    file(APPEND ${_hc_file}.in "${_${_dep}_dep}")
+  if("${_dep}" IN_LIST _hc_features)
+    file(APPEND "${_hc_template}" "${_${_dep}_dep}")
   else()
-    file(APPEND ${_hc_file}.in "# ${_dep} dependency disabled")
+    file(APPEND "${_hc_template}" "# ${_dep} dependency disabled\n")
   endif()
 endforeach()
 
 # camp is required if umpire or raja are present
-if(raja IN_LIST FEATURES OR umpire IN_LIST FEATURES)
-  file(APPEND ${_hc_file}.in "${_camp_dep}")
+if(raja IN_LIST _hc_features OR umpire IN_LIST _hc_features)
+  file(APPEND "${_hc_template}" "${_camp_dep}")
 endif()
 
-configure_file(${_hc_file}.in ${_hc_file} @ONLY)
+foreach(_hc_file IN ITEMS "${_hc_file_include}" "${_hc_file_share}")
+  configure_file("${_hc_template}" "${_hc_file}" @ONLY)
+endforeach()
