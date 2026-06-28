@@ -9,42 +9,86 @@ import glob
 import os
 import runpy
 import sys
+import sysconfig
 
 
 _PYEXT_DIR = r"""@_PYEXT_DIR@"""
 _PYDLL_DIR = r"""@_PYDLL_DIR@"""
 # Vcpkg's Python on Windows is a release interpreter; prefer non-Debug
 # extension modules when more than one configuration has been built.
-_CONFIGS = ("Release", "RelWithDebInfo", "MinSizeRel", "Debug")
+_DEBUG_CONFIG = "Debug"
+_CONFIGS = ("Release", "RelWithDebInfo", "MinSizeRel", _DEBUG_CONFIG)
 
 
 def _norm(path):
     return os.path.normcase(os.path.abspath(path))
 
 
+def _has_pysidre(path):
+    return glob.glob(os.path.join(path, "pysidre*.pyd"))
+
+
+def _is_debug_python():
+    return bool(sysconfig.get_config_var("Py_DEBUG") or
+                hasattr(sys, "gettotalrefcount"))
+
+
+def _is_usable_config(config):
+    return not (os.name == "nt" and
+                config == _DEBUG_CONFIG and
+                not _is_debug_python())
+
+
+def _debug_config_error():
+    return (
+        "Axom cannot use a Debug pysidre module with a non-debug Windows "
+        "Python interpreter. This is unsafe with vcpkg's release Python and "
+        "can crash during Sidre/nanobind calls. Build or select pysidre_stub "
+        "with Release, RelWithDebInfo, or MinSizeRel, then rerun the Python "
+        "test."
+    )
+
+
 def _select_config():
     requested = os.environ.get("AXOM_PYTHON_CONFIG")
     if requested in _CONFIGS:
+        if not _is_usable_config(requested):
+            raise SystemExit(_debug_config_error())
         return requested
 
     for path in sys.path:
         for config in _CONFIGS:
+            if not _is_usable_config(config):
+                continue
             config_path = os.path.join(_PYEXT_DIR, config)
-            if _norm(path) == _norm(config_path) and glob.glob(os.path.join(path, "pysidre*.pyd")):
+            if _norm(path) == _norm(config_path) and _has_pysidre(path):
                 return config
 
     for config in _CONFIGS:
-        if glob.glob(os.path.join(_PYEXT_DIR, config, "pysidre*.pyd")):
+        if not _is_usable_config(config):
+            continue
+        if _has_pysidre(os.path.join(_PYEXT_DIR, config)):
             return config
 
     return None
 
 
 _selected_config = _select_config()
+
+if os.name == "nt":
+    _pyext_config_dirs = {_norm(os.path.join(_PYEXT_DIR, config))
+                          for config in _CONFIGS}
+    sys.path = [path for path in sys.path
+                if _norm(path) not in _pyext_config_dirs]
+
+    if (not _selected_config and
+            not _has_pysidre(_PYEXT_DIR) and
+            _has_pysidre(os.path.join(_PYEXT_DIR, _DEBUG_CONFIG))):
+        raise SystemExit(_debug_config_error())
+
 if _selected_config:
     _selected_pyext_dir = os.path.join(_PYEXT_DIR, _selected_config)
     if os.path.isdir(_selected_pyext_dir):
-        sys.path = [p for p in sys.path if _norm(p) != _norm(_selected_pyext_dir)]
         sys.path.insert(0, _selected_pyext_dir)
 
 
