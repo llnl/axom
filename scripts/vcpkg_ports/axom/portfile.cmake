@@ -185,9 +185,62 @@ set(ENABLE_OPENMP ON CACHE BOOL "")
 set(BLT_OPENMP_LINK_FLAGS " " CACHE STRING "")
 ]=])
 
+set(_python_dep [=[
+
+# Python support
+set(Python_EXECUTABLE "@CURRENT_INSTALLED_DIR@/tools/python3/python.exe" CACHE PATH "")
+set(PY_NANOBIND_DIR "@CURRENT_INSTALLED_DIR@" CACHE PATH "")
+set(CONDUIT_PYTHON_MODULE_DIR "@CURRENT_INSTALLED_DIR@/@PYTHON3_SITE@" CACHE PATH "")
+set(PY_NUMPY_DIR "@CURRENT_INSTALLED_DIR@/@PYTHON3_SITE@" CACHE PATH "")
+set(PY_PYTEST_DIR "@CURRENT_INSTALLED_DIR@/@PYTHON3_SITE@" CACHE PATH "")
+set(PY_PLUGGY_DIR "@CURRENT_INSTALLED_DIR@/@PYTHON3_SITE@" CACHE PATH "")
+set(PY_INICONFIG_DIR "@CURRENT_INSTALLED_DIR@/@PYTHON3_SITE@" CACHE PATH "")
+]=])
+
 # TODO:
 #  * Add features/TPLs: mpi
 #  * Add tools: uncrustify, sphinx, doxygen
+
+if(python IN_LIST FEATURES)
+  include("${CURRENT_INSTALLED_DIR}/share/python3/vcpkg-port-config.cmake")
+
+  set(_axom_python_packages
+      "pytest==9.0.0"
+      "pluggy==1.6.0"
+      "iniconfig==2.1.0"
+      "packaging==25.0"
+      "pygments==2.19.2"
+      "colorama==0.4.6")
+
+  vcpkg_get_vcpkg_installed_python(_axom_python)
+  if(CMAKE_HOST_WIN32)
+    vcpkg_execute_required_process(
+        COMMAND "${_axom_python}" -I -m ensurepip --upgrade
+        WORKING_DIRECTORY "${CURRENT_BUILDTREES_DIR}"
+        LOGNAME "ensurepip-axom-python-${TARGET_TRIPLET}")
+    vcpkg_execute_required_process(
+        COMMAND "${_axom_python}" -I -m pip install
+                --disable-pip-version-check
+                --no-warn-script-location
+                virtualenv
+        WORKING_DIRECTORY "${CURRENT_BUILDTREES_DIR}"
+        LOGNAME "pip-install-axom-virtualenv-${TARGET_TRIPLET}")
+  endif()
+  x_vcpkg_get_python_packages(
+      PYTHON_VERSION "3"
+      PYTHON_EXECUTABLE "${_axom_python}"
+      PACKAGES ${_axom_python_packages}
+      OUT_PYTHON_VAR _axom_python_with_packages)
+
+  vcpkg_execute_required_process(
+      COMMAND "${_axom_python_with_packages}" -I -m pip install
+              --disable-pip-version-check
+              --no-warn-script-location
+              --target "${CURRENT_PACKAGES_DIR}/${PYTHON3_SITE}"
+              ${_axom_python_packages}
+      WORKING_DIRECTORY "${CURRENT_BUILDTREES_DIR}"
+      LOGNAME "pip-install-axom-python-packages-${TARGET_TRIPLET}")
+endif()
 
 # Create a copyright file
 file(MAKE_DIRECTORY ${CURRENT_PACKAGES_DIR}/share/${PORT} )
@@ -203,10 +256,14 @@ message(STATUS "FEATURES: ${FEATURES}")
 
 file(WRITE ${_hc_file}.in "${_host-config_hdr}")
 
-if(conduit IN_LIST FEATURES)
+if(conduit IN_LIST FEATURES OR python IN_LIST FEATURES)
   file(APPEND ${_hc_file}.in "${_conduit_dep_on}")
 else()
   file(APPEND ${_hc_file}.in "${_conduit_dep_off}")
+endif()
+
+if(python IN_LIST FEATURES)
+  file(APPEND ${_hc_file}.in "${_python_dep}")
 endif()
 
 foreach(_dep lua mfem openmp raja umpire opencascade)

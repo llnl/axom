@@ -6,11 +6,76 @@ vcpkg_from_github(
     HEAD_REF develop
     PATCHES 
         "./setup_deps_vcpkg_triplet.patch"
+        "./python_install_prefix_slashes.patch"
 )
 
 set(_is_shared TRUE)
 if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
     set(_is_shared FALSE)
+endif()
+
+set(_python_options -DENABLE_PYTHON=OFF)
+if("python" IN_LIST FEATURES)
+    include("${CURRENT_INSTALLED_DIR}/share/python3/vcpkg-port-config.cmake")
+
+    # Conduit needs numpy while building its python module.
+    # Use vcpkg's helper python environment for those build-time packages.
+    vcpkg_get_vcpkg_installed_python(_conduit_python)
+    if(CMAKE_HOST_WIN32)
+        vcpkg_execute_required_process(
+            COMMAND "${_conduit_python}" -I -m ensurepip --upgrade
+            WORKING_DIRECTORY "${CURRENT_BUILDTREES_DIR}"
+            LOGNAME "ensurepip-conduit-python-${TARGET_TRIPLET}")
+        vcpkg_execute_required_process(
+            COMMAND "${_conduit_python}" -I -m pip install
+                    --disable-pip-version-check
+                    --no-warn-script-location
+                    virtualenv
+            WORKING_DIRECTORY "${CURRENT_BUILDTREES_DIR}"
+            LOGNAME "pip-install-conduit-virtualenv-${TARGET_TRIPLET}")
+    endif()
+    x_vcpkg_get_python_packages(
+        PYTHON_VERSION "3"
+        PYTHON_EXECUTABLE "${_conduit_python}"
+        PACKAGES
+            "numpy==2.4.2"
+            "setuptools==80.9.0"
+        OUT_PYTHON_VAR _conduit_python_with_packages)
+
+    set(_conduit_config_python "${_conduit_python_with_packages}")
+    if(VCPKG_TARGET_IS_WINDOWS)
+        # On Windows, configure Conduit with vcpkg's installed python.exe
+        # so the generated config matches the interpreter Axom will use later.
+        # Provide the helper environment's numpy path through PYTHONPATH for configure.
+        set(_conduit_config_python "${CURRENT_INSTALLED_DIR}/tools/python3/python.exe")
+        execute_process(
+            COMMAND "${_conduit_python_with_packages}" -I -c
+                    "import pathlib, numpy; print(pathlib.Path(numpy.__file__).resolve().parents[1])"
+            OUTPUT_VARIABLE _conduit_pythonpath
+            RESULT_VARIABLE _conduit_pythonpath_result
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(NOT _conduit_pythonpath_result EQUAL 0)
+            message(FATAL_ERROR "Failed to determine Conduit build-time Python package path.")
+        endif()
+        set(ENV{PYTHONPATH} "${_conduit_pythonpath}")
+    endif()
+
+    set(_conduit_python_library "")
+    if(VCPKG_TARGET_IS_WINDOWS)
+        set(_conduit_python_library
+            "${CURRENT_INSTALLED_DIR}/lib/python${PYTHON3_VERSION_MAJOR}${PYTHON3_VERSION_MINOR}.lib")
+    endif()
+
+    set(_python_module_install_prefix "${CURRENT_PACKAGES_DIR}/${PYTHON3_SITE}")
+
+    set(_python_options
+        -DENABLE_PYTHON=ON
+        -DPYTHON_EXECUTABLE=${_conduit_config_python}
+        -DPYTHON_MODULE_INSTALL_PREFIX=${_python_module_install_prefix})
+
+    if(_conduit_python_library)
+        list(APPEND _python_options -DPYTHON_LIBRARY=${_conduit_python_library})
+    endif()
 endif()
 
 vcpkg_configure_cmake(
@@ -22,7 +87,7 @@ vcpkg_configure_cmake(
         -DENABLE_COVERAGE=OFF
         -DENABLE_DOCS=OFF
         -DENABLE_EXAMPLES=OFF
-        -DENABLE_PYTHON=OFF
+        ${_python_options}
         -DENABLE_TESTS=OFF
         -DENABLE_UTILS=OFF
         -DBUILD_SHARED_LIBS=${_is_shared}
@@ -36,6 +101,49 @@ vcpkg_cmake_config_fixup(
         CONFIG_PATH  lib/cmake/conduit
         TOOLS_PATH   tools/conduit)
 vcpkg_copy_pdbs()
+
+if("python" IN_LIST FEATURES)
+    # The helper environment above is only for building Conduit.
+    # Also stage numpy into vcpkg's installed python site so downstream imports work.
+    vcpkg_execute_required_process(
+        COMMAND "${_conduit_python_with_packages}" -I -m pip install
+                --disable-pip-version-check
+                --no-warn-script-location
+                --target "${CURRENT_PACKAGES_DIR}/${PYTHON3_SITE}"
+                "numpy==2.4.2"
+        WORKING_DIRECTORY "${CURRENT_BUILDTREES_DIR}"
+        LOGNAME "pip-install-conduit-python-packages-${TARGET_TRIPLET}")
+
+    if(VCPKG_TARGET_IS_WINDOWS)
+        # Imported extension modules need vcpkg's bin directory in the Windows
+        # DLL search path; keep the handles alive on os to preserve the entries.
+        file(WRITE "${CURRENT_PACKAGES_DIR}/${PYTHON3_SITE}/conduit_vcpkg_dll_path.pth"
+             "import os,sys,pathlib; os._vcpkg_dll_dirs=getattr(os,'_vcpkg_dll_dirs',[])+[os.add_dll_directory(str(p/'bin')) for r in {pathlib.Path(sys.prefix).resolve(), pathlib.Path(sys.base_prefix).resolve()} for p in (r,*r.parents) if hasattr(os,'add_dll_directory') and (p/'bin').is_dir()]\n")
+    endif()
+
+    # Conduit exports absolute package-staging paths for custom python installs.
+    # Rewrite them so consumers resolve modules from the installed vcpkg prefix.
+    set(_conduit_config "${CURRENT_PACKAGES_DIR}/share/conduit/ConduitConfig.cmake")
+    file(READ "${_conduit_config}" _conduit_config_contents)
+    string(REGEX REPLACE
+        "set\\(CONDUIT_INSTALL_PREFIX \"[^\"]*\"\\)"
+        "set(CONDUIT_INSTALL_PREFIX \"\${VCPKG_IMPORT_PREFIX}\")"
+        _conduit_config_contents
+        "${_conduit_config_contents}")
+    file(WRITE "${_conduit_config}" "${_conduit_config_contents}")
+    vcpkg_replace_string("${_conduit_config}"
+        "set(CONDUIT_PYTHON_MODULE_DIR \"${CURRENT_PACKAGES_DIR}/${PYTHON3_SITE}\")"
+        "set(CONDUIT_PYTHON_MODULE_DIR \"${PYTHON3_SITE}\")"
+        IGNORE_UNCHANGED)
+    vcpkg_replace_string("${_conduit_config}"
+        "set(CONDUIT_PYTHON_MODULE_DIR \"\${VCPKG_IMPORT_PREFIX}/${PYTHON3_SITE}\")"
+        "set(CONDUIT_PYTHON_MODULE_DIR \"${PYTHON3_SITE}\")"
+        IGNORE_UNCHANGED)
+    vcpkg_replace_string("${_conduit_config}"
+        "set(CONDUIT_PYTHON_MODULE_CUSTOM_PREFIX \"ON\")"
+        "set(CONDUIT_PYTHON_MODULE_CUSTOM_PREFIX \"OFF\")"
+        IGNORE_UNCHANGED)
+endif()
 
 
 ## shuffle the output directories to make vcpkg happy

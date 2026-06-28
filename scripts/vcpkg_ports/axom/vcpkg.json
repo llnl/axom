@@ -60,6 +60,23 @@
           ]
         }
       ]
+    },
+    "python": {
+      "description": "python functionality for axom",
+      "dependencies": [
+        {
+          "name": "conduit",
+          "features": [
+            "python"
+          ]
+        },
+        "python3",
+        "nanobind",
+        {
+          "name": "vcpkg-get-python-packages",
+          "host": true
+        }
+      ]
     }
   },
   "supports": "!uwp"

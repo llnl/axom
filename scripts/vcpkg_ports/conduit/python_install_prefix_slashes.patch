@@ -1,0 +1,17 @@
+diff --git a/src/cmake/thirdparty/SetupPython.cmake b/src/cmake/thirdparty/SetupPython.cmake
+index f7801f5..0cc4a90 100644
+--- a/src/cmake/thirdparty/SetupPython.cmake
++++ b/src/cmake/thirdparty/SetupPython.cmake
+@@ -270,11 +270,8 @@ FUNCTION(PYTHON_ADD_PIP_SETUP)
+     # if PYTHON_MODULE_INSTALL_PREFIX is set, install there
+     if(PYTHON_MODULE_INSTALL_PREFIX)
+         set(py_mod_inst_prefix ${PYTHON_MODULE_INSTALL_PREFIX})
+-        # make sure windows style paths don't ruin our day (or night)
+-        if(WIN32)
+-            string(REGEX REPLACE "/" "\\\\" py_mod_inst_prefix  ${PYTHON_MODULE_INSTALL_PREFIX})
+-        endif()
++        # Keep CMake-style forward slashes here; backslashes are escapes in INSTALL(CODE).
+        INSTALL(CODE
+             "
+             EXECUTE_PROCESS(WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                 COMMAND ${PYTHON_EXECUTABLE} -m pip install . -V --upgrade

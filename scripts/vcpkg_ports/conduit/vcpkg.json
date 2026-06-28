@@ -14,5 +14,17 @@
       "host": true
     }    
   ],
+  "features": {
+    "python": {
+      "description": "python functionality for conduit",
+      "dependencies": [
+        "python3",
+        {
+          "name": "vcpkg-get-python-packages",
+          "host": true
+        }
+      ]
+    }
+  },
   "supports": "!uwp"
 }
