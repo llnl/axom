@@ -1,18 +1,29 @@
 {
   "name": "conduit",
   "version": "0.9.5",
-  "homepage": "https://github.com/llnl/conduit",
   "description": "Simplified Data Exchange for HPC Simulations",
+  "homepage": "https://github.com/llnl/conduit",
+  "license": "BSD-3-Clause",
+  "supports": "!uwp",
   "dependencies": [
     {
+      "name": "blt",
+      "host": true
+    },
+    {
       "name": "hdf5",
-      "features": ["tools"]
-    }, 
-    "blt",
+      "features": [
+        "tools"
+      ]
+    },
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
     {
       "name": "vcpkg-cmake-config",
       "host": true
-    }    
+    }
   ],
   "features": {
     "python": {
@@ -25,6 +36,5 @@
         }
       ]
     }
-  },
-  "supports": "!uwp"
+  }
 }

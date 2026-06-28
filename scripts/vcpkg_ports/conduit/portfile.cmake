@@ -9,11 +9,6 @@ vcpkg_from_github(
         "./python_install_prefix_slashes.patch"
 )
 
-set(_is_shared TRUE)
-if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
-    set(_is_shared FALSE)
-endif()
-
 set(_python_options -DENABLE_PYTHON=OFF)
 if("python" IN_LIST FEATURES)
     include("${CURRENT_INSTALLED_DIR}/share/python3/vcpkg-port-config.cmake")
@@ -78,11 +73,10 @@ if("python" IN_LIST FEATURES)
     endif()
 endif()
 
-vcpkg_configure_cmake(
-    SOURCE_PATH ${SOURCE_PATH}/src
-    PREFER_NINJA
+vcpkg_cmake_configure(
+    SOURCE_PATH "${SOURCE_PATH}/src"
     OPTIONS 
-        -DBLT_SOURCE_DIR=${CURRENT_INSTALLED_DIR}/share/blt
+        -DBLT_SOURCE_DIR=${CURRENT_HOST_INSTALLED_DIR}/share/blt
         -DCONDUIT_ENABLE_TESTS=OFF
         -DENABLE_COVERAGE=OFF
         -DENABLE_DOCS=OFF
@@ -90,13 +84,12 @@ vcpkg_configure_cmake(
         ${_python_options}
         -DENABLE_TESTS=OFF
         -DENABLE_UTILS=OFF
-        -DBUILD_SHARED_LIBS=${_is_shared}
         -DHDF5_DIR=${CURRENT_INSTALLED_DIR}
         -DCONDUIT_INSTALL_CONFIG_DIR="share/conduit"
         -DCONDUIT_INSTALL_CMAKE_MODULE_DIR="share"
 )
 
-vcpkg_install_cmake()
+vcpkg_cmake_install()
 vcpkg_cmake_config_fixup(
         CONFIG_PATH  lib/cmake/conduit
         TOOLS_PATH   tools/conduit)
@@ -113,6 +106,10 @@ if("python" IN_LIST FEATURES)
                 "numpy==2.4.2"
         WORKING_DIRECTORY "${CURRENT_BUILDTREES_DIR}"
         LOGNAME "pip-install-conduit-python-packages-${TARGET_TRIPLET}")
+
+    # NumPy's nested pkgconfig file is not useful to vcpkg consumers and trips
+    # vcpkg's pkgconfig layout audit.
+    file(REMOVE_RECURSE "${CURRENT_PACKAGES_DIR}/${PYTHON3_SITE}/numpy/_core/lib/pkgconfig")
 
     if(VCPKG_TARGET_IS_WINDOWS)
         # Imported extension modules need vcpkg's bin directory in the Windows
@@ -146,37 +143,30 @@ if("python" IN_LIST FEATURES)
 endif()
 
 
-## shuffle the output directories to make vcpkg happy
-# Remove extraneous debug header files
-file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/include)
-file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/share)
+# Conduit's generated runner and makefile config embed package/build paths.
+# Axom uses its own Python wrapper and CMake package config instead.
+file(REMOVE
+    "${CURRENT_PACKAGES_DIR}/bin/run_python_with_conduit.sh"
+    "${CURRENT_PACKAGES_DIR}/debug/bin/run_python_with_conduit.sh"
+    "${CURRENT_PACKAGES_DIR}/share/conduit/conduit_config.mk")
+
+file(REMOVE_RECURSE
+    "${CURRENT_PACKAGES_DIR}/debug/include"
+    "${CURRENT_PACKAGES_DIR}/debug/share")
 
 # Remove exe files -- vcpkg doesn't like them
 # (Future): It might be possible to move them to the vcpkg 'tools' directory
 foreach(_dir "bin" "debug/bin")
-    file(GLOB _exe ${CURRENT_PACKAGES_DIR}/${_dir}/*.exe)
+    file(GLOB _exe "${CURRENT_PACKAGES_DIR}/${_dir}/*.exe")
     if(_exe)
         file(REMOVE ${_exe})
     endif()
 endforeach()
 
 if(VCPKG_LIBRARY_LINKAGE STREQUAL static)
-    file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/bin ${CURRENT_PACKAGES_DIR}/debug/bin)
+    file(REMOVE_RECURSE
+        "${CURRENT_PACKAGES_DIR}/bin"
+        "${CURRENT_PACKAGES_DIR}/debug/bin")
 endif()
 
-
-# Move/shuffle cmake files to 'share' directory
-#file(MAKE_DIRECTORY ${CURRENT_PACKAGES_DIR}/share/conduit )
-#file(COPY ${CURRENT_PACKAGES_DIR}/lib/cmake/ 
-#     DESTINATION ${CURRENT_PACKAGES_DIR}/share/conduit/ ) 
-#file(RENAME ${CURRENT_PACKAGES_DIR}/debug/lib/cmake/conduit-debug.cmake 
-#            ${CURRENT_PACKAGES_DIR}/share/conduit/)
-#file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/lib/cmake)
-#file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/lib/cmake)
-
-# TODO: Fixup cmake files or config files?
-
-# Put the license file where vcpkg expects it
-file(INSTALL ${SOURCE_PATH}/LICENSE DESTINATION ${CURRENT_PACKAGES_DIR}/share/conduit RENAME copyright)
-
-
+vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/LICENSE")
