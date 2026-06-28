@@ -139,9 +139,33 @@ endif()
 
 if(NANOBIND_FOUND)
     nanobind_add_module(pysidre nanobind_sidre.cpp)
+    if(MSVC)
+        # Vcpkg's Python on Windows is a release interpreter.
+        # In Debug builds, keep the Python extension side on the release CRT
+        # and avoid presenting MSVC's debug CRT mode to Python/nanobind headers.
+        set_property(TARGET pysidre PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+        target_compile_options(pysidre PRIVATE $<$<CONFIG:Debug>:/U_DEBUG>)
+        target_compile_options(pysidre PRIVATE $<$<CONFIG:Debug>:/MD>)
+        if(TARGET nanobind-static)
+            set_property(TARGET nanobind-static PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+            target_compile_options(nanobind-static PRIVATE $<$<CONFIG:Debug>:/U_DEBUG>)
+            target_compile_options(nanobind-static PRIVATE $<$<CONFIG:Debug>:/MD>)
+        endif()
+    endif()
+
     # conduit::conduit_python provides conduit_python.hpp
     # and is needed only by the binding translation unit, not by libsidre
     target_link_libraries(pysidre PRIVATE sidre conduit::conduit_python)
+
+    if(WIN32)
+        add_custom_command(TARGET pysidre POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    $<TARGET_FILE:core>
+                    $<TARGET_FILE:slic>
+                    $<TARGET_FILE:sidre>
+                    $<TARGET_FILE_DIR:pysidre>
+            COMMAND_EXPAND_LISTS)
+    endif()
 
     # Use HIP executable linker flags for the python module
     # (CMake treats modules separately from executables,
@@ -176,6 +200,7 @@ if(NANOBIND_FOUND)
         MARKER_FILE "${CMAKE_CURRENT_BINARY_DIR}/py.typed"
         PYTHON_PATH ${_pysidre_stub_pythonpath}
         DEPENDS pysidre)
+    unset(_pysidre_stub_pythonpath)
 
     # Install the stub and py.typed marker next to the extension module so type checkers (mypy, pyright) can find them
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/pysidre.pyi"

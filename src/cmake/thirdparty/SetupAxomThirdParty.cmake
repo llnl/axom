@@ -305,30 +305,45 @@ if(EXISTS ${Python_EXECUTABLE})
 
     find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
 
+    if(MSVC AND TARGET Python::Module
+       AND _Python_LIBRARY_RELEASE
+       AND _Python_RUNTIME_LIBRARY_RELEASE)
+        # Vcpkg provides a release python.exe. In multi-config Debug builds,
+        # make extension modules link to the Python library that interpreter loads.
+        set_target_properties(Python::Module
+            PROPERTIES
+                IMPORTED_IMPLIB_DEBUG "${_Python_LIBRARY_RELEASE}"
+                IMPORTED_LOCATION_DEBUG "${_Python_RUNTIME_LIBRARY_RELEASE}")
+    endif()
+
     # Debug print the paths to the found Python artifacts
     message(STATUS "Python version: ${Python_VERSION}")
     message(STATUS "Python executable: ${Python_EXECUTABLE}")
     message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
     message(STATUS "Python library: ${Python_LIBRARIES}")
 
-    # Check for just nanobind package
-    execute_process(
-      COMMAND "${CMAKE_COMMAND}" -E env
-              "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
-              "${Python_EXECUTABLE}" -c "import nanobind"
-      RESULT_VARIABLE NANOBIND_IMPORT_CODE
-      OUTPUT_QUIET
-    )
+    # Check for just nanobind package. 
+    # PY_NANOBIND_DIR is the import root containing the nanobind python package
+    # nanobind.cmake_dir() gives us the CMake package directory from there.
+    if(NOT nanobind_ROOT)
+        set(_axom_nanobind_probe "
+import sys
 
-    # Get nanobind root directory
-    if(NANOBIND_IMPORT_CODE EQUAL 0)
+nanobind_dir = r'''${PY_NANOBIND_DIR}'''
+if nanobind_dir:
+    sys.path.insert(0, nanobind_dir)
+
+import nanobind
+print(nanobind.cmake_dir())
+")
         execute_process(
-          COMMAND "${CMAKE_COMMAND}" -E env
-                  "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
-                  "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+          COMMAND "${Python_EXECUTABLE}" -c "${_axom_nanobind_probe}"
+          RESULT_VARIABLE NANOBIND_IMPORT_CODE
           OUTPUT_VARIABLE nanobind_ROOT
           OUTPUT_STRIP_TRAILING_WHITESPACE
+          ERROR_QUIET
         )
+        unset(_axom_nanobind_probe)
     endif()
 
     # Check if the python environment contains the runtime dependencies for Axom's python

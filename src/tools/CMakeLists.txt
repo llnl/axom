@@ -190,24 +190,71 @@ endif()
 
 if(NANOBIND_FOUND)
     #--------------------------------------------------------------------------
-    # run_python_with_axom.sh.in is a utility that allows running python with
+    # run_python_with_axom is a utility that allows running python with
     # nanobind-generated extensions in the PYTHONPATH.
     # Based on Conduit's run_python_with_conduit.sh.in script.
     #--------------------------------------------------------------------------
+    if(WIN32)
+        set(_run_python_with_axom_bat_template "${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.bat.in")
+        set(_run_python_with_axom_sh_template "${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom_gitbash.sh.in")
+        set(_run_python_with_axom_launcher_template "${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.py.in")
+        set(_run_python_with_axom_build "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.bat")
+        set(_run_python_with_axom_sh_build "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh")
+        set(_run_python_with_axom_launcher_build "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.py")
+        set(_run_python_with_axom_install "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.bat")
+        set(_run_python_with_axom_sh_install "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh")
+        set(_run_python_with_axom_launcher_install "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.py")
+    else()
+        set(_run_python_with_axom_sh_template "${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in")
+        set(_run_python_with_axom_build "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh")
+        set(_run_python_with_axom_install "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh")
+    endif()
 
     # gen python helper to build directory
     set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
+    set(_PYDLL_DIR ${PROJECT_BINARY_DIR}/bin)
+    set(_PYLAUNCHER ${_run_python_with_axom_launcher_build})
 
-    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
-                         "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
+    if(WIN32)
+        axom_configure_file ("${_run_python_with_axom_launcher_template}"
+                             "${_run_python_with_axom_launcher_build}" @ONLY)
+        axom_configure_file ("${_run_python_with_axom_bat_template}"
+                             "${_run_python_with_axom_build}" @ONLY)
+        axom_configure_file ("${_run_python_with_axom_sh_template}"
+                             "${_run_python_with_axom_sh_build}" @ONLY)
+    else()
+        axom_configure_file ("${_run_python_with_axom_sh_template}"
+                             "${_run_python_with_axom_build}" @ONLY)
+    endif()
 
     # gen python helper to install directory
     set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+    set(_PYDLL_DIR ${CMAKE_INSTALL_PREFIX}/bin)
+    set(_PYLAUNCHER ${_run_python_with_axom_launcher_install})
 
-    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
-                         "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
+    if(WIN32)
+        axom_configure_file ("${_run_python_with_axom_launcher_template}"
+                             "${_run_python_with_axom_launcher_install}" @ONLY)
+        axom_configure_file ("${_run_python_with_axom_bat_template}"
+                             "${_run_python_with_axom_install}" @ONLY)
+        axom_configure_file ("${_run_python_with_axom_sh_template}"
+                             "${_run_python_with_axom_sh_install}" @ONLY)
+    else()
+        axom_configure_file ("${_run_python_with_axom_sh_template}"
+                             "${_run_python_with_axom_install}" @ONLY)
+    endif()
 
     unset(_PYEXT_DIR)
+    unset(_PYDLL_DIR)
+    unset(_PYLAUNCHER)
+    unset(_run_python_with_axom_bat_template)
+    unset(_run_python_with_axom_sh_template)
+    unset(_run_python_with_axom_launcher_template)
+    unset(_run_python_with_axom_install)
+    unset(_run_python_with_axom_sh_install)
+    unset(_run_python_with_axom_launcher_install)
+    unset(_run_python_with_axom_sh_build)
+    unset(_run_python_with_axom_launcher_build)
 
     # Smoke tests for the script.
     # The wrapper provides the runtime environment only:
@@ -215,23 +262,26 @@ if(NANOBIND_FOUND)
     # nanobind is a build-time dependency (statically linked into the extensions).
     # pytest/pluggy/iniconfig are test-harness dependencies.
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
+        axom_run_python_with_axom_command(_run_python_with_axom_test)
         axom_add_test(
             NAME    run_python_with_axom_build
-            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre, conduit, numpy")
+            COMMAND ${_run_python_with_axom_test} -c "import pysidre, conduit, numpy")
 
         if(AXOM_ENABLE_PYTHON_TESTS)
             # The pytest harness is provided per-test via the ENVIRONMENT property;
             # verify that the wrapper + injected ENVIRONMENT combination resolves.
             axom_add_test(
                 NAME    run_python_with_axom_pytest_harness
-                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pytest")
+                COMMAND ${_run_python_with_axom_test} -c "import pytest")
             axom_python_test_environment(_py_test_env)
             if(_py_test_env)
-                set_tests_properties(run_python_with_axom_pytest_harness
-                                     PROPERTIES ENVIRONMENT "${_py_test_env}")
+                set_property(TEST run_python_with_axom_pytest_harness
+                             APPEND
+                             PROPERTY ENVIRONMENT "${_py_test_env}")
             endif()
             unset(_py_test_env)
         endif()
+        unset(_run_python_with_axom_test)
     endif()
 
     #--------------------------------------------------------------------------
@@ -249,9 +299,10 @@ if(NANOBIND_FOUND)
         set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
 
         set(_testname "convert_sidre_protocol_py")
+        axom_run_python_with_axom_command(_run_python_with_axom_convert)
         axom_add_test(
           NAME ${_testname}
-          COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+          COMMAND ${_run_python_with_axom_convert}
                   ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
                   --input ${box_dir}
                   --output csp_output
@@ -261,5 +312,7 @@ if(NANOBIND_FOUND)
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Writing out datastore")
+        unset(_run_python_with_axom_convert)
     endif()
+    unset(_run_python_with_axom_build)
 endif()

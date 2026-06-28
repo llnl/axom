@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+
+set -e
+
+export PYTHONUTF8=1
+export PYTHONIOENCODING=UTF-8
+export PYTHONPATH="@_PYEXT_DIR@;@_PYEXT_DIR@/Release;@_PYEXT_DIR@/RelWithDebInfo;@_PYEXT_DIR@/MinSizeRel;@_PYEXT_DIR@/Debug;@CONDUIT_PYTHON_MODULE_DIR@;@PY_NUMPY_DIR@;@PY_MPI4PY_DIR@${PYTHONPATH:+;$PYTHONPATH}"
+
+exec "@Python_EXECUTABLE@" "@_PYLAUNCHER@" "$@"

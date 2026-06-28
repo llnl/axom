@@ -156,10 +156,12 @@ if(NANOBIND_FOUND)
 
         # Use convenience script to run python examples
         if(AXOM_ENABLE_PYTHON_TESTS)
+            axom_run_python_with_axom_command(_run_python_with_axom)
             axom_add_test (
                 NAME    ${exe_name}
-                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh ${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}
+                COMMAND ${_run_python_with_axom} ${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}
             )
+            unset(_run_python_with_axom)
         endif()
     endforeach()
 endif()

@@ -1,0 +1,13 @@
+@echo off
+rem Copyright (c) Lawrence Livermore National Security, LLC and other
+rem Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+rem files for dates and other details.
+rem
+rem SPDX-License-Identifier: (BSD-3-Clause)
+
+setlocal
+set "PYTHONUTF8=1"
+set "PYTHONIOENCODING=UTF-8"
+set "PYTHONPATH=@_PYEXT_DIR@;@_PYEXT_DIR@/Release;@_PYEXT_DIR@/RelWithDebInfo;@_PYEXT_DIR@/MinSizeRel;@_PYEXT_DIR@/Debug;@CONDUIT_PYTHON_MODULE_DIR@;@PY_NUMPY_DIR@;@PY_MPI4PY_DIR@;%PYTHONPATH%"
+"@Python_EXECUTABLE@" "@_PYLAUNCHER@" %*
+exit /b %ERRORLEVEL%

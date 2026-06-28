@@ -1,0 +1,116 @@
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+
+import code
+import glob
+import os
+import runpy
+import sys
+
+
+_PYEXT_DIR = r"""@_PYEXT_DIR@"""
+_PYDLL_DIR = r"""@_PYDLL_DIR@"""
+# Vcpkg's Python on Windows is a release interpreter; prefer non-Debug
+# extension modules when more than one configuration has been built.
+_CONFIGS = ("Release", "RelWithDebInfo", "MinSizeRel", "Debug")
+
+
+def _norm(path):
+    return os.path.normcase(os.path.abspath(path))
+
+
+def _select_config():
+    requested = os.environ.get("AXOM_PYTHON_CONFIG")
+    if requested in _CONFIGS:
+        return requested
+
+    for path in sys.path:
+        for config in _CONFIGS:
+            config_path = os.path.join(_PYEXT_DIR, config)
+            if _norm(path) == _norm(config_path) and glob.glob(os.path.join(path, "pysidre*.pyd")):
+                return config
+
+    for config in _CONFIGS:
+        if glob.glob(os.path.join(_PYEXT_DIR, config, "pysidre*.pyd")):
+            return config
+
+    return None
+
+
+_selected_config = _select_config()
+if _selected_config:
+    _selected_pyext_dir = os.path.join(_PYEXT_DIR, _selected_config)
+    if os.path.isdir(_selected_pyext_dir):
+        sys.path = [p for p in sys.path if _norm(p) != _norm(_selected_pyext_dir)]
+        sys.path.insert(0, _selected_pyext_dir)
+
+
+_dll_handles = []
+if hasattr(os, "add_dll_directory"):
+    _dll_dirs = [
+        r"""@_PYDLL_DIR@""",
+    ]
+    if _selected_config:
+        _dll_dirs.extend(os.path.join(_PYDLL_DIR, config)
+                         for config in _CONFIGS
+                         if config != _selected_config)
+        _dll_dirs.append(os.path.join(_PYDLL_DIR, _selected_config))
+    else:
+        _dll_dirs.extend(os.path.join(_PYDLL_DIR, config) for config in _CONFIGS)
+
+    for _dll_dir in _dll_dirs:
+        if _dll_dir and os.path.isdir(_dll_dir):
+            _dll_handles.append(os.add_dll_directory(_dll_dir))
+
+    if _selected_config:
+        import ctypes
+
+        _selected_pydll_dir = os.path.join(_PYDLL_DIR, _selected_config)
+        for _dll_name in ("axom_core.dll", "axom_slic.dll", "axom_sidre.dll"):
+            _dll_path = os.path.join(_selected_pydll_dir, _dll_name)
+            if os.path.exists(_dll_path):
+                ctypes.WinDLL(_dll_path)
+
+
+def _run_command(args):
+    if not args:
+        if not sys.path or sys.path[0] != "":
+            sys.path.insert(0, "")
+        code.interact(local={"__name__": "__main__"})
+        return
+
+    if args[0] == "-c":
+        if len(args) < 2:
+            raise SystemExit("argument expected for the -c option")
+        sys.argv = ["-c"] + args[2:]
+        if not sys.path or sys.path[0] != "":
+            sys.path.insert(0, "")
+        exec(
+            compile(args[1], "<string>", "exec"),
+            {
+                "__name__": "__main__",
+                "__package__": None,
+                "__spec__": None,
+            },
+        )
+        return
+
+    if args[0] == "-m":
+        if len(args) < 2:
+            raise SystemExit("argument expected for the -m option")
+        sys.argv = args[1:]
+        if not sys.path or sys.path[0] != "":
+            sys.path.insert(0, "")
+        runpy.run_module(args[1], run_name="__main__", alter_sys=True)
+        return
+
+    script = args[0]
+    sys.argv = args
+    sys.path.insert(0, os.path.dirname(os.path.abspath(script)))
+    runpy.run_path(script, run_name="__main__")
+
+
+_run_command(sys.argv[1:])

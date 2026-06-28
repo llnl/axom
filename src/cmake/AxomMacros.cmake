@@ -610,7 +610,7 @@ endmacro(axom_configure_file)
 ## the pytest paths (pytest and its dependencies) from their respective CMake cache variables.
 ##
 ## Note: runtime dependencies (e.g. axom, conduit, numpy) are expected to be preprended
-## via the run_python_with_axom.sh script.
+## via the run_python_with_axom wrapper.
 ##------------------------------------------------------------------------------
 function(axom_python_test_environment output_var)
     set(_paths "")
@@ -618,10 +618,79 @@ function(axom_python_test_environment output_var)
         blt_list_append(TO _paths ELEMENTS "${${_var}}" IF ${_var})
     endforeach()
     if(_paths)
-        list(JOIN _paths ":" _joined)
+        if(WIN32)
+            list(JOIN _paths "\\;" _joined)
+        else()
+            list(JOIN _paths ":" _joined)
+        endif()
         set(${output_var} "PYTHONPATH=${_joined}" PARENT_SCOPE)
     else()
         set(${output_var} "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+##------------------------------------------------------------------------------
+## axom_run_python_with_axom_command(<output_var>)
+##
+## Selects the command used to run Axom's Python launcher.
+## On Windows, prefer Git Bash when available, otherwise fall back to the cmd.exe wrapper.
+##------------------------------------------------------------------------------
+function(axom_run_python_with_axom_command output_var)
+    if(WIN32)
+        set(_axom_git_roots "")
+
+        if(Git_FOUND AND GIT_EXECUTABLE)
+            if(COMMAND blt_git)
+                # Ask BLT to run the configured Git executable 
+                # instead of assuming a Program Files install layout.
+                blt_git(SOURCE_DIR "${PROJECT_SOURCE_DIR}"
+                        GIT_COMMAND --exec-path
+                        OUTPUT_VARIABLE _axom_git_exec_path
+                        RETURN_CODE _axom_git_exec_path_result)
+                if(_axom_git_exec_path_result EQUAL 0 AND _axom_git_exec_path)
+                    get_filename_component(_axom_git_root "${_axom_git_exec_path}/../../.." ABSOLUTE)
+                    list(APPEND _axom_git_roots "${_axom_git_root}")
+                endif()
+            endif()
+
+            # Git for Windows commonly reports git.exe from cmd/ or mingw64/bin/,
+            # while bash.exe lives under the install root's bin/ or usr/bin/.
+            get_filename_component(_axom_git_exe_dir "${GIT_EXECUTABLE}" DIRECTORY)
+            list(APPEND _axom_git_roots
+                 "${_axom_git_exe_dir}/.."
+                 "${_axom_git_exe_dir}/../..")
+        endif()
+
+        set(_axom_git_normalized_roots "")
+        foreach(_axom_git_root IN LISTS _axom_git_roots)
+            get_filename_component(_axom_git_root "${_axom_git_root}" ABSOLUTE)
+            list(APPEND _axom_git_normalized_roots "${_axom_git_root}")
+        endforeach()
+        blt_list_remove_duplicates(TO _axom_git_normalized_roots)
+
+        # Keep this search scoped to the configured Git installation.
+        # If it fails, the batch wrapper below is a conservative Windows fallback.
+        find_program(AXOM_GIT_BASH_EXECUTABLE
+                     NAMES bash.exe bash
+                     HINTS ${_axom_git_normalized_roots}
+                     PATH_SUFFIXES bin usr/bin
+                     NO_DEFAULT_PATH
+                     DOC "Git Bash executable used to run Axom Python tests.")
+        if(AXOM_GIT_BASH_EXECUTABLE)
+            set(${output_var}
+                "${AXOM_GIT_BASH_EXECUTABLE}"
+                "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh"
+                PARENT_SCOPE)
+        else()
+            set(${output_var}
+                "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.bat"
+                PARENT_SCOPE)
+        endif()
+
+    else()
+        set(${output_var}
+            "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh"
+            PARENT_SCOPE)
     endif()
 endfunction()
 
@@ -649,10 +718,11 @@ macro(axom_add_python_test)
                          "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
 
     # Run unit test with pytest ("python3 -m pytest").
-    # The run_python_with_axom.sh wrapper provides the runtime environment
+    # The run_python_with_axom wrapper provides the runtime environment
     # and the testing dependencies are injected via the test's ENVIRONMENT property when provided.
     # "-p no:cacheprovider" disables caching.
-    set(_test_command ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+    axom_run_python_with_axom_command(_run_python_with_axom)
+    set(_test_command ${_run_python_with_axom}
                       -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE})
     blt_add_test(NAME          ${arg_NAME}
                  COMMAND       ${_test_command}
@@ -669,6 +739,7 @@ macro(axom_add_python_test)
                      PROPERTY ENVIRONMENT "${_py_test_env}")
     endif()
     unset(_py_test_env)
+    unset(_run_python_with_axom)
     unset(_test_command)
 
 endmacro(axom_add_python_test)
