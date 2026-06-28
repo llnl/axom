@@ -19,11 +19,17 @@ import pytest
 
 import pysidre
 
-if not pysidre.AXOM_ENABLE_MPI:
-    pytest.skip("pysidre built without MPI", allow_module_level=True)
+try:
+    from mpi4py import MPI  # noqa: E402
+    _mpi4py_available = True
+except ImportError:
+    MPI = None
+    _mpi4py_available = False
 
-mpi4py = pytest.importorskip("mpi4py")
-from mpi4py import MPI  # noqa: E402
+pytestmark = pytest.mark.skipif(
+    not pysidre.AXOM_ENABLE_MPI or not _mpi4py_available,
+    reason="pysidre built without MPI or mpi4py is unavailable",
+)
 
 
 def _shared_base(tmp_path, name):

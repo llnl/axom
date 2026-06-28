@@ -50,7 +50,7 @@ def test_alloc_buffer_for_int_array():
 
     data = dbuff.getDataArray()
 
-    assert type(data[0]) == np.int32
+    assert data.dtype == np.dtype(np.int32)
 
     for i in range(elem_count):
         data[i] = i * i
@@ -76,7 +76,7 @@ def test_init_buffer_for_int_array():
 
     data = dbuff.getDataArray()
 
-    assert type(data[0]) == np.int32
+    assert data.dtype == np.dtype(np.int32)
 
     for i in range(elem_count):
         data[i] = i * i
@@ -117,7 +117,7 @@ def test_realloc_buffer():
 
     data = dbuff.getDataArray()
 
-    assert type(data[0]) == np.int32
+    assert data.dtype == np.dtype(np.int32)
 
     for i in range(orig_elem_count, mod_elem_count):
         data[i] = mod_elem_count
