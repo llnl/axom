@@ -65,6 +65,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: A moved-from Array is valid, e.g. it can be pushed to
 - Core: Improved `axom::FlatMap` insertion performance by fusing duplicate-key lookup with empty-slot probing.
 - Core: Updated DeviceHash to use 64-bit hash results and improved coverage for integer and floating-point hashing.
+- Core: Avoids a first-use race in `axom::copy()` when multiple OpenMP threads concurrently trigger Umpire fallback host-copy initialization.
 - Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
 
 ## [Version 0.14.0] - Release date 2026-03-31

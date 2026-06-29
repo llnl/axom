@@ -153,6 +153,18 @@ if (AXOM_ENABLE_OPENMP AND RAJA_FOUND)
                    COMMAND         core_openmp_tests --gtest_filter=${test_suite}*
                    NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS} )
   endforeach()
+
+  if (UMPIRE_FOUND)
+    axom_add_executable(NAME       core_copy_openmp_race_test
+                        SOURCES    core_copy_openmp_race.cpp
+                        OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                        DEPENDS_ON ${core_test_depends}
+                        FOLDER     axom/core/tests )
+
+    axom_add_test( NAME            core_copy_openmp_race
+                   COMMAND         core_copy_openmp_race_test
+                   NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS} )
+  endif()
 endif()
 
 #------------------------------------------------------------------------------
