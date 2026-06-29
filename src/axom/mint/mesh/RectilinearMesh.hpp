@@ -205,7 +205,7 @@ public:
     : RectilinearMesh(group, "", "", Ni, Nj, Nk)
   { }
 
-    /// @}
+  /// @}
 
 /// @}
 #endif

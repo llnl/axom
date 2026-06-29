@@ -196,9 +196,9 @@ public:
                IndexType numParticles,
                sidre::Group* group,
                IndexType capacity = USE_DEFAULT);
-    /// @}
+  /// @}
 
-    /// @}
+  /// @}
 
 #endif /* AXOM_MINT_USE_SIDRE */
 

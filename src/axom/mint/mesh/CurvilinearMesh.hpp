@@ -205,7 +205,7 @@ public:
     : CurvilinearMesh(group, "", "", Ni, Nj, Nk)
   { }
 
-    /// @}
+  /// @}
 
 /// @}
 #endif

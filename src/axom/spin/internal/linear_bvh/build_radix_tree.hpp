@@ -406,15 +406,15 @@ AXOM_HOST_DEVICE static inline BBoxType sync_load(const BBoxType& box)
     volatile const FloatType& max_dim =
       reinterpret_cast<volatile const FloatType&>(box.getMax()[dim]);
 
-      // NOTE: There is a possibility for a read-after-write hazard, where the
-      // uncached store of an AABB on one thread isn't visible when another
-      // thread calls this method to read the value. However, this doesn't seem to
-      // be an issue on Volta; the atomicAdd used to terminate the first thread
-      // seems to correctly synchronize the prior atomic store operations for the
-      // bounding box data.
-      //
-      // Just in case this changes, we poll for a non-sentinel value to be read
-      // out. Naturally, this assumes that reads of sizeof(FloatType) don't tear.
+    // NOTE: There is a possibility for a read-after-write hazard, where the
+    // uncached store of an AABB on one thread isn't visible when another
+    // thread calls this method to read the value. However, this doesn't seem to
+    // be an issue on Volta; the atomicAdd used to terminate the first thread
+    // seems to correctly synchronize the prior atomic store operations for the
+    // bounding box data.
+    //
+    // Just in case this changes, we poll for a non-sentinel value to be read
+    // out. Naturally, this assumes that reads of sizeof(FloatType) don't tear.
   #ifdef SPIN_BVH_DEBUG_MEMORY_HAZARD
     while((min_pt[dim] = min_dim) == BBoxType::InvalidMin)
     {

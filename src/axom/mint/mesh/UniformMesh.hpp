@@ -184,7 +184,7 @@ public:
               IndexType Nk = -1)
     : UniformMesh(group, "", "", lower_bound, upper_bound, Ni, Nj, Nk)
   { }
-    /// @}
+  /// @}
 
 /// @}
 #endif

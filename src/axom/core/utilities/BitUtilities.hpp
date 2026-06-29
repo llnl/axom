@@ -24,7 +24,7 @@
 // Check for and setup defines for platform-specific intrinsics
 // Note: `__GNUC__` is defined for the gnu, clang and intel compilers
 #if defined(AXOM_USE_CUDA)
-  // Intrinsics included implicitly
+// Intrinsics included implicitly
 
 #elif defined(AXOM_USE_HIP)
   #include <hip/hip_runtime.h>

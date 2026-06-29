@@ -206,7 +206,7 @@ struct mpi_traits<std::uint64_t>
 };
   #endif  // AXOM_NO_INT64_T
 
-  /// @}
+/// @}
 
 #endif  // AXOM_USE_MPI
 

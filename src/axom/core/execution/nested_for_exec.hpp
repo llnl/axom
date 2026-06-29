@@ -23,7 +23,7 @@
       using tile_fixed = ::RAJA::statement::tile_fixed< SIZE >;
     } // namespace RAJA
 
-    /* clang-format on */
+  /* clang-format on */
 
   #endif
 
@@ -74,7 +74,7 @@ struct nested_for_exec<SEQ_EXEC>
       > // END j
     > // END k
   >; // END kernel
-    /* clang-format on */
+  /* clang-format on */
 
 #else
   using loop2d_policy = void;

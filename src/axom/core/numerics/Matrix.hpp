@@ -625,13 +625,13 @@ AXOM_HOST_DEVICE Matrix<T>::Matrix(int rows, int cols, T* data, bool external)
   }
   else
   {
-  #if defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_DEVICE_CODE)
     assert(false);
-  #else
+#else
     const int nitems = m_rows * m_cols;
     m_data = allocate<T>(nitems);
     memcpy(m_data, data, nitems * sizeof(T));
-  #endif
+#endif
   }
 }
 
@@ -950,14 +950,14 @@ void Matrix<T>::copy(const Matrix<T>& rhs)
 template <typename T>
 AXOM_HOST_DEVICE void Matrix<T>::clear()
 {
-  #if defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_DEVICE_CODE)
   assert(m_usingExternal);
-  #else
+#else
   if(!m_usingExternal)
   {
     deallocate(m_data);
   }
-  #endif
+#endif
 
   m_rows = m_cols = 0;
 }

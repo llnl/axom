@@ -2609,7 +2609,7 @@ private:
 
 #if defined(__CUDACC__)
 public:
-    // These methods should be private, but NVCC complains unless they're public.
+  // These methods should be private, but NVCC complains unless they're public.
 #endif
 
   template <typename ExecSpace>

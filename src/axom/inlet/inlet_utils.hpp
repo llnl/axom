@@ -53,15 +53,15 @@ struct VerificationError
  * \param errs The list of errors, must be of type \p std::vector<VerificationError>*
  *****************************************************************************
  */
-  #define INLET_VERIFICATION_WARNING(path, msg, errs) \
-    if(errs)                                          \
-    {                                                 \
-      errs->push_back({axom::Path {path}, msg});      \
-    }                                                 \
-    else                                              \
-    {                                                 \
-      SLIC_WARNING(msg);                              \
-    }
+#define INLET_VERIFICATION_WARNING(path, msg, errs) \
+  if(errs)                                          \
+  {                                                 \
+    errs->push_back({axom::Path {path}, msg});      \
+  }                                                 \
+  else                                              \
+  {                                                 \
+    SLIC_WARNING(msg);                              \
+  }
 
 /*!
 *****************************************************************************

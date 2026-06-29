@@ -607,7 +607,7 @@ public:
     : UnstructuredMesh(ndims, group, "", "", node_capacity, cell_capacity, connectivity_capacity)
   { }
 
-    /// @}
+  /// @}
 
 #endif /* AXOM_MINT_USE_SIDRE */
 
