@@ -104,6 +104,7 @@ set(core_headers
     )
 
 set(core_sources
+    utilities/Abort.cpp
     utilities/Annotations.cpp
     utilities/FileUtilities.cpp
     utilities/StringUtilities.cpp
