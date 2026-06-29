@@ -6,13 +6,14 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
+
 /**
  * \file wrapSidre.h
  * \brief Shroud generated wrapper for sidre namespace
  */
 // For C users and C++ implementation
-
-#pragma once
 
 #ifndef __cplusplus
   #include <stdbool.h>

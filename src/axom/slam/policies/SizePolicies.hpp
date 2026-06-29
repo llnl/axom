@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SizePolicies.hpp
  *
@@ -23,8 +25,6 @@
  *  are provided by the unified RuntimeValue/CompileTimeValue core in ValuePolicies.hpp.
  *  The scalar policies below add only the named `size()` accessor, `empty()`, and the DEFAULT_VALUE member.
  */
-
-#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/slic.hpp"

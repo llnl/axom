@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
   @file Static look-up tables for MarchingCubesImpl.
 */
 
 // 2D case table
 // clang-format off
-#pragma once
-
 #ifdef _MC_LOOKUP_CASES2D
 /*!
   @brief Look-up table in 2D.

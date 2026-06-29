@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * Set-up multi-material data for examples
  *
@@ -11,8 +13,6 @@
  *     https://github.com/lanl/MultiMatTest
  * Also defines some helper struct-classes.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slam.hpp"

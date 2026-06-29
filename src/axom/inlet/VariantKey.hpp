@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file VariantKey.hpp
@@ -12,8 +14,6 @@
  * associative array key type
  *******************************************************************************
  */
-
-#pragma once
 
 #include <ostream>
 #include <string>

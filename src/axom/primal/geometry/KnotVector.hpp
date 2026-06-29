@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file KnotVector.hpp
  *
  * \brief A class to represent knot vectors for NURBS
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

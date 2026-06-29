@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number.hpp
  *
  * \brief Consists of methods to compute the generalized winding number (GWN) 
  *        for points with respect to various geometric objects.
  */
-
-#pragma once
 
 // Axom includes
 #include "axom/core.hpp"

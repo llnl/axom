@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file IndirectionPolicies.hpp
  *
@@ -29,8 +31,6 @@
  * \note Slam's Sets, Relations and Maps are not responsible for
  *  allocating/deallocating their own memory
  */
-
-#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/Array.hpp"

@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutOctreeStats.hpp
  *
  * \brief Defines helper class to generate statistics about an InOutOctree.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file OffsetPolicies.hpp
  *
@@ -24,8 +26,6 @@
  *  are provided by the unified RuntimeValue/CompileTimeValue core in ValuePolicies.hpp.
  *  The policies below add only the named `offset()` accessor and the DEFAULT_VALUE member.
  */
-
-#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/slam/policies/ValuePolicies.hpp"

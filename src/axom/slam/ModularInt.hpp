@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file ModularInt.hpp
  *
@@ -13,8 +15,6 @@
  * We allow the max number to be set during compile time or at runtime
  *
  */
-
-#pragma once
 
 #include "axom/slic/interface/slic.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"

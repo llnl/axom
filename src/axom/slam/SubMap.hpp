@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SubMap.hpp
  *
  * \brief Contains SubMap, which is a subset of a Map
  *
  */
-
-#pragma once
 
 #include "axom/slic.hpp"
 

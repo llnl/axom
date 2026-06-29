@@ -4,12 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file AllNearestNeighbors.hpp
  * \brief Defines all-nearest-neighbor queries
  */
-
-#pragma once
 
 namespace axom
 {

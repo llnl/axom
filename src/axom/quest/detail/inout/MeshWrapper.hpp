@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file MeshWrapper.hpp
  *
  * \brief Defines a templated mesh wrapper class for the InOutOctree.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

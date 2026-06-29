@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BlockData.hpp
  *
  * \brief Defines helper classes for data associated with InOutOctree blocks.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file LuaReader.hpp
@@ -11,8 +13,6 @@
  * \brief This file contains the class definition of the LuaReader.
  *******************************************************************************
  */
-
-#pragma once
 
 #include "axom/inlet/Reader.hpp"
 #include "axom/sol_forward.hpp"

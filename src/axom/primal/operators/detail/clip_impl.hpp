@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file clip_impl.hpp
  *
  * \brief Helper functions for the primal clipping operators
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"

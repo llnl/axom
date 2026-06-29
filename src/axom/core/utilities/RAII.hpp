@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file RAII.hpp
  *
@@ -12,8 +14,6 @@
  *
  * For more information about RAII, see: https://en.cppreference.com/w/cpp/language/raii
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"

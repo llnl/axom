@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file CellData.hpp
  * 
  * \brief Contains the specifications for the CellData class 
  *        and CellTopologyData and CellMapData structs.
  */
-
-#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"

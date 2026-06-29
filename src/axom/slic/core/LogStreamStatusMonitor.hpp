@@ -4,12 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file LogStreamStatusMonitor.hpp
  *
  */
-
-#pragma once
 
 #include <vector>
 #include "axom/slic/core/LogStream.hpp"

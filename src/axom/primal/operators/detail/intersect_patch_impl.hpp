@@ -3,14 +3,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file intersect_patch_impl.hpp
  *
  * This file provides helper functions for testing the intersection
  * of rays and Bezier patches
  */
-
-#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Polygon.hpp"

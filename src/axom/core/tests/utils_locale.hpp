@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 //-----------------------------------------------------------------------------
 //
 // file: utils_locale.hpp
 // Checks locales and prints out related info
 //
 //-----------------------------------------------------------------------------
-
-#pragma once
 
 #include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/core/utilities/System.hpp"

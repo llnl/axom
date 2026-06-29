@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file clip.hpp
  *
  * \brief Consists of a set of methods to clip a primal primitive against
  *        another primal primitive
  */
-
-#pragma once
 
 #include "axom/core/utilities/Utilities.hpp"
 

@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file ProductSet.hpp
  *
  * \brief Basic API for a SLAM Cartesian product set
  */
-
-#pragma once
 
 #include "axom/core/IteratorBase.hpp"
 #include "axom/slam/BivariateSet.hpp"

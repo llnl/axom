@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayValidation.hpp
  *
@@ -21,8 +23,6 @@
  * - Determinant evaluation helpers with context-aware tolerances
  * - Boundary coordinate tolerance computation
  */
-
-#pragma once
 
 namespace axom
 {

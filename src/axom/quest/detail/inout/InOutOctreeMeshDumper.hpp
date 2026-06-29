@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutOctreeMeshDumper.hpp
  *
  * \brief Defines helper class to write meshes for InOutOctree instances
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

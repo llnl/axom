@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file intersect_impl.hpp
  *
  * This file provides helper functions for testing whether
  * geometric primitives intersect
  */
-
-#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/numerics/Determinants.hpp"

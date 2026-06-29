@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file CurvedPolygon.hpp
  *
  * \brief A polygon primitive whose edges are Bezier curves
  */
-
-#pragma once
 
 #include "axom/slic.hpp"
 

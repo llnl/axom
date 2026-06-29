@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file GWNMethods.hpp
  *
  * \brief Helper classes and type traits for GWN Evaluation methods
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"

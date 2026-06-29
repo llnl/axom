@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file OrderedSet.hpp
  *
@@ -12,8 +14,6 @@
  *  repeated an arbitrary number of times (e.g. for indirection sets)
  *
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"

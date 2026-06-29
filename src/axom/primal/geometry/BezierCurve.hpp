@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file BezierCurve.hpp
  *
  * \brief A BezierCurve primitive
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

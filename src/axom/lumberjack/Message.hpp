@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Message.hpp
@@ -11,8 +13,6 @@
  * \brief This file contains the class definition of the Message.
  *******************************************************************************
  */
-
-#pragma once
 
 #include <cstring>
 #include <string>

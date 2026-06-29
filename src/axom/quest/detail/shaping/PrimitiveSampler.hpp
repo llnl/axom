@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file PrimitiveSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using primal geometric primitives
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"

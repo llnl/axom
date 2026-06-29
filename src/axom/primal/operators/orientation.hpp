@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file orientation.hpp
  *
@@ -14,8 +16,6 @@
  *  oracles near degeneracy (e.g. nearly collinear/coplanar inputs).
  *  See detail/predicate_determinants.hpp for the precision/robustness discussion.
  */
-
-#pragma once
 
 #include "axom/core/numerics/Determinants.hpp"
 #include "axom/core/utilities/Utilities.hpp"

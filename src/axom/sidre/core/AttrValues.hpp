@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -26,8 +28,6 @@
 // Sidre project headers
 #include "axom/sidre/core/Attribute.hpp"
 #include "axom/sidre/core/SidreTypes.hpp"
-
-#pragma once
 
 namespace axom
 {

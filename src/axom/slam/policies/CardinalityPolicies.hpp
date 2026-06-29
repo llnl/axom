@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file CardinalityPolicies.hpp
  *
@@ -40,8 +42,6 @@
  *     -- indicates whether the CardinalityPolicy instance is valid
  *
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"

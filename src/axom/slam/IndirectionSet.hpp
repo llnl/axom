@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file IndirectionSet.hpp
  *
  * \brief Defines some alias templates for OrderedSets with indirection
  */
-
-#pragma once
 
 #include <cstddef>
 #include <vector>

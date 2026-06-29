@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file predicate_determinants.hpp
  *
@@ -26,8 +28,6 @@
  *  limitation and are a possible future enhancement; see the primal tests
  *  characterizing where the double-precision sign is and is not reliable.
  */
-
-#pragma once
 
 #include "axom/core/numerics/Determinants.hpp"
 

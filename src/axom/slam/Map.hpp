@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Map.hpp
  *
  * \brief Basic API for a map from each element of a set to some domain
  *
  */
-
-#pragma once
 
 #include <vector>
 #include <sstream>

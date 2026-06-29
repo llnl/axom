@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number_3d_memoization.hpp
  *
  * \brief Consists of data structures that accelerate GWN queries through "memoization," i.e.
  *  dynamically caching and reusing patch surface evaluations and tangents at quadrature points.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

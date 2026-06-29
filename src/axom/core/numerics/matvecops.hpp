@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *
  * \file matvecops.hpp
@@ -11,8 +13,6 @@
  * \brief Provides Matrix/Vector operations.
  *
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Determinants.hpp"           // numerics::determinant()

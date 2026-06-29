@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /* An excerpt from this test file is used in the Sidre Sphinx documentation,
  * denoted by the comment strings
  *
@@ -16,8 +18,6 @@
  *
  * prepended with an underscore.
  */
-
-#pragma once
 
 #include "gtest/gtest.h"
 

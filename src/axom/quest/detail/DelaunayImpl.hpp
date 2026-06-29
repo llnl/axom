@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayImpl.hpp
  *
@@ -18,8 +20,6 @@
  * - Mesh compaction (removes deleted element slots)
  * - VTK export for visualization
  */
-
-#pragma once
 
 namespace axom
 {

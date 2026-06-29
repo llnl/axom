@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file MortonIndex
  *
@@ -13,8 +15,6 @@
  * Also has some utility functions for 'mortonizing' and 'demortonizing' points and a PointHash
  * functor class that can be used as a std::hash for unordered_maps and axom::FlatMap
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"

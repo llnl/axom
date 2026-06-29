@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_curve.hpp
  *
@@ -22,8 +24,6 @@
  * Regions Bounded by Rational Parametric Curves" by D. Gunderman et al.
  * https://doi.org/10.1016/j.cad.2020.102944
  */
-
-#pragma once
 
 // Axom includes
 #include "axom/core.hpp"

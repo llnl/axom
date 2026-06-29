@@ -4,11 +4,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file slic.hpp
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"

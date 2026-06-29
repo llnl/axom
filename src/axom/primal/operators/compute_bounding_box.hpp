@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file compute_bounding_box.hpp
  *
  * \brief Consists of functions to create bounding boxes.
  */
-
-#pragma once
 
 #include "axom/core/numerics/Matrix.hpp"       // for Matrix
 #include "axom/core/Macros.hpp"                // for AXOM_HOST__DEVICE

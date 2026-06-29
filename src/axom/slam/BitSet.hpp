@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BitSet.hpp
  *
  * \brief Contains a BitSet class for manipulating ordered sequences of bits.
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"

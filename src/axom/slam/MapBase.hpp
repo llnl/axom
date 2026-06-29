@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file MapBase.hpp
  *
  * \brief Contains an Abstract class MapBase
  *
  */
-
-#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"

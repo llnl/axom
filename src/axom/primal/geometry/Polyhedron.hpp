@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file Polyhedron.hpp
  *
  * \brief A Polyhedron primitive for primal
  */
-
-#pragma once
 
 #include "axom/core/StackArray.hpp"
 

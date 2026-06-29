@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file NonCollectiveRootCommunicator.hpp
@@ -12,8 +14,6 @@
  *  NonCollectiveRootCommunicator.
  *******************************************************************************
  */
-
-#pragma once
 
 #include "axom/lumberjack/Lumberjack.hpp"
 #include "axom/lumberjack/Communicator.hpp"

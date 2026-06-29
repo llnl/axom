@@ -6,13 +6,14 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
+
 /**
  * \file wrapQUEST.h
  * \brief Shroud generated wrapper for quest namespace
  */
 // For C users and C++ implementation
-
-#pragma once
 
 #ifdef AXOM_USE_MPI
   #include "mpi.h"

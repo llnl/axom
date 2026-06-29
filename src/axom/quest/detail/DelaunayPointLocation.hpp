@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayPointLocation.hpp
  *
@@ -14,8 +16,6 @@
  * toward the query point until it is found or the walk exits the boundary.
  * Fallback strategies handle edge cases (cycles, numerical issues).
  */
-
-#pragma once
 
 namespace axom
 {

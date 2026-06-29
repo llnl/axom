@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file analytic_test_surfaces.hpp
  *
@@ -13,8 +15,6 @@
  *
  * \sa primal_solid_angle.cpp
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/primal.hpp"

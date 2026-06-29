@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Function.hpp
@@ -11,8 +13,6 @@
  * \brief This file contains the class definition of Inlet's Function class.
  *******************************************************************************
  */
-
-#pragma once
 
 #include <memory>
 #include <functional>

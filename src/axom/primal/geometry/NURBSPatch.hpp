@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file NURBSPatch.hpp
  *
  * \brief A (trimmed) NURBSPatch primitive
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file InletVector.hpp
@@ -12,8 +14,6 @@
  * which wraps Primal's Vector class
  *******************************************************************************
  */
-
-#pragma once
 
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/fmt.hpp"

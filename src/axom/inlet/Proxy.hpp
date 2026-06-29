@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Proxy.hpp
@@ -11,8 +13,6 @@
  * \brief This file contains the class definition of Inlet's Proxy class.
  *******************************************************************************
  */
-
-#pragma once
 
 #include <type_traits>
 #include <utility>

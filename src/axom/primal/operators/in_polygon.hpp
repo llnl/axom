@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file in_polygon.hpp
  *
@@ -12,8 +14,6 @@
  *
  * Uses a ray casting algorithm
  */
-
-#pragma once
 
 // Axom includes
 #include "axom/config.hpp"

@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using the InOutOctree
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"

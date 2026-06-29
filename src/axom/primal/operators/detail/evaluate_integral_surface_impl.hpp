@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_surface_impl.hpp
  *
  * \brief Implementation helpers for surface/volume integral evaluation.
  */
-
-#pragma once
 
 // Axom includes
 #include "axom/core.hpp"

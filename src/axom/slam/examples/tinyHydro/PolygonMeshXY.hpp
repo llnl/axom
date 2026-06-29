@@ -4,10 +4,10 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // arbitrary mesh of polygons in XY geom
 // Thu Mar 26 09:38:50 PDT 2015
-
-#pragma once
 
 #include "VectorXY.hpp"
 #include "TinyHydroTypes.hpp"

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file MIRUtilities.hpp
  * 
@@ -11,8 +13,6 @@
  *        within Axom's MIR component.
  * 
  */
-
-#pragma once
 
 #include "axom/mir/reference/ZooClippingTables.hpp"
 

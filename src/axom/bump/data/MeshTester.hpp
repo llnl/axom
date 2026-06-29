@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file MeshTester.hpp
  * 
  * \brief Contains the specification for the MeshTester class.
  * 
  */
-
-#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/primal.hpp"

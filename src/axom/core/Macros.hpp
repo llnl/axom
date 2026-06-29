@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file AxomMacros.hpp
  *
  * \brief Contains several useful macros for the axom project
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include <cassert>  // for assert()

@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutOctreeValidator.hpp
  *
  * \brief Defines helper class to validate an InOutOctree instance
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

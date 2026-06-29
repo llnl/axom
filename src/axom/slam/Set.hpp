@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Set.hpp
  *
  * \brief Basic API for a Set of entities in a simulation
  *
  */
-
-#pragma once
 
 #include <cstddef>
 #include <vector>

@@ -6,9 +6,10 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-// For C users and C++ implementation
 
 #pragma once
+
+// For C users and C++ implementation
 
 // Shared with other Shroud wrapped libraries
 #ifndef SHROUD_SHARED_H

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DynamicConstantRelation.hpp
  *
@@ -14,8 +16,6 @@
  *
  * This relation is dynamic; the related entities can change at runtime.
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/memory_management.hpp"
@@ -14,8 +16,6 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-
-#pragma once
 
 namespace axom
 {

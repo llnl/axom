@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  *  \file SidreTypes.h
  *
@@ -16,8 +18,6 @@
  * Note: Use only C code in this file.
  *       It is part of the C wrapper.
  */
-
-#pragma once
 
 // Axom includes
 #include "axom/config.hpp"

@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #pragma once
+
 #include "axom/core/utilities/Utilities.hpp"
 
 #include "axom/primal/geometry/Point.hpp"

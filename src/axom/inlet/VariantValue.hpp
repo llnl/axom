@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file VariantValue.hpp
@@ -12,8 +14,6 @@
  * collections.
  *******************************************************************************
  */
-
-#pragma once
 
 #include <string>
 #include <variant>

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file intersection_volume.hpp
  *
@@ -11,8 +13,6 @@
  *        intersection (clipping) between a primal primitive and
  *        another primal primitive
  */
-
-#pragma once
 
 #include "axom/primal/geometry/Tetrahedron.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"

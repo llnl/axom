@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file IntersectionShaper.hpp
  *
  * \brief Helper class for intersection-based shaping queries
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 

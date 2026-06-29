@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file VerifiableScalar.hpp
@@ -11,8 +13,6 @@
  * \brief This file defines an interface for scalars that are verifiable
  *******************************************************************************
  */
-
-#pragma once
 
 #include <memory>
 #include <functional>

@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file multimat.hpp
  *
  * \brief Contains the MultiMat library header and its template implementation
  *
  */
-#pragma once
-
 #include "axom/slam.hpp"
 
 #include <vector>

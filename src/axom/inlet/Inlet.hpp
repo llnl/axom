@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Inlet.hpp
@@ -12,8 +14,6 @@
  *        for the Inlet component.
  *******************************************************************************
  */
-
-#pragma once
 
 #include <memory>
 #include <string>

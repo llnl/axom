@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Communicator.hpp
@@ -12,8 +14,6 @@
  * Communicator.
  *******************************************************************************
  */
-
-#pragma once
 
 #include <mpi.h>
 #include <vector>

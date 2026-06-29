@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file NullSet.hpp
  *
  * \brief Sentinel set type indicating an empty set.
  *
  */
-
-#pragma once
 
 #include "axom/slic.hpp"
 #include "axom/slam/Set.hpp"

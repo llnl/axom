@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file
  *
  * \brief Consists of utility functions to facilitate in test development.
  */
-#pragma once
-
 // Axom includes
 
 #include "axom/core/Macros.hpp"

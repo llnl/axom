@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file fuzzy_comparators.hpp
  *
  * This file provides helper functions for fuzzy comparisons
  */
-
-#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"

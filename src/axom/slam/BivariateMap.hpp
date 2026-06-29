@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BivariateMap.hpp
  *
  * \brief Contains the BivariateMap class, a map for a BivariateSet
  *
  */
-
-#pragma once
 
 #include "axom/slam/Map.hpp"
 #include "axom/slam/Relation.hpp"

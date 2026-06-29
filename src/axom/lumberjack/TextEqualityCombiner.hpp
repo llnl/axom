@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file TextEqualityCombiner.hpp
@@ -12,8 +14,6 @@
  * TextEqualityCombiner.
  *******************************************************************************
  */
-
-#pragma once
 
 #include "axom/lumberjack/Combiner.hpp"
 #include "axom/lumberjack/Message.hpp"

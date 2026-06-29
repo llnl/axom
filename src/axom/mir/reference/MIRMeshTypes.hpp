@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file MIRMeshTypes.hpp
  * 
  * \brief Contains the specifications for types aliases used throughout the MIR component.
  */
-
-#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"

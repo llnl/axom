@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SamplingShaper.hpp
  *
  * \brief Helper class for sampling-based shaping queries
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"

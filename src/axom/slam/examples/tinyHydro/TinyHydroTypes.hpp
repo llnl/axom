@@ -4,10 +4,9 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-// Part class holds the material data for a single material.
-
 #pragma once
 
+// Part class holds the material data for a single material.
 
 #include "VectorXY.hpp"
 

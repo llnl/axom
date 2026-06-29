@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  *  \file SidreTypes.hpp
  *
  *  \brief File containing types used in the Sidre component of axom.
  *
  */
-
-#pragma once
 
 #include "SidreDataTypeIds.h"
 #include "conduit.hpp"

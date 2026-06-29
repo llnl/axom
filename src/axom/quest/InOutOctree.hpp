@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutOctree.hpp
  *
  * \brief Defines an InOutOctree for containment queries on a surface.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"

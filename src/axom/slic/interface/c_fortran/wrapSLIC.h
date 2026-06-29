@@ -6,13 +6,14 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
+
 /**
  * \file wrapSLIC.h
  * \brief Shroud generated wrapper for slic namespace
  */
 // For C users and C++ implementation
-
-#pragma once
 
 #include "wrapSLIC.h"
 #ifndef __cplusplus

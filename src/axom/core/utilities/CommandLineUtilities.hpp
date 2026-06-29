@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file CommandLineUtilities.hpp
  *
  * \brief Defines utilities in support of validating command line input
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Annotations.hpp"

@@ -4,12 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file OctreeBase.hpp
  * \brief Defines templated OctreeBase class and its inner class BlockIndex
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/NumericLimits.hpp"

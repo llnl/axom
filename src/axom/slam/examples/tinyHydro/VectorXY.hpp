@@ -4,11 +4,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // 2D vector for XY geometry
 // Fri Nov 21 10:50:53 PST 2014
 #include <math.h>
-
-#pragma once
 
 namespace tinyHydro {
 

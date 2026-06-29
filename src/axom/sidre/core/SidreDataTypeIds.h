@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  *  \file SiderDataTypeIds.h
  *
@@ -16,8 +18,6 @@
  * Note: Use only C code in this file
  *       since it will be included from a C file.
  */
-
-#pragma once
 
 // Libraries and other axom headers
 #include "conduit.h"

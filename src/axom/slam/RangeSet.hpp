@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file RangeSet.hpp
  *
  * \brief Basic API for an ordered set of entities in a simulation
  *
  */
-
-#pragma once
 
 #include "axom/slam/OrderedSet.hpp"
 

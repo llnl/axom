@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * @name sidre.h
  *
  *  C header file
  */
-
-#pragma once
 
 #include "axom/sidre/interface/SidreTypes.h"
 #include "axom/sidre/interface/c_fortran/wrapSidre.h"

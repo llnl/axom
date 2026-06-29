@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #pragma once
+
 #include "axom/bump/views/dispatch_material.hpp"
 #include "axom/bump/views/MixedFieldView.hpp"
 

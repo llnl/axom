@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Relation.hpp
  *
  * \brief Basic API for a topological relation between two sets
  *
  */
-
-#pragma once
 
 #include <vector>
 

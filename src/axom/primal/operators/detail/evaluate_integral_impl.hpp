@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_impl.hpp
  *
@@ -12,8 +14,6 @@
  * Splitting the implementation avoids circular include dependencies when patches
  * internally evaluate curve-based integrals (e.g. via trimming curves).
  */
-
-#pragma once
 
 #include "axom/primal/operators/detail/evaluate_integral_curve_impl.hpp"
 #include "axom/primal/operators/detail/evaluate_integral_surface_impl.hpp"

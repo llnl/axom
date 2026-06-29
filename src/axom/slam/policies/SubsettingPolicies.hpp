@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SubsettingPolicies.hpp
  *
@@ -19,8 +21,6 @@
  *   * [optional]
  *   * operator(): IntType -- alternate accessor for indirection
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"

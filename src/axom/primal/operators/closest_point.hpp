@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file closest_point.hpp
  *
@@ -11,8 +13,6 @@
  *  geometric primitive B from another geometric primitive A.
  *
  */
-
-#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Segment.hpp"

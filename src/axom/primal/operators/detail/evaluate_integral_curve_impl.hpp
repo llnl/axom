@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_curve_impl.hpp
  *
@@ -12,8 +14,6 @@
  * \note This header intentionally avoids including surface/volume (patch)
  * dependencies to prevent circular include chains (e.g. with NURBSPatch).
  */
-
-#pragma once
 
 // Axom includes
 #include "axom/core.hpp"

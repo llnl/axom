@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file shaping_helpers.hpp
  *
  * \brief Free-standing helper functions in support of shaping query
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"

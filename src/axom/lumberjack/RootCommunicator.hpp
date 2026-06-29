@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file RootCommunicator.hpp
@@ -11,8 +13,6 @@
  * \brief This file contains the class definition of the RootCommunicator.
  *******************************************************************************
  */
-
-#pragma once
 
 #include <string>
 

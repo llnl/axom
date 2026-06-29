@@ -2,7 +2,9 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
 #pragma once
+
 #include "axom/primal.hpp"
 
 #include <type_traits>

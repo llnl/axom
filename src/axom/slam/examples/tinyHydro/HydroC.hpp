@@ -4,6 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
 
 // Hydro driver
 // Fri Mar 27 14:14:28 PDT 2015
@@ -15,8 +16,6 @@
 // and modify it in place.  No STL containers.  Explicit memory
 // allocation of all the memory we ever need at problem start, and
 // explicit deletes when the hydro object is destroyed.
-
-#pragma once
 
 #include "State.hpp"
 

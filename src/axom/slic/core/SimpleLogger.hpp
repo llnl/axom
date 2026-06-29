@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *  \file SimpleLogger.hpp
  *
  *  \brief Header file containing definition of SimpleLogger class.
  *
  */
-
-#pragma once
 
 // Other axom headers
 #include "axom/config.hpp"

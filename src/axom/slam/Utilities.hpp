@@ -4,12 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file
  * \brief A few utility functions used by the SLAM component.
  */
-#pragma once
-
 #include "axom/core.hpp"
 #include "axom/fmt.hpp"
 

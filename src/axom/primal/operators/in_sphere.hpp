@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file in_sphere.hpp
  *
@@ -18,8 +20,6 @@
  *  See detail/predicate_determinants.hpp for the precision/robustness discussion
  *  and in_sphere_orientation() for the tolerance (EPS) scaling caveat.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/primal/geometry/Point.hpp"

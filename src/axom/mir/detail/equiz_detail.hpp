@@ -3,6 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
 #pragma once
 
 #include "axom/config.hpp"

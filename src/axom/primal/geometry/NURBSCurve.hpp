@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file NURBSCurve.hpp
  *
  * \brief A NURBS curve primitive
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"

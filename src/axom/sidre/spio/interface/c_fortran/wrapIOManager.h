@@ -6,13 +6,14 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
+
 /**
  * \file wrapIOManager.h
  * \brief Shroud generated wrapper for IOManager class
  */
 // For C users and C++ implementation
-
-#pragma once
 
 #include "axom/sidre/interface/c_fortran/wrapGroup.h"
 #include "axom/sidre/interface/c_fortran/wrapDataStore.h"

@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InterfaceReconstructor.hpp
  * 
  * \brief Contains the specification for the InterfaceReconstructor class.
  * 
  */
-
-#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"

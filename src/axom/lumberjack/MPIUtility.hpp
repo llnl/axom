@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file MPIUtility.hpp
@@ -11,8 +13,6 @@
  * \brief This file contains the definitions of MPI utility functions.
  *******************************************************************************
  */
-
-#pragma once
 
 #include "mpi.h"
 

@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file split.hpp
  *
  * \brief Consists of a set of methods to split a primal primitive into
  *        (a collection of) another primal primitive
  */
-
-#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"

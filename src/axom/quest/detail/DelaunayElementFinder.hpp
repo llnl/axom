@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayElementFinder.hpp
  *
  * \brief Defines the spatial binning helper used to seed Delaunay point
  * location walks from nearby inserted vertices.
  */
-
-#pragma once
 
 #include "axom/core.hpp"
 #include "axom/primal.hpp"

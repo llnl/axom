@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Shaper.hpp
  *
  * \brief Helper class for shaping queries
  */
-
-#pragma once
 
 #include "axom/config.hpp"
 #ifndef AXOM_USE_KLEE

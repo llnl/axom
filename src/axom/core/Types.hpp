@@ -4,13 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *  \file Types.hpp
  *
  *  \brief Exposes some common types used by axom components.
  */
-
-#pragma once
 
 // Axom includes
 #include "axom/config.hpp"

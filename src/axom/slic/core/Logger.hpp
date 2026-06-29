@@ -4,11 +4,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file Logger.hpp
  */
-
-#pragma once
 
 #include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #include "axom/slic/core/MessageLevel.hpp"
