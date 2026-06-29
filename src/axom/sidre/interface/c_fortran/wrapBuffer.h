@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPBUFFER_H
+#define WRAPBUFFER_H
 
 /**
  * \file wrapBuffer.h
@@ -62,3 +63,5 @@ void SIDRE_Buffer_print(const SIDRE_Buffer* self);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPBUFFER_H

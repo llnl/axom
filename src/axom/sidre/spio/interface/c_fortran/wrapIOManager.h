@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPIOMANAGER_H
+#define WRAPIOMANAGER_H
 
 /**
  * \file wrapIOManager.h
@@ -152,3 +153,5 @@ void SPIO_IOManager_loadExternalData_bufferify(SPIO_IOManager *self,
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPIOMANAGER_H

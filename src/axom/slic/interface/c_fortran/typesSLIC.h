@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef TYPESSLIC_H
+#define TYPESSLIC_H
 
 // For C users and C++ implementation
 
@@ -121,3 +122,5 @@ void SLIC_SHROUD_memory_destructor(SLIC_SHROUD_capsule_data *cap);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // TYPESSLIC_H

@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPGENERICOUTPUTSTREAM_H
+#define WRAPGENERICOUTPUTSTREAM_H
 
 /**
  * \file wrapGenericOutputStream.h
@@ -49,3 +50,5 @@ void SLIC_GenericOutputStream_delete(SLIC_GenericOutputStream *self);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPGENERICOUTPUTSTREAM_H

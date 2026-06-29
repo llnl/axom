@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPGROUP_H
+#define WRAPGROUP_H
 
 /**
  * \file wrapGroup.h
@@ -494,3 +495,5 @@ bool SIDRE_Group_rename_bufferify(SIDRE_Group *self, char *new_name, int SHT_new
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPGROUP_H

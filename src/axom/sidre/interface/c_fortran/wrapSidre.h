@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPSIDRE_H
+#define WRAPSIDRE_H
 
 /**
  * \file wrapSidre.h
@@ -65,3 +66,5 @@ int SIDRE_get_malloc_allocator_id(void);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPSIDRE_H

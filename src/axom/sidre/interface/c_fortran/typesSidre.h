@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef TYPESSIDRE_H
+#define TYPESSIDRE_H
 
 // For C users and C++ implementation
 
@@ -118,3 +119,5 @@ void SIDRE_SHROUD_memory_destructor(SIDRE_SHROUD_capsule_data *cap);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // TYPESSIDRE_H

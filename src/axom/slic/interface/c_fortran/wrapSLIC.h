@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPSLIC_H
+#define WRAPSLIC_H
 
 /**
  * \file wrapSLIC.h
@@ -134,3 +135,5 @@ void SLIC_finalize(void);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPSLIC_H

@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPQUEST_H
+#define WRAPQUEST_H
 
 /**
  * \file wrapQUEST.h
@@ -142,3 +143,5 @@ void QUEST_signed_distance_finalize(void);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPQUEST_H

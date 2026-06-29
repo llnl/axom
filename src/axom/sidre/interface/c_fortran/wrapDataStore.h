@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPDATASTORE_H
+#define WRAPDATASTORE_H
 
 /**
  * \file wrapDataStore.h
@@ -114,3 +115,5 @@ void SIDRE_DataStore_print(const SIDRE_DataStore *self);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPDATASTORE_H

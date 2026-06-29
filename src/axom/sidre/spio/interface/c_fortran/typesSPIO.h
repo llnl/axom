@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef TYPESSPIO_H
+#define TYPESSPIO_H
 
 // For C users and C++ implementation
 
@@ -66,3 +67,5 @@ void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data *cap);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // TYPESSPIO_H

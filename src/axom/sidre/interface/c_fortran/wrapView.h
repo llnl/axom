@@ -7,7 +7,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#pragma once
+#ifndef WRAPVIEW_H
+#define WRAPVIEW_H
 
 /**
  * \file wrapView.h
@@ -193,3 +194,5 @@ bool SIDRE_View_rename_bufferify(SIDRE_View *self, char *new_name, int SHT_new_n
 #ifdef __cplusplus
 }
 #endif
+
+#endif  // WRAPVIEW_H
