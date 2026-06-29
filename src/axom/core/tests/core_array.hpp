@@ -33,33 +33,33 @@ bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
       axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
       break;
     case axom::MemorySpace::Device:
-#if defined(UMPIRE_ENABLE_DEVICE)
+  #if defined(UMPIRE_ENABLE_DEVICE)
       axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
       break;
-#else
+  #else
       return false;
-#endif
+  #endif
     case axom::MemorySpace::Unified:
-#if defined(UMPIRE_ENABLE_UM)
+  #if defined(UMPIRE_ENABLE_UM)
       axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
       break;
-#else
+  #else
       return false;
-#endif
+  #endif
     case axom::MemorySpace::Pinned:
-#if defined(UMPIRE_ENABLE_PINNED)
+  #if defined(UMPIRE_ENABLE_PINNED)
       axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
       break;
-#else
+  #else
       return false;
-#endif
+  #endif
     case axom::MemorySpace::Constant:
-#if defined(UMPIRE_ENABLE_CONST)
+  #if defined(UMPIRE_ENABLE_CONST)
       axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
       break;
-#else
+  #else
       return false;
-#endif
+  #endif
     case axom::MemorySpace::Malloc:
     case axom::MemorySpace::Dynamic:
       break;
@@ -1459,7 +1459,8 @@ TEST(core_array, checkAlloc)
         axom::Array<int, 1, axom::MemorySpace::Unified> v_int_unified(capacity, capacity);
         ::check_alloc(v_int_unified, axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
         axom::Array<double, 1, axom::MemorySpace::Unified> v_double_unified(capacity, capacity);
-        ::check_alloc(v_double_unified, axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
+        ::check_alloc(v_double_unified,
+                      axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
       }
   #endif
   #ifdef UMPIRE_ENABLE_CONST
@@ -2347,7 +2348,7 @@ TEST(core_array, checkDefaultInitializationDevice)
 
     // Then copy it to the host
     axom::Array<HasDefault, 1, axom::MemorySpace::Host> v_has_default_host(v_has_default_device,
-                                                                             explicit_host_alloc);
+                                                                           explicit_host_alloc);
 
     for(const auto& ele : v_has_default_host)
     {

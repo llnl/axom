@@ -1147,7 +1147,8 @@ using MCArray = Array<T, 2>;
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 Array<T, DIM, SPACE, StoragePolicy>::Array()
   : m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
+  , m_host_allocator(
+      axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
   , m_executeOnGPU(axom::isDeviceAllocator(m_allocator_id))
   , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 { }
@@ -1246,7 +1247,8 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(Args... args)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
   , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
+  , m_host_allocator(
+      axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
   , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");
@@ -1263,7 +1265,8 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized, Args... 
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
   , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
+  , m_host_allocator(
+      axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
   , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");

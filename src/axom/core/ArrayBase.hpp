@@ -1007,9 +1007,9 @@ public:
 
     bool isUnifiedSpace = false;
     isUnifiedSpace = (space == MemorySpace::Unified || space == MemorySpace::Pinned);
-  #if defined(AXOM_USE_HIP)
+    #if defined(AXOM_USE_HIP)
     isUnifiedSpace = (isUnifiedSpace || space == MemorySpace::Device);
-  #endif
+    #endif
     if(!preferDevice && isUnifiedSpace)
     {
       space = MemorySpace::Host;
@@ -1113,12 +1113,7 @@ public:
       // HostOp::fill_range will handle the copy to our "staging" host buffer,
       // regardless of the source memory space.
       StagingBuffer dst_buf(space, array, begin, nelems, m_host_allocator);
-      DeviceStagingBuffer<T> src_buf(valueSpace,
-                                     const_cast<T*>(values),
-                                     0,
-                                     nelems,
-                                     m_host_allocator,
-                                     true);
+      DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems, m_host_allocator, true);
       std::uninitialized_copy(src_buf.getStagingBuffer(),
                               src_buf.getStagingBuffer() + nelems,
                               dst_buf.getStagingBuffer());
