@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_JSONREADER_HPP
-#define INLET_JSONREADER_HPP
+#pragma once
 
 #include "axom/inlet/ConduitReader.hpp"
 
@@ -40,5 +39,3 @@ public:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

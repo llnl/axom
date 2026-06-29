@@ -12,8 +12,7 @@
  *
  */
 
-#ifndef SLAM_STATIC_RELATION_HPP_
-#define SLAM_STATIC_RELATION_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -350,5 +349,3 @@ bool StaticRelation<PosType,
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_STATIC_RELATION_HPP_

@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_JSONSCHEMAWRITER_HPP
-#define INLET_JSONSCHEMAWRITER_HPP
+#pragma once
 
 #include <string>
 #include <vector>
@@ -65,5 +64,3 @@ private:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

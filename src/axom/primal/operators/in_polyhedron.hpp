@@ -13,8 +13,7 @@
  * Uses a winding number algorithm
  */
 
-#ifndef AXOM_PRIMAL_IN_POLYHEDRON_HPP_
-#define AXOM_PRIMAL_IN_POLYHEDRON_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -64,5 +63,3 @@ bool in_polyhedron(const Point<T, 3>& query,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_POLYHEDRON_H_

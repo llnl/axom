@@ -22,8 +22,7 @@
  * - Boundary coordinate tolerance computation
  */
 
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
+#pragma once
 
 namespace axom
 {
@@ -948,5 +947,3 @@ inline void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

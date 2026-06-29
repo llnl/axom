@@ -12,8 +12,7 @@
  *
  */
 
-#ifndef AXOM_PRIMAL_CLOSEST_POINT_HPP_
-#define AXOM_PRIMAL_CLOSEST_POINT_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Segment.hpp"
@@ -351,5 +350,3 @@ AXOM_HOST_DEVICE inline Point<T, NDIMS> closest_point(const Point<T, NDIMS>& P,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_CLOSEST_POINT_HPP_

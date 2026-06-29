@@ -13,8 +13,7 @@
  * unless axom is built with caliper and adiak support
  */
 
-#ifndef AXOM_CORE_ANNOTATIONS_HPP_
-#define AXOM_CORE_ANNOTATIONS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -100,5 +99,3 @@ std::map<std::string, std::string> retrieve_metadata();
 }  // namespace annotations
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_CORE_ANNOTATIONS_HPP_

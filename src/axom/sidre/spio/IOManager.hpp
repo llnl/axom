@@ -14,8 +14,7 @@
  ******************************************************************************
  */
 
-#ifndef SIDRE_IOMANAGER_HPP_
-#define SIDRE_IOMANAGER_HPP_
+#pragma once
 
 // Other axom headers
 #include "axom/config.hpp"
@@ -424,5 +423,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_IOMANAGER_HPP_ */

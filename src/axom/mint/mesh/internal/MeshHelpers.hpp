@@ -3,8 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef MINT_MESH_HELPERS_HPP_
-#define MINT_MESH_HELPERS_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"  // for AXOM_UNUSED_PARAM
 #include "axom/core/Types.hpp"   // for nullptr
@@ -78,5 +77,3 @@ bool initFaces(Mesh* m,
 } /* namespace internal */
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_MESH_HELPERS_HPP_ */

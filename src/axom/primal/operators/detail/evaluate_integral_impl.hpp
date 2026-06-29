@@ -13,10 +13,7 @@
  * internally evaluate curve-based integrals (e.g. via trimming curves).
  */
 
-#ifndef PRIMAL_EVAL_INTEGRAL_IMPL_HPP_
-#define PRIMAL_EVAL_INTEGRAL_IMPL_HPP_
+#pragma once
 
 #include "axom/primal/operators/detail/evaluate_integral_curve_impl.hpp"
 #include "axom/primal/operators/detail/evaluate_integral_surface_impl.hpp"
-
-#endif

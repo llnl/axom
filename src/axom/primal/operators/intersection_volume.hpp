@@ -12,8 +12,7 @@
  *        another primal primitive
  */
 
-#ifndef AXOM_PRIMAL_INTERSECTION_VOLUME_HPP_
-#define AXOM_PRIMAL_INTERSECTION_VOLUME_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Tetrahedron.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"
@@ -198,5 +197,3 @@ AXOM_HOST_DEVICE T intersection_volume(const Tetrahedron<T, 3>& tet1,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECTION_VOLUME_HPP_

@@ -17,6 +17,8 @@
  * prepended with an underscore.
  */
 
+#pragma once
+
 #include "gtest/gtest.h"
 
 // _parallel_io_headers_start

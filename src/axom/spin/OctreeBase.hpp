@@ -9,8 +9,7 @@
  * \brief Defines templated OctreeBase class and its inner class BlockIndex
  */
 
-#ifndef AXOM_SPIN_OCTREE_BASE__HPP_
-#define AXOM_SPIN_OCTREE_BASE__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -914,5 +913,3 @@ protected:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_OCTREE_BASE__HPP_

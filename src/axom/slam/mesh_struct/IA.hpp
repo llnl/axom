@@ -10,8 +10,7 @@
  * \brief Contains the header information of IA class
  */
 
-#ifndef SLAM_IA_H_
-#define SLAM_IA_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -448,5 +447,3 @@ constexpr int IAMesh<TDIM, SDIM, P>::VERTS_PER_ELEM;
 }  // end namespace axom
 
 #include "axom/slam/mesh_struct/IA_impl.hpp"
-
-#endif  //  SLAM_IA_H_

@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_FIELD_HPP
-#define INLET_FIELD_HPP
+#pragma once
 
 #include "axom/sidre.hpp"
 #include "axom/inlet/VariantKey.hpp"
@@ -333,5 +332,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

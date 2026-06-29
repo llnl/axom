@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_UNIFORMMESH_HPP_
-#define MINT_UNIFORMMESH_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/mint/config.hpp"
@@ -291,5 +290,3 @@ private:
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_UNIFORMMESH_HPP_ */

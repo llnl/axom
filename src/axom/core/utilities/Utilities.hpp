@@ -12,8 +12,7 @@
  *
  */
 
-#ifndef AXOM_UTILITIES_HPP_
-#define AXOM_UTILITIES_HPP_
+#pragma once
 
 #include "axom/config.hpp"  // for compile-time definitions
 #include "axom/core/Types.hpp"
@@ -569,5 +568,3 @@ inline std::uint64_t hash_bytes(const std::uint8_t* data, std::uint32_t length)
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_UTILITIES_HPP_

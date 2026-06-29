@@ -11,8 +11,7 @@
  * at runtime
  */
 
-#ifndef SLAM_DYNAMIC_SET_H_
-#define SLAM_DYNAMIC_SET_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/IteratorBase.hpp"
@@ -488,5 +487,3 @@ constexpr typename DynamicSet<P, E, S>::ElementType DynamicSet<P, E, S>::INVALID
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_SET_H_

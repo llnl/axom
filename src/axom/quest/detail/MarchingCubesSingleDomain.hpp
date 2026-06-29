@@ -11,8 +11,7 @@
  * compute isocontour from a scalar field in a blueprint mesh.
  */
 
-#ifndef AXOM_QUEST_MARCHINGCUBESSINGLEDOMAIN_H_
-#define AXOM_QUEST_MARCHINGCUBESSINGLEDOMAIN_H_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -263,4 +262,3 @@ private:
 }  // namespace axom
 
 #endif  // AXOM_USE_CONDUIT
-#endif  // AXOM_QUEST_MARCHINGCUBES_H_

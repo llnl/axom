@@ -3,8 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_NUMERICS_TRANSFORMS_HPP_
-#define AXOM_NUMERICS_TRANSFORMS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
@@ -287,5 +286,3 @@ Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T> &center)
 }  // end namespace transforms
 }  // end namespace numerics
 }  // end namespace axom
-
-#endif

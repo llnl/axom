@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_RANGE_SET_H_
-#define SLAM_RANGE_SET_H_
+#pragma once
 
 #include "axom/slam/OrderedSet.hpp"
 
@@ -111,5 +110,3 @@ using RangeSet = GenericRangeSet<P, E>;
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_RANGE_SET_H_

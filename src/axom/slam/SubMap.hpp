@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_SUBMAP_HPP_
-#define SLAM_SUBMAP_HPP_
+#pragma once
 
 #include "axom/slic.hpp"
 
@@ -490,5 +489,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_SUBMAP_HPP_

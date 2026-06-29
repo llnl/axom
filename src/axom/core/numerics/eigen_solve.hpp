@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_NUMERICS_EIGEN_SOLVE_HPP_
-#define AXOM_NUMERICS_EIGEN_SOLVE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/matvecops.hpp"     // for matrix vector operators
@@ -169,5 +168,3 @@ int eigen_solve(Matrix<T>& A, int k, T* u, T* lambdas, int numIterations)
 
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif

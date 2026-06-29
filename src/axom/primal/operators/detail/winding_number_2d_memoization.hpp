@@ -11,8 +11,7 @@
  *         i.e. dynamically caching and reusing intermediate curve subdivisions.
  */
 
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -369,5 +368,3 @@ struct nurbs_cache_2d_traits<axom::OMP_EXEC>
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_

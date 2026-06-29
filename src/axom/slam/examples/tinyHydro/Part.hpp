@@ -7,8 +7,7 @@
 
 // Part class holds the material data for a single material.
 
-#ifndef __Part__
-#define __Part__
+#pragma once
 
 #include <vector>
 
@@ -59,5 +58,3 @@ namespace tinyHydro {
   };
 
 } // end namespace tinyHydro
-
-#endif

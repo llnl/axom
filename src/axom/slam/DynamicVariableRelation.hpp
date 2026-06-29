@@ -13,8 +13,7 @@
  * at runtime.
  */
 
-#ifndef SLAM_DYNAMIC_VARIABLE_RELATION_HPP_
-#define SLAM_DYNAMIC_VARIABLE_RELATION_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
@@ -310,5 +309,3 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(bool verboseO
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_VARIABLE_RELATION_HPP_

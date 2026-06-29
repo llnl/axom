@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_NULL_SET_H_
-#define SLAM_NULL_SET_H_
+#pragma once
 
 #include "axom/slic.hpp"
 #include "axom/slam/Set.hpp"
@@ -91,5 +90,3 @@ inline bool operator!=(NullSet const&, NullSet const&)
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_NULL_SET_H_

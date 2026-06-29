@@ -10,8 +10,7 @@
  * \brief Helper class for shaping queries
  */
 
-#ifndef AXOM_QUEST_SHAPER__HPP_
-#define AXOM_QUEST_SHAPER__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #ifndef AXOM_USE_KLEE
@@ -274,5 +273,3 @@ protected:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_SHAPER__HPP_

@@ -24,8 +24,7 @@
  *  The scalar policies below add only the named `size()` accessor, `empty()`, and the DEFAULT_VALUE member.
  */
 
-#ifndef SLAM_POLICIES_SIZE_H_
-#define SLAM_POLICIES_SIZE_H_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/slic.hpp"
@@ -138,5 +137,3 @@ const IntType ZeroSize<IntType>::DEFAULT_VALUE = IntType {};
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_SIZE_H_

@@ -10,8 +10,7 @@
  * of rays and Bezier patches
  */
 
-#ifndef AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Polygon.hpp"
@@ -202,5 +201,3 @@ bool intersect_line_patch(const Line<T, 3> &line,
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_

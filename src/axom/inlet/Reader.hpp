@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_READER_HPP
-#define INLET_READER_HPP
+#pragma once
 
 #include <functional>
 #include <string>
@@ -276,5 +275,3 @@ public:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

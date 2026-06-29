@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MDMAPPING_HPP_
-#define AXOM_MDMAPPING_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/core/numerics/matvecops.hpp"
@@ -393,5 +392,3 @@ private:
 };
 
 }  // end namespace axom
-
-#endif  // AXOM_MDMAPPING_HPP_

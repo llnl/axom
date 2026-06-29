@@ -9,6 +9,8 @@
 // that hold the data, plus a few functions to do mesh sums and
 // averages of quantities.
 
+#pragma once
+
 #include "axom/slam.hpp"
 
 #include "VectorXY.hpp"

@@ -13,8 +13,7 @@
  * dependencies to prevent circular include chains (e.g. with NURBSPatch).
  */
 
-#ifndef PRIMAL_EVAL_INTEGRAL_CURVE_IMPL_HPP_
-#define PRIMAL_EVAL_INTEGRAL_CURVE_IMPL_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core.hpp"
@@ -292,5 +291,3 @@ inline typename CurveType::NumericType curve_array_lower_bound_y(const axom::Arr
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif

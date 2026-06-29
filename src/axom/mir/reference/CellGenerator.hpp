@@ -11,8 +11,7 @@
  * 
  */
 
-#ifndef __CELL_GENERATOR_H__
-#define __CELL_GENERATOR_H__
+#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -125,5 +124,3 @@ public:
 
 }  // namespace mir
 }  // namespace axom
-
-#endif

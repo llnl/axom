@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPSLIC_H
-#define WRAPSLIC_H
+#pragma once
 
 #include "wrapSLIC.h"
 #ifndef __cplusplus
@@ -134,5 +133,3 @@ void SLIC_finalize(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPSLIC_H

@@ -15,8 +15,7 @@
 #include <cstring>
 #include <iostream>
 
-#ifndef AXOM_MATRIX_HPP_
-  #define AXOM_MATRIX_HPP_
+#pragma once
 
 namespace axom
 {
@@ -1095,5 +1094,3 @@ std::ostream& operator<<(std::ostream& os, const Matrix<T>& M)
 template <typename T>
 struct axom::fmt::formatter<axom::numerics::Matrix<T>> : ostream_formatter
 { };
-
-#endif /* AXOM_MATRIX_HPP_ */

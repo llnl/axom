@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_MAP_HPP_
-#define SLAM_MAP_HPP_
+#pragma once
 
 #include <vector>
 #include <sstream>
@@ -855,5 +854,3 @@ void Map<T, S, IndPol, StrPol, IfacePol>::print() const
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_MAP_HPP_

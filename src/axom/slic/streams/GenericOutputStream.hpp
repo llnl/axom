@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef GENERICOUTPUTSTREAM_HPP_
-#define GENERICOUTPUTSTREAM_HPP_
+#pragma once
 
 #include "axom/slic/core/LogStream.hpp"
 
@@ -135,5 +134,3 @@ private:
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* GENERICOUTPUTSTREAM_HPP_ */

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_UTILITIES_HPP_
-#define AXOM_BUMP_DISPATCH_UTILITIES_HPP_
+#pragma once
 
 #include <conduit/conduit_node.hpp>
 
@@ -42,5 +41,3 @@ void verify(const conduit::Node &obj, const std::string &protocol = std::string(
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_MAPBASE_HPP_
-#define SLAM_MAPBASE_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
@@ -64,5 +63,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_MAPBASE_HPP_

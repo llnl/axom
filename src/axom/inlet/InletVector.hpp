@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_INLETVECTOR_HPP
-#define INLET_INLETVECTOR_HPP
+#pragma once
 
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/fmt.hpp"
@@ -145,5 +144,3 @@ inline std::ostream& operator<<(std::ostream& os, const InletVector& v)
 template <>
 struct axom::fmt::formatter<axom::inlet::InletVector> : ostream_formatter
 { };
-
-#endif  // INLET_INLETVECTOR_HPP

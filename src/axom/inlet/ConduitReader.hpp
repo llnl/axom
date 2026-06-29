@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_CONDUITREADER_HPP
-#define INLET_CONDUITREADER_HPP
+#pragma once
 
 #include "axom/inlet/Reader.hpp"
 
@@ -129,5 +128,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

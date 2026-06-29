@@ -19,8 +19,7 @@
  *  and in_sphere_orientation() for the tolerance (EPS) scaling caveat.
  */
 
-#ifndef AXOM_PRIMAL_IN_SPHERE_H_
-#define AXOM_PRIMAL_IN_SPHERE_H_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/primal/geometry/Point.hpp"
@@ -289,5 +288,3 @@ inline bool in_sphere(const BoundingBox<T, 2>& bb, const Sphere<T, 2>& circle)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_SPHERE_H_

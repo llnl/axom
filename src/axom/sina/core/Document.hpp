@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_DOCUMENT_HPP
-#define SINA_DOCUMENT_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -407,5 +406,3 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_DOCUMENT_HPP

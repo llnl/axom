@@ -19,8 +19,7 @@
  * - VTK export for visualization
  */
 
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_IMPL_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_IMPL_HPP_
+#pragma once
 
 namespace axom
 {
@@ -430,5 +429,3 @@ inline void Delaunay<DIM>::generateInitialMesh(std::vector<DataType>& points,
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

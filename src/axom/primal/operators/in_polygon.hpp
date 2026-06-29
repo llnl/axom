@@ -13,8 +13,7 @@
  * Uses a ray casting algorithm
  */
 
-#ifndef AXOM_PRIMAL_IN_POLYGON_HPP_
-#define AXOM_PRIMAL_IN_POLYGON_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -62,5 +61,3 @@ bool in_polygon(const Point<T, 2>& query,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_CURVED_POLYGON_H_

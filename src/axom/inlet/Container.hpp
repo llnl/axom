@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_CONTAINER_HPP
-#define INLET_CONTAINER_HPP
+#pragma once
 
 #include <memory>
 #include <string>
@@ -1603,5 +1602,3 @@ const detail::VariantStructFactory<Variant>& Container::variantStructFactory() c
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

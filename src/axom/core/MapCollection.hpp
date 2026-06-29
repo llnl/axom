@@ -106,8 +106,7 @@
  ******************************************************************************
  */
 
-#ifndef AXOM_MAP_COLLECTIONS_HPP_
-#define AXOM_MAP_COLLECTIONS_HPP_
+#pragma once
 
 // Standard C++ headers
 #include <map>
@@ -429,5 +428,3 @@ T* MapCollection<T>::removeItem(IndexType idx)
 }
 
 }  // namespace axom
-
-#endif  // AXOM_MAP_COLLECTIONS_HPP_

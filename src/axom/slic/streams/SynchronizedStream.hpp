@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef SYNCHRONIZEDSTREAM_HPP_
-#define SYNCHRONIZEDSTREAM_HPP_
+#pragma once
 
 #include "axom/slic/core/LogStream.hpp"
 
@@ -204,5 +203,3 @@ private:
 
 } /* namespace slic */
 } /* namespace axom */
-
-#endif /* SYNCHRONIZEDSTREAM_HPP_ */

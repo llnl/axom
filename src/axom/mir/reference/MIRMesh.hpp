@@ -11,8 +11,7 @@
  * 
  */
 
-#ifndef __MIR_MESH_H__
-#define __MIR_MESH_H__
+#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -228,4 +227,3 @@ public:
 //--------------------------------------------------------------------------------
 }  // namespace mir
 }  // namespace axom
-#endif

@@ -14,8 +14,7 @@
  *
  */
 
-#ifndef SLAM_MODULAR_INT_H_
-#define SLAM_MODULAR_INT_H_
+#pragma once
 
 #include "axom/slic/interface/slic.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
@@ -288,5 +287,3 @@ constexpr ModularInt<SizePolicy> operator*(const int n, const ModularInt<SizePol
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_MODULAR_INT_H_

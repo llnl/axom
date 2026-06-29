@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_KEY_HPP
-#define INLET_KEY_HPP
+#pragma once
 
 #include <ostream>
 #include <string>
@@ -175,5 +174,3 @@ struct hash<axom::inlet::VariantKey>
 template <>
 struct axom::fmt::formatter<axom::inlet::VariantKey> : ostream_formatter
 { };
-
-#endif  // INLET_KEY_HPP

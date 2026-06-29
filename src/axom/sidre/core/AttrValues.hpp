@@ -27,8 +27,7 @@
 #include "axom/sidre/core/Attribute.hpp"
 #include "axom/sidre/core/SidreTypes.hpp"
 
-#ifndef SIDRE_ATTRVALUES_HPP_
-  #define SIDRE_ATTRVALUES_HPP_
+#pragma once
 
 namespace axom
 {
@@ -247,5 +246,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_ATTRVALUES_HPP_ */

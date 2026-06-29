@@ -3,8 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_MATCHERS_HPP_
-#define AXOM_KLEE_MATCHERS_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
@@ -171,5 +170,3 @@ inline auto AlmostEqSlice(const klee::SliceOperator& slice) { return AlmostEqSli
 }  // namespace test
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_MATCHERS_HPP_

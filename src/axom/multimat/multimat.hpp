@@ -10,8 +10,7 @@
  * \brief Contains the MultiMat library header and its template implementation
  *
  */
-#ifndef MULTIMAT_H_
-#define MULTIMAT_H_
+#pragma once
 
 #include "axom/slam.hpp"
 
@@ -1279,5 +1278,3 @@ std::ostream& operator<<(std::ostream& os, DataTypeSupported type);
 }  //end namespace axom
 
 #include "axom/multimat/mmfield.hpp"
-
-#endif

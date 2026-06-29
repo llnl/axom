@@ -14,8 +14,7 @@
  ******************************************************************************
  */
 
-#ifndef SIDRE_GROUP_HPP_
-#define SIDRE_GROUP_HPP_
+#pragma once
 
 // axom headers
 #include "axom/config.hpp"
@@ -2140,5 +2139,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_GROUP_HPP_ */

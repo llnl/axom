@@ -10,8 +10,7 @@
  * \brief Defines utilities in support of validating command line input
  */
 
-#ifndef AXOM_CORE_COMMANDLINE_UTILITIES_HPP_
-#define AXOM_CORE_COMMANDLINE_UTILITIES_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Annotations.hpp"
@@ -55,5 +54,3 @@ const static CaliperModeValidator ValidCaliperMode;
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_CORE_COMMANDLINE_UTILITIES_HPP_

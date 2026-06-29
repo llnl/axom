@@ -10,8 +10,7 @@
  * \brief Declares the public `quest::Delaunay` incremental 2D/3D triangulation API.
  */
 
-#ifndef QUEST_DELAUNAY_H_
-#define QUEST_DELAUNAY_H_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -734,5 +733,3 @@ constexpr typename Delaunay<DIM>::IndexType Delaunay<DIM>::INVALID_INDEX;
 #include "detail/DelaunayImpl.hpp"
 
 #undef AXOM_QUEST_DELAUNAY_FORCE_INLINE
-
-#endif  // QUEST_DELAUNAY_H_

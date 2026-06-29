@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPDATASTORE_H
-#define WRAPDATASTORE_H
+#pragma once
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"
@@ -114,5 +113,3 @@ void SIDRE_DataStore_print(const SIDRE_DataStore *self);
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPDATASTORE_H

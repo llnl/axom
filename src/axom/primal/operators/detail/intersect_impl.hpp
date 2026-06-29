@@ -11,8 +11,7 @@
  * geometric primitives intersect
  */
 
-#ifndef AXOM_PRIMAL_INTERSECT_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_IMPL_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/numerics/Determinants.hpp"
@@ -2200,5 +2199,3 @@ bool select_candidates(const CandidateArrayType& tc,
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_IMPL_HPP_

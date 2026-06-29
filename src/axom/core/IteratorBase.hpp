@@ -10,8 +10,7 @@
  * \brief Contains iterator base classes
  */
 
-#ifndef AXOM_ITERBASE_HPP_
-#define AXOM_ITERBASE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -204,5 +203,3 @@ protected:
 };
 
 }  // end namespace axom
-
-#endif  //  AXOM_ITERBASE_HPP_

@@ -8,8 +8,7 @@
 // Fri Nov 21 10:50:53 PST 2014
 #include <math.h>
 
-#ifndef	_VECTORXY_H
-#define	_VECTORXY_H 1
+#pragma once
 
 namespace tinyHydro {
 
@@ -153,5 +152,3 @@ namespace tinyHydro {
 
 
 } // end namespace tinyHydro
-
-#endif

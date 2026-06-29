@@ -16,6 +16,8 @@
 // allocation of all the memory we ever need at problem start, and
 // explicit deletes when the hydro object is destroyed.
 
+#pragma once
+
 #include "State.hpp"
 
 #include "TinyHydroTypes.hpp"

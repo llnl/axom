@@ -13,8 +13,7 @@
  *
  */
 
-#ifndef AXOM_NUMERICLIMITS_HPP_
-#define AXOM_NUMERICLIMITS_HPP_
+#pragma once
 
 #include "axom/config.hpp"  // for compile-time definitions
 
@@ -38,5 +37,3 @@ using numeric_limits = std::numeric_limits<T>;
 #endif
 
 }  // namespace axom
-
-#endif  // AXOM_NUMERICLIMITS_HPP_

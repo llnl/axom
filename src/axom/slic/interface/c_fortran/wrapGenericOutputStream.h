@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPGENERICOUTPUTSTREAM_H
-#define WRAPGENERICOUTPUTSTREAM_H
+#pragma once
 
 #include "typesSLIC.h"
 
@@ -49,5 +48,3 @@ void SLIC_GenericOutputStream_delete(SLIC_GenericOutputStream *self);
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPGENERICOUTPUTSTREAM_H

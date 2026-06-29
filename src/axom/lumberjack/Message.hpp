@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef MESSAGE_HPP
-#define MESSAGE_HPP
+#pragma once
 
 #include <cstring>
 #include <string>
@@ -387,5 +386,3 @@ inline bool isPackedMessagesEmpty(const char* packedMessages)
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

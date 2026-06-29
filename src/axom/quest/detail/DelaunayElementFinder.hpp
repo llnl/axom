@@ -11,8 +11,7 @@
  * location walks from nearby inserted vertices.
  */
 
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_ELEMENT_FINDER_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_ELEMENT_FINDER_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
@@ -287,5 +286,3 @@ private:
 }  // namespace detail
 }  // namespace quest
 }  // namespace axom
-
-#endif

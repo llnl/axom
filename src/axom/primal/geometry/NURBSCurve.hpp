@@ -10,8 +10,7 @@
  * \brief A NURBS curve primitive
  */
 
-#ifndef AXOM_PRIMAL_NURBSCURVE_HPP_
-#define AXOM_PRIMAL_NURBSCURVE_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -1538,5 +1537,3 @@ std::ostream& operator<<(std::ostream& os, const NURBSCurve<T, NDIMS>& nCurve)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::NURBSCurve<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_NURBSCURVE_HPP_

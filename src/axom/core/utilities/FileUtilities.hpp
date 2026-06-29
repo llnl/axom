@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef COMMON_FILE_UTILITIES_H_
-#define COMMON_FILE_UTILITIES_H_
+#pragma once
 
 #include <string>
 #include <fstream>
@@ -248,5 +247,3 @@ private:
 }  // end namespace filesystem
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif  //  COMMON_FILE_UTILITIES_H_

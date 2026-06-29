@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef LUMBERJACK_HPP
-#define LUMBERJACK_HPP
+#pragma once
 
 #include <string>
 
@@ -307,5 +306,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

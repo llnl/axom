@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_RECTILINEARMESH_HPP_
-#define MINT_RECTILINEARMESH_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/mint/mesh/StructuredMesh.hpp"
@@ -293,5 +292,3 @@ private:
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_RECTILINEARMESH_HPP_ */

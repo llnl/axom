@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_BIVARIATE_MAP_HPP_
-#define SLAM_BIVARIATE_MAP_HPP_
+#pragma once
 
 #include "axom/slam/Map.hpp"
 #include "axom/slam/Relation.hpp"
@@ -745,5 +744,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_BIVARIATE_MAP_HPP_

@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef BINARYTREECOMMUNICATOR_HPP
-#define BINARYTREECOMMUNICATOR_HPP
+#pragma once
 
 #include "mpi.h"
 
@@ -165,5 +164,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

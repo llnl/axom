@@ -27,8 +27,7 @@
  *  characterizing where the double-precision sign is and is not reliable.
  */
 
-#ifndef AXOM_PRIMAL_PREDICATE_DETERMINANTS_HPP_
-#define AXOM_PRIMAL_PREDICATE_DETERMINANTS_HPP_
+#pragma once
 
 #include "axom/core/numerics/Determinants.hpp"
 
@@ -132,5 +131,3 @@ inline double in_sphere_determinant(const Point<T, 3>& q,
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_PREDICATE_DETERMINANTS_HPP_

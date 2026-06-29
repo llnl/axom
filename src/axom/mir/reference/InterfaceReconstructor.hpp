@@ -11,8 +11,7 @@
  * 
  */
 
-#ifndef __INTERFACE_RECONSTRUCTOR_H__
-#define __INTERFACE_RECONSTRUCTOR_H__
+#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"
@@ -105,4 +104,3 @@ private:
 };
 }  // namespace mir
 }  // namespace axom
-#endif

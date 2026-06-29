@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_ALGORITHM_HPP_
-#define AXOM_MIR_ALGORITHM_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -166,5 +165,3 @@ protected:
 
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

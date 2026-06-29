@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_FIELD_REGISTRY_H_
-#define SLAM_FIELD_REGISTRY_H_
+#pragma once
 
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
@@ -655,4 +654,3 @@ private:
 
 }  // end namespace axom::slam
 
-#endif  // SLAM_FIELD_REGISTRY_H_

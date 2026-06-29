@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_INLET_HPP
-#define INLET_INLET_HPP
+#pragma once
 
 #include <memory>
 #include <string>
@@ -567,5 +566,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

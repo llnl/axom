@@ -10,8 +10,7 @@
  * \brief A (trimmed) NURBSPatch primitive
  */
 
-#ifndef AXOM_PRIMAL_NURBSPATCH_HPP_
-#define AXOM_PRIMAL_NURBSPATCH_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -4711,5 +4710,3 @@ std::ostream& operator<<(std::ostream& os, const NURBSPatch<T, NDIMS>& nPatch)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::NURBSPatch<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_NURBSPATCH_HPP_

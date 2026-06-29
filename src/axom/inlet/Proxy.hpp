@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_PROXY_HPP
-#define INLET_PROXY_HPP
+#pragma once
 
 #include <type_traits>
 #include <utility>
@@ -264,5 +263,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif  // INLET_PROXY_HPP

@@ -11,8 +11,7 @@
  *        and CellTopologyData and CellMapData structs.
  */
 
-#ifndef __CELL_DATA_H__
-#define __CELL_DATA_H__
+#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"
@@ -94,5 +93,3 @@ public:
 };
 }  // namespace mir
 }  // namespace axom
-
-#endif

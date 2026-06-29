@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPGROUP_H
-#define WRAPGROUP_H
+#pragma once
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"
@@ -494,5 +493,3 @@ bool SIDRE_Group_rename_bufferify(SIDRE_Group *self, char *new_name, int SHT_new
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPGROUP_H

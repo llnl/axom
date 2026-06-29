@@ -10,8 +10,7 @@
  * \brief Helper class for intersection-based shaping queries
  */
 
-#ifndef AXOM_QUEST_INTERSECTION_SHAPER__HPP_
-#define AXOM_QUEST_INTERSECTION_SHAPER__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -3026,5 +3025,3 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_INTERSECTION_SHAPER__HPP_

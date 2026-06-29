@@ -14,8 +14,7 @@
  ******************************************************************************
  */
 
-#ifndef SIDRE_VIEW_HPP_
-#define SIDRE_VIEW_HPP_
+#pragma once
 
 // Standard C++ headers
 #include <string>
@@ -1736,5 +1735,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_VIEW_HPP_ */

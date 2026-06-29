@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_VARIANT_VALUE_HPP
-#define INLET_VARIANT_VALUE_HPP
+#pragma once
 
 #include <string>
 #include <variant>
@@ -28,5 +27,3 @@ using VariantValue = std::variant<bool, int, double, std::string>;
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

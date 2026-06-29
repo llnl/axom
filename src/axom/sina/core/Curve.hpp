@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_CURVE_HPP
-#define SINA_CURVE_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -116,5 +115,3 @@ private:
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_CURVE_HPP

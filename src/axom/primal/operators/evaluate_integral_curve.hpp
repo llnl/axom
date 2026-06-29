@@ -23,8 +23,7 @@
  * https://doi.org/10.1016/j.cad.2020.102944
  */
 
-#ifndef PRIMAL_EVAL_INTEGRAL_CURVE_HPP_
-#define PRIMAL_EVAL_INTEGRAL_CURVE_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core.hpp"
@@ -363,5 +362,3 @@ LambdaRetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 
 }  // namespace primal
 }  // end namespace axom
-
-#endif

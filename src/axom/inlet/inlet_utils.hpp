@@ -12,8 +12,7 @@
 #include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/core/Path.hpp"
 
-#ifndef INLET_UTILS_HPP
-  #define INLET_UTILS_HPP
+#pragma once
 
 namespace axom
 {
@@ -191,5 +190,3 @@ ReaderResult collectionRetrievalResult(const bool contains_other_type,
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

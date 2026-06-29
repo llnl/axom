@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLIC_SIMPLELOGGER_HPP_
-#define SLIC_SIMPLELOGGER_HPP_
+#pragma once
 
 // Other axom headers
 #include "axom/config.hpp"
@@ -103,5 +102,3 @@ private:
 
 }  // namespace slic
 }  // namespace axom
-
-#endif  // SLIC_SIMPLELOGGER_HPP_

@@ -13,8 +13,7 @@
  *
  */
 
-#ifndef SLAM_ORDERED_SET_H_
-#define SLAM_ORDERED_SET_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -531,5 +530,3 @@ bool OrderedSet<PosType, ElemType, SizePolicy, OffsetPolicy, StridePolicy, Indir
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_ORDERED_SET_H_

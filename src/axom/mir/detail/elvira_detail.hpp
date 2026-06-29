@@ -3,8 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_ELVIRA_ALGORITHM_DETAIL_HPP_
-#define AXOM_MIR_ELVIRA_ALGORITHM_DETAIL_HPP_
+#pragma once
 
 // Most includes happen in the ElviraAlgorithm.hpp header file that includes this file.
 
@@ -1105,5 +1104,3 @@ struct MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
 }  // end namespace detail
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

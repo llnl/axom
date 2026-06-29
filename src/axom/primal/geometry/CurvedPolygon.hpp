@@ -10,8 +10,7 @@
  * \brief A polygon primitive whose edges are Bezier curves
  */
 
-#ifndef AXOM_PRIMAL_CURVEDPOLYGON_HPP_
-#define AXOM_PRIMAL_CURVEDPOLYGON_HPP_
+#pragma once
 
 #include "axom/slic.hpp"
 
@@ -290,5 +289,3 @@ std::ostream& operator<<(std::ostream& os, const CurvedPolygon<CurveType>& poly)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_CURVEDPOLYGON_HPP_

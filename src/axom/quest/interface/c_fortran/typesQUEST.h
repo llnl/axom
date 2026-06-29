@@ -8,8 +8,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 // For C users and C++ implementation
 
-#ifndef TYPESQUEST_H
-#define TYPESQUEST_H
+#pragma once
 
 // Shared with other Shroud wrapped libraries
 #ifndef SHROUD_SHARED_H
@@ -47,5 +46,3 @@ void QUEST_SHROUD_memory_destructor(QUEST_SHROUD_capsule_data *cap);
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // TYPESQUEST_H

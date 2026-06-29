@@ -10,8 +10,7 @@
  * \brief A BezierTriangle primitive
  */
 
-#ifndef AXOM_PRIMAL_BEZIERTRIANGLE_HPP_
-#define AXOM_PRIMAL_BEZIERTRIANGLE_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -1857,5 +1856,3 @@ std::ostream& operator<<(std::ostream& os, const BezierTriangle<T, NDIMS>& bTri)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_BEZIERTRIANGLE_HPP_

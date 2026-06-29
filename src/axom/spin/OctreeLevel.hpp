@@ -17,8 +17,7 @@
  * hash key for its octree blocks.
  */
 
-#ifndef AXOM_SPIN_OCTREE_LEVEL__HPP_
-#define AXOM_SPIN_OCTREE_LEVEL__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -344,5 +343,3 @@ protected:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_OCTREE_LEVEL__HPP_

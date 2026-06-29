@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef LINEFILETAGCOMBINER_HPP
-#define LINEFILETAGCOMBINER_HPP
+#pragma once
 
 #include "axom/lumberjack/Combiner.hpp"
 #include "axom/lumberjack/Message.hpp"
@@ -103,5 +102,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

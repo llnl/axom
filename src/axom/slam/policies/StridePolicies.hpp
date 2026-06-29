@@ -29,8 +29,7 @@
  *  MultiDimStride is a separate, inherently multi-dimensional policy and is unaffected.
  */
 
-#ifndef SLAM_POLICIES_STRIDE_H_
-#define SLAM_POLICIES_STRIDE_H_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/StackArray.hpp"
@@ -167,5 +166,3 @@ private:
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_STRIDE_H_

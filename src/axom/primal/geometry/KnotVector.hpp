@@ -10,8 +10,7 @@
  * \brief A class to represent knot vectors for NURBS
  */
 
-#ifndef AXOM_PRIMAL_KNOTVECTOR_HPP
-#define AXOM_PRIMAL_KNOTVECTOR_HPP
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -1321,5 +1320,3 @@ std::ostream& operator<<(std::ostream& os, const KnotVector<T>& kvector)
 template <typename T>
 struct axom::fmt::formatter<axom::primal::KnotVector<T>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_KNOTVECTOR_HPP

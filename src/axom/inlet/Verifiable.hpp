@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_VERIFIABLE_HPP
-#define INLET_VERIFIABLE_HPP
+#pragma once
 
 #include <functional>
 
@@ -181,5 +180,3 @@ private:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif  // INLET_VERIFIABLE_HPP

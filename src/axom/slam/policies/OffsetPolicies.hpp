@@ -25,8 +25,7 @@
  *  The policies below add only the named `offset()` accessor and the DEFAULT_VALUE member.
  */
 
-#ifndef SLAM_POLICIES_OFFSET_H_
-#define SLAM_POLICIES_OFFSET_H_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/slam/policies/ValuePolicies.hpp"
@@ -81,5 +80,3 @@ using ZeroOffset = CompileTimeOffset<IntType, 0>;
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_OFFSET_H_

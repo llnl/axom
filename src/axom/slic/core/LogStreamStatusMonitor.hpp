@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef LOGSTREAMSTATUS_MONITOR_HPP_
-#define LOGSTREAMSTATUS_MONITOR_HPP_
+#pragma once
 
 #include <vector>
 #include "axom/slic/core/LogStream.hpp"
@@ -66,5 +65,3 @@ protected:
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* LOGSTREAMSTATUSMONITOR_HPP_ */

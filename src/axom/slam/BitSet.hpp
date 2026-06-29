@@ -10,8 +10,7 @@
  * \brief Contains a BitSet class for manipulating ordered sequences of bits.
  */
 
-#ifndef SLAM_BITSET_H_
-#define SLAM_BITSET_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
@@ -416,5 +415,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_BITSET_H_

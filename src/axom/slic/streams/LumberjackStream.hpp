@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef LUMBERJACKSTREAM_HPP_
-#define LUMBERJACKSTREAM_HPP_
+#pragma once
 
 #include "axom/slic/core/LogStream.hpp"
 
@@ -288,5 +287,3 @@ private:
 
 } /* namespace slic */
 } /* namespace axom */
-
-#endif /* LUMBERJACKSTREAM_HPP_ */

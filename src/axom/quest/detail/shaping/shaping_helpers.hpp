@@ -10,8 +10,7 @@
  * \brief Free-standing helper functions in support of shaping query
  */
 
-#ifndef AXOM_QUEST_SHAPING_HELPERS__HPP_
-#define AXOM_QUEST_SHAPING_HELPERS__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -474,5 +473,3 @@ void computeVolumeFractionsBaseline(const std::string& shapeName,
 }  // end namespace shaping
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_SHAPING_HELPERS__HPP_

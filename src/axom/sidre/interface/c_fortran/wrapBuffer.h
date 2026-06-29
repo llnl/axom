@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPBUFFER_H
-#define WRAPBUFFER_H
+#pragma once
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"
@@ -62,5 +61,3 @@ void SIDRE_Buffer_print(const SIDRE_Buffer* self);
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPBUFFER_H

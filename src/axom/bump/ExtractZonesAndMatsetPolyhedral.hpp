@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRACT_ZONES_AND_MATSET_POLYHEDRAL_HPP
-#define AXOM_BUMP_EXTRACT_ZONES_AND_MATSET_POLYHEDRAL_HPP
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/ExtractZones.hpp"
@@ -346,5 +345,3 @@ protected:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

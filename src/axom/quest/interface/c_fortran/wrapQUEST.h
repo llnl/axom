@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPQUEST_H
-#define WRAPQUEST_H
+#pragma once
 
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
@@ -142,5 +141,3 @@ void QUEST_signed_distance_finalize(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPQUEST_H

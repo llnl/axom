@@ -10,8 +10,7 @@
  * \brief Helper functions for the primal clipping operators
  */
 
-#ifndef AXOM_PRIMAL_CLIP_IMPL_HPP_
-#define AXOM_PRIMAL_CLIP_IMPL_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -1213,5 +1212,3 @@ AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clipPolygonPlane(
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_CLIP_IMPL_HPP_

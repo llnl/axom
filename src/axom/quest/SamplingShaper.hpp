@@ -10,8 +10,7 @@
  * \brief Helper class for sampling-based shaping queries
  */
 
-#ifndef AXOM_QUEST_SAMPLING_SHAPER__HPP_
-#define AXOM_QUEST_SAMPLING_SHAPER__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -1176,5 +1175,3 @@ private:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_SAMPLING_SHAPER__HPP_

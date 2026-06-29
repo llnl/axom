@@ -10,8 +10,7 @@
  * \brief Defines a templated mesh wrapper class for the InOutOctree.
  */
 
-#ifndef AXOM_QUEST_INOUT_OCTREE_MESH_WRAPPER__HPP_
-#define AXOM_QUEST_INOUT_OCTREE_MESH_WRAPPER__HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -592,5 +591,3 @@ public:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_OCTREE_MESH_WRAPPER__HPP_

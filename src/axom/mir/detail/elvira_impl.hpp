@@ -7,6 +7,8 @@
 // NOTE: This file is meant to be included by ElviraAlgorithm.hpp after its
 //       other includes so we do not include much here.
 
+#pragma once
+
 namespace axom
 {
 namespace mir

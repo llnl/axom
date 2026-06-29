@@ -13,8 +13,7 @@
  ******************************************************************************
  */
 
-#ifndef TIMER_HPP_
-#define TIMER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -176,5 +175,3 @@ private:
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // TIMER_HPP_

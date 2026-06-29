@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_TIMED_FOR_ALL_HPP_
-#define AXOM_CORE_EXECUTION_TIMED_FOR_ALL_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/for_all.hpp"
@@ -129,5 +128,3 @@ void timed_for_all(const std::string &name, axom::IndexType n, KernelType &&kern
 /// @}
 
 }  // namespace axom
-
-#endif  // AXOM_CORE_EXECUTION_TIMED_FOR_ALL_HPP_

@@ -78,8 +78,7 @@
  ******************************************************************************
  */
 
-#ifndef AXOM_ITEMCOLLECTIONS_HPP_
-#define AXOM_ITEMCOLLECTIONS_HPP_
+#pragma once
 
 #include <string>
 
@@ -322,5 +321,3 @@ private:
 };
 
 } /* end namespace axom */
-
-#endif /* AXOM_ITEMCOLLECTIONS_HPP_ */

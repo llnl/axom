@@ -12,8 +12,7 @@
  *
  */
 
-#ifndef AXOM_BIT_UTILITIES_HPP
-#define AXOM_BIT_UTILITIES_HPP
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -296,5 +295,3 @@ constexpr void setBitOn(FlagType &flags, BitType bit)
 #undef _AXOM_CORE_USE_INTRINSICS_MSVC
 #undef _AXOM_CORE_USE_INTRINSICS_GCC
 #undef _AXOM_CORE_USE_INTRINSICS_PPC
-
-#endif  // AXOM_BIT_UTILITIES_HPP

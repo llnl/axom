@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef COMMUNICATOR_HPP
-#define COMMUNICATOR_HPP
+#pragma once
 
 #include <mpi.h>
 #include <vector>
@@ -165,5 +164,3 @@ public:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

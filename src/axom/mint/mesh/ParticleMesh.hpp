@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_PARTICLEMESH_HPP_
-#define MINT_PARTICLEMESH_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"  // for axom macros
 
@@ -575,5 +574,3 @@ inline void ParticleMesh::shrink()
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_PARTICLEMESH_HPP_ */

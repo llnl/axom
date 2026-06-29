@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef COMBINER_HPP
-#define COMBINER_HPP
+#pragma once
 
 #include "axom/lumberjack/Message.hpp"
 
@@ -89,5 +88,3 @@ public:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

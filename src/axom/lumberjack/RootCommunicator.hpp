@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef ROOTCOMMUNICATOR_HPP
-#define ROOTCOMMUNICATOR_HPP
+#pragma once
 
 #include <string>
 
@@ -156,5 +155,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

@@ -9,8 +9,7 @@
  *
  */
 
-#ifndef LOGSTREAM_HPP_
-#define LOGSTREAM_HPP_
+#pragma once
 
 #include "axom/slic/core/MessageLevel.hpp"
 #include "axom/core/Macros.hpp"
@@ -228,5 +227,3 @@ private:
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* LOGSTREAM_HPP_ */

@@ -12,6 +12,8 @@
  * Also defines some helper struct-classes.
  */
 
+#pragma once
+
 #include "axom/core.hpp"
 #include "axom/slam.hpp"
 #include "axom/fmt.hpp"

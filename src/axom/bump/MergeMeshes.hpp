@@ -3,8 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MERGE_MESHES_HPP_
-#define AXOM_BUMP_MERGE_MESHES_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -2353,5 +2352,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

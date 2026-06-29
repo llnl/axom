@@ -13,8 +13,7 @@
  * For more information about RAII, see: https://en.cppreference.com/w/cpp/language/raii
  */
 
-#ifndef AXOM_CORE_RAII_HPP_
-#define AXOM_CORE_RAII_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -119,5 +118,3 @@ public:
 }  // namespace raii
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_CORE_RAII_HPP_

@@ -14,8 +14,7 @@
  ******************************************************************************
  */
 
-#ifndef SIDRE_DATASTORE_HPP_
-#define SIDRE_DATASTORE_HPP_
+#pragma once
 
 // Standard C++ headers
 #include <vector>
@@ -548,5 +547,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_DATASTORE_HPP_ */

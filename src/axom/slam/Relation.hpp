@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_RELATION_HPP_
-#define SLAM_RELATION_HPP_
+#pragma once
 
 #include <vector>
 
@@ -86,5 +85,3 @@ NullSet<PosType, ElemType> Relation<PosType, ElemType>::s_nullSet;
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_RELATION_HPP_

@@ -10,8 +10,7 @@
  * \brief Consists of functions to test intersection among geometric primitives.
  */
 
-#ifndef AXOM_PRIMAL_INTERSECT_HPP_
-#define AXOM_PRIMAL_INTERSECT_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -1484,5 +1483,3 @@ bool intersect(const NURBSCurve<T, 2>& n1,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_HPP_

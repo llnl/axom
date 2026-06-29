@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_TESTUTILS_HPP_
-#define AXOM_KLEE_TESTUTILS_HPP_
+#pragma once
 
 #include "axom/klee/GeometryOperators.hpp"
 
@@ -46,5 +45,3 @@ public:
 }  // namespace test
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_TESTUTILS_HPP_

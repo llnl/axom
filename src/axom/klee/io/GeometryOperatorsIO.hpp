@@ -3,8 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_
-#define AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_
+#pragma once
 
 #include "axom/inlet.hpp"
 #include "axom/klee/Dimensions.hpp"
@@ -156,5 +155,3 @@ struct FromInlet<axom::klee::internal::NamedOperatorMapData>
 {
   axom::klee::internal::NamedOperatorMapData operator()(const axom::inlet::Container &base);
 };
-
-#endif  // AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_

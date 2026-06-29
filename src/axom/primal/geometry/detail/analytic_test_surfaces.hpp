@@ -14,8 +14,7 @@
  * \sa primal_solid_angle.cpp
  */
 
-#ifndef AXOM_PRIMAL_ANALYTIC_TEST_SURFACES_HPP
-#define AXOM_PRIMAL_ANALYTIC_TEST_SURFACES_HPP
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/primal.hpp"
@@ -321,5 +320,3 @@ axom::Array<primal::NURBSPatch<double, 3>> make_teardrop()
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_ANALYTIC_TEST_SURFACES_HPP

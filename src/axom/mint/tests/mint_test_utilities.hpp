@@ -9,7 +9,10 @@
  *
  * \brief Consists of utility functions to facilitate in test development.
  */
+#pragma once
+
 // Axom includes
+
 #include "axom/core/Macros.hpp"
 
 // Mint includes

@@ -13,8 +13,7 @@
  *******************************************************************************
  */
 
-#ifndef NONCOLLECTIVEROOTCOMMUNICATOR_HPP
-#define NONCOLLECTIVEROOTCOMMUNICATOR_HPP
+#pragma once
 
 #include "axom/lumberjack/Lumberjack.hpp"
 #include "axom/lumberjack/Communicator.hpp"
@@ -149,5 +148,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

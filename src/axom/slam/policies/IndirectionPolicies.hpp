@@ -30,8 +30,7 @@
  *  allocating/deallocating their own memory
  */
 
-#ifndef SLAM_POLICIES_INDIRECTION_H_
-#define SLAM_POLICIES_INDIRECTION_H_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/Array.hpp"
@@ -462,5 +461,3 @@ using ArrayViewIndirection =
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_INDIRECTION_H_

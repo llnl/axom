@@ -7,8 +7,7 @@
 // arbitrary mesh of polygons in XY geom
 // Thu Mar 26 09:38:50 PDT 2015
 
-#ifndef __PolygonMeshXY_hh__
-#define __PolygonMeshXY_hh__
+#pragma once
 
 #include "VectorXY.hpp"
 #include "TinyHydroTypes.hpp"
@@ -77,5 +76,3 @@ namespace tinyHydro {
   };
 
 } // end namespace tinyHydro
-
-#endif      // __PolygonMeshXY_hh__

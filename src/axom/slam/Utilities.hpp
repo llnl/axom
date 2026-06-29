@@ -8,8 +8,7 @@
  * \file
  * \brief A few utility functions used by the SLAM component.
  */
-#ifndef SLAM_UTILITIES_H_
-#define SLAM_UTILITIES_H_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/fmt.hpp"
@@ -139,5 +138,3 @@ T distance(const Point3<T>& pt1, const Point3<T>& pt2)
 template <typename DataType>
 struct axom::fmt::formatter<axom::slam::util::Point3<DataType>> : ostream_formatter
 { };
-
-#endif  //  SLAM_UTILITIES_H_

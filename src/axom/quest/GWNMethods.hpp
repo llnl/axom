@@ -10,8 +10,7 @@
  * \brief Helper classes and type traits for GWN Evaluation methods
  */
 
-#ifndef AXOM_QUEST_GWN_METHODS_HPP_
-#define AXOM_QUEST_GWN_METHODS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -1155,4 +1154,3 @@ IntegralStats compute_integrals(const mfem::GridFunction& gf)
 
 }  // namespace quest
 }  // namespace axom
-#endif

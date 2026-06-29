@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_SPHINXWRITER_HPP
-#define INLET_SPHINXWRITER_HPP
+#pragma once
 
 #include <string>
 #include <vector>
@@ -251,5 +250,3 @@ private:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

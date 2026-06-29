@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FEM_BASIS_TYPES_HPP_
-#define MINT_FEM_BASIS_TYPES_HPP_
+#pragma once
 
 #include <string>
 
@@ -42,5 +41,3 @@ static const std::string basis_name[] = {
 
 }  // namespace mint
 }  // namespace axom
-
-#endif

@@ -12,8 +12,7 @@
  *
  */
 
-#ifndef AXOM_NUMERICS_MATVECOPS_HPP_
-#define AXOM_NUMERICS_MATVECOPS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Determinants.hpp"           // numerics::determinant()
@@ -661,5 +660,3 @@ inline AXOM_HOST_DEVICE bool normalize(T* v, int dim, double eps)
 
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif /* AXOM_NUMERICS_VECTOR_UTILITIES_HPP_ */

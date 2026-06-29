@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SHAPEMESH_HPP
-#define AXOM_QUEST_SHAPEMESH_HPP
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -507,5 +506,3 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
 }  // namespace experimental
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_SHAPEMESH_HPP

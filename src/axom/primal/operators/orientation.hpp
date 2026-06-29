@@ -15,8 +15,7 @@
  *  See detail/predicate_determinants.hpp for the precision/robustness discussion.
  */
 
-#ifndef AXOM_PRIMAL_ORIENTATION_HPP_
-#define AXOM_PRIMAL_ORIENTATION_HPP_
+#pragma once
 
 #include "axom/core/numerics/Determinants.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -126,5 +125,3 @@ inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EP
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_ORIENTATION_HPP_

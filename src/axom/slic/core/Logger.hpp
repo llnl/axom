@@ -8,8 +8,7 @@
  * \file Logger.hpp
  */
 
-#ifndef LOGGER_HPP_
-#define LOGGER_HPP_
+#pragma once
 
 #include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #include "axom/slic/core/MessageLevel.hpp"
@@ -488,5 +487,3 @@ private:
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* LOGGER_HPP_ */

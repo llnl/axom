@@ -14,8 +14,7 @@
  ******************************************************************************
  */
 
-#ifndef SIDRE_ATTRIBUTE_HPP_
-#define SIDRE_ATTRIBUTE_HPP_
+#pragma once
 
 // Standard C++ headers
 #include <string>
@@ -161,5 +160,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_ATTRIBUTE_HPP_ */

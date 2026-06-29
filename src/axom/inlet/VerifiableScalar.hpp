@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_VERIFIABLE_SCALAR_HPP
-#define INLET_VERIFIABLE_SCALAR_HPP
+#pragma once
 
 #include <memory>
 #include <functional>
@@ -282,5 +281,3 @@ public:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif  // INLET_VERIFIABLE_SCALAR_HPP

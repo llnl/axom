@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_FUNCTION_HPP
-#define INLET_FUNCTION_HPP
+#pragma once
 
 #include <memory>
 #include <functional>
@@ -349,5 +348,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif  // INLET_FUNCTION_HPP

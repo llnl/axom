@@ -10,8 +10,7 @@
  * \brief A BezierCurve primitive
  */
 
-#ifndef AXOM_PRIMAL_BEZIERCURVE_HPP_
-#define AXOM_PRIMAL_BEZIERCURVE_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -984,5 +983,3 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::BezierCurve<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_BEZIERCURVE_HPP_

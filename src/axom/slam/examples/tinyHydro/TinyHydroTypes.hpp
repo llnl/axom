@@ -6,8 +6,7 @@
 
 // Part class holds the material data for a single material.
 
-#ifndef __TINY_HYDRO_TYPES_H__
-#define __TINY_HYDRO_TYPES_H__
+#pragma once
 
 
 #include "VectorXY.hpp"
@@ -86,5 +85,3 @@ namespace tinyHydro {
   };
 
 } // end namespace tinyHydro
-
-#endif

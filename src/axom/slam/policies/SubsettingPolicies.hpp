@@ -20,8 +20,7 @@
  *   * operator(): IntType -- alternate accessor for indirection
  */
 
-#ifndef SLAM_POLICIES_SUBSET_H_
-#define SLAM_POLICIES_SUBSET_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -199,5 +198,3 @@ private:
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_SUBSET_H_

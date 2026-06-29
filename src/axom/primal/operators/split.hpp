@@ -11,8 +11,7 @@
  *        (a collection of) another primal primitive
  */
 
-#ifndef AXOM_PRIMAL_SPLIT_HPP_
-#define AXOM_PRIMAL_SPLIT_HPP_
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"
@@ -118,5 +117,3 @@ AXOM_HOST_DEVICE void split(const Octahedron<Tp, 3>& oct, Tetrahedron<Tp, 3>* ou
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_SPLIT_HPP_

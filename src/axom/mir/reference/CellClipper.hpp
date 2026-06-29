@@ -11,8 +11,7 @@
  * 
  */
 
-#ifndef __CELL_CLIPPER_H
-#define __CELL_CLIPPER_H
+#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -113,5 +112,3 @@ private:
 
 }  // namespace mir
 }  // namespace axom
-
-#endif

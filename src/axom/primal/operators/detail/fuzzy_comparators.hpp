@@ -10,8 +10,7 @@
  * This file provides helper functions for fuzzy comparisons
  */
 
-#ifndef AXOM_PRIMAL_FUZZY_COMPARATORS_HPP_
-#define AXOM_PRIMAL_FUZZY_COMPARATORS_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -87,5 +86,3 @@ inline bool isGpeq(double x, double y, bool includeEqual = false, double EPS = 1
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_FUZZY_COMPARATORS_HPP_

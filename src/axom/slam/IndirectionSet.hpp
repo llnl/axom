@@ -10,8 +10,7 @@
  * \brief Defines some alias templates for OrderedSets with indirection
  */
 
-#ifndef SLAM_INDIRECTION_SET_H_
-#define SLAM_INDIRECTION_SET_H_
+#pragma once
 
 #include <cstddef>
 #include <vector>
@@ -84,5 +83,3 @@ using ArrayViewIndirectionSet = OrderedSet<PosType,
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_INDIRECTION_SET_H_

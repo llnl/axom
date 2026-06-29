@@ -11,8 +11,7 @@
  *  dynamically caching and reusing patch surface evaluations and tangents at quadrature points.
  */
 
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -494,5 +493,3 @@ struct nurbs_cache_3d_traits<axom::OMP_EXEC>
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_

@@ -41,8 +41,7 @@
  *
  */
 
-#ifndef SLAM_POLICIES_CARDINALITY_H_
-#define SLAM_POLICIES_CARDINALITY_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -314,5 +313,3 @@ struct MappedVariableCardinality
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_POLICIES_CARDINALITY_H_

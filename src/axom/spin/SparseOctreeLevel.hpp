@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_SPARSE_OCTREE_LEVEL__HPP_
-#define AXOM_SPIN_SPARSE_OCTREE_LEVEL__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -350,5 +349,3 @@ private:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_SPARSE_OCTREE_LEVEL__HPP_

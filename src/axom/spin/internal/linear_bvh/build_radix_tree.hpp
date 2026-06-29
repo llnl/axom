@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_BUILD_RADIX_TREE_H_
-#define AXOM_SPIN_BUILD_RADIX_TREE_H_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -628,4 +627,3 @@ void build_radix_tree(const BoxIndexable boxes,
 } /* namespace internal */
 } /* namespace spin */
 } /* namespace axom */
-#endif

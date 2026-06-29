@@ -10,8 +10,7 @@
  * \brief Defines helper class to validate an InOutOctree instance
  */
 
-#ifndef AXOM_QUEST_INOUT_OCTREE_VALIDATOR__HPP_
-#define AXOM_QUEST_INOUT_OCTREE_VALIDATOR__HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -336,5 +335,3 @@ private:
 }  // namespace detail
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_OCTREE_VALIDATOR__HPP_

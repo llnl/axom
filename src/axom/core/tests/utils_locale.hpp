@@ -11,6 +11,8 @@
 //
 //-----------------------------------------------------------------------------
 
+#pragma once
+
 #include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/core/utilities/System.hpp"
 

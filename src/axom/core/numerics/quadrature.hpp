@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_NUMERICS_QUADRATURE_HPP_
-#define AXOM_NUMERICS_QUADRATURE_HPP_
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/memory_management.hpp"
@@ -99,5 +98,3 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAl
 
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif  // AXOM_NUMERICS_QUADRATURE_HPP_

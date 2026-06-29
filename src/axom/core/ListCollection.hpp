@@ -76,8 +76,7 @@
  ******************************************************************************
  */
 
-#ifndef AXOM_LISTCOLLECTIONS_HPP_
-#define AXOM_LISTCOLLECTIONS_HPP_
+#pragma once
 
 // Standard C++ headers
 #include <iostream>
@@ -277,5 +276,3 @@ T* ListCollection<T>::removeItem(IndexType idx)
 }
 
 } /* end namespace axom */
-
-#endif /* AXOM_LIST_COLLECTIONS_HPP_ */

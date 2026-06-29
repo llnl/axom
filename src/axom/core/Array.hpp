@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAY_HPP_
-#define AXOM_ARRAY_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/MDMapping.hpp"
@@ -1891,5 +1890,3 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::dynamicRealloc(IndexType new_nu
 }
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAY_HPP_ */

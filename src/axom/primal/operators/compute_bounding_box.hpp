@@ -10,8 +10,7 @@
  * \brief Consists of functions to create bounding boxes.
  */
 
-#ifndef AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_
-#define AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_
+#pragma once
 
 #include "axom/core/numerics/Matrix.hpp"       // for Matrix
 #include "axom/core/Macros.hpp"                // for AXOM_HOST__DEVICE
@@ -193,5 +192,3 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_

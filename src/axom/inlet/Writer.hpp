@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_WRITER_HPP
-#define INLET_WRITER_HPP
+#pragma once
 
 namespace axom
 {
@@ -63,5 +62,3 @@ public:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

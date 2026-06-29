@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MMFIELD_H_
-#define MMFIELD_H_
+#pragma once
 
 #include "axom/multimat/multimat.hpp"
 #include "axom/multimat/mmsubfield.hpp"
@@ -168,5 +167,3 @@ public:
 
 }  //end namespace multimat
 }  //end namespace axom
-
-#endif

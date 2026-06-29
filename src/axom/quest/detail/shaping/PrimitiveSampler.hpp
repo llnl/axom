@@ -10,8 +10,7 @@
  * \brief Helper class for sampling-based shaping queries using primal geometric primitives
  */
 
-#ifndef AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
-#define AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -334,5 +333,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_

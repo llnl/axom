@@ -15,8 +15,7 @@
  * Fallback strategies handle edge cases (cycles, numerical issues).
  */
 
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_POINT_LOCATION_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_POINT_LOCATION_HPP_
+#pragma once
 
 namespace axom
 {
@@ -457,5 +456,3 @@ inline typename Delaunay<DIM>::IndexType Delaunay<DIM>::findContainingElement(co
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPVIEW_H
-#define WRAPVIEW_H
+#pragma once
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"
@@ -193,5 +192,3 @@ bool SIDRE_View_rename_bufferify(SIDRE_View *self, char *new_name, int SHT_new_n
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPVIEW_H

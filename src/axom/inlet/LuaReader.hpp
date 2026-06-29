@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef INLET_LUAMAP_HPP
-#define INLET_LUAMAP_HPP
+#pragma once
 
 #include "axom/inlet/Reader.hpp"
 #include "axom/sol_forward.hpp"
@@ -170,5 +169,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

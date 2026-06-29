@@ -10,8 +10,7 @@
  * \brief A BezierPatch primitive
  */
 
-#ifndef AXOM_PRIMAL_BEZIERPATCH_HPP_
-#define AXOM_PRIMAL_BEZIERPATCH_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -2091,5 +2090,3 @@ std::ostream& operator<<(std::ostream& os, const BezierPatch<T, NDIMS>& bPatch)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_BEZIERPATCH_HPP_

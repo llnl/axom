@@ -10,8 +10,7 @@
  * \brief Contains several useful macros for the axom project
  */
 
-#ifndef AXOM_MACROS_HPP_
-#define AXOM_MACROS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include <cassert>  // for assert()
@@ -425,4 +424,3 @@
  */
 #define AXOM_CONSTEXPR_ASSERT(EXP) ::axom::detail::constexprAssert((EXP), #EXP, __FILE__, __LINE__)
 
-#endif  // AXOM_MACROS_HPP_

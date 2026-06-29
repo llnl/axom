@@ -10,6 +10,8 @@
 
 // 2D case table
 // clang-format off
+#pragma once
+
 #ifdef _MC_LOOKUP_CASES2D
 /*!
   @brief Look-up table in 2D.

@@ -12,8 +12,7 @@
  */
 // For C users and C++ implementation
 
-#ifndef WRAPIOMANAGER_H
-#define WRAPIOMANAGER_H
+#pragma once
 
 #include "axom/sidre/interface/c_fortran/wrapGroup.h"
 #include "axom/sidre/interface/c_fortran/wrapDataStore.h"
@@ -152,5 +151,3 @@ void SPIO_IOManager_loadExternalData_bufferify(SPIO_IOManager *self,
 #ifdef __cplusplus
 }
 #endif
-
-#endif  // WRAPIOMANAGER_H

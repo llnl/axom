@@ -12,8 +12,7 @@
  *******************************************************************************
  */
 
-#ifndef MPIUTILITY_HPP
-#define MPIUTILITY_HPP
+#pragma once
 
 #include "mpi.h"
 
@@ -63,5 +62,3 @@ void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* 
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

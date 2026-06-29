@@ -11,8 +11,7 @@
  * 
  */
 
-#ifndef __AXOM_BUMP_MESH_TESTER_HPP__
-#define __AXOM_BUMP_MESH_TESTER_HPP__
+#pragma once
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/primal.hpp"
@@ -195,5 +194,3 @@ private:
 }  // namespace data
 }  // namespace bump
 }  // namespace axom
-
-#endif
