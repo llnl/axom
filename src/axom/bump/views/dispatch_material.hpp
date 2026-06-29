@@ -13,6 +13,8 @@
 
 #include <conduit/conduit_blueprint.hpp>
 
+#include <type_traits>
+
 namespace axom
 {
 namespace bump
@@ -21,6 +23,10 @@ namespace views
 {
 namespace detail
 {
+template <typename ViewType>
+using ArrayViewValueType =
+  typename std::remove_const<typename std::remove_reference<ViewType>::type::value_type>::type;
+
 template <axom::IndexType MAXMATERIALS>
 constexpr void verifyPositiveMaxMaterials()
 {
@@ -61,8 +67,8 @@ bool dispatch_material_unibuffer_with_values(const conduit::Node &matset,
                              matset["indices"],
                              [&](auto material_ids, auto sizes, auto offsets, auto indices) {
                                floatNodeToArrayView(values, [&](auto typedValues) {
-                                 using IndexType = typename decltype(material_ids)::value_type;
-                                 using FloatType = typename decltype(typedValues)::value_type;
+                                 using IndexType = ArrayViewValueType<decltype(material_ids)>;
+                                 using FloatType = ArrayViewValueType<decltype(typedValues)>;
 
                                  UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
                                  matsetView.set(material_ids, typedValues, sizes, offsets, indices);
@@ -127,8 +133,7 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
     {
       const conduit::Node &n_firstValues = values_object[0];
       floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
-        using FloatElement =
-          typename std::remove_const<typename decltype(firstValues)::value_type>::type;
+        using FloatElement = ArrayViewValueType<decltype(firstValues)>;
         using FloatView = axom::ArrayView<FloatElement>;
         using IntElement = axom::IndexType;
 
@@ -187,10 +192,8 @@ bool dispatch_material_material_dominant_with_values(const conduit::Node &matset
 
       indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
         floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
-          using FloatElement =
-            typename std::remove_const<typename decltype(firstValues)::value_type>::type;
-          using IntElement =
-            typename std::remove_const<typename decltype(firstIndices)::value_type>::type;
+          using FloatElement = ArrayViewValueType<decltype(firstValues)>;
+          using IntElement = ArrayViewValueType<decltype(firstIndices)>;
           using FloatView = axom::ArrayView<FloatElement>;
           using IntView = axom::ArrayView<IntElement>;
 
