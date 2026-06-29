@@ -33,8 +33,6 @@ NB_MODULE(pyinlet, m)
 {
   m.doc() = "Tutorial-facing Python bindings for parsing shaping tutorial inputs with Axom Inlet.";
 
-  nb::module_::import_("pyprimal");
-
   nb::class_<axom::inlet::Reader>(m, "Reader");
 
   nb::class_<axom::inlet::YAMLReader, axom::inlet::Reader>(m, "YAMLReader")

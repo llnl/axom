@@ -79,16 +79,28 @@ mfem::Mesh* createCartesianMesh(int dim,
   {
   case 2:
   {
+    if(bb_min.size() < 2 || bb_max.size() < 2 || resolution.size() < 2)
+    {
+      throw std::invalid_argument(
+        "2D mesh construction requires two bounding-box and resolution values.");
+    }
     const BoundingBox2D bbox(Point2D {bb_min[0], bb_min[1]}, Point2D {bb_max[0], bb_max[1]});
     const axom::NumericArray<int, 2> res {resolution[0], resolution[1]};
+    SLIC_INFO_ROOT(axom::fmt::format("Creating 2D Cartesian mesh of res {} and bbox {}", res, bbox));
     mesh = axom::quest::util::make_cartesian_mfem_mesh_2D(bbox, res, mesh_order);
   }
   break;
   case 3:
   {
+    if(bb_min.size() < 3 || bb_max.size() < 3 || resolution.size() < 3)
+    {
+      throw std::invalid_argument(
+        "3D mesh construction requires three bounding-box and resolution values.");
+    }
     const BoundingBox3D bbox(Point3D {bb_min[0], bb_min[1], bb_min[2]},
                              Point3D {bb_max[0], bb_max[1], bb_max[2]});
     const axom::NumericArray<int, 3> res {resolution[0], resolution[1], resolution[2]};
+    SLIC_INFO_ROOT(axom::fmt::format("Creating 3D Cartesian mesh of res {} and bbox {}", res, bbox));
     mesh = axom::quest::util::make_cartesian_mfem_mesh_3D(bbox, res, mesh_order);
   }
   break;
@@ -110,29 +122,42 @@ mfem::Mesh* createCartesianMesh(int dim,
   return mesh;
 }
 
-std::unique_ptr<axom::sidre::MFEMSidreDataCollection> createDataCollection(
-  int dim,
-  const std::vector<double>& bb_min,
-  const std::vector<double>& bb_max,
-  const std::vector<int>& resolution,
-  int mesh_order,
-  const std::string& output_name)
+class PyMFEMSidreDataCollection
 {
-  ensureAxomRuntime();
+public:
+  PyMFEMSidreDataCollection(const std::string& output_name,
+                            int dim,
+                            const std::vector<double>& bb_min,
+                            const std::vector<double>& bb_max,
+                            const std::vector<int>& resolution,
+                            int mesh_order)
+    : m_mesh_dim(dim)
+  {
+    ensureAxomRuntime();
 
-  auto* mesh = createCartesianMesh(dim, bb_min, bb_max, resolution, mesh_order);
-  auto dc = std::make_unique<axom::sidre::MFEMSidreDataCollection>(output_name, nullptr, true);
+    auto* mesh = createCartesianMesh(dim, bb_min, bb_max, resolution, mesh_order);
+    m_collection = std::make_unique<axom::sidre::MFEMSidreDataCollection>(output_name, nullptr, true);
 
 #if defined(AXOM_USE_MPI)
-  dc->SetMesh(MPI_COMM_WORLD, mesh);
+    m_collection->SetMesh(MPI_COMM_WORLD, mesh);
 #else
-  dc->SetMesh(mesh);
+    m_collection->SetMesh(mesh);
 #endif
 
-  dc->SetMeshNodesName("positions");
-  dc->AssociateMaterialSet("vol_frac", "material");
-  return dc;
-}
+    m_collection->SetMeshNodesName("positions");
+    m_collection->AssociateMaterialSet("vol_frac", "material");
+  }
+
+  axom::sidre::MFEMSidreDataCollection& get() { return *m_collection; }
+
+  int meshDimension() const { return m_mesh_dim; }
+
+  void save() { m_collection->Save(); }
+
+private:
+  std::unique_ptr<axom::sidre::MFEMSidreDataCollection> m_collection;
+  int m_mesh_dim;
+};
 
 void importBackgroundMaterial(axom::quest::SamplingShaper& shaper,
                               axom::sidre::MFEMSidreDataCollection& collection,
@@ -177,35 +202,61 @@ public:
                    int mesh_order = 1,
                    const std::string& output_name = "shaping")
     : PySamplingShaper(std::make_shared<axom::klee::ShapeSet>(shape_set),
-                       createDataCollection(dim, bb_min, bb_max, resolution, mesh_order, output_name),
-                       dim,
+                       std::make_unique<PyMFEMSidreDataCollection>(output_name,
+                                                                   dim,
+                                                                   bb_min,
+                                                                   bb_max,
+                                                                   resolution,
+                                                                   mesh_order),
                        RuntimePolicy::seq)
   { }
 
-  void save() { m_collection->Save(); }
+  PySamplingShaper(const axom::klee::ShapeSet& shape_set, PyMFEMSidreDataCollection& collection)
+    : PySamplingShaper(std::make_shared<axom::klee::ShapeSet>(shape_set),
+                       &collection,
+                       RuntimePolicy::seq)
+  { }
+
+  void save() { collection().save(); }
 
   void importBackgroundMaterial(const std::string& material, int volume_fraction_order)
   {
-    ::importBackgroundMaterial(*this, *m_collection, m_mesh_dim, material, volume_fraction_order);
+    ::importBackgroundMaterial(*this,
+                               collection().get(),
+                               collection().meshDimension(),
+                               material,
+                               volume_fraction_order);
   }
 
 private:
   PySamplingShaper(std::shared_ptr<axom::klee::ShapeSet> shape_set,
-                   std::unique_ptr<axom::sidre::MFEMSidreDataCollection> collection,
-                   int mesh_dim,
+                   std::unique_ptr<PyMFEMSidreDataCollection> collection,
                    RuntimePolicy policy)
     : axom::quest::SamplingShaper(policy,
                                   axom::policyToDefaultAllocatorID(policy),
                                   *shape_set,
-                                  collection.get())
+                                  &collection->get())
     , m_shape_set(std::move(shape_set))
-    , m_collection(std::move(collection))
-    , m_mesh_dim(mesh_dim)
+    , m_owned_collection(std::move(collection))
+    , m_collection(m_owned_collection.get())
   { }
 
+  PySamplingShaper(std::shared_ptr<axom::klee::ShapeSet> shape_set,
+                   PyMFEMSidreDataCollection* collection,
+                   RuntimePolicy policy)
+    : axom::quest::SamplingShaper(policy,
+                                  axom::policyToDefaultAllocatorID(policy),
+                                  *shape_set,
+                                  &collection->get())
+    , m_shape_set(std::move(shape_set))
+    , m_collection(collection)
+  { }
+
+  PyMFEMSidreDataCollection& collection() { return *m_collection; }
+
   std::shared_ptr<axom::klee::ShapeSet> m_shape_set;
-  std::unique_ptr<axom::sidre::MFEMSidreDataCollection> m_collection;
-  int m_mesh_dim;
+  std::unique_ptr<PyMFEMSidreDataCollection> m_owned_collection;
+  PyMFEMSidreDataCollection* m_collection {nullptr};
 };
 }  // namespace
 
@@ -219,6 +270,21 @@ NB_MODULE(pyquest, m)
     .value("InOut", SamplingMethod::InOut)
     .value("WindingNumber", SamplingMethod::WindingNumber)
     .export_values();
+
+  nb::class_<PyMFEMSidreDataCollection>(m, "MFEMSidreDataCollection")
+    .def(nb::init<const std::string&,
+                  int,
+                  const std::vector<double>&,
+                  const std::vector<double>&,
+                  const std::vector<int>&,
+                  int>(),
+         nb::arg("output_name"),
+         nb::arg("dim"),
+         nb::arg("bb_min"),
+         nb::arg("bb_max"),
+         nb::arg("resolution"),
+         nb::arg("mesh_order") = 1)
+    .def("save", &PyMFEMSidreDataCollection::save);
 
   nb::class_<PySamplingShaper>(m, "SamplingShaper")
     .def(nb::init<const axom::klee::ShapeSet&,
@@ -235,6 +301,10 @@ NB_MODULE(pyquest, m)
          nb::arg("resolution"),
          nb::arg("mesh_order") = 1,
          nb::arg("output_name") = "shaping")
+    .def(nb::init<const axom::klee::ShapeSet&, PyMFEMSidreDataCollection&>(),
+         nb::arg("shape_set"),
+         nb::arg("data_collection"),
+         nb::keep_alive<1, 3>())
     .def("setVerbosity",
          [](PySamplingShaper& self, bool verbose) { configureVerbosity(self, verbose); })
     .def("setSamplesPerKnotSpan", &PySamplingShaper::setSamplesPerKnotSpan, nb::arg("samples"))

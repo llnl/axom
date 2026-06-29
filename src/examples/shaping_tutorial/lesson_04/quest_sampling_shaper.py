@@ -187,14 +187,16 @@ def main() -> int:
         print(exc)
         return 1
 
-    shaper = pyquest.SamplingShaper(
-        shape_set,
+    data_collection = pyquest.MFEMSidreDataCollection(
+        "shaping",
         meta.dim,
         meta.bb_min,
         meta.bb_max,
         meta.resolution,
         meta.mesh_order,
     )
+
+    shaper = pyquest.SamplingShaper(shape_set, data_collection)
     shaper.setVerbosity(args.verbose)
     shaper.setSamplingResolution(meta.sampling_resolution)
     shaper.setVolumeFractionOrder(meta.volume_fraction_order)
@@ -206,16 +208,23 @@ def main() -> int:
     if meta.background_material:
         shaper.importBackgroundMaterial(meta.background_material, meta.volume_fraction_order)
 
+    print("Shaping")
     for shape in shape_set.getShapes():
-        shape_dim = shape.getGeometry().getInputDimensions()
+        geometry = shape.getGeometry()
+        shape_format = geometry.getFormat()
+        print(f"Processing shape '{shape.getName()}' of material "
+              f"'{shape.getMaterial()}' (format '{shape_format}')")
+
+        shape_dim = geometry.getInputDimensions()
         shaper.loadShape(shape)
         shaper.prepareShapeQuery(shape_dim, shape)
         shaper.runShapeQuery(shape)
         shaper.applyReplacementRules(shape)
         shaper.finalizeShapeQuery()
 
+    print("Generating volume fraction fields for materials")
     shaper.adjustVolumeFractions()
-    shaper.save()
+    data_collection.save()
     return 0
 
 
