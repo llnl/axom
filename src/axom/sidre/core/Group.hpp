@@ -24,6 +24,7 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/MapCollection.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "axom/slic.hpp"
 #include "axom/export/sidre.h"
 
@@ -1847,6 +1848,14 @@ public:
    *                           tree is not succesfully imported.
    */
   bool importConduitTreeExternal(conduit::Node& node, bool preserve_contents = false);
+
+  /*!
+   * \brief Traverse the group and all of its descendents and compute a checksum
+   *        of the structure as well as the contents of the views.
+   *
+   * \return A CheckSum of the group.
+   */
+  axom::utilities::CheckSum checksum() const;
 
 private:
   DISABLE_DEFAULT_CTOR(Group);

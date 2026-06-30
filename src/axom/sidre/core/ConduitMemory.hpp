@@ -25,6 +25,7 @@
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "conduit_node.hpp"
 #include "conduit_utils.hpp"
 
@@ -160,6 +161,15 @@ private:
 
   void privateRegisterAllocator();
 };
+
+/*!
+ * \brief Checksum the structure and contents of a Conduit node.
+ *
+ * \param n The node being checksummed.
+ *
+ * \return A checksum of the node.
+ */
+axom::utilities::CheckSum checksum(const conduit::Node &n);
 
 } /* end namespace sidre */
 } /* end namespace axom */

@@ -285,5 +285,75 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
   return *it->second;
 }
 
+axom::utilities::CheckSum checksum(const conduit::Node &n)
+{
+  std::string name(n.name());
+  axom::ArrayView<const char> view(name.data(), name.size());
+  auto cs = axom::utilities::checksum(view);
+
+  if(n.number_of_children() > 0)
+  {
+    for(conduit::index_t i = 0; i < n.number_of_children(); i++)
+    {
+      cs += checksum(n[i]);
+    }
+  }
+  else
+  {
+    // NOTE: this assumes contiguous data
+    if(n.dtype().is_string() || n.dtype().is_int8())
+    {
+      axom::ArrayView<const conduit::int8> view(static_cast<const conduit::int8*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_int16())
+    {
+      axom::ArrayView<const conduit::int16> view(static_cast<const conduit::int16*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_int32())
+    {
+      axom::ArrayView<const conduit::int32> view(static_cast<const conduit::int32*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_int64())
+    {
+      axom::ArrayView<const conduit::int64> view(static_cast<const conduit::int64*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_uint8())
+    {
+      axom::ArrayView<const conduit::uint8> view(static_cast<const conduit::uint8*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_uint16())
+    {
+      axom::ArrayView<const conduit::uint16> view(static_cast<const conduit::uint16*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_uint32())
+    {
+      axom::ArrayView<const conduit::uint32> view(static_cast<const conduit::uint32*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_uint64())
+    {
+      axom::ArrayView<const conduit::uint64> view(static_cast<const conduit::uint64*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_float32())
+    {
+      axom::ArrayView<const conduit::float32> view(static_cast<const conduit::float32*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_float64())
+    {
+      axom::ArrayView<const conduit::float64> view(static_cast<const conduit::float64*>(n.data_ptr()), n.dtype().number_of_elements());
+      return cs += axom::utilities::checksum(view);
+    }
+  }
+  return cs;
+}
+
 }  // end namespace sidre
 }  // end namespace axom

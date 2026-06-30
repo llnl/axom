@@ -16,6 +16,7 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
@@ -2068,6 +2069,20 @@ int View::getValidAllocatorId(int allocId)
     false,
     "Axom internal error: Cannot determine semantic valid allocator id");  // Should never get here.
   return axom::INVALID_ALLOCATOR_ID;
+}
+
+axom::utilities::CheckSum View::checksum() const
+{
+  // Checksum the name
+  axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
+  auto cs = axom::utilities::checksum(nameView);
+
+  // Checksum the data in the view's node (including any attributes, etc)
+  conduit::Node tmp;
+  createNativeLayout(tmp);
+  cs += axom::sidre::checksum(tmp);
+  
+  return cs;
 }
 
 } /* end namespace sidre */

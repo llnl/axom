@@ -2879,6 +2879,24 @@ bool Group::importConduitTreeExternal(conduit::Node& node, bool preserve_content
   return success;
 }
 
+axom::utilities::CheckSum Group::checksum() const
+{
+  // Checksum the name
+  axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
+  auto cs = axom::utilities::checksum(nameView);
+
+  // Add the checksums of the views and groups.
+  for(const auto& view : this->views())
+  {
+    cs += view.checksum();
+  }
+  for(const auto& group : this->groups())
+  {
+    cs += group.checksum();
+  }
+  return cs;
+}
+
 /*
  *************************************************************************
  *
