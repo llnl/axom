@@ -67,11 +67,13 @@ struct FromInlet<axom::klee::ShapeData>
 {
   axom::klee::ShapeData operator()(const axom::inlet::Container& base)
   {
-    return axom::klee::ShapeData {base.get<std::string>("name"),
+    axom::klee::ShapeData data {base.get<std::string>("name"),
                                   base.get<std::string>("material"),
                                   base["replaces"].get<std::vector<std::string>>(),
                                   base["does_not_replace"].get<std::vector<std::string>>(),
                                   base.get<axom::klee::GeometryData>("geometry")};
+    data.geometry.operatorData.setShapeName(data.name);
+    return data;
   }
 };
 
@@ -114,7 +116,7 @@ namespace
  *
  * @param geometry the Container representing a "geometry" object.
  */
-void defineGeometry(inlet::Container& geometry)
+void defineGeometry(inlet::Container &geometry, bool enableLuaCallbacks)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
@@ -135,7 +137,8 @@ void defineGeometry(inlet::Container& geometry)
                               "The end units of the shape");
   internal::GeometryOperatorData::defineSchema(geometry,
                                                "operators",
-                                               "Operators to apply to this object");
+                                               "Operators to apply to this object",
+                                               enableLuaCallbacks);
 }
 
 /**
@@ -143,7 +146,7 @@ void defineGeometry(inlet::Container& geometry)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineShapeList(inlet::Inlet& document)
+void defineShapeList(inlet::Inlet &document, bool enableLuaCallbacks)
 {
   inlet::Container& shapeList = document.addStructArray("shapes", "The list of shapes");
 
@@ -154,7 +157,7 @@ void defineShapeList(inlet::Inlet& document)
   auto& geometry =
     shapeList.addStruct("geometry", "Contains information about the shape's geometry");
 
-  defineGeometry(geometry);
+  defineGeometry(geometry, enableLuaCallbacks);
 
   // Verify syntax here, semantics later!!!
   shapeList.registerVerifier(
@@ -191,11 +194,13 @@ void defineShapeList(inlet::Inlet& document)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineKleeSchema(inlet::Inlet& document)
+void defineKleeSchema(inlet::Inlet &document, bool enableLuaCallbacks)
 {
   internal::defineDimensionsField(document.getGlobalContainer(), "dimensions").required();
-  defineShapeList(document);
-  internal::NamedOperatorMapData::defineSchema(document.getGlobalContainer(), "named_operators");
+  defineShapeList(document, enableLuaCallbacks);
+  internal::NamedOperatorMapData::defineSchema(document.getGlobalContainer(),
+                                               "named_operators",
+                                               enableLuaCallbacks);
 }
 
 /**
@@ -438,14 +443,17 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
  *
  * \param reader the parsed Inlet reader
  * \param rejectUnexpectedGlobals true if unexpected top-level Lua globals should be rejected
+ * \param enableLuaCallbacks true if Lua callbacks should be enabled
  * \return the parsed and verified ShapeSet
  * \throws KleeError if schema verification or semantic validation fails
  */
-ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader, bool rejectUnexpectedGlobals)
+ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader,
+                                bool rejectUnexpectedGlobals,
+                                bool enableLuaCallbacks)
 {
   sidre::DataStore dataStore;
   inlet::Inlet doc(std::move(reader), dataStore.getRoot());
-  defineKleeSchema(doc);
+  defineKleeSchema(doc, enableLuaCallbacks);
   std::vector<inlet::VerificationError> errors;
   bool verified = doc.verify(&errors);
   if(rejectUnexpectedGlobals)
@@ -484,7 +492,9 @@ ShapeSet readShapeSet(std::istream& stream, InputFormat format)
                format,
                Path {"<stream>"},
                "from stream");
-  return readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
+  return readShapeSetFromReader(std::move(reader),
+                                format == InputFormat::Lua,
+                                format == InputFormat::Lua);
 }
 
 ShapeSet readShapeSet(const std::string& filePath)
@@ -499,7 +509,8 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
                format,
                Path {filePath},
                axom::fmt::format("from file '{}'", filePath));
-  auto shapeSet = readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
+  auto shapeSet =
+    readShapeSetFromReader(std::move(reader), format == InputFormat::Lua, format == InputFormat::Lua);
   shapeSet.setPath(filePath);
   return shapeSet;
 }

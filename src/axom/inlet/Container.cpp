@@ -905,9 +905,32 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(funcs),
     name,
-    [&name, &ret_type, &arg_types, &description](Container& subcontainer,
-                                                 const std::string& path) -> Verifiable<Function>& {
-      return subcontainer.addFunction(name, ret_type, arg_types, description, path);
+    [&name, &ret_type, &arg_types, &description, &pathOverride](
+      Container& subcontainer,
+      const std::string& path) -> Verifiable<Function>& {
+      std::string nestedPathOverride = path;
+      if(!pathOverride.empty())
+      {
+        // Function aliases can keep an internal schema name while reading from
+        // a public input path. For struct arrays, apply the override relative
+        // to each concrete element path found by transformFromNestedElements().
+        if(path.empty())
+        {
+          if(subcontainer.isStructCollection() || !subcontainer.m_nested_aggregates.empty())
+          {
+            nestedPathOverride = pathOverride;
+          }
+          else
+          {
+            nestedPathOverride = Path::join({Path(subcontainer.name()), Path(pathOverride)});
+          }
+        }
+        else
+        {
+          nestedPathOverride = Path::join({Path(path).parent(), Path(pathOverride)});
+        }
+      }
+      return subcontainer.addFunction(name, ret_type, arg_types, description, nestedPathOverride);
     });
   if(is_nested)
   {

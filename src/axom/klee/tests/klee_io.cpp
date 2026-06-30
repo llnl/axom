@@ -770,6 +770,212 @@ TEST(IOTest, readShapeSet_luaGeneratedOrdinaryTableValues)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
 }
 
+TEST(IOTest, readShapeSet_luaOperatorCallbacks)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local dim = 3
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "callbacks",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "callbacks.stl",
+          units = "cm",
+          operators = {
+            {
+              rotate = function() return 45 end,
+              axis = function() return {0, 0, 1} end,
+              center = function() return Vector.new(1, 2, 3) end
+            },
+            { translate = function() return {4, 5, 6} end },
+            { scale = function() return 2.0 end },
+            {
+              scale = function() return {1.5, 2.5, 3.5} end,
+              center = function() return {1, 1, 1} end
+            }
+          }
+        }
+      },
+      {
+        name = "slice_callbacks",
+        material = "glass",
+        geometry = {
+          format = "stl",
+          path = "slice_callbacks.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            {
+              slice = {
+                origin = function() return {1, 2, 3} end,
+                normal = function() return {0, 0, 1} end,
+                up = function() return {0, 1, 0} end
+              }
+            }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(2u, shapeSet.getShapes().size());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(4u, composite->getOperators().size());
+
+  auto rotation = dynamic_cast<const Rotation*>(composite->getOperators()[0].get());
+  ASSERT_NE(rotation, nullptr);
+  EXPECT_DOUBLE_EQ(45.0, rotation->getAngle());
+  EXPECT_THAT(rotation->getAxis(), AlmostEqVector(Vector3D {0, 0, 1}));
+  EXPECT_THAT(rotation->getCenter(), AlmostEqPoint(Point3D {1, 2, 3}));
+
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[1].get());
+  ASSERT_NE(translation, nullptr);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 5, 6}));
+
+  auto uniformScale = dynamic_cast<const Scale*>(composite->getOperators()[2].get());
+  ASSERT_NE(uniformScale, nullptr);
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getYFactor());
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getZFactor());
+
+  auto vectorScale = dynamic_cast<const Scale*>(composite->getOperators()[3].get());
+  ASSERT_NE(vectorScale, nullptr);
+  EXPECT_DOUBLE_EQ(1.5, vectorScale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.5, vectorScale->getYFactor());
+  EXPECT_DOUBLE_EQ(3.5, vectorScale->getZFactor());
+  EXPECT_THAT(vectorScale->getCenter(), AlmostEqPoint(Point3D {1, 1, 1}));
+
+  auto sliceComposite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[1].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(sliceComposite);
+  ASSERT_EQ(1u, sliceComposite->getOperators().size());
+  auto slice = std::dynamic_pointer_cast<const SliceOperator>(sliceComposite->getOperators()[0]);
+  ASSERT_TRUE(slice);
+  EXPECT_THAT(slice->getOrigin(), AlmostEqPoint(Point3D {1, 2, 3}));
+  EXPECT_THAT(slice->getNormal(), AlmostEqVector(Vector3D {0, 0, 1}));
+  EXPECT_THAT(slice->getUp(), AlmostEqVector(Vector3D {0, 1, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaDimensionDependentCallback)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local dim = 2
+    local r = 4.0
+    local z = 8.0
+    local x = 1.0
+    local y = 2.0
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            {
+              translate = function()
+                if dim == 2 then
+                  return {r, z}
+                end
+                return {x, y, z}
+              end
+            }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[0].get());
+  ASSERT_NE(translation, nullptr);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaCallbackErrorIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "bad_shape",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "bad.stl",
+            units = "cm",
+            operators = {
+              {
+                translate = function()
+                  error("callback boom")
+                end
+              }
+            }
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("translate"));
+    EXPECT_THAT(err.what(), HasSubstr("bad_shape"));
+    EXPECT_THAT(err.what(), HasSubstr("operator"));
+    EXPECT_THAT(err.what(), HasSubstr("callback boom"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaCallbackWrongVectorDimensionIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "wrong_dim",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "wrong_dim.stl",
+            units = "cm",
+            operators = {
+              { translate = function() return {1, 2, 3} end }
+            }
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("translate"));
+    EXPECT_THAT(err.what(), HasSubstr("wrong_dim"));
+    EXPECT_THAT(err.what(), HasSubstr("Wrong size"));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
 {
   try
