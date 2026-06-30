@@ -65,20 +65,22 @@ struct ShapeData
 template <>
 struct FromInlet<axom::klee::ShapeData>
 {
-  axom::klee::ShapeData operator()(const axom::inlet::Container &base)
+  axom::klee::ShapeData operator()(const axom::inlet::Container& base)
   {
-    return axom::klee::ShapeData {base.get<std::string>("name"),
-                                  base.get<std::string>("material"),
-                                  base["replaces"].get<std::vector<std::string>>(),
-                                  base["does_not_replace"].get<std::vector<std::string>>(),
-                                  base.get<axom::klee::GeometryData>("geometry")};
+    axom::klee::ShapeData data {base.get<std::string>("name"),
+                                base.get<std::string>("material"),
+                                base["replaces"].get<std::vector<std::string>>(),
+                                base["does_not_replace"].get<std::vector<std::string>>(),
+                                base.get<axom::klee::GeometryData>("geometry")};
+    data.geometry.operatorData.setShapeName(data.name);
+    return data;
   }
 };
 
 template <>
 struct FromInlet<axom::klee::GeometryData>
 {
-  axom::klee::GeometryData operator()(const axom::inlet::Container &base)
+  axom::klee::GeometryData operator()(const axom::inlet::Container& base)
   {
     axom::klee::GeometryData data;
     data.format = base.contains("format") ? base.get<std::string>("format") : "";
@@ -114,7 +116,7 @@ namespace
  *
  * @param geometry the Container representing a "geometry" object.
  */
-void defineGeometry(inlet::Container &geometry)
+void defineGeometry(inlet::Container& geometry, bool enableLuaCallbacks)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
@@ -135,7 +137,8 @@ void defineGeometry(inlet::Container &geometry)
                               "The end units of the shape");
   internal::GeometryOperatorData::defineSchema(geometry,
                                                "operators",
-                                               "Operators to apply to this object");
+                                               "Operators to apply to this object",
+                                               enableLuaCallbacks);
 }
 
 /**
@@ -143,22 +146,22 @@ void defineGeometry(inlet::Container &geometry)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineShapeList(inlet::Inlet &document)
+void defineShapeList(inlet::Inlet& document, bool enableLuaCallbacks)
 {
-  inlet::Container &shapeList = document.addStructArray("shapes", "The list of shapes");
+  inlet::Container& shapeList = document.addStructArray("shapes", "The list of shapes");
 
   shapeList.addString("name", "The shape's name").required();
   shapeList.addString("material", "The shape's material").required();
   shapeList.addStringArray("replaces", "The list of materials this shape replaces");
   shapeList.addStringArray("does_not_replace", "The list of materials this shape does not replace");
-  auto &geometry =
+  auto& geometry =
     shapeList.addStruct("geometry", "Contains information about the shape's geometry");
 
-  defineGeometry(geometry);
+  defineGeometry(geometry, enableLuaCallbacks);
 
   // Verify syntax here, semantics later!!!
   shapeList.registerVerifier(
-    [](const inlet::Container &shape, std::vector<inlet::VerificationError> *errors) -> bool {
+    [](const inlet::Container& shape, std::vector<inlet::VerificationError>* errors) -> bool {
       if(shape.contains("replaces") && shape.contains("does_not_replace"))
       {
         INLET_VERIFICATION_WARNING(shape.name(),
@@ -191,11 +194,13 @@ void defineShapeList(inlet::Inlet &document)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineKleeSchema(inlet::Inlet &document)
+void defineKleeSchema(inlet::Inlet& document, bool enableLuaCallbacks)
 {
   internal::defineDimensionsField(document.getGlobalContainer(), "dimensions").required();
-  defineShapeList(document);
-  internal::NamedOperatorMapData::defineSchema(document.getGlobalContainer(), "named_operators");
+  defineShapeList(document, enableLuaCallbacks);
+  internal::NamedOperatorMapData::defineSchema(document.getGlobalContainer(),
+                                               "named_operators",
+                                               enableLuaCallbacks);
 }
 
 /**
@@ -206,9 +211,9 @@ void defineKleeSchema(inlet::Inlet &document)
  * \param namedOperators any named operators that were parsed from the file
  * \return the geometry description for the shape
  */
-Geometry convert(GeometryData const &data,
+Geometry convert(GeometryData const& data,
                  Dimensions fileDimensions,
-                 internal::NamedOperatorMap const &namedOperators)
+                 internal::NamedOperatorMap const& namedOperators)
 {
   const bool has_start_dims = data.startDimensions != Dimensions::Unspecified;
   const bool has_explicit_dims = data.explicitDimensions != Dimensions::Unspecified;
@@ -255,9 +260,9 @@ Geometry convert(GeometryData const &data,
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
  */
-Shape convert(ShapeData const &data,
+Shape convert(ShapeData const& data,
               Dimensions fileDimensions,
-              internal::NamedOperatorMap const &namedOperators)
+              internal::NamedOperatorMap const& namedOperators)
 {
   return Shape {data.name,
                 data.material,
@@ -274,13 +279,13 @@ Shape convert(ShapeData const &data,
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
  */
-std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
-                           Dimensions const &fileDimensions,
-                           internal::NamedOperatorMap const &namedOperators)
+std::vector<Shape> convert(std::vector<ShapeData> const& shapeData,
+                           Dimensions const& fileDimensions,
+                           internal::NamedOperatorMap const& namedOperators)
 {
   std::vector<Shape> converted;
   converted.reserve(shapeData.size());
-  for(auto &data : shapeData)
+  for(auto& data : shapeData)
   {
     converted.emplace_back(convert(data, fileDimensions, namedOperators));
   }
@@ -295,7 +300,7 @@ std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
  * start at unless otherwise specified
  * \return all named operators read from the document
  */
-internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions startDimensions)
+internal::NamedOperatorMap getNamedOperators(const inlet::Inlet& doc, Dimensions startDimensions)
 {
   if(doc.contains("named_operators"))
   {
@@ -313,7 +318,7 @@ std::string lowercase(std::string value)
   return value;
 }
 
-std::string extensionOf(const std::string &filePath)
+std::string extensionOf(const std::string& filePath)
 {
   const auto slash = filePath.find_last_of("/\\");
   const auto dot = filePath.find_last_of('.');
@@ -324,7 +329,7 @@ std::string extensionOf(const std::string &filePath)
   return lowercase(filePath.substr(dot));
 }
 
-InputFormat inferInputFormat(const std::string &filePath)
+InputFormat inferInputFormat(const std::string& filePath)
 {
   const auto extension = extensionOf(filePath);
   if(extension == ".yaml" || extension == ".yml")
@@ -363,17 +368,17 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format)
   throw KleeError({Path {"<unknown path>"}, "Unsupported Klee input format."});
 }
 
-void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
-                                  std::vector<inlet::VerificationError> &errors)
+void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
+                                  std::vector<inlet::VerificationError>& errors)
 {
   std::unordered_set<std::string> unexpectedGlobals;
-  for(const auto &name : doc.unexpectedNames())
+  for(const auto& name : doc.unexpectedNames())
   {
     const auto slash = name.find('/');
     unexpectedGlobals.insert(name.substr(0, slash));
   }
 
-  for(const auto &name : unexpectedGlobals)
+  for(const auto& name : unexpectedGlobals)
   {
     errors.push_back({Path {name},
                       axom::fmt::format("Unexpected global variable '{}' in Lua input deck. Use "
@@ -382,11 +387,13 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
   }
 }
 
-ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader, bool rejectUnexpectedGlobals)
+ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader,
+                                bool rejectUnexpectedGlobals,
+                                bool enableLuaCallbacks)
 {
   sidre::DataStore dataStore;
   inlet::Inlet doc(std::move(reader), dataStore.getRoot());
-  defineKleeSchema(doc);
+  defineKleeSchema(doc, enableLuaCallbacks);
   std::vector<inlet::VerificationError> errors;
   bool verified = doc.verify(&errors);
   if(rejectUnexpectedGlobals)
@@ -414,23 +421,26 @@ ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader, bool reje
 }
 }  // namespace
 
-ShapeSet readShapeSet(std::istream &stream) { return readShapeSet(stream, InputFormat::YAML); }
+ShapeSet readShapeSet(std::istream& stream) { return readShapeSet(stream, InputFormat::YAML); }
 
-ShapeSet readShapeSet(std::istream &stream, InputFormat format)
+ShapeSet readShapeSet(std::istream& stream, InputFormat format)
 {
   std::string contents {std::istreambuf_iterator<char>(stream), {}};
 
   auto reader = createReader(format);
   reader->parseString(contents);
-  return readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
+  return readShapeSetFromReader(std::move(reader),
+                                format == InputFormat::Lua,
+                                format == InputFormat::Lua);
 }
 
-ShapeSet readShapeSet(const std::string &filePath)
+ShapeSet readShapeSet(const std::string& filePath)
 {
   const auto format = inferInputFormat(filePath);
   auto reader = createReader(format);
   reader->parseFile(filePath);
-  auto shapeSet = readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
+  auto shapeSet =
+    readShapeSetFromReader(std::move(reader), format == InputFormat::Lua, format == InputFormat::Lua);
   shapeSet.setPath(filePath);
   return shapeSet;
 }

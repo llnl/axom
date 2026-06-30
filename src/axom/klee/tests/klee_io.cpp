@@ -44,13 +44,13 @@ using ::testing::Truly;
 
 namespace
 {
-ShapeSet readShapeSetFromString(const std::string &input)
+ShapeSet readShapeSetFromString(const std::string& input)
 {
   std::istringstream istream(input);
   return klee::readShapeSet(istream);
 }
 
-ShapeSet readShapeSetFromString(const std::string &input, InputFormat format)
+ShapeSet readShapeSetFromString(const std::string& input, InputFormat format)
 {
   std::istringstream istream(input);
   return klee::readShapeSet(istream, format);
@@ -77,7 +77,7 @@ TEST(IOTest, readShapeSet_invalidDimensions)
       shapes: [])");
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("dimensions"));
   }
@@ -95,16 +95,16 @@ TEST(IOTest, readShapeSet_shapeWithNoReplacementLists)
               path: path/to/file.format
     )");
 
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
 
-  auto &shape = shapes[0];
+  auto& shape = shapes[0];
   EXPECT_TRUE(shape.replaces("mat1"));
   EXPECT_TRUE(shape.replaces("mat2"));
   EXPECT_EQ("wheel", shape.getName());
   EXPECT_EQ("steel", shape.getMaterial());
 
-  auto &geometry = shape.getGeometry();
+  auto& geometry = shape.getGeometry();
   EXPECT_EQ("test_format", geometry.getFormat());
   EXPECT_EQ("path/to/file.format", geometry.getPath());
   EXPECT_FALSE(geometry.getGeometryOperator());
@@ -126,10 +126,10 @@ TEST(IOTest, readShapeSet_shapeWithReplacesList)
               path: path/to/file.format
 )");
 
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
 
-  auto &shape = shapes[0];
+  auto& shape = shapes[0];
   EXPECT_TRUE(shape.replaces("mat1"));
   EXPECT_TRUE(shape.replaces("mat2"));
   EXPECT_FALSE(shape.replaces("material_not_in_list"));
@@ -148,10 +148,10 @@ TEST(IOTest, readShapeSet_shapeWithDoesNotReplaceList)
               path: path/to/file.format
     )");
 
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
 
-  auto &shape = shapes[0];
+  auto& shape = shapes[0];
   EXPECT_FALSE(shape.replaces("mat1"));
   EXPECT_FALSE(shape.replaces("mat2"));
   EXPECT_TRUE(shape.replaces("material_not_in_list"));
@@ -174,7 +174,7 @@ TEST(IOTest, readShapeSet_missingName)
     readShapeSetFromString(input);
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("name"));
   }
@@ -197,7 +197,7 @@ TEST(IOTest, readShapeSet_missingMaterial)
     readShapeSetFromString(input);
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("material"));
   }
@@ -223,7 +223,7 @@ TEST(IOTest, readShapeSet_missingGeometryPath)
       readShapeSetFromString(input);
       FAIL() << "Should have thrown";
     }
-    catch(const KleeError &err)
+    catch(const KleeError& err)
     {
       EXPECT_THAT(err.what(), HasSubstr("Provided format"));
     }
@@ -246,7 +246,7 @@ TEST(IOTest, readShapeSet_missingGeometryPath)
       readShapeSetFromString(input);
       SUCCEED();
     }
-    catch(const KleeError &err)
+    catch(const KleeError& err)
     {
       FAIL() << "Should not have thrown. Error message: " << err.what();
     }
@@ -270,7 +270,7 @@ TEST(IOTest, readShapeSet_formatGeometryFormat)
     readShapeSetFromString(input);
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("format"));
   }
@@ -322,7 +322,7 @@ TEST(IOTest, readShapeSet_unsupportedFileExtension)
     klee::readShapeSet("testFile.json");
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("Unsupported Klee input file extension '.json'"));
     EXPECT_THAT(err.what(), HasSubstr(".yaml, .yml, and .lua"));
@@ -339,7 +339,7 @@ TEST(IOTest, readShapeSet_streamDefaultsToYaml)
     )");
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("dimensions"));
   }
@@ -357,7 +357,7 @@ TEST(IOTest, readShapeSet_luaUnavailableDiagnostic)
                            InputFormat::Lua);
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_STREQ(
       "Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library "
@@ -386,7 +386,7 @@ TEST(IOTest, readShapeSet_luaStreamMinimalShapeList)
                                          InputFormat::Lua);
 
   ASSERT_EQ(1u, shapeSet.getShapes().size());
-  const auto &shape = shapeSet.getShapes()[0];
+  const auto& shape = shapeSet.getShapes()[0];
   EXPECT_EQ("wheel", shape.getName());
   EXPECT_EQ("steel", shape.getMaterial());
   EXPECT_EQ("test_format", shape.getGeometry().getFormat());
@@ -502,21 +502,21 @@ TEST(IOTest, readShapeSet_luaGeometryOperators)
                                          InputFormat::Lua);
 
   ASSERT_EQ(2u, shapeSet.getShapes().size());
-  const auto &geometryOperator = shapeSet.getShapes()[0].getGeometry().getGeometryOperator();
+  const auto& geometryOperator = shapeSet.getShapes()[0].getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
   ASSERT_EQ(4u, composite->getOperators().size());
 
-  auto rotation = dynamic_cast<const Rotation *>(composite->getOperators()[0].get());
+  auto rotation = dynamic_cast<const Rotation*>(composite->getOperators()[0].get());
   ASSERT_NE(rotation, nullptr);
   EXPECT_EQ(rotation->getAngle(), 90);
 
-  auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 30}));
 
-  auto scale = dynamic_cast<const Scale *>(composite->getOperators()[2].get());
+  auto scale = dynamic_cast<const Scale*>(composite->getOperators()[2].get());
   ASSERT_NE(scale, nullptr);
   EXPECT_DOUBLE_EQ(1.5, scale->getXFactor());
   EXPECT_DOUBLE_EQ(2.5, scale->getYFactor());
@@ -576,13 +576,13 @@ TEST(IOTest, readShapeSet_luaNamedGeometryOperatorsWithNestedRef)
     shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
   ASSERT_TRUE(composite);
   ASSERT_EQ(1u, composite->getOperators().size());
-  auto referenced = dynamic_cast<const CompositeOperator *>(composite->getOperators()[0].get());
+  auto referenced = dynamic_cast<const CompositeOperator*>(composite->getOperators()[0].get());
   ASSERT_NE(referenced, nullptr);
   ASSERT_EQ(2u, referenced->getOperators().size());
-  auto nested = dynamic_cast<const CompositeOperator *>(referenced->getOperators()[0].get());
+  auto nested = dynamic_cast<const CompositeOperator*>(referenced->getOperators()[0].get());
   ASSERT_NE(nested, nullptr);
   EXPECT_EQ(1u, nested->getOperators().size());
-  auto translation = dynamic_cast<const Translation *>(referenced->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation*>(referenced->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
@@ -660,9 +660,215 @@ TEST(IOTest, readShapeSet_luaGeneratedOrdinaryTableValues)
     shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
   ASSERT_TRUE(composite);
   ASSERT_EQ(1u, composite->getOperators().size());
-  auto translation = dynamic_cast<const Translation *>(composite->getOperators()[0].get());
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[0].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaOperatorCallbacks)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local dim = 3
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "callbacks",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "callbacks.stl",
+          units = "cm",
+          operators = {
+            {
+              rotate = function() return 45 end,
+              axis = function() return {0, 0, 1} end,
+              center = function() return Vector.new(1, 2, 3) end
+            },
+            { translate = function() return {4, 5, 6} end },
+            { scale = function() return 2.0 end },
+            {
+              scale = function() return {1.5, 2.5, 3.5} end,
+              center = function() return {1, 1, 1} end
+            }
+          }
+        }
+      },
+      {
+        name = "slice_callbacks",
+        material = "glass",
+        geometry = {
+          format = "stl",
+          path = "slice_callbacks.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            {
+              slice = {
+                origin = function() return {1, 2, 3} end,
+                normal = function() return {0, 0, 1} end,
+                up = function() return {0, 1, 0} end
+              }
+            }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(2u, shapeSet.getShapes().size());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(4u, composite->getOperators().size());
+
+  auto rotation = dynamic_cast<const Rotation*>(composite->getOperators()[0].get());
+  ASSERT_NE(rotation, nullptr);
+  EXPECT_DOUBLE_EQ(45.0, rotation->getAngle());
+  EXPECT_THAT(rotation->getAxis(), AlmostEqVector(Vector3D {0, 0, 1}));
+  EXPECT_THAT(rotation->getCenter(), AlmostEqPoint(Point3D {1, 2, 3}));
+
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[1].get());
+  ASSERT_NE(translation, nullptr);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 5, 6}));
+
+  auto uniformScale = dynamic_cast<const Scale*>(composite->getOperators()[2].get());
+  ASSERT_NE(uniformScale, nullptr);
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getYFactor());
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getZFactor());
+
+  auto vectorScale = dynamic_cast<const Scale*>(composite->getOperators()[3].get());
+  ASSERT_NE(vectorScale, nullptr);
+  EXPECT_DOUBLE_EQ(1.5, vectorScale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.5, vectorScale->getYFactor());
+  EXPECT_DOUBLE_EQ(3.5, vectorScale->getZFactor());
+  EXPECT_THAT(vectorScale->getCenter(), AlmostEqPoint(Point3D {1, 1, 1}));
+
+  auto sliceComposite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[1].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(sliceComposite);
+  ASSERT_EQ(1u, sliceComposite->getOperators().size());
+  auto slice = std::dynamic_pointer_cast<const SliceOperator>(sliceComposite->getOperators()[0]);
+  ASSERT_TRUE(slice);
+  EXPECT_THAT(slice->getOrigin(), AlmostEqPoint(Point3D {1, 2, 3}));
+  EXPECT_THAT(slice->getNormal(), AlmostEqVector(Vector3D {0, 0, 1}));
+  EXPECT_THAT(slice->getUp(), AlmostEqVector(Vector3D {0, 1, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaDimensionDependentCallback)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local dim = 2
+    local r = 4.0
+    local z = 8.0
+    local x = 1.0
+    local y = 2.0
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            {
+              translate = function()
+                if dim == 2 then
+                  return {r, z}
+                end
+                return {x, y, z}
+              end
+            }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[0].get());
+  ASSERT_NE(translation, nullptr);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaCallbackErrorIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "bad_shape",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "bad.stl",
+            units = "cm",
+            operators = {
+              {
+                translate = function()
+                  error("callback boom")
+                end
+              }
+            }
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("translate"));
+    EXPECT_THAT(err.what(), HasSubstr("bad_shape"));
+    EXPECT_THAT(err.what(), HasSubstr("operator"));
+    EXPECT_THAT(err.what(), HasSubstr("callback boom"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaCallbackWrongVectorDimensionIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "wrong_dim",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "wrong_dim.stl",
+            units = "cm",
+            operators = {
+              { translate = function() return {1, 2, 3} end }
+            }
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("translate"));
+    EXPECT_THAT(err.what(), HasSubstr("wrong_dim"));
+    EXPECT_THAT(err.what(), HasSubstr("Wrong size"));
+  }
 }
 
 TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
@@ -677,7 +883,7 @@ TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
                            InputFormat::Lua);
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("unexpected_global"));
   }
@@ -701,9 +907,9 @@ TEST(IOTest, readShapeSet_shapeWithReplacesAndDoesNotReplaceLists)
   {
     readShapeSetFromString(input);
   }
-  catch(const KleeError &error)
+  catch(const KleeError& error)
   {
-    EXPECT_THAT(error.getErrors(), Contains(Truly([](const inlet::VerificationError &err) {
+    EXPECT_THAT(error.getErrors(), Contains(Truly([](const inlet::VerificationError& err) {
                   return err.path == axom::Path {"shapes/_inlet_collection/0"} &&
                     err.messageContains("replaces") && err.messageContains("does_not_replace");
                 })));
@@ -725,21 +931,21 @@ TEST(IOTest, readShapeSet_geometryOperators)
               - rotate: 90
               - translate: [10, 20]
     )");
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
-  auto &shape = shapes[0];
-  auto &geometryOperator = shape.getGeometry().getGeometryOperator();
+  auto& shape = shapes[0];
+  auto& geometryOperator = shape.getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
 
   EXPECT_EQ(2u, composite->getOperators().size());
 
-  auto rotation = dynamic_cast<const Rotation *>(composite->getOperators()[0].get());
+  auto rotation = dynamic_cast<const Rotation*>(composite->getOperators()[0].get());
   ASSERT_NE(rotation, nullptr);
   EXPECT_EQ(rotation->getAngle(), 90);
 
-  auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
   EXPECT_EQ(LengthUnit::m, translation->getEndProperties().units);
@@ -761,16 +967,16 @@ TEST(IOTest, readShapeSet_geometryOperators_scaleWithCenter)
               - scale: [1.5, 2.5]
                 center: [10, 20]
     )");
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
-  auto &geometryOperator = shapes[0].getGeometry().getGeometryOperator();
+  auto& geometryOperator = shapes[0].getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
 
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
   ASSERT_EQ(1u, composite->getOperators().size());
 
-  auto scale = dynamic_cast<const Scale *>(composite->getOperators()[0].get());
+  auto scale = dynamic_cast<const Scale*>(composite->getOperators()[0].get());
   ASSERT_NE(scale, nullptr);
   EXPECT_DOUBLE_EQ(1.5, scale->getXFactor());
   EXPECT_DOUBLE_EQ(2.5, scale->getYFactor());
@@ -796,7 +1002,7 @@ TEST(IOTest, readShapeSet_geometryOperatorsWithoutUnits)
     )");
     FAIL() << "Expected a failure";
   }
-  catch(const KleeError &ex)
+  catch(const KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("operator"));
     EXPECT_THAT(ex.what(), HasSubstr("units"));
@@ -818,17 +1024,17 @@ TEST(IOTest, readShapeSet_geometryOperatorsWithUnits)
               - rotate: 90
               - translate: [10, 20]
     )");
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
 
-  auto &geometryOperator = shapes[0].getGeometry().getGeometryOperator();
+  auto& geometryOperator = shapes[0].getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
 
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
 
   EXPECT_EQ(2u, composite->getOperators().size());
-  auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
@@ -849,16 +1055,16 @@ TEST(IOTest, readShapeSet_differentDimensions)
               - slice:
                  x: 10
     )");
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
-  auto &shape = shapes[0];
-  auto &geometry = shape.getGeometry();
+  auto& shape = shapes[0];
+  auto& geometry = shape.getGeometry();
   TransformableGeometryProperties expectedStartProperties {Dimensions::Three, LengthUnit::cm};
   TransformableGeometryProperties expectedEndProperties {Dimensions::Two, LengthUnit::cm};
   EXPECT_EQ(expectedStartProperties, geometry.getStartProperties());
   EXPECT_EQ(expectedEndProperties, geometry.getEndProperties());
   EXPECT_EQ(shapeSet.getDimensions(), geometry.getEndProperties().dimensions);
-  auto &geometryOperator = geometry.getGeometryOperator();
+  auto& geometryOperator = geometry.getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
@@ -907,7 +1113,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
                  x: 10
     )");
 
-    auto &shapes = shapeSet.getShapes();
+    auto& shapes = shapeSet.getShapes();
     ASSERT_EQ(4u, shapes.size());
 
     const Dimensions exp_global_dims {Dimensions::Two};
@@ -915,7 +1121,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // no_explicit_dims -- should be same as global dims
     {
-      auto &geometry = shapes[0].getGeometry();
+      auto& geometry = shapes[0].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Two};
       const Dimensions exp_end_dims {Dimensions::Two};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -925,7 +1131,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // explicit_dims_same_as_global -- should be same as global dims
     {
-      auto &geometry = shapes[1].getGeometry();
+      auto& geometry = shapes[1].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Two};
       const Dimensions exp_end_dims {Dimensions::Two};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -934,7 +1140,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // explicit_dims_different_from_global -- differs from global dims
     {
-      auto &geometry = shapes[2].getGeometry();
+      auto& geometry = shapes[2].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Three};
       const Dimensions exp_end_dims {Dimensions::Three};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -943,7 +1149,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // explicit_dims_with_start_dim -- changes dimension
     {
-      auto &geometry = shapes[3].getGeometry();
+      auto& geometry = shapes[3].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Three};
       const Dimensions exp_end_dims {Dimensions::Two};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -989,7 +1195,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
                  x: 10
     )");
 
-    auto &shapes = shapeSet.getShapes();
+    auto& shapes = shapeSet.getShapes();
     ASSERT_EQ(4u, shapes.size());
 
     const Dimensions exp_global_dims {Dimensions::Three};
@@ -997,7 +1203,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // no_explicit_dims -- should be same as global dims
     {
-      auto &geometry = shapes[0].getGeometry();
+      auto& geometry = shapes[0].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Three};
       const Dimensions exp_end_dims {Dimensions::Three};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -1007,7 +1213,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // explicit_dims_same_as_global -- should be same as global dims
     {
-      auto &geometry = shapes[1].getGeometry();
+      auto& geometry = shapes[1].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Three};
       const Dimensions exp_end_dims {Dimensions::Three};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -1016,7 +1222,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // explicit_dims_different_from_global -- differs from global dims
     {
-      auto &geometry = shapes[2].getGeometry();
+      auto& geometry = shapes[2].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Two};
       const Dimensions exp_end_dims {Dimensions::Two};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -1025,7 +1231,7 @@ TEST(IOTest, readShapeSet_explicitDimensions)
 
     // explicit_dims_with_start_dim -- changes dimension
     {
-      auto &geometry = shapes[3].getGeometry();
+      auto& geometry = shapes[3].getGeometry();
       const Dimensions exp_start_dims {Dimensions::Three};
       const Dimensions exp_end_dims {Dimensions::Two};
       EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
@@ -1050,7 +1256,7 @@ TEST(IOTest, readShapeSet_wrongEndDimensions)
       )");
     FAIL() << "Expected an error";
   }
-  catch(const KleeError &ex)
+  catch(const KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("dimensions"));
   }
@@ -1078,22 +1284,22 @@ TEST(IOTest, readShapeSet_namedGeometryOperators)
             - rotate: 90
             - translate: [10, 20]
     )");
-  auto &shapes = shapeSet.getShapes();
+  auto& shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
-  auto &shape = shapes[0];
-  auto &geometryOperator = shape.getGeometry().getGeometryOperator();
+  auto& shape = shapes[0];
+  auto& geometryOperator = shape.getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
   EXPECT_EQ(1u, composite->getOperators().size());
-  auto referenced = dynamic_cast<const CompositeOperator *>(composite->getOperators()[0].get());
+  auto referenced = dynamic_cast<const CompositeOperator*>(composite->getOperators()[0].get());
   EXPECT_EQ(2u, referenced->getOperators().size());
-  auto translation = dynamic_cast<const Translation *>(referenced->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation*>(referenced->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;
