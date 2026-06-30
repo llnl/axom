@@ -11,13 +11,20 @@
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
 
+#include "axom/config.hpp"
 #include "axom/inlet.hpp"
+#ifdef AXOM_USE_LUA
+  #include "axom/inlet/LuaReader.hpp"
+#endif
 
-#include <fstream>
+#include <algorithm>
+#include <cctype>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <tuple>
+#include <unordered_set>
 
 namespace axom
 {
@@ -111,7 +118,7 @@ void defineGeometry(inlet::Container &geometry)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
-                     "The path of the input file, relative to the yaml file."
+                     "The path of the input file, relative to the Klee input deck."
                      "Required unless 'format' is 'none'");
   internal::defineDimensionsField(geometry,
                                   "start_dimensions",
@@ -297,20 +304,97 @@ internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions
   }
   return internal::NamedOperatorMap {};
 }
-}  // namespace
 
-ShapeSet readShapeSet(std::istream &stream)
+std::string lowercase(std::string value)
 {
-  std::string contents {std::istreambuf_iterator<char>(stream), {}};
+  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
+    return static_cast<char>(std::tolower(ch));
+  });
+  return value;
+}
 
-  auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
-  reader->parseString(contents);
+std::string extensionOf(const std::string &filePath)
+{
+  const auto slash = filePath.find_last_of("/\\");
+  const auto dot = filePath.find_last_of('.');
+  if(dot == std::string::npos || (slash != std::string::npos && dot < slash))
+  {
+    return "";
+  }
+  return lowercase(filePath.substr(dot));
+}
 
+InputFormat inferInputFormat(const std::string &filePath)
+{
+  const auto extension = extensionOf(filePath);
+  if(extension == ".yaml" || extension == ".yml")
+  {
+    return InputFormat::YAML;
+  }
+  if(extension == ".lua")
+  {
+    return InputFormat::Lua;
+  }
+
+  throw KleeError(
+    {Path {filePath},
+     axom::fmt::format("Unsupported Klee input file extension '{}'. Supported extensions are "
+                       ".yaml, .yml, and .lua.",
+                       extension.empty() ? "<none>" : extension)});
+}
+
+std::unique_ptr<inlet::Reader> createReader(InputFormat format)
+{
+  switch(format)
+  {
+  case InputFormat::YAML:
+    return std::make_unique<inlet::YAMLReader>();
+  case InputFormat::Lua:
+#ifdef AXOM_USE_LUA
+    return std::make_unique<inlet::LuaReader>();
+#else
+    throw KleeError(
+      {Path {"<unknown path>"},
+       "Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. "
+       "Rebuild Axom with Lua enabled or convert deck to YAML."});
+#endif
+  }
+
+  throw KleeError({Path {"<unknown path>"}, "Unsupported Klee input format."});
+}
+
+void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
+                                  std::vector<inlet::VerificationError> &errors)
+{
+  std::unordered_set<std::string> unexpectedGlobals;
+  for(const auto &name : doc.unexpectedNames())
+  {
+    const auto slash = name.find('/');
+    unexpectedGlobals.insert(name.substr(0, slash));
+  }
+
+  for(const auto &name : unexpectedGlobals)
+  {
+    errors.push_back({Path {name},
+                      axom::fmt::format("Unexpected global variable '{}' in Lua input deck. Use "
+                                        "'local' for helper values and functions.",
+                                        name)});
+  }
+}
+
+ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader, bool rejectUnexpectedGlobals)
+{
   sidre::DataStore dataStore;
   inlet::Inlet doc(std::move(reader), dataStore.getRoot());
   defineKleeSchema(doc);
   std::vector<inlet::VerificationError> errors;
-  if(!doc.verify(&errors))
+  bool verified = doc.verify(&errors);
+  if(rejectUnexpectedGlobals)
+  {
+    appendUnexpectedGlobalErrors(doc, errors);
+    verified = verified && errors.empty();
+  }
+  if(!verified)
   {
     if(errors.empty())
     {
@@ -328,12 +412,25 @@ ShapeSet readShapeSet(std::istream &stream)
   shapeSet.setShapes(convert(shapeData, dimensions, namedOperators));
   return shapeSet;
 }
+}  // namespace
+
+ShapeSet readShapeSet(std::istream &stream) { return readShapeSet(stream, InputFormat::YAML); }
+
+ShapeSet readShapeSet(std::istream &stream, InputFormat format)
+{
+  std::string contents {std::istreambuf_iterator<char>(stream), {}};
+
+  auto reader = createReader(format);
+  reader->parseString(contents);
+  return readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
+}
 
 ShapeSet readShapeSet(const std::string &filePath)
 {
-  std::ifstream fin {filePath};
-  auto shapeSet = readShapeSet(fin);
-  fin.close();
+  const auto format = inferInputFormat(filePath);
+  auto reader = createReader(format);
+  reader->parseFile(filePath);
+  auto shapeSet = readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
   shapeSet.setPath(filePath);
   return shapeSet;
 }

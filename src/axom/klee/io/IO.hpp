@@ -16,18 +16,36 @@ namespace axom
 {
 namespace klee
 {
+/// Input deck formats supported by Klee.
+enum class InputFormat
+{
+  YAML,
+  Lua
+};
+
 /**
  * Read a ShapeSet from an input stream.
  *
  * \param stream the stream from which to read the ShapeSet
+ * \note This overload reads YAML for backward compatibility.
  * \throws runtime_error if the input is invalid
  */
 ShapeSet readShapeSet(std::istream &stream);
 
 /**
+ * Read a ShapeSet from an input stream.
+ *
+ * \param stream the stream from which to read the ShapeSet
+ * \param format the input deck format to use
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(std::istream &stream, InputFormat format);
+
+/**
  * Read a ShapeSet from a specified file
  *
  * \param filePath the file from which to read the ShapeSet
+ * \note The input format is inferred from the file extension.
  * \return the ShapeSet read from the file
  * \throws runtime_error if the input is invalid
  */
