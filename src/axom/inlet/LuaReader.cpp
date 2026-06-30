@@ -13,6 +13,7 @@
  */
 
 #include <fstream>
+#include <stdexcept>
 
 #include "axom/inlet/LuaReader.hpp"
 
@@ -380,9 +381,15 @@ template <typename... Args>
 axom::sol::protected_function_result callWith(const axom::sol::protected_function& func,
                                               Args&&... args)
 {
+  // Lua functions are exposed to clients as std::functions that can be invoked
+  // after schema verification. Use a catchable failure here so those clients can
+  // add context; SLIC errors may abort or only log and continue.
   auto tentative_result = func(std::forward<Args>(args)...);
-  SLIC_ERROR_IF(!tentative_result.valid(),
-                "[Inlet] Lua function call failed, argument types possibly incorrect");
+  if(!tentative_result.valid())
+  {
+    axom::sol::error err = tentative_result;
+    throw std::runtime_error(fmt::format("[Inlet] Lua function call failed: {0}", err.what()));
+  }
   return tentative_result;
 }
 
@@ -401,13 +408,68 @@ template <typename Ret>
 Ret extractResult(axom::sol::protected_function_result&& res)
 {
   axom::sol::optional<Ret> option = res;
-  SLIC_ERROR_IF(!option, "[Inlet] Lua function call failed, return types possibly incorrect");
+  if(!option)
+  {
+    // A failed result conversion is a runtime input error for this function
+    // call. Throwing avoids dereferencing an empty optional after a SLIC log.
+    throw std::runtime_error("[Inlet] Lua function call failed, return types possibly incorrect");
+  }
   return option.value();
 }
 
 template <>
 FunctionType::Void extractResult<FunctionType::Void>(axom::sol::protected_function_result&&)
 { }
+
+template <>
+FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_function_result&& res)
+{
+  // Keep Vector.new(...) returns supported, but also accept raw numeric Lua
+  // tables so input decks can write idiomatic vector callbacks such as
+  // function() return {1.0, 2.0, 3.0} end.
+  axom::sol::optional<FunctionType::Vector> vector_option = res;
+  if(vector_option)
+  {
+    return vector_option.value();
+  }
+
+  axom::sol::optional<axom::sol::table> table_option = res;
+  if(table_option)
+  {
+    axom::sol::table table = table_option.value();
+    const auto size = table.size();
+    if(size < 1 || size > 3)
+    {
+      throw std::runtime_error(
+        fmt::format("[Inlet] Lua vector function returned a table with {0} entries; expected 1 to "
+                    "3 numeric entries",
+                    size));
+    }
+
+    std::vector<double> values;
+    values.reserve(size);
+    for(std::size_t i = 1; i <= size; ++i)
+    {
+      axom::sol::optional<double> value = table[i];
+      if(!value)
+      {
+        throw std::runtime_error(fmt::format(
+          "[Inlet] Lua vector function returned a table with a non-numeric entry at index {0}",
+          i));
+      }
+      values.push_back(value.value());
+    }
+    return FunctionType::Vector {values.data(), static_cast<int>(values.size())};
+  }
+
+  axom::sol::optional<double> scalar_option = res;
+  if(scalar_option)
+  {
+    return FunctionType::Vector {scalar_option.value()};
+  }
+
+  throw std::runtime_error("[Inlet] Lua function call failed, return types possibly incorrect");
+}
 
 /*!
  *****************************************************************************
@@ -540,10 +602,17 @@ ReaderResult LuaReader::getValue(const std::string& id, T& value)
 {
   std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
 
+  // A schema may register a function alias with the same input path as a
+  // concrete field. Treat a Lua function as absent for value readers so the
+  // function schema entry can claim it instead of failing as a wrong type.
   if(tokens.size() == 1)
   {
     if((*m_lua)[tokens[0]].valid())
     {
+      if((*m_lua)[tokens[0]].get_type() == axom::sol::type::function)
+      {
+        return ReaderResult::NotFound;
+      }
       return detail::checkedGet((*m_lua)[tokens[0]], value);
     }
     return ReaderResult::NotFound;
@@ -555,6 +624,10 @@ ReaderResult LuaReader::getValue(const std::string& id, T& value)
   {
     if(t[tokens.back()].valid())
     {
+      if(t[tokens.back()].get_type() == axom::sol::type::function)
+      {
+        return ReaderResult::NotFound;
+      }
       return detail::checkedGet(t[tokens.back()], value);
     }
   }
@@ -576,6 +649,24 @@ ReaderResult LuaReader::getMap(const std::string& id,
 {
   values.clear();
   std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
+
+  // As with scalar value reads, a function at this path belongs to a function
+  // schema alias rather than to the map reader.
+  if(tokens.size() == 1 && (*m_lua)[tokens[0]].valid() &&
+     (*m_lua)[tokens[0]].get_type() == axom::sol::type::function)
+  {
+    return ReaderResult::NotFound;
+  }
+
+  if(tokens.size() > 1)
+  {
+    axom::sol::table parent;
+    if(traverseToTable(tokens.begin(), tokens.end() - 1, parent) && parent[tokens.back()].valid() &&
+       parent[tokens.back()].get_type() == axom::sol::type::function)
+    {
+      return ReaderResult::NotFound;
+    }
+  }
 
   axom::sol::table t;
   if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), t))
