@@ -218,6 +218,29 @@ def test_get_view():
     assert view2 == None
 
 
+def test_group_and_view_checksum():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    group = root.createGroup("checksum_group")
+    view = group.createViewAndAllocate("values", pysidre.TypeID.INT32_ID, 4)
+
+    data = view.getDataArray()
+    data[:] = np.array([1, 2, 3, 4], dtype=np.int32)
+
+    view_checksum = float(view.checksum())
+    group_checksum = float(group.checksum())
+
+    data[2] = 9
+    mutated_view_checksum = float(view.checksum())
+    mutated_group_checksum = float(group.checksum())
+
+    assert mutated_view_checksum != view_checksum
+    assert mutated_group_checksum != group_checksum
+
+    group.createGroup("child")
+    assert float(group.checksum()) != mutated_group_checksum
+
+
 #------------------------------------------------------------------------------
 # createView, hasView(), getView(), destroyView() with path strings
 #------------------------------------------------------------------------------

@@ -796,6 +796,7 @@ NB_MODULE(pysidre, m_sidre)
     .def("getPathName",
          &View::getPathName,
          "Return the full path of the View object, including its name.")
+    .def("checksum", &View::checksum, "Return a checksum for the View's name, metadata, and data.")
     .def("getOwningGroup",
          nb::overload_cast<>(&View::getOwningGroup),
          nb::rv_policy::reference_internal,
@@ -1162,6 +1163,9 @@ NB_MODULE(pysidre, m_sidre)
     .def("getName", &Group::getName, "Return const reference to name of Group object.")
     .def("getPath", &Group::getPath, "Return path of Group object, not including its name.")
     .def("getPathName", &Group::getPathName, "Return full path of Group object, including its name.")
+    .def("checksum",
+         &Group::checksum,
+         "Return a checksum for the Group's name, child structure, and descendant view data.")
     .def("getParent",
          nb::overload_cast<>(&Group::getParent, nb::const_),
          nb::rv_policy::reference_internal,
