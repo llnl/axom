@@ -28,6 +28,7 @@ namespace primal = axom::primal;
 using klee::CompositeOperator;
 using klee::Dimensions;
 using klee::InputFormat;
+using klee::InputVariables;
 using klee::KleeError;
 using klee::LengthUnit;
 using klee::PointTransform;
@@ -57,6 +58,14 @@ ShapeSet readShapeSetFromString(const std::string& input, InputFormat format)
 {
   std::istringstream istream(input);
   return klee::readShapeSet(istream, format);
+}
+
+ShapeSet readShapeSetFromString(const std::string& input,
+                                InputFormat format,
+                                const InputVariables& variables)
+{
+  std::istringstream istream(input);
+  return klee::readShapeSet(istream, format, variables);
 }
 
 template <typename Parser>
@@ -360,6 +369,25 @@ TEST(IOTest, readShapeSet_streamDefaultsToYaml)
   }
 }
 
+TEST(IOTest, readShapeSet_yamlRejectsInputVariables)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions: 2
+      shapes: []
+    )",
+                           InputFormat::YAML,
+                           {{"dimensions", klee::InputVariableValue {2}}});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("input variables"));
+    EXPECT_THAT(err.what(), HasSubstr("Lua"));
+  }
+}
+
 #ifndef AXOM_USE_LUA
 TEST(IOTest, readShapeSet_luaUnavailableDiagnostic)
 {
@@ -407,6 +435,73 @@ TEST(IOTest, readShapeSet_luaStreamMinimalShapeList)
   EXPECT_EQ("test_format", shape.getGeometry().getFormat());
   EXPECT_EQ("path/to/file.format", shape.getGeometry().getPath());
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
+}
+
+TEST(IOTest, readShapeSet_luaInputVariablesControlDimensionAndTransform)
+{
+  InputVariables variables {
+    {"dimensions", klee::InputVariableValue {2}},
+    {"shape_suffix", klee::InputVariableValue {std::string {"2d"}}},
+    {"lift", klee::InputVariableValue {3.0}},
+    {"stretch", klee::InputVariableValue {2.0}},
+  };
+
+  auto shapeSet = readShapeSetFromString(R"(
+    local function shape_path()
+      return "part_" .. shape_suffix .. ".stl"
+    end
+
+    local function warp(p)
+      if dimensions == 2 then
+        return {p.x * stretch, p.y + lift}
+      end
+      return {p.x * stretch, p.y, p.z + lift}
+    end
+
+    shapes = {
+      {
+        name = "controlled",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = shape_path(),
+          units = "cm",
+          operators = {
+            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} },
+            { transform = warp }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         variables);
+
+  ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_EQ("part_2d.stl", geometry.getPath());
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
+  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 99.0}), AlmostEqPoint(Point3D {6.0, 10.0, 0.0}));
+}
+
+TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           {{"shape-dim", klee::InputVariableValue {2}}});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Invalid Klee Lua input variable name"));
+    EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
+  }
 }
 
 TEST(IOTest, readShapeSet_luaFileExtension)

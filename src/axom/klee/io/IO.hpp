@@ -11,6 +11,8 @@
 
 #include <string>
 #include <istream>
+#include <unordered_map>
+#include <variant>
 
 namespace axom
 {
@@ -22,6 +24,12 @@ enum class InputFormat
   YAML,
   Lua
 };
+
+/// Primitive value types that may be injected into a Lua input deck.
+using InputVariableValue = std::variant<bool, int, double, std::string>;
+
+/// Variables to make available to a Lua input deck before it is evaluated.
+using InputVariables = std::unordered_map<std::string, InputVariableValue>;
 
 /**
  * Read a ShapeSet from an input stream.
@@ -42,6 +50,17 @@ ShapeSet readShapeSet(std::istream &stream);
 ShapeSet readShapeSet(std::istream &stream, InputFormat format);
 
 /**
+ * Read a ShapeSet from an input stream with caller-provided input variables.
+ *
+ * \param stream the stream from which to read the ShapeSet
+ * \param format the input deck format to use
+ * \param variables primitive values to inject into Lua before deck evaluation
+ * \note Input variables are supported only for Lua input decks.
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(std::istream &stream, InputFormat format, const InputVariables &variables);
+
+/**
  * Read a ShapeSet from a specified file
  *
  * \param filePath the file from which to read the ShapeSet
@@ -50,6 +69,18 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format);
  * \throws runtime_error if the input is invalid
  */
 ShapeSet readShapeSet(const std::string &filePath);
+
+/**
+ * Read a ShapeSet from a specified file with caller-provided input variables.
+ *
+ * \param filePath the file from which to read the ShapeSet
+ * \param variables primitive values to inject into Lua before deck evaluation
+ * \note The input format is inferred from the file extension. Input variables
+ *       are supported only for Lua input decks.
+ * \return the ShapeSet read from the file
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(const std::string &filePath, const InputVariables &variables);
 
 }  // namespace klee
 }  // namespace axom

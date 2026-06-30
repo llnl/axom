@@ -15,6 +15,7 @@
 #include "axom/inlet.hpp"
 #ifdef AXOM_USE_LUA
   #include "axom/inlet/LuaReader.hpp"
+  #include "axom/sol.hpp"
 #endif
 
 #include <algorithm>
@@ -32,6 +33,18 @@ namespace klee
 {
 namespace
 {
+#ifdef AXOM_USE_LUA
+class KleeLuaReader : public inlet::LuaReader
+{
+public:
+  void setInputVariable(const std::string& name, const InputVariableValue& value)
+  {
+    auto lua = solState();
+    std::visit([&](const auto& typedValue) { (*lua)[name] = typedValue; }, value);
+  }
+};
+#endif
+
 // Because we can't have context-aware validation when extracting the
 // data from Inlet, we need a set of structs that parallels the real
 // classes. These are used to do some basic validation, and then we convert
@@ -348,15 +361,72 @@ InputFormat inferInputFormat(const std::string& filePath)
                        extension.empty() ? "<none>" : extension)});
 }
 
-std::unique_ptr<inlet::Reader> createReader(InputFormat format)
+bool isLuaIdentifier(const std::string& name)
 {
+  if(name.empty())
+  {
+    return false;
+  }
+
+  auto isNameStart = [](unsigned char ch) { return std::isalpha(ch) || ch == '_'; };
+  auto isNameChar = [](unsigned char ch) { return std::isalnum(ch) || ch == '_'; };
+
+  if(!isNameStart(static_cast<unsigned char>(name.front())))
+  {
+    return false;
+  }
+  return std::all_of(name.begin() + 1, name.end(), [&](char ch) {
+    return isNameChar(static_cast<unsigned char>(ch));
+  });
+}
+
+std::unordered_set<std::string> inputVariableNames(const InputVariables& variables)
+{
+  std::unordered_set<std::string> names;
+  for(const auto& entry : variables)
+  {
+    names.insert(entry.first);
+  }
+  return names;
+}
+
+void validateInputVariables(const InputVariables& variables)
+{
+  for(const auto& entry : variables)
+  {
+    if(!isLuaIdentifier(entry.first))
+    {
+      throw KleeError({Path {entry.first.empty() ? "<empty>" : entry.first},
+                       axom::fmt::format("Invalid Klee Lua input variable name '{}'. Input "
+                                         "variable names must be Lua identifiers.",
+                                         entry.first)});
+    }
+  }
+}
+
+std::unique_ptr<inlet::Reader> createReader(InputFormat format, const InputVariables& variables)
+{
+  if(format != InputFormat::Lua && !variables.empty())
+  {
+    throw KleeError(
+      {Path {"<unknown path>"}, "Klee input variables are only supported for Lua input decks."});
+  }
+  validateInputVariables(variables);
+
   switch(format)
   {
   case InputFormat::YAML:
     return std::make_unique<inlet::YAMLReader>();
   case InputFormat::Lua:
 #ifdef AXOM_USE_LUA
-    return std::make_unique<inlet::LuaReader>();
+  {
+    auto reader = std::make_unique<KleeLuaReader>();
+    for(const auto& entry : variables)
+    {
+      reader->setInputVariable(entry.first, entry.second);
+    }
+    return reader;
+  }
 #else
     throw KleeError(
       {Path {"<unknown path>"},
@@ -369,7 +439,8 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format)
 }
 
 void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
-                                  std::vector<inlet::VerificationError>& errors)
+                                  std::vector<inlet::VerificationError>& errors,
+                                  const std::unordered_set<std::string>& allowedGlobals)
 {
   std::unordered_set<std::string> unexpectedGlobals;
   for(const auto& name : doc.unexpectedNames())
@@ -380,6 +451,10 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
 
   for(const auto& name : unexpectedGlobals)
   {
+    if(allowedGlobals.find(name) != allowedGlobals.end())
+    {
+      continue;
+    }
     errors.push_back({Path {name},
                       axom::fmt::format("Unexpected global variable '{}' in Lua input deck. Use "
                                         "'local' for helper values and functions.",
@@ -389,7 +464,8 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
 
 ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader,
                                 bool rejectUnexpectedGlobals,
-                                bool enableLuaCallbacks)
+                                bool enableLuaCallbacks,
+                                const std::unordered_set<std::string>& allowedGlobals)
 {
   sidre::DataStore dataStore;
   inlet::Inlet doc(std::move(reader), dataStore.getRoot());
@@ -398,7 +474,7 @@ ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader,
   bool verified = doc.verify(&errors);
   if(rejectUnexpectedGlobals)
   {
-    appendUnexpectedGlobalErrors(doc, errors);
+    appendUnexpectedGlobalErrors(doc, errors, allowedGlobals);
     verified = verified && errors.empty();
   }
   if(!verified)
@@ -425,22 +501,35 @@ ShapeSet readShapeSet(std::istream& stream) { return readShapeSet(stream, InputF
 
 ShapeSet readShapeSet(std::istream& stream, InputFormat format)
 {
+  return readShapeSet(stream, format, InputVariables {});
+}
+
+ShapeSet readShapeSet(std::istream& stream, InputFormat format, const InputVariables& variables)
+{
   std::string contents {std::istreambuf_iterator<char>(stream), {}};
 
-  auto reader = createReader(format);
+  auto reader = createReader(format, variables);
   reader->parseString(contents);
   return readShapeSetFromReader(std::move(reader),
                                 format == InputFormat::Lua,
-                                format == InputFormat::Lua);
+                                format == InputFormat::Lua,
+                                inputVariableNames(variables));
 }
 
 ShapeSet readShapeSet(const std::string& filePath)
 {
+  return readShapeSet(filePath, InputVariables {});
+}
+
+ShapeSet readShapeSet(const std::string& filePath, const InputVariables& variables)
+{
   const auto format = inferInputFormat(filePath);
-  auto reader = createReader(format);
+  auto reader = createReader(format, variables);
   reader->parseFile(filePath);
-  auto shapeSet =
-    readShapeSetFromReader(std::move(reader), format == InputFormat::Lua, format == InputFormat::Lua);
+  auto shapeSet = readShapeSetFromReader(std::move(reader),
+                                         format == InputFormat::Lua,
+                                         format == InputFormat::Lua,
+                                         inputVariableNames(variables));
   shapeSet.setPath(filePath);
   return shapeSet;
 }
