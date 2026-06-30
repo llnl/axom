@@ -171,8 +171,7 @@ private:
  *
  * \return A checksum of the node.
  */
-axom::utilities::CheckSum checksum(const conduit::Node& n,
-                                   bool include_name = true);
+axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name = true);
 
 } /* end namespace sidre */
 } /* end namespace axom */

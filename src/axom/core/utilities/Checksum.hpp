@@ -33,9 +33,10 @@ inline CheckSum calculateChecksum(DataGetter data, axom::IndexType len)
 {
   CheckSum tchk = 0.0;
   CheckSum ckahan = 0.0;
-  for (axom::IndexType j = 0; j < len; ++j) {
+  for(axom::IndexType j = 0; j < len; ++j)
+  {
     const auto value = data(j);
-    CheckSum x = (std::abs(std::sin(j+1.0))+0.5) * value;
+    CheckSum x = (std::abs(std::sin(j + 1.0)) + 0.5) * value;
     CheckSum y = x - ckahan;
     volatile CheckSum t = tchk + y;
     volatile CheckSum z = t - tchk;
@@ -53,9 +54,10 @@ inline CheckSum calculateChecksum(DataGetter data, axom::IndexType len)
  * \return A CheckSum value for the array view.
  */
 template <typename T>
-inline CheckSum checksum(T value, const ScaleFactor scaleFactor = ScaleFactor{1})
+inline CheckSum checksum(T value, const ScaleFactor scaleFactor = ScaleFactor {1})
 {
-  return calculateChecksum([=](axom::IndexType) { return static_cast<CheckSum>(value); }, 1) * scaleFactor;
+  return calculateChecksum([=](axom::IndexType) { return static_cast<CheckSum>(value); }, 1) *
+    scaleFactor;
 }
 
 /*!
@@ -66,9 +68,11 @@ inline CheckSum checksum(T value, const ScaleFactor scaleFactor = ScaleFactor{1}
  * \return A CheckSum value for the array view.
  */
 template <typename T>
-inline CheckSum checksum(axom::ArrayView<T> view, const ScaleFactor scaleFactor = ScaleFactor{1})
+inline CheckSum checksum(axom::ArrayView<T> view, const ScaleFactor scaleFactor = ScaleFactor {1})
 {
-  return calculateChecksum([=](axom::IndexType i) { return static_cast<CheckSum>(view[i]); }, view.size()) * scaleFactor;
+  return calculateChecksum([=](axom::IndexType i) { return static_cast<CheckSum>(view[i]); },
+                           view.size()) *
+    scaleFactor;
 }
 
 }  // namespace utilities

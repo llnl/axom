@@ -45,9 +45,7 @@ TEST(sidre_checksum, conduit_checksum_handles_strided_numeric_arrays)
   contiguous.set_external(contiguousValues, 3);
 
   conduit::Node strided;
-  strided.set_external(
-    conduit::DataType::float64(3, 0, 2 * sizeof(double)),
-    interleavedValues);
+  strided.set_external(conduit::DataType::float64(3, 0, 2 * sizeof(double)), interleavedValues);
 
   EXPECT_EQ(axom::sidre::checksum(contiguous), axom::sidre::checksum(strided));
 }
@@ -64,12 +62,9 @@ TEST(sidre_checksum, conduit_checksum_handles_strided_numeric_array_trees)
   contiguous["fields/values"].set_external(contiguousValues, 3);
 
   conduit::Node strided;
-  strided["fields/ids"].set_external(
-    conduit::DataType::c_int(3, 0, 2 * sizeof(int)),
-    interleavedIds);
-  strided["fields/values"].set_external(
-    conduit::DataType::float64(3, 0, 2 * sizeof(double)),
-    interleavedValues);
+  strided["fields/ids"].set_external(conduit::DataType::c_int(3, 0, 2 * sizeof(int)), interleavedIds);
+  strided["fields/values"].set_external(conduit::DataType::float64(3, 0, 2 * sizeof(double)),
+                                        interleavedValues);
 
   EXPECT_EQ(axom::sidre::checksum(contiguous), axom::sidre::checksum(strided));
 }
@@ -111,8 +106,7 @@ TEST(sidre_checksum, conduit_checksum_supports_empty_object_and_list_nodes)
 
   EXPECT_NE(0.0L, axom::sidre::checksum(emptyObject, false));
   EXPECT_NE(0.0L, axom::sidre::checksum(emptyList, false));
-  EXPECT_NE(axom::sidre::checksum(emptyObject, false),
-            axom::sidre::checksum(emptyList, false));
+  EXPECT_NE(axom::sidre::checksum(emptyObject, false), axom::sidre::checksum(emptyList, false));
 
   conduit::Node namedEmptyObject;
   namedEmptyObject["empty_object"].set(conduit::DataType::object());
@@ -158,8 +152,7 @@ TEST(sidre_checksum, conduit_checksum_is_order_sensitive_for_lists)
   reordered.append().set(2);
   reordered.append().set(1);
 
-  EXPECT_NE(axom::sidre::checksum(ordered, false),
-            axom::sidre::checksum(reordered, false));
+  EXPECT_NE(axom::sidre::checksum(ordered, false), axom::sidre::checksum(reordered, false));
 }
 
 TEST(sidre_checksum, sidre_view_and_group_checksum_support_strided_external_data)
@@ -177,8 +170,7 @@ TEST(sidre_checksum, sidre_view_and_group_checksum_support_strided_external_data
   conduit::Node contiguousNode;
   contiguousNode.set_external(contiguousData, 3);
 
-  axom::ArrayView<const char> nameView(stridedView->getName().data(),
-                                       stridedView->getName().size());
+  axom::ArrayView<const char> nameView(stridedView->getName().data(), stridedView->getName().size());
   const auto expectedViewChecksum =
     axom::utilities::checksum(nameView) + axom::sidre::checksum(contiguousNode);
 
@@ -193,8 +185,7 @@ TEST(sidre_checksum, view_checksum_changes_on_rename_and_data_mutation)
 {
   axom::sidre::DataStore datastore;
   axom::sidre::Group* root = datastore.getRoot();
-  axom::sidre::View* view =
-    root->createViewAndAllocate("values", axom::sidre::INT_ID, 4);
+  axom::sidre::View* view = root->createViewAndAllocate("values", axom::sidre::INT_ID, 4);
 
   int* data = view->getData<int*>();
   data[0] = 2;
@@ -309,8 +300,7 @@ TEST(sidre_checksum, group_checksum_changes_on_add_remove_rename_and_descendant_
   const auto childRenamedChecksum = group->checksum();
   EXPECT_NE(childAddedChecksum, childRenamedChecksum);
 
-  axom::sidre::View* values =
-    child->createViewAndAllocate("values", axom::sidre::INT_ID, 4);
+  axom::sidre::View* values = child->createViewAndAllocate("values", axom::sidre::INT_ID, 4);
   int* data = values->getData<int*>();
   data[0] = 1;
   data[1] = 3;

@@ -36,15 +36,10 @@ TEST(core_checksum, array_order_and_values_change_checksum)
   const double reordered[] = {4.0, 3.0, 2.0, 1.0};
   const double modified[] = {1.0, 2.0, 3.0, 5.0};
 
-  const auto orderedChecksum =
-    axom::utilities::checksum(axom::ArrayView<const double>(ordered, 4));
+  const auto orderedChecksum = axom::utilities::checksum(axom::ArrayView<const double>(ordered, 4));
 
-  EXPECT_NE(
-    orderedChecksum,
-    axom::utilities::checksum(axom::ArrayView<const double>(reordered, 4)));
-  EXPECT_NE(
-    orderedChecksum,
-    axom::utilities::checksum(axom::ArrayView<const double>(modified, 4)));
+  EXPECT_NE(orderedChecksum, axom::utilities::checksum(axom::ArrayView<const double>(reordered, 4)));
+  EXPECT_NE(orderedChecksum, axom::utilities::checksum(axom::ArrayView<const double>(modified, 4)));
 }
 
 TEST(core_checksum, exceptional_floating_point_values_are_stable)
@@ -54,8 +49,7 @@ TEST(core_checksum, exceptional_floating_point_values_are_stable)
   const double infinity = std::numeric_limits<double>::infinity();
   const double nanValue = std::numeric_limits<double>::quiet_NaN();
 
-  EXPECT_EQ(axom::utilities::checksum(positiveZero),
-            axom::utilities::checksum(negativeZero));
+  EXPECT_EQ(axom::utilities::checksum(positiveZero), axom::utilities::checksum(negativeZero));
   EXPECT_TRUE(std::isinf(axom::utilities::checksum(infinity)));
   EXPECT_TRUE(std::isnan(axom::utilities::checksum(nanValue)));
 }

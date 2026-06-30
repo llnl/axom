@@ -25,8 +25,7 @@ namespace sidre
 {
 namespace
 {
-axom::utilities::CheckSum checksumNamedNode(const std::string& name,
-                                            const conduit::Node& node)
+axom::utilities::CheckSum checksumNamedNode(const std::string& name, const conduit::Node& node)
 {
   axom::ArrayView<const char> nameView(name.data(), name.size());
   auto cs = axom::utilities::checksum(nameView);
@@ -2101,7 +2100,7 @@ axom::utilities::CheckSum View::checksum() const
       cs += checksumNamedNode(attr->getName(), getAttributeNodeRef(attr));
     }
   }
-  
+
   return cs;
 }
 

@@ -297,9 +297,14 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
 
 /// Operate on conduit::DataArray so we can handle strided data.
 template <typename T>
-axom::utilities::CheckSum checksumArray(const conduit::DataArray<T> &arr, const axom::utilities::ScaleFactor scaleFactor = axom::utilities::ScaleFactor{1})
+axom::utilities::CheckSum checksumArray(
+  const conduit::DataArray<T>& arr,
+  const axom::utilities::ScaleFactor scaleFactor = axom::utilities::ScaleFactor {1})
 {
-  return axom::utilities::calculateChecksum([=](axom::IndexType i) { return static_cast<axom::utilities::CheckSum>(arr[i]); }, arr.number_of_elements()) * scaleFactor;
+  return axom::utilities::calculateChecksum(
+           [=](axom::IndexType i) { return static_cast<axom::utilities::CheckSum>(arr[i]); },
+           arr.number_of_elements()) *
+    scaleFactor;
 }
 
 axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
@@ -336,7 +341,8 @@ axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
   {
     if(n.dtype().is_string())
     {
-      axom::ArrayView<const char> view(static_cast<const char *>(n.data_ptr()), n.dtype().number_of_elements());
+      axom::ArrayView<const char> view(static_cast<const char*>(n.data_ptr()),
+                                       n.dtype().number_of_elements());
       return cs += axom::utilities::checksum(view);
     }
     else if(n.dtype().is_int8())
