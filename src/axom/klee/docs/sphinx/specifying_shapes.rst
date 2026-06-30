@@ -123,6 +123,44 @@ ordinary table values can be generated programmatically:
       }
     }
 
+Caller-provided input variables can also be injected into a Lua deck before it
+is evaluated. This is useful when an application wants one deck to select between
+2D and 3D geometry, dimensions, or transforms at run time:
+
+.. code-block:: c++
+
+    axom::klee::InputVariables vars {
+      {"dimensions", axom::klee::InputVariableValue {2}},
+      {"shape_suffix", axom::klee::InputVariableValue {std::string {"2d"}}}
+    };
+    auto shapeSet = axom::klee::readShapeSet("shape.lua", vars);
+
+.. code-block:: lua
+
+    local function shape_path()
+      return "part_" .. shape_suffix .. ".stl"
+    end
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = shape_path(),
+          units = "cm",
+          operators = {
+            { translate = (dimensions == 2) and {1.0, 2.0} or {1.0, 2.0, 3.0} }
+          }
+        }
+      }
+    }
+
+Input variables are Lua-only and may be booleans, integers, doubles, or strings.
+Their names must be Lua identifiers. They are globals by construction and are
+allowed by Klee's unexpected-global check; other helper values in the deck should
+still be declared :code:`local`.
+
 Use :code:`local` helper functions and constants for intermediate values so the
 global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example
