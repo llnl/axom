@@ -28,6 +28,7 @@ public:
 
   void visit(const klee::CompositeOperator&) override;
   void visit(const klee::SliceOperator&) override;
+  void visit(const klee::PointTransform&) override;
 
   const numerics::Matrix<double>& getMatrix() const { return m_matrix; }
   bool isValid() const { return m_isValid; }

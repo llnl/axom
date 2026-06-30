@@ -35,8 +35,8 @@ struct TransformableGeometryProperties
  * \param rhs the right-hand-side operand
  * \return true if and only if all properties are equal
  */
-bool operator==(const TransformableGeometryProperties &lhs,
-                const TransformableGeometryProperties &rhs);
+bool operator==(const TransformableGeometryProperties& lhs,
+                const TransformableGeometryProperties& rhs);
 
 /**
  * Compare transformable properties for inequality.
@@ -44,8 +44,8 @@ bool operator==(const TransformableGeometryProperties &lhs,
  * \param rhs the right-hand-side operand
  * \return false if and only if all properties are equal
  */
-inline bool operator!=(const TransformableGeometryProperties &lhs,
-                       const TransformableGeometryProperties &rhs)
+inline bool operator!=(const TransformableGeometryProperties& lhs,
+                       const TransformableGeometryProperties& rhs)
 {
   return !(lhs == rhs);
 }
@@ -70,7 +70,7 @@ public:
    * \param path the path of the file
    * \param operator_ a possibly null operator to apply to the geometry.
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
+  Geometry(const TransformableGeometryProperties& startProperties,
            std::string format,
            std::string path,
            std::shared_ptr<GeometryOperator const> operator_);
@@ -84,9 +84,9 @@ public:
    * \param topology The blueprint topology to use.
    * \param operator_ a possibly null operator to apply to the geometry.
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
-           const axom::sidre::Group *simplexMeshGroup,
-           const std::string &topology,
+  Geometry(const TransformableGeometryProperties& startProperties,
+           const axom::sidre::Group* simplexMeshGroup,
+           const std::string& topology,
            std::shared_ptr<GeometryOperator const> operator_);
 
   /**
@@ -96,8 +96,8 @@ public:
    * \param tet Tetrahedron
    * \param operator_ a possibly null operator to apply to the geometry.
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
-           const axom::primal::Tetrahedron<double, 3> &tet,
+  Geometry(const TransformableGeometryProperties& startProperties,
+           const axom::primal::Tetrahedron<double, 3>& tet,
            std::shared_ptr<GeometryOperator const> operator_);
 
   /**
@@ -107,8 +107,8 @@ public:
    * \param hex Hexahedron
    * \param operator_ a possibly null operator to apply to the geometry.
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
-           const axom::primal::Hexahedron<double, 3> &hex,
+  Geometry(const TransformableGeometryProperties& startProperties,
+           const axom::primal::Hexahedron<double, 3>& hex,
            std::shared_ptr<GeometryOperator const> operator_);
 
   /**
@@ -119,8 +119,8 @@ public:
    * \param levelOfRefinement Number of refinement levels to use for discretizing the sphere.
    * \param operator_ a possibly null operator to apply to the geometry.
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
-           const axom::primal::Sphere<double, 3> &sphere,
+  Geometry(const TransformableGeometryProperties& startProperties,
+           const axom::primal::Sphere<double, 3>& sphere,
            axom::IndexType levelOfRefinement,
            std::shared_ptr<GeometryOperator const> operator_);
 
@@ -139,10 +139,10 @@ public:
    *
    * \c sorAxis should point in the direction of increasing z.
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
+  Geometry(const TransformableGeometryProperties& startProperties,
            axom::ArrayView<const double, 2> discreteFunction,
-           const Point3D &sorOrigin,
-           const Vector3D &sorDirection,
+           const Point3D& sorOrigin,
+           const Vector3D& sorDirection,
            axom::IndexType levelOfRefinement,
            std::shared_ptr<GeometryOperator const> operator_);
 
@@ -156,8 +156,8 @@ public:
    *        discretizing the sphere.
    * \param operator_ a possibly null operator to apply to the geometry.
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
-           const axom::primal::Cone<double, 3> &cone,
+  Geometry(const TransformableGeometryProperties& startProperties,
+           const axom::primal::Cone<double, 3>& cone,
            axom::IndexType levelOfRefinement,
            std::shared_ptr<GeometryOperator const> operator_);
 
@@ -170,16 +170,16 @@ public:
    *
    * The space on the positive normal side of the plane is considered "inside the shape".
    */
-  Geometry(const TransformableGeometryProperties &startProperties,
-           const axom::primal::Plane<double, 3> &plane,
+  Geometry(const TransformableGeometryProperties& startProperties,
+           const axom::primal::Plane<double, 3>& plane,
            std::shared_ptr<GeometryOperator const> operator_);
 
   /*!
    * @brief Geometry definition in hierarchical format.
    */
-  const conduit::Node &asHierarchy() const { return m_geomInfo; }
+  const conduit::Node& asHierarchy() const { return m_geomInfo; }
 
-  conduit::Node &asHierarchy() { return m_geomInfo; }
+  conduit::Node& asHierarchy() { return m_geomInfo; }
 
   /**
    * \brief Get the format in which the geometry was specified.
@@ -203,7 +203,7 @@ public:
    * deprecate geometry-specific interfaces, so new shapes can be added
    * without modifying this code.
    */
-  const std::string &getFormat() const { return m_format; }
+  const std::string& getFormat() const { return m_format; }
 
   /**
    * Get the path at which to find the specification of the geometry,
@@ -211,7 +211,7 @@ public:
    *
    * \return the path to the geometry file
    */
-  const std::string &getPath() const { return m_path; }
+  const std::string& getPath() const { return m_path; }
 
   /**
    * Returns the dimensions of the geometry before applying operators
@@ -227,13 +227,13 @@ public:
    * \brief Return the blueprint mesh, for formats that are specified
    * by a blueprint mesh or have been converted to a blueprint mesh.
    */
-  const axom::sidre::Group *getBlueprintMesh() const;
+  const axom::sidre::Group* getBlueprintMesh() const;
 
   /**
    * \brief Return the blueprint mesh topology, for formats that are specified
    * by a blueprint mesh or have been converted to a blueprint mesh.
    */
-  const std::string &getBlueprintTopology() const;
+  const std::string& getBlueprintTopology() const;
 
   /// \brief Return the SOR axis direction.
   const Vector3D getSorDirection() const { return m_sorDirection; }
@@ -258,7 +258,7 @@ public:
    *
    * \return a potentially null operator to apply to the geometry
    */
-  std::shared_ptr<GeometryOperator const> const &getGeometryOperator() const { return m_operator; }
+  std::shared_ptr<GeometryOperator const> const& getGeometryOperator() const { return m_operator; }
 
   /**
    * Get any operator transforms concatenated into a 4x4 matrix. If there are no
@@ -269,11 +269,28 @@ public:
   numerics::Matrix<double> getTransform() const;
 
   /**
+   * Return whether any geometry operator requires point-wise evaluation.
+   *
+   * \return true if the operator sequence contains a non-affine operator
+   */
+  bool hasNonAffineOperators() const;
+
+  /**
+   * Apply the geometry's operator sequence to a point.
+   *
+   * This supports both affine and non-affine operators in input order.
+   *
+   * \param point the point to transform
+   * \return the transformed point
+   */
+  Point3D applyTransform(const Point3D& point) const;
+
+  /**
    * Get the initial transformable properties of this geometry
    *
    * \return the initial transformable properties of this geometry
    */
-  const TransformableGeometryProperties &getStartProperties() const { return m_startProperties; }
+  const TransformableGeometryProperties& getStartProperties() const { return m_startProperties; }
 
   /**
    * Get the final transformable properties of this geometry after operators are applied
@@ -295,31 +312,31 @@ public:
    * @brief Return the tet geometry, when the Geometry
    * represents a tetrahedron.
    */
-  const axom::primal::Tetrahedron<double, 3> &getTet() const { return m_tet; }
+  const axom::primal::Tetrahedron<double, 3>& getTet() const { return m_tet; }
 
   /**
    * @brief Return the hex geometry, when the Geometry
    * represents a hexahedron.
    */
-  const axom::primal::Hexahedron<double, 3> &getHex() const { return m_hex; }
+  const axom::primal::Hexahedron<double, 3>& getHex() const { return m_hex; }
 
   /**
    * @brief Return the sphere geometry, when the Geometry
    * represents an alalytical sphere.
    */
-  const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
+  const axom::primal::Sphere<double, 3>& getSphere() const { return m_sphere; }
 
   /**
    * @brief Return the cone geometry, when the Geometry
    * represents an alalytical cone.
    */
-  const axom::primal::Cone<double, 3> &getCone() const { return m_cone; }
+  const axom::primal::Cone<double, 3>& getCone() const { return m_cone; }
 
   /**
    * @brief Return the plane geometry, when the Geometry
    * represents a plane.
    */
-  const axom::primal::Plane<double, 3> &getPlane() const { return m_plane; }
+  const axom::primal::Plane<double, 3>& getPlane() const { return m_plane; }
 
   /**
    * @brief Get the discrete function used in surfaces of revolution.
@@ -339,7 +356,7 @@ private:
   std::string m_path;
 
   /// \brief Geometry blueprint simplex mesh, when/if it's in memory.
-  const axom::sidre::Group *m_meshGroup {nullptr};
+  const axom::sidre::Group* m_meshGroup {nullptr};
 
   /// \brief Topology of the blueprint simplex mesh, if it's in memory.
   std::string m_topology;

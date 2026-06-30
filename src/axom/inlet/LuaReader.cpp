@@ -13,6 +13,7 @@
  */
 
 #include <fstream>
+#include <memory>
 #include <stdexcept>
 
 #include "axom/inlet/LuaReader.hpp"
@@ -488,10 +489,13 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
  */
 template <typename Ret, typename... Args>
 std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buildStdFunction(
-  axom::sol::protected_function&& func)
+  axom::sol::protected_function&& func,
+  std::shared_ptr<axom::sol::state> lua_state)
 {
   // Generalized lambda capture needed to move into lambda
-  return [func(std::move(func))](typename detail::inlet_function_arg_type<Args>::type... args) {
+  return [lua_state(std::move(lua_state)),
+          func(std::move(func))](typename detail::inlet_function_arg_type<Args>::type... args) {
+    SLIC_ASSERT(lua_state);
     return extractResult<Ret>(callWith(func, args...));
   };
 }
@@ -516,7 +520,8 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
 template <std::size_t I, typename Ret, typename... Args>
 typename std::enable_if<(I > MAX_NUM_ARGS), FunctionVariant>::type bindArgType(
   axom::sol::protected_function&&,
-  const std::vector<FunctionTag>&)
+  const std::vector<FunctionTag>&,
+  std::shared_ptr<axom::sol::state>)
 {
   SLIC_ERROR("[Inlet] Maximum number of function arguments exceeded: " << I);
   return {};
@@ -525,22 +530,29 @@ typename std::enable_if<(I > MAX_NUM_ARGS), FunctionVariant>::type bindArgType(
 template <std::size_t I, typename Ret, typename... Args>
 typename std::enable_if<I <= MAX_NUM_ARGS, FunctionVariant>::type bindArgType(
   axom::sol::protected_function&& func,
-  const std::vector<FunctionTag>& arg_types)
+  const std::vector<FunctionTag>& arg_types,
+  std::shared_ptr<axom::sol::state> lua_state)
 {
   if(arg_types.size() == I)
   {
-    return buildStdFunction<Ret, Args...>(std::move(func));
+    return buildStdFunction<Ret, Args...>(std::move(func), std::move(lua_state));
   }
   else
   {
     switch(arg_types[I])
     {
     case FunctionTag::Vector:
-      return bindArgType<I + 1, Ret, Args..., FunctionType::Vector>(std::move(func), arg_types);
+      return bindArgType<I + 1, Ret, Args..., FunctionType::Vector>(std::move(func),
+                                                                    arg_types,
+                                                                    std::move(lua_state));
     case FunctionTag::Double:
-      return bindArgType<I + 1, Ret, Args..., double>(std::move(func), arg_types);
+      return bindArgType<I + 1, Ret, Args..., double>(std::move(func),
+                                                      arg_types,
+                                                      std::move(lua_state));
     case FunctionTag::String:
-      return bindArgType<I + 1, Ret, Args..., std::string>(std::move(func), arg_types);
+      return bindArgType<I + 1, Ret, Args..., std::string>(std::move(func),
+                                                           arg_types,
+                                                           std::move(lua_state));
     default:
       SLIC_ERROR("[Inlet] Unexpected function argument type");
     }
@@ -583,13 +595,13 @@ FunctionVariant LuaReader::getFunction(const std::string& id,
     switch(ret_type)
     {
     case FunctionTag::Vector:
-      return detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::Double:
-      return detail::bindArgType<0u, double>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, double>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::Void:
-      return detail::bindArgType<0u, void>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, void>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::String:
-      return detail::bindArgType<0u, std::string>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, std::string>(std::move(lua_func), arg_types, m_lua);
     default:
       SLIC_ERROR("[Inlet] Unexpected function return type");
     }

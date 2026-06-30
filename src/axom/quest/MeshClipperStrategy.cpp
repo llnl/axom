@@ -60,6 +60,7 @@ public:
     SLIC_WARNING("SliceOperator not yet supported for Shaper query");
     m_isValid = false;
   }
+  void visit(const klee::PointTransform&) override { m_isValid = false; }
 
   const numerics::Matrix<double>& getMatrix() const { return m_matrix; }
   bool isValid() const { return m_isValid; }

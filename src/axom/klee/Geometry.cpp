@@ -7,6 +7,7 @@
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/AffineMatrixVisitor.hpp"
+#include "axom/klee/KleeError.hpp"
 
 #include "conduit_blueprint_mesh.hpp"
 
@@ -16,6 +17,112 @@ namespace axom
 {
 namespace klee
 {
+namespace
+{
+Geometry::Point3D applyMatrix(const numerics::Matrix<double>& matrix, const Geometry::Point3D& point)
+{
+  double coords[4] = {point[0], point[1], point[2], 1.};
+  double xformed[4];
+  numerics::matrix_vector_multiply(matrix, coords, xformed);
+  return Geometry::Point3D {xformed[0], xformed[1], xformed[2]};
+}
+
+bool operatorSequenceHasNonAffine(const std::shared_ptr<const GeometryOperator>& op)
+{
+  if(!op)
+  {
+    return false;
+  }
+
+  if(auto composite = std::dynamic_pointer_cast<const CompositeOperator>(op))
+  {
+    for(const auto& child : composite->getOperators())
+    {
+      if(operatorSequenceHasNonAffine(child))
+      {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return !std::dynamic_pointer_cast<const MatrixOperator>(op);
+}
+
+std::string operatorName(const GeometryOperator& op)
+{
+  if(dynamic_cast<const PointTransform*>(&op))
+  {
+    return "transform";
+  }
+  if(dynamic_cast<const Translation*>(&op))
+  {
+    return "translate";
+  }
+  if(dynamic_cast<const Rotation*>(&op))
+  {
+    return "rotate";
+  }
+  if(dynamic_cast<const Scale*>(&op))
+  {
+    return "scale";
+  }
+  if(dynamic_cast<const UnitConverter*>(&op))
+  {
+    return "convert_units_to";
+  }
+  if(dynamic_cast<const SliceOperator*>(&op))
+  {
+    return "slice";
+  }
+  return "unknown";
+}
+
+void requireMatrixOperator(const std::shared_ptr<const GeometryOperator>& op, int index)
+{
+  if(std::dynamic_pointer_cast<const MatrixOperator>(op))
+  {
+    return;
+  }
+
+  const auto ordinal =
+    index >= 0 ? axom::fmt::format("operator {}", index) : std::string {"operator"};
+  throw KleeError({Path {"geometry/operators"},
+                   axom::fmt::format("Cannot convert geometry to matrix: {} ({}) is non-affine. "
+                                     "Use applyTransform(point) for per-point evaluation.",
+                                     ordinal,
+                                     operatorName(*op))});
+}
+
+Geometry::Point3D applyOperator(const std::shared_ptr<const GeometryOperator>& op,
+                                const Geometry::Point3D& point)
+{
+  if(auto composite = std::dynamic_pointer_cast<const CompositeOperator>(op))
+  {
+    Geometry::Point3D result = point;
+    for(const auto& child : composite->getOperators())
+    {
+      result = applyOperator(child, result);
+    }
+    return result;
+  }
+
+  if(auto matrixOp = std::dynamic_pointer_cast<const MatrixOperator>(op))
+  {
+    return applyMatrix(matrixOp->toMatrix(), point);
+  }
+
+  if(auto pointTransform = std::dynamic_pointer_cast<const PointTransform>(op))
+  {
+    return pointTransform->apply(point);
+  }
+
+  throw KleeError(
+    {Path {"geometry/operators"},
+     axom::fmt::format("Cannot apply unsupported geometry operator '{}'.", operatorName(*op))});
+}
+}  // namespace
+
 bool operator==(const TransformableGeometryProperties& lhs, const TransformableGeometryProperties& rhs)
 {
   return lhs.dimensions == rhs.dimensions && lhs.units == rhs.units;
@@ -243,14 +350,21 @@ numerics::Matrix<double> Geometry::getTransform() const
       // Why don't we multiply the matrices in CompositeOperator::addOperator()?
       // Why keep the matrices factored and multiply them here repeatedly?
       // Combining them would also avoid this if-else logic.  BTNG
+      int operatorIndex = 0;
       for(auto op : composite->getOperators())
       {
+        ++operatorIndex;
+        requireMatrixOperator(op, operatorIndex);
         // Use visitor pattern to extract the affine matrix from supported operators
         AffineMatrixVisitor visitor;
         op->accept(visitor);
         if(!visitor.isValid())
         {
-          continue;
+          throw KleeError({Path {"geometry/operators"},
+                           axom::fmt::format("Cannot convert geometry to matrix: operator {} ({}) "
+                                             "is not supported by matrix extraction.",
+                                             operatorIndex,
+                                             operatorName(*op))});
         }
         const auto& matrix = visitor.getMatrix();
         numerics::Matrix<double> res(identity4x4);
@@ -260,15 +374,34 @@ numerics::Matrix<double> Geometry::getTransform() const
     }
     else
     {
+      requireMatrixOperator(m_operator, -1);
       AffineMatrixVisitor visitor;
       m_operator->accept(visitor);
       if(visitor.isValid())
       {
         transformation = visitor.getMatrix();
       }
+      else
+      {
+        throw KleeError({Path {"geometry/operators"},
+                         axom::fmt::format("Cannot convert geometry to matrix: operator ({}) is "
+                                           "not supported by matrix extraction.",
+                                           operatorName(*m_operator))});
+      }
     }
   }
   return transformation;
+}
+
+bool Geometry::hasNonAffineOperators() const { return operatorSequenceHasNonAffine(m_operator); }
+
+Geometry::Point3D Geometry::applyTransform(const Point3D& point) const
+{
+  if(!m_operator)
+  {
+    return point;
+  }
+  return applyOperator(m_operator, point);
 }
 
 }  // namespace klee

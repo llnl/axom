@@ -186,6 +186,50 @@ location, for example:
 
     Error evaluating callback for 'translate' in shape 'part' operator 1: [Inlet] Lua function call failed: ...
 
+Lua decks can also use the runtime :code:`transform` operator for non-affine
+point mapping. Unlike zero-argument callbacks, :code:`transform` is stored with
+the geometry and evaluated for each point when a consumer applies shape
+operators. The transform function receives a point with :code:`x`, :code:`y`,
+and :code:`z` fields and returns a raw numeric table with the same dimensionality
+as the input geometry.
+
+.. code-block:: lua
+
+    local function spherical_to_cartesian(p)
+      local r = p.x
+      local theta = p.y
+      local phi = p.z
+      return {
+        r * math.sin(phi) * math.cos(theta),
+        r * math.sin(phi) * math.sin(theta),
+        r * math.cos(phi)
+      }
+    end
+
+    dimensions = 3
+
+    shapes = {
+      {
+        name = "shell",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "shell_in_spherical_coords.stl",
+          units = "cm",
+          operators = {
+            { transform = spherical_to_cartesian }
+          }
+        }
+      }
+    }
+
+The :code:`transform` operator is forward-only and cannot be represented as a
+matrix. Calls to matrix-only APIs such as :code:`Geometry::getTransform()` reject
+geometries that contain :code:`transform`; use :code:`Geometry::applyTransform()`
+for point-wise evaluation. Quest's discrete-shape path applies mixed affine and
+Lua transforms in input order, while Quest algorithms that require affine
+matrices reject non-affine transforms with a diagnostic.
+
 Paths
 *****
 The paths specified in shapes are specified either as absolute paths

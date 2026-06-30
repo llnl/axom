@@ -28,6 +28,7 @@ using klee::Dimensions;
 using klee::InputFormat;
 using klee::KleeError;
 using klee::LengthUnit;
+using klee::PointTransform;
 using klee::Rotation;
 using klee::Scale;
 using klee::ShapeSet;
@@ -886,6 +887,185 @@ TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
   catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("unexpected_global"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaTransformOperator)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local function warp(p)
+      return {p.x + 1, p.y * 2, p.z * p.z}
+    end
+
+    dimensions = 3
+    shapes = {
+      {
+        name = "warped",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "warped.stl",
+          units = "cm",
+          operators = {
+            { transform = warp }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+  EXPECT_TRUE(std::dynamic_pointer_cast<const PointTransform>(composite->getOperators()[0]));
+  EXPECT_THAT(geometry.applyTransform({2, 3, 4}), AlmostEqPoint(Point3D {3, 6, 16}));
+}
+
+TEST(IOTest, readShapeSet_luaTransformOperatorOrder)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 3
+    shapes = {
+      {
+        name = "ordered",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "ordered.stl",
+          units = "cm",
+          operators = {
+            { translate = {1, 0, 0} },
+            { transform = function(p) return {p.x * 2, p.y, p.z} end }
+          }
+        }
+      },
+      {
+        name = "reverse_ordered",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "reverse.stl",
+          units = "cm",
+          operators = {
+            { transform = function(p) return {p.x * 2, p.y, p.z} end },
+            { translate = {1, 0, 0} }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  EXPECT_THAT(shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3}),
+              AlmostEqPoint(Point3D {4, 2, 3}));
+  EXPECT_THAT(shapeSet.getShapes()[1].getGeometry().applyTransform({1, 2, 3}),
+              AlmostEqPoint(Point3D {3, 2, 3}));
+}
+
+TEST(IOTest, readShapeSet_luaNamedOperatorWithTransform)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 3
+    named_operators = {
+      {
+        name = "raise_y",
+        start_dimensions = 3,
+        units = "cm",
+        value = {
+          { transform = function(p) return {p.x, p.y + 10, p.z} end }
+        }
+      }
+    }
+    shapes = {
+      {
+        name = "uses_named_transform",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "named.stl",
+          units = "cm",
+          operators = {
+            { ref = "raise_y" }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
+  EXPECT_THAT(geometry.applyTransform({1, 2, 3}), AlmostEqPoint(Point3D {1, 12, 3}));
+}
+
+TEST(IOTest, readShapeSet_luaTransformErrorIncludesContext)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 3
+    shapes = {
+      {
+        name = "bad_runtime",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "bad_runtime.stl",
+          units = "cm",
+          operators = {
+            { transform = function(p) error("runtime boom") end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  try
+  {
+    shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("transform"));
+    EXPECT_THAT(err.what(), HasSubstr("bad_runtime"));
+    EXPECT_THAT(err.what(), HasSubstr("runtime boom"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaTransformWrongReturnDimensionIncludesContext)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 3
+    shapes = {
+      {
+        name = "wrong_runtime_dim",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "wrong_runtime_dim.stl",
+          units = "cm",
+          operators = {
+            { transform = function(p) return {p.x, p.y} end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  try
+  {
+    shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("transform"));
+    EXPECT_THAT(err.what(), HasSubstr("wrong_runtime_dim"));
+    EXPECT_THAT(err.what(), HasSubstr("Wrong size"));
   }
 }
 #endif

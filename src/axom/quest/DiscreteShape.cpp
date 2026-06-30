@@ -617,17 +617,37 @@ void DiscreteShape::createRepresentationOfSOR()
 
 void DiscreteShape::applyTransforms()
 {
-  numerics::Matrix<double> transformation = getTransforms();
+  const auto& geometry = m_shape.getGeometry();
+  if(!geometry.getGeometryOperator())
+  {
+    return;
+  }
 
-  // Apply transformation to coordinates of each vertex in mesh
+  const int spaceDim = m_meshRep->getDimension();
+  const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
+  double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
+  double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
+  double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
+
+  if(geometry.hasNonAffineOperators())
+  {
+    for(int i = 0; i < numSurfaceVertices; ++i)
+    {
+      const auto xformed = geometry.applyTransform({x[i], y[i], (z == nullptr ? 0. : z[i])});
+      x[i] = xformed[0];
+      y[i] = xformed[1];
+      if(z != nullptr)
+      {
+        z[i] = xformed[2];
+      }
+    }
+    return;
+  }
+
+  numerics::Matrix<double> transformation = getTransforms();
+  // Apply transformation to coordinates of each vertex in mesh.
   if(!transformation.isIdentity())
   {
-    const int spaceDim = m_meshRep->getDimension();
-    const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
-    double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
-    double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
-    double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
-
     double xformed[4];
     for(int i = 0; i < numSurfaceVertices; ++i)
     {
