@@ -52,6 +52,28 @@ TEST(sidre_checksum, conduit_checksum_handles_strided_numeric_arrays)
   EXPECT_EQ(axom::sidre::checksum(contiguous), axom::sidre::checksum(strided));
 }
 
+TEST(sidre_checksum, conduit_checksum_handles_strided_numeric_array_trees)
+{
+  int contiguousIds[] = {10, 20, 30};
+  int interleavedIds[] = {10, -1, 20, -1, 30, -1};
+  double contiguousValues[] = {1.5, 2.5, 3.5};
+  double interleavedValues[] = {1.5, -1.0, 2.5, -1.0, 3.5, -1.0};
+
+  conduit::Node contiguous;
+  contiguous["fields/ids"].set_external(contiguousIds, 3);
+  contiguous["fields/values"].set_external(contiguousValues, 3);
+
+  conduit::Node strided;
+  strided["fields/ids"].set_external(
+    conduit::DataType::c_int(3, 0, 2 * sizeof(int)),
+    interleavedIds);
+  strided["fields/values"].set_external(
+    conduit::DataType::float64(3, 0, 2 * sizeof(double)),
+    interleavedValues);
+
+  EXPECT_EQ(axom::sidre::checksum(contiguous), axom::sidre::checksum(strided));
+}
+
 TEST(sidre_checksum, conduit_checksum_changes_for_tree_structure_and_leaf_data)
 {
   conduit::Node baseline;
@@ -77,6 +99,56 @@ TEST(sidre_checksum, conduit_checksum_changes_for_tree_structure_and_leaf_data)
   conduit::Node addedChild;
   populateConduitNode(addedChild, "nested", "alpha", 42, 3.75, true);
   EXPECT_NE(checksum, axom::sidre::checksum(addedChild));
+}
+
+TEST(sidre_checksum, conduit_checksum_supports_empty_object_and_list_nodes)
+{
+  conduit::Node emptyObject;
+  emptyObject.set(conduit::DataType::object());
+
+  conduit::Node emptyList;
+  emptyList.set(conduit::DataType::list());
+
+  EXPECT_EQ(0.0L, axom::sidre::checksum(emptyObject, false));
+  EXPECT_EQ(0.0L, axom::sidre::checksum(emptyList, false));
+  EXPECT_EQ(axom::sidre::checksum(emptyObject, false),
+            axom::sidre::checksum(emptyList, false));
+
+  conduit::Node namedEmptyObject;
+  namedEmptyObject["empty_object"].set(conduit::DataType::object());
+
+  conduit::Node namedEmptyList;
+  namedEmptyList["empty_list"].set(conduit::DataType::list());
+
+  EXPECT_NE(axom::sidre::checksum(namedEmptyObject["empty_object"]),
+            axom::sidre::checksum(namedEmptyList["empty_list"]));
+}
+
+TEST(sidre_checksum, sidre_view_and_group_checksum_support_strided_external_data)
+{
+  axom::sidre::DataStore datastore;
+  axom::sidre::Group* group = datastore.getRoot()->createGroup("fields");
+
+  int interleavedData[] = {11, -1, 22, -1, 33, -1};
+  int contiguousData[] = {11, 22, 33};
+
+  axom::sidre::View* stridedView = group->createView("strided");
+  stridedView->setExternalDataPtr(interleavedData);
+  stridedView->apply(conduit::DataType::c_int(3, 0, 2 * sizeof(int)));
+
+  conduit::Node contiguousNode;
+  contiguousNode.set_external(contiguousData, 3);
+
+  axom::ArrayView<const char> nameView(stridedView->getName().data(),
+                                       stridedView->getName().size());
+  const auto expectedViewChecksum =
+    axom::utilities::checksum(nameView) + axom::sidre::checksum(contiguousNode);
+
+  EXPECT_EQ(expectedViewChecksum, stridedView->checksum());
+
+  const auto groupChecksumBefore = group->checksum();
+  interleavedData[2] += 7;
+  EXPECT_NE(groupChecksumBefore, group->checksum());
 }
 
 TEST(sidre_checksum, view_checksum_changes_on_rename_and_data_mutation)
