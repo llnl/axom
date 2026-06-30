@@ -128,6 +128,51 @@ global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example
 :code:`{ scale = {2.0} }`.
 
+Selected operator fields may also be written as zero-argument Lua callbacks.
+Klee evaluates each callback exactly once while reading the deck; the resulting
+shape still contains ordinary affine or slice operators, not runtime Lua
+functions. Callbacks should be pure functions of local deck variables.
+
+.. code-block:: lua
+
+    local dim = 2
+    local r = 4.0
+    local z = 8.0
+    local x = 1.0
+    local y = 2.0
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            {
+              translate = function()
+                if dim == 2 then
+                  return {r, z}
+                end
+                return {x, y, z}
+              end
+            }
+          }
+        }
+      }
+    }
+
+Vector-valued callbacks return raw numeric Lua tables such as :code:`{x, y}` or
+:code:`{x, y, z}`. The typed :code:`Vector.new(...)` object is also accepted.
+Scalar-valued callbacks return a number. Supported callback fields are
+:code:`translate`, :code:`axis`, :code:`center`, :code:`scale`,
+:code:`slice.origin`, :code:`slice.normal`, :code:`slice.up`, :code:`rotate`,
+:code:`slice.x`, :code:`slice.y`, and :code:`slice.z`. For :code:`scale`, a
+number means uniform scaling and a table means per-axis scaling.
+
 Common Lua input errors are reported as Klee parsing errors.
 A Lua input file read without Lua support reports:
 
@@ -152,6 +197,13 @@ Callers that read input files should catch :code:`axom::klee::KleeError` and dis
 or inspect :code:`getErrors()` when multiple verification errors are available.
 Klee may still throw standard exceptions such as :code:`std::logic_error` or :code:`std::invalid_argument`
 for programming errors or inconsistent manually constructed objects.
+
+Callback failures include the field, shape name when available, and operator
+location, for example:
+
+.. code-block:: text
+
+    Error evaluating callback for 'translate' in shape 'part' operator 1: [Inlet] Lua function call failed: ...
 
 Paths
 *****
