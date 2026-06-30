@@ -23,6 +23,18 @@ namespace axom
 {
 namespace sidre
 {
+namespace
+{
+axom::utilities::CheckSum checksumNamedNode(const std::string& name,
+                                            const conduit::Node& node)
+{
+  axom::ArrayView<const char> nameView(name.data(), name.size());
+  auto cs = axom::utilities::checksum(nameView);
+  cs += axom::sidre::checksum(node, false);
+  return cs;
+}
+}  // namespace
+
 /*
  *************************************************************************
  *
@@ -2079,6 +2091,16 @@ axom::utilities::CheckSum View::checksum() const
 
   // Checksum the view contents without double-counting the view name.
   cs += axom::sidre::checksum(m_node, false);
+
+  for(IndexType attrIdx = getFirstValidAttrValueIndex(); attrIdx != InvalidIndex;
+      attrIdx = getNextValidAttrValueIndex(attrIdx))
+  {
+    const Attribute* attr = getAttribute(attrIdx);
+    if(attr != nullptr)
+    {
+      cs += checksumNamedNode(attr->getName(), getAttributeNodeRef(attr));
+    }
+  }
   
   return cs;
 }

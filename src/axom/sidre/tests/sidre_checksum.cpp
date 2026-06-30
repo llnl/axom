@@ -109,9 +109,9 @@ TEST(sidre_checksum, conduit_checksum_supports_empty_object_and_list_nodes)
   conduit::Node emptyList;
   emptyList.set(conduit::DataType::list());
 
-  EXPECT_EQ(0.0L, axom::sidre::checksum(emptyObject, false));
-  EXPECT_EQ(0.0L, axom::sidre::checksum(emptyList, false));
-  EXPECT_EQ(axom::sidre::checksum(emptyObject, false),
+  EXPECT_NE(0.0L, axom::sidre::checksum(emptyObject, false));
+  EXPECT_NE(0.0L, axom::sidre::checksum(emptyList, false));
+  EXPECT_NE(axom::sidre::checksum(emptyObject, false),
             axom::sidre::checksum(emptyList, false));
 
   conduit::Node namedEmptyObject;
@@ -122,6 +122,44 @@ TEST(sidre_checksum, conduit_checksum_supports_empty_object_and_list_nodes)
 
   EXPECT_NE(axom::sidre::checksum(namedEmptyObject["empty_object"]),
             axom::sidre::checksum(namedEmptyList["empty_list"]));
+}
+
+TEST(sidre_checksum, conduit_checksum_distinguishes_schema_only_changes)
+{
+  conduit::Node twoElementArray;
+  const int twoValues[] = {5, 0};
+  twoElementArray.set(twoValues, 2);
+
+  conduit::Node oneElementArray;
+  const int oneValue[] = {5};
+  oneElementArray.set(oneValue, 1);
+
+  conduit::Node emptyIntArray;
+  emptyIntArray.set(conduit::DataType::c_int(0));
+
+  conduit::Node emptyFloatArray;
+  emptyFloatArray.set(conduit::DataType::float64(0));
+
+  EXPECT_NE(axom::sidre::checksum(oneElementArray, false),
+            axom::sidre::checksum(twoElementArray, false));
+  EXPECT_NE(axom::sidre::checksum(emptyIntArray, false),
+            axom::sidre::checksum(emptyFloatArray, false));
+}
+
+TEST(sidre_checksum, conduit_checksum_is_order_sensitive_for_lists)
+{
+  conduit::Node ordered;
+  ordered.set(conduit::DataType::list());
+  ordered.append().set(1);
+  ordered.append().set(2);
+
+  conduit::Node reordered;
+  reordered.set(conduit::DataType::list());
+  reordered.append().set(2);
+  reordered.append().set(1);
+
+  EXPECT_NE(axom::sidre::checksum(ordered, false),
+            axom::sidre::checksum(reordered, false));
 }
 
 TEST(sidre_checksum, sidre_view_and_group_checksum_support_strided_external_data)
@@ -174,9 +212,60 @@ TEST(sidre_checksum, view_checksum_changes_on_rename_and_data_mutation)
   EXPECT_NE(dataChecksum, view->checksum());
 }
 
-TEST(sidre_checksum, view_checksum_matches_unnamed_native_layout_path)
+TEST(sidre_checksum, view_and_group_checksum_change_on_attribute_mutation)
 {
   axom::sidre::DataStore datastore;
+  auto* category = datastore.createAttributeString("category", "default");
+  auto* priority = datastore.createAttributeScalar("priority", 1);
+
+  axom::sidre::Group* group = datastore.getRoot()->createGroup("fields");
+  axom::sidre::View* view = group->createViewScalar("value", 9);
+
+  const auto baseChecksum = view->checksum();
+  const auto baseGroupChecksum = group->checksum();
+
+  ASSERT_TRUE(view->setAttributeString(category, "alpha"));
+  const auto stringAttrChecksum = view->checksum();
+  EXPECT_NE(baseChecksum, stringAttrChecksum);
+  EXPECT_NE(baseGroupChecksum, group->checksum());
+
+  ASSERT_TRUE(view->setAttributeScalar(priority, 3));
+  const auto scalarAttrChecksum = view->checksum();
+  EXPECT_NE(stringAttrChecksum, scalarAttrChecksum);
+
+  ASSERT_TRUE(view->setAttributeString(category, "beta"));
+  const auto mutatedAttrChecksum = view->checksum();
+  EXPECT_NE(scalarAttrChecksum, mutatedAttrChecksum);
+
+  ASSERT_TRUE(view->setAttributeToDefault(category));
+  EXPECT_NE(mutatedAttrChecksum, view->checksum());
+
+  ASSERT_TRUE(view->setAttributeToDefault(priority));
+  EXPECT_EQ(baseChecksum, view->checksum());
+  EXPECT_EQ(baseGroupChecksum, group->checksum());
+}
+
+TEST(sidre_checksum, view_checksum_distinguishes_array_extent_changes)
+{
+  axom::sidre::DataStore oneStore;
+  axom::sidre::View* oneElementView =
+    oneStore.getRoot()->createViewAndAllocate("value", axom::sidre::INT_ID, 1);
+  oneElementView->getData<int*>()[0] = 5;
+
+  axom::sidre::DataStore twoStore;
+  axom::sidre::View* twoElementView =
+    twoStore.getRoot()->createViewAndAllocate("value", axom::sidre::INT_ID, 2);
+  int* twoElementData = twoElementView->getData<int*>();
+  twoElementData[0] = 5;
+  twoElementData[1] = 0;
+
+  EXPECT_NE(oneElementView->checksum(), twoElementView->checksum());
+}
+
+TEST(sidre_checksum, view_checksum_extends_unnamed_native_layout_path_with_attributes)
+{
+  axom::sidre::DataStore datastore;
+  auto* tag = datastore.createAttributeString("tag", "default");
   axom::sidre::View* view =
     datastore.getRoot()->createViewAndAllocate("values", axom::sidre::INT_ID, 3);
 
@@ -193,6 +282,9 @@ TEST(sidre_checksum, view_checksum_matches_unnamed_native_layout_path)
     axom::utilities::checksum(nameView) + axom::sidre::checksum(nativeLayout);
 
   EXPECT_EQ(oldPathChecksum, view->checksum());
+
+  ASSERT_TRUE(view->setAttributeString(tag, "alpha"));
+  EXPECT_NE(oldPathChecksum, view->checksum());
 }
 
 TEST(sidre_checksum, group_checksum_changes_on_add_remove_rename_and_descendant_data)

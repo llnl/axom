@@ -9,6 +9,9 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/utilities/Checksum.hpp"
 
+#include <cmath>
+#include <limits>
+
 TEST(core_checksum, scalar_matches_singleton_view_and_scale_factor)
 {
   const double value = 3.25;
@@ -42,4 +45,17 @@ TEST(core_checksum, array_order_and_values_change_checksum)
   EXPECT_NE(
     orderedChecksum,
     axom::utilities::checksum(axom::ArrayView<const double>(modified, 4)));
+}
+
+TEST(core_checksum, exceptional_floating_point_values_are_stable)
+{
+  const double positiveZero = 0.0;
+  const double negativeZero = -0.0;
+  const double infinity = std::numeric_limits<double>::infinity();
+  const double nanValue = std::numeric_limits<double>::quiet_NaN();
+
+  EXPECT_EQ(axom::utilities::checksum(positiveZero),
+            axom::utilities::checksum(negativeZero));
+  EXPECT_TRUE(std::isinf(axom::utilities::checksum(infinity)));
+  EXPECT_TRUE(std::isnan(axom::utilities::checksum(nanValue)));
 }

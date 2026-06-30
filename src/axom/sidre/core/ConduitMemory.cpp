@@ -9,6 +9,17 @@ namespace axom
 {
 namespace sidre
 {
+namespace
+{
+axom::utilities::CheckSum checksumNodeMetadata(const conduit::Node& n)
+{
+  auto cs = axom::utilities::CheckSum {0};
+  cs += axom::utilities::checksum(static_cast<conduit::index_t>(n.dtype().id()), 2.0);
+  cs += axom::utilities::checksum(n.number_of_children(), 3.0);
+  cs += axom::utilities::checksum(n.dtype().number_of_elements(), 5.0);
+  return cs;
+}
+}  // namespace
 
 std::map<int, std::shared_ptr<ConduitMemory>> ConduitMemory::s_axomToInstance;
 std::map<conduit::index_t, std::shared_ptr<ConduitMemory>> ConduitMemory::s_conduitToInstance;
@@ -301,16 +312,28 @@ axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
     cs = axom::utilities::checksum(view);
   }
 
+  cs += checksumNodeMetadata(n);
+
   if(n.number_of_children() > 0)
   {
-    for(conduit::index_t i = 0; i < n.number_of_children(); i++)
+    if(n.dtype().is_list())
     {
-      cs += checksum(n[i], true);
+      cs += axom::utilities::calculateChecksum(
+        [&](axom::IndexType i) -> axom::utilities::CheckSum {
+          return checksum(n[static_cast<conduit::index_t>(i)], true);
+        },
+        n.number_of_children());
+    }
+    else
+    {
+      for(conduit::index_t i = 0; i < n.number_of_children(); i++)
+      {
+        cs += checksum(n[i], true);
+      }
     }
   }
   else
   {
-    // NOTE: this assumes contiguous data
     if(n.dtype().is_string())
     {
       axom::ArrayView<const char> view(static_cast<const char *>(n.data_ptr()), n.dtype().number_of_elements());
