@@ -179,5 +179,17 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
                            OUTPUT_DIR ${PROJECT_BINARY_DIR}/tutorials
                            DEPENDS_ON ${shaping_tutorial_deps})
     endforeach()
+
+    if(AXOM_ENABLE_TESTS)
+        blt_add_test(NAME    shaping_tutorial_lesson_03_klee_operators_and_validation_yaml
+                     COMMAND shaping_tutorial_lesson_03_klee_operators_and_validation
+                             ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream.yaml)
+
+        if(LUA_FOUND)
+            blt_add_test(NAME    shaping_tutorial_lesson_03_klee_operators_and_validation_lua
+                         COMMAND shaping_tutorial_lesson_03_klee_operators_and_validation
+                                 ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream.lua)
+        endif()
+    endif()
     
 endif()

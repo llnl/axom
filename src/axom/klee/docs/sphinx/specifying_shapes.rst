@@ -53,6 +53,20 @@ format from :code:`.yaml`, :code:`.yml`, or :code:`.lua` extensions. Stream-base
 reads are YAML by default unless the caller passes
 :code:`axom::klee::InputFormat::Lua`.
 
+Configuration
+^^^^^^^^^^^^^
+Lua deck support is optional. Downstream code can check for it with the
+:code:`AXOM_USE_LUA` preprocessor macro from :code:`axom/config.hpp`. When Lua
+support is unavailable, Klee rejects Lua input decks with an actionable error
+instead of falling back to YAML parsing.
+
+Migration from YAML
+^^^^^^^^^^^^^^^^^^^
+There is no automated YAML-to-Lua converter. A practical migration is to copy the
+YAML structure directly, replace :code:`key: value` syntax with Lua table fields,
+and then introduce :code:`local` constants or helper functions only where they
+remove duplication or express a real computed choice.
+
 The following YAML and Lua inputs are equivalent:
 
 .. code-block:: yaml
@@ -125,6 +139,8 @@ global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example
 :code:`{ scale = {2.0} }`.
 
+Parse-Time Callbacks
+^^^^^^^^^^^^^^^^^^^^
 Selected operator fields may also be written as zero-argument Lua callbacks.
 Klee evaluates each callback exactly once while reading the deck; the resulting
 shape still contains ordinary affine or slice operators, not runtime Lua
@@ -170,22 +186,8 @@ Scalar-valued callbacks return a number. Supported callback fields are
 :code:`slice.x`, :code:`slice.y`, and :code:`slice.z`. For :code:`scale`, a
 number means uniform scaling and a table means per-axis scaling.
 
-Common Lua input errors are reported as Klee parsing errors. A Lua deck read
-without Lua support reports:
-
-.. code-block:: text
-
-    Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. Rebuild Axom with Lua enabled or convert deck to YAML.
-
-Unsupported file extensions are rejected before parsing, and unexpected globals
-or syntax errors are reported during Inlet verification or Lua evaluation.
-Callback failures include the field, shape name when available, and operator
-location, for example:
-
-.. code-block:: text
-
-    Error evaluating callback for 'translate' in shape 'part' operator 1: [Inlet] Lua function call failed: ...
-
+Runtime Point Transforms
+^^^^^^^^^^^^^^^^^^^^^^^^
 Lua decks can also use the runtime :code:`transform` operator for non-affine
 point mapping. Unlike zero-argument callbacks, :code:`transform` is stored with
 the geometry and evaluated for each point when a consumer applies shape
@@ -229,6 +231,44 @@ geometries that contain :code:`transform`; use :code:`Geometry::applyTransform()
 for point-wise evaluation. Quest's discrete-shape path applies mixed affine and
 Lua transforms in input order, while Quest algorithms that require affine
 matrices reject non-affine transforms with a diagnostic.
+
+Lua API Reference
+^^^^^^^^^^^^^^^^^
+Lua decks may use ordinary Lua variables and functions, but only Klee schema
+fields should be global. Klee/Inlet registers the typed :code:`Vector` object as
+an alternative to raw tables. For callbacks and runtime transforms, raw numeric
+tables are the recommended return form. Runtime transform arguments expose
+:code:`p.x`, :code:`p.y`, :code:`p.z`, and :code:`p.dim`.
+
+Limitations
+^^^^^^^^^^^
+Lua input decks are trusted input; Klee does not sandbox Lua execution or impose
+resource limits. Runtime :code:`transform` operators are forward-only and do not
+provide inverse transforms. Geometry objects with Lua transforms keep the Lua
+state alive internally when created through :code:`readShapeSet`, but the
+original Lua deck remains the portable representation; runtime Lua transforms
+cannot be serialized to Sidre/Conduit as pure data.
+
+Error Messages
+^^^^^^^^^^^^^^
+Common Lua input errors are reported as Klee parsing errors. A Lua deck read
+without Lua support reports:
+
+.. code-block:: text
+
+    Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. Rebuild Axom with Lua enabled or convert deck to YAML.
+
+Unsupported file extensions are rejected before parsing, and unexpected globals
+or syntax errors are reported during Inlet verification or Lua evaluation.
+Callback failures include the field, shape name when available, and operator
+location, for example:
+
+.. code-block:: text
+
+    Error evaluating callback for 'translate' in shape 'part' operator 1: [Inlet] Lua function call failed: ...
+Runtime transform failures are reported when the transform is evaluated and carry
+the same shape/operator context. Matrix-only consumers report that
+:code:`transform` is non-affine and point-wise evaluation is required.
 
 Paths
 *****

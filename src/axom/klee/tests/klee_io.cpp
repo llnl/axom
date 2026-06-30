@@ -15,7 +15,9 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 
 namespace klee = axom::klee;
@@ -55,6 +57,18 @@ ShapeSet readShapeSetFromString(const std::string& input, InputFormat format)
 {
   std::istringstream istream(input);
   return klee::readShapeSet(istream, format);
+}
+
+template <typename Parser>
+std::chrono::duration<double> timeParses(Parser&& parser, int repeats)
+{
+  const auto start = std::chrono::steady_clock::now();
+  for(int i = 0; i < repeats; ++i)
+  {
+    auto shapeSet = parser();
+    EXPECT_FALSE(shapeSet.getShapes().empty());
+  }
+  return std::chrono::steady_clock::now() - start;
 }
 }  // end namespace
 
@@ -924,6 +938,32 @@ TEST(IOTest, readShapeSet_luaTransformOperator)
   EXPECT_THAT(geometry.applyTransform({2, 3, 4}), AlmostEqPoint(Point3D {3, 6, 16}));
 }
 
+TEST(IOTest, readShapeSet_luaTransformOperator2D)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "warped_2d",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "warped_2d.stl",
+          units = "cm",
+          operators = {
+            { transform = function(p) return {p.x + 3, p.y * 2} end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
+  EXPECT_THAT(geometry.applyTransform({2, 3, 99}), AlmostEqPoint(Point3D {5, 6, 0}));
+}
+
 TEST(IOTest, readShapeSet_luaTransformOperatorOrder)
 {
   auto shapeSet = readShapeSetFromString(R"(
@@ -1067,6 +1107,170 @@ TEST(IOTest, readShapeSet_luaTransformWrongReturnDimensionIncludesContext)
     EXPECT_THAT(err.what(), HasSubstr("wrong_runtime_dim"));
     EXPECT_THAT(err.what(), HasSubstr("Wrong size"));
   }
+}
+
+TEST(IOTest, readShapeSet_luaTransformWrongReturnTypeIncludesContext)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 3
+    shapes = {
+      {
+        name = "wrong_runtime_type",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "wrong_runtime_type.stl",
+          units = "cm",
+          operators = {
+            { transform = function(p) return "not a point" end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  try
+  {
+    shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("transform"));
+    EXPECT_THAT(err.what(), HasSubstr("wrong_runtime_type"));
+    EXPECT_THAT(err.what(), HasSubstr("return types possibly incorrect"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaIntegratedWorkflowSmoke)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local dim = 2
+    local scale_factor = 1.25
+    local lift = 3.0
+
+    local function point(x, y, z)
+      if dim == 2 then
+        return {x, y}
+      end
+      return {x, y, z or 0.0}
+    end
+
+    local function lift_by(amount)
+      return function()
+        return point(0.0, amount)
+      end
+    end
+
+    local function scale_callback()
+      return {scale_factor}
+    end
+
+    local function shear_coordinates(p)
+      return {p.x + 0.5 * p.y, p.y}
+    end
+
+    dimensions = dim
+    shapes = {
+      {
+        name = "generated",
+        material = "steel",
+        geometry = {
+          format = "mfem",
+          path = "generated.mesh",
+          units = "cm",
+          operators = {
+            { scale = scale_callback },
+            { translate = lift_by(lift) },
+            { transform = shear_coordinates }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
+  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 0.0}), AlmostEqPoint(Point3D {6.5, 8.0, 0.0}));
+}
+
+TEST(IOTest, readShapeSet_luaParsePerformanceSmoke)
+{
+  const std::string yaml = R"(
+    dimensions: 3
+    shapes:
+      - name: one
+        material: steel
+        geometry:
+          format: stl
+          path: one.stl
+          units: cm
+          operators:
+            - rotate: 20
+              axis: [0, 0, 1]
+              center: [1, 2, 3]
+            - translate: [4, 5, 6]
+      - name: two
+        material: glass
+        replaces: [steel]
+        geometry:
+          format: stl
+          path: two.stl
+          units: cm
+          operators:
+            - scale: [1.5, 2.0, 2.5]
+              center: [0, 0, 0]
+  )";
+
+  const std::string lua = R"(
+    local angle = 20
+    local axis = {0, 0, 1}
+    local center = {1, 2, 3}
+    dimensions = 3
+    shapes = {
+      {
+        name = "one",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "one.stl",
+          units = "cm",
+          operators = {
+            { rotate = angle, axis = axis, center = center },
+            { translate = {4, 5, 6} }
+          }
+        }
+      },
+      {
+        name = "two",
+        material = "glass",
+        replaces = {"steel"},
+        geometry = {
+          format = "stl",
+          path = "two.stl",
+          units = "cm",
+          operators = {
+            { scale = {1.5, 2.0, 2.5}, center = {0, 0, 0} }
+          }
+        }
+      }
+    }
+  )";
+
+  constexpr int repeats = 25;
+  auto yamlTime =
+    timeParses([&]() { return readShapeSetFromString(yaml, InputFormat::YAML); }, repeats);
+  auto luaTime = timeParses([&]() { return readShapeSetFromString(lua, InputFormat::Lua); }, repeats);
+  const double baseline = yamlTime.count() > 1e-6 ? yamlTime.count() : 1e-6;
+  std::cout << "Klee YAML parse smoke: " << yamlTime.count() << "s, Lua: " << luaTime.count()
+            << "s, ratio: " << (luaTime.count() / baseline) << std::endl;
+
+  // This is a coarse smoke check, not a benchmark. Keep the threshold loose
+  // enough for shared CI systems while still catching pathological regressions.
+  EXPECT_LT(luaTime.count(), baseline * 50.0);
 }
 #endif
 
