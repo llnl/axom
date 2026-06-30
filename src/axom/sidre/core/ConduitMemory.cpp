@@ -5,7 +5,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/sidre/core/ConduitMemory.hpp"
-
 namespace axom
 {
 namespace sidre
@@ -360,6 +359,10 @@ axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
     else if(n.dtype().is_float64())
     {
       return cs += checksumArray(n.as_float64_array());
+    }
+    else if(n.dtype().is_empty() || n.dtype().is_object() || n.dtype().is_list())
+    {
+      return cs;
     }
   }
   return cs;
