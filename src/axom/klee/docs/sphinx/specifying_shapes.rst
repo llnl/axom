@@ -4,14 +4,13 @@ Specifying Shapes
 "Shaping", or "painting", is the process of adding non-conformal material
 regions to a mesh. Traditionally, this has been done in code-specific formats
 by each code that provides such a capability. Axom's Klee library provides
-a way to read shape specifications in YAML files and apply the specified
+a way to read shape specifications in YAML or Lua files and apply the specified
 geometry to a mesh.
 
 Basics
 ------
-Shapes in Klee are specified in YAML. A basic file consists of a list of
-shapes. Each one specifies its :code:`name` and :code:`material`,
-as well as a description of its geometry.
+Shapes in Klee are specified as a list. Each shape specifies its :code:`name`
+and :code:`material`, as well as a description of its geometry.
 
 In addition to the shapes themselves, a file must specify the number of
 dimensions of the shapes (only 2 and 3 are allowed). This will be important
@@ -44,12 +43,104 @@ is specified in :code:`windshield.stl`. Note that Klee does not specify
 what a particular material means. A material is simply a label which can
 be used by a host code to apply properties to part of a mesh.
 
+Lua Input Decks
+***************
+Klee can also read Lua input decks when Axom is configured with
+:code:`AXOM_ENABLE_LUA=ON` and Sol support. Lua decks use the same Klee schema
+as YAML decks in this stage; the difference is that Lua evaluates first and
+then Inlet reads the resulting global tables. File-based reads infer the input
+format from :code:`.yaml`, :code:`.yml`, or :code:`.lua` extensions. Stream-based
+reads are YAML by default unless the caller passes
+:code:`axom::klee::InputFormat::Lua`.
+
+The following YAML and Lua inputs are equivalent:
+
+.. code-block:: yaml
+
+    dimensions: 3
+
+    shapes:
+      - name: windshield
+        material: glass
+        geometry:
+          format: stl
+          path: windshield.stl
+          units: cm
+          operators:
+            - rotate: 90
+              axis: [0, 1, 0]
+              center: [0, 0, -10]
+            - translate: [10, 20, 30]
+
+.. code-block:: lua
+
+    dimensions = 3
+
+    shapes = {
+      {
+        name = "windshield",
+        material = "glass",
+        geometry = {
+          format = "stl",
+          path = "windshield.stl",
+          units = "cm",
+          operators = {
+            { rotate = 90, axis = {0, 1, 0}, center = {0, 0, -10} },
+            { translate = {10, 20, 30} }
+          }
+        }
+      }
+    }
+
+Because Lua is evaluated before Klee reads the deck, ordinary table values can
+be generated programmatically:
+
+.. code-block:: lua
+
+    local dim = 2
+    local r = 4.0
+    local z = 8.0
+    local x = 1.0
+    local y = 2.0
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = (dim == 2) and {r, z} or {x, y, z} }
+          }
+        }
+      }
+    }
+
+Use :code:`local` helper functions and constants for intermediate values so the
+global namespace contains only the Klee schema fields that Inlet should read.
+For Lua input, a one-value scale is written as a one-entry table, for example
+:code:`{ scale = {2.0} }`.
+
+Common Lua input errors are reported as Klee parsing errors. A Lua deck read
+without Lua support reports:
+
+.. code-block:: text
+
+    Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. Rebuild Axom with Lua enabled or convert deck to YAML.
+
+Unsupported file extensions are rejected before parsing, and unexpected globals
+or syntax errors are reported during Inlet verification or Lua evaluation.
+
 Paths
 *****
 The paths specified in shapes are specified either as absolute paths
 (begin with a :code:`/`), or as relative paths. Absolute paths are evaluated
 as absolute paths in the file systems. Relative paths are evaluated relative
-to the YAML file (not the current working directory). For example, in the
+to the Klee input deck (not the current working directory). For example, in the
 file :code:`/path/to/my_shapes.yaml`, the table below illustrates how
 different paths would be specified.
 
