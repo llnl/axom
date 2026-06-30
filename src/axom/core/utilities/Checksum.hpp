@@ -6,6 +6,8 @@
 #ifndef AXOM_UTILITIES_CHECKSUM_HPP_
 #define AXOM_UTILITIES_CHECKSUM_HPP_
 
+#include <cmath>
+
 #include "axom/config.hpp"  // for compile-time definitions
 #include "axom/core/ArrayView.hpp"
 
@@ -51,7 +53,7 @@ inline CheckSum calculateChecksum(DataGetter data, axom::IndexType len)
  * \return A CheckSum value for the array view.
  */
 template <typename T>
-inline CheckSum checksum(T value, const ScaleFactor scaleFactor = 1.)
+inline CheckSum checksum(T value, const ScaleFactor scaleFactor = ScaleFactor{1})
 {
   return calculateChecksum([=](axom::IndexType) { return static_cast<CheckSum>(value); }, 1) * scaleFactor;
 }
@@ -64,7 +66,7 @@ inline CheckSum checksum(T value, const ScaleFactor scaleFactor = 1.)
  * \return A CheckSum value for the array view.
  */
 template <typename T>
-inline CheckSum checksum(axom::ArrayView<T> view, const ScaleFactor scaleFactor = 1.)
+inline CheckSum checksum(axom::ArrayView<T> view, const ScaleFactor scaleFactor = ScaleFactor{1})
 {
   return calculateChecksum([=](axom::IndexType i) { return static_cast<CheckSum>(view[i]); }, view.size()) * scaleFactor;
 }

@@ -2077,10 +2077,8 @@ axom::utilities::CheckSum View::checksum() const
   axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
   auto cs = axom::utilities::checksum(nameView);
 
-  // Checksum the data in the view's node (including any attributes, etc)
-  conduit::Node tmp;
-  createNativeLayout(tmp);
-  cs += axom::sidre::checksum(tmp);
+  // Checksum the view contents without double-counting the view name.
+  cs += axom::sidre::checksum(m_node, false);
   
   return cs;
 }

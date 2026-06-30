@@ -166,10 +166,13 @@ private:
  * \brief Checksum the structure and contents of a Conduit node.
  *
  * \param n The node being checksummed.
+ * \param include_name If true, include this node's own name in the checksum.
+ *        Child node names are always included during recursive traversal.
  *
  * \return A checksum of the node.
  */
-axom::utilities::CheckSum checksum(const conduit::Node &n);
+axom::utilities::CheckSum checksum(const conduit::Node& n,
+                                   bool include_name = true);
 
 } /* end namespace sidre */
 } /* end namespace axom */

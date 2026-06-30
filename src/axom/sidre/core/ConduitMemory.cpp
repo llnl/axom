@@ -287,22 +287,26 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
 
 /// Operate on conduit::DataArray so we can handle strided data.
 template <typename T>
-axom::utilities::CheckSum checksumArray(const conduit::DataArray<T> &arr, const axom::utilities::ScaleFactor scaleFactor = 1.)
+axom::utilities::CheckSum checksumArray(const conduit::DataArray<T> &arr, const axom::utilities::ScaleFactor scaleFactor = axom::utilities::ScaleFactor{1})
 {
   return axom::utilities::calculateChecksum([=](axom::IndexType i) { return static_cast<axom::utilities::CheckSum>(arr[i]); }, arr.number_of_elements()) * scaleFactor;
 }
 
-axom::utilities::CheckSum checksum(const conduit::Node &n)
+axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
 {
-  std::string name(n.name());
-  axom::ArrayView<const char> view(name.data(), name.size());
-  auto cs = axom::utilities::checksum(view);
+  auto cs = axom::utilities::CheckSum {0};
+  if(include_name)
+  {
+    std::string name(n.name());
+    axom::ArrayView<const char> view(name.data(), name.size());
+    cs = axom::utilities::checksum(view);
+  }
 
   if(n.number_of_children() > 0)
   {
     for(conduit::index_t i = 0; i < n.number_of_children(); i++)
     {
-      cs += checksum(n[i]);
+      cs += checksum(n[i], true);
     }
   }
   else
