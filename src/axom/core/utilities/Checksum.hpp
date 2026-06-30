@@ -17,8 +17,6 @@ namespace utilities
 using CheckSum = long double;
 using ScaleFactor = double;
 
-namespace detail
-{
 /*!
  * \brief Calculate and return checksum for data arrays.
  *
@@ -28,14 +26,13 @@ namespace detail
  *
  * \return A CheckSum value for the array view.
  */
-template <typename T>
-inline CheckSum calculateChecksum(axom::ArrayView<T> view)
+template <typename DataGetter>
+inline CheckSum calculateChecksum(DataGetter data, axom::IndexType len)
 {
   CheckSum tchk = 0.0;
   CheckSum ckahan = 0.0;
-  const auto len = view.size();
   for (axom::IndexType j = 0; j < len; ++j) {
-    const auto value = static_cast<CheckSum>(view[j]);
+    const auto value = data(j);
     CheckSum x = (std::abs(std::sin(j+1.0))+0.5) * value;
     CheckSum y = x - ckahan;
     volatile CheckSum t = tchk + y;
@@ -45,7 +42,6 @@ inline CheckSum calculateChecksum(axom::ArrayView<T> view)
   }
   return tchk;
 }
-} // namespace detail
 
 /*!
  * \brief Calculate and return checksum.
@@ -57,8 +53,7 @@ inline CheckSum calculateChecksum(axom::ArrayView<T> view)
 template <typename T>
 inline CheckSum checksum(T value, const ScaleFactor scaleFactor = 1.)
 {
-  ArrayView<T> view(&value, 1);
-  return detail::calculateChecksum(view) * scaleFactor;
+  return calculateChecksum([=](axom::IndexType) { return static_cast<CheckSum>(value); }, 1) * scaleFactor;
 }
 
 /*!
@@ -71,7 +66,7 @@ inline CheckSum checksum(T value, const ScaleFactor scaleFactor = 1.)
 template <typename T>
 inline CheckSum checksum(axom::ArrayView<T> view, const ScaleFactor scaleFactor = 1.)
 {
-  return detail::calculateChecksum(view) * scaleFactor;
+  return calculateChecksum([=](axom::IndexType i) { return static_cast<CheckSum>(view[i]); }, view.size()) * scaleFactor;
 }
 
 }  // namespace utilities

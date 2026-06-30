@@ -285,6 +285,13 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
   return *it->second;
 }
 
+/// Operate on conduit::DataArray so we can handle strided data.
+template <typename T>
+axom::utilities::CheckSum checksumArray(const conduit::DataArray<T> &arr, const axom::utilities::ScaleFactor scaleFactor = 1.)
+{
+  return axom::utilities::calculateChecksum([=](axom::IndexType i) { return static_cast<axom::utilities::CheckSum>(arr[i]); }, arr.number_of_elements()) * scaleFactor;
+}
+
 axom::utilities::CheckSum checksum(const conduit::Node &n)
 {
   std::string name(n.name());
@@ -301,55 +308,54 @@ axom::utilities::CheckSum checksum(const conduit::Node &n)
   else
   {
     // NOTE: this assumes contiguous data
-    if(n.dtype().is_string() || n.dtype().is_int8())
+    if(n.dtype().is_string())
     {
-      axom::ArrayView<const conduit::int8> view(static_cast<const conduit::int8*>(n.data_ptr()), n.dtype().number_of_elements());
+      axom::ArrayView<const char> view(static_cast<const char *>(n.data_ptr()), n.dtype().number_of_elements());
       return cs += axom::utilities::checksum(view);
+    }
+    else if(n.dtype().is_int8())
+    {
+      return cs += checksumArray(n.as_int8_array());
     }
     else if(n.dtype().is_int16())
     {
-      axom::ArrayView<const conduit::int16> view(static_cast<const conduit::int16*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_int16_array());
     }
     else if(n.dtype().is_int32())
     {
-      axom::ArrayView<const conduit::int32> view(static_cast<const conduit::int32*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_int32_array());
     }
     else if(n.dtype().is_int64())
     {
-      axom::ArrayView<const conduit::int64> view(static_cast<const conduit::int64*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_int64_array());
     }
     else if(n.dtype().is_uint8())
     {
-      axom::ArrayView<const conduit::uint8> view(static_cast<const conduit::uint8*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_uint8_array());
     }
     else if(n.dtype().is_uint16())
     {
-      axom::ArrayView<const conduit::uint16> view(static_cast<const conduit::uint16*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_uint16_array());
     }
     else if(n.dtype().is_uint32())
     {
-      axom::ArrayView<const conduit::uint32> view(static_cast<const conduit::uint32*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_uint32_array());
     }
     else if(n.dtype().is_uint64())
     {
-      axom::ArrayView<const conduit::uint64> view(static_cast<const conduit::uint64*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_uint64_array());
+    }
+    else if(n.dtype().is_index_t())
+    {
+      return cs += checksumArray(n.as_index_t_array());
     }
     else if(n.dtype().is_float32())
     {
-      axom::ArrayView<const conduit::float32> view(static_cast<const conduit::float32*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_float32_array());
     }
     else if(n.dtype().is_float64())
     {
-      axom::ArrayView<const conduit::float64> view(static_cast<const conduit::float64*>(n.data_ptr()), n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      return cs += checksumArray(n.as_float64_array());
     }
   }
   return cs;
