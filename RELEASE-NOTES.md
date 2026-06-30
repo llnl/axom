@@ -44,6 +44,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a `primal::BezierTriangle` class
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
+- Core/Sidre: Added `axom::sidre::Group::checksum()` and `axom::sidre::View::checksum()` methods.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
