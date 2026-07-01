@@ -151,12 +151,14 @@ TEST(slam_FieldRegistry, view_buffer_add_get_find)
 
   auto hit = reg.findBufferView("view");
   ASSERT_TRUE(hit.has_value());
-  EXPECT_EQ(hit->get()[3], 40);
+  EXPECT_EQ((*hit)[3], 40);
+  (*hit)[1] = 25;
+  EXPECT_EQ(data[1], 25);
 
   const IndexRegistry& creg = reg;
   auto chit = creg.findBufferView("view");
   ASSERT_TRUE(chit.has_value());
-  EXPECT_EQ(chit->get()[0], 10);
+  EXPECT_EQ((*chit)[0], 10);
 }
 
 TEST(slam_FieldRegistry, view_field_is_non_owning)
@@ -200,8 +202,13 @@ TEST(slam_FieldRegistry, view_field_is_non_owning)
 
   auto hit = creg.findFieldView("temp");
   ASSERT_TRUE(hit.has_value());
-  EXPECT_EQ(hit->get().size(), 5);
-  EXPECT_DOUBLE_EQ(hit->get()[2], 42.0);
+  EXPECT_EQ(hit->size(), 5);
+  EXPECT_DOUBLE_EQ((*hit)[2], 42.0);
+
+  auto mutable_hit = reg.findFieldView("temp");
+  ASSERT_TRUE(mutable_hit.has_value());
+  (*mutable_hit)[3] = 12.0;
+  EXPECT_DOUBLE_EQ(data[3], 12.0);
 }
 
 TEST(slam_FieldRegistry, field_storage_modes_share_keyspace)

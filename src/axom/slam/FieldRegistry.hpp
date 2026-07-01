@@ -338,7 +338,7 @@ public:
    *
    * \return An optional referencing the field if present, else empty.
    */
-  [[nodiscard]] std::optional<std::reference_wrapper<ViewMapType>> findFieldView(std::string_view key)
+  [[nodiscard]] std::optional<ViewMapType> findFieldView(std::string_view key)
   {
     auto it = m_maps.find(key);
     if(it == m_maps.end())
@@ -347,8 +347,7 @@ public:
     }
 
     auto* field = std::get_if<ViewMapType>(&it->second);
-    return field != nullptr ? std::optional<std::reference_wrapper<ViewMapType>>(*field)
-                            : std::nullopt;
+    return field != nullptr ? std::optional<ViewMapType>(*field) : std::nullopt;
   }
 
   /*!
@@ -356,8 +355,7 @@ public:
    *
    * \return An optional referencing the field if present, else empty.
    */
-  [[nodiscard]] std::optional<std::reference_wrapper<const ViewMapType>> findFieldView(
-    std::string_view key) const
+  [[nodiscard]] std::optional<ViewMapType> findFieldView(std::string_view key) const
   {
     auto it = m_maps.find(key);
     if(it == m_maps.end())
@@ -366,8 +364,7 @@ public:
     }
 
     const auto* field = std::get_if<ViewMapType>(&it->second);
-    return field != nullptr ? std::optional<std::reference_wrapper<const ViewMapType>>(*field)
-                            : std::nullopt;
+    return field != nullptr ? std::optional<ViewMapType>(*field) : std::nullopt;
   }
 
   /// @}
@@ -533,12 +530,10 @@ public:
    *
    * \return An optional referencing the buffer if present, else empty.
    */
-  [[nodiscard]] std::optional<std::reference_wrapper<ViewBufferType>> findBufferView(std::string_view key)
+  [[nodiscard]] std::optional<ViewBufferType> findBufferView(std::string_view key)
   {
     auto it = m_view_buff.find(key);
-    return it != m_view_buff.end()
-      ? std::optional<std::reference_wrapper<ViewBufferType>>(it->second)
-      : std::nullopt;
+    return it != m_view_buff.end() ? std::optional<ViewBufferType>(it->second) : std::nullopt;
   }
 
   /*!
@@ -546,13 +541,10 @@ public:
    *
    * \return An optional referencing the buffer if present, else empty.
    */
-  [[nodiscard]] std::optional<std::reference_wrapper<const ViewBufferType>> findBufferView(
-    std::string_view key) const
+  [[nodiscard]] std::optional<ViewBufferType> findBufferView(std::string_view key) const
   {
     auto it = m_view_buff.find(key);
-    return it != m_view_buff.end()
-      ? std::optional<std::reference_wrapper<const ViewBufferType>>(it->second)
-      : std::nullopt;
+    return it != m_view_buff.end() ? std::optional<ViewBufferType>(it->second) : std::nullopt;
   }
 
   /// @}
