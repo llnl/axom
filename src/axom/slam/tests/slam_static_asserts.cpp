@@ -18,12 +18,13 @@
 
 #include "gtest/gtest.h"
 
-#include "axom/core/Optional.hpp"
 #include "axom/slam/ModularInt.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 #include "axom/slam/policies/OffsetPolicies.hpp"
 #include "axom/slam/policies/ValuePolicies.hpp"
+
+#include <optional>
 
 namespace
 {
@@ -125,20 +126,6 @@ static_assert(incTwice(4) == 1, "++ twice from 4 mod 5 == 1");
 // equality across the modulus
 static_assert(Mod5(2) == Mod5(7), "2 and 7 are equal mod 5");
 static_assert(Mod5(2) != Mod5(3), "2 and 3 differ mod 5");
-
-//------------------------------------------------------------------------------
-// axom::Optional: a device-safe "maybe a value", fully constexpr.
-//------------------------------------------------------------------------------
-static_assert(!axom::Optional<int>().has_value(), "default Optional is disengaged");
-static_assert(axom::Optional<int>(42).has_value(), "value-constructed Optional is engaged");
-static_assert(*axom::Optional<int>(42) == 42, "engaged Optional yields its value");
-static_assert(axom::Optional<int>(42).value_or(-1) == 42, "value_or returns the value when engaged");
-static_assert(axom::Optional<int>().value_or(-1) == -1, "value_or returns fallback when empty");
-static_assert(static_cast<bool>(axom::Optional<int>(0)), "engaged-with-zero is still engaged");
-static_assert(!static_cast<bool>(axom::Optional<int>()), "disengaged converts to false");
-// Trivial copyability allows it to be captured on device
-static_assert(std::is_trivially_copyable_v<axom::Optional<int>>,
-              "axom::Optional<int> is trivially copyable (device-capturable)");
 
 }  // anonymous namespace
 

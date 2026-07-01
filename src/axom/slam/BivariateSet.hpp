@@ -22,9 +22,8 @@
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/policies/PolicyTraits.hpp"
 
-#include "axom/core/Optional.hpp"
-
 #include <cassert>
+#include <optional>
 #include <type_traits>
 
 namespace axom
@@ -144,17 +143,17 @@ public:
   /*!
    * \brief Finds the SparseIndex of the element given its DenseIndex.
    *
-   * \return An engaged `axom::Optional` containing the SparseIndex if the element exists,
-   *         or an empty `axom::Optional` if the element does not exist.
+   * \return An engaged `std::optional` containing the SparseIndex if the element exists,
+   *         or an empty `std::optional` if the element does not exist.
    *
    * \note This is a convenience wrapper around `findElementIndex(...)` that avoids
    *       sentinel checks against `INVALID_POS`.
    */
-  [[nodiscard]] axom::Optional<PositionType> findElementIndexOptional(PositionType pos1,
-                                                                      PositionType pos2) const
+  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(PositionType pos1,
+                                                                     PositionType pos2) const
   {
     const auto idx = findElementIndex(pos1, pos2);
-    return idx != INVALID_POS ? axom::Optional<PositionType>(idx) : axom::Optional<PositionType> {};
+    return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
   }
 
   /**
@@ -172,18 +171,18 @@ public:
   /*!
    * \brief Finds the FlatIndex of the element given its DenseIndex.
    *
-   * \return An engaged `axom::Optional` containing the FlatIndex if the element exists,
-   *         or an empty `axom::Optional` if the element does not exist.
+   * \return An engaged `std::optional` containing the FlatIndex if the element exists,
+   *         or an empty `std::optional` if the element does not exist.
    *
    * \note This is a convenience wrapper around `findElementFlatIndex(...)` that avoids
    *       sentinel checks against `INVALID_POS`.
    */
-  [[nodiscard]] AXOM_HOST_DEVICE axom::Optional<PositionType> findElementFlatIndexOptional(
+  [[nodiscard]] AXOM_HOST_DEVICE std::optional<PositionType> findElementFlatIndexOptional(
     PositionType pos1,
     PositionType pos2) const
   {
     const auto idx = findElementFlatIndex(pos1, pos2);
-    return idx != INVALID_POS ? axom::Optional<PositionType>(idx) : axom::Optional<PositionType> {};
+    return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
   }
 
   /**
@@ -200,16 +199,16 @@ public:
   /*!
    * \brief Finds the FlatIndex of the first existing element in a row.
    *
-   * \return An engaged `axom::Optional` containing the FlatIndex if the row contains any elements,
-   *         or an empty `axom::Optional` if the row is empty.
+   * \return An engaged `std::optional` containing the FlatIndex if the row contains any elements,
+   *         or an empty `std::optional` if the row is empty.
    *
    * \note This is a convenience wrapper around `findElementFlatIndex(pos1)` that avoids
    *       sentinel checks against `INVALID_POS`.
    */
-  [[nodiscard]] axom::Optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
   {
     const auto idx = findElementFlatIndex(pos1);
-    return idx != INVALID_POS ? axom::Optional<PositionType>(idx) : axom::Optional<PositionType> {};
+    return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
   }
 
   /**

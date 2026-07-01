@@ -44,7 +44,6 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a `primal::BezierTriangle` class
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
-- Core: Adds `axom::Optional` as a device capable analog for `std::optional`
 - Core: Adds `AXOM_CONSTEXPR_ASSERT` macro for assertions that are usable within `constexpr` contexts
 - Slam: Adds `make_*_set`, `make_*relation` and `make_map` helper functions for building sets, relations and maps
 

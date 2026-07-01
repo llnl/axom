@@ -11,6 +11,8 @@
 #include "axom/slam/BivariateSet.hpp"
 #include "axom/slam/policies/BivariateSetInterfacePolicies.hpp"
 
+#include <optional>
+
 namespace axom
 {
 namespace slam
@@ -120,14 +122,14 @@ public:
   /*!
    * \brief Optional-returning wrapper for `findElementIndex`.
    *
-   * \return An engaged `axom::Optional` with the SparseIndex if the element exists, else empty.
+   * \return An engaged `std::optional` with the SparseIndex if the element exists, else empty.
    */
-  [[nodiscard]] axom::Optional<PositionType> findElementIndexOptional(PositionType pos1,
-                                                                      PositionType pos2) const
+  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(PositionType pos1,
+                                                                     PositionType pos2) const
   {
     const auto idx = findElementIndex(pos1, pos2);
-    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
-                                        : axom::Optional<PositionType> {};
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
   }
 
   /**
@@ -156,15 +158,15 @@ public:
   /*!
    * \brief Optional-returning wrapper for `findElementFlatIndex(s1, s2)`.
    *
-   * \return An engaged `axom::Optional` with the FlatIndex if the element exists, else empty.
+   * \return An engaged `std::optional` with the FlatIndex if the element exists, else empty.
    */
-  [[nodiscard]] AXOM_HOST_DEVICE axom::Optional<PositionType> findElementFlatIndexOptional(
+  [[nodiscard]] AXOM_HOST_DEVICE std::optional<PositionType> findElementFlatIndexOptional(
     PositionType s1,
     PositionType s2) const
   {
     const auto idx = findElementFlatIndex(s1, s2);
-    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
-                                        : axom::Optional<PositionType> {};
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
   }
 
   /**
@@ -192,13 +194,13 @@ public:
   /*!
    * \brief Optional-returning wrapper for `findElementFlatIndex(pos1)`.
    *
-   * \return An engaged `axom::Optional` with the FlatIndex if the row contains any elements, else empty.
+   * \return An engaged `std::optional` with the FlatIndex if the row contains any elements, else empty.
    */
-  [[nodiscard]] axom::Optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
   {
     const auto idx = findElementFlatIndex(pos1);
-    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
-                                        : axom::Optional<PositionType> {};
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
   }
 
   /**

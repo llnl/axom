@@ -28,10 +28,10 @@ and are therefore unconditionally kernel-safe.
        class template argument deduction (CTAD), non-type template parameters,
        fold expressions, type traits, ``constexpr`` evaluation)
        as well as Axom host-device types (``StackArray``, ``ArrayView``, 
-       ``NumericLimits``, ``Optional``, ``utilities::*``). 
+       ``NumericLimits``, ``utilities::*``). 
      - everywhere, including kernels
    * - B
-     - ``std::optional``, ``std::string_view``, ``std::variant``,
+     - ``std::string_view``, ``std::variant``,
        ``std::ranges`` views/algorithms, ``std::vector``, ``std::map``,
        exceptions, and iostreams.
      - host only: builders, registries, ``isValid(verbose)``, and I/O
@@ -40,18 +40,12 @@ and are therefore unconditionally kernel-safe.
        view types; throwing accessors on host-device paths.
      - nowhere (existing instances are migration targets)
 
-Why not a device ``std::optional``?
------------------------------------
+Device ``std::optional``
+------------------------
 
-``libcu++`` and ``libhipcxx`` provide device-capable ``tuple``/``optional``/ ``variant``/``span``,
-but we cannot depend on them for our non-GPU sequential and OpenMP builds.
-Instead, Slam uses small internal host-device types in the spirit of ``axom::StackArray``.
+Slam uses ``std::optional`` for optional-returning APIs.
+The CUDA host-configs enable ``--expt-relaxed-constexpr``,
+and HIP's compiler accepts these standard library calls from host-device paths in the supported builds.
 
-:cpp:class:`axom::Optional` is the one such type Axom provides for this purpose. 
-It is a trivially-copyable aggregate of an engaged flag and storage,
-is ``AXOM_HOST_DEVICE`` throughout, and has no throwing ``value()`` accessor.
-The contract is to check ``has_value()`` (or use ``value_or``) before dereferencing. 
-
-The host-side counterpart is unchanged: host-only registries and find APIs
-(for example :cpp:class:`axom::slam::FieldRegistry`) return ``std::optional``.
+The contract is to check ``has_value()`` (or use ``value_or``) before dereferencing.
 

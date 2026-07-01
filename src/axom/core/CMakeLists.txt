@@ -76,7 +76,6 @@ set(core_headers
     MDMapping.hpp
     NumericArray.hpp
     NumericLimits.hpp
-    Optional.hpp
     Path.hpp
     RangeAdapter.hpp
     StackArray.hpp

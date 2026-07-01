@@ -16,9 +16,10 @@
 
 #include "axom/config.hpp"
 #include "axom/core/IteratorBase.hpp"
-#include "axom/core/Optional.hpp"
 #include "axom/slam/OrderedSet.hpp"
 #include "axom/slam/RangeSet.hpp"
+
+#include <optional>
 
 namespace axom
 {
@@ -304,15 +305,15 @@ public:
   /*!
    * \brief Given a value, find the index of the first entry containing it.
    *
-   * \return An engaged `axom::Optional` with the index of the first element with
-   *         value \a e, or an empty `axom::Optional` if none can be found.
+   * \return An engaged `std::optional` with the index of the first element with
+   *         value \a e, or an empty `std::optional` if none can be found.
    * \note This is an O(n) operation in the size of the set.
    */
-  [[nodiscard]] axom::Optional<IndexType> findIndexOptional(ElementType e) const
+  [[nodiscard]] std::optional<IndexType> findIndexOptional(ElementType e) const
   {
     const IndexType idx = findIndex(e);
     const IndexType invalid = static_cast<IndexType>(INVALID_ENTRY);
-    return idx != invalid ? axom::Optional<IndexType>(idx) : axom::Optional<IndexType> {};
+    return idx != invalid ? std::optional<IndexType>(idx) : std::optional<IndexType> {};
   }
 
   /**
