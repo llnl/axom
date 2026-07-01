@@ -1164,8 +1164,16 @@ NB_MODULE(pysidre, m_sidre)
     .def("getPath", &Group::getPath, "Return path of Group object, not including its name.")
     .def("getPathName", &Group::getPathName, "Return full path of Group object, including its name.")
     .def("checksum",
-         &Group::checksum,
+         nb::overload_cast<>(&Group::checksum, nb::const_),
          "Return a checksum for the Group's name, child structure, and descendant view data.")
+    .def(
+      "checksum",
+      [](const Group& self, nb::object& o) {
+        conduit::Node& cpp_node = nbObjectToNode(o);
+        self.checksum(cpp_node);
+      },
+      "Populate a Conduit node with checksum metadata for this Group hierarchy.",
+      nb::arg("n_checksum"))
     .def("getParent",
          nb::overload_cast<>(&Group::getParent, nb::const_),
          nb::rv_policy::reference_internal,

@@ -6,6 +6,7 @@
 
 import pysidre
 import numpy as np
+from conduit import Node
 
 if pysidre.AXOM_USE_HDF5:
     NPROTOCOLS = 3
@@ -239,6 +240,16 @@ def test_group_and_view_checksum():
 
     group.createGroup("child")
     assert float(group.checksum()) != mutated_group_checksum
+
+    metadata = Node()
+    group.checksum(metadata)
+
+    assert metadata.has_child("checksum")
+    assert metadata.has_child("views")
+    assert metadata.has_path("views/values/checksum")
+    assert metadata.has_child("groups")
+    assert metadata.has_path("groups/child/checksum")
+    assert float(metadata["checksum"]) == float(group.checksum())
 
 
 #------------------------------------------------------------------------------
