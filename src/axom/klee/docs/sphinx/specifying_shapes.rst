@@ -46,27 +46,19 @@ be used by a host code to apply properties to part of a mesh.
 Lua Input Decks
 ***************
 Klee can also read Lua input decks when Axom is configured with
-:code:`AXOM_ENABLE_LUA=ON` and Sol support. Lua decks use the same Klee schema
-as YAML decks in this stage; the difference is that Lua evaluates first and
-then Inlet reads the resulting global tables. File-based reads infer the input
-format from :code:`.yaml`, :code:`.yml`, or :code:`.lua` extensions. Stream-based
-reads are YAML by default unless the caller passes
-:code:`axom::klee::InputFormat::Lua`.
+:code:`AXOM_ENABLE_LUA=ON` and Sol support. Lua decks use the same Klee schema as YAML decks.
+The difference is that Lua evaluates first and then Inlet reads the resulting global tables.
+File-based reads infer the input format from :code:`.yaml`, :code:`.yml`, or :code:`.lua` extensions.
+Stream-based reads are YAML by default unless the caller passes :code:`axom::klee::InputFormat::Lua`.
 
 Configuration
 ^^^^^^^^^^^^^
-Lua deck support is optional. Downstream code can check for it with the
-:code:`AXOM_USE_LUA` preprocessor macro from :code:`axom/config.hpp`. When Lua
-support is unavailable, Klee rejects Lua input decks with an actionable error
-instead of falling back to YAML parsing.
+Lua deck support is optional. Downstream code can check for it with the :code:`AXOM_USE_LUA`
+preprocessor define from :code:`axom/config.hpp`.  When Lua support is unavailable,
+Klee rejects Lua input decks with an error.
 
-Migration from YAML
-^^^^^^^^^^^^^^^^^^^
-There is no automated YAML-to-Lua converter. A practical migration is to copy the
-YAML structure directly, replace :code:`key: value` syntax with Lua table fields,
-and then introduce :code:`local` constants or helper functions only where they
-remove duplication or express a real computed choice.
-
+Examples
+^^^^^^^^
 The following YAML and Lua inputs are equivalent:
 
 .. code-block:: yaml
@@ -134,9 +126,9 @@ be generated programmatically:
       }
     }
 
-Caller-provided input variables can also be injected into a Lua deck before it
-is evaluated. This is useful when an application wants one deck to select between
-2D and 3D geometry, dimensions, or transforms at run time:
+Caller-provided input variables can also be injected into a Lua deck before it is evaluated.
+This is useful when an application wants one deck to select between 2D and 3D geometry, 
+dimensions, or transforms at run time:
 
 .. code-block:: c++
 
@@ -226,12 +218,11 @@ number means uniform scaling and a table means per-axis scaling.
 
 Runtime Point Transforms
 ^^^^^^^^^^^^^^^^^^^^^^^^
-Lua decks can also use the runtime :code:`transform` operator for non-affine
-point mapping. Unlike zero-argument callbacks, :code:`transform` is stored with
-the geometry and evaluated for each point when a consumer applies shape
-operators. The transform function receives a point with :code:`x`, :code:`y`,
-and :code:`z` fields and returns a raw numeric table with the same dimensionality
-as the input geometry.
+Lua decks can also use the runtime :code:`transform` operator for non-affine point mapping.
+Unlike zero-argument callbacks, :code:`transform` is stored with the geometry
+and evaluated for each point when a consumer applies shape operators.
+The transform function receives a point with :code:`x`, :code:`y`, and :code:`z` fields 
+and returns a raw numeric table with the same dimensionality as the input geometry.
 
 .. code-block:: lua
 
@@ -263,20 +254,18 @@ as the input geometry.
       }
     }
 
-The :code:`transform` operator is forward-only and cannot be represented as a
-matrix. Calls to matrix-only APIs such as :code:`Geometry::getTransform()` reject
-geometries that contain :code:`transform`; use :code:`Geometry::applyTransform()`
-for point-wise evaluation. Quest's discrete-shape path applies mixed affine and
-Lua transforms in input order, while Quest algorithms that require affine
-matrices reject non-affine transforms with a diagnostic.
+The :code:`transform` operator is forward-only and cannot be represented as a matrix.
+Calls to matrix-only APIs such as :code:`Geometry::getTransform()` reject geometries
+that contain :code:`transform`. Use :code:`Geometry::applyTransform()` for point-wise evaluation.
+Quest's discrete-shape path applies mixed affine and Lua transforms in input order,
+while Quest algorithms that require affine matrices reject non-affine transforms with a diagnostic.
 
 Lua API Reference
 ^^^^^^^^^^^^^^^^^
-Lua decks may use ordinary Lua variables and functions, but only Klee schema
-fields should be global. Klee/Inlet registers the typed :code:`Vector` object as
-an alternative to raw tables. For callbacks and runtime transforms, raw numeric
-tables are the recommended return form. Runtime transform arguments expose
-:code:`p.x`, :code:`p.y`, :code:`p.z`, and :code:`p.dim`.
+Lua decks may use ordinary Lua variables and functions, but only Klee schema fields should be global.
+Klee/Inlet registers the typed :code:`Vector` object as an alternative to raw tables.
+For callbacks and runtime transforms, raw numeric tables are the recommended return form.
+Runtime transform arguments expose :code:`p.x`, :code:`p.y`, :code:`p.z`, and :code:`p.dim`.
 
 Limitations
 ^^^^^^^^^^^
@@ -285,35 +274,34 @@ Runtime :code:`transform` operators are forward-only and do not provide inverse 
 **Lua State Lifetime:** Geometry objects with Lua :code:`transform` operators
 hold shared ownership of the Lua state used during parsing. The Lua state is
 automatically kept alive for the lifetime of these geometries through
-:code:`std::function` capture semantics, so no manual lifetime management is
-required. Geometries with Lua transforms can be safely used after the original
+:code:`std::function` capture semantics, so no manual lifetime management is required.
+Geometries with Lua transforms can be safely used after the original
 :code:`readShapeSet` call returns and any parsing artifacts are destroyed.
 
-**Serialization:** The original Lua deck remains the portable representation;
-runtime Lua transforms cannot be serialized to Sidre/Conduit as pure data.
-Attempting to serialize a geometry with non-affine operators will result in
-an error. For reproducibility, retain the original :code:`.lua` input file.
+**Serialization:**  Runtime Lua transforms cannot be serialized to Sidre/Conduit as pure data.
+Attempting to serialize a geometry with non-affine operators will result in an error.
+For reproducibility, retain the original :code:`.lua` input file.
 
 Error Messages
 ^^^^^^^^^^^^^^
-Common Lua input errors are reported as Klee parsing errors. A Lua deck read
-without Lua support reports:
+Common Lua input errors are reported as Klee parsing errors.
+A Lua deck read without Lua support reports:
 
 .. code-block:: text
 
     Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. Rebuild Axom with Lua enabled or convert deck to YAML.
 
-Unsupported file extensions are rejected before parsing, and unexpected globals
-or syntax errors are reported during Inlet verification or Lua evaluation.
-Callback failures include the field, shape name when available, and operator
-location, for example:
+Unsupported file extensions are rejected before parsing, and unexpected globals or syntax errors
+are reported during Inlet verification or Lua evaluation. Callback failures include the field, 
+shape name when available, and operator location, for example:
 
 .. code-block:: text
 
     Error evaluating callback for 'translate' in shape 'part' operator 1: [Inlet] Lua function call failed: ...
+
 Runtime transform failures are reported when the transform is evaluated and carry
-the same shape/operator context. Matrix-only consumers report that
-:code:`transform` is non-affine and point-wise evaluation is required.
+the same shape/operator context. Matrix-only consumers report that :code:`transform`
+is non-affine and point-wise evaluation is required.
 
 Paths
 *****

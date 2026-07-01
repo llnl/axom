@@ -382,9 +382,8 @@ template <typename... Args>
 axom::sol::protected_function_result callWith(const axom::sol::protected_function& func,
                                               Args&&... args)
 {
-  // Lua functions are exposed to clients as std::functions that can be invoked
-  // after schema verification. Use a catchable failure here so those clients can
-  // add context; SLIC errors may abort or only log and continue.
+  // Lua functions are exposed to clients as std::functions that can be invoked after schema verification.
+  // Use a catchable failure here instead of SLIC_ERROR so those clients can add context
   auto tentative_result = func(std::forward<Args>(args)...);
   if(!tentative_result.valid())
   {
@@ -411,8 +410,8 @@ Ret extractResult(axom::sol::protected_function_result&& res)
   axom::sol::optional<Ret> option = res;
   if(!option)
   {
-    // A failed result conversion is a runtime input error for this function
-    // call. Throwing avoids dereferencing an empty optional after a SLIC log.
+    // A failed result conversion is a runtime input error for this function call.
+    // Throwing avoids dereferencing an empty optional after a SLIC log.
     throw std::runtime_error("[Inlet] Lua function call failed, return types possibly incorrect");
   }
   return option.value();
@@ -425,9 +424,10 @@ FunctionType::Void extractResult<FunctionType::Void>(axom::sol::protected_functi
 template <>
 FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_function_result&& res)
 {
-  // Keep Vector.new(...) returns supported, but also accept raw numeric Lua
-  // tables so input decks can write idiomatic vector callbacks such as
-  // function() return {1.0, 2.0, 3.0} end.
+  // We support Vector.new(...) returns as well as raw numeric Lua tables
+  // so input decks can write idiomatic vector callbacks such as
+  //   function() return {1.0, 2.0, 3.0} end
+
   axom::sol::optional<FunctionType::Vector> vector_option = res;
   if(vector_option)
   {
@@ -442,8 +442,8 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
     if(size < 1 || size > 3)
     {
       throw std::runtime_error(
-        fmt::format("[Inlet] Lua vector function returned a table with {0} entries; expected 1 to "
-                    "3 numeric entries",
+        fmt::format("[Inlet] Lua vector function returned a table with {0} entries; "
+                    "expected 1 to 3 numeric entries",
                     size));
     }
 
@@ -492,11 +492,10 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
   axom::sol::protected_function&& func,
   std::shared_ptr<axom::sol::state> lua_state)
 {
-  // Capture lua_state by shared_ptr to keep the Lua state alive for the lifetime
-  // of the returned std::function. This is critical for callbacks and transforms
-  // stored in long-lived objects (e.g., Klee Geometry with PointTransform operators).
-  // The Lua state must remain valid as long as any std::function referencing Lua
-  // code exists, and shared ownership through capture ensures this automatically.
+  // Capture lua_state by shared_ptr to keep the Lua state alive for the lifetime of the returned std::function.
+  // This is critical for callbacks and transforms stored in long-lived objects
+  // (e.g., Klee Geometry with PointTransform operators).
+  // The Lua state must remain valid as long as any std::function referencing Lua code exists.
   return [lua_state(std::move(lua_state)),
           func(std::move(func))](typename detail::inlet_function_arg_type<Args>::type... args) {
     SLIC_ASSERT(lua_state);
@@ -618,9 +617,9 @@ ReaderResult LuaReader::getValue(const std::string& id, T& value)
 {
   std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
 
-  // A schema may register a function alias with the same input path as a
-  // concrete field. Treat a Lua function as absent for value readers so the
-  // function schema entry can claim it instead of failing as a wrong type.
+  // A schema may register a function alias with the same input path as a concrete field.
+  // Treat a Lua function as absent for value readers so the function schema entry
+  // can claim it instead of failing as a wrong type.
   if(tokens.size() == 1)
   {
     if((*m_lua)[tokens[0]].valid())

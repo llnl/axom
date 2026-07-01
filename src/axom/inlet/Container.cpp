@@ -911,9 +911,8 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
       std::string nestedPathOverride = path;
       if(!pathOverride.empty())
       {
-        // Function aliases can keep an internal schema name while reading from
-        // a public input path. For struct arrays, apply the override relative
-        // to each concrete element path found by transformFromNestedElements().
+        // Function aliases can keep an internal schema name while reading from a public input path.
+        // For struct arrays, apply the override relative to each concrete element path
         if(path.empty())
         {
           if(subcontainer.isStructCollection() || !subcontainer.m_nested_aggregates.empty())

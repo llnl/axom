@@ -1034,8 +1034,8 @@ TEST(IOTest, readShapeSet_luaTransformOperator)
 }
 
 // Note: Serialization behavior is tested via Quest MeshClipperStrategy tests
-// and the Geometry format-specific serialization paths. Direct serialization
-// testing would require using formats with embedded geometry definitions.
+// and the Geometry format-specific serialization paths.
+// Direct serialization testing would require using formats with embedded geometry definitions.
 
 TEST(IOTest, readShapeSet_luaTransformLifetimeAfterParsing)
 {

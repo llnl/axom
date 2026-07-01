@@ -283,20 +283,17 @@ shapes:
 
 #### Lua decks for generated geometry setup
 
-Klee can also read Lua decks when Axom is configured with Lua support. Lua decks
-use the same shape schema as YAML, but Lua is evaluated first, which lets you keep
-helper constants and functions local to the deck:
+Klee can also read Lua decks when Axom is configured with Lua support.
+Lua decks use the same shape schema as YAML, but Lua is evaluated first,
+which lets you keep helper constants and functions local to the deck:
 
 - ordinary Klee fields can be generated from local variables,
-- selected affine operator fields can be zero-argument callbacks evaluated once
-  during parsing, and
-- the Lua-only `transform` operator can map points through a non-affine
-  coordinate conversion at runtime.
+- selected affine operator fields can be zero-argument callbacks evaluated once during parsing, and
+- the Lua-only `transform` operator can map points through a non-affine coordinate conversion at runtime.
 
-The lesson's `ice_cream.lua` deck mirrors the YAML ice-cream setup while using
-these Lua features in one small workflow: helper functions generate dimensional
-points, callbacks compute scale and translation fields, and the cone includes a
-simple point transform before its ordinary affine operators.
+The lesson's `ice_cream.lua` deck mirrors the YAML ice-cream setup while using these Lua features in one small workflow.
+Helper functions generate dimensional points, callbacks compute scale and translation fields, 
+and the cone includes a simple point transform before its ordinary affine operators.
 
 ### Replacement Rules
 Replacement rules give users some extra control in how shapes get overlaid. By default, a new shape of a given material will replace all other shapes.

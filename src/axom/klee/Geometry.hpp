@@ -290,9 +290,8 @@ public:
    * \param point the point to transform
    * \return the transformed point
    *
-   * \note For geometries with Lua-based PointTransform operators created via
-   * readShapeSet(), the Lua state is kept alive automatically through shared
-   * ownership captured in the std::function objects stored by PointTransform.
+   * \note For geometries with Lua-based PointTransform operators created via readShapeSet(),
+   * the Lua state is kept alive automatically through shared ownership captured in the std::function objects.
    * There is no manual lifetime management required.
    */
   Point3D applyTransform(const Point3D& point) const;
