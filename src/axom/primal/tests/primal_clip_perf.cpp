@@ -94,19 +94,19 @@ void time_repeat_clips_all(const Primal3D::TetrahedronType &a,
 {
   time_repeat_clips<axom::SEQ_EXEC>(a, b, count, caseName);
 
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   {
     time_repeat_clips<axom::OMP_EXEC>(a, b, count, caseName);
   }
 #endif
 
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   {
     time_repeat_clips<axom::CUDA_EXEC<256>>(a, b, count, caseName);
   }
 #endif
 
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   {
     time_repeat_clips<axom::HIP_EXEC<256>>(a, b, count, caseName);
   }

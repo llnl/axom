@@ -42,13 +42,13 @@ enum class ExecPolicy
 };
 
 const std::map<std::string, ExecPolicy> validExecPolicies {{"seq", ExecPolicy::CPU},
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
                                                            {"omp", ExecPolicy::OpenMP},
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
                                                            {"cuda", ExecPolicy::CUDA}
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
                                                            {"hip", ExecPolicy::HIP}
 #endif
 };
@@ -329,13 +329,13 @@ struct Arguments
 
     std::string pol_info = "Sets execution space of the BVH two-pass example.\n";
     pol_info += "Set to \'seq\' to use sequential execution policy.";
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     pol_info += "\nSet to \'omp\' to use an OpenMP execution policy.";
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     pol_info += "\nSet to \'cuda\' to use a CUDA GPU execution policy.";
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     pol_info += "\nSet to \'hip\' to use a HIP GPU execution policy.";
 #endif
     app.add_option("-e, --exec_space", this->exec_space, pol_info)
