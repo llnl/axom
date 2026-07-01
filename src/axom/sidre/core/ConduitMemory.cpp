@@ -343,55 +343,55 @@ axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
     {
       axom::ArrayView<const char> view(static_cast<const char*>(n.data_ptr()),
                                        n.dtype().number_of_elements());
-      return cs += axom::utilities::checksum(view);
+      cs += axom::utilities::checksum(view);
     }
     else if(n.dtype().is_int8())
     {
-      return cs += checksumArray(n.as_int8_array());
+      cs += checksumArray(n.as_int8_array());
     }
     else if(n.dtype().is_int16())
     {
-      return cs += checksumArray(n.as_int16_array());
+      cs += checksumArray(n.as_int16_array());
     }
     else if(n.dtype().is_int32())
     {
-      return cs += checksumArray(n.as_int32_array());
+      cs += checksumArray(n.as_int32_array());
     }
     else if(n.dtype().is_int64())
     {
-      return cs += checksumArray(n.as_int64_array());
+      cs += checksumArray(n.as_int64_array());
     }
     else if(n.dtype().is_uint8())
     {
-      return cs += checksumArray(n.as_uint8_array());
+      cs += checksumArray(n.as_uint8_array());
     }
     else if(n.dtype().is_uint16())
     {
-      return cs += checksumArray(n.as_uint16_array());
+      cs += checksumArray(n.as_uint16_array());
     }
     else if(n.dtype().is_uint32())
     {
-      return cs += checksumArray(n.as_uint32_array());
+      cs += checksumArray(n.as_uint32_array());
     }
     else if(n.dtype().is_uint64())
     {
-      return cs += checksumArray(n.as_uint64_array());
+      cs += checksumArray(n.as_uint64_array());
     }
     else if(n.dtype().is_index_t())
     {
-      return cs += checksumArray(n.as_index_t_array());
+      cs += checksumArray(n.as_index_t_array());
     }
     else if(n.dtype().is_float32())
     {
-      return cs += checksumArray(n.as_float32_array());
+      cs += checksumArray(n.as_float32_array());
     }
     else if(n.dtype().is_float64())
     {
-      return cs += checksumArray(n.as_float64_array());
+      cs += checksumArray(n.as_float64_array());
     }
     else if(n.dtype().is_empty() || n.dtype().is_object() || n.dtype().is_list())
     {
-      return cs;
+      // no-op
     }
   }
   return cs;
