@@ -101,10 +101,9 @@ struct RuntimeValue
 {
 public:
   using TagType = Tag;
+  using IntType = decltype(Tag::defaultValue());
 
-  AXOM_HOST_DEVICE constexpr RuntimeValue(decltype(Tag::defaultValue()) val = Tag::defaultValue())
-    : m_value(val)
-  { }
+  AXOM_HOST_DEVICE constexpr RuntimeValue(IntType val = Tag::defaultValue()) : m_value(val) { }
 
   AXOM_HOST_DEVICE constexpr auto value() const { return m_value; }
   AXOM_HOST_DEVICE constexpr auto& value() { return m_value; }
@@ -115,7 +114,7 @@ public:
   constexpr bool isValid(bool) const { return Tag::isValidValue(m_value); }
 
 protected:
-  decltype(Tag::defaultValue()) m_value;
+  IntType m_value;
 };
 
 /*!
