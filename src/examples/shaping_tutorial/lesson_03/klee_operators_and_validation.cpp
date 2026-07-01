@@ -166,17 +166,34 @@ int main(int argc, char** argv)
   // CLI
   axom::CLI::App app {"Klee Input Validator and Summary"};
   std::string inputFilename;
+  std::string bindingsFilename;
   app.add_option("input", inputFilename)
     ->description("Klee input file")
     ->required()
     ->check(axom::CLI::ExistingFile);
+  app.add_option("--bindings-file", bindingsFilename)
+    ->description("Optional Lua chunk that returns a table of runtime bindings")
+    ->check(axom::CLI::ExistingFile);
 
   CLI11_PARSE(app, argc, argv);
+
+  auto loadShapeSet = [&]() {
+    if(bindingsFilename.empty())
+    {
+      return axom::klee::readShapeSet(inputFilename);
+    }
+
+    std::ifstream bindingsStream {bindingsFilename};
+    std::string bindingsSource {std::istreambuf_iterator<char>(bindingsStream), {}};
+    axom::klee::LuaBindingsChunk bindings {bindingsSource, bindingsFilename};
+    return axom::klee::readShapeSet(inputFilename, bindings);
+  };
 
   // Load the klee shape file and extract some information
   try
   {
-    auto shapeSet = axom::klee::readShapeSet(inputFilename);
+    auto shapeSet = loadShapeSet();
+    AXOM_UNUSED_VAR(shapeSet);
   }
   catch(axom::klee::KleeError& error)
   {
@@ -194,7 +211,7 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  auto shapeSet = axom::klee::readShapeSet(inputFilename);
+  auto shapeSet = loadShapeSet();
   printShapeSetInfo(shapeSet);
 
   return 0;

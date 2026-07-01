@@ -31,6 +31,7 @@ using klee::InputFormat;
 using klee::InputVariables;
 using klee::KleeError;
 using klee::LengthUnit;
+using klee::LuaBindingsChunk;
 using klee::PointTransform;
 using klee::Rotation;
 using klee::Scale;
@@ -66,6 +67,23 @@ ShapeSet readShapeSetFromString(const std::string& input,
 {
   std::istringstream istream(input);
   return klee::readShapeSet(istream, format, variables);
+}
+
+ShapeSet readShapeSetFromString(const std::string& input,
+                                InputFormat format,
+                                const LuaBindingsChunk& bindings)
+{
+  std::istringstream istream(input);
+  return klee::readShapeSet(istream, format, bindings);
+}
+
+ShapeSet readShapeSetFromString(const std::string& input,
+                                InputFormat format,
+                                const InputVariables& variables,
+                                const LuaBindingsChunk& bindings)
+{
+  std::istringstream istream(input);
+  return klee::readShapeSet(istream, format, variables, bindings);
 }
 }  // end namespace
 
@@ -376,6 +394,30 @@ TEST(IOTest, readShapeSet_yamlRejectsInputVariables)
   }
 }
 
+TEST(IOTest, readShapeSet_yamlRejectsLuaBindings)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions: 2
+      shapes: []
+    )",
+                           InputFormat::YAML,
+                           LuaBindingsChunk {R"(
+                             return {
+                               dimensions = 2
+                             }
+                           )",
+                                             "runtime_bindings"});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Lua bindings"));
+    EXPECT_THAT(err.what(), HasSubstr("Lua input decks"));
+  }
+}
+
 #ifndef AXOM_USE_LUA
 TEST(IOTest, readShapeSet_luaUnavailableDiagnostic)
 {
@@ -473,6 +515,118 @@ TEST(IOTest, readShapeSet_luaInputVariablesControlDimensionAndTransform)
   EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 99.0}), AlmostEqPoint(Point3D {6.0, 10.0, 0.0}));
 }
 
+TEST(IOTest, readShapeSet_luaBindingsChunkControlDimensionAndTransform)
+{
+  LuaBindingsChunk bindings {R"(
+    local dim = 2
+    local lift = 3.0
+    local stretch = 2.0
+
+    local function warp(p)
+      if dim == 2 then
+        return {p.x * stretch, p.y + lift}
+      end
+      return {p.x * stretch, p.y, p.z + lift}
+    end
+
+    return {
+      dimensions = dim,
+      shape_suffix = "2d",
+      lift = lift,
+      warp = warp
+    }
+  )",
+                             "runtime_bindings"};
+
+  auto shapeSet = readShapeSetFromString(R"(
+    local function shape_path()
+      return "part_" .. shape_suffix .. ".stl"
+    end
+
+    shapes = {
+      {
+        name = "controlled",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = shape_path(),
+          units = "cm",
+          operators = {
+            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} },
+            { transform = warp }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         bindings);
+
+  ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_EQ("part_2d.stl", geometry.getPath());
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
+  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 99.0}), AlmostEqPoint(Point3D {6.0, 10.0, 0.0}));
+}
+
+TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
+{
+  LuaBindingsChunk bindings {R"(
+    local lift = 3.0
+    local stretch = 2.0
+
+    local function warp(p)
+      if dimensions == 2 then
+        return {p.x * stretch, p.y + lift}
+      end
+      return {p.x * stretch, p.y, p.z + lift}
+    end
+
+    return {
+      lift = lift,
+      warp = warp
+    }
+  )",
+                             "runtime_bindings"};
+
+  InputVariables variables {
+    {"dimensions", klee::InputVariableValue {2}},
+    {"shape_suffix", klee::InputVariableValue {std::string {"2d"}}},
+  };
+
+  auto shapeSet = readShapeSetFromString(R"(
+    local function shape_path()
+      return "part_" .. shape_suffix .. ".stl"
+    end
+
+    shapes = {
+      {
+        name = "controlled",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = shape_path(),
+          units = "cm",
+          operators = {
+            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} },
+            { transform = warp }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         variables,
+                                         bindings);
+
+  ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_EQ("part_2d.stl", geometry.getPath());
+  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 99.0}), AlmostEqPoint(Point3D {6.0, 10.0, 0.0}));
+}
+
 TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
 {
   try
@@ -489,6 +643,95 @@ TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
   {
     EXPECT_THAT(err.what(), HasSubstr("Invalid Klee Lua input variable name"));
     EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaBindingsChunkRejectsInvalidExportName)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           LuaBindingsChunk {R"(
+                             return {
+                               ["shape-dim"] = 2
+                             }
+                           )",
+                                             "runtime_bindings"});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Invalid Klee Lua binding name"));
+    EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaBindingsChunkRejectsReservedGlobalName)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           LuaBindingsChunk {R"(
+                             return {
+                               math = 2
+                             }
+                           )",
+                                             "runtime_bindings"});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("conflicts with an existing Lua global"));
+    EXPECT_THAT(err.what(), HasSubstr("math"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaBindingsChunkRejectsDuplicateInputVariableName)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           {{"dimensions", klee::InputVariableValue {2}}},
+                           LuaBindingsChunk {R"(
+                             return {
+                               dimensions = 3
+                             }
+                           )",
+                                             "runtime_bindings"});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("duplicates another external Lua binding"));
+    EXPECT_THAT(err.what(), HasSubstr("dimensions"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaBindingsChunkRequiresTableReturn)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           LuaBindingsChunk {"return 2", "runtime_bindings"});
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("must return a table"));
+    EXPECT_THAT(err.what(), HasSubstr("runtime_bindings"));
   }
 }
 

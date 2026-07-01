@@ -422,6 +422,17 @@ catch(axom::klee::KleeError& error)
 }
 ```
 
+The validator example also accepts an optional `--bindings-file` argument for
+Lua decks. The bindings file is a Lua chunk that returns a table of exported
+variables and helper functions, which lets an application provide runtime Lua
+customization without rebuilding the executable:
+
+```bash
+./bin/lesson_03_klee_operators_and_validation \
+  ../lesson_03/ice_cream_bindings.lua \
+  --bindings-file ../lesson_03/ice_cream_runtime_bindings.lua
+```
+
 Next, we loop through the shapes and print out information about each shape. We're using an `fmt::memory_buffer` (similar to a `std::stringstream`) to write everything in a single log statement:
 ```cpp
   axom::fmt::memory_buffer buffer;
