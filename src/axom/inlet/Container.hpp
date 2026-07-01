@@ -827,9 +827,9 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_inlet_array<T>::value &&
-                            !detail::is_inlet_dict<T>::value && !detail::is_std_vector<T>::value &&
-                            !detail::is_variant_value<T>::value && !detail::is_std_variant<T>::value,
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value &&
+                            !detail::is_inlet_array<T>::value && !detail::is_inlet_dict<T>::value &&
+                            !detail::is_std_vector<T>::value && !detail::is_variant_value<T>::value,
                           T>::type
   get(const std::string& name = "") const
   {
