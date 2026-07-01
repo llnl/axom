@@ -75,16 +75,13 @@ if(AXOM_ENABLE_QUEST)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND RAJA_FOUND AND UMPIRE_FOUND)
 
         # Run the mesh_tester with the plane_simp_problems.stl example and
-        # different spatial indexes, raja policies
+        # different spatial indexes and execution policies
 
         set(plane_data_dir "${AXOM_DATA_DIR}/quest/plane_simp_problems.stl")
 
         set(_methods "bvh" "implicit" "uniform")
 
-        set (_policies "raja_seq")
-        blt_list_append(TO _policies ELEMENTS "raja_omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "raja_cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "raja_hip" IF AXOM_ENABLE_HIP)
+        axom_execution_policies(_policies)
 
         foreach(_method ${_methods})
             foreach(_policy ${_policies})
