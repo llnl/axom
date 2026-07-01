@@ -53,7 +53,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
-- CMake: Reuses `axom_execution_policies()` to simplify Axom build logic
+- CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 
