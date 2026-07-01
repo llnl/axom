@@ -229,6 +229,18 @@ if(COMPILER_FAMILY_IS_MSVC)
 endif()
 
 #------------------------------------------------------------------------------
+# Setup execution policies variable (so all subdirectories can reuse it)
+#------------------------------------------------------------------------------
+set(AXOM_EXECUTION_POLICIES "seq")
+if(RAJA_FOUND)
+    blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+    if(AXOM_USE_UMPIRE)
+        blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+        blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+    endif()
+endif()
+
+#------------------------------------------------------------------------------
 # Configure our CTest Dashboard Driver Script
 #------------------------------------------------------------------------------
 # To use this script to build and submit a dashboard
