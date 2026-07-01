@@ -81,10 +81,8 @@ if(AXOM_ENABLE_QUEST)
 
         set(_methods "bvh" "implicit" "uniform")
 
-        axom_execution_policies(_policies)
-
         foreach(_method ${_methods})
-            foreach(_policy ${_policies})
+            foreach(_policy ${AXOM_EXECUTION_POLICIES})
 
                 set(_testname "mesh_tester_${_method}_${_policy}")
                 axom_add_test(

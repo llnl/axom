@@ -32,9 +32,7 @@ if(AXOM_ENABLE_MPI AND CONDUIT_RELAY_MPI_ENABLED)
 endif()
 
 if(AXOM_ENABLE_TESTS)
-    axom_execution_policies(_policies)
-
-    foreach(_policy ${_policies})
+    foreach(_policy ${AXOM_EXECUTION_POLICIES})
         # sets the number of threads for the omp policy; leave empty for non-omp policies
         set(_num_threads)
         if(_policy STREQUAL "omp")

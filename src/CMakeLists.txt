@@ -132,6 +132,16 @@ if(AXOM_ENABLE_CUDA AND ${CMAKE_VERSION} VERSION_LESS 3.18.0)
     message(FATAL_ERROR "Axom requires CMake version 3.18.0+ when CUDA is enabled.")
 endif()
 
+# Build the execution policy list once so all subdirectories can reuse it.
+set(AXOM_EXECUTION_POLICIES "seq")
+if(RAJA_FOUND)
+    blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+    if(AXOM_USE_UMPIRE)
+        blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+        blt_list_append(TO AXOM_EXECUTION_POLICIES ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+    endif()
+endif()
+
 axom_add_code_checks()
 
 #------------------------------------------------------------------------------

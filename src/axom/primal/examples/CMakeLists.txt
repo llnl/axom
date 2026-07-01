@@ -46,9 +46,7 @@ if (RAJA_FOUND AND UMPIRE_FOUND)
         # Run the hex_tet_volume_ex example with different raja policies
         # to check for completion
 
-        axom_execution_policies(_policies)
-
-        foreach(_policy ${_policies})
+        foreach(_policy ${AXOM_EXECUTION_POLICIES})
             # sets the number of threads for the omp policy; leave empty for non-omp policies
             set(_num_threads)
             if(_policy STREQUAL "omp")

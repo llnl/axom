@@ -687,20 +687,3 @@ macro(axom_force_release_for_target tgt)
     endif()
     target_compile_definitions(${tgt} PRIVATE NDEBUG)
 endmacro(axom_force_release_for_target)
-
-##------------------------------------------------------------------------------
-## axom_execution_policies
-##
-## This function returns the list of valid execution policies for the build.
-##------------------------------------------------------------------------------
-function(axom_execution_policies out_var)
-  set(_policies "seq")
-  if(RAJA_FOUND)
-    blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-    if(AXOM_USE_UMPIRE)
-      blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-      blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-    endif()
-  endif()
-  set(${out_var} "${_policies}" PARENT_SCOPE)
-endfunction()

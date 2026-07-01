@@ -21,9 +21,7 @@ axom_add_executable(
     )
 
 if(AXOM_ENABLE_TESTS)
-    axom_execution_policies(_policies)
-
-    foreach(_policy ${_policies})
+    foreach(_policy ${AXOM_EXECUTION_POLICIES})
         set(_num_threads)
         if(_policy STREQUAL "omp")
             set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
