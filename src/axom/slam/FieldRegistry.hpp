@@ -106,9 +106,9 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  MapType& addField(KeyType key, const SetType* theSet)
+  MapType& addField(std::string_view key, const SetType* theSet)
   {
-    auto [it, _] = m_maps.insert_or_assign(std::move(key), FieldStorageType(MapType(theSet)));
+    auto [it, _] = m_maps.insert_or_assign(KeyType(key), FieldStorageType(MapType(theSet)));
     return std::get<MapType>(it->second);
   }
 
@@ -122,10 +122,10 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  ViewMapType& addField(KeyType key, const SetType* theSet, axom::ArrayView<DataType> data)
+  ViewMapType& addField(std::string_view key, const SetType* theSet, axom::ArrayView<DataType> data)
   {
     auto [it, _] =
-      m_maps.insert_or_assign(std::move(key), FieldStorageType(slam::make_map(theSet, data)));
+      m_maps.insert_or_assign(KeyType(key), FieldStorageType(slam::make_map(theSet, data)));
     return std::get<ViewMapType>(it->second);
   }
 
@@ -140,10 +140,10 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  ViewMapType& addField(KeyType key, const SetType* theSet, DataType* data)
+  ViewMapType& addField(std::string_view key, const SetType* theSet, DataType* data)
   {
     auto [it, _] =
-      m_maps.insert_or_assign(std::move(key), FieldStorageType(slam::make_map(theSet, data)));
+      m_maps.insert_or_assign(KeyType(key), FieldStorageType(slam::make_map(theSet, data)));
     return std::get<ViewMapType>(it->second);
   }
 
@@ -272,9 +272,9 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  ViewMapType& addFieldView(KeyType key, const SetType* theSet, axom::ArrayView<DataType> data)
+  ViewMapType& addFieldView(std::string_view key, const SetType* theSet, axom::ArrayView<DataType> data)
   {
-    return addField(std::move(key), theSet, data);
+    return addField(key, theSet, data);
   }
 
   /*!
@@ -288,9 +288,9 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  ViewMapType& addFieldView(KeyType key, const SetType* theSet, DataType* data)
+  ViewMapType& addFieldView(std::string_view key, const SetType* theSet, DataType* data)
   {
-    return addField(std::move(key), theSet, data);
+    return addField(key, theSet, data);
   }
 
   /*!
@@ -390,9 +390,9 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  BufferType& addBuffer(KeyType key, int size = 0)
+  BufferType& addBuffer(std::string_view key, int size = 0)
   {
-    auto [it, _] = m_buff.insert_or_assign(std::move(key), BufferType(size));
+    auto [it, _] = m_buff.insert_or_assign(KeyType(key), BufferType(size));
     return it->second;
   }
 
@@ -475,9 +475,9 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  ViewBufferType& addBufferView(KeyType key, ViewBufferType view)
+  ViewBufferType& addBufferView(std::string_view key, ViewBufferType view)
   {
-    auto [it, _] = m_view_buff.insert_or_assign(std::move(key), view);
+    auto [it, _] = m_view_buff.insert_or_assign(KeyType(key), view);
     return it->second;
   }
 
@@ -489,10 +489,9 @@ public:
    * \param size Number of elements.
    * \return A mutable reference to the stored view.
    */
-  ViewBufferType& addBufferView(KeyType key, DataType* data, PositionType size)
+  ViewBufferType& addBufferView(std::string_view key, DataType* data, PositionType size)
   {
-    return addBufferView(std::move(key),
-                         axom::ArrayView<DataType>(data, static_cast<axom::IndexType>(size)));
+    return addBufferView(key, axom::ArrayView<DataType>(data, static_cast<axom::IndexType>(size)));
   }
 
   /*!
@@ -576,7 +575,11 @@ public:
    *
    * \note If an entry with the same key already exists, it is overwritten.
    */
-  DataType& addScalar(KeyType key, DataType val) { return m_scal[std::move(key)] = val; }
+  DataType& addScalar(std::string_view key, DataType val)
+  {
+    auto [it, _] = m_scal.insert_or_assign(KeyType(key), val);
+    return it->second;
+  }
 
   /*!
    * \brief Returns a mutable reference to the scalar for \a key.

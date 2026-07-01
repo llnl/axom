@@ -93,6 +93,7 @@ TEST(slam_FieldRegistry, find_buffer_optional)
 
 TEST(slam_FieldRegistry, heterogeneous_lookup_with_string_view_key)
 {
+  SetType s(3);
   ScalarRegistry reg;
   reg.addScalar("energy", 1.0);
 
@@ -109,6 +110,17 @@ TEST(slam_FieldRegistry, heterogeneous_lookup_with_string_view_key)
   std::optional<double> hit = reg.findScalar(sv);
   ASSERT_TRUE(hit.has_value());
   EXPECT_DOUBLE_EQ(*hit, 1.0);
+
+  // check that we're properly using string_view on substrings
+  std::string field_storage = "xxfield_nameyy";
+  std::string_view field_key(field_storage.data() + 2, 10);
+  reg.addField(field_key, &s);
+  EXPECT_TRUE(reg.hasField("field_name"));
+
+  std::string buffer_storage = "xxbuffer_nameyy";
+  std::string_view buffer_key(buffer_storage.data() + 2, 11);
+  reg.addBuffer(buffer_key, 3);
+  EXPECT_TRUE(reg.hasBuffer("buffer_name"));
 }
 
 TEST(slam_FieldRegistry, nameless_keys_are_unique)
