@@ -35,7 +35,7 @@ inline CheckSum calculateChecksum(DataGetter data, axom::IndexType len)
   CheckSum ckahan = 0.0;
   for(axom::IndexType j = 0; j < len; ++j)
   {
-    const auto value = data(j);
+    const auto value = static_cast<CheckSum>(data(j));
     CheckSum x = (std::abs(std::sin(j + 1.0)) + 0.5) * value;
     CheckSum y = x - ckahan;
     volatile CheckSum t = tchk + y;
