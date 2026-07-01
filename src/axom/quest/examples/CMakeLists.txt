@@ -52,12 +52,7 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
 
     set(input_file "${AXOM_DATA_DIR}/quest/unit_cube.stl")
 
-    set (_policies "seq")
-    if(RAJA_FOUND)
-        blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-    endif()
+    axom_execution_policies(_policies)
 
     foreach(_policy ${_policies})
         # sets the number of threads for the omp policy; leave empty for non-omp policies
@@ -109,12 +104,7 @@ if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
 
         set(_methods "bvh" "implicit")
 
-        set (_policies "seq")
-        if(RAJA_FOUND)
-          blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-          blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-          blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-        endif()
+        axom_execution_policies(_policies)
 
         foreach(_method ${_methods})
             foreach(_policy ${_policies})
@@ -240,14 +230,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
 
         # Tests 2D c2c contour
         if(C2C_FOUND)
-            set(_policies "seq")
-            if(RAJA_FOUND)
-                blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-                if(UMPIRE_FOUND)
-                  blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-                  blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-                endif()
-            endif()
+            axom_execution_policies(_policies)
 
             foreach(_policy ${_policies})
                 # sets the number of threads for the omp policy; leave empty for non-omp policies
@@ -360,12 +343,7 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
         set(_nranks 3)
 
         # Run the distributed closest point example on N ranks for each enabled policy
-        set(_policies "seq")
-        if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
-            blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
-        endif()
+        axom_execution_policies(_policies)
 
         # Non-zero empty-rank probability tests domain underloading case
         set(_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")
@@ -447,12 +425,7 @@ if(CONDUIT_FOUND)
         endif()
 
         # Run the marching cubes example on N ranks for each enabled policy
-        set(_policies "seq")
-        if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-        endif()
+        axom_execution_policies(_policies)
 
         # Non-zero empty-rank probability tests domain underloading case
         set(_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")

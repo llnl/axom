@@ -199,15 +199,7 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
     endforeach()
 
     # Invoke the intersection shaper test program as many tests that run a subset of the tests.
-    set(_policies "seq")
-    if(RAJA_FOUND)
-      blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-      if(AXOM_USE_UMPIRE)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-      endif()
-    endif()
-
+    axom_execution_policies(_policies)
     foreach(_pol ${_policies})
       # sets the number of threads
       set(_num_threads)
@@ -268,12 +260,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
     set(_nranks 1)
 
     # Run the geometry clipping test on with each enabled policy
-    set(_policies "seq")
-    if(RAJA_FOUND)
-      blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
-      blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-      blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
-    endif()
+    axom_execution_policies(_policies)
 
     set(_testgeoms "plane" "tet" "hex" "sphere" "tetmesh" "cupmesh" "sor" "cyl" "cone" "plane,hex,tetmesh")
     set(_meshTypes "bpSidre" "bpConduit")
