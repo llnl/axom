@@ -1908,8 +1908,10 @@ public:
    * \endcode
    *
    * \param n_checksum The output node that receives the checksum metadata.
+   *
+   * \return A CheckSum of the group.
    */
-  void checksum(conduit::Node& n_checksum) const;
+   axom::utilities::CheckSum checksum(conduit::Node& n_checksum) const;
 
 private:
   DISABLE_DEFAULT_CTOR(Group);

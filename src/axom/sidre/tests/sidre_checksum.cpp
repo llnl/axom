@@ -11,6 +11,10 @@
 
 #include "conduit_node.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <limits>
 #include <string>
 
 namespace
@@ -361,4 +365,47 @@ TEST(sidre_checksum, group_checksum_metadata_mirrors_structure_and_replaces_stal
   EXPECT_FALSE(metadata.has_path("views/view2"));
   ASSERT_TRUE(metadata.has_path("views/status/checksum"));
   EXPECT_FALSE(metadata.has_child("groups"));
+}
+
+TEST(sidre_checksum, group_checksum_metadata_matches_nonconduit_checksum_with_tolerance)
+{
+  axom::sidre::DataStore datastore;
+  axom::sidre::Group* root = datastore.getRoot();
+  axom::sidre::Group* group = root->createGroup("group0");
+  axom::sidre::Group* child = group->createGroup("group1");
+  axom::sidre::Group* grandchild = child->createGroup("group2");
+  axom::sidre::View* rootView = group->createViewAndAllocate("root_values", axom::sidre::INT_ID, 3);
+  axom::sidre::View* childView =
+    child->createViewAndAllocate("child_values", axom::sidre::DOUBLE_ID, 2);
+  axom::sidre::View* grandchildView =
+    grandchild->createViewAndAllocate("grandchild_values", axom::sidre::INT64_ID, 4);
+
+  int* rootData = rootView->getData<int*>();
+  rootData[0] = 2;
+  rootData[1] = 3;
+  rootData[2] = 5;
+
+  double* childData = childView->getData<double*>();
+  childData[0] = 1.25;
+  childData[1] = -4.5;
+
+  std::int64_t* grandchildData = grandchildView->getData<std::int64_t*>();
+  grandchildData[0] = 8;
+  grandchildData[1] = 13;
+  grandchildData[2] = 21;
+  grandchildData[3] = 34;
+
+  const auto checksum = group->checksum();
+
+  conduit::Node metadata;
+  const auto metadataChecksum = group->checksum(metadata);
+
+  EXPECT_EQ(checksum, metadataChecksum);
+
+  const double serializedChecksum = metadata["checksum"].to_double();
+  const double expectedChecksum = static_cast<double>(checksum);
+  const double tolerance =
+    std::numeric_limits<double>::epsilon() * std::max(1.0, std::abs(expectedChecksum)) * 8.0;
+
+  EXPECT_NEAR(expectedChecksum, serializedChecksum, tolerance);
 }
