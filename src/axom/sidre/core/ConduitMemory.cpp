@@ -301,8 +301,8 @@ template <typename T>
 axom::utilities::CheckSum checksumArray(const conduit::DataArray<T>& arr)
 {
   return axom::utilities::calculateChecksum(
-           [=](axom::IndexType i) { return static_cast<axom::utilities::CheckSum>(arr[i]); },
-           arr.number_of_elements());
+    [=](axom::IndexType i) { return static_cast<axom::utilities::CheckSum>(arr[i]); },
+    arr.number_of_elements());
 }
 
 /// Compute a checksum on the conduit tree \a n.
@@ -395,9 +395,11 @@ axom::utilities::CheckSum checksumImpl(const conduit::Node& n, bool include_name
   }
   return cs;
 }
-} // end namespace
+}  // end namespace
 
-axom::utilities::CheckSum checksum(const conduit::Node& n, axom::utilities::ScaleFactor scaleFactor, bool include_name)
+axom::utilities::CheckSum checksum(const conduit::Node& n,
+                                   axom::utilities::ScaleFactor scaleFactor,
+                                   bool include_name)
 {
   return checksumImpl(n, include_name) * static_cast<axom::utilities::CheckSum>(scaleFactor);
 }

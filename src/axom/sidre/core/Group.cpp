@@ -2902,7 +2902,7 @@ axom::utilities::CheckSum Group::checksum(conduit::Node& n_checksum, bool includ
   // Always emit a fresh snapshot so callers can safely reuse the same node.
   n_checksum.reset();
   n_checksum.set(conduit::DataType::object());
-  conduit::Node &groupCS = n_checksum["checksum"];
+  conduit::Node& groupCS = n_checksum["checksum"];
 
   // Checksum the name
   axom::ArrayView<const char> nameView(m_name.data(), m_name.size());

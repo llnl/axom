@@ -1914,7 +1914,7 @@ public:
    *
    * \return A CheckSum of the group.
    */
-   axom::utilities::CheckSum checksum(conduit::Node& n_checksum, bool includeAttributes = true) const;
+  axom::utilities::CheckSum checksum(conduit::Node& n_checksum, bool includeAttributes = true) const;
 
 private:
   DISABLE_DEFAULT_CTOR(Group);
