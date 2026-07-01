@@ -248,11 +248,15 @@ TEST(sidre_checksum, view_and_group_checksum_change_on_attribute_mutation)
   ASSERT_TRUE(view->setAttributeString(category, "alpha"));
   const auto stringAttrChecksum = view->checksum();
   EXPECT_NE(baseChecksum, stringAttrChecksum);
+  EXPECT_NE(view->checksum(true), view->checksum(false));
+  EXPECT_EQ(baseChecksum, view->checksum(false));
   EXPECT_NE(baseGroupChecksum, group->checksum());
 
   ASSERT_TRUE(view->setAttributeScalar(priority, 3));
   const auto scalarAttrChecksum = view->checksum();
   EXPECT_NE(stringAttrChecksum, scalarAttrChecksum);
+  EXPECT_NE(view->checksum(true), view->checksum(false));
+  EXPECT_EQ(baseChecksum, view->checksum(false));
 
   ASSERT_TRUE(view->setAttributeString(category, "beta"));
   const auto mutatedAttrChecksum = view->checksum();
