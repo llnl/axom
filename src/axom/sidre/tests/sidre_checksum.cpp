@@ -100,6 +100,32 @@ TEST(sidre_checksum, conduit_checksum_changes_for_tree_structure_and_leaf_data)
   EXPECT_NE(checksum, axom::sidre::checksum(addedChild));
 }
 
+TEST(sidre_checksum, conduit_checksum_matches_for_equivalent_hierarchical_nodes)
+{
+  int firstIds[] = {10, 20, 30};
+  int secondIds[] = {10, 20, 30};
+  double firstValues[] = {1.5, -2.25, 3.75};
+  double secondValues[] = {1.5, -2.25, 3.75};
+
+  conduit::Node first;
+  first["fields/ids"].set_external(firstIds, 3);
+  first["fields/values"].set_external(firstValues, 3);
+  first["state/message"].set("alpha");
+  first["state/count"].set(42);
+  first["nested/pi"].set(3.14159);
+
+  conduit::Node second;
+  second["fields/ids"].set_external(secondIds, 3);
+  second["fields/values"].set_external(secondValues, 3);
+  second["state/message"].set("alpha");
+  second["state/count"].set(42);
+  second["nested/pi"].set(3.14159);
+
+  EXPECT_NE(firstIds, secondIds);
+  EXPECT_NE(firstValues, secondValues);
+  EXPECT_EQ(axom::sidre::checksum(first), axom::sidre::checksum(second));
+}
+
 TEST(sidre_checksum, conduit_checksum_supports_empty_object_and_list_nodes)
 {
   conduit::Node emptyObject;
