@@ -2897,6 +2897,34 @@ axom::utilities::CheckSum Group::checksum() const
   return cs;
 }
 
+void Group::checksum(conduit::Node& n_checksum) const
+{
+  // Always emit a fresh snapshot so callers can safely reuse the same node.
+  n_checksum.reset();
+  n_checksum.set(conduit::DataType::object());
+  n_checksum["checksum"] = static_cast<double>(checksum());
+
+  // Add the checksums of the views and groups.
+  if(getNumViews() > 0)
+  {
+    conduit::Node& n_views = n_checksum["views"];
+    for(const auto& view : this->views())
+    {
+      conduit::Node& n_view = n_views[view.getName()];
+      n_view["checksum"] = static_cast<double>(view.checksum());
+    }
+  }
+  if(getNumGroups() > 0)
+  {
+    conduit::Node& n_groups = n_checksum["groups"];
+    for(const auto& group : this->groups())
+    {
+      conduit::Node& n_group = n_groups[group.getName()];
+      group.checksum(n_group);
+    }
+  }
+}
+
 /*
  *************************************************************************
  *

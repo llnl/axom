@@ -1857,6 +1857,60 @@ public:
    */
   axom::utilities::CheckSum checksum() const;
 
+  /*!
+   * \brief Store checksum metadata for this group subtree in a Conduit node.
+   *
+   * The output node is overwritten with an object that mirrors the nesting of
+   * the current group's direct child groups and views. The current group itself
+   * is represented by the output node, not by an additional wrapper keyed by
+   * `getName()`. Each group object stores its aggregate checksum in a
+   * `checksum` field, optional child-group metadata in
+   * `groups/<child_group_name>`, and optional direct-view metadata in
+   * `views/<child_view_name>`. Each view entry stores its checksum in a
+   * `checksum` field.
+   *
+   * For a group tree such as:
+   *
+   * \code
+   * {
+   *   "group0":
+   *   {
+   *     "group1":
+   *     {
+   *       "view1": [1, 2, 3]
+   *     },
+   *     "view2": [4, 5, 6]
+   *   }
+   * }
+   * \endcode
+   *
+   * Calling `group0->checksum(out)` emits metadata for `group0` itself:
+   *
+   * \code
+   * {
+   *   "checksum": <group0 checksum>,
+   *   "groups":
+   *   {
+   *     "group1":
+   *     {
+   *       "checksum": <group1 checksum>,
+   *       "views":
+   *       {
+   *         "view1": { "checksum": <view1 checksum> }
+   *       }
+   *     }
+   *   },
+   *   "views":
+   *   {
+   *     "view2": { "checksum": <view2 checksum> }
+   *   }
+   * }
+   * \endcode
+   *
+   * \param n_checksum The output node that receives the checksum metadata.
+   */
+  void checksum(conduit::Node& n_checksum) const;
+
 private:
   DISABLE_DEFAULT_CTOR(Group);
   DISABLE_COPY_AND_ASSIGNMENT(Group);

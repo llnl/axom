@@ -316,3 +316,49 @@ TEST(sidre_checksum, group_checksum_changes_on_add_remove_rename_and_descendant_
   EXPECT_NE(afterMutationChecksum, group->checksum());
   EXPECT_EQ(emptyChecksum, group->checksum());
 }
+
+TEST(sidre_checksum, group_checksum_metadata_mirrors_structure_and_replaces_stale_entries)
+{
+  axom::sidre::DataStore datastore;
+  axom::sidre::Group* root = datastore.getRoot();
+  axom::sidre::Group* group = root->createGroup("group0");
+  axom::sidre::Group* child = group->createGroup("group1");
+  axom::sidre::View* childView = child->createViewAndAllocate("view1", axom::sidre::INT_ID, 3);
+  axom::sidre::View* directView = group->createViewAndAllocate("view2", axom::sidre::INT_ID, 3);
+
+  int* childData = childView->getData<int*>();
+  childData[0] = 1;
+  childData[1] = 2;
+  childData[2] = 3;
+
+  int* directData = directView->getData<int*>();
+  directData[0] = 4;
+  directData[1] = 5;
+  directData[2] = 6;
+
+  conduit::Node metadata;
+  group->checksum(metadata);
+
+  EXPECT_DOUBLE_EQ(static_cast<double>(group->checksum()), metadata["checksum"].to_double());
+  ASSERT_TRUE(metadata.has_path("groups/group1/checksum"));
+  ASSERT_TRUE(metadata.has_path("groups/group1/views/view1/checksum"));
+  ASSERT_TRUE(metadata.has_path("views/view2/checksum"));
+  EXPECT_DOUBLE_EQ(static_cast<double>(child->checksum()),
+                   metadata["groups/group1/checksum"].to_double());
+  EXPECT_DOUBLE_EQ(static_cast<double>(childView->checksum()),
+                   metadata["groups/group1/views/view1/checksum"].to_double());
+  EXPECT_DOUBLE_EQ(static_cast<double>(directView->checksum()),
+                   metadata["views/view2/checksum"].to_double());
+
+  group->destroyGroupAndData("group1");
+  group->destroyViewAndData("view2");
+  group->createViewScalar("status", 99);
+
+  group->checksum(metadata);
+
+  EXPECT_DOUBLE_EQ(static_cast<double>(group->checksum()), metadata["checksum"].to_double());
+  EXPECT_FALSE(metadata.has_path("groups/group1"));
+  EXPECT_FALSE(metadata.has_path("views/view2"));
+  ASSERT_TRUE(metadata.has_path("views/status/checksum"));
+  EXPECT_FALSE(metadata.has_child("groups"));
+}
