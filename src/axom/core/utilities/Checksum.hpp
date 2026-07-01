@@ -62,7 +62,7 @@ template <typename T>
 inline CheckSum checksum(T value, const ScaleFactor scaleFactor = ScaleFactor {1})
 {
   return calculateChecksum([=](axom::IndexType) { return static_cast<CheckSum>(value); }, 1) *
-    scaleFactor;
+    static_cast<CheckSum>(scaleFactor);
 }
 
 /*!
@@ -79,7 +79,7 @@ inline CheckSum checksum(axom::ArrayView<T> view, const ScaleFactor scaleFactor 
 {
   return calculateChecksum([=](axom::IndexType i) { return static_cast<CheckSum>(view[i]); },
                            view.size()) *
-    scaleFactor;
+    static_cast<CheckSum>(scaleFactor);
 }
 
 }  // namespace utilities

@@ -1853,9 +1853,11 @@ public:
    * \brief Traverse the group and all of its descendents and compute a checksum
    *        of the structure as well as the contents of the views.
    *
+   * \param includeAttributes Whether to include view attributes in the checksum.
+   *
    * \return A CheckSum of the group.
    */
-  axom::utilities::CheckSum checksum() const;
+  axom::utilities::CheckSum checksum(bool includeAttributes = true) const;
 
   /*!
    * \brief Store checksum metadata for this group subtree in a Conduit node.
@@ -1908,10 +1910,11 @@ public:
    * \endcode
    *
    * \param n_checksum The output node that receives the checksum metadata.
+   * \param includeAttributes Whether to include view attributes in the checksum.
    *
    * \return A CheckSum of the group.
    */
-   axom::utilities::CheckSum checksum(conduit::Node& n_checksum) const;
+   axom::utilities::CheckSum checksum(conduit::Node& n_checksum, bool includeAttributes = true) const;
 
 private:
   DISABLE_DEFAULT_CTOR(Group);

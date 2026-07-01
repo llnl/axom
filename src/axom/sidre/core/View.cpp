@@ -2082,7 +2082,7 @@ int View::getValidAllocatorId(int allocId)
   return axom::INVALID_ALLOCATOR_ID;
 }
 
-axom::utilities::CheckSum View::checksum() const
+axom::utilities::CheckSum View::checksum(bool includeAttributes) const
 {
   // Checksum the name
   axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
@@ -2091,13 +2091,16 @@ axom::utilities::CheckSum View::checksum() const
   // Checksum the view contents without double-counting the view name.
   cs += axom::sidre::checksum(m_node, false);
 
-  for(IndexType attrIdx = getFirstValidAttrValueIndex(); attrIdx != InvalidIndex;
-      attrIdx = getNextValidAttrValueIndex(attrIdx))
+  if(includeAttributes)
   {
-    const Attribute* attr = getAttribute(attrIdx);
-    if(attr != nullptr)
+    for(IndexType attrIdx = getFirstValidAttrValueIndex(); attrIdx != InvalidIndex;
+        attrIdx = getNextValidAttrValueIndex(attrIdx))
     {
-      cs += checksumNamedNode(attr->getName(), getAttributeNodeRef(attr));
+      const Attribute* attr = getAttribute(attrIdx);
+      if(attr != nullptr)
+      {
+        cs += checksumNamedNode(attr->getName(), getAttributeNodeRef(attr));
+      }
     }
   }
 

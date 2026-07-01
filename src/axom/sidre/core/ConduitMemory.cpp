@@ -9,17 +9,6 @@ namespace axom
 {
 namespace sidre
 {
-namespace
-{
-axom::utilities::CheckSum checksumNodeMetadata(const conduit::Node& n)
-{
-  auto cs = axom::utilities::CheckSum {0};
-  cs += axom::utilities::checksum(static_cast<conduit::index_t>(n.dtype().id()), 2.0);
-  cs += axom::utilities::checksum(n.number_of_children(), 3.0);
-  cs += axom::utilities::checksum(n.dtype().number_of_elements(), 5.0);
-  return cs;
-}
-}  // namespace
 
 std::map<int, std::shared_ptr<ConduitMemory>> ConduitMemory::s_axomToInstance;
 std::map<conduit::index_t, std::shared_ptr<ConduitMemory>> ConduitMemory::s_conduitToInstance;
@@ -295,19 +284,29 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
   return *it->second;
 }
 
+namespace
+{
+axom::utilities::CheckSum checksumNodeMetadata(const conduit::Node& n)
+{
+  auto cs = axom::utilities::CheckSum {0};
+  // Give each metadata component different coefficients so they contribute differently
+  cs += axom::utilities::checksum(static_cast<conduit::index_t>(n.dtype().id()), 2.0);
+  cs += axom::utilities::checksum(n.number_of_children(), 3.0);
+  cs += axom::utilities::checksum(n.dtype().number_of_elements(), 5.0);
+  return cs;
+}
+
 /// Operate on conduit::DataArray so we can handle strided data.
 template <typename T>
-axom::utilities::CheckSum checksumArray(
-  const conduit::DataArray<T>& arr,
-  const axom::utilities::ScaleFactor scaleFactor = axom::utilities::ScaleFactor {1})
+axom::utilities::CheckSum checksumArray(const conduit::DataArray<T>& arr)
 {
   return axom::utilities::calculateChecksum(
            [=](axom::IndexType i) { return static_cast<axom::utilities::CheckSum>(arr[i]); },
-           arr.number_of_elements()) *
-    scaleFactor;
+           arr.number_of_elements());
 }
 
-axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
+/// Compute a checksum on the conduit tree \a n.
+axom::utilities::CheckSum checksumImpl(const conduit::Node& n, bool include_name)
 {
   auto cs = axom::utilities::CheckSum {0};
   if(include_name)
@@ -325,7 +324,7 @@ axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
     {
       cs += axom::utilities::calculateChecksum(
         [&](axom::IndexType i) -> axom::utilities::CheckSum {
-          return checksum(n[static_cast<conduit::index_t>(i)], true);
+          return checksumImpl(n[static_cast<conduit::index_t>(i)], true);
         },
         n.number_of_children());
     }
@@ -333,7 +332,7 @@ axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
     {
       for(conduit::index_t i = 0; i < n.number_of_children(); i++)
       {
-        cs += checksum(n[i], true);
+        cs += checksumImpl(n[i], true);
       }
     }
   }
@@ -395,6 +394,17 @@ axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
     }
   }
   return cs;
+}
+} // end namespace
+
+axom::utilities::CheckSum checksum(const conduit::Node& n, axom::utilities::ScaleFactor scaleFactor, bool include_name)
+{
+  return checksumImpl(n, include_name) * static_cast<axom::utilities::CheckSum>(scaleFactor);
+}
+
+axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name)
+{
+  return checksumImpl(n, include_name);
 }
 
 }  // end namespace sidre

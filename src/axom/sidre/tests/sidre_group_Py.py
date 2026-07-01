@@ -251,6 +251,20 @@ def test_group_and_view_checksum():
     assert metadata.has_path("groups/child/checksum")
     assert float(metadata["checksum"]) == float(group.checksum())
 
+    ds.createAttributeString("units", "none")
+    attrless_view_checksum = float(view.checksum(False))
+    attrless_group_checksum = float(group.checksum(False))
+
+    assert view.setAttributeString("units", "counts")
+    assert float(view.checksum()) != mutated_view_checksum
+    assert float(group.checksum()) != mutated_group_checksum
+    assert float(view.checksum(False)) == attrless_view_checksum
+    assert float(group.checksum(False)) == attrless_group_checksum
+
+    metadata_without_attributes = Node()
+    group.checksum(metadata_without_attributes, False)
+    assert float(metadata_without_attributes["checksum"]) == float(group.checksum(False))
+
 
 #------------------------------------------------------------------------------
 # createView, hasView(), getView(), destroyView() with path strings

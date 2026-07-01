@@ -173,6 +173,21 @@ private:
  */
 axom::utilities::CheckSum checksum(const conduit::Node& n, bool include_name = true);
 
+/*!
+ * \brief Checksum the structure and contents of a Conduit node and scale the result.
+ *
+ * \param n The node being checksummed.
+ * \param scaleFactor An optional scale factor that acts as a weight on a returned checksum value.
+ *                    When adding multiple checksums together, different weights can be passed.
+ * \param include_name If true, include this node's own name in the checksum.
+ *        Child node names are always included during recursive traversal.
+ *
+ * \return A checksum of the node.
+ */
+axom::utilities::CheckSum checksum(const conduit::Node& n,
+                                   axom::utilities::ScaleFactor scaleFactor,
+                                   bool include_name);
+
 } /* end namespace sidre */
 } /* end namespace axom */
 

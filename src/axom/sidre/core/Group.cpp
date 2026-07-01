@@ -2879,7 +2879,7 @@ bool Group::importConduitTreeExternal(conduit::Node& node, bool preserve_content
   return success;
 }
 
-axom::utilities::CheckSum Group::checksum() const
+axom::utilities::CheckSum Group::checksum(bool includeAttributes) const
 {
   // Checksum the name
   axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
@@ -2888,16 +2888,16 @@ axom::utilities::CheckSum Group::checksum() const
   // Add the checksums of the views and groups.
   for(const auto& view : this->views())
   {
-    cs += view.checksum();
+    cs += view.checksum(includeAttributes);
   }
   for(const auto& group : this->groups())
   {
-    cs += group.checksum();
+    cs += group.checksum(includeAttributes);
   }
   return cs;
 }
 
-axom::utilities::CheckSum Group::checksum(conduit::Node& n_checksum) const
+axom::utilities::CheckSum Group::checksum(conduit::Node& n_checksum, bool includeAttributes) const
 {
   // Always emit a fresh snapshot so callers can safely reuse the same node.
   n_checksum.reset();
@@ -2915,7 +2915,7 @@ axom::utilities::CheckSum Group::checksum(conduit::Node& n_checksum) const
     for(const auto& view : this->views())
     {
       conduit::Node& n_view = n_views[view.getName()];
-      const auto vcs = view.checksum();
+      const auto vcs = view.checksum(includeAttributes);
       cs += vcs;
       n_view["checksum"] = static_cast<double>(vcs);
     }
@@ -2926,7 +2926,7 @@ axom::utilities::CheckSum Group::checksum(conduit::Node& n_checksum) const
     for(const auto& group : this->groups())
     {
       conduit::Node& n_group = n_groups[group.getName()];
-      cs += group.checksum(n_group);
+      cs += group.checksum(n_group, includeAttributes);
     }
   }
 
