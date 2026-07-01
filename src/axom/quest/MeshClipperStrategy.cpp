@@ -8,6 +8,7 @@
 
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/KleeError.hpp"
 
 namespace axom
 {
@@ -75,7 +76,18 @@ private:
 MeshClipperStrategy::MeshClipperStrategy(const klee::Geometry& kGeom)
   : m_info(kGeom.asHierarchy())
   , m_extTrans(kGeom.getTransform())
-{ }
+{
+  // getTransform() above will throw if non-affine operators present,
+  // add explicit check for clarity and to fail early before expensive clipper setup
+  if(kGeom.hasNonAffineOperators())
+  {
+    throw klee::KleeError({axom::Path {"geometry"},
+                           "MeshClipperStrategy requires affine transformations only. "
+                           "Geometry contains non-affine operators (e.g., Lua transform functions) "
+                           "that cannot be represented as a 4x4 matrix. Use DiscreteShape for "
+                           "geometries with runtime transforms."});
+  }
+}
 
 const std::string& MeshClipperStrategy::name() const
 {

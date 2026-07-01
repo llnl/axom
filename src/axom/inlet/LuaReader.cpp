@@ -492,7 +492,11 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
   axom::sol::protected_function&& func,
   std::shared_ptr<axom::sol::state> lua_state)
 {
-  // Generalized lambda capture needed to move into lambda
+  // Capture lua_state by shared_ptr to keep the Lua state alive for the lifetime
+  // of the returned std::function. This is critical for callbacks and transforms
+  // stored in long-lived objects (e.g., Klee Geometry with PointTransform operators).
+  // The Lua state must remain valid as long as any std::function referencing Lua
+  // code exists, and shared ownership through capture ensures this automatically.
   return [lua_state(std::move(lua_state)),
           func(std::move(func))](typename detail::inlet_function_arg_type<Args>::type... args) {
     SLIC_ASSERT(lua_state);

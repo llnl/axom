@@ -29,6 +29,16 @@ namespace util
 std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geometry& kleeGeometry,
                                                            const std::string& name)
 {
+  // Check for non-affine operators early before attempting to create any clipper
+  if(kleeGeometry.hasNonAffineOperators())
+  {
+    SLIC_WARNING(
+      "MeshClipper cannot process geometries with non-affine operators "
+      "(e.g., Lua transform functions). Use DiscreteShape instead, or use "
+      "only affine operators (translate, rotate, scale, convert_units_to, slice).");
+    return nullptr;
+  }
+
   std::shared_ptr<MeshClipperStrategy> strategy;
 
   const std::string& format = kleeGeometry.getFormat();

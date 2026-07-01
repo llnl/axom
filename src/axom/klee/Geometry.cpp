@@ -234,6 +234,20 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
 
 void Geometry::populateGeomInfo()
 {
+  // Only certain formats actually use Conduit serialization. Check for non-affine
+  // operators only for those formats that will actually serialize to m_geomInfo.
+  const bool needsSerialization =
+    (m_format == "blueprint-tets" || m_format == "tet3D" || m_format == "sphere3D" ||
+     m_format == "cone3D" || m_format == "hex3D" || m_format == "plane3D" || m_format == "sor3D");
+
+  if(needsSerialization && hasNonAffineOperators())
+  {
+    throw KleeError({Path {"geometry"},
+                     "Cannot serialize geometry to Conduit: geometry contains non-affine operators "
+                     "(e.g., Lua transform functions) that cannot be represented as pure data. "
+                     "Retain the original input deck file (.lua) for full reproducibility."});
+  }
+
   if(m_format == "blueprint-tets")
   {
     m_meshGroup->deepCopyToConduit(m_geomInfo["klee::Geometry:tetMesh"]);

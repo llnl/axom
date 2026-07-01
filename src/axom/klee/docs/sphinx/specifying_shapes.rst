@@ -280,12 +280,19 @@ tables are the recommended return form. Runtime transform arguments expose
 
 Limitations
 ^^^^^^^^^^^
-Lua input decks are trusted input; Klee does not sandbox Lua execution or impose
-resource limits. Runtime :code:`transform` operators are forward-only and do not
-provide inverse transforms. Geometry objects with Lua transforms keep the Lua
-state alive internally when created through :code:`readShapeSet`, but the
-original Lua deck remains the portable representation; runtime Lua transforms
-cannot be serialized to Sidre/Conduit as pure data.
+Runtime :code:`transform` operators are forward-only and do not provide inverse transforms.
+
+**Lua State Lifetime:** Geometry objects with Lua :code:`transform` operators
+hold shared ownership of the Lua state used during parsing. The Lua state is
+automatically kept alive for the lifetime of these geometries through
+:code:`std::function` capture semantics, so no manual lifetime management is
+required. Geometries with Lua transforms can be safely used after the original
+:code:`readShapeSet` call returns and any parsing artifacts are destroyed.
+
+**Serialization:** The original Lua deck remains the portable representation;
+runtime Lua transforms cannot be serialized to Sidre/Conduit as pure data.
+Attempting to serialize a geometry with non-affine operators will result in
+an error. For reproducibility, retain the original :code:`.lua` input file.
 
 Error Messages
 ^^^^^^^^^^^^^^

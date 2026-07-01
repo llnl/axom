@@ -176,6 +176,13 @@ public:
 
   /*!
    * @brief Geometry definition in hierarchical format.
+   *
+   * \return Conduit node containing serialized geometry data
+   *
+   * \note Geometries with non-affine operators (e.g., Lua transform functions)
+   * cannot be serialized to Conduit and will throw a KleeError if serialization
+   * is attempted during construction. The original input deck (.lua file) is the
+   * portable representation for geometries with runtime transforms.
    */
   const conduit::Node& asHierarchy() const { return m_geomInfo; }
 
@@ -282,6 +289,11 @@ public:
    *
    * \param point the point to transform
    * \return the transformed point
+   *
+   * \note For geometries with Lua-based PointTransform operators created via
+   * readShapeSet(), the Lua state is kept alive automatically through shared
+   * ownership captured in the std::function objects stored by PointTransform.
+   * There is no manual lifetime management required.
    */
   Point3D applyTransform(const Point3D& point) const;
 

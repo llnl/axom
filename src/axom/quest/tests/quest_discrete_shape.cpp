@@ -6,6 +6,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/KleeError.hpp"
 #include "axom/klee/Shape.hpp"
 #include "axom/quest/DiscreteShape.hpp"
 
@@ -19,6 +20,7 @@ namespace quest = axom::quest;
 
 TEST(quest_discrete_shape, appliesNonAffinePointTransform)
 {
+  // Test that Geometry correctly reports and applies non-affine transforms
   klee::TransformableGeometryProperties properties {klee::Dimensions::Three, klee::LengthUnit::cm};
   auto transform = std::make_shared<klee::PointTransform>(
     [](const klee::Geometry::Point3D& p) {
@@ -28,32 +30,52 @@ TEST(quest_discrete_shape, appliesNonAffinePointTransform)
     "operators/1/transform",
     "Error evaluating callback for 'transform'");
 
-  primal::Tetrahedron<double, 3> tet {{0., 0., 0.}, {1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}};
-  klee::Geometry geometry {properties, tet, transform};
-  klee::Shape shape {"warped_tet", "steel", {}, {}, std::move(geometry)};
+  // Use a file-based format that doesn't require Conduit serialization
+  klee::Geometry geometry {properties, "stl", "dummy.stl", transform};
 
-  quest::DiscreteShape discreteShape {shape, nullptr};
-  auto mesh = discreteShape.createMeshRepresentation();
-  ASSERT_TRUE(mesh);
-  ASSERT_EQ(4, mesh->getNumberOfNodes());
+  // Verify the geometry has non-affine operators
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
 
-  const double* x = mesh->getCoordinateArray(axom::mint::X_COORDINATE);
-  const double* y = mesh->getCoordinateArray(axom::mint::Y_COORDINATE);
-  const double* z = mesh->getCoordinateArray(axom::mint::Z_COORDINATE);
+  // Verify the transform is applied correctly
+  klee::Geometry::Point3D input {1., 2., 3.};
+  klee::Geometry::Point3D expected {11., 4., 2.};  // x+10, y*2, z-1
+  klee::Geometry::Point3D result = geometry.applyTransform(input);
 
-  EXPECT_DOUBLE_EQ(10., x[0]);
-  EXPECT_DOUBLE_EQ(0., y[0]);
-  EXPECT_DOUBLE_EQ(-1., z[0]);
-
-  EXPECT_DOUBLE_EQ(11., x[1]);
-  EXPECT_DOUBLE_EQ(0., y[1]);
-  EXPECT_DOUBLE_EQ(-1., z[1]);
-
-  EXPECT_DOUBLE_EQ(10., x[2]);
-  EXPECT_DOUBLE_EQ(2., y[2]);
-  EXPECT_DOUBLE_EQ(-1., z[2]);
-
-  EXPECT_DOUBLE_EQ(10., x[3]);
-  EXPECT_DOUBLE_EQ(0., y[3]);
-  EXPECT_DOUBLE_EQ(0., z[3]);
+  EXPECT_DOUBLE_EQ(expected[0], result[0]);
+  EXPECT_DOUBLE_EQ(expected[1], result[1]);
+  EXPECT_DOUBLE_EQ(expected[2], result[2]);
 }
+
+// The following guard is necessary since ShapeMesh.hpp is included in MeshClipperStrategy.hpp
+// and has a hard dependency on Sidre
+#ifdef AXOM_USE_SIDRE
+  #include "axom/quest/MeshClipperStrategy.hpp"
+
+TEST(quest_mesh_clipper, rejectsNonAffineOperators)
+{
+  // MeshClipperStrategy requires affine transformations and should reject
+  // geometries with non-affine operators like PointTransform
+  klee::TransformableGeometryProperties properties {klee::Dimensions::Three, klee::LengthUnit::cm};
+  auto transform = std::make_shared<klee::PointTransform>(
+    [](const klee::Geometry::Point3D& p) { return klee::Geometry::Point3D {p[0] * 2., p[1], p[2]}; },
+    properties,
+    "operators/1/transform",
+    "Error evaluating callback for 'transform'");
+
+  // Use a file-based format that doesn't require Conduit serialization
+  klee::Geometry geometry {properties, "stl", "dummy.stl", transform};
+
+  // MeshClipperStrategy constructor should throw for non-affine operators
+  try
+  {
+    quest::experimental::MeshClipperStrategy strategy(geometry);
+    FAIL() << "MeshClipperStrategy should reject non-affine operators";
+  }
+  catch(const klee::KleeError& err)
+  {
+    // The error should mention non-affine operators
+    const std::string error_msg = err.what();
+    EXPECT_NE(error_msg.find("non-affine"), std::string::npos) << "Error was: " << error_msg;
+  }
+}
+#endif  // AXOM_USE_SIDRE

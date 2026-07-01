@@ -389,6 +389,11 @@ private:
 };
 
 /// A point-wise transform whose operation cannot generally be represented by an affine matrix.
+///
+/// \note Lifetime management: When created from Lua input decks, the TransformFunction
+/// holds shared ownership of the Lua state via std::function capture semantics. The Lua
+/// state is automatically kept alive for the lifetime of any PointTransform objects that
+/// reference Lua functions. No manual lifetime management is required by users of this class.
 class PointTransform : public GeometryOperator
 {
 public:
@@ -402,6 +407,10 @@ public:
    * \param startProperties the initial properties, as in the parent class.
    * \param diagnosticPath the Klee input path used for runtime diagnostics
    * \param diagnosticContext user-facing field/operator context for diagnostics
+   *
+   * \note When the transform function is created from Lua (via readShapeSet), the
+   * std::function automatically captures shared ownership of the Lua state, ensuring
+   * the Lua environment remains valid for the lifetime of this operator.
    */
   PointTransform(TransformFunction transform,
                  const TransformableGeometryProperties& startProperties,

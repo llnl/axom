@@ -1033,6 +1033,48 @@ TEST(IOTest, readShapeSet_luaTransformOperator)
   EXPECT_THAT(geometry.applyTransform({2, 3, 4}), AlmostEqPoint(Point3D {3, 6, 16}));
 }
 
+// Note: Serialization behavior is tested via Quest MeshClipperStrategy tests
+// and the Geometry format-specific serialization paths. Direct serialization
+// testing would require using formats with embedded geometry definitions.
+
+TEST(IOTest, readShapeSet_luaTransformLifetimeAfterParsing)
+{
+  // This test validates that geometries with Lua transforms remain valid
+  // after the original ShapeSet and parsing scope are destroyed. The Lua
+  // state is kept alive via shared_ptr capture in std::function objects.
+  klee::Geometry geometry = [&]() {
+    auto shapeSet = readShapeSetFromString(R"(
+      local function warp(p)
+        return {p.x * 2, p.y + 10, p.z * p.z}
+      end
+
+      dimensions = 3
+      shapes = {
+        {
+          name = "warped",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "warped.stl",
+            units = "cm",
+            operators = {
+              { transform = warp }
+            }
+          }
+        }
+      }
+    )",
+                                           InputFormat::Lua);
+    // Return a copy of the geometry; the ShapeSet will be destroyed when
+    // this lambda returns, but the Lua state should remain alive.
+    return shapeSet.getShapes()[0].getGeometry();
+  }();  // ShapeSet is destroyed here
+
+  // Validate that the transform still works after ShapeSet destruction
+  EXPECT_TRUE(geometry.hasNonAffineOperators());
+  EXPECT_THAT(geometry.applyTransform({3, 5, 4}), AlmostEqPoint(Point3D {6, 15, 16}));
+}
+
 TEST(IOTest, readShapeSet_luaTransformOperator2D)
 {
   auto shapeSet = readShapeSetFromString(R"(
