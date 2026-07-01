@@ -161,6 +161,58 @@ Their names must be Lua identifiers. They are globals by construction and are
 allowed by Klee's unexpected-global check; other helper values in the deck should
 still be declared :code:`local`.
 
+Applications that need richer runtime customization can also provide a Lua
+bindings chunk. Klee evaluates the chunk before parsing the deck, expects it to
+return a table of exported bindings, and then makes those exported names
+available as globals while still rejecting unrelated unexpected globals in the
+deck. This allows a host code to pass user-supplied helper functions and local
+closures at run time without recompiling the C++ application:
+
+.. code-block:: c++
+
+    axom::klee::LuaBindingsChunk bindings {
+      R"(
+        local dim = 2
+        local lift = 3.0
+
+        local function offset(y)
+          return function()
+            return {0.0, y}
+          end
+        end
+
+        return {
+          dimensions = dim,
+          lift = lift,
+          offset = offset
+        }
+      )",
+      "runtime_bindings"
+    };
+    auto shapeSet = axom::klee::readShapeSet("shape.lua", bindings);
+
+.. code-block:: lua
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = offset(lift) }
+          }
+        }
+      }
+    }
+
+Bindings chunks must return a table whose exported keys are Lua identifiers.
+Exported values may be booleans, numbers, strings, tables, or functions. Like
+input variables, exported bindings are ordinary Lua globals; deck code can
+reassign exported names and can mutate exported tables.
+
 Use :code:`local` helper functions and constants for intermediate values so the
 global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example

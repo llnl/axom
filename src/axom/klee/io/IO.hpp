@@ -24,6 +24,13 @@ enum class InputFormat
   Lua
 };
 
+/// Runtime Lua chunk evaluated before deck parsing; it must return a table of exported bindings.
+struct LuaBindingsChunk
+{
+  std::string source;
+  std::string label {"<lua bindings>"};
+};
+
 /// Primitive value types that may be injected into a Lua input deck.
 using InputVariableValue = std::variant<bool, int, double, std::string>;
 
@@ -61,6 +68,34 @@ ShapeSet readShapeSet(std::istream& stream, InputFormat format);
 ShapeSet readShapeSet(std::istream &stream, InputFormat format, const InputVariables &variables);
 
 /**
+ * Read a ShapeSet from an input stream with caller-provided Lua bindings.
+ *
+ * \param stream the stream from which to read the ShapeSet
+ * \param format the input deck format to use
+ * \param bindings Lua chunk evaluated before deck parsing; must return a table
+ *        of exported bindings
+ * \note Lua bindings are supported only for Lua input decks.
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(std::istream &stream, InputFormat format, const LuaBindingsChunk &bindings);
+
+/**
+ * Read a ShapeSet from an input stream with caller-provided input variables and Lua bindings.
+ *
+ * \param stream the stream from which to read the ShapeSet
+ * \param format the input deck format to use
+ * \param variables primitive values to inject into Lua before deck evaluation
+ * \param bindings Lua chunk evaluated before deck parsing; must return a table
+ *        of exported bindings
+ * \note Input variables and Lua bindings are supported only for Lua input decks.
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(std::istream &stream,
+                      InputFormat format,
+                      const InputVariables &variables,
+                      const LuaBindingsChunk &bindings);
+
+/**
  * Read a ShapeSet from a specified file
  *
  * \param filePath the file from which to read the ShapeSet
@@ -94,6 +129,35 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format);
  * \throws runtime_error if the input is invalid
  */
 ShapeSet readShapeSet(const std::string &filePath, const InputVariables &variables);
+
+/**
+ * Read a ShapeSet from a specified file with caller-provided Lua bindings.
+ *
+ * \param filePath the file from which to read the ShapeSet
+ * \param bindings Lua chunk evaluated before deck parsing; must return a table
+ *        of exported bindings
+ * \note The input format is inferred from the file extension. Lua bindings are
+ *       supported only for Lua input decks.
+ * \return the ShapeSet read from the file
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(const std::string &filePath, const LuaBindingsChunk &bindings);
+
+/**
+ * Read a ShapeSet from a specified file with caller-provided input variables and Lua bindings.
+ *
+ * \param filePath the file from which to read the ShapeSet
+ * \param variables primitive values to inject into Lua before deck evaluation
+ * \param bindings Lua chunk evaluated before deck parsing; must return a table
+ *        of exported bindings
+ * \note The input format is inferred from the file extension. Input variables
+ *       and Lua bindings are supported only for Lua input decks.
+ * \return the ShapeSet read from the file
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(const std::string &filePath,
+                      const InputVariables &variables,
+                      const LuaBindingsChunk &bindings);
 
 }  // namespace klee
 }  // namespace axom

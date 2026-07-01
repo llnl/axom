@@ -36,14 +36,171 @@ namespace klee
 {
 namespace
 {
+bool isLuaIdentifier(const std::string &name);
+
 #ifdef AXOM_USE_LUA
 class KleeLuaReader : public inlet::LuaReader
 {
 public:
+  std::unordered_set<std::string> topLevelGlobalNames() const
+  {
+    std::unordered_set<std::string> names;
+    auto lua = const_cast<KleeLuaReader *>(this)->solState();
+    for(const auto &entry : lua->globals())
+    {
+      if(entry.first.get_type() == axom::sol::type::string)
+      {
+        names.insert(entry.first.as<std::string>());
+      }
+    }
+    return names;
+  }
+
   void setInputVariable(const std::string &name, const InputVariableValue &value)
   {
     auto lua = solState();
     std::visit([&](const auto &typedValue) { (*lua)[name] = typedValue; }, value);
+  }
+
+  std::unordered_set<std::string> applyBindingsChunk(
+    const LuaBindingsChunk &bindings,
+    const std::unordered_set<std::string> &reservedNames,
+    const std::unordered_set<std::string> &existingExternalNames)
+  {
+    auto lua = solState();
+    auto chunkPath = Path {bindings.label.empty() ? "<lua bindings>" : bindings.label};
+    if(bindings.source.empty())
+    {
+      throw KleeError({chunkPath, "Klee Lua bindings chunk is empty."});
+    }
+
+    try
+    {
+      auto result = lua->script(bindings.source);
+      if(!result.valid())
+      {
+        axom::sol::error err = result;
+        throw KleeError({chunkPath,
+                         axom::fmt::format("Failed to evaluate Klee Lua bindings chunk '{}': {}",
+                                           static_cast<std::string>(chunkPath),
+                                           err.what())});
+      }
+
+      axom::sol::optional<axom::sol::table> tableOption = result;
+      if(!tableOption)
+      {
+        throw KleeError({chunkPath,
+                         axom::fmt::format("Klee Lua bindings chunk '{}' must return a table of "
+                                           "exported bindings.",
+                                           static_cast<std::string>(chunkPath))});
+      }
+
+      std::unordered_set<std::string> exportedNames;
+      auto exportPath = [&](const std::string &name) {
+        return Path::join({chunkPath, Path {name}});
+      };
+      auto typeName = [](axom::sol::type type) {
+        switch(type)
+        {
+        case axom::sol::type::boolean:
+          return "boolean";
+        case axom::sol::type::number:
+          return "number";
+        case axom::sol::type::string:
+          return "string";
+        case axom::sol::type::table:
+          return "table";
+        case axom::sol::type::function:
+          return "function";
+        case axom::sol::type::nil:
+          return "nil";
+        default:
+          return "unsupported";
+        }
+      };
+
+      for(const auto &entry : tableOption.value())
+      {
+        if(entry.first.get_type() != axom::sol::type::string)
+        {
+          throw KleeError({chunkPath,
+                           axom::fmt::format("Klee Lua bindings chunk '{}' must return a table "
+                                             "with string keys.",
+                                             static_cast<std::string>(chunkPath))});
+        }
+
+        const std::string name = entry.first.as<std::string>();
+        if(!isLuaIdentifier(name))
+        {
+          throw KleeError(
+            {exportPath(name),
+             axom::fmt::format("Invalid Klee Lua binding name '{}'. Binding names must be Lua "
+                               "identifiers.",
+                               name)});
+        }
+        if(reservedNames.find(name) != reservedNames.end())
+        {
+          throw KleeError(
+            {exportPath(name),
+             axom::fmt::format("Klee Lua binding name '{}' conflicts with an existing Lua global.",
+                               name)});
+        }
+        if(existingExternalNames.find(name) != existingExternalNames.end())
+        {
+          throw KleeError({exportPath(name),
+                           axom::fmt::format(
+                             "Klee Lua binding name '{}' duplicates another external Lua binding.",
+                             name)});
+        }
+        if(!exportedNames.insert(name).second)
+        {
+          throw KleeError(
+            {exportPath(name),
+             axom::fmt::format("Klee Lua bindings chunk '{}' exports '{}' more than once.",
+                               static_cast<std::string>(chunkPath),
+                               name)});
+        }
+
+        switch(entry.second.get_type())
+        {
+        case axom::sol::type::boolean:
+          (*lua)[name] = entry.second.as<bool>();
+          break;
+        case axom::sol::type::number:
+          (*lua)[name] = entry.second.as<double>();
+          break;
+        case axom::sol::type::string:
+          (*lua)[name] = entry.second.as<std::string>();
+          break;
+        case axom::sol::type::function:
+          (*lua)[name] = entry.second.as<axom::sol::protected_function>();
+          break;
+        case axom::sol::type::table:
+          (*lua)[name] = entry.second.as<axom::sol::table>();
+          break;
+        default:
+          throw KleeError({exportPath(name),
+                           axom::fmt::format("Klee Lua binding '{}' has unsupported value type "
+                                             "'{}'. Supported exported binding value types are "
+                                             "booleans, numbers, strings, tables, and functions.",
+                                             name,
+                                             typeName(entry.second.get_type()))});
+        }
+      }
+
+      return exportedNames;
+    }
+    catch(const KleeError &)
+    {
+      throw;
+    }
+    catch(const std::exception &ex)
+    {
+      throw KleeError({chunkPath,
+                       axom::fmt::format("Failed to evaluate Klee Lua bindings chunk '{}': {}",
+                                         static_cast<std::string>(chunkPath),
+                                         ex.what())});
+    }
   }
 };
 #endif
@@ -382,16 +539,6 @@ bool isLuaIdentifier(const std::string &name)
   });
 }
 
-std::unordered_set<std::string> inputVariableNames(const InputVariables &variables)
-{
-  std::unordered_set<std::string> names;
-  for(const auto &entry : variables)
-  {
-    names.insert(entry.first);
-  }
-  return names;
-}
-
 void validateInputVariables(const InputVariables &variables)
 {
   for(const auto &entry : variables)
@@ -411,18 +558,25 @@ void validateInputVariables(const InputVariables &variables)
  *
  * \param format the input file format to read
  * \param variables primitive values to inject before Lua input evaluation
+ * \param bindings optional Lua chunk to evaluate before input evaluation
+ * \param allowedGlobals receives external names permitted in the input
  * \return a reader for \a format
  * \throws KleeError if \a format is unsupported, Lua support was not enabled,
- *         or the input variables are invalid for the selected format
+ *         or the external Lua bindings are invalid for the selected format
  */
-std::unique_ptr<inlet::Reader> createReader(InputFormat format, const InputVariables &variables)
+std::unique_ptr<inlet::Reader> createReader(InputFormat format,
+                                            const InputVariables &variables,
+                                            const LuaBindingsChunk *bindings,
+                                            std::unordered_set<std::string> &allowedGlobals)
 {
-  if(format != InputFormat::Lua && !variables.empty())
+  allowedGlobals.clear();
+  if(format != InputFormat::Lua && (!variables.empty() || bindings != nullptr))
   {
-    throw KleeError(
-      {Path {"<unknown path>"}, "Klee input variables are only supported for Lua input decks."});
+    throw KleeError({Path {"<unknown path>"},
+                     bindings != nullptr
+                       ? "Klee Lua bindings are only supported for Lua input decks."
+                       : "Klee input variables are only supported for Lua input decks."});
   }
-  validateInputVariables(variables);
 
   switch(format)
   {
@@ -432,9 +586,25 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format, const InputVaria
 #ifdef AXOM_USE_LUA
   {
     auto reader = std::make_unique<KleeLuaReader>();
+    const auto reservedGlobals = reader->topLevelGlobalNames();
+    validateInputVariables(variables);
     for(const auto &entry : variables)
     {
+      if(reservedGlobals.find(entry.first) != reservedGlobals.end())
+      {
+        throw KleeError(
+          {Path {entry.first},
+           axom::fmt::format("Klee Lua input variable name '{}' conflicts with an existing Lua "
+                             "global.",
+                             entry.first)});
+      }
       reader->setInputVariable(entry.first, entry.second);
+      allowedGlobals.insert(entry.first);
+    }
+    if(bindings != nullptr)
+    {
+      auto exportedNames = reader->applyBindingsChunk(*bindings, reservedGlobals, allowedGlobals);
+      allowedGlobals.insert(exportedNames.begin(), exportedNames.end());
     }
     return reader;
   }
@@ -524,6 +694,7 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
  * \param reader the parsed Inlet reader
  * \param rejectUnexpectedGlobals true if unexpected top-level Lua globals should be rejected
  * \param enableLuaCallbacks true if Lua callbacks should be enabled
+ * \param allowedGlobals external Lua globals permitted in the input
  * \return the parsed and verified ShapeSet
  * \throws KleeError if schema verification or semantic validation fails
  */
@@ -575,7 +746,8 @@ ShapeSet readShapeSet(std::istream &stream,
 {
   std::string contents {std::istreambuf_iterator<char>(stream), {}};
 
-  auto reader = createReader(format, variables);
+  std::unordered_set<std::string> allowedGlobals;
+  auto reader = createReader(format, variables, nullptr, allowedGlobals);
   parseOrThrow([&]() { return reader->parseString(contents); },
                format,
                Path {"<stream>"},
@@ -583,7 +755,33 @@ ShapeSet readShapeSet(std::istream &stream,
   return readShapeSetFromReader(std::move(reader),
                                 format == InputFormat::Lua,
                                 format == InputFormat::Lua,
-                                inputVariableNames(variables));
+                                allowedGlobals);
+}
+
+ShapeSet readShapeSet(std::istream &stream,
+                      InputFormat format,
+                      const LuaBindingsChunk &bindings)
+{
+  return readShapeSet(stream, format, InputVariables {}, bindings);
+}
+
+ShapeSet readShapeSet(std::istream &stream,
+                      InputFormat format,
+                      const InputVariables &variables,
+                      const LuaBindingsChunk &bindings)
+{
+  std::string contents {std::istreambuf_iterator<char>(stream), {}};
+
+  std::unordered_set<std::string> allowedGlobals;
+  auto reader = createReader(format, variables, &bindings, allowedGlobals);
+  parseOrThrow([&]() { return reader->parseString(contents); },
+               format,
+               Path {"<stream>"},
+               "from stream");
+  return readShapeSetFromReader(std::move(reader),
+                                format == InputFormat::Lua,
+                                format == InputFormat::Lua,
+                                allowedGlobals);
 }
 
 ShapeSet readShapeSet(const std::string& filePath)
@@ -594,7 +792,8 @@ ShapeSet readShapeSet(const std::string& filePath)
 ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
 {
   const InputVariables variables;
-  auto reader = createReader(format, variables);
+  std::unordered_set<std::string> allowedGlobals;
+  auto reader = createReader(format, variables, nullptr, allowedGlobals);
   parseOrThrow([&]() { return reader->parseFile(filePath); },
                format,
                Path {filePath},
@@ -602,7 +801,7 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
   auto shapeSet = readShapeSetFromReader(std::move(reader),
                                          format == InputFormat::Lua,
                                          format == InputFormat::Lua,
-                                         inputVariableNames(variables));
+                                         allowedGlobals);
   shapeSet.setPath(filePath);
   return shapeSet;
 }
@@ -610,7 +809,8 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
 ShapeSet readShapeSet(const std::string &filePath, const InputVariables &variables)
 {
   const auto format = inferInputFormat(filePath);
-  auto reader = createReader(format, variables);
+  std::unordered_set<std::string> allowedGlobals;
+  auto reader = createReader(format, variables, nullptr, allowedGlobals);
   parseOrThrow([&]() { return reader->parseFile(filePath); },
                format,
                Path {filePath},
@@ -618,7 +818,31 @@ ShapeSet readShapeSet(const std::string &filePath, const InputVariables &variabl
   auto shapeSet = readShapeSetFromReader(std::move(reader),
                                          format == InputFormat::Lua,
                                          format == InputFormat::Lua,
-                                         inputVariableNames(variables));
+                                         allowedGlobals);
+  shapeSet.setPath(filePath);
+  return shapeSet;
+}
+
+ShapeSet readShapeSet(const std::string &filePath, const LuaBindingsChunk &bindings)
+{
+  return readShapeSet(filePath, InputVariables {}, bindings);
+}
+
+ShapeSet readShapeSet(const std::string &filePath,
+                      const InputVariables &variables,
+                      const LuaBindingsChunk &bindings)
+{
+  const auto format = inferInputFormat(filePath);
+  std::unordered_set<std::string> allowedGlobals;
+  auto reader = createReader(format, variables, &bindings, allowedGlobals);
+  parseOrThrow([&]() { return reader->parseFile(filePath); },
+               format,
+               Path {filePath},
+               axom::fmt::format("from file '{}'", filePath));
+  auto shapeSet = readShapeSetFromReader(std::move(reader),
+                                         format == InputFormat::Lua,
+                                         format == InputFormat::Lua,
+                                         allowedGlobals);
   shapeSet.setPath(filePath);
   return shapeSet;
 }

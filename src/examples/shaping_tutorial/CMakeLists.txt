@@ -107,6 +107,12 @@ if(ENABLE_TESTS)
     if(AXOM_USE_LUA)
       blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua
                    COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.lua)
+
+      blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua_bindings
+                   COMMAND lesson_03_klee_operators_and_validation
+                           ../lesson_03/ice_cream_bindings.lua
+                           --bindings-file
+                           ../lesson_03/ice_cream_runtime_bindings.lua)
     endif()
 
     if(AXOM_USE_LUA AND AXOM_USE_MFEM)
