@@ -9,13 +9,13 @@
 #include "axom/klee/KleeError.hpp"
 
 #include "axom/config.hpp"
+#include "axom/core/utilities/Timer.hpp"
 #include "axom/slic.hpp"
 
 #include "KleeMatchers.hpp"
 
 #include "gtest/gtest.h"
 
-#include <chrono>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -66,18 +66,6 @@ ShapeSet readShapeSetFromString(const std::string& input,
 {
   std::istringstream istream(input);
   return klee::readShapeSet(istream, format, variables);
-}
-
-template <typename Parser>
-std::chrono::duration<double> timeParses(Parser&& parser, int repeats)
-{
-  const auto start = std::chrono::steady_clock::now();
-  for(int i = 0; i < repeats; ++i)
-  {
-    auto shapeSet = parser();
-    EXPECT_FALSE(shapeSet.getShapes().empty());
-  }
-  return std::chrono::steady_clock::now() - start;
 }
 }  // end namespace
 
@@ -1398,16 +1386,33 @@ TEST(IOTest, readShapeSet_luaParsePerformanceSmoke)
   )";
 
   constexpr int repeats = 25;
-  auto yamlTime =
-    timeParses([&]() { return readShapeSetFromString(yaml, InputFormat::YAML); }, repeats);
-  auto luaTime = timeParses([&]() { return readShapeSetFromString(lua, InputFormat::Lua); }, repeats);
-  const double baseline = yamlTime.count() > 1e-6 ? yamlTime.count() : 1e-6;
-  std::cout << "Klee YAML parse smoke: " << yamlTime.count() << "s, Lua: " << luaTime.count()
-            << "s, ratio: " << (luaTime.count() / baseline) << std::endl;
+  axom::utilities::Timer yamlTimer;
+  yamlTimer.start();
+  for(int i = 0; i < repeats; ++i)
+  {
+    auto shapeSet = readShapeSetFromString(yaml, InputFormat::YAML);
+    EXPECT_FALSE(shapeSet.getShapes().empty());
+  }
+  yamlTimer.stop();
+
+  axom::utilities::Timer luaTimer;
+  luaTimer.start();
+  for(int i = 0; i < repeats; ++i)
+  {
+    auto shapeSet = readShapeSetFromString(lua, InputFormat::Lua);
+    EXPECT_FALSE(shapeSet.getShapes().empty());
+  }
+  luaTimer.stop();
+
+  const double yamlTime = yamlTimer.elapsedTimeInSec();
+  const double luaTime = luaTimer.elapsedTimeInSec();
+  const double baseline = yamlTime > 1e-6 ? yamlTime : 1e-6;
+  std::cout << "Klee YAML parse smoke: " << yamlTime << "s, Lua: " << luaTime
+            << "s, ratio: " << (luaTime / baseline) << std::endl;
 
   // This is a coarse smoke check, not a benchmark. Keep the threshold loose
   // enough for shared CI systems while still catching pathological regressions.
-  EXPECT_LT(luaTime.count(), baseline * 50.0);
+  EXPECT_LT(luaTime, baseline * 50.0);
 }
 #endif
 

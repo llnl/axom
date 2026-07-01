@@ -8,6 +8,7 @@
 #include "IOUtil.hpp"
 #include "GeometryOperatorsIO.hpp"
 
+#include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
 
@@ -323,14 +324,6 @@ internal::NamedOperatorMap getNamedOperators(const inlet::Inlet& doc, Dimensions
   return internal::NamedOperatorMap {};
 }
 
-std::string lowercase(std::string value)
-{
-  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-    return static_cast<char>(std::tolower(ch));
-  });
-  return value;
-}
-
 std::string extensionOf(const std::string& filePath)
 {
   const auto slash = filePath.find_last_of("/\\");
@@ -339,7 +332,10 @@ std::string extensionOf(const std::string& filePath)
   {
     return "";
   }
-  return lowercase(filePath.substr(dot));
+
+  std::string extension = filePath.substr(dot);
+  axom::utilities::string::toLower(extension);
+  return extension;
 }
 
 InputFormat inferInputFormat(const std::string& filePath)
@@ -445,8 +441,8 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
   std::unordered_set<std::string> unexpectedGlobals;
   for(const auto& name : doc.unexpectedNames())
   {
-    const auto slash = name.find('/');
-    unexpectedGlobals.insert(name.substr(0, slash));
+    const auto tokens = axom::utilities::string::split(name, '/');
+    unexpectedGlobals.insert(tokens.empty() ? name : tokens.front());
   }
 
   for(const auto& name : unexpectedGlobals)

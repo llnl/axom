@@ -7,6 +7,7 @@
 #include "GeometryOperatorsIO.hpp"
 #include "IOUtil.hpp"
 
+#include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
@@ -48,11 +49,10 @@ std::string callbackName(char const* fieldName)
 
 std::string publicNameForCallback(const std::string& childName)
 {
-  const std::string suffix = LUA_CALLBACK_SUFFIX;
-  if(childName.size() > suffix.size() &&
-     childName.compare(childName.size() - suffix.size(), suffix.size(), suffix) == 0)
+  const std::string suffix {LUA_CALLBACK_SUFFIX};
+  if(axom::utilities::string::endsWith(childName, suffix))
   {
-    return childName.substr(0, childName.size() - suffix.size());
+    return axom::utilities::string::removeSuffix(childName, suffix);
   }
   return childName;
 }
