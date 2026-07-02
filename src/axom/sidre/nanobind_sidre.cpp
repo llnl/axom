@@ -7,10 +7,12 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/make_iterator.h>
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 
 #include "axom/config.hpp"
@@ -1034,26 +1036,23 @@ NB_MODULE(_sidre, m_sidre)
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def(
       "setExternalData",
-      [](View& self, nb::object external_ptr) {
-        if(external_ptr.is_none())
+      [](View& self, std::optional<nb::ndarray<>> external_ptr) {
+        // A single undescribed-data overload covering both None
+        // (clear the external pointer and release any pin) and a numpy array (set + pin).
+        // Using std::optional<ndarray> lets nanobind reject a non-array argument
+        // with a clean "incompatible function arguments" error
+        // rather than throwing mid-body from an explicit cast.
+        if(!external_ptr.has_value())
         {
           View* result = self.setExternalDataPtr(nullptr);
           releaseExternalDataOwner(&self);
           return result;
         }
-        nb::ndarray<> owner = nb::cast<nb::ndarray<>>(external_ptr);
-        return setExternalDataAndPinOwner(self, owner);
+        return setExternalDataAndPinOwner(self, *external_ptr);
       },
       nb::rv_policy::reference,
-      "Set the View to hold undescribed external data (numpy array).",
+      "Set the View to hold undescribed external data, or clear it when passed None.",
       nb::arg("external_ptr").none())
-    .def(
-      "setExternalData",
-      [](View& self, const nb::ndarray<>& external_ptr) {
-        return setExternalDataAndPinOwner(self, external_ptr);
-      },
-      nb::rv_policy::reference,
-      "Set the View to hold undescribed external data (numpy array).")
     .def(
       "setExternalData",
       [](View& self, TypeID type, IndexType num_elems, const nb::ndarray<>& external_ptr) {

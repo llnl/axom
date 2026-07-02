@@ -400,6 +400,58 @@ def test_clear_releases_external_array_owner():
     assert ref() is None
 
 
+def test_set_external_data_none_clears_and_releases_pin():
+    """setExternalData(None) clears the external pointer and releases the pin."""
+    ds = pysidre.DataStore()
+    view = ds.getRoot().createView("external")
+
+    external = np.arange(6, dtype=np.int64)
+    ref = weakref.ref(external)
+    view.setExternalData(external)
+
+    del external
+    _force_gc()
+    assert ref() is not None
+    assert view.isExternal()
+
+    view.setExternalData(None)
+    _force_gc()
+    assert not view.isExternal()
+    assert ref() is None
+
+
+def test_set_external_data_undescribed_array_pins():
+    """The single-argument setExternalData(array) overload pins the array."""
+    ds = pysidre.DataStore()
+    view = ds.getRoot().createView("external")
+
+    def assign():
+        external = np.arange(6, dtype=np.int64)
+        ref = weakref.ref(external)
+        view.setExternalData(external)  # undescribed, single-arg overload
+        return ref
+
+    ref = assign()
+    _force_gc()
+    assert ref() is not None
+    assert view.isExternal()
+
+
+def test_set_external_data_rejects_non_array_argument():
+    """A non-array, non-None argument is rejected with a clean TypeError.
+
+    The single-argument overload takes Optional[ndarray]; nanobind reports
+    'incompatible function arguments' rather than throwing from an internal
+    cast, so callers get the standard overload-resolution diagnostic.
+    """
+    ds = pysidre.DataStore()
+    view = ds.getRoot().createView("external")
+    with pytest.raises(TypeError):
+        view.setExternalData("not an array")
+    with pytest.raises(TypeError):
+        view.setExternalData(12345)
+
+
 def test_copy_view_with_external_data_preserves_pin():
     """copyView on an external View should copy the pin to prevent premature collection."""
     ds = pysidre.DataStore()
