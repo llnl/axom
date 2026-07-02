@@ -143,19 +143,19 @@ void SORClipper::accumulateData(axom::ArrayView<double> a,
   {
     accumulateDataImpl<axom::SEQ_EXEC>(a, b, scale);
   }
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(runtimePolicy == RuntimePolicy::omp)
   {
     accumulateDataImpl<axom::OMP_EXEC>(a, b, scale);
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(runtimePolicy == RuntimePolicy::cuda)
   {
     accumulateDataImpl<axom::CUDA_EXEC<256>>(a, b, scale);
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(runtimePolicy == RuntimePolicy::hip)
   {
     accumulateDataImpl<axom::HIP_EXEC<256>>(a, b, scale);

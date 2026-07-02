@@ -22,6 +22,7 @@ set(core_serial_tests
     core_array_for_all.hpp
     core_utilities.hpp
     core_bit_utilities.hpp
+    core_constexpr_assert.hpp
     core_device_hash.hpp
     core_execution_for_all.hpp
     core_execution_scans.hpp
@@ -245,4 +246,43 @@ if (ENABLE_BENCHMARKS)
                       COMMAND ${test_name} --benchmark_min_time=0.0001s
                       NUM_OMP_THREADS ${_num_threads})
   endforeach()
+endif()
+
+#------------------------------------------------------------------------------
+# Negative compile-time test for AXOM_CONSTEXPR_ASSERT
+#
+# The runtime behavior of AXOM_CONSTEXPR_ASSERT is covered by unit tests.
+# The following checks its compile-time invariants.
+#------------------------------------------------------------------------------
+include(CheckCXXSourceCompiles)
+
+# Probe needs the generated axom/config.hpp and the in-source headers.
+get_property(_axom_config_dir TARGET core PROPERTY BINARY_DIR)
+set(CMAKE_REQUIRED_INCLUDES
+    "${PROJECT_SOURCE_DIR}"
+    "${PROJECT_BINARY_DIR}/include")
+# Compile the probe with AXOM_DEBUG off, which isolates the constant-evaluation path
+set(CMAKE_REQUIRED_DEFINITIONS "-UAXOM_DEBUG" "-DNDEBUG")
+
+# A static_assert forces constant evaluation of a violating AXOM_CONSTEXPR_ASSERT.
+# This source is expected NOT to compile.
+check_cxx_source_compiles([=[
+#include "axom/core/Macros.hpp"
+constexpr int checked(int x) { AXOM_CONSTEXPR_ASSERT(x > 0); return x; }
+static_assert(checked(-1) == -1, "must fail: x>0 violated during constant evaluation");
+int main() { return 0; }
+]=] AXOM_CONSTEXPR_ASSERT_VIOLATION_COMPILES)
+
+unset(CMAKE_REQUIRED_INCLUDES)
+unset(CMAKE_REQUIRED_DEFINITIONS)
+
+if(AXOM_CONSTEXPR_ASSERT_VIOLATION_COMPILES)
+    message(FATAL_ERROR
+        "AXOM_CONSTEXPR_ASSERT regression: a compile-time invariant violation "
+        "compiled successfully. The constant-evaluation detection in "
+        "axom/core/utilities/ConstexprAssert.hpp is not firing on this compiler "
+        "(${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}).")
+else()
+    message(STATUS
+        "AXOM_CONSTEXPR_ASSERT compile-time guarantee verified on ${CMAKE_CXX_COMPILER_ID}")
 endif()

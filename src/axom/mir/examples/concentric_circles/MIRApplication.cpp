@@ -69,17 +69,15 @@ int MIRApplication::initialize(int argc, char **argv)
 
   std::stringstream pol_sstr;
   pol_sstr << "Set MIR runtime policy method.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
   app.add_option("-p, --policy", policy, pol_sstr.str())
     ->capture_default_str()

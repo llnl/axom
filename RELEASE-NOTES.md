@@ -44,6 +44,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a `primal::BezierTriangle` class
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
+- Core: Adds `AXOM_CONSTEXPR_ASSERT` macro for assertions that are usable within `constexpr` contexts
+- Slam: Adds `make_*_set`, `make_*_relation` and `make_map` helper functions for building sets, relations and maps
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -53,6 +55,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
+- CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 
