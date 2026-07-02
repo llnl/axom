@@ -136,7 +136,7 @@ public:
    * \param pos2  The second set position.
    * \return  The DenseIndex of the given element, or INVALID_POS if such
    *          element is missing from the set.
-   * \pre   0 <= pos1 <= set1.size() && 0 <= pos2 <= size2.size()
+   * \pre   0 <= pos1 < set1.size() && 0 <= pos2 < set2.size()
    */
   virtual PositionType findElementIndex(PositionType pos1, PositionType pos2) const = 0;
 
@@ -163,7 +163,7 @@ public:
    * \param pos2  The second set position.
    *
    * \return  The element's FlatIndex
-   * \pre   0 <= pos1 <= set1.size() && 0 <= pos2 <= size2.size()
+   * \pre   0 <= pos1 < set1.size() && 0 <= pos2 < set2.size()
    */
   AXOM_HOST_DEVICE virtual PositionType findElementFlatIndex(PositionType pos1,
                                                              PositionType pos2) const = 0;
@@ -192,7 +192,7 @@ public:
    * \param pos1  The first set position.
    *
    * \return  The found element's FlatIndex.
-   * \pre   0 <= pos1 <= set1.size()
+   * \pre   0 <= pos1 < set1.size()
    */
   virtual PositionType findElementFlatIndex(PositionType pos1) const = 0;
 
@@ -246,7 +246,7 @@ public:
   /**
    * \brief Number of elements of the BivariateSet whose first index is \a pos
    *
-   * \pre  0 <= pos1 <= set1.size()
+   * \pre  0 <= pos1 < set1.size()
    */
   virtual PositionType size(PositionType pos1) const = 0;  //size of a row
 
@@ -277,7 +277,7 @@ public:
    *
    * \param s1  The first set index.
    * \return  An OrderedSet containing the elements
-   * \pre  0 <= pos1 <= set1.size()
+   * \pre  0 <= pos1 < set1.size()
    */
   virtual SubsetType getElements(PositionType s1) const = 0;
 
