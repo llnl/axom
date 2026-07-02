@@ -31,6 +31,7 @@ set(slam_headers
 
     #SRM policies
     policies/CardinalityPolicies.hpp
+    policies/ValuePolicies.hpp
     policies/SizePolicies.hpp
     policies/OffsetPolicies.hpp
     policies/StridePolicies.hpp
@@ -50,6 +51,7 @@ set(slam_headers
     ProductSet.hpp
     DynamicSet.hpp
     Set.hpp
+    SetBuilders.hpp
     BivariateSet.hpp
     BitSet.hpp
     RelationSet.hpp
@@ -57,11 +59,13 @@ set(slam_headers
     # SRM Relation headers
     Relation.hpp
     StaticRelation.hpp
+    RelationBuilders.hpp
     DynamicVariableRelation.hpp
     DynamicConstantRelation.hpp
 
     # SRM Map headers
     Map.hpp
+    MapBuilders.hpp
     MapBase.hpp
     BivariateMap.hpp
     SubMap.hpp
@@ -76,7 +80,6 @@ set(slam_headers
 set(slam_sources
     # SRM Set sources
     BitSet.cpp
-    OrderedSet.cpp
 
     # SRM Relation sources
 

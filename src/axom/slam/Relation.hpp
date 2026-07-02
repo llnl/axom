@@ -50,9 +50,9 @@ public:
 
   virtual RelationVecConstIteratorPair range(SetPosition fromSetIndex) const = 0;
 
-  virtual SetPosition size(SetPosition fromSetIndex) const = 0;
+  [[nodiscard]] virtual SetPosition size(SetPosition fromSetIndex) const = 0;
 
-  virtual bool isValid(bool verboseOutput = false) const = 0;
+  [[nodiscard]] virtual bool isValid(bool verboseOutput = false) const = 0;
 
 #if 0
   // Go through the relation's data and ensure that no entity from the ToSet
@@ -72,16 +72,14 @@ public:
   void bindRelationData(..args..) = 0;
 
   // Accessors to the underlying relation data
-  // -- differs depending on the implementation (e.g. structured vs.
-  // unstructured
+  // -- differs depending on the implementation (e.g. structured vs. unstructured
   ArrType* relationData() = 0;
 #endif
 };
 
 /**
  * \brief Definition of static instance of nullSet for all relations
- * \note Should this be a singleton or a global object?  Should the scope be
- *  public?
+ * \note Should this be a singleton or a global object?  Should the scope be public?
  */
 template <typename PosType, typename ElemType>
 NullSet<PosType, ElemType> Relation<PosType, ElemType>::s_nullSet;
