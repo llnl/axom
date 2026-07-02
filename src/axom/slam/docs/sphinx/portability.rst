@@ -47,5 +47,7 @@ Slam uses ``std::optional`` for optional-returning APIs.
 The CUDA host-configs enable ``--expt-relaxed-constexpr``,
 and HIP's compiler accepts these standard library calls from host-device paths in the supported builds.
 
-The contract is to check ``has_value()`` (or use ``value_or``) before dereferencing.
-
+The device-side contract is to check ``has_value()`` before dereferencing with
+``operator*``, or to use ``value_or``. Avoid ``value()`` in kernels because
+standard library implementations can route the disengaged case through a
+throwing host-only helper.
