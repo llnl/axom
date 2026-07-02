@@ -45,7 +45,7 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     fi
 
     echo "~~~~~~ RUNNING TESTS ~~~~~~~~"
-    make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test --output-on-failure -j$NUM_BUILD_PROCS'
+    or_die make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test --output-on-failure -j$NUM_BUILD_PROCS'
 
     if [[ "${DO_BENCHMARKS}" == "yes" ]] ; then
         echo "~~~~~~ RUNNING BENCHMARKS ~~~~~~~~"
@@ -56,5 +56,16 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
         echo "~~~~~~ RUNNING MEMCHECK ~~~~~~~~"
         or_die ctest -T memcheck
     fi
-fi
 
+    echo "~~~~~~ INSTALLING ~~~~~~~~"
+    or_die make install
+
+    # For configs that generated Python bindings, check that we can run a Python script with Axom
+    INSTALL_PREFIX=$(awk -F= '/^CMAKE_INSTALL_PREFIX:PATH=/{print $2}' CMakeCache.txt)
+    PYTHON_RUNNER="${INSTALL_PREFIX}/bin/run_python_with_axom.sh"
+    PYTHON_EXAMPLE="${INSTALL_PREFIX}/examples/axom/using-with-python/example.py"
+    if [[ -x "${PYTHON_RUNNER}" && -f "${PYTHON_EXAMPLE}" ]] ; then
+        echo "~~~~~~ RUNNING INSTALLED PYTHON EXAMPLE ~~~~~~~~"
+        or_die "${PYTHON_RUNNER}" "${PYTHON_EXAMPLE}"
+    fi
+fi

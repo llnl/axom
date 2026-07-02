@@ -80,6 +80,19 @@ if (AXOM_ENABLE_EXAMPLES)
 endif()
 
 #------------------------------------------------------------------------------
+# install 'using-with-python' example
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_EXAMPLES AND NANOBIND_FOUND AND AXOM_ENABLE_SIDRE)
+    install(
+        FILES
+            using-with-python/README.md
+            using-with-python/example.py
+        DESTINATION
+            examples/axom/using-with-python
+    )
+endif()
+
+#------------------------------------------------------------------------------
 # configure and install 'radiuss_tutorial' example
 # This example requires Quest (which requires Slic, Mint, Primal and Spin)
 #------------------------------------------------------------------------------

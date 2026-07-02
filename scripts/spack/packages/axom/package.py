@@ -881,3 +881,16 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             example = Executable("./example")
             example()
             make("clean")
+
+    @run_after("install", when="+examples+python+tools components=sidre")
+    @on_package_attributes(run_tests=True)
+    def test_install_using_python(self):
+        """run python example against installed axom"""
+        example = join_path(self.prefix.examples.axom, "using-with-python", "example.py")
+        python_runner = join_path(self.prefix.bin, "run_python_with_axom.sh")
+        if not os.path.isfile(example):
+            raise RuntimeError("Missing installed python example: {0}".format(example))
+        if not os.path.isfile(python_runner):
+            raise RuntimeError("Missing installed python runner: {0}".format(python_runner))
+        run_python = Executable(python_runner)
+        run_python(example)
