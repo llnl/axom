@@ -175,7 +175,13 @@ if(NANOBIND_FOUND)
     set(_axom_py_build_root "${PROJECT_BINARY_DIR}/python")
     set(_pysidre_pkg_src    "${CMAKE_CURRENT_SOURCE_DIR}/../../python/src")
 
-    nanobind_add_module(_sidre nanobind_sidre.cpp)
+    # Build the extension under the shared 'axom' nanobind domain. 
+    # All of Axom's extension modules (currently just axom.sidre) share NB_DOMAIN=axom
+    # so that C++ types bound in one module, e.g. a sidre::Group*,
+    # recognized when passed to another module built from the same Axom build.
+    # nanobind only shares type bindings across modules that agree on 
+    # domain *and* nanobind ABI, compiler, and build mode.
+    nanobind_add_module(_sidre nanobind_sidre.cpp NB_DOMAIN axom)
     # conduit::conduit_python provides conduit_python.hpp
     # and is needed only by the binding translation unit, not by libsidre
     target_link_libraries(_sidre PRIVATE sidre conduit::conduit_python)
