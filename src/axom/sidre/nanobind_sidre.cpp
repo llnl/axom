@@ -17,6 +17,8 @@
 
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/slic/interface/slic.hpp"
+
 #include "core/SidreTypes.hpp"
 #include "core/Buffer.hpp"
 #include "core/View.hpp"
@@ -551,9 +553,9 @@ MPI_Comm mpiCommFromObject(nb::object comm)
  * duplicate or free it. That borrowed-communicator contract works for C++
  * callers, but it is unsafe for mpi4py objects: py2f() exposes the object's
  * current communicator handle, and Python code may later drop or explicitly
- * Free() that object while pysidre.IOManager is still alive.
+ * Free() that object while axom.sidre.IOManager is still alive.
  *
- * PyIOManager keeps the public Python class name as pysidre.IOManager while
+ * PyIOManager keeps the public Python class name as axom.sidre.IOManager while
  * giving the binding its own lifetime boundary. It duplicates the input
  * communicator, constructs sidre::IOManager with that duplicate, destroys the
  * IOManager first, and then frees the duplicate when MPI is still active.
@@ -564,7 +566,8 @@ public:
   PyIOManager(MPI_Comm comm, bool use_scr)
   {
     int err = MPI_Comm_dup(comm, &m_comm);
-    SLIC_ERROR_IF(err != MPI_SUCCESS, "Failed to duplicate MPI communicator for pysidre.IOManager");
+    SLIC_ERROR_IF(err != MPI_SUCCESS,
+                  "Failed to duplicate MPI communicator for axom.sidre.IOManager");
     m_manager = std::make_unique<IOManager>(m_comm, use_scr);
   }
 
@@ -849,7 +852,13 @@ NB_MODULE(_sidre, m_sidre)
     .def("getIndex", &Buffer::getIndex, "Return the unique index of this Buffer object.")
     .def("getNumViews", &Buffer::getNumViews, "Return number of Views this Buffer is attached to.")
     // .def("getVoidPtr", &Buffer::getVoidPtr, "Return void-pointer to data held by Buffer.")
-    .def("getDataArray", &bufferToNumpyArray, "Return the data held by the Buffer as a numpy array.")
+    .def("getDataArray",
+         &bufferToNumpyArray,
+         "Return the data held by the Buffer as a numpy array.\n\n"
+         "The array is a zero-copy view into the Buffer's storage "
+         "and keeps the Buffer (and its DataStore) alive while referenced. "
+         "Buffer.reallocate() can move the storage, leaving a previously returned array "
+         "pointing at freed memory; re-acquire the array after any reallocation.")
     .def("getTypeID", &Buffer::getTypeID, "Return type of data owned by this Buffer object.")
     .def("getNumElements",
          &Buffer::getNumElements,
@@ -1076,7 +1085,14 @@ NB_MODULE(_sidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
-    .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
+    .def("getDataArray",
+         &viewToNumpyArray,
+         "Return the data held by the View as a numpy array.\n\n"
+         "The array is a zero-copy view into the View's storage "
+         "and keeps the View (and its DataStore) alive while referenced. "
+         "View.reallocate() (or reallocating the underlying Buffer) can move the storage, "
+         "leaving a previously returned array pointing at freed memory; "
+         "re-acquire the array after any reallocation.")
 
     .def(
       "getDataInt",
