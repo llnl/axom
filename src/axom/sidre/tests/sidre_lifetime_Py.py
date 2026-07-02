@@ -580,6 +580,103 @@ def test_registry_cleanup_on_explicit_destroy():
         f"Only {collected_count}/{len(weak_refs)} arrays collected after explicit destroy"
 
 
+def test_external_pins_released_when_datastore_destroyed():
+    """Pins are released when the DataStore is destroyed without explicit destroy*().
+
+    This is the implicit counterpart to test_registry_cleanup_on_explicit_destroy:
+    the Views are torn down by the DataStore destructor (the C++ path), not by a
+    bound destroyView()/destroyGroup(). A weak reference on the DataStore must
+    still clear its pins, so the external arrays are collected and the registry
+    does not accumulate dangling entries.
+    """
+    weak_refs = []
+
+    def build_and_drop():
+        ds = pysidre.DataStore()
+        root = ds.getRoot()
+        for i in range(5):
+            external = np.arange(10, dtype=np.int32)
+            weak_refs.append(weakref.ref(external))
+            # Mix createView(external) and setExternalData() entry points.
+            if i % 2 == 0:
+                root.createView(f"view_{i}", external).apply(pysidre.TypeID.INT32_ID, 10)
+            else:
+                root.createView(f"view_{i}").setExternalData(pysidre.TypeID.INT32_ID, 10, external)
+        # Pins keep the arrays alive while ds is alive...
+        gc.collect()
+        assert all(ref() is not None for ref in weak_refs)
+        # ...and ds goes out of scope here without any explicit destroy call.
+
+    build_and_drop()
+    _force_gc()
+
+    collected = sum(1 for ref in weak_refs if ref() is None)
+    assert collected == len(weak_refs), \
+        f"Only {collected}/{len(weak_refs)} external arrays collected after DataStore destruction"
+
+
+def test_external_pins_released_for_nested_groups_on_datastore_destruction():
+    """DataStore destruction releases pins for Views nested in child Groups too."""
+    weak_refs = []
+
+    def build_and_drop():
+        ds = pysidre.DataStore()
+        root = ds.getRoot()
+        grp = root.createGroup("a/b/c")
+        for i in range(3):
+            external = np.arange(8, dtype=np.int64)
+            weak_refs.append(weakref.ref(external))
+            grp.createView(f"deep_{i}", external).apply(pysidre.TypeID.INT64_ID, 8)
+        gc.collect()
+        assert all(ref() is not None for ref in weak_refs)
+
+    build_and_drop()
+    _force_gc()
+
+    assert all(ref() is None for ref in weak_refs), \
+        "Nested-Group external arrays were not released on DataStore destruction"
+
+
+def test_external_pins_isolated_between_datastores():
+    """A View* address reused across DataStores must not cross-associate pins.
+
+    Each DataStore owns a private pin scope. Destroying one DataStore releases
+    only its own pins; a concurrently live DataStore is unaffected, even though
+    the allocator may hand out overlapping View* addresses across them.
+    """
+    keep_alive = []
+    surviving_refs = []
+
+    # Build and drop several DataStores in sequence, encouraging View* reuse.
+    for _ in range(4):
+        ds = pysidre.DataStore()
+        a = np.arange(6, dtype=np.int64)
+        r = weakref.ref(a)
+        ds.getRoot().createView("v", a).apply(pysidre.TypeID.INT64_ID, 6)
+        del a, ds
+        _force_gc()
+        # Each dropped DataStore must release its own array.
+        assert r() is None
+
+    # A long-lived DataStore created afterwards (possibly at a reused address)
+    # must hold its own pin independently.
+    survivor = pysidre.DataStore()
+    b = np.arange(6, dtype=np.int64)
+    surviving_refs.append(weakref.ref(b))
+    survivor.getRoot().createView("v", b).apply(pysidre.TypeID.INT64_ID, 6)
+    keep_alive.append(survivor)
+    del b
+    _force_gc()
+    assert surviving_refs[0]() is not None, \
+        "Survivor DataStore's pin was wrongly released (cross-datastore misattribution)"
+
+    # Cleanup releases the survivor's pin.
+    del survivor
+    keep_alive.clear()
+    _force_gc()
+    assert surviving_refs[0]() is None
+
+
 def test_multiple_concurrent_datastores():
     """Multiple active DataStores with external data should not interfere with each other."""
     # Create multiple DataStores simultaneously
