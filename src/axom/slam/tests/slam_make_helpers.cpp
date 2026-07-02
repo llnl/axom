@@ -231,12 +231,38 @@ TEST(slam_make_helpers, make_variable_relation_carray_rejects_short_begins_size)
   auto fromSet = slam::make_range_set(3);
   auto toSet = slam::make_range_set(5);
 
+  // begins claims 3 offsets for a size-3 from-set, but needs 4
+  // make_variable_relation asserts this invariant at construction in debug builds
+  // in release the check compiles out and the malformed relation is instead caught by isValid().
   Pos begins[4] = {0, 2, 3, 3};
   Pos indices[3] = {1, 2, 3};
 
+#ifdef AXOM_DEBUG
+  EXPECT_DEATH_IF_SUPPORTED(
+    slam::make_variable_relation(&fromSet, &toSet, begins, Pos {3}, indices, Pos {3}),
+    "");
+#else
   auto rel = slam::make_variable_relation(&fromSet, &toSet, begins, Pos {3}, indices, Pos {3});
-
   EXPECT_FALSE(rel.isValid());
+#endif
+}
+
+TEST(slam_make_helpers, make_constant_relation_rejects_undersized_indices)
+{
+  auto fromSet = slam::make_range_set(3);
+  auto toSet = slam::make_range_set(5);
+
+  // A stride-2 constant relation over a size-3 from-set needs 6 indices but we supply 4 here.
+  // make_constant_relation asserts the exact size at construction in debug builds
+  // the check compiles out in release builds.
+  Pos indices[4] = {0, 1, 2, 3};
+
+#ifdef AXOM_DEBUG
+  EXPECT_DEATH_IF_SUPPORTED(slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices, Pos {4}),
+                            "");
+#else
+  SLIC_INFO("Skipped constant-relation size assertion check in release mode.");
+#endif
 }
 
 TEST(slam_make_helpers, make_variable_relation_axom_array_buffers)
@@ -547,6 +573,9 @@ int main(int argc, char* argv[])
 
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;
+
+  // Construction-precondition tests below use death tests in debug builds.
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
   result = RUN_ALL_TESTS();
 
