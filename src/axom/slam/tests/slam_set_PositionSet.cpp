@@ -204,7 +204,7 @@ TEST(slam_set_positionset, out_of_bounds_at)
 
   // add this line to avoid a warning in the output about thread safety
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(s.at(MAX_SET_SIZE), "");
+  EXPECT_DEATH_IF_SUPPORTED((void)s.at(MAX_SET_SIZE), "");
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif

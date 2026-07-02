@@ -27,15 +27,10 @@
 #include "axom/core/Macros.hpp"
 
 #include "axom/slam/NullSet.hpp"
-#include "axom/export/slam.h"
 
 #include <set>
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /**
  * \name OrderedSet_Subsetting_Policies
@@ -46,7 +41,7 @@ namespace policies
 
 struct NoSubset
 {
-  AXOM_SLAM_EXPORT static const NullSet<> s_nullSet;
+  inline static const NullSet<> s_nullSet {};
   using ParentSetType = const Set<>;
 
   AXOM_HOST_DEVICE NoSubset() { }
@@ -69,7 +64,7 @@ struct NoSubset
 
 struct VirtualParentSubset
 {
-  AXOM_SLAM_EXPORT static NullSet<> s_nullSet;
+  inline static NullSet<> s_nullSet {};
 
   using ParentSetType = Set<>;
 
@@ -203,8 +198,6 @@ private:
 
 /// \}
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam::policies
 
 #endif  // SLAM_POLICIES_SUBSET_H_

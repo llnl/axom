@@ -68,6 +68,24 @@ using IndexType = std::int32_t;
 
 static constexpr IndexType InvalidIndex = -1;
 
+/*!
+ * \brief Maps a type to itself in a non-deduced context.
+ *
+ * This is an Axom-local equivalent of C++20's std::type_identity for C++17.
+ * Its primary use is to suppress template argument deduction for a function parameter.
+ * A parameter declared as type_identity_t<T> does not participate in deducing T, 
+ * so T is taken from the explicit template argument or from another parameter,
+ * and the argument here is implicitly converted.
+ */
+template <typename T>
+struct type_identity
+{
+  using type = T;
+};
+
+template <typename T>
+using type_identity_t = typename type_identity<T>::type;
+
 #ifdef AXOM_USE_MPI
 
 // Note: MSVC complains about uninitialized static const integer class members,

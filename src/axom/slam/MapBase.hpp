@@ -47,13 +47,13 @@ public:
    * \brief Get the number of entities in the set used by this map
    * \return The number of entities in the set used in the map.
    */
-  AXOM_HOST_DEVICE virtual SetPosition size() const = 0;
+  [[nodiscard]] AXOM_HOST_DEVICE virtual SetPosition size() const = 0;
 
   /**
    * \brief Checks whether the Map is valid.
    * \return   True if valid, false otherwise.
    */
-  virtual bool isValid(bool verboseOutput) const = 0;
+  [[nodiscard]] virtual bool isValid(bool verboseOutput) const = 0;
 
 private:
   /**

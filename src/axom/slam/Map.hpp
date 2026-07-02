@@ -167,6 +167,24 @@ public:
     m_data = IndirectionPolicy::create(size() * numComp(), defaultValue, allocatorID);
   }
 
+  /**
+   * \brief Constructor for Map using a Set pointer and externally-owned data.
+   *
+   * This overload is intended for non-owning indirection policies such as
+   * `policies::ArrayViewIndirection`, but also works for owning buffers.
+   *
+   * \param theSet pointer to the map's set (must outlive the map)
+   * \param data externally-owned (or moved-in) storage for the map's values
+   * \param shape (Optional) number of values mapped per set element (stride)
+   */
+  Map(const SetType* theSet, OrderedMap data, ElementShape shape = StridePolicyType::DefaultSize())
+    : StridePolicyType(shape)
+    , m_set(theSet)
+    , m_data(std::move(data))
+  {
+    checkBackingSize(std::integral_constant<bool, IndirectionPolicy::IsMutableBuffer> {});
+  }
+
   /// \overload
   template <typename USet,
             typename TSet = SetType,
@@ -350,7 +368,7 @@ public:
    * The total storage size for the map's values is `size() * numComp()`
    */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE SetPosition size() const
+  [[nodiscard]] AXOM_HOST_DEVICE SetPosition size() const
   {
     return !policies::EmptySetTraits<SetType>::isEmpty(m_set.get())
       ? static_cast<SetPosition>(m_set.get()->size())
@@ -361,11 +379,10 @@ public:
    * \brief  Gets the number of component values associated with each element.
    *         Equivalent to stride().
    */
-  SetPosition numComp() const { return StridePolicyType::stride(); }
+  [[nodiscard]] SetPosition numComp() const { return StridePolicyType::stride(); }
 
   /**
-   * \brief Returns the shape of the component values associated with each
-   *  element.
+   * \brief Returns the shape of the component values associated with each element.
    *
    *  For one-dimensional strides, equivalent to stride(); otherwise, returns
    *  an N-dimensional array with the number of values in each sub-component
@@ -407,12 +424,11 @@ public:
 
   ///@}
 
-  /** \brief print information on the map, including every element inside Map
-   */
+  /// \brief print information on the map, including every element inside Map
   void print() const;
 
-  /** \brief returns true if the map is valid, false otherwise.  */
-  bool isValid(bool verboseOutput = false) const;
+  /// \brief returns true if the map is valid, false otherwise
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
 public:
   /**
@@ -426,23 +442,21 @@ public:
 
     MapBuilder() : m_set(policies::EmptySetTraits<SetType>::emptySet()) { }
 
-    /** \brief Provide the Set to be used by the Map */
+    /// \brief Provide the Set to be used by the Map
     MapBuilder& set(const SetType* set)
     {
       m_set = set;
       return *this;
     }
 
-    /** \brief Set the stride of the Map using StridePolicy */
+    /// \brief Set the stride of the Map using StridePolicy
     MapBuilder& stride(SetPosition str)
     {
       m_stride = StridePolicyType(str);
       return *this;
     }
 
-    /** \brief Set the pointer to the array of data the Map will contain
-     *  (makes a copy of the array currently)
-     */
+    /// \brief Set the pointer to the array of data the Map will contain
     MapBuilder& data(DataType* bufPtr)
     {
       m_data_ptr = bufPtr;
@@ -484,9 +498,7 @@ public:
   public:
     MapIterator(PositionType pos, MapConstPtr oMap) : IterBase(pos), m_map(oMap) { }
 
-    /**
-     * \brief Returns the current iterator value.
-     */
+    /// \brief Returns the current iterator value.
     AXOM_HOST_DEVICE reference operator*() const { return (*m_map)[m_pos]; }
 
     AXOM_HOST_DEVICE pointer operator->() const { return &(*this); }
@@ -511,17 +523,14 @@ public:
   /**
    * \class   MapRangeIterator
    * \brief   An iterator type for a map.
-   *          Each increment operation advances the iterator to the next set
-   *          element.
-   *          To access the j<sup>th</sup> component values of the iterator's
-   *          current element, use `iter(j)`.
+   *          Each increment operation advances the iterator to the next set element.
+   *          To access the j<sup>th</sup> component values of the iterator's current element, use `iter(j)`.
    * \warning Note the difference between the subscript operator ( `iter[off]` )
-   *          and the parenthesis operator ( `iter(j)` ). \n
+   *          and the parenthesis operator ( `iter(j)` ).
    *          `iter[off]` returns the value of the first component of the
-   *          element at offset \a `off` from the currently pointed to
-   *          element.\n
+   *          element at offset \a `off` from the currently pointed to element.
    *          And `iter(j)` returns the value of the j<sup>th</sup> component of
-   *          the currently pointed to element (where 0 <= j < numComp()).\n
+   *          the currently pointed to element (where 0 <= j < numComp()).
    *          For example: `iter[off]` is the same as `(iter+off)(0)`
    */
   template <bool Const>
@@ -572,9 +581,7 @@ public:
       m_currRange = m_mapData[pos];
     }
 
-    /**
-     * \brief Returns the current iterator value.
-     */
+    /// \brief Returns the current iterator value.
     AXOM_HOST_DEVICE reference operator*() const { return m_currRange; }
 
     AXOM_HOST_DEVICE pointer operator->() const { return &m_currRange; }
@@ -619,11 +626,11 @@ public:
     /// \brief Returns the flat index pointed to by this iterator.
     AXOM_HOST_DEVICE SetPosition flatIndex() const { return this->m_pos; }
 
-    /** \brief Returns the number of components per element in the Map. */
+    /// \brief Returns the number of components per element in the Map.
     PositionType numComp() const { return m_map->stride(); }
 
   protected:
-    /** Implementation of advance() as required by IteratorBase */
+    /// Implementation of advance() as required by IteratorBase
     AXOM_HOST_DEVICE void advance(PositionType n)
     {
       this->m_pos += n;
@@ -657,9 +664,7 @@ public:  // Functions related to iteration
   }
 
 public:
-  /**
-   * \brief Returns a reference to the underlying map data
-   */
+  /// \brief Returns a reference to the underlying map data
   OrderedMap& data() { return m_data; }
   const OrderedMap& data() const { return m_data; }
 
