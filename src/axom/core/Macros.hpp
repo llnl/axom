@@ -416,4 +416,13 @@
   template <typename gtest_TypeParam_>                                                            \
   void GTEST_TEST_CLASS_NAME_(CaseName, TestName)<gtest_TypeParam_>::TestBody()
 
+// Provides the definition for `axom::detail::constexprAssert` used by AXOM_CONSTEXPR_ASSERT.
+#include "axom/core/utilities/ConstexprAssert.hpp"
+
+/*!
+ * \def AXOM_CONSTEXPR_ASSERT(EXP)
+ * \brief Assert \a EXP in a way that is valid inside constexpr functions.
+ */
+#define AXOM_CONSTEXPR_ASSERT(EXP) ::axom::detail::constexprAssert((EXP), #EXP, __FILE__, __LINE__)
+
 #endif  // AXOM_MACROS_HPP_

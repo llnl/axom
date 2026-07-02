@@ -25,8 +25,7 @@ namespace slam
  * \class DynamicMap
  * \brief A slam map class that supports adding and removing entries.
  *
- * \detail An entry in the map is considered valid if
- * its corresponding set's entry is valid
+ * \detail An entry in the map is considered valid if its corresponding set's entry is valid
  */
 template <typename SetType, typename DataType>
 class DynamicMap
@@ -94,11 +93,14 @@ public:
 
   /// @}
 
-  /** \brief Access to underlying data */
+  /// \brief Access to underlying data
   OrderedMap& data() { return m_data; }
 
-  /** \brief Const access to underlying data */
+  /// \brief Const access to underlying data
   const OrderedMap& data() const { return m_data; }
+
+  /// \brief Reserves storage for at least \a s entries.
+  void reserve(SetPosition s) { m_data.reserve(s); }
 
   /// \name DynamicMap cardinality functions
   /// @{
@@ -109,8 +111,7 @@ public:
   /**
    * \brief Return the number of valid entries
    *
-   * An entry at a given index is considered valid if corresponding
-   * set element is valid.
+   * An entry at a given index is considered valid if corresponding set element is valid.
    */
   SetPosition numberOfValidEntries() const
   {
@@ -128,7 +129,7 @@ public:
   }
 
   /** \brief Predicate to check if this DynamicMap instance is valid */
-  bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
   /// @}
 

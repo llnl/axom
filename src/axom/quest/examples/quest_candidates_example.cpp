@@ -149,13 +149,13 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     ->description(
       "Execution policy."
       "\nSet to 'seq' or 0 to use the RAJA sequential policy."
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       "\nSet to 'omp' or 1 to use the RAJA openmp policy."
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       "\nSet to 'cuda' or 2 to use the RAJA cuda policy."
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       "\nSet to 'hip' or 3 to use the RAJA hip policy."
 #endif
       )
@@ -201,17 +201,17 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     method == "bvh" ? "Bounding Volume Hierarchy (BVH)" : "Implicit Grid",
     method == "bvh" ? "Not Applicable" : std::to_string(resolution),
     policy ==
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
         RuntimePolicy::omp
       ? "omp"
       : policy ==
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
         RuntimePolicy::cuda
       ? "cuda"
       : policy ==
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
         RuntimePolicy::hip
       ? "hip"
       : policy ==
@@ -779,21 +779,21 @@ int main(int argc, char** argv)
 
   switch(params.policy)
   {
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
     insert_mesh = loadBlueprintHexMesh<omp_exec>(params.mesh_file_first,
                                                  MeshLoadPolicy::OneDomainPerRankOrReplicated,
                                                  params.isVerbose());
     break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case RuntimePolicy::cuda:
     insert_mesh = loadBlueprintHexMesh<cuda_exec>(params.mesh_file_first,
                                                   MeshLoadPolicy::OneDomainPerRankOrReplicated,
                                                   params.isVerbose());
     break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case RuntimePolicy::hip:
     insert_mesh = loadBlueprintHexMesh<hip_exec>(params.mesh_file_first,
                                                  MeshLoadPolicy::OneDomainPerRankOrReplicated,
@@ -814,21 +814,21 @@ int main(int argc, char** argv)
 
   switch(params.policy)
   {
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
     query_mesh = loadBlueprintHexMesh<omp_exec>(params.mesh_file_second,
                                                 MeshLoadPolicy::Replicated,
                                                 params.isVerbose());
     break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case RuntimePolicy::cuda:
     query_mesh = loadBlueprintHexMesh<cuda_exec>(params.mesh_file_second,
                                                  MeshLoadPolicy::Replicated,
                                                  params.isVerbose());
     break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case RuntimePolicy::hip:
     query_mesh = loadBlueprintHexMesh<hip_exec>(params.mesh_file_second,
                                                 MeshLoadPolicy::Replicated,
@@ -853,17 +853,17 @@ int main(int argc, char** argv)
   {
     switch(params.policy)
     {
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       candidatePairs = findCandidatesBVH<omp_exec>(insert_mesh, query_mesh);
       break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       candidatePairs = findCandidatesBVH<cuda_exec>(insert_mesh, query_mesh);
       break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       candidatePairs = findCandidatesBVH<hip_exec>(insert_mesh, query_mesh);
       break;
@@ -878,17 +878,17 @@ int main(int argc, char** argv)
   {
     switch(params.policy)
     {
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       candidatePairs = findCandidatesImplicit<omp_exec>(insert_mesh, query_mesh, params.resolution);
       break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       candidatePairs = findCandidatesImplicit<cuda_exec>(insert_mesh, query_mesh, params.resolution);
       break;
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       candidatePairs = findCandidatesImplicit<hip_exec>(insert_mesh, query_mesh, params.resolution);
       break;

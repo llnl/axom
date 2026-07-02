@@ -15,6 +15,7 @@
 
 // Axom includes
 #include "axom/core.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/mint.hpp"
 #include "axom/primal.hpp"
 #include "axom/spin.hpp"
@@ -41,13 +42,13 @@ enum class ExecPolicy
 };
 
 const std::map<std::string, ExecPolicy> validExecPolicies {{"seq", ExecPolicy::CPU},
-#ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
                                                            {"omp", ExecPolicy::OpenMP},
 #endif
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
                                                            {"cuda", ExecPolicy::CUDA}
 #endif
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
                                                            {"hip", ExecPolicy::HIP}
 #endif
 };
@@ -328,13 +329,13 @@ struct Arguments
 
     std::string pol_info = "Sets execution space of the BVH two-pass example.\n";
     pol_info += "Set to \'seq\' to use sequential execution policy.";
-#ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     pol_info += "\nSet to \'omp\' to use an OpenMP execution policy.";
 #endif
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     pol_info += "\nSet to \'cuda\' to use a CUDA GPU execution policy.";
 #endif
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     pol_info += "\nSet to \'hip\' to use a HIP GPU execution policy.";
 #endif
     app.add_option("-e, --exec_space", this->exec_space, pol_info)
@@ -397,8 +398,7 @@ int main(int argc, char** argv)
                                                 firstPair,
                                                 secondPair);
     break;
-#if defined(AXOM_USE_RAJA)
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case ExecPolicy::OpenMP:
     find_collisions_broadphase<axom::OMP_EXEC>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::OMP_EXEC>(surface_mesh.get(),
@@ -407,8 +407,8 @@ int main(int argc, char** argv)
                                                 firstPair,
                                                 secondPair);
     break;
-  #endif
-  #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case ExecPolicy::CUDA:
     find_collisions_broadphase<axom::CUDA_EXEC<256>>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::CUDA_EXEC<256>>(surface_mesh.get(),
@@ -417,8 +417,8 @@ int main(int argc, char** argv)
                                                       firstPair,
                                                       secondPair);
     break;
-  #endif
-  #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case ExecPolicy::HIP:
     find_collisions_broadphase<axom::HIP_EXEC<256>>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::HIP_EXEC<256>>(surface_mesh.get(),
@@ -427,7 +427,6 @@ int main(int argc, char** argv)
                                                      firstPair,
                                                      secondPair);
     break;
-  #endif
 #endif
   default:
     SLIC_ERROR("Unsupported execution space.");

@@ -6,13 +6,14 @@
 
 import pysidre
 import numpy as np
+import numpy.typing as npt
 
 # This example file is based on sidre_createdatastore.cpp.
 # The python interface is a work-in-progress, and does not yet support
 # all the features in the C++ source.
 
 
-def create_datastore(region):
+def create_datastore(region: npt.NDArray[np.int_]) -> pysidre.DataStore:
     ds = pysidre.DataStore()
     root = ds.getRoot()
 
@@ -73,7 +74,7 @@ def create_datastore(region):
     return ds
 
 
-def access_datastore(ds):
+def access_datastore(ds: pysidre.DataStore) -> pysidre.DataStore:
     # Retrieve Group pointers
     root = ds.getRoot()
     state = root.getGroup("state")
@@ -107,7 +108,7 @@ def access_datastore(ds):
     return ds
 
 
-def iterate_datastore(ds):
+def iterate_datastore(ds: pysidre.DataStore) -> None:
     fill_line = "=" * 80
     print(fill_line)
 
