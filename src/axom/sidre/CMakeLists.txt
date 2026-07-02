@@ -204,6 +204,10 @@ if(NANOBIND_FOUND)
                         "${_axom_py_build_root}/axom/py.typed" COPYONLY)
     axom_configure_file("${_pysidre_pkg_src}/axom/sidre/__init__.py"
                         "${_axom_py_build_root}/axom/sidre/__init__.py" COPYONLY)
+    # Hand-written package stub: re-exports the generated _sidre.pyi statically
+    # so type checkers can see axom.sidre's surface
+    axom_configure_file("${_pysidre_pkg_src}/axom/sidre/__init__.pyi"
+                        "${_axom_py_build_root}/axom/sidre/__init__.pyi" COPYONLY)
     axom_configure_file("${_pysidre_pkg_src}/pysidre/__init__.py"
                         "${_axom_py_build_root}/pysidre/__init__.py" COPYONLY)
 
@@ -235,6 +239,7 @@ if(NANOBIND_FOUND)
 
     install(FILES "${_axom_py_build_root}/axom/sidre/_sidre.pyi"
                   "${_pysidre_pkg_src}/axom/sidre/__init__.py"
+                  "${_pysidre_pkg_src}/axom/sidre/__init__.pyi"
             DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom/sidre")
 
     # Namespace-root package files install once (not per component).

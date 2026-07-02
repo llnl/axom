@@ -35,6 +35,7 @@ src/python/
       py.typed                  <- PEP 561 marker (typed package)
       sidre/
         __init__.py             <- re-exports the compiled 'axom.sidre._sidre'
+        __init__.pyi            <- package stub; re-exports '_sidre.pyi' for type checkers
         (_sidre.<tag>.so)       <- compiled extension, produced by the build
         (_sidre.pyi)            <- type stub, produced by the build
     pysidre/
