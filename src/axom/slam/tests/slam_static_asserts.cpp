@@ -19,6 +19,8 @@
 #include "gtest/gtest.h"
 
 #include "axom/slam/ModularInt.hpp"
+#include "axom/slam/Traits.hpp"
+#include "axom/slam/RangeSet.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 #include "axom/slam/policies/OffsetPolicies.hpp"
@@ -126,6 +128,47 @@ static_assert(incTwice(4) == 1, "++ twice from 4 mod 5 == 1");
 // equality across the modulus
 static_assert(Mod5(2) == Mod5(7), "2 and 7 are equal mod 5");
 static_assert(Mod5(2) != Mod5(3), "2 and 3 differ mod 5");
+
+//------------------------------------------------------------------------------
+// Check trait predicates for policies and sets
+//------------------------------------------------------------------------------
+
+// Value policies satisfy their policy concept, and are distinguished from each
+// other and from sets (a set has size() but no value()).
+static_assert(slam::is_value_policy_v<Size5>, "a size policy is a value policy");
+static_assert(slam::is_size_policy_v<Size5>, "CompileTimeSize is a size policy");
+static_assert(slam::is_stride_policy_v<Stride4>, "CompileTimeStride is a stride policy");
+static_assert(slam::is_offset_policy_v<Off3>, "CompileTimeOffset is an offset policy");
+static_assert(!slam::is_stride_policy_v<Size5>, "a size policy is not a stride policy");
+static_assert(!slam::is_size_policy_v<Stride4>, "a stride policy is not a size policy");
+static_assert(!slam::is_set_like_v<Size5>, "a policy is not a set");
+
+// RangeSet models the (ordered) set concept and nothing else.
+static_assert(slam::is_set_like_v<slam::RangeSet<>>, "RangeSet is set-like");
+static_assert(slam::is_ordered_set_like_v<slam::RangeSet<>>, "RangeSet is an ordered set");
+static_assert(!slam::is_relation_like_v<slam::RangeSet<>>, "RangeSet is not a relation");
+static_assert(!slam::is_map_like_v<slam::RangeSet<>>, "RangeSet is not a map");
+static_assert(!slam::is_bivariate_set_like_v<slam::RangeSet<>>, "RangeSet is not bivariate");
+
+// Index-space concepts: raw integrals are positions
+static_assert(slam::is_position_like_v<int>, "int is a position");
+static_assert(slam::is_position_like_v<axom::slam::DefaultPositionType>,
+              "slam's default position type is a position");
+static_assert(!slam::is_position_like_v<double>, "double is not a position");
+
+// An element handle must be trivially copyable so it survives capture-by-value into a device kernel
+struct TrivialHandle
+{
+  int id;
+};
+static_assert(slam::is_handle_like_v<TrivialHandle>, "a trivially-copyable struct is handle-like");
+
+struct UserCopyHandle
+{
+  UserCopyHandle(const UserCopyHandle&) { }
+};
+static_assert(!slam::is_handle_like_v<UserCopyHandle>,
+              "a user-declared copy ctor breaks the handle contract");
 
 }  // anonymous namespace
 

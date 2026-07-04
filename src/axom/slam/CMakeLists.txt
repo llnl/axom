@@ -25,9 +25,10 @@ axom_component_requires(NAME       SLAM
 #------------------------------------------------------------------------------
 set(slam_headers
     # Utility files
-    Utilities.hpp
     FieldRegistry.hpp
     ModularInt.hpp
+    Traits.hpp
+    Utilities.hpp
 
     #SRM policies
     policies/CardinalityPolicies.hpp

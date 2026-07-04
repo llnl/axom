@@ -10,9 +10,9 @@
  * \file OrderedSet.hpp
  *
  * \brief Basic API for an ordered set of entities in a simulation
+ * 
  * \note We are actually storing (ordered) multisets, since elements can be
  *  repeated an arbitrary number of times (e.g. for indirection sets)
- *
  */
 
 #include "axom/config.hpp"
@@ -123,9 +123,7 @@ private:
             typename OtherInterfacePolicy>
   friend struct OrderedSet;
 
-  /*!
-   * \brief Helper tag class to call OrderedSet conversion constructor.
-   */
+  /// \brief Helper tag class to call OrderedSet conversion constructor
   struct ConversionTag
   { };
 
