@@ -12,6 +12,8 @@
 
 #include <conduit/conduit_blueprint.hpp>
 
+#include <type_traits>
+
 namespace axom
 {
 namespace bump
@@ -54,20 +56,23 @@ bool dispatch_material_unibuffer_with_values(const conduit::Node &matset,
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_uni_buffer(matset))
   {
-    indexNodeToArrayViewSame(matset["material_ids"],
-                             matset["sizes"],
-                             matset["offsets"],
-                             matset["indices"],
-                             [&](auto material_ids, auto sizes, auto offsets, auto indices) {
-                               floatNodeToArrayView(values, [&](auto typedValues) {
-                                 using IndexType = typename decltype(material_ids)::value_type;
-                                 using FloatType = typename decltype(typedValues)::value_type;
+    indexNodeToArrayViewSame(
+      matset["material_ids"],
+      matset["sizes"],
+      matset["offsets"],
+      matset["indices"],
+      [&](auto material_ids, auto sizes, auto offsets, auto indices) {
+        floatNodeToArrayView(values, [&](auto typedValues) {
+          using MaterialIDsView = std::remove_reference_t<decltype(material_ids)>;
+          using ValuesView = std::remove_reference_t<decltype(typedValues)>;
+          using IndexType = typename MaterialIDsView::value_type;
+          using FloatType = typename ValuesView::value_type;
 
-                                 UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
-                                 matsetView.set(material_ids, typedValues, sizes, offsets, indices);
-                                 func(matsetView);
-                               });
-                             });
+          UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
+          matsetView.set(material_ids, typedValues, sizes, offsets, indices);
+          func(matsetView);
+        });
+      });
     retval = true;
   }
   return retval;
@@ -126,8 +131,8 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
     {
       const conduit::Node &n_firstValues = values_object[0];
       floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
-        using FloatElement =
-          typename std::remove_const<typename decltype(firstValues)::value_type>::type;
+        using FirstValuesView = std::remove_reference_t<decltype(firstValues)>;
+        using FloatElement = typename std::remove_const<typename FirstValuesView::value_type>::type;
         using FloatView = axom::ArrayView<FloatElement>;
         using IntElement = axom::IndexType;
 
@@ -186,10 +191,10 @@ bool dispatch_material_material_dominant_with_values(const conduit::Node &matset
 
       indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
         floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
-          using FloatElement =
-            typename std::remove_const<typename decltype(firstValues)::value_type>::type;
-          using IntElement =
-            typename std::remove_const<typename decltype(firstIndices)::value_type>::type;
+          using FirstValuesView = std::remove_reference_t<decltype(firstValues)>;
+          using FirstIndicesView = std::remove_reference_t<decltype(firstIndices)>;
+          using FloatElement = typename std::remove_const<typename FirstValuesView::value_type>::type;
+          using IntElement = typename std::remove_const<typename FirstIndicesView::value_type>::type;
           using FloatView = axom::ArrayView<FloatElement>;
           using IntView = axom::ArrayView<IntElement>;
 
