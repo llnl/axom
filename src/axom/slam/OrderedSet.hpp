@@ -20,6 +20,7 @@
 #include "axom/slic.hpp"
 
 #include "axom/slam/Set.hpp"
+#include "axom/slam/Traits.hpp"
 
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/OffsetPolicies.hpp"
@@ -315,11 +316,11 @@ public:
     using difference_type = PositionType;
 
     using reference =
-      typename std::conditional<Const,
-                                typename OrderedSet::IndirectionPolicyType::ConstIndirectionResult,
-                                typename OrderedSet::IndirectionPolicyType::IndirectionResult>::type;
+      std::conditional_t<Const,
+                         typename OrderedSet::IndirectionPolicyType::ConstIndirectionResult,
+                         typename OrderedSet::IndirectionPolicyType::IndirectionResult>;
 
-    using pointer = typename std::conditional<Const, const T*, T*>::type;
+    using pointer = maybe_const_t<Const, T>*;
 
     using IterBase = IteratorBase<OrderedSetIterator<T, Const>, PositionType>;
 
@@ -340,51 +341,21 @@ public:
     /// \}
 
     /// \name Member and pointer operators
-    /// \note We use the \a enable_if construct to implement both
-    /// const and non-const iterators in the same implementation.
+    /// \note A single const-qualified implementation serves both the const and non-const iterator.
+    /// Element mutability is carried by the \a reference and \a pointer types
+    /// \a m_orderedSet is \c mutable so the non-const iterator can return
+    /// a mutable reference from a const-qualified operator, and the
+    /// iterator is const-dereferenceable (as the standard iterator concepts require).
     /// \{
 
-    /// Indirection operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, reference>::type operator*()
-    {
-      return m_orderedSet.IndirectionType::indirection(m_pos);
-    }
+    /// Dereference operator
+    reference operator*() const { return m_orderedSet.IndirectionType::indirection(m_pos); }
 
-    /// Indirection operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, reference>::type operator*() const
-    {
-      return m_orderedSet.IndirectionType::indirection(m_pos);
-    }
+    /// Structure dereference operator
+    pointer operator->() const { return &(m_orderedSet.IndirectionType::indirection(m_pos)); }
 
-    /// Structure dereference operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, pointer>::type operator->()
-    {
-      return &(m_orderedSet.IndirectionType::indirection(m_pos));
-    }
-
-    /// Structure dereference operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, pointer>::type operator->() const
-    {
-      return &(m_orderedSet.IndirectionType::indirection(m_pos));
-    }
-
-    /// Subscript operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, reference>::type operator[](PositionType n)
-    {
-      return *(*this + n);
-    }
-
-    /// Subscript operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, reference>::type operator[](PositionType n) const
-    {
-      return *(*this + n);
-    }
+    /// Subscript operator
+    reference operator[](PositionType n) const { return *(*this + n); }
 
     /// \}
 
@@ -416,7 +387,7 @@ public:
     inline const PositionType offset() const { return m_orderedSet.OffsetType::offset(); }
 
   private:
-    OrderedSet::ConcreteSet m_orderedSet;
+    mutable OrderedSet::ConcreteSet m_orderedSet;
   };
 
 public:  // Functions related to iteration

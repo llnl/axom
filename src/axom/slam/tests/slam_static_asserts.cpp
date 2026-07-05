@@ -32,6 +32,7 @@
 #include "axom/slam/policies/CardinalityPolicies.hpp"
 #include "axom/slam/policies/IndirectionPolicies.hpp"
 
+#include <iterator>
 #include <optional>
 
 namespace
@@ -220,6 +221,35 @@ static_assert(std::is_trivially_copyable_v<ViewConstantRelation>,
 // The default set uses the virtual interface so it is not trivially copyable
 static_assert(!std::is_trivially_copyable_v<slam::RangeSet<>>,
               "the virtual-interface set is not device-capturable by design");
+
+//------------------------------------------------------------------------------
+// OrderedSetIterator models C++17 RandomAccessIterator
+// std::iterator_traits is complete for both the mutable and const iterator
+// and reports the random-access category. The single const-qualified
+// accessor path also makes the iterator const-dereferenceable.
+//------------------------------------------------------------------------------
+using RangeIter = slam::RangeSet<>::iterator;
+using RangeConstIter = slam::RangeSet<>::const_iterator;
+
+static_assert(
+  std::is_same_v<std::iterator_traits<RangeIter>::iterator_category, std::random_access_iterator_tag>,
+  "the mutable ordered-set iterator is random-access");
+static_assert(std::is_same_v<std::iterator_traits<RangeConstIter>::iterator_category,
+                             std::random_access_iterator_tag>,
+              "the const ordered-set iterator is random-access");
+static_assert(
+  std::is_same_v<std::iterator_traits<RangeIter>::difference_type, slam::RangeSet<>::PositionType>,
+  "iterator difference_type is the set's position type");
+static_assert(std::is_integral_v<std::iterator_traits<RangeIter>::difference_type> &&
+                std::is_signed_v<std::iterator_traits<RangeIter>::difference_type>,
+              "a random-access difference_type is a signed integral");
+static_assert(!std::is_void_v<std::iterator_traits<RangeConstIter>::value_type>,
+              "iterator_traits exposes a value_type");
+
+// maybe_const_t adds const exactly when requested.
+static_assert(std::is_same_v<slam::maybe_const_t<true, int>, const int>,
+              "maybe_const_t<true, T> is const T");
+static_assert(std::is_same_v<slam::maybe_const_t<false, int>, int>, "maybe_const_t<false, T> is T");
 
 }  // anonymous namespace
 

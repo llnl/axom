@@ -33,6 +33,10 @@
 
 namespace axom::slam
 {
+/// Utility for class or member template that serves both const and non-const forms
+template <bool Const, typename T>
+using maybe_const_t = std::conditional_t<Const, const T, T>;
+
 namespace detail
 {
 
