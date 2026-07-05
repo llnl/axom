@@ -145,9 +145,9 @@ namespace slamLulesh {
     using CornerSet = axom::slam::RangeSet<>;
     using ExtendedElemSet = axom::slam::RangeSet<>;
 
-    using SymmNodeSet = axom::slam::VectorIndirectionSet<>;
+    using SymmNodeSet = axom::slam::ArrayIndirectionSet<PositionType, ElementType>;
 
-    using STLIndirection = axom::slam::policies::STLVectorIndirection<PositionType, ElementType>;
+    using ArrayIndirection = axom::slam::policies::ArrayIndirection<PositionType, ElementType>;
 
     enum { NODES_PER_ZONE = 8, FACES_PER_ZONE = 1};
     using ZNStride = axom::slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
@@ -155,20 +155,20 @@ namespace slamLulesh {
 
     using ZNCard = axom::slam::policies::ConstantCardinality<PositionType, ZNStride>;
     using ElemToNodeRelation =
-        axom::slam::StaticRelation<PositionType, ElementType,ZNCard, STLIndirection, ElemSet, NodeSet>;
+        axom::slam::StaticRelation<PositionType, ElementType,ZNCard, ArrayIndirection, ElemSet, NodeSet>;
     using ElemNodeSet = const ElemToNodeRelation::RelationSubset;
 
     using ZFCard = axom::slam::policies::ConstantCardinality<PositionType, ZFStride>;
     using ElemFaceAdjacencyRelation =
-        axom::slam::StaticRelation<PositionType, ElementType,ZFCard, STLIndirection, ElemSet, ExtendedElemSet>;
+        axom::slam::StaticRelation<PositionType, ElementType,ZFCard, ArrayIndirection, ElemSet, ExtendedElemSet>;
 
 
     using RegionSet = axom::slam::RangeSet<>;
-    using VariableCardinality = axom::slam::policies::VariableCardinality<PositionType, STLIndirection>;
+    using VariableCardinality = axom::slam::policies::VariableCardinality<PositionType, ArrayIndirection>;
     using RegionToElemRelation = axom::slam::StaticRelation<
                                     PositionType, ElementType,
                                     VariableCardinality,
-                                    STLIndirection,
+                                    ArrayIndirection,
                                     RegionSet,
                                     ElemSet>;
     using RegionElemSet = const RegionToElemRelation::RelationSubset;
@@ -177,7 +177,7 @@ namespace slamLulesh {
     using NodeToCornerRelation = axom::slam::StaticRelation<
                                     PositionType, ElementType,
                                     VariableCardinality,
-                                    STLIndirection,
+                                    ArrayIndirection,
                                     NodeSet,
                                     CornerSet>;
     using NodeCornerSet = const NodeToCornerRelation::RelationSubset ;

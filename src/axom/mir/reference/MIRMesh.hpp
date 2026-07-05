@@ -156,21 +156,24 @@ private:
        * 
        * \param data  The vector of position data for each vertex.
        */
-  void constructVertexPositionMap(const std::vector<Point2>& data);
+  template <typename PointContainer>
+  void constructVertexPositionMap(const PointContainer& data);
 
   /**
        * \brief Constructs the map of elements to their original element parent.
        * 
        * \param cellParents  The vector of parent IDs for each element of the mesh.
        */
-  void constructElementParentMap(const std::vector<int>& elementParents);
+  template <typename IntContainer>
+  void constructElementParentMap(const IntContainer& elementParents);
 
   /**
        * \brief Constructs the map of elements to their dominant materials.
        * 
        * \param dominantMaterials  A vector of material ids that are the dominant material of each element.
        */
-  void constructElementDominantMaterialMap(const std::vector<int>& dominantMaterials);
+  template <typename IntContainer>
+  void constructElementDominantMaterialMap(const IntContainer& dominantMaterials);
 
   /**
        * \brief Constructs the map of elements to their shape types.

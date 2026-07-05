@@ -221,7 +221,8 @@ void MIRMesh::constructMeshVolumeFractionsVertex(const std::vector<std::vector<a
 
 //--------------------------------------------------------------------------------
 
-void MIRMesh::constructVertexPositionMap(const std::vector<Point2>& data)
+template <typename PointContainer>
+void MIRMesh::constructVertexPositionMap(const PointContainer& data)
 {
   // construct the position map on the vertices
   m_vertexPositions = PointMap(&m_verts);
@@ -233,7 +234,8 @@ void MIRMesh::constructVertexPositionMap(const std::vector<Point2>& data)
 
 //--------------------------------------------------------------------------------
 
-void MIRMesh::constructElementParentMap(const std::vector<int>& elementParents)
+template <typename IntContainer>
+void MIRMesh::constructElementParentMap(const IntContainer& elementParents)
 {
   // Initialize the map for the elements' parent IDs
   m_elementParentIDs = IntMap(&m_elems);
@@ -246,7 +248,8 @@ void MIRMesh::constructElementParentMap(const std::vector<int>& elementParents)
 
 //--------------------------------------------------------------------------------
 
-void MIRMesh::constructElementDominantMaterialMap(const std::vector<int>& dominantMaterials)
+template <typename IntContainer>
+void MIRMesh::constructElementDominantMaterialMap(const IntContainer& dominantMaterials)
 {
   // Initialize the map for the elements' dominant colors
   m_elementDominantMaterials = IntMap(&m_elems);

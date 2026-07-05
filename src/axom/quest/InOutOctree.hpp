@@ -125,17 +125,17 @@ public:
   // Type aliases for the Relations from Gray leaf blocks to mesh entities
   static const int MAX_VERTS_PER_BLOCK = 1;
   using VertexBlockMap = slam::Map<BlockIndex>;
-  using STLIndirection = slam::policies::STLVectorIndirection<VertexIndex, VertexIndex>;
+  using ArrayIndirection = slam::policies::ArrayIndirection<VertexIndex, VertexIndex>;
 
   using GrayLeafSet = slam::PositionSet<>;
   using BVStride = slam::policies::CompileTimeStride<VertexIndex, MAX_VERTS_PER_BLOCK>;
   using ConstantCardinality = slam::policies::ConstantCardinality<VertexIndex, BVStride>;
   using GrayLeafVertexRelation =
-    slam::StaticRelation<VertexIndex, VertexIndex, ConstantCardinality, STLIndirection, GrayLeafSet, MeshVertexSet>;
+    slam::StaticRelation<VertexIndex, VertexIndex, ConstantCardinality, ArrayIndirection, GrayLeafSet, MeshVertexSet>;
 
-  using VariableCardinality = slam::policies::VariableCardinality<VertexIndex, STLIndirection>;
+  using VariableCardinality = slam::policies::VariableCardinality<VertexIndex, ArrayIndirection>;
   using GrayLeafElementRelation =
-    slam::StaticRelation<VertexIndex, VertexIndex, VariableCardinality, STLIndirection, GrayLeafSet, MeshElementSet>;
+    slam::StaticRelation<VertexIndex, VertexIndex, VariableCardinality, ArrayIndirection, GrayLeafSet, MeshElementSet>;
   using CellIndexSet = typename GrayLeafElementRelation::RelationSubset;
 
   using GrayLeafsLevelMap = slam::Map<GrayLeafSet>;

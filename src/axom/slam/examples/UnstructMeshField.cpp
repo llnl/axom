@@ -57,16 +57,16 @@ public:
   using ZoneSet = slam::PositionSet<PositionType, ElementType>;
 
   /// types for relations
-  using STLIndirection = slam::policies::STLVectorIndirection<PositionType, PositionType>;
-  using VariableCardinality = slam::policies::VariableCardinality<PositionType, STLIndirection>;
+  using ArrayIndirection = slam::policies::ArrayIndirection<PositionType, PositionType>;
+  using VariableCardinality = slam::policies::VariableCardinality<PositionType, ArrayIndirection>;
   using NodeToZoneRelation =
-    slam::StaticRelation<PositionType, ElementType, VariableCardinality, STLIndirection, NodeSet, ZoneSet>;
+    slam::StaticRelation<PositionType, ElementType, VariableCardinality, ArrayIndirection, NodeSet, ZoneSet>;
   using NodeZoneIterator = NodeToZoneRelation::RelationConstIterator;
 
   using ZNStride = slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
   using ConstantCardinality = slam::policies::ConstantCardinality<PositionType, ZNStride>;
   using ZoneToNodeRelation =
-    slam::StaticRelation<PositionType, ElementType, ConstantCardinality, STLIndirection, ZoneSet, NodeSet>;
+    slam::StaticRelation<PositionType, ElementType, ConstantCardinality, ArrayIndirection, ZoneSet, NodeSet>;
   using ZoneNodeIterator = ZoneToNodeRelation::RelationConstIterator;
 
   /// types for maps
@@ -232,7 +232,7 @@ void readHexMesh(std::string fileName, HexMesh* mesh)
 
   /// Create the nodal position field
   mesh->nodePosition = HexMesh::NodalPositions(&mesh->nodes);
-  RealBuf::iterator ptIt = Repository::realsRegistry.getBuffer("node_positions").begin();
+  auto ptIt = Repository::realsRegistry.getBuffer("node_positions").begin();
   for(PositionType idx = 0; idx < mesh->numNodes(); ++idx)
   {
     mesh->nodePosition[idx] = Point3(*ptIt++, *ptIt++, *ptIt++);

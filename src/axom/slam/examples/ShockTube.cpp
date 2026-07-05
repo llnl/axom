@@ -128,13 +128,13 @@ public:
 
   using EFCard = slam::policies::ConstantCardinality<PositionType, EFStride>;
   using FECard = slam::policies::ConstantCardinality<PositionType, FEStride>;
-  using STLIndirection = slam::policies::STLVectorIndirection<PositionType, ElementType>;
-  using IndexVec = typename STLIndirection::IndirectionBufferType;
+  using ArrayIndirection = slam::policies::ArrayIndirection<PositionType, ElementType>;
+  using IndexVec = typename ArrayIndirection::IndirectionBufferType;
 
   using TubeElemToFaceRelation =
-    slam::StaticRelation<PositionType, ElementType, EFCard, STLIndirection, ElemSubset, FaceSet>;
+    slam::StaticRelation<PositionType, ElementType, EFCard, ArrayIndirection, ElemSubset, FaceSet>;
   using FaceToElemRelation =
-    slam::StaticRelation<PositionType, ElementType, FECard, STLIndirection, FaceSet, ElemSet>;
+    slam::StaticRelation<PositionType, ElementType, FECard, ArrayIndirection, FaceSet, ElemSet>;
 
 public:
   ElemSet elems;            // The entire set of elements
@@ -290,7 +290,7 @@ void CreateShockTubeMesh(ShockTubeMesh* mesh)
   /// Setup the FaceToElem relation
   IndexVec& feRelVec =
     intsRegistry.addBuffer("feRel", ShockTubeMesh::FACES_PER_ELEM * mesh->faces.size());
-  IndexVec::iterator relIt = feRelVec.begin();
+  auto relIt = feRelVec.begin();
   for(ShockTubeMesh::IndexType idx = 0;
       idx < static_cast<ShockTubeMesh::IndexType>(mesh->faces.size());
       ++idx)

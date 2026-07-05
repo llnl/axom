@@ -65,7 +65,7 @@ namespace slam
 
 template <typename T,
           typename S = Set<>,
-          typename IndPol = policies::STLVectorIndirection<typename S::PositionType, T>,
+          typename IndPol = policies::ArrayIndirection<typename S::PositionType, T>,
           typename StrPol = policies::StrideOne<typename S::PositionType>,
           typename IfacePol = policies::ConcreteInterface>
 class Map : public StrPol, public policies::MapInterface<IfacePol, typename S::PositionType>
