@@ -11,8 +11,14 @@
  *
  * \brief Defines several indirection policies for slam
  *
- * Indirection policies encompass the underlying storage for indirection buffers
- * for a SLAM set, relation or map. A valid indirection policy must support the
+ * Indirection policies describe the underlying storage for indirection buffers
+ * for a Slam set, relation or map. The canonical Axom-backed policies are
+ * \c ArrayIndirection for \c axom::Array buffers and \c ArrayViewIndirection
+ * for non-owning \c axom::ArrayView buffers. These are preferred for new Axom code.
+ * \c CArrayIndirection and \c STLVectorIndirection remain useful for
+ * compatibility, interop and as small reference implementations for custom policies.
+ *
+ * A valid indirection policy must support the
  * following interface:
  *   * [required]
  *   * type alias IndirectionResult -- the type of the result of an indirection
@@ -28,8 +34,11 @@
  *     * data() : ElementType* -- allows direct access to the underlying buffer
  *       (when this exists)
  *
- * \note Slam's Sets, Relations and Maps are not responsible for
- *  allocating/deallocating their own memory
+ * \note A policy describes storage access, not always storage ownership.
+ *  Sets and relations typically bind externally managed buffers.
+ *  Maps hold their \c OrderedMap buffer by value, so maps using \c ArrayIndirection
+ *  own an \c axom::Array buffer while maps using \c ArrayViewIndirection 
+ *  view storage owned elsewhere.
  */
 
 #include "axom/core/Macros.hpp"
@@ -308,6 +317,10 @@ private:
 
 /**
  * \brief A policy class for sets with C-style array-based indirection
+ *
+ * \note This is a low-level compatibility/reference policy.
+ *  Prefer \c ArrayIndirection for \c axom::Array-backed storage or
+ *  \c ArrayViewIndirection for non-owning views in new Axom code.
  */
 template <typename PositionType, typename ElementType>
 using CArrayIndirection =
@@ -356,7 +369,11 @@ private:
 };
 
 /**
- * \brief A policy class for sets with stl vector-based indirection
+ * \brief A policy class for sets with std::vector-based indirection
+ *
+ * \note This is a host-only compatibility/reference policy.
+ *  Prefer \c ArrayIndirection for \c axom::Array-backed storage or
+ *  \c ArrayViewIndirection for non-owning views in new Axom code.
  */
 template <typename PositionType, typename ElementType>
 using STLVectorIndirection =
@@ -405,6 +422,11 @@ private:
 
 /**
  * \brief A policy class for sets with axom::Array-based indirection
+ *
+ * \note This is the canonical indirection policy for \c axom::Array-backed storage.
+ *  It is the owning-buffer counterpart to the non-owning \c ArrayViewIndirection policy.
+ *  Maps using this policy store an \c axom::Array by value,
+ *  while sets and relations bind an existing array buffer.
  */
 template <typename PositionType, typename ElementType>
 using ArrayIndirection = detail::IndexedIndirection<ArrayIndirectionBase<PositionType, ElementType>>;
@@ -453,6 +475,12 @@ private:
 
 /**
  * \brief A policy class for sets with axom::ArrayView-based indirection
+ *
+ * \note This is the canonical non-owning indirection policy for new Axom code
+ *  and is the view counterpart to \c ArrayIndirection. It stores an
+ *  \c axom::ArrayView by value, so the backing allocation must outlive the
+ *  set, map or relation that uses it. Because \c axom::ArrayView is trivially
+ *  copyable, view-backed Slam objects can be captured by value into device kernels.
  */
 template <typename PositionType, typename ElementType>
 using ArrayViewIndirection =

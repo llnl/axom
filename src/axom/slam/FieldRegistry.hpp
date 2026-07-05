@@ -53,8 +53,13 @@ public:
   /// \brief Key type used for registry entries.
   using KeyType = std::string;
 
-  /// \brief Owning field type (`slam::Map`) stored by this registry.
-  using MapType = slam::Map<DataType, SetType>;
+  /*!
+   * \brief Owning field type (`slam::Map`) stored by this registry.
+   *
+   * Uses the canonical `policies::ArrayIndirection` policy so registry-owned fields
+   * store their values in an `axom::Array` buffer.
+   */
+  using MapType = slam::Map<DataType, SetType, policies::ArrayIndirection<PositionType, DataType>>;
 
   /// \brief Owning buffer type used by `MapType`.
   using BufferType = typename MapType::OrderedMap;
@@ -63,7 +68,8 @@ public:
    * \brief View-backed field type stored by this registry.
    *
    * This is the return type of `slam::make_map(set, axom::ArrayView<DataType>{...})`
-   * and uses `policies::ArrayViewIndirection`.
+   * and uses the canonical non-owning `policies::ArrayViewIndirection` policy.
+   * The view's backing storage must outlive the registered field.
    */
   using ViewMapType = decltype(slam::make_map(std::declval<const SetType*>(),
                                               std::declval<axom::ArrayView<DataType>>()));

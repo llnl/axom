@@ -13,10 +13,24 @@ Implementation details
 Policy-based design
 ===================
 
-Handling the combinatorial explosion of features; avoid paying for what we don't need
+Slam uses policy-based design to combine the storage and indexing behavior a
+type needs without paying for features it does not use.
+
+Common policies include:
 
 * SizePolicy, StridePolicy, OffsetPolicy (compile time vs. runtime)
-* IndirectionPolicy (none, C-array, std::vector, custom, e.g. mfem::Array)
+* IndirectionPolicy, which chooses how set elements, relation indices and map
+  values are reached through backing storage:
+
+  * ``NoIndirection`` for implicit ``element == position`` storage
+  * ``ArrayIndirection`` for the canonical ``axom::Array``-backed policy used
+    when Slam owns or manages an Axom buffer
+  * ``ArrayViewIndirection`` for the canonical non-owning ``axom::ArrayView``
+    policy used to view externally owned storage and to build lightweight,
+    device-capturable Slam objects
+  * ``CArrayIndirection`` and ``STLVectorIndirection`` as compatibility and
+    reference examples
+  * custom policies, e.g. ``mfem::Array`` adapters
 * SubsettingPolicy (none, virtual parent, concrete parent)
 * OwnershipPolicy (local, sidre, other repository)
 
@@ -27,7 +41,7 @@ Feature diagram of OrderedSet policies (subset).
    :figwidth: 100%
    :alt: Feature diagram for slam's ordered set
 
-The figure shows how certain these policies interact with the subscript operator.
+The figure shows how these policies interact with the subscript operator.
 
 
 .. _setup-label:
