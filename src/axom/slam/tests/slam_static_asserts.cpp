@@ -21,10 +21,16 @@
 #include "axom/slam/ModularInt.hpp"
 #include "axom/slam/Traits.hpp"
 #include "axom/slam/RangeSet.hpp"
+#include "axom/slam/ProductSet.hpp"
+#include "axom/slam/StaticRelation.hpp"
+#include "axom/slam/BivariateMap.hpp"
+#include "axom/slam/Map.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 #include "axom/slam/policies/OffsetPolicies.hpp"
 #include "axom/slam/policies/ValuePolicies.hpp"
+#include "axom/slam/policies/CardinalityPolicies.hpp"
+#include "axom/slam/policies/IndirectionPolicies.hpp"
 
 #include <optional>
 
@@ -169,6 +175,51 @@ struct UserCopyHandle
 };
 static_assert(!slam::is_handle_like_v<UserCopyHandle>,
               "a user-declared copy ctor breaks the handle contract");
+
+//------------------------------------------------------------------------------
+// Device-capture contract: a slam container survives capture-by-value into a
+// kernel only if it is trivially copyable, which requires the concrete interface.
+//------------------------------------------------------------------------------
+using SetPos = slam::DefaultPositionType;
+using SetElem = slam::DefaultElementType;
+using ViewInd = policies::ArrayViewIndirection<SetPos, SetElem>;
+using ViewPosInd = policies::ArrayViewIndirection<SetPos, SetPos>;
+using ConcreteRangeSet = slam::RangeSet<SetPos, SetElem>::ConcreteSet;
+using ConcreteProductSet = slam::ProductSet<ConcreteRangeSet, ConcreteRangeSet>::ConcreteSet;
+using ViewMap = slam::Map<SetElem, ConcreteRangeSet, ViewInd>;
+using ViewBivariateMap = slam::BivariateMap<SetElem, ConcreteProductSet, ViewInd>;
+using ViewVariableRelation =  //
+  slam::StaticRelation<SetPos,
+                       SetElem,
+                       policies::VariableCardinality<SetPos, ViewPosInd>,
+                       ViewInd,
+                       ConcreteRangeSet,
+                       ConcreteRangeSet>;
+using ViewConstantRelation =
+  slam::StaticRelation<SetPos,
+                       SetElem,
+                       policies::ConstantCardinality<SetPos, policies::CompileTimeStride<SetPos, 3>>,
+                       ViewInd,
+                       ConcreteRangeSet,
+                       ConcreteRangeSet>;
+
+static_assert(std::is_trivially_copyable_v<ViewInd>,
+              "ArrayViewIndirection holds a view by value and must be trivially copyable");
+static_assert(std::is_trivially_copyable_v<ConcreteRangeSet>,
+              "a concrete-interface RangeSet is trivially copyable");
+static_assert(std::is_trivially_copyable_v<ConcreteProductSet>,
+              "a concrete-interface ProductSet is trivially copyable");
+static_assert(std::is_trivially_copyable_v<ViewMap>, "a view-backed Map is trivially copyable");
+static_assert(std::is_trivially_copyable_v<ViewBivariateMap>,
+              "a view-backed BivariateMap is trivially copyable");
+static_assert(std::is_trivially_copyable_v<ViewVariableRelation>,
+              "a view-backed variable relation is trivially copyable");
+static_assert(std::is_trivially_copyable_v<ViewConstantRelation>,
+              "a view-backed constant relation is trivially copyable");
+
+// The default set uses the virtual interface so it is not trivially copyable
+static_assert(!std::is_trivially_copyable_v<slam::RangeSet<>>,
+              "the virtual-interface set is not device-capturable by design");
 
 }  // anonymous namespace
 

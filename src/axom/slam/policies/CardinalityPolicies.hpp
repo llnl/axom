@@ -77,9 +77,16 @@ struct ConstantCardinality
   using BeginsStridePolicy = StridePolicy;
   using BeginsIndirectionPolicy = NoIndirection<ElementType, ElementType>;
 
-  // runtime size (fromSet.size()), striding from template parameter, no offset
-  using BeginsSet =
-    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy>;
+  // runtime size (fromSet.size()), striding from template parameter, no offset.
+  // Uses the concrete interface to stay trivially copyable / device-capturable.
+  using BeginsSet = OrderedSet<ElementType,
+                               ElementType,
+                               BeginsSizePolicy,
+                               BeginsOffsetPolicy,
+                               BeginsStridePolicy,
+                               BeginsIndirectionPolicy,
+                               NoSubset,
+                               ConcreteInterface>;
 
   // The cardinality of each relational operator is determined by the
   // StridePolicy of the relation
@@ -148,9 +155,16 @@ struct VariableCardinality
   using BeginsStridePolicy = StrideOne<ElementType>;
   using BeginsIndirectionPolicy = IndirectionPolicy;
 
-  // runtime size (fromSet.size()), striding from template parameter, no offset
-  using BeginsSet =
-    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy, IndirectionPolicy>;
+  // runtime size (fromSet.size()), striding from template parameter, no offset.
+  // Uses the concrete interface to stay trivially copyable / device-capturable.
+  using BeginsSet = OrderedSet<ElementType,
+                               ElementType,
+                               BeginsSizePolicy,
+                               BeginsOffsetPolicy,
+                               BeginsStridePolicy,
+                               IndirectionPolicy,
+                               NoSubset,
+                               ConcreteInterface>;
 
   // The cardinality of each relational operator is determined by the
   // StridePolicy of the relation
@@ -232,9 +246,16 @@ struct MappedVariableCardinality
   using BeginsStridePolicy = StrideOne<ElementType>;
   using BeginsIndirectionPolicy = IndirectionPolicy;
 
-  // runtime size (fromSet.size()), striding from template parameter, no offset
-  using IndexSet =
-    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy, IndirectionPolicy>;
+  // runtime size (fromSet.size()), striding from template parameter, no offset.
+  // Use concrete interface to remain trivially copyable.
+  using IndexSet = OrderedSet<ElementType,
+                              ElementType,
+                              BeginsSizePolicy,
+                              BeginsOffsetPolicy,
+                              BeginsStridePolicy,
+                              IndirectionPolicy,
+                              NoSubset,
+                              ConcreteInterface>;
   using BeginsSet = IndexSet;
 
   // The cardinality of each relational operator is determined by the
