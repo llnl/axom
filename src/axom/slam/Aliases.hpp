@@ -10,7 +10,7 @@
  * \brief Blessed, user-facing aliases for Slam's common set/relation/map types.
  *
  * Slam's containers are assembled from policy template parameters, which can be verbose.
- * This header names the combinations that most Axom code actually wants:
+ * This header provides aliases for common configurations using Axom-native storage:
  *
  *   - \c RangeSet<P,E>                -- a contiguous range of positions (from RangeSet.hpp)
  *   - \c ArraySet<P,E>                -- a set that binds an external \c axom::Array
@@ -20,12 +20,32 @@
  *   - \c ConstantRelation<F,T,N>      -- an Array-backed static relation with compile-time cardinality N
  *   - \c ConstantRelationView<F,T,N>  -- an ArrayView-backed static relation with compile-time cardinality N
  *   - \c RuntimeConstantRelation<F,T> -- an Array-backed static relation with runtime constant cardinality
+ *   - \c RuntimeConstantRelationView<F,T>
+ *       -- an ArrayView-backed static relation with runtime constant cardinality
  *   - \c ArrayMap<S,T,STRIDE>         -- an Array-backed map from set S to T
  *   - \c ArrayViewMap<S,T,STRIDE>     -- an ArrayView-backed map from set S to T
  *   - \c RuntimeArrayMap<S,T>         -- an Array-backed map with runtime stride
  *   - \c RuntimeArrayViewMap<S,T>     -- an ArrayView-backed map with runtime stride
  *   - \c ArrayBivariateMap<BSet,T>     -- an Array-backed bivariate map
  *   - \c ArrayViewBivariateMap<BSet,T> -- an ArrayView-backed bivariate map
+ *   - \c RuntimeArrayBivariateMap<BSet,T>
+ *       -- an Array-backed bivariate map with runtime stride
+ *   - \c RuntimeArrayViewBivariateMap<BSet,T>
+ *       -- an ArrayView-backed bivariate map with runtime stride
+ *
+ * Prefer these aliases in user-facing and component-facing Axom code.
+ * They keep the set/relation/map concepts visible while hiding the common policy stack.
+ * Use the full policies when adapting legacy storage, such as
+ * \c std::vector via \c policies::STLVectorIndirection, 
+ * raw pointers via \c policies::CArrayIndirection, 
+ * custom third-party buffers, or less common combinations of 
+ * stride, offset, size, subsetting, indirection or interface policies.
+ *
+ * For maps, the ownership distinction follows Axom's container vocabulary:
+ * \c ArrayMap and \c ArrayBivariateMap own an \c axom::Array buffer, 
+ * while \c ArrayViewMap and \c ArrayViewBivariateMap store an \c axom::ArrayView by value
+ * and view storage owned elsewhere. Owning maps are convenient host-side storage objects
+ * while view maps are the preferred lightweight form to pass into kernels and generic algorithms.
  */
 
 #ifndef SLAM_ALIASES_H_

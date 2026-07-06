@@ -36,10 +36,16 @@ namespace axom::slam
  *       lookup tables use transparent comparison (std::less<>) so callers may
  *       query with a std::string_view without constructing a temporary std::string.
  *
- * \note FieldRegistry supports two field storage modes under a single field keyspace:
- *       - owning fields stored as `slam::Map`
- *       - view-backed fields stored as `slam::Map` over `axom::ArrayView`
- *         (useful when generating SLAM objects from externally-owned C arrays)
+ * \note FieldRegistry supports two field storage modes under a single set of field keys:
+ *       - owning fields stored as `slam::ArrayMap`
+ *       - view-backed fields stored as `slam::ArrayViewMap`
+ *         (useful when generating Slam objects from externally-owned arrays)
+ *
+ * \note Owning buffers and owning fields now use `axom::Array` rather than `std::vector`.
+ *       Prefer `auto`, `FieldRegistry::BufferType`, and `FieldRegistry::MapType` 
+ *       at registry boundaries. Code that needs a non-owning view
+ *       should call `buffer.view()` or register storage with `addFieldView()` 
+ *       or `addBufferView()` instead of assuming a `std::vector` interface.
  */
 template <typename SetType, typename TheDataType>
 class FieldRegistry
@@ -62,7 +68,10 @@ public:
    */
   using MapType = slam::ArrayMap<SetType, DataType>;
 
-  /// \brief Owning buffer type used by `MapType`.
+  /*! \brief Owning buffer type used by `MapType`.
+   *
+   * This is `axom::Array<DataType>` through the `ArrayMap` policy stack.
+   */
   using BufferType = typename MapType::OrderedMap;
 
   /*!

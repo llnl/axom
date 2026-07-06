@@ -48,6 +48,9 @@ We begin by defining some type aliases for the Sets, Relations and Maps in our m
 These type aliases would typically be found in a configuration file or in class header
 files.
 
+The following example uses some relation policies to explicitly bind fixed raw arrays. 
+For Axom-owned storage, prefer the ``Array*`` aliases.
+
 We use the following types throughout this example:
 
 .. literalinclude:: ../../examples/UserDocs.cpp
@@ -55,6 +58,7 @@ We use the following types throughout this example:
    :end-before:  _quadmesh_example_common_typedefs_end
    :language: C++
 
+Axom code should prefer the common aliases from ``axom/slam/Aliases.hpp`` where they apply. 
 
 Sets
 ----
@@ -124,6 +128,11 @@ It is templated on a point type (``Point2``) that handles simple operations on 2
    :start-after: _quadmesh_example_maps_typedefs_start
    :end-before:  _quadmesh_example_maps_typedefs_end
    :language: C++
+
+``ArrayMap`` is the canonical owning map alias. It stores map values in
+``axom::Array`` and mirrors the default storage used by ``slam::Map`` when no
+indirection policy is specified. Use ``ArrayViewMap`` in cases where Slam only
+has a view to data to external data (which it does not own).
 
 It is declared as:
 

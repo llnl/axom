@@ -27,7 +27,7 @@
 #include "axom/slic/interface/slic.hpp"
 
 // C/C++ includes
-#include <cstring>  // for std::memcpy
+#include <cstring>
 
 namespace axom
 {
@@ -55,11 +55,8 @@ struct topology_traits<SINGLE_SHAPE>
   using FaceSet = slam::PositionSet<IdxType, IdxType>;
 
   using ZoneNodeRelation = slam::RuntimeConstantRelationView<ZoneSet, NodeSet>;
-
   using ZoneFaceRelation = slam::RuntimeConstantRelationView<ZoneSet, FaceSet>;
-
   using FaceZoneRelation = slam::ConstantRelationView<FaceSet, ZoneSet, 2>;
-
   using FaceNodeRelation = slam::VariableRelationView<FaceSet, NodeSet>;
 };
 
@@ -75,11 +72,8 @@ struct topology_traits<MIXED_SHAPE>
   using FaceSet = slam::PositionSet<IdxType, IdxType>;
 
   using ZoneNodeRelation = slam::VariableRelationView<ZoneSet, NodeSet>;
-
   using ZoneFaceRelation = slam::VariableRelationView<ZoneSet, FaceSet>;
-
   using FaceZoneRelation = slam::ConstantRelationView<FaceSet, ZoneSet, 2>;
-
   using FaceNodeRelation = slam::VariableRelationView<FaceSet, NodeSet>;
 };
 

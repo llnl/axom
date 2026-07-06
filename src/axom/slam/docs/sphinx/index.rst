@@ -95,5 +95,6 @@ Current limitations
 
    first_example
    core_concepts
+   aliases
    implementation_details
    portability
