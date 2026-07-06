@@ -99,15 +99,12 @@ TEST(Units, getConversionFactor)
 
 TEST(Units, getCanonicalUnitName)
 {
-  EXPECT_EQ("cm", getCanonicalUnitName("centimeter"));
-  EXPECT_EQ("um", getCanonicalUnitName("micrometers"));
-  EXPECT_EQ("dam", getCanonicalUnitName("decametre"));
-  EXPECT_EQ("fm", getCanonicalUnitName("femtometer"));
-  EXPECT_EQ("ft", getCanonicalUnitName("feet"));
-  EXPECT_EQ("miles", getCanonicalUnitName("mi"));
-
   EXPECT_EQ("cm", getCanonicalUnitName(LengthUnit::cm));
+  EXPECT_EQ("um", getCanonicalUnitName(LengthUnit::um));
+  EXPECT_EQ("fm", getCanonicalUnitName(LengthUnit::fm));
   EXPECT_EQ("dam", getCanonicalUnitName(LengthUnit::dam));
+  EXPECT_EQ("ft", getCanonicalUnitName(LengthUnit::feet));
+  EXPECT_EQ("miles", getCanonicalUnitName(LengthUnit::miles));
   EXPECT_EQ("A", getCanonicalUnitName(LengthUnit::angstrom));
 }
 

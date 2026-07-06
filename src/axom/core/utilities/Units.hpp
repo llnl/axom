@@ -48,15 +48,6 @@ enum class LengthUnit
 LengthUnit getCanonicalUnit(const std::string &unit);
 
 /**
- * Get the canonical short name of a length unit string.
- *
- * \param unit the unit as a string
- * \return the canonical short unit name
- * \throws std::invalid_argument if the string does not represent known units
- */
-std::string getCanonicalUnitName(const std::string &unit);
-
-/**
  * Get the canonical short name of a length unit.
  *
  * \param unit the unit

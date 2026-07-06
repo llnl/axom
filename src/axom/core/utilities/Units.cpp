@@ -136,11 +136,6 @@ LengthUnit getCanonicalUnit(const std::string &unit)
   return iter->second;
 }
 
-std::string getCanonicalUnitName(const std::string &unit)
-{
-  return getCanonicalUnitName(getCanonicalUnit(unit));
-}
-
 std::string getCanonicalUnitName(LengthUnit unit)
 {
   static const std::unordered_map<LengthUnit, std::string, LengthUnitHash> UNIT_NAMES {

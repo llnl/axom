@@ -988,7 +988,8 @@ private:
     reader.FileUnits(anUnitLengthNames, anUnitAngleNames, anUnitSolidAngleNames);
     if(anUnitLengthNames.Size() > 0)
     {
-      m_fileUnits = axom::utilities::getCanonicalUnitName(anUnitLengthNames(1).ToCString());
+      const auto fileUnits = axom::utilities::getCanonicalUnit(anUnitLengthNames(1).ToCString());
+      m_fileUnits = axom::utilities::getCanonicalUnitName(fileUnits);
       std::string defaultUnit = Interface_Static::CVal("xstep.cascade.unit");
       const double lengthUnit = axom::utilities::getConversionFactor(m_fileUnits, defaultUnit);
       reader.SetSystemLengthUnit(lengthUnit);
