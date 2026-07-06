@@ -19,7 +19,7 @@ LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string 
 {
   try
   {
-    return utilities::getCanonicalUnit(unitsAsString);
+    return utilities::getLengthUnit(unitsAsString);
   }
   catch(const std::invalid_argument &ex)
   {
