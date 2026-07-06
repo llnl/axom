@@ -13,6 +13,7 @@
 
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
+#include "axom/core/utilities/Units.hpp"
 
 #include "opencascade/BRep_Tool.hxx"
 #include "opencascade/BRepAdaptor_Curve.hxx"
@@ -966,87 +967,6 @@ public:
   std::string getFileUnits() const { return m_fileUnits; }
 
 private:
-  /// Returns the canonical representation of a unit string (e.g. "centimeter" -> "cm")
-  std::string getCanonicalUnit(const std::string& unit) const
-  {
-    // we'll convert all units to lower case
-    auto toLower = [](std::string str) {
-      std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-      return str;
-    };
-
-    // start with imperial units
-    std::map<std::string, std::string> unitCanonicalMap = {{"inch", "in"},
-                                                           {"inches", "in"},
-                                                           {"in", "in"},
-                                                           {"foot", "ft"},
-                                                           {"feet", "ft"},
-                                                           {"ft", "ft"},
-                                                           {"mile", "mi"},
-                                                           {"miles", "mi"},
-                                                           {"mi", "mi"}};
-
-    // now add the SI units w/ several suffixes
-    // we're going to reverse this for the map to canonical units
-    std::map<std::string, std::string> prefixes = {
-      {"am", "atto"},
-      {"fm", "femto"},
-      {"pm", "pico"},
-      {"nm", "nano"},
-      {"um", "micro"},
-      {"mm", "milli"},
-      {"cm", "centi"},
-      {"dm", "deci"},
-      {"m", ""},
-      {"dam", "deca"},
-      {"hm", "hecto"},
-      {"km", "kilo"},
-    };
-
-    for(const auto& kv : prefixes)
-    {
-      const std::string& canonical = kv.first;
-      const std::string& prefix = kv.second;
-      unitCanonicalMap[canonical] = canonical;
-      for(const std::string& suffix : {"meter", "meters", "metre", "metres"})
-      {
-        unitCanonicalMap[prefix + suffix] = canonical;
-      }
-    }
-
-    return unitCanonicalMap[toLower(unit)];
-  }
-
-  /**
-   *  Returns the conversion factor from an input unit to an output unit
-   * 
-   * \note Converts the units to their canonical form
-   * \sa getCanonicalUnit
-   */
-  double getConversionFactor(const std::string& fileUnits, const std::string& defaultUnits = "mm") const
-  {
-    std::map<std::string, double> unitConversionMap = {{"am", 1e-15},
-                                                       {"fm", 1e-12},
-                                                       {"pm", 1e-9},
-                                                       {"nm", 1e-6},
-                                                       {"um", 1e-3},
-                                                       {"mm", 1.0},
-                                                       {"cm", 10.0},
-                                                       {"dm", 100.0},
-                                                       {"m", 1e3},
-                                                       {"dam", 1e4},
-                                                       {"hm", 1e5},
-                                                       {"km", 1e6},
-                                                       {"in", 25.4},
-                                                       {"ft", 304.8},
-                                                       {"mi", 1609344.0}};
-
-    const double fileUnitFactor = unitConversionMap[getCanonicalUnit(fileUnits)];
-    const double defaultUnitFactor = unitConversionMap[getCanonicalUnit(defaultUnits)];
-
-    return fileUnitFactor / defaultUnitFactor;
-  };
-
   /// Loads the step file \a filename from disk
   /// Uses the units from \a filename
   TopoDS_Shape loadStepFile(const std::string& filename)
@@ -1068,9 +988,9 @@ private:
     reader.FileUnits(anUnitLengthNames, anUnitAngleNames, anUnitSolidAngleNames);
     if(anUnitLengthNames.Size() > 0)
     {
-      m_fileUnits = getCanonicalUnit(anUnitLengthNames(1).ToCString());
+      m_fileUnits = axom::utilities::getCanonicalUnitName(anUnitLengthNames(1).ToCString());
       std::string defaultUnit = Interface_Static::CVal("xstep.cascade.unit");
-      const double lengthUnit = getConversionFactor(m_fileUnits, defaultUnit);
+      const double lengthUnit = axom::utilities::getConversionFactor(m_fileUnits, defaultUnit);
       reader.SetSystemLengthUnit(lengthUnit);
     }
 

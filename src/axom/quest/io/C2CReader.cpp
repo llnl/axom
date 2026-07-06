@@ -51,6 +51,11 @@ c2c::LengthUnit toC2CLengthUnit(utilities::LengthUnit unit)
   case utilities::LengthUnit::mils:
     return c2c::LengthUnit::mils;
   case utilities::LengthUnit::dm:
+  case utilities::LengthUnit::hm:
+  case utilities::LengthUnit::dam:
+  case utilities::LengthUnit::am:
+  case utilities::LengthUnit::fm:
+  case utilities::LengthUnit::pm:
   case utilities::LengthUnit::nm:
   case utilities::LengthUnit::angstrom:
   case utilities::LengthUnit::unspecified:

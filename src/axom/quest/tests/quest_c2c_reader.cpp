@@ -104,7 +104,12 @@ void writeSpline(const std::string& filename)
 TEST(quest_c2c_reader, unsupported_length_units)
 {
   quest::C2CReader reader;
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::am), std::invalid_argument);
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::fm), std::invalid_argument);
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::pm), std::invalid_argument);
   EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::dm), std::invalid_argument);
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::dam), std::invalid_argument);
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::hm), std::invalid_argument);
   EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::nm), std::invalid_argument);
   EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::angstrom), std::invalid_argument);
   EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::unspecified), std::invalid_argument);
