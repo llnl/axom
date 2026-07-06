@@ -19,8 +19,8 @@ class Proxy;
 namespace klee
 {
 
-using utilities::LengthUnit;
 using utilities::getLengthUnitName;
+using utilities::LengthUnit;
 
 LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path);
 
