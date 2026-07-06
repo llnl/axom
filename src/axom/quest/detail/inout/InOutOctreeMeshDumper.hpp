@@ -63,10 +63,11 @@ public:
   using CellVertIndices = typename MeshWrapper<DIM>::CellVertIndices;
   using GeometricBoundingBox = typename InOutOctreeType::GeometricBoundingBox;
   using SpaceCell = typename InOutOctreeType::SpaceCell;
+  using LeafSet = slam::PositionSet<>;
 
-  using LeafVertMap = slam::Map<VertexIndex>;
-  using LeafIntMap = slam::Map<axom::IndexType>;
-  using LeafGridPtMap = slam::Map<GridPt>;
+  using LeafVertMap = slam::ArrayMap<LeafSet, VertexIndex>;
+  using LeafIntMap = slam::ArrayMap<LeafSet, axom::IndexType>;
+  using LeafGridPtMap = slam::ArrayMap<LeafSet, GridPt>;
 
   using DebugMesh = mint::UnstructuredMesh<mint::MIXED_SHAPE>;
 
@@ -131,7 +132,7 @@ public:
       return;
     }
 
-    using LevelGridIntMap = slam::Map<GridIntMap>;
+    using LevelGridIntMap = slam::ArrayMap<OctreeLevels, GridIntMap>;
     LevelGridIntMap diffBlocks(&(m_octree.m_levels));
 
     int totalBlocks = 0;
@@ -216,7 +217,7 @@ public:
     const bool hasColors = (m_generationState >= InOutOctreeType::INOUTOCTREE_LEAVES_COLORED);
 
     // Allocate Slam Maps for the field data
-    slam::PositionSet<> leafSet(blocks.size());
+    LeafSet leafSet(blocks.size());
 
     LeafVertMap leafVertID(&leafSet);
     LeafVertMap leafVertID_unique(&leafSet);
@@ -412,7 +413,9 @@ private:
   using Base::CellIndexSet;
   using Base::CellVertIndices;
   using Base::DebugMesh;
+  using Base::GeometricBoundingBox;
   using Base::InOutOctreeType;
+  using Base::SpaceCell;
   using Base::SpacePt;
   using Base::VertexIndex;
 
@@ -620,7 +623,9 @@ private:
   using Base::CellIndexSet;
   using Base::CellVertIndices;
   using Base::DebugMesh;
+  using Base::GeometricBoundingBox;
   using Base::InOutOctreeType;
+  using Base::SpaceCell;
   using Base::SpacePt;
   using Base::VertexIndex;
 

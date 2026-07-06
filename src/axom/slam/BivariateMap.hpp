@@ -80,7 +80,7 @@ namespace slam
 
 template <typename T,
           typename BSet = BivariateSet<>,
-          typename IndPol = policies::STLVectorIndirection<typename BSet::PositionType, T>,
+          typename IndPol = policies::ArrayIndirection<typename BSet::PositionType, T>,
           typename StrPol = policies::StrideOne<typename BSet::PositionType>,
           typename IfacePol = policies::ConcreteInterface>
 class BivariateMap : public policies::MapInterface<IfacePol, typename BSet::PositionType>,

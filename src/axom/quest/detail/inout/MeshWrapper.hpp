@@ -56,16 +56,12 @@ public:
   using SpaceVector = primal::Vector<double, DIM>;
   using GeometricBoundingBox = primal::BoundingBox<double, DIM>;
 
-  using VertexIndexMap = slam::Map<VertexIndex>;
-  using VertexPositionMap = slam::Map<SpacePt>;
+  using VertexIndexMap = slam::ArrayMap<MeshVertexSet, VertexIndex>;
+  using VertexPositionMap = slam::ArrayMap<MeshVertexSet, SpacePt>;
 
   /// Always DIM verts since we're representing a d-dimensional simplicial mesh in dimension d
   static constexpr int NUM_CELL_VERTS = DIM;
-  using STLIndirection = slam::policies::STLVectorIndirection<VertexIndex, VertexIndex>;
-  using TVStride = slam::policies::CompileTimeStride<VertexIndex, NUM_CELL_VERTS>;
-  using ConstantCardinality = slam::policies::ConstantCardinality<VertexIndex, TVStride>;
-  using CellVertexRelation =
-    slam::StaticRelation<VertexIndex, VertexIndex, ConstantCardinality, STLIndirection, MeshElementSet, MeshVertexSet>;
+  using CellVertexRelation = slam::ConstantRelation<MeshElementSet, MeshVertexSet, NUM_CELL_VERTS>;
   using CellVertIndices = typename CellVertexRelation::RelationSubset;
 
   // \brief A vertex index to indicate that there is no associated vertex
@@ -259,7 +255,7 @@ protected:
 
   VertexPositionMap m_vertexPositions;
 
-  std::vector<VertexIndex> m_cv_data;
+  axom::Array<VertexIndex> m_cv_data;
   CellVertexRelation m_cellToVertexRelation;
 
   bool m_meshWasReindexed {false};

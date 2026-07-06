@@ -87,6 +87,7 @@ private:
 public:
   using OctreeBaseType = spin::OctreeBase<DIM, InOutBlockData>;
   using SpatialOctreeType = spin::SpatialOctree<DIM, InOutBlockData>;
+  using OctreeLevels = typename OctreeBaseType::OctreeLevels;
 
   using GeometricBoundingBox = typename SpatialOctreeType::GeometricBoundingBox;
   using SpacePt = typename SpatialOctreeType::SpacePt;
@@ -124,7 +125,7 @@ public:
 
   // Type aliases for the Relations from Gray leaf blocks to mesh entities
   static const int MAX_VERTS_PER_BLOCK = 1;
-  using VertexBlockMap = slam::Map<BlockIndex>;
+  using VertexBlockMap = slam::ArrayMap<MeshVertexSet, BlockIndex>;
 
   using GrayLeafSet = slam::PositionSet<>;
   using GrayLeafVertexRelation =
@@ -133,9 +134,9 @@ public:
   using GrayLeafElementRelation = slam::VariableRelation<GrayLeafSet, MeshElementSet>;
   using CellIndexSet = typename GrayLeafElementRelation::RelationSubset;
 
-  using GrayLeafsLevelMap = slam::Map<GrayLeafSet>;
-  using GrayLeafVertexRelationLevelMap = slam::Map<GrayLeafVertexRelation>;
-  using GrayLeafElementRelationLevelMap = slam::Map<GrayLeafElementRelation>;
+  using GrayLeafsLevelMap = slam::ArrayMap<OctreeLevels, GrayLeafSet>;
+  using GrayLeafVertexRelationLevelMap = slam::ArrayMap<OctreeLevels, GrayLeafVertexRelation>;
+  using GrayLeafElementRelationLevelMap = slam::ArrayMap<OctreeLevels, GrayLeafElementRelation>;
 
 public:
   /**

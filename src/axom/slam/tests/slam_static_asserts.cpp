@@ -301,6 +301,12 @@ static_assert(sizeof(AliasRuntimeArrayViewBivariateMap) > 0,
               "RuntimeArrayViewBivariateMap instantiates");
 
 // Check that the alias types match expectations
+static_assert(std::is_same_v<typename slam::Map<double>::OrderedMap, axom::Array<double>>,
+              "Map's default indirection owns an axom::Array");
+static_assert(
+  std::is_same_v<typename slam::BivariateMap<double>::MapType::OrderedMap, axom::Array<double>>,
+  "BivariateMap's default indirection owns an axom::Array");
+
 static_assert(std::is_same_v<AliasArrayMap,
                              slam::Map<double,
                                        slam::RangeSet<>,

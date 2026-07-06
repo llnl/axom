@@ -42,10 +42,12 @@ public:
   using OctreeBaseType = typename InOutOctreeType::OctreeBaseType;
   using OctreeLevels = typename OctreeBaseType::OctreeLevels;
   using BlockIndex = typename OctreeBaseType::BlockIndex;
+  using MeshVertexSet = typename MeshWrapper<DIM>::MeshVertexSet;
+  using MeshElementSet = typename MeshWrapper<DIM>::MeshElementSet;
 
-  using LeafCountMap = slam::Map<int>;
-  using CellCountMap = slam::Map<int>;
-  using CardinalityVCMap = slam::Map<int>;
+  using LeafCountMap = slam::ArrayMap<OctreeLevels, int>;
+  using CellCountMap = slam::ArrayMap<MeshElementSet, int>;
+  using CardinalityVCMap = slam::ArrayMap<MeshVertexSet, int>;
 
   using LogHistogram = std::map<int, int>;
   using MinMaxRange = primal::BoundingBox<double, 1>;

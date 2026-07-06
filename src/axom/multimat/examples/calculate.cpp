@@ -189,11 +189,7 @@ struct FieldGetter<MMFieldMethod::SlamTmplStrideField, typename MultiMat::Produc
 {
   using VirtualBSet = typename MultiMat::ProductSetType;
   using BSet = ConcreteProdSet;
-  using SlamBMap = BiVarMapT<BSet>;
-  using Stride = slam::policies::StrideOne<int>;
-  using Ind = typename SlamBMap::IndirectionPolicy;
-
-  using SlamBMapStrided = slam::BivariateMap<double, BSet, Ind, Stride>;
+  using SlamBMapStrided = slam::ArrayViewBivariateMap<BSet, double>;
 
   static SlamBMapStrided get(MultiMat& mm, const std::string& fieldName)
   {
@@ -215,11 +211,7 @@ struct FieldGetter<MMFieldMethod::SlamTmplField, typename MultiMat::RelationSetT
 {
   using VirtualBSet = typename MultiMat::RelationSetType;
   using BSet = ConcreteRelationSet;
-  using SlamBMap = BiVarMapT<BSet>;
-  using Stride = slam::policies::StrideOne<int>;
-  using Ind = typename SlamBMap::IndirectionPolicy;
-
-  using SlamBMapStrided = slam::BivariateMap<double, BSet, Ind, Stride>;
+  using SlamBMapStrided = slam::ArrayViewBivariateMap<BSet, double>;
 
   static SlamBMapStrided get(MultiMat& mm, const std::string& fieldName)
   {

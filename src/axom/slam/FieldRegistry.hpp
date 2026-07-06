@@ -11,6 +11,7 @@
 
 #include "axom/slam/Utilities.hpp"
 #include "axom/slam/Set.hpp"
+#include "axom/slam/Aliases.hpp"
 #include "axom/slam/Map.hpp"
 #include "axom/slam/MapBuilders.hpp"
 
@@ -56,10 +57,10 @@ public:
   /*!
    * \brief Owning field type (`slam::Map`) stored by this registry.
    *
-   * Uses the canonical `policies::ArrayIndirection` policy so registry-owned fields
-   * store their values in an `axom::Array` buffer.
+   * Uses the canonical `ArrayMap` alias so registry-owned fields store their
+   * values in an `axom::Array` buffer.
    */
-  using MapType = slam::Map<DataType, SetType, policies::ArrayIndirection<PositionType, DataType>>;
+  using MapType = slam::ArrayMap<SetType, DataType>;
 
   /// \brief Owning buffer type used by `MapType`.
   using BufferType = typename MapType::OrderedMap;

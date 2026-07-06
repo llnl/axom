@@ -204,7 +204,6 @@ void readHexMesh(std::string fileName, HexMesh* mesh)
     SimpleVTKHexMeshReader vtkMeshReader(fileName);
     vtkMeshReader.parseMeshFile();
   }
-  using RealBuf = Repository::RealsRegistry::BufferType;
   using IndexBuf = Repository::IntsRegistry::BufferType;
   using PositionType = HexMesh::PositionType;
 
