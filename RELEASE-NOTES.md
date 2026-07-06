@@ -48,6 +48,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a `primal::BezierTriangle` class
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
+- Sidre: Added `axom::sidre::View::checksum()` and `axom::sidre::Group::checksum()` methods that return checksum values. A `Group::checksum(conduit::Node&)` overload emits diffable checksum metadata for group/view subtrees.
 - Core: Adds `AXOM_CONSTEXPR_ASSERT` macro for assertions that are usable within `constexpr` contexts
 - Slam: Adds `make_*_set`, `make_*_relation` and `make_map` helper functions for building sets, relations and maps
 

@@ -24,6 +24,7 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/MapCollection.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "axom/slic.hpp"
 #include "axom/export/sidre.h"
 
@@ -1847,6 +1848,73 @@ public:
    *                           tree is not succesfully imported.
    */
   bool importConduitTreeExternal(conduit::Node& node, bool preserve_contents = false);
+
+  /*!
+   * \brief Traverse the group and all of its descendents and compute a checksum
+   *        of the structure as well as the contents of the views.
+   *
+   * \param includeAttributes Whether to include view attributes in the checksum.
+   *
+   * \return A CheckSum of the group.
+   */
+  axom::utilities::CheckSum checksum(bool includeAttributes = true) const;
+
+  /*!
+   * \brief Store checksum metadata for this group subtree in a Conduit node.
+   *
+   * The output node is overwritten with an object that mirrors the nesting of
+   * the current group's direct child groups and views. The current group itself
+   * is represented by the output node, not by an additional wrapper keyed by
+   * `getName()`. Each group object stores its aggregate checksum in a
+   * `checksum` field, optional child-group metadata in
+   * `groups/<child_group_name>`, and optional direct-view metadata in
+   * `views/<child_view_name>`. Each view entry stores its checksum in a
+   * `checksum` field.
+   *
+   * For a group tree such as:
+   *
+   * \code
+   * {
+   *   "group0":
+   *   {
+   *     "group1":
+   *     {
+   *       "view1": [1, 2, 3]
+   *     },
+   *     "view2": [4, 5, 6]
+   *   }
+   * }
+   * \endcode
+   *
+   * Calling `group0->checksum(out)` emits metadata for `group0` itself:
+   *
+   * \code
+   * {
+   *   "checksum": <group0 checksum>,
+   *   "groups":
+   *   {
+   *     "group1":
+   *     {
+   *       "checksum": <group1 checksum>,
+   *       "views":
+   *       {
+   *         "view1": { "checksum": <view1 checksum> }
+   *       }
+   *     }
+   *   },
+   *   "views":
+   *   {
+   *     "view2": { "checksum": <view2 checksum> }
+   *   }
+   * }
+   * \endcode
+   *
+   * \param n_checksum The output node that receives the checksum metadata.
+   * \param includeAttributes Whether to include view attributes in the checksum.
+   *
+   * \return A CheckSum of the group.
+   */
+  axom::utilities::CheckSum checksum(conduit::Node& n_checksum, bool includeAttributes = true) const;
 
 private:
   DISABLE_DEFAULT_CTOR(Group);

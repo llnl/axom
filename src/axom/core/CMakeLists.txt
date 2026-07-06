@@ -26,6 +26,7 @@ set(core_headers
     utilities/Annotations.hpp
     utilities/Abort.hpp
     utilities/BitUtilities.hpp
+    utilities/Checksum.hpp
     utilities/CommandLineUtilities.hpp
     utilities/ConstexprAssert.hpp
     utilities/FileUtilities.hpp
