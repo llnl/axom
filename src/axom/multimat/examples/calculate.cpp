@@ -38,8 +38,11 @@ using Field2DT = MultiMat::Field2D<double, B>;
 template <DataLayout D, typename B>
 using Field2DTempT = MultiMat::Field2DTemplated<double, D, B>;
 
+// ArrayView indirection over the example's position type
+using ArrayViewIndirection = slam::policies::ArrayViewIndirection<slam::DefaultPositionType, double>;
+
 template <typename B>
-using BiVarMapT = slam::ArrayViewBivariateMap<B, double>;
+using BiVarMapT = slam::BivariateMap<double, B, ArrayViewIndirection>;
 
 enum class MMFieldMethod
 {
@@ -189,7 +192,7 @@ struct FieldGetter<MMFieldMethod::SlamTmplStrideField, typename MultiMat::Produc
 {
   using VirtualBSet = typename MultiMat::ProductSetType;
   using BSet = ConcreteProdSet;
-  using SlamBMapStrided = slam::ArrayViewBivariateMap<BSet, double>;
+  using SlamBMapStrided = slam::BivariateMap<double, BSet, ArrayViewIndirection>;
 
   static SlamBMapStrided get(MultiMat& mm, const std::string& fieldName)
   {
@@ -211,7 +214,7 @@ struct FieldGetter<MMFieldMethod::SlamTmplField, typename MultiMat::RelationSetT
 {
   using VirtualBSet = typename MultiMat::RelationSetType;
   using BSet = ConcreteRelationSet;
-  using SlamBMapStrided = slam::ArrayViewBivariateMap<BSet, double>;
+  using SlamBMapStrided = slam::BivariateMap<double, BSet, ArrayViewIndirection>;
 
   static SlamBMapStrided get(MultiMat& mm, const std::string& fieldName)
   {

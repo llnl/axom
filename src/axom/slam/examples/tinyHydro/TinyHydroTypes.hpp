@@ -25,13 +25,13 @@ using ElementType = PositionType;
 
 using SetBase = slam::Set<PositionType, ElementType>;
 
-using IndexField = slam::ArrayMap<slam::Set<>, int>;
+using IndexField = slam::Map<int, slam::Set<>>;
 
-using ScalarField = slam::ArrayMap<SetBase, double>;
+using ScalarField = slam::Map<double, SetBase>;
 using NodalScalarField = ScalarField;
 using ZonalScalarField = ScalarField;
 
-using VectorField = slam::ArrayMap<SetBase, VectorXY>;
+using VectorField = slam::Map<VectorXY, SetBase>;
 using NodalVectorField = VectorField;
 using ZonalVectorField = VectorField;
 using FaceVectorField = VectorField;
@@ -66,7 +66,7 @@ using ZFaceSet = ZoneToFaceRelation::RelationSubset;
 using NUM_BD_SZ = slam::policies::CompileTimeSize<ZoneSet::PositionType, NUM_DOMAIN_BOUNDARIES>;
 using BoundaryEdgeSet = slam::OrderedSet<PositionType, ElementType, NUM_BD_SZ>;
 
-using IndexMap = slam::ArrayMap<slam::Set<>, IndexType>;
+using IndexMap = slam::Map<IndexType, slam::Set<>>;
 
 using IndexRegistry = slam::FieldRegistry<SetBase, ZoneSet::PositionType>;
 using IndexBuffer = IndexRegistry::BufferType;

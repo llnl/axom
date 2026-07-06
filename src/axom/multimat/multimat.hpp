@@ -66,22 +66,25 @@ class MMField2DTemplated;
 class MultiMat
 {
 protected:
-  // SLAM Set type definitions
+  // Slam Set type definitions
   using SetPosType = slam::DefaultPositionType;
   using SetElemType = slam::DefaultPositionType;
   using SetType = slam::Set<SetPosType, SetElemType>;
   using RangeSetType = slam::RangeSet<SetPosType, SetElemType>::ConcreteSet;
 
 public:
-  // SLAM Bivariate set type definitions
+  // Slam Bivariate set type definitions
   using BivariateSetType = slam::BivariateSet<RangeSetType, RangeSetType>;
   using ProductSetType = slam::ProductSet<RangeSetType, RangeSetType>;
 
 private:
-  // SLAM Relation typedef
+  // Slam Relation typedef
   using IndBufferType = axom::Array<SetPosType>;
   template <typename T>
   using IndViewPolicy = slam::policies::ArrayViewIndirection<SetPosType, T>;
+
+  // Multi-component fields have a runtime stride
+  using MapStrideType = slam::policies::RuntimeStride<SetPosType>;
 
   using VariableCardinality =
     slam::policies::MappedVariableCardinality<SetPosType, IndViewPolicy<SetElemType>>;
@@ -90,19 +93,22 @@ private:
 
   using DynamicVariableRelationType = slam::DynamicVariableRelation<RangeSetType, RangeSetType>;
 
+  // A field over a single set, viewing an externally-managed buffer, with runtime stride.
   template <typename T>
-  using MapType = slam::RuntimeArrayViewMap<RangeSetType, T>;
+  using MapType = slam::Map<T, RangeSetType, IndViewPolicy<T>, MapStrideType>;
 
+  // A field over a bivariate set, viewing an externally-managed buffer, with runtime stride.
   template <typename T, typename BSet = BivariateSetType>
-  using BivariateMapType = slam::RuntimeArrayViewBivariateMap<BSet, T>;
+  using BivariateMapType = slam::BivariateMap<T, BSet, IndViewPolicy<T>, MapStrideType>;
 
+  // As above, but with compile-time stride 1 (Slam's default stride policy).
   template <typename T, typename BSet = BivariateSetType>
-  using BivariateMapTypeStrideOne = slam::ArrayViewBivariateMap<BSet, T>;
+  using BivariateMapTypeStrideOne = slam::BivariateMap<T, BSet, IndViewPolicy<T>>;
 
 public:
   using SparseRelationType = StaticVariableRelationType;
 
-  // SLAM RelationSet for the set of non-zero cell to mat variables
+  // Slam RelationSet for the set of non-zero cell to mat variables
   using RelationSetType = slam::RelationSet<StaticVariableRelationType>;  //, RangeSetType
   using RelationSetDynType = slam::RelationSet<DynamicVariableRelationType>;
 
@@ -112,9 +118,6 @@ public:
   using Field1D = MapType<T>;
 
   //2D Field
-  //old
-  //template <typename T, typename BSet = BivariateSetType>
-  //using Field2D = BivariateMapType<T,BSet>;
   template <typename T, typename BSet = BivariateSetType>
   using Field2D = MMField2D<T, BSet>;
   //special
@@ -432,7 +435,8 @@ public:
   Field2DTemplated<T, D, B> getTemplated2DField(const std::string& field_name);
 
   template <typename T, typename BSetType>
-  slam::ArrayViewBivariateMap<BSetType, T> get2dFieldAsSlamBivarMap(const std::string& field_name);
+  slam::BivariateMap<T, BSetType, IndViewPolicy<T>> get2dFieldAsSlamBivarMap(
+    const std::string& field_name);
 
   /**
    * \brief Get the volume fraction field
@@ -1231,7 +1235,8 @@ MultiMat::Field2DTemplated<T, D, B> MultiMat::getTemplated2DField(const std::str
 
 // Warning: The return type uses a compile time stride of one!
 template <typename T, typename BSetType>
-slam::ArrayViewBivariateMap<BSetType, T> MultiMat::get2dFieldAsSlamBivarMap(const std::string& field_name)
+slam::BivariateMap<T, BSetType, MultiMat::IndViewPolicy<T>> MultiMat::get2dFieldAsSlamBivarMap(
+  const std::string& field_name)
 {
   // Get a reference to the unspecialized BMap
   auto bmap = get2dField<T>(field_name);
@@ -1241,7 +1246,9 @@ slam::ArrayViewBivariateMap<BSetType, T> MultiMat::get2dFieldAsSlamBivarMap(cons
   BSetType bsetValue = getCompatibleBivarSet<BSetType>(fieldIdx);
 
   // Create instance of templated BivariateMap
-  slam::ArrayViewBivariateMap<BSetType, T> typedBMap(bsetValue, bmap.getMap()->data(), bmap.stride());
+  slam::BivariateMap<T, BSetType, IndViewPolicy<T>> typedBMap(bsetValue,
+                                                              bmap.getMap()->data(),
+                                                              bmap.stride());
 
   return typedBMap;
 }

@@ -44,13 +44,11 @@ namespace slam
  * an index that disregards the individual components. Hence, to access
  * each component, one would need to provide a component index as well.
  *
- * \note When \a IndPol is not specified, \c BivariateMap owns its values in an
- *       \c axom::Array via \c policies::ArrayIndirection. 
- *       This replaced the earlier \c policies::STLVectorIndirection default. 
- *       New Axom code typically uses the common owning/view policy stacks with
- *       \c ArrayBivariateMap, \c ArrayViewBivariateMap or their runtime-stride variants.
- *       Code that intentionally needs \c std::vector backing should
- *       specify \c policies::STLVectorIndirection explicitly.
+ * \note When \a IndPol is not specified, \c BivariateMap stores its values in an
+ *       \c axom::Array via \c policies::ArrayIndirection, and manages that buffer itself.
+ *       This replaced the earlier \c policies::STLVectorIndirection default.
+ *       To refer to a buffer managed elsewhere, use \c policies::ArrayViewIndirection.
+ *       For \c std::vector backing, specify \c policies::STLVectorIndirection explicitly.
  *
  * Example:
  * For a 2 x 2 sparse matrix with 3 components below:

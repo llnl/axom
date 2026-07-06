@@ -45,9 +45,9 @@ public:
   using MeshVertexSet = typename MeshWrapper<DIM>::MeshVertexSet;
   using MeshElementSet = typename MeshWrapper<DIM>::MeshElementSet;
 
-  using LeafCountMap = slam::ArrayMap<OctreeLevels, int>;
-  using CellCountMap = slam::ArrayMap<MeshElementSet, int>;
-  using CardinalityVCMap = slam::ArrayMap<MeshVertexSet, int>;
+  using LeafCountMap = slam::Map<int, OctreeLevels>;
+  using CellCountMap = slam::Map<int, MeshElementSet>;
+  using CardinalityVCMap = slam::Map<int, MeshVertexSet>;
 
   using LogHistogram = std::map<int, int>;
   using MinMaxRange = primal::BoundingBox<double, 1>;

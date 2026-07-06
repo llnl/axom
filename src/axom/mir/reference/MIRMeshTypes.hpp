@@ -54,8 +54,8 @@ using VertToElemRelation =
 
 // MAP TYPE ALIASES
 using BaseSet = slam::Set<PosType, ElemType>;
-using ScalarMap = slam::ArrayMap<BaseSet, axom::float64>;
-using PointMap = slam::ArrayMap<BaseSet, Point2>;
-using IntMap = slam::ArrayMap<BaseSet, int>;
+using ScalarMap = slam::Map<axom::float64, BaseSet>;
+using PointMap = slam::Map<Point2, BaseSet>;
+using IntMap = slam::Map<int, BaseSet>;
 }  // namespace mir
 }  // namespace axom

@@ -65,10 +65,10 @@ public:
 
   /// types for maps
   using BaseSet = axom::slam::Set<PositionType, ElementType>;
-  using NodalPositions = slam::ArrayMap<BaseSet, Point3>;
-  using ZonalPositions = slam::ArrayMap<BaseSet, Point3>;
-  using NodeField = slam::ArrayMap<BaseSet, DataType>;
-  using ZoneField = slam::ArrayMap<BaseSet, DataType>;
+  using NodalPositions = slam::Map<Point3, BaseSet>;
+  using ZonalPositions = slam::Map<Point3, BaseSet>;
+  using NodeField = slam::Map<DataType, BaseSet>;
+  using ZoneField = slam::Map<DataType, BaseSet>;
 
 public:
   /** \brief Simple accessor for the number of nodes in the mesh  */
@@ -101,8 +101,8 @@ struct Repository
   using SetType = axom::slam::Set<>;
   using IntsRegistry = slam::FieldRegistry<SetType, SetType::ElementType>;
   using RealsRegistry = slam::FieldRegistry<SetType, double>;
-  using IntField = slam::ArrayMap<SetType, int>;
-  using RealField = slam::ArrayMap<SetType, double>;
+  using IntField = slam::Map<int, SetType>;
+  using RealField = slam::Map<double, SetType>;
 
   static IntsRegistry intsRegistry;
   static RealsRegistry realsRegistry;

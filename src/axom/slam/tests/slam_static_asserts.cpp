@@ -263,6 +263,7 @@ static_assert(std::is_same_v<slam::maybe_const_t<false, int>, int>, "maybe_const
 using AliasArraySet = slam::ArraySet<>;
 using AliasCustomArraySet = slam::ArraySet<SetPos, double>;
 using AliasArrayViewSet = slam::ArrayViewSet<>;
+
 using AliasVarRelation = slam::VariableRelation<slam::RangeSet<>, slam::RangeSet<>>;
 using AliasVarRelationView = slam::VariableRelationView<slam::RangeSet<>, slam::RangeSet<>>;
 using AliasConstRelation = slam::ConstantRelation<slam::RangeSet<>, slam::RangeSet<>, 3>;
@@ -270,15 +271,24 @@ using AliasConstRelationView = slam::ConstantRelationView<slam::RangeSet<>, slam
 using AliasRuntimeConstRelation = slam::RuntimeConstantRelation<slam::RangeSet<>, slam::RangeSet<>>;
 using AliasRuntimeConstRelationView =
   slam::RuntimeConstantRelationView<slam::RangeSet<>, slam::RangeSet<>>;
-using AliasArrayMap = slam::ArrayMap<slam::RangeSet<>, double, 3>;
-using AliasArrayViewMap = slam::ArrayViewMap<slam::RangeSet<>, double, 3>;
-using AliasRuntimeArrayMap = slam::RuntimeArrayMap<slam::RangeSet<>, double>;
-using AliasRuntimeArrayViewMap = slam::RuntimeArrayViewMap<slam::RangeSet<>, double>;
-using AliasArrayBivariateMap = slam::ArrayBivariateMap<ConcreteProductSet, double, 2>;
-using AliasArrayViewBivariateMap = slam::ArrayViewBivariateMap<ConcreteProductSet, double, 2>;
-using AliasRuntimeArrayBivariateMap = slam::RuntimeArrayBivariateMap<ConcreteProductSet, double>;
-using AliasRuntimeArrayViewBivariateMap =
-  slam::RuntimeArrayViewBivariateMap<ConcreteProductSet, double>;
+
+using MapArrayCT = slam::Map<double,
+                             slam::RangeSet<>,
+                             policies::ArrayIndirection<SetPos, double>,
+                             policies::CompileTimeStride<SetPos, 3>>;
+using MapArrayViewCT = slam::Map<double,
+                                 slam::RangeSet<>,
+                                 policies::ArrayViewIndirection<SetPos, double>,
+                                 policies::CompileTimeStride<SetPos, 3>>;
+using MapArrayViewRT = slam::Map<double,
+                                 slam::RangeSet<>,
+                                 policies::ArrayViewIndirection<SetPos, double>,
+                                 policies::RuntimeStride<SetPos>>;
+using BMapArrayViewCT =
+  slam::BivariateMap<double,
+                     ConcreteProductSet,
+                     policies::ArrayViewIndirection<typename ConcreteProductSet::PositionType, double>,
+                     policies::CompileTimeStride<typename ConcreteProductSet::PositionType, 2>>;
 
 // Force full instantiation (also exercises axom::Array's element requirements).
 static_assert(sizeof(AliasArraySet) > 0, "ArraySet instantiates");
@@ -290,80 +300,17 @@ static_assert(sizeof(AliasConstRelation) > 0, "ConstantRelation instantiates");
 static_assert(sizeof(AliasConstRelationView) > 0, "ConstantRelationView instantiates");
 static_assert(sizeof(AliasRuntimeConstRelation) > 0, "RuntimeConstantRelation instantiates");
 static_assert(sizeof(AliasRuntimeConstRelationView) > 0, "RuntimeConstantRelationView instantiates");
-static_assert(sizeof(AliasArrayMap) > 0, "ArrayMap instantiates");
-static_assert(sizeof(AliasArrayViewMap) > 0, "ArrayViewMap instantiates");
-static_assert(sizeof(AliasRuntimeArrayMap) > 0, "RuntimeArrayMap instantiates");
-static_assert(sizeof(AliasRuntimeArrayViewMap) > 0, "RuntimeArrayViewMap instantiates");
-static_assert(sizeof(AliasArrayBivariateMap) > 0, "ArrayBivariateMap instantiates");
-static_assert(sizeof(AliasArrayViewBivariateMap) > 0, "ArrayViewBivariateMap instantiates");
-static_assert(sizeof(AliasRuntimeArrayBivariateMap) > 0, "RuntimeArrayBivariateMap instantiates");
-static_assert(sizeof(AliasRuntimeArrayViewBivariateMap) > 0,
-              "RuntimeArrayViewBivariateMap instantiates");
+static_assert(sizeof(MapArrayCT) > 0, "Array-backed Map instantiates");
+static_assert(sizeof(MapArrayViewCT) > 0, "ArrayView Map instantiates");
+static_assert(sizeof(MapArrayViewRT) > 0, "runtime-stride ArrayView Map instantiates");
+static_assert(sizeof(BMapArrayViewCT) > 0, "ArrayView BivariateMap instantiates");
 
-// Check that the alias types match expectations
+// Map/BivariateMap default to an axom::Array indirection (managing their own buffer).
 static_assert(std::is_same_v<typename slam::Map<double>::OrderedMap, axom::Array<double>>,
-              "Map's default indirection owns an axom::Array");
+              "Map's default indirection uses an axom::Array");
 static_assert(
   std::is_same_v<typename slam::BivariateMap<double>::MapType::OrderedMap, axom::Array<double>>,
-  "BivariateMap's default indirection owns an axom::Array");
-
-static_assert(std::is_same_v<AliasArrayMap,
-                             slam::Map<double,
-                                       slam::RangeSet<>,
-                                       policies::ArrayIndirection<SetPos, double>,
-                                       policies::CompileTimeStride<SetPos, 3>>>,
-              "ArrayMap names the canonical Array-backed Map policy stack");
-static_assert(std::is_same_v<AliasArrayViewMap,
-                             slam::Map<double,
-                                       slam::RangeSet<>,
-                                       policies::ArrayViewIndirection<SetPos, double>,
-                                       policies::CompileTimeStride<SetPos, 3>>>,
-              "ArrayViewMap names the canonical ArrayView-backed Map policy stack");
-static_assert(
-  std::is_same_v<
-    AliasRuntimeArrayMap,
-    slam::Map<double, slam::RangeSet<>, policies::ArrayIndirection<SetPos, double>, policies::RuntimeStride<SetPos>>>,
-  "RuntimeArrayMap names the canonical Array-backed runtime-stride Map");
-static_assert(std::is_same_v<AliasRuntimeArrayViewMap,
-                             slam::Map<double,
-                                       slam::RangeSet<>,
-                                       policies::ArrayViewIndirection<SetPos, double>,
-                                       policies::RuntimeStride<SetPos>>>,
-              "RuntimeArrayViewMap names the canonical ArrayView-backed runtime-stride Map");
-static_assert(
-  std::is_same_v<
-    AliasArrayBivariateMap,
-    slam::BivariateMap<double,
-                       ConcreteProductSet,
-                       policies::ArrayIndirection<typename ConcreteProductSet::PositionType, double>,
-                       policies::CompileTimeStride<typename ConcreteProductSet::PositionType, 2>>>,
-  "ArrayBivariateMap names the canonical Array-backed BivariateMap policy stack");
-static_assert(
-  std::is_same_v<
-    AliasArrayViewBivariateMap,
-    slam::BivariateMap<double,
-                       ConcreteProductSet,
-                       policies::ArrayViewIndirection<typename ConcreteProductSet::PositionType, double>,
-                       policies::CompileTimeStride<typename ConcreteProductSet::PositionType, 2>>>,
-  "ArrayViewBivariateMap names the canonical ArrayView-backed BivariateMap policy stack");
-static_assert(
-  std::is_same_v<
-    AliasRuntimeArrayBivariateMap,
-    slam::BivariateMap<double,
-                       ConcreteProductSet,
-                       policies::ArrayIndirection<typename ConcreteProductSet::PositionType, double>,
-                       policies::RuntimeStride<typename ConcreteProductSet::PositionType>>>,
-  "RuntimeArrayBivariateMap names the canonical Array-backed "
-  "runtime-stride BivariateMap");
-static_assert(
-  std::is_same_v<
-    AliasRuntimeArrayViewBivariateMap,
-    slam::BivariateMap<double,
-                       ConcreteProductSet,
-                       policies::ArrayViewIndirection<typename ConcreteProductSet::PositionType, double>,
-                       policies::RuntimeStride<typename ConcreteProductSet::PositionType>>>,
-  "RuntimeArrayViewBivariateMap names the canonical ArrayView-backed "
-  "runtime-stride BivariateMap");
+  "BivariateMap's default indirection uses an axom::Array");
 
 // Check that the aliases match the expected concepts
 static_assert(slam::is_set_like_v<AliasArraySet>, "ArraySet is set-like");
@@ -383,24 +330,16 @@ static_assert(slam::is_relation_like_v<AliasRuntimeConstRelationView>,
               "RuntimeConstantRelationView is relation-like");
 static_assert(slam::is_bivariate_set_like_v<ConcreteProductSet>,
               "a ProductSet is bivariate-set-like");
-static_assert(slam::is_map_like_v<AliasArrayMap>, "ArrayMap is map-like");
-static_assert(slam::is_map_like_v<AliasArrayViewMap>, "ArrayViewMap is map-like");
-static_assert(slam::is_map_like_v<AliasRuntimeArrayMap>, "RuntimeArrayMap is map-like");
-static_assert(slam::is_map_like_v<AliasRuntimeArrayViewMap>, "RuntimeArrayViewMap is map-like");
-static_assert(slam::is_map_over_v<AliasArrayMap, slam::RangeSet<>>,
-              "ArrayMap is a map over its set");
-static_assert(slam::is_map_over_v<AliasArrayViewMap, slam::RangeSet<>>,
-              "ArrayViewMap is a map over its set");
-static_assert(slam::is_map_over_v<AliasRuntimeArrayMap, slam::RangeSet<>>,
-              "RuntimeArrayMap is a map over its set");
-static_assert(slam::is_map_over_v<AliasRuntimeArrayViewMap, slam::RangeSet<>>,
-              "RuntimeArrayViewMap is a map over its set");
-static_assert(slam::is_map_like_v<AliasArrayBivariateMap>, "ArrayBivariateMap is map-like");
-static_assert(slam::is_map_like_v<AliasArrayViewBivariateMap>, "ArrayViewBivariateMap is map-like");
-static_assert(slam::is_map_like_v<AliasRuntimeArrayBivariateMap>,
-              "RuntimeArrayBivariateMap is map-like");
-static_assert(slam::is_map_like_v<AliasRuntimeArrayViewBivariateMap>,
-              "RuntimeArrayViewBivariateMap is map-like");
+static_assert(slam::is_map_like_v<MapArrayCT>, "Array-backed Map is map-like");
+static_assert(slam::is_map_like_v<MapArrayViewCT>, "ArrayView Map is map-like");
+static_assert(slam::is_map_like_v<MapArrayViewRT>, "runtime-stride ArrayView Map is map-like");
+static_assert(slam::is_map_over_v<MapArrayCT, slam::RangeSet<>>,
+              "Array-backed Map is a map over its set");
+static_assert(slam::is_map_over_v<MapArrayViewCT, slam::RangeSet<>>,
+              "ArrayView Map is a map over its set");
+static_assert(slam::is_map_over_v<MapArrayViewRT, slam::RangeSet<>>,
+              "runtime-stride ArrayView Map is a map over its set");
+static_assert(slam::is_map_like_v<BMapArrayViewCT>, "ArrayView BivariateMap is map-like");
 
 // Check that the aliases match the Array/ArrayView make_* helpers.
 using RSPos = slam::RangeSet<>::PositionType;
@@ -448,15 +387,16 @@ static_assert(
   std::is_same_v<AliasArrayViewSet,
                  decltype(slam::make_indirection_set(std::declval<axom::ArrayView<RSPos>>()))>,
   "ArrayViewSet matches make_indirection_set's ArrayView overload");
-static_assert(std::is_same_v<AliasArrayViewMap,
+static_assert(std::is_same_v<MapArrayViewCT,
                              decltype(slam::make_map_ct<3>(std::declval<const slam::RangeSet<>*>(),
                                                            std::declval<axom::ArrayView<double>>()))>,
-              "ArrayViewMap matches make_map_ct<N>'s ArrayView overload");
-static_assert(std::is_same_v<AliasRuntimeArrayViewMap,
-                             decltype(slam::make_map(std::declval<const slam::RangeSet<>*>(),
-                                                     std::declval<RSPos>(),
-                                                     std::declval<axom::ArrayView<double>>()))>,
-              "RuntimeArrayViewMap matches make_map's runtime-stride ArrayView overload");
+              "make_map_ct<N>'s ArrayView overload yields the ArrayView Map");
+static_assert(
+  std::is_same_v<MapArrayViewRT,
+                 decltype(slam::make_map(std::declval<const slam::RangeSet<>*>(),
+                                         std::declval<RSPos>(),
+                                         std::declval<axom::ArrayView<double>>()))>,
+  "make_map's runtime-stride ArrayView overload yields the runtime-stride ArrayView Map");
 
 }  // anonymous namespace
 

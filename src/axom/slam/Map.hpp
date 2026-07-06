@@ -61,12 +61,11 @@ namespace slam
  *          ( `map(i,j)` ), or via the square bracket operator
  *          (i.e. `map[k]`, where `k = i * stride() + j` ).
  *
- * \note When \a IndPol is not specified, \c Map owns its values in an
- *       \c axom::Array via \c policies::ArrayIndirection.
+ * \note When \a IndPol is not specified, \c Map stores its values in an \c axom::Array
+ *       via \c policies::ArrayIndirection, and manages that buffer itself.
  *       This replaced the earlier \c policies::STLVectorIndirection default.
- *       Most use-cases utilize this common policy stack as \c ArrayMap<S,T>.
- *       Code that intentionally needs \c std::vector backing should
- *       specify \c policies::STLVectorIndirection explicitly.
+ *       To refer to a buffer managed elsewhere, use \c policies::ArrayViewIndirection.
+ *       For \c std::vector backing, specify \c policies::STLVectorIndirection explicitly.
  */
 
 template <typename T,

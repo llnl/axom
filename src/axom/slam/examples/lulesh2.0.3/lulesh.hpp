@@ -166,21 +166,21 @@ namespace slamLulesh {
     using NodeToCornerRelation = axom::slam::VariableRelation<NodeSet, CornerSet>;
     using NodeCornerSet = const NodeToCornerRelation::RelationSubset;
 
-    using ElemIndexMap = axom::slam::ArrayMap<SetBase, Index_t>;
-    using ElemIntMap = axom::slam::ArrayMap<SetBase, Int_t>;
-    //using ElemRealMap = axom::slam::ArrayMap<SetBase, Real_t>;
+    using ElemIndexMap = axom::slam::Map<Index_t, SetBase>;
+    using ElemIntMap = axom::slam::Map<Int_t, SetBase>;
+    //using ElemRealMap = axom::slam::Map<Real_t, SetBase>;
 
-    using NodeIndexMap = axom::slam::ArrayMap<SetBase, Index_t>;
-    //using NodeIntMap = axom::slam::ArrayMap<SetBase, Int_t>;
-    //using NodeRealMap = axom::slam::ArrayMap<SetBase, Real_t>;
+    using NodeIndexMap = axom::slam::Map<Index_t, SetBase>;
+    //using NodeIntMap = axom::slam::Map<Int_t, SetBase>;
+    //using NodeRealMap = axom::slam::Map<Real_t, SetBase>;
 
-    //using RegionIndexMap = axom::slam::ArrayMap<SetBase, Index_t>;
-    using RegionIntMap = axom::slam::ArrayMap<SetBase, Int_t>;
-    //using RegionRealMap = axom::slam::ArrayMap<SetBase, Real_t>;
+    //using RegionIndexMap = axom::slam::Map<Index_t, SetBase>;
+    using RegionIntMap = axom::slam::Map<Int_t, SetBase>;
+    //using RegionRealMap = axom::slam::Map<Real_t, SetBase>;
 
-    //using CornerIndexMap = axom::slam::ArrayMap<SetBase, Index_t>;
-    //using CornerIntMap = axom::slam::ArrayMap<SetBase, Int_t>;
-    using CornerRealMap = axom::slam::ArrayMap<SetBase, Real_t>;
+    //using CornerIndexMap = axom::slam::Map<Index_t, SetBase>;
+    //using CornerIntMap = axom::slam::Map<Int_t, SetBase>;
+    using CornerRealMap = axom::slam::Map<Real_t, SetBase>;
 
     using RealsRegistry = axom::slam::FieldRegistry<SetBase, Real_t>;
     using IntsRegistry = axom::slam::FieldRegistry<SetBase, Index_t>;

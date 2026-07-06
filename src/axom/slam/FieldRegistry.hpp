@@ -37,9 +37,11 @@ namespace axom::slam
  *       query with a std::string_view without constructing a temporary std::string.
  *
  * \note FieldRegistry supports two field storage modes under a single set of field keys:
- *       - owning fields stored as `slam::ArrayMap`
- *       - view-backed fields stored as `slam::ArrayViewMap`
- *         (useful when generating Slam objects from externally-owned arrays)
+ *       - fields that manage their own buffer, stored as a `slam::Map` with the
+ *         default `axom::Array` indirection
+ *       - fields that refer to an externally-managed buffer, stored as a `slam::Map`
+ *         with an `axom::ArrayView` indirection
+ *         (useful when generating Slam objects from externally-managed arrays)
  *
  * \note Owning buffers and owning fields now use `axom::Array` rather than `std::vector`.
  *       Prefer `auto`, `FieldRegistry::BufferType`, and `FieldRegistry::MapType` 
@@ -61,17 +63,14 @@ public:
   using KeyType = std::string;
 
   /*!
-   * \brief Owning field type (`slam::Map`) stored by this registry.
+   * \brief Field type stored by this registry, a `slam::Map` from \a SetType to \a DataType.
    *
-   * Uses the canonical `ArrayMap` alias so registry-owned fields store their
-   * values in an `axom::Array` buffer.
+   * Uses Slam's default indirection (`axom::Array`), so registry-managed
+   * fields hold their own buffer.  See \ref FieldRegistry::BufferType.
    */
-  using MapType = slam::ArrayMap<SetType, DataType>;
+  using MapType = slam::Map<DataType, SetType>;
 
-  /*! \brief Owning buffer type used by `MapType`.
-   *
-   * This is `axom::Array<DataType>` through the `ArrayMap` policy stack.
-   */
+  /// \brief Buffer type backing `MapType` (uses the default Map buffer type: `axom::Array<DataType>`
   using BufferType = typename MapType::OrderedMap;
 
   /*!

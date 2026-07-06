@@ -65,9 +65,9 @@ public:
   using SpaceCell = typename InOutOctreeType::SpaceCell;
   using LeafSet = slam::PositionSet<>;
 
-  using LeafVertMap = slam::ArrayMap<LeafSet, VertexIndex>;
-  using LeafIntMap = slam::ArrayMap<LeafSet, axom::IndexType>;
-  using LeafGridPtMap = slam::ArrayMap<LeafSet, GridPt>;
+  using LeafVertMap = slam::Map<VertexIndex, LeafSet>;
+  using LeafIntMap = slam::Map<axom::IndexType, LeafSet>;
+  using LeafGridPtMap = slam::Map<GridPt, LeafSet>;
 
   using DebugMesh = mint::UnstructuredMesh<mint::MIXED_SHAPE>;
 
@@ -132,7 +132,7 @@ public:
       return;
     }
 
-    using LevelGridIntMap = slam::ArrayMap<OctreeLevels, GridIntMap>;
+    using LevelGridIntMap = slam::Map<GridIntMap, OctreeLevels>;
     LevelGridIntMap diffBlocks(&(m_octree.m_levels));
 
     int totalBlocks = 0;

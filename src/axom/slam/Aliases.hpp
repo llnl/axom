@@ -7,45 +7,44 @@
 /*!
  * \file Aliases.hpp
  *
- * \brief Blessed, user-facing aliases for Slam's common set/relation/map types.
+ * \brief Convenience aliases for Slam's most common set and relation configurations.
  *
- * Slam's containers are assembled from policy template parameters, which can be verbose.
- * This header provides aliases for common configurations using Axom-native storage:
+ * Slam's sets, relations and maps are assembled from policy template parameters
+ * (cardinality, stride, indirection, offset, size, subsetting, interface).
+ * This lets users customize data structure to their required data model,
+ * avoiding unnecessary computational and memory overhead.
+ * See the Slam user guide for how to choose policies.
+ *
+ * A handful of \e relations are commonly used, warranting named shorthands.
+ * The aliases in this file for the  common relation types, as well as some set types
+ * use `axom::Array` for storage the object manages itself and `axom::ArrayView` for
+ * storage managed elsewhere:
  *
  *   - \c RangeSet<P,E>                -- a contiguous range of positions (from RangeSet.hpp)
- *   - \c ArraySet<P,E>                -- a set that binds an external \c axom::Array
- *   - \c ArrayViewSet<P,E>            -- a set that binds an \c axom::ArrayView by value
- *   - \c VariableRelation<F,T>        -- an Array-backed static relation with variable cardinality
- *   - \c VariableRelationView<F,T>    -- an ArrayView-backed static relation with variable cardinality
- *   - \c ConstantRelation<F,T,N>      -- an Array-backed static relation with compile-time cardinality N
- *   - \c ConstantRelationView<F,T,N>  -- an ArrayView-backed static relation with compile-time cardinality N
- *   - \c RuntimeConstantRelation<F,T> -- an Array-backed static relation with runtime constant cardinality
- *   - \c RuntimeConstantRelationView<F,T>
- *       -- an ArrayView-backed static relation with runtime constant cardinality
- *   - \c ArrayMap<S,T,STRIDE>         -- an Array-backed map from set S to T
- *   - \c ArrayViewMap<S,T,STRIDE>     -- an ArrayView-backed map from set S to T
- *   - \c RuntimeArrayMap<S,T>         -- an Array-backed map with runtime stride
- *   - \c RuntimeArrayViewMap<S,T>     -- an ArrayView-backed map with runtime stride
- *   - \c ArrayBivariateMap<BSet,T>     -- an Array-backed bivariate map
- *   - \c ArrayViewBivariateMap<BSet,T> -- an ArrayView-backed bivariate map
- *   - \c RuntimeArrayBivariateMap<BSet,T>
- *       -- an Array-backed bivariate map with runtime stride
- *   - \c RuntimeArrayViewBivariateMap<BSet,T>
- *       -- an ArrayView-backed bivariate map with runtime stride
+ *   - \c ArraySet<P,E>                -- a set indexed through an \c axom::Array it manages
+ *   - \c ArrayViewSet<P,E>            -- a set indexed through an \c axom::ArrayView managed elsewhere
+ *   - \c VariableRelation<F,T>        -- a static relation with variable cardinality, managing its buffers
+ *   - \c VariableRelationView<F,T>    -- as above, viewing buffers managed elsewhere
+ *   - \c ConstantRelation<F,T,N>      -- a static relation with compile-time cardinality N, managing its buffer
+ *   - \c ConstantRelationView<F,T,N>  -- as above, viewing a buffer managed elsewhere
+ *   - \c RuntimeConstantRelation<F,T> -- a static relation with runtime-constant cardinality, managing its buffer
+ *   - \c RuntimeConstantRelationView<F,T> -- as above, viewing a buffer managed elsewhere
  *
- * Prefer these aliases in user-facing and component-facing Axom code.
- * They keep the set/relation/map concepts visible while hiding the common policy stack.
- * Use the full policies when adapting legacy storage, such as
- * \c std::vector via \c policies::STLVectorIndirection, 
- * raw pointers via \c policies::CArrayIndirection, 
- * custom third-party buffers, or less common combinations of 
- * stride, offset, size, subsetting, indirection or interface policies.
+ * These aliases are a convenience for the commonly used configurations.
+ * Use the underlying policies directly whenever you need other configuration,
+ * e.g. -- a specific stride, offset, size, subsetting or interface, a specialized cardinality such as
+ * \c policies::MappedVariableCardinality, or a different buffer such as \c std::vector
+ * (\c policies::STLVectorIndirection) or a raw pointer (\c policies::CArrayIndirection).
  *
- * For maps, the ownership distinction follows Axom's container vocabulary:
- * \c ArrayMap and \c ArrayBivariateMap own an \c axom::Array buffer, 
- * while \c ArrayViewMap and \c ArrayViewBivariateMap store an \c axom::ArrayView by value
- * and view storage owned elsewhere. Owning maps are convenient host-side storage objects
- * while view maps are the preferred lightweight form to pass into kernels and generic algorithms.
+ * \note This file does not currently alias map types.  A \c Map or \c BivariateMap already
+ *  defaults to the common case of `axom::Array` indirection with stride one,
+ *  while cases that do vary the map (a view into an externally-managed buffer,
+ *  or a runtime stride) also tend to vary in ways a small fixed set of names cannot capture cleanly.
+ *
+ * \note "Manages its buffer" vs. "views a buffer" refers to lifetime, not to whether
+ *  the data is logically owned by the object. An \c axom::Array indirection allocates
+ *  and frees the buffer as part of the Slam object's lifetime, while an \c axom::ArrayView
+ *  indirection refers to a buffer whose lifetime is managed elsewhere and must outlive the Slam object.
  */
 
 #ifndef SLAM_ALIASES_H_
@@ -183,87 +182,6 @@ using RuntimeConstantRelationView =
                  policies::ArrayViewIndirection<PosType, ElemType>,
                  FromSet,
                  ToSet>;
-
-/*!
- * \brief A map from the set \a S to values of type \a T, with compile-time \a STRIDE
- *  components per element (default 1), owning its values in an \c axom::Array buffer.
- */
-template <typename S, typename T = DefaultElementType, int STRIDE = 1>
-using ArrayMap = Map<T,
-                     S,
-                     policies::ArrayIndirection<typename S::PositionType, T>,
-                     policies::CompileTimeStride<typename S::PositionType, STRIDE>>;
-
-/*!
- * \brief A non-owning map view from the set \a S to values of type \a T, with compile-time
- *  \a STRIDE components per element (default 1).
- */
-template <typename S, typename T = DefaultElementType, int STRIDE = 1>
-using ArrayViewMap = Map<T,
-                         S,
-                         policies::ArrayViewIndirection<typename S::PositionType, T>,
-                         policies::CompileTimeStride<typename S::PositionType, STRIDE>>;
-
-/*!
- * \brief A map from the set \a S to values of type \a T with runtime stride,
- *  owning its values in an \c axom::Array buffer.
- */
-template <typename S, typename T = DefaultElementType>
-using RuntimeArrayMap = Map<T,
-                            S,
-                            policies::ArrayIndirection<typename S::PositionType, T>,
-                            policies::RuntimeStride<typename S::PositionType>>;
-
-/*!
- * \brief A non-owning map view from the set \a S to values of type \a T with runtime stride.
- */
-template <typename S, typename T = DefaultElementType>
-using RuntimeArrayViewMap = Map<T,
-                                S,
-                                policies::ArrayViewIndirection<typename S::PositionType, T>,
-                                policies::RuntimeStride<typename S::PositionType>>;
-
-/*!
- * \brief A bivariate map of \a T over the bivariate set \a BSet
- *  (e.g. a \c ProductSet or \c RelationSet), owning its values in an \c axom::Array buffer.
- */
-template <typename BSet, typename T = DefaultElementType, int STRIDE = 1>
-using ArrayBivariateMap =
-  BivariateMap<T,
-               BSet,
-               policies::ArrayIndirection<typename BSet::PositionType, T>,
-               policies::CompileTimeStride<typename BSet::PositionType, STRIDE>>;
-
-/*!
- * \brief A non-owning bivariate map view of \a T over the bivariate set \a BSet.
- */
-template <typename BSet, typename T = DefaultElementType, int STRIDE = 1>
-using ArrayViewBivariateMap =
-  BivariateMap<T,
-               BSet,
-               policies::ArrayViewIndirection<typename BSet::PositionType, T>,
-               policies::CompileTimeStride<typename BSet::PositionType, STRIDE>>;
-
-/*!
- * \brief A bivariate map of \a T over the bivariate set \a BSet with runtime stride,
- *  owning its values in an \c axom::Array buffer.
- */
-template <typename BSet, typename T = DefaultElementType>
-using RuntimeArrayBivariateMap =
-  BivariateMap<T,
-               BSet,
-               policies::ArrayIndirection<typename BSet::PositionType, T>,
-               policies::RuntimeStride<typename BSet::PositionType>>;
-
-/*!
- * \brief A non-owning bivariate map view of \a T over the bivariate set \a BSet with runtime stride.
- */
-template <typename BSet, typename T = DefaultElementType>
-using RuntimeArrayViewBivariateMap =
-  BivariateMap<T,
-               BSet,
-               policies::ArrayViewIndirection<typename BSet::PositionType, T>,
-               policies::RuntimeStride<typename BSet::PositionType>>;
 
 }  // namespace slam
 }  // namespace axom
