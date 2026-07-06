@@ -39,22 +39,22 @@ enum class LengthUnit
 };
 
 /**
- * Get the canonical representation of a length unit string.
+ * Get the length unit represented by a string.
  *
  * \param unit the unit as a string
- * \return the canonical unit
+ * \return the length unit
  * \throws std::invalid_argument if the string does not represent known units
  */
-LengthUnit getCanonicalUnit(const std::string &unit);
+LengthUnit getLengthUnit(const std::string &unit);
 
 /**
- * Get the canonical short name of a length unit.
+ * Get the short name of a length unit.
  *
  * \param unit the unit
- * \return the canonical short unit name
+ * \return the short unit name
  * \throws std::invalid_argument if the unit is not known
  */
-std::string getCanonicalUnitName(LengthUnit unit);
+std::string getLengthUnitName(LengthUnit unit);
 
 /**
  * Get the conversion factor to convert from the given source units to the target units.

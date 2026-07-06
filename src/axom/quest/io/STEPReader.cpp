@@ -988,9 +988,9 @@ private:
     reader.FileUnits(anUnitLengthNames, anUnitAngleNames, anUnitSolidAngleNames);
     if(anUnitLengthNames.Size() > 0)
     {
-      const auto fileUnits = axom::utilities::getCanonicalUnit(anUnitLengthNames(1).ToCString());
-      m_fileUnits = axom::utilities::getCanonicalUnitName(fileUnits);
-      const auto defaultUnit = axom::utilities::getCanonicalUnit(Interface_Static::CVal("xstep.cascade.unit"));
+      const auto fileUnits = axom::utilities::getLengthUnit(anUnitLengthNames(1).ToCString());
+      m_fileUnits = axom::utilities::getLengthUnitName(fileUnits);
+      const auto defaultUnit = axom::utilities::getLengthUnit(Interface_Static::CVal("xstep.cascade.unit"));
       const double lengthUnit = axom::utilities::getConversionFactor(fileUnits, defaultUnit);
       reader.SetSystemLengthUnit(lengthUnit);
     }

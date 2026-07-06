@@ -66,7 +66,7 @@ void printShapeSetInfo(const axom::klee::ShapeSet& shapeSet)
       return "<unspecified>";
     }
 
-    return axom::utilities::getCanonicalUnitName(unit);
+    return axom::utilities::getLengthUnitName(unit);
   };
 
   // lambda to help format a parir of klee::LengthUnits

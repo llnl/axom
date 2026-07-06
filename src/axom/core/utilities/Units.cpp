@@ -44,7 +44,7 @@ std::string unrecognizedUnitsMessage(const std::string &unitsAsString)
 }
 }  // namespace
 
-LengthUnit getCanonicalUnit(const std::string &unit)
+LengthUnit getLengthUnit(const std::string &unit)
 {
   const std::string lowerUnit = toLower(unit);
 
@@ -136,7 +136,7 @@ LengthUnit getCanonicalUnit(const std::string &unit)
   return iter->second;
 }
 
-std::string getCanonicalUnitName(LengthUnit unit)
+std::string getLengthUnitName(LengthUnit unit)
 {
   static const std::unordered_map<LengthUnit, std::string, LengthUnitHash> UNIT_NAMES {
     {LengthUnit::am, "am"},
