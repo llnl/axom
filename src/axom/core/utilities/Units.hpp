@@ -66,6 +66,15 @@ LengthUnit getCanonicalUnit(const std::string &unit);
 std::string getCanonicalUnitName(const std::string &unit);
 
 /**
+ * Get the canonical short name of a length unit.
+ *
+ * \param unit the unit
+ * \return the canonical short unit name
+ * \throws std::invalid_argument if the unit is not known
+ */
+std::string getCanonicalUnitName(LengthUnit unit);
+
+/**
  * Get the conversion factor to convert from the given source units to the target units.
  *
  * \param sourceUnits the original units

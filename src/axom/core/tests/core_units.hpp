@@ -112,6 +112,10 @@ TEST(Units, getCanonicalUnitName)
   EXPECT_EQ("fm", getCanonicalUnitName("femtometer"));
   EXPECT_EQ("ft", getCanonicalUnitName("feet"));
   EXPECT_EQ("miles", getCanonicalUnitName("mi"));
+
+  EXPECT_EQ("cm", getCanonicalUnitName(LengthUnit::cm));
+  EXPECT_EQ("dam", getCanonicalUnitName(LengthUnit::dam));
+  EXPECT_EQ("A", getCanonicalUnitName(LengthUnit::angstrom));
 }
 
 TEST(Units, getConversionFactor_string)

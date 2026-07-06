@@ -143,6 +143,11 @@ LengthUnit getCanonicalUnit(const std::string &unit)
 
 std::string getCanonicalUnitName(const std::string &unit)
 {
+  return getCanonicalUnitName(getCanonicalUnit(unit));
+}
+
+std::string getCanonicalUnitName(LengthUnit unit)
+{
   static const std::unordered_map<LengthUnit, std::string, LengthUnitHash> UNIT_NAMES {
     {LengthUnit::am, "am"},
     {LengthUnit::fm, "fm"},
@@ -163,12 +168,10 @@ std::string getCanonicalUnitName(const std::string &unit)
     {LengthUnit::angstrom, "A"},
     {LengthUnit::unspecified, "unspecified"}};
 
-  auto canonicalUnit = getCanonicalUnit(unit);
-
-  auto iter = UNIT_NAMES.find(canonicalUnit);
+  auto iter = UNIT_NAMES.find(unit);
   if(iter == UNIT_NAMES.end())
   {
-    throw std::invalid_argument(unrecognizedUnitsMessage(unit));
+    throw std::invalid_argument("Unknown length unit");
   }
   return iter->second;
 }
