@@ -4,17 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/inlet/Proxy.hpp"
-
-#include "axom/klee/Units.hpp"
-#include "axom/klee/KleeError.hpp"
+#include "axom/core/utilities/Units.hpp"
 
 #include <stdexcept>
 #include <unordered_map>
 
 namespace axom
 {
-namespace klee
+namespace utilities
 {
 namespace
 {
@@ -29,7 +26,7 @@ struct LengthUnitHash
 };
 }  // namespace
 
-LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path)
+LengthUnit parseLengthUnits(const std::string &unitsAsString)
 {
   static const std::unordered_map<std::string, LengthUnit> UNITS_BY_NAME {
     {"km", LengthUnit::km},
@@ -53,15 +50,10 @@ LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string 
   {
     std::string message = "Unrecognized units: ";
     message += unitsAsString;
-    throw KleeError({path, message});
+    throw std::invalid_argument(message);
   }
 
   return iter->second;
-}
-
-LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy)
-{
-  return parseLengthUnits(unitsAsProxy.get<std::string>(), unitsAsProxy.name());
 }
 
 double getConversionFactor(LengthUnit sourceUnits, LengthUnit targetUnits)
@@ -103,5 +95,5 @@ double convert(double sourceValue, LengthUnit sourceUnits, LengthUnit targetUnit
   return sourceValue * getConversionFactor(sourceUnits, targetUnits);
 }
 
-}  // namespace klee
+}  // namespace utilities
 }  // namespace axom

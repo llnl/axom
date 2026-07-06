@@ -27,6 +27,7 @@
 #include "core_Path.hpp"
 #include "core_stack_array.hpp"
 #include "core_static_array.hpp"
+#include "core_units.hpp"
 
 #ifndef AXOM_USE_MPI
   #include "core_types.hpp"

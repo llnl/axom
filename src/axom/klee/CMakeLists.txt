@@ -33,7 +33,6 @@ set(klee_sources
     KleeError.cpp
     Shape.cpp
     ShapeSet.cpp
-    Units.cpp
     io/GeometryOperatorsIO.cpp
     io/IO.cpp
     io/IOUtil.cpp
@@ -45,7 +44,7 @@ set(klee_sources
 axom_add_library(NAME        klee
                  SOURCES     ${klee_sources}
                  HEADERS     ${klee_headers} ${klee_internal_headers}
-                 DEPENDS_ON  inlet
+                 DEPENDS_ON  core inlet
                  FOLDER      axom/klee
                  )
 
