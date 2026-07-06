@@ -210,10 +210,5 @@ double convert(double sourceValue, LengthUnit sourceUnits, LengthUnit targetUnit
   return sourceValue * getConversionFactor(sourceUnits, targetUnits);
 }
 
-double getConversionFactor(const std::string &sourceUnits, const std::string &targetUnits)
-{
-  return getConversionFactor(getCanonicalUnit(sourceUnits), getCanonicalUnit(targetUnits));
-}
-
 }  // namespace utilities
 }  // namespace axom

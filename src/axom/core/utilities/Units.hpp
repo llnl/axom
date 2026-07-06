@@ -67,17 +67,6 @@ std::string getCanonicalUnitName(LengthUnit unit);
 double getConversionFactor(LengthUnit sourceUnits, LengthUnit targetUnits);
 
 /**
- * Get the conversion factor to convert from the given source units to the target units.
- *
- * \param sourceUnits the original units as a string
- * \param targetUnits the target units as a string
- * \return the value by which to multiply lengths in the original units
- * to get the target units
- * \throws std::invalid_argument if either string does not represent known units
- */
-double getConversionFactor(const std::string &sourceUnits, const std::string &targetUnits);
-
-/**
  * Convert a value from one set of units to another.
  *
  * \param sourceValue the value of the length in the original units

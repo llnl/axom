@@ -108,17 +108,6 @@ TEST(Units, getCanonicalUnitName)
   EXPECT_EQ("A", getCanonicalUnitName(LengthUnit::angstrom));
 }
 
-TEST(Units, getConversionFactor_string)
-{
-  EXPECT_DOUBLE_EQ(10, getConversionFactor("centimeter", "mm"));
-  EXPECT_DOUBLE_EQ(25.4, getConversionFactor("inch", "millimeter"));
-  EXPECT_DOUBLE_EQ(1000, getConversionFactor("kilometer", "m"));
-  EXPECT_DOUBLE_EQ(5280, getConversionFactor("mile", "ft"));
-  EXPECT_DOUBLE_EQ(1e-3, getConversionFactor("femtometer", "pm"));
-
-  EXPECT_THROW(getConversionFactor("cm", "bad_units"), std::invalid_argument);
-}
-
 TEST(Units, convert_adjacent)
 {
   expectEquivalent({1, LengthUnit::km}, {1000, LengthUnit::m});
