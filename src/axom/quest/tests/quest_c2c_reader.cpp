@@ -26,12 +26,14 @@
 #include <string>
 #include <fstream>
 #include <limits>
+#include <stdexcept>
 #include <math.h>
 
 // namespace aliases
 namespace mint = axom::mint;
 namespace primal = axom::primal;
 namespace quest = axom::quest;
+namespace utilities = axom::utilities;
 
 namespace
 {
@@ -99,6 +101,15 @@ void writeSpline(const std::string& filename)
   c2cFile << "piece = line(end=spline_start)" << std::endl;
 }
 
+TEST(quest_c2c_reader, unsupported_length_units)
+{
+  quest::C2CReader reader;
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::dm), std::invalid_argument);
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::nm), std::invalid_argument);
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::angstrom), std::invalid_argument);
+  EXPECT_THROW(reader.setLengthUnit(utilities::LengthUnit::unspecified), std::invalid_argument);
+}
+
 TEST(quest_c2c_reader, basic_read)
 {
   const std::string fileName = C2C_CIRCLE_FILENAME;
@@ -153,6 +164,37 @@ TEST(quest_c2c_reader, interpolate_circle)
   }
 
   mint::write_vtk(mesh, "test_circle.vtk");
+
+  delete mesh;
+}
+
+TEST(quest_c2c_reader, read_with_axom_length_unit)
+{
+  const std::string fileName = C2C_CIRCLE_FILENAME;
+  writeSimpleCircle(fileName);
+
+  quest::C2CReader reader;
+  reader.setFileName(fileName);
+  reader.setLengthUnit(utilities::LengthUnit::mm);
+
+  EXPECT_EQ(0, reader.read());
+
+  constexpr int DIM = 2;
+  using MeshType = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
+  MeshType* mesh = new MeshType(DIM, mint::SEGMENT);
+
+  const int segmentsPerKnotSpan = 25;
+  axom::quest::LinearizeCurves lin;
+  lin.getLinearMeshUniform(reader.getCurvesView(), mesh, segmentsPerKnotSpan);
+
+  double* x = mesh->getCoordinateArray(mint::X_COORDINATE);
+  double* y = mesh->getCoordinateArray(mint::Y_COORDINATE);
+  const int numPts = mesh->getNumberOfNodes();
+  for(int i = 0; i < numPts; ++i)
+  {
+    double mag = primal::Vector<double, 2> {x[i], y[i]}.norm();
+    EXPECT_DOUBLE_EQ(10., mag);
+  }
 
   delete mesh;
 }
