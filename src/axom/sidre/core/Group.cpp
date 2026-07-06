@@ -2879,6 +2879,63 @@ bool Group::importConduitTreeExternal(conduit::Node& node, bool preserve_content
   return success;
 }
 
+axom::utilities::CheckSum Group::checksum(bool includeAttributes) const
+{
+  // Checksum the name
+  axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
+  auto cs = axom::utilities::checksum(nameView);
+
+  // Add the checksums of the views and groups.
+  for(const auto& view : this->views())
+  {
+    cs += view.checksum(includeAttributes);
+  }
+  for(const auto& group : this->groups())
+  {
+    cs += group.checksum(includeAttributes);
+  }
+  return cs;
+}
+
+axom::utilities::CheckSum Group::checksum(conduit::Node& n_checksum, bool includeAttributes) const
+{
+  // Always emit a fresh snapshot so callers can safely reuse the same node.
+  n_checksum.reset();
+  n_checksum.set(conduit::DataType::object());
+  conduit::Node& groupCS = n_checksum["checksum"];
+
+  // Checksum the name
+  axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
+  auto cs = axom::utilities::checksum(nameView);
+
+  // Add the checksums of the views and groups.
+  if(getNumViews() > 0)
+  {
+    conduit::Node& n_views = n_checksum["views"];
+    for(const auto& view : this->views())
+    {
+      conduit::Node& n_view = n_views[view.getName()];
+      const auto vcs = view.checksum(includeAttributes);
+      cs += vcs;
+      n_view["checksum"] = static_cast<double>(vcs);
+    }
+  }
+  if(getNumGroups() > 0)
+  {
+    conduit::Node& n_groups = n_checksum["groups"];
+    for(const auto& group : this->groups())
+    {
+      conduit::Node& n_group = n_groups[group.getName()];
+      cs += group.checksum(n_group, includeAttributes);
+    }
+  }
+
+  // Set the overall checksum for the group based on the combined checksums.
+  groupCS.set(static_cast<double>(cs));
+
+  return cs;
+}
+
 /*
  *************************************************************************
  *

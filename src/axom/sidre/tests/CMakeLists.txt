@@ -21,6 +21,7 @@ set(gtest_sidre_tests
    sidre_external.cpp
    sidre_group.cpp
    sidre_opaque.cpp
+   sidre_checksum.cpp
    sidre_view.cpp
    sidre_native_layout.cpp
    sidre_attribute.cpp
