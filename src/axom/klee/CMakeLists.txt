@@ -33,6 +33,7 @@ set(klee_sources
     KleeError.cpp
     Shape.cpp
     ShapeSet.cpp
+    Units.cpp
     io/GeometryOperatorsIO.cpp
     io/IO.cpp
     io/IOUtil.cpp
