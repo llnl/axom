@@ -16,12 +16,24 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
 {
 namespace sidre
 {
+namespace
+{
+axom::utilities::CheckSum checksumNamedNode(const std::string& name, const conduit::Node& node)
+{
+  axom::ArrayView<const char> nameView(name.data(), name.size());
+  auto cs = axom::utilities::checksum(nameView);
+  cs += axom::sidre::checksum(node, false);
+  return cs;
+}
+}  // namespace
+
 /*
  *************************************************************************
  *
@@ -2068,6 +2080,31 @@ int View::getValidAllocatorId(int allocId)
     false,
     "Axom internal error: Cannot determine semantic valid allocator id");  // Should never get here.
   return axom::INVALID_ALLOCATOR_ID;
+}
+
+axom::utilities::CheckSum View::checksum(bool includeAttributes) const
+{
+  // Checksum the name
+  axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
+  auto cs = axom::utilities::checksum(nameView);
+
+  // Checksum the view contents without double-counting the view name.
+  cs += axom::sidre::checksum(m_node, false);
+
+  if(includeAttributes)
+  {
+    for(IndexType attrIdx = getFirstValidAttrValueIndex(); attrIdx != InvalidIndex;
+        attrIdx = getNextValidAttrValueIndex(attrIdx))
+    {
+      const Attribute* attr = getAttribute(attrIdx);
+      if(attr != nullptr)
+      {
+        cs += checksumNamedNode(attr->getName(), getAttributeNodeRef(attr));
+      }
+    }
+  }
+
+  return cs;
 }
 
 } /* end namespace sidre */
