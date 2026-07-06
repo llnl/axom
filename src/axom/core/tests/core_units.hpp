@@ -46,6 +46,7 @@ TEST(Units, getLengthUnit)
   EXPECT_EQ(LengthUnit::cm, getLengthUnit("centimeter"));
   EXPECT_EQ(LengthUnit::mm, getLengthUnit("mm"));
   EXPECT_EQ(LengthUnit::um, getLengthUnit("um"));
+  EXPECT_EQ(LengthUnit::um, getLengthUnit("micron"));
   EXPECT_EQ(LengthUnit::nm, getLengthUnit("nm"));
   EXPECT_EQ(LengthUnit::pm, getLengthUnit("picometers"));
   EXPECT_EQ(LengthUnit::fm, getLengthUnit("femtometre"));
@@ -113,7 +114,10 @@ TEST(Units, getLengthUnitName)
   EXPECT_EQ("am", getLengthUnitName(LengthUnit::am));
   EXPECT_EQ("A", getLengthUnitName(LengthUnit::angstrom));
   EXPECT_EQ("ft", getLengthUnitName(LengthUnit::feet));
+  EXPECT_EQ("in", getLengthUnitName(LengthUnit::inches));
+  EXPECT_EQ("mils", getLengthUnitName(LengthUnit::mils));
   EXPECT_EQ("miles", getLengthUnitName(LengthUnit::miles));
+  EXPECT_EQ("unspecified", getLengthUnitName(LengthUnit::unspecified));
 }
 
 TEST(Units, convert_adjacent)
@@ -167,6 +171,12 @@ TEST(Units, convert_all)
   }
 }
 
+TEST(Units, convert_throws_on_unspecified)
+{
+  EXPECT_THROW(convert(1.0, LengthUnit::cm, LengthUnit::unspecified), std::invalid_argument);
+  EXPECT_THROW(convert(1.0, LengthUnit::unspecified, LengthUnit::cm), std::invalid_argument);
+}
+
 TEST(Units, convertAll)
 {
   std::vector<double> values {1.0, 2.0, 3.0};
@@ -175,6 +185,40 @@ TEST(Units, convertAll)
   EXPECT_DOUBLE_EQ(100, values[0]);
   EXPECT_DOUBLE_EQ(200, values[1]);
   EXPECT_DOUBLE_EQ(300, values[2]);
+}
+
+TEST(Units, convertAll_same_units_is_noop)
+{
+  std::vector<double> values {1.0, 2.0, 3.0};
+  convertAll(values, LengthUnit::feet, LengthUnit::feet);
+  ASSERT_EQ(3u, values.size());
+  EXPECT_DOUBLE_EQ(1.0, values[0]);
+  EXPECT_DOUBLE_EQ(2.0, values[1]);
+  EXPECT_DOUBLE_EQ(3.0, values[2]);
+}
+
+TEST(Units, convertAll_imperial_to_metric)
+{
+  std::vector<double> values {1.0, 2.5, 10.0};
+  convertAll(values, LengthUnit::feet, LengthUnit::inches);
+  ASSERT_EQ(3u, values.size());
+  EXPECT_DOUBLE_EQ(12.0, values[0]);
+  EXPECT_DOUBLE_EQ(30.0, values[1]);
+  EXPECT_DOUBLE_EQ(120.0, values[2]);
+}
+
+TEST(Units, convertAll_empty)
+{
+  std::vector<double> values;
+  convertAll(values, LengthUnit::m, LengthUnit::cm);
+  EXPECT_TRUE(values.empty());
+}
+
+TEST(Units, convertAll_throws_on_unspecified)
+{
+  std::vector<double> values {1.0, 2.0, 3.0};
+  EXPECT_THROW(convertAll(values, LengthUnit::cm, LengthUnit::unspecified), std::invalid_argument);
+  EXPECT_THROW(convertAll(values, LengthUnit::unspecified, LengthUnit::cm), std::invalid_argument);
 }
 
 }  // namespace utilities
