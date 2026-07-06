@@ -646,6 +646,23 @@ private:
 
   /**
    * \brief A private helper function to set up the views associated with the
+      data of a vector valued grid *or* quadrature function in the blueprint style.
+   * \pre field is not null
+   * \note This function is expected to be called by RegisterField() or RegisterQField()
+   * \note Handles cases where hierarchy is already set up,
+   *      where the data was allocated by this data collection
+   *      and where the field data is external to Sidre
+   */
+  void addVectorBasedField(const std::string& field_name,
+                           mfem::Vector* field,
+                           const std::string& buffer_name,
+                           IndexType offset,
+                           int vdim,
+                           int ndof,
+                           mfem::Ordering::Type ordering);
+
+  /**
+   * \brief A private helper function to set up the views associated with the
       data of a vector valued grid function in the blueprint style.
    * \pre gf is not null
    * \note This function is expected to be called by RegisterField()
@@ -657,6 +674,20 @@ private:
                                   mfem::GridFunction* gf,
                                   const std::string& buffer_name,
                                   IndexType offset);
+
+  /**
+   * \brief A private helper function to set up the views associated with the
+      data of a vector valued quadrature function in the blueprint style.
+   * \pre qf is not null
+   * \note This function is expected to be called by RegisterQField()
+   * \note QuadratureFunction data is always interpreted with MFEM's byVDIM
+   *      layout, with one mcarray component per vector component and one entry
+   *      per quadrature tuple in the associated QuadratureSpace.
+   */
+  void addVectorBasedQuadratureFunction(const std::string& field_name,
+                                        mfem::QuadratureFunction* qf,
+                                        const std::string& buffer_name,
+                                        IndexType offset);
 
   /** @brief A private helper function to set up the Views associated with
       attribute field named @a field_name */
