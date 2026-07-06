@@ -57,24 +57,18 @@ public:
   using ZoneSet = slam::PositionSet<PositionType, ElementType>;
 
   /// types for relations
-  using ArrayIndirection = slam::policies::ArrayIndirection<PositionType, PositionType>;
-  using VariableCardinality = slam::policies::VariableCardinality<PositionType, ArrayIndirection>;
-  using NodeToZoneRelation =
-    slam::StaticRelation<PositionType, ElementType, VariableCardinality, ArrayIndirection, NodeSet, ZoneSet>;
+  using NodeToZoneRelation = slam::VariableRelation<NodeSet, ZoneSet>;
   using NodeZoneIterator = NodeToZoneRelation::RelationConstIterator;
 
-  using ZNStride = slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
-  using ConstantCardinality = slam::policies::ConstantCardinality<PositionType, ZNStride>;
-  using ZoneToNodeRelation =
-    slam::StaticRelation<PositionType, ElementType, ConstantCardinality, ArrayIndirection, ZoneSet, NodeSet>;
+  using ZoneToNodeRelation = slam::ConstantRelation<ZoneSet, NodeSet, NODES_PER_ZONE>;
   using ZoneNodeIterator = ZoneToNodeRelation::RelationConstIterator;
 
   /// types for maps
   using BaseSet = axom::slam::Set<PositionType, ElementType>;
-  using NodalPositions = slam::Map<Point3>;
-  using ZonalPositions = slam::Map<Point3>;
-  using NodeField = slam::Map<DataType>;
-  using ZoneField = slam::Map<DataType>;
+  using NodalPositions = slam::ArrayMap<BaseSet, Point3>;
+  using ZonalPositions = slam::ArrayMap<BaseSet, Point3>;
+  using NodeField = slam::ArrayMap<BaseSet, DataType>;
+  using ZoneField = slam::ArrayMap<BaseSet, DataType>;
 
 public:
   /** \brief Simple accessor for the number of nodes in the mesh  */
@@ -107,8 +101,8 @@ struct Repository
   using SetType = axom::slam::Set<>;
   using IntsRegistry = slam::FieldRegistry<SetType, SetType::ElementType>;
   using RealsRegistry = slam::FieldRegistry<SetType, double>;
-  using IntField = slam::Map<int>;
-  using RealField = slam::Map<double>;
+  using IntField = slam::ArrayMap<SetType, int>;
+  using RealField = slam::ArrayMap<SetType, double>;
 
   static IntsRegistry intsRegistry;
   static RealsRegistry realsRegistry;

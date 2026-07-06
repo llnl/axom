@@ -12,7 +12,7 @@
  * \brief Contains the specifications for types aliases used throughout the MIR component.
  */
 
-#include "axom/core.hpp"  // for axom macros
+#include "axom/core.hpp"
 #include "axom/slam.hpp"
 #include "axom/primal.hpp"
 
@@ -54,8 +54,8 @@ using VertToElemRelation =
 
 // MAP TYPE ALIASES
 using BaseSet = slam::Set<PosType, ElemType>;
-using ScalarMap = slam::Map<axom::float64, BaseSet>;
-using PointMap = slam::Map<Point2, BaseSet>;
-using IntMap = slam::Map<int, BaseSet>;
+using ScalarMap = slam::ArrayMap<BaseSet, axom::float64>;
+using PointMap = slam::ArrayMap<BaseSet, Point2>;
+using IntMap = slam::ArrayMap<BaseSet, int>;
 }  // namespace mir
 }  // namespace axom

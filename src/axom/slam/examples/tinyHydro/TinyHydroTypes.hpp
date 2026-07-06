@@ -25,13 +25,13 @@ using ElementType = PositionType;
 
 using SetBase = slam::Set<PositionType, ElementType>;
 
-using IndexField = slam::Map<int>;
+using IndexField = slam::ArrayMap<slam::Set<>, int>;
 
-using ScalarField = slam::Map<double, SetBase>;
+using ScalarField = slam::ArrayMap<SetBase, double>;
 using NodalScalarField = ScalarField;
 using ZonalScalarField = ScalarField;
 
-using VectorField = slam::Map<VectorXY, SetBase>;
+using VectorField = slam::ArrayMap<SetBase, VectorXY>;
 using NodalVectorField = VectorField;
 using ZonalVectorField = VectorField;
 using FaceVectorField = VectorField;
@@ -43,38 +43,30 @@ using NodeSet = slam::PositionSet<PositionType, ElementType>;
 using FaceSet = slam::PositionSet<PositionType, ElementType>;
 using CornerSet = slam::PositionSet<PositionType, ElementType>;
 
-using ZoneSubset = slam::ArrayIndirectionSet<PositionType, ElementType>;
-using NodeSubset = slam::ArrayIndirectionSet<PositionType, ElementType>;
+using ZoneSubset = slam::ArraySet<PositionType, ElementType>;
+using NodeSubset = slam::ArraySet<PositionType, ElementType>;
 
 enum
 {
   NODES_PER_ZONE = 4,
   FACES_PER_ZONE = 4,
-  BD_BOTTOM = 0,            // lower boundary nodes
-  BD_RIGHT = 1,             // right boundary nodes
-  BD_TOP = 2,               // top boundary nodes
-  BD_LEFT = 3,              // left boundary nodes
+  BD_BOTTOM = 0,  // lower boundary nodes
+  BD_RIGHT = 1,   // right boundary nodes
+  BD_TOP = 2,     // top boundary nodes
+  BD_LEFT = 3,    // left boundary nodes
   NUM_DOMAIN_BOUNDARIES = 4
 };
 
-using ArrayIndirection = slam::policies::ArrayIndirection<PositionType, PositionType>;
-
-using ZNStride = slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
-using ZNCard = slam::policies::ConstantCardinality<PositionType, ZNStride>;
-using ZoneToNodeRelation =
-  slam::StaticRelation<PositionType, ElementType, ZNCard, ArrayIndirection, ZoneSet, NodeSet>;
+using ZoneToNodeRelation = slam::ConstantRelation<ZoneSet, NodeSet, NODES_PER_ZONE>;
 using ZNodeSet = ZoneToNodeRelation::RelationSubset;
 
-using ZFStride = slam::policies::CompileTimeStride<PositionType, FACES_PER_ZONE>;
-using ZFCard = slam::policies::ConstantCardinality<PositionType, ZFStride>;
-using ZoneToFaceRelation =
-  slam::StaticRelation<PositionType, ElementType, ZFCard, ArrayIndirection, ZoneSet, FaceSet>;
+using ZoneToFaceRelation = slam::ConstantRelation<ZoneSet, FaceSet, FACES_PER_ZONE>;
 using ZFaceSet = ZoneToFaceRelation::RelationSubset;
 
 using NUM_BD_SZ = slam::policies::CompileTimeSize<ZoneSet::PositionType, NUM_DOMAIN_BOUNDARIES>;
 using BoundaryEdgeSet = slam::OrderedSet<PositionType, ElementType, NUM_BD_SZ>;
 
-using IndexMap = slam::Map<IndexType>;
+using IndexMap = slam::ArrayMap<slam::Set<>, IndexType>;
 
 using IndexRegistry = slam::FieldRegistry<SetBase, ZoneSet::PositionType>;
 using IndexBuffer = IndexRegistry::BufferType;

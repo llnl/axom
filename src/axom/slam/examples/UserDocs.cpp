@@ -121,8 +121,8 @@ struct SimpleQuadMesh
   /// Type alias for position map
   // _quadmesh_example_maps_typedefs_start
   using BaseSet = slam::Set<PosType, ElemType>;
-  using ScalarMap = slam::Map<Point2, BaseSet>;
-  using PointMap = slam::Map<Point2, BaseSet>;
+  using ScalarMap = slam::ArrayMap<BaseSet, Point2>;
+  using PointMap = slam::ArrayMap<BaseSet, Point2>;
   using VertPositions = PointMap;
   // _quadmesh_example_maps_typedefs_end
 

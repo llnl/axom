@@ -7,8 +7,7 @@
 /**
  * \file calculate.cpp
  *
- * \brief Examples using MultiMat to do some calculation common in physics
- * simulation.
+ * \brief Examples using MultiMat to do some calculation common in physics simulation.
  */
 
 #include "axom/multimat/multimat.hpp"
@@ -39,10 +38,8 @@ using Field2DT = MultiMat::Field2D<double, B>;
 template <DataLayout D, typename B>
 using Field2DTempT = MultiMat::Field2DTemplated<double, D, B>;
 
-using ArrayViewIndirection = slam::policies::ArrayViewIndirection<slam::DefaultPositionType, double>;
-
 template <typename B>
-using BiVarMapT = slam::BivariateMap<double, B, ArrayViewIndirection>;
+using BiVarMapT = slam::ArrayViewBivariateMap<B, double>;
 
 enum class MMFieldMethod
 {

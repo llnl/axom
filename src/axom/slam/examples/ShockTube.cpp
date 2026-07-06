@@ -123,18 +123,10 @@ public:
     FACES_PER_ELEM = 2
   };
 
-  using EFStride = slam::policies::CompileTimeStride<PositionType, FACES_PER_ELEM>;
-  using FEStride = slam::policies::CompileTimeStride<PositionType, ELEMS_PER_FACE>;
+  using IndexVec = axom::Array<ElementType>;
 
-  using EFCard = slam::policies::ConstantCardinality<PositionType, EFStride>;
-  using FECard = slam::policies::ConstantCardinality<PositionType, FEStride>;
-  using ArrayIndirection = slam::policies::ArrayIndirection<PositionType, ElementType>;
-  using IndexVec = typename ArrayIndirection::IndirectionBufferType;
-
-  using TubeElemToFaceRelation =
-    slam::StaticRelation<PositionType, ElementType, EFCard, ArrayIndirection, ElemSubset, FaceSet>;
-  using FaceToElemRelation =
-    slam::StaticRelation<PositionType, ElementType, FECard, ArrayIndirection, FaceSet, ElemSet>;
+  using TubeElemToFaceRelation = slam::ConstantRelation<ElemSubset, FaceSet, FACES_PER_ELEM>;
+  using FaceToElemRelation = slam::ConstantRelation<FaceSet, ElemSet, ELEMS_PER_FACE>;
 
 public:
   ElemSet elems;            // The entire set of elements

@@ -25,6 +25,7 @@ axom_component_requires(NAME       SLAM
 #------------------------------------------------------------------------------
 set(slam_headers
     # Utility files
+    Aliases.hpp
     FieldRegistry.hpp
     ModularInt.hpp
     Traits.hpp
