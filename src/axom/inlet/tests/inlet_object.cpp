@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/Path.hpp"
+#include "axom/fmt.hpp"
 #include "axom/slic/core/SimpleLogger.hpp"
 #include "axom/sidre.hpp"
 
@@ -85,6 +86,36 @@ struct FromInlet<Box>
 {
   Box operator()(const axom::inlet::Container& base) { return {base["width"], base["height"]}; }
 };
+
+template <>
+struct FromInlet<Shape>
+{
+  Shape operator()(const axom::inlet::Container& base) { return (*this)(axom::inlet::Proxy(base)); }
+
+  Shape operator()(const axom::inlet::Proxy& base)
+  {
+    const std::string kind = base["kind"];
+    if(kind == "circle")
+    {
+      return Circle {base["radius"]};
+    }
+    if(kind == "box")
+    {
+      return Box {base["width"], base["height"]};
+    }
+
+    SLIC_ERROR(axom::fmt::format("Unknown shape discriminator '{}'", kind));
+    return Box {0.0, 0.0};
+  }
+};
+
+void defineShapeSchema(axom::inlet::Container& shape)
+{
+  shape.addString("kind").required().validValues({"circle", "box"});
+  shape.addDouble("radius").required(false);
+  shape.addDouble("width").required(false);
+  shape.addDouble("height").required(false);
+}
 
 void defineShapeSchema(axom::inlet::VariantStructCollection<Shape>& shapes)
 {
@@ -236,6 +267,20 @@ TYPED_TEST(inlet_object, variant_array_of_struct_unknown_discriminator_fails)
   defineShapeSchema(shapes);
 
   EXPECT_FALSE(inlet.verify());
+}
+
+TYPED_TEST(inlet_object, variant_struct_by_value)
+{
+  std::string testString = "shape = { kind = \"box\"; width = 3.0; height = 4.0 }";
+  Inlet inlet = createBasicInlet<TypeParam>(testString);
+
+  auto& shape = inlet.addStruct("shape");
+  defineShapeSchema(shape);
+
+  EXPECT_TRUE(inlet.verify());
+
+  EXPECT_EQ(inlet.get<Shape>("shape"), Shape(Box {3.0, 4.0}));
+  EXPECT_EQ(inlet["shape"].get<Shape>(), Shape(Box {3.0, 4.0}));
 }
 
 TYPED_TEST(inlet_object, simple_array_of_struct_implicit_idx)

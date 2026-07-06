@@ -45,6 +45,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a `primal::BezierTriangle` class
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
+- Core: Adds `AXOM_CONSTEXPR_ASSERT` macro for assertions that are usable within `constexpr` contexts
+- Slam: Adds `make_*_set`, `make_*_relation` and `make_map` helper functions for building sets, relations and maps
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -54,6 +56,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
+- CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 
@@ -66,6 +69,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: A moved-from Array is valid, e.g. it can be pushed to
 - Core: Improved `axom::FlatMap` insertion performance by fusing duplicate-key lookup with empty-slot probing.
 - Core: Updated DeviceHash to use 64-bit hash results and improved coverage for integer and floating-point hashing.
+- Core: Avoids a first-use race in `axom::copy()` when multiple OpenMP threads concurrently trigger Umpire fallback host-copy initialization.
 - Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
 
 ## [Version 0.14.0] - Release date 2026-03-31

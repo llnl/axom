@@ -24,8 +24,10 @@ set(core_headers
     ## utilities
     utilities/About.hpp
     utilities/Annotations.hpp
+    utilities/Abort.hpp
     utilities/BitUtilities.hpp
     utilities/CommandLineUtilities.hpp
+    utilities/ConstexprAssert.hpp
     utilities/FileUtilities.hpp
     utilities/MemoryTesting.hpp
     utilities/RAII.hpp
@@ -61,7 +63,10 @@ set(core_headers
     ArrayBase.hpp
     ArrayIteratorBase.hpp
     ArrayView.hpp
-    MDMapping.hpp
+    DeviceHash.hpp
+    FlatMap.hpp
+    FlatMapView.hpp
+    FlatMapUtil.hpp
     IndexedCollection.hpp
     ItemCollection.hpp
     IteratorBase.hpp
@@ -69,10 +74,7 @@ set(core_headers
     Macros.hpp
     Map.hpp
     MapCollection.hpp
-    FlatMap.hpp
-    FlatMapView.hpp
-    FlatMapUtil.hpp
-    DeviceHash.hpp
+    MDMapping.hpp
     NumericArray.hpp
     NumericLimits.hpp
     Path.hpp
@@ -102,6 +104,7 @@ set(core_headers
     )
 
 set(core_sources
+    utilities/Abort.cpp
     utilities/Annotations.cpp
     utilities/FileUtilities.cpp
     utilities/StringUtilities.cpp

@@ -26,6 +26,8 @@
 #include "axom/slam.hpp"
 // _quadmesh_example_import_header_end
 
+#include "axom/slam/RelationBuilders.hpp"
+
 #include <sstream>
 #include <cmath>
 #include <fstream>
@@ -176,23 +178,22 @@ struct SimpleQuadMesh
     {
       // _quadmesh_example_construct_bdry_relation_start
       // construct boundary relation from elements to vertices
-      using RelationBuilder = ElemToVertRelation::RelationBuilder;
-      bdry = RelationBuilder().fromSet(&elems).toSet(&verts).indices(
-        RelationBuilder::IndicesSetBuilder().size(static_cast<int>(evInds.size())).data(evInds.data()));
+      bdry = slam::make_constant_relation_ct<VertsPerElem>(&elems,
+                                                           &verts,
+                                                           evInds.data(),
+                                                           static_cast<PosType>(evInds.size()));
       // _quadmesh_example_construct_bdry_relation_end
     }
 
     {
       // _quadmesh_example_construct_cobdry_relation_start
       // construct coboundary relation from vertices to elements
-      using RelationBuilder = VertToElemRelation::RelationBuilder;
-      cobdry = RelationBuilder()
-                 .fromSet(&verts)
-                 .toSet(&elems)
-                 .begins(RelationBuilder::BeginsSetBuilder().size(verts.size()).data(veBegins.data()))
-                 .indices(RelationBuilder::IndicesSetBuilder()
-                            .size(static_cast<int>(veInds.size()))
-                            .data(veInds.data()));
+      cobdry = slam::make_variable_relation(&verts,
+                                            &elems,
+                                            veBegins.data(),
+                                            static_cast<PosType>(veBegins.size()),
+                                            veInds.data(),
+                                            static_cast<PosType>(veInds.size()));
       // _quadmesh_example_construct_cobdry_relation_end
     }
 

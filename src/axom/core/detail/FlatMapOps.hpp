@@ -39,6 +39,10 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata,
                            axom::ArrayView<StoragePair> buckets,
                            HostAllocator host_allocator)
 {
+#if !defined(AXOM_USE_UMPIRE) || !defined(AXOM_USE_CUDA)
+AXOM_UNUSED_VAR(host_allocator);
+#endif
+
   if(std::is_trivially_destructible<KVPair>::value)
   {
     // Nothing to do.
@@ -79,6 +83,10 @@ inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
                         axom::ArrayView<StoragePair> to_buckets,
                         HostAllocator host_allocator)
 {
+#if !defined(AXOM_USE_UMPIRE) || !defined(AXOM_USE_CUDA)
+AXOM_UNUSED_VAR(host_allocator);
+#endif
+
   if(std::is_trivially_copyable<KVPair>::value)
   {
     axom::copy(to_buckets.data(), from_buckets.data(), sizeof(StoragePair) * from_buckets.size());
