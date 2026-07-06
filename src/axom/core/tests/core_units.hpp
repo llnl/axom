@@ -36,22 +36,22 @@ void expectEquivalent(Length length1, Length length2)
 
 TEST(Units, getLengthUnit)
 {
-  EXPECT_EQ(LengthUnit::am, getLengthUnit("attometer"));
-  EXPECT_EQ(LengthUnit::fm, getLengthUnit("femtometre"));
-  EXPECT_EQ(LengthUnit::pm, getLengthUnit("picometers"));
   EXPECT_EQ(LengthUnit::km, getLengthUnit("km"));
   EXPECT_EQ(LengthUnit::hm, getLengthUnit("hectometer"));
   EXPECT_EQ(LengthUnit::dam, getLengthUnit("decametre"));
   EXPECT_EQ(LengthUnit::m, getLengthUnit("m"));
+  EXPECT_EQ(LengthUnit::m, getLengthUnit("METRES"));
   EXPECT_EQ(LengthUnit::dm, getLengthUnit("dm"));
   EXPECT_EQ(LengthUnit::cm, getLengthUnit("cm"));
   EXPECT_EQ(LengthUnit::cm, getLengthUnit("centimeter"));
   EXPECT_EQ(LengthUnit::mm, getLengthUnit("mm"));
   EXPECT_EQ(LengthUnit::um, getLengthUnit("um"));
   EXPECT_EQ(LengthUnit::nm, getLengthUnit("nm"));
-  EXPECT_EQ(LengthUnit::m, getLengthUnit("METRES"));
-  EXPECT_EQ(LengthUnit::angstrom, getLengthUnit("A"));
+  EXPECT_EQ(LengthUnit::pm, getLengthUnit("picometers"));
+  EXPECT_EQ(LengthUnit::fm, getLengthUnit("femtometre"));
   EXPECT_EQ(LengthUnit::fm, getLengthUnit("femtometres"));
+  EXPECT_EQ(LengthUnit::am, getLengthUnit("attometer"));
+  EXPECT_EQ(LengthUnit::angstrom, getLengthUnit("A"));
   EXPECT_EQ(LengthUnit::miles, getLengthUnit("miles"));
   EXPECT_EQ(LengthUnit::miles, getLengthUnit("mi"));
   EXPECT_EQ(LengthUnit::feet, getLengthUnit("ft"));
@@ -73,9 +73,6 @@ TEST(Units, getLengthUnit)
 
 TEST(Units, getConversionFactor)
 {
-  EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::fm, LengthUnit::am));
-  EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::pm, LengthUnit::fm));
-  EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::nm, LengthUnit::pm));
   EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::km, LengthUnit::m));
   EXPECT_DOUBLE_EQ(10, getConversionFactor(LengthUnit::km, LengthUnit::hm));
   EXPECT_DOUBLE_EQ(10, getConversionFactor(LengthUnit::hm, LengthUnit::dam));
@@ -85,6 +82,9 @@ TEST(Units, getConversionFactor)
   EXPECT_DOUBLE_EQ(10, getConversionFactor(LengthUnit::cm, LengthUnit::mm));
   EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::mm, LengthUnit::um));
   EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::um, LengthUnit::nm));
+  EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::nm, LengthUnit::pm));
+  EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::pm, LengthUnit::fm));
+  EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::fm, LengthUnit::am));
   EXPECT_DOUBLE_EQ(10, getConversionFactor(LengthUnit::nm, LengthUnit::angstrom));
   EXPECT_DOUBLE_EQ(2.54, getConversionFactor(LengthUnit::inches, LengthUnit::cm));
   EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::inches, LengthUnit::mils));
@@ -99,13 +99,21 @@ TEST(Units, getConversionFactor)
 
 TEST(Units, getLengthUnitName)
 {
-  EXPECT_EQ("cm", getLengthUnitName(LengthUnit::cm));
-  EXPECT_EQ("um", getLengthUnitName(LengthUnit::um));
-  EXPECT_EQ("fm", getLengthUnitName(LengthUnit::fm));
+  EXPECT_EQ("km", getLengthUnitName(LengthUnit::km));
+  EXPECT_EQ("hm", getLengthUnitName(LengthUnit::hm));
   EXPECT_EQ("dam", getLengthUnitName(LengthUnit::dam));
+  EXPECT_EQ("m", getLengthUnitName(LengthUnit::m));
+  EXPECT_EQ("dm", getLengthUnitName(LengthUnit::dm));
+  EXPECT_EQ("cm", getLengthUnitName(LengthUnit::cm));
+  EXPECT_EQ("mm", getLengthUnitName(LengthUnit::mm));
+  EXPECT_EQ("um", getLengthUnitName(LengthUnit::um));
+  EXPECT_EQ("nm", getLengthUnitName(LengthUnit::nm));
+  EXPECT_EQ("pm", getLengthUnitName(LengthUnit::pm));
+  EXPECT_EQ("fm", getLengthUnitName(LengthUnit::fm));
+  EXPECT_EQ("am", getLengthUnitName(LengthUnit::am));
+  EXPECT_EQ("A", getLengthUnitName(LengthUnit::angstrom));
   EXPECT_EQ("ft", getLengthUnitName(LengthUnit::feet));
   EXPECT_EQ("miles", getLengthUnitName(LengthUnit::miles));
-  EXPECT_EQ("A", getLengthUnitName(LengthUnit::angstrom));
 }
 
 TEST(Units, convert_adjacent)

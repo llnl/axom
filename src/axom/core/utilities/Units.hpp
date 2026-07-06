@@ -18,24 +18,24 @@ namespace utilities
  */
 enum class LengthUnit
 {
-  am,           // attometers
-  fm,           // femtometers
-  pm,           // picometers
-  km,           // kilometers
-  hm,           // hectometers
-  dam,          // decameters
-  m,            // meters
-  dm,           // decimeters
-  cm,           // centimeters
-  mm,           // millimeters
-  um,           // micrometers
-  nm,           // nanometers
-  angstrom,     // angstroms
-  miles,        // miles
-  feet,         // feet
-  inches,       // inches
-  mils,         // thousandths of an inch
-  unspecified   // no length unit specified
+  km,          // kilometers
+  hm,          // hectometers
+  dam,         // decameters
+  m,           // meters
+  dm,          // decimeters
+  cm,          // centimeters
+  mm,          // millimeters
+  um,          // micrometers
+  nm,          // nanometers
+  pm,          // picometers
+  fm,          // femtometers
+  am,          // attometers
+  angstrom,    // angstroms
+  miles,       // miles
+  feet,        // feet
+  inches,      // inches
+  mils,        // thousandths of an inch
+  unspecified  // no length unit specified
 };
 
 /**
