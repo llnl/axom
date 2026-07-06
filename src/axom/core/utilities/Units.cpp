@@ -44,11 +44,6 @@ std::string unrecognizedUnitsMessage(const std::string &unitsAsString)
 }
 }  // namespace
 
-LengthUnit parseLengthUnits(const std::string &unitsAsString)
-{
-  return getCanonicalUnit(unitsAsString);
-}
-
 LengthUnit getCanonicalUnit(const std::string &unit)
 {
   const std::string lowerUnit = toLower(unit);

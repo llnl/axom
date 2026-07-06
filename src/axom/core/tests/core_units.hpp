@@ -34,31 +34,35 @@ void expectEquivalent(Length length1, Length length2)
   expectConvertsTo(length2, length1);
 }
 
-TEST(Units, parseLengthUnits)
+TEST(Units, getCanonicalUnit)
 {
-  EXPECT_EQ(LengthUnit::am, parseLengthUnits("attometer"));
-  EXPECT_EQ(LengthUnit::fm, parseLengthUnits("femtometre"));
-  EXPECT_EQ(LengthUnit::pm, parseLengthUnits("picometers"));
-  EXPECT_EQ(LengthUnit::km, parseLengthUnits("km"));
-  EXPECT_EQ(LengthUnit::hm, parseLengthUnits("hectometer"));
-  EXPECT_EQ(LengthUnit::dam, parseLengthUnits("decametre"));
-  EXPECT_EQ(LengthUnit::m, parseLengthUnits("m"));
-  EXPECT_EQ(LengthUnit::dm, parseLengthUnits("dm"));
-  EXPECT_EQ(LengthUnit::cm, parseLengthUnits("cm"));
-  EXPECT_EQ(LengthUnit::mm, parseLengthUnits("mm"));
-  EXPECT_EQ(LengthUnit::um, parseLengthUnits("um"));
-  EXPECT_EQ(LengthUnit::nm, parseLengthUnits("nm"));
-  EXPECT_EQ(LengthUnit::angstrom, parseLengthUnits("A"));
-  EXPECT_EQ(LengthUnit::miles, parseLengthUnits("miles"));
-  EXPECT_EQ(LengthUnit::feet, parseLengthUnits("ft"));
-  EXPECT_EQ(LengthUnit::feet, parseLengthUnits("feet"));
-  EXPECT_EQ(LengthUnit::inches, parseLengthUnits("in"));
-  EXPECT_EQ(LengthUnit::inches, parseLengthUnits("inches"));
-  EXPECT_EQ(LengthUnit::mils, parseLengthUnits("mils"));
+  EXPECT_EQ(LengthUnit::am, getCanonicalUnit("attometer"));
+  EXPECT_EQ(LengthUnit::fm, getCanonicalUnit("femtometre"));
+  EXPECT_EQ(LengthUnit::pm, getCanonicalUnit("picometers"));
+  EXPECT_EQ(LengthUnit::km, getCanonicalUnit("km"));
+  EXPECT_EQ(LengthUnit::hm, getCanonicalUnit("hectometer"));
+  EXPECT_EQ(LengthUnit::dam, getCanonicalUnit("decametre"));
+  EXPECT_EQ(LengthUnit::m, getCanonicalUnit("m"));
+  EXPECT_EQ(LengthUnit::dm, getCanonicalUnit("dm"));
+  EXPECT_EQ(LengthUnit::cm, getCanonicalUnit("cm"));
+  EXPECT_EQ(LengthUnit::cm, getCanonicalUnit("centimeter"));
+  EXPECT_EQ(LengthUnit::mm, getCanonicalUnit("mm"));
+  EXPECT_EQ(LengthUnit::um, getCanonicalUnit("um"));
+  EXPECT_EQ(LengthUnit::nm, getCanonicalUnit("nm"));
+  EXPECT_EQ(LengthUnit::m, getCanonicalUnit("METRES"));
+  EXPECT_EQ(LengthUnit::angstrom, getCanonicalUnit("A"));
+  EXPECT_EQ(LengthUnit::fm, getCanonicalUnit("femtometres"));
+  EXPECT_EQ(LengthUnit::miles, getCanonicalUnit("miles"));
+  EXPECT_EQ(LengthUnit::miles, getCanonicalUnit("mi"));
+  EXPECT_EQ(LengthUnit::feet, getCanonicalUnit("ft"));
+  EXPECT_EQ(LengthUnit::feet, getCanonicalUnit("feet"));
+  EXPECT_EQ(LengthUnit::inches, getCanonicalUnit("in"));
+  EXPECT_EQ(LengthUnit::inches, getCanonicalUnit("inches"));
+  EXPECT_EQ(LengthUnit::mils, getCanonicalUnit("mils"));
 
   try
   {
-    parseLengthUnits("bad_units");
+    getCanonicalUnit("bad_units");
     FAIL() << "Should have thrown";
   }
   catch(const std::invalid_argument &error)
@@ -91,17 +95,6 @@ TEST(Units, getConversionFactor)
 
   EXPECT_THROW(getConversionFactor(LengthUnit::cm, LengthUnit::unspecified), std::invalid_argument);
   EXPECT_THROW(getConversionFactor(LengthUnit::unspecified, LengthUnit::cm), std::invalid_argument);
-}
-
-TEST(Units, getCanonicalUnit)
-{
-  EXPECT_EQ(LengthUnit::cm, getCanonicalUnit("centimeter"));
-  EXPECT_EQ(LengthUnit::m, getCanonicalUnit("METRES"));
-  EXPECT_EQ(LengthUnit::feet, getCanonicalUnit("feet"));
-  EXPECT_EQ(LengthUnit::miles, getCanonicalUnit("mi"));
-  EXPECT_EQ(LengthUnit::fm, getCanonicalUnit("femtometres"));
-
-  EXPECT_THROW(getCanonicalUnit("bad_units"), std::invalid_argument);
 }
 
 TEST(Units, getCanonicalUnitName)

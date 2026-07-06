@@ -18,34 +18,25 @@ namespace utilities
  */
 enum class LengthUnit
 {
-  am,
-  fm,
-  pm,
-  km,
-  hm,
-  dam,
-  m,
-  dm,
-  cm,
-  mm,
-  um,
-  nm,
-  angstrom,
-  miles,
-  feet,
-  inches,
-  mils,
-  unspecified
+  am,           // attometers
+  fm,           // femtometers
+  pm,           // picometers
+  km,           // kilometers
+  hm,           // hectometers
+  dam,          // decameters
+  m,            // meters
+  dm,           // decimeters
+  cm,           // centimeters
+  mm,           // millimeters
+  um,           // micrometers
+  nm,           // nanometers
+  angstrom,     // angstroms
+  miles,        // miles
+  feet,         // feet
+  inches,       // inches
+  mils,         // thousandths of an inch
+  unspecified   // no length unit specified
 };
-
-/**
- * Convert a string to a LengthUnit.
- *
- * \param unitsAsString the units as a string
- * \return the parsed units
- * \throws std::invalid_argument if the string does not represent known units
- */
-LengthUnit parseLengthUnits(const std::string &unitsAsString);
 
 /**
  * Get the canonical representation of a length unit string.
