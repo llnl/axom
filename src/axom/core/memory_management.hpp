@@ -473,7 +473,7 @@ namespace detail
 {
 
 /// Record that default host allocator has been used to allocate memory.
-void markDefaultHostAllocatorUsed(int allocId, const void* pointer) noexcept;
+void markDefaultHostAllocatorUsed(int allocId) noexcept;
 
 /// Enumeration used internally to make default allocator more easily identifiable.
 enum class AllocationBackend
@@ -609,7 +609,10 @@ inline T* allocate(std::size_t n, int allocID) noexcept
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
     T* pointer = static_cast<T*>(allocator.allocate(numbytes));
-    detail::markDefaultHostAllocatorUsed(allocID, pointer);
+    if(pointer != nullptr)
+    {
+      detail::markDefaultHostAllocatorUsed(allocID);
+    }
     return pointer;
   }
 #endif
@@ -617,7 +620,10 @@ inline T* allocate(std::size_t n, int allocID) noexcept
   if(allocID == MALLOC_ALLOCATOR_ID)
   {
     T* pointer = static_cast<T*>(std::malloc(numbytes));
-    detail::markDefaultHostAllocatorUsed(allocID, pointer);
+    if(pointer != nullptr)
+    {
+      detail::markDefaultHostAllocatorUsed(allocID);
+    }
     return pointer;
   }
 
@@ -650,7 +656,10 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
     umpire::Allocator allocator = rm.getAllocator(allocID);
     T* pointer = name.empty() ? static_cast<T*>(allocator.allocate(numbytes))
                               : static_cast<T*>(allocator.allocate(name, numbytes));
-    detail::markDefaultHostAllocatorUsed(allocID, pointer);
+    if(pointer != nullptr)
+    {
+      detail::markDefaultHostAllocatorUsed(allocID);
+    }
     return pointer;
   }
 #endif
@@ -659,7 +668,10 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
   {
     AXOM_UNUSED_VAR(name);
     T* pointer = static_cast<T*>(std::malloc(numbytes));
-    detail::markDefaultHostAllocatorUsed(allocID, pointer);
+    if(pointer != nullptr)
+    {
+      detail::markDefaultHostAllocatorUsed(allocID);
+    }
     return pointer;
   }
 
