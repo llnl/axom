@@ -172,13 +172,15 @@ public:
   }
 
   /**
-   * \brief Constructor for Map using a Set pointer and externally-owned data.
+   * \brief Constructor for Map from a Set pointer and an existing buffer.
    *
-   * This overload is intended for non-owning indirection policies such as
-   * `policies::ArrayViewIndirection`, but also works for owning buffers.
+   * Primarily for indirection policies that refer to a buffer managed elsewhere,
+   * such as `policies::ArrayViewIndirection`, It also accepts a buffer to move in
+   * for policies that hold their buffer by value.
    *
    * \param theSet pointer to the map's set (must outlive the map)
-   * \param data externally-owned (or moved-in) storage for the map's values
+   * \param data the map's value buffer -- viewed (and thus required to outlive the
+   *  map) for a view indirection, or moved in for an owning indirection
    * \param shape (Optional) number of values mapped per set element (stride)
    */
   Map(const SetType* theSet, OrderedMap data, ElementShape shape = StridePolicyType::DefaultSize())
@@ -389,8 +391,7 @@ public:
    * \brief Returns the shape of the component values associated with each element.
    *
    *  For one-dimensional strides, equivalent to stride(); otherwise, returns
-   *  an N-dimensional array with the number of values in each sub-component
-   *  index.
+   *  an N-dimensional array with the number of values in each sub-component index.
    */
   AXOM_HOST_DEVICE ElementShape shape() const { return StridePolicyType::shape(); }
 
@@ -517,7 +518,7 @@ public:
     SetPosition flatIndex() const { return this->m_pos; }
 
   protected:
-    /** Implementation of advance() as required by IteratorBase */
+    /// Implementation of advance() as required by IteratorBase
     AXOM_HOST_DEVICE void advance(PositionType n) { m_pos += n; }
 
   private:

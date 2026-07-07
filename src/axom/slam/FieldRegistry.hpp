@@ -43,11 +43,11 @@ namespace axom::slam
  *         with an `axom::ArrayView` indirection
  *         (useful when generating Slam objects from externally-managed arrays)
  *
- * \note Owning buffers and owning fields now use `axom::Array` rather than `std::vector`.
- *       Prefer `auto`, `FieldRegistry::BufferType`, and `FieldRegistry::MapType` 
- *       at registry boundaries. Code that needs a non-owning view
- *       should call `buffer.view()` or register storage with `addFieldView()` 
- *       or `addBufferView()` instead of assuming a `std::vector` interface.
+ * \note The registry-managed fields and buffers (the first mode above, and \ref FieldRegistry::BufferType)
+ *       now hold an `axom::Array` rather than a `std::vector`.
+ *       Prefer `auto`, `FieldRegistry::BufferType`, and `FieldRegistry::MapType` at registry boundaries.
+ *       When an `axom::ArrayView` is the right interface, call `buffer.view()`;
+ *       to register a buffer managed elsewhere, use `addFieldView()` or `addBufferView()`.
  */
 template <typename SetType, typename TheDataType>
 class FieldRegistry

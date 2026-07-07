@@ -25,10 +25,10 @@
  *   auto s = slam::make_indirection_set(view);  // -> ArrayViewIndirectionSet<.., double>
  * \endcode
  *
- * The indirection helpers prefer Slam's canonical Axom view policy for non-owning buffers.
- * Overloads that receive \c axom::ArrayView or \c axom::Array return \c ArrayViewIndirectionSet.
- * Construct \c ArrayIndirectionSet directly when the set should bind
- * an \c axom::Array buffer through the \c ArrayIndirection policy.
+ * These helpers return sets that view a buffer managed elsewhere: 
+ * overloads that receive an \c axom::ArrayView or \c axom::Array return an
+ * \c ArrayViewIndirectionSet (holding an \c axom::ArrayView by value). 
+ * To make a set that manages its own \c axom::Array, construct \c ArrayIndirectionSet directly.
  *
  * \note On CTAD vs. helpers. A class-template-argument deduction guide cannot
  *  recover a set's policy stack from a SetBuilder argument: a guide parameter of
@@ -120,8 +120,8 @@ VectorIndirectionSet<PosType, T> make_indirection_set(std::vector<T>& vec)
  * \brief Make an indirection set whose elements indirect through an axom::Array's flat storage.
  *
  * The element type is deduced from \a arr.
- * The returned set uses the canonical non-owning ArrayView indirection policy
- * over the array's flat storage. The set's size matches the array.
+ * The returned set holds an \c axom::ArrayView over the array's flat storage
+ * (so \a arr must outlive the set). The set's size matches the array.
  *
  * The set exposes the array in `flatIndex` order: element \c i resolves to
  * `arr.data()[i * arr.minStride()]`, matching axom::Array's own flat-index contract

@@ -65,27 +65,26 @@ namespace axom
 namespace slam
 {
 /*!
- * \brief A set whose \a ElemType elements are stored in an external \c axom::Array.
+ * \brief A set whose \a ElemType elements are read from an \c axom::Array.
  *
- * This is the canonical Axom indirection set for binding an \c axom::Array buffer.
- * The array object is managed outside the set and must outlive it.
- * \sa ArrayViewSet for the non-owning, device-capturable form
+ * The \c axom::Array is managed outside the set and must outlive it.
+ * \sa ArrayViewSet for the device-capturable form
  */
 template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType>
 using ArraySet = ArrayIndirectionSet<PosType, ElemType>;
 
 /*!
- * \brief A set whose \a ElemType elements are viewed through an \c axom::ArrayView.
+ * \brief A set whose \a ElemType elements are read through an \c axom::ArrayView.
  *
- * The view is stored by value, so this is the preferred indirection-set shape
- * for device-capturable views over storage owned elsewhere.
+ * The view is held by value and refers to a buffer managed elsewhere (which must outlive the set);
+ * because \c axom::ArrayView is trivially copyable, it can be used for device capture.
  */
 template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType>
 using ArrayViewSet = ArrayViewIndirectionSet<PosType, ElemType>;
 
 /*!
  * \brief A static relation from \a FromSet to \a ToSet with per-element (variable) cardinality,
- *  binding offsets and indices in external \c axom::Array buffers.
+ *  reading offsets and indices from \c axom::Array buffers managed elsewhere.
  *
  * This is the type produced by the \c axom::Array overload of \c make_variable_relation.
  */
@@ -119,7 +118,7 @@ using VariableRelationView =
 
 /*!
  * \brief A static relation from \a FromSet to \a ToSet with fixed cardinality \a N
- *  (each from-element maps to exactly N to-elements), binding indices in an external \c axom::Array buffer.
+ *  (each from-element maps to exactly N to-elements), reading indices from an \c axom::Array buffer managed elsewhere.
  */
 template <typename FromSet,
           typename ToSet,
@@ -153,7 +152,7 @@ using ConstantRelationView =
 
 /*!
  * \brief A static relation from \a FromSet to \a ToSet with runtime constant cardinality,
- *  binding indices in an external \c axom::Array buffer.
+ *  reading indices from an \c axom::Array buffer managed elsewhere.
  */
 template <typename FromSet,
           typename ToSet,
