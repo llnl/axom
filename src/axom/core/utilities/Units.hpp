@@ -12,7 +12,7 @@ namespace axom
 {
 namespace utilities
 {
-/**
+/*!
  * Units of length in which users can express lengths and in which client
  * codes can request them.
  */
@@ -38,7 +38,7 @@ enum class LengthUnit
   unspecified  // no length unit specified
 };
 
-/**
+/*!
  * Get the length unit represented by a string.
  *
  * \param unit the unit as a string
@@ -47,7 +47,7 @@ enum class LengthUnit
  */
 LengthUnit getLengthUnit(const std::string &unit);
 
-/**
+/*!
  * Get the short name of a length unit.
  *
  * \param unit the unit
@@ -56,7 +56,7 @@ LengthUnit getLengthUnit(const std::string &unit);
  */
 std::string getLengthUnitName(LengthUnit unit);
 
-/**
+/*!
  * Get the conversion factor to convert from the given source units to the target units.
  *
  * \param sourceUnits the original units
@@ -66,7 +66,7 @@ std::string getLengthUnitName(LengthUnit unit);
  */
 double getConversionFactor(LengthUnit sourceUnits, LengthUnit targetUnits);
 
-/**
+/*!
  * Convert a value from one set of units to another.
  *
  * \param sourceValue the value of the length in the original units
@@ -76,7 +76,7 @@ double getConversionFactor(LengthUnit sourceUnits, LengthUnit targetUnits);
  */
 double convert(double sourceValue, LengthUnit sourceUnits, LengthUnit targetUnits);
 
-/**
+/*!
  * Convert multiple lengths in place.
  *
  * \tparam T the type containing the units. Must be iterable.

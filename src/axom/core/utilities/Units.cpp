@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/utilities/Units.hpp"
+#include "axom/core/utilities/StringUtilities.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -12,27 +13,23 @@
 #include <string>
 #include <unordered_map>
 
+/*
+ * NOTE: Much of the code here was gathered/adapted from various parts of Axom
+ *       authored by @kennyweiss and others.
+ */
 namespace axom
 {
 namespace utilities
 {
 namespace
 {
-/**
+/*!
  * A simple functor which can be used for hashing length units.
  */
 struct LengthUnitHash
 {
   std::size_t operator()(LengthUnit unit) const { return static_cast<std::size_t>(unit); }
 };
-
-std::string toLower(std::string str)
-{
-  std::transform(str.begin(), str.end(), str.begin(), [](unsigned char ch) {
-    return static_cast<char>(std::tolower(ch));
-  });
-  return str;
-}
 
 std::string unrecognizedUnitsMessage(const std::string &unitsAsString)
 {
@@ -44,7 +41,8 @@ std::string unrecognizedUnitsMessage(const std::string &unitsAsString)
 
 LengthUnit getLengthUnit(const std::string &unit)
 {
-  const std::string lowerUnit = toLower(unit);
+  std::string lowerUnit(unit);
+  string::toLower(lowerUnit);
 
   static const std::unordered_map<std::string, LengthUnit> UNITS_BY_NAME {
     {"inch", LengthUnit::inches},
