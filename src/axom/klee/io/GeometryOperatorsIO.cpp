@@ -15,7 +15,6 @@
 #include "axom/fmt.hpp"
 
 #include <functional>
-#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -140,17 +139,6 @@ std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vect
     result.push_back(value.vec[i]);
   }
   return result;
-}
-
-Point3D inletVectorToPoint(const inlet::FunctionType::Vector& value, Dimensions expectedDims)
-{
-  const auto expectedSize = static_cast<int>(expectedDims);
-  if(value.dim != expectedSize)
-  {
-    throw std::runtime_error(
-      fmt::format("Wrong size for transform. Expected {}. Got {}.", expectedSize, value.dim));
-  }
-  return Point3D {value.vec[0], value.vec[1], expectedDims == Dimensions::Three ? value.vec[2] : 0.};
 }
 
 std::vector<double> getDoubleVector(const inlet::Container& container,
@@ -633,34 +621,6 @@ OpPtr parseScale(const SingleOperatorData& data,
 }
 
 /**
- * Parse a point transform.
- *
- * \param data the operator data to parse
- * \param startProperties the properties prior to this operator
- * \return the created operator
- */
-OpPtr parseTransform(const SingleOperatorData& data,
-                     const TransformableGeometryProperties& startProperties)
-{
-  const auto& opContainer = *data.m_container;
-  verifyObjectFields(opContainer, "transform", FieldSet {}, FieldSet {});
-  auto transform = opContainer[callbackName("transform")]
-                     .get<std::function<inlet::FunctionType::Vector(inlet::FunctionType::Vector)>>();
-  const auto expectedDims = startProperties.dimensions;
-  auto path = static_cast<std::string>(fieldPath(opContainer, "transform"));
-  auto context = callbackContext(opContainer, "transform", data.m_shapeName);
-
-  return std::make_shared<PointTransform>(
-    [transform, expectedDims](const Point3D& point) {
-      inlet::FunctionType::Vector input {point.data(), static_cast<int>(expectedDims)};
-      return inletVectorToPoint(transform(input), expectedDims);
-    },
-    startProperties,
-    path,
-    context);
-}
-
-/**
  * Parse a "convert_units_to" operator.
  *
  * \param opContainer the Container from which to read the operator
@@ -741,7 +701,6 @@ OpPtr convertOperator(SingleOperatorData const& data,
     {"rotate", parseRotate},
     {"slice", parseSlice},
     {"scale", parseScale},
-    {"transform", parseTransform},
     {"convert_units_to", parseConvertUnits},
     {"ref",
      [&namedOperators](const SingleOperatorData& opData,
@@ -833,11 +792,6 @@ inlet::Container& GeometryOperatorData::defineSchema(inlet::Container& parent,
     opContainer.addFunction(callbackName("center"), inlet::FunctionTag::Vector, {}, "", "center");
     opContainer.addFunction(callbackName("axis"), inlet::FunctionTag::Vector, {}, "", "axis");
     opContainer.addFunction(callbackName("scale"), inlet::FunctionTag::Vector, {}, "", "scale");
-    opContainer.addFunction(callbackName("transform"),
-                            inlet::FunctionTag::Vector,
-                            {inlet::FunctionTag::Vector},
-                            "",
-                            "transform");
 
     slice.addFunction(callbackName("x"), inlet::FunctionTag::Double, {}, "", "x");
     slice.addFunction(callbackName("y"), inlet::FunctionTag::Double, {}, "", "y");

@@ -12,7 +12,6 @@
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 
 #include <algorithm>
-#include <stdexcept>
 #include <utility>
 
 namespace axom
@@ -617,8 +616,7 @@ void DiscreteShape::createRepresentationOfSOR()
 
 void DiscreteShape::applyTransforms()
 {
-  const auto& geometry = m_shape.getGeometry();
-  if(!geometry.getGeometryOperator())
+  if(!m_shape.getGeometry().getGeometryOperator())
   {
     return;
   }
@@ -628,21 +626,6 @@ void DiscreteShape::applyTransforms()
   double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
   double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
   double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
-
-  if(geometry.hasNonAffineOperators())
-  {
-    for(int i = 0; i < numSurfaceVertices; ++i)
-    {
-      const auto xformed = geometry.applyTransform({x[i], y[i], (z == nullptr ? 0. : z[i])});
-      x[i] = xformed[0];
-      y[i] = xformed[1];
-      if(z != nullptr)
-      {
-        z[i] = xformed[2];
-      }
-    }
-    return;
-  }
 
   numerics::Matrix<double> transformation = getTransforms();
   // Apply transformation to coordinates of each vertex in mesh.

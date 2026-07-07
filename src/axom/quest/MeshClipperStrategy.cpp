@@ -8,7 +8,6 @@
 
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/KleeError.hpp"
 
 namespace axom
 {
@@ -61,7 +60,6 @@ public:
     SLIC_WARNING("SliceOperator not yet supported for Shaper query");
     m_isValid = false;
   }
-  void visit(const klee::PointTransform&) override { m_isValid = false; }
 
   const numerics::Matrix<double>& getMatrix() const { return m_matrix; }
   bool isValid() const { return m_isValid; }
@@ -76,18 +74,7 @@ private:
 MeshClipperStrategy::MeshClipperStrategy(const klee::Geometry& kGeom)
   : m_info(kGeom.asHierarchy())
   , m_extTrans(kGeom.getTransform())
-{
-  // getTransform() above will throw if non-affine operators present,
-  // add explicit check for clarity and to fail early before expensive clipper setup
-  if(kGeom.hasNonAffineOperators())
-  {
-    throw klee::KleeError({axom::Path {"geometry"},
-                           "MeshClipperStrategy requires affine transformations only. "
-                           "Geometry contains non-affine operators (e.g., Lua transform functions) "
-                           "that cannot be represented as a 4x4 matrix. Use DiscreteShape for "
-                           "geometries with runtime transforms."});
-  }
-}
+{ }
 
 const std::string& MeshClipperStrategy::name() const
 {

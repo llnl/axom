@@ -19,42 +19,8 @@ namespace klee
 {
 namespace
 {
-Geometry::Point3D applyMatrix(const numerics::Matrix<double>& matrix, const Geometry::Point3D& point)
-{
-  double coords[4] = {point[0], point[1], point[2], 1.};
-  double xformed[4];
-  numerics::matrix_vector_multiply(matrix, coords, xformed);
-  return Geometry::Point3D {xformed[0], xformed[1], xformed[2]};
-}
-
-bool operatorSequenceHasNonAffine(const std::shared_ptr<const GeometryOperator>& op)
-{
-  if(!op)
-  {
-    return false;
-  }
-
-  if(auto composite = std::dynamic_pointer_cast<const CompositeOperator>(op))
-  {
-    for(const auto& child : composite->getOperators())
-    {
-      if(operatorSequenceHasNonAffine(child))
-      {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  return !std::dynamic_pointer_cast<const MatrixOperator>(op);
-}
-
 std::string operatorName(const GeometryOperator& op)
 {
-  if(dynamic_cast<const PointTransform*>(&op))
-  {
-    return "transform";
-  }
   if(dynamic_cast<const Translation*>(&op))
   {
     return "translate";
@@ -88,38 +54,10 @@ void requireMatrixOperator(const std::shared_ptr<const GeometryOperator>& op, in
   const auto ordinal =
     index >= 0 ? axom::fmt::format("operator {}", index) : std::string {"operator"};
   throw KleeError({Path {"geometry/operators"},
-                   axom::fmt::format("Cannot convert geometry to matrix: {} ({}) is non-affine. "
-                                     "Use applyTransform(point) for per-point evaluation.",
+                   axom::fmt::format("Cannot convert geometry to matrix: {} ({}) is not a "
+                                     "matrix operator.",
                                      ordinal,
                                      operatorName(*op))});
-}
-
-Geometry::Point3D applyOperator(const std::shared_ptr<const GeometryOperator>& op,
-                                const Geometry::Point3D& point)
-{
-  if(auto composite = std::dynamic_pointer_cast<const CompositeOperator>(op))
-  {
-    Geometry::Point3D result = point;
-    for(const auto& child : composite->getOperators())
-    {
-      result = applyOperator(child, result);
-    }
-    return result;
-  }
-
-  if(auto matrixOp = std::dynamic_pointer_cast<const MatrixOperator>(op))
-  {
-    return applyMatrix(matrixOp->toMatrix(), point);
-  }
-
-  if(auto pointTransform = std::dynamic_pointer_cast<const PointTransform>(op))
-  {
-    return pointTransform->apply(point);
-  }
-
-  throw KleeError(
-    {Path {"geometry/operators"},
-     axom::fmt::format("Cannot apply unsupported geometry operator '{}'.", operatorName(*op))});
 }
 }  // namespace
 
@@ -234,20 +172,6 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
 
 void Geometry::populateGeomInfo()
 {
-  // Only certain formats actually use Conduit serialization. Check for non-affine
-  // operators only for those formats that will actually serialize to m_geomInfo.
-  const bool needsSerialization =
-    (m_format == "blueprint-tets" || m_format == "tet3D" || m_format == "sphere3D" ||
-     m_format == "cone3D" || m_format == "hex3D" || m_format == "plane3D" || m_format == "sor3D");
-
-  if(needsSerialization && hasNonAffineOperators())
-  {
-    throw KleeError({Path {"geometry"},
-                     "Cannot serialize geometry to Conduit: geometry contains non-affine operators "
-                     "(e.g., Lua transform functions) that cannot be represented as pure data. "
-                     "Retain the original input deck file (.lua) for full reproducibility."});
-  }
-
   if(m_format == "blueprint-tets")
   {
     m_meshGroup->deepCopyToConduit(m_geomInfo["klee::Geometry:tetMesh"]);
@@ -405,17 +329,6 @@ numerics::Matrix<double> Geometry::getTransform() const
     }
   }
   return transformation;
-}
-
-bool Geometry::hasNonAffineOperators() const { return operatorSequenceHasNonAffine(m_operator); }
-
-Geometry::Point3D Geometry::applyTransform(const Point3D& point) const
-{
-  if(!m_operator)
-  {
-    return point;
-  }
-  return applyOperator(m_operator, point);
 }
 
 }  // namespace klee

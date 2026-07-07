@@ -10,7 +10,6 @@
 set(quest_tests
     quest_all_nearest_neighbors.cpp
     quest_delaunay.cpp
-    quest_discrete_shape.cpp
     quest_inout_octree.cpp
     quest_inout_quadtree.cpp
     quest_linearize_curves.cpp

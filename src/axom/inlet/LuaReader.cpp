@@ -493,8 +493,7 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
   std::shared_ptr<axom::sol::state> lua_state)
 {
   // Capture lua_state by shared_ptr to keep the Lua state alive for the lifetime of the returned std::function.
-  // This is critical for callbacks and transforms stored in long-lived objects
-  // (e.g., Klee Geometry with PointTransform operators).
+  // This is critical for callbacks stored in long-lived objects.
   // The Lua state must remain valid as long as any std::function referencing Lua code exists.
   return [lua_state(std::move(lua_state)),
           func(std::move(func))](typename detail::inlet_function_arg_type<Args>::type... args) {

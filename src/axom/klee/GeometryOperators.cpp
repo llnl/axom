@@ -8,7 +8,6 @@
 #include "axom/core/numerics/transforms.hpp"
 
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/KleeError.hpp"
 #include "axom/klee/Units.hpp"
 
 #include <cmath>
@@ -249,35 +248,6 @@ TransformableGeometryProperties SliceOperator::getEndProperties() const
   result.dimensions = Dimensions::Two;
   return result;
 }
-
-PointTransform::PointTransform(TransformFunction transform,
-                               const TransformableGeometryProperties& startProperties,
-                               std::string diagnosticPath,
-                               std::string diagnosticContext)
-  : GeometryOperator {startProperties}
-  , m_transform {std::move(transform)}
-  , m_diagnosticPath {std::move(diagnosticPath)}
-  , m_diagnosticContext {std::move(diagnosticContext)}
-{ }
-
-PointTransform::Point3D PointTransform::apply(const Point3D& point) const
-{
-  try
-  {
-    return m_transform(point);
-  }
-  catch(const KleeError&)
-  {
-    throw;
-  }
-  catch(const std::exception& ex)
-  {
-    throw KleeError(
-      {Path {m_diagnosticPath}, axom::fmt::format("{}: {}", m_diagnosticContext, ex.what())});
-  }
-}
-
-void PointTransform::accept(GeometryOperatorVisitor& visitor) const { visitor.visit(*this); }
 
 }  // namespace klee
 }  // namespace axom

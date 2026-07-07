@@ -17,9 +17,7 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
-#include <functional>
 #include <memory>
-#include <string>
 #include <vector>
 
 namespace axom
@@ -389,53 +387,6 @@ private:
 };
 
 /**
- * A point-wise transform whose operation cannot generally be represented by an affine matrix.
- *
- * \note Lifetime management: When created from Lua input decks, the TransformFunction
- * holds shared ownership of the Lua state via std::function capture semantics.
- * The Lua state is automatically kept alive for the lifetime of any PointTransform objects that
- * reference Lua functions. No manual lifetime management is required by users of this class.
- */
-class PointTransform : public GeometryOperator
-{
-public:
-  using Point3D = primal::Point<double, 3>;
-  using TransformFunction = std::function<Point3D(const Point3D&)>;
-
-  /**
-   * Create a point transform.
-   *
-   * \param transform the point-wise transformation to apply
-   * \param startProperties the initial properties, as in the parent class.
-   * \param diagnosticPath the Klee input path used for runtime diagnostics
-   * \param diagnosticContext user-facing field/operator context for diagnostics
-   *
-   * \note When the transform function is created from Lua (via readShapeSet),
-   * the std::function automatically captures shared ownership of the Lua state,
-   * ensuring the Lua environment remains valid for the lifetime of this operator.
-   */
-  PointTransform(TransformFunction transform,
-                 const TransformableGeometryProperties& startProperties,
-                 std::string diagnosticPath,
-                 std::string diagnosticContext);
-
-  /**
-   * Apply the transform to a point.
-   *
-   * \param point the point to transform
-   * \return the transformed point
-   */
-  Point3D apply(const Point3D& point) const;
-
-  void accept(GeometryOperatorVisitor& visitor) const override;
-
-private:
-  TransformFunction m_transform;
-  std::string m_diagnosticPath;
-  std::string m_diagnosticContext;
-};
-
-/**
  * A GeometryOperatorVisitor defines visitor for interacting with
  * instances of GeometryOperator. It defines a "visit()" method for each
  * type of operator that a user can specify in the input file, as well
@@ -457,8 +408,6 @@ public:
   virtual void visit(const CompositeOperator& composite) = 0;
 
   virtual void visit(const SliceOperator& slice) = 0;
-
-  virtual void visit(const PointTransform& transform) = 0;
 };
 
 }  // namespace klee

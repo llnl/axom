@@ -45,6 +45,5 @@ void AffineMatrixVisitor::visit(const klee::SliceOperator&)
   SLIC_WARNING_ROOT("SliceOperator not yet supported for Shaper query");
   m_isValid = false;
 }
-void AffineMatrixVisitor::visit(const klee::PointTransform&) { m_isValid = false; }
 
 }  // end namespace axom::klee

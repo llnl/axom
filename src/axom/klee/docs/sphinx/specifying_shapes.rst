@@ -127,8 +127,8 @@ be generated programmatically:
     }
 
 Caller-provided input variables can also be injected into a Lua deck before it is evaluated.
-This is useful when an application wants one deck to select between 2D and 3D geometry, 
-dimensions, or transforms at run time:
+This is useful when an application wants one deck to select between 2D and 3D geometry,
+dimensions, or operator values at run time:
 
 .. code-block:: c++
 
@@ -178,14 +178,16 @@ closures at run time without recompiling the C++ application:
         local dim = 2
         local lift = 3.0
 
-        local function warp(p)
-          return {p.x, p.y + lift}
+        local function offset(y)
+          return function()
+            return {0.0, y}
+          end
         end
 
         return {
           dimensions = dim,
           lift = lift,
-          warp = warp
+          offset = offset
         }
       )",
       "runtime_bindings"
@@ -203,8 +205,7 @@ closures at run time without recompiling the C++ application:
           path = "part.stl",
           units = "cm",
           operators = {
-            { translate = {1.0, lift} },
-            { transform = warp }
+            { translate = offset(lift) }
           }
         }
       }
@@ -265,71 +266,17 @@ Scalar-valued callbacks return a number. Supported callback fields are
 :code:`slice.x`, :code:`slice.y`, and :code:`slice.z`. For :code:`scale`, a
 number means uniform scaling and a table means per-axis scaling.
 
-Runtime Point Transforms
-^^^^^^^^^^^^^^^^^^^^^^^^
-Lua decks can also use the runtime :code:`transform` operator for non-affine point mapping.
-Unlike zero-argument callbacks, :code:`transform` is stored with the geometry
-and evaluated for each point when a consumer applies shape operators.
-The transform function receives a point with :code:`x`, :code:`y`, and :code:`z` fields 
-and returns a raw numeric table with the same dimensionality as the input geometry.
-
-.. code-block:: lua
-
-    local function spherical_to_cartesian(p)
-      local r = p.x
-      local theta = p.y
-      local phi = p.z
-      return {
-        r * math.sin(phi) * math.cos(theta),
-        r * math.sin(phi) * math.sin(theta),
-        r * math.cos(phi)
-      }
-    end
-
-    dimensions = 3
-
-    shapes = {
-      {
-        name = "shell",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "shell_in_spherical_coords.stl",
-          units = "cm",
-          operators = {
-            { transform = spherical_to_cartesian }
-          }
-        }
-      }
-    }
-
-The :code:`transform` operator is forward-only and cannot be represented as a matrix.
-Calls to matrix-only APIs such as :code:`Geometry::getTransform()` reject geometries
-that contain :code:`transform`. Use :code:`Geometry::applyTransform()` for point-wise evaluation.
-Quest's discrete-shape path applies mixed affine and Lua transforms in input order,
-while Quest algorithms that require affine matrices reject non-affine transforms with a diagnostic.
-
 Lua API Reference
 ^^^^^^^^^^^^^^^^^
 Lua decks may use ordinary Lua variables and functions, but only Klee schema fields should be global.
 Klee/Inlet registers the typed :code:`Vector` object as an alternative to raw tables.
-For callbacks and runtime transforms, raw numeric tables are the recommended return form.
-Runtime transform arguments expose :code:`p.x`, :code:`p.y`, :code:`p.z`, and :code:`p.dim`.
+For callbacks, raw numeric tables are the recommended return form.
 
 Limitations
 ^^^^^^^^^^^
-Runtime :code:`transform` operators are forward-only and do not provide inverse transforms.
-
-**Lua State Lifetime:** Geometry objects with Lua :code:`transform` operators
-hold shared ownership of the Lua state used during parsing. The Lua state is
-automatically kept alive for the lifetime of these geometries through
-:code:`std::function` capture semantics, so no manual lifetime management is required.
-Geometries with Lua transforms can be safely used after the original
-:code:`readShapeSet` call returns and any parsing artifacts are destroyed.
-
-**Serialization:**  Runtime Lua transforms cannot be serialized to Sidre/Conduit as pure data.
-Attempting to serialize a geometry with non-affine operators will result in an error.
-For reproducibility, retain the original :code:`.lua` input file.
+Lua callbacks are evaluated while Klee reads the deck. The resulting shape set
+contains ordinary Klee data and affine operators, so later consumers do not call
+back into Lua.
 
 Error Messages
 ^^^^^^^^^^^^^^
@@ -347,10 +294,6 @@ shape name when available, and operator location, for example:
 .. code-block:: text
 
     Error evaluating callback for 'translate' in shape 'part' operator 1: [Inlet] Lua function call failed: ...
-
-Runtime transform failures are reported when the transform is evaluated and carry
-the same shape/operator context. Matrix-only consumers report that :code:`transform`
-is non-affine and point-wise evaluation is required.
 
 Paths
 *****

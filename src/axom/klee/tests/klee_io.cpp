@@ -32,7 +32,6 @@ using klee::InputVariables;
 using klee::KleeError;
 using klee::LengthUnit;
 using klee::LuaBindingsChunk;
-using klee::PointTransform;
 using klee::Rotation;
 using klee::Scale;
 using klee::ShapeSet;
@@ -467,25 +466,17 @@ TEST(IOTest, readShapeSet_luaStreamMinimalShapeList)
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
 }
 
-TEST(IOTest, readShapeSet_luaInputVariablesControlDimensionAndTransform)
+TEST(IOTest, readShapeSet_luaInputVariablesControlDimensionAndOperator)
 {
   InputVariables variables {
     {"dimensions", klee::InputVariableValue {2}},
     {"shape_suffix", klee::InputVariableValue {std::string {"2d"}}},
     {"lift", klee::InputVariableValue {3.0}},
-    {"stretch", klee::InputVariableValue {2.0}},
   };
 
   auto shapeSet = readShapeSetFromString(R"(
     local function shape_path()
       return "part_" .. shape_suffix .. ".stl"
-    end
-
-    local function warp(p)
-      if dimensions == 2 then
-        return {p.x * stretch, p.y + lift}
-      end
-      return {p.x * stretch, p.y, p.z + lift}
     end
 
     shapes = {
@@ -497,8 +488,7 @@ TEST(IOTest, readShapeSet_luaInputVariablesControlDimensionAndTransform)
           path = shape_path(),
           units = "cm",
           operators = {
-            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} },
-            { transform = warp }
+            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} }
           }
         }
       }
@@ -511,29 +501,24 @@ TEST(IOTest, readShapeSet_luaInputVariablesControlDimensionAndTransform)
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   const auto& geometry = shapeSet.getShapes()[0].getGeometry();
   EXPECT_EQ("part_2d.stl", geometry.getPath());
-  EXPECT_TRUE(geometry.hasNonAffineOperators());
-  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 99.0}), AlmostEqPoint(Point3D {6.0, 10.0, 0.0}));
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkControlDimensionAndTransform)
+TEST(IOTest, readShapeSet_luaBindingsChunkControlDimensionAndOperator)
 {
   LuaBindingsChunk bindings {R"(
     local dim = 2
     local lift = 3.0
-    local stretch = 2.0
-
-    local function warp(p)
-      if dim == 2 then
-        return {p.x * stretch, p.y + lift}
-      end
-      return {p.x * stretch, p.y, p.z + lift}
-    end
 
     return {
       dimensions = dim,
       shape_suffix = "2d",
-      lift = lift,
-      warp = warp
+      lift = lift
     }
   )",
                              "runtime_bindings"};
@@ -552,8 +537,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkControlDimensionAndTransform)
           path = shape_path(),
           units = "cm",
           operators = {
-            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} },
-            { transform = warp }
+            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} }
           }
         }
       }
@@ -566,26 +550,21 @@ TEST(IOTest, readShapeSet_luaBindingsChunkControlDimensionAndTransform)
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   const auto& geometry = shapeSet.getShapes()[0].getGeometry();
   EXPECT_EQ("part_2d.stl", geometry.getPath());
-  EXPECT_TRUE(geometry.hasNonAffineOperators());
-  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 99.0}), AlmostEqPoint(Point3D {6.0, 10.0, 0.0}));
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
 TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
 {
   LuaBindingsChunk bindings {R"(
     local lift = 3.0
-    local stretch = 2.0
-
-    local function warp(p)
-      if dimensions == 2 then
-        return {p.x * stretch, p.y + lift}
-      end
-      return {p.x * stretch, p.y, p.z + lift}
-    end
 
     return {
-      lift = lift,
-      warp = warp
+      lift = lift
     }
   )",
                              "runtime_bindings"};
@@ -609,8 +588,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
           path = shape_path(),
           units = "cm",
           operators = {
-            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} },
-            { transform = warp }
+            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} }
           }
         }
       }
@@ -624,7 +602,12 @@ TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   const auto& geometry = shapeSet.getShapes()[0].getGeometry();
   EXPECT_EQ("part_2d.stl", geometry.getPath());
-  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 99.0}), AlmostEqPoint(Point3D {6.0, 10.0, 0.0}));
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
 TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
@@ -1230,287 +1213,6 @@ TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
   }
 }
 
-TEST(IOTest, readShapeSet_luaTransformOperator)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    local function warp(p)
-      return {p.x + 1, p.y * 2, p.z * p.z}
-    end
-
-    dimensions = 3
-    shapes = {
-      {
-        name = "warped",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "warped.stl",
-          units = "cm",
-          operators = {
-            { transform = warp }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
-  EXPECT_TRUE(geometry.hasNonAffineOperators());
-  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
-  ASSERT_TRUE(composite);
-  ASSERT_EQ(1u, composite->getOperators().size());
-  EXPECT_TRUE(std::dynamic_pointer_cast<const PointTransform>(composite->getOperators()[0]));
-  EXPECT_THAT(geometry.applyTransform({2, 3, 4}), AlmostEqPoint(Point3D {3, 6, 16}));
-}
-
-// Note: Serialization behavior is tested via Quest MeshClipperStrategy tests
-// and the Geometry format-specific serialization paths.
-// Direct serialization testing would require using formats with embedded geometry definitions.
-
-TEST(IOTest, readShapeSet_luaTransformLifetimeAfterParsing)
-{
-  // This test validates that geometries with Lua transforms remain valid
-  // after the original ShapeSet and parsing scope are destroyed. The Lua
-  // state is kept alive via shared_ptr capture in std::function objects.
-  klee::Geometry geometry = [&]() {
-    auto shapeSet = readShapeSetFromString(R"(
-      local function warp(p)
-        return {p.x * 2, p.y + 10, p.z * p.z}
-      end
-
-      dimensions = 3
-      shapes = {
-        {
-          name = "warped",
-          material = "steel",
-          geometry = {
-            format = "stl",
-            path = "warped.stl",
-            units = "cm",
-            operators = {
-              { transform = warp }
-            }
-          }
-        }
-      }
-    )",
-                                           InputFormat::Lua);
-    // Return a copy of the geometry; the ShapeSet will be destroyed when
-    // this lambda returns, but the Lua state should remain alive.
-    return shapeSet.getShapes()[0].getGeometry();
-  }();  // ShapeSet is destroyed here
-
-  // Validate that the transform still works after ShapeSet destruction
-  EXPECT_TRUE(geometry.hasNonAffineOperators());
-  EXPECT_THAT(geometry.applyTransform({3, 5, 4}), AlmostEqPoint(Point3D {6, 15, 16}));
-}
-
-TEST(IOTest, readShapeSet_luaTransformOperator2D)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    dimensions = 2
-    shapes = {
-      {
-        name = "warped_2d",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "warped_2d.stl",
-          units = "cm",
-          operators = {
-            { transform = function(p) return {p.x + 3, p.y * 2} end }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
-  EXPECT_TRUE(geometry.hasNonAffineOperators());
-  EXPECT_THAT(geometry.applyTransform({2, 3, 99}), AlmostEqPoint(Point3D {5, 6, 0}));
-}
-
-TEST(IOTest, readShapeSet_luaTransformOperatorOrder)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    dimensions = 3
-    shapes = {
-      {
-        name = "ordered",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "ordered.stl",
-          units = "cm",
-          operators = {
-            { translate = {1, 0, 0} },
-            { transform = function(p) return {p.x * 2, p.y, p.z} end }
-          }
-        }
-      },
-      {
-        name = "reverse_ordered",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "reverse.stl",
-          units = "cm",
-          operators = {
-            { transform = function(p) return {p.x * 2, p.y, p.z} end },
-            { translate = {1, 0, 0} }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  EXPECT_THAT(shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3}),
-              AlmostEqPoint(Point3D {4, 2, 3}));
-  EXPECT_THAT(shapeSet.getShapes()[1].getGeometry().applyTransform({1, 2, 3}),
-              AlmostEqPoint(Point3D {3, 2, 3}));
-}
-
-TEST(IOTest, readShapeSet_luaNamedOperatorWithTransform)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    dimensions = 3
-    named_operators = {
-      {
-        name = "raise_y",
-        start_dimensions = 3,
-        units = "cm",
-        value = {
-          { transform = function(p) return {p.x, p.y + 10, p.z} end }
-        }
-      }
-    }
-    shapes = {
-      {
-        name = "uses_named_transform",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "named.stl",
-          units = "cm",
-          operators = {
-            { ref = "raise_y" }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
-  EXPECT_TRUE(geometry.hasNonAffineOperators());
-  EXPECT_THAT(geometry.applyTransform({1, 2, 3}), AlmostEqPoint(Point3D {1, 12, 3}));
-}
-
-TEST(IOTest, readShapeSet_luaTransformErrorIncludesContext)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    dimensions = 3
-    shapes = {
-      {
-        name = "bad_runtime",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "bad_runtime.stl",
-          units = "cm",
-          operators = {
-            { transform = function(p) error("runtime boom") end }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  try
-  {
-    shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3});
-    FAIL() << "Should have thrown";
-  }
-  catch(const KleeError& err)
-  {
-    EXPECT_THAT(err.what(), HasSubstr("transform"));
-    EXPECT_THAT(err.what(), HasSubstr("bad_runtime"));
-    EXPECT_THAT(err.what(), HasSubstr("runtime boom"));
-  }
-}
-
-TEST(IOTest, readShapeSet_luaTransformWrongReturnDimensionIncludesContext)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    dimensions = 3
-    shapes = {
-      {
-        name = "wrong_runtime_dim",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "wrong_runtime_dim.stl",
-          units = "cm",
-          operators = {
-            { transform = function(p) return {p.x, p.y} end }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  try
-  {
-    shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3});
-    FAIL() << "Should have thrown";
-  }
-  catch(const KleeError& err)
-  {
-    EXPECT_THAT(err.what(), HasSubstr("transform"));
-    EXPECT_THAT(err.what(), HasSubstr("wrong_runtime_dim"));
-    EXPECT_THAT(err.what(), HasSubstr("Wrong size"));
-  }
-}
-
-TEST(IOTest, readShapeSet_luaTransformWrongReturnTypeIncludesContext)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    dimensions = 3
-    shapes = {
-      {
-        name = "wrong_runtime_type",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "wrong_runtime_type.stl",
-          units = "cm",
-          operators = {
-            { transform = function(p) return "not a point" end }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  try
-  {
-    shapeSet.getShapes()[0].getGeometry().applyTransform({1, 2, 3});
-    FAIL() << "Should have thrown";
-  }
-  catch(const KleeError& err)
-  {
-    EXPECT_THAT(err.what(), HasSubstr("transform"));
-    EXPECT_THAT(err.what(), HasSubstr("wrong_runtime_type"));
-    EXPECT_THAT(err.what(), HasSubstr("return types possibly incorrect"));
-  }
-}
-
 TEST(IOTest, readShapeSet_luaIntegratedWorkflowSmoke)
 {
   auto shapeSet = readShapeSetFromString(R"(
@@ -1535,10 +1237,6 @@ TEST(IOTest, readShapeSet_luaIntegratedWorkflowSmoke)
       return {scale_factor}
     end
 
-    local function shear_coordinates(p)
-      return {p.x + 0.5 * p.y, p.y}
-    end
-
     dimensions = dim
     shapes = {
       {
@@ -1550,8 +1248,7 @@ TEST(IOTest, readShapeSet_luaIntegratedWorkflowSmoke)
           units = "cm",
           operators = {
             { scale = scale_callback },
-            { translate = lift_by(lift) },
-            { transform = shear_coordinates }
+            { translate = lift_by(lift) }
           }
         }
       }
@@ -1561,8 +1258,19 @@ TEST(IOTest, readShapeSet_luaIntegratedWorkflowSmoke)
 
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   const auto& geometry = shapeSet.getShapes()[0].getGeometry();
-  EXPECT_TRUE(geometry.hasNonAffineOperators());
-  EXPECT_THAT(geometry.applyTransform({2.0, 4.0, 0.0}), AlmostEqPoint(Point3D {6.5, 8.0, 0.0}));
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(2u, composite->getOperators().size());
+
+  auto scale = std::dynamic_pointer_cast<const Scale>(composite->getOperators()[0]);
+  ASSERT_TRUE(scale);
+  EXPECT_DOUBLE_EQ(1.25, scale->getXFactor());
+  EXPECT_DOUBLE_EQ(1.25, scale->getYFactor());
+  EXPECT_DOUBLE_EQ(1.25, scale->getZFactor());
+
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[1]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {0.0, 3.0, 0.0}));
 }
 
 TEST(IOTest, readShapeSet_luaParsePerformanceSmoke)

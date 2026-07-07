@@ -4,7 +4,6 @@ local scoop_radius = 1.1
 local scoop_lift = 2.0
 local sprinkle_lift = 3.0
 local cone_lift = -2.0
-local cone_shear = 0.12
 
 local function point(x, y, z)
   if dim == 2 then
@@ -23,19 +22,11 @@ local function scoop_scale()
   return {scoop_radius}
 end
 
-local function cone_coordinates(p)
-  return {
-    p.x + cone_shear * p.y,
-    p.y
-  }
-end
-
 return {
   dimensions = dim,
   scoop_lift = scoop_lift,
   sprinkle_lift = sprinkle_lift,
   cone_lift = cone_lift,
   offset = offset,
-  scoop_scale = scoop_scale,
-  cone_coordinates = cone_coordinates
+  scoop_scale = scoop_scale
 }

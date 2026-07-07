@@ -288,12 +288,10 @@ Lua decks use the same shape schema as YAML, but Lua is evaluated first,
 which lets you keep helper constants and functions local to the deck:
 
 - ordinary Klee fields can be generated from local variables,
-- selected affine operator fields can be zero-argument callbacks evaluated once during parsing, and
-- the Lua-only `transform` operator can map points through a non-affine coordinate conversion at runtime.
+- selected affine operator fields can be zero-argument callbacks evaluated once during parsing.
 
 The lesson's `ice_cream.lua` deck mirrors the YAML ice-cream setup while using these Lua features in one small workflow.
-Helper functions generate dimensional points, callbacks compute scale and translation fields, 
-and the cone includes a simple point transform before its ordinary affine operators.
+Helper functions generate dimensional points, and callbacks compute scale and translation fields.
 
 ### Replacement Rules
 Replacement rules give users some extra control in how shapes get overlaid. By default, a new shape of a given material will replace all other shapes.
@@ -333,7 +331,6 @@ If desired, users can either add an explicit list of materials to replace via th
         axis: [ax, ay, az]
         center: val
       - scale: scalar or [sx, sy, sz]
-      - transform: Lua function mapping a point to a point (Lua decks only)
       - convert_units_to: target_unit
   - replaces: \<list of material names>
   - does_not_replace: \<list of material names>

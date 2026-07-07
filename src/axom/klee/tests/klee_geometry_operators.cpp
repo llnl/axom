@@ -28,7 +28,6 @@ using klee::CompositeOperator;
 using klee::Dimensions;
 using klee::GeometryOperatorVisitor;
 using klee::LengthUnit;
-using klee::PointTransform;
 using klee::Rotation;
 using klee::Scale;
 using klee::SliceOperator;
@@ -93,7 +92,6 @@ public:
   MOCK_METHOD(void, visit, (const UnitConverter& converter), (override));
   MOCK_METHOD(void, visit, (const CompositeOperator& op), (override));
   MOCK_METHOD(void, visit, (const SliceOperator& op), (override));
-  MOCK_METHOD(void, visit, (const PointTransform& op), (override));
 };
 
 TEST(GeometryOperator, getProperties)
@@ -466,26 +464,4 @@ TEST(Slice, accept)
   MockVisitor visitor;
   EXPECT_CALL(visitor, visit(Matcher<const SliceOperator&>(Ref(slice))));
   slice.accept(visitor);
-}
-
-TEST(PointTransform, apply)
-{
-  PointTransform transform {
-    [](const Point3D& p) { return Point3D {p[0] + 1., p[1] * 2., p[2] - 3.}; },
-    {Dimensions::Three, LengthUnit::cm},
-    "operators/1/transform",
-    "Error evaluating callback for 'transform' in shape 'shape' operator 1"};
-
-  EXPECT_THAT(transform.apply({1., 2., 3.}), AlmostEqPoint(Point3D {2., 4., 0.}));
-}
-
-TEST(PointTransform, accept)
-{
-  PointTransform transform {[](const Point3D& p) { return p; },
-                            {Dimensions::Three, LengthUnit::cm},
-                            "operators/1/transform",
-                            "Error evaluating callback for 'transform'"};
-  MockVisitor visitor;
-  EXPECT_CALL(visitor, visit(Matcher<const PointTransform&>(Ref(transform))));
-  transform.accept(visitor);
 }

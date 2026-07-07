@@ -42,7 +42,6 @@ shapes = {
       path = "ice_cream_cone.mesh",
       units = "cm",
       operators = {
-        { transform = cone_coordinates },
         { rotate = -5 },
         { translate = offset(cone_lift) }
       }
