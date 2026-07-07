@@ -10,7 +10,7 @@
 Core concepts
 =============
 
-This section desribes Slam concepts: what they mean and how they are used.
+This section describes Slam's concepts: what they mean and how they are used.
 
 .. figure:: figs/set_relation_map.png
    :figwidth: 400px
@@ -67,9 +67,13 @@ Maps attach values to the members of a set. In mesh terms, a map is the Slam
 abstraction for scalar, vector or tensor data associated with vertices, cells,
 materials or other entity sets.
 
-``ArrayMap`` is the canonical alias for maps that own their data 
-and store values in ``axom::Array``. ``ArrayViewMap`` is the canonical alias
-for maps that don't own their data.
-``ArrayBivariateMap`` and ``ArrayViewBivariateMap`` attach values to a
-bivariate set, such as a product set or relation set.
+A ``Map`` stores its values in an ``axom::Array`` by default, allocating and freeing
+that buffer as part of the map's lifetime. To point a map at a buffer whose lifetime is
+managed elsewhere, e.g. storage owned by an application, or data to be captured in a device kernel,
+construct it with an ``axom::ArrayView`` indirection instead.
+``BivariateMap`` attaches values to a bivariate set, such as a product set or relation set,
+with the same choice of storage.
+
+See :ref:`aliases-label` for how the map storage default interacts with
+those of other Slam containers, and for the relation aliases.
 

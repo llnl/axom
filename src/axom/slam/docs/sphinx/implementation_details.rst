@@ -27,20 +27,19 @@ Policies include:
   values are reached through backing storage:
 
   * ``NoIndirection`` for implicit ``element == position`` storage
-  * ``ArrayIndirection`` for the canonical ``axom::Array``-backed policy used
-    when Slam owns or manages an Axom buffer
-  * ``ArrayViewIndirection`` for the canonical non-owning ``axom::ArrayView``
-    policy used to view externally owned storage and to build lightweight,
-    device-capturable Slam objects
-  * ``CArrayIndirection`` and ``STLVectorIndirection`` as compatibility and
-    reference examples
+  * ``ArrayIndirection`` (the default), backed by an ``axom::Array``
+    whose lifetime the Slam object manages
+  * ``ArrayViewIndirection``, backed by an ``axom::ArrayView`` of a buffer managed elsewhere.
+    These are small and trivially copyable, so it is the form used for lightweight, device-capturable Slam objects
+  * ``CArrayIndirection`` and ``STLVectorIndirection`` for interoperation 
+    with raw-pointer and ``std::vector`` storage
   * custom policies, e.g. ``mfem::Array`` adapters
 * SubsettingPolicy (none, virtual parent, concrete parent)
 * OwnershipPolicy (local, sidre, other repository)
 
 ``Map`` and ``BivariateMap`` default to ``ArrayIndirection``.
 
-The following feature diagram of OrderedSet policies shows how these policies
+The following feature diagram of ``slam::OrderedSet`` policies shows how these policies
 interact with the subscript operator:
 
 .. figure:: figs/orderedset_feature_diagram.png

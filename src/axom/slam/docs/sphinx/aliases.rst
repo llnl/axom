@@ -4,121 +4,153 @@
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
-============================
-Common aliases and migration
-============================
+.. _aliases-label:
 
-Slam's core concepts are **sets**, **relations** and **maps**.
-While these are highly configurable, most concrete Slam types are built
-from a common set of policy template parameters provided as aliases 
-in ``axom/slam/Aliases.hpp``.
+===============================
+Choosing policies and aliases
+===============================
 
-Use the aliases when code is meant to communicate Slam intent. 
-Use explicit policies when adapting old storage, third-party storage
-or a less common policy stack.
+A Slam set, relation or map is assembled from policy template parameters including:
+cardinality, stride, indirection, offset, size, subsetting and interface.
+Choosing those policies is how you describe the data structure, i.e. how its
+connectivity is shaped, where its data lives, and what is fixed at compile time.
+This page explains the choices that come up most often, and a small set of
+aliases in ``axom/slam/Aliases.hpp`` that name the most common relation configurations.
 
-Choosing an alias
-=================
+The aliases are a convenience for these common types and are preffered when applicable.
+Use the policies directly when needed, e.g. for compile-time strides, indirection buffers
+backed by ``std::vector`` or C-arrays, or specialized cardinalities.
 
-Sets
-----
+Where data lives: managed buffers and views
+===========================================
 
-``RangeSet<P,E>``
-  A contiguous set without explicit storage. Use this for dense ranges of mesh
-  entities such as cells, nodes, materials or levels.
-
-``ArraySet<P,E>``
-  A set whose element ids are stored in an external ``axom::Array``. 
-  The array object is owned elsewhere and must outlive the set.
-
-``ArrayViewSet<P,E>``
-  A set whose element ids are stored in an ``axom::ArrayView`` held by value.
-  Prefer this for non-owning, lightweight views over storage owned elsewhere.
-
-Relations
----------
-
-``ConstantRelation<FromSet, ToSet, N>``
-  A static relation where each from-set entity has exactly ``N`` related
-  to-set entities. The relation indices are stored in an ``axom::Array``.
-
-``RuntimeConstantRelation<FromSet, ToSet>``
-  A static relation with constant cardinality known at runtime.
-
-``VariableRelation<FromSet, ToSet>``
-  A static, CSR-shaped relation whose cardinality can vary per from-set entity.
-  It stores begin offsets and relation indices in ``axom::Array`` buffers.
-
-The ``*View`` forms use ``axom::ArrayView`` buffers instead of ``axom::Array`` buffers.
-They are the preferred form for lightweight, non-owning traversal and kernel-capturable data.
-
-The dynamic relation classes, ``DynamicConstantRelation`` and ``DynamicVariableRelation``, 
-keep their existing names because their cardinality or connectivity can be edited 
-after construction.
-
-Maps
-----
-
-``ArrayMap<S,T,STRIDE>``
-  An owning map from set ``S`` to values of type ``T``. Its values are stored in
-  an ``axom::Array``. Use this for registry-owned fields, scratch fields and
-  other host-constructed data owned by the map.
-
-``ArrayViewMap<S,T,STRIDE>``
-  A non-owning map view over an ``axom::ArrayView``. Use this when storage is
-  owned elsewhere, or when passing a map-shaped view to generic algorithms or kernels.
-
-``RuntimeArrayMap<S,T>`` and ``RuntimeArrayViewMap<S,T>``
-  Use these when the number of components per set element is known only at runtime.
-
-``ArrayBivariateMap<BSet,T,STRIDE>`` and ``ArrayViewBivariateMap<BSet,T,STRIDE>``
-  Map values over a bivariate set, such as a product set or relation set. Use these for
-  dense/sparse two-axis data, for example material-by-cell or cell-by-material values.
-
-``RuntimeArrayBivariateMap<BSet,T>`` and ``RuntimeArrayViewBivariateMap<BSet,T>``
-  Runtime-stride forms of the bivariate map aliases.
-
-Default map storage
-===================
-
-``slam::Map`` and ``slam::BivariateMap`` now default to ``policies::ArrayIndirection``. 
-That means a map declared without an explicit indirection policy owns an ``axom::Array`` buffer:
+The most common choice is the indirection policy, which selects the
+buffer that a set, relation or map indexes through. Slam's default is
+``policies::ArrayIndirection``, backed by an ``axom::Array``:
 
 .. code-block:: C++
 
    using Cells = slam::RangeSet<>;
-   using Mats  = slam::RangeSet<>;
-   using CellMatSet = slam::ProductSet<Cells, Mats>;
-
    Cells cells(numCells);
-   Mats materials(numMaterials);
-   CellMatSet cm(&cells, &materials);
-   slam::Map<double, Cells> density(&cells);            // axom::Array-backed
-   slam::BivariateMap<double, CellMatSet> volfrac(&cm); // axom::Array-backed
 
-The maps in the last two lines can use the following aliases:
+   slam::Map<double, Cells> density(&cells);   // axom::Array indirection (the default)
+
+The two most common indirection policies differ in who manages the buffer's lifetime**:
+
+``policies::ArrayIndirection`` (``axom::Array``)
+  The Slam object allocates the buffer and frees it when the object is destroyed.
+  Lifetime is tied to the Slam object.
+
+``policies::ArrayViewIndirection`` (``axom::ArrayView``)
+  The Slam object refers to a buffer that something else (e.g an application array,
+  a registry, another Slam object) allocated and will free.
+  That buffer must outlive the Slam object. An ``ArrayView`` is small and trivially
+  copyable, so it can be handed to a generic algorithm and can be captured in a device kernel.
+
+.. note:: "Manages the buffer" vs. "views a buffer" is a statement about
+   lifetime, not about which piece of code logically owns the data.
+   A map with an ``axom::Array`` indirection frees its buffer as part of its destruction.
+   A map with an ``axom::ArrayView`` indirection leaves that to whoever created the buffer.
+   When a Slam object merely wraps an ``axom::Array`` that lives elsewhere,
+   an ``ArrayView`` indirection is the accurate description 
+   even though the underlying ``axom::Array`` owns its memory.
+
+Two other indirections are supplied for interoperability and to test the interface:
+``policies::STLVectorIndirection`` indexes an ``std::vector``, 
+and ``policies::CArrayIndirection`` indexes a raw pointer.
+Use them when adapting existing storage of that kind.
+
+
+Fixing parameters at compile time
+==================================
+
+Where a quantity is known at compile time, encoding it in a policy lets the
+compiler specialize the generated code and data structures.
+
+The stride of a relation or map is the common case. A quad mesh's
+element-to-vertex relation has exactly four vertices per element,
+so its stride can be a compile-time constant:
 
 .. code-block:: C++
 
-   using Density = slam::ArrayMap<Cells, double>;
-   using Volfrac = slam::ArrayBivariateMap<CellMatSet, double>;
+   using ElemVertRelation =
+     slam::ConstantRelation<ElemSet, VertSet, /* stride */ 4>;   // CompileTimeStride
 
-Code that requires ``std::vector`` backing can still use those explicitly:
+When the same count is only known at runtime, use the runtime form
+(``RuntimeConstantRelation``, or ``policies::RuntimeStride``) directly.
+The same distinction applies to a set's size (``policies::CompileTimeSize`` vs. a runtime size) and offset.
+
+The set and relation aliases
+============================
+
+A handful of relation configurations recur across mesh code and requite spelling out all
+six ``StaticRelation`` policy parameters, so a named shorthand can be helpful.
+The aliases below cover them, together with the two indirection set types.
+Each has a ``*View`` form that uses an ``axom::ArrayView`` (a buffer managed elsewhere) 
+in place of the ``axom::Array`` (a buffer the object manages).
+
+Sets:
+
+``RangeSet<P,E>``
+  A contiguous range of positions, with no separate storage. Use it for dense
+  ranges of mesh entities such as cells, nodes, materials or levels.
+
+``ArraySet<P,E>`` / ``ArrayViewSet<P,E>``
+  A set whose element ids are read from an ``axom::Array`` it manages (``ArraySet``) 
+  or from an ``axom::ArrayView`` of a buffer managed elsewhere (``ArrayViewSet``).
+
+Relations:
+
+``ConstantRelation<FromSet, ToSet, N>``
+  A static relation with exactly ``N`` to-set entities per from-set entity,
+  with ``N`` fixed at compile time.
+
+``RuntimeConstantRelation<FromSet, ToSet>``
+  As above, but with the (constant) cardinality supplied at runtime.
+
+``VariableRelation<FromSet, ToSet>``
+  A static, CSR-shaped relation whose cardinality varies per from-set entity;
+  it holds begin offsets and relation indices.
+
+The dynamic relation classes, ``DynamicConstantRelation`` and
+``DynamicVariableRelation``, keep their own names because their connectivity can
+be edited after construction.
+
+There are intentionally no map aliases. 
+A ``Map`` or ``BivariateMap`` already defaults to an ``axom::Array`` indirection with stride one, 
+so the common cases read clearly on their own:
 
 .. code-block:: C++
 
-   using VecIndirection =
-     slam::policies::STLVectorIndirection<Cells::PositionType, double>;
+   slam::Map<double, Cells> density(&cells);            // one value per cell
+   slam::BivariateMap<double, CellMatSet> volfrac(&cm); // one value per (cell, material)
 
-   using VectorBackedMap =
-     slam::Map<double, Cells, VecIndirection>;
+The cases that vary a map, e.g. a view into a buffer managed elsewhere, or a runtime stride,
+tend to be the cases where a fixed alias name would not capture the configuration cleanly:
 
+.. code-block:: C++
 
-FieldRegistry migration
-=======================
+   using CellPos = Cells::PositionType;
 
-``FieldRegistry`` is still a host-side convenience class, but its owning field
-and buffer types now follow the canonical map aliases:
+   // A field that views a buffer managed elsewhere, with a runtime component count:
+   using ViewedField =
+     slam::Map<double,
+               Cells,
+               slam::policies::ArrayViewIndirection<CellPos, double>,
+               slam::policies::RuntimeStride<CellPos>>;
+
+   // An std::vector-backed field, for interoperation with existing storage:
+   using VectorField =
+     slam::Map<double,
+               Cells,
+               slam::policies::STLVectorIndirection<CellPos, double>>;
+
+FieldRegistry
+=============
+
+``FieldRegistry`` is a host-side convenience that keeps a set of named fields and buffers.
+Its field type (``Registry::MapType``) is a ``slam::Map`` with the default ``axom::Array`` indirection,\
+and its buffer type (``Registry::BufferType``) is an ``axom::Array``:
 
 .. code-block:: C++
 
@@ -127,29 +159,14 @@ and buffer types now follow the canonical map aliases:
 
    CellSet cells(numCells);
    Registry fields;
-   auto& density = fields.addField("density", &cells); // Registry::MapType
-   auto& buffer = fields.addBuffer("tmp", cells.size()); // Registry::BufferType
+   auto& density = fields.addField("density", &cells);    // Registry::MapType
+   auto& buffer  = fields.addBuffer("tmp", cells.size()); // Registry::BufferType (axom::Array<double>)
 
-``Registry::BufferType`` is an ``axom::Array<double>``.
+Because the registry's buffers are now ``axom::Array`` rather than
+``std::vector``, code that consumes them should:
 
-Guidance for migrating from ``std::vector``:
-
-* Use ``auto&`` or ``Registry::BufferType&`` instead of ``std::vector<T>&``.
-* Use ``buffer.data()``, ``buffer.size()`` and ``buffer.resize(n)`` for the
-  common vector-like operations.
-* Use ``buffer.view()`` when an ``axom::ArrayView`` is the right interface.
-* Use ``addFieldView()`` or ``addBufferView()`` for externally owned storage.
-
-
-When explicit policies are still appropriate
-============================================
-
-Use the full policy stack instead of these aliases when code needs to:
-
-* Preserve legacy ``std::vector`` storage with ``STLVectorIndirection``.
-* Bind raw pointer storage with ``CArrayIndirection``.
-* Adapt a third-party container such as an application-specific array type.
-* Combine non-default size, offset, stride, subsetting, indirection or interface
-  policies that are not named by the alias layer.
-* Demonstrate or test the policy contract itself.
-
+* use ``auto&`` or ``Registry::BufferType&`` rather than ``std::vector<T>&``;
+* use ``buffer.data()``, ``buffer.size()`` and ``buffer.resize(n)`` for the
+  common vector-like operations;
+* call ``buffer.view()`` when an ``axom::ArrayView`` is the right interface;
+* register externally-managed storage with ``addFieldView()`` or ``addBufferView()``.
