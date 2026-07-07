@@ -144,10 +144,13 @@ struct ConstantCardinality
  *  first set maps to an arbitrary number of elements in the second set.
  *
  * \tparam ElementType the index data type
- * \tparam IndirectionPolicy the policy to use for storing offsets and indices
+ * \tparam IndirectionPolicy the policy to use for storing offsets and indices.
+ *  Defaults to \c ArrayIndirection (backed by an \c axom::Array), matching the
+ *  default indirection of \c slam::Map and \c MappedVariableCardinality.
+ *  Use \c ArrayViewIndirection for a buffer managed elsewhere (device-capturable),
+ *  or \c STLVectorIndirection for interoperation with existing \c std::vector storage.
  */
-template <typename ElementType = int,
-          typename IndirectionPolicy = STLVectorIndirection<ElementType, ElementType>>
+template <typename ElementType = int, typename IndirectionPolicy = ArrayIndirection<ElementType, ElementType>>
 struct VariableCardinality
 {
   using BeginsSizePolicy = RuntimeSize<ElementType>;
