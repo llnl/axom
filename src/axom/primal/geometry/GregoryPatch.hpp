@@ -81,6 +81,8 @@ public:
     }
   }
 
+  // Constructor from corner nodes and corner vectors.
+  //  Currently not configured to handle any connectivity between patches
   GregoryPatch(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)
   {
     // Store the position and orthogonal unit vector at each corner
@@ -154,6 +156,10 @@ public:
 
   // Evaluate the patch by constructing the equivalent Bezier patch with interior control nodes
   //  defined in terms of the tangent vectors and the evaluation parameters
+  //
+  // A cubic Gregory patch can be evaluated by using the 8 internal, blending nodes to construct
+  //  a set of control points which, when used with the Gregory patch edge nodes, produces
+  //  a polynomial bicubic Bezier patch that is equivalent at the requested parameters
   PointType evaluate(T u, T v) const
   {
     const auto intermediate = setup_intermediate_bezier(u, v, 0);
