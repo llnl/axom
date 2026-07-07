@@ -15,6 +15,8 @@ namespace axom
 {
 namespace klee
 {
+namespace internal
+{
 LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path)
 {
   try
@@ -31,6 +33,6 @@ LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy)
 {
   return parseLengthUnits(unitsAsProxy.get<std::string>(), unitsAsProxy.name());
 }
-
+}  // namespace internal
 }  // namespace klee
 }  // namespace axom

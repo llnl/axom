@@ -19,13 +19,22 @@ class Proxy;
 namespace klee
 {
 
-using utilities::getLengthUnitName;
 using utilities::LengthUnit;
 
-LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path);
+namespace internal
+{
 
+/*!
+ * \brief This function parses a string and returns a LengthUnit. It is a compatibility
+ *        function that throws a KleeError if the unit is invalid.
+ *
+ * \param unitsAsProxy The Inlet proxy from which to get the unit string.
+ *
+ * \return A LengthUnit containing the unit type.
+ */
 LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy);
 
+}  // namespace internal
 }  // namespace klee
 }  // namespace axom
 
