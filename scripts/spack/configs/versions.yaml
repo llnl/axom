@@ -10,7 +10,7 @@ packages:
   caliper:
     require:
       - spec: "@git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c=master"
-  # testing
+  # main - 5/7/26 - Set by: https://github.com/spack/spack-packages/blob/1928a2383d6e0d536cfa2b0e7bc6bee8a70315d4/repos/spack_repo/builtin/packages/raja/package.py#L292-L293
   camp:
     require:
       - spec: "@git.e75ab64c029aa27c80593715cb2a3ccad7453c8c=main"
@@ -29,14 +29,14 @@ packages:
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-  # testing branch #2011 (will partially break since requires #2048)
+  # develop - 7/7/26
   raja:
     require:
-      - spec: "@git.bb9b6b8e789ff838c844a58461ba49663ddf5a15=develop"
+      - spec: "@git.6e4fe62d810711a0af9020d4e94c6c41c9a6117b=develop"
   scr:
     require:
       - spec: "@3.0.1"
-  # testing
+  # develop - 6/15/26
   umpire:
     require:
-      - spec: "@git.f81afcab0e07c431288e950d471aa739df68f7f7=develop"
+      - spec: "@git.f544027ef118133f1ecbc26e64c04ea77c3eb5ae=develop"
