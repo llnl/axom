@@ -28,6 +28,7 @@
 #include "axom/core/Array.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "axom/slic.hpp"
 
 // Sidre headers
@@ -1365,6 +1366,15 @@ public:
   }
 
   ///@}
+
+  /*!
+   * \brief Compute a checksum for the view.
+   *
+   * \param includeAttributes Whether to include attributes in the checksum.
+   *
+   * \return A CheckSum of the view.
+   */
+  axom::utilities::CheckSum checksum(bool includeAttributes = true) const;
 
 private:
   DISABLE_DEFAULT_CTOR(View);
