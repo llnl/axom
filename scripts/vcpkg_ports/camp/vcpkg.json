@@ -1,6 +1,6 @@
 {
   "name": "camp",
-  "version-string": "2025.12.0",
+  "version-string": "main-commit",
   "homepage": "https://github.com/llnl/camp",
   "description": "Compiler agnostic metaprogramming library",
   "dependencies": [
