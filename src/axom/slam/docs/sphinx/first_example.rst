@@ -45,14 +45,16 @@ Type aliases and variables
 We begin by defining some type aliases for the Sets, Relations and Maps in our mesh.
 These type aliases would typically be found in a configuration file or in class header files.
 
-Each type is assembled from the policies that describe how it behaves,
-for example, the cardinality and stride of a relation, or the storage backing a map.
+Each Slam type is assembled from policies that describe how it behaves, for example the
+cardinality and stride of a relation, or the storage backing a map. 
 
-This follows Slam's central design philosophy: the policies name the design choices for the data structure.
-For the relations below we spell those policies out, and for common relation configurations,
-the aliases in ``axom/slam/Aliases.hpp`` (:ref:`aliases-label`) provide a shorthand.
+This follows Slam's central design philosophy: the policies name the design choices for the data structure. Spelling out every policy is always available when you need fine control, but the common
+configurations have named shorthands in ``axom/slam/Aliases.hpp`` (:ref:`aliases-label`),
+and we use those aliases throughout this example.
 
-We use the following types throughout this example:
+We use the following buffer type for the mesh connectivity data.
+Slam objects index into their data through a buffer; ``axom::Array`` is Slam's canonical
+choice, and it is the default storage for the aliases and helpers used below:
 
 .. literalinclude:: ../../examples/UserDocs.cpp
    :start-after: _quadmesh_example_common_typedefs_start
@@ -89,8 +91,9 @@ We also have relations describing the incidences between the mesh vertices and e
 
 The element-to-vertex *boundary* relation encodes the indices of the vertices in the
 boundary of each element. Since this is a quad mesh and there are always four vertices in
-the boundary of a quadrilateral, we use a ``ConstantCardinality`` policy with a
-``CompileTimeStride`` set to 4 for this ``StaticRelation``.
+the boundary of a quadrilateral, its cardinality is a compile-time constant. We use the
+``slam::ConstantRelation`` alias, which names the common configuration of a ``StaticRelation``
+with a ``ConstantCardinality`` policy, a ``CompileTimeStride`` (here, 4), and ``axom::Array`` storage:
 
 .. literalinclude:: ../../examples/UserDocs.cpp
    :start-after: _quadmesh_example_bdry_relation_typedefs_start
@@ -99,12 +102,18 @@ the boundary of a quadrilateral, we use a ``ConstantCardinality`` policy with a
 
 The vertex-to-element *coboundary* relation encodes the indices of all elements incident
 in each of the vertices. Since the cardinality of this relation changes for different
-vertices, we use a ``VariableCardinality`` policy for this ``StaticRelation``.
+vertices, we use the ``slam::VariableRelation`` alias, which names a ``StaticRelation`` with
+a ``VariableCardinality`` policy and ``axom::Array`` storage:
 
 .. literalinclude:: ../../examples/UserDocs.cpp
    :start-after: _quadmesh_example_cobdry_relation_typedefs_start
    :end-before:  _quadmesh_example_cobdry_relation_typedefs_end
    :language: C++
+
+.. note:: Each alias has a ``*View`` counterpart (``ConstantRelationView``, ``VariableRelationView``)
+   that refers to buffers managed elsewhere through an ``axom::ArrayView``,
+   rather than ``axom::Array`` buffers it manages. When a configuration is not covered by an alias,
+   spell out the ``StaticRelation`` policies directly. See :ref:`aliases-label`.
 
 We declare them as:
 
@@ -169,18 +178,19 @@ The values of the vertex indices range from ``0`` to ``verts.size()-1`` (and sim
 Relations
 ---------
 
-The relations are constructed by binding their associated sets and arrays of data to the
-relation instance. In this example, we use an internal helper class ``RelationBuilder``.
+The relations are constructed by binding their associated sets and buffers of connectivity data.
+We use the ``slam::make_*_relation`` helper functions, which deduce the relation type from their arguments (including the ``axom::Array`` buffers) and return a ready-to-use relation.
 
-We construct the boundary relation by attaching its two sets (``elems`` for its ``fromSet``
-and ``verts`` for its ``toSet``) and an array of indices for the relation's data.
+We construct the boundary relation from its two sets 
+(``elems`` as its ``fromSet`` and ``verts`` as its ``toSet``)
+and the array of vertex indices:
 
 .. literalinclude:: ../../examples/UserDocs.cpp
    :start-after: _quadmesh_example_construct_bdry_relation_start
    :end-before:  _quadmesh_example_construct_bdry_relation_end
    :language: C++
 
-The Coboundary relation requires an additional array of offsets (``begins``) 
+The coboundary relation requires an additional array of offsets (``begins``)
 to indicate the starting index in the relation for each vertex:
 
 .. literalinclude:: ../../examples/UserDocs.cpp
@@ -189,12 +199,14 @@ to indicate the starting index in the relation for each vertex:
    :language: C++
 
 
-Since these are static relations, we used data that was constructed elsewhere.
-Note that these relations are lightweight wrappers over the underlying data, 
-and no data is copied. To iteratively build the relations, 
-we would use the ``DynamicConstantRelation`` and ``DynamicVariableRelation`` classes.
+Since these are static relations, they refer to data that was constructed elsewhere
+(the ``axom::Array`` buffers, which must outlive the relations).
+The relations are lightweight views over that data, and no data is copied. To iteratively
+build relations instead, we would use the ``DynamicConstantRelation`` and
+``DynamicVariableRelation`` classes.
 
-See :ref:`setup-label` for more details about Slam's ``Builder`` classes for sets, relations and maps.
+The ``make_*`` helpers wrap Slam's lower-level ``Builder`` classes; see :ref:`setup-label`
+for more details about constructing sets, relations and maps directly.
 
 Maps
 ----

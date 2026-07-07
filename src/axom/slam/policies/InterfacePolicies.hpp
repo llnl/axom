@@ -47,7 +47,7 @@ struct VirtualInterface
 { };
 
 /**
- * \class VirtualInterface
+ * \class ConcreteInterface
  *
  * \brief Policy to use a concrete, CRTP-based interface with a given Slam type.
  */

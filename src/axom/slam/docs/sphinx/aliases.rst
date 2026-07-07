@@ -17,7 +17,7 @@ connectivity is shaped, where its data lives, and what is fixed at compile time.
 This page explains the choices that come up most often, and a small set of
 aliases in ``axom/slam/Aliases.hpp`` that name the most common relation configurations.
 
-The aliases are a convenience for these common types and are preffered when applicable.
+The aliases are a convenience for these common types and are preferred when applicable.
 Use the policies directly when needed, e.g. for compile-time strides, indirection buffers
 backed by ``std::vector`` or C-arrays, or specialized cardinalities.
 
@@ -35,7 +35,7 @@ buffer that a set, relation or map indexes through. Slam's default is
 
    slam::Map<double, Cells> density(&cells);   // axom::Array indirection (the default)
 
-The two most common indirection policies differ in who manages the buffer's lifetime**:
+The two most common indirection policies differ in who manages the buffer's lifetime:
 
 ``policies::ArrayIndirection`` (``axom::Array``)
   The Slam object allocates the buffer and frees it when the object is destroyed.
@@ -83,7 +83,7 @@ The same distinction applies to a set's size (``policies::CompileTimeSize`` vs. 
 The set and relation aliases
 ============================
 
-A handful of relation configurations recur across mesh code and requite spelling out all
+A handful of relation configurations recur across mesh code and require spelling out all
 six ``StaticRelation`` policy parameters, so a named shorthand can be helpful.
 The aliases below cover them, together with the two indirection set types.
 Each has a ``*View`` form that uses an ``axom::ArrayView`` (a buffer managed elsewhere) 
@@ -149,7 +149,7 @@ FieldRegistry
 =============
 
 ``FieldRegistry`` is a host-side convenience that keeps a set of named fields and buffers.
-Its field type (``Registry::MapType``) is a ``slam::Map`` with the default ``axom::Array`` indirection,\
+Its field type (``Registry::MapType``) is a ``slam::Map`` with the default ``axom::Array`` indirection,
 and its buffer type (``Registry::BufferType``) is an ``axom::Array``:
 
 .. code-block:: C++

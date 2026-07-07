@@ -70,7 +70,7 @@ public:
    */
   using MapType = slam::Map<DataType, SetType>;
 
-  /// \brief Buffer type backing `MapType` (uses the default Map buffer type: `axom::Array<DataType>`
+  /// \brief Buffer type backing `MapType` (uses the default Map buffer type: `axom::Array<DataType>`)
   using BufferType = typename MapType::OrderedMap;
 
   /*!
