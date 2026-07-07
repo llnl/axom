@@ -1,4 +1,4 @@
-# Docker image for Axom tutorial.
+# Docker image for Axom shaping tutorial.
 # Docker container runs a VS Code server accessible through a web browser.
 # Docker and openvscode setup based on the RAJA suite tutorial:
 # https://github.com/LLNL/raja-suite-tutorial/tree/main/containers/tutorial
@@ -50,6 +50,7 @@ RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-fil
                  && rm -rf ${HOME}/axom_tpls/build_stage ${HOME}/axom_tpls/spack
 
 # Make sure the new hostconfig works with a release build
+# Build only tutorials to reduce image generation time and overall size
 # Note: having high job slots causes build log to disappear and job to fail
 # Omit testing step, hangs at slam_lulesh unit test (same behavior for azure pipeline images, as well)
 # Disable link-time optimization from MPI wrapper causing linkage failures
@@ -57,6 +58,11 @@ RUN cd ${HOME}/axom_repo && python3 config-build.py -hc *.cmake \
                                                     -bp ${HOME}/axom_repo/build-release \
                                                     -ip ${HOME}/axom_repo/install-release \
                                                     -bt Release \
+                                                    -DENABLE_TESTS=OFF \
+                                                    -DENABLE_EXAMPLES=OFF \
+                                                    -DENABLE_DOCS=OFF \
+                                                    -DAXOM_ENABLE_TOOLS=OFF \
+                                                    -DAXOM_ENABLE_TUTORIALS=ON \
                          && cd ${HOME}/axom_repo/build-release \
                          && make -j4 install
 
