@@ -86,14 +86,6 @@ public:
     }
   }
 
-  // static constexpr int nDeg = 4;
-  // static constexpr int nVerts = 3;
-  // static constexpr int nControlPoints = 18;
-  // typedef std::array<ggi::Position,nVerts> NodePositions;
-  // typedef std::array<ggi::Vector,nVerts> NodeVectors;
-  // typedef std::array<ggi::UnitVector,nVerts>  NodeUnitVectors;
-  // typedef std::array<ggi::Position,nControlPoints> ControlPoints;
-
   GregoryTriangle(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)
   {
     // Store the position and orthogonal unit vector at each corner
@@ -245,18 +237,7 @@ public:
     Dv += w11 * intermediate.Q_v[0] + w21 * intermediate.Q_v[1] + w12 * intermediate.Q_v[2];
   }
 
-  /*!
-   * \brief Evaluates all second derivatives of the Gregory patch at (\a u, \a v)
-   *
-   * \param [in] u Parameter value at which to evaluate on the first axis
-   * \param [in] v Parameter value at which to evaluate on the second axis
-   * \param [out] eval The point value of the Gregory patch at (u, v)
-   * \param [out] Du The vector value of S_u(u, v)
-   * \param [out] Dv The vector value of S_v(u, v)
-   * \param [out] DuDu The vector value of S_uu(u, v)
-   * \param [out] DvDv The vector value of S_vv(u, v)
-   * \param [out] DuDv The vector value of S_uv(u, v) == S_vu(u, v)
-   */
+  // Not yet completed
   // void evaluateSecondDerivatives(T u,
   //                                T v,
   //                                PointType& eval,
@@ -266,72 +247,25 @@ public:
   //                                VectorType& DvDv,
   //                                VectorType& DuDv) const
   // {
-  //   const auto intermediate = setup_intermediate_bezier(u, v, 2);
-  //   intermediate.bpatch.evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
-
-  //   // Chain rule correction due to (u,v)-dependent interior control points
-  //   axom::StaticArray<T, 4> Bu, dBu, Bv, dBv;
-  //   evaluateCubicBernstein(u, Bu, dBu);
-  //   evaluateCubicBernstein(v, Bv, dBv);
-
-  //   const T w11 = Bu[1] * Bv[1];
-  //   const T w21 = Bu[2] * Bv[1];
-  //   const T w12 = Bu[1] * Bv[2];
-  //   const T w22 = Bu[2] * Bv[2];
-
-  //   const T wu11 = dBu[1] * Bv[1];
-  //   const T wu21 = dBu[2] * Bv[1];
-  //   const T wu12 = dBu[1] * Bv[2];
-  //   const T wu22 = dBu[2] * Bv[2];
-
-  //   const T wv11 = Bu[1] * dBv[1];
-  //   const T wv21 = Bu[2] * dBv[1];
-  //   const T wv12 = Bu[1] * dBv[2];
-  //   const T wv22 = Bu[2] * dBv[2];
-
-  //   // First derivative corrections
-  //   Du += w11 * intermediate.Q_u[0][0] + w21 * intermediate.Q_u[1][0] +
-  //     w12 * intermediate.Q_u[0][1] + w22 * intermediate.Q_u[1][1];
-  //   Dv += w11 * intermediate.Q_v[0][0] + w21 * intermediate.Q_v[1][0] +
-  //     w12 * intermediate.Q_v[0][1] + w22 * intermediate.Q_v[1][1];
-
-  //   // Second derivative corrections
-  //   DuDu += T(2) *
-  //       (wu11 * intermediate.Q_u[0][0] + wu21 * intermediate.Q_u[1][0] +
-  //        wu12 * intermediate.Q_u[0][1] + wu22 * intermediate.Q_u[1][1]) +
-  //     (w11 * intermediate.Q_uu[0][0] + w21 * intermediate.Q_uu[1][0] +
-  //      w12 * intermediate.Q_uu[0][1] + w22 * intermediate.Q_uu[1][1]);
-
-  //   DvDv += T(2) *
-  //       (wv11 * intermediate.Q_v[0][0] + wv21 * intermediate.Q_v[1][0] +
-  //        wv12 * intermediate.Q_v[0][1] + wv22 * intermediate.Q_v[1][1]) +
-  //     (w11 * intermediate.Q_vv[0][0] + w21 * intermediate.Q_vv[1][0] +
-  //      w12 * intermediate.Q_vv[0][1] + w22 * intermediate.Q_vv[1][1]);
-
-  //   DuDv += (wu11 * intermediate.Q_v[0][0] + wu21 * intermediate.Q_v[1][0] +
-  //            wu12 * intermediate.Q_v[0][1] + wu22 * intermediate.Q_v[1][1]) +
-  //     (wv11 * intermediate.Q_u[0][0] + wv21 * intermediate.Q_u[1][0] +
-  //      wv12 * intermediate.Q_u[0][1] + wv22 * intermediate.Q_u[1][1]) +
-  //     (w11 * intermediate.Q_uv[0][0] + w21 * intermediate.Q_uv[1][0] +
-  //      w12 * intermediate.Q_uv[0][1] + w22 * intermediate.Q_uv[1][1]);
   // }
 
-  // VectorType du(T u, T v) const
-  // {
-  //   PointType eval;
-  //   VectorType Du, Dv;
-  //   evaluateFirstDerivatives(u, v, eval, Du, Dv);
-  //   return Du;
-  // }
+  VectorType du(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv;
+    evaluateFirstDerivatives(u, v, eval, Du, Dv);
+    return Du;
+  }
 
-  // VectorType dv(T u, T v) const
-  // {
-  //   PointType eval;
-  //   VectorType Du, Dv;
-  //   evaluateFirstDerivatives(u, v, eval, Du, Dv);
-  //   return Dv;
-  // }
+  VectorType dv(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv;
+    evaluateFirstDerivatives(u, v, eval, Du, Dv);
+    return Dv;
+  }
 
+  // Not yet finished
   // VectorType dudu(T u, T v) const
   // {
   //   PointType eval;
@@ -528,23 +462,6 @@ private:
 
     return btri;
   }
-
-  // static void evaluateCubicBernstein(T t, axom::StaticArray<T, 4>& B, axom::StaticArray<T, 4>& dB)
-  // {
-  //   const T tm = T(1) - t;
-  //   const T tm2 = tm * tm;
-  //   const T t2 = t * t;
-
-  //   B[0] = tm2 * tm;
-  //   B[1] = T(3) * t * tm2;
-  //   B[2] = T(3) * t2 * tm;
-  //   B[3] = t2 * t;
-
-  //   dB[0] = -T(3) * tm2;
-  //   dB[1] = T(3) * tm2 - T(6) * t * tm;
-  //   dB[2] = T(6) * t * tm - T(3) * t2;
-  //   dB[3] = T(3) * t2;
-  // }
 
   CoordsVec m_controlPoints;
 
