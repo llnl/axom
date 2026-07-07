@@ -10,17 +10,16 @@
  * \file MIRMesh.hpp
  * 
  * \brief Contains the specification for the MIRMesh class.
- * 
  */
 
-#include "axom/core.hpp"  // for axom macros
-#include "axom/slam.hpp"  // unified header for slam classes and functions
+#include "axom/core.hpp"
+#include "axom/slam.hpp"
 
 #include "axom/mir/reference/MIRMeshTypes.hpp"
 #include "axom/mir/reference/CellData.hpp"
 
 // C/C++ includes
-#include <cmath>  // for definition of M_PI, exp()
+#include <cmath>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -38,47 +37,46 @@ const int NULL_MAT = -1;
 //--------------------------------------------------------------------------------
 
 /**
-   * \class MIRMesh
-   * 
-   * \brief The MIRMesh class represents a finite element mesh containing element volume fractions.
-   * 
-   * \detail This class is meant to be used in conjunction with the InterfaceReconstructor class
-   *         to process the mesh.
-   * 
-   */
+ * \class MIRMesh
+ * 
+ * \brief The MIRMesh class represents a finite element mesh containing element volume fractions.
+ * 
+ * \detail This class is meant to be used in conjunction with the InterfaceReconstructor class
+ *         to process the mesh.
+ */
 class MIRMesh
 {
 public:
   /**
-       * \brief Default constructor.
-       */
+   * \brief Default constructor.
+   */
   MIRMesh();
 
   /**
-       * \brief Copy constructor.
-       */
+   * \brief Copy constructor.
+   */
   MIRMesh(const MIRMesh& other);
 
   /**
-       * \brief Default destructor.
-       */
+   * \brief Default destructor.
+   */
   ~MIRMesh() = default;
 
   /**
-       * \brief Copy assignment.
-       */
+   * \brief Copy assignment.
+   */
   MIRMesh& operator=(const MIRMesh& other);
 
   /**
-       * \brief Initializes a mesh with the provided data and topology.
-       * 
-       * \param _verts  The set of vertices of the mesh.
-       * \param _elems  The set of elements of the mesh.
-       * \param _numMaterials  The number of materials present in the mesh.
-       * \param _topology  The topology/connectivity of the mesh.
-       * \param _mapData  The data used to initialized the maps associated with the vertex and element sets.
-       * \param _elementVF  The volume fractions of each element. Note that this is an optional parameter.
-       */
+   * \brief Initializes a mesh with the provided data and topology.
+   * 
+   * \param _verts  The set of vertices of the mesh.
+   * \param _elems  The set of elements of the mesh.
+   * \param _numMaterials  The number of materials present in the mesh.
+   * \param _topology  The topology/connectivity of the mesh.
+   * \param _mapData  The data used to initialized the maps associated with the vertex and element sets.
+   * \param _elementVF  The volume fractions of each element. Note that this is an optional parameter.
+   */
   void initializeMesh(const VertSet _verts,
                       const ElemSet _elems,
                       const int _numMaterials,
@@ -87,60 +85,60 @@ public:
                       const std::vector<std::vector<axom::float64>>& _elementVF = {});
 
   /**
-       * \brief Constructs the mesh boundary and coboundary relations.
-       * 
-       * \note The boundary relation is from each element to its vertices.
-       * \note The coboundary relation is from each vertex to its elements.
-       */
+   * \brief Constructs the mesh boundary and coboundary relations.
+   * 
+   * \note The boundary relation is from each element to its vertices.
+   * \note The coboundary relation is from each vertex to its elements.
+   */
   void constructMeshRelations();
 
   /**
-       * \brief Constructs the element and vertex volume fraction maps.
-       * 
-       * \param elementVF  The volume fractions of each element.
-       */
+   * \brief Constructs the element and vertex volume fraction maps.
+   * 
+   * \param elementVF  The volume fractions of each element.
+   */
   void constructMeshVolumeFractionsMaps(const std::vector<std::vector<axom::float64>>& elementVF);
 
   /**
-       * \brief Constructs the vertex volume fraction map.
-       * 
-       * \param vertexVF  The volume fractions of each vertex.
-       */
+   * \brief Constructs the vertex volume fraction map.
+   * 
+   * \param vertexVF  The volume fractions of each vertex.
+   */
   void constructMeshVolumeFractionsVertex(const std::vector<std::vector<axom::float64>>& vertexVF);
 
   /**
-       * \brief Prints out the data contained within this mesh in a nice format.
-       */
+   * \brief Prints out the data contained within this mesh in a nice format.
+   */
   void print();
 
   /**
-       * \brief Reads in a mesh specified by the given file.
-       * 
-       * \param filename  The location where the mesh file will be read from.
-       */
+   * \brief Reads in a mesh specified by the given file.
+   * 
+   * \param filename  The location where the mesh file will be read from.
+   */
   void readMeshFromFile(const std::string filename);
 
   /**
-       * \brief Writes out the mesh to the given file.
-       * 
-       * \param filename  The location where the mesh file will be written.
-       * 
-       * \note Currently reads in an ASCII, UNSTRUCTURED_GRID .vtk file.
-       */
+   * \brief Writes out the mesh to the given file.
+   * 
+   * \param filename  The location where the mesh file will be written.
+   * 
+   * \note Currently reads in an ASCII, UNSTRUCTURED_GRID .vtk file.
+   */
   void writeMeshToFile(const std::string& dirName,
                        const std::string& fileName,
                        const std::string& separator = "/");
 
   /**
-       * \brief  Computes the volume fractions of the elements of the original mesh.
-       */
+   * \brief  Computes the volume fractions of the elements of the original mesh.
+   */
   std::vector<std::vector<axom::float64>> computeOriginalElementVolumeFractions();
 
   /**
-       * \brief Checks that this instance of MIRMesh is valid
-       *
-       * \return True if this instance is valid, false otherwise
-       */
+   * \brief Checks that this instance of MIRMesh is valid
+   *
+   * \return True if this instance is valid, false otherwise
+   */
   bool isValid(bool verbose) const;
 
 private:
@@ -152,60 +150,63 @@ private:
   bool areMapsValid(bool verbose) const;
 
   /**
-       * \brief Constructs the positions map on the vertices.
-       * 
-       * \param data  The vector of position data for each vertex.
-       */
+   * \brief Constructs the positions map on the vertices.
+   * 
+   * \param data  A container of position data for each vertex
+   * (indexable by, e.g., an `axom::Array` or `std::vector`).
+   */
   template <typename PointContainer>
   void constructVertexPositionMap(const PointContainer& data);
 
   /**
-       * \brief Constructs the map of elements to their original element parent.
-       * 
-       * \param cellParents  The vector of parent IDs for each element of the mesh.
-       */
+   * \brief Constructs the map of elements to their original element parent.
+   * 
+   * \param elementParents  A container of parent IDs for each element of the mesh
+   *  (indexable by , e.g., an `axom::Array` or `std::vector`).
+   */
   template <typename IntContainer>
   void constructElementParentMap(const IntContainer& elementParents);
 
   /**
-       * \brief Constructs the map of elements to their dominant materials.
-       * 
-       * \param dominantMaterials  A vector of material ids that are the dominant material of each element.
-       */
+   * \brief Constructs the map of elements to their dominant materials.
+   * 
+   * \param dominantMaterials  A container of material ids that are the dominant
+   *  material of each element (indexable by, e.g., an `axom::Array` or `std::vector`).
+   */
   template <typename IntContainer>
   void constructElementDominantMaterialMap(const IntContainer& dominantMaterials);
 
   /**
-       * \brief Constructs the map of elements to their shape types.
-       * 
-       * \param shapeTypes  A vector of shape enumerators that are the shape type of each element.
-       */
+   * \brief Constructs the map of elements to their shape types.
+   * 
+   * \param shapeTypes  A vector of shape enumerators that are the shape type of each element.
+   */
   void constructElementShapeTypesMap(const std::vector<mir::Shape>& shapeTypes);
 
   /**
-       * \brief Computes the area of the triangle defined by the given three vertex positions using Heron's formula.
-       * 
-       * \param p0  The position of the first vertex.
-       * \param p1  The position of the second vertex.
-       * \param p2  The position of the third vertex.
-       */
+   * \brief Computes the area of the triangle defined by the given three vertex positions using Heron's formula.
+   * 
+   * \param p0  The position of the first vertex.
+   * \param p1  The position of the second vertex.
+   * \param p2  The position of the third vertex.
+   */
   axom::float64 computeTriangleArea(Point2 p0, Point2 p1, Point2 p2);
 
   /**
-       * \brief  Computes the area of the quad defined by the given four vertex positions.
-       * 
-       * \param p0  The position of the first vertex.
-       * \param p1  The position of the second vertex.
-       * \param p2  The position of the third vertex.
-       * \param p3  The position of the fourth vertex.
-       * 
-       * \note It is assumed that the points are given in consecutive, counter-clockwise order.
-       */
+   * \brief  Computes the area of the quad defined by the given four vertex positions.
+   * 
+   * \param p0  The position of the first vertex.
+   * \param p1  The position of the second vertex.
+   * \param p2  The position of the third vertex.
+   * \param p3  The position of the fourth vertex.
+   * 
+   * \note It is assumed that the points are given in consecutive, counter-clockwise order.
+   */
   axom::float64 computeQuadArea(Point2 p0, Point2 p1, Point2 p2, Point2 p3);
 
   /****************************************************************
-     *                        VARIABLES
-     ****************************************************************/
+   *                        VARIABLES
+   ****************************************************************/
 public:
   // Mesh Set Definitions
   VertSet m_verts;  // the set of vertices in the mesh
@@ -228,5 +229,47 @@ public:
 };
 
 //--------------------------------------------------------------------------------
+
+template <typename PointContainer>
+void MIRMesh::constructVertexPositionMap(const PointContainer& data)
+{
+  // construct the position map on the vertices
+  m_vertexPositions = PointMap(&m_verts);
+
+  for(int vID = 0; vID < m_verts.size(); ++vID) m_vertexPositions[vID] = data[vID];
+
+  SLIC_ASSERT_MSG(m_vertexPositions.isValid(), "Position map is not valid.");
+}
+
+//--------------------------------------------------------------------------------
+
+template <typename IntContainer>
+void MIRMesh::constructElementParentMap(const IntContainer& elementParents)
+{
+  // Initialize the map for the elements' parent IDs
+  m_elementParentIDs = IntMap(&m_elems);
+
+  // Copy the data for the elements
+  for(int eID = 0; eID < m_elems.size(); ++eID) m_elementParentIDs[eID] = elementParents[eID];
+
+  SLIC_ASSERT_MSG(m_elementParentIDs.isValid(), "Element parent map is not valid.");
+}
+
+//--------------------------------------------------------------------------------
+
+template <typename IntContainer>
+void MIRMesh::constructElementDominantMaterialMap(const IntContainer& dominantMaterials)
+{
+  // Initialize the map for the elements' dominant colors
+  m_elementDominantMaterials = IntMap(&m_elems);
+
+  // Copy the dat for the elements
+  for(int eID = 0; eID < m_elems.size(); ++eID)
+    m_elementDominantMaterials[eID] = dominantMaterials[eID];
+
+  SLIC_ASSERT_MSG(m_elementDominantMaterials.isValid(),
+                  "Element dominant materials map is not valid.");
+}
+
 }  // namespace mir
 }  // namespace axom
