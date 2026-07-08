@@ -921,7 +921,7 @@ public:
     SLIC_CHECK_MSG(
       isAllocated(),
       SIDRE_VIEW_LOG_PREPEND << "No view data present, memory has not been allocated.");
-    SLIC_CHECK_MSG(isDescribed(), SIDRE_VIEW_LOG_PREPEND "View data description not present.");
+    SLIC_CHECK_MSG(isDescribed(), SIDRE_VIEW_LOG_PREPEND << "View data description not present.");
 
     // this will return a default value
     return m_node.value();
