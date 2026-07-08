@@ -68,16 +68,25 @@ const char* mpiBlockingReceiveIfMessagesExist(MPI_Comm comm)
   return charArray;
 }
 
-void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* packedMessagesToBeSent)
+MPI_Request mpiNonBlockingSendMessagesWithRequest(MPI_Comm comm,
+                                                  int destinationRank,
+                                                  const char* packedMessagesToBeSent)
 {
   MPI_Request mpiRequest;
   MPI_Isend(const_cast<char*>(packedMessagesToBeSent),
-            strlen(packedMessagesToBeSent),
+            std::strlen(packedMessagesToBeSent),
             MPI_CHAR,
             destinationRank,
             LJ_TAG,
             comm,
             &mpiRequest);
+  return mpiRequest;
+}
+
+void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* packedMessagesToBeSent)
+{
+  MPI_Request mpiRequest =
+    mpiNonBlockingSendMessagesWithRequest(comm, destinationRank, packedMessagesToBeSent);
   MPI_Request_free(&mpiRequest);
 }
 

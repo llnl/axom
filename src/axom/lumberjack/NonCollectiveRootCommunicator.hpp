@@ -19,6 +19,9 @@
 #include "axom/lumberjack/Lumberjack.hpp"
 #include "axom/lumberjack/Communicator.hpp"
 
+#include <memory>
+#include <vector>
+
 namespace axom
 {
 namespace lumberjack
@@ -140,11 +143,21 @@ public:
   double startTime();
 
 private:
+  struct PendingSend
+  {
+    MPI_Request request;
+    std::unique_ptr<char[]> buffer;
+  };
+
+  void drainCompletedSends();
+  void releasePendingSends();
+
   MPI_Comm m_mpiComm;
   int m_mpiCommRank;
   int m_mpiCommSize;
   int m_ranksLimit;
   double m_startTime;
+  std::vector<PendingSend> m_pendingSends;
 };
 
 }  // end namespace lumberjack
