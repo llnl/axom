@@ -48,6 +48,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Sidre: Added `axom::sidre::View::checksum()` and `axom::sidre::Group::checksum()` methods that return checksum values. A `Group::checksum(conduit::Node&)` overload emits diffable checksum metadata for group/view subtrees.
 - Core: Adds `AXOM_CONSTEXPR_ASSERT` macro for assertions that are usable within `constexpr` contexts
 - Slam: Adds `make_*_set`, `make_*_relation` and `make_map` helper functions for building sets, relations and maps
+- Primal: Adds `primal::Sphere::contains(const Point&, bool includeBoundary = true)` to efficiently test whether
+  a point lies within a sphere. Use `getOrientation()` when a tolerance-aware boundary classification is needed.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -73,6 +75,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Avoids a first-use race in `axom::copy()` when multiple OpenMP threads concurrently trigger Umpire fallback host-copy initialization.
 - Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
 - Sidre: Vector-valued MFEM `QuadratureFunction` fields exported through `MFEMSidreDataCollection` now use Blueprint mcarray component storage under `values`, instead of a single scalar array.
+- Primal: Fixes `primal::Sphere<T,2>::getVolume()`, which was previously hard-coded for volume of 3D sphere
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
