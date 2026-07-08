@@ -14,7 +14,6 @@
 
 FROM ghcr.io/llnl/radiuss:gcc-13-ubuntu-24.04
 ARG branch=develop
-ARG OPENVSCODE_SERVER_VERSION=1.109.5
 ARG USER=axomdev
 ENV HOME /home/${USER}
 
@@ -34,11 +33,9 @@ RUN sudo tar -xf doxygen-1.9.8.linux.bin.tar.gz
 RUN cd doxygen-1.9.8 && sudo make && sudo make install && doxygen --version
 
 WORKDIR /opt/archives
-RUN sudo curl -L https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v${OPENVSCODE_SERVER_VERSION}/openvscode-server-v${OPENVSCODE_SERVER_VERSION}-linux-x64.tar.gz > \
-    /opt/archives/openvscode-server-v${OPENVSCODE_SERVER_VERSION}-linux-x64.tar.gz
-RUN sudo tar xzf openvscode-server-v${OPENVSCODE_SERVER_VERSION}-linux-x64.tar.gz \
-    && sudo chown -R ${USER}:${USER} openvscode-server-v${OPENVSCODE_SERVER_VERSION}-linux-x64 \
-    && sudo ln -sfn /opt/archives/openvscode-server-v${OPENVSCODE_SERVER_VERSION}-linux-x64 /opt/openvscode-server
+RUN sudo curl -L https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v1.69.1/openvscode-server-v1.69.1-linux-x64.tar.gz > \
+    /opt/archives/openvscode-server-v1.69.1-linux-x64.tar.gz
+RUN sudo tar xzf openvscode-server-v1.69.1-linux-x64.tar.gz && sudo chown -R ${USER}:${USER} openvscode-server-v1.69.1-linux-x64
 
 WORKDIR ${HOME}
 USER ${USER}
