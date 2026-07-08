@@ -168,6 +168,27 @@ public:
   }
 
   /*!
+   * \brief Tests if a point lies inside this sphere.
+   *
+   * \param [in] q The test point
+   * \param [in] includeBoundary should points on the boundary count as contained? (default true)
+   * \return true if \a q lies inside (and possibly on) the sphere, false otherwise.
+   *
+   * \note This is an exact-arithmetic-free containment test.
+   *  When a tolerance-aware answer is required (for example, to treat points within
+   *  \a EPS of the surface as lying on the boundary), use getOrientation(),
+   *  which returns primal::ON_BOUNDARY within the supplied tolerance, or compare
+   *  the result of computeSignedDistance() against your own scale-aware tolerance.
+   */
+  AXOM_HOST_DEVICE
+  inline bool contains(const PointType& q, bool includeBoundary = true) const
+  {
+    const T dist_sq = (q - m_center).squared_norm();
+    const T radius_sq = m_radius * m_radius;
+    return includeBoundary ? (dist_sq <= radius_sq) : (dist_sq < radius_sq);
+  }
+
+  /*!
    * \brief Tests if this sphere instance intersects with another sphere.
    *
    * \param [in] sphere the sphere object to check for intersection
