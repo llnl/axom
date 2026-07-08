@@ -7,6 +7,8 @@
 #include "axom/primal/geometry/Sphere.hpp"
 #include "axom/primal/geometry/Point.hpp"
 
+#include "axom/core/utilities/Utilities.hpp"
+
 #include "axom/slic.hpp"
 #include "gtest/gtest.h"
 
@@ -58,6 +60,26 @@ void check_constructor()
   SphereType S5(prescribed_center.data(), prescribed_radius);
   EXPECT_DOUBLE_EQ(S5.getRadius(), prescribed_radius);
   check_array(S5.getCenter(), prescribed_center);
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS>
+void check_volume()
+{
+  using SphereType = primal::Sphere<double, NDIMS>;
+  using PointType = primal::Point<double, NDIMS>;
+
+  constexpr double radius = 2.5;
+  const SphereType sphere1(PointType::zero(), radius);
+  const SphereType sphere2(PointType {3., 4., 0.}, radius);
+
+  // 2D "volume" is the enclosed area (pi r^2); 3D is (4/3) pi r^3.
+  constexpr double expected =
+    (NDIMS == 2) ? M_PI * radius * radius : 4. / 3. * M_PI * radius * radius * radius;
+
+  EXPECT_DOUBLE_EQ(sphere1.getVolume(), expected);
+  EXPECT_DOUBLE_EQ(sphere2.getVolume(), expected);
+  EXPECT_DOUBLE_EQ(sphere1.getVolume(), sphere2.getVolume());
 }
 
 //------------------------------------------------------------------------------
@@ -181,6 +203,95 @@ void check_sphere_containment()
 
 //------------------------------------------------------------------------------
 template <int NDIMS>
+void check_point_containment()
+{
+  using PointType = primal::Point<double, NDIMS>;
+  using SphereType = primal::Sphere<double, NDIMS>;
+
+  // An off-origin sphere so the test is not accidentally centered.
+  PointType center {3.0, 4.0, 0.0};
+  const double radius = 5.0;
+  SphereType sphere(center, radius);
+
+  // --- Analytic checks: known inside / boundary / outside points ---------
+
+  // Center is strictly inside.
+  EXPECT_TRUE(sphere.contains(center));
+
+  for(int j = 0; j < NDIMS; ++j)
+  {
+    // Strictly inside (half a radius out along axis j): flag-independent.
+    PointType inside = center;
+    inside[j] = center[j] + 0.5 * radius;
+    EXPECT_TRUE(sphere.contains(inside, true));
+    EXPECT_TRUE(sphere.contains(inside, false));
+
+    // Exactly on the boundary.
+    //  An axis-aligned offset of exactly `radius` is representable exactly in floating point
+    PointType on_pos = center;
+    on_pos[j] = center[j] + radius;
+    EXPECT_TRUE(sphere.contains(on_pos, true));
+    EXPECT_FALSE(sphere.contains(on_pos, false));
+    EXPECT_TRUE(sphere.contains(on_pos));  // default == closed ball
+
+    PointType on_neg = center;
+    on_neg[j] = center[j] - radius;
+    EXPECT_TRUE(sphere.contains(on_neg, true));
+    EXPECT_FALSE(sphere.contains(on_neg, false));
+    EXPECT_TRUE(sphere.contains(on_neg));
+
+    // Strictly outside (two radii out along axis j): flag-independent.
+    PointType outside = center;
+    outside[j] = center[j] + 2. * radius;
+    EXPECT_FALSE(sphere.contains(outside, true));
+    EXPECT_FALSE(sphere.contains(outside, false));
+  }
+
+  // --- Agreement with computeSignedDistance() and getOrientation() -------
+  // contains() must agree with the sign of the (sqrt-based) signed distance
+  // and with getOrientation() everywhere except within the provided boundary tolerance
+  constexpr double tol = 1e-12;
+  constexpr double lo = -4.;
+  constexpr double hi = 12.;
+  constexpr double step = 0.37;  // deliberately not aligned to the radius
+
+  int comparisons = 0;
+  PointType q {};
+  for(double x = lo; x <= hi; x += step)
+  {
+    q[0] = x;
+    for(double y = lo; y <= hi; y += step)
+    {
+      q[1] = y;
+
+      const double signed_distance = sphere.computeSignedDistance(q);
+
+      // skip points within tolerance of boundary due to possible rounding diffs
+      if(axom::utilities::isNearlyEqual(signed_distance, 0.0, tol))
+      {
+        continue;
+      }
+
+      const int orientation = sphere.getOrientation(q, tol);
+
+      const bool contained_closed = sphere.contains(q, true);
+      EXPECT_EQ(contained_closed, (signed_distance <= 0.0));
+      EXPECT_EQ(contained_closed, (orientation != primal::ON_POSITIVE_SIDE));
+
+      const bool contained_open = sphere.contains(q, false);
+      EXPECT_EQ(contained_open, (signed_distance < 0.0));
+      EXPECT_EQ(contained_open, (orientation == primal::ON_NEGATIVE_SIDE));
+
+      ++comparisons;
+    }
+  }
+
+  // Guard against a degenerate loop silently exercising nothing.
+  EXPECT_GT(comparisons, 0);
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS>
 void check_copy_constructor()
 {
   using PointType = primal::Point<double, NDIMS>;
@@ -246,6 +357,13 @@ TEST(primal_sphere, constructor)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_sphere, volume)
+{
+  check_volume<2>();
+  check_volume<3>();
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_sphere, copy_constructor)
 {
   check_copy_constructor<2>();
@@ -278,6 +396,13 @@ TEST(primal_sphere, sphere_sphere_containment)
 {
   check_sphere_containment<2>();
   check_sphere_containment<3>();
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_sphere, sphere_point_containment)
+{
+  check_point_containment<2>();
+  check_point_containment<3>();
 }
 
 //------------------------------------------------------------------------------
