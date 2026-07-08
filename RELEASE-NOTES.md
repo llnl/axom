@@ -78,6 +78,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
 - Sidre: Vector-valued MFEM `QuadratureFunction` fields exported through `MFEMSidreDataCollection` now use Blueprint mcarray component storage under `values`, instead of a single scalar array.
 - Primal: Fixes `primal::Sphere<T,2>::getVolume()`, which was previously hard-coded for volume of 3D sphere
+- Sidre: Adds a `const` overload of the templated `axom::sidre::View::getData<T>()`,
+and marked the templated `axom::sidre::View::getAttributeScalar<T>()` overloads `const`
+so they can be called on a `const View`. Also added  `const` overloads for `axom::sidre::Buffer::getData()`
+and `axom::sidre::Buffer::getVoidPtr()` so they can be called on a `const Buffer`.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
