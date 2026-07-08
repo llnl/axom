@@ -3,6 +3,9 @@
 # Docker and openvscode setup based on the RAJA suite tutorial:
 # https://github.com/LLNL/raja-suite-tutorial/tree/main/containers/tutorial
 
+# Note: For both of the Docker commands below, add --platform linux/amd64 if
+# developing on Apple Silicon for deployment on x86_64 machines.
+
 # This script can be run with the following command:
 # docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:gcc-13-vscode" - < dockerfile_gcc-13_vscode
 
