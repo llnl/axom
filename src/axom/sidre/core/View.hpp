@@ -1251,14 +1251,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(IndexType idx)
+  DataType getAttributeScalar(IndexType idx) const
   {
     const Attribute* attr = getAttribute(idx);
     const Node& node = m_attr_values.getValueNodeRef(attr);
@@ -1267,14 +1266,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(const std::string& name)
+  DataType getAttributeScalar(const std::string& name) const
   {
     const Attribute* attr = getAttribute(name);
     const Node& node = m_attr_values.getValueNodeRef(attr);
@@ -1283,14 +1281,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(const Attribute* attr)
+  DataType getAttributeScalar(const Attribute* attr) const
   {
     SLIC_CHECK_MSG(attr != nullptr,
                    SIDRE_VIEW_LOG_PREPEND << "getAttributeScalar: called with a null Attribute");
