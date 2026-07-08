@@ -1126,6 +1126,18 @@ typename std::enable_if<TDIM == 3, bool>::type InOutOctree<DIM>::withinGrayBlock
   CellIndexSet triSet = leafCells(leafBlk, leafData);
   const int numTris = triSet.size();
 
+  // First, handle the case where the query point lies on (or within the vertex welding tolerance of)
+  // one of the block's triangles. Such points are 'within' the surface by convention,
+  // but the ray-orientation test below is degenerate for them.
+  for(int i = 0; i < numTris; ++i)
+  {
+    if(primal::squared_distance(queryPt, m_meshWrapper.cellPositions(triSet[i])) <=
+       m_vertexWeldThresholdSquared)
+    {
+      return true;
+    }
+  }
+
   for(int i = 0; i < numTris; ++i)
   {
     /// Get the triangle

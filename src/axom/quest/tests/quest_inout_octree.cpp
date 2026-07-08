@@ -235,6 +235,146 @@ TEST(quest_inout_octree, tetrahedron_mesh)
 }
 
 //----------------------------------------------------------------------
+TEST(quest_inout_octree, on_surface_points)
+{
+  // Regression test for https://github.com/LLNL/axom/issues/611 (3D)
+  //
+  // Query point lying exactly on the surface should be marked as inside the surface.
+  // This test builds a unit cube as a closed triangle surface (12 triangles) and
+  // checks that points sampled exactly on the surface are reported as 'within'.
+  // It compares against generalized winding number summed over the 12 triangles.
+
+  namespace mint = axom::mint;
+  namespace quest = axom::quest;
+  namespace primal = axom::primal;
+
+  using Point3D = primal::Point<double, 3>;
+  using Triangle3D = primal::Triangle<double, 3>;
+
+  // 8 corners of the unit cube.
+  axom::Array<Point3D> V {Point3D {0., 0., 0.},
+                          Point3D {1., 0., 0.},
+                          Point3D {1., 1., 0.},
+                          Point3D {0., 1., 0.},
+                          Point3D {0., 0., 1.},
+                          Point3D {1., 0., 1.},
+                          Point3D {1., 1., 1.},
+                          Point3D {0., 1., 1.}};
+
+  // 12 triangles (2 per face), wound CCW as seen from outside (outward normals).
+  axom::Array<std::tuple<int, int, int>> TRI {{0, 3, 2},
+                                              {0, 2, 1},  // z=0 bottom
+                                              {4, 5, 6},
+                                              {4, 6, 7},  // z=1 top
+                                              {0, 1, 5},
+                                              {0, 5, 4},  // y=0 front
+                                              {3, 7, 6},
+                                              {3, 6, 2},  // y=1 back
+                                              {0, 4, 7},
+                                              {0, 7, 3},  // x=0 left
+                                              {1, 2, 6},
+                                              {1, 6, 5}};  // x=1 right
+
+  // Build a mesh over the triangles and an octree over the mesh
+  std::shared_ptr<mint::Mesh> mesh = [&V, &TRI]() {
+    auto m = std::make_shared<mint::UnstructuredMesh<mint::SINGLE_SHAPE>>(DIM, mint::TRIANGLE);
+    for(const auto& v : V)
+    {
+      m->appendNode(v[0], v[1], v[2]);
+    }
+    for(const auto& [t0, t1, t2] : TRI)
+    {
+      axom::IndexType cell[3] = {t0, t1, t2};
+      m->appendCell(cell);
+    }
+    return m;
+  }();
+
+  GeometricBoundingBox bbox = computeBoundingBox(*mesh);
+  Octree3D octree(bbox, mesh);
+  octree.generateIndex();
+
+  // Matching triangle list for the winding-number oracle.
+  axom::Array<Triangle3D> tris;
+  for(const auto& [t0, t1, t2] : TRI)
+  {
+    tris.emplace_back(V[t0], V[t1], V[t2]);
+  }
+
+  // Oracle: on-surface (by distance) => within; else sign of rounded GWN sum.
+  auto expectedWithin = [&tris](const Point3D& q, double edge_tol = 1e-8) -> bool {
+    const double edge_tol_2 = edge_tol * edge_tol;
+    double wn = 0.0;
+    for(const auto& tri : tris)
+    {
+      bool onThis {};
+      wn += primal::winding_number(q, tri, onThis, edge_tol, edge_tol);
+      if(onThis || primal::squared_distance(q, tri) <= edge_tol_2)
+      {
+        return true;  // on the surface
+      }
+    }
+    return std::lround(wn) != 0;
+  };
+
+  // Adds some hand-picked on-surface points: face centers, edge midpoints, corners,
+  // and points on the shared diagonal edge between the two triangles of a face.
+  axom::Array<SpacePt> onSurface {
+    SpacePt {0.5, 0.5, 0.0},
+    SpacePt {0.5, 0.5, 1.0},  // bottom/top face centers
+    SpacePt {0.5, 0.0, 0.5},
+    SpacePt {0.5, 1.0, 0.5},  // front/back face centers
+    SpacePt {0.0, 0.5, 0.5},
+    SpacePt {1.0, 0.5, 0.5},  // left/right face centers
+    SpacePt {0.5, 0.0, 0.0},
+    SpacePt {0.0, 0.5, 0.0},
+    SpacePt {1.0, 1.0, 0.5},  // edge midpoints
+    SpacePt {0.0, 0.0, 0.0},
+    SpacePt {1.0, 1.0, 1.0},
+    SpacePt {1.0, 0.0, 1.0},  // corners
+    SpacePt {0.3, 0.7, 1.0},
+    SpacePt {1.0, 0.25, 0.6},  // off-center on faces
+    SpacePt {0.4, 0.4, 0.0}    // on a face diagonal edge
+  };
+
+  // Also add dense set of samples on each triangle
+  const int bres = 8;
+  for(const auto& tri : tris)
+  {
+    for(int a = 0; a <= bres; ++a)
+    {
+      const double u = static_cast<double>(a) / bres;
+      for(int b = 0; a + b <= bres; ++b)
+      {
+        const double v = static_cast<double>(b) / bres;
+        onSurface.push_back(tri.baryToPhysical(SpacePt {u, v, 1. - u - v}));
+      }
+    }
+  }
+
+  // Run the on-surface comparisons
+  for(const auto& q : onSurface)
+  {
+    EXPECT_TRUE(expectedWithin(q)) << "Oracle: point " << q << " should be on/within the surface";
+    EXPECT_TRUE(octree.within(q)) << "On-surface point " << q << " should be within the surface";
+  }
+
+  // Sanity check for several interior and exterior query points
+  for(const auto& q_interior : {SpacePt {0.5, 0.5, 0.5}, SpacePt {0.25, 0.75, 0.5}})
+  {
+    EXPECT_TRUE(expectedWithin(q_interior));
+    EXPECT_TRUE(octree.within(q_interior));
+  }
+
+  for(const auto& q_exterior :
+      {SpacePt {0.5, 0.5, 1.5}, SpacePt {1.5, 0.5, 0.5}, SpacePt {2.0, 2.0, 2.0}})
+  {
+    EXPECT_FALSE(expectedWithin(q_exterior));
+    EXPECT_FALSE(octree.within(q_exterior));
+  }
+}
+
+//----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {
