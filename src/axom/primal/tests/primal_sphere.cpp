@@ -64,6 +64,26 @@ void check_constructor()
 
 //------------------------------------------------------------------------------
 template <int NDIMS>
+void check_volume()
+{
+  using SphereType = primal::Sphere<double, NDIMS>;
+  using PointType = primal::Point<double, NDIMS>;
+
+  constexpr double radius = 2.5;
+  const SphereType sphere1(PointType::zero(), radius);
+  const SphereType sphere2(PointType {3., 4., 0.}, radius);
+
+  // 2D "volume" is the enclosed area (pi r^2); 3D is (4/3) pi r^3.
+  constexpr double expected =
+    (NDIMS == 2) ? M_PI * radius * radius : 4. / 3. * M_PI * radius * radius * radius;
+
+  EXPECT_DOUBLE_EQ(sphere1.getVolume(), expected);
+  EXPECT_DOUBLE_EQ(sphere2.getVolume(), expected);
+  EXPECT_DOUBLE_EQ(sphere1.getVolume(), sphere2.getVolume());
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS>
 void check_signed_distance_and_orientation()
 {
   using PointType = primal::Point<double, NDIMS>;
@@ -334,6 +354,13 @@ TEST(primal_sphere, constructor)
 {
   check_constructor<2>();
   check_constructor<3>();
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_sphere, volume)
+{
+  check_volume<2>();
+  check_volume<3>();
 }
 
 //------------------------------------------------------------------------------

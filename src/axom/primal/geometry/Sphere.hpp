@@ -113,11 +113,19 @@ public:
   AXOM_HOST_DEVICE
   inline const PointType& getCenter() const { return m_center; };
 
-  /*!
-   * \brief Returns the volume of the Sphere.
-   */
+  /// \brief Returns the n-dimensional volume enclosed by the Sphere.
   AXOM_HOST_DEVICE
-  inline T getVolume() const { return 4.0 / 3 * M_PI * m_radius * m_radius * m_radius; };
+  inline T getVolume() const
+  {
+    if constexpr(NDIMS == 2)
+    {
+      return M_PI * m_radius * m_radius;
+    }
+    else
+    {
+      return 4. / 3. * M_PI * m_radius * m_radius * m_radius;
+    }
+  }
 
   /*!
    * \brief Computes the signed distance of a point to the Sphere's boundary.
