@@ -1,5 +1,4 @@
 {
   "task.allowAutomaticTasks": "on",
-  "terminal.integrated.cwd": "/home/XXX/shaping_tutorial",
-  "terminal.integrated.defaultProfile.linux": "bash"
+  "terminal.integrated.cwd": "/home/XXX/shaping_tutorial"
 }
