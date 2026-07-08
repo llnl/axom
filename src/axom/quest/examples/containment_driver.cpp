@@ -154,10 +154,15 @@ public:
     SLIC_INFO("Bounding box for query points: " << m_queryBB);
   }
 
-  void initializeInOutOctree()
+  void initializeInOutOctree(bool shouldOutputVtk, const std::string& vtkOutputDirectory)
   {
     AXOM_ANNOTATE_SCOPE("generate octree");
     m_octree = new InOutOctreeType(m_meshBB, m_surfaceMesh);
+    m_octree->setVtkOutputEnabled(shouldOutputVtk);
+    if(shouldOutputVtk)
+    {
+      m_octree->setVtkOutputDirectory(vtkOutputDirectory);
+    }
     m_octree->generateIndex();
   }
 
@@ -488,6 +493,7 @@ public:
 private:
   bool m_verboseOutput {false};
   bool m_use_batched_query {false};
+  bool m_output_octree_vtk {false};
 
 public:
   Input()
@@ -517,22 +523,20 @@ public:
 
   bool useBatchedQuery() const { return m_use_batched_query; }
 
+  bool outputOctreeVtk() const { return m_output_octree_vtk; }
+
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_option("-i,--input", inputFile, "Path to input file")->check(axom::CLI::ExistingFile);
 
-    app
-      .add_flag("-v,--verbose",
-                m_verboseOutput,
-                "Enable/disable verbose output, "
-                "including outputting generated containment grids.")
+    app.add_flag("-v,--verbose", m_verboseOutput)
+      ->description(
+        "Enable/disable verbose output, including outputting generated containment grids.")
       ->capture_default_str();
 
-    app
-      .add_option("-l,--levels",
-                  maxQueryLevel,
-                  "Max query resolution. \n"
-                  "Will query uniform grids at levels 1 through the provided level")
+    app.add_option("-l,--levels", maxQueryLevel)
+      ->description(
+        "Max query resolution.\n Will query uniform grids at levels 1 through the provided level")
       ->capture_default_str()
       ->check(axom::CLI::PositiveNumber);
 
@@ -544,17 +548,16 @@ public:
     minbb->needs(maxbb);
     maxbb->needs(minbb);
 
-    app
-      .add_flag("--batched",
-                m_use_batched_query,
-                "uses a single batched query on all points instead of many "
-                "individual queries")
+    app.add_flag("--batched", m_use_batched_query)
+      ->description("uses a single batched query on all points instead of many individual queries")
       ->capture_default_str();
 
-    app
-      .add_option("-n,--segments-per-knot-span",
-                  samplesPerKnotSpan,
-                  "(2D only) Number of linear segments to generate per NURBS knot span")
+    app.add_flag("--vis", m_output_octree_vtk)
+      ->description("writes InOutOctree visualization VTK files during octree generation")
+      ->capture_default_str();
+
+    app.add_option("-n,--segments-per-knot-span", samplesPerKnotSpan)
+      ->description("(2D only) Number of linear segments to generate per NURBS knot span")
       ->capture_default_str()
       ->check(axom::CLI::PositiveNumber);
 
@@ -567,7 +570,7 @@ public:
       ->check(axom::utilities::ValidCaliperMode);
 #endif
 
-    app.get_formatter()->column_width(48);
+    app.get_formatter()->column_width(50);
 
     // could throw an exception
     app.parse(argc, argv);
@@ -639,19 +642,30 @@ int main(int argc, char** argv)
 
   /// Create octree over mesh's bounding box
   SLIC_INFO(axom::fmt::format("{:-^80}", " Generating the octree "));
+  const std::string vtkOutputDirectory {"vis"};
   if(is2D)
   {
-    driver2D.initializeInOutOctree();
+    driver2D.initializeInOutOctree(params.outputOctreeVtk(), vtkOutputDirectory);
     driver2D.printSurfaceStats();
 
-    mint::write_vtk(driver2D.getSurfaceMesh(), "meldedSegmentMesh.vtk");
+    if(params.outputOctreeVtk())
+    {
+      mint::write_vtk(
+        driver2D.getSurfaceMesh(),
+        axom::utilities::filesystem::joinPath(vtkOutputDirectory, "meldedSegmentMesh.vtk"));
+    }
   }
   else
   {
-    driver3D.initializeInOutOctree();
+    driver3D.initializeInOutOctree(params.outputOctreeVtk(), vtkOutputDirectory);
     driver3D.printSurfaceStats();
 
-    mint::write_vtk(driver3D.getSurfaceMesh(), "meldedTriMesh.vtk");
+    if(params.outputOctreeVtk())
+    {
+      mint::write_vtk(
+        driver3D.getSurfaceMesh(),
+        axom::utilities::filesystem::joinPath(vtkOutputDirectory, "meldedTriMesh.vtk"));
+    }
   }
 
   AXOM_ANNOTATE_END("init");

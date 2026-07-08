@@ -14,6 +14,7 @@
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 #include "axom/primal.hpp"
@@ -29,14 +30,6 @@
 #include <vector>
 #include <iterator>
 #include <sstream>
-
-#ifndef DUMP_VTK_MESH
-//  #define DUMP_VTK_MESH
-#endif
-
-#ifndef DUMP_OCTREE_INFO
-//  #define DUMP_OCTREE_INFO 1
-#endif
 
 #ifndef DEBUG_OCTREE_ACTIVE
 //  #define DEBUG_OCTREE_ACTIVE
@@ -215,6 +208,23 @@ public:
     m_vertexWeldThresholdSquared = thresh * thresh;
   }
 
+  /*!
+   * \brief Controls whether VTK visualization dumps are written during octree generation.
+   *
+   * \param [in] enabled If true, writes the surface mesh and octree visualization
+   * dumps during generateIndex().
+   */
+  void setVtkOutputEnabled(bool enabled) { m_vtkOutputEnabled = enabled; }
+
+  /// \brief Returns whether VTK visualization dumps are enabled.
+  bool isVtkOutputEnabled() const { return m_vtkOutputEnabled; }
+
+  /// \brief Sets an optional prefix for VTK visualization dump filenames.
+  void setVtkOutputPrefix(const std::string& prefix) { m_vtkOutputPrefix = prefix; }
+
+  /// \brief Sets the output directory for VTK visualization dump files.
+  void setVtkOutputDirectory(const std::string& directory) { m_vtkOutputDirectory = directory; }
+
 private:
   /**
    * \brief Helper function to insert a vertex into the octree
@@ -368,6 +378,7 @@ private:
 
   void dumpOctreeMeshVTK(const std::string& name) const;
   void dumpSurfaceMeshVTK(const std::string& name) const;
+  std::string vtkOutputPath(const std::string& name) const;
 
   /**
    * \brief Utility function to dump any Inside blocks whose neighbors are
@@ -397,6 +408,10 @@ protected:
 
   /// Bounding box scaling factor for dealing with grazing triangles
   double m_boundingBoxScaleFactor {DEFAULT_BOUNDING_BOX_SCALE_FACTOR};
+
+  bool m_vtkOutputEnabled {false};
+  std::string m_vtkOutputDirectory;
+  std::string m_vtkOutputPrefix;
 };
 
 template <int DIM>
@@ -474,16 +489,24 @@ void InOutOctree<DIM>::generateIndex()
                                    m_meshWrapper.numMeshVertices(),
                                    m_meshWrapper.numMeshCells()));
 
-#ifdef DUMP_OCTREE_INFO
-  // -- Print some stats about the octree
-  SLIC_INFO_ROOT("** Octree stats after inserting vertices");
+  if(m_vtkOutputEnabled)
   {
+    if(!m_vtkOutputDirectory.empty() && !axom::utilities::filesystem::pathExists(m_vtkOutputDirectory))
+    {
+      const int rc = axom::utilities::filesystem::makeDirsForPath(m_vtkOutputDirectory);
+      SLIC_ERROR_IF(
+        rc != 0,
+        axom::fmt::format("Failed to create VTK output directory '{}'", m_vtkOutputDirectory));
+    }
+
+    // -- Print some stats about the octree
+    SLIC_INFO_ROOT("** Octree stats after inserting vertices");
     AXOM_ANNOTATE_SCOPE("dump stats after inserting vertices");
-    dumpSurfaceMeshVTK("surfaceMesh");
-    dumpOctreeMeshVTK("prOctree");
+    dumpSurfaceMeshVTK(m_vtkOutputPrefix + "surfaceMesh");
+    dumpOctreeMeshVTK(m_vtkOutputPrefix + "prOctree");
     printOctreeStats();
   }
-#endif
+
   {
     AXOM_ANNOTATE_SCOPE("validate after inserting vertices");
     checkValid();
@@ -517,16 +540,16 @@ void InOutOctree<DIM>::generateIndex()
                                    "\t--Coloring octree leaves took {:.3Lf} seconds.",
                                    timer.elapsed()));
 
-#ifdef DUMP_OCTREE_INFO
-  // -- Print some stats about the octree
-  SLIC_INFO_ROOT("** Octree stats after inserting cells");
+  if(m_vtkOutputEnabled)
   {
+    // -- Print some stats about the octree
+    SLIC_INFO_ROOT("** Octree stats after inserting cells");
     AXOM_ANNOTATE_SCOPE("dump stats after inserting cells");
-    dumpOctreeMeshVTK("pmOctree");
-    dumpDifferentColoredNeighborsMeshVTK("differentNeighbors");
+    dumpOctreeMeshVTK(m_vtkOutputPrefix + "pmOctree");
+    dumpDifferentColoredNeighborsMeshVTK(m_vtkOutputPrefix + "differentNeighbors");
     printOctreeStats();
   }
-#endif
+
   {
     AXOM_ANNOTATE_SCOPE("validate after inserting cells");
     checkValid();
@@ -1527,30 +1550,29 @@ void InOutOctree<DIM>::printOctreeStats() const
   detail::InOutOctreeStats<DIM> octreeStats(*this);
   SLIC_INFO_ROOT(octreeStats.summaryStats());
 
-#ifdef DUMP_VTK_MESH
-  // Print out some debug meshes for vertex, triangle and/or blocks defined in
-  // DEBUG_XXX macros
+#ifdef DEBUG_OCTREE_ACTIVE
+  // Print out some debug meshes for vertex, triangle and/or blocks defined in DEBUG_XXX macros
   if(m_generationState >= INOUTOCTREE_ELEMENTS_INSERTED)
   {
     detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
 
     if(DEBUG_VERT_IDX >= 0 && DEBUG_VERT_IDX < m_meshWrapper.numMeshVertices())
     {
-      meshDumper.dumpLocalOctreeMeshesForCell("debug_", DEBUG_VERT_IDX);
+      meshDumper.dumpLocalOctreeMeshesForCell(vtkOutputPath("debug_"), DEBUG_VERT_IDX);
     }
     if(DEBUG_TRI_IDX >= 0 && DEBUG_TRI_IDX < m_meshWrapper.numMeshCells())
     {
-      meshDumper.dumpLocalOctreeMeshesForCell("debug_", DEBUG_TRI_IDX);
+      meshDumper.dumpLocalOctreeMeshesForCell(vtkOutputPath("debug_"), DEBUG_TRI_IDX);
     }
 
     if(DEBUG_BLOCK_1 != BlockIndex::invalid_index() && this->hasBlock(DEBUG_BLOCK_1))
     {
-      meshDumper.dumpLocalOctreeMeshesForBlock("debug_", DEBUG_BLOCK_1);
+      meshDumper.dumpLocalOctreeMeshesForBlock(vtkOutputPath("debug_"), DEBUG_BLOCK_1);
     }
 
     if(DEBUG_BLOCK_2 != BlockIndex::invalid_index() && this->hasBlock(DEBUG_BLOCK_2))
     {
-      meshDumper.dumpLocalOctreeMeshesForBlock("debug_", DEBUG_BLOCK_2);
+      meshDumper.dumpLocalOctreeMeshesForBlock(vtkOutputPath("debug_"), DEBUG_BLOCK_2);
     }
   }
 #endif
@@ -1582,40 +1604,30 @@ void InOutOctree<DIM>::checkValid() const
 template <int DIM>
 void InOutOctree<DIM>::dumpSurfaceMeshVTK(const std::string& name) const
 {
-#ifdef DUMP_VTK_MESH
-
   detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
-  meshDumper.dumpSurfaceMeshVTK(name);
-
-#else
-  AXOM_UNUSED_VAR(name);
-#endif
+  meshDumper.dumpSurfaceMeshVTK(vtkOutputPath(name));
 }
 
 template <int DIM>
 void InOutOctree<DIM>::dumpOctreeMeshVTK(const std::string& name) const
 {
-#ifdef DUMP_VTK_MESH
-
   detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
-  meshDumper.dumpOctreeMeshVTK(name);
-
-#else
-  AXOM_UNUSED_VAR(name);
-#endif
+  meshDumper.dumpOctreeMeshVTK(vtkOutputPath(name));
 }
 
 template <int DIM>
 void InOutOctree<DIM>::dumpDifferentColoredNeighborsMeshVTK(const std::string& name) const
 {
-#ifdef DUMP_VTK_MESH
-
   detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
-  meshDumper.dumpDifferentColoredNeighborsMeshVTK(name);
+  meshDumper.dumpDifferentColoredNeighborsMeshVTK(vtkOutputPath(name));
+}
 
-#else
-  AXOM_UNUSED_VAR(name);
-#endif
+template <int DIM>
+std::string InOutOctree<DIM>::vtkOutputPath(const std::string& name) const
+{
+  return m_vtkOutputDirectory.empty()
+    ? name
+    : axom::utilities::filesystem::joinPath(m_vtkOutputDirectory, name);
 }
 
 }  // end namespace quest
