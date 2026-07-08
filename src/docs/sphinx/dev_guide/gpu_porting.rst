@@ -125,6 +125,13 @@ the memory space where data in
 ``Dynamic`` allows you to define the location at run time, with some caveats
 (see :ref:`Core Containers<core-containers>` for more details and examples).
 
+``Host`` refers to Axom's current default CPU allocator. By default this is the
+platform host allocator, but it can also be configured to use Axom's
+malloc-backed allocator with ``axom::setDefaultHostAllocator()``.
+
+``Dynamic`` remains separate from ``Host``. In Umpire-enabled builds,
+``Dynamic`` continues to follow the current default Umpire allocator.
+
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Useful Links
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -158,8 +165,7 @@ GPU device, or on both a GPU device and a CPU host. For example::
 
 .. note::
 
-  When Axom is built without RAJA, ``axom::for_all`` becomes a ``for``-loop on
-  host (CPU).
+  When Axom is built without RAJA, ``axom::for_all`` becomes a for-loop on host (CPU).
 
 %%%%%%%%%%%%%%%%
 Portability
@@ -168,8 +174,8 @@ Portability
 Adherence to the GPU porting guidelines generally results in code that will compile and run on
 multiple backends. However, backends such as CUDA require additional guidelines.
 
-**Do not use ``auto`` lambda parameters** with ``axom::for_all`` or the code will not
-compile under nvcc.
+**Do not use auto lambda parameters** with ``axom::for_all`` or the code will not
+compile with nvcc.
 
 Do this:
 
@@ -211,13 +217,14 @@ Do NOT do this:
 
   .. code-block:: cpp
 
+      /* Here, dataView is a reference. This causes the error described in the for_all body. */
       template <typename ExecSpace>
       void doSomething(axom::ArrayView<int> &dataView)
       {
         axom::for_all<ExecSpace>(dataView.size(), AXOM_LAMBDA(axom::IndexType index)
         {
           /* body uses dataView[index] */
-          /* It will crash on GPU devices because the host reference was
+          /* This will cause an error on a GPU because the host reference is
              captured rather than the object.
            */
         });

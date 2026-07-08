@@ -31,6 +31,7 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    :caption: Contents
    :maxdepth: 1
 
+   core_memory_management
    core_numerics
    core_utilities
    core_containers

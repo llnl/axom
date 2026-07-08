@@ -161,9 +161,11 @@ public:
                   "Cannot copy an axom::FlatMap when value type is not "
                   "copy-constructible.");
     // Copy all elements.
-    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
-                                                              other.m_buckets.view(),
-                                                              m_buckets.view());
+    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(
+      m_metadata.view(),
+      other.m_buckets.view(),
+      m_buckets.view(),
+      HostAllocator {m_buckets.getHostAllocatorID()});
   }
 
   /*!
@@ -208,9 +210,11 @@ public:
     , m_loadCount(other.m_loadCount)
   {
     // Copy all elements.
-    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
-                                                              other.m_buckets.view(),
-                                                              m_buckets.view());
+    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(
+      m_metadata.view(),
+      other.m_buckets.view(),
+      m_buckets.view(),
+      HostAllocator {m_buckets.getHostAllocatorID()});
   }
 
   /// \brief Destructor for a FlatMap instance.
@@ -219,8 +223,10 @@ public:
     // Destroy all elements.
     if(m_size > 0)
     {
-      detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
-                                                                   m_buckets.view());
+      detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(
+        m_metadata.view(),
+        m_buckets.view(),
+        HostAllocator {m_buckets.getHostAllocatorID()});
     }
 
     // Unlike in clear() we don't need to reset metadata here.
@@ -385,7 +391,10 @@ public:
   void clear()
   {
     // Destroy all elements.
-    detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(), m_buckets.view());
+    detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(
+      m_metadata.view(),
+      m_buckets.view(),
+      HostAllocator {m_buckets.getHostAllocatorID()});
 
     // Also reset metadata.
     IndexType numGroupsRounded = 1 << m_numGroups2;

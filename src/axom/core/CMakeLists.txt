@@ -30,6 +30,7 @@ set(core_headers
     utilities/CommandLineUtilities.hpp
     utilities/ConstexprAssert.hpp
     utilities/FileUtilities.hpp
+    utilities/MemoryTesting.hpp
     utilities/RAII.hpp
     utilities/Sorting.hpp
     utilities/StringUtilities.hpp

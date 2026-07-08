@@ -35,8 +35,14 @@ inline void setSentinel(axom::ArrayView<GroupBucket> metadata)
 }
 
 template <typename KVPair, typename LookupPolicy, typename StoragePair = TypeErasedStorage<KVPair>>
-inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata, axom::ArrayView<StoragePair> buckets)
+inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata,
+                           axom::ArrayView<StoragePair> buckets,
+                           HostAllocator host_allocator)
 {
+#if !defined(AXOM_USE_UMPIRE) || !defined(AXOM_USE_CUDA)
+AXOM_UNUSED_VAR(host_allocator);
+#endif
+
   if(std::is_trivially_destructible<KVPair>::value)
   {
     // Nothing to do.
@@ -57,9 +63,8 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata, axom::ArrayVie
   axom::Array<GroupBucket> metadata_host;
   if(space == MemorySpace::Device)
   {
-    int host_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-    metadata_host = axom::Array<GroupBucket>(metadata, host_allocator_id);
-    buckets_host = axom::Array<StoragePair>(buckets, host_allocator_id);
+    metadata_host = axom::Array<GroupBucket>(metadata, host_allocator.getID(), host_allocator);
+    buckets_host = axom::Array<StoragePair>(buckets, host_allocator.getID(), host_allocator);
     metadata = metadata_host.view();
     buckets = buckets_host.view();
   }
@@ -75,8 +80,13 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata, axom::ArrayVie
 template <typename KVPair, typename LookupPolicy, typename StoragePair = TypeErasedStorage<KVPair>>
 inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
                         axom::ArrayView<const StoragePair> from_buckets,
-                        axom::ArrayView<StoragePair> to_buckets)
+                        axom::ArrayView<StoragePair> to_buckets,
+                        HostAllocator host_allocator)
 {
+#if !defined(AXOM_USE_UMPIRE) || !defined(AXOM_USE_CUDA)
+AXOM_UNUSED_VAR(host_allocator);
+#endif
+
   if(std::is_trivially_copyable<KVPair>::value)
   {
     axom::copy(to_buckets.data(), from_buckets.data(), sizeof(StoragePair) * from_buckets.size());
@@ -94,16 +104,15 @@ inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
   axom::Array<GroupBucket> metadata_host;
   if(meta_space == MemorySpace::Device)
   {
-    int host_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-    metadata_host = axom::Array<GroupBucket>(metadata, host_allocator_id);
+    metadata_host = axom::Array<GroupBucket>(metadata, host_allocator.getID(), host_allocator);
     metadata = metadata_host.view();
   }
   MemorySpace from_space = getAllocatorSpace(from_buckets.getAllocatorID());
   axom::Array<StoragePair> from_buckets_host;
   if(from_space == MemorySpace::Device)
   {
-    int host_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-    from_buckets_host = axom::Array<StoragePair>(from_buckets, host_allocator_id);
+    from_buckets_host =
+      axom::Array<StoragePair>(from_buckets, host_allocator.getID(), host_allocator);
     from_buckets = from_buckets_host.view();
   }
 
@@ -111,8 +120,7 @@ inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
   axom::Array<StoragePair> to_buckets_host;
   if(to_space == MemorySpace::Device)
   {
-    int host_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-    to_buckets_host = axom::Array<StoragePair>(to_buckets, host_allocator_id);
+    to_buckets_host = axom::Array<StoragePair>(to_buckets, host_allocator.getID(), host_allocator);
     to_buckets_stage = to_buckets_host.view();
   }
 #endif

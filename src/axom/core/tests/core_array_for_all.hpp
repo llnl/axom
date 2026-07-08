@@ -15,8 +15,70 @@
 // gtest includes
 #include "gtest/gtest.h"
 
+#include <exception>
+
 namespace testing
 {
+namespace
+{
+bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
+{
+  if(!axom::isMemorySpaceAvailable(space))
+  {
+    return false;
+  }
+
+#if defined(AXOM_USE_UMPIRE)
+  try
+  {
+    switch(space)
+    {
+    case axom::MemorySpace::Host:
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      break;
+    case axom::MemorySpace::Device:
+  #if defined(UMPIRE_ENABLE_DEVICE)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Unified:
+  #if defined(UMPIRE_ENABLE_UM)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Pinned:
+  #if defined(UMPIRE_ENABLE_PINNED)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Constant:
+  #if defined(UMPIRE_ENABLE_CONST)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Malloc:
+    case axom::MemorySpace::Dynamic:
+      break;
+    }
+  }
+  catch(const std::exception&)
+  {
+    return false;
+  }
+#endif
+
+  return true;
+}
+}  // namespace
+
 template <typename ExecSpace, axom::MemorySpace SPACE = axom::MemorySpace::Dynamic>
 struct ArrayTestParams
 {
@@ -51,6 +113,15 @@ public:
   using DynamicArray = axom::Array<int, 1, axom::MemorySpace::Dynamic>;
   using KernelArray = axom::Array<int, 1, exec_space_memory>;
   using KernelArrayView = axom::ArrayView<int, 1, exec_space_memory>;
+
+  void SetUp() override
+  {
+    if(!runtimeMemorySpaceAvailable(exec_space_memory))
+    {
+      GTEST_SKIP() << "Skipping test because the allocator for the kernel memory space "
+                   << static_cast<int>(exec_space_memory) << " is unavailable at runtime.";
+    }
+  }
 
   static int getKernelAllocatorID() { return axom::detail::getAllocatorID<exec_space_memory>(); }
 };
@@ -90,6 +161,11 @@ AXOM_CUDA_TEST(core_array_for_all, capture_test)
 {
   using ExecSpace = axom::CUDA_EXEC<256>;
   using KernelArray = axom::Array<int, 1, axom::MemorySpace::Device>;
+
+  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  {
+    GTEST_SKIP() << "Device allocator is unavailable at runtime.";
+  }
 
   EXPECT_DEATH_IF_SUPPORTED(
     {
@@ -1120,14 +1196,21 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   using DynamicArray = typename TestFixture::template DynamicTArray<DeviceInsert>;
   using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
 
+  int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   int kernelAllocID = TestFixture::getKernelAllocatorID();
-  int umAllocID = kernelAllocID;
+  int umAllocID = hostAllocID;
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
   // Use unified memory for frequent movement between device operations
   // and value checking on host
-  umAllocID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+  if(runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  {
+    umAllocID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+  }
+  else if(axom::execution_space<ExecSpace>::onDevice())
+  {
+    GTEST_SKIP() << "Unified allocator is unavailable at runtime.";
+  }
 #endif
-  int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   constexpr axom::IndexType N = 374;
 
