@@ -934,12 +934,26 @@ public:
    *
    * \sa getData()
    */
+  /// @{
   template <typename DataType>
   DataType getData()
   {
     DataType data = m_node.value();
     return data;
   }
+
+  /*!
+   * \overload
+   */
+  template <typename DataType>
+  DataType getData() const
+  {
+    // Mirror getVoidPtr() const: the View is logically const
+    // (its description is not modified) but the data it references remains mutable.
+    DataType data = const_cast<Node&>(m_node).value();
+    return data;
+  }
+  /// @}
 
   /*!
    * \brief Returns a void pointer to the view's data
