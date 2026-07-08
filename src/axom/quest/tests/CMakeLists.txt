@@ -88,6 +88,20 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
 
 endif()
 
+if(CONDUIT_FOUND)
+    axom_add_executable(
+        NAME        quest_marching_cubes_ray_queries_test
+        SOURCES     quest_marching_cubes_ray_queries.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_tests_depends} conduit::conduit
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_marching_cubes_ray_queries
+        COMMAND quest_marching_cubes_ray_queries_test)
+endif()
+
 #------------------------------------------------------------------------------
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
