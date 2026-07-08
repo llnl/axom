@@ -982,14 +982,16 @@ NB_MODULE(pysidre, m_sidre)
          "Return the string contained in the View.")
     .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
 
-    .def("getDataInt",
-         &View::getData<int>,
-         nb::rv_policy::reference,
-         "Return the scalar data held by the View as an python int type.")
-    .def("getDataFloat",
-         &View::getData<double>,
-         nb::rv_policy::reference,
-         "Return the data held by the View as a python float type (C++ double).")
+    .def(
+      "getDataInt",
+      [](View& self) { return self.getData<int>(); },
+      nb::rv_policy::reference,
+      "Return the scalar data held by the View as an python int type.")
+    .def(
+      "getDataFloat",
+      [](View& self) { return self.getData<double>(); },
+      nb::rv_policy::reference,
+      "Return the data held by the View as a python float type (C++ double).")
     .def("print",
          nb::overload_cast<>(&View::print, nb::const_),
          "Print JSON description of the View.")
