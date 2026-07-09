@@ -99,7 +99,7 @@ public:
   /// Refinement type.
   using RefinementType = DiscreteShape::RefinementType;
 
-  //! @brief Verify the input mesh is okay for this backend to work with.
+  //! @brief Verify the input mesh is okay for this class to work with.
   bool verifyInputMesh(std::string& whyBad) const;
 
   ///@{
