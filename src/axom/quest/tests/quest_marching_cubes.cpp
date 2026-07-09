@@ -33,6 +33,7 @@
   #include <algorithm>
   #include <array>
   #include <cmath>
+  #include <limits>
   #include <map>
   #include <set>
   #include <string>
@@ -148,6 +149,16 @@ struct StructuredCaseBlueprintData
   double isoValue {0.0};
 };
 
+struct EllipsoidBlueprintData
+{
+  conduit::Node mesh;
+  std::vector<double> x;
+  std::vector<double> y;
+  std::vector<double> z;
+  std::vector<double> field;
+  std::vector<int> mask;
+};
+
 struct UniquePointData
 {
   std::vector<Point3D> points;
@@ -182,9 +193,18 @@ using CornerValues = std::array<double, 8>;
 using TriangleNodeIds = std::array<int, 3>;
 using UndirectedEdge = std::array<int, 2>;
 
+struct CanonicalTriangleMesh
+{
+  std::vector<Point3D> uniquePoints;
+  std::vector<TriangleNodeIds> triangles;
+};
+
 constexpr StructuredDomainSpec SINGLE_CUBE_SPEC {2, 2, 2, 0};
 constexpr StructuredDomainSpec EMBEDDED_CUBE_SPEC {3, 3, 3, 0};
 constexpr double POINT_TOL = 1.0e-12;
+constexpr std::array<double, 3> SKIMAGE_ELLIPSOID_SEMI_AXES {{6.0, 10.0, 16.0}};
+constexpr std::array<double, 3> SKIMAGE_ANISOTROPIC_SPACING {{1.0, 10.0 / 6.0, 16.0 / 6.0}};
+constexpr double SKIMAGE_ELLIPSOID_SURFACE_AREA = 1383.2828269179888;
 
 axom::IndexType vertexIndex(axom::IndexType i, axom::IndexType j, axom::IndexType k)
 {
@@ -260,6 +280,60 @@ double sphereLevelSet(const Point3D& pt, const Point3D& center, double radius)
 double planeField(const Point3D& pt, const Vector3D& normal, double offset)
 {
   return pt[0] * normal[0] + pt[1] * normal[1] + pt[2] * normal[2] - offset;
+}
+
+double ellipsoidLevelSet(const Point3D& pt, const std::array<double, 3>& semiAxes)
+{
+  const double xTerm = pt[0] / semiAxes[0];
+  const double yTerm = pt[1] / semiAxes[1];
+  const double zTerm = pt[2] / semiAxes[2];
+  return xTerm * xTerm + yTerm * yTerm + zTerm * zTerm - 1.0;
+}
+
+std::vector<double> makeSkimageEllipsoidAxis(double semiAxis, double spacing)
+{
+  double low = std::ceil(-semiAxis - spacing);
+  const double high = std::floor(semiAxis + spacing + 1.0);
+
+  if(static_cast<long long>(std::llround(high - low)) % 2 == 0)
+  {
+    low -= 1.0;
+  }
+
+  std::vector<double> axis;
+  for(double value = low; value < high; value += spacing)
+  {
+    axis.push_back(value);
+  }
+
+  const bool containsZero = std::any_of(axis.begin(), axis.end(), [](double value) {
+    return axom::utilities::isNearlyEqual(value, 0.0);
+  });
+
+  if(!containsZero)
+  {
+    double closestNegative = -std::numeric_limits<double>::infinity();
+    for(double value : axis)
+    {
+      if(value < 0.0)
+      {
+        closestNegative = std::max(closestNegative, value);
+      }
+    }
+
+    EXPECT_TRUE(std::isfinite(closestNegative));
+    if(std::isfinite(closestNegative))
+    {
+      low -= closestNegative;
+      axis.clear();
+      for(double value = low; value < high; value += spacing)
+      {
+        axis.push_back(value);
+      }
+    }
+  }
+
+  return axis;
 }
 
 /*!
@@ -1695,6 +1769,156 @@ MultiDomainBlueprintData makeCgalGridSphereStyleBlueprint(axom::IndexType n)
   return data;
 }
 
+template <typename CellMaskPredicate>
+EllipsoidBlueprintData makeEllipsoidBlueprintImpl(const std::array<double, 3>& spacing,
+                                                  bool addMask,
+                                                  const CellMaskPredicate& cellMaskPredicate)
+{
+  EllipsoidBlueprintData data;
+  const std::vector<double> xCoords =
+    makeSkimageEllipsoidAxis(SKIMAGE_ELLIPSOID_SEMI_AXES[0], spacing[0]);
+  const std::vector<double> yCoords =
+    makeSkimageEllipsoidAxis(SKIMAGE_ELLIPSOID_SEMI_AXES[1], spacing[1]);
+  const std::vector<double> zCoords =
+    makeSkimageEllipsoidAxis(SKIMAGE_ELLIPSOID_SEMI_AXES[2], spacing[2]);
+
+  const StructuredDomainSpec spec {static_cast<axom::IndexType>(xCoords.size()) - 1,
+                                   static_cast<axom::IndexType>(yCoords.size()) - 1,
+                                   static_cast<axom::IndexType>(zCoords.size()) - 1,
+                                   0};
+  const axom::IndexType nVerts = vertexCount(spec.ni, spec.nj, spec.nk);
+  data.x.resize(nVerts);
+  data.y.resize(nVerts);
+  data.z.resize(nVerts);
+  data.field.resize(nVerts);
+
+  for(axom::IndexType k = 0; k <= spec.nk; ++k)
+  {
+    for(axom::IndexType j = 0; j <= spec.nj; ++j)
+    {
+      for(axom::IndexType i = 0; i <= spec.ni; ++i)
+      {
+        const axom::IndexType idx = vertexIndex(i, j, k, spec.ni, spec.nj);
+        const Point3D pt {xCoords[i], yCoords[j], zCoords[k]};
+        data.x[idx] = pt[0];
+        data.y[idx] = pt[1];
+        data.z[idx] = pt[2];
+        data.field[idx] = ellipsoidLevelSet(pt, SKIMAGE_ELLIPSOID_SEMI_AXES);
+      }
+    }
+  }
+
+  conduit::Node& domain = data.mesh.append();
+  domain["coordsets/coords/type"] = "explicit";
+  domain["coordsets/coords/values/x"].set_external(conduit::DataType::float64(nVerts), data.x.data());
+  domain["coordsets/coords/values/y"].set_external(conduit::DataType::float64(nVerts), data.y.data());
+  domain["coordsets/coords/values/z"].set_external(conduit::DataType::float64(nVerts), data.z.data());
+
+  domain["topologies/mesh/type"] = "structured";
+  domain["topologies/mesh/coordset"] = "coords";
+  domain["topologies/mesh/elements/dims/i"] = spec.ni;
+  domain["topologies/mesh/elements/dims/j"] = spec.nj;
+  domain["topologies/mesh/elements/dims/k"] = spec.nk;
+  domain["state/domain_id"] = 0;
+
+  domain["fields/field/association"] = "vertex";
+  domain["fields/field/topology"] = "mesh";
+  domain["fields/field/volume_dependent"] = "false";
+  domain["fields/field/values"].set_external(conduit::DataType::float64(nVerts), data.field.data());
+
+  if(addMask)
+  {
+    const axom::IndexType nCells = cellCount(spec.ni, spec.nj, spec.nk);
+    data.mask.resize(nCells, 1);
+
+    for(axom::IndexType k = 0; k < spec.nk; ++k)
+    {
+      for(axom::IndexType j = 0; j < spec.nj; ++j)
+      {
+        for(axom::IndexType i = 0; i < spec.ni; ++i)
+        {
+          const Point3D cellCenter {0.5 * (xCoords[i] + xCoords[i + 1]),
+                                    0.5 * (yCoords[j] + yCoords[j + 1]),
+                                    0.5 * (zCoords[k] + zCoords[k + 1])};
+          data.mask[cellIndex(i, j, k, spec.ni, spec.nj)] = cellMaskPredicate(cellCenter) ? 1 : 0;
+        }
+      }
+    }
+
+    domain["fields/mask/association"] = "element";
+    domain["fields/mask/topology"] = "mesh";
+    domain["fields/mask/values"].set_external(conduit::DataType::int32(nCells), data.mask.data());
+  }
+
+  return data;
+}
+
+EllipsoidBlueprintData makeEllipsoidBlueprint(const std::array<double, 3>& spacing)
+{
+  return makeEllipsoidBlueprintImpl(spacing, false, [](const Point3D&) { return true; });
+}
+
+template <typename CellMaskPredicate>
+EllipsoidBlueprintData makeMaskedEllipsoidBlueprint(const std::array<double, 3>& spacing,
+                                                    const CellMaskPredicate& cellMaskPredicate)
+{
+  return makeEllipsoidBlueprintImpl(spacing, true, cellMaskPredicate);
+}
+
+double computeContourSurfaceArea(const UMesh& contourMesh)
+{
+  double surfaceArea = 0.0;
+  double coords[3] {};
+
+  for(axom::IndexType cellId = 0; cellId < contourMesh.getNumberOfCells(); ++cellId)
+  {
+    const axom::IndexType* nodeIds = contourMesh.getCellNodeIDs(cellId);
+    Triangle3D triangle;
+
+    for(int localId = 0; localId < 3; ++localId)
+    {
+      contourMesh.getNode(nodeIds[localId], coords);
+      triangle[localId] = Point3D {coords[0], coords[1], coords[2]};
+    }
+
+    surfaceArea += 0.5 * twiceTriangleArea(triangle[0], triangle[1], triangle[2]);
+  }
+
+  return surfaceArea;
+}
+
+CanonicalTriangleMesh canonicalizeContourMesh(const UMesh& contourMesh, double tol = POINT_TOL)
+{
+  CanonicalTriangleMesh canonicalMesh;
+  const UniquePointData uniqueData = extractUniquePoints(contourMesh, tol);
+  canonicalMesh.uniquePoints = uniqueData.points;
+  canonicalMesh.triangles.reserve(contourMesh.getNumberOfCells());
+
+  for(axom::IndexType cellId = 0; cellId < contourMesh.getNumberOfCells(); ++cellId)
+  {
+    const axom::IndexType* nodeIds = contourMesh.getCellNodeIDs(cellId);
+    TriangleNodeIds triangle {{uniqueData.nodeToUnique[nodeIds[0]],
+                               uniqueData.nodeToUnique[nodeIds[1]],
+                               uniqueData.nodeToUnique[nodeIds[2]]}};
+    std::sort(triangle.begin(), triangle.end());
+    canonicalMesh.triangles.push_back(triangle);
+  }
+
+  std::sort(canonicalMesh.triangles.begin(), canonicalMesh.triangles.end());
+  return canonicalMesh;
+}
+
+void expectCanonicalMeshesEqual(const UMesh& lhs, const UMesh& rhs, double tol = POINT_TOL)
+{
+  const CanonicalTriangleMesh lhsMesh = canonicalizeContourMesh(lhs, tol);
+  const CanonicalTriangleMesh rhsMesh = canonicalizeContourMesh(rhs, tol);
+
+  ASSERT_EQ(lhsMesh.uniquePoints.size(), rhsMesh.uniquePoints.size());
+  ASSERT_EQ(lhsMesh.triangles.size(), rhsMesh.triangles.size());
+  expectPointVectorsEqual(lhsMesh.uniquePoints, rhsMesh.uniquePoints, tol);
+  EXPECT_EQ(lhsMesh.triangles, rhsMesh.triangles);
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -1934,6 +2158,73 @@ TEST(quest_marching_cubes, uniform_sphere_resolution_sweep_regression)
     prevTriangleCount = inspection.triangleCount;
     prevUniquePointCount = inspection.uniquePointCount;
   }
+}
+
+TEST(quest_marching_cubes, ellipsoid_surface_area_isotropic_regression)
+{
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makeEllipsoidBlueprint({{1.0, 1.0, 1.0}});
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh);
+
+  const double surfaceArea = computeContourSurfaceArea(contourMesh);
+
+  ASSERT_GT(contourMesh.getNumberOfCells(), 0);
+  ASSERT_GT(contourMesh.getNumberOfNodes(), 0);
+  EXPECT_LT(surfaceArea, SKIMAGE_ELLIPSOID_SURFACE_AREA);
+  EXPECT_GT(surfaceArea, 0.99 * SKIMAGE_ELLIPSOID_SURFACE_AREA);
+}
+
+TEST(quest_marching_cubes, ellipsoid_surface_area_anisotropic_regression)
+{
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makeEllipsoidBlueprint(SKIMAGE_ANISOTROPIC_SPACING);
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh);
+
+  const double surfaceArea = computeContourSurfaceArea(contourMesh);
+
+  ASSERT_GT(contourMesh.getNumberOfCells(), 0);
+  ASSERT_GT(contourMesh.getNumberOfNodes(), 0);
+  EXPECT_LT(surfaceArea, SKIMAGE_ELLIPSOID_SURFACE_AREA);
+  EXPECT_GT(surfaceArea, 0.985 * SKIMAGE_ELLIPSOID_SURFACE_AREA);
+}
+
+TEST(quest_marching_cubes, masked_ellipsoid_clips_surface)
+{
+  auto unmaskedMeshData = makeEllipsoidBlueprint({{1.0, 1.0, 1.0}});
+  auto maskedMeshData = makeMaskedEllipsoidBlueprint(
+    {{1.0, 1.0, 1.0}},
+    [](const Point3D& cellCenter) { return cellCenter[0] >= 2.5 && cellCenter[2] <= 2.5; });
+
+  UMesh unmaskedContourMesh(3, mint::TRIANGLE);
+  UMesh maskedContourMesh(3, mint::TRIANGLE);
+  buildContourMesh(unmaskedMeshData.mesh, "field", 0.0, unmaskedContourMesh);
+  buildContourMesh(maskedMeshData.mesh, "field", 0.0, maskedContourMesh, "mask");
+
+  const MeshInspection maskedInspection = inspectContourMesh(maskedContourMesh);
+  const double unmaskedArea = computeContourSurfaceArea(unmaskedContourMesh);
+  const double maskedArea = computeContourSurfaceArea(maskedContourMesh);
+
+  ASSERT_GT(maskedContourMesh.getNumberOfCells(), 0);
+  ASSERT_GT(maskedContourMesh.getNumberOfNodes(), 0);
+  EXPECT_EQ(maskedInspection.degenerateTriangleCount, 0);
+  EXPECT_LT(maskedArea, unmaskedArea);
+
+  // Tracked mask regression coverage: clipping should leave an exposed cut.
+  EXPECT_TRUE(maskedInspection.hasOpenBoundary());
+}
+
+TEST(quest_marching_cubes, all_true_mask_matches_unmasked_ellipsoid)
+{
+  auto unmaskedMeshData = makeEllipsoidBlueprint({{1.0, 1.0, 1.0}});
+  auto maskedMeshData =
+    makeMaskedEllipsoidBlueprint({{1.0, 1.0, 1.0}}, [](const Point3D&) { return true; });
+
+  UMesh unmaskedContourMesh(3, mint::TRIANGLE);
+  UMesh maskedContourMesh(3, mint::TRIANGLE);
+  buildContourMesh(unmaskedMeshData.mesh, "field", 0.0, unmaskedContourMesh);
+  buildContourMesh(maskedMeshData.mesh, "field", 0.0, maskedContourMesh, "mask");
+
+  expectCanonicalMeshesEqual(unmaskedContourMesh, maskedContourMesh);
 }
 
 TEST(quest_marching_cubes, single_cube_singular_cases)
