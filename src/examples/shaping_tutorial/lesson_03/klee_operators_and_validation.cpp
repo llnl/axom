@@ -169,7 +169,7 @@ int main(int argc, char** argv)
   try
   {
     auto shapeSet = loadShapeSet();
-    AXOM_UNUSED_VAR(shapeSet);
+    printShapeSetInfo(shapeSet);
   }
   catch(axom::klee::KleeError& error)
   {
@@ -186,9 +186,6 @@ int main(int argc, char** argv)
                         axom::fmt::join(errs, "\n")));
     exit(1);
   }
-
-  auto shapeSet = loadShapeSet();
-  printShapeSetInfo(shapeSet);
 
   return 0;
 }
