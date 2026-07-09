@@ -123,9 +123,9 @@ ordinary table values can be generated programmatically:
       }
     }
 
-Caller-provided input variables can also be injected into a Lua deck before it
-is evaluated. This is useful when an application wants one deck to select between
-2D and 3D geometry, dimensions, or transforms at run time:
+Caller-provided input variables can also be installed as initial Lua globals before a deck is evaluated.
+This is useful when an application wants one deck to select between 2D and 3D geometry,
+dimensions, or operator values at run time:
 
 .. code-block:: c++
 
@@ -157,16 +157,18 @@ is evaluated. This is useful when an application wants one deck to select betwee
     }
 
 Input variables are Lua-only and may be booleans, integers, doubles, or strings.
-Their names must be Lua identifiers. They are globals by construction and are
-allowed by Klee's unexpected-global check; other helper values in the deck should
-still be declared :code:`local`.
+Their names must be Lua identifiers. They are ordinary mutable globals by
+construction and are allowed by Klee's unexpected-global check. Deck code can
+reassign these names, so applications should treat them as initial values rather
+than read-only controls. Other helper values in the deck should still be declared
+:code:`local`.
 
 Applications that need richer runtime customization can also provide a Lua
 bindings chunk. Klee evaluates the chunk before parsing the deck, expects it to
-return a table of exported bindings, and then makes those exported names
-available as globals while still rejecting unrelated unexpected globals in the
-deck. This allows a host code to pass user-supplied helper functions and local
-closures at run time without recompiling the C++ application:
+return a table of exported bindings, and then installs those exported names as
+initial globals while still rejecting unrelated unexpected globals in the deck.
+This allows a host code to pass user-supplied helper functions and local closures
+at run time without recompiling the C++ application:
 
 .. code-block:: c++
 

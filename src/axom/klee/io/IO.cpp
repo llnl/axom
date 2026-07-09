@@ -632,6 +632,9 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format,
     auto reader = std::make_unique<KleeLuaReader>();
     const auto reservedGlobals = reader->topLevelGlobalNames();
     validateInputVariables(variables);
+    // External inputs are ordinary Lua globals installed before deck parsing.
+    // allowedGlobals only prevents Klee's unexpected-global check from rejecting
+    // those names; it does not make them read-only inside the deck.
     for(const auto &entry : variables)
     {
       if(reservedGlobals.find(entry.first) != reservedGlobals.end())

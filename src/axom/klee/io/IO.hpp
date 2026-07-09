@@ -24,17 +24,17 @@ enum class InputFormat
   Lua
 };
 
-/// Runtime Lua chunk evaluated before deck parsing; it must return a table of exported bindings.
+/// Runtime Lua chunk evaluated before deck parsing; exported bindings become initial Lua globals.
 struct LuaBindingsChunk
 {
   std::string source;
   std::string label {"<lua bindings>"};
 };
 
-/// Primitive value types that may be injected into a Lua input deck.
+/// Primitive value types that may be set as initial Lua globals.
 using InputVariableValue = std::variant<bool, int, double, std::string>;
 
-/// Variables to make available to a Lua input deck before it is evaluated.
+/// Variables to set as ordinary mutable globals before a Lua input deck is evaluated.
 using InputVariables = std::unordered_map<std::string, InputVariableValue>;
 
 /**
@@ -61,7 +61,7 @@ ShapeSet readShapeSet(std::istream& stream, InputFormat format);
  *
  * \param stream the stream from which to read the ShapeSet
  * \param format the input deck format to use
- * \param variables primitive values to inject into Lua before deck evaluation
+ * \param variables primitive values to set as initial mutable Lua globals
  * \note Input variables are supported only for Lua input decks.
  * \throws runtime_error if the input is invalid
  */
@@ -73,7 +73,7 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format, const InputVaria
  * \param stream the stream from which to read the ShapeSet
  * \param format the input deck format to use
  * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings
+ *        of exported bindings, which become initial mutable Lua globals
  * \note Lua bindings are supported only for Lua input decks.
  * \throws runtime_error if the input is invalid
  */
@@ -84,9 +84,9 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format, const LuaBinding
  *
  * \param stream the stream from which to read the ShapeSet
  * \param format the input deck format to use
- * \param variables primitive values to inject into Lua before deck evaluation
+ * \param variables primitive values to set as initial mutable Lua globals
  * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings
+ *        of exported bindings, which become initial mutable Lua globals
  * \note Input variables and Lua bindings are supported only for Lua input decks.
  * \throws runtime_error if the input is invalid
  */
@@ -122,7 +122,7 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format);
  * Read a ShapeSet from a specified file with caller-provided input variables.
  *
  * \param filePath the file from which to read the ShapeSet
- * \param variables primitive values to inject into Lua before deck evaluation
+ * \param variables primitive values to set as initial mutable Lua globals
  * \note The input format is inferred from the file extension. Input variables
  *       are supported only for Lua input decks.
  * \return the ShapeSet read from the file
@@ -135,7 +135,7 @@ ShapeSet readShapeSet(const std::string &filePath, const InputVariables &variabl
  *
  * \param filePath the file from which to read the ShapeSet
  * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings
+ *        of exported bindings, which become initial mutable Lua globals
  * \note The input format is inferred from the file extension. Lua bindings are
  *       supported only for Lua input decks.
  * \return the ShapeSet read from the file
@@ -147,9 +147,9 @@ ShapeSet readShapeSet(const std::string &filePath, const LuaBindingsChunk &bindi
  * Read a ShapeSet from a specified file with caller-provided input variables and Lua bindings.
  *
  * \param filePath the file from which to read the ShapeSet
- * \param variables primitive values to inject into Lua before deck evaluation
+ * \param variables primitive values to set as initial mutable Lua globals
  * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings
+ *        of exported bindings, which become initial mutable Lua globals
  * \note The input format is inferred from the file extension. Input variables
  *       and Lua bindings are supported only for Lua input decks.
  * \return the ShapeSet read from the file
