@@ -154,6 +154,12 @@ struct UniquePointData
   std::vector<int> nodeToUnique;
 };
 
+struct ScalarRange
+{
+  double min {0.0};
+  double max {0.0};
+};
+
 struct MeshInspection
 {
   axom::IndexType rawNodeCount {0};
@@ -703,10 +709,10 @@ const std::array<RayCase, 3>& seamSphereRays()
   return rays;
 }
 
-MultiDomainBlueprintData makeUniformSphereBlueprint()
+MultiDomainBlueprintData makeUniformSphereBlueprint(
+  const StructuredDomainSpec& spec = StructuredDomainSpec {32, 24, 24, 0})
 {
   MultiDomainBlueprintData data;
-  const StructuredDomainSpec spec {32, 24, 24, 0};
 
   const auto coordFunctor = [](double u, double v, double w) { return Point3D {3.0 * u, v, w}; };
   const auto fieldFunctor = [](const Point3D& pt) {
@@ -972,6 +978,18 @@ std::vector<Point3D> uniqueSortedPoints(std::vector<Point3D> points, double tol 
                            }),
                points.end());
   return points;
+}
+
+ScalarRange computeScalarRange(const std::vector<double>& field)
+{
+  EXPECT_FALSE(field.empty());
+  if(field.empty())
+  {
+    return {};
+  }
+
+  const auto minmax = std::minmax_element(field.begin(), field.end());
+  return {*minmax.first, *minmax.second};
 }
 
 std::vector<Point3D> expectedCaseContourNodes(int caseId)
@@ -1687,9 +1705,14 @@ TEST(quest_marching_cubes, banded_nodal_volume_fraction_surface)
 {
   UMesh contourMesh(3, mint::TRIANGLE);
   buildBandedVolumeFractionContourMesh(contourMesh);
+  const MeshInspection inspection = inspectContourMesh(contourMesh);
 
   ASSERT_GT(contourMesh.getNumberOfCells(), 0);
   ASSERT_GT(contourMesh.getNumberOfNodes(), 0);
+  EXPECT_EQ(inspection.degenerateTriangleCount, 0);
+  EXPECT_EQ(inspection.isolatedPointCount, 0);
+  EXPECT_EQ(inspection.boundaryEdgeCount, 0);
+  EXPECT_EQ(inspection.connectedComponentCount, 1);
 
   expectRaysHit(contourMesh, controlRays());
 
@@ -1740,6 +1763,30 @@ TEST(quest_marching_cubes, warped_sphere_surface)
 
   ASSERT_GT(contourMesh.getNumberOfCells(), 0);
   expectRaysHit(contourMesh, warpedSphereRays());
+}
+
+TEST(quest_marching_cubes, structured_sphere_outside_scalar_range_yields_empty_mesh)
+{
+  const auto expectEmptyOutsideRange = [](const MultiDomainBlueprintData& meshData, const char* name) {
+    ASSERT_EQ(meshData.domains.size(), 1u);
+    const ScalarRange range = computeScalarRange(meshData.domains[0].field);
+
+    for(const double isoValue : {range.min - 1.0, range.max + 1.0})
+    {
+      SCOPED_TRACE(axom::fmt::format("{} iso={}", name, isoValue));
+
+      UMesh contourMesh(3, mint::TRIANGLE);
+      buildContourMesh(meshData.mesh, "field", isoValue, contourMesh);
+      EXPECT_EQ(contourMesh.getNumberOfCells(), 0);
+      EXPECT_EQ(contourMesh.getNumberOfNodes(), 0);
+    }
+  };
+
+  const auto uniformSphere = makeUniformSphereBlueprint();
+  expectEmptyOutsideRange(uniformSphere, "uniform_sphere");
+
+  const auto warpedSphere = makeWarpedSphereBlueprint();
+  expectEmptyOutsideRange(warpedSphere, "warped_sphere");
 }
 
 TEST(quest_marching_cubes, planar_surface)
@@ -1847,6 +1894,45 @@ TEST(quest_marching_cubes, cgal_grid_sphere_style_regression)
     EXPECT_EQ(inspection.degenerateTriangleCount, 0);
     EXPECT_EQ(inspection.isolatedPointCount, 0);
     expectRaysHit(contourMesh, rays);
+  }
+}
+
+TEST(quest_marching_cubes, uniform_sphere_resolution_sweep_regression)
+{
+  const std::array<StructuredDomainSpec, 3> resolutions {{
+    {12, 8, 8, 0},
+    {24, 16, 16, 0},
+    {36, 24, 24, 0},
+  }};
+
+  axom::IndexType prevTriangleCount = -1;
+  int prevUniquePointCount = -1;
+
+  for(const StructuredDomainSpec& spec : resolutions)
+  {
+    SCOPED_TRACE(axom::fmt::format("dims=({}, {}, {})", spec.ni, spec.nj, spec.nk));
+
+    UMesh contourMesh(3, mint::TRIANGLE);
+    auto meshData = makeUniformSphereBlueprint(spec);
+    buildContourMesh(meshData.mesh, "field", 0.0, contourMesh);
+
+    const MeshInspection inspection = inspectContourMesh(contourMesh);
+    EXPECT_GT(contourMesh.getNumberOfCells(), 0);
+    EXPECT_GT(inspection.uniquePointCount, 0);
+    EXPECT_EQ(inspection.degenerateTriangleCount, 0);
+    EXPECT_EQ(inspection.isolatedPointCount, 0);
+    EXPECT_EQ(inspection.duplicateTriangleCount, 0);
+    EXPECT_FALSE(inspection.hasOpenBoundary());
+    EXPECT_EQ(inspection.connectedComponentCount, 1);
+
+    if(prevTriangleCount >= 0)
+    {
+      EXPECT_GT(inspection.triangleCount, prevTriangleCount);
+      EXPECT_GT(inspection.uniquePointCount, prevUniquePointCount);
+    }
+
+    prevTriangleCount = inspection.triangleCount;
+    prevUniquePointCount = inspection.uniquePointCount;
   }
 }
 
