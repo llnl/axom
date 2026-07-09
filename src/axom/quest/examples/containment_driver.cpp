@@ -28,6 +28,8 @@
 #include <iostream>
 #include <limits>
 #include <fstream>
+#include <type_traits>
+#include <variant>
 
 namespace mint = axom::mint;
 namespace primal = axom::primal;
@@ -42,6 +44,8 @@ template <int DIM>
 class ContainmentDriver
 {
 public:
+  static constexpr int Dimension = DIM;
+
   using CellVertIndices = primal::Point<axom::IndexType, DIM>;
 
   using InOutOctreeType = quest::InOutOctree<DIM>;
@@ -606,8 +610,12 @@ int main(int argc, char** argv)
 
   const bool is2D = params.isInput2D();
 
-  ContainmentDriver<2> driver2D;
-  ContainmentDriver<3> driver3D;
+  using DriverVariant = std::variant<ContainmentDriver<2>, ContainmentDriver<3>>;
+  DriverVariant driver;
+  if(!is2D)
+  {
+    driver.emplace<ContainmentDriver<3>>();
+  }
 
   /// Load mesh file
   SLIC_INFO(axom::fmt::format("{:-^80}", " Loading the mesh "));
@@ -616,85 +624,69 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_METADATA("dimension", is2D ? 2 : 3, "");
   AXOM_ANNOTATE_BEGIN("init");
 
-  if(is2D)
+  const bool loadedMesh = std::visit(
+    [&params](auto& activeDriver) -> bool {
+      using DriverType = std::decay_t<decltype(activeDriver)>;
+      if constexpr(DriverType::Dimension == 2)
+      {
+        return activeDriver.loadContourMesh(params.inputFile, params.samplesPerKnotSpan);
+      }
+      else
+      {
+        activeDriver.loadSTLMesh(params.inputFile);
+        return true;
+      }
+    },
+    driver);
+  if(!loadedMesh)
   {
-    if(!driver2D.loadContourMesh(params.inputFile, params.samplesPerKnotSpan))
-    {
-      return 1;
-    }
-  }
-  else
-  {
-    driver3D.loadSTLMesh(params.inputFile);
+    return 1;
   }
 
   /// Compute mesh bounding box and log some stats about the surface
-  if(is2D)
-  {
-    driver2D.computeBounds();
-    driver2D.printSurfaceStats();
-  }
-  else
-  {
-    driver3D.computeBounds();
-    driver3D.printSurfaceStats();
-  }
+  std::visit(
+    [](auto& activeDriver) {
+      activeDriver.computeBounds();
+      activeDriver.printSurfaceStats();
+    },
+    driver);
 
   /// Create octree over mesh's bounding box
   SLIC_INFO(axom::fmt::format("{:-^80}", " Generating the octree "));
   const std::string vtkOutputDirectory {"vis"};
-  if(is2D)
-  {
-    driver2D.initializeInOutOctree(params.outputOctreeVtk(), vtkOutputDirectory);
-    driver2D.printSurfaceStats();
+  std::visit(
+    [&params, &vtkOutputDirectory](auto& activeDriver) {
+      activeDriver.initializeInOutOctree(params.outputOctreeVtk(), vtkOutputDirectory);
+      activeDriver.printSurfaceStats();
 
-    if(params.outputOctreeVtk())
-    {
-      mint::write_vtk(
-        driver2D.getSurfaceMesh(),
-        axom::utilities::filesystem::joinPath(vtkOutputDirectory, "meldedSegmentMesh.vtk"));
-    }
-  }
-  else
-  {
-    driver3D.initializeInOutOctree(params.outputOctreeVtk(), vtkOutputDirectory);
-    driver3D.printSurfaceStats();
-
-    if(params.outputOctreeVtk())
-    {
-      mint::write_vtk(
-        driver3D.getSurfaceMesh(),
-        axom::utilities::filesystem::joinPath(vtkOutputDirectory, "meldedTriMesh.vtk"));
-    }
-  }
+      if(params.outputOctreeVtk())
+      {
+        using DriverType = std::decay_t<decltype(activeDriver)>;
+        const std::string meldedMeshName =
+          (DriverType::Dimension == 2) ? "meldedSegmentMesh.vtk" : "meldedTriMesh.vtk";
+        mint::write_vtk(activeDriver.getSurfaceMesh(),
+                        axom::utilities::filesystem::joinPath(vtkOutputDirectory, meldedMeshName));
+      }
+    },
+    driver);
 
   AXOM_ANNOTATE_END("init");
   AXOM_ANNOTATE_BEGIN("query");
 
   /// Query the octree over mesh's bounding box
   SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the octree "));
-  if(is2D)
-  {
-    driver2D.initializeQueryBox(params.queryBoxMins, params.queryBoxMaxs);
+  std::visit(
+    [&params](auto& activeDriver) {
+      activeDriver.initializeQueryBox(params.queryBoxMins, params.queryBoxMaxs);
 
-    // Query the mesh
-    for(int i = 1; i < params.maxQueryLevel; ++i)
-    {
-      const int res = 1 << i;
-      driver2D.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
-    }
-  }
-  else
-  {
-    driver3D.initializeQueryBox(params.queryBoxMins, params.queryBoxMaxs);
-
-    // Query the mesh
-    for(int i = 1; i < params.maxQueryLevel; ++i)
-    {
-      const int res = 1 << i;
-      driver3D.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
-    }
-  }
+      // Query the mesh
+      for(int i = 1; i < params.maxQueryLevel; ++i)
+      {
+        const int res = 1 << i;
+        activeDriver.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
+      }
+    },
+    driver);
 
   AXOM_ANNOTATE_END("query");
   SLIC_INFO(axom::fmt::format("{:-^80}", ""));
