@@ -803,6 +803,9 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
   {
     // These Lua-only function alternatives read from the public field paths via
     // pathOverride, leaving YAML and concrete Lua field parsing unchanged.
+    // KleeLuaReader::shouldTreatFunctionAsNotFound() is what lets a function at
+    // one of these paths bypass the concrete field and be claimed by the alias.
+    // Keep this list in sync with isKleeLuaCallbackPath() in IO.cpp.
     opContainer.addFunction(callbackName("translate"),
                             inlet::FunctionTag::Vector,
                             {},

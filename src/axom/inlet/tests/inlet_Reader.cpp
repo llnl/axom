@@ -468,6 +468,22 @@ TEST(inlet_Reader_lua, getDiscontiguousMap)
   std::unordered_map<int, std::string> expectedStrs {{33, "hello"}, {200, "bye"}};
   EXPECT_EQ(expectedStrs, strs);
 }
+
+TEST(inlet_Reader_lua, functionValueIsWrongTypeForFieldsAndMaps)
+{
+  axom::inlet::LuaReader reader;
+  reader.parseString(
+    "foo = function() return 1 end\n"
+    "bar = { baz = function() return {1, 2, 3} end }");
+
+  double scalar = 0.0;
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("foo", scalar));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("bar/baz", scalar));
+
+  std::unordered_map<int, double> values;
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("foo", values));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("bar/baz", values));
+}
 #endif
 
 //------------------------------------------------------------------------------

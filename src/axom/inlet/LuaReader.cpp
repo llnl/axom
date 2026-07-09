@@ -241,6 +241,8 @@ bool LuaReader::parseString(const std::string& luaString)
   return true;
 }
 
+bool LuaReader::shouldTreatFunctionAsNotFound(const std::string&) const { return false; }
+
 // TODO allow alternate delimiter at sidre level
 #define SCOPE_DELIMITER '/'
 
@@ -602,16 +604,15 @@ ReaderResult LuaReader::getValue(const std::string& id, T& value)
 {
   std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
 
-  // A schema may register a function alias with the same input path as a
-  // concrete field. Treat a Lua function as absent for value readers so the
-  // function schema entry can claim it instead of failing as a wrong type.
+  // If we find a function at a value path, treat it as WrongType
+  // unless a derived reader has an explicit alternate function schema for this path.
   if(tokens.size() == 1)
   {
     if((*m_lua)[tokens[0]].valid())
     {
       if((*m_lua)[tokens[0]].get_type() == axom::sol::type::function)
       {
-        return ReaderResult::NotFound;
+        return shouldTreatFunctionAsNotFound(id) ? ReaderResult::NotFound : ReaderResult::WrongType;
       }
       return detail::checkedGet((*m_lua)[tokens[0]], value);
     }
@@ -626,7 +627,7 @@ ReaderResult LuaReader::getValue(const std::string& id, T& value)
     {
       if(t[tokens.back()].get_type() == axom::sol::type::function)
       {
-        return ReaderResult::NotFound;
+        return shouldTreatFunctionAsNotFound(id) ? ReaderResult::NotFound : ReaderResult::WrongType;
       }
       return detail::checkedGet(t[tokens.back()], value);
     }
@@ -650,12 +651,12 @@ ReaderResult LuaReader::getMap(const std::string& id,
   values.clear();
   std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
 
-  // As with scalar value reads, a function at this path belongs to a function
-  // schema alias rather than to the map reader.
+  // Same policy as scalar values: functions are WrongType for maps unless a
+  // derived reader opts this path into a parallel function schema.
   if(tokens.size() == 1 && (*m_lua)[tokens[0]].valid() &&
      (*m_lua)[tokens[0]].get_type() == axom::sol::type::function)
   {
-    return ReaderResult::NotFound;
+    return shouldTreatFunctionAsNotFound(id) ? ReaderResult::NotFound : ReaderResult::WrongType;
   }
 
   if(tokens.size() > 1)
@@ -664,7 +665,7 @@ ReaderResult LuaReader::getMap(const std::string& id,
     if(traverseToTable(tokens.begin(), tokens.end() - 1, parent) && parent[tokens.back()].valid() &&
        parent[tokens.back()].get_type() == axom::sol::type::function)
     {
-      return ReaderResult::NotFound;
+      return shouldTreatFunctionAsNotFound(id) ? ReaderResult::NotFound : ReaderResult::WrongType;
     }
   }
 
