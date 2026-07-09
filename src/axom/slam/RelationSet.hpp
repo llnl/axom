@@ -335,4 +335,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-

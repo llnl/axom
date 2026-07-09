@@ -640,4 +640,3 @@ auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, axom::Array<ElemT
 /// \}
 
 }  // end namespace axom::slam
-

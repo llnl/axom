@@ -653,4 +653,3 @@ private:
 };
 
 }  // end namespace axom::slam
-

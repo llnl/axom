@@ -423,4 +423,3 @@
  * \brief Assert \a EXP in a way that is valid inside constexpr functions.
  */
 #define AXOM_CONSTEXPR_ASSERT(EXP) ::axom::detail::constexprAssert((EXP), #EXP, __FILE__, __LINE__)
-
