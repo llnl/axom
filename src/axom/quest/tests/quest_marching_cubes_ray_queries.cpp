@@ -7,16 +7,14 @@
 /*!
  * \file quest_marching_cubes_ray_queries.cpp
  *
- * \brief Builds a 3D marching-cubes test case directly in-memory and
- * tests whether selected rays intersect the generated contour surface.
+ * \brief Builds several 3D marching-cubes test cases directly in memory and
+ * checks whether selected rays intersect the generated contour surfaces.
  *
- * The purpose of this test is not to exercise generic MarchingCubes behavior.
- * It is to reproduce one very specific failure mode as faithfully as
- * possible using only Axom and Conduit types:
- *  - recreate the structured Blueprint mesh geometry from the source deck
- *  - recreate the nodal "vf" handoff used by the contouring workflow
- *  - contour that nodal field at 0.5
- *  - verify that control rays hit, while the current buggy z-directed rays miss
+ * This file contains two kinds of coverage:
+ *  - a banded structured-mesh case with a nodalized volume-fraction field that
+ *    captures the known z-directed query failure
+ *  - smaller analytic cases that exercise baseline MarchingCubes behavior on
+ *    uniform, warped, planar, and multidomain meshes
  */
 
 #include "axom/config.hpp"
@@ -34,6 +32,7 @@
   #include "gtest/gtest.h"
 
   #include <array>
+  #include <cmath>
   #include <string>
   #include <vector>
 
@@ -54,8 +53,7 @@ namespace
 // Test geometry constants
 //------------------------------------------------------------------------------
 //
-// These dimensions and per-k x-band values are taken from the local
-// `pdv_projected_ray_3d` source deck. The resulting mesh has:
+// These dimensions and per-k x-band values define a structured mesh with:
 //   - 43 x 199 x 3 hexahedral zones
 //   - 44 x 200 x 4 vertices
 //
@@ -107,6 +105,28 @@ struct BlueprintMeshData
   std::vector<double> vf;
 };
 
+struct StructuredDomainSpec
+{
+  axom::IndexType ni;
+  axom::IndexType nj;
+  axom::IndexType nk;
+  axom::IndexType domainId;
+};
+
+struct MultiDomainBlueprintData
+{
+  struct DomainArrays
+  {
+    std::vector<double> x;
+    std::vector<double> y;
+    std::vector<double> z;
+    std::vector<double> field;
+  };
+
+  conduit::Node mesh;
+  std::vector<DomainArrays> domains;
+};
+
 using HexVertexIds = std::array<axom::IndexType, 8>;
 
 //! Flatten structured (i,j,k) vertex indices into the explicit coord arrays.
@@ -130,10 +150,53 @@ HexVertexIds hexVertexIds(axom::IndexType i, axom::IndexType j, axom::IndexType 
 
 double interpolate(double a, double b, double t) { return (1.0 - t) * a + t * b; }
 
+axom::IndexType vertexCount(axom::IndexType ni, axom::IndexType nj, axom::IndexType nk)
+{
+  return (ni + 1) * (nj + 1) * (nk + 1);
+}
+
+axom::IndexType vertexIndex(axom::IndexType i,
+                            axom::IndexType j,
+                            axom::IndexType k,
+                            axom::IndexType ni,
+                            axom::IndexType nj)
+{
+  return (k * (nj + 1) + j) * (ni + 1) + i;
+}
+
+Point3D affinePoint(const Point3D& origin,
+                    const Vector3D& uVector,
+                    const Vector3D& vVector,
+                    const Vector3D& wVector,
+                    double u,
+                    double v,
+                    double w)
+{
+  Point3D pt;
+  for(int dim = 0; dim < 3; ++dim)
+  {
+    pt[dim] = origin[dim] + u * uVector[dim] + v * vVector[dim] + w * wVector[dim];
+  }
+  return pt;
+}
+
+double sphereLevelSet(const Point3D& pt, const Point3D& center, double radius)
+{
+  const double dx = pt[0] - center[0];
+  const double dy = pt[1] - center[1];
+  const double dz = pt[2] - center[2];
+  return std::sqrt(dx * dx + dy * dy + dz * dz) - radius;
+}
+
+double planeField(const Point3D& pt, const Vector3D& normal, double offset)
+{
+  return pt[0] * normal[0] + pt[1] * normal[1] + pt[2] * normal[2] - offset;
+}
+
 /*!
  * \brief Return the x-coordinate of vertex \a i in z-plane \a k.
  *
- * The source deck defines three x-bands in each k-plane:
+ * The mesh defines three x-bands in each k-plane:
  *   - i in [0,1]   : left band from x0(k) to x3(k)
  *   - i in [1,2]   : thin target band from x3(k) to x4(k)
  *   - i in [2,43]  : long right band from x4(k) to x5(k)
@@ -188,10 +251,11 @@ Point3D trilinearSample(const std::array<Point3D, 8>& corners, double u, double 
  * \brief Estimate a zone-centered sphere volume fraction by deterministic
  * subcell sampling.
  *
- * This mirrors the "estimate a per-zone volume fraction, then average it onto
- * the zone's eight vertices" handoff used by the contouring workflow. The test
- * does not need the exact original sampler implementation; it needs a stable,
- * deterministic approximation that produces the same problematic contour.
+ * This mirrors a common "estimate a per-zone volume fraction, then average it
+ * onto the zone's eight vertices" handoff used before contouring. The test
+ * does not need the exact application-side sampler implementation; it needs a
+ * stable, deterministic approximation that produces the same problematic
+ * contour.
  */
 double estimateZoneVolumeFraction(const BlueprintMeshData& data,
                                   axom::IndexType i,
@@ -218,9 +282,10 @@ double estimateZoneVolumeFraction(const BlueprintMeshData& data,
       {
         const double u = (static_cast<double>(ii) + 0.5) / VF_SAMPLES_PER_DIM;
         const Point3D sample = trilinearSample(corners, u, v, w);
-        const auto offset = sample.array() - SPHERE_CENTER.array();
-        const double distSquared =
-          offset[0] * offset[0] + offset[1] * offset[1] + offset[2] * offset[2];
+        const double dx = sample[0] - SPHERE_CENTER[0];
+        const double dy = sample[1] - SPHERE_CENTER[1];
+        const double dz = sample[2] - SPHERE_CENTER[2];
+        const double distSquared = dx * dx + dy * dy + dz * dz;
         if(distSquared <= SPHERE_RADIUS_SQUARED)
         {
           ++insideCount;
@@ -319,10 +384,69 @@ void populateBlueprintNode(BlueprintMeshData& data)
   domain["fields/vf/values"].set_external(conduit::DataType::float64(vertexCount), data.vf.data());
 }
 
+template <typename CoordFunctor, typename FieldFunctor>
+void appendStructuredDomain(MultiDomainBlueprintData& data,
+                            const StructuredDomainSpec& spec,
+                            const CoordFunctor& coordFunctor,
+                            const FieldFunctor& fieldFunctor,
+                            const std::string& fieldName)
+{
+  data.domains.emplace_back();
+  auto& arrays = data.domains.back();
+
+  const axom::IndexType nVerts = vertexCount(spec.ni, spec.nj, spec.nk);
+  arrays.x.resize(nVerts);
+  arrays.y.resize(nVerts);
+  arrays.z.resize(nVerts);
+  arrays.field.resize(nVerts);
+
+  for(axom::IndexType k = 0; k <= spec.nk; ++k)
+  {
+    const double w = spec.nk > 0 ? static_cast<double>(k) / spec.nk : 0.0;
+    for(axom::IndexType j = 0; j <= spec.nj; ++j)
+    {
+      const double v = spec.nj > 0 ? static_cast<double>(j) / spec.nj : 0.0;
+      for(axom::IndexType i = 0; i <= spec.ni; ++i)
+      {
+        const double u = spec.ni > 0 ? static_cast<double>(i) / spec.ni : 0.0;
+        const axom::IndexType idx = vertexIndex(i, j, k, spec.ni, spec.nj);
+        const Point3D pt = coordFunctor(u, v, w);
+
+        arrays.x[idx] = pt[0];
+        arrays.y[idx] = pt[1];
+        arrays.z[idx] = pt[2];
+        arrays.field[idx] = fieldFunctor(pt);
+      }
+    }
+  }
+
+  conduit::Node& domain = data.mesh.append();
+  domain["coordsets/coords/type"] = "explicit";
+  domain["coordsets/coords/values/x"].set_external(conduit::DataType::float64(nVerts),
+                                                   arrays.x.data());
+  domain["coordsets/coords/values/y"].set_external(conduit::DataType::float64(nVerts),
+                                                   arrays.y.data());
+  domain["coordsets/coords/values/z"].set_external(conduit::DataType::float64(nVerts),
+                                                   arrays.z.data());
+
+  domain["topologies/mesh/type"] = "structured";
+  domain["topologies/mesh/coordset"] = "coords";
+  domain["topologies/mesh/elements/dims/i"] = spec.ni;
+  domain["topologies/mesh/elements/dims/j"] = spec.nj;
+  domain["topologies/mesh/elements/dims/k"] = spec.nk;
+  domain["state/domain_id"] = spec.domainId;
+
+  domain["fields/" + fieldName + "/association"] = "vertex";
+  domain["fields/" + fieldName + "/topology"] = "mesh";
+  domain["fields/" + fieldName + "/volume_dependent"] = "false";
+  domain["fields/" + fieldName + "/values"].set_external(conduit::DataType::float64(nVerts),
+                                                         arrays.field.data());
+}
+
 /*!
  * \brief Build the single-domain Blueprint mesh and its nodal "vf" field.
  *
- * The field construction follows the source workflow's nodalization pattern:
+ * The field construction follows the nodalization pattern:
  *   1. compute one zone-centered sphere volume fraction per hex
  *   2. add that value to each of the zone's eight vertices
  *   3. divide each vertex sum by the number of contributing zones
@@ -352,36 +476,43 @@ void buildBlueprintMesh(BlueprintMeshData& data)
  * \brief Generate the contour mesh from the constructed Blueprint input.
  *
  * The construction is intentionally simple and matches the requested call
- * sequence exactly so the test stays focused on reproducing the bug rather
- * than testing alternative MarchingCubes paths.
+ * sequence exactly so the test stays focused on one MarchingCubes path rather
+ * than testing alternative setup variations.
  */
-void buildContourMesh(UMesh& contourMesh)
+void buildContourMesh(const conduit::Node& blueprintMesh,
+                      const std::string& fieldName,
+                      double contourValue,
+                      UMesh& contourMesh)
 {
-  BlueprintMeshData blueprintMesh;
-  buildBlueprintMesh(blueprintMesh);
-
   conduit::Node verifyInfo;
-  EXPECT_TRUE(conduit::blueprint::mesh::verify(blueprintMesh.mesh, verifyInfo))
-    << verifyInfo.to_yaml();
+  EXPECT_TRUE(conduit::blueprint::mesh::verify(blueprintMesh, verifyInfo)) << verifyInfo.to_yaml();
 
   quest::MarchingCubes mc(axom::runtime_policy::Policy::seq,
                           axom::getDefaultAllocatorID(),
                           quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setMesh(blueprintMesh.mesh, "mesh");
-  mc.setFunctionField("vf");
-  mc.computeIsocontour(0.5);
+  mc.setMesh(blueprintMesh, "mesh");
+  mc.setFunctionField(fieldName);
+  mc.computeIsocontour(contourValue);
   mc.populateContourMesh(contourMesh, "parent_cell", "domain_id");
+}
+
+void buildBandedVolumeFractionContourMesh(UMesh& contourMesh)
+{
+  BlueprintMeshData blueprintMesh;
+  buildBlueprintMesh(blueprintMesh);
+
+  buildContourMesh(blueprintMesh.mesh, "vf", 0.5, contourMesh);
 }
 
 /*!
  * \brief Check whether a finite ray segment intersects any generated triangle.
  *
- * We deliberately use ray semantics, not segment/triangle intersection, because
- * the original failure is about ray queries against the generated surface. The
+ * We deliberately use ray semantics, not segment/triangle intersection,
+ * because these tests are about ray queries against the generated surface. The
  * additional `t` bound trims the infinite ray back to the user-supplied start
  * and end points. The `t > eps` check avoids counting an immediate self-hit at
- * the ray origin, which would make the z-directed regression rays pass for the
- * wrong reason.
+ * the ray origin, which would make the challenging z-directed cases pass for
+ * the wrong reason.
  */
 bool rayHitsContour(const UMesh& contourMesh, const RayCase& ray)
 {
@@ -420,6 +551,15 @@ std::string rayMessage(const RayCase& ray)
                            ray.end);
 }
 
+template <typename RayContainer>
+void expectRaysHit(const UMesh& contourMesh, const RayContainer& rays)
+{
+  for(const auto& ray : rays)
+  {
+    EXPECT_TRUE(rayHitsContour(contourMesh, ray)) << rayMessage(ray);
+  }
+}
+
 const std::array<RayCase, 3>& controlRays()
 {
   static const std::array<RayCase, 3> rays {{
@@ -430,7 +570,7 @@ const std::array<RayCase, 3>& controlRays()
   return rays;
 }
 
-const std::array<RayCase, 7>& regressionRays()
+const std::array<RayCase, 7>& challengingZRays()
 {
   static const std::array<RayCase, 7> rays {{
     {"from_z", Point3D {1.5, 0.5, 1.0}, Point3D {1.5, 0.5, 0.0}},
@@ -444,38 +584,193 @@ const std::array<RayCase, 7>& regressionRays()
   return rays;
 }
 
+const std::array<RayCase, 4>& uniformSphereRays()
+{
+  static const std::array<RayCase, 4> rays {{
+    {"x_center", Point3D {3.0, 0.5, 0.5}, Point3D {0.0, 0.5, 0.5}},
+    {"y_center", Point3D {1.5, 1.0, 0.5}, Point3D {1.5, 0.0, 0.5}},
+    {"z_center", Point3D {1.5, 0.5, 1.0}, Point3D {1.5, 0.5, 0.0}},
+    {"diag", Point3D {2.1, 1.1, 1.1}, Point3D {0.9, -0.1, -0.1}},
+  }};
+  return rays;
+}
+
+const std::array<RayCase, 3>& warpedSphereRays()
+{
+  static const std::array<RayCase, 3> rays {{
+    {"x_center", Point3D {2.8, 0.55, 0.5}, Point3D {0.2, 0.55, 0.5}},
+    {"y_center", Point3D {1.55, 1.0, 0.5}, Point3D {1.55, 0.0, 0.5}},
+    {"z_center", Point3D {1.55, 0.55, 1.0}, Point3D {1.55, 0.55, 0.0}},
+  }};
+  return rays;
+}
+
+const std::array<RayCase, 3>& planeCutRays()
+{
+  static const std::array<RayCase, 3> rays {{
+    {"from_x", Point3D {1.0, 0.5, 0.5}, Point3D {0.0, 0.5, 0.5}},
+    {"from_y", Point3D {0.4, 1.0, 0.5}, Point3D {0.4, 0.0, 0.5}},
+    {"diag", Point3D {1.0, 1.0, 0.5}, Point3D {0.0, 0.0, 0.5}},
+  }};
+  return rays;
+}
+
+const std::array<RayCase, 3>& seamSphereRays()
+{
+  static const std::array<RayCase, 3> rays {{
+    {"across_x", Point3D {3.0, 0.5, 0.5}, Point3D {0.0, 0.5, 0.5}},
+    {"through_seam_y", Point3D {1.5, 1.0, 0.5}, Point3D {1.5, 0.0, 0.5}},
+    {"through_seam_z", Point3D {1.5, 0.5, 1.0}, Point3D {1.5, 0.5, 0.0}},
+  }};
+  return rays;
+}
+
+MultiDomainBlueprintData makeUniformSphereBlueprint()
+{
+  MultiDomainBlueprintData data;
+  const StructuredDomainSpec spec {32, 24, 24, 0};
+
+  const auto coordFunctor = [](double u, double v, double w) { return Point3D {3.0 * u, v, w}; };
+  const auto fieldFunctor = [](const Point3D& pt) {
+    return sphereLevelSet(pt, SPHERE_CENTER, SPHERE_RADIUS);
+  };
+
+  appendStructuredDomain(data, spec, coordFunctor, fieldFunctor, "field");
+  return data;
+}
+
+MultiDomainBlueprintData makeWarpedSphereBlueprint()
+{
+  MultiDomainBlueprintData data;
+  const StructuredDomainSpec spec {48, 12, 6, 0};
+  const Point3D origin {0.0, 0.0, 0.0};
+  const Vector3D uVector {2.9, 0.0, 0.0};
+  const Vector3D vVector {0.15, 1.0, 0.0};
+  const Vector3D wVector {0.05, 0.05, 1.0};
+  const Point3D sphereCenter {1.55, 0.55, 0.5};
+  constexpr double warpedRadius = 0.35;
+
+  const auto coordFunctor = [=](double u, double v, double w) {
+    return affinePoint(origin, uVector, vVector, wVector, u, v, w);
+  };
+  const auto fieldFunctor = [=](const Point3D& pt) {
+    return sphereLevelSet(pt, sphereCenter, warpedRadius);
+  };
+
+  appendStructuredDomain(data, spec, coordFunctor, fieldFunctor, "field");
+  return data;
+}
+
+MultiDomainBlueprintData makePlaneCutBlueprint()
+{
+  MultiDomainBlueprintData data;
+  const StructuredDomainSpec spec {20, 20, 8, 0};
+  const Vector3D normal {1.0, 0.25, 0.0};
+
+  const auto coordFunctor = [](double u, double v, double w) { return Point3D {u, v, w}; };
+  const auto fieldFunctor = [=](const Point3D& pt) { return planeField(pt, normal, 0.5); };
+
+  appendStructuredDomain(data, spec, coordFunctor, fieldFunctor, "field");
+  return data;
+}
+
+MultiDomainBlueprintData makeSeamSphereBlueprint()
+{
+  MultiDomainBlueprintData data;
+  const StructuredDomainSpec leftSpec {16, 24, 24, 0};
+  const StructuredDomainSpec rightSpec {16, 24, 24, 1};
+
+  const auto leftCoords = [](double u, double v, double w) { return Point3D {1.5 * u, v, w}; };
+  const auto rightCoords = [](double u, double v, double w) { return Point3D {1.5 + 1.5 * u, v, w}; };
+  const auto fieldFunctor = [](const Point3D& pt) {
+    return sphereLevelSet(pt, SPHERE_CENTER, SPHERE_RADIUS);
+  };
+
+  appendStructuredDomain(data, leftSpec, leftCoords, fieldFunctor, "field");
+  appendStructuredDomain(data, rightSpec, rightCoords, fieldFunctor, "field");
+  return data;
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
 // Tests
 //------------------------------------------------------------------------------
 
-TEST(quest_marching_cubes_ray_queries, rays_hit_generated_contour_surface)
+TEST(quest_marching_cubes_ray_queries, banded_nodal_volume_fraction_surface)
 {
   // First prove the generated contour exists and is queryable at all.
-  // If these controls fail, the regression rays are not informative.
+  // If these controls fail, the challenging z-directed rays are not
+  // informative.
   UMesh contourMesh(3, mint::TRIANGLE);
-  buildContourMesh(contourMesh);
+  buildBandedVolumeFractionContourMesh(contourMesh);
 
   ASSERT_GT(contourMesh.getNumberOfCells(), 0);
   ASSERT_GT(contourMesh.getNumberOfNodes(), 0);
 
   // These control rays prove the contoured sphere exists and that the basic
-  // ray-query setup is working before we check the failing regression rays.
-  for(const auto& ray : controlRays())
-  {
-    EXPECT_TRUE(rayHitsContour(contourMesh, ray)) << rayMessage(ray);
-  }
+  // ray-query setup is working before we check the more demanding z-directed
+  // cases.
+  expectRaysHit(contourMesh, controlRays());
 
-  // These are the regression cases for the current z-directed miss. They
+  // These are the cases for the current z-directed miss. They
   // should hit the sphere surface, but currently miss because the contoured
   // mesh has a hole near the z-directed path through the sphere.
   // Leave these as normal expectations so the test registers as a failing
-  // regression until the MarchingCubes hole is fixed.
-  for(const auto& ray : regressionRays())
-  {
-    EXPECT_TRUE(rayHitsContour(contourMesh, ray)) << rayMessage(ray);
-  }
+  // test until the MarchingCubes hole is fixed.
+  expectRaysHit(contourMesh, challengingZRays());
+}
+
+TEST(quest_marching_cubes_ray_queries, uniform_sphere_surface)
+{
+  // Baseline closed-surface case on a uniform structured mesh. If this fails,
+  // MarchingCubes is broken in a much more general way than the banded mesh
+  // case above.
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makeUniformSphereBlueprint();
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh);
+
+  ASSERT_GT(contourMesh.getNumberOfCells(), 0);
+  expectRaysHit(contourMesh, uniformSphereRays());
+}
+
+TEST(quest_marching_cubes_ray_queries, warped_sphere_surface)
+{
+  // Similar sphere test on an explicit but skewed mesh. This keeps the field
+  // analytic while checking that mild geometric warping does not prevent the
+  // generated surface from answering simple ray queries.
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makeWarpedSphereBlueprint();
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh);
+
+  ASSERT_GT(contourMesh.getNumberOfCells(), 0);
+  expectRaysHit(contourMesh, warpedSphereRays());
+}
+
+TEST(quest_marching_cubes_ray_queries, planar_surface)
+{
+  // An open planar cut is a simpler topology than a closed sphere. It is a
+  // useful control because the expected surface geometry is easy to reason
+  // about and should be robust on a regular grid.
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makePlaneCutBlueprint();
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh);
+
+  ASSERT_GT(contourMesh.getNumberOfCells(), 0);
+  expectRaysHit(contourMesh, planeCutRays());
+}
+
+TEST(quest_marching_cubes_ray_queries, multidomain_seam_sphere_surface)
+{
+  // The sphere is split across two domains that meet on a shared x-normal
+  // interface. This checks that MarchingCubes can still generate a hittable
+  // surface when the sampled field crosses a domain seam.
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makeSeamSphereBlueprint();
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh);
+
+  ASSERT_GT(contourMesh.getNumberOfCells(), 0);
+  expectRaysHit(contourMesh, seamSphereRays());
 }
 
 #endif
