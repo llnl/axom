@@ -248,10 +248,18 @@ TEST(quest_inout_quadtree, on_surface_points)
       return m;
     }();
 
-    // Build quadtree over the linearized unit square
+    // Build quadtree over the linearized unit square.
+    // Use an explicit vertex-weld threshold so the test's on-surface tolerance
+    // and the octree's on-surface tolerance are the same quantity.
+    const double weldThresh = 1e-6;
     GeometricBoundingBox bbox = computeBoundingBox(*mesh);
     Octree2D octree(bbox, mesh);
+    octree.setVertexWeldThreshold(weldThresh);
     octree.generateIndex();
+
+    // The octree treats points within its weld threshold of the surface as 'inside'
+    // The oracle below uses the same tolerance for consistency.
+    const double edgeTol = octree.getVertexWeldThreshold();
 
     // sanity check on some interior points
     EXPECT_TRUE(octree.within(SpacePt {x_mid, y_mid}));
@@ -294,7 +302,7 @@ TEST(quest_inout_quadtree, on_surface_points)
     for(const auto& q : queryPoints)
     {
       bool isOnEdge {};
-      const int wn = primal::winding_number(q, poly, isOnEdge, /*includeBoundary=*/true);
+      const int wn = primal::winding_number(q, poly, isOnEdge, /*includeBoundary=*/true, edgeTol);
 
       // Sanity check on the oracle: these points really are on the boundary.
       EXPECT_TRUE(isOnEdge) << axom::fmt::format("Oracle: point {} should be on the boundary", q);

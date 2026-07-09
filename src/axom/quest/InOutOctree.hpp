@@ -28,6 +28,7 @@
 #include <vector>
 #include <iterator>
 #include <sstream>
+#include <cmath>
 
 #ifndef DEBUG_OCTREE_ACTIVE
 //  #define DEBUG_OCTREE_ACTIVE
@@ -210,6 +211,16 @@ public:
 
     m_vertexWeldThresholdSquared = thresh * thresh;
   }
+
+  /*!
+   * \brief Returns the threshold for welding vertices during octree construction
+   *
+   * This is also the distance within which a query point is considered to lie
+   * on the surface (see within()).
+   *
+   * \sa setVertexWeldThreshold()
+   */
+  double getVertexWeldThreshold() const { return std::sqrt(m_vertexWeldThresholdSquared); }
 
   /*!
    * \brief Controls whether VTK visualization dumps are written during octree generation.

@@ -300,9 +300,17 @@ TEST(quest_inout_octree, on_surface_points)
     return m;
   }();
 
+  // Use an explicit vertex-weld threshold so the test's on-surface tolerance
+  // and the octree's on-surface tolerance are the same quantity.
+  const double weldThresh = 1e-6;
   GeometricBoundingBox bbox = computeBoundingBox(*mesh);
   Octree3D octree(bbox, mesh);
+  octree.setVertexWeldThreshold(weldThresh);
   octree.generateIndex();
+
+  // The octree treats points within its weld threshold of the surface as 'inside'
+  // The oracle below uses the same tolerance for consistency.
+  const double edgeTol = octree.getVertexWeldThreshold();
 
   // Matching triangle list for the winding-number oracle.
   axom::Array<Triangle3D> tris;
@@ -312,7 +320,12 @@ TEST(quest_inout_octree, on_surface_points)
   }
 
   // Oracle: on-surface (by distance) => within; else sign of rounded GWN sum.
-  auto expectedWithin = [&tris](const Point3D& q, double edge_tol = 1e-8) -> bool {
+  // The default tolerance matches the octree's vertex-weld threshold.
+  auto expectedWithin = [&tris, edgeTol](const Point3D& q, double edge_tol = -1.0) -> bool {
+    if(edge_tol < 0.0)
+    {
+      edge_tol = edgeTol;
+    }
     const double edge_tol_2 = edge_tol * edge_tol;
     double wn = 0.0;
     for(const auto& tri : tris)
