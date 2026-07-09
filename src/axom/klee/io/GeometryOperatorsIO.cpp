@@ -7,6 +7,7 @@
 #include "GeometryOperatorsIO.hpp"
 #include "IOUtil.hpp"
 
+#include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
@@ -35,6 +36,16 @@ using primal::Point3D;
 using primal::Vector3D;
 using FieldSet = std::unordered_set<std::string>;
 
+std::string childName(const inlet::Container &container, const std::string &name)
+{
+  std::string result = axom::utilities::string::removePrefix(container.name(), name);
+  if(axom::utilities::string::startsWith(result, '/'))
+  {
+    result = result.substr(1);
+  }
+  return result;
+}
+
 /**
  * Get the names of all the children in the given container.
  *
@@ -48,14 +59,11 @@ std::unordered_set<std::string> getChildNames(const inlet::Container &container)
   std::vector<std::string> unexpectedNames = container.unexpectedNames();
   allChildren.insert(unexpectedNames.begin(), unexpectedNames.end());
 
-  // Add 1 for the "/" separator
-  auto prefixLength = container.name().size() + 1;
-
   for(auto &child : container.getChildContainers())
   {
     if(child.second->exists())
     {
-      allChildren.insert(child.first.substr(prefixLength));
+      allChildren.insert(childName(container, child.first));
     }
   }
 
@@ -63,7 +71,7 @@ std::unordered_set<std::string> getChildNames(const inlet::Container &container)
   {
     if(child.second->exists())
     {
-      allChildren.insert(child.first.substr(prefixLength));
+      allChildren.insert(childName(container, child.first));
     }
   }
 
@@ -71,7 +79,7 @@ std::unordered_set<std::string> getChildNames(const inlet::Container &container)
   {
     if(*child.second)
     {
-      allChildren.insert(child.first.substr(prefixLength));
+      allChildren.insert(childName(container, child.first));
     }
   }
 
