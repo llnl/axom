@@ -391,7 +391,7 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
                         const TransformableGeometryProperties &startProperties)
 {
   verifyObjectFields(opContainer, "convert_units_to", FieldSet {}, FieldSet {});
-  auto endUnits = parseLengthUnits(opContainer["convert_units_to"]);
+  auto endUnits = internal::parseLengthUnits(opContainer["convert_units_to"]);
   return std::make_shared<UnitConverter>(endUnits, startProperties);
 }
 

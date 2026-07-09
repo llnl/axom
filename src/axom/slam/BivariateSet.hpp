@@ -23,6 +23,7 @@
 #include "axom/slam/policies/PolicyTraits.hpp"
 
 #include <cassert>
+#include <optional>
 #include <type_traits>
 
 namespace axom
@@ -37,8 +38,7 @@ struct BivariateSetIterator;
  *
  * \brief Abstract class that models a set whose elements are indexed by two
  *        indices. Each element in a BivariateSet is equivalent to an ordered
- *        pair containing a row and column index, similar to indexing in a
- *        matrix.
+ *        pair containing a row and column index, similar to indexing in a matrix.
  *
  * \detail BivariateSet models a subset of the Cartesian product of its two
  *         sets. Elements of a BivariateSet can be represented as an ordered
@@ -101,7 +101,7 @@ public:
   using IteratorType = BivariateSetIterator<BivariateSet>;
 
 public:
-  static const PositionType INVALID_POS = PositionType(-1);
+  static constexpr PositionType INVALID_POS = PositionType(-1);
   static const NullSetType s_nullSet;
 
 public:
@@ -136,9 +136,25 @@ public:
    * \param pos2  The second set position.
    * \return  The DenseIndex of the given element, or INVALID_POS if such
    *          element is missing from the set.
-   * \pre   0 <= pos1 <= set1.size() && 0 <= pos2 <= size2.size()
+   * \pre   0 <= pos1 < set1.size() && 0 <= pos2 < set2.size()
    */
   virtual PositionType findElementIndex(PositionType pos1, PositionType pos2) const = 0;
+
+  /*!
+   * \brief Finds the SparseIndex of the element given its DenseIndex.
+   *
+   * \return An engaged `std::optional` containing the SparseIndex if the element exists,
+   *         or an empty `std::optional` if the element does not exist.
+   *
+   * \note This is a convenience wrapper around `findElementIndex(...)` that avoids
+   *       sentinel checks against `INVALID_POS`.
+   */
+  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(PositionType pos1,
+                                                                     PositionType pos2) const
+  {
+    const auto idx = findElementIndex(pos1, pos2);
+    return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
+  }
 
   /**
    * \brief Search for the FlatIndex of the element given its DenseIndex.
@@ -147,10 +163,27 @@ public:
    * \param pos2  The second set position.
    *
    * \return  The element's FlatIndex
-   * \pre   0 <= pos1 <= set1.size() && 0 <= pos2 <= size2.size()
+   * \pre   0 <= pos1 < set1.size() && 0 <= pos2 < set2.size()
    */
   AXOM_HOST_DEVICE virtual PositionType findElementFlatIndex(PositionType pos1,
                                                              PositionType pos2) const = 0;
+
+  /*!
+   * \brief Finds the FlatIndex of the element given its DenseIndex.
+   *
+   * \return An engaged `std::optional` containing the FlatIndex if the element exists,
+   *         or an empty `std::optional` if the element does not exist.
+   *
+   * \note This is a convenience wrapper around `findElementFlatIndex(...)` that avoids
+   *       sentinel checks against `INVALID_POS`.
+   */
+  [[nodiscard]] AXOM_HOST_DEVICE std::optional<PositionType> findElementFlatIndexOptional(
+    PositionType pos1,
+    PositionType pos2) const
+  {
+    const auto idx = findElementFlatIndex(pos1, pos2);
+    return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
+  }
 
   /**
    * \brief Searches for the first existing element given the row index (first
@@ -159,9 +192,24 @@ public:
    * \param pos1  The first set position.
    *
    * \return  The found element's FlatIndex.
-   * \pre   0 <= pos1 <= set1.size()
+   * \pre   0 <= pos1 < set1.size()
    */
   virtual PositionType findElementFlatIndex(PositionType pos1) const = 0;
+
+  /*!
+   * \brief Finds the FlatIndex of the first existing element in a row.
+   *
+   * \return An engaged `std::optional` containing the FlatIndex if the row contains any elements,
+   *         or an empty `std::optional` if the row is empty.
+   *
+   * \note This is a convenience wrapper around `findElementFlatIndex(pos1)` that avoids
+   *       sentinel checks against `INVALID_POS`.
+   */
+  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  {
+    const auto idx = findElementFlatIndex(pos1);
+    return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
+  }
 
   /**
    * \brief Given the flat index, return the associated from-set index in the
@@ -191,28 +239,26 @@ public:
    * \return A range set of the positions in the second set
    */
   AXOM_HOST_DEVICE virtual RangeSetType elementRangeSet(PositionType pos1) const = 0;
-  /**
-   * \brief Size of the BivariateSet, which is the number of non-zero entries
-   *        in the BivariateSet.
-   */
-  AXOM_HOST_DEVICE virtual PositionType size() const = 0;
+
+  /// \brief The number of non-zero entries in the BivariateSet.
+  [[nodiscard]] AXOM_HOST_DEVICE virtual PositionType size() const = 0;
 
   /**
    * \brief Number of elements of the BivariateSet whose first index is \a pos
    *
-   * \pre  0 <= pos1 <= set1.size()
+   * \pre  0 <= pos1 < set1.size()
    */
   virtual PositionType size(PositionType pos1) const = 0;  //size of a row
 
   /** \brief Size of the first set.   */
-  AXOM_HOST_DEVICE inline PositionType firstSetSize() const
+  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType firstSetSize() const
   {
     return getSize<FirstSetType>(m_set1);
   }
 
   /** \brief Size of the second set.   */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE inline PositionType secondSetSize() const
+  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType secondSetSize() const
   {
     return getSize<SecondSetType>(m_set2);
   }
@@ -224,30 +270,24 @@ public:
   const SecondSetType* getSecondSet() const { return m_set2; }
 
   /** \brief Returns the element at the given FlatIndex \a pos */
-  AXOM_HOST_DEVICE virtual ElementType at(PositionType pos) const = 0;
+  [[nodiscard]] AXOM_HOST_DEVICE virtual ElementType at(PositionType pos) const = 0;
 
   /**
    * \brief A set of elements with the given first set index.
    *
    * \param s1  The first set index.
    * \return  An OrderedSet containing the elements
-   * \pre  0 <= pos1 <= set1.size()
+   * \pre  0 <= pos1 < set1.size()
    */
   virtual SubsetType getElements(PositionType s1) const = 0;
 
-  /*!
-   * \brief Return an iterator to the first pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
 
-  /*!
-   * \brief Return an iterator to one past the last pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to one past the last pair of set elements in the relation.
   IteratorType end() const { return IteratorType(this, size()); }
 
-  virtual bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] virtual bool isValid(bool verboseOutput = false) const;
 
 private:
   virtual void verifyPosition(PositionType s1, PositionType s2) const = 0;

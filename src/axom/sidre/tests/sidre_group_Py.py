@@ -6,6 +6,7 @@
 
 import pysidre
 import numpy as np
+from conduit import Node
 
 if pysidre.AXOM_USE_HDF5:
     NPROTOCOLS = 3
@@ -216,6 +217,53 @@ def test_get_view():
 
     view2 = parent.getView("non-existant view")
     assert view2 == None
+
+
+def test_group_and_view_checksum():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    group = root.createGroup("checksum_group")
+    view = group.createViewAndAllocate("values", pysidre.TypeID.INT32_ID, 4)
+
+    data = view.getDataArray()
+    data[:] = np.array([1, 2, 3, 4], dtype=np.int32)
+
+    view_checksum = float(view.checksum())
+    group_checksum = float(group.checksum())
+
+    data[2] = 9
+    mutated_view_checksum = float(view.checksum())
+    mutated_group_checksum = float(group.checksum())
+
+    assert mutated_view_checksum != view_checksum
+    assert mutated_group_checksum != group_checksum
+
+    group.createGroup("child")
+    assert float(group.checksum()) != mutated_group_checksum
+
+    metadata = Node()
+    group.checksum(metadata)
+
+    assert metadata.has_child("checksum")
+    assert metadata.has_child("views")
+    assert metadata.has_path("views/values/checksum")
+    assert metadata.has_child("groups")
+    assert metadata.has_path("groups/child/checksum")
+    assert float(metadata["checksum"]) == float(group.checksum())
+
+    ds.createAttributeString("units", "none")
+    attrless_view_checksum = float(view.checksum(False))
+    attrless_group_checksum = float(group.checksum(False))
+
+    assert view.setAttributeString("units", "counts")
+    assert float(view.checksum()) != mutated_view_checksum
+    assert float(group.checksum()) != mutated_group_checksum
+    assert float(view.checksum(False)) == attrless_view_checksum
+    assert float(group.checksum(False)) == attrless_group_checksum
+
+    metadata_without_attributes = Node()
+    group.checksum(metadata_without_attributes, False)
+    assert float(metadata_without_attributes["checksum"]) == float(group.checksum(False))
 
 
 #------------------------------------------------------------------------------

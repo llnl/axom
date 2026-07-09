@@ -374,6 +374,43 @@ TEST(sidre_view, scalar_view)
 }
 
 //------------------------------------------------------------------------------
+// Regression test for https://github.com/LLNL/axom/issues/1695
+// The templated View::getData<T>() must be callable through a const View.
+TEST(sidre_view, const_get_data)
+{
+  constexpr int num_elts = 4;
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+
+  // A scalar view and an array view to cover both value and pointer DataTypes.
+  {
+    root->createViewScalar("i0", 42);
+
+    View* arrView = root->createViewAndAllocate("arr", INT_ID, num_elts);
+    int* arrData = arrView->getData<int*>();
+    for(int i = 0; i < num_elts; ++i)
+    {
+      arrData[i] = 10 * i;
+    }
+  }
+
+  // Access the same views through a const reference
+  {
+    const View& constScalarView = *root->getView("i0");
+    EXPECT_EQ(42, constScalarView.getData<int>());
+
+    const View& constArrView = *root->getView("arr");
+    int* constAccessData = constArrView.getData<int*>();
+    ASSERT_NE(nullptr, constAccessData);
+    for(int i = 0; i < num_elts; ++i)
+    {
+      EXPECT_EQ(10 * i, constAccessData[i]);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 
 TEST(sidre_view, io_state_string_compatibility)
 {

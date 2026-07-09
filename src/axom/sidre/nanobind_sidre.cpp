@@ -796,6 +796,10 @@ NB_MODULE(pysidre, m_sidre)
     .def("getPathName",
          &View::getPathName,
          "Return the full path of the View object, including its name.")
+    .def("checksum",
+         &View::checksum,
+         "Return a checksum for the View's name, metadata, and data.",
+         nb::arg("includeAttributes") = true)
     .def("getOwningGroup",
          nb::overload_cast<>(&View::getOwningGroup),
          nb::rv_policy::reference_internal,
@@ -978,14 +982,16 @@ NB_MODULE(pysidre, m_sidre)
          "Return the string contained in the View.")
     .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
 
-    .def("getDataInt",
-         &View::getData<int>,
-         nb::rv_policy::reference,
-         "Return the scalar data held by the View as an python int type.")
-    .def("getDataFloat",
-         &View::getData<double>,
-         nb::rv_policy::reference,
-         "Return the data held by the View as a python float type (C++ double).")
+    .def(
+      "getDataInt",
+      [](View& self) { return self.getData<int>(); },
+      nb::rv_policy::reference,
+      "Return the scalar data held by the View as an python int type.")
+    .def(
+      "getDataFloat",
+      [](View& self) { return self.getData<double>(); },
+      nb::rv_policy::reference,
+      "Return the data held by the View as a python float type (C++ double).")
     .def("print",
          nb::overload_cast<>(&View::print, nb::const_),
          "Print JSON description of the View.")
@@ -1162,6 +1168,19 @@ NB_MODULE(pysidre, m_sidre)
     .def("getName", &Group::getName, "Return const reference to name of Group object.")
     .def("getPath", &Group::getPath, "Return path of Group object, not including its name.")
     .def("getPathName", &Group::getPathName, "Return full path of Group object, including its name.")
+    .def("checksum",
+         nb::overload_cast<bool>(&Group::checksum, nb::const_),
+         "Return a checksum for the Group's name, child structure, and descendant view data.",
+         nb::arg("includeAttributes") = true)
+    .def(
+      "checksum",
+      [](const Group& self, nb::object& o, bool includeAttributes) {
+        conduit::Node& cpp_node = nbObjectToNode(o);
+        self.checksum(cpp_node, includeAttributes);
+      },
+      "Populate a Conduit node with checksum metadata for this Group hierarchy.",
+      nb::arg("n_checksum"),
+      nb::arg("includeAttributes") = true)
     .def("getParent",
          nb::overload_cast<>(&Group::getParent, nb::const_),
          nb::rv_policy::reference_internal,

@@ -4206,10 +4206,8 @@ public:
 
     for(const auto& curve : split_trimming_curves)
     {
-      auto curve_midpoint = curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
-      bool isInDisk = circle_obj.computeSignedDistance(curve_midpoint) < 0;
-
-      if(isInDisk)
+      // if (parametric) curve midpoint is in the circle add it to the_disk, otherwise, add it to the_rest
+      if(circle_obj.contains(curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot())), false))
       {
         the_disk.addTrimmingCurve(curve);
       }

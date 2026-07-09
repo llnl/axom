@@ -89,7 +89,7 @@ void constructAndTestCartesianMap(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
+  SLIC_INFO("Creating map on the set ");
 
   BMapType m(&s, static_cast<T>(0), stride);
 
@@ -217,7 +217,7 @@ void constructAndTestRelationSetMap(int stride)
   EXPECT_EQ(indice_size, s.totalSize());
   EXPECT_TRUE(s.isValid(true));
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
+  SLIC_INFO("Creating map on the set ");
 
   MapType m(&s, (T)0, stride);
 
@@ -338,7 +338,7 @@ void constructAndTestBivariateMapIterator(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<DataType>::to_string() << " map on the set ");
+  SLIC_INFO("Creating map on the set ");
   MapType m(&s, 0.0, stride);
   EXPECT_TRUE(m.isValid());
   EXPECT_EQ(s.size(), m.totalSize());
@@ -458,7 +458,7 @@ void testScopedCopyBehavior(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
+  SLIC_INFO("Creating map on the set ");
 
   BMapType m;
   {

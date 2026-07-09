@@ -174,7 +174,7 @@ public:
       .data(m_relationIndices.ptr());
   }
 
-  bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
   RelationIterator begin(SetPosition fromSetInd) { return (*this)[fromSetInd].begin(); }
 

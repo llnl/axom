@@ -217,19 +217,19 @@ std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
   {
     impl.reset(new detail::MeshClipperImpl<axom::SEQ_EXEC>(*this));
   }
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(runtimePolicy == RuntimePolicy::omp)
   {
     impl.reset(new detail::MeshClipperImpl<axom::OMP_EXEC>(*this));
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(runtimePolicy == RuntimePolicy::cuda)
   {
     impl.reset(new detail::MeshClipperImpl<axom::CUDA_EXEC<256>>(*this));
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(runtimePolicy == RuntimePolicy::hip)
   {
     impl.reset(new detail::MeshClipperImpl<axom::HIP_EXEC<256>>(*this));
