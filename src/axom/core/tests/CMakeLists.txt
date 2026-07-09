@@ -37,6 +37,7 @@ set(core_serial_tests
     core_Path.hpp
     core_stack_array.hpp
     core_static_array.hpp
+    core_units.hpp
 
     numerics_determinants.hpp
     numerics_eigen_solve.hpp
