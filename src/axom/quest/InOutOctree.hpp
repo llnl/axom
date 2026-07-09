@@ -174,7 +174,12 @@ public:
    *
    * \param pt The point at which we are checking for containment
    * \return True if the point is within (or on) the surface, false otherwise
+   *
    * \note Points outside the octree bounding box are considered outside
+   *
+   * \note By convention, query points lying on the surface -- or within the
+   * vertex welding threshold (see setVertexWeldThreshold()) of it -- are
+   * considered to be \a inside the contained volume.
    */
   bool within(const SpacePt& pt) const;
 
@@ -1289,7 +1294,7 @@ bool InOutOctree<DIM>::withinGrayBlock3D(const SpacePt& queryPt,
   // SLIC_DEBUG("Could not determine inside/outside for point "
   //            << queryPt << " on block " << leafBlk);
 
-  return false;  // query points on boundary might get here -- revisit this.
+  return false;
 }
 
 template <int DIM>
@@ -1427,7 +1432,7 @@ bool InOutOctree<DIM>::withinGrayBlock2D(const SpacePt& queryPt,
 
   SLIC_DEBUG("Could not determine inside/outside for point " << queryPt << " on block " << leafBlk);
 
-  return false;  // query points on boundary might get here -- revisit this.
+  return false;
 }
 
 template <int DIM>

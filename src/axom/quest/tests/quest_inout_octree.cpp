@@ -251,29 +251,39 @@ TEST(quest_inout_octree, on_surface_points)
   using Point3D = primal::Point<double, 3>;
   using Triangle3D = primal::Triangle<double, 3>;
 
-  // 8 corners of the unit cube.
-  axom::Array<Point3D> V {Point3D {0., 0., 0.},
-                          Point3D {1., 0., 0.},
-                          Point3D {1., 1., 0.},
-                          Point3D {0., 1., 0.},
-                          Point3D {0., 0., 1.},
-                          Point3D {1., 0., 1.},
-                          Point3D {1., 1., 1.},
-                          Point3D {0., 1., 1.}};
+  constexpr double x_lo = 0.;
+  constexpr double y_lo = 0.;
+  constexpr double z_lo = 0.;
+  constexpr double x_mid = 0.5;
+  constexpr double y_mid = 0.5;
+  constexpr double z_mid = 0.5;
+  constexpr double x_hi = 1.;
+  constexpr double y_hi = 1.;
+  constexpr double z_hi = 1.;
 
-  // 12 triangles (2 per face), wound CCW as seen from outside (outward normals).
-  axom::Array<std::tuple<int, int, int>> TRI {{0, 3, 2},
-                                              {0, 2, 1},  // z=0 bottom
-                                              {4, 5, 6},
-                                              {4, 6, 7},  // z=1 top
-                                              {0, 1, 5},
-                                              {0, 5, 4},  // y=0 front
-                                              {3, 7, 6},
-                                              {3, 6, 2},  // y=1 back
-                                              {0, 4, 7},
-                                              {0, 7, 3},  // x=0 left
-                                              {1, 2, 6},
-                                              {1, 6, 5}};  // x=1 right
+  // 8 corners of the unit cube.
+  axom::Array<Point3D> V {Point3D {x_lo, y_lo, z_lo},
+                          Point3D {x_hi, y_lo, z_lo},
+                          Point3D {x_hi, y_hi, z_lo},
+                          Point3D {x_lo, y_hi, z_lo},
+                          Point3D {x_lo, y_lo, z_hi},
+                          Point3D {x_hi, y_lo, z_hi},
+                          Point3D {x_hi, y_hi, z_hi},
+                          Point3D {x_lo, y_hi, z_hi}};
+
+  // 12 triangles (2 per face), wound counter-clockwise as seen from outside (outward normals).
+  axom::Array<std::tuple<int, int, int>> TRI {{0, 3, 2},  // z=0 bottom
+                                              {0, 2, 1},
+                                              {4, 5, 6},  // z=1 top
+                                              {4, 6, 7},
+                                              {0, 1, 5},  // y=0 front
+                                              {0, 5, 4},
+                                              {3, 7, 6},  // y=1 back
+                                              {3, 6, 2},
+                                              {0, 4, 7},  // x=0 left
+                                              {0, 7, 3},
+                                              {1, 2, 6},  // x=1 right
+                                              {1, 6, 5}};
 
   // Build a mesh over the triangles and an octree over the mesh
   std::shared_ptr<mint::Mesh> mesh = [&V, &TRI]() {
@@ -320,21 +330,25 @@ TEST(quest_inout_octree, on_surface_points)
   // Adds some hand-picked on-surface points: face centers, edge midpoints, corners,
   // and points on the shared diagonal edge between the two triangles of a face.
   axom::Array<SpacePt> onSurface {
-    SpacePt {0.5, 0.5, 0.0},
-    SpacePt {0.5, 0.5, 1.0},  // bottom/top face centers
-    SpacePt {0.5, 0.0, 0.5},
-    SpacePt {0.5, 1.0, 0.5},  // front/back face centers
-    SpacePt {0.0, 0.5, 0.5},
-    SpacePt {1.0, 0.5, 0.5},  // left/right face centers
-    SpacePt {0.5, 0.0, 0.0},
-    SpacePt {0.0, 0.5, 0.0},
-    SpacePt {1.0, 1.0, 0.5},  // edge midpoints
-    SpacePt {0.0, 0.0, 0.0},
-    SpacePt {1.0, 1.0, 1.0},
-    SpacePt {1.0, 0.0, 1.0},  // corners
-    SpacePt {0.3, 0.7, 1.0},
-    SpacePt {1.0, 0.25, 0.6},  // off-center on faces
-    SpacePt {0.4, 0.4, 0.0}    // on a face diagonal edge
+    // face centers
+    SpacePt {x_mid, y_mid, z_lo},
+    SpacePt {x_mid, y_mid, z_hi},
+    SpacePt {x_mid, y_lo, z_mid},
+    SpacePt {x_mid, y_hi, z_mid},
+    SpacePt {x_lo, y_mid, z_mid},
+    SpacePt {x_hi, y_mid, z_mid},
+    // edge midpoints
+    SpacePt {x_mid, y_lo, z_lo},
+    SpacePt {x_lo, y_mid, z_lo},
+    SpacePt {x_hi, y_hi, z_mid},
+    // corners
+    SpacePt {x_lo, y_lo, z_lo},
+    SpacePt {x_hi, y_hi, z_hi},
+    SpacePt {x_hi, y_lo, z_hi},
+    // off-center on faces
+    SpacePt {0.3, 0.7, z_hi},
+    SpacePt {x_hi, 0.25, 0.6},
+    SpacePt {0.4, 0.4, z_lo}  // on a face diagonal edge
   };
 
   // Also add dense set of samples on each triangle
@@ -359,13 +373,14 @@ TEST(quest_inout_octree, on_surface_points)
     EXPECT_TRUE(octree.within(q)) << "On-surface point " << q << " should be within the surface";
   }
 
-  // Sanity check for several interior and exterior query points
+  // Sanity check for several interior query points
   for(const auto& q_interior : {SpacePt {0.5, 0.5, 0.5}, SpacePt {0.25, 0.75, 0.5}})
   {
     EXPECT_TRUE(expectedWithin(q_interior));
     EXPECT_TRUE(octree.within(q_interior));
   }
 
+  // Sanity check for several exterior query points
   for(const auto& q_exterior :
       {SpacePt {0.5, 0.5, 1.5}, SpacePt {1.5, 0.5, 0.5}, SpacePt {2.0, 2.0, 2.0}})
   {

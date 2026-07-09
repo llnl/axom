@@ -208,12 +208,20 @@ TEST(quest_inout_quadtree, on_surface_points)
     return SpacePt::lerp(poly[edge], poly[(edge + 1) == poly.numVertices() ? 0 : edge + 1], t);
   };
 
-  const Polygon2D unitSquare({SpacePt {0., 0.}, SpacePt {1., 0.}, SpacePt {1., 1.}, SpacePt {0., 1.}});
+  constexpr double x_lo = 0.;
+  constexpr double y_lo = 0.;
+  constexpr double x_mid = 0.5;
+  constexpr double y_mid = 0.5;
+  constexpr double x_hi = 1.;
+  constexpr double y_hi = 1.;
+
+  const Polygon2D unitSquare(
+    {SpacePt {x_lo, y_lo}, SpacePt {x_hi, y_lo}, SpacePt {x_hi, y_hi}, SpacePt {x_lo, y_hi}});
 
   // Create mesh of unit square, with several edge refinements
   for(int segsPerSide : {1, 2, 3, 5})
   {
-    // Build the perimeter vertices (CCW; corners not duplicated).
+    // Build the perimeter vertices (counter-clockwise; corners not duplicated).
     axom::Array<SpacePt> verts;
     for(int edge = 0; edge < unitSquare.numVertices(); ++edge)
     {
@@ -245,9 +253,11 @@ TEST(quest_inout_quadtree, on_surface_points)
     Octree2D octree(bbox, mesh);
     octree.generateIndex();
 
-    // sanity check on some interior and exterior points
-    EXPECT_TRUE(octree.within(SpacePt {0.5, 0.5}));
+    // sanity check on some interior points
+    EXPECT_TRUE(octree.within(SpacePt {x_mid, y_mid}));
     EXPECT_TRUE(octree.within(SpacePt {0.25, 0.75}));
+
+    // sanity check on some exterior points
     EXPECT_FALSE(octree.within(SpacePt {0.5, 1.5}));
     EXPECT_FALSE(octree.within(SpacePt {1.5, 0.5}));
     EXPECT_FALSE(octree.within(SpacePt {2.0, 2.0}));
@@ -260,15 +270,15 @@ TEST(quest_inout_quadtree, on_surface_points)
     }
 
     // Create a set of query points on the boundary, starting from unit square vertices and edge midpoints
-    axom::Array<SpacePt> queryPoints {SpacePt {0.5, 1.0},
-                                      SpacePt {0.5, 0.0},
-                                      SpacePt {0.0, 0.5},
-                                      SpacePt {1.0, 0.5},
-                                      SpacePt {0.0, 0.0},
-                                      SpacePt {1.0, 1.0}};
+    axom::Array<SpacePt> queryPoints {SpacePt {x_mid, y_hi},
+                                      SpacePt {x_mid, y_lo},
+                                      SpacePt {x_lo, y_mid},
+                                      SpacePt {x_hi, y_mid},
+                                      SpacePt {x_lo, y_lo},
+                                      SpacePt {x_hi, y_hi}};
 
     // Add regression case from the issue
-    queryPoints.push_back(SpacePt {0.370667, 1.0});
+    queryPoints.push_back(SpacePt {0.370667, y_hi});
 
     // Add a dense set of points along the edges
     const int edgeSamples = 500 / poly.numVertices();
