@@ -15,7 +15,10 @@
 #include "axom/primal.hpp"
 #include "axom/fmt.hpp"
 
+#include "c2c/C2C.hpp"
+
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -23,8 +26,53 @@ namespace axom
 {
 namespace quest
 {
+namespace
+{
+c2c::LengthUnit toC2CLengthUnit(utilities::LengthUnit unit)
+{
+  switch(unit)
+  {
+  case utilities::LengthUnit::km:
+    return c2c::LengthUnit::km;
+  case utilities::LengthUnit::m:
+    return c2c::LengthUnit::m;
+  case utilities::LengthUnit::cm:
+    return c2c::LengthUnit::cm;
+  case utilities::LengthUnit::mm:
+    return c2c::LengthUnit::mm;
+  case utilities::LengthUnit::um:
+    return c2c::LengthUnit::um;
+  case utilities::LengthUnit::miles:
+    return c2c::LengthUnit::miles;
+  case utilities::LengthUnit::feet:
+    return c2c::LengthUnit::ft;
+  case utilities::LengthUnit::inches:
+    return c2c::LengthUnit::in;
+  case utilities::LengthUnit::mils:
+    return c2c::LengthUnit::mils;
+  case utilities::LengthUnit::dm:
+  case utilities::LengthUnit::hm:
+  case utilities::LengthUnit::dam:
+  case utilities::LengthUnit::am:
+  case utilities::LengthUnit::fm:
+  case utilities::LengthUnit::pm:
+  case utilities::LengthUnit::nm:
+  case utilities::LengthUnit::angstrom:
+  case utilities::LengthUnit::unspecified:
+    throw std::invalid_argument("Length unit is not supported by c2c");
+  }
+
+  throw std::invalid_argument("Unknown length unit");
+}
+}  // namespace
 
 void C2CReader::clear() { m_nurbsData.clear(); }
+
+void C2CReader::setLengthUnit(utilities::LengthUnit lengthUnit)
+{
+  toC2CLengthUnit(lengthUnit);
+  m_lengthUnit = lengthUnit;
+}
 
 int C2CReader::read()
 {
@@ -58,6 +106,7 @@ int C2CReader::readContour()
   using PointType = primal::Point<double, 2>;
 
   c2c::Contour contour = c2c::parseContour(m_fileName);
+  const c2c::LengthUnit c2cLengthUnit = toC2CLengthUnit(m_lengthUnit);
 
   SLIC_INFO(fmt::format("Loading contour with {} pieces", contour.getPieces().size()));
 
@@ -68,7 +117,7 @@ int C2CReader::readContour()
   int piece_index = 0;
   for(auto* piece : contour.getPieces())
   {
-    const auto nurbsData = c2c::toNurbs(*piece, m_lengthUnit);
+    const auto nurbsData = c2c::toNurbs(*piece, c2cLengthUnit);
 
     // Load control points
     axom::Array<PointType> controlPoints;

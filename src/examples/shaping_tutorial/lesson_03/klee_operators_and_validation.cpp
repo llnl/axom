@@ -61,36 +61,12 @@ void printShapeSetInfo(const axom::klee::ShapeSet& shapeSet)
 
   // lambda to help format a klee::LengthUnit
   auto lengthUnitToString = [](axom::klee::LengthUnit unit) -> std::string {
-    switch(unit)
+    if(unit == axom::klee::LengthUnit::unspecified)
     {
-    case axom::klee::LengthUnit::km:
-      return "km";
-    case axom::klee::LengthUnit::m:
-      return "m";
-    case axom::klee::LengthUnit::dm:
-      return "dm";
-    case axom::klee::LengthUnit::cm:
-      return "cm";
-    case axom::klee::LengthUnit::mm:
-      return "mm";
-    case axom::klee::LengthUnit::um:
-      return "um";
-    case axom::klee::LengthUnit::nm:
-      return "nm";
-    case axom::klee::LengthUnit::angstrom:
-      return "A";
-    case axom::klee::LengthUnit::miles:
-      return "miles";
-    case axom::klee::LengthUnit::feet:
-      return "feet";
-    case axom::klee::LengthUnit::inches:
-      return "inches";
-    case axom::klee::LengthUnit::mils:
-      return "mils";
-    case axom::klee::LengthUnit::unspecified:
-    default:
       return "<unspecified>";
     }
+
+    return axom::utilities::getLengthUnitName(unit);
   };
 
   // lambda to help format a parir of klee::LengthUnits
