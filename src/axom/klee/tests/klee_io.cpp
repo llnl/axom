@@ -612,6 +612,46 @@ TEST(IOTest, readShapeSet_luaInputVariablesProvideInitialDimensionAndOperator)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
+TEST(IOTest, readShapeSet_luaInputVariablesAreInitialMutableGlobals)
+{
+  InputVariables variables {
+    {"dimensions", klee::InputVariableValue {2}},
+    {"lift", klee::InputVariableValue {3.0}},
+  };
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 3
+    lift = 7.0
+
+    shapes = {
+      {
+        name = "overridden",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = {1.0, 2.0, lift} }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         variables);
+
+  ASSERT_EQ(Dimensions::Three, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 2.0, 7.0}));
+}
+
 TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialDimensionAndOperator)
 {
   LuaBindingsChunk bindings {R"(

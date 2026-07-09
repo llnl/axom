@@ -441,8 +441,10 @@ catch(axom::klee::KleeError& error)
 
 The validator example also accepts an optional `--bindings-file` argument for
 Lua decks. The bindings file is a Lua chunk that returns a table of exported
-variables and helper functions, which lets an application provide runtime Lua
-customization without rebuilding the executable:
+variables and helper functions, which are installed as initial mutable globals
+before the deck is evaluated. This lets an application provide runtime Lua
+customization without rebuilding the executable, while still allowing the deck
+to reassign those globals if it chooses:
 
 ```bash
 ./bin/lesson_03_klee_operators_and_validation \
