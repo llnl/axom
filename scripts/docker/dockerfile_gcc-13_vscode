@@ -85,15 +85,7 @@ RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/shaping_tutorial/ ${HO
 
 USER root
 ADD ./scripts/docker/supervisord.conf /etc/supervisord.conf
-ADD ./scripts/docker/openvscode-settings.json /tmp/openvscode-settings.json
-ADD ./scripts/docker/shaping_tutorial-tasks.json /tmp/shaping_tutorial-tasks.json
 RUN sed -i "s/XXX/${USER}/g" /etc/supervisord.conf
-RUN sed -i "s#XXX#${USER}#g" /tmp/openvscode-settings.json \
-    && install -d -o ${USER} -g ${USER} ${HOME}/.openvscode-server/data/Machine \
-    && install -d -o ${USER} -g ${USER} ${HOME}/shaping_tutorial/.vscode \
-    && install -o ${USER} -g ${USER} /tmp/openvscode-settings.json ${HOME}/.openvscode-server/data/Machine/settings.json \
-    && install -o ${USER} -g ${USER} /tmp/shaping_tutorial-tasks.json ${HOME}/shaping_tutorial/.vscode/tasks.json \
-    && rm -f /tmp/openvscode-settings.json /tmp/shaping_tutorial-tasks.json
 
 RUN touch /var/log/openvscode-server.log && chown -R ${USER}:${USER} /var/log/openvscode-server.log
 
