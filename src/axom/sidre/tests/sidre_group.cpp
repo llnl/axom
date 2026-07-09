@@ -1479,7 +1479,7 @@ std::vector<int> getKnownAllocIds()
 {
   std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
 #ifdef AXOM_USE_UMPIRE
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  allocIds.push_back(axom::HostAllocator {}.getID());
   #ifdef AXOM_USE_GPU
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
@@ -3586,7 +3586,7 @@ TEST(sidre_group, import_conduit_lists)
 TEST(sidre_group, import_conduit_into_mem_space)
 {
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
-  const int hostAllocId = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
+  const int hostAllocId = axom::HostAllocator {}.getID();
   const int devAllocId = axom::detail::getAllocatorID<axom::MemorySpace::Device>();
 #else
   // Memory space testing is trivial without device memory.

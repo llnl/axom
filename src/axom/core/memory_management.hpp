@@ -249,6 +249,11 @@ inline int getDefaultAllocatorID()
  *
  * \return The current default host allocator ID. This is initialized to
  *         `MALLOC_ALLOCATOR_ID` in all builds.
+ *
+ * \note This is a process-global default used by legacy convenience paths that
+ *       resolve `MemorySpace::Host` through global state. Prefer passing an
+ *       explicit `HostAllocator` to APIs that allocate host-resident storage
+ *       or host staging/scratch memory.
  */
 int getDefaultHostAllocatorID();
 
@@ -920,6 +925,8 @@ inline MemorySpace getAllocatorSpace(int allocatorId)
 template <>
 inline int getAllocatorID<MemorySpace::Host>()
 {
+  // Legacy convenience: resolves MemorySpace::Host via the process-global
+  // default host allocator. Prefer passing an explicit HostAllocator.
   return axom::getAllocatorIDFromMemorySpace(MemorySpace::Host);
 }
 

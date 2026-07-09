@@ -21,10 +21,14 @@ using enum values:
 For CPU-accessible memory, Axom uses the concepts of a **global allocator** and
 a **host allocator**. Referring to the enum class values above, the Axom
 global default allocator is the default for ``MemorySpace::Dynamic`` and for
-interface routines that do not specify an allocator; for example, the
-``axom::Array`` and ``axom::ArrayView`` APIs. The Axom host allocator is the
-default for ``MemorySpace::Host``, which indicates the allocator Axom should
-use when someone explicitly asks for host-allocated CPU memory.
+interface routines that do not specify an allocator; for example, many
+``axom::Array`` and ``axom::ArrayView`` APIs.
+
+The Axom host allocator is a process-wide *default* used by legacy convenience
+paths that resolve ``MemorySpace::Host`` through global state. New and updated
+APIs prefer that host allocation intent be expressed explicitly via the
+``axom::HostAllocator`` wrapper type, rather than by relying on the process
+default.
 
 Axom must be configured with Umpire enabled to have access to GPU memory
 resources. Whether or not Axom is configured with Umpire also controls
@@ -46,17 +50,30 @@ in Umpire-enabled builds, the global default may be device, unified, or some
 other Umpire allocator, and the host allocator can still be Axom's malloc or
 Umpire's Host allocator.
 
-Changing the default host and global allocators
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Explicit host allocation
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+When an API argument semantically means "host-resident storage" (including host
+staging/scratch for device operations), prefer passing an ``axom::HostAllocator``.
+This makes host allocation behavior independent of process-global defaults and
+reduces sensitivity to initialization order.
+
+The following illustrates the general pattern::
+
+  axom::HostAllocator hostAlloc {axom::MALLOC_ALLOCATOR_ID};
+  // Pass hostAlloc into APIs that allocate host memory or host staging.
+
+Changing the default host and global allocators (legacy)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The default host allocator controls what Axom uses when code asks for
-``MemorySpace::Host``. This is separate from the global default allocator used
-for ``MemorySpace::Dynamic``.
+``MemorySpace::Host`` through legacy convenience paths. This is separate from
+the global default allocator used for ``MemorySpace::Dynamic``.
 
 In practice, that means:
 
-* ``axom::setDefaultHostAllocator(...)`` changes where ``MemorySpace::Host``
-  allocations go.
+* ``axom::setDefaultHostAllocator(...)`` changes where legacy
+  ``MemorySpace::Host`` allocations go.
 * ``axom::setDefaultAllocator(...)`` changes the global default allocator for
   ``MemorySpace::Dynamic``.
 * Changing one does not automatically change the other.
