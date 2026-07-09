@@ -13,8 +13,6 @@
  */
 
 #include "axom/core.hpp"
-#include "axom/core/NumericLimits.hpp"
-#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 #include "axom/primal.hpp"
@@ -324,13 +322,16 @@ private:
    * \param queryPt The point we are querying
    * \param leafBlk The block of the gray leaf
    * \param data The data associated with the leaf block
-   * \return True, if the point is inside the local surface associated with this
-   * block, false otherwise
+   * \return True, if the point is inside the local surface associated with this block, false otherwise
    */
-  template <int TDIM>
-  typename std::enable_if<TDIM == 3, bool>::type withinGrayBlock(const SpacePt& queryPt,
-                                                                 const BlockIndex& leafBlk,
-                                                                 const InOutBlockData& data) const;
+  bool withinGrayBlock(const SpacePt& queryPt,
+                       const BlockIndex& leafBlk,
+                       const InOutBlockData& data) const;
+
+  template <int TDIM = DIM>
+  bool withinGrayBlock3D(const SpacePt& queryPt,
+                         const BlockIndex& leafBlk,
+                         const InOutBlockData& data) const;
 
   /**
    * \brief Determines whether the specified 2D point is within the gray leaf
@@ -338,13 +339,12 @@ private:
    * \param queryPt The point we are querying
    * \param leafBlk The block of the gray leaf
    * \param data The data associated with the leaf block
-   * \return True, if the point is inside the local surface associated with this
-   * block, false otherwise
+   * \return True, if the point is inside the local surface associated with this block, false otherwise
    */
   template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 2, bool>::type withinGrayBlock(const SpacePt& queryPt,
-                                                                 const BlockIndex& leafBlk,
-                                                                 const InOutBlockData& data) const;
+  bool withinGrayBlock2D(const SpacePt& queryPt,
+                         const BlockIndex& leafBlk,
+                         const InOutBlockData& data) const;
 
   /**
    * \brief Returns the index of the mesh vertex associated with the given leaf block
@@ -1009,7 +1009,7 @@ bool InOutOctree<DIM>::colorLeafAndNeighbors(const BlockIndex& leafBlk, InOutBlo
         {
           SpacePt faceCenter = SpacePt::midpoint(this->blockBoundingBox(leafBlk).getCentroid(),
                                                  this->blockBoundingBox(neighborBlk).getCentroid());
-          if(withinGrayBlock<DIM>(faceCenter, neighborBlk, neighborData))
+          if(withinGrayBlock(faceCenter, neighborBlk, neighborData))
           {
             leafData.setBlack();
           }
@@ -1076,7 +1076,7 @@ bool InOutOctree<DIM>::colorLeafAndNeighbors(const BlockIndex& leafBlk, InOutBlo
               SpacePt::midpoint(this->blockBoundingBox(leafBlk).getCentroid(),
                                 this->blockBoundingBox(leafBlk.faceNeighbor(i)).getCentroid());
 
-            if(withinGrayBlock<DIM>(faceCenter, leafBlk, leafData))
+            if(withinGrayBlock(faceCenter, leafBlk, leafData))
             {
               neighborData.setBlack();
             }
@@ -1128,12 +1128,29 @@ typename InOutOctree<DIM>::CellIndexSet InOutOctree<DIM>::leafCells(const BlockI
 }
 
 template <int DIM>
-template <int TDIM>
-typename std::enable_if<TDIM == 3, bool>::type InOutOctree<DIM>::withinGrayBlock(
-  const SpacePt& queryPt,
-  const BlockIndex& leafBlk,
-  const InOutBlockData& leafData) const
+bool InOutOctree<DIM>::withinGrayBlock(const SpacePt& queryPt,
+                                       const BlockIndex& leafBlk,
+                                       const InOutBlockData& leafData) const
 {
+  if constexpr(DIM == 3)
+  {
+    return withinGrayBlock3D(queryPt, leafBlk, leafData);
+  }
+  else
+  {
+    static_assert(DIM == 2, "InOutOctree only supports dimensions 2 and 3");
+    return withinGrayBlock2D(queryPt, leafBlk, leafData);
+  }
+}
+
+template <int DIM>
+template <int TDIM>
+bool InOutOctree<DIM>::withinGrayBlock3D(const SpacePt& queryPt,
+                                         const BlockIndex& leafBlk,
+                                         const InOutBlockData& leafData) const
+{
+  static_assert(DIM == 3 && TDIM == 3, "withinGrayBlock3D is only valid for 3D InOutOctrees");
+
   /// Finds a ray from queryPt to a point of a triangle within leafBlk.
   /// Then find the first triangle along this ray. The orientation of the ray
   /// against this triangle's normal indicates queryPt's containment.
@@ -1267,11 +1284,12 @@ typename std::enable_if<TDIM == 3, bool>::type InOutOctree<DIM>::withinGrayBlock
 
 template <int DIM>
 template <int TDIM>
-typename std::enable_if<TDIM == 2, bool>::type InOutOctree<DIM>::withinGrayBlock(
-  const SpacePt& queryPt,
-  const BlockIndex& leafBlk,
-  const InOutBlockData& leafData) const
+bool InOutOctree<DIM>::withinGrayBlock2D(const SpacePt& queryPt,
+                                         const BlockIndex& leafBlk,
+                                         const InOutBlockData& leafData) const
 {
+  static_assert(DIM == 2 && TDIM == 2, "withinGrayBlock2D is only valid for 2D InOutOctrees");
+
   /// Finds a ray from queryPt to a point of a segment within leafBlk.
   /// Then finds the first segment along this ray. The orientation of the ray
   /// against this segment's normal indicates queryPt's containment.
@@ -1530,7 +1548,7 @@ bool InOutOctree<DIM>::within(const SpacePt& pt) const
     case InOutBlockData::White:
       return false;
     case InOutBlockData::Gray:
-      return withinGrayBlock<DIM>(pt, block, data);
+      return withinGrayBlock(pt, block, data);
     case InOutBlockData::Undetermined:
       SLIC_ASSERT_MSG(false,
                       axom::fmt::format("Error -- All leaf blocks must have a color. The color of "
