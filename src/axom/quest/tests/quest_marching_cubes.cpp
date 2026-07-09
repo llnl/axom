@@ -20,6 +20,11 @@
   #include "axom/mint.hpp"
   #include "axom/primal.hpp"
   #include "axom/quest/MarchingCubes.hpp"
+  #define _MC_LOOKUP_CASES3D
+  #define _MC_LOOKUP_NUM_TRIANGLES
+  #include "axom/quest/detail/marching_cubes_lookup.hpp"
+  #undef _MC_LOOKUP_NUM_TRIANGLES
+  #undef _MC_LOOKUP_CASES3D
 
   #include "conduit_blueprint.hpp"
 
@@ -121,7 +126,21 @@ struct MultiDomainBlueprintData
   std::vector<DomainArrays> domains;
 };
 
+struct MaskedSingleCubeBlueprintData
+{
+  conduit::Node mesh;
+  std::vector<double> x;
+  std::vector<double> y;
+  std::vector<double> z;
+  std::vector<double> field;
+  std::vector<int> mask;
+};
+
 using HexVertexIds = std::array<axom::IndexType, 8>;
+using EdgeVertexIds = std::array<int, 2>;
+
+constexpr StructuredDomainSpec SINGLE_CUBE_SPEC {2, 2, 2, 0};
+constexpr double POINT_TOL = 1.0e-12;
 
 axom::IndexType vertexIndex(axom::IndexType i, axom::IndexType j, axom::IndexType k)
 {
@@ -469,7 +488,8 @@ void buildBlueprintMesh(BlueprintMeshData& data)
 void buildContourMesh(const conduit::Node& blueprintMesh,
                       const std::string& fieldName,
                       double contourValue,
-                      UMesh& contourMesh)
+                      UMesh& contourMesh,
+                      const std::string& maskField = "")
 {
   conduit::Node verifyInfo;
   EXPECT_TRUE(conduit::blueprint::mesh::verify(blueprintMesh, verifyInfo)) << verifyInfo.to_yaml();
@@ -477,7 +497,7 @@ void buildContourMesh(const conduit::Node& blueprintMesh,
   quest::MarchingCubes mc(axom::runtime_policy::Policy::seq,
                           axom::getDefaultAllocatorID(),
                           quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setMesh(blueprintMesh, "mesh");
+  mc.setMesh(blueprintMesh, "mesh", maskField);
   mc.setFunctionField(fieldName);
   mc.computeIsocontour(contourValue);
   mc.populateContourMesh(contourMesh, "parent_cell", "domain_id");
@@ -805,6 +825,236 @@ MultiDomainBlueprintData makeMultidomainSeamBlueprint()
   return data;
 }
 
+const std::array<Point3D, 8>& unitCubeVertices()
+{
+  static const std::array<Point3D, 8> vertices {Point3D {1.0, 0.0, 0.0},
+                                                Point3D {1.0, 1.0, 0.0},
+                                                Point3D {0.0, 1.0, 0.0},
+                                                Point3D {0.0, 0.0, 0.0},
+                                                Point3D {1.0, 0.0, 1.0},
+                                                Point3D {1.0, 1.0, 1.0},
+                                                Point3D {0.0, 1.0, 1.0},
+                                                Point3D {0.0, 0.0, 1.0}};
+  return vertices;
+}
+
+const std::array<EdgeVertexIds, 12>& unitCubeEdgeVertices()
+{
+  static const std::array<EdgeVertexIds, 12> edges {{
+    {{0, 1}},
+    {{1, 2}},
+    {{3, 2}},
+    {{0, 3}},
+    {{4, 5}},
+    {{5, 6}},
+    {{7, 6}},
+    {{4, 7}},
+    {{0, 4}},
+    {{1, 5}},
+    {{2, 6}},
+    {{3, 7}},
+  }};
+  return edges;
+}
+
+HexVertexIds singleCubeVertexIds()
+{
+  return {{vertexIndex(1, 0, 0, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj),
+           vertexIndex(1, 1, 0, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj),
+           vertexIndex(0, 1, 0, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj),
+           vertexIndex(0, 0, 0, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj),
+           vertexIndex(1, 0, 1, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj),
+           vertexIndex(1, 1, 1, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj),
+           vertexIndex(0, 1, 1, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj),
+           vertexIndex(0, 0, 1, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj)}};
+}
+
+Point3D edgeMidpoint(int edgeId)
+{
+  const auto& vertices = unitCubeVertices();
+  const auto& edge = unitCubeEdgeVertices()[edgeId];
+  Point3D midpoint;
+
+  for(int dim = 0; dim < 3; ++dim)
+  {
+    midpoint[dim] = 0.5 * (vertices[edge[0]][dim] + vertices[edge[1]][dim]);
+  }
+
+  return midpoint;
+}
+
+bool pointsEqualWithinTolerance(const Point3D& lhs, const Point3D& rhs, double tol = POINT_TOL)
+{
+  return std::abs(lhs[0] - rhs[0]) <= tol && std::abs(lhs[1] - rhs[1]) <= tol &&
+    std::abs(lhs[2] - rhs[2]) <= tol;
+}
+
+std::vector<Point3D> uniqueSortedPoints(std::vector<Point3D> points, double tol = POINT_TOL)
+{
+  sortPoints(points);
+  points.erase(std::unique(points.begin(),
+                           points.end(),
+                           [=](const Point3D& lhs, const Point3D& rhs) {
+                             return pointsEqualWithinTolerance(lhs, rhs, tol);
+                           }),
+               points.end());
+  return points;
+}
+
+std::vector<Point3D> expectedCaseContourNodes(int caseId)
+{
+  std::set<int> edges;
+  for(int idx = 0; idx < 16 && cases3D[caseId][idx] >= 0; ++idx)
+  {
+    edges.insert(cases3D[caseId][idx]);
+  }
+
+  std::vector<Point3D> expectedNodes;
+  expectedNodes.reserve(edges.size());
+  for(const int edgeId : edges)
+  {
+    expectedNodes.push_back(edgeMidpoint(edgeId));
+  }
+
+  return expectedNodes;
+}
+
+MaskedSingleCubeBlueprintData makeSingleCubeCaseBlueprint(int caseId)
+{
+  MaskedSingleCubeBlueprintData data;
+  const axom::IndexType nVerts =
+    vertexCount(SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj, SINGLE_CUBE_SPEC.nk);
+  const axom::IndexType nCells =
+    cellCount(SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj, SINGLE_CUBE_SPEC.nk);
+  std::vector<double> x(nVerts);
+  std::vector<double> y(nVerts);
+  std::vector<double> z(nVerts);
+  std::vector<double> field(nVerts, -1.0);
+  std::vector<int> mask(nCells, 0);
+
+  for(axom::IndexType k = 0; k <= SINGLE_CUBE_SPEC.nk; ++k)
+  {
+    for(axom::IndexType j = 0; j <= SINGLE_CUBE_SPEC.nj; ++j)
+    {
+      for(axom::IndexType i = 0; i <= SINGLE_CUBE_SPEC.ni; ++i)
+      {
+        const axom::IndexType idx = vertexIndex(i, j, k, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj);
+        x[idx] = static_cast<double>(i);
+        y[idx] = static_cast<double>(j);
+        z[idx] = static_cast<double>(k);
+      }
+    }
+  }
+
+  const auto nodeIds = singleCubeVertexIds();
+  for(int vertex = 0; vertex < 8; ++vertex)
+  {
+    field[nodeIds[vertex]] = (caseId & (1 << vertex)) ? 1.0 : -1.0;
+  }
+
+  mask[cellIndex(0, 0, 0, SINGLE_CUBE_SPEC.ni, SINGLE_CUBE_SPEC.nj)] = 1;
+
+  data.x = std::move(x);
+  data.y = std::move(y);
+  data.z = std::move(z);
+  data.field = std::move(field);
+  data.mask = std::move(mask);
+
+  conduit::Node& domain = data.mesh.append();
+  domain["coordsets/coords/type"] = "explicit";
+  domain["coordsets/coords/values/x"].set_external(conduit::DataType::float64(nVerts), data.x.data());
+  domain["coordsets/coords/values/y"].set_external(conduit::DataType::float64(nVerts), data.y.data());
+  domain["coordsets/coords/values/z"].set_external(conduit::DataType::float64(nVerts), data.z.data());
+
+  domain["topologies/mesh/type"] = "structured";
+  domain["topologies/mesh/coordset"] = "coords";
+  domain["topologies/mesh/elements/dims/i"] = SINGLE_CUBE_SPEC.ni;
+  domain["topologies/mesh/elements/dims/j"] = SINGLE_CUBE_SPEC.nj;
+  domain["topologies/mesh/elements/dims/k"] = SINGLE_CUBE_SPEC.nk;
+  domain["state/domain_id"] = 0;
+
+  domain["fields/field/association"] = "vertex";
+  domain["fields/field/topology"] = "mesh";
+  domain["fields/field/volume_dependent"] = "false";
+  domain["fields/field/values"].set_external(conduit::DataType::float64(nVerts), data.field.data());
+
+  domain["fields/mask/association"] = "element";
+  domain["fields/mask/topology"] = "mesh";
+  domain["fields/mask/values"].set_external(conduit::DataType::int32(nCells), data.mask.data());
+  return data;
+}
+
+std::vector<Point3D> getUniqueContourNodes(const UMesh& contourMesh)
+{
+  return uniqueSortedPoints(getContourNodes(contourMesh));
+}
+
+void expectPointVectorsEqual(const std::vector<Point3D>& actual,
+                             const std::vector<Point3D>& expected,
+                             double tol = POINT_TOL)
+{
+  ASSERT_EQ(actual.size(), expected.size());
+  for(std::size_t idx = 0; idx < actual.size(); ++idx)
+  {
+    EXPECT_NEAR(actual[idx][0], expected[idx][0], tol);
+    EXPECT_NEAR(actual[idx][1], expected[idx][1], tol);
+    EXPECT_NEAR(actual[idx][2], expected[idx][2], tol);
+  }
+}
+
+std::vector<Point3D> runSingleCubeCaseAndGetGeometry(int caseId, axom::IndexType& triangleCount)
+{
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makeSingleCubeCaseBlueprint(caseId);
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh, "mask");
+  triangleCount = contourMesh.getNumberOfCells();
+  return getUniqueContourNodes(contourMesh);
+}
+
+void verifySingleCubeCanonicalCase(int caseId)
+{
+  UMesh contourMesh(3, mint::TRIANGLE);
+  auto meshData = makeSingleCubeCaseBlueprint(caseId);
+  buildContourMesh(meshData.mesh, "field", 0.0, contourMesh, "mask");
+
+  ASSERT_EQ(contourMesh.getNumberOfCells(), num_triangles[caseId]);
+
+  std::vector<Point3D> expectedUniqueNodes = expectedCaseContourNodes(caseId);
+  sortPoints(expectedUniqueNodes);
+
+  for(const Point3D& node : getContourNodes(contourMesh))
+  {
+    const bool isExpectedNode = std::any_of(
+      expectedUniqueNodes.begin(),
+      expectedUniqueNodes.end(),
+      [&](const Point3D& expectedNode) { return pointsEqualWithinTolerance(node, expectedNode); });
+    EXPECT_TRUE(isExpectedNode) << "Unexpected contour node " << node << " for case " << caseId;
+  }
+
+  expectPointVectorsEqual(getUniqueContourNodes(contourMesh), expectedUniqueNodes);
+
+  for(axom::IndexType cellId = 0; cellId < contourMesh.getNumberOfCells(); ++cellId)
+  {
+    EXPECT_EQ(contourMesh.getCellType(cellId), mint::TRIANGLE);
+    EXPECT_EQ(contourMesh.getNumberOfCellNodes(cellId), 3);
+  }
+
+  const axom::IndexType* parentCellIds = getParentCellIds(contourMesh);
+  const DomainIdType* domainIds = getDomainIds(contourMesh);
+
+  if(contourMesh.getNumberOfCells() > 0)
+  {
+    ASSERT_NE(parentCellIds, nullptr);
+    ASSERT_NE(domainIds, nullptr);
+  }
+
+  for(axom::IndexType cellId = 0; cellId < contourMesh.getNumberOfCells(); ++cellId)
+  {
+    EXPECT_EQ(parentCellIds[cellId], 0);
+    EXPECT_EQ(domainIds[cellId], 0);
+  }
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -950,6 +1200,37 @@ TEST(quest_marching_cubes, multidomain_seam_surface)
     ASSERT_NE(iter, validCellCounts.end());
     EXPECT_GE(parentCellIds[cellId], 0);
     EXPECT_LT(parentCellIds[cellId], iter->second);
+  }
+}
+
+TEST(quest_marching_cubes, single_cube_all_256_cases)
+{
+  for(int caseId = 0; caseId < 256; ++caseId)
+  {
+    SCOPED_TRACE(axom::fmt::format("caseId={}", caseId));
+    verifySingleCubeCanonicalCase(caseId);
+  }
+}
+
+TEST(quest_marching_cubes, single_cube_complement_symmetry)
+{
+  for(int caseId = 0; caseId < 256; ++caseId)
+  {
+    const int complementCaseId = 255 - caseId;
+    SCOPED_TRACE(axom::fmt::format("caseId={} complement={}", caseId, complementCaseId));
+
+    axom::IndexType triangleCount = 0;
+    axom::IndexType complementTriangleCount = 0;
+    const std::vector<Point3D> geometry = runSingleCubeCaseAndGetGeometry(caseId, triangleCount);
+    const std::vector<Point3D> complementGeometry =
+      runSingleCubeCaseAndGetGeometry(complementCaseId, complementTriangleCount);
+
+    EXPECT_EQ(triangleCount, num_triangles[caseId]);
+    EXPECT_EQ(complementTriangleCount, num_triangles[complementCaseId]);
+
+    // Complementary ambiguous cases can triangulate the same contour polygon
+    // with different triangle counts, so only compare the geometry set here.
+    expectPointVectorsEqual(geometry, complementGeometry);
   }
 }
 
