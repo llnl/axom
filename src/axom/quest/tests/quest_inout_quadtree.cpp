@@ -17,6 +17,7 @@
 
 #include <cstdlib>
 #include <limits>
+#include <utility>
 
 // Uncomment the define below for true randomized points
 #ifndef INOUT_OCTREE_TESTER_SHOULD_SEED
@@ -313,6 +314,34 @@ TEST(quest_inout_quadtree, on_surface_points)
         << axom::fmt::format("Boundary point {} should be within the surface (segsPerSide={})",
                              q,
                              segsPerSide);
+    }
+
+    // Exercise the tolerance band directly: points just inside the surface weld theshold
+    // must be 'within'; points just beyond it must not.
+    const axom::Array<std::pair<SpacePt, SpaceVector>> edgeMidAndNormal {
+      {SpacePt {x_mid, y_lo}, SpaceVector {0., -1.}},   // bottom edge
+      {SpacePt {x_hi, y_mid}, SpaceVector {1., 0.}},    // right edge
+      {SpacePt {x_mid, y_hi}, SpaceVector {0., 1.}},    // top edge
+      {SpacePt {x_lo, y_mid}, SpaceVector {-1., 0.}}};  // left edge
+
+    for(const auto& [mid, outwardNormal] : edgeMidAndNormal)
+    {
+      // Comfortably within the tolerance band (interior side) -> inside.
+      const SpacePt nearInside = mid - (0.5 * weldThresh) * outwardNormal;
+      EXPECT_TRUE(octree.within(nearInside)) << axom::fmt::format(
+        "Point {} within weld threshold of edge midpoint {} should be inside (segsPerSide={})",
+        nearInside,
+        mid,
+        segsPerSide);
+
+      // Comfortably beyond the tolerance band on the exterior side -> outside.
+      const SpacePt farOutside = mid + (4. * weldThresh) * outwardNormal;
+      EXPECT_FALSE(octree.within(farOutside)) << axom::fmt::format(
+        "Point {} beyond weld threshold outside edge midpoint {} should be outside "
+        "(segsPerSide={})",
+        farOutside,
+        mid,
+        segsPerSide);
     }
   }
 }

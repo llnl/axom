@@ -17,6 +17,19 @@
 
 #include "quest_test_utilities.hpp"
 
+#include <cstdlib>
+#include <limits>
+#include <utility>
+
+// Uncomment the line below for true randomized points
+#ifndef INOUT_OCTREE_TESTER_SHOULD_SEED
+//  #define INOUT_OCTREE_TESTER_SHOULD_SEED
+#endif
+
+#ifdef INOUT_OCTREE_TESTER_SHOULD_SEED
+  #include <ctime>  // for time() used by srand()
+#endif
+
 namespace
 {
 const int NUM_PT_TESTS = 50000;
@@ -33,18 +46,6 @@ using SpacePt = Octree3D::SpacePt;
 using SpaceVector = Octree3D::SpaceVector;
 using GridPt = Octree3D::GridPt;
 using BlockIndex = Octree3D::BlockIndex;
-
-#include <cstdlib>
-#include <limits>
-
-// Uncomment the line below for true randomized points
-#ifndef INOUT_OCTREE_TESTER_SHOULD_SEED
-//  #define INOUT_OCTREE_TESTER_SHOULD_SEED
-#endif
-
-#ifdef INOUT_OCTREE_TESTER_SHOULD_SEED
-  #include <ctime>  // for time() used by srand()
-#endif
 
 /// Returns a SpacePt corresponding to the given vertex id \a vIdx  in \a mesh
 SpacePt getVertex(axom::mint::Mesh& mesh, int vIdx)
@@ -384,6 +385,35 @@ TEST(quest_inout_octree, on_surface_points)
   {
     EXPECT_TRUE(expectedWithin(q)) << "Oracle: point " << q << " should be on/within the surface";
     EXPECT_TRUE(octree.within(q)) << "On-surface point " << q << " should be within the surface";
+  }
+
+  // Exercise the tolerance band directly: points just inside the surface weld theshold
+  // must be 'within'; points just beyond it must not.
+  const axom::Array<std::pair<SpacePt, SpaceVector>> faceCenterAndNormal {
+    {SpacePt {x_mid, y_mid, z_lo}, SpaceVector {0., 0., -1.}},  // bottom
+    {SpacePt {x_mid, y_mid, z_hi}, SpaceVector {0., 0., 1.}},   // top
+    {SpacePt {x_mid, y_lo, z_mid}, SpaceVector {0., -1., 0.}},  // front
+    {SpacePt {x_mid, y_hi, z_mid}, SpaceVector {0., 1., 0.}},   // back
+    {SpacePt {x_lo, y_mid, z_mid}, SpaceVector {-1., 0., 0.}},  // left
+    {SpacePt {x_hi, y_mid, z_mid}, SpaceVector {1., 0., 0.}}};  // right
+
+  for(const auto& [center, outwardNormal] : faceCenterAndNormal)
+  {
+    // Comfortably within the tolerance band (interior side) -> inside.
+    const SpacePt nearInside = center - (0.5 * weldThresh) * outwardNormal;
+    EXPECT_TRUE(expectedWithin(nearInside))
+      << "Oracle: near-surface point " << nearInside << " should be within";
+    EXPECT_TRUE(octree.within(nearInside))
+      << "Point " << nearInside << " within weld threshold of face center " << center
+      << " should be inside";
+
+    // Comfortably beyond the tolerance band on the exterior side -> outside.
+    const SpacePt farOutside = center + (4. * weldThresh) * outwardNormal;
+    EXPECT_FALSE(expectedWithin(farOutside))
+      << "Oracle: point " << farOutside << " beyond tolerance should be outside";
+    EXPECT_FALSE(octree.within(farOutside))
+      << "Point " << farOutside << " beyond weld threshold outside face center " << center
+      << " should be outside";
   }
 
   // Sanity check for several interior query points
