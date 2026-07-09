@@ -7,6 +7,7 @@
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/AffineMatrixVisitor.hpp"
+#include "axom/klee/KleeError.hpp"
 
 #include "conduit_blueprint_mesh.hpp"
 
@@ -16,6 +17,50 @@ namespace axom
 {
 namespace klee
 {
+namespace
+{
+std::string operatorName(const GeometryOperator& op)
+{
+  if(dynamic_cast<const Translation*>(&op))
+  {
+    return "translate";
+  }
+  if(dynamic_cast<const Rotation*>(&op))
+  {
+    return "rotate";
+  }
+  if(dynamic_cast<const Scale*>(&op))
+  {
+    return "scale";
+  }
+  if(dynamic_cast<const UnitConverter*>(&op))
+  {
+    return "convert_units_to";
+  }
+  if(dynamic_cast<const SliceOperator*>(&op))
+  {
+    return "slice";
+  }
+  return "unknown";
+}
+
+void requireMatrixOperator(const std::shared_ptr<const GeometryOperator>& op, int index)
+{
+  if(std::dynamic_pointer_cast<const MatrixOperator>(op))
+  {
+    return;
+  }
+
+  const auto ordinal =
+    index >= 0 ? axom::fmt::format("operator {}", index) : std::string {"operator"};
+  throw KleeError({Path {"geometry/operators"},
+                   axom::fmt::format("Cannot convert geometry to matrix: {} ({}) is not a "
+                                     "matrix operator.",
+                                     ordinal,
+                                     operatorName(*op))});
+}
+}  // namespace
+
 bool operator==(const TransformableGeometryProperties& lhs, const TransformableGeometryProperties& rhs)
 {
   return lhs.dimensions == rhs.dimensions && lhs.units == rhs.units;
@@ -243,14 +288,21 @@ numerics::Matrix<double> Geometry::getTransform() const
       // Why don't we multiply the matrices in CompositeOperator::addOperator()?
       // Why keep the matrices factored and multiply them here repeatedly?
       // Combining them would also avoid this if-else logic.  BTNG
+      int operatorIndex = 0;
       for(auto op : composite->getOperators())
       {
+        ++operatorIndex;
+        requireMatrixOperator(op, operatorIndex);
         // Use visitor pattern to extract the affine matrix from supported operators
         AffineMatrixVisitor visitor;
         op->accept(visitor);
         if(!visitor.isValid())
         {
-          continue;
+          throw KleeError({Path {"geometry/operators"},
+                           axom::fmt::format("Cannot convert geometry to matrix: operator {} ({}) "
+                                             "is not supported by matrix extraction.",
+                                             operatorIndex,
+                                             operatorName(*op))});
         }
         const auto& matrix = visitor.getMatrix();
         numerics::Matrix<double> res(identity4x4);
@@ -260,11 +312,19 @@ numerics::Matrix<double> Geometry::getTransform() const
     }
     else
     {
+      requireMatrixOperator(m_operator, -1);
       AffineMatrixVisitor visitor;
       m_operator->accept(visitor);
       if(visitor.isValid())
       {
         transformation = visitor.getMatrix();
+      }
+      else
+      {
+        throw KleeError({Path {"geometry/operators"},
+                         axom::fmt::format("Cannot convert geometry to matrix: operator ({}) is "
+                                           "not supported by matrix extraction.",
+                                           operatorName(*m_operator))});
       }
     }
   }

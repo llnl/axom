@@ -15,7 +15,6 @@
 #endif
 
 #include <algorithm>
-#include <stdexcept>
 #include <utility>
 
 namespace axom
@@ -621,17 +620,21 @@ void DiscreteShape::createRepresentationOfSOR()
 
 void DiscreteShape::applyTransforms()
 {
-  numerics::Matrix<double> transformation = getTransforms();
+  if(!m_shape.getGeometry().getGeometryOperator())
+  {
+    return;
+  }
 
-  // Apply transformation to coordinates of each vertex in mesh
+  const int spaceDim = m_meshRep->getDimension();
+  const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
+  double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
+  double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
+  double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
+
+  numerics::Matrix<double> transformation = getTransforms();
+  // Apply transformation to coordinates of each vertex in mesh.
   if(!transformation.isIdentity())
   {
-    const int spaceDim = m_meshRep->getDimension();
-    const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
-    double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
-    double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
-    double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
-
     double xformed[4];
     for(int i = 0; i < numSurfaceVertices; ++i)
     {
