@@ -37,4 +37,3 @@ LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy);
 }  // namespace internal
 }  // namespace klee
 }  // namespace axom
-
