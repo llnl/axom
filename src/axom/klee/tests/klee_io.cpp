@@ -1343,6 +1343,34 @@ TEST(IOTest, readShapeSet_luaCallbackWrongVectorDimensionIncludesContext)
   }
 }
 
+TEST(IOTest, readShapeSet_luaFunctionValueWrongTypeOutsideCallbackFields)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "bad_units",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "part.stl",
+            units = function() return "cm" end
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("units"));
+    EXPECT_THAT(err.what(), HasSubstr("wrong type"));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
 {
   try
