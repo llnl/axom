@@ -317,7 +317,10 @@ private:
   }
 
   /**
-   * \brief Determines whether the specified 3D point is within the gray leaf
+   * \brief Determines whether the specified point is within the gray leaf
+   *
+   * Dispatches to the dimension-specific implementation (withinGrayBlock2D()
+   * or withinGrayBlock3D()) based on the octree dimension.
    *
    * \param queryPt The point we are querying
    * \param leafBlk The block of the gray leaf
@@ -328,7 +331,15 @@ private:
                        const BlockIndex& leafBlk,
                        const InOutBlockData& data) const;
 
-  template <int TDIM = DIM>
+  /**
+   * \brief Determines whether the specified 3D point is within the gray leaf
+   *
+   * \param queryPt The point we are querying
+   * \param leafBlk The block of the gray leaf
+   * \param data The data associated with the leaf block
+   * \return True, if the point is inside the local surface associated with this block, false otherwise
+   * \pre This function is only valid for 3D InOutOctrees
+   */
   bool withinGrayBlock3D(const SpacePt& queryPt,
                          const BlockIndex& leafBlk,
                          const InOutBlockData& data) const;
@@ -340,8 +351,8 @@ private:
    * \param leafBlk The block of the gray leaf
    * \param data The data associated with the leaf block
    * \return True, if the point is inside the local surface associated with this block, false otherwise
+   * \pre This function is only valid for 2D InOutOctrees
    */
-  template <int TDIM = DIM>
   bool withinGrayBlock2D(const SpacePt& queryPt,
                          const BlockIndex& leafBlk,
                          const InOutBlockData& data) const;
@@ -1144,12 +1155,11 @@ bool InOutOctree<DIM>::withinGrayBlock(const SpacePt& queryPt,
 }
 
 template <int DIM>
-template <int TDIM>
 bool InOutOctree<DIM>::withinGrayBlock3D(const SpacePt& queryPt,
                                          const BlockIndex& leafBlk,
                                          const InOutBlockData& leafData) const
 {
-  static_assert(DIM == 3 && TDIM == 3, "withinGrayBlock3D is only valid for 3D InOutOctrees");
+  static_assert(DIM == 3, "withinGrayBlock3D is only valid for 3D InOutOctrees");
 
   /// Finds a ray from queryPt to a point of a triangle within leafBlk.
   /// Then find the first triangle along this ray. The orientation of the ray
@@ -1283,12 +1293,11 @@ bool InOutOctree<DIM>::withinGrayBlock3D(const SpacePt& queryPt,
 }
 
 template <int DIM>
-template <int TDIM>
 bool InOutOctree<DIM>::withinGrayBlock2D(const SpacePt& queryPt,
                                          const BlockIndex& leafBlk,
                                          const InOutBlockData& leafData) const
 {
-  static_assert(DIM == 2 && TDIM == 2, "withinGrayBlock2D is only valid for 2D InOutOctrees");
+  static_assert(DIM == 2, "withinGrayBlock2D is only valid for 2D InOutOctrees");
 
   /// Finds a ray from queryPt to a point of a segment within leafBlk.
   /// Then finds the first segment along this ray. The orientation of the ray
