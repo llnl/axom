@@ -209,21 +209,21 @@ public:
         const int ncurves = m_processed_curves_view.size();
         axom::Array<BoxType> aabbs(ncurves, ncurves);
         auto aabbs_view = aabbs.view();
+        const auto processed_curves_view = m_processed_curves_view;
 
         axom::for_all<ExecSpace>(
           ncurves,
-          AXOM_LAMBDA(axom::IndexType i) {
-            aabbs_view[i] = m_processed_curves_view[i].boundingBox();
-          });
+          AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = processed_curves_view[i].boundingBox(); });
         m_bvh.initialize(aabbs_view, ncurves);
       }
 
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
-        auto compute_moments = [=](std::int32_t currentNode,
-                                   const std::int32_t* leafNodes) -> GWNMoments {
+        const auto processed_curves_view = m_processed_curves_view;
+        auto compute_moments = [processed_curves_view](std::int32_t currentNode,
+                                                       const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
-          return GWNMoments(m_processed_curves_view[idx]);
+          return GWNMoments(processed_curves_view[idx]);
         };
 
         const auto traverser = m_bvh.getTraverser();
@@ -279,6 +279,7 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
+      const auto processed_curves_view = m_processed_curves_view;
 
       // Use fast approximation
       if(m_bvh.isInitialized())
@@ -292,7 +293,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
             const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                            traverser,
-                                                                           m_processed_curves_view,
+                                                                           processed_curves_view,
                                                                            internal_moments_view,
                                                                            tol_copy);
             winding[static_cast<int>(index)] = wn;
@@ -324,7 +325,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
             const auto q = query_point(static_cast<int>(nidx));
             double wn {};
-            for(const auto& curve : m_processed_curves_view)
+            for(const auto& curve : processed_curves_view)
             {
               wn += axom::primal::winding_number(q, curve, tol_copy.edge_tol, tol_copy.EPS);
             }
@@ -638,12 +639,11 @@ public:
         const int npatches = m_processed_patches_view.size();
         axom::Array<BoxType> aabbs(npatches, npatches);
         auto aabbs_view = aabbs.view();
+        const auto processed_patches_view = m_processed_patches_view;
 
         axom::for_all<ExecSpace>(
           npatches,
-          AXOM_LAMBDA(axom::IndexType i) {
-            aabbs_view[i] = m_processed_patches_view[i].boundingBox();
-          });
+          AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = processed_patches_view[i].boundingBox(); });
         m_bvh.initialize(aabbs_view, npatches);
       }
 
@@ -655,10 +655,11 @@ public:
         auto normals_view = precomputed_normals.view();
         auto surface_areas_view = precomputed_surface_areas.view();
 
+        const auto processed_patches_view = m_processed_patches_view;
         auto compute_moments = [=](std::int32_t currentNode,
                                    const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
-          const auto leaf_moments = GWNMoments(m_processed_patches_view[idx]);
+          const auto leaf_moments = GWNMoments(processed_patches_view[idx]);
 
           normals_view[idx] = leaf_moments.getNormal();
           surface_areas_view[idx] = leaf_moments.getSurfaceArea();
@@ -735,6 +736,7 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
+      const auto processed_patches_view = m_processed_patches_view;
 
       // Use fast approximation
       if(m_bvh.isInitialized())
@@ -750,7 +752,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
             const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                            traverser,
-                                                                           m_processed_patches_view,
+                                                                           processed_patches_view,
                                                                            internal_moments_view,
                                                                            tol_copy);
             winding[static_cast<int>(index)] = wn;
@@ -784,7 +786,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
             const auto q = query_point(static_cast<int>(nidx));
             double wn {};
-            for(const auto& patch : m_processed_patches_view)
+            for(const auto& patch : processed_patches_view)
             {
               wn += axom::primal::winding_number(q,
                                                  patch,
