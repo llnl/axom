@@ -5,10 +5,22 @@ local scoop_lift = 2.0
 local sprinkle_lift = 3.0
 local cone_lift = -2.0
 
-local scoop_scale = {scoop_radius}
-local scoop_offset = {0.0, scoop_lift}
-local sprinkle_offset = {0.0, sprinkle_lift}
-local cone_offset = {0.0, cone_lift}
+local function point(x, y, z)
+  if dim == 2 then
+    return {x, y}
+  end
+  return {x, y, z or 0.0}
+end
+
+local function offset(y)
+  return function()
+    return point(0.0, y)
+  end
+end
+
+local function scoop_scale()
+  return {scoop_radius}
+end
 
 dimensions = dim
 
@@ -30,7 +42,7 @@ shapes = {
       operators = {
         { scale = scoop_scale },
         { rotate = 5 },
-        { translate = scoop_offset }
+        { translate = offset(scoop_lift) }
       }
     }
   },
@@ -43,7 +55,7 @@ shapes = {
       units = "cm",
       operators = {
         { rotate = 15 },
-        { translate = sprinkle_offset }
+        { translate = offset(sprinkle_lift) }
       }
     },
     replaces = {"ice_cream"}
@@ -57,7 +69,7 @@ shapes = {
       units = "cm",
       operators = {
         { rotate = -5 },
-        { translate = cone_offset }
+        { translate = offset(cone_lift) }
       }
     },
     does_not_replace = {"ice_cream", "sprinkles"}
