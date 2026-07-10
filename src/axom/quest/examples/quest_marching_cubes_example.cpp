@@ -1611,8 +1611,7 @@ int allocatorIdToTest(axom::runtime_policy::Policy policy)
   //---------------------------------------------------------------------------
   // Memory resource.  For testing, choose device memory if appropriate.
   //---------------------------------------------------------------------------
-  int allocatorID =
-    policy == RuntimePolicy::seq ? axom::HostAllocator {}.getID() :
+  int allocatorID = policy == RuntimePolicy::seq ? axom::HostAllocator {}.getID() :
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     policy == RuntimePolicy::omp ? axom::HostAllocator {}.getID()
     :

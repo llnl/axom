@@ -38,6 +38,7 @@
 #include <vector>
 #include <cmath>
 #include <cstdlib>
+#include <exception>
 
 namespace
 {
@@ -58,6 +59,85 @@ const int NUM_TEST_PTS = 10000;
 const int TEST_GRID_RES = 3;
 #endif
 
+bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
+{
+#if defined(AXOM_USE_UMPIRE)
+  try
+  {
+    switch(space)
+    {
+    case axom::MemorySpace::Host:
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      break;
+    case axom::MemorySpace::Device:
+  #if defined(UMPIRE_ENABLE_DEVICE)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Unified:
+  #if defined(UMPIRE_ENABLE_UM)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Pinned:
+  #if defined(UMPIRE_ENABLE_PINNED)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Constant:
+  #if defined(UMPIRE_ENABLE_CONST)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Malloc:
+    case axom::MemorySpace::Dynamic:
+      break;
+    }
+  }
+  catch(const std::exception&)
+  {
+    return false;
+  }
+#else
+  AXOM_UNUSED_VAR(space);
+#endif
+
+  return true;
+}
+
+template <typename ExecSpace>
+int runtimeAllocatorIdForExecSpace()
+{
+#if defined(AXOM_USE_UMPIRE)
+  if(axom::execution_space<ExecSpace>::onDevice())
+  {
+    if(runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+    {
+      return axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
+    }
+
+    if(runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+    {
+      return axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Unified);
+    }
+
+    return axom::INVALID_ALLOCATOR_ID;
+  }
+
+  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+#else
+  return axom::getDefaultAllocatorID();
+#endif
+}
+
 }  // namespace
 
 enum MeshType
@@ -71,37 +151,8 @@ enum MeshType
 template <typename ExecSpace>
 struct ExecTraits
 {
-  static int getAllocatorId()
-  {
-#ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
-#else
-    return axom::getDefaultAllocatorID();
-#endif
-  }
+  static int getAllocatorId() { return runtimeAllocatorIdForExecSpace<ExecSpace>(); }
 };
-
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-template <int BLK_SZ>
-struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
-{
-  static int getAllocatorId()
-  {
-    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
-  }
-};
-#endif
-
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-template <int BLK_SZ>
-struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
-{
-  static int getAllocatorId()
-  {
-    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
-  }
-};
-#endif
 
 /*!
  * Test fixture for PointInCell tests on MFEM meshes
@@ -303,10 +354,16 @@ public:
   template <typename ExpectedValueFunctor>
   void testRandomPointsOnMesh(ExpectedValueFunctor exp, const std::string& meshTypeStr)
   {
+    const int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+
     // Generate a PointInCell structure over the mesh
     axom::utilities::Timer constructTimer(true);
     // _quest_pic_init_start
-    PointInCellType spatialIndex(m_mesh, GridCell(25).data(), m_EPS, m_allocatorID);
+    PointInCellType spatialIndex(m_mesh,
+                                 GridCell(25).data(),
+                                 m_EPS,
+                                 m_allocatorID,
+                                 axom::HostAllocator {hostAllocID});
     // _quest_pic_init_end
     SLIC_INFO(
       axom::fmt::format(axom::utilities::locale(),
@@ -395,14 +452,18 @@ public:
   /*! Tests PointInCell class using isoparametric points within each cell */
   void testIsoGridPointsOnMesh(const std::string& meshTypeStr)
   {
-    int devAllocID = axom::execution_space<ExecSpace>::allocatorID();
+    int devAllocID = m_allocatorID;
     int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
     std::string filename = axom::fmt::format("quest_point_in_cell_{}_quad", meshTypeStr);
 
     // Add mesh to the grid
     axom::utilities::Timer constructTimer(true);
-    PointInCellType spatialIndex(m_mesh, GridCell(25).data(), m_EPS, m_allocatorID);
+    PointInCellType spatialIndex(m_mesh,
+                                 GridCell(25).data(),
+                                 m_EPS,
+                                 m_allocatorID,
+                                 axom::HostAllocator {hostAllocID});
     SLIC_INFO(
       axom::fmt::format(axom::utilities::locale(),
                         "Constructing index over {} quad mesh with {:L} elems took {:.3Lf} s",
@@ -453,7 +514,6 @@ public:
       // locate the reconstructed points (using EXEC space)
       if(axom::execution_space<ExecSpace>::onDevice())
       {
-        int devAllocID = axom::execution_space<ExecSpace>::allocatorID();
         // copy query points to device
         axom::Array<SpacePt> spacePtsDevice(spacePts, devAllocID);
 
@@ -552,6 +612,16 @@ public:
 
   double getTolerance() const { return m_EPS; }
 
+  void skipIfExecAllocatorUnavailable() const
+  {
+    if(axom::execution_space<ExecSpace>::onDevice() && m_allocatorID == axom::INVALID_ALLOCATOR_ID)
+    {
+      GTEST_SKIP() << "Skipping test because no runtime-accessible device or unified allocator "
+                      "is available for "
+                   << axom::execution_space<ExecSpace>::name() << '.';
+    }
+  }
+
 protected:
   std::string m_meshDescriptorStr;
 
@@ -578,6 +648,8 @@ public:
 protected:
   virtual void SetUp()
   {
+    this->skipIfExecAllocatorUnavailable();
+
     /// Setup mesh strings, disable automatic formatting
 
     // clang-format off
@@ -797,6 +869,8 @@ public:
 protected:
   virtual void SetUp()
   {
+    this->skipIfExecAllocatorUnavailable();
+
     /// Setup mesh strings, disable automatic formatting
 
     // clang-format off
