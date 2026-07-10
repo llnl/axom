@@ -11,13 +11,24 @@
  * the legacy quest::MarchingCubes fixed-stride output buffers.
  *
  * bump's CutField output is a welded, mixed-shape unstructured Blueprint topology:
- *   topologies/<t>/type                == "unstructured"
- *   topologies/<t>/elements/connectivity (flat, ConnectivityType)
- *   topologies/<t>/elements/sizes        (per-zone corner count)
- *   topologies/<t>/elements/offsets      (per-zone start into connectivity)
- *   topologies/<t>/elements/shapes       (per-zone Blueprint ShapeID)
- *   coordsets/<c>/values/{x,y[,z]}       (explicit, blended/welded points)
- *   fields/originalElements/values       (element-assoc, input zone per fragment)
+ *   <bp_root>
+ *    ├── topologies
+ *    │   └── <t>
+ *    │        ├─•  type                == "unstructured"
+ *    │        └──  elements
+ *    │             ├─• connectivity   (flat, ConnectivityType)
+ *    │             ├─• sizes          (per-zone corner count)
+ *    │             ├─• offsets        (per-zone start into connectivity)
+ *    │             └─• shapes         (per-zone Blueprint ShapeID)
+ *    ├── coordsets
+ *    │   └── <c>
+ *    │        └──  values             (explicit, blended/welded points)
+ *    │             ├─•  x
+ *    │             ├─•  y
+ *    │             └─• [z]
+ *    └── fields
+ *        └──  originalElements
+ *             └─• values              (element-assoc, input zone per fragment)
  *
  * The legacy MarchingCubes output is an unwelded fixed-stride representation:
  *   m_facetNodeCoords : (facetCount*DIM, DIM)   one row per facet-corner
@@ -128,15 +139,18 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   const conduit::Node& n_topos = n_output.fetch_existing("topologies");
   SLIC_ASSERT(n_topos.number_of_children() == 1);
   const conduit::Node& n_topo = n_topos.child(0);
+
+  // bump always emits explicit sizes/offsets/connectivity for cut output.
+  const conduit::Node& n_elems = n_topo.fetch_existing("elements");
+  const conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
+  const conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
+  const conduit::Node& n_offsets = n_elems.fetch_existing("offsets");
+
+  
   const std::string coordsetName = n_topo.fetch_existing("coordset").as_string();
   const conduit::Node& n_coords =
     n_output.fetch_existing(axom::fmt::format("coordsets/{}", coordsetName));
-  const conduit::Node& n_elems = n_topo.fetch_existing("elements");
-
-  // bump always emits explicit sizes/offsets/connectivity for cut output.
-  const conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
-  const conduit::Node& n_offsets = n_elems.fetch_existing("offsets");
-  const conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
+  
 
   // originalElements: element-associated, one entry per output zone (fragment).
   const conduit::Node& n_orig = n_output.fetch_existing("fields/originalElements/values");
@@ -182,9 +196,8 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
     const bool doRemap = !fieldStrideRemap.empty();
 
     // --- The fan-triangulation + re-expansion kernel -----------------------
-    // One thread per bump zone.  Each zone writes facetsPerZone facets; for
-    // each facet we emit DIM corner coords (re-expanded / un-welded) and DIM
-    // ids.
+    // One thread per bump zone.  Each zone writes facetsPerZone facets;
+    // for each facet we emit DIM corner coords (re-expanded / un-welded) and DIM ids.
     axom::for_all<ExecSpace>(
       numZones,
       AXOM_LAMBDA(axom::IndexType z) {

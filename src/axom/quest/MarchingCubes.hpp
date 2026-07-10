@@ -292,6 +292,10 @@ public:
    *  regardless of the allocator ID, this method always deep-copies
    *  data to host memory.  To access the data without deep-copying, see
    *  the other output methods in this name group.
+   *
+   *  When the bump backend is enabled, its native 3D CutField output may contain polygonal
+   *  surface elements.  The adaptor fan-triangulates those polygons when filling the legacy
+   *  fixed-stride output consumed here, so this method still populates a triangle mesh in 3D.
   */
   void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
                            const std::string& cellIdField = {},
@@ -304,7 +308,8 @@ public:
    * This accessor is available only for contours computed with the bump backend.
    * It preserves bump's native welded representation: line segments in 2D
    * and polygonal surface elements in 3D with Blueprint elements/{connectivity,sizes,offsets}.
-   * The existing fixed-stride array accessors still expose the legacy un-welded triangle/segment soup.
+   * The existing fixed-stride array accessors and populateContourMesh() still expose the
+   * legacy un-welded triangle/segment soup; 3D polygonal faces are fan-triangulated there.
    *
    * Array data in \a bpMesh is copied into the same memory space used by the MarchingCubes object.
    * If the contour was computed with a device policy, callers that need host-readable Blueprint data
