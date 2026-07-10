@@ -101,6 +101,16 @@ public:
 
   quest::MarchingCubesDataParallelism dataParallelism = quest::MarchingCubesDataParallelism::byPolicy;
 
+  quest::MarchingCubesParentCellIdMode parentCellIdMode =
+    quest::MarchingCubesParentCellIdMode::blueprintZoneId;
+
+  // Use the bump CutField backend (supports unstructured quad/hex) vs legacy.
+  bool useBumpBackend = false;
+
+  // Bump-backend isosurface robustness policy (Phase 6 seam).
+  quest::MarchingCubesRobustnessPolicy robustnessPolicy =
+    quest::MarchingCubesRobustnessPolicy::standard;
+
   // Distinct MarchingCubes objects count.
   int objectRepCount = 1;
   // Contour generation count for each MarchingCubes objects.
@@ -122,6 +132,22 @@ private:
   };
   // clang-format on
 
+  // clang-format off
+  const std::map<std::string, quest::MarchingCubesParentCellIdMode> s_validParentCellIdModes
+  {
+    {"blueprintZoneId", quest::MarchingCubesParentCellIdMode::blueprintZoneId}
+    , {"legacyFieldOrder", quest::MarchingCubesParentCellIdMode::legacyFieldOrder}
+  };
+  // clang-format on
+
+  // clang-format off
+  const std::map<std::string, quest::MarchingCubesRobustnessPolicy> s_validRobustnessPolicies
+  {
+    {"standard", quest::MarchingCubesRobustnessPolicy::standard}
+    , {"robust", quest::MarchingCubesRobustnessPolicy::robust}
+  };
+  // clang-format on
+
 public:
   bool isVerbose() const { return _verboseOutput; }
 
@@ -133,9 +159,31 @@ public:
       ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
     app.add_option("--dataParallelism", dataParallelism)
-      ->description("Set full or partial data-parallelism, or by-policy")
+      ->description(
+        "Set full or partial data-parallelism, or by-policy, for the legacy backend "
+        "(ignored by --useBumpBackend)")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validImplChoices));
+
+    app.add_option("--parentCellIdMode", parentCellIdMode)
+      ->description(
+        "How to number parent-cell ids of generated facets: "
+        "'blueprintZoneId' (default) or 'legacyFieldOrder' (structured only)")
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(s_validParentCellIdModes));
+
+    app.add_flag("--useBumpBackend", useBumpBackend)
+      ->description(
+        "Use the bump CutField backend (adds unstructured quad/hex support) "
+        "instead of the legacy structured-only marching cubes kernel")
+      ->capture_default_str();
+
+    app.add_option("--robustnessPolicy", robustnessPolicy)
+      ->description(
+        "Bump-backend isosurface robustness: 'standard' (default) or 'robust' "
+        "(reserved; currently behaves as standard)")
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(s_validRobustnessPolicies));
 
     app.add_option("-m,--mesh-file", meshFile)
       ->description(
@@ -843,6 +891,9 @@ struct ContourTestBase
         initializationTimer.start();
         mcPtr =
           std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
+        mcPtr->setUseBumpBackend(params.useBumpBackend);
+        mcPtr->setParentCellIdMode(params.parentCellIdMode);
+        mcPtr->setRobustnessPolicy(params.robustnessPolicy);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
         initializationTimer.stop();
       }
