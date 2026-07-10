@@ -8,7 +8,6 @@
 #include "axom/core/numerics/transforms.hpp"
 
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/Units.hpp"
 
 #include <cmath>
 #include <stdexcept>
@@ -171,7 +170,7 @@ void UnitConverter::accept(GeometryOperatorVisitor &visitor) const { visitor.vis
 
 double UnitConverter::getConversionFactor() const
 {
-  return klee::getConversionFactor(getStartProperties().units, m_endUnits);
+  return utilities::getConversionFactor(getStartProperties().units, m_endUnits);
 };
 
 SliceOperator::SliceOperator(const primal::Point3D &origin,

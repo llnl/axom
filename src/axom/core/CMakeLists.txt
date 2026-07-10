@@ -36,6 +36,7 @@ set(core_headers
     utilities/StringUtilities.hpp
     utilities/System.hpp
     utilities/Timer.hpp
+    utilities/Units.hpp
     utilities/Utilities.hpp
 
     ## numerics
@@ -110,6 +111,7 @@ set(core_sources
     utilities/FileUtilities.cpp
     utilities/StringUtilities.cpp
     utilities/System.cpp
+    utilities/Units.cpp
     utilities/Utilities.cpp
     ${PROJECT_BINARY_DIR}/axom/core/utilities/About.cpp
 

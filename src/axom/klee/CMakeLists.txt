@@ -45,7 +45,7 @@ set(klee_sources
 axom_add_library(NAME        klee
                  SOURCES     ${klee_sources}
                  HEADERS     ${klee_headers} ${klee_internal_headers}
-                 DEPENDS_ON  inlet
+                 DEPENDS_ON  core inlet
                  FOLDER      axom/klee
                  )
 
