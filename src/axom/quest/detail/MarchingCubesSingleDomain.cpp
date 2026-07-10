@@ -46,13 +46,20 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
   SLIC_ERROR_IF(!dom.has_path("topologies/" + m_topologyName),
                 axom::fmt::format("MarchingCubes: the domain has no topology '{}'.", m_topologyName));
 
-  const std::string topologyType =
-    dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string();
-  SLIC_ERROR_IF(topologyType != "structured",
-                axom::fmt::format("MarchingCubes requires a structured topology, "
-                                  "but topology '{}' has type '{}'.",
-                                  m_topologyName,
-                                  topologyType));
+  // The legacy backend supports only structured topologies.
+  // The bump backend additionally supports unstructured single-shape quad/hex;
+  // it validates the topology type itself in its own setDomain(),
+  // so we only enforce the structured requirement here when using the legacy backend.
+  if(!m_mc.m_useBumpBackend)
+  {
+    const std::string topologyType =
+      dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string();
+    SLIC_ERROR_IF(topologyType != "structured",
+                  axom::fmt::format("MarchingCubes requires a structured topology, "
+                                    "but topology '{}' has type '{}'.",
+                                    m_topologyName,
+                                    topologyType));
+  }
 
   const std::string coordsetPath =
     "coordsets/" + dom.fetch_existing("topologies/" + m_topologyName + "/coordset").as_string();
@@ -84,11 +91,18 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
                                   m_topologyName,
                                   m_ndim));
 
-  SLIC_ERROR_IF(
-    conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
-    axom::fmt::format("MarchingCubes requires a contiguous coordinate layout, "
-                      "but '{}' is interleaved.",
-                      coordsetPath));
+  // The legacy backend reads coordinates through strided component views and
+  // requires a contiguous (non-interleaved) layout.  The bump backend wraps the
+  // coordset via bump's coordset views; if a given layout is unsupported there,
+  // bump's dispatch reports it.  So enforce contiguity only for the legacy path.
+  if(!m_mc.m_useBumpBackend)
+  {
+    SLIC_ERROR_IF(
+      conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
+      axom::fmt::format("MarchingCubes requires a contiguous coordinate layout, "
+                        "but '{}' is interleaved.",
+                        coordsetPath));
+  }
 
   m_impl = newMarchingCubesImpl();
 

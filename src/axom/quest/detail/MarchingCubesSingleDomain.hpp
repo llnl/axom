@@ -112,6 +112,24 @@ public:
     }
   }
 
+  void setParentCellIdMode(MarchingCubesParentCellIdMode mode)
+  {
+    m_parentCellIdMode = mode;
+    if(m_impl)
+    {
+      m_impl->setParentCellIdMode(m_parentCellIdMode);
+    }
+  }
+
+  void setRobustnessPolicy(MarchingCubesRobustnessPolicy policy)
+  {
+    m_robustnessPolicy = policy;
+    if(m_impl)
+    {
+      m_impl->setRobustnessPolicy(m_robustnessPolicy);
+    }
+  }
+
   // Methods trivially delegated to implementation.
   void markCrossings() { m_impl->markCrossings(); }
   void scanCrossings() { m_impl->scanCrossings(); }
@@ -146,6 +164,23 @@ public:
     virtual void setContourValue(double contourVal) = 0;
     virtual void setMaskValue(int maskVal) = 0;
 
+    /*!
+     * @brief Set how parent-cell ids of generated facets are numbered.
+     *
+     * Default is a no-op so backends that only ever produce the legacy numbering
+     * (the structured-only MarchingCubesImpl) need not implement it.
+     * The bump backend overrides this to honor both numbering modes.
+     */
+    virtual void setParentCellIdMode(MarchingCubesParentCellIdMode) { }
+
+    /*!
+     * @brief Set the isosurface robustness policy (bump backend only).
+     *
+     * No-op default so the legacy backend (which has no intersector concept) is unaffected.
+     * The bump backend overrides this.
+     */
+    virtual void setRobustnessPolicy(MarchingCubesRobustnessPolicy) { }
+
     virtual void setDataParallelism(MarchingCubesDataParallelism dataPar) = 0;
 
     ///@{
@@ -171,6 +206,25 @@ public:
 
     //! @brief Return the number of generated contour nodes.
     virtual axom::IndexType getContourNodeCount() const = 0;
+
+    /*! @brief Whether this implementation has a richer Blueprint contour. */
+    virtual bool hasContourMeshBlueprint() const { return false; }
+
+    /*!
+     * @brief Copy the implementation's richer Blueprint contour, if any.
+     *
+     * The legacy backend does not provide this representation; callers should
+     * check hasContourMeshBlueprint() before invoking this method.
+     */
+    virtual void copyContourMeshBlueprint(conduit::Node& bpMesh) const { bpMesh.reset(); }
+
+    /*!
+     * @brief Move the implementation's richer Blueprint contour, if any.
+     *
+     * The legacy backend does not provide this representation; callers should
+     * check hasContourMeshBlueprint() before invoking this method.
+     */
+    virtual void relinquishContourMeshBlueprint(conduit::Node& bpMesh) { bpMesh.reset(); }
     ///@}
 
     void setOutputBuffers(axom::ArrayView<axom::IndexType, 2>& facetNodeIds,
@@ -202,6 +256,7 @@ public:
   };
 
   ImplBase& getImpl() { return *m_impl; }
+  const ImplBase& getImpl() const { return *m_impl; }
 
 private:
   /*!
@@ -265,6 +320,8 @@ private:
 
   double m_contourVal {0.0};
   int m_maskVal {1};
+  MarchingCubesParentCellIdMode m_parentCellIdMode {MarchingCubesParentCellIdMode::blueprintZoneId};
+  MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   std::unique_ptr<ImplBase> m_impl;
 };

@@ -26,8 +26,12 @@
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
 #include "axom/quest/detail/MarchingCubesImpl.hpp"
+#if defined(AXOM_USE_BUMP)
+  #include "axom/quest/detail/MarchingCubesBumpImpl.hpp"
+#endif
 
 #include <memory>
+#include <type_traits>
 
 namespace axom::quest::detail::marching_cubes
 {
@@ -35,6 +39,27 @@ template <int DIM, typename ExecSpace, typename SequentialExecSpace>
 std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::newMarchingCubesPolicyImpl()
 {
   static_assert(DIM == 2 || DIM == 3, "MarchingCubes supports only 2D and 3D meshes");
+
+#if defined(AXOM_USE_BUMP)
+  if(m_mc.m_useBumpBackend)
+  {
+  #if defined(_WIN32)
+    if constexpr(std::is_same<ExecSpace, axom::SEQ_EXEC>::value)
+    {
+      return std::make_unique<MarchingCubesBumpImpl<DIM, ExecSpace>>(m_mc.m_allocatorID);
+    }
+    else
+    {
+      SLIC_ERROR(
+        "MarchingCubes bump backend is not enabled for this runtime policy "
+        "on Windows shared-library builds.");
+      return nullptr;
+    }
+  #else
+    return std::make_unique<MarchingCubesBumpImpl<DIM, ExecSpace>>(m_mc.m_allocatorID);
+  #endif
+  }
+#endif
 
   return std::make_unique<MarchingCubesImpl<DIM, ExecSpace, SequentialExecSpace>>(
     m_mc.m_allocatorID,
