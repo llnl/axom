@@ -41,7 +41,7 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     if [[ ${CMAKE_EXTRA_FLAGS} == *COVERAGE* ]] ; then
         or_die make -j $NUM_BUILD_PROCS
     else
-        or_die make -j $NUM_BUILD_PROCS VERBOSE=1
+        or_die make -j $NUM_BUILD_PROCS
     fi
 
     echo "~~~~~~ RUNNING TESTS ~~~~~~~~"
