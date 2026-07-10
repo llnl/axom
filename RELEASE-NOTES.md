@@ -18,10 +18,24 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+### Added
+- Quest: `MarchingCubes` now has an optional Bump backend. Select it by calling
+  `setUseBumpBackend(true)` before `setMesh()`. It supports `uniform`,
+  `rectilinear`, and single-shape `unstructured` topologies with quads in 2D or hexes in 3D.
+  Existing array and Mint outputs remain available, and new methods expose Bump's welded Blueprint mesh.
+
+### Changed
 - Axom's host execution-space default allocator is now a configure-time policy. The default policy is malloc, regardless
   of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
   `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
   allocator-ID arguments.
+- Quest: `MarchingCubes::setMesh()` now accepts single- and multi-domain Blueprint meshes.
+
+### Fixed
+- Bump: Structured-topology dispatch now detects strided-structured topologies.
+  It previously looked for `offsets` and `strides` at the topology root,
+  but Blueprint stores them under `elements/dims`.
+
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
