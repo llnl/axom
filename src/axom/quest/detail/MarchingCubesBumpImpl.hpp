@@ -24,11 +24,9 @@
  *  - The phased ImplBase interface (mark/scan/compute) was designed around the legacy kernel.
  *    bump does everything in one execute() call, so we run the extractor lazily and cache its result, 
  *    then satisfy the count queries from the cached result.
- *  - bump produces a WELDED, topologically-connected surface (blend-group uniquification).
+ *  - bump produces a welded, topologically-connected surface (blend-group uniquification).
  *    The 3D output may be polygonal (tri/quad/poly5..8), and the 2D output is line segments.
- *    To preserve the legacy fixed-stride (facetCount, DIM) "triangle soup" output contract,
- *    the adaptor fan-triangulates polygons and re-expands welded points into per-facet corners
- *    when filling the legacy output buffers.  (Richer, welded output is exposed via additive accessors on MarchingCubes.)
+ *    The adaptor can optionally triangulate the polygon.
  */
 
 #ifndef AXOM_QUEST_MARCHINGCUBESBUMPIMPL_H_
@@ -200,14 +198,31 @@ public:
 
   axom::IndexType getContourCellCount() const override { return m_facetCount; }
 
+  axom::IndexType getContourNodeCount() const override
+  {
+    SLIC_ASSERT(m_output != nullptr);
+    const conduit::Node& n_topos = m_output->fetch_existing("topologies");
+    SLIC_ASSERT(n_topos.number_of_children() == 1);
+    const conduit::Node& n_topo = n_topos.child(0);
+    const std::string coordsetName = n_topo.fetch_existing("coordset").as_string();
+    const conduit::Node& n_coords =
+      m_output->fetch_existing(axom::fmt::format("coordsets/{}", coordsetName));
+    return static_cast<axom::IndexType>(
+      n_coords.fetch_existing("values/x").dtype().number_of_elements());
+  }
+
   bool hasContourMeshBlueprint() const override { return m_output != nullptr; }
 
-  void copyContourMeshBlueprint(conduit::Node& bpMesh) const override
+  void copyContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const override
   {
     SLIC_ERROR_IF(m_output == nullptr,
                   "MarchingCubes bump backend has no Blueprint contour output. "
                   "Call computeIsocontour() before requesting it.");
     axom::bump::utilities::copy<ExecSpace>(bpMesh, *m_output, m_allocatorID);
+    if(triangulate)
+    {
+      triangulateBlueprintMesh<DIM, ExecSpace>(bpMesh, m_allocatorID);
+    }
   }
 
   void relinquishContourMeshBlueprint(conduit::Node& bpMesh) override
@@ -636,7 +651,7 @@ private:
 
   /*!
    * @brief Fill the parent-allocated legacy output buffers from cached bump output,
-   * fan-triangulating polygons and re-expanding welded points so the legacy (facetCount, DIM) un-welded contract is preserved exactly.
+   * triangulating the polygons while reusing bump's welded vertex coordinates.
    */
   void fillLegacyOutputBuffers()
   {
@@ -664,6 +679,7 @@ private:
                                         m_facetNodeCoords,
                                         m_facetParentIds,
                                         m_facetIndexOffset,
+                                        m_nodeIndexOffset,
                                         m_facetCount,
                                         remapView);
   }
