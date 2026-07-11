@@ -140,7 +140,7 @@ public:
   axom::IndexType getContourCellCount() const { return m_impl->getContourCellCount(); }
 
   //!@brief Get number of nodes in the generated contour mesh.
-  axom::IndexType getContourNodeCount() const { return m_ndim * getContourCellCount(); }
+  axom::IndexType getContourNodeCount() const { return m_impl->getContourNodeCount(); }
 
   /*!
    * @brief Base class for implementations templated on dimension DIM
@@ -208,6 +208,9 @@ public:
     //! @brief Return number of contour mesh facets generated.
     virtual axom::IndexType getContourCellCount() const = 0;
 
+    //! @brief Return number of contour mesh nodes generated.
+    virtual axom::IndexType getContourNodeCount() const = 0;
+
     /*! @brief Whether this implementation has a richer Blueprint contour. */
     virtual bool hasContourMeshBlueprint() const { return false; }
 
@@ -217,7 +220,11 @@ public:
      * The legacy backend does not provide this representation; callers should
      * check hasContourMeshBlueprint() before invoking this method.
      */
-    virtual void copyContourMeshBlueprint(conduit::Node& bpMesh) const { bpMesh.reset(); }
+    virtual void copyContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
+    {
+      AXOM_UNUSED_VAR(triangulate);
+      bpMesh.reset();
+    }
 
     /*!
      * @brief Move the implementation's richer Blueprint contour, if any.
@@ -231,12 +238,14 @@ public:
     void setOutputBuffers(axom::ArrayView<axom::IndexType, 2>& facetNodeIds,
                           axom::ArrayView<double, 2>& facetNodeCoords,
                           axom::ArrayView<axom::IndexType, 1>& facetParentIds,
-                          axom::IndexType facetIndexOffset)
+                          axom::IndexType facetIndexOffset,
+                          axom::IndexType nodeIndexOffset)
     {
       m_facetNodeIds = facetNodeIds;
       m_facetNodeCoords = facetNodeCoords;
       m_facetParentIds = facetParentIds;
       m_facetIndexOffset = facetIndexOffset;
+      m_nodeIndexOffset = nodeIndexOffset;
     }
 
     virtual ~ImplBase() { }
@@ -251,6 +260,7 @@ public:
     axom::ArrayView<double, 2> m_facetNodeCoords;
     axom::ArrayView<IndexType> m_facetParentIds;
     axom::IndexType m_facetIndexOffset = -1;
+    axom::IndexType m_nodeIndexOffset = -1;
   };
 
   ImplBase& getImpl() { return *m_impl; }

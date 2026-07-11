@@ -40,6 +40,7 @@ MarchingCubes::MarchingCubes(RuntimePolicy runtimePolicy,
   , m_crossingFlags(0, 0, m_allocatorID)
   , m_scannedFlags(0, 0, m_allocatorID)
   , m_facetIncrs(0, 0, m_allocatorID)
+  , m_nodeCount(0)
   , m_facetNodeIds(twoZeros, m_allocatorID)
   , m_facetNodeCoords(twoZeros, m_allocatorID)
   , m_facetParentIds(0, 0, m_allocatorID)
@@ -106,6 +107,7 @@ void MarchingCubes::computeIsocontour(double contourVal)
   // Mark and scan domains while adding up their
   // facet counts to get the total facet counts.
   m_facetIndexOffsets.resize(m_singles.size());
+  m_nodeIndexOffsets.resize(m_singles.size());
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
   {
     auto& single = *m_singles[d];
@@ -116,7 +118,9 @@ void MarchingCubes::computeIsocontour(double contourVal)
     single.markCrossings();
     single.scanCrossings();
     m_facetIndexOffsets[d] = m_facetCount;
+    m_nodeIndexOffsets[d] = m_nodeCount;
     m_facetCount += single.getContourCellCount();
+    m_nodeCount += single.getContourNodeCount();
   }
 
   allocateOutputBuffers();
@@ -130,7 +134,8 @@ void MarchingCubes::computeIsocontour(double contourVal)
     m_singles[d]->getImpl().setOutputBuffers(facetNodeIdsView,
                                              facetNodeCoordsView,
                                              facetParentIdsView,
-                                             m_facetIndexOffsets[d]);
+                                             m_facetIndexOffsets[d],
+                                             m_nodeIndexOffsets[d]);
   }
 
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
@@ -147,16 +152,12 @@ void MarchingCubes::computeIsocontour(double contourVal)
   }
 }
 
-axom::IndexType MarchingCubes::getContourNodeCount() const
-{
-  axom::IndexType contourNodeCount =
-    (m_domainCount > 0) ? m_facetCount * m_singles[0]->spatialDimension() : 0;
-  return contourNodeCount;
-}
+axom::IndexType MarchingCubes::getContourNodeCount() const { return m_nodeCount; }
 
 void MarchingCubes::clearOutput()
 {
   m_facetCount = 0;
+  m_nodeCount = 0;
   m_facetNodeIds.clear();
   m_facetNodeCoords.clear();
   m_facetParentIds.clear();
@@ -234,7 +235,7 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
   }
 }
 
-void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh) const
+void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMeshBlueprint");
   bpMesh.reset();
@@ -252,7 +253,7 @@ void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh) const
                   "Call computeIsocontour() before requesting it.");
 
     conduit::Node& outDom = bpMesh.append();
-    impl.copyContourMeshBlueprint(outDom);
+    impl.copyContourMeshBlueprint(outDom, triangulate);
     if(!outDom.has_path("state/domain_id"))
     {
       outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));
@@ -294,9 +295,8 @@ void MarchingCubes::allocateOutputBuffers()
   if(!m_singles.empty())
   {
     int ndim = m_singles[0]->spatialDimension();
-    const auto nodeCount = m_facetCount * ndim;
     m_facetNodeIds.resize(axom::StackArray<axom::IndexType, 2> {m_facetCount, ndim}, 0);
-    m_facetNodeCoords.resize(axom::StackArray<axom::IndexType, 2> {nodeCount, ndim}, 0.0);
+    m_facetNodeCoords.resize(axom::StackArray<axom::IndexType, 2> {m_nodeCount, ndim}, 0.0);
     m_facetParentIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
     m_facetDomainIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
   }
