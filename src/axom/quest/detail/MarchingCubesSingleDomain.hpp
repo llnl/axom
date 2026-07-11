@@ -216,7 +216,11 @@ public:
      * The legacy backend does not provide this representation; callers should
      * check hasContourMeshBlueprint() before invoking this method.
      */
-    virtual void copyContourMeshBlueprint(conduit::Node& bpMesh) const { bpMesh.reset(); }
+    virtual void copyContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
+    {
+      AXOM_UNUSED_VAR(triangulate);
+      bpMesh.reset();
+    }
 
     /*!
      * @brief Move the implementation's richer Blueprint contour, if any.

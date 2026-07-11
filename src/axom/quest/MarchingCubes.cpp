@@ -243,7 +243,7 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
   }
 }
 
-void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh) const
+void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMeshBlueprint");
   bpMesh.reset();
@@ -261,7 +261,7 @@ void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh) const
                   "Call computeIsocontour() before requesting it.");
 
     conduit::Node& outDom = bpMesh.append();
-    impl.copyContourMeshBlueprint(outDom);
+    impl.copyContourMeshBlueprint(outDom, triangulate);
     if(!outDom.has_path("state/domain_id"))
     {
       outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));

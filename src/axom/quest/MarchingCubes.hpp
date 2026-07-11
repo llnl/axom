@@ -279,10 +279,9 @@ public:
    *  mint::UnstructuredMesh supports only host memory, so this method always
    *  deep-copies data to the host. Use the array output methods to avoid that copy.
    *
-   *  When the bump backend is enabled, its native 3D CutField output may contain polygonal
-   *  surface elements.  The adaptor fan-triangulates those polygons when filling the legacy
-   *  fixed-stride output consumed here, so this method still populates a triangle mesh in 3D.
-   */
+   *  When the bump backend is enabled, its native 3D CutField output may contain polygonal surface elements.
+   *  The adaptor triangulates those polygons (reusing bump's welded vertex coordinates).
+  */
   void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
                            const std::string& cellIdField = {},
                            const std::string& domainIdField = {}) const;
@@ -290,18 +289,19 @@ public:
   /*!
    * @brief Copy the richer bump-backed contour mesh into a Blueprint multi-domain mesh.
    * @param [out] bpMesh Output Blueprint multi-domain mesh.
+   * @param triangulate If true, convert 3D polygonal surface elements into
+   *   triangles while preserving bump's welded coordset.
    *
    * This accessor is available only for contours computed with the bump backend.
    * It preserves bump's native welded representation: line segments in 2D
    * and polygonal surface elements in 3D with Blueprint elements/{connectivity,sizes,offsets}.
-   * The existing fixed-stride array accessors and populateContourMesh() still expose the
-   * legacy un-welded triangle/segment soup; 3D polygonal faces are fan-triangulated there.
+   * When \a triangulate is true, 3D polygonal faces are triangulated in the returned Blueprint mesh.
    *
    * Array data in \a bpMesh is copied into the same memory space used by the MarchingCubes object.
    * If the contour was computed with a device policy, callers that need host-readable Blueprint data
    * should copy it to host.
   */
-  void populateContourMeshBlueprint(conduit::Node& bpMesh) const;
+  void populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate = false) const;
 
   /*!
    * @brief Return a view of the facet connectivity array.
