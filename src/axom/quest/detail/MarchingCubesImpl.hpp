@@ -468,6 +468,8 @@ public:
     // m_firstFacetIds.resize(m_crossingCount);
   }
 
+  axom::IndexType getContourNodeCount() const override { return DIM * getContourCellCount(); }
+
   void computeFacets() override
   {
     AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::computeFacets");
@@ -480,6 +482,7 @@ public:
     axom::ArrayView<double, 2> facetNodeCoordsView = m_facetNodeCoords;
     axom::ArrayView<axom::IndexType> facetParentIdsView = m_facetParentIds;
     const axom::IndexType facetIndexOffset = m_facetIndexOffset;
+    const axom::IndexType nodeIndexOffset = m_nodeIndexOffset;
 
     ComputeFacets_Util cfu(m_contourVal, m_caseIdsMDMapper, m_fcnView, m_coordsViews);
 
@@ -496,8 +499,9 @@ public:
 
       for(axom::IndexType fId = 0; fId < additionalFacets; ++fId)
       {
+        const axom::IndexType localFacetId = firstFacetIdsView[crossingId] + fId;
         axom::IndexType newFacetId = firstFacetId + fId;
-        axom::IndexType firstCornerId = newFacetId * DIM;
+        axom::IndexType firstCornerId = nodeIndexOffset + localFacetId * DIM;
 
         facetParentIdsView[newFacetId] = parentCellId;
 

@@ -30,25 +30,19 @@
  *        └──  originalElements
  *             └─• values              (element-assoc, input zone per fragment)
  *
- * The legacy MarchingCubes output is an unwelded fixed-stride representation:
- *   m_facetNodeCoords : (facetCount*DIM, DIM)   one row per facet-corner
- *   m_facetNodeIds    : (facetCount, DIM)        DIM corner ids per facet, where
+ * The legacy MarchingCubes output is composed of triangles (3D) or segments (2D):
+ *   m_facetNodeCoords : (nodeCount, DIM)         vertices of the mesh
+ *   m_facetNodeIds    : (facetCount, DIM)        indices of each facet, where
  *                       the ids index into m_facetNodeCoords and are offset by
- *                       m_facetIndexOffset*DIM (the parent concatenates domains)
+ *                       the domain's nodeIndexOffset (the parent concatenates domains)
  *   m_facetParentIds  : (facetCount)             parent-cell id per facet
  *
  * Conversion, all in ExecSpace memory:
  *   1. For DIM==2: each welded segment (Line_ShapeID, size 2) is one facet.
  *      For DIM==3: each welded polygon of p corners fan-triangulates into (p-2) triangles (corners {0,k,k+1}).
- *   2. Re-expand: every output facet writes DIM fresh rows into m_facetNodeCoords 
- *      (so the legacy facetCount*DIM node-count invariant holds) 
- *      and its m_facetNodeIds row is the consecutive ids of those rows.
+ *   2. Reuse bump's welded vertex coordinates and write only triangle/segment connectivity.
  *   3. Parent id per facet := originalElements[srcZone], optionally remapped to
  *      the legacy field-stride flat order (structured input + legacyFieldOrder).
- *
- * This file performs no triangle *welding* of its own; it intentionally expands
- * back to the legacy soup so existing users are byte-compatible.  Callers who
- * want bump's richer welded mesh use the additive Blueprint accessors.
  */
 
 #ifndef AXOM_QUEST_MARCHINGCUBESBUMPADAPTOR_H_
@@ -60,6 +54,7 @@
 
   #include "axom/core/execution/execution_space.hpp"
   #include "axom/core/execution/for_all.hpp"
+  #include "axom/core/execution/reductions.hpp"
   #include "axom/core/memory_management.hpp"
   #include "axom/core/Array.hpp"
   #include "axom/core/ArrayView.hpp"
@@ -96,20 +91,206 @@ AXOM_HOST_DEVICE inline axom::IndexType facetsPerZone(axom::IndexType nCorners)
   return nCorners >= 2 ? 1 : 0;
 }
 
+template <typename ExecSpace, typename CountsView, typename OffsetsView>
+void duplicateElementValuesForTriangulation(conduit::Node& n_values,
+                                            axom::IndexType outputZoneCount,
+                                            CountsView zoneFacetCounts,
+                                            OffsetsView zoneFacetOffsets,
+                                            int allocatorID)
+{
+  namespace bpviews = axom::bump::views;
+
+  if(n_values.number_of_children() > 0)
+  {
+    for(conduit::index_t i = 0; i < n_values.number_of_children(); ++i)
+    {
+      duplicateElementValuesForTriangulation<ExecSpace>(n_values[i],
+                                                        outputZoneCount,
+                                                        zoneFacetCounts,
+                                                        zoneFacetOffsets,
+                                                        allocatorID);
+    }
+    return;
+  }
+
+  conduit::Node newValues;
+  newValues.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID));
+  newValues.set(conduit::DataType(n_values.dtype().id(), outputZoneCount));
+
+  bpviews::nodeToArrayViewSame(n_values, newValues, [&](auto inValues, auto outValues) {
+    const axom::IndexType inputZoneCount = static_cast<axom::IndexType>(inValues.size());
+    axom::for_all<ExecSpace>(
+      inputZoneCount,
+      AXOM_LAMBDA(axom::IndexType z) {
+        const axom::IndexType outBegin = zoneFacetOffsets[z];
+        const axom::IndexType nOut = zoneFacetCounts[z];
+        for(axom::IndexType f = 0; f < nOut; ++f)
+        {
+          outValues[outBegin + f] = inValues[z];
+        }
+      });
+  });
+
+  n_values.move(newValues);
+}
+
 /*!
- * @brief Convert one bump CutField output (single domain) into the legacy
- * fixed-stride output buffers supplied by the parent MarchingCubes.
+ * @brief Convert a bump CutField Blueprint domain from polygonal surface
+ * elements to a welded triangle mesh in place.
+ *
+ * This rewrites only topology connectivity and element-associated fields.  The
+ * coordset is left untouched, and generated triangles reference the existing
+ * welded vertex ids.
+ */
+template <int DIM, typename ExecSpace>
+void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
+{
+  if(DIM != 3)
+  {
+    return;
+  }
+
+  namespace bputils = axom::bump::utilities;
+  namespace bpviews = axom::bump::views;
+
+  const conduit::Node& n_topos = n_output.fetch_existing("topologies");
+  SLIC_ASSERT(n_topos.number_of_children() == 1);
+  const std::string topologyName = n_topos.child(0).name();
+  conduit::Node& n_topo = n_output["topologies"][topologyName];
+  conduit::Node& n_elems = n_topo.fetch_existing("elements");
+
+  conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
+  conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
+  conduit::Node& n_offsets = n_elems.fetch_existing("offsets");
+
+  SLIC_ERROR_IF(
+    n_offsets.dtype().id() != n_sizes.dtype().id() || n_conn.dtype().id() != n_sizes.dtype().id(),
+    "MarchingCubes bump Blueprint triangulation expects connectivity, "
+    "sizes, and offsets to use the same integer type.");
+
+  auto triangulateViews = [&](auto sizesView, auto offsetsView, auto connView) {
+    using ConnectivityType = typename decltype(connView)::value_type;
+
+    const axom::IndexType inputZoneCount = static_cast<axom::IndexType>(sizesView.size());
+    if(inputZoneCount == 0)
+    {
+      return;
+    }
+
+    axom::Array<axom::IndexType> zoneFacetCounts(inputZoneCount, inputZoneCount, allocatorID);
+    auto zoneFacetCountsView = zoneFacetCounts.view();
+
+    axom::ReduceSum<ExecSpace, axom::IndexType> totalFacetsReduce(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> nonTriReduce(0);
+    axom::for_all<ExecSpace>(
+      inputZoneCount,
+      AXOM_LAMBDA(axom::IndexType z) {
+        const auto nCorners = static_cast<axom::IndexType>(sizesView[z]);
+        const auto nFacets = facetsPerZone<3>(nCorners);
+        zoneFacetCountsView[z] = nFacets;
+        totalFacetsReduce += nFacets;
+        nonTriReduce += (nCorners == 3) ? 0 : 1;
+      });
+
+    const axom::IndexType outputZoneCount = totalFacetsReduce.get();
+    if(nonTriReduce.get() == 0)
+    {
+      return;
+    }
+
+    axom::Array<axom::IndexType> zoneFacetOffsets(inputZoneCount, inputZoneCount, allocatorID);
+    auto zoneFacetOffsetsView = zoneFacetOffsets.view();
+    axom::exclusive_scan<ExecSpace>(zoneFacetCountsView, zoneFacetOffsetsView);
+
+    const auto conduitAllocatorID = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
+    conduit::Node newConn;
+    conduit::Node newSizes;
+    conduit::Node newOffsets;
+    conduit::Node newShapes;
+    newConn.set_allocator(conduitAllocatorID);
+    newSizes.set_allocator(conduitAllocatorID);
+    newOffsets.set_allocator(conduitAllocatorID);
+    newShapes.set_allocator(conduitAllocatorID);
+    newConn.set(conduit::DataType(n_conn.dtype().id(), outputZoneCount * 3));
+    newSizes.set(conduit::DataType(n_sizes.dtype().id(), outputZoneCount));
+    newOffsets.set(conduit::DataType(n_offsets.dtype().id(), outputZoneCount));
+    newShapes.set(conduit::DataType(n_sizes.dtype().id(), outputZoneCount));
+
+    auto newConnView = bputils::make_array_view<ConnectivityType>(newConn);
+    auto newSizesView = bputils::make_array_view<ConnectivityType>(newSizes);
+    auto newOffsetsView = bputils::make_array_view<ConnectivityType>(newOffsets);
+    auto newShapesView = bputils::make_array_view<ConnectivityType>(newShapes);
+
+    axom::for_all<ExecSpace>(
+      inputZoneCount,
+      AXOM_LAMBDA(axom::IndexType z) {
+        const axom::IndexType nFacets = zoneFacetCountsView[z];
+        const axom::IndexType connStart = static_cast<axom::IndexType>(offsetsView[z]);
+        const axom::IndexType triStart = zoneFacetOffsetsView[z];
+
+        for(axom::IndexType f = 0; f < nFacets; ++f)
+        {
+          const axom::IndexType tri = triStart + f;
+          const axom::IndexType outConn = tri * 3;
+          newConnView[outConn + 0] = connView[connStart + 0];
+          newConnView[outConn + 1] = connView[connStart + f + 1];
+          newConnView[outConn + 2] = connView[connStart + f + 2];
+          newSizesView[tri] = static_cast<ConnectivityType>(3);
+          newOffsetsView[tri] = static_cast<ConnectivityType>(outConn);
+          newShapesView[tri] = static_cast<ConnectivityType>(bpviews::Tri_ShapeID);
+        }
+      });
+
+    if(n_output.has_child("fields"))
+    {
+      conduit::Node& n_fields = n_output["fields"];
+      for(conduit::index_t i = 0; i < n_fields.number_of_children(); ++i)
+      {
+        conduit::Node& n_field = n_fields[i];
+        if(n_field.has_path("association") && n_field["association"].as_string() == "element" &&
+           n_field.has_path("topology") && n_field["topology"].as_string() == topologyName &&
+           n_field.has_child("values"))
+        {
+          duplicateElementValuesForTriangulation<ExecSpace>(n_field["values"],
+                                                            outputZoneCount,
+                                                            zoneFacetCountsView,
+                                                            zoneFacetOffsetsView,
+                                                            allocatorID);
+        }
+      }
+    }
+
+    n_conn.move(newConn);
+    n_sizes.move(newSizes);
+    n_offsets.move(newOffsets);
+    n_elems["shapes"].move(newShapes);
+    n_elems["shape_map"].reset();
+    n_elems["shape_map"][bpviews::TriTraits::name()] = bpviews::Tri_ShapeID;
+  };
+
+  #if defined(_WIN32)
+  triangulateViews(bputils::make_array_view<axom::IndexType>(n_sizes),
+                   bputils::make_array_view<axom::IndexType>(n_offsets),
+                   bputils::make_array_view<axom::IndexType>(n_conn));
+  #else
+  bpviews::indexNodeToArrayViewSame(n_sizes, n_offsets, n_conn, std::move(triangulateViews));
+  #endif
+}
+
+/*!
+ * @brief Convert one bump CutField output (single domain) into the
+ * fixed-corners-per-facet output buffers supplied by the parent MarchingCubes.
  *
  * @tparam DIM Spatial dimension (2 or 3).
  * @tparam ExecSpace Axom execution space.
  *
  * @param n_output The bump CutField output Blueprint mesh (in ExecSpace memory).
  * @param facetNodeIds [out] view, shape (totalFacetCount, DIM).
- * @param facetNodeCoords [out] view, shape (totalFacetCount*DIM, DIM).
+ * @param facetNodeCoords [out] view, shape (totalNodeCount, DIM).
  * @param facetParentIds [out] view, shape (totalFacetCount).
  * @param facetIndexOffset This domain's first facet index in the concatenated
- *   output (the parent's m_facetIndexOffsets[d]).  Node-coord rows and node ids
- *   are written starting at facetIndexOffset (ids offset by *DIM).
+ *   output (the parent's m_facetIndexOffsets[d]).
+ * @param nodeIndexOffset This domain's first node index in the concatenated output.
  * @param thisDomainFacetCount Number of facets this domain produces (already
  *   computed by the caller; equals sum of facetsPerZone over the bump zones).
  * @param fieldStrideRemap If non-null, a precomputed per-input-zone map from
@@ -124,6 +305,7 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
                          axom::ArrayView<double, 2> facetNodeCoords,
                          axom::ArrayView<axom::IndexType, 1> facetParentIds,
                          axom::IndexType facetIndexOffset,
+                         axom::IndexType nodeIndexOffset,
                          axom::IndexType thisDomainFacetCount,
                          axom::ArrayView<const axom::IndexType, 1> fieldStrideRemap)
 {
@@ -146,11 +328,9 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   const conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
   const conduit::Node& n_offsets = n_elems.fetch_existing("offsets");
 
-  
   const std::string coordsetName = n_topo.fetch_existing("coordset").as_string();
   const conduit::Node& n_coords =
     n_output.fetch_existing(axom::fmt::format("coordsets/{}", coordsetName));
-  
 
   // originalElements: element-associated, one entry per output zone (fragment).
   const conduit::Node& n_orig = n_output.fetch_existing("fields/originalElements/values");
@@ -175,6 +355,18 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
     }
 
     const axom::IndexType numZones = static_cast<axom::IndexType>(sizesView.size());
+    const axom::IndexType numNodes = static_cast<axom::IndexType>(xView.size());
+
+    axom::for_all<ExecSpace>(
+      numNodes,
+      AXOM_LAMBDA(axom::IndexType n) {
+        facetNodeCoords(nodeIndexOffset + n, 0) = xView[n];
+        facetNodeCoords(nodeIndexOffset + n, 1) = yView[n];
+        if(DIM == 3)
+        {
+          facetNodeCoords(nodeIndexOffset + n, 2) = zView[n];
+        }
+      });
 
     // --- Per-zone facet offset (exclusive scan of facetsPerZone) -----------
     // We need, for each bump zone, the index of its first facet within this
@@ -195,9 +387,9 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
     // Capture raw views for the kernel.
     const bool doRemap = !fieldStrideRemap.empty();
 
-    // --- The fan-triangulation + re-expansion kernel -----------------------
+    // --- The fan-triangulation kernel -------------------------------------
     // One thread per bump zone.  Each zone writes facetsPerZone facets;
-    // for each facet we emit DIM corner coords (re-expanded / un-welded) and DIM ids.
+    // each facet reuses bump's welded coordset vertex ids.
     axom::for_all<ExecSpace>(
       numZones,
       AXOM_LAMBDA(axom::IndexType z) {
@@ -239,25 +431,11 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
             local[1] = 1;
           }
 
-          // Re-expanded node rows for this facet are contiguous: each facet
-          // owns exactly DIM rows in m_facetNodeCoords at facetIdx*DIM .. +DIM.
-          const axom::IndexType nodeRowBase = facetIdx * DIM;
-
           for(int c = 0; c < DIM; ++c)
           {
             const axom::IndexType weldedNode =
               static_cast<axom::IndexType>(connView[connStart + local[c]]);
-            const axom::IndexType outRow = nodeRowBase + c;
-
-            facetNodeCoords(outRow, 0) = xView[weldedNode];
-            facetNodeCoords(outRow, 1) = yView[weldedNode];
-            if(DIM == 3)
-            {
-              facetNodeCoords(outRow, 2) = zView[weldedNode];
-            }
-
-            // Legacy ids index into m_facetNodeCoords directly.
-            facetNodeIds(facetIdx, c) = outRow;
+            facetNodeIds(facetIdx, c) = nodeIndexOffset + weldedNode;
           }
 
           facetParentIds[facetIdx] = parentId;

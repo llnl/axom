@@ -139,7 +139,7 @@ struct RoundField
 //---------------------------------------------------------------------------
 
 /*!
- * @brief Count, for a 3D triangle soup, how many facets use each undirected edge
+ * @brief Count, for a 3D triangle mesh, how many facets use each undirected edge
  * after welding coincident vertices (quantized hash).
  * Returns the max multiplicity and the count of edges used 3+ times.
  */
@@ -568,6 +568,33 @@ void runAndVerify3D(conduit::Node& mesh,
   ASSERT_TRUE(contourTopo.has_path("elements/offsets"));
   ASSERT_TRUE(contourDom.has_path("fields/originalElements/values"));
 
+  conduit::Node triContourBpExec;
+  mc.populateContourMeshBlueprint(triContourBpExec, true);
+  conduit::Node triContourBp;
+  copyBlueprintToHost(triContourBp, triContourBpExec);
+  ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(triContourBp));
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(triContourBp), 1);
+  const conduit::Node& triContourDom = triContourBp.child(0);
+  const conduit::Node& triContourTopo = triContourDom["topologies"].child(0);
+  const conduit::Node& triElems = triContourTopo.fetch_existing("elements");
+  const auto triSizes = triElems.fetch_existing("sizes").as_index_t_accessor();
+  const auto triConn = triElems.fetch_existing("connectivity").as_index_t_accessor();
+  ASSERT_EQ(triConn.number_of_elements(), triSizes.number_of_elements() * 3);
+  for(conduit::index_t z = 0; z < triSizes.number_of_elements(); ++z)
+  {
+    EXPECT_EQ(triSizes[z], 3);
+  }
+  EXPECT_EQ(triContourDom["fields/originalElements/values"].dtype().number_of_elements(),
+            triSizes.number_of_elements());
+  const std::string contourCoordsetName = contourTopo.fetch_existing("coordset").as_string();
+  const std::string triCoordsetName = triContourTopo.fetch_existing("coordset").as_string();
+  EXPECT_EQ(contourDom.fetch_existing("coordsets/" + contourCoordsetName + "/values/x")
+              .dtype()
+              .number_of_elements(),
+            triContourDom.fetch_existing("coordsets/" + triCoordsetName + "/values/x")
+              .dtype()
+              .number_of_elements());
+
   const axom::Array<double, 2> coordsHost(mc.getContourNodeCoords(), hostAllocatorID());
   const axom::Array<axom::IndexType, 2> cornersHost(mc.getContourFacetCorners(), hostAllocatorID());
   const axom::Array<axom::IndexType> parentsHost(mc.getContourFacetParents(), hostAllocatorID());
@@ -577,8 +604,16 @@ void runAndVerify3D(conduit::Node& mesh,
   const axom::IndexType nFacets = mc.getContourCellCount();
 
   ASSERT_GT(nFacets, 0) << "Expected a non-empty contour.";
-  // Legacy invariant: node count == facetCount * DIM.
-  EXPECT_EQ(mc.getContourNodeCount(), nFacets * 3);
+  EXPECT_LE(mc.getContourNodeCount(), nFacets * 3)
+    << "Bump-backed output should reuse welded contour vertices.";
+  for(axom::IndexType fIdx = 0; fIdx < nFacets; ++fIdx)
+  {
+    for(int c = 0; c < 3; ++c)
+    {
+      EXPECT_GE(corners(fIdx, c), 0);
+      EXPECT_LT(corners(fIdx, c), mc.getContourNodeCount());
+    }
+  }
 
   // O1: on-surface value.
   double maxValErr = 0.0;
