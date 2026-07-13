@@ -511,13 +511,8 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
 endif()
 
 # Marching cubes example -------------------------------------------
-if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
-    list(APPEND quest_depends_on conduit::conduit
-                                 conduit::conduit_mpi)
-endif()
-
-if(CONDUIT_FOUND)
-    set(quest_marching_cubes_depends ${quest_example_depends} conduit::conduit)
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
+    set(quest_marching_cubes_depends ${quest_example_depends} conduit::conduit bump)
     blt_list_append(TO quest_marching_cubes_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
 
     axom_add_executable(
@@ -585,52 +580,50 @@ if(CONDUIT_FOUND)
             endforeach()
         endforeach()
 
-        if(AXOM_ENABLE_BUMP)
-            # Exercise the example's bump-backend CLI path without duplicating the
-            # full legacy matrix.  Use one 2D and one 3D structured mesh; the
-            # dedicated quest_marching_cubes_bump test covers unstructured input.
-            set(_bump_meshes "mdmesh.2x1" "mdmesh.2x2x1")
-            foreach(_pol ${AXOM_EXECUTION_POLICIES})
-                set(_num_threads)
-                if(_pol STREQUAL "omp")
-                    set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        # Exercise the example's bump-backend CLI path without duplicating the
+        # full legacy matrix.  Use one 2D and one 3D structured mesh; the
+        # dedicated quest_marching_cubes_bump test covers unstructured input.
+        set(_bump_meshes "mdmesh.2x1" "mdmesh.2x2x1")
+        foreach(_pol ${AXOM_EXECUTION_POLICIES})
+            set(_num_threads)
+            if(_pol STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
+            foreach(_mesh ${_bump_meshes})
+                string(REGEX MATCH "\\.[0-9]+(x[0-9]+)+$" _sizes "${_mesh}")
+                string(REGEX MATCHALL "[0-9]+" _sizes ${_sizes})
+                list(LENGTH _sizes _ndim)
+
+                if(_ndim EQUAL 2)
+                  set(_dir 1.0 0.4)
+                  set(_center 1.0 0.4)
+                  set(_scale 3 3)
+                elseif(_ndim EQUAL 3)
+                  set(_dir 1.0 0.4 1.2)
+                  set(_center 1.0 0.4 1.2)
+                  set(_scale 3 3 1.5)
                 endif()
 
-                foreach(_mesh ${_bump_meshes})
-                    string(REGEX MATCH "\\.[0-9]+(x[0-9]+)+$" _sizes "${_mesh}")
-                    string(REGEX MATCHALL "[0-9]+" _sizes ${_sizes})
-                    list(LENGTH _sizes _ndim)
-
-                    if(_ndim EQUAL 2)
-                      set(_dir 1.0 0.4)
-                      set(_center 1.0 0.4)
-                      set(_scale 3 3)
-                    elseif(_ndim EQUAL 3)
-                      set(_dir 1.0 0.4 1.2)
-                      set(_center 1.0 0.4 1.2)
-                      set(_scale 3 3 1.5)
-                    endif()
-
-                    set(_test "quest_marching_cubes_bump_run_${_ndim}D_${_pol}_${_mesh}")
-                    axom_add_test(
-                        NAME    ${_test}
-                        COMMAND quest_marching_cubes_ex
-                                    --policy ${_pol}
-                                    --mesh-file ${quest_data_dir}/${_mesh}.root
-                                    --fields-file ${_test}.field
-                                    --dir ${_dir}
-                                    --center ${_center}
-                                    --scale ${_scale}
-                                    --contourVal 1.25
-                                    --useBumpBackend
-                                    --parentCellIdMode legacyFieldOrder
-                        NUM_MPI_TASKS ${_nranks}
-                        NUM_OMP_THREADS ${_num_threads})
-                    set_tests_properties(${_test} PROPERTIES
-                        PASS_REGULAR_EXPRESSION "Contour mesh has .* cells")
-                endforeach()
+                set(_test "quest_marching_cubes_bump_run_${_ndim}D_${_pol}_${_mesh}")
+                axom_add_test(
+                    NAME    ${_test}
+                    COMMAND quest_marching_cubes_ex
+                                --policy ${_pol}
+                                --mesh-file ${quest_data_dir}/${_mesh}.root
+                                --fields-file ${_test}.field
+                                --dir ${_dir}
+                                --center ${_center}
+                                --scale ${_scale}
+                                --contourVal 1.25
+                                --useBumpBackend
+                                --parentCellIdMode legacyFieldOrder
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
+                set_tests_properties(${_test} PROPERTIES
+                    PASS_REGULAR_EXPRESSION "Contour mesh has .* cells")
             endforeach()
-        endif()
+        endforeach()
 
         unset(_nranks)
         unset(_test)
