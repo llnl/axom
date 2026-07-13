@@ -21,6 +21,9 @@
 #ifndef AXOM_USE_CONDUIT
   #error "MarchingCubesFullParallel.hpp requires conduit"
 #endif
+#ifndef AXOM_USE_BUMP
+  #error "quest_marching_cubes_example.cpp requires bump"
+#endif
 
 // Axom includes
 #include "axom/core.hpp"
@@ -31,6 +34,7 @@
 #include "axom/core/MDMapping.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 #if defined(AXOM_USE_SIDRE)
   #include "axom/sidre.hpp"
 #endif
@@ -323,26 +327,6 @@ public:
 //!@brief Our allocator id, based on execution policy.
 static int s_allocatorId = axom::INVALID_ALLOCATOR_ID;  // Set in main.
 
-//!@brief Put a conduit::Node array data into the specified memory space.
-template <typename T>
-void moveConduitDataToNewMemorySpace(conduit::Node& node, const std::string& path, int allocId)
-{
-  conduit::Node& dataNode = node.fetch_existing(path);
-  SLIC_ASSERT(!dataNode.dtype().is_empty() && !dataNode.dtype().is_object() &&
-              !dataNode.dtype().is_list());
-
-  std::size_t count = dataNode.dtype().number_of_elements();
-  T* oldPtr = static_cast<T*>(dataNode.data_ptr());
-  bool deleteOld = dataNode.is_data_external();
-  T* newPtr = axom::allocate<T>(count, allocId);
-  axom::copy(newPtr, oldPtr, count * sizeof(T));
-  dataNode.set_external(newPtr, count);
-  if(deleteOld)
-  {
-    axom::deallocate(oldPtr);
-  }
-}
-
 void getIntMinMax(int inVal, int& minVal, int& maxVal, int& sumVal)
 {
 #ifdef AXOM_USE_MPI
@@ -353,6 +337,24 @@ void getIntMinMax(int inVal, int& minVal, int& maxVal, int& sumVal)
   minVal = inVal;
   maxVal = inVal;
   sumVal = inVal;
+#endif
+}
+
+void loadBlueprintMesh(const std::string& meshFilename, conduit::Node& mesh)
+{
+#ifdef AXOM_USE_MPI
+  conduit::relay::mpi::io::blueprint::load_mesh(meshFilename, mesh, MPI_COMM_WORLD);
+#else
+  conduit::relay::io::blueprint::load_mesh(meshFilename, mesh);
+#endif
+}
+
+bool verifyBlueprintMesh(const conduit::Node& mesh, conduit::Node& info)
+{
+#ifdef AXOM_USE_MPI
+  return conduit::blueprint::mpi::verify("mesh", mesh, info, MPI_COMM_WORLD);
+#else
+  return conduit::blueprint::verify("mesh", mesh, info);
 #endif
 }
 
@@ -489,8 +491,6 @@ public:
 
   int dimension() const { return _ndims; }
 
-  const std::string& coordsetPath() const { return _coordsetPath; }
-
   /*!
     @return largest mesh spacing.
 
@@ -561,11 +561,7 @@ public:
   bool isValid() const
   {
     conduit::Node info;
-#ifdef AXOM_USE_MPI
-    if(!conduit::blueprint::mpi::verify("mesh", _mdMesh, info, MPI_COMM_WORLD))
-#else
-    if(!conduit::blueprint::verify("mesh", _mdMesh, info))
-#endif
+    if(!verifyBlueprintMesh(_mdMesh, info))
     {
       SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
       slic::flushStreams();
@@ -576,21 +572,13 @@ public:
 
   void printMeshInfo() const { _mdMesh.print(); }
 
-  /*!
-    @param[in] path Path to existing data in the blueprint mesh,
-    relative to each domain in the mesh.
-    @param[in] allocId Allocator id for the new memory space.
-    @tparam Type of data being moved.  Should be something Conduit
-    supports, i.e., not custom user data.
-  */
-  template <typename T>
-  void moveMeshDataToNewMemorySpace(const std::string& path, int allocId)
+  template <typename ExecSpace>
+  void copyMeshToMemorySpace(int allocId = axom::execution_space<ExecSpace>::allocatorID())
   {
-    AXOM_ANNOTATE_SCOPE("moveMeshDataToNewMemorySpace");
-    for(auto& dom : _mdMesh.children())
-    {
-      moveConduitDataToNewMemorySpace<T>(dom, path, allocId);
-    }
+    AXOM_ANNOTATE_SCOPE("copyMeshToMemorySpace");
+    conduit::Node newMesh;
+    axom::bump::utilities::copy<ExecSpace>(newMesh, _mdMesh, allocId);
+    _mdMesh.swap(newMesh);
   }
 
 private:
@@ -611,11 +599,7 @@ private:
     SLIC_ASSERT(!meshFilename.empty());
 
     _mdMesh.reset();
-#ifdef AXOM_USE_MPI
-    conduit::relay::mpi::io::blueprint::load_mesh(meshFilename, _mdMesh, MPI_COMM_WORLD);
-#else
-    conduit::relay::io::blueprint::load_mesh(meshFilename, _mdMesh);
-#endif
+    loadBlueprintMesh(meshFilename, _mdMesh);
     SLIC_ASSERT(conduit::blueprint::mesh::is_multi_domain(_mdMesh));
     _domCount = conduit::blueprint::mesh::number_of_domains(_mdMesh);
 
@@ -704,11 +688,7 @@ void saveMesh(const sidre::Group& mesh, const std::string& filename)
   mesh.createNativeLayout(tmpMesh);
   {
     conduit::Node info;
-  #ifdef AXOM_USE_MPI
-    if(!conduit::blueprint::mpi::verify("mesh", tmpMesh, info, MPI_COMM_WORLD))
-  #else
-    if(!conduit::blueprint::verify("mesh", tmpMesh, info))
-  #endif
+    if(!verifyBlueprintMesh(tmpMesh, info))
     {
       SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
       slic::flushStreams();
@@ -801,22 +781,7 @@ struct ContourTestBase
     {
       AXOM_ANNOTATE_SCOPE("move mesh to device memory");
 
-      const std::string axes[3] = {"x", "y", "z"};
-      for(int d = 0; d < DIM; ++d)
-      {
-        computationalMesh.moveMeshDataToNewMemorySpace<double>(
-          computationalMesh.coordsetPath() + "/values/" + axes[d],
-          s_allocatorId);
-      }
-      for(const auto& strategy : m_testStrategies)
-      {
-        computationalMesh.moveMeshDataToNewMemorySpace<double>(
-          axom::fmt::format("fields/{}/values", strategy->functionName()),
-          s_allocatorId);
-      }
-      computationalMesh.moveMeshDataToNewMemorySpace<int>(
-        axom::fmt::format("fields/{}/values", "mask"),
-        s_allocatorId);
+      computationalMesh.template copyMeshToMemorySpace<ExecSpace>(s_allocatorId);
     }
 
 #if defined(AXOM_USE_UMPIRE)
@@ -969,21 +934,7 @@ struct ContourTestBase
     {
       AXOM_ANNOTATE_SCOPE("copy mesh back to host memory");
 
-      const std::string axes[3] = {"x", "y", "z"};
-      for(int d = 0; d < DIM; ++d)
-      {
-        computationalMesh.moveMeshDataToNewMemorySpace<double>(
-          computationalMesh.coordsetPath() + "/values/" + axes[d],
-          axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-      }
-      for(const auto& strategy : m_testStrategies)
-      {
-        computationalMesh.moveMeshDataToNewMemorySpace<double>(
-          axom::fmt::format("fields/{}/values", strategy->functionName()),
-          axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-      }
-      computationalMesh.moveMeshDataToNewMemorySpace<int>(
-        axom::fmt::format("fields/{}/values", "mask"),
+      computationalMesh.template copyMeshToMemorySpace<axom::SEQ_EXEC>(
         axom::execution_space<axom::SEQ_EXEC>::allocatorID());
     }
 
