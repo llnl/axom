@@ -1589,7 +1589,12 @@ const detail::VariantStructFactory<Variant>& Container::variantStructFactory() c
 {
   const auto factory_iter = m_variant_struct_factories.find(std::type_index(typeid(Variant)));
   SLIC_ERROR_IF(factory_iter == m_variant_struct_factories.end(),
-                "[Inlet] Variant struct collection schema has not been registered");
+                fmt::format("[Inlet] Collection '{0}' was read as a variant struct collection, "
+                            "but no variant schema was registered. Define it with "
+                            "addVariantStructArray() or addVariantStructDictionary(), then "
+                            "register each alternative with addAlternative() before calling "
+                            "get<...>().",
+                            m_name));
 
   auto* factory = dynamic_cast<detail::VariantStructFactory<Variant>*>(factory_iter->second.get());
   SLIC_ERROR_IF(factory == nullptr, "[Inlet] Variant struct factory type mismatch");
