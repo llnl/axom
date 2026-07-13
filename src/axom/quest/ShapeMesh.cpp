@@ -30,10 +30,20 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                      conduit::Node& bpMesh,
                      const std::string& topoName,
                      const std::string& matsetName)
+  : ShapeMesh(runtimePolicy, allocatorId, HostAllocator {}, bpMesh, topoName, matsetName)
+{ }
+
+ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     HostAllocator hostAllocator,
+                     conduit::Node& bpMesh,
+                     const std::string& topoName,
+                     const std::string& matsetName)
   : m_runtimePolicy(runtimePolicy)
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
                 : axom::policyToDefaultAllocatorID(runtimePolicy))
+  , m_hostAllocator(hostAllocator)
   , m_topoName(topoName.empty() && bpMesh["topologies"].number_of_children() > 0
                  ? bpMesh["topologies"].child(0).name()
                  : topoName)
@@ -46,8 +56,6 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
 {
   SLIC_ERROR_IF(m_topoName.empty(),
                 "Topology name was not provided, and no default topology was found.");
-
-  const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // We currently support only unstructured topo.
   const auto& typeNode =
@@ -69,7 +77,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
     // If matsetName was given, but topology data isn't set up yet, set it up.
     if(!matsetNode.has_child("topology"))
     {
-      matsetNode.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(hostAllocId));
+      matsetNode.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(m_hostAllocator.getID()));
       matsetNode.fetch("topology").set_string(m_topoName);
     }
 
@@ -107,10 +115,20 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                      sidre::Group* bpMesh,
                      const std::string& topoName,
                      const std::string& matsetName)
+  : ShapeMesh(runtimePolicy, allocatorId, HostAllocator {}, bpMesh, topoName, matsetName)
+{ }
+
+ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     HostAllocator hostAllocator,
+                     sidre::Group* bpMesh,
+                     const std::string& topoName,
+                     const std::string& matsetName)
   : m_runtimePolicy(runtimePolicy)
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
                 : axom::policyToDefaultAllocatorID(runtimePolicy))
+  , m_hostAllocator(hostAllocator)
   , m_topoName(topoName.empty() && bpMesh->hasGroup("topologies") &&
                    bpMesh->getGroup("topologies")->getNumGroups() > 0
                  ? bpMesh->getGroup("topologies")->getGroup(0)->getName()

@@ -9,6 +9,7 @@
 
 // Axom includes
 #include "axom/core/Macros.hpp"
+#include "axom/core/memory_management.hpp"
 
 // Geometry
 #include "axom/primal/geometry/Sphere.hpp"
@@ -72,7 +73,8 @@ bool discretize(const axom::ArrayView<Point2D>& polyline,
                 int len,
                 int levels,
                 axom::Array<OctType>& out,
-                int& octcount);
+                int& octcount,
+                HostAllocator hostAllocator = HostAllocator {});
 
 /// @}
 

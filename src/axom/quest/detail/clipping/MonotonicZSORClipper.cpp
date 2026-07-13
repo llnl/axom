@@ -553,7 +553,8 @@ bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh&
                                                        int(sorCurve.size()),
                                                        m_levelOfRefinement,
                                                        octs,
-                                                       octCount);
+                                                       octCount,
+                                                       shapeMesh.getHostAllocator());
 
   AXOM_UNUSED_VAR(good);
   SLIC_ASSERT(good);

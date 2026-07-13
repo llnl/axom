@@ -149,10 +149,13 @@ inline OctType new_inscribed_prism(OctType &old_oct,
  * quadrilateral side-wall.
  */
 template <typename ExecSpace>
-int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<OctType> &out, int idx)
+int discrSeg(const Point2D& a,
+             const Point2D& b,
+             int levels,
+             axom::ArrayView<OctType>& out,
+             int idx,
+             axom::HostAllocator hostAllocator)
 {
-  int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-
   // Assert input assumptions
   SLIC_ASSERT(a[1] >= 0);
   SLIC_ASSERT(b[1] >= 0);
@@ -172,7 +175,7 @@ int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<Oct
   // Establish a prism (in an octahedron record) with one triangular
   // end lying on the circle described by rotating point a around the
   // x-axis and the other lying on circle from rotating b.
-  OctType *oct_from_seg = axom::allocate<OctType>(1, hostAllocID);
+  OctType* oct_from_seg = axom::allocate<OctType>(1, hostAllocator.getID());
   oct_from_seg[0] = from_segment(a, b);
 
   axom::copy(out.data() + idx + 0, oct_from_seg, sizeof(OctType));
@@ -264,7 +267,8 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
                 int pointcount,
                 int levels,
                 axom::Array<OctType> &out,
-                int &octcount)
+                int &octcount,
+                HostAllocator hostAllocator)
 {
   SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(out.getAllocatorID()),
                 axom::fmt::format("Execution space {} cannot access allocator id {}",
@@ -301,7 +305,7 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
   for(int seg = 0; seg < segmentcount; ++seg)
   {
     int segment_prism_count =
-      discrSeg<ExecSpace>(polyline[seg], polyline[seg + 1], levels, out_view, octcount);
+      discrSeg<ExecSpace>(polyline[seg], polyline[seg + 1], levels, out_view, octcount, hostAllocator);
     octcount += segment_prism_count;
   }
   // octcount may be < totaloctcount if there are degenerate segments.

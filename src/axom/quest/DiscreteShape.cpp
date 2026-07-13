@@ -554,7 +554,9 @@ void DiscreteShape::createRepresentationOfSOR()
                                             int(polyline.size()),
                                             m_shape.getGeometry().getLevelOfRefinement(),
                                             octs,
-                                            octCount);
+                                            octCount,
+                                            axom::HostAllocator {
+                                              axom::execution_space<axom::SEQ_EXEC>::allocatorID()});
   AXOM_UNUSED_VAR(good);
   SLIC_ASSERT(good);
 

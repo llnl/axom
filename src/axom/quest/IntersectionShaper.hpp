@@ -343,6 +343,18 @@ public:
                      const klee::ShapeSet& shapeSet,
                      sidre::MFEMSidreDataCollection* dc)
     : Shaper(runtimePolicy, allocatorId, shapeSet, dc)
+    , m_hostAllocator {}
+  {
+    m_free_mat_name = "free";
+  }
+
+  IntersectionShaper(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     HostAllocator hostAllocator,
+                     const klee::ShapeSet& shapeSet,
+                     sidre::MFEMSidreDataCollection* dc)
+    : Shaper(runtimePolicy, allocatorId, shapeSet, dc)
+    , m_hostAllocator(hostAllocator)
   {
     m_free_mat_name = "free";
   }
@@ -364,6 +376,18 @@ public:
                      sidre::Group* bpGrp,
                      const std::string& topo = "")
     : Shaper(runtimePolicy, allocatorId, shapeSet, bpGrp, topo)
+    , m_hostAllocator {}
+    , m_free_mat_name("free")
+  { }
+
+  IntersectionShaper(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     HostAllocator hostAllocator,
+                     const klee::ShapeSet& shapeSet,
+                     sidre::Group* bpGrp,
+                     const std::string& topo = "")
+    : Shaper(runtimePolicy, allocatorId, shapeSet, bpGrp, topo)
+    , m_hostAllocator(hostAllocator)
     , m_free_mat_name("free")
   { }
 
@@ -377,6 +401,18 @@ public:
                      conduit::Node& bpNode,
                      const std::string& topo = "")
     : Shaper(runtimePolicy, allocatorId, shapeSet, bpNode, topo)
+    , m_hostAllocator {}
+    , m_free_mat_name("free")
+  { }
+
+  IntersectionShaper(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     HostAllocator hostAllocator,
+                     const klee::ShapeSet& shapeSet,
+                     conduit::Node& bpNode,
+                     const std::string& topo = "")
+    : Shaper(runtimePolicy, allocatorId, shapeSet, bpNode, topo)
+    , m_hostAllocator(hostAllocator)
     , m_free_mat_name("free")
   { }
 #endif
@@ -631,7 +667,7 @@ private:
   template <typename ExecSpace>
   void prepareTriCells()
   {
-    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = m_hostAllocator.getID();
     const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
     // Number of triangles in mesh
@@ -718,7 +754,7 @@ private:
   template <typename ExecSpace>
   void prepareTetCells()
   {
-    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = m_hostAllocator.getID();
     const int device_allocator = m_allocatorId;
 
     // Number of tets in mesh
@@ -795,7 +831,7 @@ private:
   template <typename ExecSpace>
   void prepareC2CCells()
   {
-    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = m_hostAllocator.getID();
 
     // Number of points in polyline
     int pointcount = getSurfaceMesh()->getNumberOfNodes();
@@ -828,7 +864,8 @@ private:
       // (Set m_octs's allocator id to where we want its data to live.)
       m_octs = axom::Array<OctahedronType>(0, 0, axom::execution_space<ExecSpace>::allocatorID());
       const bool disc_status =
-        axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
+        axom::quest::discretize<ExecSpace>(
+          polyline, polyline_size, m_level, m_octs, m_octcount, m_hostAllocator);
 
       axom::ArrayView<OctahedronType> octs_device_view = m_octs.view();
 
@@ -1005,7 +1042,7 @@ private:
       setMeshDependentData<PolygonStaticType>();
     }
 
-    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = m_hostAllocator.getID();
     const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
@@ -1192,7 +1229,7 @@ private:
       setMeshDependentData<ShapeType>();
     }
 
-    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = m_hostAllocator.getID();
     const int device_allocator = m_allocatorId;
 
     constexpr int NUM_TETS_PER_HEX = 24;
@@ -2991,6 +3028,7 @@ private:
 private:
   int m_level {DEFAULT_CIRCLE_REFINEMENT_LEVEL};
   double m_revolvedVolume {DEFAULT_REVOLVED_VOLUME};
+  HostAllocator m_hostAllocator;
   std::string m_free_mat_name;
 
   //! \brief Volumes of cells in the computational mesh.
