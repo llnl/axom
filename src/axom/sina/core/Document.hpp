@@ -326,12 +326,16 @@ Document loadDocument(std::string const &path,
  *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
  * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
  *                       ex: a code is appending values to every timeseries every N cycles.
+ * \param curvesAreFullLength Indicates whether the data source passes the full curve (from ex: t=0) instead
+ *                            of since last write. Causes the curve to overwrite.
+ * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
 conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
                                    const Document &newData,
                                    const int mergeProtocol = 1,
-                                   const bool skipValidation = false);
+                                   const bool skipValidation = false,
+                                   const bool curvesAreFullLength = false);
 
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
@@ -358,13 +362,16 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
  *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
  * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
  *                       ex: a code is appending values to every timeseries every N cycles.
+ * \param curvesAreFullLength Indicates whether the data source passes the full curve (from ex: t=0) instead
+ *                            of since last write. Causes the curve to overwrite.
  * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success!
  */
 conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
                                    Document const &newData,
                                    const int mergeProtocol = 1,
-                                   const bool skipValidation = false);
+                                   const bool skipValidation = false,
+                                   const bool curvesAreFullLength = false);
 
 /**
  * @brief Append a Document to an existing file with automatic format detection

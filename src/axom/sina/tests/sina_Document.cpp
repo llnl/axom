@@ -657,8 +657,9 @@ TEST(Document, test_validate_append_valid)
 
 void doEveryErrorTest(
   const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool)> appendDocumentFunc,
-  bool skipValidation = false)
+  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc,
+  bool skipValidation = false,
+  bool curvesAreFullLength = false)
 {
   std::string append_to_file = "test." + protocol;
   axom::sina::Document append_to_doc =
@@ -671,7 +672,7 @@ void doEveryErrorTest(
      "curve_sets": {"set_1": {"independent": {"0": {"value": [4, 5, 6]}}}},
      "library_data": {"my_lib": {"library_data": {"my_inner_lib": {"user_defined": {"foo/bar": "baz/qux"}}}}}}]})");
   axom::sina::Document new_doc = Document(appendFrom, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3, skipValidation);
+  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3, skipValidation, curvesAreFullLength);
   // Make sure no data changed
   conduit::Node root;
   conduit::relay::io::load(append_to_file, root);
@@ -693,7 +694,7 @@ TEST(Document, test_appendErrorCodepathsHDF5) { doEveryErrorTest("hdf5", appendD
 // Appending into an empty document
 void doSimpleAppendTest(
   const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool)> appendDocumentFunc)
+  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
 {
   std::string empty_file = "test." + protocol;
   axom::sina::Document empty_doc =
@@ -701,7 +702,7 @@ void doSimpleAppendTest(
   Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
   saveDocument(empty_doc, empty_file, enum_protocol);
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(empty_file, new_doc, 3, true);  // skip validation
+  conduit::Node resultMsg = appendDocumentFunc(empty_file, new_doc, 3, true, false);  // skip validation
   EXPECT_EQ(resultMsg.number_of_children(), 0);
   conduit::Node root;
   conduit::relay::io::load(empty_file, root);
@@ -725,7 +726,7 @@ TEST(Document, test_simpleAppendDocumentToHDF5)
 // One unchanged, one merged
 void doFullAppendTest(
   const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool)> appendDocumentFunc)
+  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
 {
   std::string filePath = "test." + protocol;
   sina::Document testDoc = Document(MULTI_REC_DOCUMENT, createRecordLoaderWithAllKnownTypes());
@@ -733,7 +734,7 @@ void doFullAppendTest(
   saveDocument(testDoc, filePath, enum_protocol);
 
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(filePath, new_doc, 1, false);
+  conduit::Node resultMsg = appendDocumentFunc(filePath, new_doc, 1, false, false);
   EXPECT_EQ(resultMsg.number_of_children(), 0);
 
   conduit::Node root;
@@ -790,7 +791,7 @@ TEST(Document, test_appendDocumentToHDF5) { doFullAppendTest("hdf5", appendDocum
 // Making sure we respect curve order (Records are in charge of ordering their curves, not documents)
 void doAppendOrderedCurveTest(
   const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool)> appendDocumentFunc)
+  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
 {
   std::string curvedump_file = "test_curve." + protocol;
   axom::sina::Document ordered_curves =
@@ -799,7 +800,7 @@ void doAppendOrderedCurveTest(
     Document(CURVE_ORDERED_DOCUMENT_APPEND, createRecordLoaderWithAllKnownTypes());
   Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
   saveDocument(ordered_curves, curvedump_file, enum_protocol);
-  conduit::Node resultMsg = appendDocumentFunc(curvedump_file, additional_curve, 3, false);
+  conduit::Node resultMsg = appendDocumentFunc(curvedump_file, additional_curve, 3, false, false);
   EXPECT_EQ(resultMsg.number_of_children(), 0);
   conduit::Node root;
   conduit::relay::io::load(curvedump_file, root);
