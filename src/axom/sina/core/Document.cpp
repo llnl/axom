@@ -818,7 +818,7 @@ void append_curveset(ConduitRelayLike &appendTo,
                      const std::string &endpoint,
                      int record_num,
                      const std::string &original_file_path,
-                     bool curvesAreFullLength)
+                     bool overwriteCurves)
 {
   for(const std::string &curve_cat : CURVE_CATEGORIES)
   {
@@ -828,7 +828,7 @@ void append_curveset(ConduitRelayLike &appendTo,
       {
         conduit::Node &n = curveIter.next();
         std::string curve_endpoint = endpoint + "/" + curve_cat + "/" + curveIter.name() + "/value";
-        if(relayLikeHasPath(appendTo, curve_endpoint, record_num) && !curvesAreFullLength)
+        if(relayLikeHasPath(appendTo, curve_endpoint, record_num) && !overwriteCurves)
         {
           relayLikeAppendCurve(appendTo, n["value"], curve_endpoint, record_num, original_file_path);
         }
@@ -849,7 +849,7 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
                               int record_num,
                               const std::string &original_file_path,
                               bool isHDF5,
-                              bool curvesAreFullLength)
+                              bool overwriteCurves)
 {
   auto fieldsIter = appendFrom.children();
   while(fieldsIter.has_next())
@@ -918,7 +918,7 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
                                    record_num,
                                    original_file_path,
                                    isHDF5,
-                                   curvesAreFullLength);
+                                   overwriteCurves);
         }
         else
         {
@@ -938,7 +938,7 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
                         appendAtEndpoint + curveSetIter.name(),
                         record_num,
                         original_file_path,
-                        curvesAreFullLength);
+                        overwriteCurves);
       }
     }
     break;
@@ -1007,7 +1007,7 @@ conduit::Node append(ConduitRelayLike &appendTo,
                      bool isHDF5,
                      bool skipValidation,
                      const std::string &original_file_path,
-                     bool curvesAreFullLength )
+                     bool overwriteCurves )
 {
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
   // We need to figure out where each record is in appendTo, since there's no guarantee in the order
@@ -1073,7 +1073,7 @@ conduit::Node append(ConduitRelayLike &appendTo,
                                rec_num->second,
                                original_file_path,
                                isHDF5,
-                               curvesAreFullLength);
+                               overwriteCurves);
     }
   }
   append_relationships(appendTo, appendFrom["relationships"]);
@@ -1084,13 +1084,13 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
                                    const Document &newData,
                                    const int mergeProtocol,
                                    const bool skipValidation,
-                                   const bool curvesAreFullLength)
+                                   const bool overwriteCurves)
 {
   conduit::Node appendTo;
   appendTo.load(jsonFilePath, "json");
   conduit::Node appendFrom = newData.toNode();
   conduit::Node msgNode =
-    append(appendTo, appendFrom, mergeProtocol, false, skipValidation, jsonFilePath, curvesAreFullLength);
+    append(appendTo, appendFrom, mergeProtocol, false, skipValidation, jsonFilePath, overwriteCurves);
   conduit::relay::io::save(appendTo, jsonFilePath);
   return msgNode;
 }
@@ -1099,7 +1099,7 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
                                    const Document &newData,
                                    const int mergeProtocol,
                                    const bool skipValidation,
-                                   const bool curvesAreFullLength)
+                                   const bool overwriteCurves)
 {
 #ifdef AXOM_USE_HDF5
   conduit::relay::io::IOHandle appendTo;
@@ -1107,7 +1107,7 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
   conduit::Node appendFrom;
   newData.toHDF5Node(appendFrom);
   conduit::Node msgNode =
-    append(appendTo, appendFrom, mergeProtocol, true, skipValidation, hdf5FilePath, curvesAreFullLength);
+    append(appendTo, appendFrom, mergeProtocol, true, skipValidation, hdf5FilePath, overwriteCurves);
   appendTo.close();
   return msgNode;
 #else
