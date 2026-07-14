@@ -5,19 +5,19 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- \file marching_cubes_example.cpp
- \brief Driver and test for a marching cubes isocontour generation
-
-  The test can generate planar and round contours.  Planar contours
-  can be checked to machine-zero accuracy, but it doesn't test a great
-  variety of contour-mesh intersection types.  Round contours can
-  check more intersection types but requires a tolerance to allow
-  for the function not varying linearly along mesh lines.
-*/
+ * \file marching_cubes_example.cpp
+ * \brief Driver and test for a marching cubes isocontour generation
+ *
+ *  The test can generate planar and round contours.
+ *  Planar contours can be checked to machine-zero accuracy,
+ *  but it doesn't test a great variety of contour-mesh intersection types.
+ *  Round contours can check more intersection types but requires a tolerance
+ *  since the function is nonlinear
+ */
 
 #include "axom/config.hpp"
 
-// Implementation requires Conduit.
+// This example requires Conduit and bump
 #ifndef AXOM_USE_CONDUIT
   #error "MarchingCubesFullParallel.hpp requires conduit"
 #endif
@@ -27,19 +27,16 @@
 
 // Axom includes
 #include "axom/core.hpp"
-#include "axom/core/NumericLimits.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
-#include "axom/core/MDMapping.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
-#include "axom/bump/utilities/conduit_memory.hpp"
+
 #if defined(AXOM_USE_SIDRE)
   #include "axom/sidre.hpp"
 #endif
-#include "axom/core/Types.hpp"
-#include "axom/core/numerics/floating_point_limits.hpp"
 
 #include "conduit_blueprint.hpp"
 #include "conduit_relay_io_blueprint.hpp"
@@ -72,13 +69,15 @@ namespace numerics = axom::numerics;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
-///////////////////////////////////////////////////////////////
+//-----------------------------------------------------------------------------
 // converts the input string into an 80 character string
 // padded on both sides with '=' symbols
+//-----------------------------------------------------------------------------
 std::string banner(const std::string& str) { return axom::fmt::format("{:=^80}", str); }
 
-///////////////////////////////////////////////////////////////
-/// Struct to parse and store the input parameters
+//-----------------------------------------------------------------------------
+// Struct to parse and store the input parameters
+//-----------------------------------------------------------------------------
 struct Input
 {
 public:
@@ -116,41 +115,29 @@ public:
     quest::MarchingCubesRobustnessPolicy::standard;
 
   // Distinct MarchingCubes objects count.
-  int objectRepCount = 1;
+  int objectRepCount {1};
   // Contour generation count for each MarchingCubes objects.
-  int contourGenCount = 1;
+  int contourGenCount {1};
   // Number of masking cycles.
-  int maskCount = 1;
+  int maskCount {1};
 
   std::string annotationMode {"none"};
 
 private:
   bool _verboseOutput {false};
 
-  // clang-format off
-  const std::map<std::string, quest::MarchingCubesDataParallelism> s_validImplChoices
-  {
-    {"byPolicy", quest::MarchingCubesDataParallelism::byPolicy}
-    , {"hybridParallel", quest::MarchingCubesDataParallelism::hybridParallel}
-    , {"fullParallel", quest::MarchingCubesDataParallelism::fullParallel}
-  };
-  // clang-format on
+  const std::map<std::string, quest::MarchingCubesDataParallelism> s_validImplChoices {
+    {"byPolicy", quest::MarchingCubesDataParallelism::byPolicy},
+    {"hybridParallel", quest::MarchingCubesDataParallelism::hybridParallel},
+    {"fullParallel", quest::MarchingCubesDataParallelism::fullParallel}};
 
-  // clang-format off
-  const std::map<std::string, quest::MarchingCubesParentCellIdMode> s_validParentCellIdModes
-  {
-    {"blueprintZoneId", quest::MarchingCubesParentCellIdMode::blueprintZoneId}
-    , {"legacyFieldOrder", quest::MarchingCubesParentCellIdMode::legacyFieldOrder}
-  };
-  // clang-format on
+  const std::map<std::string, quest::MarchingCubesParentCellIdMode> s_validParentCellIdModes {
+    {"blueprintZoneId", quest::MarchingCubesParentCellIdMode::blueprintZoneId},
+    {"legacyFieldOrder", quest::MarchingCubesParentCellIdMode::legacyFieldOrder}};
 
-  // clang-format off
-  const std::map<std::string, quest::MarchingCubesRobustnessPolicy> s_validRobustnessPolicies
-  {
-    {"standard", quest::MarchingCubesRobustnessPolicy::standard}
-    , {"robust", quest::MarchingCubesRobustnessPolicy::robust}
-  };
-  // clang-format on
+  const std::map<std::string, quest::MarchingCubesRobustnessPolicy> s_validRobustnessPolicies {
+    {"standard", quest::MarchingCubesRobustnessPolicy::standard},
+    {"robust", quest::MarchingCubesRobustnessPolicy::robust}};
 
 public:
   bool isVerbose() const { return _verboseOutput; }
@@ -416,11 +403,11 @@ public:
   }
 
   /*!
-    @brief Get the number of cells in each direction of a blueprint single domain.
-
-    @param domId Index of domain
-    @lengths Space for dimension() numbers.
-  */
+   * @brief Get the number of cells in each direction of a blueprint single domain.
+   *
+   * @param domId Index of domain
+   * @param lengths Space for dimension() numbers.
+   */
   void domainLengths(axom::IndexType domId, axom::IndexType* lengths) const
   {
     const conduit::Node& dom = domain(domId);
@@ -492,11 +479,10 @@ public:
   int dimension() const { return _ndims; }
 
   /*!
-    @return largest mesh spacing.
-
-    Compute only once, because after that, coordinates data may be
-    moved to devices.
-  */
+   * @return largest mesh spacing.
+   *    
+   * Compute only once, because after that, coordinates data may be moved to devices.
+   */
   double maxSpacing() const
   {
     if(_maxSpacing >= 0)
@@ -520,11 +506,10 @@ public:
   }
 
   /*!
-    @return largest mesh spacing in a domain.
-
-    This method takes shortcuts by assuming
-    the mesh is structured and cartesian, with explicit coordinates.
-  */
+   * @return largest mesh spacing in a domain.
+   *
+   * This method takes shortcuts by assuming the mesh is structured and cartesian, with explicit coordinates.
+   */
   double maxSpacing1(axom::IndexType domId) const
   {
     const conduit::Node& dom = domain(domId);
@@ -591,9 +576,7 @@ private:
   std::string _coordsetPath;
   double _maxSpacing = -1.0;
 
-  /*!
-    @brief Read a blueprint mesh into conduit::Node _mdMesh.
-  */
+  //! @brief Read a blueprint mesh into conduit::Node _mdMesh.
   void readBlueprintMesh(const std::string& meshFilename)
   {
     SLIC_ASSERT(!meshFilename.empty());
@@ -721,11 +704,10 @@ static void addToStackArray(axom::StackArray<T, DIM>& a, U b)
 }
 
 /*!
-  @brief Strategy pattern for supporting a variety of contour types.
+ * @brief Strategy pattern for supporting a variety of contour types.
 
-  The strategy encapsulates the scalar functions and things related to
-  it.
-*/
+ * The strategy encapsulates the scalar functions and things related to it.
+ */
 template <int DIM>
 struct ContourTestStrategy
 {
@@ -1377,9 +1359,9 @@ struct ContourTestBase
   }
 
   /*!
-    Check that computational cells that contain the contour value
-    have at least one contour mesh cell.
-  */
+   * Check that computational cells that contain the contour value
+   * have at least one contour mesh cell.
+   */
   int checkCellsContainingContour(BlueprintStructuredMesh& computationalMesh,
                                   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& contourMesh)
   {
@@ -1678,9 +1660,7 @@ void finalizeLogger()
   }
 }
 
-/*!
-  All the test code that depends on DIM to instantiate.
-*/
+//! All the test code that depends on DIM to instantiate.
 template <int DIM, typename ExecSpace>
 int testNdimInstance(BlueprintStructuredMesh& computationalMesh)
 {

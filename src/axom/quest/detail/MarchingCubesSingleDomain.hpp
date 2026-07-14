@@ -16,18 +16,20 @@
 #include "axom/config.hpp"
 
 // Implementation requires Conduit.
-#ifdef AXOM_USE_CONDUIT
+#ifndef AXOM_USE_CONDUIT
+  #error "MarchingCubesSingleDomain.cpp requires conduit"
+#endif
 
-  // Axom includes
-  #include "axom/core/execution/runtime_policy.hpp"
-  #include "axom/mint/mesh/UnstructuredMesh.hpp"
-  #include "axom/quest/MarchingCubes.hpp"
+// Axom includes
+#include "axom/core/execution/runtime_policy.hpp"
+#include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/quest/MarchingCubes.hpp"
 
-  // Conduit includes
-  #include "conduit_node.hpp"
+// Conduit includes
+#include "conduit_node.hpp"
 
-  // C++ includes
-  #include <string>
+// C++ includes
+#include <string>
 
 namespace axom::quest::detail::marching_cubes
 {
@@ -49,7 +51,7 @@ public:
   //! \brief Constructor for applying algorithm in a single domain.
   MarchingCubesSingleDomain(MarchingCubes& mc);
 
-  ~MarchingCubesSingleDomain() { }
+  ~MarchingCubesSingleDomain() = default;
 
   /*!
    * @brief Intitialize object to a domain.
@@ -248,7 +250,7 @@ public:
       m_nodeIndexOffset = nodeIndexOffset;
     }
 
-    virtual ~ImplBase() { }
+    virtual ~ImplBase() = default;
 
     virtual void clearDomain() = 0;
 
@@ -267,14 +269,25 @@ public:
   const ImplBase& getImpl() const { return *m_impl; }
 
 private:
+  /*!
+   * \brief Set the blueprint single-domain mesh.
+   *
+   * Some data from \a dom may be cached.
+   */
+  void setDomain(const conduit::Node& dom);
+
+  /// @brief Allocate MarchingCubesImpl object
+  std::unique_ptr<ImplBase> newMarchingCubesImpl();
+
+private:
   //! @brief Multi-domain implementation this object is under.
   MarchingCubes& m_mc;
 
   RuntimePolicy m_runtimePolicy;
-  int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
+  int m_allocatorID {axom::INVALID_ALLOCATOR_ID};
 
   //! @brief Choice of full or partial data-parallelism, or byPolicy.
-  MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
+  MarchingCubesDataParallelism m_dataParallelism {MarchingCubesDataParallelism::byPolicy};
 
   //! \brief Computational mesh as a conduit::Node.
   const conduit::Node* m_dom;
@@ -291,24 +304,12 @@ private:
   //! @brief Path to mask in m_dom.
   std::string m_maskPath;
 
-  double m_contourVal = 0.0;
-  int m_maskVal = 1;
-  MarchingCubesParentCellIdMode m_parentCellIdMode = MarchingCubesParentCellIdMode::blueprintZoneId;
-  MarchingCubesRobustnessPolicy m_robustnessPolicy = MarchingCubesRobustnessPolicy::standard;
+  double m_contourVal {0.0};
+  int m_maskVal {1};
+  MarchingCubesParentCellIdMode m_parentCellIdMode {MarchingCubesParentCellIdMode::blueprintZoneId};
+  MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   std::unique_ptr<ImplBase> m_impl;
-
-  /*!
-   * \brief Set the blueprint single-domain mesh.
-   *
-   * Some data from \a dom may be cached.
-   */
-  void setDomain(const conduit::Node& dom);
-
-  /// @brief Allocate MarchingCubesImpl object
-  std::unique_ptr<ImplBase> newMarchingCubesImpl();
 };
 
 }  // namespace axom::quest::detail::marching_cubes
-
-#endif  // AXOM_USE_CONDUIT

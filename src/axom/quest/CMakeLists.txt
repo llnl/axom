@@ -136,23 +136,28 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
                                  conduit::conduit_mpi)
 endif()
 
-if(AXOM_ENABLE_BUMP)
+if(CONDUIT_FOUND)
     blt_list_append(
         TO       quest_headers
-        ELEMENTS MarchingCubes.hpp 
-                 detail/MarchingCubesSingleDomain.hpp 
-                 detail/MarchingCubesImpl.hpp
-                 detail/MarchingCubesBumpImpl.hpp
-        IF       CONDUIT_FOUND)
+        ELEMENTS MarchingCubes.hpp
+                 detail/MarchingCubesSingleDomain.hpp
+                 detail/MarchingCubesImpl.hpp)
 
     blt_list_append(
         TO       quest_sources
         ELEMENTS MarchingCubes.cpp
-                 detail/MarchingCubesSingleDomain.cpp
-        IF       CONDUIT_FOUND)
+                 detail/MarchingCubesSingleDomain.cpp)
+
+    if(AXOM_ENABLE_BUMP)
+        blt_list_append(
+            TO       quest_headers
+            ELEMENTS detail/MarchingCubesBumpAdaptor.hpp
+                     detail/MarchingCubesBumpImpl.hpp)
+    endif()
+
+    blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit)
 endif()
 
-blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
 if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
     if(MFEM_FOUND OR CONDUIT_FOUND)

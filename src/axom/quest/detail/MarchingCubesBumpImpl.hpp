@@ -29,36 +29,40 @@
  *    The adaptor can optionally triangulate the polygon.
  */
 
-#ifndef AXOM_QUEST_MARCHINGCUBESBUMPIMPL_H_
-#define AXOM_QUEST_MARCHINGCUBESBUMPIMPL_H_
+#pragma once
 
 #include "axom/config.hpp"
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+#ifndef AXOM_USE_CONDUIT
+  #error "MarchingCubesBumpImpl.hpp requires conduit"
+#endif
+#ifndef AXOM_USE_BUMP
+  #error "MarchingCubesBumpImpl.hpp requires bump"
+#endif
 
-  #include "axom/core/execution/execution_space.hpp"
-  #include "axom/core/execution/for_all.hpp"
-  #include "axom/core/MDMapping.hpp"
-  #include "axom/slic/interface/slic_macros.hpp"
-  #include "axom/quest/MeshViewUtil.hpp"
-  #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
-  #include "axom/quest/detail/MarchingCubesBumpAdaptor.hpp"
+#include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/for_all.hpp"
+#include "axom/core/MDMapping.hpp"
+#include "axom/slic/interface/slic_macros.hpp"
+#include "axom/quest/MeshViewUtil.hpp"
+#include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
+#include "axom/quest/detail/MarchingCubesBumpAdaptor.hpp"
 
-  // bump extraction + views
-  #include "axom/bump/extraction/CutField.hpp"
-  #include "axom/bump/views/dispatch_coordset.hpp"
-  #include "axom/bump/views/dispatch_topology.hpp"
-  #include "axom/bump/views/Shapes.hpp"
-  #include "axom/bump/utilities/blueprint_utilities.hpp"
-  #include "axom/bump/utilities/conduit_traits.hpp"
-  #include "axom/bump/utilities/conduit_memory.hpp"
+// bump extraction + views
+#include "axom/bump/extraction/CutField.hpp"
+#include "axom/bump/views/dispatch_coordset.hpp"
+#include "axom/bump/views/dispatch_topology.hpp"
+#include "axom/bump/views/Shapes.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 
-  #include "conduit_node.hpp"
-  #include "conduit_blueprint.hpp"
+#include "conduit_node.hpp"
+#include "conduit_blueprint.hpp"
 
-  #include <memory>
-  #include <string>
-  #include <utility>
+#include <memory>
+#include <string>
+#include <utility>
 
 namespace axom::quest::detail::marching_cubes
 {
@@ -329,7 +333,7 @@ private:
   {
     namespace bumpviews = axom::bump::views;
 
-  #if defined(_WIN32)
+#if defined(_WIN32)
     // Windows shared-library builds auto-export template instantiations from
     // axom_quest.dll.  Keep this opt-in bump path narrow enough to link there,
     // while preserving the generic bump dispatcher on other platforms.
@@ -387,10 +391,10 @@ private:
     {
       SLIC_ERROR(axom::fmt::format("Unsupported topology type '{}'.", topoType));
     }
-  #else
+#else
     bumpviews::dispatch_topology<SelectedDimensions, ShapeTypes>(n_topo,
                                                                  std::forward<FuncType>(func));
-  #endif
+#endif
   }
 
   void attachSelectedZonesOption(conduit::Node& n_options,
@@ -695,18 +699,18 @@ private:
 private:
   int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
 
-  const conduit::Node* m_dom = nullptr;
+  const conduit::Node* m_dom {nullptr};
   std::string m_topologyName;
   std::string m_fcnFieldName;
   std::string m_maskFieldName;
 
   //! @brief How to number parent-cell ids of generated facets.
-  MarchingCubesParentCellIdMode m_parentCellIdMode = MarchingCubesParentCellIdMode::blueprintZoneId;
-  MarchingCubesRobustnessPolicy m_robustnessPolicy = MarchingCubesRobustnessPolicy::standard;
+  MarchingCubesParentCellIdMode m_parentCellIdMode {MarchingCubesParentCellIdMode::blueprintZoneId};
+  MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   //! @name Structured metadata, captured only for the legacyFieldOrder remap.
   //! @{
-  bool m_isStructured = false;
+  bool m_isStructured {false};
   axom::StackArray<axom::IndexType, DIM> m_cellDims {};
   axom::StackArray<std::uint16_t, DIM> m_fieldSlowestDirs {};
   //! @}
@@ -715,10 +719,7 @@ private:
   std::unique_ptr<conduit::Node> m_output;
 
   //! @brief Legacy facet count (post fan-triangulation).
-  axom::IndexType m_facetCount = 0;
+  axom::IndexType m_facetCount {};
 };
 
 }  // namespace axom::quest::detail::marching_cubes
-
-#endif  // AXOM_USE_CONDUIT && AXOM_USE_BUMP
-#endif  // AXOM_QUEST_MARCHINGCUBESBUMPIMPL_H_

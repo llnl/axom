@@ -8,14 +8,15 @@
 
 // Implementation requires Conduit.
 #ifndef AXOM_USE_CONDUIT
-  #error "MarchingCubes.cpp requires conduit"
+  #error "MarchingCubesSingleDomain.cpp requires conduit"
 #endif
 #include "conduit_blueprint.hpp"
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
 #include "axom/quest/detail/MarchingCubesImpl.hpp"
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+
+#if defined(AXOM_USE_BUMP)
   #include "axom/quest/detail/MarchingCubesBumpImpl.hpp"
 #endif
 #include "axom/fmt.hpp"
@@ -146,7 +147,9 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> make_impl_leaf(
     }
   }
 #else
-  AXOM_UNUSED_VAR(useBumpBackend);
+  SLIC_ERROR_IF(useBumpBackend,
+                "MarchingCubes bump backend requires Axom to be configured "
+                "with the bump component.");
 #endif
   return std::unique_ptr<MarchingCubesSingleDomain::ImplBase>(
     new MarchingCubesImpl<DIM, ExecSpace, SeqExec>(allocatorID,
