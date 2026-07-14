@@ -15,6 +15,8 @@
 #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
 #include "axom/fmt.hpp"
 
+#include <type_traits>
+
 namespace axom::quest::detail::marching_cubes
 {
 MarchingCubesSingleDomain::MarchingCubesSingleDomain(MarchingCubes& mc)

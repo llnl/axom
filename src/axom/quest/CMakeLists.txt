@@ -136,13 +136,17 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
                                  conduit::conduit_mpi)
 endif()
 
-if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
+if(CONDUIT_FOUND)
     blt_list_append(
         TO       quest_headers
         ELEMENTS MarchingCubes.hpp
                  detail/MarchingCubesSingleDomain.hpp
-                 detail/MarchingCubesImpl.hpp
-                 detail/MarchingCubesBumpAdaptor.hpp
+                 detail/MarchingCubesImpl.hpp)
+
+    blt_list_append(
+        TO       quest_headers
+        IF       AXOM_ENABLE_BUMP
+        ELEMENTS detail/MarchingCubesBumpAdaptor.hpp
                  detail/MarchingCubesBumpImpl.hpp)
 
     # To keep device compile times manageable, we instantiate each MC impl in its own translation unit

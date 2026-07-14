@@ -41,9 +41,8 @@ class MarchingCubesSingleDomain;
  * \c fullParallel processes more data but has no serial loop.
  * \c byPolicy chooses between them based on the runtime policy.
  *
- * This setting controls only the legacy structured-mesh backend.
- * When MarchingCubes is configured to use the bump::extraction::CutField backend,
- * bump manages its own internal parallelism and this value is accepted only for API compatibility.
+ * @note This setting controls only the legacy structured-mesh backend. When MarchingCubes is configured
+ *   to use the bump backend, bump manages its own internal parallelism.
  */
 enum class MarchingCubesDataParallelism
 {
@@ -56,11 +55,11 @@ enum class MarchingCubesDataParallelism
  * @brief Enum controlling the meaning of the parent-cell ids reported for generated contour facets
  * (see MarchingCubes::getContourFacetParents and MarchingCubes::populateContourMesh).
  *
- * The legacy marching cubes implementation numbered parent cells by their flat
- * index in the same row- or column-major ordering as the input scalar function array
+ * The legacy marching cubes implementation numbered parent cells by their flat index
+ * in the same row- or column-major ordering as the input scalar function array
  * (i.e. following the function field's stride order).
- * The bump-backed implementation natively numbers cells by their Blueprint zone index,
- * which uses a fixed i-fastest ordering independent of how the field is stored in memory.
+ *
+ * The bump-backed implementation natively numbers cells by their Blueprint zone index.
  * For structured input these two numberings coincide only when the field is stored i-fastest;
  * otherwise they differ by a stride-order permutation.
  *
@@ -69,7 +68,8 @@ enum class MarchingCubesDataParallelism
  *    mesh-type-agnostic identifier and the only meaningful choice for unstructured input.
  *  - \c legacyFieldOrder: reproduce the legacy numbering (flat index in the function field's stride order).
  *     Provided so existing structured-mesh callers that depend on the historical meaning are unaffected.
- *    This option only applies to structured input; for unstructured input the Blueprint zone id is always used.
+ * 
+ * @note This option only applies to structured input; for unstructured input the Blueprint zone id is always used.
  */
 enum class MarchingCubesParentCellIdMode
 {
@@ -80,17 +80,16 @@ enum class MarchingCubesParentCellIdMode
 /*!
  * @brief Enum selecting the isosurface case-table / intersector robustness used by the bump backend
  *
- * The bump CutField backend determines per-cell topology with an intersector policy plus
- * VisIt-derived cut tables.  The default intersector (\c axom::bump::extraction::FieldIntersector)
- * classifies cell corners with a strict two-label test (corner value > isovalue),
- * evaluates edge crossings in single precision (its \c FieldType is \c float),
+ * The bump backend determines per-cell topology with an intersector policy plus VisIt-derived cut tables.
+ * The default intersector (\c axom::bump::extraction::FieldIntersector) classifies cell corners
+ * with a strict two-label test (corner value > isovalue), evaluates edge crossings in single precision
  * and uses a single fixed triangulation per case. Like the classic 1987 marching-cubes tables,
  * this resolves ambiguous (saddle) configurations consistently but not necessarily in a way
  * that matches the trilinear interpolant. It does not implement the +/-/0 (three-label) / asymptotic-decider
  * topology of Wenger's Isosurfaces or MC33.
  *
- * This enum is in anticipation of the more robust case that will be added soon and only applies to the
- * new bump-based backend:
+ * @note This enum is in anticipation of the more robust case that will be added soon
+ * and only applies to the new bump-based backend:
  *  - \c standard (default): use bump's default intersector + tables.
  *    This is the only policy currently implemented.
  *  - \c robust: request a topologically-robust intersector/table set (double precision, +/-/0 aware).
@@ -222,7 +221,7 @@ public:
    *   (3D) meshes.  If false (default), the legacy kernel is used.
    *
    * Only available when Axom is configured with the bump component (AXOM_USE_BUMP).
-   * requesting the bump backend otherwise has no effect.
+   * Requesting the bump backend without bump is an error.
    * The legacy backend supports only structured input.
    *
    * @note The MarchingCubesDataParallelism constructor argument is a legacy
@@ -233,7 +232,7 @@ public:
    * existing users are unaffected.  A future release is expected to make it the
    * default and retire the legacy kernel and its lookup tables.
   */
-  void setUseBumpBackend(bool useBump) { m_useBumpBackend = useBump; }
+  void setUseBumpBackend(bool useBump);
 
   /*!
    * @brief Select the isosurface robustness policy for the bump backend.
