@@ -189,19 +189,38 @@ public:
   {
     SLIC_ASSERT(pos != nullptr);
 
+    const int dim = m_meshWrapper.meshDimension();
     IndexType cellIndex = MeshTraits::NO_CELL;
+    double posBuffer[3] = {0., 0., 0.};
+    double isoparBuffer[3] = {0., 0., 0.};
 
-    switch(m_meshWrapper.meshDimension())
+    // GCC 13 release+werror can inline the 3D PointFinder path into 2D MFEM call sites and then
+    // flag the caller's 2-entry point buffers as out-of-bounds. Stage raw coordinates through
+    // local 3-entry buffers before the dimension switch, then copy back only the active prefix.
+    for(int i = 0; i < dim; ++i)
+    {
+      posBuffer[i] = pos[i];
+    }
+
+    switch(dim)
     {
     case 2:
-      cellIndex = m_pointFinder2D->locatePoint(pos, isopar);
+      cellIndex = m_pointFinder2D->locatePoint(posBuffer, isopar != nullptr ? isoparBuffer : nullptr);
       break;
     case 3:
-      cellIndex = m_pointFinder3D->locatePoint(pos, isopar);
+      cellIndex = m_pointFinder3D->locatePoint(posBuffer, isopar != nullptr ? isoparBuffer : nullptr);
       break;
     default:
       SLIC_ERROR("Point in Cell query only defined for 2D or 3D meshes.");
       break;
+    }
+
+    if(isopar != nullptr)
+    {
+      for(int i = 0; i < dim; ++i)
+      {
+        isopar[i] = isoparBuffer[i];
+      }
     }
 
     return cellIndex;

@@ -40,7 +40,7 @@ namespace internal
  *
  */
 
-template <typename ExecPolicy, int NDIM, int NNODES, typename FOR_ALL_FUNCTOR, typename MeshType, typename KernelType>
+template <typename ExecPolicy, int NDIM, int NNODES, int MAX_NODES, typename FOR_ALL_FUNCTOR, typename MeshType, typename KernelType>
 inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType& m, KernelType&& kernel)
 {
   SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_UNIFORM_MESH, "Not valid for UniformMesh.");
@@ -48,6 +48,7 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
 
   AXOM_STATIC_ASSERT_MSG(NDIM >= 1 && NDIM <= 3, "NDIM must be a valid dimension.");
   AXOM_STATIC_ASSERT_MSG(NNODES > 0, "NNODES must be greater than zero.");
+  AXOM_STATIC_ASSERT_MSG(MAX_NODES >= NNODES, "MAX_NODES must cover the active node count.");
 
   constexpr bool valid_mesh_type = std::is_base_of<Mesh, MeshType>::value;
   AXOM_STATIC_ASSERT(valid_mesh_type);
@@ -88,7 +89,10 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
       AXOM_UNUSED_VAR(numNodes);
       assert(numNodes == NNODES);
 
-      double localCoords[NDIM * NNODES];
+      // GCC 13 release+werror can still instantiate inactive dimension/node-count paths in callers
+      // of xargs::coords. Back the Matrix with a zero-initialized max-sized buffer so those
+      // compile-time-only paths never reference storage smaller than the active 2D/3D caller expects.
+      double localCoords[3 * MAX_NODES] = {0.};
       for(int i = 0; i < NNODES; ++i)
       {
         const int i_offset = NDIM * i;
