@@ -829,6 +829,49 @@ TEST(Document, test_appendOrderedCurvesToHDF5)
 {
   doAppendOrderedCurveTest("hdf5", appendDocumentToHDF5);
 }
+#endif
+
+// Making sure that we overwrite instead of appending when receiving "full" curves
+void doAppendOverwriteCurveTest(
+  const std::string &protocol,
+  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
+{
+  std::string overwrite_file = "test_overwrite." + protocol;
+  axom::sina::Document overwritten_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
+  const std::string overwrite_str = R"(
+    { "records": [ { "type": "run", "application": "test", "local_id": "bar1", "curve_sets": { "set_1": {
+      "dependent": { "0": {"value": [1.0, 2.0, 3.0, 4.0]}, "1": {"value": [-1.0, -2.0, -3.0, -4.0]} },
+      "independent": { "0": {"value": [4.0, 5.0, 6.0, 7.0]}, "1": {"value": [-4.0, -5.0, -6.0, -7.0]} } } } } ] })";
+  axom::sina::Document overwrite_doc =
+    Document(overwrite_str, createRecordLoaderWithAllKnownTypes());
+  Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
+  saveDocument(overwritten_doc, overwrite_file, enum_protocol);
+  conduit::Node resultMsg = appendDocumentFunc(overwrite_file, overwrite_doc, 3, false, true);
+  EXPECT_EQ(resultMsg.number_of_children(), 0);
+  conduit::Node root;
+  conduit::relay::io::load(overwrite_file, root);
+  conduit::Node expected_dependents =
+    parseJsonValue(overwrite_str)["records"].child(0)["curve_sets"]["set_1"]["dependent"];
+  conduit::Node actual_dependents = root["records"].child(0)["curve_sets"]["set_1"]["dependent"];
+  auto curveIter = actual_dependents.children();
+  for(int i = 0; i < expected_dependents.number_of_children(); i++)
+  {
+    EXPECT_EQ(actual_dependents.child(i).name(), expected_dependents.child(i).name());
+    EXPECT_EQ(node_to_double_vector(actual_dependents.child(i)["value"]),
+              node_to_double_vector(expected_dependents.child(i)["value"]));
+  }
+}
+
+TEST(Document, test_appendFullLengthCurvesToJson)
+{
+  doAppendOverwriteCurveTest("json", appendDocumentToJson);
+}
+
+#ifdef AXOM_USE_HDF5
+TEST(Document, test_appendFullLengthCurvesToHDF5)
+{
+  doAppendOverwriteCurveTest("hdf5", appendDocumentToHDF5);
+}
 
 TEST(Document, create_fromJson_roundtrip_hdf5)
 {
