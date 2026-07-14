@@ -194,9 +194,8 @@ public:
     double posBuffer[3] = {0., 0., 0.};
     double isoparBuffer[3] = {0., 0., 0.};
 
-    // GCC 13 release+werror can inline the 3D PointFinder path into 2D MFEM call sites and then
-    // flag the caller's 2-entry point buffers as out-of-bounds. Stage raw coordinates through
-    // local 3-entry buffers before the dimension switch, then copy back only the active prefix.
+    // Stage raw coordinates through local 3-entry buffers before the dimension switch, then
+    // copy back only the active prefix.
     for(int i = 0; i < dim; ++i)
     {
       posBuffer[i] = pos[i];

@@ -290,9 +290,8 @@ public:
     m_mesh->GetElementTransformation(eltIdx, &tr);
 
     mfem::IntegrationPoint ip;
-    // GCC 13 release+werror reports false -Warray-bounds diagnostics because MFEM's
-    // IntegrationPoint::Set/Get touch a 3-entry buffer even for 2D elements. Stage 2D
-    // isoparametric coordinates through a local 3-vector before copying the active prefix.
+    // MFEM's IntegrationPoint::Set/Get touch a 3-entry buffer even for 2D elements.
+    // Stage 2D isoparametric coordinates through a local 3-vector before copying the active prefix.
     double mfemIsopar[3] = {0., 0., 0.};
     for(int i = 0; i < dim; ++i)
     {

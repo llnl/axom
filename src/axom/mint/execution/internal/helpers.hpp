@@ -89,9 +89,6 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
       AXOM_UNUSED_VAR(numNodes);
       assert(numNodes == NNODES);
 
-      // GCC 13 release+werror can still instantiate inactive dimension/node-count paths in callers
-      // of xargs::coords. Back the Matrix with a zero-initialized max-sized buffer so those
-      // compile-time-only paths never reference storage smaller than the active 2D/3D caller expects.
       double localCoords[3 * MAX_NODES] = {0.};
       for(int i = 0; i < NNODES; ++i)
       {

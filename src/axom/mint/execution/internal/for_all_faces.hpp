@@ -177,9 +177,6 @@ inline void for_all_faces_impl(xargs::nodeids, const StructuredMesh& m, KernelTy
   const IndexType* offsets = m.getCellNodeOffsetsArray();
   const IndexType cellNodeOffset3 = offsets[3];
 
-  // Keep these scratch arrays at the structured 3D maximum so inactive branches share one
-  // consistent local buffer shape across 2D and 3D structured traversals.
-
   if(dimension == 2)
   {
     const IndexType numIFaces = m.getTotalNumFaces(I_DIRECTION);
@@ -547,9 +544,6 @@ inline void for_all_faces_impl(xargs::coords, const UniformMesh& m, KernelType&&
 
   const double z0 = origin[2];
   const double dz = spacing[2];
-
-  // Back each Matrix with the structured 3D maximum so all structured face branches share one
-  // consistent local buffer layout.
 
   if(dimension == 2)
   {

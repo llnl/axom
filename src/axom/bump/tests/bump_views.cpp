@@ -802,10 +802,8 @@ struct test_braid2d_mat
         eq_count += (nmats == ids.size()) ? 1 : 0;
         count++;
 
-        // GCC 13 release+werror reports false -Wmaybe-uninitialized diagnostics when we index the
-        // StaticArray-backed ids/vfs scratch lists directly after zoneMaterials(). Use the
-        // zero-initialized ArrayView overload as the comparison source so the test still checks
-        // iterator/value consistency without depending on those backing slots.
+        // Compare against the zero-initialized ArrayView results instead of the StaticArray
+        // backing storage after zoneMaterials() fills the active prefix.
         int i = 0;
         for(auto it = deviceViews.matsetView.beginZone(index); it != end; it++, i++)
         {
