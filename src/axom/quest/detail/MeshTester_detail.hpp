@@ -182,7 +182,7 @@ void CandidateFinderBase<ExecSpace, FloatType>::initialize()
         const double* node = coords.getColumn(inode);
         tri[inode] =
           PointType {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};
-      }  // END for all cell nodes
+      }  // END for all cells nodes
 
       v_degenerate[cellIdx] = (tri.degenerate() ? 1 : 0);
 
