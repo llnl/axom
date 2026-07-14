@@ -121,9 +121,10 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
     mesh,
     AXOM_LAMBDA(IndexType cellIdx, axom::numerics::Matrix<double> & coords, const IndexType* nodeIds) {
       AXOM_UNUSED_VAR(nodeIds);
+      int numNodes = coords.getNumColumns();
       BoxType aabb;
 
-      for(IndexType inode = 0; inode < 3; ++inode)
+      for(IndexType inode = 0; inode < numNodes; ++inode)
       {
         const double* node = coords.getColumn(inode);
         PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};
@@ -261,7 +262,9 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
       AXOM_UNUSED_VAR(nodeIds);
       TriangleType tri;
 
-      for(IndexType inode = 0; inode < 3; ++inode)
+      int numNodes = coords.getNumColumns();
+      SLIC_ASSERT(numNodes == 3);
+      for(IndexType inode = 0; inode < numNodes; ++inode)
       {
         const double* node = coords.getColumn(inode);
         PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};

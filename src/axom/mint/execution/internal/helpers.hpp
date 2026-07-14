@@ -89,7 +89,7 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
       AXOM_UNUSED_VAR(numNodes);
       assert(numNodes == NNODES);
 
-      double localCoords[3 * MAX_NODES] = {0.};
+      double localCoords[NDIM * MAX_NODES] = {0.};
       for(int i = 0; i < NNODES; ++i)
       {
         const int i_offset = NDIM * i;
