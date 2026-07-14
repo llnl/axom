@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SHAPING_HELPERS_MFEM__HPP_
-#define AXOM_QUEST_SHAPING_HELPERS_MFEM__HPP_
+#pragma once
 
 #include "shaping_helpers.hpp"
 
@@ -454,5 +453,3 @@ void FCT_correct(const double* M,
 }  // end namespace axom
 
 #endif  // defined(AXOM_USE_MFEM)
-
-#endif  // AXOM_QUEST_SHAPING_HELPERS_MFEM__HPP_
