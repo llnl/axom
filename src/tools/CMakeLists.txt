@@ -235,6 +235,18 @@ if(NANOBIND_FOUND)
     endif()
 
     #--------------------------------------------------------------------------
+    # Python utilities for generating Blueprint mesh inputs.
+    #--------------------------------------------------------------------------
+    foreach(_mesh_gen_script
+            gen-marching-cubes-mesh.py
+            gen-multidom-structured-mesh.py)
+        axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/${_mesh_gen_script}"
+                             "${PROJECT_BINARY_DIR}/bin/${_mesh_gen_script}" COPYONLY)
+        axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/${_mesh_gen_script}"
+                             "${CMAKE_INSTALL_PREFIX}/bin/${_mesh_gen_script}" COPYONLY)
+    endforeach()
+
+    #--------------------------------------------------------------------------
     # convert_sidre_protocol.py is a python version of the
     # convert_sidre_protocol.cpp utility
     #--------------------------------------------------------------------------
