@@ -111,7 +111,7 @@ public:
     quest::MarchingCubesParentCellIdMode::blueprintZoneId;
 
   // Use the bump CutField backend (supports unstructured quad/hex) vs legacy.
-  bool useBumpBackend = false;
+  bool useBumpBackend {false};
 
   // Bump-backend isosurface robustness policy (Phase 6 seam).
   quest::MarchingCubesRobustnessPolicy robustnessPolicy =
@@ -348,17 +348,15 @@ bool verifyBlueprintMesh(const conduit::Node& mesh, conduit::Node& info)
 #endif
 }
 
-Input params;
-
 int myRank = -1, numRanks = -1;  // MPI stuff, set in main().
 
-/**
- \brief Generic computational mesh, to hold cell and node data.
-*/
+/// \brief Generic computational mesh, to hold cell and node data.
 struct BlueprintStructuredMesh
 {
 public:
-  explicit BlueprintStructuredMesh(const std::string& meshFile, const std::string& topologyName)
+  explicit BlueprintStructuredMesh(const std::string& meshFile,
+                                   const std::string& topologyName,
+                                   bool verboseOutput = false)
     : _topologyName(topologyName)
     , _topologyPath("topologies/" + topologyName)
   {
@@ -366,7 +364,7 @@ public:
     for(int d = 0; d < _mdMesh.number_of_children(); ++d)
     {
       auto dl = domainLengths(d);
-      SLIC_INFO_IF(params.isVerbose(), axom::fmt::format("dom[{}] size={}", d, dl));
+      SLIC_INFO_IF(verboseOutput, axom::fmt::format("dom[{}] size={}", d, dl));
     }
     _maxSpacing = maxSpacing();
   }
@@ -708,7 +706,7 @@ static void addToStackArray(axom::StackArray<T, DIM>& a, U b)
 
 /*!
  * @brief Strategy pattern for supporting a variety of contour types.
-
+ *
  * The strategy encapsulates the scalar functions and things related to it.
  */
 template <int DIM>
@@ -736,9 +734,9 @@ struct ContourTestBase
 {
   static constexpr auto MemorySpace = axom::execution_space<ExecSpace>::memory_space;
   using PointType = axom::primal::Point<double, DIM>;
-  // ContourTestBase(const std::shared_ptr<ContourTestStrategy<DIM>>& testStrategy)
-  ContourTestBase()
-    : m_testStrategies()
+  explicit ContourTestBase(const Input& params)
+    : m_params(params)
+    , m_testStrategies()
     , m_parentCellIdField("parentCellIds")
     , m_domainIdField("domainIdField")
   { }
@@ -750,6 +748,7 @@ struct ContourTestBase
     SLIC_INFO(axom::fmt::format("Add test {}.", testStrategy->testName()));
   }
 
+  const Input& m_params;
   axom::Array<std::shared_ptr<ContourTestStrategy<DIM>>> m_testStrategies;
   //!@brief Prefix sum of facet counts from test strategies.
   axom::Array<axom::IndexType> m_strategyFacetPrefixSum;
@@ -791,14 +790,14 @@ struct ContourTestBase
           resourceName = allocator.getName();
         }
         SLIC_INFO(axom::fmt::format("Testing with policy {} and function data on {}",
-                                    params.policy,
+                                    m_params.policy,
                                     resourceName));
-        if(params.policy == axom::runtime_policy::Policy::seq)
+        if(m_params.policy == axom::runtime_policy::Policy::seq)
         {
           SLIC_ASSERT(resourceName == "HOST");
         }
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-        else if(params.policy == axom::runtime_policy::Policy::omp)
+        else if(m_params.policy == axom::runtime_policy::Policy::omp)
         {
           SLIC_ASSERT(resourceName == "HOST");
         }
@@ -820,7 +819,7 @@ struct ContourTestBase
     // All contourGenCount loops.
     axom::utilities::Timer contourGenLoopTimer(false);
 
-    // params.objectRepCount setMesh calls
+    // objectRepCount setMesh calls
     axom::utilities::Timer setMeshTimer(false);
 
     // Time steady-state computeIsocontour calls
@@ -830,20 +829,21 @@ struct ContourTestBase
     axom::utilities::Timer contourTimerM(false);
 
     std::unique_ptr<quest::MarchingCubes> mcPtr;
-    const auto objectLoopName = axom::fmt::format("objectRepLoop {}", params.objectRepCount);
+    const auto objectLoopName = axom::fmt::format("objectRepLoop {}", m_params.objectRepCount);
     AXOM_ANNOTATE_BEGIN(objectLoopName);
     objectRepLoopTimer.start();
-    for(int j = 0; j < params.objectRepCount; ++j)
+    for(int j = 0; j < m_params.objectRepCount; ++j)
     {
       if(!mcPtr)
       {
         AXOM_ANNOTATE_SCOPE("MCInit");
         initializationTimer.start();
-        mcPtr =
-          std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
-        mcPtr->setUseBumpBackend(params.useBumpBackend);
-        mcPtr->setParentCellIdMode(params.parentCellIdMode);
-        mcPtr->setRobustnessPolicy(params.robustnessPolicy);
+        mcPtr = std::make_unique<quest::MarchingCubes>(m_params.policy,
+                                                       s_allocatorId,
+                                                       m_params.dataParallelism);
+        mcPtr->setUseBumpBackend(m_params.useBumpBackend);
+        mcPtr->setParentCellIdMode(m_params.parentCellIdMode);
+        mcPtr->setRobustnessPolicy(m_params.robustnessPolicy);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
         initializationTimer.stop();
       }
@@ -859,20 +859,20 @@ struct ContourTestBase
 #endif
 
       contourGenLoopTimer.start();
-      for(int i = 0; i < params.contourGenCount; ++i)
+      for(int i = 0; i < m_params.contourGenCount; ++i)
       {
         SLIC_DEBUG(axom::fmt::format("MarchingCubes object rep {} of {}, contour run {} of {}:",
                                      j,
-                                     params.objectRepCount,
+                                     m_params.objectRepCount,
                                      i,
-                                     params.contourGenCount));
+                                     m_params.contourGenCount));
         mc.clearOutput();
         m_strategyFacetPrefixSum.clear();
         m_strategyFacetPrefixSum.push_back(0);
         for(const auto& strategy : m_testStrategies)
         {
           mc.setFunctionField(strategy->functionName());
-          for(int iMask = 0; iMask < params.maskCount; ++iMask)
+          for(int iMask = 0; iMask < m_params.maskCount; ++iMask)
           {
             mc.setMaskValue(iMask);
             if(i == 0)
@@ -883,7 +883,7 @@ struct ContourTestBase
             {
               contourTimer.start();
             }
-            mc.computeIsocontour(params.contourVal);
+            mc.computeIsocontour(m_params.contourVal);
             if(i == 0)
             {
               contourTimerM.stop();
@@ -901,8 +901,8 @@ struct ContourTestBase
     objectRepLoopTimer.stop();
     AXOM_ANNOTATE_END(objectLoopName);
     SLIC_INFO(axom::fmt::format("Finished {} object reps x {} contour reps",
-                                params.objectRepCount,
-                                params.contourGenCount));
+                                m_params.objectRepCount,
+                                m_params.contourGenCount));
     printTimingStats(initializationTimer, axom::fmt::format("init"));
     printTimingStats(contourTimerM, axom::fmt::format("setMeshContour"));
     printTimingStats(setMeshTimer, axom::fmt::format("setMesh"));
@@ -958,9 +958,9 @@ struct ContourTestBase
     AXOM_ANNOTATE_END("convert to mint mesh");
 
     int localErrCount = 0;
-    if(params.checkResults)
+    if(m_params.checkResults)
     {
-      localErrCount += checkContourSurface(contourMesh, params.contourVal, "diff");
+      localErrCount += checkContourSurface(contourMesh, m_params.contourVal, "diff");
 
       localErrCount += checkContourCellLimits(computationalMesh, contourMesh);
 
@@ -995,7 +995,7 @@ struct ContourTestBase
                                   sum,
                                   (double)sum / numRanks));
     }
-    SLIC_INFO_IF(params.isVerbose(),
+    SLIC_INFO_IF(m_params.isVerbose(),
                  axom::fmt::format("Contour mesh has locally {} cells, {} nodes.",
                                    mc.getContourCellCount(),
                                    mc.getContourNodeCount()));
@@ -1116,7 +1116,7 @@ struct ContourTestBase
                              zeros,
                              fastestDirs);
       auto maskView = domainView.template getFieldView<int>(maskFieldName);
-      int maskCount = params.maskCount;
+      int maskCount = m_params.maskCount;
       axom::for_all<axom::SEQ_EXEC>(
         0,
         cellCount,
@@ -1133,10 +1133,10 @@ struct ContourTestBase
   }
 
   /**
-     Check for errors in the surface contour mesh.
-     - analytical scalar value at surface points should be
-       contourVal, within tolerance zero.
-  */
+   *  Check for errors in the surface contour mesh.
+   *  - analytical scalar value at surface points should be
+   *    contourVal, within tolerance zero.
+   */
   int checkContourSurface(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& contourMesh,
                           double contourVal,
                           const std::string& diffField = {})
@@ -1171,7 +1171,7 @@ struct ContourTestBase
         {
           ++errCount;
           SLIC_INFO_IF(
-            params.isVerbose(),
+            m_params.isVerbose(),
             axom::fmt::format("checkContourSurface: node {} at {} has dist {}, off by {}",
                               iNode,
                               pt,
@@ -1179,7 +1179,7 @@ struct ContourTestBase
                               diff));
         }
       }
-      SLIC_INFO_IF(params.isVerbose(),
+      SLIC_INFO_IF(m_params.isVerbose(),
                    axom::fmt::format("checkContourSurface: found {} errors outside tolerance of {}",
                                      errCount,
                                      tol));
@@ -1187,7 +1187,7 @@ struct ContourTestBase
     return errCount;
   }
 
-  //!@brief Get view of output domain id data.
+  //! @brief Get view of output domain id data.
   axom::ArrayView<const axom::quest::MarchingCubes::DomainIdType> getDomainIdView(
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& contourMesh) const
   {
@@ -1200,7 +1200,7 @@ struct ContourTestBase
     return view;
   }
 
-  //!@brief Get view of output parent cell idx data.
+  //! @brief Get view of output parent cell idx data.
   axom::ArrayView<const axom::StackArray<axom::IndexType, DIM>> get_parent_cell_idx_view(
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& contourMesh) const
   {
@@ -1232,9 +1232,7 @@ struct ContourTestBase
     return view;
   }
 
-  /**
-     Check that generated cells fall within their parents.
-  */
+  /// Check that generated cells fall within their parents.
   int checkContourCellLimits(BlueprintStructuredMesh& computationalMesh,
                              axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& contourMesh)
   {
@@ -1334,7 +1332,7 @@ struct ContourTestBase
           if(!big.contains(nodeCoords))
           {
             ++errCount;
-            SLIC_INFO_IF(params.isVerbose(),
+            SLIC_INFO_IF(m_params.isVerbose(),
                          axom::fmt::format("checkContourCellLimits: node {} at {} "
                                            "too far outside parent cell boundary.",
                                            cellNodeIds[nn],
@@ -1344,7 +1342,7 @@ struct ContourTestBase
           if(checkSmall && small.contains(nodeCoords))
           {
             ++errCount;
-            SLIC_INFO_IF(params.isVerbose(),
+            SLIC_INFO_IF(m_params.isVerbose(),
                          axom::fmt::format("checkContourCellLimits: node {} at {} "
                                            "too far inside parent cell boundary.",
                                            cellNodeIds[nn],
@@ -1354,7 +1352,7 @@ struct ContourTestBase
       }
     }
 
-    SLIC_INFO_IF(params.isVerbose(),
+    SLIC_INFO_IF(m_params.isVerbose(),
                  axom::fmt::format("checkContourCellLimits: found {} "
                                    "nodes not on parent cell boundary.",
                                    errCount));
@@ -1479,10 +1477,10 @@ struct ContourTestBase
           const bool hasContour = hasContourBits & iStratBit;
 
           bool touchesContour =
-            (minFcnValue <= params.contourVal && maxFcnValue >= params.contourVal);
-          // If the min or max values in the cell is close to params.contourVal
+            (minFcnValue <= m_params.contourVal && maxFcnValue >= m_params.contourVal);
+          // If the min or max values in the cell is close to the contour value,
           // touchesContour and hasCont can go either way.  So give it a pass.
-          if(minFcnValue == params.contourVal || maxFcnValue == params.contourVal)
+          if(minFcnValue == m_params.contourVal || maxFcnValue == m_params.contourVal)
           {
             touchesContour = hasContour;
           }
@@ -1491,7 +1489,7 @@ struct ContourTestBase
           {
             ++errCount;
             SLIC_INFO_IF(
-              params.isVerbose(),
+              m_params.isVerbose(),
               axom::fmt::format("checkCellsContainingContour: cell {}: hasContour "
                                 "({}) and touchesContour ({}) don't agree for strategy {}.",
                                 parentCellIdx,
@@ -1502,7 +1500,7 @@ struct ContourTestBase
         }
       }
     }
-    SLIC_INFO_IF(params.isVerbose(),
+    SLIC_INFO_IF(m_params.isVerbose(),
                  axom::fmt::format("checkCellsContainingContour: found {} "
                                    "misrepresented computational cells.",
                                    errCount));
@@ -1620,49 +1618,59 @@ int allocatorIdToTest(axom::runtime_policy::Policy policy)
   return allocatorID;
 }
 
-/// Utility function to initialize the logger
-void initializeLogger()
+// ----------------------------------------------------------------------------
+// Utility RAII struct to set up and tear down the example's logger
+// ----------------------------------------------------------------------------
+struct ParallelLoggerRAII
 {
-  // Initialize Logger
-  slic::initialize();
-  slic::setLoggingMsgLevel(slic::message::Info);
+  ParallelLoggerRAII()
+  {
+    // Initialize Logger
+    slic::initialize();
+    slic::setLoggingMsgLevel(slic::message::Info);
 
-  slic::LogStream* logStream;
+    slic::LogStream* logStream;
 
 #ifdef AXOM_USE_MPI
-  std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
+    std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
   #ifdef AXOM_USE_LUMBERJACK
-  const int RLIMIT = 8;
-  logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
+    const int RLIMIT = 8;
+    logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
   #else
-  logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
+    logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
   #endif
 #else
-  std::string fmt = "[<LEVEL>]: <MESSAGE>\n";
-  logStream = new slic::GenericOutputStream(&std::cout, fmt);
+    std::string fmt = "[<LEVEL>]: <MESSAGE>\n";
+    logStream = new slic::GenericOutputStream(&std::cout, fmt);
 #endif  // AXOM_USE_MPI
 
-  slic::addStreamToAllMsgLevels(logStream);
+    slic::addStreamToAllMsgLevels(logStream);
 
-  conduit::utils::set_error_handler(
-    [](auto& msg, auto& file, int line) { slic::logErrorMessage(msg, file, line); });
-  conduit::utils::set_warning_handler(
-    [](auto& msg, auto& file, int line) { slic::logWarningMessage(msg, file, line); });
-  conduit::utils::set_info_handler([](auto& msg, auto& file, int line) {
-    slic::logMessage(slic::message::Info, msg, file, line);
-  });
-}
-
-/// Utility function to finalize the logger
-void finalizeLogger()
-{
-  if(slic::isInitialized())
-  {
-    slic::flushStreams();
-    slic::finalize();
+    conduit::utils::set_error_handler(
+      [](auto& msg, auto& file, int line) { slic::logErrorMessage(msg, file, line); });
+    conduit::utils::set_warning_handler(
+      [](auto& msg, auto& file, int line) { slic::logWarningMessage(msg, file, line); });
+    conduit::utils::set_info_handler([](auto& msg, auto& file, int line) {
+      slic::logMessage(slic::message::Info, msg, file, line);
+    });
   }
-}
 
+  void flush() { slic::flushStreams(); }
+
+  /// Utility function to finalize the logger
+  ~ParallelLoggerRAII()
+  {
+    if(slic::isInitialized())
+    {
+      slic::flushStreams();
+      slic::finalize();
+    }
+  }
+};
+
+// ----------------------------------------------------------------------------
+// Tag dispatch for choosing the desired execution policy and dimension
+// ----------------------------------------------------------------------------
 template <typename T>
 struct TypeTag
 {
@@ -1696,7 +1704,7 @@ using TestInstanceVariant = std::variant<TestInstance<2, axom::SEQ_EXEC>,
                                          >;
 
 template <typename ExecSpace>
-TestInstanceVariant selectTestDimension(TypeTag<ExecSpace>)
+TestInstanceVariant selectTestDimension(TypeTag<ExecSpace>, const Input& params)
 {
   if(params.ndim == 2)
   {
@@ -1711,28 +1719,28 @@ TestInstanceVariant selectTestDimension(TypeTag<ExecSpace>)
   return TestInstance<2, axom::SEQ_EXEC> {};
 }
 
-TestInstanceVariant selectTestInstance()
+TestInstanceVariant selectTestInstance(const Input& params)
 {
   if(params.policy == RuntimePolicy::seq)
   {
-    return selectTestDimension(TypeTag<axom::SEQ_EXEC> {});
+    return selectTestDimension(TypeTag<axom::SEQ_EXEC> {}, params);
   }
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
   if(params.policy == RuntimePolicy::omp)
   {
-    return selectTestDimension(TypeTag<axom::OMP_EXEC> {});
+    return selectTestDimension(TypeTag<axom::OMP_EXEC> {}, params);
   }
 #endif
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
   if(params.policy == RuntimePolicy::cuda)
   {
-    return selectTestDimension(TypeTag<axom::CUDA_EXEC<256>> {});
+    return selectTestDimension(TypeTag<axom::CUDA_EXEC<256>> {}, params);
   }
 #endif
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
   if(params.policy == RuntimePolicy::hip)
   {
-    return selectTestDimension(TypeTag<axom::HIP_EXEC<256>> {});
+    return selectTestDimension(TypeTag<axom::HIP_EXEC<256>> {}, params);
   }
 #endif
 
@@ -1747,13 +1755,14 @@ int main(int argc, char** argv)
   myRank = mpi_raii_wrapper.my_rank();
   numRanks = mpi_raii_wrapper.num_ranks();
 
-  initializeLogger();
+  ParallelLoggerRAII raii_logger;
   //slic::setAbortOnWarning(true);
 
   //---------------------------------------------------------------------------
   // Set up and parse command line arguments
   //---------------------------------------------------------------------------
   axom::CLI::App app {"Driver/test code for marching cubes algorithm"};
+  Input params;
 
   try
   {
@@ -1785,14 +1794,14 @@ int main(int argc, char** argv)
   // Load computational mesh.
   //---------------------------------------------------------------------------
   AXOM_ANNOTATE_BEGIN("load mesh");
-  BlueprintStructuredMesh computationalMesh(params.meshFile, "mesh");
+  BlueprintStructuredMesh computationalMesh(params.meshFile, "mesh", params.isVerbose());
   AXOM_ANNOTATE_END("load mesh");
 
   SLIC_INFO_IF(params.isVerbose(),
                axom::fmt::format("Computational mesh has {} cells in {} domains locally",
                                  computationalMesh.cellCount(),
                                  computationalMesh.domainCount()));
-  slic::flushStreams();
+  raii_logger.flush();
 
   // Output some global mesh size stats
   {
@@ -1814,12 +1823,12 @@ int main(int argc, char** argv)
                                 (double)sum / numRanks));
   }
 
-  slic::flushStreams();
+  raii_logger.flush();
 
   //---------------------------------------------------------------------------
   // Run test in the execution space set by command line.
   //---------------------------------------------------------------------------
-  auto testInstance = selectTestInstance();
+  auto testInstance = selectTestInstance(params);
   int errCount = std::visit(
     [&](const auto& instance) {
       AXOM_UNUSED_VAR(instance);
@@ -1831,7 +1840,7 @@ int main(int argc, char** argv)
       std::shared_ptr<RoundTestStrategy<DIM>> roundStrat;
       std::shared_ptr<GyroidTestStrategy<DIM>> gyroidStrat;
 
-      ContourTestBase<DIM, ExecSpace> contourTest;
+      ContourTestBase<DIM, ExecSpace> contourTest(params);
 
       if(params.usingPlanar())
       {
@@ -1897,7 +1906,6 @@ int main(int argc, char** argv)
 
   questMarchingCubesExample.stop();
   printTimingStats(questMarchingCubesExample, "questMarchingCubesExample");
-  finalizeLogger();
 
   return errCount != 0;
 }
