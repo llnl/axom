@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_MAPPED_ZONE_UTILITIES_HPP_
-#define AXOM_BUMP_MAPPED_ZONE_UTILITIES_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -229,5 +228,3 @@ AXOM_HOST_DEVICE double computePhysicalMeasureFactor(const ShapeType& zone,
 }  // namespace detail
 }  // namespace bump
 }  // namespace axom
-
-#endif
