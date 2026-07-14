@@ -100,6 +100,16 @@ void MarchingCubes::setFunctionField(const std::string& fcnField)
   }
 }
 
+void MarchingCubes::setUseBumpBackend(bool useBump)
+{
+#if !defined(AXOM_USE_BUMP)
+  SLIC_ERROR_IF(useBump,
+                "MarchingCubes bump backend requires Axom to be configured "
+                "with the bump component.");
+#endif
+  m_useBumpBackend = useBump;
+}
+
 void MarchingCubes::computeIsocontour(double contourVal)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::computeIsoContour");

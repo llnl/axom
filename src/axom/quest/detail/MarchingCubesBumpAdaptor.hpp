@@ -45,32 +45,36 @@
  *      the legacy field-stride flat order (structured input + legacyFieldOrder).
  */
 
-#ifndef AXOM_QUEST_MARCHINGCUBESBUMPADAPTOR_H_
-#define AXOM_QUEST_MARCHINGCUBESBUMPADAPTOR_H_
+#pragma once
 
 #include "axom/config.hpp"
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+#ifndef AXOM_USE_CONDUIT
+  #error "MarchingCubesBumpAdaptor.hpp requires conduit"
+#endif
+#ifndef AXOM_USE_BUMP
+  #error "MarchingCubesBumpAdaptor.hpp requires bump"
+#endif
 
-  #include "axom/core/execution/execution_space.hpp"
-  #include "axom/core/execution/for_all.hpp"
-  #include "axom/core/execution/reductions.hpp"
-  #include "axom/core/memory_management.hpp"
-  #include "axom/core/Array.hpp"
-  #include "axom/core/ArrayView.hpp"
-  #include "axom/core/MDMapping.hpp"
-  #include "axom/core/numerics/floating_point_limits.hpp"
-  #include "axom/slic/interface/slic_macros.hpp"
+#include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/reductions.hpp"
+#include "axom/core/memory_management.hpp"
+#include "axom/core/Array.hpp"
+#include "axom/core/ArrayView.hpp"
+#include "axom/core/MDMapping.hpp"
+#include "axom/core/numerics/floating_point_limits.hpp"
+#include "axom/slic/interface/slic_macros.hpp"
 
-  #include "axom/bump/utilities/blueprint_utilities.hpp"
-  #include "axom/bump/utilities/conduit_memory.hpp"
-  #include "axom/bump/views/NodeArrayView.hpp"
-  #include "axom/bump/views/Shapes.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/views/Shapes.hpp"
 
-  #include "conduit_node.hpp"
+#include "conduit_node.hpp"
 
-  #include <string>
-  #include <utility>
+#include <string>
+#include <utility>
 
 namespace axom::quest::detail::marching_cubes
 {
@@ -268,13 +272,13 @@ void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
     n_elems["shape_map"][bpviews::TriTraits::name()] = bpviews::Tri_ShapeID;
   };
 
-  #if defined(_WIN32)
+#if defined(_WIN32)
   triangulateViews(bputils::make_array_view<axom::IndexType>(n_sizes),
                    bputils::make_array_view<axom::IndexType>(n_offsets),
                    bputils::make_array_view<axom::IndexType>(n_conn));
-  #else
+#else
   bpviews::indexNodeToArrayViewSame(n_sizes, n_offsets, n_conn, std::move(triangulateViews));
-  #endif
+#endif
 }
 
 /*!
@@ -443,14 +447,14 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
       });
   };
 
-  #if defined(_WIN32)
+#if defined(_WIN32)
   adaptViews(bputils::make_array_view<axom::IndexType>(n_sizes),
              bputils::make_array_view<axom::IndexType>(n_offsets),
              bputils::make_array_view<axom::IndexType>(n_conn),
              bputils::make_array_view<axom::IndexType>(n_orig));
-  #else
+#else
   bpviews::indexNodeToArrayViewSame(n_sizes, n_offsets, n_conn, n_orig, std::move(adaptViews));
-  #endif
+#endif
 }
 
 /*!
@@ -510,6 +514,3 @@ axom::Array<axom::IndexType> buildFieldStrideRemap(
 }
 
 }  // namespace axom::quest::detail::marching_cubes
-
-#endif  // AXOM_USE_CONDUIT && AXOM_USE_BUMP
-#endif  // AXOM_QUEST_MARCHINGCUBESBUMPADAPTOR_H_
