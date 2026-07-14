@@ -542,14 +542,9 @@ void runAndVerify3D(conduit::Node& mesh,
   mc.setUseBumpBackend(true);
   mc.setRobustnessPolicy(robustness);
 
-  // MarchingCubes' public input contract is multi-domain.
-  // Keep the wrapped node alive through computeIsocontour(),
-  // since the single-domain objects cache pointers into it.
-  conduit::Node mdMesh;
-  mdMesh.append().set(mesh);
-  conduit::Node execMdMesh;
-  copyBlueprintToPolicy(execMdMesh, mdMesh, policy, allocatorID);
-  mc.setMesh(execMdMesh, "mesh", maskFieldName);
+  conduit::Node execMesh;
+  copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
+  mc.setMesh(execMesh, "mesh", maskFieldName);
   if(!maskFieldName.empty())
   {
     mc.setMaskValue(maskVal);
@@ -798,15 +793,13 @@ void test_robustness_seam(RuntimePolicy policy)
   auto facetCountFor = [&](quest::MarchingCubesRobustnessPolicy rp) {
     conduit::Node mesh;
     buildStructured3D(mesh, 16, f, "fcn");
-    conduit::Node mdMesh;
-    mdMesh.append().set(mesh);
     const int allocatorID = axom::policyToDefaultAllocatorID(policy);
-    conduit::Node execMdMesh;
-    copyBlueprintToPolicy(execMdMesh, mdMesh, policy, allocatorID);
+    conduit::Node execMesh;
+    copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
     quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
     mc.setUseBumpBackend(true);
     mc.setRobustnessPolicy(rp);
-    mc.setMesh(execMdMesh, "mesh");
+    mc.setMesh(execMesh, "mesh");
     mc.setFunctionField("fcn");
     mc.computeIsocontour(0.0);
     return mc.getContourCellCount();

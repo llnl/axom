@@ -52,8 +52,17 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
                             const std::string& topologyName,
                             const std::string& maskField)
 {
-  SLIC_ASSERT_MSG(conduit::blueprint::mesh::is_multi_domain(bpMesh),
-                  "MarchingCubes class input mesh must be in multidomain format.");
+  const conduit::Node* mdMesh = &bpMesh;
+  if(conduit::blueprint::mesh::is_multi_domain(bpMesh))
+  {
+    m_singleDomainMesh.reset();
+  }
+  else
+  {
+    m_singleDomainMesh.reset();
+    m_singleDomainMesh.append().set_external(bpMesh);
+    mdMesh = &m_singleDomainMesh;
+  }
 
   m_topologyName = topologyName;
   m_maskFieldName = maskField;
@@ -65,7 +74,7 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
     domains is m_domainCount, not m_singles.size().  To *really*
     deallocate memory, deallocate the MarchingCubes object.
   */
-  auto newDomainCount = conduit::blueprint::mesh::number_of_domains(bpMesh);
+  auto newDomainCount = conduit::blueprint::mesh::number_of_domains(*mdMesh);
 
   if(m_singles.size() < newDomainCount)
   {
@@ -79,7 +88,7 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
 
   for(int d = 0; d < newDomainCount; ++d)
   {
-    const auto& dom = bpMesh.child(d);
+    const auto& dom = mdMesh->child(d);
     m_singles[d]->setDomain(dom, m_topologyName, maskField);
   }
   for(int d = newDomainCount; d < m_singles.size(); ++d)

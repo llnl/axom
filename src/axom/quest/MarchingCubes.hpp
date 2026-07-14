@@ -175,7 +175,7 @@ public:
 
   /*!
    * @brief Set the input mesh.
-   * @param [in] bpMesh Blueprint multi-domain mesh containing scalar field.
+   * @param [in] bpMesh Blueprint single-domain or multi-domain mesh containing scalar field.
    * @param [in] topologyName Name of Blueprint topology to use in \a bpMesh.
    * @param [in] maskField Cell-based std::int32_t mask field.  If provided,
    *             cells where this field evaluates to false are skipped.
@@ -428,7 +428,7 @@ private:
   MarchingCubesDataParallelism m_dataParallelism {MarchingCubesDataParallelism::byPolicy};
 
   //! @brief Number of domains.
-  axom::IndexType m_domainCount;
+  axom::IndexType m_domainCount {0};
 
   /*!
    * @brief Single-domain implementations.
@@ -436,6 +436,15 @@ private:
    * May be longer than m_domainCount (the real count).
   */
   axom::Array<std::shared_ptr<detail::marching_cubes::MarchingCubesSingleDomain>> m_singles;
+
+  /*!
+   * @brief Wrapper used when callers pass a single-domain Blueprint mesh.
+   *
+   * MarchingCubesSingleDomain caches references into the per-domain node, so
+   * the synthetic multi-domain parent must outlive setMesh().
+  */
+  conduit::Node m_singleDomainMesh;
+
   std::string m_topologyName;
   std::string m_fcnFieldName;
   std::string m_fcnPath;
