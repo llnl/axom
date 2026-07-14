@@ -733,6 +733,7 @@ template <int DIM, typename ExecSpace>
 struct ContourTestBase
 {
   static constexpr auto MemorySpace = axom::execution_space<ExecSpace>::memory_space;
+  static constexpr double BumpGeometryToleranceScale = 1.e-5;
   using PointType = axom::primal::Point<double, DIM>;
   explicit ContourTestBase(const Input& params)
     : m_params(params)
@@ -755,6 +756,13 @@ struct ContourTestBase
 
   const std::string m_parentCellIdField;
   const std::string m_domainIdField;
+
+  double geometryTolerance(const BlueprintStructuredMesh& computationalMesh) const
+  {
+    // Bump's current isosurface intersector computes interpolation in float.
+    return m_params.useBumpBackend ? BumpGeometryToleranceScale * computationalMesh.maxSpacing()
+                                   : axom::numerics::floating_point_limits<double>::epsilon();
+  }
 
   int runTest(BlueprintStructuredMesh& computationalMesh)
   {
@@ -1151,32 +1159,39 @@ struct ContourTestBase
     int errCount = 0;
     for(axom::IndexType iStrat = 0; iStrat < m_testStrategies.size(); ++iStrat)
     {
-      auto contourNodeBegin = DIM * m_strategyFacetPrefixSum[iStrat];
-      auto contourNodeEnd = DIM * m_strategyFacetPrefixSum[iStrat + 1];
+      const auto contourCellBegin = m_strategyFacetPrefixSum[iStrat];
+      const auto contourCellEnd = m_strategyFacetPrefixSum[iStrat + 1];
 
       auto& strategy = *m_testStrategies[iStrat];
       double tol = strategy.errorTolerance();
 
       PointType pt;
-      for(axom::IndexType iNode = contourNodeBegin; iNode < contourNodeEnd; ++iNode)
+      for(axom::IndexType iContourCell = contourCellBegin; iContourCell < contourCellEnd;
+          ++iContourCell)
       {
-        contourMesh.getNode(iNode, pt.data());
-        double analyticalVal = strategy.valueAt(pt);
-        double diff = std::abs(analyticalVal - contourVal);
-        if(diffPtr)
+        const axom::IndexType* cellNodeIds = contourMesh.getCellNodeIDs(iContourCell);
+        const axom::IndexType cellNodeCount = contourMesh.getNumberOfCellNodes(iContourCell);
+        for(axom::IndexType iCellNode = 0; iCellNode < cellNodeCount; ++iCellNode)
         {
-          diffPtr[iNode] = diff;
-        }
-        if(diff > tol)
-        {
-          ++errCount;
-          SLIC_INFO_IF(
-            m_params.isVerbose(),
-            axom::fmt::format("checkContourSurface: node {} at {} has dist {}, off by {}",
-                              iNode,
-                              pt,
-                              analyticalVal,
-                              diff));
+          const axom::IndexType iNode = cellNodeIds[iCellNode];
+          contourMesh.getNode(iNode, pt.data());
+          double analyticalVal = strategy.valueAt(pt);
+          double diff = std::abs(analyticalVal - contourVal);
+          if(diffPtr)
+          {
+            diffPtr[iNode] = diff;
+          }
+          if(diff > tol)
+          {
+            ++errCount;
+            SLIC_INFO_IF(
+              m_params.isVerbose(),
+              axom::fmt::format("checkContourSurface: node {} at {} has dist {}, off by {}",
+                                iNode,
+                                pt,
+                                analyticalVal,
+                                diff));
+          }
         }
       }
       SLIC_INFO_IF(m_params.isVerbose(),
@@ -1310,7 +1325,7 @@ struct ContourTestBase
           upper[d] = coordsViews[d][upperIdx];
         }
         axom::primal::BoundingBox<double, DIM> parentCellBox(lower, upper);
-        auto tol = axom::numerics::floating_point_limits<double>::epsilon();
+        auto tol = geometryTolerance(computationalMesh);
         axom::primal::BoundingBox<double, DIM> big(parentCellBox);
         big.expand(tol);
         axom::primal::BoundingBox<double, DIM> small(parentCellBox);
@@ -1520,6 +1535,7 @@ struct PlanarTestStrategy : public ContourTestStrategy<DIM>
   virtual std::string testName() const override { return std::string("planar"); }
   virtual std::string functionName() const override { return std::string("dist_to_plane"); }
   double errorTolerance() const override { return _errTol; }
+  void setTolerance(double errTol) { _errTol = errTol; }
   virtual double valueAt(const PointType& pt) const override { return _plane.signedDistance(pt); }
   const axom::primal::Plane<double, DIM> _plane;
   double _errTol;
@@ -1846,6 +1862,10 @@ int main(int argc, char** argv)
       {
         planarStrat = std::make_shared<PlanarTestStrategy<DIM>>(params.planeNormal<DIM>(),
                                                                 params.inplanePoint<DIM>());
+        if(params.useBumpBackend)
+        {
+          planarStrat->setTolerance(contourTest.geometryTolerance(computationalMesh));
+        }
         contourTest.addTestStrategy(planarStrat);
       }
 
