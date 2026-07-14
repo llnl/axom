@@ -57,9 +57,9 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
     "coordsets/" + dom.fetch_existing("topologies/" + m_topologyName + "/coordset").as_string();
   SLIC_ASSERT(dom.has_path(coordsetPath));
 
-  if(!m_maskPath.empty())
+  if(!maskField.empty())
   {
-    m_maskPath = maskField.empty() ? std::string() : "fields/" + maskField;
+    m_maskPath = "fields/" + maskField;
     SLIC_ASSERT(dom.has_path(m_maskPath + "/values"));
   }
   else

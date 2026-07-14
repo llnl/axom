@@ -50,6 +50,7 @@ using Vector3D = primal::Vector<double, 3>;
 using Ray3D = primal::Ray<double, 3>;
 using UMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 using DomainIdType = quest::MarchingCubes::DomainIdType;
+using RuntimePolicy = quest::MarchingCubes::RuntimePolicy;
 
 namespace
 {
@@ -199,6 +200,13 @@ struct CanonicalTriangleMesh
   std::vector<TriangleNodeIds> triangles;
 };
 
+struct RuntimeBlueprintData
+{
+  conduit::Node mesh;
+  std::vector<axom::Array<double>> doubleArrays;
+  std::vector<axom::Array<int>> intArrays;
+};
+
 constexpr StructuredDomainSpec SINGLE_CUBE_SPEC {2, 2, 2, 0};
 constexpr StructuredDomainSpec EMBEDDED_CUBE_SPEC {3, 3, 3, 0};
 constexpr double POINT_TOL = 1.0e-12;
@@ -206,9 +214,33 @@ constexpr std::array<double, 3> SKIMAGE_ELLIPSOID_SEMI_AXES {{6.0, 10.0, 16.0}};
 constexpr std::array<double, 3> SKIMAGE_ANISOTROPIC_SPACING {{1.0, 10.0 / 6.0, 16.0 / 6.0}};
 constexpr double SKIMAGE_ELLIPSOID_SURFACE_AREA = 1383.2828269179888;
 
+int allocatorIDForRuntimePolicy(RuntimePolicy policy)
+{
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  if(policy == RuntimePolicy::cuda)
+  {
+    return axom::detail::getAllocatorID<axom::MemorySpace::Unified>();
+  }
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  if(policy == RuntimePolicy::hip)
+  {
+    return axom::detail::getAllocatorID<axom::MemorySpace::Unified>();
+  }
+  #endif
+  AXOM_UNUSED_VAR(policy);
+  return axom::getDefaultAllocatorID();
+}
+
 axom::IndexType vertexIndex(axom::IndexType i, axom::IndexType j, axom::IndexType k)
 {
   return (k * NUM_VERTS_J + j) * NUM_VERTS_I + i;
+}
+
+bool isOuterBoundaryVertex(axom::IndexType i, axom::IndexType j, axom::IndexType k)
+{
+  return i == 0 || i == NUM_VERTS_I - 1 || j == 0 || j == NUM_VERTS_J - 1 || k == 0 ||
+    k == NUM_VERTS_K - 1;
 }
 
 HexVertexIds hexVertexIds(axom::IndexType i, axom::IndexType j, axom::IndexType k)
@@ -489,6 +521,33 @@ void populateNodalVolumeFractions(BlueprintMeshData& data)
     EXPECT_GT(contributionCount[idx], 0);
     data.vf[idx] = vfAccum[idx] / static_cast<double>(contributionCount[idx]);
   }
+
+  for(axom::IndexType k = 0; k < NUM_VERTS_K; ++k)
+  {
+    for(axom::IndexType j = 0; j < NUM_VERTS_J; ++j)
+    {
+      for(axom::IndexType i = 0; i < NUM_VERTS_I; ++i)
+      {
+        if(!isOuterBoundaryVertex(i, j, k))
+        {
+          continue;
+        }
+
+        const axom::IndexType idx = vertexIndex(i, j, k);
+        const Point3D pt {data.x[idx], data.y[idx], data.z[idx]};
+
+        // This reproducer assumes the sphere is fully interior to the domain.
+        // One-sided nodal averaging on the outer box can still push some
+        // analytically exterior boundary nodes above the 0.5 contour threshold,
+        // which creates an artificial open contour on the domain boundary.
+        if(sphereLevelSet(pt, SPHERE_CENTER, SPHERE_RADIUS) > 0.0)
+        {
+          data.vf[idx] = 0.0;
+          EXPECT_LE(data.vf[idx], 0.5);
+        }
+      }
+    }
+  }
 }
 
 void populateBlueprintNode(BlueprintMeshData& data)
@@ -607,13 +666,14 @@ void buildContourMesh(const conduit::Node& blueprintMesh,
                       const std::string& fieldName,
                       double contourValue,
                       UMesh& contourMesh,
-                      const std::string& maskField = "")
+                      const std::string& maskField = "",
+                      RuntimePolicy runtimePolicy = RuntimePolicy::seq)
 {
   conduit::Node verifyInfo;
   EXPECT_TRUE(conduit::blueprint::mesh::verify(blueprintMesh, verifyInfo)) << verifyInfo.to_yaml();
 
-  quest::MarchingCubes mc(axom::runtime_policy::Policy::seq,
-                          axom::getDefaultAllocatorID(),
+  quest::MarchingCubes mc(runtimePolicy,
+                          allocatorIDForRuntimePolicy(runtimePolicy),
                           quest::MarchingCubesDataParallelism::byPolicy);
   mc.setMesh(blueprintMesh, "mesh", maskField);
   mc.setFunctionField(fieldName);
@@ -1734,9 +1794,10 @@ double generatePredefinedPlane(PlaneCase topologyCase, CornerValues& values)
 
 void runStructuredCase(const StructuredCaseBlueprintData& meshData,
                        UMesh& contourMesh,
-                       const std::string& maskField = {})
+                       const std::string& maskField = {},
+                       RuntimePolicy runtimePolicy = RuntimePolicy::seq)
 {
-  buildContourMesh(meshData.mesh, "field", meshData.isoValue, contourMesh, maskField);
+  buildContourMesh(meshData.mesh, "field", meshData.isoValue, contourMesh, maskField, runtimePolicy);
 }
 
 std::vector<Point3D> cgalIsoVertices(const CornerValues& values, double isoValue)
@@ -1919,6 +1980,175 @@ void expectCanonicalMeshesEqual(const UMesh& lhs, const UMesh& rhs, double tol =
   EXPECT_EQ(lhsMesh.triangles, rhsMesh.triangles);
 }
 
+void copyExternalDoubleArray(RuntimeBlueprintData& data,
+                             conduit::Node& dst,
+                             const conduit::Node& src,
+                             int allocatorID)
+{
+  const axom::IndexType count = static_cast<axom::IndexType>(src.dtype().number_of_elements());
+  data.doubleArrays.emplace_back(count, count, allocatorID);
+  axom::Array<double>& values = data.doubleArrays.back();
+  values.set(src.as_double_ptr(), count, 0);
+  dst.set_external(conduit::DataType::float64(count), values.data());
+}
+
+void copyExternalIntArray(RuntimeBlueprintData& data,
+                          conduit::Node& dst,
+                          const conduit::Node& src,
+                          int allocatorID)
+{
+  const axom::IndexType count = static_cast<axom::IndexType>(src.dtype().number_of_elements());
+  data.intArrays.emplace_back(count, count, allocatorID);
+  axom::Array<int>& values = data.intArrays.back();
+  values.set(src.as_int_ptr(), count, 0);
+  dst.set_external(conduit::DataType::int32(count), values.data());
+}
+
+RuntimeBlueprintData makeRuntimeBlueprintData(const conduit::Node& sourceMesh,
+                                              const std::string& fieldName,
+                                              const std::string& maskField,
+                                              RuntimePolicy runtimePolicy)
+{
+  RuntimeBlueprintData data;
+  const int allocatorID = allocatorIDForRuntimePolicy(runtimePolicy);
+  const conduit::index_t domainCount = conduit::blueprint::mesh::number_of_domains(sourceMesh);
+
+  data.doubleArrays.reserve(static_cast<std::size_t>(domainCount) * 4);
+  data.intArrays.reserve(maskField.empty() ? 0 : static_cast<std::size_t>(domainCount));
+
+  for(conduit::index_t domainIdx = 0; domainIdx < domainCount; ++domainIdx)
+  {
+    const conduit::Node& sourceDomain = sourceMesh.child(domainIdx);
+    conduit::Node& domain = data.mesh.append();
+
+    domain["coordsets/coords/type"] = "explicit";
+    copyExternalDoubleArray(data,
+                            domain["coordsets/coords/values/x"],
+                            sourceDomain.fetch_existing("coordsets/coords/values/x"),
+                            allocatorID);
+    copyExternalDoubleArray(data,
+                            domain["coordsets/coords/values/y"],
+                            sourceDomain.fetch_existing("coordsets/coords/values/y"),
+                            allocatorID);
+    copyExternalDoubleArray(data,
+                            domain["coordsets/coords/values/z"],
+                            sourceDomain.fetch_existing("coordsets/coords/values/z"),
+                            allocatorID);
+
+    domain["topologies/mesh"].set(sourceDomain.fetch_existing("topologies/mesh"));
+    if(sourceDomain.has_path("state/domain_id"))
+    {
+      domain["state/domain_id"].set(sourceDomain.fetch_existing("state/domain_id"));
+    }
+
+    const conduit::Node& sourceField = sourceDomain.fetch_existing("fields/" + fieldName);
+    conduit::Node& field = domain["fields/" + fieldName];
+    field["association"].set(sourceField.fetch_existing("association"));
+    field["topology"].set(sourceField.fetch_existing("topology"));
+    if(sourceField.has_path("volume_dependent"))
+    {
+      field["volume_dependent"].set(sourceField.fetch_existing("volume_dependent"));
+    }
+    copyExternalDoubleArray(data, field["values"], sourceField.fetch_existing("values"), allocatorID);
+
+    if(!maskField.empty())
+    {
+      const conduit::Node& sourceMask = sourceDomain.fetch_existing("fields/" + maskField);
+      conduit::Node& mask = domain["fields/" + maskField];
+      mask["association"].set(sourceMask.fetch_existing("association"));
+      mask["topology"].set(sourceMask.fetch_existing("topology"));
+      copyExternalIntArray(data, mask["values"], sourceMask.fetch_existing("values"), allocatorID);
+    }
+  }
+
+  return data;
+}
+
+const char* runtimePolicyName(RuntimePolicy policy)
+{
+  switch(policy)
+  {
+  case RuntimePolicy::seq:
+    return "seq";
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    return "omp";
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case RuntimePolicy::cuda:
+    return "cuda";
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::hip:
+    return "hip";
+  #endif
+  default:
+    return "unknown";
+  }
+}
+
+std::vector<RuntimePolicy> availableHostRuntimePolicies()
+{
+  std::vector<RuntimePolicy> policies {RuntimePolicy::seq};
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  policies.push_back(RuntimePolicy::omp);
+  #endif
+  return policies;
+}
+
+std::vector<RuntimePolicy> availableDeviceRuntimePolicies()
+{
+  std::vector<RuntimePolicy> policies;
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  policies.push_back(RuntimePolicy::cuda);
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  policies.push_back(RuntimePolicy::hip);
+  #endif
+  return policies;
+}
+
+void expectHostPolicyParity(const conduit::Node& blueprintMesh,
+                            const std::string& fieldName,
+                            double contourValue,
+                            const std::string& maskField = {})
+{
+  UMesh seqMesh(3, mint::TRIANGLE);
+  buildContourMesh(blueprintMesh, fieldName, contourValue, seqMesh, maskField, RuntimePolicy::seq);
+
+  for(RuntimePolicy policy : availableHostRuntimePolicies())
+  {
+    if(policy == RuntimePolicy::seq)
+    {
+      continue;
+    }
+
+    SCOPED_TRACE(runtimePolicyName(policy));
+    UMesh policyMesh(3, mint::TRIANGLE);
+    buildContourMesh(blueprintMesh, fieldName, contourValue, policyMesh, maskField, policy);
+    expectCanonicalMeshesEqual(seqMesh, policyMesh);
+  }
+}
+
+void expectDevicePolicyParity(const conduit::Node& blueprintMesh,
+                              const std::string& fieldName,
+                              double contourValue,
+                              const std::string& maskField = {})
+{
+  UMesh seqMesh(3, mint::TRIANGLE);
+  buildContourMesh(blueprintMesh, fieldName, contourValue, seqMesh, maskField, RuntimePolicy::seq);
+
+  for(RuntimePolicy policy : availableDeviceRuntimePolicies())
+  {
+    SCOPED_TRACE(runtimePolicyName(policy));
+    RuntimeBlueprintData runtimeData =
+      makeRuntimeBlueprintData(blueprintMesh, fieldName, maskField, policy);
+    UMesh policyMesh(3, mint::TRIANGLE);
+    buildContourMesh(runtimeData.mesh, fieldName, contourValue, policyMesh, maskField, policy);
+    expectCanonicalMeshesEqual(seqMesh, policyMesh);
+  }
+}
+
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -1928,6 +2158,10 @@ void expectCanonicalMeshesEqual(const UMesh& lhs, const UMesh& rhs, double tol =
 TEST(quest_marching_cubes, banded_nodal_volume_fraction_surface)
 {
   UMesh contourMesh(3, mint::TRIANGLE);
+  // This reproducer assumes the analytical sphere remains fully interior to
+  // the warped box. The nodal VF builder enforces that outer-boundary vertices
+  // that are analytically outside the sphere stay on the exterior side of the
+  // 0.5 contour after one-sided boundary averaging.
   buildBandedVolumeFractionContourMesh(contourMesh);
   const MeshInspection inspection = inspectContourMesh(contourMesh);
 
@@ -2093,6 +2327,86 @@ TEST(quest_marching_cubes, multidomain_seam_surface)
     ASSERT_NE(iter, validCellCounts.end());
     EXPECT_GE(parentCellIds[cellId], 0);
     EXPECT_LT(parentCellIds[cellId], iter->second);
+  }
+}
+
+TEST(quest_marching_cubes, host_policy_parity_representative_cases)
+{
+  if(availableHostRuntimePolicies().size() < 2)
+  {
+    GTEST_SKIP() << "No non-seq host runtime policy is enabled.";
+  }
+
+  {
+    SCOPED_TRACE("single_cell");
+    auto meshData = makeNonuniformSingleTriangleBlueprint();
+    expectHostPolicyParity(meshData.mesh, "field", 0.0);
+  }
+
+  {
+    SCOPED_TRACE("embedded_ambiguous_cell");
+    CornerValues values {};
+    const double isoValue = generatePredefinedInnerAmbiguity(AmbiguousCase::MC_4_TUNNEL, values);
+    auto meshData = makeEmbeddedStructuredCaseBlueprint(values, isoValue);
+    expectHostPolicyParity(meshData.mesh, "field", isoValue);
+  }
+
+  {
+    SCOPED_TRACE("masked_classic_cell");
+    auto meshData = makeSingleCubeCaseBlueprint(105);
+    expectHostPolicyParity(meshData.mesh, "field", 0.0, "mask");
+  }
+
+  {
+    SCOPED_TRACE("multidomain_seam");
+    auto meshData = makeMultidomainSeamBlueprint();
+    expectHostPolicyParity(meshData.mesh, "field", 0.0);
+  }
+
+  {
+    SCOPED_TRACE("closed_sphere");
+    auto meshData = makeUniformSphereBlueprint(StructuredDomainSpec {12, 8, 8, 0});
+    expectHostPolicyParity(meshData.mesh, "field", 0.0);
+  }
+}
+
+TEST(quest_marching_cubes, device_policy_parity_representative_cases)
+{
+  if(availableDeviceRuntimePolicies().empty())
+  {
+    GTEST_SKIP() << "No device runtime policy is enabled.";
+  }
+
+  {
+    SCOPED_TRACE("single_cell");
+    auto meshData = makeNonuniformSingleTriangleBlueprint();
+    expectDevicePolicyParity(meshData.mesh, "field", 0.0);
+  }
+
+  {
+    SCOPED_TRACE("embedded_ambiguous_cell");
+    CornerValues values {};
+    const double isoValue = generatePredefinedInnerAmbiguity(AmbiguousCase::MC_4_TUNNEL, values);
+    auto meshData = makeEmbeddedStructuredCaseBlueprint(values, isoValue);
+    expectDevicePolicyParity(meshData.mesh, "field", isoValue);
+  }
+
+  {
+    SCOPED_TRACE("masked_classic_cell");
+    auto meshData = makeSingleCubeCaseBlueprint(105);
+    expectDevicePolicyParity(meshData.mesh, "field", 0.0, "mask");
+  }
+
+  {
+    SCOPED_TRACE("multidomain_seam");
+    auto meshData = makeMultidomainSeamBlueprint();
+    expectDevicePolicyParity(meshData.mesh, "field", 0.0);
+  }
+
+  {
+    SCOPED_TRACE("closed_sphere");
+    auto meshData = makeUniformSphereBlueprint(StructuredDomainSpec {12, 8, 8, 0});
+    expectDevicePolicyParity(meshData.mesh, "field", 0.0);
   }
 }
 
@@ -2378,6 +2692,27 @@ TEST(quest_marching_cubes, tracked_regression_iso_edge_separated_endpoint_snappi
   // Tracked robustness regression: classic MarchingCubes should not emit
   // an iso-edge contour that misses the snapped endpoint vertices for this
   // CGAL-inspired separated iso-edge case.
+  expectContainsPoints(uniquePoints, cgalIsoVertices(values, isoValue));
+}
+
+TEST(quest_marching_cubes, tracked_regression_near_iso_edge_endpoint_snapping)
+{
+  CornerValues values {};
+  const double isoValue = generatePredefinedIsoEdge(IsoEdgeCase::SEPARATED, values);
+  values[0] = isoValue + 5.0e-15;
+  values[1] = isoValue - 5.0e-15;
+
+  const auto meshData = makeSingleCellStructuredCaseBlueprint(values, isoValue);
+  UMesh contourMesh(3, mint::TRIANGLE);
+  runStructuredCase(meshData, contourMesh, "mask");
+
+  const MeshInspection inspection = inspectContourMesh(contourMesh);
+  const std::vector<Point3D> uniquePoints = extractUniquePoints(contourMesh).points;
+
+  ASSERT_GT(contourMesh.getNumberOfCells(), 0);
+  EXPECT_EQ(inspection.isolatedPointCount, 0);
+  EXPECT_EQ(inspection.degenerateTriangleCount, 0);
+
   expectContainsPoints(uniquePoints, cgalIsoVertices(values, isoValue));
 }
 
