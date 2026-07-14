@@ -33,15 +33,13 @@ namespace detail
 namespace marching_cubes
 {
 /*!
-  @brief Computations for MarchingCubesSingleDomain
-
-  Spatial dimension and execution space are here as template
-  parameters, to keep out of higher level classes MarchingCubes and
-  MarchingCubesSingleDomain.
-
-  ExecSpace is the general execution space, like axom::SEQ_EXEC and
-  axom::CUDA_EXEC<256>.
-*/
+ * @brief Computations for MarchingCubesSingleDomain
+ *
+ * Spatial dimension and execution space are here as template parameters,
+ * to keep out of higher level classes MarchingCubes and MarchingCubesSingleDomain.
+ *
+ * ExecSpace is the general execution space, like axom::SEQ_EXEC and axom::CUDA_EXEC<256>.
+ */
 template <int DIM, typename ExecSpace, typename SequentialExecSpace>
 class MarchingCubesImpl : public MarchingCubesSingleDomain::ImplBase
 {
@@ -77,17 +75,14 @@ public:
   }
 
   /*!
-    @brief Initialize data to a blueprint domain.
-    @param dom Blueprint structured mesh domain
-    @param topologyName Name of mesh topology (see blueprint
-           mesh documentation)
-    @param maskFieldName Name of integer cell mask function is in dom
-
-    Set up views to domain data and allocate other data to work on the
-    given domain.
-
-    The above data from the domain MUST be in a memory space
-    compatible with ExecSpace.
+   * @brief Initialize data to a blueprint domain.
+   * @param dom Blueprint structured mesh domain
+   * @param topologyName Name of mesh topology (see blueprint mesh documentation)
+   * @param maskFieldName Name of integer cell mask function is in dom
+   *
+   * Set up views to domain data and allocate other data to work on the given domain.
+   * 
+   * The above data from the domain MUST be in a memory space compatible with ExecSpace.
   */
   AXOM_HOST void setDomain(const conduit::Node& dom,
                            const std::string& topologyName,
@@ -215,10 +210,9 @@ public:
   }
 
   /*!
-    @brief Implementation used by MarchingCubesImpl::markCrossings_dim()
-    containing just the objects needed for that part, to be made available
-    on devices.
-  */
+   * @brief Implementation used by MarchingCubesImpl::markCrossings_dim()
+   * containing just the objects needed for that part, to be made available on devices.
+   */
   struct MarkCrossings_Util
   {
     axom::ArrayView<std::uint16_t, DIM, MemorySpace> caseIdsView;
@@ -520,10 +514,9 @@ public:
   }
 
   /*!
-    @brief Implementation used by MarchingCubesImpl::computeFacets().
-    containing just the objects needed for that part, to be made available
-    on devices.
-  */
+   * @brief Implementation used by MarchingCubesImpl::computeFacets().
+   * containing just the objects needed for that part, to be made available on devices.
+   */
   struct ComputeFacets_Util
   {
     double contourVal;
@@ -768,10 +761,8 @@ public:
     return index;
   }
 
-  /*!
-    @brief Constructor.
-  */
-  MarchingCubesImpl() { }
+  //! @brief Constructor
+  MarchingCubesImpl() = default;
 
   /*!
     @brief Clear computed data (without deallocating memory).

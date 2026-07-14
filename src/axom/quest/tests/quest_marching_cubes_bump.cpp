@@ -31,26 +31,34 @@
 
 #include "axom/config.hpp"
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+#ifndef AXOM_USE_CONDUIT
+  #error "quest_marching_cubes_bump.cpp requires conduit"
+#endif
+#ifndef AXOM_USE_BUMP
+  #error "quest_marching_cubes_bump.cpp requires bump"
+#endif
+#ifndef AXOM_USE_SIDRE
+  #error "quest_marching_cubes_bump.cpp requires sidre"
+#endif
 
-  #include "axom/core.hpp"
-  #include "axom/bump/utilities/conduit_memory.hpp"
-  #include "axom/primal.hpp"
-  #include "axom/quest/MarchingCubes.hpp"
-  #include "axom/quest/util/mesh_helpers.hpp"
-  #include "axom/sidre.hpp"
-  #include "axom/spin/MortonIndex.hpp"
-  #include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/core.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/primal.hpp"
+#include "axom/quest/MarchingCubes.hpp"
+#include "axom/quest/util/mesh_helpers.hpp"
+#include "axom/sidre.hpp"
+#include "axom/spin/MortonIndex.hpp"
+#include "axom/mint/mesh/UnstructuredMesh.hpp"
 
-  #include "conduit_blueprint.hpp"
+#include "conduit_blueprint.hpp"
 
-  #include "gtest/gtest.h"
+#include "gtest/gtest.h"
 
-  #include <cmath>
-  #include <cstdint>
-  #include <map>
-  #include <unordered_map>
-  #include <utility>
+#include <cmath>
+#include <cstdint>
+#include <map>
+#include <unordered_map>
+#include <utility>
 
 namespace
 {
@@ -68,24 +76,24 @@ void copyBlueprintToPolicy(conduit::Node& dst,
 {
   namespace bputils = axom::bump::utilities;
 
-  // The bump backend reads Blueprint arrays in the execution space associated
-  // with the runtime policy. Keep mesh construction host-side, then copy the
-  // finished Blueprint tree into policy-compatible memory for MarchingCubes.
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+// The bump backend reads Blueprint arrays in the execution space associated
+// with the runtime policy. Keep mesh construction host-side, then copy the
+// finished Blueprint tree into policy-compatible memory for MarchingCubes.
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(policy == RuntimePolicy::cuda)
   {
     bputils::copy<axom::CUDA_EXEC<256>>(dst, src, allocatorID);
     return;
   }
-  #endif
+#endif
 
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(policy == RuntimePolicy::hip)
   {
     bputils::copy<axom::HIP_EXEC<256>>(dst, src, allocatorID);
     return;
   }
-  #endif
+#endif
 
   AXOM_UNUSED_VAR(policy);
   AXOM_UNUSED_VAR(allocatorID);
@@ -837,7 +845,7 @@ TEST(quest_marching_cubes_bump, robustness_seam_nfc_seq)
   test_robustness_seam(RuntimePolicy::seq);
 }
 
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP) && !defined(_WIN32)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP) && !defined(_WIN32)
 TEST(quest_marching_cubes_bump, structured_round_omp) { test_structured_round(RuntimePolicy::omp); }
 TEST(quest_marching_cubes_bump, structured_planar_mask_omp)
 {
@@ -851,9 +859,9 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_omp)
 {
   test_unstructured_hex_round_warped(RuntimePolicy::omp);
 }
-  #endif
+#endif
 
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(quest_marching_cubes_bump, structured_round_cuda)
 {
   test_structured_round(RuntimePolicy::cuda);
@@ -870,9 +878,9 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_cuda)
 {
   test_unstructured_hex_round_warped(RuntimePolicy::cuda);
 }
-  #endif
+#endif
 
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(quest_marching_cubes_bump, structured_round_hip) { test_structured_round(RuntimePolicy::hip); }
 TEST(quest_marching_cubes_bump, structured_planar_mask_hip)
 {
@@ -886,7 +894,7 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_hip)
 {
   test_unstructured_hex_round_warped(RuntimePolicy::hip);
 }
-  #endif
+#endif
 
 // Self-test of the O3 edge-manifold helper (independent of MarchingCubes).
 TEST(quest_marching_cubes_bump, edge_manifold_helper_selftest)
@@ -930,8 +938,6 @@ TEST(quest_marching_cubes_bump, edge_manifold_helper_selftest)
 }
 
 }  // namespace
-
-#endif  // AXOM_USE_CONDUIT && AXOM_USE_BUMP
 
 int main(int argc, char** argv)
 {
