@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_ORIENTEDBOUNDINGBOX_HPP_
-#define AXOM_PRIMAL_ORIENTEDBOUNDINGBOX_HPP_
+#pragma once
 
 #include <vector>
 
@@ -795,5 +794,3 @@ std::ostream& operator<<(std::ostream& os, const OrientedBoundingBox<T, NDIMS>& 
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_ORIENTEDBOUNDINGBOX_HPP_

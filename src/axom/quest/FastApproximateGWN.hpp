@@ -2,8 +2,9 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_QUEST_FAST_APPROXIMATE_GWN_HPP
-#define AXOM_QUEST_FAST_APPROXIMATE_GWN_HPP
+
+#pragma once
+
 #include "axom/primal.hpp"
 
 #include <type_traits>
@@ -704,5 +705,3 @@ axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_POLICY_LINEARBVH_HPP_
-#define AXOM_SPIN_POLICY_LINEARBVH_HPP_
+#pragma once
 
 // axom core includes
 #include "axom/core/Types.hpp"
@@ -563,4 +562,3 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::writeVtkFileImpl(const std::string&
 }  // namespace policy
 }  // namespace spin
 }  // namespace axom
-#endif  // AXOM_SPIN_POLICY_LINEARBVH_HPP_

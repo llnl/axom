@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file CellGenerator.hpp
  * 
  * \brief Contains the specification for the CellGenerator class.
  * 
  */
-
-#ifndef __CELL_GENERATOR_H__
-#define __CELL_GENERATOR_H__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -125,5 +124,3 @@ public:
 
 }  // namespace mir
 }  // namespace axom
-
-#endif

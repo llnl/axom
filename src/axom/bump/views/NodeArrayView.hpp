@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_array_view.hpp"
 #include "axom/slic/interface/slic.hpp"
@@ -325,5 +324,3 @@ void floatNodeToArrayViewSame(conduit::Node &first, Args &&...args)
 }  // namespace views
 }  // namespace bump
 }  // namespace axom
-
-#endif

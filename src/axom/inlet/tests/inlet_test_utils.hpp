@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef INLET_TEST_UTILS_HPP
-#define INLET_TEST_UTILS_HPP
+#pragma once
 
 #include <vector>
 #include <string>
@@ -116,5 +115,3 @@ using ReaderTypes = ::testing::Types<axom::inlet::YAMLReader, axom::inlet::JSONR
 }  // namespace inlet
 
 }  // namespace axom
-
-#endif

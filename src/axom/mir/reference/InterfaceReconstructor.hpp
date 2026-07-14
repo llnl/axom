@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InterfaceReconstructor.hpp
  * 
  * \brief Contains the specification for the InterfaceReconstructor class.
  * 
  */
-
-#ifndef __INTERFACE_RECONSTRUCTOR_H__
-#define __INTERFACE_RECONSTRUCTOR_H__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"
@@ -105,4 +104,3 @@ private:
 };
 }  // namespace mir
 }  // namespace axom
-#endif

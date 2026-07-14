@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_DISCRETIZE_DETAIL_
-#define AXOM_QUEST_DISCRETIZE_DETAIL_
+#pragma once
 
 #include "axom/primal/constants.hpp"
 #include "math.h"
@@ -313,5 +312,3 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_DISCRETIZE_DETAIL_

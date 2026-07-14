@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_RangeAdapter_HPP
-#define Axom_Core_RangeAdapter_HPP
+#pragma once
 
 namespace axom
 {
@@ -31,5 +30,3 @@ private:
 };
 
 }  // namespace axom
-
-#endif

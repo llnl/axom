@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Container.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of Inlet's Container class.
  *******************************************************************************
  */
-
-#ifndef INLET_CONTAINER_HPP
-#define INLET_CONTAINER_HPP
 
 #include <memory>
 #include <string>
@@ -1603,5 +1602,3 @@ const detail::VariantStructFactory<Variant>& Container::variantStructFactory() c
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

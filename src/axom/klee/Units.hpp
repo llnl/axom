@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_UNITS_HPP
-#define AXOM_KLEE_UNITS_HPP
+
+#pragma once
 
 #include "axom/core/utilities/Units.hpp"
 
@@ -37,5 +37,3 @@ LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy);
 }  // namespace internal
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_UNITS_HPP

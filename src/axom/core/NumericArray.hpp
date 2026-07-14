@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_NUMERIC_ARRAY_HPP_
-#define AXOM_PRIMAL_NUMERIC_ARRAY_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -805,5 +804,3 @@ AXOM_HOST_DEVICE inline NumericArray<T, SIZE> abs(const NumericArray<T, SIZE>& a
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::NumericArray<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_NUMERIC_ARRAY_HPP_

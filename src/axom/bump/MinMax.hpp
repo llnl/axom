@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_MINMAX_HPP_
-#define AXOM_BUMP_MINMAX_HPP_
+#pragma once
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/reductions.hpp"
@@ -75,5 +74,3 @@ struct MinMax
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

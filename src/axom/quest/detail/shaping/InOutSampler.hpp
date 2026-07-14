@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using the InOutOctree
  */
-
-#ifndef AXOM_QUEST_INOUT_SAMPLER__HPP_
-#define AXOM_QUEST_INOUT_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -198,5 +197,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_SAMPLER__HPP_

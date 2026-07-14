@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_SORTS_HPP_
-#define AXOM_CORE_EXECUTION_SORTS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -154,4 +153,3 @@ inline void stable_sort_pairs(Container1 &input1, Container2 &input2)
 }
 
 }  // namespace axom
-#endif

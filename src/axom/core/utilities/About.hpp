@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_UTILITIES_ABOUT_H_
-#define AXOM_UTILITIES_ABOUT_H_
+#pragma once
 
 #include <ostream>
 #include <string>
@@ -39,5 +38,3 @@ void about(std::ostream &oss);
 std::string getVersion();
 
 }  // end namespace axom
-
-#endif  //  AXOM_UTILITIES_ABOUT_H_

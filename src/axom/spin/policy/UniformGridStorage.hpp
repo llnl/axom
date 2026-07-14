@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_POLICY_UGRID_STORAGE_HPP
-#define AXOM_SPIN_POLICY_UGRID_STORAGE_HPP
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/execution/for_all.hpp"
@@ -279,4 +278,3 @@ struct FlatGridView
 }  // namespace policy
 }  // namespace spin
 }  // namespace axom
-#endif  // AXOM_SPIN_POLICY_UGRID_STORAGE_HPP

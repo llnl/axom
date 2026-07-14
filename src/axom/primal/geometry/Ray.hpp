@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_RAY_HPP_
-#define AXOM_PRIMAL_RAY_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Segment.hpp"
@@ -167,5 +166,3 @@ std::ostream& operator<<(std::ostream& os, const Ray<T, NDIMS>& ray)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Ray<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_RAY_HPP_

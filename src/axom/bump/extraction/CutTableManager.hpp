@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRACTION_CUT_TABLE_MANAGER_HPP_
-#define AXOM_BUMP_EXTRACTION_CUT_TABLE_MANAGER_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/extraction/TableManager.hpp"
@@ -39,5 +38,3 @@ protected:
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

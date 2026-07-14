@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_UTILITIES_UNIQUE_HPP_
-#define AXOM_BUMP_UTILITIES_UNIQUE_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -256,5 +255,3 @@ struct Unique<axom::SEQ_EXEC, KeyType>
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

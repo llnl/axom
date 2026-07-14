@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef CORE_SYSTEM_UTILITIES_H_
-#define CORE_SYSTEM_UTILITIES_H_
+#pragma once
 
 #include <string>
 #include <locale>
@@ -37,5 +36,3 @@ std::locale locale(const std::string& name = "en_US.UTF-8");
 
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif  //  CORE_SYSTEM_UTILITIES_H_

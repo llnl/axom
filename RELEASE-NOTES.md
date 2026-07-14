@@ -64,6 +64,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Updated `STEPReader` to use centralized length unit parsing and conversion logic.
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
+- Changed to `#pragma once` instead of unique header guard defines
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`

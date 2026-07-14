@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_
-#define AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -333,5 +332,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_

@@ -4,13 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file LogStream.hpp
  *
  */
-
-#ifndef LOGSTREAM_HPP_
-#define LOGSTREAM_HPP_
 
 #include "axom/slic/core/MessageLevel.hpp"
 #include "axom/core/Macros.hpp"
@@ -228,5 +227,3 @@ private:
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* LOGSTREAM_HPP_ */

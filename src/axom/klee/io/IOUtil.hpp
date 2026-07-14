@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_IO_UTIL_HPP_
-#define AXOM_KLEE_IO_UTIL_HPP_
+
+#pragma once
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
@@ -162,5 +162,3 @@ Dimensions toDimensions(const inlet::Proxy &dimProxy);
 }  // namespace internal
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_IO_UTIL_HPP_
