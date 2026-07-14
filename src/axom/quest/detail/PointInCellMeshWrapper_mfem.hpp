@@ -290,7 +290,15 @@ public:
     m_mesh->GetElementTransformation(eltIdx, &tr);
 
     mfem::IntegrationPoint ip;
-    ip.Set(isopar, dim);
+    // GCC 13 release+werror reports false -Warray-bounds diagnostics because MFEM's
+    // IntegrationPoint::Set/Get touch a 3-entry buffer even for 2D elements. Stage 2D
+    // isoparametric coordinates through a local 3-vector before copying the active prefix.
+    double mfemIsopar[3] = {0., 0., 0.};
+    for(int i = 0; i < dim; ++i)
+    {
+      mfemIsopar[i] = isopar[i];
+    }
+    ip.Set(mfemIsopar, dim);
 
     mfem::Vector v(pt, dim);
     tr.Transform(ip, v);
@@ -328,7 +336,12 @@ public:
     // Status codes: {0 -> successful; 1 -> outside elt; 2-> did not converge}
     int err = invTrans.Transform(ptSpace, ipRef);
 
-    ipRef.Get(isopar, dim);
+    double mfemIsopar[3] = {0., 0., 0.};
+    ipRef.Get(mfemIsopar, dim);
+    for(int i = 0; i < dim; ++i)
+    {
+      isopar[i] = mfemIsopar[i];
+    }
 
     return (err == 0);
   }

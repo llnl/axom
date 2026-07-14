@@ -790,11 +790,27 @@ struct test_braid2d_mat
         eq_count += (end == end2) ? 1 : 0;
         count++;
 
-        // Make sure the iterator order is the same as for the values we got from zoneMaterials().
+        // Test ArrayView version of zoneMaterials().
+        using IndexType = typename MatsetView::IndexType;
+        using FloatType = typename MatsetView::FloatType;
+        constexpr int ARRAY_SIZE = 10;
+        IndexType idStorage[ARRAY_SIZE] = {};
+        FloatType vfStorage[ARRAY_SIZE] = {};
+        axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
+        axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
+        const auto nmats = deviceViews.matsetView.zoneMaterials(index, idView, vfView);
+        eq_count += (nmats == ids.size()) ? 1 : 0;
+        count++;
+
+        // GCC 13 release+werror reports false -Wmaybe-uninitialized diagnostics when we index the
+        // StaticArray-backed ids/vfs scratch lists directly after zoneMaterials(). Use the
+        // zero-initialized ArrayView overload as the comparison source so the test still checks
+        // iterator/value consistency without depending on those backing slots.
         int i = 0;
         for(auto it = deviceViews.matsetView.beginZone(index); it != end; it++, i++)
         {
-          eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
+          eq_count +=
+            (i < nmats && vfView[i] == it.volume_fraction() && idView[i] == it.material_id()) ? 1 : 0;
           count++;
         }
 
@@ -810,23 +826,6 @@ struct test_braid2d_mat
             eq_count += (value == it.volume_fraction()) ? 1 : 0;
             count++;
           }
-        }
-
-        // Test ArrayView version of zoneMaterials().
-        using IndexType = typename MatsetView::IndexType;
-        using FloatType = typename MatsetView::FloatType;
-        constexpr int ARRAY_SIZE = 10;
-        IndexType idStorage[ARRAY_SIZE];
-        FloatType vfStorage[ARRAY_SIZE];
-        axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
-        axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
-        const auto nmats = deviceViews.matsetView.zoneMaterials(index, idView, vfView);
-        eq_count += (nmats == ids.size()) ? 1 : 0;
-        count++;
-        for(axom::IndexType j = 0; j < nmats; j++)
-        {
-          eq_count += (vfs[j] == vfView[j] && ids[j] == idView[j]) ? 1 : 0;
-          count++;
         }
 
         resultsView[index] = (eq_count == count) ? 1 : 0;

@@ -857,14 +857,22 @@ inline bool Mesh::hasSidreGroup() const
 //------------------------------------------------------------------------------
 inline const FieldData* Mesh::getFieldData(int association) const
 {
-  SLIC_ERROR_IF(association < 0 || association >= NUM_FIELD_ASSOCIATIONS,
-                "invalid field association [" << association << "]");
-  SLIC_ERROR_IF(m_mesh_fields[association] == nullptr,
+  if(association < 0 || association >= NUM_FIELD_ASSOCIATIONS)
+  {
+    SLIC_ERROR("invalid field association [" << association << "]");
+    return nullptr;
+  }
+
+  // GCC 13 release+werror reports -Warray-bounds on m_mesh_fields[association] when the index is
+  // checked only inside SLIC_ERROR_IF(). Validate the range first, then load the field pointer
+  // through a local so the later null check cannot be misread as an out-of-bounds access.
+  const FieldData* field_data = m_mesh_fields[association];
+  SLIC_ERROR_IF(field_data == nullptr,
                 "null field data object w/association [" << association << "]");
   SLIC_ERROR_IF(m_type == PARTICLE_MESH && association != NODE_CENTERED,
                 "a particle mesh may only store node-centered fields");
 
-  return m_mesh_fields[association];
+  return field_data;
 }
 
 //------------------------------------------------------------------------------

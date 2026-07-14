@@ -172,8 +172,8 @@ void generate_aabbs_and_centroids(const mint::Mesh* mesh,
         PointType coords;
         for(int dim = 0; dim < NDIMS; ++dim)
         {
-          coords[dim] = node[dim];
-          sum[dim] += node[dim];
+          coords[dim] = static_cast<FloatType>(node[dim]);
+          sum[dim] += coords[dim];
         }
 
         range.addPoint(coords);
