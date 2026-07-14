@@ -127,10 +127,6 @@ inline void for_all_cells_impl(xargs::nodeids, const StructuredMesh& m, KernelTy
   const IndexType nodeKp = m.nodeKp();
   const StackArray<IndexType, 8>& offsets = m.getCellNodeOffsetsArray();
 
-  // GCC 13 release+werror still instantiates inactive structured-dimension branches in callers of
-  // xargs::nodeids. Keep the scratch connectivity arrays at the structured 3D maximum so those
-  // compile-time paths never expose undersized local buffers to fixed-shape 2D/3D kernels.
-
   if(dimension == 1)
   {
     for_all_cells_impl<ExecPolicy>(
@@ -429,10 +425,6 @@ inline void for_all_cells_impl(xargs::coords, const UniformMesh& m, KernelType&&
   const double z0 = origin[2];
   const double dz = spacing[2];
 
-  // GCC 13 release+werror still instantiates inactive structured-dimension branches in callers of
-  // xargs::coords. Use the structured 3D maximum for zero-initialized scratch buffers so fixed-
-  // shape 2D/3D kernels do not see undersized local storage when inactive branches are compiled.
-
   if(dimension == 1)
   {
     for_all_cells_impl<ExecPolicy>(
@@ -540,8 +532,6 @@ inline void for_all_cells_impl(xargs::coords, const RectilinearMesh& m, KernelTy
         IndexType nodeIDs[STRUCTURED_MAX_CELL_NODES] = {0};
         nodeIDs[0] = cellID;
         nodeIDs[1] = cellID + 1;
-        // GCC 13 release+werror reports false -Warray-bounds in inactive fixed-2D/3D callers when
-        // this 1D rectilinear branch uses exact-size buffers. Keep the backing storage max-sized.
         double coords[3 * STRUCTURED_MAX_CELL_NODES] = {0.};
         coords[0] = x_vals_view[nodeIDs[0]];
         coords[1] = x_vals_view[nodeIDs[1]];
@@ -703,8 +693,6 @@ inline void for_all_cells_impl(xargs::coords, const UnstructuredMesh<TOPO>& m, K
       xargs::nodeids(),
       m,
       AXOM_LAMBDA(IndexType cellID, const IndexType* nodeIDs, IndexType AXOM_UNUSED_PARAM(numNodes)) {
-        // GCC 13 release+werror reports false -Warray-bounds when inactive 2D/3D callers are
-        // compiled against this 1D unstructured branch. Use a max-sized backing array instead.
         double coords[3 * MAX_CELL_NODES] = {0.};
         coords[0] = x_vals_view[nodeIDs[0]];
         coords[1] = x_vals_view[nodeIDs[1]];

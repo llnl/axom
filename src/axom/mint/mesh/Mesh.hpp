@@ -863,9 +863,6 @@ inline const FieldData* Mesh::getFieldData(int association) const
     return nullptr;
   }
 
-  // GCC 13 release+werror reports -Warray-bounds on m_mesh_fields[association] when the index is
-  // checked only inside SLIC_ERROR_IF(). Validate the range first, then load the field pointer
-  // through a local so the later null check cannot be misread as an out-of-bounds access.
   const FieldData* field_data = m_mesh_fields[association];
   SLIC_ERROR_IF(field_data == nullptr,
                 "null field data object w/association [" << association << "]");

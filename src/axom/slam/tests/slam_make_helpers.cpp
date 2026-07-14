@@ -261,9 +261,8 @@ TEST(slam_make_helpers, make_constant_relation_rejects_undersized_indices)
   EXPECT_DEATH_IF_SUPPORTED(slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices, Pos {4}),
                             "");
 #else
-  // GCC 13 release+werror flags the malformed test buffer as unused because the debug-only
-  // construction assert compiles out. Build the relation anyway and check isValid() so the
-  // release path still exercises the undersized-indices failure instead of skipping the test.
+  // In release builds the construction assert compiles out, so check the invalid relation
+  // directly to keep exercising the undersized-indices path.
   auto rel = slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices, Pos {4});
   EXPECT_FALSE(rel.isValid());
 #endif
