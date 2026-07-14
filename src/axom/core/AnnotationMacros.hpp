@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ANNOTATION_MACROS_HPP_
-#define AXOM_ANNOTATION_MACROS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Annotations.hpp"
@@ -56,5 +55,3 @@
  */
 #define AXOM_ANNOTATE_METADATA(name, value, category) \
   axom::utilities::annotations::declare_metadata(name, value, category)
-
-#endif  // AXOM_ANNOTATION_MACROS_HPP_

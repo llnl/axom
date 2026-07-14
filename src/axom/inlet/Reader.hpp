@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Reader.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the pure virtual base class definition of Reader.
  *******************************************************************************
  */
-
-#ifndef INLET_READER_HPP
-#define INLET_READER_HPP
 
 #include <functional>
 #include <string>
@@ -276,5 +275,3 @@ public:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

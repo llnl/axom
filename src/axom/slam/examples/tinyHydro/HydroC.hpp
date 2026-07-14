@@ -4,6 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
 
 // Hydro driver
 // Fri Mar 27 14:14:28 PDT 2015

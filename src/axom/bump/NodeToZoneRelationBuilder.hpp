@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_NODE_TO_ZONE_RELATION_BUILDER_HPP_
-#define AXOM_BUMP_NODE_TO_ZONE_RELATION_BUILDER_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -567,5 +566,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

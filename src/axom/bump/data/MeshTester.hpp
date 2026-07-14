@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file MeshTester.hpp
  * 
  * \brief Contains the specification for the MeshTester class.
  * 
  */
-
-#ifndef __AXOM_BUMP_MESH_TESTER_HPP__
-#define __AXOM_BUMP_MESH_TESTER_HPP__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/primal.hpp"
@@ -195,5 +194,3 @@ private:
 }  // namespace data
 }  // namespace bump
 }  // namespace axom
-
-#endif

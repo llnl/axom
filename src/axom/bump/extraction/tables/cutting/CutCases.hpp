@@ -2,8 +2,7 @@
 // Project developers.  See the top-level LICENSE file for dates and other
 // details.  No copyright assignment is required to contribute to VisIt.
 
-#ifndef AXOM_BUMP_EXTRACTION_CUT_CASES_H
-#define AXOM_BUMP_EXTRACTION_CUT_CASES_H
+#pragma once
 #include "axom/export/bump.h"
 #include "axom/bump/extraction/ExtractionConstants.hpp"
 #include <cstdlib>
@@ -96,5 +95,3 @@ extern AXOM_BUMP_EXPORT const size_t cutShapesHexSize;
 }  // namespace extraction
 }  // namespace bump
 }  // namespace axom
-
-#endif

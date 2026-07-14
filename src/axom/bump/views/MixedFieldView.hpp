@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_MIXED_FIELD_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_MIXED_FIELD_VIEW_HPP_
+#pragma once
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/StaticArray.hpp"
@@ -156,4 +155,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-#endif

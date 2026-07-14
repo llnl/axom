@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_EXECUTIONSPACE_HPP_
-#define AXOM_EXECUTIONSPACE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
@@ -152,5 +151,3 @@ inline int policyToDefaultAllocatorID(axom::runtime_policy::Policy policy)
 }
 
 }  // namespace axom
-
-#endif  // AXOM_EXECUTIONSPACE_HPP_

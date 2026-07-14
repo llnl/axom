@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPSIDRE_H
+#define WRAPSIDRE_H
+
 /**
  * \file wrapSidre.h
  * \brief Shroud generated wrapper for sidre namespace
  */
 // For C users and C++ implementation
-
-#ifndef WRAPSIDRE_H
-#define WRAPSIDRE_H
 
 #ifndef __cplusplus
   #include <stdbool.h>

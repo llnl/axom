@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -13,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_CONDUITMEMORY_HPP_
-#define SIDRE_CONDUITMEMORY_HPP_
 
 // Standard C++ headers
 #include <string>
@@ -190,5 +189,3 @@ axom::utilities::CheckSum checksum(const conduit::Node& n,
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif  // AXOM_USE_CONDUIT

@@ -4,8 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_MATERIAL_FIELD_HPP_
-#define AXOM_BUMP_DISPATCH_MATERIAL_FIELD_HPP_
+#pragma once
+
 #include "axom/bump/views/dispatch_material.hpp"
 #include "axom/bump/views/MixedFieldView.hpp"
 
@@ -228,5 +228,3 @@ bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

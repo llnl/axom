@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_IS_CONVEX_HPP_
-#define AXOM_PRIMAL_IS_CONVEX_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Segment.hpp"
 #include "axom/primal/geometry/Polygon.hpp"
@@ -68,5 +67,3 @@ bool is_convex(const Polygon<T, 2>& poly, double EPS = 1e-8)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_IMPLICIT_GRID__HPP_
-#define AXOM_SPIN_IMPLICIT_GRID__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -1094,5 +1093,3 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
 
 }  // namespace spin
 }  // namespace axom
-
-#endif  // AXOM_SPIN_IMPLICIT_GRID__HPP_

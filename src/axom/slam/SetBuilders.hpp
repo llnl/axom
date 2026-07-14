@@ -34,8 +34,7 @@
  *  functions are therefore the portable way to get stack-deducing construction in C++17.
  */
 
-#ifndef SLAM_SET_BUILDERS_H_
-#define SLAM_SET_BUILDERS_H_
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/Types.hpp"
@@ -153,5 +152,3 @@ CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, axom::type_identi
 /// \}
 
 }  // end namespace axom::slam
-
-#endif  // SLAM_SET_BUILDERS_H_

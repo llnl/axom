@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_POLICY_TRAITS_H_
-#define SLAM_POLICY_TRAITS_H_
+#pragma once
 
 /**
  * \file PolicyTraits.hpp
@@ -125,5 +124,3 @@ struct indices_use_indirection<T, std::void_t<typename T::ProductSetType>> : std
 ///@}
 
 }  // end namespace axom::slam::traits
-
-#endif  // SLAM_POLICY_TRAITS_H_

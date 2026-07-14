@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file OctreeLevel.hpp
  * \brief Defines templated OctreeLevel class
@@ -16,9 +18,6 @@
  * blocks  MortonOctreeLevel uses a Morton index (of the given bit width) as a
  * hash key for its octree blocks.
  */
-
-#ifndef AXOM_SPIN_OCTREE_LEVEL__HPP_
-#define AXOM_SPIN_OCTREE_LEVEL__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -344,5 +343,3 @@ protected:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_OCTREE_LEVEL__HPP_

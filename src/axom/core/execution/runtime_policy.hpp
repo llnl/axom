@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_RUNTIME_POLICY_HPP_
-#define AXOM_CORE_EXECUTION_RUNTIME_POLICY_HPP_
+#pragma once
 
 #include "axom/config.hpp" /* for compile time defs. */
 #include <string>
@@ -119,5 +118,3 @@ static inline auto format_as(Policy pol) { return axom::fmt::underlying(pol); }
 
 }  // end namespace runtime_policy
 }  // end namespace axom
-
-#endif /* AXOM_CORE_EXECUTION_RUNTIME_POLICY_HPP_ */

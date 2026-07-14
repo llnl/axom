@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file shaping_helpers.hpp
  *
  * \brief Common shaping helper utilities and backend-specific helper facade
  */
-
-#ifndef AXOM_QUEST_SHAPING_HELPERS__HPP_
-#define AXOM_QUEST_SHAPING_HELPERS__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -237,5 +236,3 @@ void checkSampleResolution(const MeshState& meshState,
 #if defined(AXOM_USE_CONDUIT)
   #include "shaping_helpers_blueprint.hpp"
 #endif
-
-#endif  // AXOM_QUEST_SHAPING_HELPERS__HPP_

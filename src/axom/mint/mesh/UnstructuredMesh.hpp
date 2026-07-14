@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_UNSTRUCTUREDMESH_HPP_
-#define MINT_UNSTRUCTUREDMESH_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/Macros.hpp"
@@ -608,7 +607,7 @@ public:
     : UnstructuredMesh(ndims, group, "", "", node_capacity, cell_capacity, connectivity_capacity)
   { }
 
-    /// @}
+  /// @}
 
 #endif /* AXOM_MINT_USE_SIDRE */
 
@@ -1913,5 +1912,3 @@ inline void UnstructuredMesh<MIXED_SHAPE>::updateFaceRelations(IndexType numFace
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_UNSTRUCTUREDMESH_HPP_ */

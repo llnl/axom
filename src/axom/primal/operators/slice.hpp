@@ -4,8 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_SLICE_HPP_
-#define AXOM_PRIMAL_SLICE_HPP_
+#pragma once
+
 #include "axom/core/utilities/Utilities.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
@@ -48,4 +48,3 @@ AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice(const primal
 
 }  // namespace primal
 }  // namespace axom
-#endif

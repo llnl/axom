@@ -4,13 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file LumberjackStream.hpp
  *
  */
-
-#ifndef LUMBERJACKSTREAM_HPP_
-#define LUMBERJACKSTREAM_HPP_
 
 #include "axom/slic/core/LogStream.hpp"
 
@@ -288,5 +287,3 @@ private:
 
 } /* namespace slic */
 } /* namespace axom */
-
-#endif /* LUMBERJACKSTREAM_HPP_ */

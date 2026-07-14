@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_ORIENTATIONRESULT_HPP_
-#define AXOM_PRIMAL_ORIENTATIONRESULT_HPP_
+#pragma once
 
 /*!
  * \file
@@ -30,5 +29,3 @@ enum OrientationResult
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_ORIENTATIONRESULT_HPP_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_SetIfacePolicies_HPP
-#define SLAM_SetIfacePolicies_HPP
+#pragma once
 
 #include <type_traits>
 
@@ -60,5 +59,3 @@ using SetInterface = typename detail::SetInterfaceSelector<InterfacePolicy, PosT
 }  // end namespace policies
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_SetIfacePolicies_HPP

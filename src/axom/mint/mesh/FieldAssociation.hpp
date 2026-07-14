@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FIELDASSOCIATION_HPP_
-#define MINT_FIELDASSOCIATION_HPP_
+#pragma once
 
 namespace axom
 {
@@ -28,5 +27,3 @@ enum FieldAssociation
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_FIELDASSOCIATION_HPP_ */

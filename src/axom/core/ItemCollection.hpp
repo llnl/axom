@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -77,9 +79,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef AXOM_ITEMCOLLECTIONS_HPP_
-#define AXOM_ITEMCOLLECTIONS_HPP_
 
 #include <string>
 
@@ -322,5 +321,3 @@ private:
 };
 
 } /* end namespace axom */
-
-#endif /* AXOM_ITEMCOLLECTIONS_HPP_ */

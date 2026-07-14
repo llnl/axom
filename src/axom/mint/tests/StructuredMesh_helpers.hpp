@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef MINT_STRUCTURED_MESH_TEST_HELPERS_HPP_
-#define MINT_STRUCTURED_MESH_TEST_HELPERS_HPP_
+
+#pragma once
 
 #include "axom/mint/config.hpp"  // for compile-time definitions
 
@@ -982,5 +982,3 @@ inline void check_node_extent(const StructuredMesh* m, const int64* extent)
 } /* namespace internal */
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_STRUCTURED_MESH_TEST_HELPERS_HPP_ */

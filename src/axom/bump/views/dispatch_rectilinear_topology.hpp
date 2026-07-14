@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_RECTILINEAR_TOPOLOGY_HPP_
-#define AXOM_BUMP_DISPATCH_RECTILINEAR_TOPOLOGY_HPP_
+#pragma once
 
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/StructuredIndexing.hpp"
@@ -255,5 +254,3 @@ void dispatch_rectilinear_topology(const conduit::Node &topo, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

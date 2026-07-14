@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/core/execution/scans.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/Array.hpp"

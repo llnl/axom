@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_VECTOR_HPP_
-#define AXOM_PRIMAL_VECTOR_HPP_
+#pragma once
 
 // axom_utils includes
 #include "axom/core/Macros.hpp"
@@ -693,5 +692,3 @@ AXOM_HOST_DEVICE inline Vector<T, NDIMS> Vector<T, NDIMS>::make_vector(const T& 
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Vector<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_VECTOR_HPP_

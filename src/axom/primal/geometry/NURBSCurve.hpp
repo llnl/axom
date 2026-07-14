@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file NURBSCurve.hpp
  *
  * \brief A NURBS curve primitive
  */
-
-#ifndef AXOM_PRIMAL_NURBSCURVE_HPP_
-#define AXOM_PRIMAL_NURBSCURVE_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -1538,5 +1537,3 @@ std::ostream& operator<<(std::ostream& os, const NURBSCurve<T, NDIMS>& nCurve)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::NURBSCurve<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_NURBSCURVE_HPP_

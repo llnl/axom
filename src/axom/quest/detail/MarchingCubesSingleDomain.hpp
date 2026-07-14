@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file MarchingCubesSingleDomain.hpp
  *
  * \brief Consists of classes implementing marching cubes algorithm to
  * compute isocontour from a scalar field in a blueprint mesh.
  */
-
-#ifndef AXOM_QUEST_MARCHINGCUBESSINGLEDOMAIN_H_
-#define AXOM_QUEST_MARCHINGCUBESSINGLEDOMAIN_H_
 
 #include "axom/config.hpp"
 
@@ -263,4 +262,3 @@ private:
 }  // namespace axom
 
 #endif  // AXOM_USE_CONDUIT
-#endif  // AXOM_QUEST_MARCHINGCUBES_H_

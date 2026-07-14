@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_MESHCOORDINATES_HPP_
-#define MINT_MESHCOORDINATES_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"  // for Axom macros and definitions
 #include "axom/mint/deprecated/MCArray.hpp"
@@ -1011,5 +1010,3 @@ inline void MeshCoordinates::initialize(IndexType numNodes, IndexType maxCapacit
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_MESHCOORDINATES_HPP_ */

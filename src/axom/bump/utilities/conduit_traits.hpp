@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_CONDUIT_TRAITS_HPP_
-#define AXOM_BUMP_CONDUIT_TRAITS_HPP_
+#pragma once
 
 #include "axom/export/bump.h"
 
@@ -109,5 +108,3 @@ struct cpp2conduit<conduit::float64>
 }  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

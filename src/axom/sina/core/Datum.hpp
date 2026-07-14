@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_DATUM_HPP
-#define SINA_DATUM_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -197,5 +196,3 @@ private:
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_DATUM_HPP

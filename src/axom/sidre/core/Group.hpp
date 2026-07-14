@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -13,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_GROUP_HPP_
-#define SIDRE_GROUP_HPP_
 
 // axom headers
 #include "axom/config.hpp"
@@ -2140,5 +2139,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_GROUP_HPP_ */

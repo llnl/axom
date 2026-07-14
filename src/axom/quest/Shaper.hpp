@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Shaper.hpp
  *
  * \brief Helper class for shaping queries
  */
-
-#ifndef AXOM_QUEST_SHAPER__HPP_
-#define AXOM_QUEST_SHAPER__HPP_
 
 #include "axom/config.hpp"
 #ifndef AXOM_USE_KLEE
@@ -324,5 +323,3 @@ protected:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_SHAPER__HPP_
