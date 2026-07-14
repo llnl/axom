@@ -57,6 +57,9 @@
 #include <map>
 #include <vector>
 #include <cmath>
+#include <memory>
+#include <type_traits>
+#include <variant>
 
 namespace quest = axom::quest;
 namespace slic = axom::slic;
@@ -1660,83 +1663,81 @@ void finalizeLogger()
   }
 }
 
-//! All the test code that depends on DIM to instantiate.
-template <int DIM, typename ExecSpace>
-int testNdimInstance(BlueprintStructuredMesh& computationalMesh)
+template <typename T>
+struct TypeTag
 {
-  //---------------------------------------------------------------------------
-  // params specify which tests to run.
-  //---------------------------------------------------------------------------
+  using type = T;
+};
 
-  std::shared_ptr<PlanarTestStrategy<DIM>> planarStrat;
-  std::shared_ptr<RoundTestStrategy<DIM>> roundStrat;
-  std::shared_ptr<GyroidTestStrategy<DIM>> gyroidStrat;
+template <int DIM_, typename ExecSpace_>
+struct TestInstance
+{
+  static constexpr int DIM = DIM_;
+  using ExecSpace = ExecSpace_;
+};
 
-  ContourTestBase<DIM, ExecSpace> contourTest;
+using TestInstanceVariant = std::variant<TestInstance<2, axom::SEQ_EXEC>,
+                                         TestInstance<3, axom::SEQ_EXEC>
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+                                         ,
+                                         TestInstance<2, axom::OMP_EXEC>,
+                                         TestInstance<3, axom::OMP_EXEC>
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+                                         ,
+                                         TestInstance<2, axom::CUDA_EXEC<256>>,
+                                         TestInstance<3, axom::CUDA_EXEC<256>>
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+                                         ,
+                                         TestInstance<2, axom::HIP_EXEC<256>>,
+                                         TestInstance<3, axom::HIP_EXEC<256>>
+#endif
+                                         >;
 
-  if(params.usingPlanar())
+template <typename ExecSpace>
+TestInstanceVariant selectTestDimension(TypeTag<ExecSpace>)
+{
+  if(params.ndim == 2)
   {
-    planarStrat = std::make_shared<PlanarTestStrategy<DIM>>(params.planeNormal<DIM>(),
-                                                            params.inplanePoint<DIM>());
-    contourTest.addTestStrategy(planarStrat);
+    return TestInstance<2, ExecSpace> {};
+  }
+  if(params.ndim == 3)
+  {
+    return TestInstance<3, ExecSpace> {};
   }
 
-  if(params.usingRound())
+  SLIC_ERROR(axom::fmt::format("Unsupported mesh dimension {}", params.ndim));
+  return TestInstance<2, axom::SEQ_EXEC> {};
+}
+
+TestInstanceVariant selectTestInstance()
+{
+  if(params.policy == RuntimePolicy::seq)
   {
-    roundStrat = std::make_shared<RoundTestStrategy<DIM>>(params.roundContourCenter<DIM>());
-    roundStrat->setToleranceByLongestEdge(computationalMesh);
-    contourTest.addTestStrategy(roundStrat);
+    return selectTestDimension(TypeTag<axom::SEQ_EXEC> {});
   }
-
-  if(params.usingGyroid())
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  if(params.policy == RuntimePolicy::omp)
   {
-    gyroidStrat =
-      std::make_shared<GyroidTestStrategy<DIM>>(params.gyroidScaleFactor<DIM>(), params.contourVal);
-    gyroidStrat->setToleranceByLongestEdge(computationalMesh);
-    contourTest.addTestStrategy(gyroidStrat);
+    return selectTestDimension(TypeTag<axom::OMP_EXEC> {});
   }
-
-  contourTest.computeNodalDistance(computationalMesh);
-
-  contourTest.addMaskField(computationalMesh);
-
-  if(params.isVerbose())
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  if(params.policy == RuntimePolicy::cuda)
   {
-    computationalMesh.printMeshInfo();
+    return selectTestDimension(TypeTag<axom::CUDA_EXEC<256>> {});
   }
-
-  // Write computational mesh with contour functions.
-  saveMesh(computationalMesh.asConduitNode(), params.fieldsFile);
-
-  int localErrCount = 0;
-  localErrCount += contourTest.runTest(computationalMesh);
-
-  // Check results
-
-  int errCount = 0;
-  if(params.checkResults)
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  if(params.policy == RuntimePolicy::hip)
   {
-#ifdef AXOM_USE_MPI
-    MPI_Allreduce(&localErrCount, &errCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-#else
-    errCount = localErrCount;
+    return selectTestDimension(TypeTag<axom::HIP_EXEC<256>> {});
+  }
 #endif
 
-    if(errCount)
-    {
-      SLIC_INFO(axom::fmt::format(" Error exit: {} errors found.", errCount));
-    }
-    else
-    {
-      SLIC_INFO(banner("Normal exit."));
-    }
-  }
-  else
-  {
-    SLIC_INFO("Results not checked.");
-  }
-
-  return errCount;
+  SLIC_ERROR(axom::fmt::format("Unsupported runtime policy {}", params.policy));
+  return TestInstance<2, axom::SEQ_EXEC> {};
 }
 
 //------------------------------------------------------------------------------
@@ -1818,59 +1819,81 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Run test in the execution space set by command line.
   //---------------------------------------------------------------------------
-  int errCount = 0;
-  if(params.policy == axom::runtime_policy::Policy::seq)
-  {
-    if(params.ndim == 2)
-    {
-      errCount = testNdimInstance<2, axom::SEQ_EXEC>(computationalMesh);
-    }
-    else if(params.ndim == 3)
-    {
-      errCount = testNdimInstance<3, axom::SEQ_EXEC>(computationalMesh);
-    }
-  }
-#if defined(AXOM_USE_RAJA)
-  #ifdef AXOM_USE_OPENMP
-  else if(params.policy == axom::runtime_policy::Policy::omp)
-  {
-    if(params.ndim == 2)
-    {
-      errCount = testNdimInstance<2, axom::OMP_EXEC>(computationalMesh);
-    }
-    else if(params.ndim == 3)
-    {
-      errCount = testNdimInstance<3, axom::OMP_EXEC>(computationalMesh);
-    }
-  }
-  #endif
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
-  else if(params.policy == axom::runtime_policy::Policy::cuda)
-  {
-    if(params.ndim == 2)
-    {
-      errCount = testNdimInstance<2, axom::CUDA_EXEC<256>>(computationalMesh);
-    }
-    else if(params.ndim == 3)
-    {
-      errCount = testNdimInstance<3, axom::CUDA_EXEC<256>>(computationalMesh);
-    }
-  }
-  #endif
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
-  else if(params.policy == axom::runtime_policy::Policy::hip)
-  {
-    if(params.ndim == 2)
-    {
-      errCount = testNdimInstance<2, axom::HIP_EXEC<256>>(computationalMesh);
-    }
-    else if(params.ndim == 3)
-    {
-      errCount = testNdimInstance<3, axom::HIP_EXEC<256>>(computationalMesh);
-    }
-  }
-  #endif
+  auto testInstance = selectTestInstance();
+  int errCount = std::visit(
+    [&](const auto& instance) {
+      AXOM_UNUSED_VAR(instance);
+      using Instance = std::decay_t<decltype(instance)>;
+      constexpr int DIM = Instance::DIM;
+      using ExecSpace = typename Instance::ExecSpace;
+
+      std::shared_ptr<PlanarTestStrategy<DIM>> planarStrat;
+      std::shared_ptr<RoundTestStrategy<DIM>> roundStrat;
+      std::shared_ptr<GyroidTestStrategy<DIM>> gyroidStrat;
+
+      ContourTestBase<DIM, ExecSpace> contourTest;
+
+      if(params.usingPlanar())
+      {
+        planarStrat = std::make_shared<PlanarTestStrategy<DIM>>(params.planeNormal<DIM>(),
+                                                                params.inplanePoint<DIM>());
+        contourTest.addTestStrategy(planarStrat);
+      }
+
+      if(params.usingRound())
+      {
+        roundStrat = std::make_shared<RoundTestStrategy<DIM>>(params.roundContourCenter<DIM>());
+        roundStrat->setToleranceByLongestEdge(computationalMesh);
+        contourTest.addTestStrategy(roundStrat);
+      }
+
+      if(params.usingGyroid())
+      {
+        gyroidStrat = std::make_shared<GyroidTestStrategy<DIM>>(params.gyroidScaleFactor<DIM>(),
+                                                                params.contourVal);
+        gyroidStrat->setToleranceByLongestEdge(computationalMesh);
+        contourTest.addTestStrategy(gyroidStrat);
+      }
+
+      contourTest.computeNodalDistance(computationalMesh);
+      contourTest.addMaskField(computationalMesh);
+
+      if(params.isVerbose())
+      {
+        computationalMesh.printMeshInfo();
+      }
+
+      // Write computational mesh with contour functions.
+      saveMesh(computationalMesh.asConduitNode(), params.fieldsFile);
+
+      int localErrCount = contourTest.runTest(computationalMesh);
+
+      int globalErrCount = 0;
+      if(params.checkResults)
+      {
+#ifdef AXOM_USE_MPI
+        MPI_Allreduce(&localErrCount, &globalErrCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+#else
+        globalErrCount = localErrCount;
 #endif
+
+        if(globalErrCount)
+        {
+          SLIC_INFO(axom::fmt::format(" Error exit: {} errors found.", globalErrCount));
+        }
+        else
+        {
+          SLIC_INFO(banner("Normal exit."));
+        }
+      }
+      else
+      {
+        SLIC_INFO("Results not checked.");
+      }
+
+      return globalErrCount;
+    },
+    testInstance);
 
   questMarchingCubesExample.stop();
   printTimingStats(questMarchingCubesExample, "questMarchingCubesExample");
