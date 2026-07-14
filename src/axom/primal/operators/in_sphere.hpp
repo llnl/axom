@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file in_sphere.hpp
  *
@@ -18,9 +20,6 @@
  *  See detail/predicate_determinants.hpp for the precision/robustness discussion
  *  and in_sphere_orientation() for the tolerance (EPS) scaling caveat.
  */
-
-#ifndef AXOM_PRIMAL_IN_SPHERE_H_
-#define AXOM_PRIMAL_IN_SPHERE_H_
 
 #include "axom/core.hpp"
 #include "axom/primal/geometry/Point.hpp"
@@ -289,5 +288,3 @@ inline bool in_sphere(const BoundingBox<T, 2>& bb, const Sphere<T, 2>& circle)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_SPHERE_H_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAYBASE_HPP_
-#define AXOM_ARRAYBASE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -1418,5 +1417,3 @@ private:
 }  // namespace detail
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAYBASE_HPP_ */

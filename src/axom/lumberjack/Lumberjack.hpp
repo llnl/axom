@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Lumberjack.hpp
@@ -12,9 +14,6 @@
  * which is the main class users will interact with.
  *******************************************************************************
  */
-
-#ifndef LUMBERJACK_HPP
-#define LUMBERJACK_HPP
 
 #include <string>
 
@@ -307,5 +306,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

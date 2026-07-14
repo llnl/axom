@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -13,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_DATASTORE_HPP_
-#define SIDRE_DATASTORE_HPP_
 
 // Standard C++ headers
 #include <vector>
@@ -548,5 +547,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_DATASTORE_HPP_ */

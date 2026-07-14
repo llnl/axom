@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_SCANS_HPP_
-#define AXOM_CORE_EXECUTION_SCANS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -229,5 +228,3 @@ inline void inclusive_scan_inplace(Container &&input)
 /// @}
 
 }  // namespace axom
-
-#endif  // AXOM_CORE_EXECUTION_FOR_ALL_HPP_

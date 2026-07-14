@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_SPATIAL_OCTREE__HPP_
-#define AXOM_SPIN_SPATIAL_OCTREE__HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -196,5 +195,3 @@ protected:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_SPATIAL_OCTREE__HPP_

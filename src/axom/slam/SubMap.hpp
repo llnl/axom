@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SubMap.hpp
  *
  * \brief Contains SubMap, which is a subset of a Map
  *
  */
-
-#ifndef SLAM_SUBMAP_HPP_
-#define SLAM_SUBMAP_HPP_
 
 #include "axom/slic.hpp"
 
@@ -490,5 +489,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_SUBMAP_HPP_

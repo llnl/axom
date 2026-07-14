@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAYVIEW_HPP_
-#define AXOM_ARRAYVIEW_HPP_
+#pragma once
 
 #include "axom/core/memory_management.hpp"  // for memory allocation functions
 #include "axom/core/ArrayBase.hpp"
@@ -571,5 +570,3 @@ void ArrayView<T, DIM, SPACE>::assign(std::initializer_list<T> elems)
 }
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAYVIEW_HPP_ */

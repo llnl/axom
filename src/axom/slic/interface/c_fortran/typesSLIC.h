@@ -6,10 +6,11 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-// For C users and C++ implementation
 
 #ifndef TYPESSLIC_H
 #define TYPESSLIC_H
+
+// For C users and C++ implementation
 
 #include <stddef.h>
 

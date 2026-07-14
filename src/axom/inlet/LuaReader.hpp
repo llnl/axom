@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file LuaReader.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of the LuaReader.
  *******************************************************************************
  */
-
-#ifndef INLET_LUAMAP_HPP
-#define INLET_LUAMAP_HPP
 
 #include "axom/inlet/Reader.hpp"
 #include "axom/sol_forward.hpp"
@@ -170,5 +169,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

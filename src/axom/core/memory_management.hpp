@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MEMORYMANAGEMENT_HPP_
-#define AXOM_MEMORYMANAGEMENT_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -1025,5 +1024,3 @@ inline MemorySpace Allocator::getSpace() const { return axom::detail::getAllocat
 inline MemorySpace HostAllocator::getSpace() const { return axom::detail::getAllocatorSpace(m_id); }
 
 }  // namespace axom
-
-#endif /* AXOM_MEMORYMANAGEMENT_HPP_ */

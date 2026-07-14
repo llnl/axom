@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_CONSTRUCT_HPP_
-#define AXOM_PRIMAL_CONSTRUCT_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
@@ -130,5 +129,3 @@ Polyhedron<T, 3> regular_prism(
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_CONSTRUCT_HPP_

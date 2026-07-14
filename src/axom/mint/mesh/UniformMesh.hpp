@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_UNIFORMMESH_HPP_
-#define MINT_UNIFORMMESH_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/mint/config.hpp"
@@ -185,7 +184,7 @@ public:
               IndexType Nk = -1)
     : UniformMesh(group, "", "", lower_bound, upper_bound, Ni, Nj, Nk)
   { }
-    /// @}
+  /// @}
 
 /// @}
 #endif
@@ -291,5 +290,3 @@ private:
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_UNIFORMMESH_HPP_ */

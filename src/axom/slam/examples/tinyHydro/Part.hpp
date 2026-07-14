@@ -4,11 +4,9 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
 
 // Part class holds the material data for a single material.
-
-#ifndef __Part__
-#define __Part__
 
 #include <vector>
 
@@ -59,5 +57,3 @@ namespace tinyHydro {
   };
 
 } // end namespace tinyHydro
-
-#endif

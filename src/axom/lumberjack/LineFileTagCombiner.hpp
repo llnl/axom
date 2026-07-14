@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file LineFileTagCombiner.hpp
@@ -12,9 +14,6 @@
  * LineFileTagCombiner.
  *******************************************************************************
  */
-
-#ifndef LINEFILETAGCOMBINER_HPP
-#define LINEFILETAGCOMBINER_HPP
 
 #include "axom/lumberjack/Combiner.hpp"
 #include "axom/lumberjack/Message.hpp"
@@ -103,5 +102,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

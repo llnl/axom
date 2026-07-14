@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef CORE_STRING_UTILITIES_H_
-#define CORE_STRING_UTILITIES_H_
+#pragma once
 
 #include <sstream>
 #include <string>
@@ -196,5 +195,3 @@ std::string replaceAllInstances(const std::string& target,
 }  // end namespace string
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif  //  CORE_STRING_UTILITIES_H_

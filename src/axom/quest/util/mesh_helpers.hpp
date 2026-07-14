@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_MESH_HELPERS__HPP_
-#define AXOM_QUEST_MESH_HELPERS__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -251,5 +250,3 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
 }  // namespace util
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_MESH_HELPERS__HPP_

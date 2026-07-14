@@ -203,9 +203,10 @@ namespace slamLulesh {
 #endif
         }
         else {
-          char msg[80];
+          constexpr int msg_size = 80;
+          char msg[msg_size];
           PrintCommandLineOptions(argv[0], myRank);
-          sprintf(msg, "ERROR: Unknown command line argument: %s\n", argv[i]);
+          snprintf(msg, msg_size, "ERROR: Unknown command line argument: %s\n", argv[i]);
           ParseError(msg, myRank);
         }
       }

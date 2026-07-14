@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_MapIfacePolicies_HPP
-#define SLAM_MapIfacePolicies_HPP
+#pragma once
 
 #include <type_traits>
 
@@ -43,5 +42,3 @@ using MapInterface = typename detail::MapInterfaceSelector<InterfacePolicy, SetP
 }  // end namespace policies
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_MapIfacePolicies_HPP

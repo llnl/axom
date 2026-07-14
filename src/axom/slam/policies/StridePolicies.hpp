@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file StridePolicies.hpp
  *
@@ -28,9 +30,6 @@
  *  the dimensional typedefs, DEFAULT_VALUE/IS_COMPILE_TIME).
  *  MultiDimStride is a separate, inherently multi-dimensional policy and is unaffected.
  */
-
-#ifndef SLAM_POLICIES_STRIDE_H_
-#define SLAM_POLICIES_STRIDE_H_
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/StackArray.hpp"
@@ -167,5 +166,3 @@ private:
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_STRIDE_H_

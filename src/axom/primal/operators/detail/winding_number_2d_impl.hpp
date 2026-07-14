@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef PRIMAL_WINDING_NUMBER_2D_IMPL_HPP_
-#define PRIMAL_WINDING_NUMBER_2D_IMPL_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -602,5 +601,3 @@ double nurbs_winding_number(const Point<T, 2>& q,
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif

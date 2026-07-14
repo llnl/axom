@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BitSet.hpp
  *
  * \brief Contains a BitSet class for manipulating ordered sequences of bits.
  */
-
-#ifndef SLAM_BITSET_H_
-#define SLAM_BITSET_H_
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
@@ -416,5 +415,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_BITSET_H_

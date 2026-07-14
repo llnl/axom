@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file IntersectionShaper.hpp
  *
  * \brief Helper class for intersection-based shaping queries
  */
-
-#ifndef AXOM_QUEST_INTERSECTION_SHAPER__HPP_
-#define AXOM_QUEST_INTERSECTION_SHAPER__HPP_
 
 #include "axom/config.hpp"
 
@@ -2647,7 +2646,7 @@ private:
 
 #if defined(__CUDACC__)
 public:
-    // These methods should be private, but NVCC complains unless they're public.
+  // These methods should be private, but NVCC complains unless they're public.
 #endif
 
   template <typename ExecSpace>
@@ -3064,5 +3063,3 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_INTERSECTION_SHAPER__HPP_

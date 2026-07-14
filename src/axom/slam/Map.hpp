@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Map.hpp
  *
  * \brief Basic API for a map from each element of a set to some domain
  *
  */
-
-#ifndef SLAM_MAP_HPP_
-#define SLAM_MAP_HPP_
 
 #include <vector>
 #include <sstream>
@@ -855,5 +854,3 @@ void Map<T, S, IndPol, StrPol, IfacePol>::print() const
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_MAP_HPP_

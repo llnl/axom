@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_POINT_IN_CELL_HPP_
-#define AXOM_QUEST_POINT_IN_CELL_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
@@ -380,5 +379,3 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_POINT_IN_CELL_HPP_

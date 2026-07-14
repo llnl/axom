@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_RADIXTREE_HPP_
-#define AXOM_SPIN_RADIXTREE_HPP_
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/AnnotationMacros.hpp"
@@ -67,5 +66,3 @@ struct RadixTree
 } /* namespace internal */
 } /* namespace spin */
 } /* namespace axom */
-
-#endif /* AXOM_RADIXTREE_HPP_ */

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_INDEXING_POLICIES_HPP_
-#define AXOM_BUMP_INDEXING_POLICIES_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_memory.hpp"
 
@@ -110,5 +109,3 @@ struct SSVertexFieldIndexing
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

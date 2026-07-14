@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  *  \file SidreTypes.hpp
  *
  *  \brief File containing types used in the Sidre component of axom.
  *
  */
-
-#ifndef SIDRE_TYPES_HPP_
-#define SIDRE_TYPES_HPP_
 
 #include "SidreDataTypeIds.h"
 #include "conduit.hpp"
@@ -271,5 +270,3 @@ struct formatter<axom::sidre::DataTypeId>
 };
 }  // namespace fmt
 }  // namespace axom
-
-#endif  // SIDRE_TYPES_HPP_

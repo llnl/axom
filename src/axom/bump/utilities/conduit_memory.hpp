@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_CONDUIT_MEMORY_HPP_
-#define AXOM_BUMP_CONDUIT_MEMORY_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_array_view.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
@@ -196,5 +195,3 @@ bool fillFromNode(const conduit::Node &n, const std::string &key, ArrayType &arr
 }  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file VariantKey.hpp
@@ -12,9 +14,6 @@
  * associative array key type
  *******************************************************************************
  */
-
-#ifndef INLET_KEY_HPP
-#define INLET_KEY_HPP
 
 #include <ostream>
 #include <string>
@@ -175,5 +174,3 @@ struct hash<axom::inlet::VariantKey>
 template <>
 struct axom::fmt::formatter<axom::inlet::VariantKey> : ostream_formatter
 { };
-
-#endif  // INLET_KEY_HPP

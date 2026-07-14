@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_HIP_EXEC_HPP_
-#define AXOM_HIP_EXEC_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
@@ -115,5 +114,3 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, ASYNC>>
   }
 };
 }  // namespace axom
-
-#endif  // AXOM_HIP_EXEC_HPP_

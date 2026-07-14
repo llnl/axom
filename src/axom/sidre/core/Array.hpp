@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SIDRE_ARRAY_HPP_
-#define SIDRE_ARRAY_HPP_
+#pragma once
 
 #include "axom/core/utilities/Utilities.hpp"  // for memory allocation functions
 #include "axom/core/Array.hpp"                // to inherit
@@ -569,5 +568,3 @@ inline axom::IndexType Array<T, DIM>::getViewShape(int dim) const
 
 } /* namespace sidre */
 } /* namespace axom */
-
-#endif /* SIDRE_ARRAY_HPP_ */
