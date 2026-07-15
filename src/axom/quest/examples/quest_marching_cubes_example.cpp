@@ -692,6 +692,11 @@ static void addToStackArray(axom::StackArray<T, DIM>& a, U b)
   }
 }
 
+axom::HostAllocator hostAllocatorToTest()
+{
+  return axom::HostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
+}
+
 /*!
   @brief Strategy pattern for supporting a variety of contour types.
 
@@ -841,8 +846,11 @@ struct ContourTestBase
       {
         AXOM_ANNOTATE_SCOPE("MCInit");
         initializationTimer.start();
-        mcPtr =
-          std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
+        const axom::HostAllocator hostAllocator = hostAllocatorToTest();
+        mcPtr = std::make_unique<quest::MarchingCubes>(params.policy,
+                                                       s_allocatorId,
+                                                       hostAllocator,
+                                                       params.dataParallelism);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
         initializationTimer.stop();
       }
@@ -1611,9 +1619,10 @@ int allocatorIdToTest(axom::runtime_policy::Policy policy)
   //---------------------------------------------------------------------------
   // Memory resource.  For testing, choose device memory if appropriate.
   //---------------------------------------------------------------------------
-  int allocatorID = policy == RuntimePolicy::seq ? axom::HostAllocator {}.getID() :
+  const axom::HostAllocator hostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
+  int allocatorID = policy == RuntimePolicy::seq ? hostAllocator.getID() :
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-    policy == RuntimePolicy::omp ? axom::HostAllocator {}.getID()
+    policy == RuntimePolicy::omp ? hostAllocator.getID()
     :
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)

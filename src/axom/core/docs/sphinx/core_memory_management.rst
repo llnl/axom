@@ -63,6 +63,13 @@ The following illustrates the general pattern::
   axom::HostAllocator hostAlloc {axom::MALLOC_ALLOCATOR_ID};
   // Pass hostAlloc into APIs that allocate host memory or host staging.
 
+For APIs that need both an execution-space allocator and host staging, keep the
+two choices separate::
+
+  int dataAllocId = axom::execution_space<axom::CUDA_EXEC<256>>::allocatorID();
+  axom::HostAllocator hostAlloc {axom::MALLOC_ALLOCATOR_ID};
+  // Pass dataAllocId for primary storage and hostAlloc for host scratch/staging.
+
 Changing the default host and global allocators (legacy)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -78,8 +85,9 @@ In practice, that means:
   ``MemorySpace::Dynamic``.
 * Changing one does not automatically change the other.
 
-Axom host allocator choice can be selected at run time. For example, to switch
-between Axom's malloc-backed host allocator and the platform host allocator::
+Axom host allocator choice can still be selected at run time for compatibility
+paths. For example, to switch between Axom's malloc-backed host allocator and
+the platform host allocator::
 
   // set Axom host allocator to Axom malloc
   axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
@@ -87,16 +95,16 @@ between Axom's malloc-backed host allocator and the platform host allocator::
   // set Axom host allocator to Umpire Host allocator
   axom::setDefaultHostAllocator(axom::MemorySpace::Host);
 
-You can also inspect the current selection::
+You can also inspect the current legacy selection::
 
   int hostAllocId = axom::getDefaultHostAllocatorID();
   int hostSpaceId = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
 
   // hostAllocId and hostSpaceId refer to the same allocator.
 
-If you need to be explicit in an Umpire-enabled build, you can resolve the host
-resource allocator ID yourself and install it as Axom's default host
-allocator::
+If you need to preserve legacy ``MemorySpace::Host`` behavior in an
+Umpire-enabled build, you can resolve the host resource allocator ID yourself
+and install it as Axom's default host allocator::
 
   // set Axom host allocator to an explicitly chosen Umpire allocator
   int hostId =

@@ -187,6 +187,7 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
   // Get ids of necessary allocators
   constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const axom::HostAllocator hostAllocator {host_allocator};
   const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
   BoxType meshBb;
@@ -215,7 +216,8 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
 
   // Initialize the spatial index
   timer.start();
-  quest::PointInCell<mesh_tag, ExecSpace> query(&mesh, bins.data());
+  quest::PointInCell<mesh_tag, ExecSpace> query(
+    &mesh, bins.data(), 1e-8, device_allocator, hostAllocator);
   query.setPrintLevel(args.verbosity);
   query.setInitialGuessType(args.init_guess_type);
   query.setInitialGridOrder(args.init_guess_order);

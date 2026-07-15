@@ -161,9 +161,10 @@ int allocatorIdFromPolicy(axom::runtime_policy::Policy policy)
 {
   AXOM_UNUSED_VAR(policy);
 #if defined(AXOM_USE_UMPIRE)
-  int allocatorID = policy == axom::runtime_policy::Policy::seq ? axom::HostAllocator {}.getID() :
+  const axom::HostAllocator hostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
+  int allocatorID = policy == axom::runtime_policy::Policy::seq ? hostAllocator.getID() :
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-    policy == axom::runtime_policy::Policy::omp ? axom::HostAllocator {}.getID()
+    policy == axom::runtime_policy::Policy::omp ? hostAllocator.getID()
     :
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)

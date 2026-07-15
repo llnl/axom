@@ -315,8 +315,9 @@ void demoArrayDevice()
   axom::Array<int, 1, axom::MemorySpace::Unified> C_explicit_unified_copy(C_device, unified_alloc_id);
 
   // Note that if an allocator ID is incompatible with a memory space, the default
-  // allocator ID for that memory space is used. Both of these examples will copy
-  // memory to the host:
+  // allocator ID for that memory space is used. These compile-time
+  // MemorySpace::Host constructors are legacy convenience behavior, so both of
+  // these examples will copy memory to the host:
   axom::Array<int, 1, axom::MemorySpace::Host> C_use_host_alloc(C_device);
   // The below will also print a warning in debug mode:
   axom::Array<int, 1, axom::MemorySpace::Host> C_use_host_alloc_2(C_device, unified_alloc_id);
@@ -334,6 +335,9 @@ void demoArrayDevice()
   add<<<1, 1>>>(A_dynamic, B_unified, C_device);
 
   // Since our result array is in device memory, we copy it to host memory so we can view it.
+  // This compile-time MemorySpace::Host conversion is a compatibility
+  // convenience; new code that wants explicit host allocator control should
+  // prefer the dynamic-space copy constructor shown below.
   axom::Array<int, 1, axom::MemorySpace::Host> C_host = C_device;
   std::cout << "Array C_host = " << C_host << std::endl;
 
