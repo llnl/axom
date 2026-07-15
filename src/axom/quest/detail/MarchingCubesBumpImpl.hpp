@@ -516,13 +516,15 @@ private:
   }
 
   template <typename TopologyView, typename CoordsetView>
-  bool hasCrossingZones(const TopologyView& topologyView,
-                        const CoordsetView& coordsetView,
-                        const conduit::Node& n_topo,
-                        const conduit::Node& n_coords,
-                        const conduit::Node& n_fields,
-                        const conduit::Node& n_options) const
+  bool attachCrossingSelectedZonesOption(const TopologyView& topologyView,
+                                         const CoordsetView& coordsetView,
+                                         const conduit::Node& n_topo,
+                                         const conduit::Node& n_coords,
+                                         const conduit::Node& n_fields,
+                                         conduit::Node& n_options,
+                                         axom::Array<axom::IndexType>& crossingZones) const
   {
+    AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::attachCrossingSelectedZonesOption");
     namespace bumpx = axom::bump::extraction;
 
     axom::bump::SelectedZones<ExecSpace> selectedZones(topologyView.numberOfZones(),
@@ -541,18 +543,46 @@ private:
     const auto intersectorView = intersector.view();
 
     axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
+    axom::Array<axom::IndexType> crossingFlags(selectedZonesView.size(),
+                                               selectedZonesView.size(),
+                                               m_allocatorID);
+    auto crossingFlagsView = crossingFlags.view();
+    const TopologyView deviceTopologyView(topologyView);
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType selectedIndex) {
         const auto zoneIndex = selectedZonesView[selectedIndex];
-        const auto zone = topologyView.zone(zoneIndex);
+        const auto zone = deviceTopologyView.zone(zoneIndex);
         const auto ids = zone.getIds();
         const auto caseNumber = intersectorView.determineTableCase(zoneIndex, ids);
         const auto allPositive = (axom::IndexType {1} << ids.size()) - axom::IndexType {1};
-        crossingCount += (caseNumber != 0 && caseNumber != allPositive) ? 1 : 0;
+        const axom::IndexType crosses = (caseNumber != 0 && caseNumber != allPositive) ? 1 : 0;
+        crossingFlagsView[selectedIndex] = crosses;
+        crossingCount += crosses;
       });
 
-    return crossingCount.get() > 0;
+    const axom::IndexType crossingCountValue = crossingCount.get();
+    crossingZones =
+      axom::Array<axom::IndexType>(crossingCountValue, crossingCountValue, m_allocatorID);
+
+    axom::Array<axom::IndexType> crossingOffsets(selectedZonesView.size(),
+                                                 selectedZonesView.size(),
+                                                 m_allocatorID);
+    auto crossingOffsetsView = crossingOffsets.view();
+    axom::exclusive_scan<ExecSpace>(crossingFlagsView, crossingOffsetsView);
+
+    auto crossingZonesView = crossingZones.view();
+    axom::for_all<ExecSpace>(
+      selectedZonesView.size(),
+      AXOM_LAMBDA(axom::IndexType selectedIndex) {
+        if(crossingFlagsView[selectedIndex] != 0)
+        {
+          crossingZonesView[crossingOffsetsView[selectedIndex]] = selectedZonesView[selectedIndex];
+        }
+      });
+
+    attachSelectedZonesOption(n_options, crossingZones);
+    return crossingCountValue > 0;
   }
 
   /*!
@@ -587,6 +617,9 @@ private:
     // Ask bump to record each output facet's originating input zone, which we
     // map onto the legacy "parent cell id" output.
     n_options["originalElementsField"] = "originalElements";
+    // MarchingCubes only consumes the generated originalElements field from CutField.
+    // An explicit empty fields map avoids blending/slicing all input fields by default.
+    n_options["fields"].set(conduit::DataType::object());
 
     m_output = std::make_unique<conduit::Node>();
     conduit::Node& n_out = *m_output;
@@ -628,12 +661,13 @@ private:
         iso.setAllocatorID(m_allocatorID);
         axom::Array<axom::IndexType> selectedZones;
         addMaskSelectedZonesOption(topologyView, n_options, selectedZones);
-        if(!hasCrossingZones(topologyView,
-                             coordsetView,
-                             n_topo,
-                             n_coords,
-                             m_dom->fetch_existing("fields"),
-                             n_options))
+        if(!attachCrossingSelectedZonesOption(topologyView,
+                                              coordsetView,
+                                              n_topo,
+                                              n_coords,
+                                              m_dom->fetch_existing("fields"),
+                                              n_options,
+                                              selectedZones))
         {
           m_facetCount = 0;
           return;
@@ -641,7 +675,10 @@ private:
 
         conduit::Node execOptions;
         axom::bump::utilities::copy<ExecSpace>(execOptions, n_options, m_allocatorID);
-        iso.execute(*m_dom, execOptions, n_out);
+        {
+          AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::CutField::execute");
+          iso.execute(*m_dom, execOptions, n_out);
+        }
         extracted = true;
       });
     });
@@ -654,7 +691,10 @@ private:
     // Determine the facet count from the bump output.  After fan-triangulation (see fillLegacyOutputBuffers)
     // the legacy facet count is the number of triangles/segments, not the number of bump polygons;
     // compute it from the output element sizes.
-    m_facetCount = computeTriangulatedFacetCount(n_out);
+    {
+      AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::computeTriangulatedFacetCount");
+      m_facetCount = computeTriangulatedFacetCount(n_out);
+    }
 
     // For the opt-in legacyFieldOrder numbering on structured input, capture the logical cell dims
     // and the function field's stride order so the output adaptor can remap bump's i-fastest zone ids back to the legacy ordering.
@@ -724,6 +764,7 @@ private:
    */
   void fillLegacyOutputBuffers()
   {
+    AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::fillLegacyOutputBuffers");
     SLIC_ASSERT(m_output != nullptr);
     if(m_facetCount == 0)
     {
