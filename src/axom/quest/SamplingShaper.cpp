@@ -302,7 +302,9 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
       else if constexpr(is_inoutsampler_v<typename T::element_type>)
       {
         sampler->computeBounds();
-        sampler->initSpatialIndex(this->m_vertexWeldThreshold);
+        sampler->initSpatialIndex(this->m_vertexWeldThreshold,
+                                  m_inoutOctreeVtkOutputEnabled,
+                                  m_inoutOctreeVtkOutputDirectory);
       }
       else if constexpr(is_primitivesampler_v<typename T::element_type>)
       {
@@ -322,7 +324,8 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
       SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
                                   nVerts,
                                   nCells));
-      mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
+      mint::write_vtk(m_surfaceMesh.get(),
+                      axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
     }
     else if(!m_contours.empty())
     {

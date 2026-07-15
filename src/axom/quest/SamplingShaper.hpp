@@ -178,6 +178,15 @@ public:
 
   void setSamplingMethod(SamplingMethod samplingMethod) { m_samplingMethod = samplingMethod; }
 
+  /// \brief Controls whether InOutOctree VTK visualization dumps are written during sampling.
+  void setInOutOctreeVtkOutputEnabled(bool enabled) { m_inoutOctreeVtkOutputEnabled = enabled; }
+
+  /// \brief Sets the directory for InOutOctree VTK visualization dumps during sampling.
+  void setInOutOctreeVtkOutputDirectory(const std::string& directory)
+  {
+    m_inoutOctreeVtkOutputDirectory = directory;
+  }
+
   /*!
    * \brief Sets the 1D quadrature family used to generate custom sample points.
    *
@@ -753,6 +762,8 @@ private:
   axom::Array<int> m_samplingResolution {};
   int m_volfracOrder {2};
   SamplingMethod m_samplingMethod {SamplingMethod::InOut};
+  bool m_inoutOctreeVtkOutputEnabled {false};
+  std::string m_inoutOctreeVtkOutputDirectory;
 };
 
 }  // namespace quest

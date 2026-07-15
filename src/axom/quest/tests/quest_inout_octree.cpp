@@ -17,6 +17,19 @@
 
 #include "quest_test_utilities.hpp"
 
+#include <cstdlib>
+#include <limits>
+#include <utility>
+
+// Uncomment the line below for true randomized points
+#ifndef INOUT_OCTREE_TESTER_SHOULD_SEED
+//  #define INOUT_OCTREE_TESTER_SHOULD_SEED
+#endif
+
+#ifdef INOUT_OCTREE_TESTER_SHOULD_SEED
+  #include <ctime>  // for time() used by srand()
+#endif
+
 namespace
 {
 const int NUM_PT_TESTS = 50000;
@@ -33,18 +46,6 @@ using SpacePt = Octree3D::SpacePt;
 using SpaceVector = Octree3D::SpaceVector;
 using GridPt = Octree3D::GridPt;
 using BlockIndex = Octree3D::BlockIndex;
-
-#include <cstdlib>
-#include <limits>
-
-// Uncomment the line below for true randomized points
-#ifndef INOUT_OCTREE_TESTER_SHOULD_SEED
-//  #define INOUT_OCTREE_TESTER_SHOULD_SEED
-#endif
-
-#ifdef INOUT_OCTREE_TESTER_SHOULD_SEED
-  #include <ctime>  // for time() used by srand()
-#endif
 
 /// Returns a SpacePt corresponding to the given vertex id \a vIdx  in \a mesh
 SpacePt getVertex(axom::mint::Mesh& mesh, int vIdx)
@@ -231,6 +232,203 @@ TEST(quest_inout_octree, tetrahedron_mesh)
 
     EXPECT_TRUE(octree.within(queryInside));
     EXPECT_FALSE(octree.within(queryOutside));
+  }
+}
+
+//----------------------------------------------------------------------
+TEST(quest_inout_octree, on_surface_points)
+{
+  // Regression test for https://github.com/LLNL/axom/issues/611 (3D)
+  //
+  // Query point lying exactly on the surface should be marked as inside the surface.
+  // This test builds a unit cube as a closed triangle surface (12 triangles) and
+  // checks that points sampled exactly on the surface are reported as 'within'.
+  // It compares against generalized winding number summed over the 12 triangles.
+
+  namespace mint = axom::mint;
+  namespace quest = axom::quest;
+  namespace primal = axom::primal;
+
+  using Point3D = primal::Point<double, 3>;
+  using Triangle3D = primal::Triangle<double, 3>;
+
+  constexpr double x_lo = 0.;
+  constexpr double y_lo = 0.;
+  constexpr double z_lo = 0.;
+  constexpr double x_mid = 0.5;
+  constexpr double y_mid = 0.5;
+  constexpr double z_mid = 0.5;
+  constexpr double x_hi = 1.;
+  constexpr double y_hi = 1.;
+  constexpr double z_hi = 1.;
+
+  // 8 corners of the unit cube.
+  axom::Array<Point3D> V {Point3D {x_lo, y_lo, z_lo},
+                          Point3D {x_hi, y_lo, z_lo},
+                          Point3D {x_hi, y_hi, z_lo},
+                          Point3D {x_lo, y_hi, z_lo},
+                          Point3D {x_lo, y_lo, z_hi},
+                          Point3D {x_hi, y_lo, z_hi},
+                          Point3D {x_hi, y_hi, z_hi},
+                          Point3D {x_lo, y_hi, z_hi}};
+
+  // 12 triangles (2 per face), wound counter-clockwise as seen from outside (outward normals).
+  axom::Array<std::tuple<int, int, int>> TRI {{0, 3, 2},  // z=0 bottom
+                                              {0, 2, 1},
+                                              {4, 5, 6},  // z=1 top
+                                              {4, 6, 7},
+                                              {0, 1, 5},  // y=0 front
+                                              {0, 5, 4},
+                                              {3, 7, 6},  // y=1 back
+                                              {3, 6, 2},
+                                              {0, 4, 7},  // x=0 left
+                                              {0, 7, 3},
+                                              {1, 2, 6},  // x=1 right
+                                              {1, 6, 5}};
+
+  // Build a mesh over the triangles and an octree over the mesh
+  std::shared_ptr<mint::Mesh> mesh = [&V, &TRI]() {
+    auto m = std::make_shared<mint::UnstructuredMesh<mint::SINGLE_SHAPE>>(DIM, mint::TRIANGLE);
+    for(const auto& v : V)
+    {
+      m->appendNode(v[0], v[1], v[2]);
+    }
+    for(const auto& [t0, t1, t2] : TRI)
+    {
+      axom::IndexType cell[3] = {t0, t1, t2};
+      m->appendCell(cell);
+    }
+    return m;
+  }();
+
+  // Use an explicit vertex-weld threshold so the test's on-surface tolerance
+  // and the octree's on-surface tolerance are the same quantity.
+  const double weldThresh = 1e-6;
+  GeometricBoundingBox bbox = computeBoundingBox(*mesh);
+  Octree3D octree(bbox, mesh);
+  octree.setVertexWeldThreshold(weldThresh);
+  octree.generateIndex();
+
+  // The octree treats points within its weld threshold of the surface as 'inside'
+  // The oracle below uses the same tolerance for consistency.
+  const double edgeTol = octree.getVertexWeldThreshold();
+
+  // Matching triangle list for the winding-number oracle.
+  axom::Array<Triangle3D> tris;
+  for(const auto& [t0, t1, t2] : TRI)
+  {
+    tris.emplace_back(V[t0], V[t1], V[t2]);
+  }
+
+  // Oracle: on-surface (by distance) => within; else sign of rounded GWN sum.
+  // The default tolerance matches the octree's vertex-weld threshold.
+  auto expectedWithin = [&tris, edgeTol](const Point3D& q, double edge_tol = -1.0) -> bool {
+    if(edge_tol < 0.0)
+    {
+      edge_tol = edgeTol;
+    }
+    const double edge_tol_2 = edge_tol * edge_tol;
+    double wn = 0.0;
+    for(const auto& tri : tris)
+    {
+      bool onThis {};
+      wn += primal::winding_number(q, tri, onThis, edge_tol, edge_tol);
+      if(onThis || primal::squared_distance(q, tri) <= edge_tol_2)
+      {
+        return true;  // on the surface
+      }
+    }
+    return std::lround(wn) != 0;
+  };
+
+  // Adds some hand-picked on-surface points: face centers, edge midpoints, corners,
+  // and points on the shared diagonal edge between the two triangles of a face.
+  axom::Array<SpacePt> onSurface {
+    // face centers
+    SpacePt {x_mid, y_mid, z_lo},
+    SpacePt {x_mid, y_mid, z_hi},
+    SpacePt {x_mid, y_lo, z_mid},
+    SpacePt {x_mid, y_hi, z_mid},
+    SpacePt {x_lo, y_mid, z_mid},
+    SpacePt {x_hi, y_mid, z_mid},
+    // edge midpoints
+    SpacePt {x_mid, y_lo, z_lo},
+    SpacePt {x_lo, y_mid, z_lo},
+    SpacePt {x_hi, y_hi, z_mid},
+    // corners
+    SpacePt {x_lo, y_lo, z_lo},
+    SpacePt {x_hi, y_hi, z_hi},
+    SpacePt {x_hi, y_lo, z_hi},
+    // off-center on faces
+    SpacePt {0.3, 0.7, z_hi},
+    SpacePt {x_hi, 0.25, 0.6},
+    SpacePt {0.4, 0.4, z_lo}  // on a face diagonal edge
+  };
+
+  // Also add dense set of samples on each triangle
+  const int bres = 8;
+  for(const auto& tri : tris)
+  {
+    for(int a = 0; a <= bres; ++a)
+    {
+      const double u = static_cast<double>(a) / bres;
+      for(int b = 0; a + b <= bres; ++b)
+      {
+        const double v = static_cast<double>(b) / bres;
+        onSurface.push_back(tri.baryToPhysical(SpacePt {u, v, 1. - u - v}));
+      }
+    }
+  }
+
+  // Run the on-surface comparisons
+  for(const auto& q : onSurface)
+  {
+    EXPECT_TRUE(expectedWithin(q)) << "Oracle: point " << q << " should be on/within the surface";
+    EXPECT_TRUE(octree.within(q)) << "On-surface point " << q << " should be within the surface";
+  }
+
+  // Exercise the tolerance band directly: points just inside the surface weld theshold
+  // must be 'within'; points just beyond it must not.
+  const axom::Array<std::pair<SpacePt, SpaceVector>> faceCenterAndNormal {
+    {SpacePt {x_mid, y_mid, z_lo}, SpaceVector {0., 0., -1.}},  // bottom
+    {SpacePt {x_mid, y_mid, z_hi}, SpaceVector {0., 0., 1.}},   // top
+    {SpacePt {x_mid, y_lo, z_mid}, SpaceVector {0., -1., 0.}},  // front
+    {SpacePt {x_mid, y_hi, z_mid}, SpaceVector {0., 1., 0.}},   // back
+    {SpacePt {x_lo, y_mid, z_mid}, SpaceVector {-1., 0., 0.}},  // left
+    {SpacePt {x_hi, y_mid, z_mid}, SpaceVector {1., 0., 0.}}};  // right
+
+  for(const auto& [center, outwardNormal] : faceCenterAndNormal)
+  {
+    // Comfortably within the tolerance band (interior side) -> inside.
+    const SpacePt nearInside = center - (0.5 * weldThresh) * outwardNormal;
+    EXPECT_TRUE(expectedWithin(nearInside))
+      << "Oracle: near-surface point " << nearInside << " should be within";
+    EXPECT_TRUE(octree.within(nearInside))
+      << "Point " << nearInside << " within weld threshold of face center " << center
+      << " should be inside";
+
+    // Comfortably beyond the tolerance band on the exterior side -> outside.
+    const SpacePt farOutside = center + (4. * weldThresh) * outwardNormal;
+    EXPECT_FALSE(expectedWithin(farOutside))
+      << "Oracle: point " << farOutside << " beyond tolerance should be outside";
+    EXPECT_FALSE(octree.within(farOutside))
+      << "Point " << farOutside << " beyond weld threshold outside face center " << center
+      << " should be outside";
+  }
+
+  // Sanity check for several interior query points
+  for(const auto& q_interior : {SpacePt {0.5, 0.5, 0.5}, SpacePt {0.25, 0.75, 0.5}})
+  {
+    EXPECT_TRUE(expectedWithin(q_interior));
+    EXPECT_TRUE(octree.within(q_interior));
+  }
+
+  // Sanity check for several exterior query points
+  for(const auto& q_exterior :
+      {SpacePt {0.5, 0.5, 1.5}, SpacePt {1.5, 0.5, 0.5}, SpacePt {2.0, 2.0, 2.0}})
+  {
+    EXPECT_FALSE(expectedWithin(q_exterior));
+    EXPECT_FALSE(octree.within(q_exterior));
   }
 }
 
