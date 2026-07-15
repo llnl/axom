@@ -614,7 +614,7 @@ endmacro(axom_configure_file)
 ##   1. the staged Python package tree (axom/ + pysidre shim)  -- runtime
 ##   2. conduit's python module dir                            -- runtime
 ##   3. numpy, then mpi4py (MPI configs)                       -- runtime
-##   4. pytest and its dependencies (pluggy, iniconfig)        -- test harness
+##   4. pytest and its dependencies                            -- test harness
 ##
 ## Axom's own package tree comes first so it is preferred over anything the
 ## interpreter might also provide. Entries whose cache variable is unset are skipped;
@@ -632,7 +632,8 @@ function(axom_python_test_environment output_var)
     endforeach()
 
     # (4) test-harness dependencies
-    foreach(_var PY_PYTEST_DIR PY_PLUGGY_DIR PY_INICONFIG_DIR)
+    foreach(_var PY_PYTEST_DIR PY_PLUGGY_DIR PY_INICONFIG_DIR
+                 PY_PACKAGING_DIR PY_PYGMENTS_DIR)
         blt_list_append(TO _paths ELEMENTS "${${_var}}" IF ${_var})
     endforeach()
 
