@@ -249,15 +249,13 @@ TEST(slam_make_helpers, make_variable_relation_carray_rejects_short_begins_size)
 
 TEST(slam_make_helpers, make_constant_relation_rejects_undersized_indices)
 {
+#ifdef AXOM_DEBUG
   auto fromSet = slam::make_range_set(3);
   auto toSet = slam::make_range_set(5);
 
   // A stride-2 constant relation over a size-3 from-set needs 6 indices but we supply 4 here.
-  // make_constant_relation asserts the exact size at construction in debug builds
-  // the check compiles out in release builds.
   Pos indices[4] = {0, 1, 2, 3};
 
-#ifdef AXOM_DEBUG
   EXPECT_DEATH_IF_SUPPORTED(slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices, Pos {4}),
                             "");
 #else
