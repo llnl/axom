@@ -4,28 +4,28 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import axom.sidre as pysidre
+import axom.sidre as sidre
 from conduit import Node
 
 
 # Python automatically calls destructor during garbage collection
 def test_create_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert True
 
 
 def test_valid_invalid():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
 
     idx = 3
-    assert idx != pysidre.InvalidIndex
+    assert idx != sidre.InvalidIndex
 
     name = "foo"
-    assert pysidre.nameIsValid(name)
+    assert sidre.nameIsValid(name)
 
     root = ds.getRoot()
-    assert root.getGroupName(idx) == pysidre.InvalidName
-    assert root.getGroupIndex(name) == pysidre.InvalidIndex
+    assert root.getGroupName(idx) == sidre.InvalidName
+    assert root.getGroupIndex(name) == sidre.InvalidIndex
 
 
 def test_conduit_in_sidre_smoke():

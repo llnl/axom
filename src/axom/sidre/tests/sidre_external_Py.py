@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import axom.sidre as pysidre
+import axom.sidre as sidre
 import numpy as np
 from conduit import Node
 
@@ -14,7 +14,7 @@ from conduit import Node
 
 
 def test_create_external_view():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     length = 11
@@ -29,26 +29,25 @@ def test_create_external_view():
         view = None
         match i:
             case 0:
-                view = root.createView("data0", pysidre.TypeID.INT64_ID, length, idata)
+                view = root.createView("data0", sidre.TypeID.INT64_ID, length, idata)
             case 1:
-                view = root.createView("data1", pysidre.TypeID.INT64_ID,
+                view = root.createView("data1", sidre.TypeID.INT64_ID,
                                        length).setExternalData(idata)
             case 2:
-                view = root.createView("data2").setExternalData(pysidre.TypeID.INT64_ID, length,
+                view = root.createView("data2").setExternalData(sidre.TypeID.INT64_ID, length,
                                                                 idata)
             case 3:
-                view = root.createView("data3", idata).apply(pysidre.TypeID.INT64_ID, length)
+                view = root.createView("data3", idata).apply(sidre.TypeID.INT64_ID, length)
             case 4:
-                view = root.createViewWithShape("data4", pysidre.TypeID.INT64_ID, ndims, shape,
-                                                idata)
+                view = root.createViewWithShape("data4", sidre.TypeID.INT64_ID, ndims, shape, idata)
             case 5:
-                view = root.createViewWithShape("data5", pysidre.TypeID.INT64_ID, ndims,
+                view = root.createViewWithShape("data5", sidre.TypeID.INT64_ID, ndims,
                                                 shape).setExternalData(idata)
             case 6:
-                view = root.createView("data6").setExternalData(pysidre.TypeID.INT64_ID, ndims,
-                                                                shape, idata)
+                view = root.createView("data6").setExternalData(sidre.TypeID.INT64_ID, ndims, shape,
+                                                                idata)
             case 7:
-                view = root.createView("data7", idata).apply(pysidre.TypeID.INT64_ID, ndims, shape)
+                view = root.createView("data7", idata).apply(sidre.TypeID.INT64_ID, ndims, shape)
 
         assert view is not None
         assert root.getNumViews() == i + 1
@@ -60,7 +59,7 @@ def test_create_external_view():
         assert view.isExternal()
         assert not view.isOpaque()
 
-        assert view.getTypeID() == pysidre.TypeID.INT64_ID
+        assert view.getTypeID() == sidre.TypeID.INT64_ID
         assert view.getNumElements() == length
 
         view.print()
@@ -73,7 +72,7 @@ def test_create_external_view():
 
 
 def test_verify_external_layout():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     SZ = 11
@@ -84,7 +83,7 @@ def test_verify_external_layout():
 	associated with external pointers (described or undescribed).""")
 
     # Create some internal views
-    root.createViewAndAllocate("int/desc/bufferview", pysidre.TypeID.INT64_ID, SZ)
+    root.createViewAndAllocate("int/desc/bufferview", sidre.TypeID.INT64_ID, SZ)
     root.createViewScalar("int/scalar/scalarview", SZ)
     root.createViewString("int/string/stringview", "A string")
 
@@ -106,7 +105,7 @@ def test_verify_external_layout():
     assert emptyNode.number_of_children() == 0
 
     # Create some external views
-    root.createView("ext/desc/external_desc", pysidre.TypeID.INT64_ID, SZ, extData)
+    root.createView("ext/desc/external_desc", sidre.TypeID.INT64_ID, SZ, extData)
     root.createView("ext/undesc/external_opaque").setExternalData(extData)
 
     # Sanity check on the external views
@@ -149,11 +148,11 @@ def test_verify_external_layout():
 
 
 def test_save_load_external_view():
-    if not pysidre.AXOM_USE_HDF5:
-        print("pysidre.Group.loadExternalData() is only implemented for the 'sidre_hdf5' protocol")
+    if not sidre.AXOM_USE_HDF5:
+        print("sidre.Group.loadExternalData() is only implemented for the 'sidre_hdf5' protocol")
         return
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     length = 11
@@ -162,13 +161,13 @@ def test_save_load_external_view():
     ddata = np.array([ii * 2.0 for ii in range(length)], dtype=np.float64)
 
     # Create views with external data
-    root.createView("idata", idata).apply(pysidre.TypeID.INT64_ID, length)
-    root.createView("ddata", ddata).apply(pysidre.TypeID.FLOAT64_ID, length)
+    root.createView("idata", idata).apply(sidre.TypeID.INT64_ID, length)
+    root.createView("ddata", ddata).apply(sidre.TypeID.FLOAT64_ID, length)
     assert root.getNumViews() == 2
 
     root.save("sidre_external_save_load_external_view", "sidre_hdf5")
 
-    ds2 = pysidre.DataStore()
+    ds2 = sidre.DataStore()
     load_group = ds2.getRoot()
 
     # Load from file, the Views with external data will be described but
@@ -184,8 +183,8 @@ def test_save_load_external_view():
     assert load_ddata.isExternal()
     assert load_idata.getNumElements() == length
     assert load_ddata.getNumElements() == length
-    assert load_idata.getTypeID() == pysidre.TypeID.INT64_ID
-    assert load_ddata.getTypeID() == pysidre.TypeID.FLOAT64_ID
+    assert load_idata.getTypeID() == sidre.TypeID.INT64_ID
+    assert load_ddata.getTypeID() == sidre.TypeID.FLOAT64_ID
 
     # Create arrays that will serve as locations for external data
     new_idata = np.zeros(length, dtype=np.int64)
@@ -224,16 +223,16 @@ def test_save_load_external_view():
 # Register with datastore then
 # Query metadata using datastore API.
 def test_external_int():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     iarray = np.array(range(1, 11))
 
     view = root.createView("iarray", iarray)
-    view.apply(pysidre.TypeID.INT64_ID, 10)
+    view.apply(sidre.TypeID.INT64_ID, 10)
 
     assert view.isExternal() == True
-    assert view.getTypeID() == pysidre.TypeID.INT64_ID
+    assert view.getTypeID() == sidre.TypeID.INT64_ID
     assert view.getNumElements() == np.size(iarray)
     assert view.getNumDimensions() == 1
 
@@ -247,7 +246,7 @@ def test_external_int():
 
 
 def test_external_int_3d():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # create 3D numpy array
@@ -258,10 +257,10 @@ def test_external_int_3d():
             for k in range(4):
                 iarray[i, j, k] = (i + 1) * 100 + (j + 1) * 10 + (k + 1)
     view = root.createView("iarray", iarray)
-    view.apply(pysidre.TypeID.INT64_ID, 3, np.array([2, 3, 4]))
+    view.apply(sidre.TypeID.INT64_ID, 3, np.array([2, 3, 4]))
 
     assert view.isExternal() == True
-    assert view.getTypeID() == pysidre.TypeID.INT64_ID
+    assert view.getTypeID() == sidre.TypeID.INT64_ID
     assert view.getNumElements() == np.size(iarray)
     assert view.getNumDimensions() == 3
 
@@ -278,14 +277,14 @@ def test_external_int_3d():
 
 # check other types
 def test_external_float():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     darray = np.array([(i + 0.5) for i in range(1, 11)])
     view = root.createView("darray", darray)
-    view.apply(pysidre.TypeID.FLOAT64_ID, 10)
+    view.apply(sidre.TypeID.FLOAT64_ID, 10)
 
-    assert view.getTypeID() == pysidre.TypeID.FLOAT64_ID
+    assert view.getTypeID() == sidre.TypeID.FLOAT64_ID
     assert view.getNumElements() == np.size(darray)
 
     dpointer = view.getDataArray()
@@ -294,15 +293,15 @@ def test_external_float():
 
 # Datastore owns a multi-dimension array.
 def test_datastore_int_3d():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     extents_in = [2, 3, 4]
 
-    view = root.createViewWithShapeAndAllocate("iarray", pysidre.TypeID.INT32_ID, 3, extents_in)
+    view = root.createViewWithShapeAndAllocate("iarray", sidre.TypeID.INT32_ID, 3, extents_in)
 
     ipointer = view.getDataArray()
 
-    assert view.getTypeID() == pysidre.TypeID.INT32_ID
+    assert view.getTypeID() == sidre.TypeID.INT32_ID
     assert view.getNumElements() == np.size(ipointer)
     assert view.getNumDimensions() == 3
     assert view.getNumDimensions() == ipointer.ndim
@@ -316,9 +315,9 @@ def test_datastore_int_3d():
 
     # Reshape as 1D using shape
     extents_in[0] = np.size(ipointer)
-    view.apply(pysidre.TypeID.INT32_ID, 1, np.array([extents_in[0]]))
+    view.apply(sidre.TypeID.INT32_ID, 1, np.array([extents_in[0]]))
     assert view.getNumElements() == np.size(ipointer)
 
     # Reshape as 1D using length
-    view.apply(pysidre.TypeID.INT32_ID, extents_in[0])
+    view.apply(sidre.TypeID.INT32_ID, extents_in[0])
     assert view.getNumElements() == np.size(ipointer)

@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import axom.sidre as pysidre
+import axom.sidre as sidre
 import numpy as np
 
 NUM_BYTES_INT_32 = 4
@@ -54,11 +54,11 @@ def check_view_values(view, state, is_described, is_allocated, is_applied, lengt
 
 
 def test_create_views():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
-    dv_0 = root.createViewAndAllocate("field0", pysidre.TypeID.INT_ID, 1)
-    dv_1 = root.createViewAndAllocate("field1", pysidre.TypeID.INT_ID, 1)
+    dv_0 = root.createViewAndAllocate("field0", sidre.TypeID.INT_ID, 1)
+    dv_1 = root.createViewAndAllocate("field1", sidre.TypeID.INT_ID, 1)
 
     db_0 = dv_0.getBuffer()
     db_1 = dv_1.getBuffer()
@@ -68,7 +68,7 @@ def test_create_views():
 
 
 def test_get_path_name():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     v1 = root.createView("test/a/b/v1")
@@ -89,7 +89,7 @@ def test_get_path_name():
 
 
 def test_create_view_from_path():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     baz = root.createView("foo/bar/baz")
@@ -120,33 +120,33 @@ def test_scalar_view():
         assert ndims == 1, f"{name} getShape"
         assert dims[0] == length, f"{name} dims[0]"
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     i1 = 1
     i0view = root.createView("i0")
     i0view.setScalar(i1)
-    check_scalar_values(i0view, SCALARVIEW, True, True, True, pysidre.TypeID.INT32_ID, 1)
+    check_scalar_values(i0view, SCALARVIEW, True, True, True, sidre.TypeID.INT32_ID, 1)
     i2 = i0view.getDataInt()
     assert i1 == i2
 
     i1 = 2
     i1view = root.createViewScalar("i1", i1)
-    check_scalar_values(i1view, SCALARVIEW, True, True, True, pysidre.TypeID.INT32_ID, 1)
+    check_scalar_values(i1view, SCALARVIEW, True, True, True, sidre.TypeID.INT32_ID, 1)
     i2 = i1view.getDataInt()
     assert i1 == i2
 
     s1 = "i am a string"
     s0view = root.createView("s0")
     s0view.setString(s1)
-    check_scalar_values(s0view, STRINGVIEW, True, True, True, pysidre.TypeID.CHAR8_STR_ID,
+    check_scalar_values(s0view, STRINGVIEW, True, True, True, sidre.TypeID.CHAR8_STR_ID,
                         len(s1) + 1)
     s2 = s0view.getString()
     assert s1 == s2
 
     s1 = "i too am a string"
     s1view = root.createViewString("s1", s1)
-    check_scalar_values(s1view, STRINGVIEW, True, True, True, pysidre.TypeID.CHAR8_STR_ID,
+    check_scalar_values(s1view, STRINGVIEW, True, True, True, sidre.TypeID.CHAR8_STR_ID,
                         len(s1) + 1)
     s2 = s1view.getString()
     assert s1 == s2
@@ -162,10 +162,10 @@ def test_scalar_view():
 
 def test_int_buffer_from_view():
     elem_count = 10
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
-    dv = root.createViewAndAllocate("u0", pysidre.TypeID.INT32_ID, elem_count)
+    dv = root.createViewAndAllocate("u0", sidre.TypeID.INT32_ID, elem_count)
     data = dv.getDataArray()
 
     for i in range(elem_count):
@@ -178,13 +178,13 @@ def test_int_buffer_from_view():
 
 
 def test_view_dtype_support():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     dtype_pairs = [
-        (pysidre.TypeID.INT8_ID, np.int8),
-        (pysidre.TypeID.UINT16_ID, np.uint16),
-        (pysidre.TypeID.FLOAT32_ID, np.float32),
+        (sidre.TypeID.INT8_ID, np.int8),
+        (sidre.TypeID.UINT16_ID, np.uint16),
+        (sidre.TypeID.FLOAT32_ID, np.float32),
     ]
 
     for idx, (type_id, expected_dtype) in enumerate(dtype_pairs):
@@ -193,23 +193,23 @@ def test_view_dtype_support():
 
 
 def test_detach_external_and_attach_buffer():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     external = np.array([1, 2], dtype=np.int32)
-    view = root.createView("external", pysidre.TypeID.INT32_ID, 2, external)
+    view = root.createView("external", sidre.TypeID.INT32_ID, 2, external)
     assert view.isExternal()
     assert not view.hasBuffer()
 
     view.setExternalData(None)
     assert view.isEmpty()
 
-    replacement = ds.createBuffer(pysidre.TypeID.INT32_ID, 4)
+    replacement = ds.createBuffer(sidre.TypeID.INT32_ID, 4)
     replacement.allocate()
     replacement_data = replacement.getDataArray()
     replacement_data[:] = [3, 4, 5, 6]
 
-    view.attachBuffer(pysidre.TypeID.INT32_ID, 4, replacement)
+    view.attachBuffer(sidre.TypeID.INT32_ID, 4, replacement)
 
     assert view.hasBuffer()
     assert not view.isExternal()
@@ -217,34 +217,34 @@ def test_detach_external_and_attach_buffer():
 
 
 def test_detach_buffer_and_attach_buffer():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
-    original = ds.createBuffer(pysidre.TypeID.INT32_ID, 2)
+    original = ds.createBuffer(sidre.TypeID.INT32_ID, 2)
     original.allocate()
     original.getDataArray()[:] = [1, 2]
 
-    view = root.createView("buffered", pysidre.TypeID.INT32_ID, 2, original)
+    view = root.createView("buffered", sidre.TypeID.INT32_ID, 2, original)
     assert view.hasBuffer()
 
     view.attachBuffer(None)
     assert view.isEmpty()
     assert not view.hasBuffer()
 
-    replacement = ds.createBuffer(pysidre.TypeID.INT32_ID, 4)
+    replacement = ds.createBuffer(sidre.TypeID.INT32_ID, 4)
     replacement.allocate()
     replacement.getDataArray()[:] = [3, 4, 5, 6]
 
-    view.attachBuffer(pysidre.TypeID.INT32_ID, 4, replacement)
+    view.attachBuffer(sidre.TypeID.INT32_ID, 4, replacement)
 
     assert view.hasBuffer()
     assert list(view.getDataArray()) == [3, 4, 5, 6]
 
 
 def test_int_array_multi_view():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
-    dbuff = ds.createBuffer(pysidre.TypeID.INT32_ID, 10)
+    dbuff = ds.createBuffer(sidre.TypeID.INT32_ID, 10)
 
     dbuff.allocate()
     data = dbuff.getDataArray()
@@ -281,11 +281,11 @@ def test_int_array_multi_view():
 
 
 def test_init_int_array_multi_view():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     dbuff = ds.createBuffer()
-    dbuff.allocate(pysidre.TypeID.INT32_ID, 10)
+    dbuff.allocate(sidre.TypeID.INT32_ID, 10)
 
     data = dbuff.getDataArray()
     for i in range(10):
@@ -319,11 +319,11 @@ def test_init_int_array_multi_view():
 
 
 def test_int_array_depth_view():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     depth_nelems = 10
     total_nelems = 4 * depth_nelems
 
-    dbuff = ds.createBuffer(pysidre.TypeID.INT32_ID, total_nelems)
+    dbuff = ds.createBuffer(sidre.TypeID.INT32_ID, total_nelems)
 
     # Get access to our root data Group
     root = ds.getRoot()
@@ -375,7 +375,7 @@ def test_int_array_depth_view():
 
 def test_int_array_view_attach_buffer():
     # Create our main data store
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
 
     # Get access to our root data Group
     root = ds.getRoot()
@@ -384,17 +384,17 @@ def test_int_array_view_attach_buffer():
 
     # Create 2 "field" views with type and # elems
     elem_count = 0
-    field0 = root.createView("field0", pysidre.TypeID.INT32_ID, field_nelems)
+    field0 = root.createView("field0", sidre.TypeID.INT32_ID, field_nelems)
     elem_count = elem_count + field0.getNumElements()
     print(f"elem_count field0 {elem_count}")
-    field1 = root.createView("field1", pysidre.TypeID.INT32_ID, field_nelems)
+    field1 = root.createView("field1", sidre.TypeID.INT32_ID, field_nelems)
     elem_count = elem_count + field1.getNumElements()
     print(f"elem_count field1 {elem_count}")
 
     assert elem_count == 2 * field_nelems
 
     # Create buffer to hold data for all fields and allocate
-    dbuff = ds.createBuffer(pysidre.TypeID.INT32_ID, elem_count)
+    dbuff = ds.createBuffer(sidre.TypeID.INT32_ID, elem_count)
     dbuff.allocate()
 
     assert dbuff.getNumElements() == elem_count
@@ -435,13 +435,13 @@ def test_int_array_view_attach_buffer():
 
 def test_int_array_offset_stride():
     # create our main data store
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
 
     # get access to our root data Group
     root = ds.getRoot()
 
     field_nelems = 20
-    field0 = root.createViewAndAllocate("field0", pysidre.TypeID.DOUBLE_ID, field_nelems)
+    field0 = root.createViewAndAllocate("field0", sidre.TypeID.DOUBLE_ID, field_nelems)
     assert field0.getNumElements() == field_nelems
     assert field0.getBytesPerElement() == NUM_BYTES_DOUBLE
     assert field0.getTotalBytes() == NUM_BYTES_DOUBLE * field_nelems
@@ -543,7 +543,7 @@ def test_int_array_multi_view_resize():
     # into the new views
 
     # Create our main data store
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
 
     # Get access to our root data Group
     root = ds.getRoot()
@@ -553,7 +553,7 @@ def test_int_array_multi_view_resize():
 
     # Create a view to hold the base buffer and allocate
     # we will create 4 sub views of this array
-    base_old = r_old.createViewAndAllocate("base_data", pysidre.TypeID.INT32_ID, 40)
+    base_old = r_old.createViewAndAllocate("base_data", sidre.TypeID.INT32_ID, 40)
 
     # Init the buff with values that align with the 4 subsections
     data = base_old.getDataArray()
@@ -596,7 +596,7 @@ def test_int_array_multi_view_resize():
 
     # Create a view to hold the base buffer
     base_new = r_new.createView("base_data")
-    base_new.allocate(pysidre.TypeID.INT32_ID, 48)
+    base_new.allocate(sidre.TypeID.INT32_ID, 48)
     base_new_data = base_new.getDataArray()
     for i in range(48):
         base_new_data[i] = 0
@@ -657,13 +657,13 @@ def test_int_array_multi_view_resize():
 
 def test_int_array_realloc():
     # Create our main data store
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
 
     # Get access to our root data Group
     root = ds.getRoot()
 
-    a1 = root.createViewAndAllocate("a1", pysidre.TypeID.DOUBLE_ID, 5)
-    a2 = root.createViewAndAllocate("a2", pysidre.TypeID.DOUBLE_ID, 5)
+    a1 = root.createViewAndAllocate("a1", sidre.TypeID.DOUBLE_ID, 5)
+    a2 = root.createViewAndAllocate("a2", sidre.TypeID.DOUBLE_ID, 5)
 
     a1_data = a1.getDataArray()
     a2_data = a2.getDataArray()
@@ -699,7 +699,7 @@ def test_int_array_realloc():
 
 def test_simple_opaque():
     # Create our main data store
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
 
     # Get access to our root data Group
     root = ds.getRoot()
@@ -713,10 +713,10 @@ def test_simple_opaque():
     assert opq_view.isExternal() == True
     assert opq_view.isApplied() == False
     assert opq_view.isOpaque() == True
-    assert opq_view.getTypeID() == pysidre.TypeID.NO_TYPE_ID
+    assert opq_view.getTypeID() == sidre.TypeID.NO_TYPE_ID
 
     # Apply type to get data
-    opq_view.apply(pysidre.TypeID.INT32_ID, 1)
+    opq_view.apply(sidre.TypeID.INT32_ID, 1)
     opq_data = opq_view.getDataArray()
     assert opq_data[0] == 42
 
@@ -725,7 +725,7 @@ def test_simple_opaque():
 
 def test_clear_view():
     BLEN = 10
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Create an empty view
@@ -735,7 +735,7 @@ def test_clear_view():
     check_view_values(view, EMPTYVIEW, False, False, False, 0)
 
     # Describe an empty view
-    view = root.createView("v_described", pysidre.TypeID.INT32_ID, BLEN)
+    view = root.createView("v_described", sidre.TypeID.INT32_ID, BLEN)
     check_view_values(view, EMPTYVIEW, True, False, False, BLEN)
     view.clear()
     check_view_values(view, EMPTYVIEW, False, False, False, 0)
@@ -753,7 +753,7 @@ def test_clear_view():
 
     # Allocated view, Buffer will be released
     nbuf = ds.getNumBuffers()
-    view = root.createViewAndAllocate("v_allocated", pysidre.TypeID.INT32_ID, BLEN)
+    view = root.createViewAndAllocate("v_allocated", sidre.TypeID.INT32_ID, BLEN)
     check_view_values(view, BUFFERVIEW, True, True, True, BLEN)
     view.clear()
     check_view_values(view, EMPTYVIEW, False, False, False, 0)
@@ -770,12 +770,12 @@ def test_clear_view():
 
     # Explicit buffer attached to two views
     dbuff = ds.createBuffer()
-    dbuff.allocate(pysidre.TypeID.INT32_ID, BLEN)
+    dbuff.allocate(sidre.TypeID.INT32_ID, BLEN)
     nbuf = ds.getNumBuffers()
     assert dbuff.getNumViews() == 0
 
-    vother = root.createView("v_other", pysidre.TypeID.INT32_ID, BLEN)
-    view = root.createView("v_buffer", pysidre.TypeID.INT32_ID, BLEN)
+    vother = root.createView("v_other", sidre.TypeID.INT32_ID, BLEN)
+    view = root.createView("v_buffer", sidre.TypeID.INT32_ID, BLEN)
     vother.attachBuffer(dbuff)
     assert dbuff.getNumViews() == 1
     view.attachBuffer(dbuff)
@@ -790,7 +790,7 @@ def test_clear_view():
 
     # External View
     ext_data = np.array(BLEN)
-    view = root.createView("v_external", pysidre.TypeID.INT32_ID, BLEN, ext_data)
+    view = root.createView("v_external", sidre.TypeID.INT32_ID, BLEN, ext_data)
     check_view_values(view, EXTERNALVIEW, True, True, True, BLEN)
     view.clear()
     check_view_values(view, EMPTYVIEW, False, False, False, 0)

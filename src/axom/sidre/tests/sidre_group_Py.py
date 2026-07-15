@@ -4,11 +4,11 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import axom.sidre as pysidre
+import axom.sidre as sidre
 import numpy as np
 from conduit import Node
 
-if pysidre.AXOM_USE_HDF5:
+if sidre.AXOM_USE_HDF5:
     NPROTOCOLS = 3
     PROTOCOLS = ["sidre_json", "sidre_hdf5", "json"]
 else:
@@ -20,7 +20,7 @@ else:
 # getName()
 # ------------------------------------------------------------------------------
 def test_get_name():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     grp = root.createGroup("test")
 
@@ -34,7 +34,7 @@ def test_get_name():
 # getPath(), getPathName()
 # ------------------------------------------------------------------------------
 def test_get_path_name():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     group = root.createGroup("test/a/b/c")
     grp2 = root.getGroup("test/a")
@@ -61,7 +61,7 @@ def test_get_path_name():
 # createGroup(), getGroup(), hasGroup()  with path strings
 #------------------------------------------------------------------------------
 def test_group_with_path():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Test full path access when building incrementally
@@ -111,7 +111,7 @@ def test_group_with_path():
     assert root.hasGroup(1)
     assert root.hasGroup(2)
     assert not root.hasGroup(3)
-    assert not root.hasGroup(pysidre.InvalidIndex)
+    assert not root.hasGroup(sidre.InvalidIndex)
 
     testbnumgroups = group_testa.getGroup("testb").getNumGroups()
     group_cdup = group_testa.createGroup("testb/testc")
@@ -124,7 +124,7 @@ def test_group_with_path():
 # createGroup(), destroyGroup()  with path strings
 #------------------------------------------------------------------------------
 def test_destroy_group_with_path():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Test full path access when building incrementally
@@ -155,7 +155,7 @@ def test_destroy_group_with_path():
 # Verify getParent()
 # ------------------------------------------------------------------------------
 def test_get_parent():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     parent = root.createGroup("parent")
     child = parent.createGroup("child")
@@ -167,7 +167,7 @@ def test_get_parent():
 # Verify getDataStore()
 # ------------------------------------------------------------------------------
 def test_get_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     grp = root.createGroup("parent")
 
@@ -181,7 +181,7 @@ def test_get_datastore():
 # Verify getGroup()
 # ------------------------------------------------------------------------------
 def test_get_group():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -203,7 +203,7 @@ def test_get_group():
 # getView()
 # ------------------------------------------------------------------------------
 def test_get_view():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -220,10 +220,10 @@ def test_get_view():
 
 
 def test_group_and_view_checksum():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     group = root.createGroup("checksum_group")
-    view = group.createViewAndAllocate("values", pysidre.TypeID.INT32_ID, 4)
+    view = group.createViewAndAllocate("values", sidre.TypeID.INT32_ID, 4)
 
     data = view.getDataArray()
     data[:] = np.array([1, 2, 3, 4], dtype=np.int32)
@@ -270,7 +270,7 @@ def test_group_and_view_checksum():
 # createView, hasView(), getView(), destroyView() with path strings
 #------------------------------------------------------------------------------
 def test_view_with_path():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Test with full path access when building incrementally
@@ -345,7 +345,7 @@ def test_view_with_path():
 # Verify getViewName() and getViewIndex()
 #------------------------------------------------------------------------------
 def test_get_view_name_index():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -367,18 +367,18 @@ def test_get_view_name_index():
     assert view2.getName() == name2
 
     idx3 = parent.getViewIndex("view3")
-    assert idx3 == pysidre.InvalidIndex
+    assert idx3 == sidre.InvalidIndex
 
     name3 = parent.getViewName(idx3)
     assert name3 == ""
-    assert not pysidre.nameIsValid(name3)
+    assert not sidre.nameIsValid(name3)
 
 
 #------------------------------------------------------------------------------
 # Verify getFirstValidGroupIndex() and getNextValidGroupIndex()
 #------------------------------------------------------------------------------
 def test_get_first_and_next_group_index():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -392,7 +392,7 @@ def test_get_first_and_next_group_index():
 
     assert idx1 == 0
     assert idx2 == 1
-    assert idx3 == pysidre.InvalidIndex
+    assert idx3 == sidre.InvalidIndex
 
     group1out = parent.getGroup(idx1)
     group2out = parent.getGroup(idx2)
@@ -405,15 +405,15 @@ def test_get_first_and_next_group_index():
     badidx1 = emptygrp.getFirstValidGroupIndex()
     badidx2 = emptygrp.getNextValidGroupIndex(badidx1)
 
-    assert badidx1 == pysidre.InvalidIndex
-    assert badidx2 == pysidre.InvalidIndex
+    assert badidx1 == sidre.InvalidIndex
+    assert badidx2 == sidre.InvalidIndex
 
 
 #------------------------------------------------------------------------------
 # Verify Groups holding items in the list format
 #------------------------------------------------------------------------------
 def test_child_lists():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # parent is a Group in list format.
@@ -433,8 +433,8 @@ def test_child_lists():
         else:
             unnamed_view = parent.createViewString("", "foo")
         if not unnamed_view.isApplied():
-            unnamed_view.apply(pysidre.TypeID.INT_ID, i)
-            unnamed_view.allocate(pysidre.TypeID.INT_ID, i)
+            unnamed_view.apply(sidre.TypeID.INT_ID, i)
+            unnamed_view.allocate(sidre.TypeID.INT_ID, i)
             vdata = unnamed_view.getDataArray()  # Returns numpy array
             for j in range(i):
                 vdata[j] = j + 3
@@ -452,7 +452,7 @@ def test_child_lists():
     # Access data from unnamed Groups held by parent.
     scalars = set()
     idx = parent.getFirstValidGroupIndex()
-    while pysidre.indexIsValid(idx):
+    while sidre.indexIsValid(idx):
         unnamed_group = parent.getGroup(idx)
         val_view = unnamed_group.getView("val")
         val = val_view.getDataInt()
@@ -467,7 +467,7 @@ def test_child_lists():
 
     # Destroy five of the unnamed Groups held by parent.
     idx = parent.getFirstValidGroupIndex()
-    while pysidre.indexIsValid(idx):
+    while sidre.indexIsValid(idx):
         if idx % 2 == 1:
             parent.destroyGroup(idx)
         idx = parent.getNextValidGroupIndex(idx)
@@ -478,10 +478,10 @@ def test_child_lists():
 
     # Access data from the unnamed Views.
     idx = parent.getFirstValidViewIndex()
-    while pysidre.indexIsValid(idx):
+    while sidre.indexIsValid(idx):
         unnamed_view = parent.getView(idx)
         if idx % 3 == 0:
-            assert unnamed_view.getTypeID() == pysidre.TypeID.INT32_ID
+            assert unnamed_view.getTypeID() == sidre.TypeID.INT32_ID
             num_elems = unnamed_view.getNumElements()
             assert num_elems == idx
             vdata = unnamed_view.getDataArray()
@@ -504,7 +504,7 @@ def test_child_lists():
 # Verify results with various path arguments for items in list
 #------------------------------------------------------------------------------
 def test_list_item_names():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Create a group that uses the list format.
@@ -572,7 +572,7 @@ def test_list_item_names():
 #------------------------------------------------------------------------------
 def test_string_list():
     # Round-trip test from Python list of strings to Group and back.
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     str_vec = [
@@ -596,7 +596,7 @@ def test_string_list():
 
     # Get strings from the Group.
     idx = my_strings.getFirstValidViewIndex()
-    while pysidre.indexIsValid(idx):
+    while sidre.indexIsValid(idx):
         str_view = my_strings.getView(idx)
         assert str_view is not None
         assert str_view.isString()
@@ -611,7 +611,7 @@ def test_string_list():
 # Iterate Groups with getFirstValidGroupIndex, getNextValidGroupIndex
 #------------------------------------------------------------------------------
 def test_iterate_groups():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -631,7 +631,7 @@ def test_iterate_groups():
 
     groupcount = 0
     idx = parent.getFirstValidGroupIndex()
-    while pysidre.indexIsValid(idx):
+    while sidre.indexIsValid(idx):
         groupcount += 1
         idx = parent.getNextValidGroupIndex(idx)
     assert groupcount == 4
@@ -642,7 +642,7 @@ def test_iterate_groups():
 #------------------------------------------------------------------------------
 def test_iterate_groups_with_iterator():
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     foo_group = ds.getRoot().createGroup("foo")
     foo_group.createGroup("bar_group")
     foo_group.createGroup("bar_group/child_1")
@@ -684,7 +684,7 @@ def test_iterate_groups_with_iterator():
 # Verify getFirstValidViewIndex() and getNextValidIndex()
 #------------------------------------------------------------------------------
 def test_get_first_and_next_view_index():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -698,7 +698,7 @@ def test_get_first_and_next_view_index():
     idx3 = parent.getNextValidViewIndex(idx2)
     assert idx1 == 0
     assert idx2 == 1
-    assert idx3 == pysidre.InvalidIndex
+    assert idx3 == sidre.InvalidIndex
 
     view1out = parent.getView(idx1)
     view2out = parent.getView(idx2)
@@ -710,15 +710,15 @@ def test_get_first_and_next_view_index():
     badidx1 = emptygrp.getFirstValidViewIndex()
     badidx2 = emptygrp.getNextValidViewIndex(badidx1)
 
-    assert badidx1 == pysidre.InvalidIndex
-    assert badidx2 == pysidre.InvalidIndex
+    assert badidx1 == sidre.InvalidIndex
+    assert badidx2 == sidre.InvalidIndex
 
 
 #------------------------------------------------------------------------------
 # Iterate Views with getFirstValidViewIndex, getNextValidViewIndex
 #------------------------------------------------------------------------------
 def test_iterate_views():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -738,7 +738,7 @@ def test_iterate_views():
 
     viewcount = 0
     idx = parent.getFirstValidViewIndex()
-    while pysidre.indexIsValid(idx):
+    while sidre.indexIsValid(idx):
         viewcount += 1
         idx = parent.getNextValidViewIndex(idx)
     assert viewcount == 9
@@ -748,7 +748,7 @@ def test_iterate_views():
 # Verify getGroupName() and getGroupIndex()
 #------------------------------------------------------------------------------
 def test_get_group_name_index():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     parent = root.createGroup("parent")
@@ -769,11 +769,11 @@ def test_get_group_name_index():
     assert grp2.getName() == name2
 
     idx3 = parent.getGroupIndex("grp3")
-    assert idx3 == pysidre.InvalidIndex
+    assert idx3 == sidre.InvalidIndex
 
     name3 = parent.getGroupName(idx3)
     assert name3 == ""
-    assert not pysidre.nameIsValid(name3)
+    assert not sidre.nameIsValid(name3)
 
 
 # ------------------------------------------------------------------------------
@@ -784,7 +784,7 @@ def test_get_group_name_index():
 # hasView()
 # ------------------------------------------------------------------------------
 def test_create_destroy_has_view():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     group = root.createGroup("parent")
 
@@ -817,22 +817,21 @@ def test_create_destroy_has_view():
     assert not group.hasView("view")
 
     # Try API call that specifies specific type and length
-    group.createViewAndAllocate("viewWithLength1", pysidre.TypeID.INT32_ID, 50)
+    group.createViewAndAllocate("viewWithLength1", sidre.TypeID.INT32_ID, 50)
     iview2 = group.getViewIndex("viewWithLength1")
     assert iview == iview2  # reuse slot
 
     # Error condition check - try again with duplicate name, should be a no-op
-    assert group.createViewAndAllocate("viewWithLength1", pysidre.TypeID.FLOAT64_ID, 50) is None
+    assert group.createViewAndAllocate("viewWithLength1", sidre.TypeID.FLOAT64_ID, 50) is None
     group.destroyViewAndData("viewWithLength1")
     assert not group.hasView("viewWithLength1")
 
     # Should not allow negative length
-    assert group.createViewAndAllocate("viewWithLengthBadLen", pysidre.TypeID.FLOAT64_ID,
-                                       -1) is None
+    assert group.createViewAndAllocate("viewWithLengthBadLen", sidre.TypeID.FLOAT64_ID, -1) is None
 
     # Try API call that specifies data type in another way
-    group.createViewAndAllocate("viewWithLength2", pysidre.TypeID.FLOAT64_ID, 50)
-    assert group.createViewAndAllocate("viewWithLength2", pysidre.TypeID.FLOAT64_ID, 50) is None
+    group.createViewAndAllocate("viewWithLength2", sidre.TypeID.FLOAT64_ID, 50)
+    assert group.createViewAndAllocate("viewWithLength2", sidre.TypeID.FLOAT64_ID, 50) is None
 
     # Destroy view and its buffer using index
     indx = group.getFirstValidViewIndex()
@@ -843,7 +842,7 @@ def test_create_destroy_has_view():
     assert ds.getBuffer(bindx) is None
 
     # Destroy view but not the buffer
-    view = group.createViewAndAllocate("viewWithLength2", pysidre.TypeID.INT_ID, 50)
+    view = group.createViewAndAllocate("viewWithLength2", sidre.TypeID.INT_ID, 50)
     buff = view.getBuffer()
     group.destroyView("viewWithLength2")
     assert buff.isAllocated()
@@ -853,10 +852,10 @@ def test_create_destroy_has_view():
 # createViewAndAllocate() with zero-sized array
 #------------------------------------------------------------------------------
 def test_create_zero_sized_view():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
-    zero_sized_view = root.createViewAndAllocate("foo", pysidre.TypeID.INT_ID, 0)
+    zero_sized_view = root.createViewAndAllocate("foo", sidre.TypeID.INT_ID, 0)
     assert zero_sized_view.isDescribed()
     assert zero_sized_view.isAllocated()
 
@@ -865,7 +864,7 @@ def test_create_zero_sized_view():
 # Verify createGroup(), destroyGroup(), hasGroup()
 #------------------------------------------------------------------------------
 def test_create_destroy_has_group():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     grp = root.createGroup("grp")
@@ -884,7 +883,7 @@ def test_create_destroy_has_group():
 # Test various destroy methods
 #------------------------------------------------------------------------------
 def test_destroy_group_and_data():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     group0 = root.createGroup("group0")
     group1 = root.createGroup("group1")
@@ -894,12 +893,12 @@ def test_destroy_group_and_data():
     child3 = group1.createGroup("child3")
     child4 = group1.createGroup("child4")
 
-    child0.createViewAndAllocate("intview", pysidre.TypeID.INT_ID, 15)
+    child0.createViewAndAllocate("intview", sidre.TypeID.INT_ID, 15)
     foo0 = child0.createGroup("foo")
     child0.createGroup("empty")
     child0.createViewScalar("sclview", 3.14159)
     child0.createViewString("strview", "Hello world.")
-    foo0.createViewAndAllocate("fooview", pysidre.TypeID.FLOAT64_ID, 12)
+    foo0.createViewAndAllocate("fooview", sidre.TypeID.FLOAT64_ID, 12)
 
     int0_view = child0.getView("intview")
     int0_vals = int0_view.getDataArray()
@@ -919,33 +918,33 @@ def test_destroy_group_and_data():
     flt_idx = fltbuf.getIndex()
 
     # Attach buffers to views in other children
-    child1.createView("intview", pysidre.TypeID.INT_ID, 15, intbuf)
+    child1.createView("intview", sidre.TypeID.INT_ID, 15, intbuf)
     foo1 = child1.createGroup("foo")
     child1.createGroup("empty")
     child1.createViewScalar("sclview", 3.14159)
     child1.createViewString("strview", "Hello world.")
-    foo1.createView("fooview", pysidre.TypeID.FLOAT64_ID, 12, fltbuf)
+    foo1.createView("fooview", sidre.TypeID.FLOAT64_ID, 12, fltbuf)
 
-    child2.createView("intview", pysidre.TypeID.INT_ID, 15, intbuf)
+    child2.createView("intview", sidre.TypeID.INT_ID, 15, intbuf)
     foo2 = child2.createGroup("foo")
     child2.createGroup("empty")
     child2.createViewScalar("sclview", 3.14159)
     child2.createViewString("strview", "Hello world.")
-    foo2.createView("fooview", pysidre.TypeID.FLOAT64_ID, 12, fltbuf)
+    foo2.createView("fooview", sidre.TypeID.FLOAT64_ID, 12, fltbuf)
 
-    child3.createView("intview", pysidre.TypeID.INT_ID, 15, intbuf)
+    child3.createView("intview", sidre.TypeID.INT_ID, 15, intbuf)
     foo3 = child3.createGroup("foo")
     child3.createGroup("empty")
     child3.createViewScalar("sclview", 3.14159)
     child3.createViewString("strview", "Hello world.")
-    foo3.createView("fooview", pysidre.TypeID.FLOAT64_ID, 12, fltbuf)
+    foo3.createView("fooview", sidre.TypeID.FLOAT64_ID, 12, fltbuf)
 
-    child4.createView("intview", pysidre.TypeID.INT_ID, 15, intbuf)
+    child4.createView("intview", sidre.TypeID.INT_ID, 15, intbuf)
     foo4 = child4.createGroup("foo")
     child4.createGroup("empty")
     child4.createViewScalar("sclview", 3.14159)
     child4.createViewString("strview", "Hello world.")
-    foo4.createView("fooview", pysidre.TypeID.FLOAT64_ID, 12, fltbuf)
+    foo4.createView("fooview", sidre.TypeID.FLOAT64_ID, 12, fltbuf)
 
     # Beginning state: 2 Buffers, each attached to 5 Views.
     assert ds.getNumBuffers() == 2
@@ -1029,7 +1028,7 @@ def test_destroy_group_and_data():
 
 
 def test_group_name_collisions():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     flds = root.createGroup("fields")
     flds.createView("a")
@@ -1055,13 +1054,13 @@ def test_group_name_collisions():
 
     # Print all group names
     idx = root.getFirstValidGroupIndex()
-    while pysidre.indexIsValid(idx):
+    while sidre.indexIsValid(idx):
         print(root.getGroup(idx).getName())
         idx = root.getNextValidGroupIndex(idx)
 
 
 def test_view_copy_move():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     flds = root.createGroup("fields")
     extdata = np.array([0] * 10)
@@ -1071,9 +1070,9 @@ def test_view_copy_move():
 
     # Create views in different states
     views[0] = flds.createView("empty0")
-    views[1] = flds.createView("empty1", pysidre.TypeID.INT32_ID, 10)
-    views[2] = flds.createViewAndAllocate("buffer", pysidre.TypeID.INT32_ID, 10)
-    views[3] = flds.createView("external", pysidre.TypeID.INT32_ID, 10)
+    views[1] = flds.createView("empty1", sidre.TypeID.INT32_ID, 10)
+    views[2] = flds.createViewAndAllocate("buffer", sidre.TypeID.INT32_ID, 10)
+    views[3] = flds.createView("external", sidre.TypeID.INT32_ID, 10)
     views[3].setExternalData(extdata)
     views[4] = flds.createViewScalar("scalar", 25)
     views[5] = flds.createViewString("string", "I am string")
@@ -1163,7 +1162,7 @@ def test_view_copy_move():
 
 
 def test_groups_move_copy():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     flds = root.createGroup("fields")
 
@@ -1254,7 +1253,7 @@ def test_groups_move_copy():
 
 
 def test_group_deep_copy():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     flds = root.createGroup("fields")
 
@@ -1274,14 +1273,14 @@ def test_group_deep_copy():
     assert flds.hasGroup("b")
 
     viewlen = 8
-    ownsbuf = ga.createViewAndAllocate("ownsbuf", pysidre.TypeID.INT32_ID, viewlen)
+    ownsbuf = ga.createViewAndAllocate("ownsbuf", sidre.TypeID.INT32_ID, viewlen)
     int_vals = ownsbuf.getDataArray()
     for i in range(viewlen):
         int_vals[i] = i + 1
 
     buflen = 24
     dbuff = ds.createBuffer()
-    dbuff.allocate(pysidre.TypeID.FLOAT64_ID, buflen)
+    dbuff.allocate(sidre.TypeID.FLOAT64_ID, buflen)
     buf_ptr = dbuff.getDataArray()
     for i in range(buflen):
         buf_ptr[i] = 2.0 * float(i)
@@ -1299,7 +1298,7 @@ def test_group_deep_copy():
     ext_array = np.array([-1.0 * float(i) for i in range(extlen)])
 
     for i in range(NUM_VIEWS):
-        gb.createView(names[i], ext_array).apply(pysidre.TypeID.FLOAT64_ID, size[i], offset[i],
+        gb.createView(names[i], ext_array).apply(sidre.TypeID.FLOAT64_ID, size[i], offset[i],
                                                  stride[i])
 
     deep_copy = root.createGroup("deep_copy")
@@ -1351,15 +1350,15 @@ def test_group_deep_copy():
 
 
 def test_create_destroy_view_and_buffer2():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     grp = root.createGroup("grp")
 
     viewName1 = "viewBuffer1"
     viewName2 = "viewBuffer2"
 
-    view1 = grp.createViewAndAllocate(viewName1, pysidre.TypeID.INT_ID, 1)
-    view2 = grp.createViewAndAllocate(viewName2, pysidre.TypeID.INT_ID, 1)
+    view1 = grp.createViewAndAllocate(viewName1, sidre.TypeID.INT_ID, 1)
+    view2 = grp.createViewAndAllocate(viewName2, sidre.TypeID.INT_ID, 1)
 
     assert grp.hasView(viewName1)
     assert grp.getView(viewName1) == view1
@@ -1384,7 +1383,7 @@ def test_create_destroy_view_and_buffer2():
 
 
 def test_create_destroy_alloc_view_and_buffer():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     grp = root.createGroup("grp")
 
@@ -1393,7 +1392,7 @@ def test_create_destroy_alloc_view_and_buffer():
 
     # Use create + alloc convenience methods
     # This one is the DataType method
-    view1 = grp.createViewAndAllocate(viewName1, pysidre.TypeID.INT_ID, 10)
+    view1 = grp.createViewAndAllocate(viewName1, sidre.TypeID.INT_ID, 10)
 
     assert grp.hasChildView(viewName1)
     assert grp.getView(viewName1) == view1
@@ -1409,11 +1408,11 @@ def test_create_destroy_alloc_view_and_buffer():
 
 
 def test_create_view_of_buffer_with_schema():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Use create + alloc convenience methods
-    base = root.createViewAndAllocate("base", pysidre.TypeID.INT_ID, 10)
+    base = root.createViewAndAllocate("base", sidre.TypeID.INT_ID, 10)
     base_vals = base.getDataArray()
     for i in range(10):
         if i < 5:
@@ -1426,7 +1425,7 @@ def test_create_view_of_buffer_with_schema():
     # Create two views into this buffer
     # View for the first 5 values
     sub_a = root.createView("sub_a", base_buff)
-    sub_a.apply(pysidre.TypeID.INT_ID, 5)
+    sub_a.apply(sidre.TypeID.INT_ID, 5)
 
     sub_a_vals = sub_a.getDataArray()
     for i in range(5):
@@ -1434,15 +1433,15 @@ def test_create_view_of_buffer_with_schema():
 
 
 def test_create_destroy_view_and_data():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     grp = root.createGroup("grp")
 
     view_name1 = "viewBuffer1"
     view_name2 = "viewBuffer2"
 
-    view1 = grp.createViewAndAllocate(view_name1, pysidre.TypeID.INT32_ID, 1)
-    view2 = grp.createViewAndAllocate(view_name2, pysidre.TypeID.INT32_ID, 1)
+    view1 = grp.createViewAndAllocate(view_name1, sidre.TypeID.INT32_ID, 1)
+    view2 = grp.createViewAndAllocate(view_name2, sidre.TypeID.INT32_ID, 1)
 
     assert grp.hasView(view_name1)
     assert grp.getView(view_name1) == view1
@@ -1460,7 +1459,7 @@ def test_create_destroy_view_and_data():
 
 
 def test_create_destroy_alloc_view_and_data():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     grp = root.createGroup("grp")
 
@@ -1469,7 +1468,7 @@ def test_create_destroy_alloc_view_and_data():
 
     # Use create + alloc convenience methods
     # this one is the DataType & method
-    view1 = grp.createViewAndAllocate(view_name1, pysidre.TypeID.INT32_ID, 10)
+    view1 = grp.createViewAndAllocate(view_name1, sidre.TypeID.INT32_ID, 10)
     assert grp.hasView(view_name1)
     assert grp.getView(view_name1) == view1
 
@@ -1484,12 +1483,12 @@ def test_create_destroy_alloc_view_and_data():
 
 
 def test_create_view_of_buffer_with_datatype():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Use create + alloc convenience methods
     # this one is the DataType & method
-    base = root.createViewAndAllocate("base", pysidre.TypeID.INT32_ID, 10)
+    base = root.createViewAndAllocate("base", sidre.TypeID.INT32_ID, 10)
     base_vals = base.getDataArray()
 
     base_vals[0:5] = 10
@@ -1498,7 +1497,7 @@ def test_create_view_of_buffer_with_datatype():
     base_buff = base.getBuffer()
 
     # Create view into this buffer
-    sub_a = root.createView("sub_a", pysidre.TypeID.INT32_ID, 10, base_buff)
+    sub_a = root.createView("sub_a", sidre.TypeID.INT32_ID, 10, base_buff)
 
     sub_a_vals = root.getView("sub_a").getDataArray()
 
@@ -1510,7 +1509,7 @@ def test_create_view_of_buffer_with_datatype():
 
 def test_save_restore_empty_datastore():
     file_path_base = "py_sidre_empty_datastore_"
-    ds1 = pysidre.DataStore()
+    ds1 = sidre.DataStore()
     root1 = ds1.getRoot()
 
     for i in range(NPROTOCOLS):
@@ -1522,7 +1521,7 @@ def test_save_restore_empty_datastore():
             continue
         file_path = file_path_base + PROTOCOLS[i]
 
-        ds2 = pysidre.DataStore()
+        ds2 = sidre.DataStore()
         root2 = ds2.getRoot()
 
         root2.load(file_path, PROTOCOLS[i])
@@ -1534,7 +1533,7 @@ def test_save_restore_empty_datastore():
 
 def test_save_restore_scalars_and_strings():
     file_path_base = "py_sidre_save_scalars_and_strings_"
-    ds1 = pysidre.DataStore()
+    ds1 = sidre.DataStore()
     root1 = ds1.getRoot()
 
     view = root1.createViewScalar("i0", 1)
@@ -1551,7 +1550,7 @@ def test_save_restore_scalars_and_strings():
             continue
         file_path = file_path_base + PROTOCOLS[i]
 
-        ds2 = pysidre.DataStore()
+        ds2 = sidre.DataStore()
         root2 = ds2.getRoot()
 
         root2.load(file_path, PROTOCOLS[i])
@@ -1590,13 +1589,13 @@ def test_save_restore_external_data():
     int2d1 = np.column_stack((foo1, foo1 + nfoo))
     int2d2 = np.zeros((10, 2), dtype=int)
 
-    ds1 = pysidre.DataStore()
+    ds1 = sidre.DataStore()
     root1 = ds1.getRoot()
 
-    root1.createView("external_array", pysidre.TypeID.INT64_ID, nfoo, foo1)
-    root1.createView("empty_array", pysidre.TypeID.INT64_ID, 0, foo3)
+    root1.createView("external_array", sidre.TypeID.INT64_ID, nfoo, foo1)
+    root1.createView("empty_array", sidre.TypeID.INT64_ID, 0, foo3)
     root1.createView("external_undescribed").setExternalData(foo4)
-    root1.createViewWithShape("int2d", pysidre.TypeID.INT64_ID, 2, shape, int2d1)
+    root1.createViewWithShape("int2d", sidre.TypeID.INT64_ID, 2, shape, int2d1)
 
     for protocol in PROTOCOLS:
         file_path = file_path_base + protocol
@@ -1609,7 +1608,7 @@ def test_save_restore_external_data():
             continue
         file_path = file_path_base + protocol
 
-        ds2 = pysidre.DataStore()
+        ds2 = sidre.DataStore()
         root2 = ds2.getRoot()
 
         assert root2.load(file_path, protocol) == True
@@ -1619,14 +1618,14 @@ def test_save_restore_external_data():
         view1 = root2.getView("external_array")
         assert view1.isExternal() == True, "external_array is external"
         assert view1.isDescribed() == True, "external_array is described"
-        assert view1.getTypeID() == pysidre.TypeID.INT64_ID, "external_array get TypeId"
+        assert view1.getTypeID() == sidre.TypeID.INT64_ID, "external_array get TypeId"
         assert view1.getNumElements() == nfoo, "external_array get num elements"
         view1.setExternalData(foo2)
 
         view2 = root2.getView("empty_array")
         assert view2.isExternal() == True, "empty_array is external"
         assert view2.isDescribed() == True, "empty_array is described"
-        assert view2.getTypeID() == pysidre.TypeID.INT64_ID, "empty_array get TypeId"
+        assert view2.getTypeID() == sidre.TypeID.INT64_ID, "empty_array get TypeId"
         view2.setExternalData(foo3)
 
         view3 = root2.getView("external_undescribed")
@@ -1637,7 +1636,7 @@ def test_save_restore_external_data():
         view4 = root2.getView("int2d")
         assert view4.isExternal() == True, "int2d is external"
         assert view4.isDescribed() == True, "int2d is described"
-        assert view4.getTypeID() == pysidre.TypeID.INT64_ID, "int2d get TypeId"
+        assert view4.getTypeID() == sidre.TypeID.INT64_ID, "int2d get TypeId"
         assert view4.getNumElements() == nfoo * 2, "int2d get num elements"
         assert view4.getNumDimensions() == 2, "int2d get num dimensions"
 
@@ -1664,14 +1663,14 @@ def test_save_restore_other():
     file_path_base = "py_sidre_empty_other_"
     ndata = 10
 
-    ds1 = pysidre.DataStore()
+    ds1 = sidre.DataStore()
     root1 = ds1.getRoot()
 
     shape1 = np.array([ndata, 2])
     view1 = root1.createView("empty_view")
-    view2 = root1.createView("empty_described", pysidre.TypeID.INT32_ID, ndata)
-    view3 = root1.createViewWithShape("empty_shape", pysidre.TypeID.INT32_ID, 2, shape1)
-    view4 = root1.createViewWithShapeAndAllocate("buffer_shape", pysidre.TypeID.INT32_ID, 2, shape1)
+    view2 = root1.createView("empty_described", sidre.TypeID.INT32_ID, ndata)
+    view3 = root1.createViewWithShape("empty_shape", sidre.TypeID.INT32_ID, 2, shape1)
+    view4 = root1.createViewWithShapeAndAllocate("buffer_shape", sidre.TypeID.INT32_ID, 2, shape1)
 
     for protocol in PROTOCOLS:
         file_path = file_path_base + protocol
@@ -1685,7 +1684,7 @@ def test_save_restore_other():
 
         file_path = file_path_base + protocol
 
-        ds2 = pysidre.DataStore()
+        ds2 = sidre.DataStore()
         root2 = ds2.getRoot()
 
         root2.load(file_path, protocol)
@@ -1697,13 +1696,13 @@ def test_save_restore_other():
         view2 = root2.getView("empty_described")
         assert view2.isEmpty() == True, "empty_described is empty"
         assert view2.isDescribed() == True, "empty_described is described"
-        assert view2.getTypeID() == pysidre.TypeID.INT32_ID, "empty_described get TypeID"
+        assert view2.getTypeID() == sidre.TypeID.INT32_ID, "empty_described get TypeID"
         assert view2.getNumElements() == ndata, "empty_described get num elements"
 
         view3 = root2.getView("empty_shape")
         assert view3.isEmpty() == True, "empty_shape is empty"
         assert view3.isDescribed() == True, "empty_shape is described"
-        assert view3.getTypeID() == pysidre.TypeID.INT32_ID, "empty_shape get TypeID"
+        assert view3.getTypeID() == sidre.TypeID.INT32_ID, "empty_shape get TypeID"
         assert view3.getNumElements() == ndata * 2, "empty_shape get num elements"
         shape2 = np.zeros(7)
         rank, shape2 = view3.getShape(7, shape2)
@@ -1713,7 +1712,7 @@ def test_save_restore_other():
         view4 = root2.getView("buffer_shape")
         assert view4.hasBuffer() == True, "buffer_shape has buffer"
         assert view4.isDescribed() == True, "buffer_shape is described"
-        assert view4.getTypeID() == pysidre.TypeID.INT32_ID, "buffer_shape get TypeID"
+        assert view4.getTypeID() == sidre.TypeID.INT32_ID, "buffer_shape get TypeID"
         assert view4.getNumElements() == ndata * 2, "buffer_shape get num elements"
         shape2 = np.zeros(7)
         rank, shape2 = view4.getShape(7, shape2)
@@ -1722,7 +1721,7 @@ def test_save_restore_other():
 
 
 def test_rename_group():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     child1 = root.createGroup("g_a")
     child2 = root.createGroup("g_b")
@@ -1748,11 +1747,11 @@ def test_rename_group():
     assert child3.getName() == "g_c"
 
     # Rename root group
-    assert not pysidre.indexIsValid(root.getIndex())
+    assert not sidre.indexIsValid(root.getIndex())
     assert root.getParent() == root
     assert root.getName() == ""
     root.rename("newroot")
-    assert not pysidre.indexIsValid(root.getIndex())
+    assert not sidre.indexIsValid(root.getIndex())
     assert root.getParent() == root
     assert root.getName() == "newroot"
 
@@ -1760,7 +1759,7 @@ def test_rename_group():
 # Fortran comment - redo these, the C++ tests were heavily rewritten
 def test_save_restore_simple():
     file_path = "py_out_sidre_group_save_restore_simple"
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     flds = root.createGroup("fields")
 
@@ -1774,7 +1773,7 @@ def test_save_restore_simple():
 
     root.save(file_path, "sidre_conduit_json")
 
-    ds2 = pysidre.DataStore()
+    ds2 = sidre.DataStore()
     root2 = ds2.getRoot()
 
     root2.load(file_path, "sidre_conduit_json")
@@ -1790,7 +1789,7 @@ def test_save_restore_simple():
 def test_save_restore_complex():
     file_path = "py_out_sidre_group_save_restore_complex"
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     flds = root.createGroup("fields")
 
@@ -1809,7 +1808,7 @@ def test_save_restore_complex():
 
     root.save(file_path, "sidre_conduit_json")
 
-    ds2 = pysidre.DataStore()
+    ds2 = sidre.DataStore()
     root2 = ds2.getRoot()
 
     root2.load(file_path, "sidre_conduit_json")
@@ -1839,7 +1838,7 @@ def test_save_load_preserve_contents():
     file_path_base0 = "py_sidre_save_preserve_contents_tree0_"
     file_path_base1 = "py_sidre_save_preserve_contents_tree1_"
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     tree0 = root.createGroup("tree0")
 
@@ -1850,7 +1849,7 @@ def test_save_load_preserve_contents():
     i0_view = ga.createViewScalar("i0", 100)
     f0_view = ga.createViewScalar("f0", 3000.0)
     s0_view = gb.createViewString("s0", "foo")
-    i10_view = gc.createViewAndAllocate("int10", pysidre.TypeID.INT32_ID, 10)
+    i10_view = gc.createViewAndAllocate("int10", sidre.TypeID.INT32_ID, 10)
 
     v1_vals = i10_view.getDataArray()
     for i in range(10):
@@ -1870,7 +1869,7 @@ def test_save_load_preserve_contents():
         gy = tree1.createGroup("y")
         gz = tree1.createGroup("z")
 
-        i20_view = gx.createViewAndAllocate("int20", pysidre.TypeID.INT32_ID, 20)
+        i20_view = gx.createViewAndAllocate("int20", sidre.TypeID.INT32_ID, 20)
         v2_vals = i20_view.getDataArray()
         for i in range(20):
             v2_vals[i] = 2 * i
@@ -1881,7 +1880,7 @@ def test_save_load_preserve_contents():
         file_path1 = file_path_base1 + protocol
         assert tree1.save(file_path1, protocol)
 
-        dsload = pysidre.DataStore()
+        dsload = sidre.DataStore()
         ldroot = dsload.getRoot()
 
         ldtree0 = ldroot.createGroup("tree0")
