@@ -315,6 +315,38 @@ TEST(IOTest, readShapeSet_explicitYamlStreamFormat)
   EXPECT_EQ("wheel", shapeSet.getShapes()[0].getName());
 }
 
+TEST(IOTest, readShapeSet_emptyStreamReportsParseFailure)
+{
+  try
+  {
+    readShapeSetFromString("", InputFormat::YAML);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError &error)
+  {
+    ASSERT_EQ(1u, error.getErrors().size());
+    EXPECT_EQ(axom::Path {"<stream>"}, error.getErrors()[0].path);
+    EXPECT_STREQ("Failed to parse YAML Klee input from stream.", error.what());
+  }
+}
+
+TEST(IOTest, readShapeSet_missingFileReportsParseFailure)
+{
+  const std::string fileName = "missingKleeInput.yaml";
+  try
+  {
+    klee::readShapeSet(fileName);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError &error)
+  {
+    ASSERT_EQ(1u, error.getErrors().size());
+    EXPECT_EQ(axom::Path {fileName}, error.getErrors()[0].path);
+    EXPECT_STREQ("Failed to parse YAML Klee input from file 'missingKleeInput.yaml'.",
+                 error.what());
+  }
+}
+
 TEST(IOTest, readShapeSet_unsupportedFileExtension)
 {
   try
@@ -368,6 +400,21 @@ TEST(IOTest, readShapeSet_luaUnavailableDiagnostic)
 #endif
 
 #ifdef AXOM_USE_LUA
+TEST(IOTest, readShapeSet_malformedLuaReportsParseFailure)
+{
+  try
+  {
+    readShapeSetFromString("dimensions =", InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError &error)
+  {
+    ASSERT_EQ(1u, error.getErrors().size());
+    EXPECT_EQ(axom::Path {"<stream>"}, error.getErrors()[0].path);
+    EXPECT_THAT(error.what(), HasSubstr("Failed to parse Lua Klee input from stream"));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaStreamMinimalShapeList)
 {
   auto shapeSet = readShapeSetFromString(R"(

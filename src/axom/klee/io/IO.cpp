@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <exception>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -363,6 +364,46 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format)
   throw KleeError({Path {"<unknown path>"}, "Unsupported Klee input format."});
 }
 
+const char *inputFormatName(InputFormat format)
+{
+  switch(format)
+  {
+  case InputFormat::YAML:
+    return "YAML";
+  case InputFormat::Lua:
+    return "Lua";
+  }
+
+  return "unknown";
+}
+
+template <typename Parse>
+void parseOrThrow(Parse &&parse,
+                  InputFormat format,
+                  const Path &path,
+                  const std::string &sourceDescription)
+{
+  bool parsed = false;
+  std::string details;
+  try
+  {
+    parsed = parse();
+  }
+  catch(const std::exception &error)
+  {
+    details = error.what();
+  }
+
+  if(!parsed)
+  {
+    auto message = axom::fmt::format("Failed to parse {} Klee input {}",
+                                     inputFormatName(format),
+                                     sourceDescription);
+    message += details.empty() ? "." : axom::fmt::format(": {}", details);
+    throw KleeError({path, std::move(message)});
+  }
+}
+
 void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
                                   std::vector<inlet::VerificationError> &errors)
 {
@@ -421,7 +462,10 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format)
   std::string contents {std::istreambuf_iterator<char>(stream), {}};
 
   auto reader = createReader(format);
-  reader->parseString(contents);
+  parseOrThrow([&]() { return reader->parseString(contents); },
+               format,
+               Path {"<stream>"},
+               "from stream");
   return readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
 }
 
@@ -429,7 +473,10 @@ ShapeSet readShapeSet(const std::string &filePath)
 {
   const auto format = inferInputFormat(filePath);
   auto reader = createReader(format);
-  reader->parseFile(filePath);
+  parseOrThrow([&]() { return reader->parseFile(filePath); },
+               format,
+               Path {filePath},
+               axom::fmt::format("from file '{}'", filePath));
   auto shapeSet = readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
   shapeSet.setPath(filePath);
   return shapeSet;
