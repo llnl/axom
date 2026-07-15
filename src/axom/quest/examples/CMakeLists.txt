@@ -580,10 +580,10 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
             endforeach()
         endforeach()
 
-        # Exercise the example's bump-backend CLI path without duplicating the
-        # full legacy matrix.  Use one 2D and one 3D structured mesh; the
-        # dedicated quest_marching_cubes_bump test covers unstructured input.
-        set(_bump_meshes "mdmesh.2x1" "mdmesh.2x2x1")
+        # Exercise the example's bump-backend CLI path across the same structured
+        # multidomain meshes as the legacy path; the dedicated
+        # quest_marching_cubes_bump test covers unstructured input.
+        set(_bump_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")
         foreach(_pol ${AXOM_EXECUTION_POLICIES})
             set(_num_threads)
             if(_pol STREQUAL "omp")
