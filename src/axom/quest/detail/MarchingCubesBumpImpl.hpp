@@ -42,6 +42,7 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/reductions.hpp"
 #include "axom/core/MDMapping.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
@@ -52,6 +53,7 @@
 #include "axom/bump/extraction/CutField.hpp"
 #include "axom/bump/extraction/FieldIntersector.hpp"
 #include "axom/bump/SelectedZones.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
 #include "axom/bump/views/dispatch_topology.hpp"
 #include "axom/bump/views/Shapes.hpp"
@@ -69,6 +71,18 @@
 
 namespace axom::quest::detail::marching_cubes
 {
+template <int DIM, typename ExecSpace, typename SizesView>
+axom::IndexType computeTriangulatedFacetCountView(SizesView sizes)
+{
+  const axom::IndexType n = static_cast<axom::IndexType>(sizes.size());
+  axom::ReduceSum<ExecSpace, axom::IndexType> facetCount(0);
+  axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    const auto p = static_cast<axom::IndexType>(sizes[i]);
+    facetCount += (DIM == 3) ? (p >= 3 ? p - 2 : 0) : (p >= 2 ? 1 : 0);
+  });
+  return facetCount.get();
+}
+
 /*!
  * @brief Bump-backed single-domain marching cubes implementation.
  *
@@ -254,7 +268,9 @@ public:
     m_facetCount = 0;
   }
 
+#if !defined(__CUDACC__)
 private:
+#endif
   /*! @brief Dispatch a coordset view restricted to this implementation's DIM. */
   template <typename FuncType>
   static void dispatchCoordset(const conduit::Node& n_coords, FuncType&& func)
@@ -479,7 +495,7 @@ private:
 
       buildSelectedZonesFromMask(
         nZones,
-        [maskView, topoMap, maskVal = m_maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+        [topoMap, maskView, maskVal = m_maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
           const auto zoneIdx = topoMap.toMultiIndex(zoneIndex);
           if constexpr(DIM == 2)
           {
@@ -543,7 +559,7 @@ private:
     const TopologyView deviceTopologyView(topologyView);
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType selectedIndex) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType selectedIndex) {
         const auto zoneIndex = selectedZonesView[selectedIndex];
         const auto zone = deviceTopologyView.zone(zoneIndex);
         const auto ids = zone.getIds();
@@ -565,14 +581,14 @@ private:
     axom::exclusive_scan<ExecSpace>(crossingFlagsView, crossingOffsetsView);
 
     auto crossingZonesView = crossingZones.view();
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType selectedIndex) {
-        if(crossingFlagsView[selectedIndex] != 0)
-        {
-          crossingZonesView[crossingOffsetsView[selectedIndex]] = selectedZonesView[selectedIndex];
-        }
-      });
+    axom::for_all<ExecSpace>(selectedZonesView.size(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType selectedIndex) {
+                               if(crossingFlagsView[selectedIndex] != 0)
+                               {
+                                 crossingZonesView[crossingOffsetsView[selectedIndex]] =
+                                   selectedZonesView[selectedIndex];
+                               }
+                             });
 
     attachSelectedZonesOption(n_options, crossingZones);
     return crossingCountValue > 0;
@@ -662,7 +678,8 @@ private:
     axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
     axom::for_all<ExecSpace>(
       nZones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+      [topoMap, maskView, fcnView, contourVal, maskVal, crossingFlagsView, crossingCount] AXOM_HOST_DEVICE(
+        axom::IndexType zoneIndex) {
         const auto idx = topoMap.toMultiIndex(zoneIndex);
         bool useZone = maskView.empty();
         if(!useZone)
@@ -719,14 +736,12 @@ private:
     axom::exclusive_scan<ExecSpace>(crossingFlagsView, crossingOffsetsView);
 
     auto crossingZonesView = crossingZones.view();
-    axom::for_all<ExecSpace>(
-      nZones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        if(crossingFlagsView[zoneIndex] != 0)
-        {
-          crossingZonesView[crossingOffsetsView[zoneIndex]] = zoneIndex;
-        }
-      });
+    axom::for_all<ExecSpace>(nZones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      if(crossingFlagsView[zoneIndex] != 0)
+      {
+        crossingZonesView[crossingOffsetsView[zoneIndex]] = zoneIndex;
+      }
+    });
 
     attachSelectedZonesOption(n_options, crossingZones);
     return crossingCountValue > 0;
@@ -892,14 +907,10 @@ private:
     if(n_elems.has_child("sizes"))
     {
       const conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
-      const auto sizes = n_sizes.as_index_t_accessor();
-      const conduit::index_t n = sizes.number_of_elements();
       axom::IndexType facets = 0;
-      for(conduit::index_t i = 0; i < n; ++i)
-      {
-        const auto p = static_cast<axom::IndexType>(sizes[i]);
-        facets += (DIM == 3) ? (p >= 3 ? p - 2 : 0) : 1;
-      }
+      axom::bump::views::nodeToArrayView(n_sizes, [&](auto sizes) {
+        facets = computeTriangulatedFacetCountView<DIM, ExecSpace>(sizes);
+      });
       return facets;
     }
 
