@@ -1302,8 +1302,7 @@ bool InOutOctree<DIM>::withinGrayBlock3D(const SpacePt& queryPt,
     return normal.dot(ray.direction()) > 0.;
   }
 
-  // SLIC_DEBUG("Could not determine inside/outside for point "
-  //            << queryPt << " on block " << leafBlk);
+  SLIC_DEBUG("Could not determine inside/outside for point " << queryPt << " on block " << leafBlk);
 
   return false;
 }
