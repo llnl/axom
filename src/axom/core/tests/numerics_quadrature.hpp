@@ -318,37 +318,58 @@ TEST(numerics_quadrature, quadrature_type_dispatch)
   EXPECT_DOUBLE_EQ(rule.node(3), 1.0);
 }
 
+TEST(numerics_quadrature, exact_degree_by_type)
+{
+  using axom::numerics::QuadratureType;
+
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::Invalid, 3), 5);
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::GaussLegendre, 3), 5);
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::GaussLobatto, 1), 1);
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::GaussLobatto, 4), 5);
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::OpenUniform, 5), 5);
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::ClosedUniform, 4), 3);
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::OpenHalfUniform, 5), 5);
+  EXPECT_EQ(axom::numerics::get_exact_degree(QuadratureType::ClosedGL, 4), 3);
+}
+
 TEST(numerics_quadrature, open_uniform_exactness)
 {
-  check_polynomial_exactness([](int npts) { return axom::numerics::get_open_uniform(npts); },
-                             [](int npts) { return npts - 1 + npts % 2; },
-                             10);
+  check_polynomial_exactness(
+    [](int npts) { return axom::numerics::get_open_uniform(npts); },
+    [](int npts) { return axom::numerics::get_exact_degree(axom::numerics::QuadratureType::OpenUniform, npts); },
+    10);
 }
 
 TEST(numerics_quadrature, closed_uniform_exactness)
 {
-  check_polynomial_exactness([](int npts) { return axom::numerics::get_closed_uniform(npts); },
-                             [](int npts) { return npts - 1 + npts % 2; },
-                             10);
+  check_polynomial_exactness(
+    [](int npts) { return axom::numerics::get_closed_uniform(npts); },
+    [](int npts) { return axom::numerics::get_exact_degree(axom::numerics::QuadratureType::ClosedUniform, npts); },
+    10);
 }
 
 TEST(numerics_quadrature, gauss_lobatto_exactness)
 {
-  check_polynomial_exactness([](int npts) { return axom::numerics::get_gauss_lobatto(npts); },
-                             [](int npts) { return npts == 1 ? 1 : 2 * npts - 3; },
-                             10);
+  check_polynomial_exactness(
+    [](int npts) { return axom::numerics::get_gauss_lobatto(npts); },
+    [](int npts) { return axom::numerics::get_exact_degree(axom::numerics::QuadratureType::GaussLobatto, npts); },
+    10);
 }
 
 TEST(numerics_quadrature, open_half_uniform_exactness)
 {
-  check_polynomial_exactness([](int npts) { return axom::numerics::get_open_half_uniform(npts); },
-                             [](int npts) { return npts - 1 + npts % 2; },
-                             10);
+  check_polynomial_exactness(
+    [](int npts) { return axom::numerics::get_open_half_uniform(npts); },
+    [](int npts) {
+      return axom::numerics::get_exact_degree(axom::numerics::QuadratureType::OpenHalfUniform, npts);
+    },
+    10);
 }
 
 TEST(numerics_quadrature, closed_gl_exactness)
 {
-  check_polynomial_exactness([](int npts) { return axom::numerics::get_closed_gl(npts); },
-                             [](int npts) { return npts - 1 + npts % 2; },
-                             10);
+  check_polynomial_exactness(
+    [](int npts) { return axom::numerics::get_closed_gl(npts); },
+    [](int npts) { return axom::numerics::get_exact_degree(axom::numerics::QuadratureType::ClosedGL, npts); },
+    10);
 }

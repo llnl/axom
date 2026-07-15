@@ -91,6 +91,19 @@ RuleStorage& get_cached_rule_storage(int npts,
   return it->second;
 }
 
+/*!
+ * \brief Computes quadrature weights for an interpolatory rule on `[0, 1]`
+ *        from its nodes.
+ *
+ * \param [in] nodes The interpolation nodes that define the Lagrange basis
+ * \param [out] weights The quadrature weights corresponding to `nodes`
+ * \param [in] allocatorID The allocator used for temporary storage and the
+ *             output `weights` array
+ *
+ * The returned weights integrate the Lagrange basis associated with `nodes`
+ * by evaluating those basis polynomials with a Gauss-Legendre rule that is
+ * exact for degree `npts - 1`.
+ */
 void compute_interpolatory_weights(const axom::Array<double>& nodes,
                                    axom::Array<double>& weights,
                                    int allocatorID)
@@ -479,6 +492,30 @@ QuadratureRule get_quadrature_rule(QuadratureType quadratureType, int npts, int 
 
   assert("Unhandled Axom quadrature type." && false);
   return get_gauss_legendre(npts, allocatorID);
+}
+
+int get_exact_degree(QuadratureType quadratureType, int npts)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+  assert("Invalid Axom quadrature type." &&
+         is_valid_quadrature_type(static_cast<int>(quadratureType)));
+
+  switch(quadratureType)
+  {
+  case QuadratureType::Invalid:
+  case QuadratureType::GaussLegendre:
+    return 2 * npts - 1;
+  case QuadratureType::GaussLobatto:
+    return npts == 1 ? 1 : 2 * npts - 3;
+  case QuadratureType::OpenUniform:
+  case QuadratureType::ClosedUniform:
+  case QuadratureType::OpenHalfUniform:
+  case QuadratureType::ClosedGL:
+    return npts - 1 + npts % 2;
+  }
+
+  assert("Unhandled Axom quadrature type." && false);
+  return 2 * npts - 1;
 }
 
 QuadratureRule get_open_uniform(int npts, int allocatorID)

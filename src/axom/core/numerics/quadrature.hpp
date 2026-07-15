@@ -161,6 +161,18 @@ QuadratureRule get_quadrature_rule(QuadratureType quadratureType,
                                    int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
+ * \brief Returns the highest polynomial degree integrated exactly by a 1D
+ *        quadrature family with `npts` points.
+ *
+ * \param [in] quadratureType The quadrature family to query.
+ * \param [in] npts The number of quadrature points in the rule.
+ *
+ * \note `QuadratureType::Invalid` follows Axom's default rule, which is
+ *       currently Gauss-Legendre.
+ */
+int get_exact_degree(QuadratureType quadratureType, int npts);
+
+/*!
  * \brief Computes a 1D quadrature rule of open uniform Newton-Cotes points.
  *
  * \param [in] npts The number of points in the rule
