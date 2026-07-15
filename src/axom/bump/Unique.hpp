@@ -33,7 +33,7 @@ namespace detail
  * \param container The container (usually a view) whose data will be printed.
  */
 template <typename ExecSpace, typename ContainerType>
-void printContainer(const std::string& name, const ContainerType& container)
+void printContainer(const std::string &name, const ContainerType &container)
 {
   using value_type = typename ContainerType::value_type;
   using printed_type =
@@ -67,7 +67,7 @@ void printContainer(const std::string& name, const ContainerType& container)
  * \param container The container whose data will be printed.
  */
 template <typename MapType>
-void printMap(const std::string& name, const MapType& container, bool printKey)
+void printMap(const std::string &name, const MapType &container, bool printKey)
 {
   std::cout << name << "=[";
   for(auto it = container.begin(); it != container.end(); it++)
@@ -116,8 +116,8 @@ struct Unique
    * \note key_orig_view is passed by value so it does not require a local copy to capture it.
    */
   static void execute(const axom::ArrayView<KeyType> keys_orig_view,
-                      axom::Array<KeyType>& skeys,
-                      axom::Array<axom::IndexType>& sindices,
+                      axom::Array<KeyType> &skeys,
+                      axom::Array<axom::IndexType> &sindices,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     const int allocatorID = allocator_id;
@@ -211,14 +211,15 @@ struct Unique<axom::SEQ_EXEC, KeyType>
    * \param[out] sindices  An array of indices that indicate where in the original view the keys came from.
    *
    */
-  static void execute(const axom::ArrayView<KeyType>& keys_orig_view,
-                      axom::Array<KeyType>& skeys,
-                      axom::Array<axom::IndexType>& sindices,
+  static void execute(const axom::ArrayView<KeyType> &keys_orig_view,
+                      axom::Array<KeyType> &skeys,
+                      axom::Array<axom::IndexType> &sindices,
                       int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID())
   {
     // Make unique values and store the indices.
     std::unordered_map<KeyType, axom::IndexType> unique_map;
     const axom::IndexType n = keys_orig_view.size();
+    unique_map.reserve(static_cast<std::size_t>(n));
     for(axom::IndexType index = 0; index < n; ++index)
     {
       const auto k = keys_orig_view[index];
@@ -235,8 +236,8 @@ struct Unique<axom::SEQ_EXEC, KeyType>
     // Sort the vector by the keys.
     std::sort(unique_vector.begin(),
               unique_vector.end(),
-              [](const std::pair<KeyType, axom::IndexType>& a,
-                 const std::pair<KeyType, axom::IndexType>& b) { return a.first < b.first; });
+              [](const std::pair<KeyType, axom::IndexType> &a,
+                 const std::pair<KeyType, axom::IndexType> &b) { return a.first < b.first; });
 
     // Allocate the output arrays and populate them
     const axom::IndexType newsize = unique_vector.size();

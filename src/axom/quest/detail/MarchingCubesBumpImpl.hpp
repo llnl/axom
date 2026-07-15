@@ -585,6 +585,100 @@ private:
     return crossingCountValue > 0;
   }
 
+  bool attachStructuredCrossingSelectedZonesOption(conduit::Node& n_options,
+                                                   axom::Array<axom::IndexType>& crossingZones) const
+  {
+    AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::attachStructuredCrossingSelectedZonesOption");
+
+    axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
+    const auto fcnView = mvu.template getConstFieldView<double>(m_fcnFieldName, false);
+    axom::ArrayView<const int, DIM, MemorySpace> maskView;
+    if(!m_maskFieldName.empty())
+    {
+      maskView = mvu.template getConstFieldView<int>(m_maskFieldName, false);
+    }
+
+    const auto cellShape = mvu.getCellShape();
+    const axom::MDMapping<DIM> topoMap(cellShape, axom::ArrayStrideOrder::COLUMN);
+    const axom::IndexType nZones = mvu.getCellCount();
+    axom::Array<axom::IndexType> crossingFlags(nZones, nZones, m_allocatorID);
+    auto crossingFlagsView = crossingFlags.view();
+
+    const double contourVal = m_contourVal;
+    const int maskVal = m_maskVal;
+    axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
+    axom::for_all<ExecSpace>(
+      nZones,
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        const auto idx = topoMap.toMultiIndex(zoneIndex);
+        bool useZone = maskView.empty();
+        if(!useZone)
+        {
+          if constexpr(DIM == 2)
+          {
+            useZone = (maskView(idx[0], idx[1]) == maskVal);
+          }
+          else
+          {
+            useZone = (maskView(idx[0], idx[1], idx[2]) == maskVal);
+          }
+        }
+
+        bool hasPositive = false;
+        bool hasNonPositive = false;
+        if(useZone)
+        {
+          if constexpr(DIM == 2)
+          {
+            const bool p0 = fcnView(idx[0], idx[1]) > contourVal;
+            const bool p1 = fcnView(idx[0] + 1, idx[1]) > contourVal;
+            const bool p2 = fcnView(idx[0] + 1, idx[1] + 1) > contourVal;
+            const bool p3 = fcnView(idx[0], idx[1] + 1) > contourVal;
+            hasPositive = p0 || p1 || p2 || p3;
+            hasNonPositive = !p0 || !p1 || !p2 || !p3;
+          }
+          else
+          {
+            const bool p0 = fcnView(idx[0], idx[1], idx[2]) > contourVal;
+            const bool p1 = fcnView(idx[0] + 1, idx[1], idx[2]) > contourVal;
+            const bool p2 = fcnView(idx[0], idx[1] + 1, idx[2]) > contourVal;
+            const bool p3 = fcnView(idx[0] + 1, idx[1] + 1, idx[2]) > contourVal;
+            const bool p4 = fcnView(idx[0], idx[1], idx[2] + 1) > contourVal;
+            const bool p5 = fcnView(idx[0] + 1, idx[1], idx[2] + 1) > contourVal;
+            const bool p6 = fcnView(idx[0], idx[1] + 1, idx[2] + 1) > contourVal;
+            const bool p7 = fcnView(idx[0] + 1, idx[1] + 1, idx[2] + 1) > contourVal;
+            hasPositive = p0 || p1 || p2 || p3 || p4 || p5 || p6 || p7;
+            hasNonPositive = !p0 || !p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7;
+          }
+        }
+
+        const axom::IndexType crosses = (hasPositive && hasNonPositive) ? 1 : 0;
+        crossingFlagsView[zoneIndex] = crosses;
+        crossingCount += crosses;
+      });
+
+    const axom::IndexType crossingCountValue = crossingCount.get();
+    crossingZones =
+      axom::Array<axom::IndexType>(crossingCountValue, crossingCountValue, m_allocatorID);
+
+    axom::Array<axom::IndexType> crossingOffsets(nZones, nZones, m_allocatorID);
+    auto crossingOffsetsView = crossingOffsets.view();
+    axom::exclusive_scan<ExecSpace>(crossingFlagsView, crossingOffsetsView);
+
+    auto crossingZonesView = crossingZones.view();
+    axom::for_all<ExecSpace>(
+      nZones,
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        if(crossingFlagsView[zoneIndex] != 0)
+        {
+          crossingZonesView[crossingOffsetsView[zoneIndex]] = zoneIndex;
+        }
+      });
+
+    attachSelectedZonesOption(n_options, crossingZones);
+    return crossingCountValue > 0;
+  }
+
   /*!
    * @brief Instantiate CutField for (DIM, ExecSpace, this domain's view types)
    * and run it, storing the Blueprint output.
@@ -660,14 +754,19 @@ private:
         Cut iso(topologyView, coordsetView);
         iso.setAllocatorID(m_allocatorID);
         axom::Array<axom::IndexType> selectedZones;
-        addMaskSelectedZonesOption(topologyView, n_options, selectedZones);
-        if(!attachCrossingSelectedZonesOption(topologyView,
-                                              coordsetView,
-                                              n_topo,
-                                              n_coords,
-                                              m_dom->fetch_existing("fields"),
-                                              n_options,
-                                              selectedZones))
+        const bool hasCrossingZones = m_isStructured
+          ? attachStructuredCrossingSelectedZonesOption(n_options, selectedZones)
+          : [&]() {
+              addMaskSelectedZonesOption(topologyView, n_options, selectedZones);
+              return attachCrossingSelectedZonesOption(topologyView,
+                                                       coordsetView,
+                                                       n_topo,
+                                                       n_coords,
+                                                       m_dom->fetch_existing("fields"),
+                                                       n_options,
+                                                       selectedZones);
+            }();
+        if(!hasCrossingZones)
         {
           m_facetCount = 0;
           return;
