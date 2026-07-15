@@ -191,10 +191,8 @@ if(NANOBIND_FOUND)
     #--------------------------------------------------------------------------
 
     # gen python helper to build directory.
-    # _PYEXT_DIR is the site-packages-shaped root that holds the 'axom' package
-    # (and the 'pysidre' shim); a single PYTHONPATH entry makes 'import axom.sidre'
-    # and 'import pysidre' resolve. The Sidre bindings stage that tree under
-    # ${PROJECT_BINARY_DIR}/python (see src/axom/sidre/CMakeLists.txt).
+    # _PYEXT_DIR is the site-packages-shaped root that holds the 'axom' package.
+    # Adding an entry for the Sidre bindings to PYTHONPATH entry makes 'import axom.sidre' resolve.
     set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/python)
     set(_PYEXT_DIR_IS_RELATIVE FALSE)
 

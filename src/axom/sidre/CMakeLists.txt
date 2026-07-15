@@ -173,7 +173,7 @@ if(NANOBIND_FOUND)
     # The build-tree interpreter (and run_python_with_axom.sh, via _PYEXT_DIR)
     # puts this single directory on PYTHONPATH and then 'import axom.sidre' works.
     set(_axom_py_build_root "${PROJECT_BINARY_DIR}/python")
-    set(_pysidre_pkg_src    "${CMAKE_CURRENT_SOURCE_DIR}/../../python/src")
+    set(_axom_py_pkg_src    "${CMAKE_CURRENT_SOURCE_DIR}/../../python/src")
 
     # Build the extension under the shared 'axom' nanobind domain. 
     # All of Axom's extension modules (currently just axom.sidre) share NB_DOMAIN=axom
@@ -203,19 +203,17 @@ if(NANOBIND_FOUND)
     endif()
 
     # Stage the pure-Python package scaffolding into the build tree at configure
-    # time (axom/ namespace root + py.typed, axom/sidre/ re-export, pysidre shim).
-    axom_configure_file("${_pysidre_pkg_src}/axom/__init__.py"
+    # time (axom/ namespace root + py.typed, axom/sidre/ re-export).
+    axom_configure_file("${_axom_py_pkg_src}/axom/__init__.py"
                         "${_axom_py_build_root}/axom/__init__.py" COPYONLY)
-    axom_configure_file("${_pysidre_pkg_src}/axom/py.typed"
+    axom_configure_file("${_axom_py_pkg_src}/axom/py.typed"
                         "${_axom_py_build_root}/axom/py.typed" COPYONLY)
-    axom_configure_file("${_pysidre_pkg_src}/axom/sidre/__init__.py"
+    axom_configure_file("${_axom_py_pkg_src}/axom/sidre/__init__.py"
                         "${_axom_py_build_root}/axom/sidre/__init__.py" COPYONLY)
     # Hand-written package stub: re-exports the generated _sidre.pyi statically
     # so type checkers can see axom.sidre's surface
-    axom_configure_file("${_pysidre_pkg_src}/axom/sidre/__init__.pyi"
+    axom_configure_file("${_axom_py_pkg_src}/axom/sidre/__init__.pyi"
                         "${_axom_py_build_root}/axom/sidre/__init__.pyi" COPYONLY)
-    axom_configure_file("${_pysidre_pkg_src}/pysidre/__init__.py"
-                        "${_axom_py_build_root}/pysidre/__init__.py" COPYONLY)
 
     # Type stubs (PEP 561). nanobind_add_stub imports the module by its bare name
     # ('import _sidre'), so the directory holding the built extension must be on
@@ -244,18 +242,14 @@ if(NANOBIND_FOUND)
             LIBRARY DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom/sidre")
 
     install(FILES "${_axom_py_build_root}/axom/sidre/_sidre.pyi"
-                  "${_pysidre_pkg_src}/axom/sidre/__init__.py"
-                  "${_pysidre_pkg_src}/axom/sidre/__init__.pyi"
+                  "${_axom_py_pkg_src}/axom/sidre/__init__.py"
+                  "${_axom_py_pkg_src}/axom/sidre/__init__.pyi"
             DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom/sidre")
 
     # Namespace-root package files install once (not per component).
-    install(FILES "${_pysidre_pkg_src}/axom/__init__.py"
-                  "${_pysidre_pkg_src}/axom/py.typed"
+    install(FILES "${_axom_py_pkg_src}/axom/__init__.py"
+                  "${_axom_py_pkg_src}/axom/py.typed"
             DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom")
-
-    # Deprecation shim for the historical top-level 'pysidre' module.
-    install(FILES "${_pysidre_pkg_src}/pysidre/__init__.py"
-            DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/pysidre")
 endif()
 
 

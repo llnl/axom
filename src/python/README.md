@@ -8,17 +8,17 @@
 
 # Axom Python package source
 
-This directory (`src/python/`) holds the canonical source of Axom's Python package, `axom`.
+This directory (`src/python/`) holds the canonical source of Axom's Python package.
 It is consumed by two independent build paths that must produce the same on-disk layout:
 
 1. **The CMake build (in tree).** When Axom is configured with a component's Python bindings enabled (currently Sidre),
    the build stages this tree into the build directory and installs it into a `site-packages`-shaped prefix.
-   See `src/axom/sidre/CMakeLists.txt`: it copies the files below into `${PROJECT_BINARY_DIR}/python/` (so the build tree is import-ready)
-   and installs them under `AXOM_PYTHON_MODULE_INSTALL_PREFIX`.
+   See `src/axom/sidre/CMakeLists.txt`: it copies the files below into `${PROJECT_BINARY_DIR}/python/` 
+   (so the build tree is import-ready) and installs them under `AXOM_PYTHON_MODULE_INSTALL_PREFIX`.
    The compiled extension (`_sidre`) and its type stub are emitted into this layout by the build; they are not checked in.
 
 2. **[planned] The pip/uv wheel (out of tree).** A thin, binding-only wheel built with scikit-build-core
-   will treat this directory as its package root (`wheel.packages = ["src/axom", "src/pysidre"]` in a sibling `pyproject.toml`),
+   will treat this directory as its package root (`wheel.packages = ["src/axom"]` in a sibling `pyproject.toml`),
    compiling the binding translation unit against an already-installed Axom.
 
 
@@ -38,8 +38,6 @@ src/python/
         __init__.pyi            <- package stub; re-exports '_sidre.pyi' for type checkers
         (_sidre.<tag>.so)       <- compiled extension, produced by the build
         (_sidre.pyi)            <- type stub, produced by the build
-    pysidre/
-      __init__.py               <- deprecation shim re-exporting 'axom.sidre'
 ```
 
 Parenthesized entries are build products and are intentionally not in the repository.

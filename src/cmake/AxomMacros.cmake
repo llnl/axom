@@ -611,7 +611,7 @@ endmacro(axom_configure_file)
 ##
 ## We assemble one path list here, ordered:
 ##
-##   1. the staged Python package tree (axom/ + pysidre shim)  -- runtime
+##   1. the staged Python package tree (the 'axom' package)   -- runtime
 ##   2. conduit's python module dir                            -- runtime
 ##   3. numpy, then mpi4py (MPI configs)                       -- runtime
 ##   4. pytest and its dependencies                            -- test harness

@@ -31,7 +31,7 @@ which is built when Axom is configured with the Sidre component and Python bindi
    print(ds.getRoot().getView("fields/density").getNumElements())   # 10
 
 The module carries a ``__version__`` matching the Axom release, and exposes
-feature flags (eg., ``AXOM_USE_HDF5``, ``AXOM_ENABLE_MPI``) so Python code can
+feature flags (e.g., ``AXOM_USE_HDF5``, ``AXOM_ENABLE_MPI``) so Python code can
 branch on how Axom was built.
 
 =======================================
@@ -151,7 +151,3 @@ to ``PYTHONPATH`` and then runs the interpreter:
 
 The helper is a ``PYTHONPATH`` prepend and is bash-only, so it does not compose
 with Jupyter kernels, IDE runners, or debuggers
-
-.. note:: The historical top-level module name ``pysidre`` still works as a
-          deprecation shim that re-exports ``axom.sidre`` and warns on import.
-          It will be removed in a future release. Prefer ``import axom.sidre``.

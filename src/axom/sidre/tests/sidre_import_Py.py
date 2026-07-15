@@ -3,37 +3,26 @@
 # files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
-"""Tests for the deprecated 'pysidre' compatibility shim.
+"""Import-behavior tests for the 'axom.sidre' package.
 
-The Sidre bindings moved from a top-level 'pysidre' module to the 'axom.sidre' package.
-'pysidre' survives as a deprecation shim that re-exports 'axom.sidre' and warns on import.
-These tests check that the import keeps working, warns once, and exposes the same objects as 'axom.sidre'.
+These check that 'axom.sidre' produces an actionable ImportError when the
+compiled '_sidre' extension is absent (a component-disabled install), and that
+a genuine loader failure (a discoverable '_sidre' that itself raises
+ImportError) is surfaced rather than masked by the component-missing message.
 """
 
 import importlib
 from pathlib import Path
 import sys
-import warnings
 
 import pytest
-
-
-def _fresh_import_pysidre():
-    """Import 'pysidre' with a clean module cache so its import-time
-    DeprecationWarning is (re)emitted deterministically."""
-    sys.modules.pop("pysidre", None)
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        module = importlib.import_module("pysidre")
-    deprecations = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-    return module, deprecations
 
 
 def _clear_axom_imports():
     # These tests swap between the real staged package and synthetic packages
     # under tmp_path; cached modules would otherwise bypass sys.path changes.
     for name in list(sys.modules):
-        if name == "axom" or name.startswith("axom.") or name == "pysidre":
+        if name == "axom" or name.startswith("axom."):
             sys.modules.pop(name, None)
 
 
@@ -64,32 +53,6 @@ def _write_fake_axom_sidre(tmp_path, monkeypatch, sidre_init_source, sidre_exten
 
     _clear_axom_imports()
     monkeypatch.syspath_prepend(str(tmp_path))
-
-
-def test_pysidre_import_warns_once():
-    _module, deprecations = _fresh_import_pysidre()
-    assert len(deprecations) == 1
-    assert "axom.sidre" in str(deprecations[0].message)
-
-
-def test_pysidre_reexports_axom_sidre():
-    import axom.sidre as sidre
-
-    pysidre, _ = _fresh_import_pysidre()
-
-    # Core symbols resolve, and to the *same* objects as axom.sidre.
-    assert pysidre.DataStore is sidre.DataStore
-    assert pysidre.InvalidIndex == sidre.InvalidIndex
-    assert pysidre.__version__ == sidre.__version__
-
-
-def test_pysidre_datastore_roundtrip():
-    pysidre, _ = _fresh_import_pysidre()
-    ds = pysidre.DataStore()
-    root = ds.getRoot()
-    grp = root.createGroup("via_shim")
-    assert root.hasGroup("via_shim")
-    assert grp.getName() == "via_shim"
 
 
 def test_axom_sidre_missing_extension_gets_component_message(tmp_path, monkeypatch):
