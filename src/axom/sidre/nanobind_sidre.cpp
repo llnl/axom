@@ -312,6 +312,14 @@ conduit::Node& nbObjectToNode(nb::object& o)
  *
  * \note Thread safety: all access goes through the GIL (see the module
  *  docstring). If the bindings ever release the GIL, this registry needs a mutex.
+ *
+ * \note Pin scoping assumes a pinned View stays within the DataStore it belonged
+ *  to when it was pinned. Sidre reparenting (moveView/moveGroup) stays within a
+ *  single DataStore, so a View's owning DataStore is stable for its lifetime and
+ *  the DataStore* key never goes stale under a supported operation.
+ *  If Sidre ever gained cross-DataStore migration of a live View, that View's pin
+ *  would remain under its original DataStore (and be released when that DataStore is collected),
+ *  so this invariant would need revisiting.
  */
 struct DataStoreExternalPins
 {
@@ -353,6 +361,10 @@ void releaseDataStoreExternalPins(DataStore* ds) { externalDataOwnerRegistry().e
 void pinExternalDataOwner(View* view, const nb::ndarray<>& owner)
 {
   DataStore* ds = owningDataStore(view);
+  // Enforce the precondition in debug builds;
+  // release builds fall through to the null-safe early return below.
+  SLIC_ASSERT_MSG(view == nullptr || ds != nullptr,
+                  "pinExternalDataOwner: a non-null View is expected to have an owning DataStore");
   if(view == nullptr || ds == nullptr)
   {
     return;
