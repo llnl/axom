@@ -148,10 +148,10 @@ inline OctType new_inscribed_prism(OctType &old_oct,
  * quadrilateral side-wall.
  */
 template <typename ExecSpace>
-int discrSeg(const Point2D& a,
-             const Point2D& b,
+int discrSeg(const Point2D &a,
+             const Point2D &b,
              int levels,
-             axom::ArrayView<OctType>& out,
+             axom::ArrayView<OctType> &out,
              int idx,
              axom::HostAllocator hostAllocator)
 {
@@ -174,7 +174,7 @@ int discrSeg(const Point2D& a,
   // Establish a prism (in an octahedron record) with one triangular
   // end lying on the circle described by rotating point a around the
   // x-axis and the other lying on circle from rotating b.
-  OctType* oct_from_seg = axom::allocate<OctType>(1, hostAllocator.getID());
+  OctType *oct_from_seg = axom::allocate<OctType>(1, hostAllocator.getID());
   oct_from_seg[0] = from_segment(a, b);
 
   axom::copy(out.data() + idx + 0, oct_from_seg, sizeof(OctType));

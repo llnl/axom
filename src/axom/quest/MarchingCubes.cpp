@@ -209,9 +209,7 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
     if(hostAndInternalMemoriesAreSeparate)
     {
       axom::Array<double, 2> tmpfacetNodeCoords(m_facetNodeCoords, hostAllocatorId, m_hostAllocator);
-      axom::Array<axom::IndexType, 2> tmpfacetNodeIds(m_facetNodeIds,
-                                                       hostAllocatorId,
-                                                       m_hostAllocator);
+      axom::Array<axom::IndexType, 2> tmpfacetNodeIds(m_facetNodeIds, hostAllocatorId, m_hostAllocator);
       mesh.appendNodes(tmpfacetNodeCoords.data(), contourNodeCount);
       mesh.appendCells(tmpfacetNodeIds.data(), contourCellCount);
     }

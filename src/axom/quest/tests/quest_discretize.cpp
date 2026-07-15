@@ -775,8 +775,12 @@ TEST(quest_discretize, segment_test_explicit_host_allocator)
 
   axom::Array<OctType> generated;
   int octcount = 0;
-  axom::quest::discretize<axom::SEQ_EXEC>(
-    polyline, 2, generations, generated, octcount, axom::HostAllocator {hostAllocID});
+  axom::quest::discretize<axom::SEQ_EXEC>(polyline,
+                                          2,
+                                          generations,
+                                          generated,
+                                          octcount,
+                                          axom::HostAllocator {hostAllocID});
 
   axom::Array<OctType> handcut;
   discretized_segment(polyline[0], polyline[1], handcut);

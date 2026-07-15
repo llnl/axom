@@ -216,8 +216,11 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
 
   // Initialize the spatial index
   timer.start();
-  quest::PointInCell<mesh_tag, ExecSpace> query(
-    &mesh, bins.data(), 1e-8, device_allocator, hostAllocator);
+  quest::PointInCell<mesh_tag, ExecSpace> query(&mesh,
+                                                bins.data(),
+                                                1e-8,
+                                                device_allocator,
+                                                hostAllocator);
   query.setPrintLevel(args.verbosity);
   query.setInitialGuessType(args.init_guess_type);
   query.setInitialGridOrder(args.init_guess_order);
