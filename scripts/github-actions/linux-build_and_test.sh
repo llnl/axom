@@ -61,11 +61,11 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     or_die make install
 
     # For configs that generated Python bindings, check that we can run a Python script with Axom
+    echo "~~~~~~ RUNNING INSTALLED PYTHON EXAMPLE ~~~~~~~~"
     INSTALL_PREFIX=$(awk -F= '/^CMAKE_INSTALL_PREFIX:PATH=/{print $2}' CMakeCache.txt)
     PYTHON_RUNNER="${INSTALL_PREFIX}/bin/run_python_with_axom.sh"
     PYTHON_EXAMPLE="${INSTALL_PREFIX}/examples/axom/using-with-python/example.py"
     if [[ -x "${PYTHON_RUNNER}" && -f "${PYTHON_EXAMPLE}" ]] ; then
-        echo "~~~~~~ RUNNING INSTALLED PYTHON EXAMPLE ~~~~~~~~"
         or_die "${PYTHON_RUNNER}" "${PYTHON_EXAMPLE}"
     fi
 fi

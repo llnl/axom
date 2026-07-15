@@ -31,7 +31,7 @@ which is built when Axom is configured with the Sidre component and Python bindi
    print(ds.getRoot().getView("fields/density").getNumElements())   # 10
 
 The module carries a ``__version__`` matching the Axom release, and exposes
-feature flags (``AXOM_USE_HDF5``, ``AXOM_ENABLE_MPI``) so Python code can
+feature flags (eg., ``AXOM_USE_HDF5``, ``AXOM_ENABLE_MPI``) so Python code can
 branch on how Axom was built.
 
 =======================================
