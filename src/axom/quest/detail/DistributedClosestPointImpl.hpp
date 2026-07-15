@@ -243,8 +243,9 @@ inline int isend_using_schema(conduit::Node& node,
 class DistributedClosestPointImpl
 {
 public:
-  DistributedClosestPointImpl(int allocatorID, bool isVerbose)
+  DistributedClosestPointImpl(int allocatorID, HostAllocator hostAllocator, bool isVerbose)
     : m_allocatorID(allocatorID)
+    , m_hostAllocator(hostAllocator)
     , m_isVerbose(isVerbose)
     , m_mpiComm(MPI_COMM_NULL)
     , m_rank(-1)
@@ -265,6 +266,8 @@ public:
     // TODO: If appropriate, how to check for compatibility with runtime policy?
     m_allocatorID = allocatorID;
   }
+
+  void setHostAllocator(HostAllocator hostAllocator) { m_hostAllocator = hostAllocator; }
 
   /*!
    @brief Import object mesh points from the object blueprint mesh into internal memory.
@@ -516,6 +519,7 @@ public:
 
 protected:
   int m_allocatorID;
+  HostAllocator m_hostAllocator;
   bool m_isVerbose;
 
   MPI_Comm m_mpiComm;
@@ -575,8 +579,8 @@ public:
       Also see setAllocatorID().
     @param [i[ isVerbose
   */
-  DistributedClosestPointExec(int allocatorID, bool isVerbose)
-    : DistributedClosestPointImpl(allocatorID, isVerbose)
+  DistributedClosestPointExec(int allocatorID, HostAllocator hostAllocator, bool isVerbose)
+    : DistributedClosestPointImpl(allocatorID, hostAllocator, isVerbose)
     , m_objectPtCoords(0, 0, allocatorID)
     , m_objectPtDomainIds(0, 0, allocatorID)
   {
@@ -606,8 +610,8 @@ public:
     }
 
     // Copy points to internal memory
-    PointArray coords(ptCount, ptCount);
-    axom::Array<axom::IndexType> domIds(ptCount, ptCount);
+    PointArray coords(ptCount, ptCount, m_hostAllocator.getID(), m_hostAllocator);
+    axom::Array<axom::IndexType> domIds(ptCount, ptCount, m_hostAllocator.getID(), m_hostAllocator);
     std::size_t copiedCount = 0;
     conduit::Node tmpValues;
     for(axom::IndexType d = 0; d < mdMeshNode.number_of_children(); ++d)
@@ -679,10 +683,13 @@ public:
   /// Allgather one bounding box from each rank.
   void gatherBoundingBoxes(const BoxType& aabb, BoxArray& all_aabbs) const
   {
-    axom::Array<double> sendbuf(2 * DIM);
+    axom::Array<double> sendbuf(2 * DIM, 2 * DIM, m_hostAllocator.getID(), m_hostAllocator);
     aabb.getMin().to_array(&sendbuf[0]);
     aabb.getMax().to_array(&sendbuf[DIM]);
-    axom::Array<double> recvbuf(m_nranks * sendbuf.size());
+    axom::Array<double> recvbuf(m_nranks * sendbuf.size(),
+                                m_nranks * sendbuf.size(),
+                                m_hostAllocator.getID(),
+                                m_hostAllocator);
     // Note: Using axom::Array<double,2> may reduce clutter a tad.
     int errf = MPI_Allgather(sendbuf.data(),
                              2 * DIM,
@@ -988,9 +995,7 @@ public:
         auto it = m_bvh->getTraverser();
         const int rank = m_rank;
 
-        axom::Array<double> sqDistThresh_host(1,
-                                              1,
-                                              axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+        axom::Array<double> sqDistThresh_host(1, 1, m_hostAllocator.getID(), m_hostAllocator);
         sqDistThresh_host[0] = m_sqDistanceThreshold;
         axom::Array<double> sqDistThresh_device =
           axom::Array<double>(sqDistThresh_host, m_allocatorID);

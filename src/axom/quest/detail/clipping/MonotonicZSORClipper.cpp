@@ -67,9 +67,25 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
                                            const Point3DType& sorOrigin,
                                            const Vector3DType& sorDirection,
                                            axom::IndexType levelOfRefinement)
+  : MonotonicZSORClipper(kGeom,
+                         name,
+                         discreteFunction,
+                         sorOrigin,
+                         sorDirection,
+                         levelOfRefinement,
+                         HostAllocator {})
+{ }
+
+MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
+                                           const std::string& name,
+                                           axom::ArrayView<const Point2DType> discreteFunction,
+                                           const Point3DType& sorOrigin,
+                                           const Vector3DType& sorDirection,
+                                           axom::IndexType levelOfRefinement,
+                                           HostAllocator hostAllocator)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
-  , m_sorCurve(discreteFunction, axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+  , m_sorCurve(discreteFunction, hostAllocator.getID(), hostAllocator)
   , m_maxRadius(0.0)
   , m_minRadius(numerics::floating_point_limits<double>::max())
   , m_sorOrigin(sorOrigin)

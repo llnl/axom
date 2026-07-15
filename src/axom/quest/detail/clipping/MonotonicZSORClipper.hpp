@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "axom/core/memory_management.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
@@ -62,6 +63,14 @@ public:
                        const Point3DType& sorOrigin,
                        const Vector3DType& sorDirection,
                        axom::IndexType levelOfRefinement);
+
+  MonotonicZSORClipper(const klee::Geometry& kGeom,
+                       const std::string& name,
+                       axom::ArrayView<const Point2DType> discreteFunction,
+                       const Point3DType& sorOrigin,
+                       const Vector3DType& sorDirection,
+                       axom::IndexType levelOfRefinement,
+                       HostAllocator hostAllocator);
 
   virtual ~MonotonicZSORClipper() = default;
 

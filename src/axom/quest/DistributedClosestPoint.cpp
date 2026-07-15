@@ -100,6 +100,16 @@ void DistributedClosestPoint::setAllocatorID(int allocatorID)
   }
 }
 
+void DistributedClosestPoint::setHostAllocator(HostAllocator hostAllocator)
+{
+  m_hostAllocator = hostAllocator;
+
+  if(m_impl)
+  {
+    m_impl->setHostAllocator(m_hostAllocator);
+  }
+}
+
 void DistributedClosestPoint::setMpiCommunicator(MPI_Comm mpiComm, bool duplicate)
 {
   if(m_mpiCommIsPrivate)
@@ -262,6 +272,7 @@ template <int DIM, typename ExecSpace>
 void DistributedClosestPoint::allocateQueryInstance()
 {
   m_impl = std::make_unique<internal::DistributedClosestPointExec<DIM, ExecSpace>>(m_allocatorID,
+                                                                                   m_hostAllocator,
                                                                                    m_isVerbose);
 }
 
