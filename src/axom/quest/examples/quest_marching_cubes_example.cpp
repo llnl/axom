@@ -181,8 +181,7 @@ public:
 
     app.add_option("-m,--mesh-file", meshFile)
       ->description(
-        "Path to multidomain computational mesh following conduit blueprint "
-        "convention.")
+        "Path to multidomain computational mesh following conduit blueprint convention.")
       ->check(axom::CLI::ExistingFile);
 
     app.add_option("-s,--fields-file", fieldsFile)
@@ -271,8 +270,7 @@ public:
                       (inPlane.empty() || inPlane.size() == ndim) &&
                       (perpDir.empty() || perpDir.size() == ndim) &&
                       (gyroidScale.empty() || gyroidScale.size() == ndim),
-                    "fcnCenter, inPlane and perpDir must have consistent sizes "
-                    "if specified.");
+                    "fcnCenter, inPlane and perpDir must have consistent sizes if specified.");
 
     // inPlane defaults to origin if omitted.
     if(usingPlanar() && inPlane.empty())
@@ -2162,12 +2160,21 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Load computational mesh.
   //---------------------------------------------------------------------------
+
   AXOM_ANNOTATE_BEGIN("load mesh");
   BlueprintStructuredMesh computationalMesh(params.meshFile,
                                             "mesh",
                                             params.useBumpBackend,
                                             params.isVerbose());
   AXOM_ANNOTATE_END("load mesh");
+
+  SLIC_ERROR_IF(
+    params.ndim != static_cast<std::size_t>(computationalMesh.dimension()),
+    axom::fmt::format(
+      "Function parameter dimension {} does not match input mesh dimension {} for '{}'.",
+      params.ndim,
+      computationalMesh.dimension(),
+      params.meshFile));
 
   SLIC_INFO_IF(params.isVerbose(),
                axom::fmt::format("Computational mesh has {} cells in {} domains locally",
