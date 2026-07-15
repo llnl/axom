@@ -718,7 +718,9 @@ TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
   {
     readShapeSetFromString(R"(
       dimensions = 2
-      unexpected_global = 42
+      unexpected_global = {
+        nested_value = 42
+      }
       shapes = {}
     )",
                            InputFormat::Lua);
@@ -726,8 +728,35 @@ TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
   }
   catch(const KleeError &err)
   {
+    ASSERT_EQ(1u, err.getErrors().size());
+    EXPECT_EQ(axom::Path {"unexpected_global"}, err.getErrors()[0].path);
     EXPECT_THAT(err.what(), HasSubstr("unexpected_global"));
   }
+}
+
+TEST(IOTest, readShapeSet_luaNestedUnexpectedFieldsMatchYamlValidation)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "wheel",
+        material = "steel",
+        extra_shape_value = true,
+        geometry = {
+          format = "stl",
+          path = "wheel.stl",
+          extra_geometry_table = {
+            nested_value = 42
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  EXPECT_EQ("wheel", shapeSet.getShapes()[0].getName());
 }
 #endif
 

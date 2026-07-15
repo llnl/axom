@@ -125,15 +125,16 @@ global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example
 :code:`{ scale = {2.0} }`.
 
-Common Lua input errors are reported as Klee parsing errors. A Lua deck read
-without Lua support reports:
+Common Lua input errors are reported as Klee parsing errors.
+A Lua deck read without Lua support reports:
 
 .. code-block:: text
 
     Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. Rebuild Axom with Lua enabled or convert deck to YAML.
 
-Unsupported file extensions are rejected before parsing, and unexpected globals
+Unsupported file extensions are rejected before parsing, and unexpected top-level globals
 or syntax errors are reported during Inlet verification or Lua evaluation.
+Unknown nested fields follow the same Inlet schema strictness rules as YAML input.
 
 Paths
 *****

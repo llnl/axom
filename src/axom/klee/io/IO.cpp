@@ -25,7 +25,6 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_set>
 
 namespace axom
 {
@@ -407,19 +406,15 @@ void parseOrThrow(Parse &&parse,
 void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
                                   std::vector<inlet::VerificationError> &errors)
 {
-  std::unordered_set<std::string> unexpectedGlobals;
   for(const auto &name : doc.unexpectedNames())
   {
-    const auto slash = name.find('/');
-    unexpectedGlobals.insert(name.substr(0, slash));
-  }
-
-  for(const auto &name : unexpectedGlobals)
-  {
-    errors.push_back({Path {name},
-                      axom::fmt::format("Unexpected global variable '{}' in Lua input deck. Use "
-                                        "'local' for helper values and functions.",
-                                        name)});
+    if(name.find('/') == std::string::npos)
+    {
+      errors.push_back({Path {name},
+                        axom::fmt::format("Unexpected global variable '{}' in Lua input deck. "
+                                          "Use 'local' for helper values and functions.",
+                                          name)});
+    }
   }
 }
 
