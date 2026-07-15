@@ -50,6 +50,8 @@
 
 // bump extraction + views
 #include "axom/bump/extraction/CutField.hpp"
+#include "axom/bump/extraction/FieldIntersector.hpp"
+#include "axom/bump/SelectedZones.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
 #include "axom/bump/views/dispatch_topology.hpp"
 #include "axom/bump/views/Shapes.hpp"
@@ -204,6 +206,11 @@ public:
 
   axom::IndexType getContourNodeCount() const override
   {
+    if(m_facetCount == 0)
+    {
+      return 0;
+    }
+
     SLIC_ASSERT(m_output != nullptr);
     const conduit::Node& n_topos = m_output->fetch_existing("topologies");
     SLIC_ASSERT(n_topos.number_of_children() == 1);
@@ -508,6 +515,46 @@ private:
     }
   }
 
+  template <typename TopologyView, typename CoordsetView>
+  bool hasCrossingZones(const TopologyView& topologyView,
+                        const CoordsetView& coordsetView,
+                        const conduit::Node& n_topo,
+                        const conduit::Node& n_coords,
+                        const conduit::Node& n_fields,
+                        const conduit::Node& n_options) const
+  {
+    namespace bumpx = axom::bump::extraction;
+
+    axom::bump::SelectedZones<ExecSpace> selectedZones(topologyView.numberOfZones(),
+                                                       n_options,
+                                                       "selectedZones",
+                                                       m_allocatorID);
+    const auto selectedZonesView = selectedZones.view();
+    if(selectedZonesView.empty())
+    {
+      return false;
+    }
+
+    bumpx::FieldIntersector<ExecSpace, TopologyView, CoordsetView> intersector;
+    intersector.setAllocatorID(m_allocatorID);
+    intersector.initialize(topologyView, coordsetView, n_options, n_topo, n_coords, n_fields);
+    const auto intersectorView = intersector.view();
+
+    axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
+    axom::for_all<ExecSpace>(
+      selectedZonesView.size(),
+      AXOM_LAMBDA(axom::IndexType selectedIndex) {
+        const auto zoneIndex = selectedZonesView[selectedIndex];
+        const auto zone = topologyView.zone(zoneIndex);
+        const auto ids = zone.getIds();
+        const auto caseNumber = intersectorView.determineTableCase(zoneIndex, ids);
+        const auto allPositive = (axom::IndexType {1} << ids.size()) - axom::IndexType {1};
+        crossingCount += (caseNumber != 0 && caseNumber != allPositive) ? 1 : 0;
+      });
+
+    return crossingCount.get() > 0;
+  }
+
   /*!
    * @brief Instantiate CutField for (DIM, ExecSpace, this domain's view types)
    * and run it, storing the Blueprint output.
@@ -547,6 +594,7 @@ private:
     // Restrict the unstructured shape set to {quad, hex} as requested, to bound template instantiation.
     // Structured dimensions restricted to DIM. Dispatch coordset, then topology, building the matching views
     // and running CutField.  The double dispatch yields the concrete (CoordView, TopoView) pair at compile time.
+    bool extracted = false;
     dispatchCoordset(n_coords, [&](auto coordsetView) {
       using CoordsetView = decltype(coordsetView);
       dispatchTopology(n_topo, [&](const std::string& AXOM_UNUSED_PARAM(shape), auto topologyView) {
@@ -580,11 +628,28 @@ private:
         iso.setAllocatorID(m_allocatorID);
         axom::Array<axom::IndexType> selectedZones;
         addMaskSelectedZonesOption(topologyView, n_options, selectedZones);
+        if(!hasCrossingZones(topologyView,
+                             coordsetView,
+                             n_topo,
+                             n_coords,
+                             m_dom->fetch_existing("fields"),
+                             n_options))
+        {
+          m_facetCount = 0;
+          return;
+        }
+
         conduit::Node execOptions;
         axom::bump::utilities::copy<ExecSpace>(execOptions, n_options, m_allocatorID);
         iso.execute(*m_dom, execOptions, n_out);
+        extracted = true;
       });
     });
+
+    if(!extracted)
+    {
+      return;
+    }
 
     // Determine the facet count from the bump output.  After fan-triangulation (see fillLegacyOutputBuffers)
     // the legacy facet count is the number of triangles/segments, not the number of bump polygons;
@@ -660,6 +725,10 @@ private:
   void fillLegacyOutputBuffers()
   {
     SLIC_ASSERT(m_output != nullptr);
+    if(m_facetCount == 0)
+    {
+      return;
+    }
 
     // Build the legacy field-stride remap only when the user asked for the legacy numbering AND the input is structured
     // (unstructured has no canonical field stride order; we leave the remap empty -> pass-through).

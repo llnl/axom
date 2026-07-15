@@ -356,16 +356,29 @@ struct BlueprintStructuredMesh
 public:
   explicit BlueprintStructuredMesh(const std::string& meshFile,
                                    const std::string& topologyName,
+                                   bool compactStridedStructured = false,
                                    bool verboseOutput = false)
     : _topologyName(topologyName)
     , _topologyPath("topologies/" + topologyName)
+    , _compactStridedStructured(compactStridedStructured)
   {
     readBlueprintMesh(meshFile);
-    for(int d = 0; d < _mdMesh.number_of_children(); ++d)
+
+    if(verboseOutput)
     {
-      auto dl = domainLengths(d);
-      SLIC_INFO_IF(verboseOutput, axom::fmt::format("dom[{}] size={}", d, dl));
+      for(int d = 0; d < _mdMesh.number_of_children(); ++d)
+      {
+        if(isStructured(d))
+        {
+          SLIC_INFO(axom::fmt::format("dom[{}] size={}", d, domainLengths(d)));
+        }
+        else
+        {
+          SLIC_INFO(axom::fmt::format("dom[{}] cells={}, nodes={}", d, cellCount(d), nodeCount(d)));
+        }
+      }
     }
+
     _maxSpacing = maxSpacing();
   }
 
@@ -412,6 +425,7 @@ public:
   void domainLengths(axom::IndexType domId, axom::IndexType* lengths) const
   {
     const conduit::Node& dom = domain(domId);
+    SLIC_ASSERT_MSG(isStructured(domId), "domainLengths() is only defined for structured domains.");
     SLIC_ASSERT_MSG(dom.fetch_existing(_coordsetPath + "/type").as_string() == "explicit",
                     axom::fmt::format("Currently only supporting explicit coordinate types."
                                       "  '{}/type' is '{}'",
@@ -420,7 +434,7 @@ public:
     const conduit::Node& dimsNode = dom.fetch_existing(_topologyPath + "/elements/dims");
     for(int i = 0; i < _ndims; ++i)
     {
-      lengths[i] = dimsNode[i].as_int();
+      lengths[i] = static_cast<axom::IndexType>(dimsNode[i].to_int64());
     }
   }
 
@@ -434,13 +448,18 @@ public:
   /// Returns the number of cells in a domain
   int cellCount(axom::IndexType domId) const
   {
-    auto shape = domainLengths(domId);
-    int rval = 1;
-    for(const auto& l : shape)
+    if(isStructured(domId))
     {
-      rval *= l;
+      const auto shape = domainLengths(domId);
+      int rval = 1;
+      for(const auto& l : shape)
+      {
+        rval *= l;
+      }
+      return rval;
     }
-    return rval;
+    return static_cast<int>(
+      conduit::blueprint::mesh::topology::length(domain(domId).fetch_existing(_topologyPath)));
   }
 
   /// Returns the number of cells in all mesh domains
@@ -457,13 +476,18 @@ public:
   /// Returns the number of nodes in a domain
   int nodeCount(axom::IndexType domId) const
   {
-    auto shape = domainLengths(domId);
-    int rval = 1;
-    for(const auto& l : shape)
+    if(isStructured(domId))
     {
-      rval *= 1 + l;
+      auto shape = domainLengths(domId);
+      int rval = 1;
+      for(const auto& l : shape)
+      {
+        rval *= 1 + l;
+      }
+      return rval;
     }
-    return rval;
+    return static_cast<int>(
+      conduit::blueprint::mesh::coordset::length(domain(domId).fetch_existing(_coordsetPath)));
   }
 
   /// Returns the number of nodes in all mesh domains
@@ -478,6 +502,27 @@ public:
   }
 
   int dimension() const { return _ndims; }
+
+  std::string topologyType(axom::IndexType domId) const
+  {
+    return domain(domId).fetch_existing(_topologyPath + "/type").as_string();
+  }
+
+  bool isStructured(axom::IndexType domId) const { return topologyType(domId) == "structured"; }
+
+  bool isUnstructured(axom::IndexType domId) const { return topologyType(domId) == "unstructured"; }
+
+  bool isStridedStructured(axom::IndexType domId) const
+  {
+    return isStructured(domId) &&
+      domain(domId).fetch_existing(_topologyPath + "/elements/dims").has_child("strides");
+  }
+
+  bool useFlatFields(axom::IndexType domId) const
+  {
+    return (_domCount == 1 && !isStridedStructured(domId)) || isUnstructured(domId) ||
+      domain(domId).has_path("fields/fcn") || (_compactedStridedStructured && isStructured(domId));
+  }
 
   /*!
    * @return largest mesh spacing.
@@ -514,11 +559,20 @@ public:
   double maxSpacing1(axom::IndexType domId) const
   {
     const conduit::Node& dom = domain(domId);
+    if(useFlatFields(domId) && isStructured(domId))
+    {
+      return maxStructuredEdgeLengthFlat(dom);
+    }
+    if(isUnstructured(domId))
+    {
+      return maxUnstructuredEdgeLength(dom);
+    }
+
     const conduit::Node& dimsNode = dom.fetch_existing("topologies/mesh/elements/dims");
     axom::Array<axom::IndexType> ls(_ndims);
     for(int d = 0; d < _ndims; ++d)
     {
-      ls[d] = 1 + dimsNode[d].as_int();
+      ls[d] = 1 + static_cast<axom::IndexType>(dimsNode[d].to_int64());
     }
 
     double rval = 0.0;
@@ -541,6 +595,109 @@ public:
       rval = std::max(rval, std::abs(zs(0, 0, 0) - zs(1, 0, 0)));
     }
     return rval;
+  }
+
+  double maxStructuredEdgeLengthFlat(const conduit::Node& dom) const
+  {
+    const conduit::Node& dimsNode = dom.fetch_existing("topologies/mesh/elements/dims");
+    axom::StackArray<axom::IndexType, 3> nodeShape {{1, 1, 1}};
+    nodeShape[0] = dimsNode.fetch_existing("i").to_int64() + 1;
+    nodeShape[1] = dimsNode.fetch_existing("j").to_int64() + 1;
+    if(_ndims == 3)
+    {
+      nodeShape[2] = dimsNode.fetch_existing("k").to_int64() + 1;
+    }
+
+    const conduit::Node& coords = dom.fetch_existing(_coordsetPath + "/values");
+    const auto xs = coords.fetch_existing("x").as_double_accessor();
+    const auto ys = coords.fetch_existing("y").as_double_accessor();
+    const bool hasZ = _ndims == 3;
+    const auto zs = hasZ ? coords.fetch_existing("z").as_double_accessor()
+                         : coords.fetch_existing("x").as_double_accessor();
+
+    auto nodeIndex = [&](axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+      return i + j * nodeShape[0] + k * nodeShape[0] * nodeShape[1];
+    };
+
+    double maxLen = 0.0;
+    for(axom::IndexType k = 0; k < nodeShape[2]; ++k)
+    {
+      for(axom::IndexType j = 0; j < nodeShape[1]; ++j)
+      {
+        for(axom::IndexType i = 0; i < nodeShape[0]; ++i)
+        {
+          const axom::IndexType a = nodeIndex(i, j, k);
+          const axom::IndexType maxAxis = hasZ ? 3 : 2;
+          for(axom::IndexType axis = 0; axis < maxAxis; ++axis)
+          {
+            axom::IndexType ni = i, nj = j, nk = k;
+            if(axis == 0)
+            {
+              ++ni;
+            }
+            else if(axis == 1)
+            {
+              ++nj;
+            }
+            else
+            {
+              ++nk;
+            }
+            if(ni >= nodeShape[0] || nj >= nodeShape[1] || nk >= nodeShape[2])
+            {
+              continue;
+            }
+            const axom::IndexType b = nodeIndex(ni, nj, nk);
+            const double dx = xs[a] - xs[b];
+            const double dy = ys[a] - ys[b];
+            const double dz = hasZ ? zs[a] - zs[b] : 0.0;
+            maxLen = std::max(maxLen, std::sqrt(dx * dx + dy * dy + dz * dz));
+          }
+        }
+      }
+    }
+    return maxLen;
+  }
+
+  double maxUnstructuredEdgeLength(const conduit::Node& dom) const
+  {
+    const conduit::Node& topo = dom.fetch_existing(_topologyPath);
+    const conduit::Node& coords = dom.fetch_existing(_coordsetPath + "/values");
+    const auto xs = coords.fetch_existing("x").as_double_accessor();
+    const auto ys = coords.fetch_existing("y").as_double_accessor();
+    const bool hasZ = _ndims == 3;
+    const auto zs = hasZ ? coords.fetch_existing("z").as_double_accessor()
+                         : coords.fetch_existing("x").as_double_accessor();
+    const auto conn = topo.fetch_existing("elements/connectivity").as_index_t_accessor();
+    const std::string shape = topo.fetch_existing("elements/shape").as_string();
+
+    const axom::IndexType cornersPerCell = shape == "hex" ? 8 : shape == "quad" ? 4 : 0;
+    SLIC_ASSERT_MSG(cornersPerCell != 0,
+                    axom::fmt::format("Unsupported unstructured shape '{}'.", shape));
+
+    const int edgePairsHex[12][2] =
+      {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
+    const int edgePairsQuad[4][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
+
+    double maxLen = 0.0;
+    const axom::IndexType numCells =
+      static_cast<axom::IndexType>(conn.number_of_elements()) / cornersPerCell;
+    for(axom::IndexType cell = 0; cell < numCells; ++cell)
+    {
+      const int edgeCount = shape == "hex" ? 12 : 4;
+      for(int e = 0; e < edgeCount; ++e)
+      {
+        const int aLocal = shape == "hex" ? edgePairsHex[e][0] : edgePairsQuad[e][0];
+        const int bLocal = shape == "hex" ? edgePairsHex[e][1] : edgePairsQuad[e][1];
+        const axom::IndexType a = static_cast<axom::IndexType>(conn[cell * cornersPerCell + aLocal]);
+        const axom::IndexType b = static_cast<axom::IndexType>(conn[cell * cornersPerCell + bLocal]);
+        const double dx = xs[a] - xs[b];
+        const double dy = ys[a] - ys[b];
+        const double dz = hasZ ? zs[a] - zs[b] : 0.0;
+        maxLen = std::max(maxLen, std::sqrt(dx * dx + dy * dy + dz * dz));
+      }
+    }
+    return maxLen;
   }
 
   /// Checks whether the blueprint is valid and prints diagnostics
@@ -572,19 +729,140 @@ private:
   conduit::Node _mdMesh;
   axom::IndexType _domCount;
   bool _coordsAreStrided = false;
+  bool _compactedStridedStructured = false;
   const std::string _topologyName;
   const std::string _topologyPath;
+  bool _compactStridedStructured = false;
   std::string _coordsetPath;
   double _maxSpacing = -1.0;
+
+  axom::IndexType dimValue(const conduit::Node& node, int dim, axom::IndexType defaultValue = 0) const
+  {
+    static const char* dimNames[] = {"i", "j", "k"};
+    if(node.has_child(dimNames[dim]))
+    {
+      return static_cast<axom::IndexType>(node.fetch_existing(dimNames[dim]).to_int64());
+    }
+    if(node.dtype().is_int32())
+    {
+      return static_cast<axom::IndexType>(node.as_int32_ptr()[dim]);
+    }
+    if(node.dtype().is_int64())
+    {
+      return static_cast<axom::IndexType>(node.as_int64_ptr()[dim]);
+    }
+    if(dim < node.number_of_children())
+    {
+      return static_cast<axom::IndexType>(node[dim].to_int64());
+    }
+    return defaultValue;
+  }
+
+  void compactStridedStructuredDomains()
+  {
+    bool compactedAny = false;
+    for(axom::IndexType domId = 0; domId < _domCount; ++domId)
+    {
+      if(!isStructured(domId))
+      {
+        continue;
+      }
+
+      conduit::Node& dom = domain(domId);
+      conduit::Node& dimsNode = dom.fetch_existing(_topologyPath + "/elements/dims");
+      const bool hasOffsets = dimsNode.has_child("offsets");
+      const bool hasStrides = dimsNode.has_child("strides");
+      if(!hasOffsets && !hasStrides)
+      {
+        continue;
+      }
+      SLIC_ASSERT_MSG(hasOffsets && hasStrides,
+                      "Expected strided structured topology to define both offsets and strides.");
+
+      axom::StackArray<axom::IndexType, 3> nodeShape {{1, 1, 1}};
+      axom::StackArray<axom::IndexType, 3> offsets {{0, 0, 0}};
+      axom::StackArray<axom::IndexType, 3> strides {{1, 1, 1}};
+      for(int dim = 0; dim < _ndims; ++dim)
+      {
+        nodeShape[dim] = dimValue(dimsNode, dim) + 1;
+        offsets[dim] = dimValue(dimsNode.fetch_existing("offsets"), dim);
+        strides[dim] = dimValue(dimsNode.fetch_existing("strides"), dim);
+      }
+
+      const axom::IndexType compactNodeCount = nodeShape[0] * nodeShape[1] * nodeShape[2];
+      const conduit::Node& coordValues = dom.fetch_existing(_coordsetPath + "/values");
+
+      auto compactComponent = [&](const std::string& componentName) {
+        std::vector<double> compactValues(static_cast<std::size_t>(compactNodeCount));
+        const auto source = coordValues.fetch_existing(componentName).as_double_accessor();
+        for(axom::IndexType k = 0; k < nodeShape[2]; ++k)
+        {
+          for(axom::IndexType j = 0; j < nodeShape[1]; ++j)
+          {
+            for(axom::IndexType i = 0; i < nodeShape[0]; ++i)
+            {
+              const axom::IndexType sourceIdx = (i + offsets[0]) * strides[0] +
+                (j + offsets[1]) * strides[1] + (k + offsets[2]) * strides[2];
+              const axom::IndexType destIdx = i + nodeShape[0] * (j + nodeShape[1] * k);
+              compactValues[static_cast<std::size_t>(destIdx)] = source[sourceIdx];
+            }
+          }
+        }
+        return compactValues;
+      };
+
+      std::vector<double> xs = compactComponent("x");
+      std::vector<double> ys = compactComponent("y");
+      std::vector<double> zs;
+      if(_ndims == 3)
+      {
+        zs = compactComponent("z");
+      }
+
+      conduit::Node& compactCoordValues = dom.fetch_existing(_coordsetPath + "/values");
+      compactCoordValues["x"].set(xs);
+      compactCoordValues["y"].set(ys);
+      if(_ndims == 3)
+      {
+        compactCoordValues["z"].set(zs);
+      }
+
+      dimsNode.remove("offsets");
+      dimsNode.remove("strides");
+      if(dom.has_child("fields"))
+      {
+        dom.remove("fields");
+      }
+      compactedAny = true;
+    }
+
+    if(compactedAny)
+    {
+      _coordsAreStrided = false;
+      _compactedStridedStructured = true;
+    }
+  }
 
   //! @brief Read a blueprint mesh into conduit::Node _mdMesh.
   void readBlueprintMesh(const std::string& meshFilename)
   {
     SLIC_ASSERT(!meshFilename.empty());
 
+    conduit::Node loadedMesh;
+    loadBlueprintMesh(meshFilename, loadedMesh);
     _mdMesh.reset();
-    loadBlueprintMesh(meshFilename, _mdMesh);
-    SLIC_ASSERT(conduit::blueprint::mesh::is_multi_domain(_mdMesh));
+    if(loadedMesh.has_path(_topologyPath))
+    {
+      _mdMesh.append().set(loadedMesh);
+    }
+    else if(conduit::blueprint::mesh::is_multi_domain(loadedMesh))
+    {
+      _mdMesh.swap(loadedMesh);
+    }
+    else
+    {
+      _mdMesh.append().set(loadedMesh);
+    }
     _domCount = conduit::blueprint::mesh::number_of_domains(_mdMesh);
 
     if(_domCount > 0)
@@ -594,8 +872,13 @@ private:
       _coordsetPath = axom::fmt::format("coordsets/{}", coordsetName);
       SLIC_ASSERT(_mdMesh[0].has_path(_coordsetPath));
 
-      _coordsAreStrided =
-        _mdMesh[0].fetch_existing(_topologyPath + "/elements/dims").has_child("strides");
+      _coordsAreStrided = false;
+      for(axom::IndexType domId = 0; domId < _domCount; ++domId)
+      {
+        _coordsAreStrided = _coordsAreStrided ||
+          (isStructured(domId) &&
+           domain(domId).fetch_existing(_topologyPath + "/elements/dims").has_child("strides"));
+      }
       const conduit::Node coordsetNode = _mdMesh[0].fetch_existing(_coordsetPath);
       _ndims = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
@@ -603,6 +886,11 @@ private:
     MPI_Allreduce(MPI_IN_PLACE, &_ndims, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #endif
     SLIC_ASSERT(_ndims > 0);
+
+    if(_compactStridedStructured && _coordsAreStrided)
+    {
+      compactStridedStructuredDomains();
+    }
 
     SLIC_ASSERT(isValid());
   }
@@ -1016,6 +1304,12 @@ struct ContourTestBase
     SLIC_ASSERT(bpMesh.dimension() == DIM);
     for(int domId = 0; domId < bpMesh.domainCount(); ++domId)
     {
+      if(bpMesh.useFlatFields(domId))
+      {
+        computeNodalDistanceFlat(bpMesh.domain(domId), strat);
+        continue;
+      }
+
       auto domainView = bpMesh.getDomainView<DIM>(domId);
 
       // Create nodal function data with ghosts like node coords.
@@ -1028,6 +1322,11 @@ struct ContourTestBase
 
     for(int domId = 0; domId < bpMesh.domainCount(); ++domId)
     {
+      if(bpMesh.useFlatFields(domId))
+      {
+        continue;
+      }
+
       auto domainView = bpMesh.getDomainView<DIM>(domId);
       const auto coordsViews = domainView.getConstCoordsViews(false);
       axom::ArrayView<double, DIM> fieldView =
@@ -1037,6 +1336,36 @@ struct ContourTestBase
         SLIC_ASSERT(coordsViews[d].shape() == fieldView.shape());
       }
       populateNodalDistance(coordsViews, fieldView, strat);
+    }
+  }
+
+  void computeNodalDistanceFlat(conduit::Node& dom, ContourTestStrategy<DIM>& strat)
+  {
+    conduit::Node& fieldNode = dom["fields/" + strat.functionName()];
+    fieldNode["association"] = "vertex";
+    fieldNode["topology"] = "mesh";
+
+    const conduit::Node& values = dom.fetch_existing("coordsets/coords/values");
+    const auto xs = values.fetch_existing("x").as_double_accessor();
+    const auto ys = values.fetch_existing("y").as_double_accessor();
+    const bool hasZ = DIM == 3;
+    const auto zs = hasZ ? values.fetch_existing("z").as_double_accessor()
+                         : values.fetch_existing("x").as_double_accessor();
+
+    const conduit::index_t nodeCount = xs.number_of_elements();
+    fieldNode["values"].set(conduit::DataType::float64(nodeCount));
+    auto* fieldValues = fieldNode["values"].as_double_ptr();
+
+    for(conduit::index_t nodeId = 0; nodeId < nodeCount; ++nodeId)
+    {
+      PointType pt;
+      pt[0] = xs[nodeId];
+      pt[1] = ys[nodeId];
+      if(DIM == 3)
+      {
+        pt[2] = zs[nodeId];
+      }
+      fieldValues[nodeId] = strat.valueAt(pt);
     }
   }
 
@@ -1109,6 +1438,12 @@ struct ContourTestBase
     }
     for(axom::IndexType domId = 0; domId < bpMesh.domainCount(); ++domId)
     {
+      if(bpMesh.useFlatFields(domId))
+      {
+        addMaskFieldFlat(bpMesh.domain(domId));
+        continue;
+      }
+
       auto domainView = bpMesh.getDomainView<DIM>(domId);
       auto cellCount = domainView.getCellCount();
       auto slowestDirs = domainView.getConstCoordsViews()[0].mapping().slowestDirs();
@@ -1129,6 +1464,24 @@ struct ContourTestBase
         0,
         cellCount,
         AXOM_LAMBDA(axom::IndexType cellId) { maskView.flatIndex(cellId) = (cellId % maskCount); });
+    }
+  }
+
+  void addMaskFieldFlat(conduit::Node& dom)
+  {
+    const axom::IndexType cellCount = static_cast<axom::IndexType>(
+      conduit::blueprint::mesh::topology::length(dom.fetch_existing("topologies/mesh")));
+
+    conduit::Node& mask = dom["fields/mask"];
+    mask["association"] = "element";
+    mask["topology"] = "mesh";
+    mask["values"].set(conduit::DataType::c_int(cellCount));
+    auto* maskValues = mask["values"].as_int_ptr();
+
+    const int maskCount = m_params.maskCount;
+    for(axom::IndexType cellId = 0; cellId < cellCount; ++cellId)
+    {
+      maskValues[cellId] = static_cast<int>(cellId % maskCount);
     }
   }
 
@@ -1810,7 +2163,10 @@ int main(int argc, char** argv)
   // Load computational mesh.
   //---------------------------------------------------------------------------
   AXOM_ANNOTATE_BEGIN("load mesh");
-  BlueprintStructuredMesh computationalMesh(params.meshFile, "mesh", params.isVerbose());
+  BlueprintStructuredMesh computationalMesh(params.meshFile,
+                                            "mesh",
+                                            params.useBumpBackend,
+                                            params.isVerbose());
   AXOM_ANNOTATE_END("load mesh");
 
   SLIC_INFO_IF(params.isVerbose(),

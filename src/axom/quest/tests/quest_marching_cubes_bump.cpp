@@ -42,13 +42,14 @@
 #endif
 
 #include "axom/core.hpp"
-#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/slic.hpp"
 #include "axom/primal.hpp"
-#include "axom/quest/MarchingCubes.hpp"
-#include "axom/quest/util/mesh_helpers.hpp"
 #include "axom/sidre.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/spin/MortonIndex.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/quest/MarchingCubes.hpp"
+#include "axom/quest/util/mesh_helpers.hpp"
 
 #include "conduit_blueprint.hpp"
 
@@ -935,6 +936,8 @@ TEST(quest_marching_cubes_bump, edge_manifold_helper_selftest)
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
+  axom::slic::SimpleLogger logger;
+
   int result = RUN_ALL_TESTS();
   return result;
 }

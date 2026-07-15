@@ -53,7 +53,13 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
                             const std::string& maskField)
 {
   const conduit::Node* mdMesh = &bpMesh;
-  if(conduit::blueprint::mesh::is_multi_domain(bpMesh))
+  if(bpMesh.has_path("topologies/" + topologyName))
+  {
+    m_singleDomainMesh.reset();
+    m_singleDomainMesh.append().set_external(bpMesh);
+    mdMesh = &m_singleDomainMesh;
+  }
+  else if(conduit::blueprint::mesh::is_multi_domain(bpMesh))
   {
     m_singleDomainMesh.reset();
   }
