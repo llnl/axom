@@ -64,6 +64,7 @@
 
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace axom::quest::detail::marching_cubes
@@ -601,6 +602,66 @@ private:
     const auto cellShape = mvu.getCellShape();
     const axom::MDMapping<DIM> topoMap(cellShape, axom::ArrayStrideOrder::COLUMN);
     const axom::IndexType nZones = mvu.getCellCount();
+
+    if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
+    {
+      crossingZones = axom::Array<axom::IndexType>(0, 0, m_allocatorID);
+      crossingZones.reserve(nZones);
+
+      for(axom::IndexType zoneIndex = 0; zoneIndex < nZones; ++zoneIndex)
+      {
+        const auto idx = topoMap.toMultiIndex(zoneIndex);
+        bool useZone = maskView.empty();
+        if(!useZone)
+        {
+          if constexpr(DIM == 2)
+          {
+            useZone = (maskView(idx[0], idx[1]) == m_maskVal);
+          }
+          else
+          {
+            useZone = (maskView(idx[0], idx[1], idx[2]) == m_maskVal);
+          }
+        }
+
+        bool hasPositive = false;
+        bool hasNonPositive = false;
+        if(useZone)
+        {
+          if constexpr(DIM == 2)
+          {
+            const bool p0 = fcnView(idx[0], idx[1]) > m_contourVal;
+            const bool p1 = fcnView(idx[0] + 1, idx[1]) > m_contourVal;
+            const bool p2 = fcnView(idx[0] + 1, idx[1] + 1) > m_contourVal;
+            const bool p3 = fcnView(idx[0], idx[1] + 1) > m_contourVal;
+            hasPositive = p0 || p1 || p2 || p3;
+            hasNonPositive = !p0 || !p1 || !p2 || !p3;
+          }
+          else
+          {
+            const bool p0 = fcnView(idx[0], idx[1], idx[2]) > m_contourVal;
+            const bool p1 = fcnView(idx[0] + 1, idx[1], idx[2]) > m_contourVal;
+            const bool p2 = fcnView(idx[0], idx[1] + 1, idx[2]) > m_contourVal;
+            const bool p3 = fcnView(idx[0] + 1, idx[1] + 1, idx[2]) > m_contourVal;
+            const bool p4 = fcnView(idx[0], idx[1], idx[2] + 1) > m_contourVal;
+            const bool p5 = fcnView(idx[0] + 1, idx[1], idx[2] + 1) > m_contourVal;
+            const bool p6 = fcnView(idx[0], idx[1] + 1, idx[2] + 1) > m_contourVal;
+            const bool p7 = fcnView(idx[0] + 1, idx[1] + 1, idx[2] + 1) > m_contourVal;
+            hasPositive = p0 || p1 || p2 || p3 || p4 || p5 || p6 || p7;
+            hasNonPositive = !p0 || !p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7;
+          }
+        }
+
+        if(hasPositive && hasNonPositive)
+        {
+          crossingZones.push_back(zoneIndex);
+        }
+      }
+
+      attachSelectedZonesOption(n_options, crossingZones);
+      return !crossingZones.empty();
+    }
+
     axom::Array<axom::IndexType> crossingFlags(nZones, nZones, m_allocatorID);
     auto crossingFlagsView = crossingFlags.view();
 
