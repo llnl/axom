@@ -19,6 +19,7 @@
 #include "axom/core/MDMapping.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
 #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
+#include "axom/quest/detail/marching_cubes_lewiner_lookup.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/constants.hpp"
 #include "axom/core/execution/nested_for_exec.hpp"
@@ -505,8 +506,8 @@ public:
       auto firstFacetId = facetIndexOffset + firstFacetIdsView[crossingId];
       // Keep canonical cube cases on the legacy LUT path so the exhaustive
       // single-cube regression stays stable, but switch known problematic
-      // non-canonical cells to the resolved path.
-      if(cfu.should_use_resolved_path(cornerValues))
+      // non-canonical cells through the topological selector.
+      if(cfu.should_use_topological_path(cornerValues))
       {
         Point resolvedTriangles[ComputeFacets_Util::MAX_RESOLVED_TRIANGLES][DIM];
         const int resolvedCount =
@@ -681,8 +682,10 @@ public:
     }
 
     static constexpr int MAX_RESOLVED_TRIANGLES = 12;
+    static constexpr int LEWINER_MAX_EDGE_CODES = 3 * MAX_RESOLVED_TRIANGLES;
     static constexpr double ISO_REL_TOL = 1.0e-12;
     static constexpr double ISO_ABS_TOL = 1.0e-14;
+    static constexpr double LEWINER_EPS = 2.2204460492503131e-16;
 
     struct IsoPoint
     {
@@ -690,6 +693,14 @@ public:
       std::uint8_t kind = 0;
       std::uint8_t v0 = 0;
       std::uint8_t v1 = 0;
+    };
+
+    enum class TopologyCase : std::uint8_t
+    {
+      Classic = 0,
+      FaceAmbiguous,
+      InteriorAmbiguous,
+      IsoEdge
     };
 
     AXOM_HOST_DEVICE bool is_on_iso(double value) const
@@ -767,7 +778,7 @@ public:
     {
       double cornerValues[8];
       get_corner_values(parentCellId, cornerValues);
-      if(!should_use_resolved_path(cornerValues))
+      if(!should_use_topological_path(cornerValues))
       {
         if(has_iso_vertex(cornerValues))
         {
@@ -789,14 +800,14 @@ public:
     }
 
     template <int TDIM = DIM>
-    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 2, bool>::type should_use_resolved_path(
+    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 2, bool>::type should_use_topological_path(
       const double /* cornerValues */[]) const
     {
       return false;
     }
 
     template <int TDIM = DIM>
-    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, bool>::type should_use_resolved_path(
+    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, bool>::type should_use_topological_path(
       const double cornerValues[]) const
     {
       const int caseId = compute_classic_case_id(cornerValues);
@@ -812,15 +823,37 @@ public:
         return false;
       }
 
-      // These interior tunnel cases are topologically ambiguous in practice
-      // once non-canonical sampled values are introduced.
-      if(is_interior_ambiguous_tunnel_case(caseId) && !canonicalClassicCell)
+      const TopologyCase topologyCase = classify_topology_case(cornerValues, caseId);
+
+      // These MC33 interior saddle cases are topologically ambiguous in
+      // practice once non-canonical sampled values are introduced.
+      if(topologyCase == TopologyCase::InteriorAmbiguous && !canonicalClassicCell)
       {
         return true;
       }
 
-      return has_iso_edge(cornerValues) ||
-        (has_resolved_ambiguous_face(cornerValues) && !canonicalClassicCell);
+      return topologyCase == TopologyCase::IsoEdge ||
+        (topologyCase == TopologyCase::FaceAmbiguous && !canonicalClassicCell);
+    }
+
+    AXOM_HOST_DEVICE TopologyCase classify_topology_case(const double cornerValues[], int caseId) const
+    {
+      if(has_iso_edge(cornerValues))
+      {
+        return TopologyCase::IsoEdge;
+      }
+
+      if(is_mc33_interior_ambiguous_case(caseId))
+      {
+        return TopologyCase::InteriorAmbiguous;
+      }
+
+      if(has_mc33_ambiguous_face(cornerValues))
+      {
+        return TopologyCase::FaceAmbiguous;
+      }
+
+      return TopologyCase::Classic;
     }
 
     template <int TDIM = DIM>
@@ -929,7 +962,7 @@ public:
     }
 
     template <int TDIM = DIM>
-    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, bool>::type has_resolved_ambiguous_face(
+    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, bool>::type has_mc33_ambiguous_face(
       const double cornerValues[]) const
     {
       for(int face = 0; face < 6; ++face)
@@ -970,10 +1003,18 @@ public:
       return false;
     }
 
-    AXOM_HOST_DEVICE bool is_interior_ambiguous_tunnel_case(int caseId) const
+    AXOM_HOST_DEVICE bool is_mc33_interior_ambiguous_case(int caseId) const
     {
-      return caseId == 60 || caseId == 90 || caseId == 102 || caseId == 153 || caseId == 165 ||
-        caseId == 195;
+      constexpr int interiorAmbiguousCases[6] = {60, 90, 102, 153, 165, 195};
+      for(int i = 0; i < 6; ++i)
+      {
+        if(caseId == interiorAmbiguousCases[i])
+        {
+          return true;
+        }
+      }
+
+      return false;
     }
 
     template <int TDIM = DIM>
@@ -1049,10 +1090,669 @@ public:
     {
       if(!has_iso_vertex(cornerValues) && !has_iso_edge(cornerValues))
       {
-        return generate_face_resolved_triangles(cornerCoords, cornerValues, triangles);
+        int edgeCodes[LEWINER_MAX_EDGE_CODES];
+        const int lewinerTriangleCount = select_lewiner_tiling(cornerValues, edgeCodes);
+        if(lewinerTriangleCount > 0)
+        {
+          return generate_lewiner_triangles(cornerCoords,
+                                            cornerValues,
+                                            edgeCodes,
+                                            lewinerTriangleCount,
+                                            triangles);
+        }
+
+        return 0;
       }
 
       return generate_tet_resolved_triangles(cornerCoords, cornerValues, triangles);
+    }
+
+    AXOM_HOST_DEVICE void get_lewiner_values(const double cornerValues[8], double lewinerValues[8]) const
+    {
+      lewinerValues[0] = relative_value(cornerValues[3]);
+      lewinerValues[1] = relative_value(cornerValues[0]);
+      lewinerValues[2] = relative_value(cornerValues[1]);
+      lewinerValues[3] = relative_value(cornerValues[2]);
+      lewinerValues[4] = relative_value(cornerValues[7]);
+      lewinerValues[5] = relative_value(cornerValues[4]);
+      lewinerValues[6] = relative_value(cornerValues[5]);
+      lewinerValues[7] = relative_value(cornerValues[6]);
+    }
+
+    AXOM_HOST_DEVICE int compute_lewiner_case_id(const double lewinerValues[8]) const
+    {
+      int caseId = 0;
+      for(int i = 0; i < 8; ++i)
+      {
+        if(lewinerValues[i] > 0.0)
+        {
+          caseId |= (1 << i);
+        }
+      }
+      return caseId;
+    }
+
+    template <typename Table>
+    AXOM_HOST_DEVICE void append_lewiner_tiling(int config, int triangleCount, int edgeCodes[]) const
+    {
+      for(int i = 0; i < 3 * triangleCount; ++i)
+      {
+        edgeCodes[i] = Table::get(config, i);
+      }
+    }
+
+    template <typename Table>
+    AXOM_HOST_DEVICE void append_lewiner_tiling(int config,
+                                                int subconfig,
+                                                int triangleCount,
+                                                int edgeCodes[]) const
+    {
+      for(int i = 0; i < 3 * triangleCount; ++i)
+      {
+        edgeCodes[i] = Table::get(config, subconfig, i);
+      }
+    }
+
+    AXOM_HOST_DEVICE int select_lewiner_tiling(const double cornerValues[8], int edgeCodes[]) const
+    {
+      using namespace lewiner_lut;
+
+      double v[8];
+      get_lewiner_values(cornerValues, v);
+
+      const int caseId = compute_lewiner_case_id(v);
+      const int caseType = LUT_CASES::get(caseId, 0);
+      const int config = LUT_CASES::get(caseId, 1);
+      int subconfig = 0;
+
+      switch(caseType)
+      {
+      case 0:
+        return 0;
+      case 1:
+        append_lewiner_tiling<LUT_TILING1>(config, 1, edgeCodes);
+        return 1;
+      case 2:
+        append_lewiner_tiling<LUT_TILING2>(config, 2, edgeCodes);
+        return 2;
+      case 3:
+        if(test_lewiner_face(v, LUT_TEST3::get(config)))
+        {
+          append_lewiner_tiling<LUT_TILING3_2>(config, 4, edgeCodes);
+          return 4;
+        }
+        append_lewiner_tiling<LUT_TILING3_1>(config, 2, edgeCodes);
+        return 2;
+      case 4:
+        if(test_lewiner_internal(v, caseType, config, subconfig, LUT_TEST4::get(config)))
+        {
+          append_lewiner_tiling<LUT_TILING4_1>(config, 2, edgeCodes);
+          return 2;
+        }
+        append_lewiner_tiling<LUT_TILING4_2>(config, 6, edgeCodes);
+        return 6;
+      case 5:
+        append_lewiner_tiling<LUT_TILING5>(config, 3, edgeCodes);
+        return 3;
+      case 6:
+        if(test_lewiner_face(v, LUT_TEST6::get(config, 0)))
+        {
+          append_lewiner_tiling<LUT_TILING6_2>(config, 5, edgeCodes);
+          return 5;
+        }
+        if(test_lewiner_internal(v, caseType, config, subconfig, LUT_TEST6::get(config, 1)))
+        {
+          append_lewiner_tiling<LUT_TILING6_1_1>(config, 3, edgeCodes);
+          return 3;
+        }
+        append_lewiner_tiling<LUT_TILING6_1_2>(config, 9, edgeCodes);
+        return 9;
+      case 7:
+        if(test_lewiner_face(v, LUT_TEST7::get(config, 0)))
+        {
+          subconfig += 1;
+        }
+        if(test_lewiner_face(v, LUT_TEST7::get(config, 1)))
+        {
+          subconfig += 2;
+        }
+        if(test_lewiner_face(v, LUT_TEST7::get(config, 2)))
+        {
+          subconfig += 4;
+        }
+
+        if(subconfig == 0)
+        {
+          append_lewiner_tiling<LUT_TILING7_1>(config, 3, edgeCodes);
+          return 3;
+        }
+        if(subconfig == 1)
+        {
+          append_lewiner_tiling<LUT_TILING7_2>(config, 0, 5, edgeCodes);
+          return 5;
+        }
+        if(subconfig == 2)
+        {
+          append_lewiner_tiling<LUT_TILING7_2>(config, 1, 5, edgeCodes);
+          return 5;
+        }
+        if(subconfig == 3)
+        {
+          append_lewiner_tiling<LUT_TILING7_3>(config, 0, 9, edgeCodes);
+          return 9;
+        }
+        if(subconfig == 4)
+        {
+          append_lewiner_tiling<LUT_TILING7_2>(config, 2, 5, edgeCodes);
+          return 5;
+        }
+        if(subconfig == 5)
+        {
+          append_lewiner_tiling<LUT_TILING7_3>(config, 1, 9, edgeCodes);
+          return 9;
+        }
+        if(subconfig == 6)
+        {
+          append_lewiner_tiling<LUT_TILING7_3>(config, 2, 9, edgeCodes);
+          return 9;
+        }
+
+        if(test_lewiner_internal(v, caseType, config, subconfig, LUT_TEST7::get(config, 3)))
+        {
+          append_lewiner_tiling<LUT_TILING7_4_2>(config, 9, edgeCodes);
+          return 9;
+        }
+        append_lewiner_tiling<LUT_TILING7_4_1>(config, 5, edgeCodes);
+        return 5;
+      case 8:
+        append_lewiner_tiling<LUT_TILING8>(config, 2, edgeCodes);
+        return 2;
+      case 9:
+        append_lewiner_tiling<LUT_TILING9>(config, 4, edgeCodes);
+        return 4;
+      case 10:
+        if(test_lewiner_face(v, LUT_TEST10::get(config, 0)))
+        {
+          if(test_lewiner_face(v, LUT_TEST10::get(config, 1)))
+          {
+            append_lewiner_tiling<LUT_TILING10_1_1_>(config, 4, edgeCodes);
+            return 4;
+          }
+          append_lewiner_tiling<LUT_TILING10_2>(config, 8, edgeCodes);
+          return 8;
+        }
+        if(test_lewiner_face(v, LUT_TEST10::get(config, 1)))
+        {
+          append_lewiner_tiling<LUT_TILING10_2_>(config, 8, edgeCodes);
+          return 8;
+        }
+        if(test_lewiner_internal(v, caseType, config, subconfig, LUT_TEST10::get(config, 2)))
+        {
+          append_lewiner_tiling<LUT_TILING10_1_1>(config, 4, edgeCodes);
+          return 4;
+        }
+        append_lewiner_tiling<LUT_TILING10_1_2>(config, 8, edgeCodes);
+        return 8;
+      case 11:
+        append_lewiner_tiling<LUT_TILING11>(config, 4, edgeCodes);
+        return 4;
+      case 12:
+        if(test_lewiner_face(v, LUT_TEST12::get(config, 0)))
+        {
+          if(test_lewiner_face(v, LUT_TEST12::get(config, 1)))
+          {
+            append_lewiner_tiling<LUT_TILING12_1_1_>(config, 4, edgeCodes);
+            return 4;
+          }
+          append_lewiner_tiling<LUT_TILING12_2>(config, 8, edgeCodes);
+          return 8;
+        }
+        if(test_lewiner_face(v, LUT_TEST12::get(config, 1)))
+        {
+          append_lewiner_tiling<LUT_TILING12_2_>(config, 8, edgeCodes);
+          return 8;
+        }
+        if(test_lewiner_internal(v, caseType, config, subconfig, LUT_TEST12::get(config, 2)))
+        {
+          append_lewiner_tiling<LUT_TILING12_1_1>(config, 4, edgeCodes);
+          return 4;
+        }
+        append_lewiner_tiling<LUT_TILING12_1_2>(config, 8, edgeCodes);
+        return 8;
+      case 13:
+        if(test_lewiner_face(v, LUT_TEST13::get(config, 0)))
+        {
+          subconfig += 1;
+        }
+        if(test_lewiner_face(v, LUT_TEST13::get(config, 1)))
+        {
+          subconfig += 2;
+        }
+        if(test_lewiner_face(v, LUT_TEST13::get(config, 2)))
+        {
+          subconfig += 4;
+        }
+        if(test_lewiner_face(v, LUT_TEST13::get(config, 3)))
+        {
+          subconfig += 8;
+        }
+        if(test_lewiner_face(v, LUT_TEST13::get(config, 4)))
+        {
+          subconfig += 16;
+        }
+        if(test_lewiner_face(v, LUT_TEST13::get(config, 5)))
+        {
+          subconfig += 32;
+        }
+        subconfig = LUT_SUBCONFIG13::get(subconfig);
+
+        return select_lewiner_case13_tiling(v, config, subconfig, edgeCodes);
+      case 14:
+        append_lewiner_tiling<LUT_TILING14>(config, 4, edgeCodes);
+        return 4;
+      default:
+        return 0;
+      }
+    }
+
+    AXOM_HOST_DEVICE int select_lewiner_case13_tiling(const double v[8],
+                                                      int config,
+                                                      int subconfig,
+                                                      int edgeCodes[]) const
+    {
+      using namespace lewiner_lut;
+
+      if(subconfig == 0)
+      {
+        append_lewiner_tiling<LUT_TILING13_1>(config, 4, edgeCodes);
+        return 4;
+      }
+      if(subconfig >= 1 && subconfig <= 6)
+      {
+        append_lewiner_tiling<LUT_TILING13_2>(config, subconfig - 1, 6, edgeCodes);
+        return 6;
+      }
+      if(subconfig >= 7 && subconfig <= 18)
+      {
+        append_lewiner_tiling<LUT_TILING13_3>(config, subconfig - 7, 10, edgeCodes);
+        return 10;
+      }
+      if(subconfig >= 19 && subconfig <= 22)
+      {
+        append_lewiner_tiling<LUT_TILING13_4>(config, subconfig - 19, 12, edgeCodes);
+        return 12;
+      }
+      if(subconfig >= 23 && subconfig <= 26)
+      {
+        const int internalSubconfig = subconfig - 23;
+        if(test_lewiner_internal(v, 13, config, internalSubconfig, LUT_TEST13::get(config, 6)))
+        {
+          append_lewiner_tiling<LUT_TILING13_5_1>(config, internalSubconfig, 6, edgeCodes);
+          return 6;
+        }
+        append_lewiner_tiling<LUT_TILING13_5_2>(config, internalSubconfig, 10, edgeCodes);
+        return 10;
+      }
+      if(subconfig >= 27 && subconfig <= 38)
+      {
+        append_lewiner_tiling<LUT_TILING13_3_>(config, subconfig - 27, 10, edgeCodes);
+        return 10;
+      }
+      if(subconfig >= 39 && subconfig <= 44)
+      {
+        append_lewiner_tiling<LUT_TILING13_2_>(config, subconfig - 39, 6, edgeCodes);
+        return 6;
+      }
+      if(subconfig == 45)
+      {
+        append_lewiner_tiling<LUT_TILING13_1_>(config, 4, edgeCodes);
+        return 4;
+      }
+
+      return 0;
+    }
+
+    AXOM_HOST_DEVICE bool test_lewiner_face(const double v[8], int face) const
+    {
+      int absFace = face;
+      if(absFace < 0)
+      {
+        absFace = -absFace;
+      }
+
+      double A = 0.0;
+      double B = 0.0;
+      double C = 0.0;
+      double D = 0.0;
+
+      if(absFace == 1)
+      {
+        A = v[0];
+        B = v[4];
+        C = v[5];
+        D = v[1];
+      }
+      else if(absFace == 2)
+      {
+        A = v[1];
+        B = v[5];
+        C = v[6];
+        D = v[2];
+      }
+      else if(absFace == 3)
+      {
+        A = v[2];
+        B = v[6];
+        C = v[7];
+        D = v[3];
+      }
+      else if(absFace == 4)
+      {
+        A = v[3];
+        B = v[7];
+        C = v[4];
+        D = v[0];
+      }
+      else if(absFace == 5)
+      {
+        A = v[0];
+        B = v[3];
+        C = v[2];
+        D = v[1];
+      }
+      else if(absFace == 6)
+      {
+        A = v[4];
+        B = v[7];
+        C = v[6];
+        D = v[5];
+      }
+
+      const double decider = A * C - B * D;
+      if(decider > -LEWINER_EPS && decider < LEWINER_EPS)
+      {
+        return face >= 0;
+      }
+
+      return face * A * decider >= 0.0;
+    }
+
+    AXOM_HOST_DEVICE int lewiner_internal_edge(int caseType, int config, int subconfig) const
+    {
+      using namespace lewiner_lut;
+
+      if(caseType == 6)
+      {
+        return LUT_TEST6::get(config, 2);
+      }
+      if(caseType == 7)
+      {
+        return LUT_TEST7::get(config, 4);
+      }
+      if(caseType == 12)
+      {
+        return LUT_TEST12::get(config, 3);
+      }
+      if(caseType == 13)
+      {
+        return LUT_TILING13_5_1::get(config, subconfig, 0);
+      }
+
+      return -1;
+    }
+
+    AXOM_HOST_DEVICE bool finish_lewiner_internal_test(double At,
+                                                       double Bt,
+                                                       double Ct,
+                                                       double Dt,
+                                                       int sign) const
+    {
+      int test = 0;
+      if(At >= 0.0)
+      {
+        test += 1;
+      }
+      if(Bt >= 0.0)
+      {
+        test += 2;
+      }
+      if(Ct >= 0.0)
+      {
+        test += 4;
+      }
+      if(Dt >= 0.0)
+      {
+        test += 8;
+      }
+
+      if(test == 5)
+      {
+        if(At * Ct - Bt * Dt < LEWINER_EPS)
+        {
+          return sign > 0;
+        }
+        return sign < 0;
+      }
+      if(test == 10)
+      {
+        if(At * Ct - Bt * Dt >= LEWINER_EPS)
+        {
+          return sign > 0;
+        }
+        return sign < 0;
+      }
+
+      return test == 7 || test == 11 || test == 13 || test == 14 || test == 15 ? sign < 0 : sign > 0;
+    }
+
+    AXOM_HOST_DEVICE bool test_lewiner_internal(const double v[8],
+                                                int caseType,
+                                                int config,
+                                                int subconfig,
+                                                int sign) const
+    {
+      double At = 0.0;
+      double Bt = 0.0;
+      double Ct = 0.0;
+      double Dt = 0.0;
+
+      if(caseType == 4 || caseType == 10)
+      {
+        const double a = (v[4] - v[0]) * (v[6] - v[2]) - (v[7] - v[3]) * (v[5] - v[1]);
+        const double b =
+          v[2] * (v[4] - v[0]) + v[0] * (v[6] - v[2]) - v[1] * (v[7] - v[3]) - v[3] * (v[5] - v[1]);
+        const double t = -b / (2.0 * a + LEWINER_EPS);
+        if(t < 0.0 || t > 1.0)
+        {
+          return sign > 0;
+        }
+
+        At = v[0] + (v[4] - v[0]) * t;
+        Bt = v[3] + (v[7] - v[3]) * t;
+        Ct = v[2] + (v[6] - v[2]) * t;
+        Dt = v[1] + (v[5] - v[1]) * t;
+      }
+      else if(caseType == 6 || caseType == 7 || caseType == 12 || caseType == 13)
+      {
+        const int edge = lewiner_internal_edge(caseType, config, subconfig);
+        double t = 0.0;
+
+        if(edge == 0)
+        {
+          t = v[0] / (v[0] - v[1] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[3] + (v[2] - v[3]) * t;
+          Ct = v[7] + (v[6] - v[7]) * t;
+          Dt = v[4] + (v[5] - v[4]) * t;
+        }
+        else if(edge == 1)
+        {
+          t = v[1] / (v[1] - v[2] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[0] + (v[3] - v[0]) * t;
+          Ct = v[4] + (v[7] - v[4]) * t;
+          Dt = v[5] + (v[6] - v[5]) * t;
+        }
+        else if(edge == 2)
+        {
+          t = v[2] / (v[2] - v[3] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[1] + (v[0] - v[1]) * t;
+          Ct = v[5] + (v[4] - v[5]) * t;
+          Dt = v[6] + (v[7] - v[6]) * t;
+        }
+        else if(edge == 3)
+        {
+          t = v[3] / (v[3] - v[0] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[2] + (v[1] - v[2]) * t;
+          Ct = v[6] + (v[5] - v[6]) * t;
+          Dt = v[7] + (v[4] - v[7]) * t;
+        }
+        else if(edge == 4)
+        {
+          t = v[4] / (v[4] - v[5] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[7] + (v[6] - v[7]) * t;
+          Ct = v[3] + (v[2] - v[3]) * t;
+          Dt = v[0] + (v[1] - v[0]) * t;
+        }
+        else if(edge == 5)
+        {
+          t = v[5] / (v[5] - v[6] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[4] + (v[7] - v[4]) * t;
+          Ct = v[0] + (v[3] - v[0]) * t;
+          Dt = v[1] + (v[2] - v[1]) * t;
+        }
+        else if(edge == 6)
+        {
+          t = v[6] / (v[6] - v[7] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[5] + (v[4] - v[5]) * t;
+          Ct = v[1] + (v[0] - v[1]) * t;
+          Dt = v[2] + (v[3] - v[2]) * t;
+        }
+        else if(edge == 7)
+        {
+          t = v[7] / (v[7] - v[4] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[6] + (v[5] - v[6]) * t;
+          Ct = v[2] + (v[1] - v[2]) * t;
+          Dt = v[3] + (v[0] - v[3]) * t;
+        }
+        else if(edge == 8)
+        {
+          t = v[0] / (v[0] - v[4] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[3] + (v[7] - v[3]) * t;
+          Ct = v[2] + (v[6] - v[2]) * t;
+          Dt = v[1] + (v[5] - v[1]) * t;
+        }
+        else if(edge == 9)
+        {
+          t = v[1] / (v[1] - v[5] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[0] + (v[4] - v[0]) * t;
+          Ct = v[3] + (v[7] - v[3]) * t;
+          Dt = v[2] + (v[6] - v[2]) * t;
+        }
+        else if(edge == 10)
+        {
+          t = v[2] / (v[2] - v[6] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[1] + (v[5] - v[1]) * t;
+          Ct = v[0] + (v[4] - v[0]) * t;
+          Dt = v[3] + (v[7] - v[3]) * t;
+        }
+        else if(edge == 11)
+        {
+          t = v[3] / (v[3] - v[7] + LEWINER_EPS);
+          At = 0.0;
+          Bt = v[2] + (v[6] - v[2]) * t;
+          Ct = v[1] + (v[5] - v[1]) * t;
+          Dt = v[0] + (v[4] - v[0]) * t;
+        }
+      }
+      else
+      {
+        return sign > 0;
+      }
+
+      return finish_lewiner_internal_test(At, Bt, Ct, Dt, sign);
+    }
+
+    AXOM_HOST_DEVICE int lewiner_to_axom_edge(int edge) const
+    {
+      const int edgeMap[12] = {3, 0, 1, 2, 7, 4, 5, 6, 11, 8, 9, 10};
+      return edgeMap[edge];
+    }
+
+    AXOM_HOST_DEVICE void lewiner_center_point(const Point cornerCoords[8],
+                                               const double cornerValues[8],
+                                               Point& center) const
+    {
+      const int lewinerToAxomVertex[8] = {3, 0, 1, 2, 7, 4, 5, 6};
+      double weightSum = 0.0;
+      for(int d = 0; d < DIM; ++d)
+      {
+        center[d] = 0.0;
+      }
+
+      for(int i = 0; i < 8; ++i)
+      {
+        const int axomVertex = lewinerToAxomVertex[i];
+        const double denom =
+          LEWINER_EPS + axom::utilities::abs(relative_value(cornerValues[axomVertex]));
+        const double weight = 1.0 / denom;
+        weightSum += weight;
+        for(int d = 0; d < DIM; ++d)
+        {
+          center[d] += weight * cornerCoords[axomVertex][d];
+        }
+      }
+
+      for(int d = 0; d < DIM; ++d)
+      {
+        center[d] /= weightSum;
+      }
+    }
+
+    AXOM_HOST_DEVICE void lewiner_edge_point(int edgeCode,
+                                             const Point cornerCoords[8],
+                                             const double cornerValues[8],
+                                             Point& point) const
+    {
+      if(edgeCode == 12)
+      {
+        lewiner_center_point(cornerCoords, cornerValues, point);
+        return;
+      }
+
+      const int axomEdge = lewiner_to_axom_edge(edgeCode);
+      linear_interp(axomEdge, cornerCoords, cornerValues, &point[0]);
+    }
+
+    template <int TDIM = DIM>
+    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, int>::type generate_lewiner_triangles(
+      const Point cornerCoords[8],
+      const double cornerValues[8],
+      const int edgeCodes[],
+      int triangleCount,
+      Point triangles[][DIM]) const
+    {
+      int outputCount = 0;
+      for(int triIdx = 0; triIdx < triangleCount; ++triIdx)
+      {
+        Point triangle[DIM];
+        for(int d = 0; d < DIM; ++d)
+        {
+          lewiner_edge_point(edgeCodes[3 * triIdx + d], cornerCoords, cornerValues, triangle[d]);
+        }
+        append_triangle_if_unique(triangles, outputCount, MAX_RESOLVED_TRIANGLES, triangle);
+      }
+
+      return outputCount;
     }
 
     template <int TDIM = DIM>

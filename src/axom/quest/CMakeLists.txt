@@ -139,7 +139,10 @@ endif()
 
 blt_list_append(
     TO       quest_headers
-    ELEMENTS MarchingCubes.hpp detail/MarchingCubesSingleDomain.hpp detail/MarchingCubesImpl.hpp
+    ELEMENTS MarchingCubes.hpp
+             detail/MarchingCubesSingleDomain.hpp
+             detail/MarchingCubesImpl.hpp
+             detail/marching_cubes_lewiner_lookup.hpp
     IF       CONDUIT_FOUND
                )
 
