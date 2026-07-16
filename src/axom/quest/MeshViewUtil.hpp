@@ -768,12 +768,12 @@ private:
       if(child.dtype().is_int32())
       {
         const auto* ptr = node.fetch_existing(path).as_int32_ptr();
-        return internal::makeStackArray<axom::IndexType, DIM>(ptr);
+        return conduitIndexPointerToStackArray(ptr);
       }
       else if(child.dtype().is_int64())
       {
         const auto* ptr = node.fetch_existing(path).as_int64_ptr();
-        return internal::makeStackArray<axom::IndexType, DIM>(ptr);
+        return conduitIndexPointerToStackArray(ptr);
       }
       else
       {
@@ -781,6 +781,14 @@ private:
       }
     }
     return internal::makeStackArray<axom::IndexType, DIM>(defaultVal);
+  }
+
+  template <typename T>
+  MdIndices conduitIndexPointerToStackArray(const T* ptr) const
+  {
+    T hostVals[DIM];
+    axom::copy(hostVals, ptr, sizeof(T) * DIM);
+    return internal::makeStackArray<axom::IndexType, DIM>(hostVals);
   }
 
   void computeCoordsDataLayout()
