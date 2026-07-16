@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_COORDINATE_TRANSFORMER_HPP
-#define AXOM_PRIMAL_COORDINATE_TRANSFORMER_HPP
+#pragma once
 
 #include "axom/core/numerics/Matrix.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -458,5 +457,3 @@ private:
 }  // namespace experimental
 }  // namespace primal
 }  // namespace axom
-
-#endif

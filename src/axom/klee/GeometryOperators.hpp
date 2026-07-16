@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP_
-#define AXOM_KLEE_GEOMETRYOPERATOR_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
@@ -412,5 +411,3 @@ public:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_GEOMETRYOPERATOR_HPP_

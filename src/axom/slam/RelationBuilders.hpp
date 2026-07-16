@@ -34,8 +34,7 @@
  *  deduction guides (the builder argument is a non-deduced nested-name context).
  */
 
-#ifndef SLAM_RELATION_BUILDERS_H_
-#define SLAM_RELATION_BUILDERS_H_
+#pragma once
 
 #include "axom/slam/StaticRelation.hpp"
 #include "axom/slam/policies/CardinalityPolicies.hpp"
@@ -641,5 +640,3 @@ auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, axom::Array<ElemT
 /// \}
 
 }  // end namespace axom::slam
-
-#endif  // SLAM_RELATION_BUILDERS_H_

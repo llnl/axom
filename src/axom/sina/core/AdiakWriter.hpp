@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_ADIAK_HPP
-#define SINA_ADIAK_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -66,5 +65,3 @@ void adiakSinaCallback(const char *name,
 }  // namespace axom
 
 #endif  // AXOM_USE_ADIAK
-
-#endif  // SINA_ADIAK_HPP

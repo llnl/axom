@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_SHAPES_HPP_
-#define AXOM_BUMP_VIEWS_SHAPES_HPP_
+#pragma once
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
@@ -1212,5 +1211,3 @@ AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

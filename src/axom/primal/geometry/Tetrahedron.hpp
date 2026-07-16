@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_TETRAHEDRON_HPP_
-#define AXOM_PRIMAL_TETRAHEDRON_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 
@@ -366,5 +365,3 @@ std::ostream& operator<<(std::ostream& os, const Tetrahedron<T, NDIMS>& tet)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Tetrahedron<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_TETRAHEDRON_HPP_

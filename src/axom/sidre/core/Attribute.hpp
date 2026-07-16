@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -13,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_ATTRIBUTE_HPP_
-#define SIDRE_ATTRIBUTE_HPP_
 
 // Standard C++ headers
 #include <string>
@@ -161,5 +160,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_ATTRIBUTE_HPP_ */

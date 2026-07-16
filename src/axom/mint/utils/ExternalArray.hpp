@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_EXTERNALARRAY_HPP_
-#define MINT_EXTERNALARRAY_HPP_
+#pragma once
 
 #include "axom/core/Array.hpp"  // to inherit
 #include "axom/core/Types.hpp"
@@ -179,5 +178,3 @@ public:
 
 }  // namespace mint
 }  // namespace axom
-
-#endif

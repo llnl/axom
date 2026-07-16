@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SINAMATCHERS_HPP
-#define AXOM_SINAMATCHERS_HPP
+#pragma once
 
 #include <gmock/gmock.h>
 #include "conduit.hpp"
@@ -48,5 +47,3 @@ inline ::testing::PolymorphicMatcher<MatchesJson> MatchesJsonMatcher(const std::
 }  // namespace testing
 }  // namespace sina
 }  // namespace axom
-
-#endif  //AXOM_SINAMATCHERS_HPP

@@ -28,8 +28,7 @@
  * - In device compilation, it is a no-op (kernels cannot throw/abort portably).
  */
 
-#ifndef AXOM_CORE_UTILITIES_CONSTEXPR_ASSERT_HPP_
-#define AXOM_CORE_UTILITIES_CONSTEXPR_ASSERT_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Abort.hpp"
@@ -123,5 +122,3 @@ AXOM_DETAIL_CONSTEXPR_ASSERT_HOST_DEVICE constexpr void constexprAssert(bool,
 #undef AXOM_DETAIL_CONSTEXPR_ASSERT_HOST_DEVICE
 #undef AXOM_DETAIL_IS_CONSTANT_EVALUATED
 #undef AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED
-
-#endif  // AXOM_CORE_UTILITIES_CONSTEXPR_ASSERT_HPP_

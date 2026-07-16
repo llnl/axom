@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_MESHCLIPPER_HPP
-#define AXOM_QUEST_MESHCLIPPER_HPP
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -275,5 +274,3 @@ public:
 }  // namespace experimental
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_MESHCLIPPER_HPP

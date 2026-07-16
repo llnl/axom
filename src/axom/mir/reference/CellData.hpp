@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file CellData.hpp
  * 
  * \brief Contains the specifications for the CellData class 
  *        and CellTopologyData and CellMapData structs.
  */
-
-#ifndef __CELL_DATA_H__
-#define __CELL_DATA_H__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"
@@ -94,5 +93,3 @@ public:
 };
 }  // namespace mir
 }  // namespace axom
-
-#endif

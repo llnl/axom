@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_SCATTERED_INTERPOLATION_H_
-#define QUEST_SCATTERED_INTERPOLATION_H_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -753,5 +752,3 @@ constexpr int ScatteredInterpolation<NDIMS>::DIM;
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_SCATTERED_INTERPOLATION_H_

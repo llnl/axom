@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef SLAM_BIVARIATE_SET_H_
-#define SLAM_BIVARIATE_SET_H_
+#pragma once
 
 #include "axom/slic.hpp"
 
@@ -454,5 +453,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_BIVARIATE_SET_H_

@@ -122,9 +122,12 @@ public:
 
 private:
   bool m_verboseOutput {false};
+  bool m_dumpOctreeVtk {false};
 
 public:
   bool isVerbose() const { return m_verboseOutput; }
+
+  bool dumpOctreeVtk() const { return m_dumpOctreeVtk; }
 
   /// Generate an mfem Cartesian mesh, scaled to the bounding box range
   mfem::Mesh* createBoxMesh()
@@ -342,6 +345,10 @@ public:
           "Selects the type of quadrature that determines point placement within elements.")
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(quadTypeMap, axom::CLI::ignore_case));
+
+      sampling_options->add_flag("--dump-octree-vtk", m_dumpOctreeVtk)
+        ->description("Writes InOutOctree visualization VTK files when using inout sampling")
+        ->capture_default_str();
     }
 
     // parameters that only apply to the intersection method
@@ -669,6 +676,8 @@ int main(int argc, char** argv)
     samplingShaper->setQuadratureType(params.quadratureType);
     samplingShaper->setVolumeFractionOrder(params.outputOrder);
     samplingShaper->setSamplingMethod(params.samplingMethod);
+    samplingShaper->setInOutOctreeVtkOutputEnabled(params.dumpOctreeVtk());
+    samplingShaper->setInOutOctreeVtkOutputDirectory("vis");
 
     // register point projectors
     if(shapingDC.GetMesh()->Dimension() == 3)

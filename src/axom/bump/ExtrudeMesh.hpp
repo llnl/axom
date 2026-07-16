@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRUDE_MESH_HPP_
-#define AXOM_BUMP_EXTRUDE_MESH_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump.hpp"
@@ -499,5 +498,3 @@ private:
 
 }  // namespace bump
 }  // namespace axom
-
-#endif

@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number_3d_memoization.hpp
  *
  * \brief Consists of data structures that accelerate GWN queries through "memoization," i.e.
  *  dynamically caching and reusing patch surface evaluations and tangents at quadrature points.
  */
-
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -494,5 +493,3 @@ struct nurbs_cache_3d_traits<axom::OMP_EXEC>
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_

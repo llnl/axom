@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_SEGMENT_HPP_
-#define AXOM_PRIMAL_SEGMENT_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"  // for Axom macros
 #include "axom/slic.hpp"
@@ -205,5 +204,3 @@ std::ostream& operator<<(std::ostream& os, const Segment<T, NDIMS>& seg)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Segment<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_SEGMENT_HPP_

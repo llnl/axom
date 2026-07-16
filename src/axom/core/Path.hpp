@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_PATH_H_
-#define AXOM_CORE_PATH_H_
+#pragma once
 
 #include <initializer_list>
 #include <string>
@@ -117,5 +116,3 @@ bool operator==(const Path& lhs, const Path& rhs);
 inline bool operator!=(const Path& lhs, const Path& rhs) { return !(lhs == rhs); }
 
 }  // end namespace axom
-
-#endif  // AXOM_CORE_PATH_H_

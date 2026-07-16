@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MFEM_SIDRE_DATACOLLECTION_HPP_
-#define MFEM_SIDRE_DATACOLLECTION_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "DataStore.hpp"
@@ -775,5 +774,3 @@ private:
 } /* namespace axom */
 
 #endif  // AXOM_USE_MFEM
-
-#endif

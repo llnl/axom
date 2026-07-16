@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_EIGEN_SORT_HPP_
-#define AXOM_EIGEN_SORT_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/utilities/Utilities.hpp"  // for utilities::swap()
@@ -75,5 +74,3 @@ bool eigen_sort(T* lambdas, Matrix<T>& eigen_vectors)
 
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif /* AXOM_EIGEN_SORT_HPP_ */

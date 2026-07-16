@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_C2CREADER_HPP_
-#define QUEST_C2CREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -15,9 +14,9 @@
 
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
+#include "axom/core/utilities/Units.hpp"
 #include "axom/mint.hpp"
 #include "axom/primal.hpp"
-#include "c2c/C2C.hpp"
 
 #include <string>
 #include <vector>
@@ -49,7 +48,7 @@ public:
   void setFileName(const std::string &fileName) { m_fileName = fileName; }
 
   /// Sets the length unit. All lengths will be converted to this unit when reading the mesh
-  void setLengthUnit(c2c::LengthUnit lengthUnit) { m_lengthUnit = lengthUnit; }
+  void setLengthUnit(utilities::LengthUnit lengthUnit);
 
   /// Clears data associated with this reader
   void clear();
@@ -76,11 +75,9 @@ protected:
 
 protected:
   std::string m_fileName;
-  c2c::LengthUnit m_lengthUnit {c2c::LengthUnit::cm};
+  utilities::LengthUnit m_lengthUnit {utilities::LengthUnit::cm};
   CurveArray m_nurbsData;
 };
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_C2CREADER_HPP_

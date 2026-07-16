@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayValidation.hpp
  *
@@ -21,9 +23,6 @@
  * - Determinant evaluation helpers with context-aware tolerances
  * - Boundary coordinate tolerance computation
  */
-
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
 
 namespace axom
 {
@@ -948,5 +947,3 @@ inline void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

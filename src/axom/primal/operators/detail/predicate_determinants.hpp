@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file predicate_determinants.hpp
  *
@@ -26,9 +28,6 @@
  *  limitation and are a possible future enhancement; see the primal tests
  *  characterizing where the double-precision sign is and is not reliable.
  */
-
-#ifndef AXOM_PRIMAL_PREDICATE_DETERMINANTS_HPP_
-#define AXOM_PRIMAL_PREDICATE_DETERMINANTS_HPP_
 
 #include "axom/core/numerics/Determinants.hpp"
 
@@ -132,5 +131,3 @@ inline double in_sphere_determinant(const Point<T, 3>& q,
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_PREDICATE_DETERMINANTS_HPP_

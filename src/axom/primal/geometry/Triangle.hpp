@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_TRIANGLE_HPP_
-#define AXOM_PRIMAL_TRIANGLE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -447,5 +446,3 @@ std::ostream& operator<<(std::ostream& os, const Triangle<T, NDIMS>& tri)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Triangle<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_TRIANGLE_HPP_

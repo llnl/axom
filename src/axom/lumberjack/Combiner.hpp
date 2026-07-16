@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Combiner.hpp
@@ -12,9 +14,6 @@
  *  all Combiners.
  *******************************************************************************
  */
-
-#ifndef COMBINER_HPP
-#define COMBINER_HPP
 
 #include "axom/lumberjack/Message.hpp"
 
@@ -89,5 +88,3 @@ public:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

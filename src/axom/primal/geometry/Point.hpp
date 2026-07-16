@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_POINT_HPP_
-#define AXOM_PRIMAL_POINT_HPP_
+#pragma once
 
 #include "axom/core/NumericArray.hpp"
 #include "axom/core/Macros.hpp"
@@ -416,5 +415,3 @@ Point<T, NDIMS> transform_point(
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Point<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_POINT_HPP_

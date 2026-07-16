@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/sina.hpp"
 
 extern "C" void sina_set_default_record_type_(char *);

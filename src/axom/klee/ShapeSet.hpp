@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_SHAPESET_HPP_
-#define AXOM_KLEE_SHAPESET_HPP_
+#pragma once
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Shape.hpp"
@@ -74,5 +73,3 @@ private:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_SHAPESET_HPP_

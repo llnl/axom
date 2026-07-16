@@ -47,6 +47,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Sidre: Added `axom::sidre::View::checksum()` and `axom::sidre::Group::checksum()` methods that return checksum values. A `Group::checksum(conduit::Node&)` overload emits diffable checksum metadata for group/view subtrees.
 - Core: Adds `AXOM_CONSTEXPR_ASSERT` macro for assertions that are usable within `constexpr` contexts
 - Slam: Adds `make_*_set`, `make_*_relation` and `make_map` helper functions for building sets, relations and maps
+- Primal: Adds `primal::Sphere::contains(const Point&, bool includeBoundary = true)` to efficiently test whether
+  a point lies within a sphere. Use `getOrientation()` when a tolerance-aware boundary classification is needed.
+- Python: Adds the `AXOM_PYTHON_MODULE_INSTALL_PREFIX` CMake variable to control where Axom installs its Python
+  package(s), relative to the install prefix.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -57,8 +61,14 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 - CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
+- Core: Moved length unit parsing and conversion helpers into `axom::utilities`.
+- Quest: Updated `C2CReader` to use `axom::utilities::LengthUnit` at its public length-unit interface.
+- Quest: Updated `STEPReader` to use centralized length unit parsing and conversion logic.
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
+- Changed to `#pragma once` instead of unique header guard defines
+- Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
+  Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
@@ -72,6 +82,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Avoids a first-use race in `axom::copy()` when multiple OpenMP threads concurrently trigger Umpire fallback host-copy initialization.
 - Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
 - Sidre: Vector-valued MFEM `QuadratureFunction` fields exported through `MFEMSidreDataCollection` now use Blueprint mcarray component storage under `values`, instead of a single scalar array.
+- Primal: Fixes `primal::Sphere<T,2>::getVolume()`, which was previously hard-coded for volume of 3D sphere
+- Sidre: Adds a `const` overload of the templated `axom::sidre::View::getData<T>()`,
+and marked the templated `axom::sidre::View::getAttributeScalar<T>()` overloads `const`
+so they can be called on a `const View`. Also added  `const` overloads for `axom::sidre::Buffer::getData()`
+and `axom::sidre::Buffer::getVoidPtr()` so they can be called on a `const Buffer`.
+- Quest: Fixes `InOutOctree::within()` for query points that lie on (or very near) the surface, in both 2D (segment meshes) and 3D (triangle meshes).
 
 ## [Version 0.14.0] - Release date 2026-03-31
 

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_FlatMap_View_HPP
-#define Axom_Core_FlatMap_View_HPP
+#pragma once
 
 #include "axom/core/FlatMap.hpp"
 
@@ -292,5 +291,3 @@ auto FlatMap<KeyType, ValueType, Hash>::view() const -> ConstView
 }
 
 }  // namespace axom
-
-#endif
