@@ -49,6 +49,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Slam: Adds `make_*_set`, `make_*_relation` and `make_map` helper functions for building sets, relations and maps
 - Primal: Adds `primal::Sphere::contains(const Point&, bool includeBoundary = true)` to efficiently test whether
   a point lies within a sphere. Use `getOrientation()` when a tolerance-aware boundary classification is needed.
+- Python: Adds the `AXOM_PYTHON_MODULE_INSTALL_PREFIX` CMake variable to control where Axom installs its Python
+  package(s), relative to the install prefix.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -65,6 +67,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 - Changed to `#pragma once` instead of unique header guard defines
+- Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
+  Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
