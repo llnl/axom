@@ -331,8 +331,8 @@ if(EXISTS ${Python_EXECUTABLE})
         )
     endif()
 
-    # Check if the python environment contains the runtime dependencies for Axom's python
-    # conduit (Node interop) and numpy (ndarray returns). 
+    # Check if the python environment contains the runtime dependencies
+    # for Axom's python conduit (Node interop) and numpy (ndarray returns). 
     # nanobind is statically linked at build time and is located separately above.
     execute_process(
       COMMAND "${CMAKE_COMMAND}" -E env
@@ -342,7 +342,7 @@ if(EXISTS ${Python_EXECUTABLE})
       ERROR_QUIET
     )
 
-    # Check if the python environment contains the pytest test harness,
+    # Check if the python environment contains the pytest test harness
     execute_process(
       COMMAND "${CMAKE_COMMAND}" -E env
               "${Python_EXECUTABLE}" -c "import pytest"
@@ -359,6 +359,32 @@ if(EXISTS ${Python_EXECUTABLE})
       OUTPUT_QUIET
       ERROR_QUIET
     )
+endif()
+
+if(AXOM_ENABLE_PYTHON_TESTS
+   AND (NOT PY_PYTEST_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND PY_PYTEST_DIR
+   AND PY_PLUGGY_DIR
+   AND PY_INICONFIG_DIR)
+    set(_axom_pytest_pythonpath
+        "${PY_PYTEST_DIR}"
+        "${PY_PLUGGY_DIR}"
+        "${PY_INICONFIG_DIR}")
+    foreach(_var PY_PACKAGING_DIR PY_PYGMENTS_DIR)
+        blt_list_append(TO _axom_pytest_pythonpath ELEMENTS "${${_var}}" IF ${_var})
+    endforeach()
+    list(JOIN _axom_pytest_pythonpath ":" _axom_pytest_pythonpath_joined)
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "PYTHONPATH=${_axom_pytest_pythonpath_joined}"
+              "${Python_EXECUTABLE}" -c "import pytest"
+      RESULT_VARIABLE PY_PYTEST_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+    unset(_axom_pytest_pythonpath)
+    unset(_axom_pytest_pythonpath_joined)
 endif()
 
 # If the python environment does not contain the required runtime modules,
@@ -380,9 +406,9 @@ if(AXOM_ENABLE_PYTHON_TESTS
    AND nanobind_ROOT
    AND (NOT PY_PYTEST_DIR OR NOT PY_PLUGGY_DIR OR NOT PY_INICONFIG_DIR))
     message(FATAL_ERROR
-      "Running Axom's python tests requires pytest (and its dependencies pluggy and iniconfig)."
+      "Running Axom's python tests requires pytest and its import-time dependencies."
       "\nThe library installation paths can be specified with CMake variables: "
-      "PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR."
+      "PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR, PY_PACKAGING_DIR, PY_PYGMENTS_DIR."
       "\nAlternatively, configure with AXOM_ENABLE_PYTHON_TESTS=OFF.")
 endif()
 

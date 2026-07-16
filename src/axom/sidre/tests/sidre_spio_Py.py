@@ -17,10 +17,10 @@ import os
 
 import pytest
 
-import pysidre
+import axom.sidre as sidre
 
-if not pysidre.AXOM_ENABLE_MPI:
-    pytest.skip("pysidre built without MPI", allow_module_level=True)
+if not sidre.AXOM_ENABLE_MPI:
+    pytest.skip("sidre built without MPI", allow_module_level=True)
 
 mpi4py = pytest.importorskip("mpi4py")
 from mpi4py import MPI  # noqa: E402
@@ -33,9 +33,9 @@ def _shared_base(tmp_path, name):
 
 
 def _fill_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
-    view = root.createViewAndAllocate("field", pysidre.TypeID.INT_ID, 4)
+    view = root.createViewAndAllocate("field", sidre.TypeID.INT_ID, 4)
     rank = MPI.COMM_WORLD.Get_rank()
     view.getDataArray()[:] = [rank, rank + 1, rank + 2, rank + 3]
     return ds
@@ -43,21 +43,21 @@ def _fill_datastore():
 
 def test_iomanager_legacy_use_scr_constructor():
     # Preserve the previous IOManager(use_scr=False) positional API.
-    pysidre.IOManager(False)
+    sidre.IOManager(False)
 
 
 def test_iomanager_rejects_non_communicator():
     with pytest.raises(AttributeError):
-        pysidre.IOManager(object())
+        sidre.IOManager(object())
 
 
 def test_iomanager_default_communicator(tmp_path):
     # No communicator argument -> MPI_COMM_WORLD (preserves the prior behavior).
     world = MPI.COMM_WORLD
     ds = _fill_datastore()
-    iom = pysidre.IOManager()
+    iom = sidre.IOManager()
     base = _shared_base(tmp_path, "default_comm")
-    iom.write(ds.getRoot(), 1, base, pysidre.Group.getDefaultIOProtocol())
+    iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
     world.Barrier()
     assert iom.getNumFilesFromRoot(base + ".root") == 1
     assert iom.getNumGroupsFromRoot(base + ".root") == world.Get_size()
@@ -67,12 +67,12 @@ def test_iomanager_explicit_world_communicator(tmp_path):
     # Passing COMM_WORLD explicitly must match the default path.
     world = MPI.COMM_WORLD
     ds = _fill_datastore()
-    iom = pysidre.IOManager(MPI.COMM_WORLD)
+    iom = sidre.IOManager(MPI.COMM_WORLD)
     base = _shared_base(tmp_path, "explicit_world")
-    iom.write(ds.getRoot(), 1, base, pysidre.Group.getDefaultIOProtocol())
+    iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
     world.Barrier()
 
-    ds_in = pysidre.DataStore()
+    ds_in = sidre.DataStore()
     iom.read(ds_in.getRoot(), base + ".root")
     arr = ds_in.getRoot().getView("field").getDataArray()
     rank = world.Get_rank()
@@ -83,12 +83,12 @@ def test_iomanager_owned_duplicate_survives_comm_free(tmp_path):
     # IOManager duplicates the input communicator, so callers may free their
     # mpi4py communicator after construction.
     comm = MPI.COMM_SELF.Dup()
-    iom = pysidre.IOManager(comm)
+    iom = sidre.IOManager(comm)
     comm.Free()
 
     ds = _fill_datastore()
     base = _shared_base(tmp_path, f"freed_comm_rank{MPI.COMM_WORLD.Get_rank()}")
-    iom.write(ds.getRoot(), 1, base, pysidre.Group.getDefaultIOProtocol())
+    iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
     assert iom.getNumFilesFromRoot(base + ".root") == 1
     assert iom.getNumGroupsFromRoot(base + ".root") == 1
     MPI.COMM_WORLD.Barrier()
@@ -106,12 +106,12 @@ def test_iomanager_split_communicator(tmp_path):
     try:
         sub_size = sub.Get_size()
         ds = _fill_datastore()
-        iom = pysidre.IOManager(sub)
+        iom = sidre.IOManager(sub)
         sub.Free()
         sub_freed = True
         # tmp_path differs per rank; rendezvous on a shared, rank-0-broadcast dir
         base = _shared_base(tmp_path, f"split_color{color}")
-        iom.write(ds.getRoot(), 1, base, pysidre.Group.getDefaultIOProtocol())
+        iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
         assert iom.getNumFilesFromRoot(base + ".root") == 1
         assert iom.getNumGroupsFromRoot(base + ".root") == sub_size
     finally:
@@ -122,10 +122,10 @@ def test_iomanager_split_communicator(tmp_path):
 def test_distributed_generate_blueprint_index(tmp_path):
     # The distributed generateBlueprintIndex overload is built only under
     # nanobind >= 2.10; skip cleanly if this build omitted it.
-    if not pysidre.AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING:
+    if not sidre.AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING:
         pytest.skip("generateBlueprintIndex not bound")
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     mesh = root.createGroup("mesh")
     coords = mesh.createGroup("coordsets/coords")
