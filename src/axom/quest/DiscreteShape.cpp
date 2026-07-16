@@ -8,7 +8,7 @@
 #include "axom/quest/Discretize.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 #ifdef AXOM_USE_C2C
   #include "axom/quest/io/C2CReader.hpp"
@@ -105,12 +105,13 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
   std::string shapePath =
     axom::utilities::filesystem::prefixRelativePath(m_shape.getGeometry().getPath(), m_prefixPath);
+  const std::string fileExtension = utilities::filesystem::getFileExtension(shapePath);
   SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
 
   // Initialize revolved volume.
   m_revolvedVolume = 0.;
 
-  if(utilities::string::endsWith(shapePath, ".stl"))
+  if(fileExtension == ".stl")
   {
     SLIC_ERROR_ROOT_IF(file_format != "stl",
                        axom::fmt::format(" '{}' format requires .stl file type", file_format));
@@ -130,7 +131,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     // Transform the coordinates of the linearized mesh.
     applyTransforms();
   }
-  else if(utilities::string::endsWith(shapePath, ".proe"))
+  else if(fileExtension == ".proe")
   {
     SLIC_ERROR_ROOT_IF(file_format != "proe",
                        axom::fmt::format(" '{}' format requires .proe file type", file_format));
@@ -216,7 +217,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   }
 #endif
 #ifdef AXOM_USE_MFEM
-  else if(utilities::string::endsWith(shapePath, ".mesh"))
+  else if(fileExtension == ".mesh")
   {
     SLIC_ERROR_ROOT_IF(file_format != "mfem",
                        axom::fmt::format(" '{}' format requires .mesh file extension", file_format));
