@@ -798,8 +798,11 @@ void ShapeMesh::computeCellsAsHexesImpl()
 
   axom::ArrayView<const IndexType, 2> connView = getCellNodeConnectivity();
 
-  m_cellsAsHexes =
-    axom::Array<HexahedronType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_cellsAsHexes = axom::Array<HexahedronType>(ArrayOptions::Uninitialized(),
+                                               m_cellCount,
+                                               m_cellCount,
+                                               m_allocId,
+                                               m_hostAllocator);
   axom::ArrayView<HexahedronType> cellsAsHexesView = m_cellsAsHexes.view();
   SLIC_ASSERT(cellsAsHexesView.data() == m_cellsAsHexes.data());
 
@@ -837,7 +840,8 @@ void ShapeMesh::computeCellsAsTetsImpl()
   m_cellsAsTets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
                                                NUM_TETS_PER_HEX * m_cellCount,
                                                NUM_TETS_PER_HEX * m_cellCount,
-                                               m_allocId);
+                                               m_allocId,
+                                               m_hostAllocator);
   auto cellsAsTetsView = m_cellsAsTets.view();
 
   auto cellsAsHexesView = getCellsAsHexes();
@@ -854,8 +858,11 @@ void ShapeMesh::computeCellsAsTetsImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeHexVolumesImpl()
 {
-  m_hexVolumes =
-    axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_hexVolumes = axom::Array<double>(ArrayOptions::Uninitialized(),
+                                     m_cellCount,
+                                     m_cellCount,
+                                     m_allocId,
+                                     m_hostAllocator);
 
   auto cellsAsHexes = getCellsAsHexes();
 
@@ -869,7 +876,8 @@ template <typename ExecSpace>
 void ShapeMesh::computeTetVolumesImpl()
 {
   axom::IndexType tetCount = m_cellCount * NUM_TETS_PER_HEX;
-  m_tetVolumes = axom::Array<double>(ArrayOptions::Uninitialized(), tetCount, tetCount, m_allocId);
+  m_tetVolumes =
+    axom::Array<double>(ArrayOptions::Uninitialized(), tetCount, tetCount, m_allocId, m_hostAllocator);
 
   auto cellsAsTets = getCellsAsTets();
 
@@ -882,8 +890,11 @@ void ShapeMesh::computeTetVolumesImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeHexBbsImpl()
 {
-  m_hexBbs =
-    axom::Array<BoundingBox3DType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_hexBbs = axom::Array<BoundingBox3DType>(ArrayOptions::Uninitialized(),
+                                            m_cellCount,
+                                            m_cellCount,
+                                            m_allocId,
+                                            m_hostAllocator);
 
   auto cellsAsHexes = getCellsAsHexes();
 
@@ -898,8 +909,11 @@ void ShapeMesh::computeHexBbsImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeCellLengthsImpl()
 {
-  m_cellLengths =
-    axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_cellLengths = axom::Array<double>(ArrayOptions::Uninitialized(),
+                                      m_cellCount,
+                                      m_cellCount,
+                                      m_allocId,
+                                      m_hostAllocator);
 
   auto cellBbs = getCellBoundingBoxes();
 
@@ -912,7 +926,7 @@ void ShapeMesh::computeCellLengthsImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeVertPointsImpl()
 {
-  m_vertPoints3D = axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId);
+  m_vertPoints3D = axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId, m_hostAllocator);
 
   auto& vertCoords = getVertexCoords3D();
   const auto& vX = vertCoords[0];

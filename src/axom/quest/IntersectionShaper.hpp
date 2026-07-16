@@ -493,7 +493,7 @@ public:
     auto quads_device_view = m_quads.view();
 
     AXOM_ANNOTATE_BEGIN("allocate m_cell_volumes");
-    m_cell_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
+    m_cell_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId, m_hostAllocator);
     AXOM_ANNOTATE_END("allocate m_cell_volumes");
     m_cell_volumes.fill(0.0);
 
@@ -506,7 +506,7 @@ public:
     AXOM_ANNOTATE_END("cell_volume");
 
     AXOM_ANNOTATE_BEGIN("populate m_quad_bbs");
-    m_quad_bbs = axom::Array<BoundingBox2D>(m_cellCount, m_cellCount, m_allocatorId);
+    m_quad_bbs = axom::Array<BoundingBox2D>(m_cellCount, m_cellCount, m_allocatorId, m_hostAllocator);
     axom::ArrayView<BoundingBox2D> quad_bbs_device_view = m_quad_bbs.view();
 
     // Get bounding boxes for quadrilateral elements
@@ -526,7 +526,7 @@ public:
     AXOM_ANNOTATE_END("populate m_quad_bbs");
 
     AXOM_ANNOTATE_BEGIN("allocate m_overlap_volumes");
-    m_overlap_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
+    m_overlap_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId, m_hostAllocator);
     AXOM_ANNOTATE_END("allocate m_overlap_volumes");
   }
 
@@ -545,14 +545,15 @@ public:
     m_tets_from_hexes_device = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
                                                             m_cellCount * NUM_TETS_PER_HEX,
                                                             m_cellCount * NUM_TETS_PER_HEX,
-                                                            m_allocatorId);
+                                                            m_allocatorId,
+                                                            m_hostAllocator);
     AXOM_ANNOTATE_END("allocate m_tets_from_hexes_device");
 
     populateHexesFromMesh<ExecSpace>();
     auto hexesView = m_hexes.view();
 
     AXOM_ANNOTATE_BEGIN("allocate m_cell_volumes");
-    m_cell_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
+    m_cell_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId, m_hostAllocator);
     AXOM_ANNOTATE_END("allocate m_cell_volumes");
     m_cell_volumes.fill(0.0);
 
@@ -568,7 +569,7 @@ public:
       axom::fmt::format("{:-^80}", " Decomposing each hexahedron element into 24 tetrahedrons "));
 
     AXOM_ANNOTATE_BEGIN("populate m_hex_bbs");
-    m_hex_bbs = axom::Array<BoundingBox3D>(m_cellCount, m_cellCount, m_allocatorId);
+    m_hex_bbs = axom::Array<BoundingBox3D>(m_cellCount, m_cellCount, m_allocatorId, m_hostAllocator);
 
     // Get bounding boxes for hexahedral elements
     axom::ArrayView<BoundingBox3D> hexBbsView = m_hex_bbs.view();
@@ -597,7 +598,7 @@ public:
     AXOM_ANNOTATE_END("init_tets");
 
     AXOM_ANNOTATE_BEGIN("allocate m_overlap_volumes");
-    m_overlap_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
+    m_overlap_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId, m_hostAllocator);
     AXOM_ANNOTATE_END("allocate m_overlap_volumes");
   }
 
@@ -672,7 +673,7 @@ private:
     // Number of triangles in mesh
     m_tricount = m_surfaceMesh->getNumberOfCells();
 
-    axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator);
+    axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator, m_hostAllocator);
 
     // Initialize 2D triangles from mesh (ignore z coordinate)
     axom::Array<IndexType> nodeIds(3);
@@ -703,7 +704,7 @@ private:
     }
 
     // Copy triangles to device
-    m_tris = axom::Array<PolygonStaticType>(tris_host, device_allocator);
+    m_tris = axom::Array<PolygonStaticType>(tris_host, device_allocator, m_hostAllocator);
 
     if(this->isVerbose())
     {
@@ -759,7 +760,7 @@ private:
     // Number of tets in mesh
     m_tetcount = m_surfaceMesh->getNumberOfCells();
 
-    axom::Array<TetrahedronType> tets_host(m_tetcount, m_tetcount, host_allocator);
+    axom::Array<TetrahedronType> tets_host(m_tetcount, m_tetcount, host_allocator, m_hostAllocator);
 
     // Initialize tetrahedra
     axom::Array<IndexType> nodeIds(4);
@@ -778,7 +779,7 @@ private:
     }
 
     // Copy tets to device
-    m_tets = axom::Array<TetrahedronType>(tets_host, device_allocator);
+    m_tets = axom::Array<TetrahedronType>(tets_host, device_allocator, m_hostAllocator);
 
     if(this->isVerbose())
     {
@@ -861,7 +862,10 @@ private:
 
       // Generate the Octahedra
       // (Set m_octs's allocator id to where we want its data to live.)
-      m_octs = axom::Array<OctahedronType>(0, 0, axom::execution_space<ExecSpace>::allocatorID());
+      m_octs = axom::Array<OctahedronType>(0,
+                                           0,
+                                           axom::execution_space<ExecSpace>::allocatorID(),
+                                           m_hostAllocator);
       const bool disc_status = axom::quest::discretize<ExecSpace>(polyline,
                                                                   polyline_size,
                                                                   m_level,
@@ -883,7 +887,8 @@ private:
       {
         // Print out the bounding box containing all the octahedra
         BoundingBox3D all_oct_bb;
-        axom::Array<OctahedronType> octs_host = axom::Array<OctahedronType>(m_octs, host_allocator);
+        axom::Array<OctahedronType> octs_host =
+          axom::Array<OctahedronType>(m_octs, host_allocator, m_hostAllocator);
         auto octs_host_view = octs_host.view();
 
         for(int i = 0; i < m_octcount; i++)
@@ -913,10 +918,10 @@ private:
         axom::ReduceSum<ExecSpace, int> num_degenerate(0);
 
         const int device_allocator = m_allocatorId;
-        axom::Array<OctahedronType> degenerate_oct_host(1, 1, host_allocator);
+        axom::Array<OctahedronType> degenerate_oct_host(1, 1, host_allocator, m_hostAllocator);
         degenerate_oct_host[0] = OctahedronType();
         axom::Array<OctahedronType> degenerate_oct_device =
-          axom::Array<OctahedronType>(degenerate_oct_host, device_allocator);
+          axom::Array<OctahedronType>(degenerate_oct_host, device_allocator, m_hostAllocator);
         auto degenerate_oct_device_view = degenerate_oct_device.view();
 
         axom::for_all<ExecSpace>(
@@ -957,7 +962,7 @@ private:
       // Number of triangles in mesh (2 triangles per segment/quad cell)
       m_tricount = m_surfaceMesh->getNumberOfCells() * 2;
 
-      axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator);
+      axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator, m_hostAllocator);
 
       // Initialize 2D triangles from segment mesh (3rd point is on the x-axis)
       axom::Array<IndexType> nodeIds(2);
@@ -987,7 +992,7 @@ private:
       }
 
       // Copy triangles to device
-      m_tris = axom::Array<PolygonStaticType>(tris_host, device_allocator);
+      m_tris = axom::Array<PolygonStaticType>(tris_host, device_allocator, m_hostAllocator);
 
       SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                   "Contour has been discretized into {:L} triangles ",
@@ -1051,7 +1056,8 @@ private:
 
     // Generate the BVH tree over the shapes
     // Access-aligned bounding boxes
-    m_aabbs_2d = axom::Array<BoundingBox2D>(shape_count, shape_count, device_allocator);
+    m_aabbs_2d =
+      axom::Array<BoundingBox2D>(shape_count, shape_count, device_allocator, m_hostAllocator);
 
     axom::ArrayView<PolygonStaticType> shapes_device_view = shapes.view();
 
@@ -1084,8 +1090,8 @@ private:
     // Find which shape bounding boxes intersect quadrilateral bounding boxes
     SLIC_INFO(axom::fmt::format("{:-^80}", " Finding shape candidates for each quad element "));
 
-    axom::Array<IndexType> offsets(m_cellCount, m_cellCount, device_allocator);
-    axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator);
+    axom::Array<IndexType> offsets(m_cellCount, m_cellCount, device_allocator, m_hostAllocator);
+    axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator, m_hostAllocator);
     axom::Array<IndexType> candidates;
     bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, quad_bbs_device_view);
 
@@ -1103,7 +1109,8 @@ private:
     AXOM_ANNOTATE_BEGIN("allocate quad_indices_device");
     axom::Array<IndexType> quad_indices_device(totalCandidates.get(),
                                                totalCandidates.get(),
-                                               device_allocator);
+                                               device_allocator,
+                                               m_hostAllocator);
     AXOM_ANNOTATE_END("allocate quad_indices_device");
     auto quad_indices_device_view = quad_indices_device.view();
 
@@ -1113,17 +1120,18 @@ private:
     AXOM_ANNOTATE_BEGIN("allocate shape_candidates_device");
     axom::Array<IndexType> shape_candidates_device(totalCandidates.get(),
                                                    totalCandidates.get(),
-                                                   device_allocator);
+                                                   device_allocator,
+                                                   m_hostAllocator);
     AXOM_ANNOTATE_END("allocate shape_candidates_device");
     auto shape_candidates_device_view = shape_candidates_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
     // New total number of candidates after omitting degenerate shapes
     AXOM_ANNOTATE_BEGIN("newTotalCandidates memory");
-    axom::Array<IndexType> newTotalCandidates_host(1, 1, host_allocator);
+    axom::Array<IndexType> newTotalCandidates_host(1, 1, host_allocator, m_hostAllocator);
     newTotalCandidates_host[0] = 0;
     axom::Array<IndexType> newTotalCandidates_device =
-      axom::Array<IndexType>(newTotalCandidates_host, device_allocator);
+      axom::Array<IndexType>(newTotalCandidates_host, device_allocator, m_hostAllocator);
     auto newTotalCandidates_device_view = newTotalCandidates_device.view();
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
@@ -1162,7 +1170,7 @@ private:
       AXOM_ANNOTATE_SCOPE("clipLoop");
       // Copy calculated total back to host
       axom::Array<IndexType> newTotalCandidates_calc_host =
-        axom::Array<IndexType>(newTotalCandidates_device, host_allocator);
+        axom::Array<IndexType>(newTotalCandidates_device, host_allocator, m_hostAllocator);
 
       axom::for_all<ExecSpace>(
         newTotalCandidates_calc_host[0],
@@ -1240,7 +1248,7 @@ private:
 
     // Generate the BVH tree over the shapes
     // Axis-aligned bounding boxes
-    axom::Array<BoundingBox3D> aabbs(shape_count, shape_count, device_allocator);
+    axom::Array<BoundingBox3D> aabbs(shape_count, shape_count, device_allocator, m_hostAllocator);
 
     axom::ArrayView<ShapeType> shapes_device_view = shapes.view();
 
@@ -1265,8 +1273,8 @@ private:
     SLIC_INFO(
       axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
 
-    axom::Array<IndexType> offsets(m_cellCount, m_cellCount, device_allocator);
-    axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator);
+    axom::Array<IndexType> offsets(m_cellCount, m_cellCount, device_allocator, m_hostAllocator);
+    axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator, m_hostAllocator);
     axom::Array<IndexType> candidates;
     AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
     bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, hex_bbs_device_view);
@@ -1286,14 +1294,16 @@ private:
     AXOM_ANNOTATE_BEGIN("allocate hex_indices");
     axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                               totalCandidates.get() * NUM_TETS_PER_HEX,
-                                              device_allocator);
+                                              device_allocator,
+                                              m_hostAllocator);
     AXOM_ANNOTATE_END("allocate hex_indices");
     auto hex_indices_device_view = hex_indices_device.view();
 
     AXOM_ANNOTATE_BEGIN("allocate shape_candidates");
     axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                                    totalCandidates.get() * NUM_TETS_PER_HEX,
-                                                   device_allocator);
+                                                   device_allocator,
+                                                   m_hostAllocator);
     AXOM_ANNOTATE_END("allocate shape_candidates");
     auto shape_candidates_device_view = shape_candidates_device.view();
 
@@ -1304,17 +1314,18 @@ private:
     AXOM_ANNOTATE_BEGIN("allocate tet_indices_device");
     axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                               totalCandidates.get() * NUM_TETS_PER_HEX,
-                                              device_allocator);
+                                              device_allocator,
+                                              m_hostAllocator);
     AXOM_ANNOTATE_END("allocate tet_indices_device");
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
     // New total number of candidates after omitting degenerate shapes
     AXOM_ANNOTATE_BEGIN("newTotalCandidates memory");
-    axom::Array<IndexType> newTotalCandidates_host(1, 1, host_allocator);
+    axom::Array<IndexType> newTotalCandidates_host(1, 1, host_allocator, m_hostAllocator);
     newTotalCandidates_host[0] = 0;
     axom::Array<IndexType> newTotalCandidates_device =
-      axom::Array<IndexType>(newTotalCandidates_host, device_allocator);
+      axom::Array<IndexType>(newTotalCandidates_host, device_allocator, m_hostAllocator);
     auto newTotalCandidates_device_view = newTotalCandidates_device.view();
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
@@ -1359,7 +1370,7 @@ private:
       AXOM_ANNOTATE_SCOPE("clipLoop");
       // Copy calculated total back to host
       axom::Array<IndexType> newTotalCandidates_calc_host =
-        axom::Array<IndexType>(newTotalCandidates_device, host_allocator);
+        axom::Array<IndexType>(newTotalCandidates_device, host_allocator, m_hostAllocator);
 
       axom::for_all<ExecSpace>(
         newTotalCandidates_calc_host[0],  // Number of candidates found.
@@ -2662,7 +2673,8 @@ public:
 
     axom::Array<double> vertCoords(m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
                                    m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
-                                   allocId);
+                                   allocId,
+                                   m_hostAllocator);
 
 #if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
@@ -2680,7 +2692,8 @@ public:
     auto vertCoords_device_view = vertCoords.view();
 
     // Initialize quad elements
-    m_quads = axom::Array<PolygonStaticType>(m_cellCount, m_cellCount, m_allocatorId);
+    m_quads =
+      axom::Array<PolygonStaticType>(m_cellCount, m_cellCount, m_allocatorId, m_hostAllocator);
     axom::ArrayView<PolygonStaticType> quads_device_view = m_quads.view();
 
     axom::for_all<ExecSpace>(
@@ -2708,7 +2721,8 @@ public:
 
     axom::Array<double> vertCoords(m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
                                    m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
-                                   allocId);
+                                   allocId,
+                                   m_hostAllocator);
 
 #if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
@@ -2725,7 +2739,7 @@ public:
 
     auto vertCoords_device_view = vertCoords.view();
 
-    m_hexes = axom::Array<HexahedronType>(m_cellCount, m_cellCount, allocId);
+    m_hexes = axom::Array<HexahedronType>(m_cellCount, m_cellCount, allocId, m_hostAllocator);
     axom::ArrayView<HexahedronType> hexes_device_view = m_hexes.view();
     axom::for_all<ExecSpace>(
       m_cellCount,
