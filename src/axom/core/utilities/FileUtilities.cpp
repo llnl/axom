@@ -88,6 +88,21 @@ std::string joinPath(const std::string& fileDir,
 }
 
 //-----------------------------------------------------------------------------
+std::string getFileExtension(const std::string& path)
+{
+  const auto separator = path.find_last_of("/\\");
+  const auto filename = path.substr(separator == std::string::npos ? 0 : separator + 1);
+
+  if(filename.empty() || filename == "." || filename == "..")
+  {
+    return "";
+  }
+
+  const auto dot = filename.find_last_of('.');
+  return dot == std::string::npos || dot == 0 ? "" : filename.substr(dot);
+}
+
+//-----------------------------------------------------------------------------
 int makeDirsForPath(const std::string& path)
 {
   char separator = '/';

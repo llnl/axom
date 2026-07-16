@@ -12,13 +12,13 @@
 #include "axom/klee/KleeError.hpp"
 
 #include "axom/config.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
+#include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/inlet.hpp"
 #ifdef AXOM_USE_LUA
   #include "axom/inlet/LuaReader.hpp"
 #endif
 
-#include <algorithm>
-#include <cctype>
 #include <exception>
 #include <functional>
 #include <iterator>
@@ -305,28 +305,10 @@ internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions
   return internal::NamedOperatorMap {};
 }
 
-std::string lowercase(std::string value)
-{
-  std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-    return static_cast<char>(std::tolower(ch));
-  });
-  return value;
-}
-
-std::string extensionOf(const std::string &filePath)
-{
-  const auto slash = filePath.find_last_of("/\\");
-  const auto dot = filePath.find_last_of('.');
-  if(dot == std::string::npos || (slash != std::string::npos && dot < slash))
-  {
-    return "";
-  }
-  return lowercase(filePath.substr(dot));
-}
-
 InputFormat inferInputFormat(const std::string &filePath)
 {
-  const auto extension = extensionOf(filePath);
+  auto extension = utilities::filesystem::getFileExtension(filePath);
+  utilities::string::toLower(extension);
   if(extension.empty())
   {
     return InputFormat::YAML;
