@@ -115,6 +115,20 @@ inline HostAllocator hostAllocatorForPrimaryAllocator(int allocator_id)
   return HostAllocator {axom::MALLOC_ALLOCATOR_ID};
 }
 
+template <MemorySpace SPACE>
+inline int explicitHostFallbackAllocatorID(HostAllocator host_allocator)
+{
+  if constexpr(SPACE == MemorySpace::Host)
+  {
+    return host_allocator.getID();
+  }
+  else
+  {
+    AXOM_UNUSED_VAR(host_allocator);
+    return axom::detail::getAllocatorID<SPACE>();
+  }
+}
+
 }  // namespace detail
 
 /*!
@@ -1060,12 +1074,14 @@ protected:
    * \param [in] src_stride the inter-element stride between elements of the existing array
    * \param [in] data_space the memory space in which data has been allocated
    * \param [in] user_provided_allocator true if the Array's allocator ID was provided by the user
+   * \param [in] preserve_host_allocator true if the Array's host allocator was explicitly provided
    */
   void initialize_from_other(const T* data,
                              IndexType num_elements,
                              IndexType src_stride,
                              MemorySpace data_space,
-                             bool user_provided_allocator);
+                             bool user_provided_allocator,
+                             bool preserve_host_allocator = false);
 
   /*!
    * \brief Updates the number of elements stored in the data array.
@@ -1315,7 +1331,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(IndexType num_elements,
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
                  "explicit memory space - using default for space\n";
 #endif
-    m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+    m_allocator_id = axom::detail::explicitHostFallbackAllocatorID<SPACE>(m_host_allocator);
   }
   m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
   initialize(num_elements, capacity);
@@ -1365,7 +1381,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized,
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
                  "explicit memory space - using default for space\n";
 #endif
-    m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+    m_allocator_id = axom::detail::explicitHostFallbackAllocatorID<SPACE>(m_host_allocator);
   }
   m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
   initialize(num_elements, capacity, false);
@@ -1392,7 +1408,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(std::initializer_list<T> elems,
   , m_host_allocator(host_allocator)
   , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
-  initialize_from_other(elems.begin(), elems.size(), 1 /* stride */, MemorySpace::Dynamic, true);
+  initialize_from_other(elems.begin(), elems.size(), 1 /* stride */, MemorySpace::Dynamic, true, true);
 }
 
 //------------------------------------------------------------------------------
@@ -1503,7 +1519,8 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayTyp
                         static_cast<const OtherArrayType&>(other).size(),
                         other.minStride(),
                         axom::detail::getAllocatorSpace(m_allocator_id),
-                        false);
+                        false,
+                        true);
 }
 
 //------------------------------------------------------------------------------
@@ -1537,7 +1554,8 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherAr
                         static_cast<const OtherArrayType&>(other).size(),
                         other.minStride(),
                         axom::detail::getAllocatorSpace(m_allocator_id),
-                        false);
+                        false,
+                        true);
 }
 
 //------------------------------------------------------------------------------
@@ -1576,6 +1594,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayTyp
                         static_cast<const OtherArrayType&>(other).size(),
                         other.minStride(),
                         axom::detail::getAllocatorSpace(src_allocator),
+                        true,
                         true);
 }
 
@@ -1615,6 +1634,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherAr
                         static_cast<const OtherArrayType&>(other).size(),
                         other.minStride(),
                         axom::detail::getAllocatorSpace(src_allocator),
+                        true,
                         true);
 }
 
@@ -2027,7 +2047,8 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
   IndexType num_elements,
   IndexType src_stride,
   MemorySpace other_data_space,
-  bool AXOM_DEBUG_PARAM(user_provided_allocator))
+  bool AXOM_DEBUG_PARAM(user_provided_allocator),
+  bool preserve_host_allocator)
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
@@ -2040,8 +2061,15 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
                    "with explicit memory space - using default for space\n";
     }
 #endif
-    m_allocator_id = axom::detail::getAllocatorID<SPACE>();
-    m_host_allocator = axom::detail::hostAllocatorForPrimaryAllocator(m_allocator_id);
+    if(preserve_host_allocator)
+    {
+      m_allocator_id = axom::detail::explicitHostFallbackAllocatorID<SPACE>(m_host_allocator);
+    }
+    else
+    {
+      m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+      m_host_allocator = axom::detail::hostAllocatorForPrimaryAllocator(m_allocator_id);
+    }
   }
   m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};

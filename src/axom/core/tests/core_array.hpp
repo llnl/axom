@@ -2586,6 +2586,66 @@ TEST(core_array, host_space_copy_preserves_compatible_malloc_allocator_with_umpi
               ::testing::ExitedWithCode(0),
               "");
 }
+
+  #if defined(UMPIRE_ENABLE_UM) || defined(UMPIRE_ENABLE_PINNED)
+//------------------------------------------------------------------------------
+TEST(core_array, host_space_copy_uses_explicit_host_allocator_for_incompatible_source)
+{
+  EXPECT_EXIT(([]() {
+    #if defined(UMPIRE_ENABLE_UM)
+                constexpr axom::MemorySpace sourceSpace = axom::MemorySpace::Unified;
+    #else
+                constexpr axom::MemorySpace sourceSpace = axom::MemorySpace::Pinned;
+    #endif
+                if(!runtimeMemorySpaceAvailable(sourceSpace))
+                {
+                  std::exit(0);
+                }
+
+                const int sourceAllocatorID = axom::getAllocatorIDFromMemorySpace(sourceSpace);
+                const int defaultHostAllocatorID =
+                  axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+                const axom::HostAllocator explicitHostAllocator {axom::MALLOC_ALLOCATOR_ID};
+
+                axom::setDefaultHostAllocator(defaultHostAllocatorID);
+
+                axom::Array<int, 1, axom::MemorySpace::Dynamic> src(8, 8, sourceAllocatorID);
+                for(int i = 0; i < src.size(); ++i)
+                {
+                  src[i] = 3 * i;
+                }
+
+                axom::Array<int, 1, axom::MemorySpace::Host> dst(src, explicitHostAllocator);
+                axom::Array<int, 1, axom::MemorySpace::Host> dstWithAllocator(src,
+                                                                              sourceAllocatorID,
+                                                                              explicitHostAllocator);
+
+                if(dst.getAllocatorID() != explicitHostAllocator.getID() ||
+                   dst.getHostAllocatorID() != explicitHostAllocator.getID())
+                {
+                  std::exit(1);
+                }
+
+                if(dstWithAllocator.getAllocatorID() != explicitHostAllocator.getID() ||
+                   dstWithAllocator.getHostAllocatorID() != explicitHostAllocator.getID())
+                {
+                  std::exit(1);
+                }
+
+                for(int i = 0; i < src.size(); ++i)
+                {
+                  if(dst[i] != 3 * i || dstWithAllocator[i] != 3 * i)
+                  {
+                    std::exit(1);
+                  }
+                }
+
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
+}
+  #endif
 #endif
 
 //------------------------------------------------------------------------------
