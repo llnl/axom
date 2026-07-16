@@ -47,11 +47,12 @@ Lua Input Decks
 ***************
 Klee can also read Lua input decks when Axom is configured with
 :code:`AXOM_ENABLE_LUA=ON` and Sol support. Lua decks use the same Klee schema
-as YAML decks in this stage; the difference is that Lua evaluates first and
-then Inlet reads the resulting global tables. File-based reads infer the input
-format from :code:`.yaml`, :code:`.yml`, or :code:`.lua` extensions. Stream-based
-reads are YAML by default unless the caller passes
-:code:`axom::klee::InputFormat::Lua`.
+as YAML decks. The Lua is evaluated and then read into Inlet. 
+
+File-based reads use an explicit :code:`axom::klee::InputFormat` when provided.
+Otherwise they infer the format from the file extension 
+(:code:`.yaml`, :code:`.yml`, or :code:`.lua`) when present, and default to YAML.
+Similarly, stream-based reads are YAML by default unless the caller passes :code:`axom::klee::InputFormat::Lua`.
 
 The following YAML and Lua inputs are equivalent:
 

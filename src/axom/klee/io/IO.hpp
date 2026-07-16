@@ -44,11 +44,22 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format);
  * Read a ShapeSet from a specified file
  *
  * \param filePath the file from which to read the ShapeSet
- * \note The input format is inferred from the file extension.
+ * \note The input format is inferred from the file extension. Files without
+ * an extension are read as YAML for backward compatibility.
  * \return the ShapeSet read from the file
  * \throws runtime_error if the input is invalid
  */
 ShapeSet readShapeSet(const std::string &filePath);
+
+/**
+ * Read a ShapeSet from a specified file using an explicit input format.
+ *
+ * \param filePath the file from which to read the ShapeSet
+ * \param format the input deck format to use, regardless of the file extension
+ * \return the ShapeSet read from the file
+ * \throws runtime_error if the input is invalid
+ */
+ShapeSet readShapeSet(const std::string &filePath, InputFormat format);
 
 }  // namespace klee
 }  // namespace axom

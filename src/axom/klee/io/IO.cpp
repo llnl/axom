@@ -327,6 +327,10 @@ std::string extensionOf(const std::string &filePath)
 InputFormat inferInputFormat(const std::string &filePath)
 {
   const auto extension = extensionOf(filePath);
+  if(extension.empty())
+  {
+    return InputFormat::YAML;
+  }
   if(extension == ".yaml" || extension == ".yml")
   {
     return InputFormat::YAML;
@@ -340,7 +344,7 @@ InputFormat inferInputFormat(const std::string &filePath)
     {Path {filePath},
      axom::fmt::format("Unsupported Klee input file extension '{}'. Supported extensions are "
                        ".yaml, .yml, and .lua.",
-                       extension.empty() ? "<none>" : extension)});
+                       extension)});
 }
 
 std::unique_ptr<inlet::Reader> createReader(InputFormat format)
@@ -466,7 +470,11 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format)
 
 ShapeSet readShapeSet(const std::string &filePath)
 {
-  const auto format = inferInputFormat(filePath);
+  return readShapeSet(filePath, inferInputFormat(filePath));
+}
+
+ShapeSet readShapeSet(const std::string &filePath, InputFormat format)
+{
   auto reader = createReader(format);
   parseOrThrow([&]() { return reader->parseFile(filePath); },
                format,

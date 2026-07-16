@@ -9,6 +9,7 @@
 #include "axom/klee/KleeError.hpp"
 
 #include "axom/config.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/slic.hpp"
 
 #include "KleeMatchers.hpp"
@@ -315,6 +316,52 @@ TEST(IOTest, readShapeSet_explicitYamlStreamFormat)
   EXPECT_EQ("wheel", shapeSet.getShapes()[0].getName());
 }
 
+TEST(IOTest, readShapeSet_fileWithoutExtensionDefaultsToYaml)
+{
+  const std::string fileName = "missingKleeInputWithoutExtension";
+  ASSERT_FALSE(axom::utilities::filesystem::pathExists(fileName));
+  try
+  {
+    klee::readShapeSet(fileName);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError &error)
+  {
+    ASSERT_EQ(1u, error.getErrors().size());
+    EXPECT_EQ(axom::Path {fileName}, error.getErrors()[0].path);
+    EXPECT_THAT(error.what(), HasSubstr("Failed to parse YAML Klee input"));
+  }
+}
+
+TEST(IOTest, readShapeSet_explicitYamlOverridesFileExtension)
+{
+  axom::utilities::filesystem::TempFile input {"explicitYaml", "lua"};
+  input.write(R"(
+    dimensions: 2
+    shapes: [])");
+
+  auto shapeSet = klee::readShapeSet(input.getPath(), InputFormat::YAML);
+  EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  EXPECT_EQ(input.getPath(), shapeSet.getPath());
+}
+
+TEST(IOTest, readShapeSet_explicitFormatReportsParseFailure)
+{
+  axom::utilities::filesystem::TempFile input {"invalidExplicitYaml", "lua"};
+  input.write("dimensions: [");
+  try
+  {
+    klee::readShapeSet(input.getPath(), InputFormat::YAML);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError &error)
+  {
+    ASSERT_EQ(1u, error.getErrors().size());
+    EXPECT_EQ(axom::Path {input.getPath()}, error.getErrors()[0].path);
+    EXPECT_THAT(error.what(), HasSubstr("Failed to parse YAML Klee input"));
+  }
+}
+
 TEST(IOTest, readShapeSet_emptyStreamReportsParseFailure)
 {
   try
@@ -400,6 +447,18 @@ TEST(IOTest, readShapeSet_luaUnavailableDiagnostic)
 #endif
 
 #ifdef AXOM_USE_LUA
+TEST(IOTest, readShapeSet_explicitLuaOverridesFileExtension)
+{
+  axom::utilities::filesystem::TempFile input {"explicitLua", "yaml"};
+  input.write(R"(
+    dimensions = 2
+    shapes = {})");
+
+  auto shapeSet = klee::readShapeSet(input.getPath(), InputFormat::Lua);
+  EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  EXPECT_EQ(input.getPath(), shapeSet.getPath());
+}
+
 TEST(IOTest, readShapeSet_malformedLuaReportsParseFailure)
 {
   try
