@@ -352,7 +352,7 @@ public:
                      HostAllocator hostAllocator,
                      const klee::ShapeSet& shapeSet,
                      sidre::MFEMSidreDataCollection* dc)
-    : Shaper(runtimePolicy, allocatorId, shapeSet, dc)
+    : Shaper(runtimePolicy, allocatorId, hostAllocator, shapeSet, dc)
     , m_hostAllocator(hostAllocator)
   {
     m_free_mat_name = "free";
@@ -385,7 +385,7 @@ public:
                      const klee::ShapeSet& shapeSet,
                      sidre::Group* bpGrp,
                      const std::string& topo = "")
-    : Shaper(runtimePolicy, allocatorId, shapeSet, bpGrp, topo)
+    : Shaper(runtimePolicy, allocatorId, hostAllocator, shapeSet, bpGrp, topo)
     , m_hostAllocator(hostAllocator)
     , m_free_mat_name("free")
   { }
@@ -410,7 +410,7 @@ public:
                      const klee::ShapeSet& shapeSet,
                      conduit::Node& bpNode,
                      const std::string& topo = "")
-    : Shaper(runtimePolicy, allocatorId, shapeSet, bpNode, topo)
+    : Shaper(runtimePolicy, allocatorId, hostAllocator, shapeSet, bpNode, topo)
     , m_hostAllocator(hostAllocator)
     , m_free_mat_name("free")
   { }

@@ -298,7 +298,7 @@ void run_vectorized_sphere_test()
   using PointType = primal::Point<double, 3>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  int host_allocator = axom::getDefaultHostAllocatorID();
+  const axom::HostAllocator hostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
   int kernel_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
 #if defined(AXOM_USE_UMPIRE)
@@ -360,7 +360,8 @@ void run_vectorized_sphere_test()
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, host_allocator);
+  axom::Array<PointType> queryPts =
+    axom::Array<PointType>(nnodes, nnodes, hostAllocator.getID());
   for(int inode = 0; inode < nnodes; inode++)
   {
     umesh->getNode(inode, queryPts[inode].data());
@@ -456,7 +457,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   using PointType = primal::Point<double, 3>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  const int host_allocator = axom::getDefaultHostAllocatorID();
+  const axom::HostAllocator hostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
   constexpr bool on_device = axom::execution_space<exec>::onDevice();
   const int kernel_allocator = on_device
     ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
@@ -530,7 +531,8 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, host_allocator);
+  axom::Array<PointType> queryPts =
+    axom::Array<PointType>(nnodes, nnodes, hostAllocator.getID());
   for(int inode = 0; inode < nnodes; inode++)
   {
     umesh->getNode(inode, queryPts[inode].data());

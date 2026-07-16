@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "axom/config.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/klee/Shape.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 
@@ -63,6 +64,15 @@ public:
   */
   DiscreteShape(const axom::klee::Shape& shape,
                 axom::sidre::Group* parentGroup,
+                const std::string& prefixPath = {});
+
+  /*!
+    @brief Constructor with explicit host allocator for host-resident scratch
+      and staging allocations.
+   */
+  DiscreteShape(const axom::klee::Shape& shape,
+                axom::sidre::Group* parentGroup,
+                HostAllocator hostAllocator,
                 const std::string& prefixPath = {});
 
   virtual ~DiscreteShape() { clearInternalData(); }
@@ -142,6 +152,9 @@ private:
 
   //!@brief Sidre store for m_meshRep.
   axom::sidre::Group* m_sidreGroup {nullptr};
+
+  //!@brief Host allocator for host-resident scratch and staging allocations.
+  HostAllocator m_hostAllocator;
 
   //!@brief Prefix for disc files with relative path.
   std::string m_prefixPath;

@@ -143,6 +143,21 @@ public:
     }
   }
 
+  SamplingShaper(RuntimePolicy execPolicy,
+                 int allocatorId,
+                 HostAllocator hostAllocator,
+                 const klee::ShapeSet& shapeSet,
+                 sidre::MFEMSidreDataCollection* dc)
+    : Shaper(execPolicy, allocatorId, hostAllocator, shapeSet, dc)
+  {
+    // Initialize the default number of samples based on the mesh dimension.
+    const int dim = getMeshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(5);
+    }
+  }
+
   ~SamplingShaper()
   {
     m_inoutShapeQFuncs.DeleteData(true);

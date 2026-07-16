@@ -22,6 +22,7 @@
 #endif
 
 #include "axom/sidre.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/klee.hpp"
 #include "axom/mint.hpp"
 #include "axom/quest/DiscreteShape.hpp"
@@ -56,6 +57,12 @@ public:
          int allocatorId,
          const klee::ShapeSet& shapeSet,
          sidre::MFEMSidreDataCollection* dc);
+
+  Shaper(RuntimePolicy execPolicy,
+         int allocatorId,
+         HostAllocator hostAllocator,
+         const klee::ShapeSet& shapeSet,
+         sidre::MFEMSidreDataCollection* dc);
 #endif
 
   /*!
@@ -64,6 +71,13 @@ public:
    */
   Shaper(RuntimePolicy execPolicy,
          int allocatorId,
+         const klee::ShapeSet& shapeSet,
+         sidre::Group* bpMesh,
+         const std::string& topo = "");
+
+  Shaper(RuntimePolicy execPolicy,
+         int allocatorId,
+         HostAllocator hostAllocator,
          const klee::ShapeSet& shapeSet,
          sidre::Group* bpMesh,
          const std::string& topo = "");
@@ -79,6 +93,13 @@ public:
   */
   Shaper(RuntimePolicy execPolicy,
          int allocatorId,
+         const klee::ShapeSet& shapeSet,
+         conduit::Node& bpNode,
+         const std::string& topo = "");
+
+  Shaper(RuntimePolicy execPolicy,
+         int allocatorId,
+         HostAllocator hostAllocator,
          const klee::ShapeSet& shapeSet,
          conduit::Node& bpNode,
          const std::string& topo = "");
@@ -233,6 +254,7 @@ protected:
 protected:
   RuntimePolicy m_execPolicy;
   int m_allocatorId;
+  HostAllocator m_hostAllocator;
 
   // For any mesh represented in Conduit or sidre
   sidre::DataStore m_dataStore;
