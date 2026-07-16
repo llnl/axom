@@ -12,6 +12,8 @@
 #endif
 #include "conduit_blueprint.hpp"
 
+#include <cstdio>
+
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
@@ -104,6 +106,29 @@ void MarchingCubes::setFunctionField(const std::string& fcnField)
 void MarchingCubes::computeIsocontour(double contourVal)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::computeIsoContour");
+
+  static bool s_loggedMarchingCubesProbe = false;
+  if(!s_loggedMarchingCubesProbe)
+  {
+    printf(
+      "AXOM_MC_PROBE branch=bugfix/han12/marching_cubes "
+      "commit=fa175d46 runtimePolicy=%d allocatorID=%d "
+      "dataParallelism=%d domains=%lld contourVal=%.17g\n",
+      static_cast<int>(m_runtimePolicy),
+      m_allocatorID,
+      static_cast<int>(m_dataParallelism),
+      static_cast<long long>(m_domainCount),
+      contourVal);
+    SLIC_INFO(axom::fmt::format(
+      "AXOM_MC_PROBE branch=bugfix/han12/marching_cubes commit=fa175d46 "
+      "runtimePolicy={} allocatorID={} dataParallelism={} domains={} contourVal={}",
+      static_cast<int>(m_runtimePolicy),
+      m_allocatorID,
+      static_cast<int>(m_dataParallelism),
+      m_domainCount,
+      contourVal));
+    s_loggedMarchingCubesProbe = true;
+  }
 
   // Mark and scan domains while adding up their
   // facet counts to get the total facet counts.
