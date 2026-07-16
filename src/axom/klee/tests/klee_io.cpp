@@ -389,8 +389,7 @@ TEST(IOTest, readShapeSet_missingFileReportsParseFailure)
   {
     ASSERT_EQ(1u, error.getErrors().size());
     EXPECT_EQ(axom::Path {fileName}, error.getErrors()[0].path);
-    EXPECT_STREQ("Failed to parse YAML Klee input from file 'missingKleeInput.yaml'.",
-                 error.what());
+    EXPECT_STREQ("Failed to parse YAML Klee input from file 'missingKleeInput.yaml'.", error.what());
   }
 }
 

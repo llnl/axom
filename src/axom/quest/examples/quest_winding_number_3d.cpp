@@ -332,8 +332,7 @@ int main(int argc, char** argv)
   // Declare possible geometry input types
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
   axom::Array<NURBSPatch3D> patches;
-  const std::string fileExtension =
-    axom::utilities::filesystem::getFileExtension(input.inputFile);
+  const std::string fileExtension = axom::utilities::filesystem::getFileExtension(input.inputFile);
 
   if(fileExtension == ".stl")
   {
