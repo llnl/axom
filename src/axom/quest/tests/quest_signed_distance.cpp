@@ -360,8 +360,7 @@ void run_vectorized_sphere_test()
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  axom::Array<PointType> queryPts =
-    axom::Array<PointType>(nnodes, nnodes, hostAllocator.getID());
+  axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, hostAllocator.getID());
   for(int inode = 0; inode < nnodes; inode++)
   {
     umesh->getNode(inode, queryPts[inode].data());
@@ -531,8 +530,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  axom::Array<PointType> queryPts =
-    axom::Array<PointType>(nnodes, nnodes, hostAllocator.getID());
+  axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, hostAllocator.getID());
   for(int inode = 0; inode < nnodes; inode++)
   {
     umesh->getNode(inode, queryPts[inode].data());

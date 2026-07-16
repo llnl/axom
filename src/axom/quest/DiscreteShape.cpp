@@ -553,13 +553,13 @@ void DiscreteShape::createRepresentationOfSOR()
   axom::Array<OctType> octs;
   int octCount = 0;
   axom::ArrayView<Point2D> polyline((Point2D*)discreteFcn.data(), discreteFcn.shape()[0]);
-  const bool good = axom::quest::discretize<axom::SEQ_EXEC>(
-    polyline,
-    int(polyline.size()),
-    m_shape.getGeometry().getLevelOfRefinement(),
-    octs,
-    octCount,
-    m_hostAllocator);
+  const bool good =
+    axom::quest::discretize<axom::SEQ_EXEC>(polyline,
+                                            int(polyline.size()),
+                                            m_shape.getGeometry().getLevelOfRefinement(),
+                                            octs,
+                                            octCount,
+                                            m_hostAllocator);
   AXOM_UNUSED_VAR(good);
   SLIC_ASSERT(good);
 
