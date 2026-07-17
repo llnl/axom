@@ -69,6 +69,7 @@ void braid3d_mat_test(const std::string &type, const std::string &mattype, const
     using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
+    options["verbose"] = 1;
     options["matset"] = "mat";
     m.execute(deviceMesh, options, deviceMIRMesh);
   }
