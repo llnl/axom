@@ -100,6 +100,8 @@ public:
    * @return Indices of switchbacks, plus the first and last indices.
    */
   static axom::Array<axom::IndexType> findZSwitchbacks(axom::ArrayView<const Point2DType> pts);
+  static axom::Array<axom::IndexType> findZSwitchbacks(axom::ArrayView<const Point2DType> pts,
+                                                       HostAllocator hostAllocator);
 
   /*
    * @brief Combine consecutive radial segments of the curve into a
@@ -216,7 +218,8 @@ private:
   axom::Array<Point2DType> subdivideCurve(const Array<Point2DType>& sorCurveIn,
                                           double maxMean,
                                           double maxDz,
-                                          double minDz);
+                                          double minDz,
+                                          HostAllocator hostAllocator);
 
   //!@brief Compute geometry as octs, by policy.
   template <typename ExecSpace>

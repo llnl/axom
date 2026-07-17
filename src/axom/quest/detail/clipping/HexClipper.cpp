@@ -53,10 +53,15 @@ bool HexClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
 
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = shapeMesh.getCellCount();
   if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                    cellCount,
+                                    cellCount,
+                                    allocId,
+                                    hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -91,6 +96,7 @@ bool HexClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 {
   const axom::IndexType cellCount = cellIds.size();
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
 
   if(tetLabels.size() < cellCount * NUM_TETS_PER_HEX ||
      tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
@@ -98,7 +104,8 @@ bool HexClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
                                        cellCount * NUM_TETS_PER_HEX,
                                        cellCount * NUM_TETS_PER_HEX,
-                                       allocId);
+                                       allocId,
+                                       hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -133,12 +140,13 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 {
   const auto cellCount = shapeMesh.getCellCount();
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const auto cellBbs = shapeMesh.getCellBoundingBoxes();
   const auto cellsAsHexes = shapeMesh.getCellsAsHexes();
   const auto cellVolumes = shapeMesh.getCellVolumes();
   const auto hexBb = m_hexBb;
   const auto surfaceTriangles = m_surfaceTriangles;
-  axom::Array<TetrahedronType> tets(m_tets, allocId);
+  axom::Array<TetrahedronType> tets(m_tets, allocId, hostAllocator);
   axom::ArrayView<const TetrahedronType> tetsView = tets.view();
   constexpr double EPS = 1e-10;
 
@@ -166,11 +174,12 @@ void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 {
   const axom::IndexType cellCount = cellIds.size();
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto meshHexes = shapeMesh.getCellsAsHexes();
   auto tetVolumes = shapeMesh.getTetVolumes();
   const auto hexBb = m_hexBb;
   const auto surfaceTriangles = m_surfaceTriangles;
-  axom::Array<TetrahedronType> tets(m_tets, allocId);
+  axom::Array<TetrahedronType> tets(m_tets, allocId, hostAllocator);
   axom::ArrayView<const TetrahedronType> tetsView = tets.view();
   constexpr double EPS = 1e-10;
 
@@ -251,9 +260,10 @@ bool HexClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::Array<TetrahedronType>& tets)
 {
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   if(tets.getAllocatorID() != allocId || tets.size() != m_tets.size())
   {
-    tets = axom::Array<TetrahedronType>(m_tets.size(), m_tets.size(), allocId);
+    tets = axom::Array<TetrahedronType>(m_tets.size(), m_tets.size(), allocId, hostAllocator);
   }
   axom::copy(tets.data(), m_tets.data(), m_tets.size() * sizeof(TetrahedronType));
   return true;

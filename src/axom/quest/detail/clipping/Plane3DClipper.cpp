@@ -26,10 +26,15 @@ bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                      axom::Array<LabelType>& labels)
 {
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = shapeMesh.getCellCount();
   if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                    cellCount,
+                                    cellCount,
+                                    allocId,
+                                    hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -63,11 +68,13 @@ bool Plane3DClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::Array<LabelType>& tetLabels)
 {
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const auto cellCount = cellIds.size();
   const auto tetCount = cellCount * NUM_TETS_PER_HEX;
   if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
   {
-    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
+    tetLabels =
+      axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId, hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -193,6 +200,7 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
                                          axom::ArrayView<LabelType> labels)
 {
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = shapeMesh.getCellCount();
   auto vertCount = shapeMesh.getVertexCount();
   auto cellVolumes = shapeMesh.getCellVolumes();
@@ -206,7 +214,11 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   /*
     Compute whether vertices are inside shape.
   */
-  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
+  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(),
+                                  vertCount,
+                                  vertCount,
+                                  allocId,
+                                  hostAllocator};
   auto vertIsInsideView = vertIsInside.view();
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
@@ -314,7 +326,10 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
                                               conduit::Node& statistics)
 {
   axom::IndexType cellCount = shapeMesh.getCellCount();
-  axom::Array<IndexType> cellIds(cellCount, cellCount, shapeMesh.getAllocatorID());
+  axom::Array<IndexType> cellIds(cellCount,
+                                 cellCount,
+                                 shapeMesh.getAllocatorID(),
+                                 shapeMesh.getHostAllocator());
   auto cellIdsView = cellIds.view();
   axom::for_all<ExecSpace>(cellCount, AXOM_LAMBDA(axom::IndexType i) { cellIdsView[i] = i; });
   specializedClipCellsImpl<ExecSpace>(shapeMesh, ovlap, cellIds, statistics);

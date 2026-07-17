@@ -32,7 +32,7 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const st
   extractClipperInfo();
 
   combineRadialSegments(m_sorCurve);
-  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view());
+  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view(), HostAllocator {});
   if(turnIndices.size() > 2)
   {
     // The 2 "turns" allowed are the first and last points.  Anything else is a switchback.
@@ -94,7 +94,7 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
   , m_transformer()
 {
   combineRadialSegments(m_sorCurve);
-  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view());
+  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view(), hostAllocator);
   if(turnIndices.size() > 2)
   {
     // The 2 "turns" allowed are the first and last points.  Anything else is a switchback.
@@ -129,10 +129,15 @@ bool MonotonicZSORClipper::labelCellsInOut(quest::experimental::ShapeMesh& shape
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "MonotonicZSORClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const auto cellCount = shapeMesh.getCellCount();
   if(labels.size() < cellCount || labels.getAllocatorID() != allocId)
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                    cellCount,
+                                    cellCount,
+                                    allocId,
+                                    hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -168,11 +173,13 @@ bool MonotonicZSORClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeM
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "MonotonicZSORClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const auto cellCount = cellIds.size();
   const auto tetCount = cellCount * NUM_TETS_PER_HEX;
   if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
   {
-    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
+    tetLabels =
+      axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId, hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -387,6 +394,7 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
    * z-axis.
    */
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const IndexType cellCount = shapeMesh.getCellCount();
 
   axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
@@ -407,8 +415,9 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
   axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve,
                                                      3 * avgCharLength /* maxMean */,
                                                      -1 /* maxDz, negative disables */,
-                                                     -1 /* minDz, negative disables */);
-  sorCurve = axom::Array<Point2DType>(sorCurve, allocId);
+                                                     -1 /* minDz, negative disables */,
+                                                     hostAllocator);
+  sorCurve = axom::Array<Point2DType>(sorCurve, allocId, hostAllocator);
   auto sorCurveView = sorCurve.view();
 
   /*
@@ -418,8 +427,8 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
     Add add to bbOn boxes representing the vertical endcaps of the curve.
   */
   auto segCount = sorCurve.size() - 1;
-  bbOn = axom::Array<BoundingBox2DType>(segCount + 2, segCount + 2, allocId);
-  bbUnder = axom::Array<BoundingBox2DType>(segCount, segCount, allocId);
+  bbOn = axom::Array<BoundingBox2DType>(segCount + 2, segCount + 2, allocId, hostAllocator);
+  bbUnder = axom::Array<BoundingBox2DType>(segCount, segCount, allocId, hostAllocator);
   auto bbOnView = bbOn.view();
   auto bbUnderView = bbUnder.view();
 
@@ -435,7 +444,7 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
       under = BoundingBox2DType(underMin, underMax);
     });
 
-  axom::Array<BoundingBox2DType> endCaps(2, 2);
+  axom::Array<BoundingBox2DType> endCaps(2, 2, hostAllocator.getID(), hostAllocator);
   endCaps[0].addPoint(m_sorCurve.front());
   endCaps[0].addPoint(Point2DType {m_sorCurve.front()[0], 0.0});
   endCaps[1].addPoint(m_sorCurve.back());
@@ -458,9 +467,10 @@ Array<MonotonicZSORClipper::Point2DType> MonotonicZSORClipper::subdivideCurve(
   const Array<Point2DType>& sorCurveIn,
   double maxMean,
   double maxDz,
-  double minDz)
+  double minDz,
+  HostAllocator hostAllocator)
 {
-  Array<Point2DType> sorCurveOut;
+  Array<Point2DType> sorCurveOut(0, 0, hostAllocator.getID(), hostAllocator);
 
   if(sorCurveIn.empty())
   {
@@ -545,7 +555,8 @@ bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh&
                                                  axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeMesh.getAllocatorID();
-  octs = axom::Array<OctahedronType>(0, 0, allocId);
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
+  octs = axom::Array<OctahedronType>(0, 0, allocId, hostAllocator);
 
   const auto cellCount = shapeMesh.getCellCount();
 
@@ -561,7 +572,8 @@ bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh&
   axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve,
                                                      3 * avgCharLength /* maxMean */,
                                                      3 * avgCharLength /* maxDz */,
-                                                     2 * avgCharLength /* minDz */);
+                                                     2 * avgCharLength /* minDz */,
+                                                     hostAllocator);
 
   // Generate the Octahedra
   int octCount = 0;
@@ -663,11 +675,18 @@ void MonotonicZSORClipper::combineRadialSegments(axom::Array<Point2DType>& sorCu
 axom::Array<axom::IndexType> MonotonicZSORClipper::findZSwitchbacks(
   axom::ArrayView<const Point2DType> pts)
 {
+  return findZSwitchbacks(pts, HostAllocator {});
+}
+
+axom::Array<axom::IndexType> MonotonicZSORClipper::findZSwitchbacks(
+  axom::ArrayView<const Point2DType> pts,
+  HostAllocator hostAllocator)
+{
   const axom::IndexType segCount = pts.size() - 1;
   SLIC_ASSERT(segCount > 0);
 
   // boundaryIdx is where curve's axial direction changes, plus end points.
-  axom::Array<axom::IndexType> boundaryIdx(0, 2);
+  axom::Array<axom::IndexType> boundaryIdx(0, 2, hostAllocator.getID(), hostAllocator);
   boundaryIdx.push_back(0);
 
   constexpr double eps = 1e-14;

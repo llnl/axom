@@ -32,10 +32,15 @@ bool SphereClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = shapeMesh.getCellCount();
   if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                    cellCount,
+                                    cellCount,
+                                    allocId,
+                                    hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -99,6 +104,7 @@ bool SphereClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 
   const axom::IndexType cellCount = cellIds.size();
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
 
   if(tetLabels.size() < cellCount * NUM_TETS_PER_HEX ||
      tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
@@ -106,7 +112,8 @@ bool SphereClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
                                        cellCount * NUM_TETS_PER_HEX,
                                        cellCount * NUM_TETS_PER_HEX,
-                                       allocId);
+                                       allocId,
+                                       hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -231,6 +238,7 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
   auto octsView = octs.view();
   auto transformer = m_transformer;
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
     AXOM_LAMBDA(axom::IndexType iOct) {
@@ -245,7 +253,7 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
   // The disretize method uses host data.  Place into proper space if needed.
   if(octs.getAllocatorID() != allocId)
   {
-    octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
+    octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId, hostAllocator);
   }
 
   SLIC_DEBUG(axom::fmt::format("SphereClipper '{}' {}-level refined got {} geometry octs.",
