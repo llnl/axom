@@ -40,10 +40,12 @@ bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = shapeMesh.getCellCount();
   if(labels.size() < cellCount || labels.getAllocatorID() != allocId)
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, 0, allocId);
+    labels =
+      axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, 0, allocId, hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -79,10 +81,12 @@ bool TetMeshClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const axom::IndexType tetCount = cellIds.size() * NUM_TETS_PER_HEX;
   if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
   {
-    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, 0, allocId);
+    tetLabels =
+      axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, 0, allocId, hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -127,11 +131,12 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
                                          axom::ArrayView<LabelType> labels)
 {
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = shapeMesh.getCellCount();
 
   axom::Array<Triangle3DType> surfTris;
   spin::BVH<3, ExecSpace, double> bvh;
-  computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, surfTris, bvh);
+  computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, hostAllocator, surfTris, bvh);
   auto surfTrisView = surfTris.view();
 
   axom::Array<Ray3DType> hexRays;
@@ -143,15 +148,15 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
    */
   axom::ArrayView<const BoundingBox3DType> hexBbs = shapeMesh.getCellBoundingBoxes();
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_bbs");
-  axom::Array<IndexType> bbOffsets(cellCount, 0, allocId);
-  axom::Array<IndexType> bbCounts(cellCount, 0, allocId);
+  axom::Array<IndexType> bbOffsets(cellCount, 0, allocId, hostAllocator);
+  axom::Array<IndexType> bbCounts(cellCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> bbCandidates;
   bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, hexBbs.size(), hexBbs);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_bbs");
 
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_rays");
-  axom::Array<IndexType> rayOffsets(cellCount, 0, allocId);
-  axom::Array<IndexType> rayCounts(cellCount, 0, allocId);
+  axom::Array<IndexType> rayOffsets(cellCount, 0, allocId, hostAllocator);
+  axom::Array<IndexType> rayCounts(cellCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> rayCandidates;
   bvh.findRays(rayOffsets, rayCounts, rayCandidates, hexRaysView.size(), hexRaysView);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_rays");
@@ -252,6 +257,7 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
                                         axom::ArrayView<LabelType> tetLabels)
 {
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = cellIds.size();
   auto tetCount = cellCount * NUM_TETS_PER_HEX;
 
@@ -262,7 +268,7 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
 
   axom::Array<Triangle3DType> surfTris;
   spin::BVH<3, ExecSpace, double> bvh;
-  computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, surfTris, bvh);
+  computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, hostAllocator, surfTris, bvh);
   auto surfTrisView = surfTris.view();
 
   axom::Array<BoundingBox3DType> tetBbs;
@@ -275,15 +281,15 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
    * Find candidate surface triangles near the tets' bounding boxes and rays.
    */
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_bbs");
-  axom::Array<IndexType> bbOffsets(tetCount, 0, allocId);
-  axom::Array<IndexType> bbCounts(tetCount, 0, allocId);
+  axom::Array<IndexType> bbOffsets(tetCount, 0, allocId, hostAllocator);
+  axom::Array<IndexType> bbCounts(tetCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> bbCandidates;
   bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, tetBbs.size(), tetBbsView);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_bbs");
 
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_rays");
-  axom::Array<IndexType> rayOffsets(tetCount, 0, allocId);
-  axom::Array<IndexType> rayCounts(tetCount, 0, allocId);
+  axom::Array<IndexType> rayOffsets(tetCount, 0, allocId, hostAllocator);
+  axom::Array<IndexType> rayCounts(tetCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> rayCandidates;
   bvh.findRays(rayOffsets, rayCounts, rayCandidates, tetRaysView.size(), tetRaysView);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_rays");
@@ -390,7 +396,8 @@ void TetMeshClipper::computeHexRays(quest::experimental::ShapeMesh& shapeMesh,
   Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
   auto meshHexes = shapeMesh.getCellsAsHexes();
   auto cellCount = shapeMesh.getCellCount();
-  hexRays = axom::Array<Ray3DType>(cellCount, 0, shapeMesh.getAllocatorID());
+  hexRays =
+    axom::Array<Ray3DType>(cellCount, 0, shapeMesh.getAllocatorID(), shapeMesh.getHostAllocator());
   auto hexRaysView = hexRays.view();
   axom::for_all<ExecSpace>(
     cellCount,
@@ -428,6 +435,7 @@ void TetMeshClipper::computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
 {
   AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeTetRays");
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto cellCount = cellIds.size();
   auto tetCount = cellCount * NUM_TETS_PER_HEX;
 
@@ -436,9 +444,14 @@ void TetMeshClipper::computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
    * away from the center of the tet mesh.
    */
   Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
-  tetBbs = axom::Array<BoundingBox3DType>(axom::ArrayOptions::Uninitialized(), tetCount, 0, allocId);
+  tetBbs = axom::Array<BoundingBox3DType>(axom::ArrayOptions::Uninitialized(),
+                                          tetCount,
+                                          0,
+                                          allocId,
+                                          hostAllocator);
   auto tetBbsView = tetBbs.view();
-  tetRays = axom::Array<Ray3DType>(axom::ArrayOptions::Uninitialized(), tetCount, 0, allocId);
+  tetRays =
+    axom::Array<Ray3DType>(axom::ArrayOptions::Uninitialized(), tetCount, 0, allocId, hostAllocator);
   auto tetRaysView = tetRays.view();
   const auto meshTets = shapeMesh.getCellsAsTets();
   axom::for_all<ExecSpace>(
@@ -464,6 +477,7 @@ void TetMeshClipper::computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
 
 template <typename ExecSpace>
 void TetMeshClipper::computeSurfaceTrianglesAndBVH(int allocId,
+                                                   HostAllocator hostAllocator,
                                                    axom::Array<Triangle3DType>& surfTris,
                                                    spin::BVH<3, ExecSpace, double>& bvh)
 {
@@ -471,7 +485,7 @@ void TetMeshClipper::computeSurfaceTrianglesAndBVH(int allocId,
     Compute surface triangles of the tet mesh.
   */
   AXOM_ANNOTATE_BEGIN("TetMeshClipper:compute_surface");
-  surfTris = computeGeometrySurface<ExecSpace>(allocId);
+  surfTris = computeGeometrySurface<ExecSpace>(allocId, hostAllocator);
   AXOM_ANNOTATE_END("TetMeshClipper:compute_surface");
   auto surfTrisView = surfTris.view();
 
@@ -479,7 +493,8 @@ void TetMeshClipper::computeSurfaceTrianglesAndBVH(int allocId,
     Surface triangles (as bounding boxes) in BVH.
   */
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_surf_bvh");
-  axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId);
+  bvh.setAllocatorID(allocId);
+  axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId, hostAllocator);
   auto surfTrisAsBbsView = surfTrisAsBbs.view();
 
   axom::for_all<ExecSpace>(
@@ -510,10 +525,12 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& sha
   if(labels.size() < shapeMesh.getCellCount() ||
      labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
+    HostAllocator hostAllocator = shapeMesh.getHostAllocator();
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
                                     shapeMesh.getCellCount(),
                                     shapeMesh.getCellCount(),
-                                    shapeMesh.getAllocatorID());
+                                    shapeMesh.getAllocatorID(),
+                                    hostAllocator);
   }
   auto labelsView = labels.view();
 
@@ -543,9 +560,11 @@ bool TetMeshClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh
                                        axom::Array<TetrahedronType>& tets)
 {
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   if(tets.size() < m_tetCount || tets.getAllocatorID() != allocId)
   {
-    tets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(), m_tetCount, 0, allocId);
+    tets =
+      axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(), m_tetCount, 0, allocId, hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -809,7 +828,9 @@ void TetMeshClipper::transformCoordset()
  * Compute the surface of the tet mesh, using bump utilities.
  */
 template <typename ExecSpace>
-axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurface(int allocId)
+axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurface(
+  int allocId,
+  HostAllocator hostAllocator)
 {
   // Copy some m_tetMesh data to allocId for accessing in ExecSpace.
   copy_topo_and_coords_to(allocId);
@@ -854,8 +875,8 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
    * Compute tet faces as triangles.
    * Compute rays from triangle centroid, in normal direction.
    */
-  axom::Array<Triangle3DType> faceTris(faceCount, faceCount, allocId);
-  axom::Array<Ray3DType> faceRays(faceCount, faceCount, allocId);
+  axom::Array<Triangle3DType> faceTris(faceCount, faceCount, allocId, hostAllocator);
+  axom::Array<Ray3DType> faceRays(faceCount, faceCount, allocId, hostAllocator);
   auto faceTrisView = faceTris.view();
   auto faceRaysView = faceRays.view();
   axom::for_all<ExecSpace>(
@@ -875,8 +896,8 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   /*
    * Compute whether faces have tets on each side.
    */
-  axom::Array<bool> hasCellOnFrontSide(faceCount, 0, allocId);
-  axom::Array<bool> hasCellOnBackSide(faceCount, 0, allocId);
+  axom::Array<bool> hasCellOnFrontSide(faceCount, 0, allocId, hostAllocator);
+  axom::Array<bool> hasCellOnBackSide(faceCount, 0, allocId, hostAllocator);
   hasCellOnFrontSide.fill(false);
   hasCellOnBackSide.fill(false);
   auto hasCellOnFrontSideView = hasCellOnFrontSide.view();
@@ -914,7 +935,11 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   /*
    * Mark faces touching only 1 cell.
    */
-  axom::Array<axom::IndexType> hasCellOnOneSide(ArrayOptions::Uninitialized(), faceCount, 0, allocId);
+  axom::Array<axom::IndexType> hasCellOnOneSide(ArrayOptions::Uninitialized(),
+                                                faceCount,
+                                                0,
+                                                allocId,
+                                                hostAllocator);
   auto hasCellOnOneSideView = hasCellOnOneSide.view();
   axom::for_all<ExecSpace>(
     faceCount,
@@ -927,7 +952,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
    * Get running total of surface triangle count using prefix-sum scan.
    * Then use the results to populate array of those faces.
    */
-  axom::Array<axom::IndexType> prefixSum(faceCount + 1, 0, allocId);
+  axom::Array<axom::IndexType> prefixSum(faceCount + 1, 0, allocId, hostAllocator);
   prefixSum.fill(0);
   auto prefixSumView = prefixSum.view();
   axom::inclusive_scan<ExecSpace>(hasCellOnOneSide,
@@ -936,8 +961,8 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   axom::IndexType surfFaceCount = -1;
   axom::copy(&surfFaceCount, prefixSumView.data() + prefixSumView.size() - 1, sizeof(surfFaceCount));
 
-  axom::Array<axom::IndexType> surfFaceIds(surfFaceCount, 0, allocId);
-  axom::Array<Triangle3DType> surfTris(surfFaceCount, 0, allocId);
+  axom::Array<axom::IndexType> surfFaceIds(surfFaceCount, 0, allocId, hostAllocator);
+  axom::Array<Triangle3DType> surfTris(surfFaceCount, 0, allocId, hostAllocator);
   auto surfFaceIdsView = surfFaceIds.view();
   auto surfTrisView = surfTris.view();
   axom::for_all<ExecSpace>(
@@ -964,7 +989,8 @@ void TetMeshClipper::writeTrianglesToVTK(const axom::Array<Triangle3DType>& tria
     return;
   }
 
-  axom::Array<Triangle3DType> hostTriangles(triangles, axom::MALLOC_ALLOCATOR_ID);
+  HostAllocator mallocHostAllocator(axom::MALLOC_ALLOCATOR_ID);
+  axom::Array<Triangle3DType> hostTriangles(triangles, axom::MALLOC_ALLOCATOR_ID, mallocHostAllocator);
 
   // Header
   ofs << "# vtk DataFile Version 3.0\n";

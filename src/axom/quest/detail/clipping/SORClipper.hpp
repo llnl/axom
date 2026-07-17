@@ -49,6 +49,7 @@ public:
    *   internal MeshClipper objects.  @c MeshClipper::setScreenLevel().
    */
   SORClipper(const klee::Geometry& kGeom, const std::string& name = "");
+  SORClipper(const klee::Geometry& kGeom, const std::string& name, HostAllocator hostAllocator);
 
   virtual ~SORClipper() = default;
 
@@ -62,6 +63,8 @@ public:
 private:
 #endif
   std::string m_name;
+
+  HostAllocator m_hostAllocator;
 
   axom::Array<std::shared_ptr<MonotonicZSORClipper>> m_fsorImpls;
 
