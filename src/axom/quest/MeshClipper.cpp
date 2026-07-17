@@ -40,13 +40,15 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
 void MeshClipper::clip(axom::Array<double>& ovlap)
 {
   const int allocId = m_shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = m_shapeMesh.getHostAllocator();
   const axom::IndexType cellCount = m_shapeMesh.getCellCount();
 
   // Resize output array and use appropriate allocator.
   if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper:clip_alloc");
-    ovlap = axom::Array<double>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+    ovlap =
+      axom::Array<double>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId, hostAllocator);
   }
   clip(ovlap.view());
 }
@@ -244,9 +246,9 @@ std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
 
 #if defined(AXOM_USE_MPI)
 template <typename T>
-void globalReduce(axom::Array<T>& values, MPI_Op reduceOp)
+void globalReduce(axom::Array<T>& values, MPI_Op reduceOp, HostAllocator hostAllocator)
 {
-  axom::Array<T> localValues(values);
+  axom::Array<T> localValues(values, values.getAllocatorID(), hostAllocator);
   MPI_Allreduce(localValues.data(),
                 values.data(),
                 values.size(),
@@ -292,15 +294,19 @@ conduit::Node MeshClipper::getGlobalClippingStats() const
 
 #if defined(AXOM_USE_MPI)
   // Do sum and max reductions.
-  axom::Array<axom::IndexType> sums(0, sumNode.number_of_children());
+  HostAllocator hostAllocator = m_shapeMesh.getHostAllocator();
+  axom::Array<axom::IndexType> sums(0,
+                                    sumNode.number_of_children(),
+                                    hostAllocator.getID(),
+                                    hostAllocator);
   for(int i = 0; i < sumNode.number_of_children(); ++i)
   {
     const axom::IndexType value = locNode.child(i).value();
     sums.push_back(value);
   }
-  axom::Array<axom::IndexType> maxs(sums);
-  globalReduce(maxs, MPI_MAX);
-  globalReduce(sums, MPI_SUM);
+  axom::Array<axom::IndexType> maxs(sums, hostAllocator.getID(), hostAllocator);
+  globalReduce(maxs, MPI_MAX, hostAllocator);
+  globalReduce(sums, MPI_SUM, hostAllocator);
 
   for(int i = 0; i < sumNode.number_of_children(); ++i)
   {
