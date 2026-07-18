@@ -356,6 +356,28 @@ TEST(primal_beziercurve_, batch_derivatives)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_beziercurve, curvature)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+
+  PointType controlPoints[3] = {PointType {0.0, 0.0},
+                                PointType {0.5, 0.5},
+                                PointType {1.0, 0.0}};
+  BezierCurveType curve(controlPoints, 2);
+
+  EXPECT_NEAR(curve.curvature(0.5), -2.0, 1e-14);
+
+  axom::Array<CoordType> curvatureDers;
+  curve.curvatureDerivatives(0.5, 2, curvatureDers);
+  ASSERT_EQ(curvatureDers.size(), 2);
+  EXPECT_NEAR(curvatureDers[0], 0.0, 1e-14);
+  EXPECT_NEAR(curvatureDers[1], 24.0, 1e-14);
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_beziercurve, split_cubic)
 {
   SLIC_INFO("Testing Bezier splitting of a cubic");
