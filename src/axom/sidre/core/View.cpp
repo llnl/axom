@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -15,12 +16,24 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
 {
 namespace sidre
 {
+namespace
+{
+axom::utilities::CheckSum checksumNamedNode(const std::string& name, const conduit::Node& node)
+{
+  axom::ArrayView<const char> nameView(name.data(), name.size());
+  auto cs = axom::utilities::checksum(nameView);
+  cs += axom::sidre::checksum(node, false);
+  return cs;
+}
+}  // namespace
+
 /*
  *************************************************************************
  *
@@ -768,13 +781,13 @@ int View::getShape(int ndims, IndexType* shape) const
  */
 IndexType View::getOffset() const
 {
-  int offset = 0;
+  IndexType offset = 0;
 
   if(isDescribed())
   {
     offset = m_schema.dtype().offset();
 
-    const int bytes_per_elem = getBytesPerElement();
+    const auto bytes_per_elem = getBytesPerElement();
     if(bytes_per_elem != 0)
     {
       SLIC_ERROR_IF(offset % bytes_per_elem != 0,
@@ -790,7 +803,7 @@ IndexType View::getOffset() const
     }
   }
 
-  return static_cast<IndexType>(offset);
+  return offset;
 }
 
 /*
@@ -803,13 +816,13 @@ IndexType View::getOffset() const
  */
 IndexType View::getStride() const
 {
-  int stride = 1;
+  IndexType stride = 1;
 
   if(isDescribed())
   {
     stride = m_schema.dtype().stride();
 
-    const int bytes_per_elem = getBytesPerElement();
+    const auto bytes_per_elem = getBytesPerElement();
     if(bytes_per_elem != 0)
     {
       SLIC_ERROR_IF(stride % bytes_per_elem != 0,
@@ -825,7 +838,7 @@ IndexType View::getStride() const
     }
   }
 
-  return static_cast<IndexType>(stride);
+  return stride;
 }
 
 /*
@@ -1003,7 +1016,7 @@ void View::copyToConduitNode(Node& n) const
   n["name"] = m_name;
   n["schema"] = m_schema.to_json();
   n["value"] = m_node.to_json();
-  n["state"] = getStateStringName(m_state);
+  n["state"] = getIoStateStringName();
   n["is_applied"] = m_is_applied;
 }
 
@@ -1036,7 +1049,7 @@ void View::createNativeLayout(Node& n) const
  *
  *************************************************************************
  */
-void View::deepCopyToConduit(Node& dst) const
+void View::deepCopyToConduit(Node& dst, int allocId) const
 {
   // see ATK-726 - Handle undescribed and unallocated views in Sidre's
   // createNativeLayout()
@@ -1046,6 +1059,10 @@ void View::deepCopyToConduit(Node& dst) const
 
   const conduit::DataType& srcDtype = m_node.dtype();
   dst.set(srcDtype);
+  if(allocId != INVALID_ALLOCATOR_ID)
+  {
+    dst.set_allocator(ConduitMemory::axomAllocIdToConduit(allocId));
+  }
   if(isAllocated())
   {
     // Using set_node to set dst: would reset dst's allocator id to
@@ -1069,7 +1086,7 @@ void View::deepCopyToConduit(Node& dst) const
  */
 void View::copyMetadataToNode(Node& n) const
 {
-  n["state"] = getStateStringName(m_state);
+  n["state"] = getIoStateStringName();
   n["schema"] = m_schema.to_json();
   n["is_applied"] = m_is_applied;
 }
@@ -1473,13 +1490,24 @@ char const* View::getStateStringName(State state)
   return ret_string;
 }
 
+const char* View::getIoStateStringName() const
+{
+// Backward compatibility: prior to removing State::SCALAR, and adding State::TUPLE,
+// tuple types with one value were serialized as "SCALAR". Some downstream readers
+// (e.g. VisIt's Blueprint database plugin) still expect that string.
+#if defined(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING)
+  if(m_state == TUPLE && isScalar()) return "SCALAR";
+#endif
+
+  return getStateStringName(m_state);
+}
+
 /*
- *************************************************************************
+ ******************************************************************************
  *
- * PRIVATE method returns state enum value when given string with a
- * state name.
+ * PRIVATE method returns state enum value when given string with a state name.
  *
- *************************************************************************
+ ******************************************************************************
  */
 View::State View::getStateId(const std::string& name) const
 {
@@ -1495,6 +1523,11 @@ View::State View::getStateId(const std::string& name) const
   else if(name == "EXTERNAL")
   {
     res = EXTERNAL;
+  }
+  else if(name == "SCALAR")
+  {
+    // Backward compatibility with files written before removing State::SCALAR
+    res = TUPLE;
   }
   else if(name == "TUPLE")
   {
@@ -1538,7 +1571,7 @@ bool View::isHostAccessible() const
  */
 void View::exportTo(conduit::Node& data_holder, std::set<IndexType>& buffer_indices) const
 {
-  data_holder["state"] = getStateStringName(m_state);
+  data_holder["state"] = getIoStateStringName();
   exportAttribute(data_holder);
 
   switch(m_state)
@@ -1734,7 +1767,7 @@ void View::importDescription(conduit::Node& data_holder)
     {
       Node& n = data_holder["shape"];
       IndexType* shape = n.value();
-      int ndims = n.dtype().number_of_elements();
+      const auto ndims = static_cast<int>(n.dtype().number_of_elements());
       describeShape(ndims, shape);
     }
   }
@@ -2047,6 +2080,31 @@ int View::getValidAllocatorId(int allocId)
     false,
     "Axom internal error: Cannot determine semantic valid allocator id");  // Should never get here.
   return axom::INVALID_ALLOCATOR_ID;
+}
+
+axom::utilities::CheckSum View::checksum(bool includeAttributes) const
+{
+  // Checksum the name
+  axom::ArrayView<const char> nameView(m_name.data(), m_name.size());
+  auto cs = axom::utilities::checksum(nameView);
+
+  // Checksum the view contents without double-counting the view name.
+  cs += axom::sidre::checksum(m_node, false);
+
+  if(includeAttributes)
+  {
+    for(IndexType attrIdx = getFirstValidAttrValueIndex(); attrIdx != InvalidIndex;
+        attrIdx = getNextValidAttrValueIndex(attrIdx))
+    {
+      const Attribute* attr = getAttribute(attrIdx);
+      if(attr != nullptr)
+      {
+        cs += checksumNamedNode(attr->getName(), getAttributeNodeRef(attr));
+      }
+    }
+  }
+
+  return cs;
 }
 
 } /* end namespace sidre */

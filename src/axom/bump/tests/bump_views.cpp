@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -288,18 +289,20 @@ struct test_node_to_arrayview
                              conduit::DataType::FLOAT32_ID,
                              conduit::DataType::FLOAT64_ID};
     constexpr int n = 16;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
+      axom::execution_space<ExecSpace>::allocatorID());
+
     for(int dtype : dtypes)
     {
       // Make a node and fill it with data.
       conduit::Node n_data;
-      n_data.set_allocator(c2a.getConduitAllocatorID());
+      n_data.set_allocator(conduitAllocatorId);
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;
-      axom::bump::views::Node_to_ArrayView(n_data, [&](auto dataView) {
-        sumValues = testBody(dataView, n);
-      });
+      axom::bump::views::nodeToArrayView(n_data,
+                                         [&](auto dataView) { sumValues = testBody(dataView, n); });
 
       EXPECT_EQ(sumValues, sum(n));
     }
@@ -336,6 +339,48 @@ TEST(bump_views, node_to_arrayview_cuda) { test_node_to_arrayview<cuda_exec>::te
 #if defined(AXOM_USE_HIP)
 TEST(bump_views, node_to_arrayview_hip) { test_node_to_arrayview<hip_exec>::test(); }
 #endif
+
+//------------------------------------------------------------------------------
+TEST(bump_views, node_to_arrayview_interleaved_seq)
+{
+  constexpr conduit::index_t n = 4;
+  axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
+  conduit::Node n_data;
+  n_data.set_external(conduit::DataType(conduit::DataType::FLOAT64_ID,
+                                        n,
+                                        sizeof(double),
+                                        2 * sizeof(double),
+                                        sizeof(double),
+                                        conduit::Endianness::DEFAULT_ID),
+                      interleaved.data());
+
+  int sumValues = 0;
+  axom::bump::views::nodeToArrayView(n_data, [&](auto dataView) {
+    EXPECT_EQ(dataView.size(), n);
+    axom::for_all<seq_exec>(
+      n,
+      AXOM_HOST_LAMBDA(axom::IndexType index) {
+        dataView[index] = static_cast<double>((index + 1) * 100);
+      });
+
+    axom::ReduceSum<seq_exec, double> sumValuesReduce(0.);
+    axom::for_all<seq_exec>(
+      n,
+      AXOM_HOST_LAMBDA(axom::IndexType index) { sumValuesReduce += dataView[index]; });
+    sumValues = static_cast<int>(sumValuesReduce.get());
+  });
+
+  EXPECT_EQ(sumValues, 1000);
+  EXPECT_EQ(interleaved[0], -1.);
+  EXPECT_EQ(interleaved[1], 100.);
+  EXPECT_EQ(interleaved[2], -2.);
+  EXPECT_EQ(interleaved[3], 200.);
+  EXPECT_EQ(interleaved[4], -3.);
+  EXPECT_EQ(interleaved[5], 300.);
+  EXPECT_EQ(interleaved[6], -4.);
+  EXPECT_EQ(interleaved[7], 400.);
+  EXPECT_EQ(interleaved[8], -5.);
+}
 
 //------------------------------------------------------------------------------
 TEST(bump_views, explicit_coordsetview)
@@ -497,8 +542,8 @@ struct test_strided_structured
           actualNodesView[zoneIndex * 4 + i] = ids[i];
 
           // Get the logical local id for the id.
-          const auto index = nodeIndexing.GlobalToLocal(ids[i]);
-          const auto logical = nodeIndexing.IndexToLogicalIndex(index);
+          const auto index = nodeIndexing.globalToLocal(ids[i]);
+          const auto logical = nodeIndexing.indexToLogicalIndex(index);
           logicalNodesView[(zoneIndex * 4 + i) * 2 + 0] = logical[0];
           logicalNodesView[(zoneIndex * 4 + i) * 2 + 1] = logical[1];
         }
@@ -541,6 +586,9 @@ TEST(bump_views, strided_structured_seq) { test_strided_structured::test(); }
 template <typename ExecSpace>
 struct test_braid2d_mat
 {
+  struct NoMixedFields
+  { };
+
   static void test(const std::string &type, const std::string &mattype, const std::string &name)
   {
     namespace utils = axom::bump::utilities;
@@ -551,9 +599,16 @@ struct test_braid2d_mat
     const axom::IndexType nzones = zoneDims[0] * zoneDims[1];
 
     // Create the data
+    const bool cleanMats = false;
+    const bool makeMixedField = true;
     conduit::Node hostMesh, deviceMesh;
     axom::blueprint::testing::data::braid(type, dims, hostMesh);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
+    axom::blueprint::testing::data::make_matset(mattype,
+                                                "mesh",
+                                                zoneDims,
+                                                cleanMats,
+                                                makeMixedField,
+                                                hostMesh);
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
@@ -570,25 +625,56 @@ struct test_braid2d_mat
                      utils::make_array_view<int>(deviceMesh["matsets/mat/indices"]));
       // _bump_views_matsetview_end
       // clang-format on
+      SLIC_INFO("unibuffer: matsetView");
       test_matsetview(nzones, matsetView, allocatorID);
-    }
-    else if(mattype == "multibuffer")
-    {
-      axom::bump::views::dispatch_material_multibuffer(
+      test_matsetview_iterators(nzones, matsetView, NoMixedFields {}, allocatorID);
+
+      // Test mixed field.
+      axom::bump::views::dispatch_material_unibuffer_field(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
+        deviceMesh["fields/mixed"],
+        [&](auto matsetView, auto mixedFieldView) {
+          SLIC_INFO("element_dominant: mixedFieldView");
+          test_matsetview_iterators(nzones, matsetView, mixedFieldView, allocatorID);
+        });
     }
     else if(mattype == "element_dominant")
     {
       axom::bump::views::dispatch_material_element_dominant(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
+        [&](auto matsetView) {
+          SLIC_INFO("element_dominant: matsetView");
+          test_matsetview(nzones, matsetView, allocatorID);
+          test_matsetview_iterators(nzones, matsetView, NoMixedFields {}, allocatorID);
+        });
+
+      // Test mixed field.
+      axom::bump::views::dispatch_material_element_dominant_field(
+        deviceMesh["matsets/mat"],
+        deviceMesh["fields/mixed"],
+        [&](auto matsetView, auto mixedFieldView) {
+          SLIC_INFO("element_dominant: mixedFieldView");
+          test_matsetview_iterators(nzones, matsetView, mixedFieldView, allocatorID);
+        });
     }
     else if(mattype == "material_dominant")
     {
       axom::bump::views::dispatch_material_material_dominant(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
+        [&](auto matsetView) {
+          SLIC_INFO("material_dominant: matsetView");
+          test_matsetview(nzones, matsetView, allocatorID);
+          test_matsetview_iterators(nzones, matsetView, NoMixedFields {}, allocatorID);
+        });
+
+      // Test mixed field.
+      axom::bump::views::dispatch_material_material_dominant_field(
+        deviceMesh["matsets/mat"],
+        deviceMesh["fields/mixed"],
+        [&](auto matsetView, auto mixedFieldView) {
+          SLIC_INFO("material_dominant: mixedFieldView");
+          test_matsetview_iterators(nzones, matsetView, mixedFieldView, allocatorID);
+        });
     }
   }
 
@@ -658,6 +744,102 @@ struct test_braid2d_mat
       EXPECT_EQ(results[i], resultsHost[i]);
     }
   }
+
+  template <typename MatsetView, typename MatsetFieldView>
+  struct ViewPackage
+  {
+    MatsetView matsetView;
+    MatsetFieldView fieldView;
+  };
+
+  template <typename MatsetView, typename MatsetFieldView>
+  static void test_matsetview_iterators(axom::IndexType nzones,
+                                        MatsetView matsetView,
+                                        MatsetFieldView fieldView,
+                                        int allocatorID)
+  {
+    using ZoneIndex = typename MatsetView::ZoneIndex;
+    // Allocate results array on device.
+    const auto nResults = nzones;
+    axom::Array<int> resultsArrayDevice(nResults, nResults, allocatorID);
+    auto resultsView = resultsArrayDevice.view();
+
+    // Bundle the views together for device access.
+    ViewPackage<MatsetView, MatsetFieldView> deviceViews {matsetView, fieldView};
+
+    axom::for_all<ExecSpace>(
+      nzones,
+      AXOM_LAMBDA(axom::IndexType index) {
+        typename MatsetView::IDList ids {};
+        typename MatsetView::VFList vfs {};
+        deviceViews.matsetView.zoneMaterials(index, ids, vfs);
+
+        // Get the end iterator for the zone.
+        const auto end = deviceViews.matsetView.endZone(index);
+
+        int eq_count = 0;
+        int count = 0;
+
+        // Make sure the iterator is for the right zone.
+        eq_count += (end.zoneIndex() == static_cast<ZoneIndex>(index)) ? 1 : 0;
+        count++;
+
+        // Make sure incrementing the last iterator has no effect.
+        auto end2 = end;
+        end2++;
+        eq_count += (end == end2) ? 1 : 0;
+        count++;
+
+        // Make sure the iterator order is the same as for the values we got from zoneMaterials().
+        int i = 0;
+        for(auto it = deviceViews.matsetView.beginZone(index); it != end; it++, i++)
+        {
+          eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
+          count++;
+        }
+
+        // If we passed in a mixed field view, make sure its field contains the same
+        // values as the volume fractions. That is how the dataset's fields are
+        // constructed.
+        if constexpr(!std::is_same_v<MatsetFieldView, NoMixedFields>)
+        {
+          int i = 0;
+          for(auto it = deviceViews.matsetView.beginZone(index); it != end; it++, i++)
+          {
+            const auto value = deviceViews.fieldView.value(it);
+            eq_count += (value == it.volume_fraction()) ? 1 : 0;
+            count++;
+          }
+        }
+
+        // Test ArrayView version of zoneMaterials().
+        using IndexType = typename MatsetView::IndexType;
+        using FloatType = typename MatsetView::FloatType;
+        constexpr int ARRAY_SIZE = 10;
+        IndexType idStorage[ARRAY_SIZE];
+        FloatType vfStorage[ARRAY_SIZE];
+        axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
+        axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
+        const auto nmats = deviceViews.matsetView.zoneMaterials(index, idView, vfView);
+        eq_count += (nmats == ids.size()) ? 1 : 0;
+        count++;
+        for(axom::IndexType j = 0; j < nmats; j++)
+        {
+          eq_count += (vfs[j] == vfView[j] && ids[j] == idView[j]) ? 1 : 0;
+          count++;
+        }
+
+        resultsView[index] = (eq_count == count) ? 1 : 0;
+      });
+
+    // Get containsView data to the host and compare results
+    std::vector<int> resultsHost(nResults);
+    axom::copy(resultsHost.data(), resultsView.data(), sizeof(int) * nResults);
+    for(int i = 0; i < nResults; i++)
+    {
+      EXPECT_EQ(resultsHost[i], 1);
+    }
+  }
 };
 
 // Unibuffer
@@ -681,30 +863,6 @@ TEST(bump_views, matset_unibuffer_cuda)
 TEST(bump_views, matset_unibuffer_hip)
 {
   test_braid2d_mat<hip_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
-}
-#endif
-
-// Multibuffer
-TEST(bump_views, matset_multibuffer_seq)
-{
-  test_braid2d_mat<seq_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
-}
-#if defined(AXOM_USE_OPENMP)
-TEST(bump_views, matset_multibuffer_omp)
-{
-  test_braid2d_mat<omp_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
-}
-#endif
-#if defined(AXOM_USE_CUDA)
-TEST(bump_views, matset_multibuffer_cuda)
-{
-  test_braid2d_mat<cuda_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
-}
-#endif
-#if defined(AXOM_USE_HIP)
-TEST(bump_views, matset_multibuffer_hip)
-{
-  test_braid2d_mat<hip_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
 }
 #endif
 
@@ -755,77 +913,6 @@ TEST(bump_views, matset_material_dominant_hip)
   test_braid2d_mat<hip_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #endif
-
-TEST(bump_views, matset_multibuffer)
-{
-  const char *yaml = R"(
-matsets:
-  matset:
-    topology: topology
-    volume_fractions:
-      a:
-        values: [0, 0, 0, 0.33, 0, 0.3]  # [0, 0, 0, a1, 0, a0]
-        indices: [5, 3]
-      b:
-        values: [0, 0.7, 1., 0.67, 0]    # [0, b0, b2, b1, 0]
-        indices: [1, 3, 2]
-    material_map: # (optional)
-      a: 0
-      b: 1
-)";
-  conduit::Node matsets;
-  matsets.parse(yaml);
-  const conduit::Node &n_matset = matsets["matsets/matset"];
-  axom::bump::views::dispatch_material_multibuffer(n_matset, [&](auto matsetView) {
-    using IDList = typename decltype(matsetView)::IDList;
-    using VFList = typename decltype(matsetView)::VFList;
-    using VFType = typename VFList::value_type;
-
-    EXPECT_EQ(matsetView.numberOfZones(), 3);
-    EXPECT_EQ(matsetView.numberOfMaterials(0), 2);
-    EXPECT_EQ(matsetView.numberOfMaterials(1), 2);
-    EXPECT_EQ(matsetView.numberOfMaterials(2), 1);
-
-    IDList m0, m1, m2;
-    VFList vf0, vf1, vf2;
-    matsetView.zoneMaterials(0, m0, vf0);
-    EXPECT_EQ(m0.size(), 2);
-    EXPECT_EQ(vf0.size(), 2);
-    EXPECT_EQ(m0[0], 0);
-    EXPECT_EQ(m0[1], 1);
-    EXPECT_EQ(vf0[0], 0.3);
-    EXPECT_EQ(vf0[1], 0.7);
-
-    VFType vf;
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(0, 0, vf));
-    EXPECT_EQ(vf, 0.3);
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(0, 1, vf));
-    EXPECT_EQ(vf, 0.7);
-
-    matsetView.zoneMaterials(1, m1, vf1);
-    EXPECT_EQ(m1.size(), 2);
-    EXPECT_EQ(vf1.size(), 2);
-    EXPECT_EQ(m1[0], 0);
-    EXPECT_EQ(m1[1], 1);
-    EXPECT_EQ(vf1[0], 0.33);
-    EXPECT_EQ(vf1[1], 0.67);
-
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(1, 0, vf));
-    EXPECT_EQ(vf, 0.33);
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(1, 1, vf));
-    EXPECT_EQ(vf, 0.67);
-
-    matsetView.zoneMaterials(2, m2, vf2);
-    EXPECT_EQ(m2.size(), 1);
-    EXPECT_EQ(m2[0], 1);
-    EXPECT_EQ(vf2[0], 1);
-
-    EXPECT_FALSE(matsetView.zoneContainsMaterial(2, 0, vf));
-    EXPECT_EQ(vf, 0.);
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(2, 1, vf));
-    EXPECT_EQ(vf, 1.);
-  });
-}
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])

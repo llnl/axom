@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -23,14 +24,18 @@ set(core_headers
     ## utilities
     utilities/About.hpp
     utilities/Annotations.hpp
+    utilities/Abort.hpp
     utilities/BitUtilities.hpp
+    utilities/Checksum.hpp
     utilities/CommandLineUtilities.hpp
+    utilities/ConstexprAssert.hpp
     utilities/FileUtilities.hpp
     utilities/RAII.hpp
     utilities/Sorting.hpp
     utilities/StringUtilities.hpp
     utilities/System.hpp
     utilities/Timer.hpp
+    utilities/Units.hpp
     utilities/Utilities.hpp
 
     ## numerics
@@ -42,6 +47,7 @@ set(core_headers
     numerics/eigen_solve.hpp
     numerics/eigen_sort.hpp
     numerics/floating_point_limits.hpp
+    numerics/quadrature.hpp
     numerics/jacobi_eigensolve.hpp
     numerics/linear_solve.hpp
     numerics/matvecops.hpp
@@ -58,7 +64,10 @@ set(core_headers
     ArrayBase.hpp
     ArrayIteratorBase.hpp
     ArrayView.hpp
-    MDMapping.hpp
+    DeviceHash.hpp
+    FlatMap.hpp
+    FlatMapView.hpp
+    FlatMapUtil.hpp
     IndexedCollection.hpp
     ItemCollection.hpp
     IteratorBase.hpp
@@ -66,10 +75,7 @@ set(core_headers
     Macros.hpp
     Map.hpp
     MapCollection.hpp
-    FlatMap.hpp
-    FlatMapView.hpp
-    FlatMapUtil.hpp
-    DeviceHash.hpp
+    MDMapping.hpp
     NumericArray.hpp
     NumericLimits.hpp
     Path.hpp
@@ -89,6 +95,7 @@ set(core_headers
     execution/scans.hpp
     execution/sorts.hpp
     execution/synchronize.hpp
+    execution/timed_for_all.hpp
 
     execution/internal/seq_exec.hpp
     execution/internal/omp_exec.hpp
@@ -98,15 +105,19 @@ set(core_headers
     )
 
 set(core_sources
+    utilities/Abort.cpp
     utilities/Annotations.cpp
     utilities/FileUtilities.cpp
     utilities/StringUtilities.cpp
     utilities/System.cpp
+    utilities/Units.cpp
     utilities/Utilities.cpp
     ${PROJECT_BINARY_DIR}/axom/core/utilities/About.cpp
 
     numerics/polynomial_solvers.cpp
+    numerics/quadrature.cpp
 
+    memory_management.cpp
     Path.cpp
     Types.cpp
     )

@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP_
-#define AXOM_KLEE_GEOMETRYOPERATOR_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
@@ -207,13 +207,57 @@ public:
    *
    * \param xFactor the amount by which to scale in the x direction
    * \param yFactor the amount by which to scale in the y direction
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note The scaling factor used for the 3rd dimension is 1.
+   */
+  Scale(double xFactor, double yFactor, const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
    * \param zFactor the amount by which to scale in the z direction
    * \param startProperties the initial properties, as in the parent class. 
-   * If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
+   *
+   * \note If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
    */
   Scale(double xFactor,
         double yFactor,
         double zFactor,
+        const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
+   * \param center The center relative to which the scaling is performed.
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note The scaling factor used for the 3rd dimension is 1.
+   */
+  Scale(double xFactor,
+        double yFactor,
+        const primal::Point2D &center,
+        const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
+   * \param zFactor the amount by which to scale in the z direction
+   * \param center The center relative to which the scaling is performed.
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
+   */
+  Scale(double xFactor,
+        double yFactor,
+        double zFactor,
+        const primal::Point3D &center,
         const TransformableGeometryProperties &startProperties);
 
   /**
@@ -237,6 +281,14 @@ public:
    */
   double getZFactor() const { return m_zFactor; }
 
+  /**
+   * Get the scale factor in the z direction.
+   *
+   * \return the z scale factor
+   */
+  primal::Point3D &getCenter() { return m_center; }
+  const primal::Point3D &getCenter() const { return m_center; }
+
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -245,6 +297,7 @@ private:
   double m_xFactor;
   double m_yFactor;
   double m_zFactor;
+  primal::Point3D m_center;
 };
 
 /// An operator for converting units
@@ -358,5 +411,3 @@ public:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_GEOMETRYOPERATOR_HPP_

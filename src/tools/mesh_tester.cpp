@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -79,27 +80,18 @@ using SpatialBoundingBox = primal::BoundingBox<double, 3>;
 using UniformGrid3 = spin::UniformGrid<int, 3>;
 using Vector3 = primal::Vector<double, 3>;
 using Segment3 = primal::Segment<double, 3>;
-
-enum RuntimePolicy
-{
-  seq = 0,
-  raja_seq = 1,
-  raja_omp = 2,
-  raja_cuda = 3,
-  raja_hip = 4
-};
+using RuntimePolicy = axom::runtime_policy::Policy;
 
 struct Input
 {
   static const std::set<std::string> s_validMethods;
   static const std::set<std::string> s_validFormats;
-  static const std::map<std::string, RuntimePolicy> s_validPolicies;
 
   std::string stlInput {""};
   std::string fileOutput {""};
   std::string fileFormat {"vtk"};
   std::string method {"uniform"};
-  RuntimePolicy policy {seq};
+  RuntimePolicy policy {RuntimePolicy::seq};
   std::string annotationMode {"none"};
 
   int resolution {0};
@@ -133,22 +125,6 @@ const std::set<std::string> Input::s_validFormats({
   "stl",
   "vtk"
 });
-
-const std::map<std::string, RuntimePolicy> Input::s_validPolicies({
-  {"seq", seq}
-  #ifdef AXOM_USE_RAJA
-  , {"raja_seq", raja_seq}
-    #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-  , {"raja_omp", raja_omp}
-    #endif
-    #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  , {"raja_cuda", raja_cuda}
-    #endif
-    #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  , {"raja_hip", raja_hip}
-    #endif
-  #endif
-});
 // clang-format on
 
 void Input::parse(int argc, char** argv, axom::CLI::App& app)
@@ -174,25 +150,21 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     ->capture_default_str();
 
   std::stringstream pol_sstr;
-  pol_sstr << "With '-m bvh' or '-m naive', set runtime policy. \n"
-           << "Set to 'seq' or 0 to use the sequential algorithm "
-           << "(w/o RAJA).";
-#ifdef AXOM_USE_RAJA
-  pol_sstr << "\nSet to 'raja_seq' or 1 to use the RAJA sequential policy.";
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-  pol_sstr << "\nSet to 'raja_omp' or 2 to use the RAJA OpenMP policy.";
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  pol_sstr << "\nSet to 'raja_cuda' or 3 to use the RAJA CUDA policy.";
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  pol_sstr << "\nSet to 'raja_hip' or 4 to use the RAJA HIP policy.";
-  #endif
+  pol_sstr << "Set runtime policy for the selected method.";
+  pol_sstr << "\nSet to 'seq' or 0 to use the sequential policy.";
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  pol_sstr << "\nSet to 'omp' or 1 to use the OpenMP policy.";
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  pol_sstr << "\nSet to 'cuda' or 2 to use the CUDA policy.";
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  pol_sstr << "\nSet to 'hip' or 3 to use the HIP policy.";
 #endif
 
   app.add_option("-p, --policy", policy, pol_sstr.str())
     ->capture_default_str()
-    ->transform(axom::CLI::CheckedTransformer(Input::s_validPolicies));
+    ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
   app.add_option("-f, --format", fileFormat, "Output file format, one of: 'stl', 'vtk'")
     ->capture_default_str()
@@ -251,20 +223,24 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
       else                             { return "";}
     }());
 
-  const std::string policy_str = (method == "naive" || method == "bvh")
-    ? axom::fmt::format("\n  policy = {} {}", policy,
+  const std::string policy_str = axom::fmt::format("\n  policy = {} {}",
+      axom::runtime_policy::policyToName(policy),
       [this]() -> std::string {
         switch(this->policy)
         {
-        case seq:       return " (use sequential policy)";
-        case raja_omp:  return " (use RAJA OpenMP policy)";
-        case raja_cuda: return " (use RAJA CUDA policy)";
-        case raja_hip:  return " (use RAJA HIP policy)";
-        case raja_seq:  return " (use RAJA sequential policy)";
+        case RuntimePolicy::seq: return " (use sequential policy)";
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+        case RuntimePolicy::omp: return " (use OpenMP policy)";
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+        case RuntimePolicy::cuda: return " (use CUDA policy)";
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+        case RuntimePolicy::hip: return " (use HIP policy)";
+#endif
         default:        return "";
         }
-      }())
-    : "";
+      }());
   // clang-format on
 
 #ifdef AXOM_USE_CALIPER
@@ -422,7 +398,6 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   return retval;
 }
 
-#if defined(AXOM_USE_RAJA)
 template <typename ExecSpace>
 std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_mesh,
                                                             std::vector<int>& degenerate,
@@ -490,7 +465,7 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto intersections_v = intersections_d.view();
   auto counter_v = on_device ? counter_d.view() : counter_h.view();
 
-  // RAJA loop to populate with intersections
+  // Populate the intersections using Axom execution policies.
   axom::for_all<ExecSpace>(
     col_range,
     row_range,
@@ -518,7 +493,6 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
 
   return retval;
 }
-#endif
 
 void announceMeshProblems(int triangleCount, int intersectPairCount, int degenerateCount)
 {
@@ -720,38 +694,33 @@ int main(int argc, char** argv)
     {
       switch(params.policy)
       {
-      case seq:
-        collisions =
-          naiveIntersectionAlgorithm(surface_mesh, degenerate, params.intersectionThreshold);
-        break;
-#if defined(AXOM_USE_RAJA)
-      case raja_seq:
+      case RuntimePolicy::seq:
         collisions =
           naiveIntersectionAlgorithm<seq_exec>(surface_mesh, degenerate, params.intersectionThreshold);
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-      case raja_omp:
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+      case RuntimePolicy::omp:
         collisions =
           naiveIntersectionAlgorithm<omp_exec>(surface_mesh, degenerate, params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-      case raja_cuda:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+      case RuntimePolicy::cuda:
         collisions = naiveIntersectionAlgorithm<cuda_exec>(surface_mesh,
                                                            degenerate,
                                                            params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-      case raja_hip:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+      case RuntimePolicy::hip:
         collisions =
           naiveIntersectionAlgorithm<hip_exec>(surface_mesh, degenerate, params.intersectionThreshold);
         break;
-  #endif
-#endif  // AXOM_USE_RAJA && AXOM_USE_UMPIRE
+#endif
 
       default:
-        SLIC_ERROR("Unhandled runtime policy case " << params.policy);
+        SLIC_ERROR("Unhandled runtime policy case "
+                   << axom::runtime_policy::policyToName(params.policy));
         break;
       }
     }  // end of if method == 'naive'
@@ -759,49 +728,39 @@ int main(int argc, char** argv)
     {
       switch(params.policy)
       {
-      case seq:
-#ifdef AXOM_USE_RAJA
-        SLIC_INFO("BVH was compiled with RAJA - seq and raja_seq execution will be equivalent");
-#endif
+      case RuntimePolicy::seq:
         quest::findTriMeshIntersectionsBVH<seq_exec, double>(surface_mesh,
                                                              collisions,
                                                              degenerate,
                                                              params.intersectionThreshold);
         break;
-#if defined(AXOM_USE_RAJA)
-      case raja_seq:
-        quest::findTriMeshIntersectionsBVH<seq_exec, double>(surface_mesh,
-                                                             collisions,
-                                                             degenerate,
-                                                             params.intersectionThreshold);
-        break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-      case raja_omp:
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+      case RuntimePolicy::omp:
         quest::findTriMeshIntersectionsBVH<omp_exec, double>(surface_mesh,
                                                              collisions,
                                                              degenerate,
                                                              params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-      case raja_cuda:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+      case RuntimePolicy::cuda:
         quest::findTriMeshIntersectionsBVH<cuda_exec, double>(surface_mesh,
                                                               collisions,
                                                               degenerate,
                                                               params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-      case raja_hip:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+      case RuntimePolicy::hip:
         quest::findTriMeshIntersectionsBVH<hip_exec, double>(surface_mesh,
                                                              collisions,
                                                              degenerate,
                                                              params.intersectionThreshold);
         break;
-  #endif
-#endif  // AXOM_USE_RAJA && AXOM_USE_UMPIRE
+#endif
       default:
-        SLIC_ERROR("Unhandled runtime policy case " << params.policy);
+        SLIC_ERROR("Unhandled runtime policy case "
+                   << axom::runtime_policy::policyToName(params.policy));
         break;
       }
     }  // end of if method == 'bvh'
@@ -809,55 +768,43 @@ int main(int argc, char** argv)
     {
       switch(params.policy)
       {
-      case seq:
-#ifdef AXOM_USE_RAJA
-        SLIC_INFO(
-          "ImplicitGrid was compiled with RAJA - seq and raja_seq execution will be equivalent");
-#endif
+      case RuntimePolicy::seq:
         quest::findTriMeshIntersectionsImplicitGrid<seq_exec, double>(surface_mesh,
                                                                       collisions,
                                                                       degenerate,
                                                                       params.resolution,
                                                                       params.intersectionThreshold);
         break;
-#ifdef AXOM_USE_RAJA
-      case raja_seq:
-        quest::findTriMeshIntersectionsImplicitGrid<seq_exec, double>(surface_mesh,
-                                                                      collisions,
-                                                                      degenerate,
-                                                                      params.resolution,
-                                                                      params.intersectionThreshold);
-        break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-      case raja_omp:
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+      case RuntimePolicy::omp:
         quest::findTriMeshIntersectionsImplicitGrid<omp_exec, double>(surface_mesh,
                                                                       collisions,
                                                                       degenerate,
                                                                       params.resolution,
                                                                       params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-      case raja_cuda:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+      case RuntimePolicy::cuda:
         quest::findTriMeshIntersectionsImplicitGrid<cuda_exec, double>(surface_mesh,
                                                                        collisions,
                                                                        degenerate,
                                                                        params.resolution,
                                                                        params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-      case raja_hip:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+      case RuntimePolicy::hip:
         quest::findTriMeshIntersectionsImplicitGrid<hip_exec, double>(surface_mesh,
                                                                       collisions,
                                                                       degenerate,
                                                                       params.resolution,
                                                                       params.intersectionThreshold);
         break;
-  #endif
-#endif  // AXOM_USE_RAJA
+#endif
       default:
-        SLIC_ERROR("Unhandled runtime policy case " << params.policy);
+        SLIC_ERROR("Unhandled runtime policy case "
+                   << axom::runtime_policy::policyToName(params.policy));
         break;
       }
     }
@@ -865,54 +812,46 @@ int main(int argc, char** argv)
     {
       switch(params.policy)
       {
-      case seq:
+      case RuntimePolicy::seq:
         // _check_repair_intersections_start
         // Use a uniform grid spatial index
-        quest::findTriMeshIntersections(surface_mesh,
-                                        collisions,
-                                        degenerate,
-                                        params.resolution,
-                                        params.intersectionThreshold);
-        // _check_repair_intersections_end
-        break;
-#ifdef AXOM_USE_RAJA
-      case raja_seq:
         quest::findTriMeshIntersectionsUniformGrid<seq_exec, double>(surface_mesh,
                                                                      collisions,
                                                                      degenerate,
                                                                      params.resolution,
                                                                      params.intersectionThreshold);
+        // _check_repair_intersections_end
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-      case raja_omp:
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+      case RuntimePolicy::omp:
         quest::findTriMeshIntersectionsUniformGrid<omp_exec, double>(surface_mesh,
                                                                      collisions,
                                                                      degenerate,
                                                                      params.resolution,
                                                                      params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-      case raja_cuda:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+      case RuntimePolicy::cuda:
         quest::findTriMeshIntersectionsUniformGrid<cuda_exec, double>(surface_mesh,
                                                                       collisions,
                                                                       degenerate,
                                                                       params.resolution,
                                                                       params.intersectionThreshold);
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-      case raja_hip:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+      case RuntimePolicy::hip:
         quest::findTriMeshIntersectionsUniformGrid<hip_exec, double>(surface_mesh,
                                                                      collisions,
                                                                      degenerate,
                                                                      params.resolution,
                                                                      params.intersectionThreshold);
         break;
-  #endif
-#endif  // AXOM_USE_RAJA
+#endif
       default:
-        SLIC_ERROR("Unhandled runtime policy case " << params.policy);
+        SLIC_ERROR("Unhandled runtime policy case "
+                   << axom::runtime_policy::policyToName(params.policy));
         break;
       }
     }

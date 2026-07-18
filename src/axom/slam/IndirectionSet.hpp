@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file IndirectionSet.hpp
  *
  * \brief Defines some alias templates for OrderedSets with indirection
  */
-
-#ifndef SLAM_INDIRECTION_SET_H_
-#define SLAM_INDIRECTION_SET_H_
 
 #include <cstddef>
 #include <vector>
@@ -83,5 +83,3 @@ using ArrayViewIndirectionSet = OrderedSet<PosType,
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_INDIRECTION_SET_H_

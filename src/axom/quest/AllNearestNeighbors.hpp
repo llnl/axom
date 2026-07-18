@@ -1,15 +1,15 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file AllNearestNeighbors.hpp
  * \brief Defines all-nearest-neighbor queries
  */
-
-#ifndef AXOM_QUEST_ALL_NEAREST_NEIGHBORS_HPP_
-#define AXOM_QUEST_ALL_NEAREST_NEIGHBORS_HPP_
 
 namespace axom
 {
@@ -61,5 +61,3 @@ void all_nearest_neighbors(const double* x,
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_ALL_NEAREST_NEIGHBORS_HPP_

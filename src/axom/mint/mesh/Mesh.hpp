@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_MESH_HPP_
-#define MINT_MESH_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"  // for Axom macros
 
@@ -1024,5 +1024,3 @@ inline void Mesh::getFieldInfo(int association, IndexType& num_tuples, IndexType
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_MESH_HPP_ */

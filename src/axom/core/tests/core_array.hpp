@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -453,6 +456,51 @@ void check_resize(axom::Array<T>& v)
 
   axom::deallocate(values);
   values = nullptr;
+}
+
+/*!
+ * \brief Check that pop_back() updates the size while keeping capacity and
+ *  existing elements intact.
+ * \param [in] v the Array to check.
+ */
+template <typename T>
+void check_pop_back(axom::Array<T>& v)
+{
+  v.resize(0);
+  v.reserve(4);
+
+  const axom::IndexType capacity = v.capacity();
+  const T* data_ptr = v.data();
+
+  v.push_back(T {1});
+  v.push_back(T {2});
+  v.push_back(T {3});
+
+  EXPECT_EQ(v.size(), 3);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
+  EXPECT_EQ(v.front(), T {1});
+  EXPECT_EQ(v.back(), T {3});
+
+  v.pop_back();
+  EXPECT_EQ(v.size(), 2);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
+  EXPECT_EQ(v.front(), T {1});
+  EXPECT_EQ(v.back(), T {2});
+
+  v.pop_back();
+  EXPECT_EQ(v.size(), 1);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
+  EXPECT_EQ(v.front(), T {1});
+  EXPECT_EQ(v.back(), T {1});
+
+  v.pop_back();
+  EXPECT_TRUE(v.empty());
+  EXPECT_EQ(v.size(), 0);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
 }
 
 /*!
@@ -1145,6 +1193,17 @@ TEST(core_array, checkResize)
 }
 
 //------------------------------------------------------------------------------
+TEST(core_array, insertZeroCountNullptrDoesNotAssert)
+{
+  axom::Array<int> v(0, 1);
+  v.push_back(10);
+  // This should not assert
+  v.insert(1, 0, static_cast<const int*>(nullptr));
+  EXPECT_EQ(v.size(), 1);
+  EXPECT_EQ(v[0], 10);
+}
+
+//------------------------------------------------------------------------------
 TEST(core_array_DeathTest, checkResize)
 {
   constexpr axom::IndexType ZERO = 0;
@@ -1154,6 +1213,31 @@ TEST(core_array_DeathTest, checkResize)
   axom::Array<int> v_int(ZERO, size);
   v_int.setResizeRatio(0.99);
   EXPECT_DEATH_IF_SUPPORTED(::check_resize(v_int), "");
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array, checkPopBack)
+{
+  for(axom::IndexType capacity = 2; capacity <= 512; capacity *= 2)
+  {
+    axom::Array<int> v_int(0, capacity);
+    ::check_pop_back(v_int);
+
+    axom::Array<double> v_double(0, capacity);
+    ::check_pop_back(v_double);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array_DeathTest, popBackEmpty)
+{
+  axom::Array<int> v_int(0, 2);
+#ifdef NDEBUG
+  GTEST_SKIP()
+    << "pop_back() uses assert on empty arrays, so this death test only applies in debug builds.";
+#else
+  EXPECT_DEATH_IF_SUPPORTED(v_int.pop_back(), "");
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1475,6 +1559,11 @@ TEST(core_array, check_move_copy)
     EXPECT_EQ(v_int_copy_assign.data(), nullptr);
     EXPECT_EQ(v_int_copy_ctor.data(), nullptr);
 
+    /* Moved-from arrays are valid and should be reusable */
+    v_int_copy_assign.push_back(MAGIC_INT);
+    EXPECT_EQ(v_int_copy_assign.size(), 1);
+    EXPECT_EQ(v_int_copy_assign[0], MAGIC_INT);
+
     /* Check copy and move semantics for array of doubles */
     axom::Array<double> v_double(size, capacity);
     v_double.fill(MAGIC_DOUBLE);
@@ -1492,6 +1581,11 @@ TEST(core_array, check_move_copy)
     EXPECT_EQ(v_double, v_double_move_ctor);
     EXPECT_EQ(v_double_copy_assign.data(), nullptr);
     EXPECT_EQ(v_double_copy_ctor.data(), nullptr);
+
+    /* Moved-from arrays are valid and should be reusable */
+    v_double_copy_assign.push_back(MAGIC_DOUBLE);
+    EXPECT_EQ(v_double_copy_assign.size(), 1);
+    EXPECT_EQ(v_double_copy_assign[0], MAGIC_DOUBLE);
   }
 }
 
@@ -2352,6 +2446,91 @@ void test_resize_with_stackarray(DataType value)
   }
 }
 
+TEST(core_array, check_1D_view_spacing_preserved)
+{
+  int buf[12];
+  for(int i = 0; i < 12; i++)
+  {
+    buf[i] = i;
+  }
+
+  // A strided 1D view referencing elements {0, 3, 6, 9}
+  axom::ArrayView<int, 1> v(buf, {{4}}, axom::StackArray<axom::IndexType, 1> {{3}});
+  EXPECT_EQ(v.minStride(), 3);
+  EXPECT_EQ(v[1], 3);
+
+  // A strided 1D view created through the min_stride constructor
+  {
+    axom::ArrayView<int, 1> vs(buf, {{4}}, 3);
+    EXPECT_EQ(vs.minStride(), 3);
+    EXPECT_EQ(vs[2], 6);
+  }
+
+  // Conversion to a view-of-const must preserve the spacing
+  {
+    axom::ArrayView<const int, 1> cv = v;
+    EXPECT_EQ(cv.minStride(), 3);
+    EXPECT_EQ(cv[1], 3);
+    EXPECT_EQ(cv[3], 9);
+    EXPECT_EQ(cv.mapping().strides()[0], 3);
+  }
+
+  // Copy construction must preserve the spacing
+  {
+    axom::ArrayView<int, 1> v2(v);
+    EXPECT_EQ(v2.minStride(), 3);
+    EXPECT_EQ(v2[2], 6);
+  }
+
+  // Owning 1D arrays are always contiguous (unit stride)
+  {
+    axom::Array<int> a(4);
+    EXPECT_EQ(a.minStride(), 1);
+    EXPECT_EQ(a.mapping().strides()[0], 1);
+  }
+
+  // Deep copy from strided view to owning array -- must copy the values, not contiguous indices
+  {
+    int source[10] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
+
+    // Strided view with stride=2 references elements {0, 20, 40, 60, 80}
+    axom::ArrayView<int, 1> strided_view(source, {{5}}, 2);
+    EXPECT_EQ(strided_view.minStride(), 2);
+    EXPECT_EQ(strided_view[0], 0);
+    EXPECT_EQ(strided_view[1], 20);
+    EXPECT_EQ(strided_view[2], 40);
+    EXPECT_EQ(strided_view[3], 60);
+    EXPECT_EQ(strided_view[4], 80);
+
+    // Deep copy to owning array - should preserve the stride
+    axom::Array<int, 1> arr(strided_view);
+    EXPECT_EQ(arr.size(), 5);
+    EXPECT_EQ(arr.minStride(), 1);  // Owning array is contiguous
+    EXPECT_EQ(arr[0], 0);           // Each should copy source[i*2], not source[i]
+    EXPECT_EQ(arr[1], 20);
+    EXPECT_EQ(arr[2], 40);
+    EXPECT_EQ(arr[3], 60);
+    EXPECT_EQ(arr[4], 80);
+  }
+
+  // Test with stride=3
+  {
+    int source[12];
+    for(int i = 0; i < 12; ++i)
+    {
+      source[i] = i * 100;
+    }
+
+    axom::ArrayView<int, 1> view3(source, {{4}}, 3);  // {0, 300, 600, 900}
+    axom::Array<int, 1> arr3(view3);
+    EXPECT_EQ(arr3.size(), 4);
+    EXPECT_EQ(arr3[0], 0);
+    EXPECT_EQ(arr3[1], 300);
+    EXPECT_EQ(arr3[2], 600);
+    EXPECT_EQ(arr3[3], 900);
+  }
+}
+
 TEST(core_array, resize_stackarray)
 {
   test_resize_with_stackarray<bool>(false);
@@ -2454,6 +2633,47 @@ TEST(core_array, reserve_nontrivial_reloc_um)
   }
 }
 #endif
+
+class PopBackTracked
+{
+public:
+  explicit PopBackTracked(int value = 0) : m_value(value) { }
+
+  PopBackTracked(const PopBackTracked&) = default;
+  PopBackTracked(PopBackTracked&&) = default;
+  PopBackTracked& operator=(const PopBackTracked&) = default;
+  PopBackTracked& operator=(PopBackTracked&&) = default;
+
+  ~PopBackTracked() { ++s_destroyCount; }
+
+  int m_value;
+  static int s_destroyCount;
+};
+
+int PopBackTracked::s_destroyCount = 0;
+
+TEST(core_array, popBackDestroysTrailingElement)
+{
+  PopBackTracked::s_destroyCount = 0;
+
+  {
+    axom::Array<PopBackTracked> array(0, 4);
+    array.emplace_back(1);
+    array.emplace_back(2);
+    array.emplace_back(3);
+
+    EXPECT_EQ(array.size(), 3);
+    EXPECT_EQ(PopBackTracked::s_destroyCount, 0);
+
+    array.pop_back();
+
+    EXPECT_EQ(array.size(), 2);
+    EXPECT_EQ(array.back().m_value, 2);
+    EXPECT_EQ(PopBackTracked::s_destroyCount, 1);
+  }
+
+  EXPECT_EQ(PopBackTracked::s_destroyCount, 3);
+}
 
 class AllocatingDefaultInit
 {

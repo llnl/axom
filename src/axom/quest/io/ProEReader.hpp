@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_PROEREADER_HPP_
-#define QUEST_PROEREADER_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -87,13 +87,13 @@ public:
    * \brief Returns the number of nodes of the mesh.
    * \return numNodes the number of nodes.
    */
-  int getNumNodes() const { return m_num_nodes; };
+  int getNumNodes() const { return static_cast<int>(m_num_nodes); };
 
   /*!
    * \brief Returns the number of tetrahedra of the mesh
    * \return numTets the number of tetrahedra.
    */
-  int getNumTets() const { return m_num_tets; };
+  int getNumTets() const { return static_cast<int>(m_num_tets); };
 
   /*!
    * \brief Clears all internal data-structures
@@ -163,5 +163,3 @@ private:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_PROEREADER_HPP_

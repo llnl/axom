@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 env:
-  CLANG_DOCKER_IMAGE: axom/tpls:clang-14_09-29-25_18h-36m
-  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_09-29-25_18h-26m
+  CLANG_DOCKER_IMAGE: axom/tpls:clang-19_05-19-26_17h-35m
+  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_05-19-26_17h-32m
  
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
@@ -26,7 +26,7 @@ jobs:
       clang_docker_image: ${{ env.CLANG_DOCKER_IMAGE }}
       gcc_docker_image: ${{ env.GCC_DOCKER_IMAGE }}
   build_and_test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
     - set_image_vars
     strategy:
@@ -34,55 +34,55 @@ jobs:
       matrix:
         build_type: [ Debug, Release ]
         config:
-        - job_name: gcc@13.1.0, shared, benchmarks
+        - job_name: gcc@13.3.1, shared, benchmarks, c++20
           host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
-          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
+          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DBLT_CXX_STD=c++20 -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'yes'
-        - job_name: gcc@13.1.0, shared, 64bit
+        - job_name: gcc@13.3.1, shared, 32bit
           host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
-          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DBLT_CXX_STD=c++20 -DAXOM_USE_64BIT_INDEXTYPE:BOOL=ON'
+          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_USE_64BIT_INDEXTYPE:BOOL=OFF -DAXOM_NO_INT64_T=1'
           do_build: 'yes'
           do_benchmarks: 'no'
-        - job_name: clang@14.0.0, shared, benchmarks, quest regression
-          host_config: llvm@14.0.0.cmake
+        - job_name: llvm@19.0.0, shared, benchmarks, quest regression
+          host_config: llvm@19.0.0.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
-          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
+          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'yes'
         include:
         - build_type: Debug
           config:
-            job_name: clang@14.0.0, shared, no raja
-            host_config: llvm@14.0.0.cmake
+            job_name: llvm@19.0.0, shared, no raja
+            host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
-            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR'
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
           config:
-            job_name: clang@14.0.0, shared, no umpire
-            host_config: llvm@14.0.0.cmake
+            job_name: llvm@19.0.0, shared, no umpire
+            host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
-            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U UMPIRE_DIR'
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -U UMPIRE_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
           config:
-            job_name: clang@14.0.0, shared, no raja and umpire
-            host_config: llvm@14.0.0.cmake
+            job_name: llvm@19.0.0, shared, no raja and umpire
+            host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
-            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
           config:
-            job_name: clang@14.0.0, shared, no profiling
-            host_config: llvm@14.0.0.cmake
+            job_name: llvm@19.0.0, shared, no profiling
+            host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
-            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U CALIPER_DIR -U ADIAK_DIR'
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -U CALIPER_DIR -U ADIAK_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
     name: ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
@@ -90,15 +90,18 @@ jobs:
       image: ${{ matrix.config.compiler_image }}
       volumes:
       - /home/axom/axom
+      # Required - default is set to user "axom"
+      options: --user root
     steps:
       - name: Checkout Axom
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with: 
           submodules: recursive
       - name: Print Matrix Variables
         run: |
           echo "build_type     ${{ matrix.build_type }}"
           echo "cmake_opts     ${{ matrix.config.cmake_opts }}"
+          echo "quest_extra_regression_tests ${{ contains(matrix.config.job_name, 'quest regression') && 'ON' || 'OFF' }}"
           echo "compiler_image ${{ matrix.config.compiler_image }}"
           echo "host_config    ${{ matrix.config.host_config }}"
       - name: Build and Test ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
@@ -107,11 +110,11 @@ jobs:
           DO_BUILD=${{ matrix.config.do_build }} \
           DO_BENCHMARKS=${{ matrix.config.do_benchmarks }} \
           HOST_CONFIG=${{ matrix.config.host_config }} \
-          CMAKE_EXTRA_FLAGS=" ${{ matrix.config.cmake_opts }} " \
+          CMAKE_EXTRA_FLAGS=" ${{ matrix.config.cmake_opts }} -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=${{ contains(matrix.config.job_name, 'quest regression') && 'ON' || 'OFF' }} " \
           BUILD_TYPE=${{ matrix.build_type }} \
           ./scripts/github-actions/linux-build_and_test.sh
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: Test Results ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
           path: "**/Test.xml"
@@ -124,7 +127,7 @@ jobs:
       CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF'
     steps:
     - name: Checkout Axom
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         submodules: recursive
     - name: Windows - CMake
@@ -149,7 +152,7 @@ jobs:
       CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF'
     steps:
       - name: Checkout Axom
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: recursive
       - name: macOS - CMake
@@ -166,7 +169,7 @@ jobs:
           ctest -T Test --output-on-failure -V
         shell: bash
   check_code:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
     - set_image_vars
     strategy:
@@ -178,15 +181,15 @@ jobs:
       image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
       volumes:
       - /home/axom/axom
+      # Required - default is set to user "axom"
+      options: --user root
       env:
         CHECK_TYPE: ${{ matrix.check_type }}
-        HOST_CONFIG: llvm@14.0.0.cmake
+        HOST_CONFIG: llvm@19.0.0.cmake
     steps:
     - name: Checkout Axom
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         submodules: recursive
     - name: Check ${{ matrix.check_type }}
       run: ./scripts/github-actions/linux-check.sh 
-
-

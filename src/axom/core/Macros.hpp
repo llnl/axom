@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file AxomMacros.hpp
  *
  * \brief Contains several useful macros for the axom project
  */
-
-#ifndef AXOM_MACROS_HPP_
-#define AXOM_MACROS_HPP_
 
 #include "axom/config.hpp"
 #include <cassert>  // for assert()
@@ -88,6 +88,24 @@
   #define AXOM_HOST_LAMBDA [=]
 #endif
 // _decorating_macros_end
+
+/*!
+ * \def AXOM_FORCE_INLINE
+ *
+ * \brief Force-inline annotation for hot-path functions
+ *
+ * \note Prefer using this sparingly on true hot paths since overuse can increase
+ *  code size and hurt instruction cache behavior
+ */
+#if defined(__CUDACC__) || defined(__HIPCC__)
+  #define AXOM_FORCE_INLINE __forceinline__
+#elif defined(__GNUC__) || defined(__clang__)
+  #define AXOM_FORCE_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+  #define AXOM_FORCE_INLINE __forceinline
+#else
+  #define AXOM_FORCE_INLINE inline
+#endif
 
 /*
  * \def AXOM_STRINGIFY
@@ -242,6 +260,56 @@
 #endif
 
 /*!
+ * \def AXOM_LIKELY
+ * \brief Macro that is used to annotate for compiler optimizations a
+ *  conditional that is likely to be true.
+ *
+ * \note This macro is placed before the conditional in an if-statement.
+ * \warning Use with caution, as unwarranted usage may result in pessimistic
+ *  optimizations.
+ * \code
+ *
+ *  bool success = UnlikelyToFail();
+ *  if AXOM_LIKELY(success) { ... }
+ *
+ * \endcode
+ */
+#if __cplusplus >= 202002L
+  // C++20 and later
+  #define AXOM_LIKELY(cond) (cond) [[likely]]
+#elif defined(__GNUC__)
+  // GCC/Clang compilers have __builtin_expect
+  #define AXOM_LIKELY(cond) (__builtin_expect(!!(cond), 1))
+#else
+  #define AXOM_LIKELY(cond) (cond)
+#endif
+
+/*!
+ * \def AXOM_UNLIKELY
+ * \brief Macro that is used to annotate for compiler optimizations a
+ *  conditional that is likely to be false.
+ *
+ * \note This macro is placed before the conditional in an if-statement.
+ * \warning Use with caution, as unwarranted usage may result in pessimistic
+ *  optimizations.
+ * \code
+ *
+ *  bool error = UnlikelyToFail();
+ *  if AXOM_UNLIKELY(error) { ... }
+ *
+ * \endcode
+ */
+#if __cplusplus >= 202002L
+  // C++20 and later
+  #define AXOM_UNLIKELY(cond) (cond) [[unlikely]]
+#elif defined(__GNUC__)
+  // GCC/Clang compilers have __builtin_expect
+  #define AXOM_UNLIKELY(cond) (__builtin_expect(!!(cond), 0))
+#else
+  #define AXOM_UNLIKELY(cond) (cond)
+#endif
+
+/*!
  * \def DISABLE_DEFAULT_CTOR(className)
  * \brief Macro to disable default constructor for the given class.
  * \note This macro should only be used within the private section of a class,
@@ -347,4 +415,11 @@
   template <typename gtest_TypeParam_>                                                            \
   void GTEST_TEST_CLASS_NAME_(CaseName, TestName)<gtest_TypeParam_>::TestBody()
 
-#endif  // AXOM_MACROS_HPP_
+// Provides the definition for `axom::detail::constexprAssert` used by AXOM_CONSTEXPR_ASSERT.
+#include "axom/core/utilities/ConstexprAssert.hpp"
+
+/*!
+ * \def AXOM_CONSTEXPR_ASSERT(EXP)
+ * \brief Assert \a EXP in a way that is valid inside constexpr functions.
+ */
+#define AXOM_CONSTEXPR_ASSERT(EXP) ::axom::detail::constexprAssert((EXP), #EXP, __FILE__, __LINE__)

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -41,11 +42,15 @@ bool operator==(Curve const &lhs, Curve const &rhs)
     lhs.getTags() == rhs.getTags() && lhs.getValues() == rhs.getValues();
   return r;
 }
+}  // namespace sina
+}  // namespace axom
 
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
+using sina::Curve;
+using sina::CurveSet;
 
 using ::testing::ContainerEq;
 using ::testing::ElementsAre;
@@ -374,8 +379,3 @@ TEST(CurveSet, customIndependentSortOrder)
   curveSet.applyCustomIndependentCurveOrder(newOrder);
   EXPECT_THAT(curveSet.getOrderedIndependentCurveNames(), ContainerEq(newOrder));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

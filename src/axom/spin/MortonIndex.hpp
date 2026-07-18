@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file MortonIndex
@@ -12,9 +15,6 @@
  * Also has some utility functions for 'mortonizing' and 'demortonizing' points and a PointHash
  * functor class that can be used as a std::hash for unordered_maps and axom::FlatMap
  */
-
-#ifndef AXOM_SPIN_MORTON_INDEX_HPP_
-#define AXOM_SPIN_MORTON_INDEX_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
@@ -579,5 +579,3 @@ struct PointHash
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_MORTON_INDEX_HPP_

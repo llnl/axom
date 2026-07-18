@@ -1,0 +1,12 @@
+mesh:
+  dim: 2
+  bounding_box:
+    min:
+      x: 1.1
+      y: 2.2
+    max:
+      x: 33.3
+      y: 44.4
+  resolution:
+    x: 15
+    y: 2

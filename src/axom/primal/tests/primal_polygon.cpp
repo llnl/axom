@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,6 +24,32 @@ TEST(primal_polygon, empty)
   using PolygonType = axom::primal::Polygon<double, 3>;
   PolygonType poly;
   EXPECT_FALSE(poly.isValid());
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_polygon, static_copy_and_assignment)
+{
+  using PolygonType = axom::primal::Polygon<double, 2, axom::primal::PolygonArray::Static, 6>;
+  using PointType = axom::primal::Point<double, 2>;
+
+  const PolygonType source({PointType {0., 0.}, PointType {1., 0.}, PointType {1., 1.}});
+
+  PolygonType copy(source);
+  PolygonType assigned;
+  assigned = source;
+
+  EXPECT_EQ(copy.numVertices(), source.numVertices());
+  EXPECT_EQ(assigned.numVertices(), source.numVertices());
+
+  for(int i = 0; i < source.numVertices(); ++i)
+  {
+    EXPECT_EQ(copy[i], source[i]);
+    EXPECT_EQ(assigned[i], source[i]);
+  }
+
+  assigned.addVertex(PointType {0., 1.});
+  EXPECT_EQ(assigned.numVertices(), 4);
+  EXPECT_EQ(source.numVertices(), 3);
 }
 
 //------------------------------------------------------------------------------

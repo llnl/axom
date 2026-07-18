@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -154,6 +155,37 @@ void arrayToMap(const conduit::DataArray<ConduitType>& array,
   }
 }
 
+template <typename ConduitType>
+void arrayToMap(const conduit::DataArray<ConduitType>& array,
+                std::unordered_map<int, VariantValue>& map)
+{
+  map.clear();
+  for(conduit::index_t i = 0; i < array.number_of_elements(); i++)
+  {
+    if(std::is_floating_point<ConduitType>::value)
+    {
+      const double double_value = array[i];
+      const int int_value = static_cast<int>(double_value);
+      map[i] = (static_cast<double>(int_value) == double_value) ? VariantValue {int_value}
+                                                                : VariantValue {double_value};
+    }
+    else
+    {
+      map[i] = VariantValue {static_cast<int>(array[i])};
+    }
+  }
+}
+
+void boolArrayToMap(const conduit::DataArray<conduit::uint8>& array,
+                    std::unordered_map<int, VariantValue>& map)
+{
+  map.clear();
+  for(conduit::index_t i = 0; i < array.number_of_elements(); i++)
+  {
+    map[i] = VariantValue {static_cast<bool>(array[i])};
+  }
+}
+
 /*!
  *******************************************************************************
  * \brief Recursive name retrieval function - adds the names of all descendents
@@ -258,6 +290,39 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, bool& value)
   return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
 }
 
+ReaderResult ConduitReader::getValue(const conduit::Node* node, VariantValue& value)
+{
+  if(!node)
+  {
+    return ReaderResult::NotFound;
+  }
+
+  bool bool_value = false;
+  if(getValue(node, bool_value) == ReaderResult::Success)
+  {
+    value = bool_value;
+    return ReaderResult::Success;
+  }
+
+  if(node->dtype().is_number() && !node->dtype().is_uint8())
+  {
+    const double double_value = node->to_double();
+    const int int_value = node->to_int();
+    value = (static_cast<double>(int_value) == double_value) ? VariantValue {int_value}
+                                                             : VariantValue {double_value};
+    return ReaderResult::Success;
+  }
+
+  std::string string_value;
+  if(getValue(node, string_value) == ReaderResult::Success)
+  {
+    value = string_value;
+    return ReaderResult::Success;
+  }
+
+  return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
+}
+
 ReaderResult ConduitReader::getBool(const std::string& id, bool& value)
 {
   return getValue(detail::traverseNode(m_root, id), value);
@@ -320,6 +385,18 @@ ReaderResult ConduitReader::getBoolMap(const std::string& id,
 
 ReaderResult ConduitReader::getStringMap(const std::string& id,
                                          std::unordered_map<VariantKey, std::string>& values)
+{
+  return getDictionary(id, values);
+}
+
+ReaderResult ConduitReader::getVariantMap(const std::string& id,
+                                          std::unordered_map<int, VariantValue>& values)
+{
+  return getVariantArray(id, values);
+}
+
+ReaderResult ConduitReader::getVariantMap(const std::string& id,
+                                          std::unordered_map<VariantKey, VariantValue>& values)
 {
   return getDictionary(id, values);
 }
@@ -493,6 +570,85 @@ ReaderResult ConduitReader::getArray(const std::string& id, std::unordered_map<i
     {
       T value;
       // Inlet allows for heterogenous collections, but a failure here must be reported
+      const auto result = getValue(&child, value);
+      if(result == ReaderResult::Success)
+      {
+        values[index] = value;
+      }
+      else
+      {
+        contains_other_type = true;
+      }
+      index++;
+    }
+    return collectionRetrievalResult(contains_other_type, !values.empty());
+  }
+  return ReaderResult::Success;
+}
+
+ReaderResult ConduitReader::getVariantArray(const std::string& id,
+                                            std::unordered_map<int, VariantValue>& values)
+{
+  values.clear();
+  const auto node_ptr = detail::traverseNode(m_root, id);
+  if(!node_ptr)
+  {
+    return ReaderResult::NotFound;
+  }
+  const auto& node = *node_ptr;
+  // If it's empty, then the array must have been empty, which counts as successful
+  if(node.dtype().is_empty())
+  {
+    return ReaderResult::Success;
+  }
+  // Dense primitive arrays can be copied directly. JSON booleans are represented
+  // by Conduit as uint8 arrays, so treat that case as bool instead of int.
+  else if(node.dtype().number_of_elements() > 1 && !node.dtype().is_list() &&
+          !node.dtype().is_object())
+  {
+    if(node.dtype().is_floating_point())
+    {
+      detail::arrayToMap(node.as_double_array(), values);
+    }
+    else if(node.dtype().is_int32())
+    {
+      detail::arrayToMap(node.as_int32_array(), values);
+    }
+    else if(node.dtype().is_int64())
+    {
+      detail::arrayToMap(node.as_int64_array(), values);
+    }
+    else if((m_protocol == "json") && node.dtype().is_uint8())
+    {
+      detail::boolArrayToMap(node.as_uint8_array(), values);
+    }
+    else
+    {
+      return ReaderResult::WrongType;
+    }
+  }
+  else if(!node.dtype().is_list() && !node.dtype().is_object())
+  {
+    // Single-element arrays will be just the element itself
+    // If it's a single element, we know the index is zero
+    VariantValue value;
+    const auto result = getValue(&node, value);
+    if(result == ReaderResult::Success)
+    {
+      values[0] = value;
+    }
+    else
+    {
+      return result;
+    }
+  }
+  else
+  {
+    conduit::index_t index = 0;
+    bool contains_other_type = false;
+    for(const auto& child : node.children())
+    {
+      VariantValue value;
       const auto result = getValue(&child, value);
       if(result == ReaderResult::Success)
       {

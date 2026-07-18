@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,14 +13,15 @@
 #include "axom/sina/core/DataHolder.hpp"
 #include "axom/sina/tests/SinaMatchers.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
+using sina::addStringsToNode;
+using sina::Curve;
+using sina::CurveSet;
+using sina::DataHolder;
+using sina::Datum;
 
 using ::testing::Contains;
 using ::testing::DoubleEq;
@@ -310,8 +312,3 @@ TEST(DataHolder, toNode_userDefined)
                                 int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

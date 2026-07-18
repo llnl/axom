@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file MIRUtilities.hpp
@@ -10,9 +13,6 @@
  *        within Axom's MIR component.
  * 
  */
-
-#ifndef __MIR_UTILITIES_HPP__
-#define __MIR_UTILITIES_HPP__
 
 #include "axom/mir/reference/ZooClippingTables.hpp"
 
@@ -654,5 +654,3 @@ inline mir::Shape determineElementShapeType(const Shape parentShapeType, const i
 }  // namespace utilities
 }  // namespace mir
 }  // namespace axom
-
-#endif

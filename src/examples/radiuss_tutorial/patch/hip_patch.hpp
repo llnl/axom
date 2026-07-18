@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_RADIUSS_TUTORIAL_HIP_PATCH
-#define AXOM_RADIUSS_TUTORIAL_HIP_PATCH
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -30,5 +30,3 @@ constexpr unsigned int
 }  // namespace rocprim
 
 #endif
-
-#endif  // AXOM_RADIUSS_TUTORIAL_HIP_PATCH

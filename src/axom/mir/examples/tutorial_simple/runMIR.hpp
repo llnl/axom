@@ -1,9 +1,11 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_EXAMPLES_TUTORIAL_SIMPLE_RUNMIR_HPP
-#define AXOM_MIR_EXAMPLES_TUTORIAL_SIMPLE_RUNMIR_HPP
+
+#pragma once
+
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slic.hpp"
@@ -197,5 +199,3 @@ int runMIR_seq(const conduit::Node &mesh, const conduit::Node &options, conduit:
 int runMIR_omp(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
 int runMIR_cuda(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
 int runMIR_hip(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-
-#endif

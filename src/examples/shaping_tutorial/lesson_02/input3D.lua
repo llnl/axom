@@ -1,0 +1,8 @@
+mesh = {
+  dim = 3,
+  bounding_box = {
+    min = { x = 1.1,  y = 2.2,  z = 2 },
+    max = { x = 33.3, y = 44.4, z = 4 }
+  },
+  resolution = { x = 15, y = 2, z = 3 }
+}

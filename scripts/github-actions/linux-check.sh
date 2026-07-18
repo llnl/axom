@@ -1,7 +1,8 @@
 #!/bin/bash
 ##############################################################################
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 ##############################################################################
@@ -25,9 +26,22 @@ echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
 echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
-or_die ./config-build.py -bp builddir -hc ./host-configs/docker/${HOST_CONFIG} ${CMAKE_EXTRA_FLAGS}
-or_die cd builddir
-echo "~~~~~~ RUNNING make check ~~~~~~~~"
-or_die make VERBOSE=1 check
+cmake_args="-DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON -DENABLE_CLANGTIDY=OFF"
+
+if [[ "$CHECK_TYPE" == "style" ]] ; then
+    CLANGFORMAT_EXECUTABLE=/usr/bin/clang-format
+    if [[ ! -f "$CLANGFORMAT_EXECUTABLE" ]]; then
+        echo "clang-format not found: $CLANGFORMAT_EXECUTABLE"
+        exit 1
+    fi    
+    cmake_args="$cmake_args -DENABLE_CLANGFORMAT=ON -DCLANGFORMAT_EXECUTABLE=$CLANGFORMAT_EXECUTABLE"
+fi
+
+or_die ./config-build.py -hc host-configs/docker/${HOST_CONFIG} -bp build-check-debug -ip install-check-debug $cmake_args
+or_die cd build-check-debug
+
+if [[ "$CHECK_TYPE" == "style" ]] ; then
+    or_die make VERBOSE=1 clangformat_check
+fi
 
 exit 0

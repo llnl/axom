@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_NESTED_FOR_EXEC_HPP_
-#define AXOM_CORE_NESTED_FOR_EXEC_HPP_
+#pragma once
 
 #include "axom/core/execution/execution_space.hpp"
 
@@ -23,7 +23,7 @@
       using tile_fixed = ::RAJA::statement::tile_fixed< SIZE >;
     } // namespace RAJA
 
-    /* clang-format on */
+  /* clang-format on */
 
   #endif
 
@@ -74,7 +74,7 @@ struct nested_for_exec<SEQ_EXEC>
       > // END j
     > // END k
   >; // END kernel
-    /* clang-format on */
+  /* clang-format on */
 
 #else
   using loop2d_policy = void;
@@ -306,5 +306,3 @@ struct nested_for_exec<HIP_EXEC<BLOCK_SIZE, ASYNC>>
 } /* namespace internal */
 
 } /* namespace axom */
-
-#endif /* AXOM_CORE_NESTED_FOR_EXEC_HPP_ */

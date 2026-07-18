@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_BUILD_RADIX_TREE_H_
-#define AXOM_SPIN_BUILD_RADIX_TREE_H_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -406,15 +406,15 @@ AXOM_HOST_DEVICE static inline BBoxType sync_load(const BBoxType& box)
     volatile const FloatType& max_dim =
       reinterpret_cast<volatile const FloatType&>(box.getMax()[dim]);
 
-      // NOTE: There is a possibility for a read-after-write hazard, where the
-      // uncached store of an AABB on one thread isn't visible when another
-      // thread calls this method to read the value. However, this doesn't seem to
-      // be an issue on Volta; the atomicAdd used to terminate the first thread
-      // seems to correctly synchronize the prior atomic store operations for the
-      // bounding box data.
-      //
-      // Just in case this changes, we poll for a non-sentinel value to be read
-      // out. Naturally, this assumes that reads of sizeof(FloatType) don't tear.
+    // NOTE: There is a possibility for a read-after-write hazard, where the
+    // uncached store of an AABB on one thread isn't visible when another
+    // thread calls this method to read the value. However, this doesn't seem to
+    // be an issue on Volta; the atomicAdd used to terminate the first thread
+    // seems to correctly synchronize the prior atomic store operations for the
+    // bounding box data.
+    //
+    // Just in case this changes, we poll for a non-sentinel value to be read
+    // out. Naturally, this assumes that reads of sizeof(FloatType) don't tear.
   #ifdef SPIN_BVH_DEBUG_MEMORY_HAZARD
     while((min_pt[dim] = min_dim) == BBoxType::InvalidMin)
     {
@@ -440,14 +440,31 @@ AXOM_HOST_DEVICE static inline BBoxType sync_load(const BBoxType& box)
   return BBoxType {min_pt, max_pt};
 
 #else  // AXOM_DEVICE_CODE
-  std::atomic_thread_fence(std::memory_order_acquire);
-  return box;
+  using FloatType = typename BBoxType::CoordType;
+  using PointType = typename BBoxType::PointType;
+
+  constexpr int NDIMS = PointType::DIMENSION;
+
+  PointType min_pt {BBoxType::InvalidMin};
+  PointType max_pt {BBoxType::InvalidMax};
+
+  // Read each component atomically to avoid a racy read of the box struct.
+  // This mirrors the device path's "poll until non-sentinel" approach.
+  for(int dim = 0; dim < NDIMS; dim++)
+  {
+    while((min_pt[dim] = axom::atomicLoad<ExecSpace>(const_cast<FloatType*>(&box.getMin()[dim]))) ==
+          BBoxType::InvalidMin);
+    while((max_pt[dim] = axom::atomicLoad<ExecSpace>(const_cast<FloatType*>(&box.getMax()[dim]))) ==
+          BBoxType::InvalidMax);
+  }
+
+  return BBoxType {min_pt, max_pt};
 #endif
 }
 
 //------------------------------------------------------------------------------
 // Writes a bounding box to memory, synchronized with another thread's read.
-// On the CPU, this is achieved with a release fence.
+// On the CPU, we use atomic stores for each component to avoid data races.
 // On the GPU, this function uses atomicExch to write a value directly to the
 // L2 cache, thus avoiding potential cache coherency issues between threads.
 template <typename ExecSpace, typename BBoxType>
@@ -468,8 +485,18 @@ AXOM_HOST_DEVICE static inline void sync_store(BBoxType& box, const BBoxType& va
     axom::atomicExchange<ExecSpace>(&(max_pt[dim]), value.getMax()[dim]);
   }
 #else  // __CUDA_ARCH__ || __HIP_DEVICE_COMPILE__
-  box = value;
-  std::atomic_thread_fence(std::memory_order_release);
+  using PointType = typename BBoxType::PointType;
+  constexpr int NDIMS = PointType::DIMENSION;
+
+  // Cast away the underlying const so we can directly modify the box data.
+  PointType& min_pt = const_cast<PointType&>(box.getMin());
+  PointType& max_pt = const_cast<PointType&>(box.getMax());
+
+  for(int dim = 0; dim < NDIMS; dim++)
+  {
+    axom::atomicStore<ExecSpace>(&(min_pt[dim]), value.getMin()[dim]);
+    axom::atomicStore<ExecSpace>(&(max_pt[dim]), value.getMax()[dim]);
+  }
 #endif
 }
 
@@ -600,4 +627,3 @@ void build_radix_tree(const BoxIndexable boxes,
 } /* namespace internal */
 } /* namespace spin */
 } /* namespace axom */
-#endif

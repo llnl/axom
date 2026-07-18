@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_BivarSetIfacePolicies_HPP
-#define SLAM_BivarSetIfacePolicies_HPP
+#pragma once
 
 #include "axom/slam/BivariateSet.hpp"
 #include "axom/slam/policies/InterfacePolicies.hpp"
@@ -141,5 +141,3 @@ using BivariateSetInterface =
 }  // end namespace policies
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_BivarSetIfacePolicies_HPP

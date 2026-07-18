@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef HEXAHEDRON_HPP_
-#define HEXAHEDRON_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 
@@ -384,5 +384,3 @@ std::ostream& operator<<(std::ostream& os, const Hexahedron<T, NDIMS>& hex)
 
 } /* namespace primal */
 } /* namespace axom */
-
-#endif /* HEXAHEDRON_HPP_ */

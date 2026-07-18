@@ -1,7 +1,8 @@
 #!/bin/bash
 ##############################################################################
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 ##############################################################################
@@ -29,8 +30,8 @@ export BUILD_TYPE=${BUILD_TYPE:-Debug}
 
 if [[ "$DO_BUILD" == "yes" ]] ; then
     echo "~~~~~~ FIND NUMPROCS ~~~~~~~~"
-    NUMPROCS=`python3 -c "import os; print(f'{os.cpu_count()}')"`
-    NUM_BUILD_PROCS=`python3 -c "import os; print(f'{max(2, os.cpu_count() * 8 // 10)}')"`
+    NUMPROCS=$(python3 -c 'import os; print(os.cpu_count())')
+    NUM_BUILD_PROCS=$(python3 -c 'import os; print(max(2, os.cpu_count() * 8 // 10))')
 
     echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
     or_die python3 ./config-build.py -bp builddir -hc ./host-configs/docker/${HOST_CONFIG} -bt ${BUILD_TYPE} -DENABLE_GTEST_DEATH_TESTS=ON ${CMAKE_EXTRA_FLAGS}
@@ -38,13 +39,13 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
 
     echo "~~~~~~ BUILDING ~~~~~~~~"
     if [[ ${CMAKE_EXTRA_FLAGS} == *COVERAGE* ]] ; then
-        or_die make -j $NUM_BUILD_PROCS
+        or_die make -j ${NUM_BUILD_PROCS}
     else
-        or_die make -j $NUM_BUILD_PROCS VERBOSE=1
+        or_die make -j ${NUM_BUILD_PROCS} VERBOSE=1
     fi
 
     echo "~~~~~~ RUNNING TESTS ~~~~~~~~"
-    make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test -VV -j$NUM_BUILD_PROCS'
+    make CTEST_OUTPUT_ON_FAILURE=1 test ARGS="-T Test --output-on-failure -j${NUM_BUILD_PROCS}"
 
     if [[ "${DO_BENCHMARKS}" == "yes" ]] ; then
         echo "~~~~~~ RUNNING BENCHMARKS ~~~~~~~~"
@@ -55,5 +56,16 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
         echo "~~~~~~ RUNNING MEMCHECK ~~~~~~~~"
         or_die ctest -T memcheck
     fi
-fi
 
+    echo "~~~~~~ INSTALLING ~~~~~~~~"
+    or_die make install
+
+    # For configs that generated Python bindings, check that we can run a Python script with Axom
+    echo "~~~~~~ RUNNING INSTALLED PYTHON EXAMPLE ~~~~~~~~"
+    INSTALL_PREFIX=$(awk -F= '/^CMAKE_INSTALL_PREFIX:PATH=/{print $2}' CMakeCache.txt)
+    PYTHON_RUNNER="${INSTALL_PREFIX}/bin/run_python_with_axom.sh"
+    PYTHON_EXAMPLE="${INSTALL_PREFIX}/examples/axom/using-with-python/example.py"
+    if [[ -x "${PYTHON_RUNNER}" && -f "${PYTHON_EXAMPLE}" ]] ; then
+        or_die "${PYTHON_RUNNER}" "${PYTHON_EXAMPLE}"
+    fi
+fi

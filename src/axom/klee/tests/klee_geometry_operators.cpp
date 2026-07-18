@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -18,12 +19,21 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-namespace axom
-{
-namespace klee
-{
-namespace
-{
+namespace klee = axom::klee;
+namespace numerics = axom::numerics;
+namespace primal = axom::primal;
+namespace test = axom::klee::test;
+
+using klee::CompositeOperator;
+using klee::Dimensions;
+using klee::GeometryOperatorVisitor;
+using klee::LengthUnit;
+using klee::Rotation;
+using klee::Scale;
+using klee::SliceOperator;
+using klee::TransformableGeometryProperties;
+using klee::Translation;
+using klee::UnitConverter;
 using test::affine;
 using test::AlmostEqMatrix;
 using test::AlmostEqPoint;
@@ -38,18 +48,21 @@ using ::testing::Matcher;
 using ::testing::Ref;
 using ::testing::Return;
 
+using primal::Point2D;
 using primal::Point3D;
 using primal::Vector3D;
 
+namespace
+{
 template <typename ColumnVector>
 ColumnVector operator*(const numerics::Matrix<double> &matrix, const ColumnVector &rhs)
 {
-  if(matrix.getNumRows() != matrix.getNumRows() || matrix.getNumRows() != rhs.dimension())
+  if(matrix.getNumRows() != matrix.getNumColumns() || matrix.getNumRows() != rhs.dimension())
   {
     throw std::logic_error("Can't multiply entities of this size");
   }
   ColumnVector result;
-  matrix_vector_multiply(matrix, rhs.data(), result.data());
+  numerics::matrix_vector_multiply(matrix, rhs.data(), result.data());
   return result;
 }
 
@@ -68,6 +81,7 @@ primal::Point<double, 4> affinePoint(const Point3D &point3d)
 }
 
 Dimensions ALL_DIMS[] = {Dimensions::Two, Dimensions::Three};
+}  // namespace
 
 class MockVisitor : public GeometryOperatorVisitor
 {
@@ -222,12 +236,63 @@ TEST(Scale, basics)
   EXPECT_DOUBLE_EQ(2, scale.getXFactor());
   EXPECT_DOUBLE_EQ(3, scale.getYFactor());
   EXPECT_DOUBLE_EQ(4, scale.getZFactor());
+  EXPECT_DOUBLE_EQ(0., scale.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0., scale.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale.getCenter()[2]);
+
+  Scale scale2 {2, 4, 6, Point3D {0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(2, scale2.getXFactor());
+  EXPECT_DOUBLE_EQ(4, scale2.getYFactor());
+  EXPECT_DOUBLE_EQ(6, scale2.getZFactor());
+  EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[2]);
+
+  Scale scale3 {3, 2, {Dimensions::Two, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(3, scale3.getXFactor());
+  EXPECT_DOUBLE_EQ(2, scale3.getYFactor());
+  EXPECT_DOUBLE_EQ(1, scale3.getZFactor());
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[2]);
+
+  Scale scale4 {3, 2, Point2D {0.5, 0.5}, {Dimensions::Two, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(3, scale4.getXFactor());
+  EXPECT_DOUBLE_EQ(2, scale4.getYFactor());
+  EXPECT_DOUBLE_EQ(1, scale4.getZFactor());
+  EXPECT_DOUBLE_EQ(0.5, scale4.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0.5, scale4.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale4.getCenter()[2]);
 }
 
 TEST(Scale, toMatrix)
 {
   Scale scale {2, 3, 4, {Dimensions::Three, LengthUnit::cm}};
   EXPECT_THAT(scale.toMatrix(), AlmostEqMatrix(affine({{{2, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 4, 0}}})));
+
+  Scale scale2 {2, 2, 2, Point3D {0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
+  EXPECT_THAT(scale2.toMatrix(),
+              AlmostEqMatrix(affine({{{2, 0, 0, -0.5}, {0, 2, 0, -0.5}, {0, 0, 2, -0.5}}})));
+
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0.5, 0.5, 0.5}),
+              AlmostEqPoint(affinePoint({0.5, 0.5, 0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 0., 0.}),
+              AlmostEqPoint(affinePoint({-0.5, -0.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 0., 0.}),
+              AlmostEqPoint(affinePoint({1.5, -0.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 1., 0.}),
+              AlmostEqPoint(affinePoint({1.5, 1.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 1., 0.}),
+              AlmostEqPoint(affinePoint({-0.5, 1.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 0., 1.}),
+              AlmostEqPoint(affinePoint({-0.5, -0.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 0., 1.}),
+              AlmostEqPoint(affinePoint({1.5, -0.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 1., 1.}),
+              AlmostEqPoint(affinePoint({1.5, 1.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 1., 1.}),
+              AlmostEqPoint(affinePoint({-0.5, 1.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affineVec({1., 1., 1.}), AlmostEqVector(affineVec({2., 2., 2.})));
 }
 
 TEST(Scale, accept)
@@ -400,6 +465,3 @@ TEST(Slice, accept)
   EXPECT_CALL(visitor, visit(Matcher<const SliceOperator &>(Ref(slice))));
   slice.accept(visitor);
 }
-}  // namespace
-}  // namespace klee
-}  // namespace axom

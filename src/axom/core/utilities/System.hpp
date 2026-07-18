@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef CORE_SYSTEM_UTILITIES_H_
-#define CORE_SYSTEM_UTILITIES_H_
+#pragma once
 
 #include <string>
 #include <locale>
@@ -36,5 +36,3 @@ std::locale locale(const std::string& name = "en_US.UTF-8");
 
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif  //  CORE_SYSTEM_UTILITIES_H_

@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  *******************************************************************************
@@ -11,9 +14,6 @@
  *******************************************************************************
  */
 
-#ifndef INLET_READER_HPP
-#define INLET_READER_HPP
-
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -21,6 +21,7 @@
 
 #include "axom/inlet/Function.hpp"
 #include "axom/inlet/VariantKey.hpp"
+#include "axom/inlet/VariantValue.hpp"
 
 namespace axom
 {
@@ -215,6 +216,24 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Get an index-variant mapping for the given array
+   *
+   * This retrieves arrays/dictionaries with mixed primitive values.
+   *
+   * \param [in]  id    The identifier to the collection that will be retrieved
+   * \param [out] map The mixed primitive values that were retrieved
+   *
+   * \return The status of the retrieval, \see ReaderResult
+   *****************************************************************************
+   */
+  virtual ReaderResult getVariantMap(const std::string& id,
+                                     std::unordered_map<int, VariantValue>& values) = 0;
+  /// \overload
+  virtual ReaderResult getVariantMap(const std::string& id,
+                                     std::unordered_map<VariantKey, VariantValue>& values) = 0;
+
+  /*!
+   *****************************************************************************
    * \brief Get the list of indices for a collection
    *
    * \param [in]  id    The identifier to the collection that will be retrieved
@@ -256,5 +275,3 @@ public:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

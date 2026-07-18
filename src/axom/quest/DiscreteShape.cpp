@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -18,60 +19,6 @@ namespace axom
 {
 namespace quest
 {
-namespace internal
-{
-/*!
- * \brief Implementation of a GeometryOperatorVisitor for processing klee shape operators
- *
- * This class extracts the matrix form of supported operators and marks the operator as unvalid otherwise
- * To use, check the \a isValid() function after visiting and then call the \a getMatrix() function.
- */
-class AffineMatrixVisitor : public klee::GeometryOperatorVisitor
-{
-public:
-  AffineMatrixVisitor() : m_matrix(4, 4) { }
-
-  void visit(const klee::Translation& translation) override
-  {
-    m_matrix = translation.toMatrix();
-    m_isValid = true;
-  }
-  void visit(const klee::Rotation& rotation) override
-  {
-    m_matrix = rotation.toMatrix();
-    m_isValid = true;
-  }
-  void visit(const klee::Scale& scale) override
-  {
-    m_matrix = scale.toMatrix();
-    m_isValid = true;
-  }
-  void visit(const klee::UnitConverter& converter) override
-  {
-    m_matrix = converter.toMatrix();
-    m_isValid = true;
-  }
-
-  void visit(const klee::CompositeOperator&) override
-  {
-    SLIC_WARNING_ROOT("CompositeOperator not supported for Shaper query");
-    m_isValid = false;
-  }
-  void visit(const klee::SliceOperator&) override
-  {
-    SLIC_WARNING_ROOT("SliceOperator not yet supported for Shaper query");
-    m_isValid = false;
-  }
-
-  const numerics::Matrix<double>& getMatrix() const { return m_matrix; }
-  bool isValid() const { return m_isValid; }
-
-private:
-  bool m_isValid {false};
-  numerics::Matrix<double> m_matrix;
-};
-
-}  // end namespace internal
 
 // TODO: These were needed for linking - but why? They are constexpr.
 constexpr int DiscreteShape::DEFAULT_SAMPLES_PER_KNOT_SPAN;
@@ -168,10 +115,15 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
-    quest::internal::read_stl_mesh(shapePath, meshRep, m_comm);
+    const int rc = quest::internal::read_stl_mesh(shapePath, meshRep, m_comm);
 #else
-    quest::internal::read_stl_mesh(shapePath, meshRep);
+    const int rc = quest::internal::read_stl_mesh(shapePath, meshRep);
 #endif
+    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
+                       axom::fmt::format("Failed to read STL shape '{}' from file '{}'.",
+                                         m_shape.getName(),
+                                         shapePath));
+
     m_meshRep.reset(meshRep);
     // Transform the coordinates of the linearized mesh.
     applyTransforms();
@@ -183,10 +135,15 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
-    quest::internal::read_pro_e_mesh(shapePath, meshRep, m_comm);
+    const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep, m_comm);
 #else
-    quest::internal::read_pro_e_mesh(shapePath, meshRep);
+    const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep);
 #endif
+    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
+                       axom::fmt::format("Failed to read Pro/E shape '{}' from file '{}'.",
+                                         m_shape.getName(),
+                                         shapePath));
+
     m_meshRep.reset(meshRep);
   }
 #ifdef AXOM_USE_C2C
@@ -195,23 +152,59 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     SLIC_ERROR_ROOT_IF(file_format != "c2c",
                        axom::fmt::format(" '{}' format requires .contour file type", file_format));
 
-    // Get the transforms that are being applied to the mesh. Get them
-    // as a single concatenated matrix.
+    // Get the transforms that are being applied to the mesh as a single concatenated matrix
     auto transform = getTransforms();
 
-    // Pass in the transform so any transformations can figure into computing the revolved volume.
+    // Pass in the transform so any transformations can figure into computing the revolved volume
     axom::mint::Mesh* meshRep = nullptr;
     const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
                            m_percentError > MINIMUM_PERCENT_ERROR);
-    quest::internal::read_c2c_mesh(shapePath,
-                                   uniform,
-                                   transform,
-                                   m_samplesPerKnotSpan,
-                                   m_vertexWeldThreshold,
-                                   m_percentError,
-                                   meshRep,
-                                   m_revolvedVolume,  // output arg
-                                   m_comm);
+
+    int rc = quest::internal::READ_FAILED;
+    try
+    {
+  #ifdef AXOM_USE_MPI
+      rc = quest::internal::read_c2c_mesh(shapePath,
+                                          uniform,
+                                          transform,
+                                          m_samplesPerKnotSpan,
+                                          m_vertexWeldThreshold,
+                                          m_percentError,
+                                          meshRep,
+                                          m_revolvedVolume,  // output arg
+                                          m_comm);
+  #else
+      rc = quest::internal::read_c2c_mesh(shapePath,
+                                          uniform,
+                                          transform,
+                                          m_samplesPerKnotSpan,
+                                          m_vertexWeldThreshold,
+                                          m_percentError,
+                                          meshRep,
+                                          m_revolvedVolume);  // output arg
+  #endif
+    }
+    catch(const std::exception& e)
+    {
+      SLIC_ERROR_ROOT(
+        axom::fmt::format("Failed to read C2C shape '{}' from file '{}'. Exception: {}",
+                          m_shape.getName(),
+                          shapePath,
+                          e.what()));
+    }
+    catch(...)
+    {
+      SLIC_ERROR_ROOT(axom::fmt::format("Failed to read C2C shape '{}' from file '{}'.",
+                                        m_shape.getName(),
+                                        shapePath));
+    }
+
+    SLIC_ERROR_ROOT_IF(
+      rc != quest::internal::READ_SUCCESS,
+      axom::fmt::format(
+        "Invalid C2C contour for shape '{}' from file '{}'. See earlier warnings for details.",
+        m_shape.getName(),
+        shapePath));
 
     m_meshRep.reset(meshRep);
 
@@ -232,14 +225,19 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     axom::mint::Mesh* meshRep = nullptr;
     const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
                            m_percentError > MINIMUM_PERCENT_ERROR);
-    quest::internal::read_mfem_mesh(shapePath,
-                                    uniform,
-                                    transform,
-                                    m_samplesPerKnotSpan,
-                                    m_vertexWeldThreshold,
-                                    m_percentError,
-                                    meshRep,
-                                    m_revolvedVolume);  // output arg
+    const int rc = quest::internal::read_mfem_mesh(shapePath,
+                                                   uniform,
+                                                   transform,
+                                                   m_samplesPerKnotSpan,
+                                                   m_vertexWeldThreshold,
+                                                   m_percentError,
+                                                   meshRep,
+                                                   m_revolvedVolume);  // output arg
+
+    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
+                       axom::fmt::format("Failed to read MFEM shape '{}' from file '{}'.",
+                                         m_shape.getName(),
+                                         shapePath));
 
     m_meshRep.reset(meshRep);
 
@@ -509,22 +507,21 @@ void DiscreteShape::createRepresentationOfSphere()
 
   auto nodeCoordsView = nodeCoords.view();
   auto connectivityView = connectivity.view();
-  axom::for_all<axom::SEQ_EXEC>(
-    octCount,
-    AXOM_LAMBDA(axom::IndexType octIdx) {
-      TetType tetsInOct[TETS_PER_OCT];
-      axom::primal::split(octs[octIdx], tetsInOct);
-      for(int iTet = 0; iTet < TETS_PER_OCT; ++iTet)
+  for(axom::IndexType octIdx = 0; octIdx < octCount; ++octIdx)
+  {
+    TetType tetsInOct[TETS_PER_OCT];
+    axom::primal::split(octs[octIdx], tetsInOct);
+    for(int iTet = 0; iTet < TETS_PER_OCT; ++iTet)
+    {
+      axom::IndexType tetIdx = octIdx * TETS_PER_OCT + iTet;
+      for(int iNode = 0; iNode < NODES_PER_TET; ++iNode)
       {
-        axom::IndexType tetIdx = octIdx * TETS_PER_OCT + iTet;
-        for(int iNode = 0; iNode < NODES_PER_TET; ++iNode)
-        {
-          axom::IndexType nodeIdx = tetIdx * NODES_PER_TET + iNode;
-          nodeCoordsView[nodeIdx] = tetsInOct[iTet][iNode];
-          connectivityView[tetIdx][iNode] = nodeIdx;
-        }
+        axom::IndexType nodeIdx = tetIdx * NODES_PER_TET + iNode;
+        nodeCoordsView[nodeIdx] = tetsInOct[iTet][iNode];
+        connectivityView[tetIdx][iNode] = nodeIdx;
       }
-    });
+    }
+  }
 
   TetMesh* tetMesh = nullptr;
   if(m_sidreGroup != nullptr)
@@ -563,20 +560,19 @@ void DiscreteShape::createRepresentationOfSOR()
 
   // Rotate to the SOR axis direction and translate to the base location.
   numerics::Matrix<double> rotate = sorAxisRotMatrix(sorGeom.getSorDirection());
-  const auto& translate = sorGeom.getSorBaseCoords();
+  const auto& translate = sorGeom.getSorOriginCoords();
   auto octsView = octs.view();
-  axom::for_all<axom::SEQ_EXEC>(
-    octCount,
-    AXOM_LAMBDA(axom::IndexType iOct) {
-      auto& oct = octsView[iOct];
-      for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
-      {
-        auto& newCoords = oct[iVert];
-        auto oldCoords = newCoords;
-        numerics::matrix_vector_multiply(rotate, oldCoords.data(), newCoords.data());
-        newCoords.array() += translate.array();
-      }
-    });
+  for(axom::IndexType iOct = 0; iOct < octCount; ++iOct)
+  {
+    auto& oct = octsView[iOct];
+    for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
+    {
+      auto& newCoords = oct[iVert];
+      auto oldCoords = newCoords;
+      numerics::matrix_vector_multiply(rotate, oldCoords.data(), newCoords.data());
+      newCoords.array() += translate.array();
+    }
+  }
 
   // Dump discretized octs as a tet mesh
   //
@@ -649,45 +645,7 @@ void DiscreteShape::applyTransforms()
 
 numerics::Matrix<double> DiscreteShape::getTransforms() const
 {
-  const auto identity4x4 = numerics::Matrix<double>::identity(4);
-  numerics::Matrix<double> transformation(identity4x4);
-  auto& geometryOperator = m_shape.getGeometry().getGeometryOperator();
-  if(geometryOperator)
-  {
-    auto composite = std::dynamic_pointer_cast<const klee::CompositeOperator>(geometryOperator);
-    if(composite)
-    {
-      // Concatenate the transformations
-
-      // Why don't we multiply the matrices in CompositeOperator::addOperator()?
-      // Why keep the matrices factored and multiply them here repeatedly?
-      // Combining them would also avoid this if-else logic.  BTNG
-      for(auto op : composite->getOperators())
-      {
-        // Use visitor pattern to extract the affine matrix from supported operators
-        internal::AffineMatrixVisitor visitor;
-        op->accept(visitor);
-        if(!visitor.isValid())
-        {
-          continue;
-        }
-        const auto& matrix = visitor.getMatrix();
-        numerics::Matrix<double> res(identity4x4);
-        numerics::matrix_multiply(matrix, transformation, res);
-        transformation = res;
-      }
-    }
-    else
-    {
-      internal::AffineMatrixVisitor visitor;
-      geometryOperator->accept(visitor);
-      if(visitor.isValid())
-      {
-        transformation = visitor.getMatrix();
-      }
-    }
-  }
-  return transformation;
+  return m_shape.getGeometry().getTransform();
 }
 
 // Return a 3x3 matrix that rotates coordinates from the x-axis to the given direction.

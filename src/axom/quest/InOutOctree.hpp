@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file InOutOctree.hpp
@@ -9,15 +12,10 @@
  * \brief Defines an InOutOctree for containment queries on a surface.
  */
 
-#ifndef AXOM_QUEST_INOUT_OCTREE__HPP_
-#define AXOM_QUEST_INOUT_OCTREE__HPP_
-
 #include "axom/core.hpp"
-#include "axom/core/NumericLimits.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 #include "axom/primal.hpp"
-#include "axom/mint.hpp"
 #include "axom/spin.hpp"
 
 #include "detail/inout/BlockData.hpp"
@@ -30,14 +28,7 @@
 #include <vector>
 #include <iterator>
 #include <sstream>
-
-#ifndef DUMP_VTK_MESH
-//  #define DUMP_VTK_MESH
-#endif
-
-#ifndef DUMP_OCTREE_INFO
-//  #define DUMP_OCTREE_INFO 1
-#endif
+#include <cmath>
 
 #ifndef DEBUG_OCTREE_ACTIVE
 //  #define DEBUG_OCTREE_ACTIVE
@@ -184,7 +175,12 @@ public:
    *
    * \param pt The point at which we are checking for containment
    * \return True if the point is within (or on) the surface, false otherwise
+   *
    * \note Points outside the octree bounding box are considered outside
+   *
+   * \note By convention, query points lying on the surface -- or within the
+   * vertex welding threshold (see setVertexWeldThreshold()) of it -- are
+   * considered to be \a inside the contained volume.
    */
   bool within(const SpacePt& pt) const;
 
@@ -215,6 +211,33 @@ public:
 
     m_vertexWeldThresholdSquared = thresh * thresh;
   }
+
+  /*!
+   * \brief Returns the threshold for welding vertices during octree construction
+   *
+   * This is also the distance within which a query point is considered to lie
+   * on the surface (see within()).
+   *
+   * \sa setVertexWeldThreshold()
+   */
+  double getVertexWeldThreshold() const { return std::sqrt(m_vertexWeldThresholdSquared); }
+
+  /*!
+   * \brief Controls whether VTK visualization dumps are written during octree generation.
+   *
+   * \param [in] enabled If true, writes the surface mesh and octree visualization
+   * dumps during generateIndex().
+   */
+  void setVtkOutputEnabled(bool enabled) { m_vtkOutputEnabled = enabled; }
+
+  /// \brief Returns whether VTK visualization dumps are enabled.
+  bool isVtkOutputEnabled() const { return m_vtkOutputEnabled; }
+
+  /// \brief Sets an optional prefix for VTK visualization dump filenames.
+  void setVtkOutputPrefix(const std::string& prefix) { m_vtkOutputPrefix = prefix; }
+
+  /// \brief Sets the output directory for VTK visualization dump files.
+  void setVtkOutputDirectory(const std::string& directory) { m_vtkOutputDirectory = directory; }
 
 private:
   /**
@@ -310,18 +333,32 @@ private:
   }
 
   /**
+   * \brief Determines whether the specified point is within the gray leaf
+   *
+   * Dispatches to the dimension-specific implementation (withinGrayBlock2D()
+   * or withinGrayBlock3D()) based on the octree dimension.
+   *
+   * \param queryPt The point we are querying
+   * \param leafBlk The block of the gray leaf
+   * \param data The data associated with the leaf block
+   * \return True, if the point is inside the local surface associated with this block, false otherwise
+   */
+  bool withinGrayBlock(const SpacePt& queryPt,
+                       const BlockIndex& leafBlk,
+                       const InOutBlockData& data) const;
+
+  /**
    * \brief Determines whether the specified 3D point is within the gray leaf
    *
    * \param queryPt The point we are querying
    * \param leafBlk The block of the gray leaf
    * \param data The data associated with the leaf block
-   * \return True, if the point is inside the local surface associated with this
-   * block, false otherwise
+   * \return True, if the point is inside the local surface associated with this block, false otherwise
+   * \pre This function is only valid for 3D InOutOctrees
    */
-  template <int TDIM>
-  typename std::enable_if<TDIM == 3, bool>::type withinGrayBlock(const SpacePt& queryPt,
-                                                                 const BlockIndex& leafBlk,
-                                                                 const InOutBlockData& data) const;
+  bool withinGrayBlock3D(const SpacePt& queryPt,
+                         const BlockIndex& leafBlk,
+                         const InOutBlockData& data) const;
 
   /**
    * \brief Determines whether the specified 2D point is within the gray leaf
@@ -329,13 +366,12 @@ private:
    * \param queryPt The point we are querying
    * \param leafBlk The block of the gray leaf
    * \param data The data associated with the leaf block
-   * \return True, if the point is inside the local surface associated with this
-   * block, false otherwise
+   * \return True, if the point is inside the local surface associated with this block, false otherwise
+   * \pre This function is only valid for 2D InOutOctrees
    */
-  template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 2, bool>::type withinGrayBlock(const SpacePt& queryPt,
-                                                                 const BlockIndex& leafBlk,
-                                                                 const InOutBlockData& data) const;
+  bool withinGrayBlock2D(const SpacePt& queryPt,
+                         const BlockIndex& leafBlk,
+                         const InOutBlockData& data) const;
 
   /**
    * \brief Returns the index of the mesh vertex associated with the given leaf block
@@ -369,6 +405,7 @@ private:
 
   void dumpOctreeMeshVTK(const std::string& name) const;
   void dumpSurfaceMeshVTK(const std::string& name) const;
+  std::string vtkOutputPath(const std::string& name) const;
 
   /**
    * \brief Utility function to dump any Inside blocks whose neighbors are
@@ -398,6 +435,10 @@ protected:
 
   /// Bounding box scaling factor for dealing with grazing triangles
   double m_boundingBoxScaleFactor {DEFAULT_BOUNDING_BOX_SCALE_FACTOR};
+
+  bool m_vtkOutputEnabled {false};
+  std::string m_vtkOutputDirectory;
+  std::string m_vtkOutputPrefix;
 };
 
 template <int DIM>
@@ -475,16 +516,24 @@ void InOutOctree<DIM>::generateIndex()
                                    m_meshWrapper.numMeshVertices(),
                                    m_meshWrapper.numMeshCells()));
 
-#ifdef DUMP_OCTREE_INFO
-  // -- Print some stats about the octree
-  SLIC_INFO_ROOT("** Octree stats after inserting vertices");
+  if(m_vtkOutputEnabled)
   {
+    if(!m_vtkOutputDirectory.empty() && !axom::utilities::filesystem::pathExists(m_vtkOutputDirectory))
+    {
+      const int rc = axom::utilities::filesystem::makeDirsForPath(m_vtkOutputDirectory);
+      SLIC_ERROR_IF(
+        rc != 0,
+        axom::fmt::format("Failed to create VTK output directory '{}'", m_vtkOutputDirectory));
+    }
+
+    // -- Print some stats about the octree
+    SLIC_INFO_ROOT("** Octree stats after inserting vertices");
     AXOM_ANNOTATE_SCOPE("dump stats after inserting vertices");
-    dumpSurfaceMeshVTK("surfaceMesh");
-    dumpOctreeMeshVTK("prOctree");
+    dumpSurfaceMeshVTK(m_vtkOutputPrefix + "surfaceMesh");
+    dumpOctreeMeshVTK(m_vtkOutputPrefix + "prOctree");
     printOctreeStats();
   }
-#endif
+
   {
     AXOM_ANNOTATE_SCOPE("validate after inserting vertices");
     checkValid();
@@ -518,16 +567,16 @@ void InOutOctree<DIM>::generateIndex()
                                    "\t--Coloring octree leaves took {:.3Lf} seconds.",
                                    timer.elapsed()));
 
-#ifdef DUMP_OCTREE_INFO
-  // -- Print some stats about the octree
-  SLIC_INFO_ROOT("** Octree stats after inserting cells");
+  if(m_vtkOutputEnabled)
   {
+    // -- Print some stats about the octree
+    SLIC_INFO_ROOT("** Octree stats after inserting cells");
     AXOM_ANNOTATE_SCOPE("dump stats after inserting cells");
-    dumpOctreeMeshVTK("pmOctree");
-    dumpDifferentColoredNeighborsMeshVTK("differentNeighbors");
+    dumpOctreeMeshVTK(m_vtkOutputPrefix + "pmOctree");
+    dumpDifferentColoredNeighborsMeshVTK(m_vtkOutputPrefix + "differentNeighbors");
     printOctreeStats();
   }
-#endif
+
   {
     AXOM_ANNOTATE_SCOPE("validate after inserting cells");
     checkValid();
@@ -987,7 +1036,7 @@ bool InOutOctree<DIM>::colorLeafAndNeighbors(const BlockIndex& leafBlk, InOutBlo
         {
           SpacePt faceCenter = SpacePt::midpoint(this->blockBoundingBox(leafBlk).getCentroid(),
                                                  this->blockBoundingBox(neighborBlk).getCentroid());
-          if(withinGrayBlock<DIM>(faceCenter, neighborBlk, neighborData))
+          if(withinGrayBlock(faceCenter, neighborBlk, neighborData))
           {
             leafData.setBlack();
           }
@@ -1054,7 +1103,7 @@ bool InOutOctree<DIM>::colorLeafAndNeighbors(const BlockIndex& leafBlk, InOutBlo
               SpacePt::midpoint(this->blockBoundingBox(leafBlk).getCentroid(),
                                 this->blockBoundingBox(leafBlk.faceNeighbor(i)).getCentroid());
 
-            if(withinGrayBlock<DIM>(faceCenter, leafBlk, leafData))
+            if(withinGrayBlock(faceCenter, leafBlk, leafData))
             {
               neighborData.setBlack();
             }
@@ -1106,12 +1155,28 @@ typename InOutOctree<DIM>::CellIndexSet InOutOctree<DIM>::leafCells(const BlockI
 }
 
 template <int DIM>
-template <int TDIM>
-typename std::enable_if<TDIM == 3, bool>::type InOutOctree<DIM>::withinGrayBlock(
-  const SpacePt& queryPt,
-  const BlockIndex& leafBlk,
-  const InOutBlockData& leafData) const
+bool InOutOctree<DIM>::withinGrayBlock(const SpacePt& queryPt,
+                                       const BlockIndex& leafBlk,
+                                       const InOutBlockData& leafData) const
 {
+  if constexpr(DIM == 3)
+  {
+    return withinGrayBlock3D(queryPt, leafBlk, leafData);
+  }
+  else
+  {
+    static_assert(DIM == 2, "InOutOctree only supports dimensions 2 and 3");
+    return withinGrayBlock2D(queryPt, leafBlk, leafData);
+  }
+}
+
+template <int DIM>
+bool InOutOctree<DIM>::withinGrayBlock3D(const SpacePt& queryPt,
+                                         const BlockIndex& leafBlk,
+                                         const InOutBlockData& leafData) const
+{
+  static_assert(DIM == 3, "withinGrayBlock3D is only valid for 3D InOutOctrees");
+
   /// Finds a ray from queryPt to a point of a triangle within leafBlk.
   /// Then find the first triangle along this ray. The orientation of the ray
   /// against this triangle's normal indicates queryPt's containment.
@@ -1126,6 +1191,19 @@ typename std::enable_if<TDIM == 3, bool>::type InOutOctree<DIM>::withinGrayBlock
 
   CellIndexSet triSet = leafCells(leafBlk, leafData);
   const int numTris = triSet.size();
+
+  // First, handle the case where the query point lies on (or within the vertex welding tolerance of)
+  // one of the block's triangles. Such points are 'within' the surface by convention,
+  // but the ray-orientation test below is degenerate for them.
+  for(int i = 0; i < numTris; ++i)
+  {
+    if(primal::squared_distance(queryPt, m_meshWrapper.cellPositions(triSet[i])) <=
+       m_vertexWeldThresholdSquared)
+    {
+      return true;
+    }
+  }
+
   for(int i = 0; i < numTris; ++i)
   {
     /// Get the triangle
@@ -1224,19 +1302,18 @@ typename std::enable_if<TDIM == 3, bool>::type InOutOctree<DIM>::withinGrayBlock
     return normal.dot(ray.direction()) > 0.;
   }
 
-  // SLIC_DEBUG("Could not determine inside/outside for point "
-  //            << queryPt << " on block " << leafBlk);
+  SLIC_DEBUG("Could not determine inside/outside for point " << queryPt << " on block " << leafBlk);
 
-  return false;  // query points on boundary might get here -- revisit this.
+  return false;
 }
 
 template <int DIM>
-template <int TDIM>
-typename std::enable_if<TDIM == 2, bool>::type InOutOctree<DIM>::withinGrayBlock(
-  const SpacePt& queryPt,
-  const BlockIndex& leafBlk,
-  const InOutBlockData& leafData) const
+bool InOutOctree<DIM>::withinGrayBlock2D(const SpacePt& queryPt,
+                                         const BlockIndex& leafBlk,
+                                         const InOutBlockData& leafData) const
 {
+  static_assert(DIM == 2, "withinGrayBlock2D is only valid for 2D InOutOctrees");
+
   /// Finds a ray from queryPt to a point of a segment within leafBlk.
   /// Then finds the first segment along this ray. The orientation of the ray
   /// against this segment's normal indicates queryPt's containment.
@@ -1253,6 +1330,19 @@ typename std::enable_if<TDIM == 2, bool>::type InOutOctree<DIM>::withinGrayBlock
 
   CellIndexSet segmentSet = leafCells(leafBlk, leafData);
   const int numSegments = segmentSet.size();
+
+  // First, handle the case where the query point lies on (or within the vertex welding tolerance of)
+  // one of the block's segments. Such points are 'within' the surface by convention,
+  // but the ray-orientation test below is degenerate for them.
+  for(int i = 0; i < numSegments; ++i)
+  {
+    if(primal::squared_distance(queryPt, m_meshWrapper.cellPositions(segmentSet[i])) <=
+       m_vertexWeldThresholdSquared)
+    {
+      return true;
+    }
+  }
+
   for(int i = 0; i < numSegments; ++i)
   {
     /// Get the segment
@@ -1352,7 +1442,7 @@ typename std::enable_if<TDIM == 2, bool>::type InOutOctree<DIM>::withinGrayBlock
 
   SLIC_DEBUG("Could not determine inside/outside for point " << queryPt << " on block " << leafBlk);
 
-  return false;  // query points on boundary might get here -- revisit this.
+  return false;
 }
 
 template <int DIM>
@@ -1482,7 +1572,7 @@ bool InOutOctree<DIM>::within(const SpacePt& pt) const
     case InOutBlockData::White:
       return false;
     case InOutBlockData::Gray:
-      return withinGrayBlock<DIM>(pt, block, data);
+      return withinGrayBlock(pt, block, data);
     case InOutBlockData::Undetermined:
       SLIC_ASSERT_MSG(false,
                       axom::fmt::format("Error -- All leaf blocks must have a color. The color of "
@@ -1502,30 +1592,29 @@ void InOutOctree<DIM>::printOctreeStats() const
   detail::InOutOctreeStats<DIM> octreeStats(*this);
   SLIC_INFO_ROOT(octreeStats.summaryStats());
 
-#ifdef DUMP_VTK_MESH
-  // Print out some debug meshes for vertex, triangle and/or blocks defined in
-  // DEBUG_XXX macros
+#ifdef DEBUG_OCTREE_ACTIVE
+  // Print out some debug meshes for vertex, triangle and/or blocks defined in DEBUG_XXX macros
   if(m_generationState >= INOUTOCTREE_ELEMENTS_INSERTED)
   {
     detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
 
     if(DEBUG_VERT_IDX >= 0 && DEBUG_VERT_IDX < m_meshWrapper.numMeshVertices())
     {
-      meshDumper.dumpLocalOctreeMeshesForCell("debug_", DEBUG_VERT_IDX);
+      meshDumper.dumpLocalOctreeMeshesForCell(vtkOutputPath("debug_"), DEBUG_VERT_IDX);
     }
     if(DEBUG_TRI_IDX >= 0 && DEBUG_TRI_IDX < m_meshWrapper.numMeshCells())
     {
-      meshDumper.dumpLocalOctreeMeshesForCell("debug_", DEBUG_TRI_IDX);
+      meshDumper.dumpLocalOctreeMeshesForCell(vtkOutputPath("debug_"), DEBUG_TRI_IDX);
     }
 
     if(DEBUG_BLOCK_1 != BlockIndex::invalid_index() && this->hasBlock(DEBUG_BLOCK_1))
     {
-      meshDumper.dumpLocalOctreeMeshesForBlock("debug_", DEBUG_BLOCK_1);
+      meshDumper.dumpLocalOctreeMeshesForBlock(vtkOutputPath("debug_"), DEBUG_BLOCK_1);
     }
 
     if(DEBUG_BLOCK_2 != BlockIndex::invalid_index() && this->hasBlock(DEBUG_BLOCK_2))
     {
-      meshDumper.dumpLocalOctreeMeshesForBlock("debug_", DEBUG_BLOCK_2);
+      meshDumper.dumpLocalOctreeMeshesForBlock(vtkOutputPath("debug_"), DEBUG_BLOCK_2);
     }
   }
 #endif
@@ -1557,40 +1646,30 @@ void InOutOctree<DIM>::checkValid() const
 template <int DIM>
 void InOutOctree<DIM>::dumpSurfaceMeshVTK(const std::string& name) const
 {
-#ifdef DUMP_VTK_MESH
-
   detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
-  meshDumper.dumpSurfaceMeshVTK(name);
-
-#else
-  AXOM_UNUSED_VAR(name);
-#endif
+  meshDumper.dumpSurfaceMeshVTK(vtkOutputPath(name));
 }
 
 template <int DIM>
 void InOutOctree<DIM>::dumpOctreeMeshVTK(const std::string& name) const
 {
-#ifdef DUMP_VTK_MESH
-
   detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
-  meshDumper.dumpOctreeMeshVTK(name);
-
-#else
-  AXOM_UNUSED_VAR(name);
-#endif
+  meshDumper.dumpOctreeMeshVTK(vtkOutputPath(name));
 }
 
 template <int DIM>
 void InOutOctree<DIM>::dumpDifferentColoredNeighborsMeshVTK(const std::string& name) const
 {
-#ifdef DUMP_VTK_MESH
-
   detail::InOutOctreeMeshDumper<DIM> meshDumper(*this);
-  meshDumper.dumpDifferentColoredNeighborsMeshVTK(name);
+  meshDumper.dumpDifferentColoredNeighborsMeshVTK(vtkOutputPath(name));
+}
 
-#else
-  AXOM_UNUSED_VAR(name);
-#endif
+template <int DIM>
+std::string InOutOctree<DIM>::vtkOutputPath(const std::string& name) const
+{
+  return m_vtkOutputDirectory.empty()
+    ? name
+    : axom::utilities::filesystem::joinPath(m_vtkOutputDirectory, name);
 }
 
 }  // end namespace quest
@@ -1598,5 +1677,3 @@ void InOutOctree<DIM>::dumpDifferentColoredNeighborsMeshVTK(const std::string& n
 
 // Note: The following needs to be included after InOutOctree is defined
 #include "detail/inout/InOutOctreeMeshDumper.hpp"
-
-#endif  // AXOM_QUEST_INOUT_OCTREE__HPP_

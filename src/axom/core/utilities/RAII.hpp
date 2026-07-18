@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file RAII.hpp
@@ -11,9 +14,6 @@
  *
  * For more information about RAII, see: https://en.cppreference.com/w/cpp/language/raii
  */
-
-#ifndef AXOM_CORE_RAII_HPP_
-#define AXOM_CORE_RAII_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -40,7 +40,15 @@ public:
   MPIWrapper(int argc, char** argv)
   {
 #ifdef AXOM_USE_MPI
-    MPI_Init(&argc, &argv);
+    int mpi_initialized = 0;
+    MPI_Initialized(&mpi_initialized);
+
+    if(mpi_initialized == 0)
+    {
+      MPI_Init(&argc, &argv);
+      m_should_finalize = true;
+    }
+
     MPI_Comm_rank(MPI_COMM_WORLD, &m_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &m_numranks);
 #else
@@ -53,7 +61,7 @@ public:
   ~MPIWrapper()
   {
 #ifdef AXOM_USE_MPI
-    if(is_initialized())
+    if(m_should_finalize)
     {
       MPI_Finalize();
     }
@@ -81,6 +89,7 @@ public:
 private:
   int m_rank {0};
   int m_numranks {1};
+  [[maybe_unused]] bool m_should_finalize {false};
 };
 
 /**
@@ -109,5 +118,3 @@ public:
 }  // namespace raii
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_CORE_RAII_HPP_

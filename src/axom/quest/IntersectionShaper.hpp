@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file IntersectionShaper.hpp
  *
  * \brief Helper class for intersection-based shaping queries
  */
-
-#ifndef AXOM_QUEST_INTERSECTION_SHAPER__HPP_
-#define AXOM_QUEST_INTERSECTION_SHAPER__HPP_
 
 #include "axom/config.hpp"
 
@@ -824,7 +824,8 @@ private:
         axom::fmt::format("{:-^80}", axom::fmt::format(" Refinement level set to {} ", m_level)));
 
       // Generate the Octahedra
-      // (octahedra m_octs will be on device)
+      // (Set m_octs's allocator id to where we want its data to live.)
+      m_octs = axom::Array<OctahedronType>(0, 0, axom::execution_space<ExecSpace>::allocatorID());
       const bool disc_status =
         axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
 
@@ -1967,13 +1968,15 @@ public:
     if(m_bpGrp)
     {
       auto fieldsGrp = m_bpGrp->getGroup("fields");
-      SLIC_ERROR_IF(fieldsGrp == nullptr, "Input blueprint mesh lacks the 'fields' Group/Node.");
-      for(auto& group : fieldsGrp->groups())
+      if(fieldsGrp != nullptr)
       {
-        std::string materialName = fieldNameToMaterialName(group.getName());
-        if(!materialName.empty())
+        for(auto& group : fieldsGrp->groups())
         {
-          materialNames.emplace_back(materialName);
+          std::string materialName = fieldNameToMaterialName(group.getName());
+          if(!materialName.empty())
+          {
+            materialNames.emplace_back(materialName);
+          }
         }
       }
     }
@@ -2606,7 +2609,7 @@ private:
 
 #if defined(__CUDACC__)
 public:
-    // These methods should be private, but NVCC complains unless they're public.
+  // These methods should be private, but NVCC complains unless they're public.
 #endif
 
   template <typename ExecSpace>
@@ -3022,5 +3025,3 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_INTERSECTION_SHAPER__HPP_

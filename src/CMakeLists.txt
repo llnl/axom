@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -41,7 +42,7 @@ else()
     endif()
 endif()
 
-if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
+if ("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
     # Set some default BLT options before loading BLT only if not included in
     # another project
     if (NOT BLT_CXX_STD)
@@ -54,8 +55,7 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
         VALGRIND
         ASTYLE
         CMAKEFORMAT
-        UNCRUSTIFY
-        YAPF)
+        UNCRUSTIFY)
     foreach(_tool ${_unused_blt_tools})
         set(ENABLE_${_tool} OFF CACHE BOOL "")
     endforeach()
@@ -68,7 +68,8 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
         CLANGAPPLYREPLACEMENTS
         CPPCHECK
         DOXYGEN
-        SPHINX)
+        SPHINX
+        YAPF)
     foreach(_tool ${_used_blt_tools})
         if(NOT ${_tool}_EXECUTABLE)
             set(ENABLE_${_tool} OFF CACHE BOOL "")
@@ -78,6 +79,7 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
     endforeach()
 
     set(BLT_REQUIRED_CLANGFORMAT_VERSION  "19" CACHE STRING "")
+    set(BLT_REQUIRED_YAPF_VERSION  "0.43.0" CACHE STRING "")
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy 
                    ${CMAKE_CURRENT_BINARY_DIR}/.clang-tidy
                    COPYONLY)
@@ -144,8 +146,8 @@ if(AXOM_ENABLE_TOOLS)
     add_subdirectory(tools)
 endif()
 
-# Using Axom install examples
-if (AXOM_ENABLE_EXAMPLES)
+# Installation examples ('Using Axom') and/or tutorials
+if(AXOM_ENABLE_EXAMPLES OR AXOM_ENABLE_TUTORIALS)
     add_subdirectory(examples)
 endif()
 

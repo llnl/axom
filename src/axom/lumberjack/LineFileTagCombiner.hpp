@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  *******************************************************************************
@@ -11,9 +14,6 @@
  * LineFileTagCombiner.
  *******************************************************************************
  */
-
-#ifndef LINEFILETAGCOMBINER_HPP
-#define LINEFILETAGCOMBINER_HPP
 
 #include "axom/lumberjack/Combiner.hpp"
 #include "axom/lumberjack/Message.hpp"
@@ -44,7 +44,7 @@ public:
    *  Lumberjack to differentiate between other combiners.
    *****************************************************************************
    */
-  const std::string id() { return m_id; }
+  const std::string id() override { return m_id; }
 
   /*!
    *****************************************************************************
@@ -60,7 +60,7 @@ public:
    *****************************************************************************
    */
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
-                                const axom::lumberjack::Message& rightMessage)
+                                const axom::lumberjack::Message& rightMessage) override
   {
     return ((leftMessage.lineNumber() == rightMessage.lineNumber()) &&
             leftMessage.fileName().compare(rightMessage.fileName()) == 0 &&
@@ -87,7 +87,7 @@ public:
    */
   void combine(axom::lumberjack::Message& combined,
                const axom::lumberjack::Message& combinee,
-               const int ranksLimit)
+               const int ranksLimit) override
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
     if(combinee.creationTime() < combined.creationTime())
@@ -102,5 +102,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

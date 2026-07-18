@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -68,10 +69,8 @@ int main(int, char**)
   const int sz = 5;
   HandleSet::IndirectionBufferType vecHandle(sz);
 
-  // Create a set of handles
-  HandleSet hSet = HandleSet::SetBuilder()  //
-                     .size(sz)              //
-                     .data(&vecHandle);
+  // Create a set of handles (helper deduces the set policy stack)
+  HandleSet hSet = slam::make_indirection_set(vecHandle);
 
   // Add handles with (somewhat) arbitrary IDs to the set
   for(auto i : hSet.positions())

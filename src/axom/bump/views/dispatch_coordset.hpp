@@ -1,12 +1,13 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_COORDSET_HPP_
-#define AXOM_BUMP_DISPATCH_COORDSET_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/views/dispatch_utilities.hpp"
 #include "axom/bump/views/ExplicitCoordsetView.hpp"
 #include "axom/bump/views/UniformCoordsetView.hpp"
 #include "axom/bump/views/RectilinearCoordsetView.hpp"
@@ -41,7 +42,10 @@ struct make_rectilinear_coordset<DataType, 3>
   static CoordsetView view(const conduit::Node &coordset)
   {
     namespace utils = axom::bump::utilities;
+    verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
+    SLIC_ERROR_IF(values.number_of_children() != 3,
+                  "3D rectilinear coordsets require 3 component arrays.");
     auto xView = utils::make_array_view<DataType>(values[0]);
     auto yView = utils::make_array_view<DataType>(values[1]);
     auto zView = utils::make_array_view<DataType>(values[2]);
@@ -65,7 +69,10 @@ struct make_rectilinear_coordset<DataType, 2>
   static CoordsetView view(const conduit::Node &coordset)
   {
     namespace utils = axom::bump::utilities;
+    verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
+    SLIC_ERROR_IF(values.number_of_children() != 2,
+                  "2D rectilinear coordsets require 2 component arrays.");
     auto xView = utils::make_array_view<DataType>(values[0]);
     auto yView = utils::make_array_view<DataType>(values[1]);
     return CoordsetView(xView, yView);
@@ -94,6 +101,7 @@ struct make_uniform_coordset<3>
    */
   static CoordsetView view(const conduit::Node &coordset)
   {
+    verify(coordset, "coordset");
     const std::string keys[] = {"i", "j", "k"};
     const conduit::Node &n_dims = coordset["dims"];
     axom::StackArray<axom::IndexType, 3> dims;
@@ -101,6 +109,7 @@ struct make_uniform_coordset<3>
     for(int i = 0; i < 3; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
+      SLIC_ERROR_IF(dims[i] <= 0, "Dimension must be greater than or equal to 1.");
       if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
       if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
     }
@@ -123,6 +132,7 @@ struct make_uniform_coordset<2>
    */
   static CoordsetView view(const conduit::Node &coordset)
   {
+    verify(coordset, "coordset");
     const std::string keys[] = {"i", "j"};
     const conduit::Node &n_dims = coordset["dims"];
     axom::StackArray<axom::IndexType, 2> dims;
@@ -130,6 +140,7 @@ struct make_uniform_coordset<2>
     for(int i = 0; i < 2; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
+      SLIC_ERROR_IF(dims[i] <= 0, "Dimension must be greater than or equal to 1.");
       if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
       if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
     }
@@ -149,6 +160,7 @@ struct make_uniform_coordset<2>
 template <typename FuncType>
 void dispatch_uniform_coordset(const conduit::Node &coordset, FuncType &&func)
 {
+  verify(coordset, "coordset");
   const conduit::Node &n_dims = coordset["dims"];
   const conduit::index_t ndims = n_dims.number_of_children();
   if(ndims == 2)
@@ -160,6 +172,10 @@ void dispatch_uniform_coordset(const conduit::Node &coordset, FuncType &&func)
   {
     auto coordsetView = make_uniform_coordset<3>::view(coordset);
     func(coordsetView);
+  }
+  else
+  {
+    SLIC_ERROR("Unsupported number of dimensions.");
   }
 }
 
@@ -175,17 +191,18 @@ void dispatch_uniform_coordset(const conduit::Node &coordset, FuncType &&func)
 template <typename FuncType>
 void dispatch_rectilinear_coordset(const conduit::Node &coordset, FuncType &&func)
 {
+  verify(coordset, "coordset");
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+    axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
       RectilinearCoordsetView2<typename decltype(xView)::value_type> coordView(xView, yView);
       func(coordView);
     });
   }
   else if(values.number_of_children() == 3)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(
+    axom::bump::views::floatNodeToArrayViewSame(
       values[0],
       values[1],
       values[2],
@@ -193,6 +210,10 @@ void dispatch_rectilinear_coordset(const conduit::Node &coordset, FuncType &&fun
         RectilinearCoordsetView3<typename decltype(xView)::value_type> coordView(xView, yView, zView);
         func(coordView);
       });
+  }
+  else
+  {
+    SLIC_ERROR("Unsupported number of dimensions.");
   }
 }
 
@@ -219,7 +240,10 @@ struct make_explicit_coordset<DataType, 3>
   static CoordsetView view(const conduit::Node &coordset)
   {
     namespace utils = axom::bump::utilities;
+    verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
+    SLIC_ERROR_IF(values.number_of_children() != 3,
+                  "3D explicit coordsets require 3 component arrays.");
     auto x = utils::make_array_view<DataType>(values[0]);
     auto y = utils::make_array_view<DataType>(values[1]);
     auto z = utils::make_array_view<DataType>(values[2]);
@@ -243,7 +267,10 @@ struct make_explicit_coordset<DataType, 2>
   static CoordsetView view(const conduit::Node &coordset)
   {
     namespace utils = axom::bump::utilities;
+    verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
+    SLIC_ERROR_IF(values.number_of_children() != 2,
+                  "2D explicit coordsets require 2 component arrays.");
     auto x = utils::make_array_view<DataType>(values[0]);
     auto y = utils::make_array_view<DataType>(values[1]);
     return CoordsetView(x, y);
@@ -262,17 +289,18 @@ struct make_explicit_coordset<DataType, 2>
 template <typename FuncType>
 void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
 {
+  verify(coordset, "coordset");
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+    axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
       ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordView(xView, yView);
       func(coordView);
     });
   }
   else if(values.number_of_children() == 3)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(
+    axom::bump::views::floatNodeToArrayViewSame(
       values[0],
       values[1],
       values[2],
@@ -280,6 +308,10 @@ void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
         ExplicitCoordsetView<typename decltype(xView)::value_type, 3> coordView(xView, yView, zView);
         func(coordView);
       });
+  }
+  else
+  {
+    SLIC_ERROR("Unsupported number of dimensions.");
   }
 }
 
@@ -315,5 +347,3 @@ void dispatch_coordset(const conduit::Node &coordset, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

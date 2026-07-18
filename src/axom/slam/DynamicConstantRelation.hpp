@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file DynamicConstantRelation.hpp
@@ -13,9 +16,6 @@
  *
  * This relation is dynamic; the related entities can change at runtime.
  */
-
-#ifndef SLAM_DYNAMIC_CONSTANT_RELATION_HPP_
-#define SLAM_DYNAMIC_CONSTANT_RELATION_HPP_
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
@@ -383,6 +383,12 @@ public:
     }
   }
 
+  /// \brief Reserves storage for at least \a fromSetSize relation entries.
+  void reserve(SetPosition fromSetSize)
+  {
+    m_relationsVec.reserve(fromSetSize * relationCardinality());
+  }
+
   void updateSizes()
   {
     m_currentFromSize = m_fromSet->size();
@@ -565,5 +571,3 @@ bool DynamicConstantRelation<PosType, ElemType, CardinalityPolicy>::isValid(bool
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_CONSTANT_RELATION_HPP_

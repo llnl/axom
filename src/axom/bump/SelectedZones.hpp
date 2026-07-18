@@ -1,9 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_SELECTED_ZONES_HPP_
-#define AXOM_BUMP_SELECTED_ZONES_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 
@@ -28,8 +29,8 @@ public:
    * \brief Constructor
    *
    * \param nzones The total number of zones in the associated topology.
-   * \param n_options The node that contains the clipping options.
-   * \param selectionKey The name of the node with the selection data in the options.
+   * \param n_options The node that contains the options.
+   * \param selection_key The name of the node with the selection data in the options.
    *
    * The n_options node contains options that influence how the class runs.
    * The options can contain a "selectedZones" node that contains an array of
@@ -43,12 +44,15 @@ public:
    */
   SelectedZones(axom::IndexType nzones,
                 const conduit::Node &n_options,
-                const std::string &selectionKey = std::string("selectedZones"))
-    : m_selectedZones()
+                const std::string &selection_key = std::string("selectedZones"),
+                int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
+    : m_selectionKey(selection_key)
+    , m_selectedZones()
     , m_selectedZonesView()
     , m_sorted(true)
+    , m_allocator_id(allocator_id)
   {
-    buildSelectedZones(nzones, n_options, selectionKey);
+    buildSelectedZones(nzones, n_options);
   }
 
   /*!
@@ -62,8 +66,17 @@ public:
   /*!
    * \brief Return a view that contains the list of selected zone ids for the mesh.
    * \return A view that contains the list of selected zone ids for the mesh.
+   *
+   * \note Return a copy of the view.
    */
-  const axom::ArrayView<axom::IndexType> &view() const { return m_selectedZonesView; }
+  const axom::ArrayView<axom::IndexType> view() const { return m_selectedZonesView; }
+
+  /*!
+   * \brief Return the selection key for the options.
+   *
+   * \return The name of the key in the options that this class looks for.
+   */
+  const std::string &selectionKey() const { return m_selectionKey; }
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
@@ -78,49 +91,44 @@ protected:
    *
    * \param nzones The total number of zones that are possible.
    * \param n_options A Conduit node that contains the selection.
-   * \param selectionKey The name of the node with the selection data in the options.
    *
    * \note selectedZones should contain local zone numbers, which in the case of
    *       strided-structured indexing are the [0..n) zone numbers that exist only
    *       within the selected window.
    */
-  void buildSelectedZones(axom::IndexType nzones,
-                          const conduit::Node &n_options,
-                          const std::string &selectionKey)
+  void buildSelectedZones(axom::IndexType nzones, const conduit::Node &n_options)
   {
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-
-    if(n_options.has_path(selectionKey))
+    if(n_options.has_path(m_selectionKey))
     {
       // Store the zone list in m_selectedZones.
-      int badValueCount = 0;
-      views::IndexNode_to_ArrayView(n_options[selectionKey], [&](auto zonesView) {
+      int bad_value_count = 0;
+      views::indexNodeToArrayView(n_options[m_selectionKey], [&](auto zones_view) {
         // It probably does not make sense to request more zones than we have in the mesh.
-        SLIC_ASSERT(zonesView.size() <= nzones);
+        SLIC_ASSERT(zones_view.size() <= nzones);
 
-        badValueCount = buildSelectedZones(zonesView, nzones);
+        bad_value_count = buildSelectedZones(zones_view, nzones);
       });
 
-      if(badValueCount > 0)
+      if(bad_value_count > 0)
       {
-        SLIC_ERROR(axom::fmt::format("Out of range {} values.", selectionKey));
+        SLIC_ERROR(axom::fmt::format("Out of range {} values.", m_selectionKey));
       }
     }
     else
     {
       // Select all zones.
-      m_selectedZones = axom::Array<axom::IndexType>(nzones, nzones, allocatorID);
-      auto szView = m_selectedZonesView = m_selectedZones.view();
+      m_selectedZones = axom::Array<axom::IndexType>(nzones, nzones, m_allocator_id);
+      auto sz_view = m_selectedZonesView = m_selectedZones.view();
       axom::for_all<ExecSpace>(
         nzones,
-        AXOM_LAMBDA(axom::IndexType zoneIndex) { szView[zoneIndex] = zoneIndex; });
+        AXOM_LAMBDA(axom::IndexType zone_index) { sz_view[zone_index] = zone_index; });
     }
   }
 
   /*!
    * \brief Help build the selected zones, converting them to axom::IndexType and sorting them.
    *
-   * \param zonesView The view that contains the source zone ids.
+   * \param zones_view The view that contains the source zone ids.
    * \param nzones The number of zones in the mesh.
    *
    * \return The number of invalid zone ids.
@@ -130,31 +138,31 @@ protected:
    *       lambda.
    */
   template <typename ZonesViewType>
-  int buildSelectedZones(ZonesViewType zonesView, axom::IndexType nzones)
+  int buildSelectedZones(ZonesViewType zones_view, axom::IndexType nzones)
   {
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    m_selectedZones = axom::Array<axom::IndexType>(zonesView.size(), zonesView.size(), allocatorID);
-    auto szView = m_selectedZonesView = m_selectedZones.view();
+    m_selectedZones =
+      axom::Array<axom::IndexType>(zones_view.size(), zones_view.size(), m_allocator_id);
+    auto sz_view = m_selectedZonesView = m_selectedZones.view();
     axom::for_all<ExecSpace>(
-      szView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { szView[index] = zonesView[index]; });
+      sz_view.size(),
+      AXOM_LAMBDA(axom::IndexType index) { sz_view[index] = zones_view[index]; });
 
     // Check that the selected zone values are in range.
-    axom::ReduceSum<ExecSpace, int> errReduce(0);
+    axom::ReduceSum<ExecSpace, int> err_reduce(0);
     axom::for_all<ExecSpace>(
-      szView.size(),
+      sz_view.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-        const int err = (szView[index] < 0 || szView[index] >= nzones) ? 1 : 0;
-        errReduce += err;
+        const int err = (sz_view[index] < 0 || sz_view[index] >= nzones) ? 1 : 0;
+        err_reduce += err;
       });
 
     if(m_sorted)
     {
       // Make sure the selectedZones are sorted.
-      axom::sort<ExecSpace>(szView);
+      axom::sort<ExecSpace>(sz_view);
     }
 
-    return errReduce.get();
+    return err_reduce.get();
   }
 
 // The following members are protected (unless using CUDA)
@@ -162,12 +170,12 @@ protected:
 protected:
 #endif
 
+  std::string m_selectionKey;
   axom::Array<axom::IndexType> m_selectedZones;  // Storage for a list of selected zone ids.
   axom::ArrayView<axom::IndexType> m_selectedZonesView;
   bool m_sorted;
+  int m_allocator_id;
 };
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

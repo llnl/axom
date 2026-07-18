@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_TEST_UTILITIES_HPP_
-#define QUEST_TEST_UTILITIES_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -470,5 +470,3 @@ mint::Mesh* make_circle_mesh_2d(double radius, int num_segments)
 }  // end namespace utilities
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // QUEST_TEST_UTILITIES_HPP_

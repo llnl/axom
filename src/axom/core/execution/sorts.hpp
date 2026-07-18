@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_SORTS_HPP_
-#define AXOM_CORE_EXECUTION_SORTS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -153,4 +153,3 @@ inline void stable_sort_pairs(Container1 &input1, Container2 &input2)
 }
 
 }  // namespace axom
-#endif

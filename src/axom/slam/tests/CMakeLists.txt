@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -21,6 +22,7 @@ set(gtest_slam_tests
     slam_set_DynamicSet.cpp
     slam_set_Iterator.cpp
     slam_set_BivariateSet.cpp    
+    slam_set_BivariateSet_device.cpp
 
     # test relations
     slam_relation_StaticVariable.cpp
@@ -38,10 +40,14 @@ set(gtest_slam_tests
     slam_AccessingRelationDataInMap.cpp
 
     # aux tests
+    slam_FieldRegistry.cpp
+    slam_make_helpers.cpp
     slam_ModularInt.cpp
+    slam_static_asserts.cpp
     
     #mesh structure test
     slam_IA.cpp
+    slam_detail_FacetPairingMap.cpp
     )
 
 

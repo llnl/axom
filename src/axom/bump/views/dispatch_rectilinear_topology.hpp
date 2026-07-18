@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_RECTILINEAR_TOPOLOGY_HPP_
-#define AXOM_BUMP_DISPATCH_RECTILINEAR_TOPOLOGY_HPP_
+#pragma once
 
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/StructuredIndexing.hpp"
@@ -40,6 +40,7 @@ struct make_rectilinear_topology<3>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
+    verify(topo, "topology");
     const conduit::Node *coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
@@ -77,6 +78,7 @@ struct make_rectilinear_topology<2>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
+    verify(topo, "topology");
     const conduit::Node *coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
@@ -113,6 +115,7 @@ struct make_rectilinear_topology<1>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
+    verify(topo, "topology");
     const conduit::Node *coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
@@ -221,6 +224,7 @@ struct dispatch_one_rectilinear_topology<true, 1, FuncType>
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_rectilinear_topology(const conduit::Node &topo, FuncType &&func)
 {
+  verify(topo, "topology");
   const conduit::Node *coordset =
     conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
   SLIC_ASSERT(coordset != nullptr);
@@ -250,5 +254,3 @@ void dispatch_rectilinear_topology(const conduit::Node &topo, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

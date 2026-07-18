@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_SCANS_HPP_
-#define AXOM_CORE_EXECUTION_SCANS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -60,6 +60,8 @@ template <typename ExecSpace, typename Container1, typename Container2>
 inline void exclusive_scan(const Container1 &input, Container2 &&output)
 {
   assert(input.size() == output.size());
+  using OutContainer = std::remove_reference_t<Container2>;
+  using OutValue = std::remove_cv_t<typename OutContainer::value_type>;
 
 #if defined(AXOM_USE_RAJA)
   #if defined(AXOM_USE_OPENMP) && defined(__INTEL_LLVM_COMPILER)
@@ -72,18 +74,20 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
   using exec_space = ExecSpace;
   #endif
   using loop_policy = typename axom::execution_space<exec_space>::loop_policy;
+
   RAJA::exclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
-                                    RAJA::make_span(output.data(), output.size()));
+                                    RAJA::make_span(output.data(), output.size()),
+                                    RAJA::operators::plus<OutValue> {});
 
 #else
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<typename Container1::value_type>::type total {0};
+  OutValue total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     output[i] = total;
-    total += input[i];
+    total += static_cast<OutValue>(input[i]);
   }
 #endif
 }
@@ -113,7 +117,10 @@ inline void exclusive_scan_inplace(Container &&input)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<typename Container::value_type>::type total {0};
+  using OutContainer = std::remove_reference_t<Container>;
+  using OutValue = std::remove_cv_t<typename OutContainer::value_type>;
+
+  OutValue total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     const auto tmp = input[i];
@@ -159,20 +166,23 @@ template <typename ExecSpace, typename Container1, typename Container2>
 inline void inclusive_scan(const Container1 &input, Container2 &&output)
 {
   assert(input.size() == output.size());
+  using OutContainer = std::remove_reference_t<Container2>;
+  using OutValue = std::remove_cv_t<typename OutContainer::value_type>;
 
 #if defined(AXOM_USE_RAJA)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   RAJA::inclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
-                                    RAJA::make_span(output.data(), output.size()));
+                                    RAJA::make_span(output.data(), output.size()),
+                                    RAJA::operators::plus<OutValue> {});
 
 #else
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<typename Container1::value_type>::type total {0};
+  OutValue total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
-    total += input[i];
+    total += static_cast<OutValue>(input[i]);
     output[i] = total;
   }
 #endif
@@ -203,7 +213,10 @@ inline void inclusive_scan_inplace(Container &&input)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<typename Container::value_type>::type total {0};
+  using OutContainer = std::remove_reference_t<Container>;
+  using OutValue = std::remove_cv_t<typename OutContainer::value_type>;
+
+  OutValue total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     total += input[i];
@@ -215,5 +228,3 @@ inline void inclusive_scan_inplace(Container &&input)
 /// @}
 
 }  // namespace axom
-
-#endif  // AXOM_CORE_EXECUTION_FOR_ALL_HPP_

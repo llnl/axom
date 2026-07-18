@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -20,6 +21,7 @@ set(gtest_sidre_tests
    sidre_external.cpp
    sidre_group.cpp
    sidre_opaque.cpp
+   sidre_checksum.cpp
    sidre_view.cpp
    sidre_native_layout.cpp
    sidre_attribute.cpp
@@ -49,10 +51,14 @@ set(fruit_sidre_tests
 
 set(python_sidre_tests
    sidre_smoke_Py.py
+   sidre_datastore_unit_Py.py
    sidre_group_Py.py
    sidre_buffer_Py.py
    sidre_view_Py.py
    sidre_external_Py.py
+   sidre_attribute_Py.py
+   sidre_lifetime_Py.py
+   sidre_import_Py.py
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)
@@ -118,22 +124,30 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
     foreach(test ${python_sidre_tests})
         get_filename_component( test_name ${test} NAME_WE )
 
-        # Run unit test with pytest
-        # "-p no:cacheprovider" disables caching
-        #
-        # Need to invoke with "python3 -m pytest" to get generated nanobind library added to search path:
-        # https://docs.pytest.org/en/latest/explanation/pythonpath.html#invoking-pytest-versus-python-m-pytest
-        add_test (NAME    ${test_name}
-          COMMAND ${Python_EXECUTABLE} -m pytest -s -p no:cacheprovider ${CMAKE_CURRENT_SOURCE_DIR}/${test}
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib
-        )
+        axom_add_python_test( NAME ${test_name}
+                              SOURCE ${test}
+                              OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                              )
     endforeach()
+
+    if(AXOM_ENABLE_MPI)
+        set(_sidre_spio_py_num_ranks 4)
+    else()
+        set(_sidre_spio_py_num_ranks 1)
+    endif()
+
+    axom_add_python_test( NAME sidre_spio_Py
+                          SOURCE sidre_spio_Py.py
+                          OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                          NUM_MPI_TASKS ${_sidre_spio_py_num_ranks}
+                          )
+    unset(_sidre_spio_py_num_ranks)
 endif()
 
 #------------------------------------------------------------------------------
 # Add MFEMSidreDataCollection tests
 #------------------------------------------------------------------------------
-if (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if (MFEM_FOUND)
     axom_add_executable(NAME sidre_mfem_datacollection_test
                         SOURCES sidre_mfem_datacollection.cpp
                         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}

@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_UTILITIES_PRIMAL_ADAPTOR_HPP_
-#define AXOM_BUMP_UTILITIES_PRIMAL_ADAPTOR_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -131,7 +131,7 @@ struct AdaptPolyhedron
     // Sort the ids.
     const axom::IndexType nnodes = uniqueNodeIds.size();
     StaticArray<int, Polyhedron::MAX_VERTS> ids;
-    SLIC_ASSERT(nnodes < Polyhedron::MAX_VERTS);
+    SLIC_ASSERT(nnodes <= Polyhedron::MAX_VERTS);
     for(axom::IndexType i = 0; i < nnodes; i++)
     {
       ids.push_back(uniqueNodeIds[i]);
@@ -310,19 +310,31 @@ struct AdaptPolyhedron<TopologyView, CoordsetView, true>
  *
  * \tparam TopologyView The topology view type.
  * \tparam CoordsetView The coordset view type.
+ * \tparam MAX_VERTS_2D The maximum number of vertices allowed in a polygon.
  * \tparam makeFaces Whether to make faces for polyhedral shapes or to make primal::Polyhedron.
  */
-template <typename TopologyView, typename CoordsetView, bool makeFaces = false>
+template <typename TopologyView, typename CoordsetView, int MAX_VERTS_2D = 12, bool makeFaces = false>
 struct PrimalAdaptor
 {
   using value_type = typename CoordsetView::value_type;
   using Polygon =
-    axom::primal::Polygon<value_type, CoordsetView::dimension(), axom::primal::PolygonArray::Static>;
+    axom::primal::Polygon<value_type, CoordsetView::dimension(), axom::primal::PolygonArray::Static, MAX_VERTS_2D>;
   using Tetrahedron = axom::primal::Tetrahedron<value_type, CoordsetView::dimension()>;
   using Hexahedron = axom::primal::Hexahedron<value_type, CoordsetView::dimension()>;
   using Polyhedron =
     typename AdaptPolyhedron<TopologyView, CoordsetView, makeFaces>::PolyhedralRepresentation;
   using BoundingBox = axom::primal::BoundingBox<value_type, CoordsetView::dimension()>;
+
+  /*!
+   * \brief Constructor
+   *
+   * \param topologyView The topology view to use for initialization.
+   * \param coordsetView The coordset view to use for initialization.
+   */
+  AXOM_HOST_DEVICE PrimalAdaptor(const TopologyView &topologyView, const CoordsetView &coordsetView)
+    : m_topologyView(topologyView)
+    , m_coordsetView(coordsetView)
+  { }
 
   /*!
    * \brief Return the number of zones in the associated topology view.
@@ -434,11 +446,11 @@ struct PrimalAdaptor
       (std::is_same<ShapeType, axom::bump::views::PyramidShape<typename ShapeType::ConnectivityType>>::value ||
        std::is_same<ShapeType, axom::bump::views::WedgeShape<typename ShapeType::ConnectivityType>>::value ||
        std::is_same<ShapeType, axom::bump::views::VariableShape<typename ShapeType::ConnectivityType>>::value),
-    VariableShape<value_type, 3>>::type
+    axom::bump::VariableShape<value_type, 3>>::type
   getShape(axom::IndexType zi) const
   {
     const auto zone = m_topologyView.zone(zi);
-    VariableShape<value_type, 3> shape;
+    axom::bump::VariableShape<value_type, 3> shape;
     shape.m_shapeId = zone.id();
     for(int i = 0; i < zone.numberOfNodes(); i++)
     {
@@ -470,5 +482,3 @@ struct PrimalAdaptor
 
 }  // namespace bump
 }  // namespace axom
-
-#endif

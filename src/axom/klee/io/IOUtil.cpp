@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -86,7 +87,7 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Cont
     {
       throw KleeError({container.name(), "Can't specify 'units' with 'start_units' or 'end_units'"});
     }
-    auto units = parseLengthUnits(container["units"]);
+    auto units = internal::parseLengthUnits(container["units"]);
     return std::make_tuple(units, units);
   }
   else if(hasStartUnits || hasEndUnits)
@@ -95,8 +96,8 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Cont
     {
       throw KleeError({container.name(), "Must specify both 'start_units' and 'end_units'"});
     }
-    auto startUnits = parseLengthUnits(container["start_units"]);
-    auto endUnits = parseLengthUnits(container["end_units"]);
+    auto startUnits = internal::parseLengthUnits(container["start_units"]);
+    auto endUnits = internal::parseLengthUnits(container["end_units"]);
     return std::make_tuple(startUnits, endUnits);
   }
   return std::make_tuple(LengthUnit::unspecified, LengthUnit::unspecified);

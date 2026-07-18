@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -813,19 +814,19 @@ int main(int argc, char** argv)
   {
     runTest<axom::SEQ_EXEC>();
   }
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(params.runtimePolicy == RuntimePolicy::omp)
   {
     runTest<axom::OMP_EXEC>();
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(params.runtimePolicy == RuntimePolicy::cuda)
   {
     runTest<axom::CUDA_EXEC<256>>();
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(params.runtimePolicy == RuntimePolicy::hip)
   {
     runTest<axom::HIP_EXEC<256>>();

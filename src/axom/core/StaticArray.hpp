@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_STATICARRAY_HPP_
-#define AXOM_STATICARRAY_HPP_
+#pragma once
 
 #include "axom/config.hpp"           // for compile-time defines
 #include "axom/core/Macros.hpp"      // for axom macros
@@ -35,7 +35,7 @@ public:
   AXOM_HOST_DEVICE StaticArray() : StackArray<T, N>(), m_size(0)
   {
 #if defined(AXOM_DEBUG)
-    for(axom::IndexType i = 0; i < m_size; i++)
+    for(axom::IndexType i = 0; i < N; i++)
     {
       StackArray<T, N>::m_data[i] = T {};
     }
@@ -63,8 +63,13 @@ public:
    * \brief Copy assignment operator.
    * \param obj The object to be copied.
    */
-  AXOM_HOST_DEVICE StaticArray operator=(const StaticArray &obj)
+  AXOM_HOST_DEVICE StaticArray &operator=(const StaticArray &obj)
   {
+    if(this == &obj)
+    {
+      return *this;
+    }
+
     for(axom::IndexType i = 0; i < obj.m_size; i++)
     {
       StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];
@@ -157,5 +162,3 @@ private:
 };
 
 } /* namespace axom */
-
-#endif /* AXOM_STATICARRAY_HPP_ */

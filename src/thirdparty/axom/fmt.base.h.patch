@@ -1,0 +1,19 @@
+--- fmt/include/fmt/base.h	2026-01-13 17:05:51.939962000 -0800
++++ base.h	2026-01-14 11:21:24.597176000 -0800
+@@ -458,7 +458,15 @@
+ enum { use_utf8 = !FMT_WIN32 || is_utf8_enabled };
+ 
+ #ifndef FMT_UNICODE
+-#  define FMT_UNICODE 1
++// BEGIN AXOM BUGFIX
++// Make Unicode support conditional on whether it appears enabled instead of
++// requiring the compiler be invoked with special /utf-8 command line argument.
++#  ifdef FMT_WIN32
++#    define FMT_UNICODE is_utf8_enabled
++#  else
++#    define FMT_UNICODE 1
++#  endif
++// END AXOM BUGFIX
+ #endif
+ 
+ static_assert(!FMT_UNICODE || use_utf8,

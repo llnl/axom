@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_SHAPES_HPP_
-#define AXOM_BUMP_VIEWS_SHAPES_HPP_
+#pragma once
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
@@ -41,6 +41,22 @@ enum
 };
 
 /*!
+ * \brief Determine whether a value is a valid ShapeID.
+ *
+ * \param shapeID The value to test for validity.
+ *
+ * \return True if the value is a valid ShapeID; False otherwise.
+ */
+template <typename T>
+AXOM_HOST_DEVICE constexpr bool isValidShapeID(T shapeID)
+{
+  return shapeID >= static_cast<T>(Point_ShapeID) && shapeID <= static_cast<T>(Mixed_ShapeID);
+}
+
+/// prototype
+AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId);
+
+/*!
  \brief Point type traits.
 
 \verbatim
@@ -70,7 +86,7 @@ struct PointTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 1> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -119,7 +135,7 @@ struct LineTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 2> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -173,7 +189,7 @@ struct TriTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 3> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -228,7 +244,7 @@ struct QuadTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 4> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -521,6 +537,21 @@ struct PolygonTraits
 };
 
 /*!
+ * \brief Polyhedron shape traits.
+ *
+ * \note This struct contains a subset of the interface used in some other shape
+ *       traits.
+ */
+struct PolyhedronTraits
+{
+  AXOM_HOST_DEVICE constexpr static int id() { return Polyhedron_ShapeID; }
+  AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return true; }
+  AXOM_HOST_DEVICE constexpr static bool is_variable_size() { return true; }
+  AXOM_HOST_DEVICE constexpr static IndexType dimension() { return 3; }
+  AXOM_HOST_DEVICE constexpr static const char *name() { return "polyhedral"; }
+};
+
+/*!
  * \brief This struct represents a polygon zone.
  */
 template <typename ConnType>
@@ -529,8 +560,8 @@ struct PolygonShape : public PolygonTraits
   using ConnectivityType = ConnType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
   using ConnectivityStorage = ConnectivityType;
-  using ConnectivityStorageRef = ConnectivityType &;
-  using ConnectivityStorageConstRef = const ConnectivityType &;
+  using ConnectivityStorageRef = ConnectivityView &;
+  using ConnectivityStorageConstRef = const ConnectivityView &;
 
   /*!
    * \brief Construct a shape.
@@ -812,7 +843,7 @@ struct VariableShape
   AXOM_HOST_DEVICE
   VariableShape(int shapeId, ConnectivityStorageConstRef ids) : m_shapeId(shapeId), m_ids(ids)
   {
-    SLIC_ASSERT(shapeId >= Point_ShapeID && shapeId <= Hex_ShapeID);
+    SLIC_ASSERT(isValidShapeID(shapeId));
   }
 
   /*!
@@ -824,41 +855,7 @@ struct VariableShape
   AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return false; }
   AXOM_HOST_DEVICE constexpr static bool is_variable_size() { return true; }
 
-  AXOM_HOST_DEVICE IndexType dimension() const
-  {
-    IndexType dim = 2;
-    switch(m_shapeId)
-    {
-    case Point_ShapeID:
-      dim = PointTraits::dimension();
-      break;
-    case Line_ShapeID:
-      dim = LineTraits::dimension();
-      break;
-    case Tri_ShapeID:
-      dim = TriTraits::dimension();
-      break;
-    case Quad_ShapeID:
-      dim = QuadTraits::dimension();
-      break;
-    case Polygon_ShapeID:
-      dim = PolygonTraits::dimension();
-      break;
-    case Tet_ShapeID:
-      dim = TetTraits::dimension();
-      break;
-    case Pyramid_ShapeID:
-      dim = PyramidTraits::dimension();
-      break;
-    case Wedge_ShapeID:
-      dim = WedgeTraits::dimension();
-      break;
-    case Hex_ShapeID:
-      dim = HexTraits::dimension();
-      break;
-    }
-    return dim;
-  }
+  AXOM_HOST_DEVICE IndexType dimension() const { return shapeDimension(m_shapeId); }
 
   AXOM_HOST_DEVICE IndexType numberOfNodes() const { return m_ids.size(); }
 
@@ -1106,6 +1103,20 @@ struct VariableShape
 
   AXOM_HOST_DEVICE constexpr static const char *name() { return "mixed"; }
 
+  /*!
+   * \brief Get the storage for the ids that make up this shape.
+   *
+   * \return The container for the ids that make up this shape.
+   */
+  AXOM_HOST_DEVICE ConnectivityStorageRef getIdsStorage() { return m_ids; }
+
+  /*!
+   * \brief Get the storage for the ids that make up this shape.
+   *
+   * \return The container for the ids that make up this shape.
+   */
+  AXOM_HOST_DEVICE ConnectivityStorageConstRef getIdsStorage() const { return m_ids; }
+
 private:
   int m_shapeId;
   ConnectivityStorage m_ids;
@@ -1146,8 +1157,57 @@ inline int shapeNameToID(const std::string &name)
   return id;
 }
 
+/*!
+ * \brief Return the dimension for the specified shape id.
+ *
+ * \param shapeId The shape id.
+ *
+ * \return The dimension for the shape id.
+ *
+ * \note We can't tell the dimension for mixed shapes from the id alone. Return -1.
+ */
+AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId)
+{
+  IndexType dim = 2;
+  switch(shapeId)
+  {
+  case Point_ShapeID:
+    dim = PointTraits::dimension();
+    break;
+  case Line_ShapeID:
+    dim = LineTraits::dimension();
+    break;
+  case Tri_ShapeID:
+    dim = TriTraits::dimension();
+    break;
+  case Quad_ShapeID:
+    dim = QuadTraits::dimension();
+    break;
+  case Polygon_ShapeID:
+    dim = PolygonTraits::dimension();
+    break;
+  case Tet_ShapeID:
+    dim = TetTraits::dimension();
+    break;
+  case Pyramid_ShapeID:
+    dim = PyramidTraits::dimension();
+    break;
+  case Wedge_ShapeID:
+    dim = WedgeTraits::dimension();
+    break;
+  case Hex_ShapeID:
+    dim = HexTraits::dimension();
+    break;
+  case Polyhedron_ShapeID:
+    dim = 3;
+    break;
+  case Mixed_ShapeID:
+    dim = -1;
+    break;
+  }
+  return dim;
+}
+
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

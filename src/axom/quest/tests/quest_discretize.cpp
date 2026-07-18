@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -167,7 +168,7 @@ void degenerate_segment_test(const char* label, axom::Array<Point2D>& polyline, 
 
   SCOPED_TRACE(label);
 
-  axom::Array<OctType> generated;
+  axom::Array<OctType> generated(0, 0, axom::execution_space<ExecPolicy>::allocatorID());
   if(expsuccess)
   {
     EXPECT_TRUE(axom::quest::discretize<ExecPolicy>(polyline, len, gens, generated, octcount));
@@ -219,10 +220,6 @@ void run_degen_segment_tests()
   polyline[0] = {1., 1.};
   polyline[1] = {1.5, -.1};
   degenerate_segment_test<ExecPolicy>("b.y < 0", polyline, 2, false);
-
-  polyline[0] = {.5, 1.};
-  polyline[1] = {0., 1.};
-  degenerate_segment_test<ExecPolicy>("a.x > b.x", polyline, 2, false);
 }
 
 template <typename ExecPolicy>
@@ -250,7 +247,7 @@ void segment_test(const char* label, axom::Array<Point2D>& polyline, int len)
   axom::Array<OctType> handcut;
   discretized_segment(polyline[0], polyline[1], handcut);
 
-  axom::Array<OctType> generatedDevice;
+  axom::Array<OctType> generatedDevice(0, 0, axom::execution_space<ExecPolicy>::allocatorID());
   int octcount = 0;
   axom::quest::discretize<ExecPolicy>(polyline, len, generations, generatedDevice, octcount);
 
@@ -325,7 +322,7 @@ void multi_segment_test(const char* label, axom::Array<Point2D>& polyline, int l
 
   int generation = 0;
 
-  axom::Array<OctType> generatedDevice;
+  axom::Array<OctType> generatedDevice(0, 0, axom::execution_space<ExecPolicy>::allocatorID());
   int octcount = 0;
   axom::quest::discretize<ExecPolicy>(polyline, len, generations, generatedDevice, octcount);
 

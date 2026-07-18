@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  ******************************************************************************
@@ -12,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_VIEW_HPP_
-#define SIDRE_VIEW_HPP_
 
 // Standard C++ headers
 #include <string>
@@ -27,6 +27,7 @@
 #include "axom/core/Array.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/utilities/Checksum.hpp"
 #include "axom/slic.hpp"
 
 // Sidre headers
@@ -612,7 +613,7 @@ public:
 #if defined(AXOM_DEBUG)
     if(m_state == TUPLE)
     {
-      DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
+      [[maybe_unused]] DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
       SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
                      SIDRE_VIEW_LOG_PREPEND << "You are setting a scalar value which has changed "
                                             << " the underlying data type. "
@@ -656,7 +657,7 @@ public:
 #if defined(AXOM_DEBUG)
     if(m_state == TUPLE)
     {
-      DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
+      [[maybe_unused]] DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
       SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
                      SIDRE_VIEW_LOG_PREPEND << "You are setting a scalar value which has changed "
                                             << " the underlying data type. "
@@ -919,7 +920,7 @@ public:
     SLIC_CHECK_MSG(
       isAllocated(),
       SIDRE_VIEW_LOG_PREPEND << "No view data present, memory has not been allocated.");
-    SLIC_CHECK_MSG(isDescribed(), SIDRE_VIEW_LOG_PREPEND "View data description not present.");
+    SLIC_CHECK_MSG(isDescribed(), SIDRE_VIEW_LOG_PREPEND << "View data description not present.");
 
     // this will return a default value
     return m_node.value();
@@ -932,12 +933,26 @@ public:
    *
    * \sa getData()
    */
+  /// @{
   template <typename DataType>
   DataType getData()
   {
     DataType data = m_node.value();
     return data;
   }
+
+  /*!
+   * \overload
+   */
+  template <typename DataType>
+  DataType getData() const
+  {
+    // Mirror getVoidPtr() const: the View is logically const
+    // (its description is not modified) but the data it references remains mutable.
+    DataType data = const_cast<Node&>(m_node).value();
+    return data;
+  }
+  /// @}
 
   /*!
    * \brief Returns a void pointer to the view's data
@@ -999,8 +1014,11 @@ public:
 
   /*!
    * \brief Deep copy View into the given conduit::Node.
+   * \param dst [in/out] Destination
+   * \param allocId [in] If not equal to INVALID_ALLOCATOR_ID,
+   *   use this allocator for the destination.
    */
-  void deepCopyToConduit(Node& dst) const;
+  void deepCopyToConduit(Node& dst, int allocId = INVALID_ALLOCATOR_ID) const;
 
   /*!
    * \brief Copy metadata of the View to the given Conduit node
@@ -1232,14 +1250,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(IndexType idx)
+  DataType getAttributeScalar(IndexType idx) const
   {
     const Attribute* attr = getAttribute(idx);
     const Node& node = m_attr_values.getValueNodeRef(attr);
@@ -1248,14 +1265,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(const std::string& name)
+  DataType getAttributeScalar(const std::string& name) const
   {
     const Attribute* attr = getAttribute(name);
     const Node& node = m_attr_values.getValueNodeRef(attr);
@@ -1264,14 +1280,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(const Attribute* attr)
+  DataType getAttributeScalar(const Attribute* attr) const
   {
     SLIC_CHECK_MSG(attr != nullptr,
                    SIDRE_VIEW_LOG_PREPEND << "getAttributeScalar: called with a null Attribute");
@@ -1361,6 +1376,15 @@ public:
   }
 
   ///@}
+
+  /*!
+   * \brief Compute a checksum for the view.
+   *
+   * \param includeAttributes Whether to include attributes in the checksum.
+   *
+   * \return A CheckSum of the view.
+   */
+  axom::utilities::CheckSum checksum(bool includeAttributes = true) const;
 
 private:
   DISABLE_DEFAULT_CTOR(View);
@@ -1582,6 +1606,14 @@ private:
   State getStateId(const std::string& name) const;
 
   /*!
+   * \brief Returns the string stored in sidre I/O metadata for this View's state.
+   *
+   * This preserves backward compatibility with older readers
+   * that only recognize "SCALAR" (but not "TUPLE")
+   */
+  const char* getIoStateStringName() const;
+
+  /*!
    * If allocID == INVALID_ALLOCATOR_ID, return the default allocator id,
    * which depends on the View's data semantic and owning Group.
    *
@@ -1657,7 +1689,7 @@ private:
     else
     {
       axom::Array<axom::IndexType> shape(getNumDimensions());
-      getShape(shape.size(), shape.data());
+      getShape(static_cast<int>(shape.size()), shape.data());
       os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of (" << shape[0];
       for(axom::IndexType i = 1; i < shape.size(); ++i)
       {
@@ -1703,5 +1735,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_VIEW_HPP_ */

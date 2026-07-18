@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_INDEXING_POLICIES_HPP_
-#define AXOM_BUMP_INDEXING_POLICIES_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_memory.hpp"
 
@@ -58,7 +58,7 @@ struct SSElementFieldIndexing
   AXOM_HOST_DEVICE
   inline axom::IndexType operator[](axom::IndexType index) const
   {
-    return m_indexing.LocalToGlobal(index);
+    return m_indexing.localToGlobal(index);
   }
 
   Indexing m_indexing {};
@@ -93,13 +93,13 @@ struct SSVertexFieldIndexing
   inline axom::IndexType operator[](axom::IndexType index) const
   {
     // Make the global index into a global logical in the topo.
-    const auto topoGlobalLogical = m_topoIndexing.GlobalToGlobal(index);
+    const auto topoGlobalLogical = m_topoIndexing.globalToGlobal(index);
     // Make the global logical into a local logical in the topo.
-    const auto topoLocalLogical = m_topoIndexing.GlobalToLocal(topoGlobalLogical);
+    const auto topoLocalLogical = m_topoIndexing.globalToLocal(topoGlobalLogical);
     // Make the global logical index in the field.
-    const auto fieldGlobalLogical = m_fieldIndexing.LocalToGlobal(topoLocalLogical);
+    const auto fieldGlobalLogical = m_fieldIndexing.localToGlobal(topoLocalLogical);
     // Make the global index in the field.
-    const auto fieldGlobalIndex = m_fieldIndexing.GlobalToGlobal(fieldGlobalLogical);
+    const auto fieldGlobalIndex = m_fieldIndexing.globalToGlobal(fieldGlobalLogical);
     return fieldGlobalIndex;
   }
 
@@ -109,5 +109,3 @@ struct SSVertexFieldIndexing
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

@@ -4,8 +4,9 @@
 #
 copyright:
   -
-  - Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-  - other Axom Project Developers. See the top-level LICENSE file for details.
+  - Copyright (c) Lawrence Livermore National Security, LLC and other
+  - Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+  - files for dates and other details.
   -
   - "SPDX-License-Identifier: (BSD-3-Clause)"
 
@@ -22,13 +23,13 @@ options:
   F_name_impl_template: "{library_lower}_{C_name_scope}{F_name_api}{function_suffix}"
   F_name_generic_template: "{library_lower}_{F_name_api}"
   wrap_python: True
+  F_result_as_arg: name
 
 format:
   C_prefix: QUEST_
   # Any C++ function which returns a string will be wrapped in
   # Fortran as a subroutine with an additional character argument
   # for the result.
-  F_string_result_as_arg: name
   F_filename_suffix: F
 
 typemap:
@@ -101,6 +102,7 @@ declarations:
       - decl: void signed_distance_set_allocator( int allocatorID )
       - decl: void signed_distance_set_verbose( bool status )
       - decl: void signed_distance_use_shared_memory( bool status )
+      - decl: void signed_distance_set_shared_memory_size( size_t minSegmentSize )
       - decl: void signed_distance_set_execution_space( SignedDistExec execSpace )
 
       - decl: double signed_distance_evaluate( double x, double y, double z )

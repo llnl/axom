@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -72,7 +73,7 @@ const double INIT_P_RATIO = 0.5;
 const double INIT_D_RATIO = 0.5;
 
 #ifdef AXOM_DEBUG
-const bool verboseOutput = false;
+[[maybe_unused]] const bool verboseOutput = false;
 #endif
 
 /**

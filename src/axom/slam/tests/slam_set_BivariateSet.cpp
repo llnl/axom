@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -7,8 +8,7 @@
  * \file slam_set_BivariateSet.cpp
  *
  * This file tests BivariateSet, ProductSet and RelationSet within Slam.
- * It uses a templated test fixture to test many different types of
- * bivariate sets
+ * It uses a templated test fixture to test many different types of bivariate sets
  */
 
 #include "gtest/gtest.h"
@@ -411,6 +411,19 @@ void bSetTraverseTest(slam::BivariateSet<S1, S2>* bset, bool shouldCheckMod)
 
       EXPECT_EQ(sparseIdx, bset->findElementIndex(idx, innerIdx));
       EXPECT_EQ(flatIdx, bset->findElementFlatIndex(idx, innerIdx));
+
+      {
+        auto sparse_opt = bset->findElementIndexOptional(idx, innerIdx);
+        ASSERT_TRUE(sparse_opt.has_value());
+        EXPECT_EQ(sparseIdx, *sparse_opt);
+      }
+
+      {
+        auto flat_opt = bset->findElementFlatIndexOptional(idx, innerIdx);
+        ASSERT_TRUE(flat_opt.has_value());
+        EXPECT_EQ(flatIdx, *flat_opt);
+      }
+
       EXPECT_EQ(idx, bset->flatToFirstIndex(flatIdx));
       EXPECT_EQ(innerIdx, bset->flatToSecondIndex(flatIdx));
 
@@ -434,6 +447,14 @@ void bSetTraverseTest(slam::BivariateSet<S1, S2>* bset, bool shouldCheckMod)
     {
       EXPECT_EQ(flatIndex, bsetElem.flatIndex());
       EXPECT_EQ(flatIndex, bset->findElementFlatIndex(bsetElem.firstIndex(), bsetElem.secondIndex()));
+
+      {
+        auto flat_opt =
+          bset->findElementFlatIndexOptional(bsetElem.firstIndex(), bsetElem.secondIndex());
+        ASSERT_TRUE(flat_opt.has_value());
+        EXPECT_EQ(flatIndex, *flat_opt);
+      }
+
       EXPECT_EQ(bsetElem.firstIndex(), bset->flatToFirstIndex(flatIndex));
       EXPECT_EQ(bsetElem.secondIndex(), bset->flatToSecondIndex(flatIndex));
 
@@ -462,6 +483,14 @@ void bSetTraverseTest(slam::BivariateSet<S1, S2>* bset, bool shouldCheckMod)
       EXPECT_EQ(flatIndex, bsetElem.flatIndex());
       EXPECT_EQ(flatIndex,
                 derivedSet->findElementFlatIndex(bsetElem.firstIndex(), bsetElem.secondIndex()));
+
+      {
+        auto flat_opt =
+          derivedSet->findElementFlatIndexOptional(bsetElem.firstIndex(), bsetElem.secondIndex());
+        ASSERT_TRUE(flat_opt.has_value());
+        EXPECT_EQ(flatIndex, *flat_opt);
+      }
+
       EXPECT_EQ(bsetElem.firstIndex(), derivedSet->flatToFirstIndex(flatIndex));
       EXPECT_EQ(bsetElem.secondIndex(), derivedSet->flatToSecondIndex(flatIndex));
 
@@ -473,6 +502,35 @@ void bSetTraverseTest(slam::BivariateSet<S1, S2>* bset, bool shouldCheckMod)
 
     SLIC_INFO("{ " << sstr.str() << " }");
   }
+}
+
+template <typename SetType>
+std::pair<typename SetType::PositionType, typename SetType::PositionType> find_missing_mod_pair(
+  const SetType& bset)
+{
+  using PositionType = typename SetType::PositionType;
+  const auto* firstSet = bset.getFirstSet();
+  const auto* secondSet = bset.getSecondSet();
+
+  for(PositionType i = 0; i < bset.firstSetSize(); ++i)
+  {
+    const auto outer = firstSet->at(i);
+    if(outer == 0)
+    {
+      continue;
+    }
+
+    for(PositionType j = 0; j < bset.secondSetSize(); ++j)
+    {
+      const auto inner = secondSet->at(j);
+      if(!modCheck(outer, inner))
+      {
+        return {i, j};
+      }
+    }
+  }
+
+  return {SetType::INVALID_POS, SetType::INVALID_POS};
 }
 
 TYPED_TEST(BivariateSetTester, traverse)
@@ -505,6 +563,51 @@ TYPED_TEST(BivariateSetTester, traverse)
     bool checkMod = true;
     bSetTraverseTest<S1, S2, RSet>(&rset, checkMod);
   }
+}
+
+TEST(slam_bivariate_set, product_set_empty_second_set_has_no_first_flat_index)
+{
+  using SetType = slam::PositionSet<>;
+  using ProductSetType = slam::ProductSet<SetType, SetType>;
+
+  SetType firstSet(3);
+  SetType secondSet(0);
+  ProductSetType productSet(&firstSet, &secondSet);
+
+  ASSERT_TRUE(productSet.isValid(true));
+  EXPECT_EQ(productSet.firstSetSize(), 3);
+  EXPECT_EQ(productSet.secondSetSize(), 0);
+  EXPECT_EQ(productSet.size(), 0);
+  EXPECT_EQ(productSet.size(0), 0);
+  EXPECT_EQ(productSet.getElements(0).size(), 0);
+
+  EXPECT_EQ(productSet.findElementFlatIndex(0), ProductSetType::INVALID_POS);
+  EXPECT_FALSE(productSet.findElementFlatIndexOptional(0).has_value());
+
+  const slam::BivariateSet<SetType, SetType>* baseSet = &productSet;
+  EXPECT_EQ(baseSet->findElementFlatIndex(0), ProductSetType::INVALID_POS);
+  EXPECT_FALSE(baseSet->findElementFlatIndexOptional(0).has_value());
+}
+
+TYPED_TEST(BivariateSetTester, optional_find_returns_empty_for_missing_relation_entries)
+{
+  using S1 = typename TestFixture::FirstSetType;
+  using S2 = typename TestFixture::SecondSetType;
+  using RType = typename TestFixture::RelationType;
+  using RSet = slam::RelationSet<RType, S1, S2>;
+
+  RSet rset = RSet(&this->modRelation);
+  ASSERT_TRUE(rset.isValid(true));
+
+  const auto [i, j] = find_missing_mod_pair(rset);
+  ASSERT_NE(i, RSet::INVALID_POS);
+  ASSERT_NE(j, RSet::INVALID_POS);
+
+  auto sparse_opt = rset.findElementIndexOptional(i, j);
+  EXPECT_FALSE(sparse_opt.has_value());
+
+  auto flat_opt = rset.findElementFlatIndexOptional(i, j);
+  EXPECT_FALSE(flat_opt.has_value());
 }
 
 //-----------------------------------------------------------------------------

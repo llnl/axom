@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 axom_component_requires(NAME       Klee
@@ -9,6 +10,7 @@ axom_component_requires(NAME       Klee
 # Specify all headers/sources
 #------------------------------------------------------------------------------
 set(klee_headers
+    AffineMatrixVisitor.hpp
     Dimensions.hpp
     Geometry.hpp
     GeometryOperators.hpp
@@ -25,6 +27,7 @@ set(klee_internal_headers
     )
 
 set(klee_sources
+    AffineMatrixVisitor.cpp
     Geometry.cpp
     GeometryOperators.cpp
     KleeError.cpp
@@ -42,7 +45,7 @@ set(klee_sources
 axom_add_library(NAME        klee
                  SOURCES     ${klee_sources}
                  HEADERS     ${klee_headers} ${klee_internal_headers}
-                 DEPENDS_ON  inlet
+                 DEPENDS_ON  core inlet
                  FOLDER      axom/klee
                  )
 

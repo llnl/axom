@@ -1,9 +1,12 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_UNITS_HPP
-#define AXOM_KLEE_UNITS_HPP
+
+#pragma once
+
+#include "axom/core/utilities/Units.hpp"
 
 #include <string>
 
@@ -15,87 +18,22 @@ class Proxy;
 }
 namespace klee
 {
-/**
- * Units of length in which users can express lengths and in which client
- * codes can request them.
- */
-enum class LengthUnit
+
+using utilities::LengthUnit;
+
+namespace internal
 {
-  km,
-  m,
-  dm,
-  cm,
-  mm,
-  um,
-  nm,
-  angstrom,
-  miles,
-  feet,
-  inches,
-  mils,
-  unspecified
-};
 
-/**
- * Convert a string to a LengthUnit.
+/*!
+ * \brief This function parses a string and returns a LengthUnit. It is a compatibility
+ *        function that throws a KleeError if the unit is invalid.
  *
- * \param unitsAsString the units as a string
- * \param path the Path where the length units were found in the document.
- * Used for error reporting.
- * \return the parsed units
- * \throws KleeError if the string does not represent known
- * units
- */
-LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path);
-
-/**
- * Convert a proxy to a LengthUnit.
+ * \param unitsAsProxy The Inlet proxy from which to get the unit string.
  *
- * \param unitsAsProxy the units as a proxy
- * \return the parsed units
- * \throws KleeError if the string does not represent known units
+ * \return A LengthUnit containing the unit type.
  */
 LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy);
 
-/**
- * Get the conversion factor to convert from the given source units to the target units.
- *
- * \param sourceUnits the original units
- * \param targetUnits the units to convert to
- * \return the value by which to multiply lengths in the original units
- * to get the target units
- */
-double getConversionFactor(LengthUnit sourceUnits, LengthUnit targetUnits);
-
-/**
- * Convert a value from one set of units to another.
- *
- * \param sourceValue the value of the length in the original units
- * \param sourceUnits the original units
- * \param targetUnits the units to convert to
- * \return the value of the length in the new units
- */
-double convert(double sourceValue, LengthUnit sourceUnits, LengthUnit targetUnits);
-
-/**
- * Convert multiple lengths in place.
- *
- * \tparam T the type containing the units. Must be iterable.
- *
- * \param values the value of the length in the original units
- * \param sourceUnits the original units
- * \param targetUnits the units to convert to
- */
-template <typename T>
-void convertAll(T &values, LengthUnit sourceUnits, LengthUnit targetUnits)
-{
-  double factor = getConversionFactor(sourceUnits, targetUnits);
-  for(double &value : values)
-  {
-    value *= factor;
-  }
-}
-
+}  // namespace internal
 }  // namespace klee
 }  // namespace axom
-#endif  // AXOM_KLEE_UNITS_HPP

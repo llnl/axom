@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FOR_ALL_FACES_HPP_
-#define MINT_FOR_ALL_FACES_HPP_
+#pragma once
 
 // Axom core includes
 #include "axom/config.hpp"                          // compile time definitions
@@ -944,5 +944,3 @@ inline void for_all_faces(xargs::coords, const Mesh& m, KernelType&& kernel)
 } /* namespace internal */
 } /* namespace mint     */
 } /* namespace axom     */
-
-#endif /* MINT_FOR_ALL_FACES_HPP_ */

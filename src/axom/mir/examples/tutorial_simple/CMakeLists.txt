@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -40,14 +41,13 @@ axom_add_executable(
 
 if(AXOM_ENABLE_TESTS)
     set(_test_numbers 1 2 3 4 5)
-    set (_policies "seq")
-    if(RAJA_FOUND AND UMPIRE_FOUND)
-        blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-    endif()
 
-    foreach(_policy ${_policies})
+    foreach(_policy ${AXOM_EXECUTION_POLICIES})
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
         foreach(_testnum ${_test_numbers})
             set(_testname "mir_tutorial_simple_${_policy}_${_testnum}")
             axom_add_test(
@@ -56,7 +56,7 @@ if(AXOM_ENABLE_TESTS)
                     --test-case ${_testnum}
                     --policy ${_policy}
                     --disable-write
-                )
+                NUM_OMP_THREADS ${_num_threads})
 
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Reconstruction time:")

@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SINAMATCHERS_HPP
-#define AXOM_SINAMATCHERS_HPP
+#pragma once
 
 #include <gmock/gmock.h>
 #include "conduit.hpp"
@@ -47,5 +47,3 @@ inline ::testing::PolymorphicMatcher<MatchesJson> MatchesJsonMatcher(const std::
 }  // namespace testing
 }  // namespace sina
 }  // namespace axom
-
-#endif  //AXOM_SINAMATCHERS_HPP

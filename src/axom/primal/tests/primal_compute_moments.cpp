@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -17,11 +18,92 @@
 #include "axom/primal/geometry/BezierCurve.hpp"
 #include "axom/primal/geometry/CurvedPolygon.hpp"
 #include "axom/primal/operators/compute_moments.hpp"
+#include "axom/primal/operators/evaluate_integral_curve.hpp"
 #include "axom/primal/operators/detail/compute_moments_impl.hpp"
+
+#include <utility>
 
 namespace primal = axom::primal;
 
-const double EPS = 2e-15;
+constexpr double EPS = 2e-15;
+
+namespace
+{
+using Point2D = primal::Point<double, 2>;
+using BezierCurve2D = primal::BezierCurve<double, 2>;
+using CurvedPolygon2D = primal::CurvedPolygon<BezierCurve2D>;
+
+struct RawPlanarMoments
+{
+  double m00 {};
+  double m10 {};
+  double m01 {};
+};
+
+CurvedPolygon2D make_quadratic_curve_loop()
+{
+  return CurvedPolygon2D(axom::Array<BezierCurve2D> {
+    BezierCurve2D(axom::Array<Point2D> {Point2D {2., 0.}, Point2D {1., 2.}, Point2D {0., 0.}}, 2),
+    BezierCurve2D(axom::Array<Point2D> {Point2D {0., 0.}, Point2D {1., -2.}, Point2D {2., 0.}}, 2)});
+}
+
+CurvedPolygon2D make_cubic_curve_loop()
+{
+  return CurvedPolygon2D(axom::Array<BezierCurve2D> {
+    BezierCurve2D(axom::Array<Point2D> {Point2D {0.6, 1.2},
+                                        Point2D {1.3, 1.6},
+                                        Point2D {2.9, 2.4},
+                                        Point2D {3.2, 3.5}},
+                  3),
+    BezierCurve2D(axom::Array<Point2D> {Point2D {3.2, 3.5}, Point2D {0.6, 1.2}}, 1)});
+}
+
+RawPlanarMoments compute_ueda_raw_moments(const CurvedPolygon2D& polygon)
+{
+  const double area = primal::area(polygon);
+  const Point2D centroid = primal::centroid(polygon);
+
+  RawPlanarMoments moments;
+  moments.m00 = area;
+  moments.m10 = area * centroid[0];
+  moments.m01 = area * centroid[1];
+  return moments;
+}
+
+RawPlanarMoments compute_spectral_raw_moments(const CurvedPolygon2D& polygon, int gauss_points)
+{
+  auto integrate_spectral = [&polygon, gauss_points](auto&& integrand) {
+    return primal::evaluate_area_integral(polygon,
+                                          std::forward<decltype(integrand)>(integrand),
+                                          gauss_points,
+                                          gauss_points);
+  };
+
+  RawPlanarMoments moments;
+  moments.m00 = integrate_spectral([](Point2D) { return 1.; });
+  moments.m10 = integrate_spectral([](const Point2D& x) { return x[0]; });
+  moments.m01 = integrate_spectral([](const Point2D& x) { return x[1]; });
+  return moments;
+}
+
+void expect_raw_moments_near(const RawPlanarMoments& actual,
+                             const RawPlanarMoments& expected,
+                             double tol)
+{
+  EXPECT_NEAR(actual.m00, expected.m00, tol);
+  EXPECT_NEAR(actual.m10, expected.m10, tol);
+  EXPECT_NEAR(actual.m01, expected.m01, tol);
+}
+
+void expect_raw_moments_negated(const RawPlanarMoments& actual,
+                                const RawPlanarMoments& expected,
+                                double tol)
+{
+  EXPECT_NEAR(actual.m00, -expected.m00, tol);
+  EXPECT_NEAR(actual.m10, -expected.m10, tol);
+  EXPECT_NEAR(actual.m01, -expected.m01, tol);
+}
+}  // namespace
 
 //------------------------------------------------------------------------------
 TEST(primal_compute_moments, sector_area_cubic)
@@ -43,7 +125,7 @@ TEST(primal_compute_moments, sector_area_cubic)
     BezierCurveType bCurve(data, order);
     const T area = primal::sector_area(bCurve);
 
-    EXPECT_NEAR(.1455, area, EPS);
+    EXPECT_NEAR(-.1455, area, EPS);
   }
 }
 
@@ -65,8 +147,8 @@ TEST(primal_compute_moments, sector_moment_cubic)
 
     BezierCurveType bCurve(data, order);
     PointType M = primal::sector_centroid(bCurve);
-    EXPECT_NEAR(-.429321428571429, M[0], EPS);
-    EXPECT_NEAR(-.354010714285715, M[1], EPS);
+    EXPECT_NEAR(.429321428571429, M[0], EPS);
+    EXPECT_NEAR(.354010714285715, M[1], EPS);
   }
 }
 
@@ -106,6 +188,39 @@ TEST(primal_compute_moments, sector_moment_point)
     EXPECT_DOUBLE_EQ(M[0], 0.0);
     EXPECT_DOUBLE_EQ(M[1], 0.0);
   }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_compute_moments, spectral_matches_ueda_for_polynomial_bezier_regions)
+{
+  // Cross-check the closed-form moments against our quadrature on polynomial Bezier regions
+  const CurvedPolygon2D quadratic_region = make_quadratic_curve_loop();
+  const CurvedPolygon2D cubic_region = make_cubic_curve_loop();
+
+  expect_raw_moments_near(compute_spectral_raw_moments(quadratic_region, 8),
+                          compute_ueda_raw_moments(quadratic_region),
+                          1e-12);
+  expect_raw_moments_near(compute_spectral_raw_moments(cubic_region, 20),
+                          compute_ueda_raw_moments(cubic_region),
+                          1e-10);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_compute_moments, reversed_orientation_negates_raw_moments)
+{
+  // Reversing a closed boundary changes the signed measure but not the centroid
+  const CurvedPolygon2D region = make_cubic_curve_loop();
+  CurvedPolygon2D reversed_region = region;
+  reversed_region.reverseOrientation();
+
+  const RawPlanarMoments moments = compute_ueda_raw_moments(region);
+  const RawPlanarMoments reversed_moments = compute_ueda_raw_moments(reversed_region);
+  expect_raw_moments_negated(reversed_moments, moments, 1e-14);
+
+  const Point2D centroid = primal::centroid(region);
+  const Point2D reversed_centroid = primal::centroid(reversed_region);
+  EXPECT_NEAR(reversed_centroid[0], centroid[0], 1e-14);
+  EXPECT_NEAR(reversed_centroid[1], centroid[1], 1e-14);
 }
 
 //------------------------------------------------------------------------------

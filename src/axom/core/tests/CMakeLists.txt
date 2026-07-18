@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -21,8 +22,11 @@ set(core_serial_tests
     core_array_for_all.hpp
     core_utilities.hpp
     core_bit_utilities.hpp
+    core_checksum.hpp
+    core_constexpr_assert.hpp
     core_device_hash.hpp
     core_execution_for_all.hpp
+    core_execution_scans.hpp
     core_execution_space.hpp
     core_map.hpp
     core_flatmap.hpp
@@ -33,16 +37,19 @@ set(core_serial_tests
     core_Path.hpp
     core_stack_array.hpp
     core_static_array.hpp
+    core_units.hpp
 
     numerics_determinants.hpp
     numerics_eigen_solve.hpp
     numerics_eigen_sort.hpp
     numerics_floating_point_limits.hpp
     numerics_jacobi_eigensolve.hpp
+    numerics_quadrature.hpp
     numerics_linear_solve.hpp
     numerics_lu.hpp
     numerics_matrix.hpp
     numerics_matvecops.hpp
+    numerics_transforms.hpp
     numerics_polynomial_solvers.hpp
 
     utils_endianness.hpp
@@ -77,9 +84,15 @@ axom_add_executable(NAME       core_serial_tests
                     FOLDER     axom/core/tests )
 
 foreach(test_suite ${core_serial_tests})
+    set(_num_threads)
+    if(test_suite MATCHES "(for_all|device)" AND AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     get_filename_component( test_suite ${test_suite} NAME_WE )
-    axom_add_test( NAME    ${test_suite}_serial
-                   COMMAND core_serial_tests --gtest_filter=${test_suite}* )
+    axom_add_test( NAME            ${test_suite}_serial
+                   COMMAND         core_serial_tests --gtest_filter=${test_suite}*
+                   NUM_OMP_THREADS ${_num_threads})
 endforeach()
 
 #------------------------------------------------------------------------------
@@ -104,6 +117,7 @@ axom_add_test( NAME    core_collections
 if (AXOM_ENABLE_MPI)
   set( core_mpi_tests
        core_types.hpp
+       core_shared_memory.hpp
        )
 
   axom_add_executable(NAME       core_mpi_tests
@@ -117,7 +131,7 @@ if (AXOM_ENABLE_MPI)
     get_filename_component( test_suite ${test_suite} NAME_WE )
     axom_add_test( NAME          ${test_suite}_mpi
                    COMMAND       core_mpi_tests --gtest_filter=${test_suite}*
-                   NUM_MPI_TASKS 1 )
+                   NUM_MPI_TASKS 2 )
   endforeach()
 endif()
 
@@ -138,10 +152,22 @@ if (AXOM_ENABLE_OPENMP AND RAJA_FOUND)
 
   foreach( test_suite ${core_openmp_tests} )
     get_filename_component( test_suite ${test_suite} NAME_WE )
-    axom_add_test( NAME          ${test_suite}_openmp
-                   COMMAND       core_openmp_tests --gtest_filter=${test_suite}*
-                   NUM_OMP_THREADS 24 )
+    axom_add_test( NAME            ${test_suite}_openmp
+                   COMMAND         core_openmp_tests --gtest_filter=${test_suite}*
+                   NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS} )
   endforeach()
+
+  if (UMPIRE_FOUND)
+    axom_add_executable(NAME       core_copy_openmp_race_test
+                        SOURCES    core_copy_openmp_race.cpp
+                        OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                        DEPENDS_ON ${core_test_depends}
+                        FOLDER     axom/core/tests )
+
+    axom_add_test( NAME            core_copy_openmp_race
+                   COMMAND         core_copy_openmp_race_test
+                   NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS} )
+  endif()
 endif()
 
 #------------------------------------------------------------------------------
@@ -181,14 +207,16 @@ axom_add_executable(NAME       utils_annotations_test
 
 foreach(_mode none report counts gputx)
   set(_test_name utils_annotations_${_mode}_test)
+
+  set(_num_ranks 1)
   if(AXOM_ENABLE_MPI)
-    axom_add_test(NAME    ${_test_name}
-                  COMMAND utils_annotations_test -m ${_mode}
-                  NUM_MPI_TASKS 2)
-  else()
-    axom_add_test(NAME    ${_test_name}
-                  COMMAND utils_annotations_test -m ${_mode})
+    set(_num_ranks 2)
   endif()
+
+  axom_add_test(NAME    ${_test_name}
+                COMMAND utils_annotations_test -m ${_mode}
+                NUM_MPI_TASKS ${_num_ranks})
+
   set_property(TEST ${_test_name}
                APPEND PROPERTY ENVIRONMENT  "CALI_LOG_VERBOSITY=2")
 endforeach()
@@ -199,10 +227,16 @@ endforeach()
 if (ENABLE_BENCHMARKS)
 
   set(core_benchmarks
-      core_benchmark_array.cpp )
+      core_benchmark_array.cpp
+      core_benchmark_flatmap.cpp )
 
   foreach(test ${core_benchmarks})
     get_filename_component(test_name ${test} NAME_WE)
+
+    set(_num_threads)
+    if(test STREQUAL "core_benchmark_flatmap.cpp" AND AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
 
     axom_add_executable(NAME       ${test_name}
                         SOURCES    ${test}
@@ -211,7 +245,46 @@ if (ENABLE_BENCHMARKS)
                         FOLDER     axom/core/benchmarks)
 
     blt_add_benchmark(NAME    ${test_name}
-                      COMMAND ${test_name} --benchmark_min_time=0.0001s)
+                      COMMAND ${test_name} --benchmark_min_time=0.0001s
+                      NUM_OMP_THREADS ${_num_threads})
   endforeach()
 endif()
 
+#------------------------------------------------------------------------------
+# Negative compile-time test for AXOM_CONSTEXPR_ASSERT
+#
+# The runtime behavior of AXOM_CONSTEXPR_ASSERT is covered by unit tests.
+# The following checks its compile-time invariants.
+#------------------------------------------------------------------------------
+include(CheckCXXSourceCompiles)
+
+# Probe needs the generated axom/config.hpp and the in-source headers.
+get_property(_axom_config_dir TARGET core PROPERTY BINARY_DIR)
+set(CMAKE_REQUIRED_INCLUDES
+    "${PROJECT_SOURCE_DIR}"
+    "${PROJECT_BINARY_DIR}/include")
+# Compile the probe with AXOM_DEBUG off, which isolates the constant-evaluation path
+set(CMAKE_REQUIRED_DEFINITIONS "-UAXOM_DEBUG" "-DNDEBUG")
+
+# A static_assert forces constant evaluation of a violating AXOM_CONSTEXPR_ASSERT.
+# This source is expected NOT to compile.
+check_cxx_source_compiles([=[
+#include "axom/core/Macros.hpp"
+constexpr int checked(int x) { AXOM_CONSTEXPR_ASSERT(x > 0); return x; }
+static_assert(checked(-1) == -1, "must fail: x>0 violated during constant evaluation");
+int main() { return 0; }
+]=] AXOM_CONSTEXPR_ASSERT_VIOLATION_COMPILES)
+
+unset(CMAKE_REQUIRED_INCLUDES)
+unset(CMAKE_REQUIRED_DEFINITIONS)
+
+if(AXOM_CONSTEXPR_ASSERT_VIOLATION_COMPILES)
+    message(FATAL_ERROR
+        "AXOM_CONSTEXPR_ASSERT regression: a compile-time invariant violation "
+        "compiled successfully. The constant-evaluation detection in "
+        "axom/core/utilities/ConstexprAssert.hpp is not firing on this compiler "
+        "(${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}).")
+else()
+    message(STATUS
+        "AXOM_CONSTEXPR_ASSERT compile-time guarantee verified on ${CMAKE_CXX_COMPILER_ID}")
+endif()

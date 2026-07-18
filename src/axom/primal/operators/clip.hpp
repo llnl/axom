@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file clip.hpp
@@ -9,9 +12,6 @@
  * \brief Consists of a set of methods to clip a primal primitive against
  *        another primal primitive
  */
-
-#ifndef AXOM_PRIMAL_CLIP_HPP_
-#define AXOM_PRIMAL_CLIP_HPP_
 
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -862,5 +862,3 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Hexahedron<T, 3>& hex,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_CLIP_HPP_

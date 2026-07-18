@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAYVIEW_HPP_
-#define AXOM_ARRAYVIEW_HPP_
+#pragma once
 
 #include "axom/core/memory_management.hpp"  // for memory allocation functions
 #include "axom/core/ArrayBase.hpp"
@@ -51,11 +51,8 @@ public:
   using ArrayViewIterator = ArrayIteratorBase<const ArrayView<T, DIM, SPACE>, T>;
 
   /// \brief Default constructor
-  AXOM_HOST_DEVICE ArrayView()
-#ifndef AXOM_DEVICE_CODE
-    : m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-#endif
-  { }
+  /// \note m_allocator_id is set to INVALID_ALLOCATOR_ID for now and will be set as needed later.
+  AXOM_HOST_DEVICE ArrayView() : m_allocator_id(INVALID_ALLOCATOR_ID) { }
 
   /*!
    * \brief Generic constructor for an ArrayView of arbitrary dimension with external data
@@ -155,7 +152,13 @@ public:
   /*!
    * \brief Get the ID for the umpire allocator
    */
-  AXOM_HOST_DEVICE int getAllocatorID() const { return m_allocator_id; }
+  AXOM_HOST_DEVICE int getAllocatorID() const
+  {
+#if !defined(AXOM_DEVICE_CODE)
+    determineAllocator();
+#endif
+    return m_allocator_id;
+  }
 
   /*!
    * \brief Returns an ArrayView that is a subspan of the original range of
@@ -210,7 +213,6 @@ public:
    */
   AXOM_HOST_DEVICE ArrayView subspan(const StackArray<IndexType, DIM>& offsets,
                                      const StackArray<IndexType, DIM>& counts);
-
   /*!
    * \brief Fill the ArrayView with a value.
    *
@@ -280,12 +282,24 @@ public:
   void assign(std::initializer_list<T> elems);
 
 private:
+  /*!
+   * \brief Determine the allocator if it has not been set before. We use the SPACE
+   *        or try and determine the allocator for the data pointer when Umpire is
+   *        available.
+   *
+   * \note This method is const so it can be called from getAllocatorId() but it
+   *       may set the mutable m_allocator_id.
+   */
+  void determineAllocator() const;
+
+private:
   T* m_data = nullptr;
   /// \brief The full number of elements in the array
   ///  i.e., 3 for a 1D Array of size 3, 9 for a 3x3 2D array, etc
   IndexType m_num_elements = 0;
-  /// \brief The allocator ID for the memory space in which m_data was allocated
-  int m_allocator_id;
+  /// \brief The allocator ID for the memory space in which m_data was allocated.
+  ///        This is initialized to INVALID_ALLOCATOR_ID and updated later as needed.
+  mutable int m_allocator_id;
 };
 
 /// \brief Helper alias for multi-component arrays
@@ -312,9 +326,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
                                                      IndexType min_stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, min_stride)
   , m_data(data)
-#ifndef AXOM_DEVICE_CODE
-  , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-#endif
+  , m_allocator_id(INVALID_ALLOCATOR_ID)
 {
 #if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_UMPIRE)
   static_assert((SPACE != MemorySpace::Constant) || std::is_const<T>::value,
@@ -329,28 +341,6 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
   {
     m_num_elements = 0;
   }
-
-#if !defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_UMPIRE)
-  // If we have Umpire, we can try and see what space the pointer is allocated in
-  // Probably not worth checking this if SPACE != Dynamic, we *could* error out
-  // if e.g., the user gives a host pointer to ArrayView<T, DIM, Device>, but even
-  // Thrust doesn't guard against this.
-
-  // FIXME: Is it worth trying to get rid of this at compile time?
-  // (using a workaround since we don't have "if constexpr")
-  if(SPACE == MemorySpace::Dynamic)
-  {
-    auto& rm = umpire::ResourceManager::getInstance();
-
-    using NonConstT = typename std::remove_const<T>::type;
-    // TODO: There's no reason these Umpire methods should take a non-const pointer.
-    if(rm.hasAllocator(const_cast<NonConstT*>(data)))
-    {
-      auto alloc = rm.getAllocator(const_cast<NonConstT*>(data));
-      m_allocator_id = alloc.getId();
-    }
-  }
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -360,9 +350,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
                                                      const StackArray<IndexType, DIM>& stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, stride)
   , m_data(data)
-#ifndef AXOM_DEVICE_CODE
-  , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-#endif
+  , m_allocator_id(INVALID_ALLOCATOR_ID)
 {
 #if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_UMPIRE)
   static_assert((SPACE != MemorySpace::Constant) || std::is_const<T>::value,
@@ -377,28 +365,6 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
   {
     m_num_elements = 0;
   }
-
-#if !defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_UMPIRE)
-  // If we have Umpire, we can try and see what space the pointer is allocated in
-  // Probably not worth checking this if SPACE != Dynamic, we *could* error out
-  // if e.g., the user gives a host pointer to ArrayView<T, DIM, Device>, but even
-  // Thrust doesn't guard against this.
-
-  // FIXME: Is it worth trying to get rid of this at compile time?
-  // (using a workaround since we don't have "if constexpr")
-  if(SPACE == MemorySpace::Dynamic)
-  {
-    auto& rm = umpire::ResourceManager::getInstance();
-
-    using NonConstT = typename std::remove_const<T>::type;
-    // TODO: There's no reason these Umpire methods should take a non-const pointer.
-    if(rm.hasAllocator(const_cast<NonConstT*>(data)))
-    {
-      auto alloc = rm.getAllocator(const_cast<NonConstT*>(data));
-      m_allocator_id = alloc.getId();
-    }
-  }
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -489,9 +455,50 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::determineAllocator() const
+{
+#if !defined(AXOM_DEVICE_CODE)
+  if(m_allocator_id == INVALID_ALLOCATOR_ID)
+  {
+  #if defined(AXOM_USE_UMPIRE)
+    // If we have Umpire, we can try and see what space the pointer is allocated in
+    // Probably not worth checking this if SPACE != Dynamic, we *could* error out
+    // if e.g., the user gives a host pointer to ArrayView<T, DIM, Device>, but even
+    // Thrust doesn't guard against this.
+
+    if constexpr(SPACE == MemorySpace::Dynamic)
+    {
+      auto& rm = umpire::ResourceManager::getInstance();
+
+      using NonConstT = typename std::remove_const<T>::type;
+      // TODO: There's no reason these Umpire methods should take a non-const pointer.
+      if(m_data != nullptr && rm.hasAllocator(const_cast<NonConstT*>(m_data)))
+      {
+        auto alloc = rm.getAllocator(const_cast<NonConstT*>(m_data));
+        m_allocator_id = alloc.getId();
+      }
+      else
+      {
+        m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+      }
+    }
+    else
+    {
+      m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+    }
+  #else
+    m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+  #endif
+  }
+#endif
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
 void ArrayView<T, DIM, SPACE>::fill(const T& value)
 {
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
+  determineAllocator();
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, m_num_elements, value);
@@ -504,7 +511,8 @@ void ArrayView<T, DIM, SPACE>::fill(const T& value, IndexType n, IndexType pos)
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
+  determineAllocator();
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, pos, n, value);
@@ -517,7 +525,8 @@ void ArrayView<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType pos
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
+  determineAllocator();
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
   OpHelper {m_allocator_id, executeOnGPU}.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
@@ -529,7 +538,8 @@ void ArrayView<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
 {
   assert(count >= 0);
 
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
+  determineAllocator();
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, count, value);
@@ -541,7 +551,8 @@ template <typename T, int DIM, MemorySpace SPACE>
 template <class InputIt>
 void ArrayView<T, DIM, SPACE>::assign(InputIt first, InputIt last)
 {
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
+  determineAllocator();
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   m_num_elements = 0;
@@ -559,5 +570,3 @@ void ArrayView<T, DIM, SPACE>::assign(std::initializer_list<T> elems)
 }
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAYVIEW_HPP_ */

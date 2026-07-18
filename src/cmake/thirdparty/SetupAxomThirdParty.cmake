@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -57,6 +58,44 @@ if (UMPIRE_DIR)
     set(UMPIRE_FOUND TRUE)
 
     blt_convert_to_system_includes(TARGET umpire)
+
+    # Check whether the Umpire defines symbols for shared memory
+    blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
+                            VERBOSE_OUTPUT OFF
+                            DEPENDS_ON umpire
+                            SOURCE_STRING [=[
+        #include <umpire/config.hpp>
+        #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
+        int main() { return 0; }
+        #else
+        #error Macros not defined
+        #endif
+        ]=])
+
+    if (AXOM_ENABLE_MPI AND UMPIRE_SHARED_MEMORY)
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY TRUE)
+        message(STATUS "  Umpire supports shared memory")
+
+        # If it looks like Umpire supports shared memory
+        # (try to) print out the default type of shared memory from its config file
+        set(UMPIRE_CONFIG_HPP "${UMPIRE_DIR}/include/umpire/config.hpp")
+        if(EXISTS "${UMPIRE_CONFIG_HPP}")
+            file(READ "${UMPIRE_CONFIG_HPP}" UMPIRE_CONFIG_HPP_CONTENTS)
+            # Try to match: #define UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE <value>
+            string(REGEX MATCH "#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+([^\n\r ]+)" UMPIRE_MACRO_LINE "${UMPIRE_CONFIG_HPP_CONTENTS}")
+            if(UMPIRE_MACRO_LINE)
+                # Extract just the value (the first capture group)
+                string(REGEX REPLACE ".*#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+\"([^\"]*)\".*" "\\1" UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE "${UMPIRE_MACRO_LINE}")
+                message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE: ${UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE}")
+            else()
+                message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE is not defined in ${UMPIRE_CONFIG_HPP}")
+            endif()
+        endif()
+    else()
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY FALSE)
+        message(STATUS "  Umpire does not support shared memory")
+    endif()
+
 else()
     message(STATUS "Umpire support is OFF")
     set(UMPIRE_FOUND FALSE)
@@ -272,33 +311,129 @@ if(EXISTS ${Python_EXECUTABLE})
     message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
     message(STATUS "Python library: ${Python_LIBRARIES}")
 
-    # Check for nanobind package
+    # Check for just nanobind package
     execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c "import nanobind"
-        RESULT_VARIABLE NANOBIND_IMPORT_CODE
-        OUTPUT_QUIET
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
+              "${Python_EXECUTABLE}" -c "import nanobind"
+      RESULT_VARIABLE NANOBIND_IMPORT_CODE
+      OUTPUT_QUIET
     )
 
     # Get nanobind root directory
     if(NANOBIND_IMPORT_CODE EQUAL 0)
         execute_process(
-          COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-          OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+          COMMAND "${CMAKE_COMMAND}" -E env
+                  "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
+                  "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+          OUTPUT_VARIABLE nanobind_ROOT
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
     endif()
+
+    # Check if the python environment contains the runtime dependencies
+    # for Axom's python conduit (Node interop) and numpy (ndarray returns). 
+    # nanobind is statically linked at build time and is located separately above.
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "${Python_EXECUTABLE}" -c "import conduit, numpy"
+      RESULT_VARIABLE PY_RUNTIME_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+
+    # Check if the python environment contains the pytest test harness
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "${Python_EXECUTABLE}" -c "import pytest"
+      RESULT_VARIABLE PY_PYTEST_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+
+    # Check if python environment contains mpi4py
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "${Python_EXECUTABLE}" -c "import mpi4py"
+      RESULT_VARIABLE MPI4PY_ENV_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
 endif()
 
-# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
+if(AXOM_ENABLE_PYTHON_TESTS
+   AND (NOT PY_PYTEST_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND PY_PYTEST_DIR
+   AND PY_PLUGGY_DIR
+   AND PY_INICONFIG_DIR)
+    set(_axom_pytest_pythonpath
+        "${PY_PYTEST_DIR}"
+        "${PY_PLUGGY_DIR}"
+        "${PY_INICONFIG_DIR}")
+    foreach(_var PY_PACKAGING_DIR PY_PYGMENTS_DIR)
+        blt_list_append(TO _axom_pytest_pythonpath ELEMENTS "${${_var}}" IF ${_var})
+    endforeach()
+    list(JOIN _axom_pytest_pythonpath ":" _axom_pytest_pythonpath_joined)
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "PYTHONPATH=${_axom_pytest_pythonpath_joined}"
+              "${Python_EXECUTABLE}" -c "import pytest"
+      RESULT_VARIABLE PY_PYTEST_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+    unset(_axom_pytest_pythonpath)
+    unset(_axom_pytest_pythonpath_joined)
+endif()
+
+# If the python environment does not contain the required runtime modules,
+# check if library installation paths were provided instead.
+if((NOT PY_RUNTIME_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT CONDUIT_PYTHON_MODULE_DIR OR NOT PY_NUMPY_DIR))
+    message(FATAL_ERROR
+      "Axom's python extensions require conduit and numpy at runtime."
+      "\nThe python library installation paths can be specified with CMake variables: "
+      "CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR")
+endif()
+
+# The pytest harness (pytest and its dependencies) is a test-only requirement.
+# It is injected per-test via the ENVIRONMENT property and is only required
+# when Axom's python tests are enabled.
+if(AXOM_ENABLE_PYTHON_TESTS
+   AND (NOT PY_PYTEST_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT PY_PYTEST_DIR OR NOT PY_PLUGGY_DIR OR NOT PY_INICONFIG_DIR))
+    message(FATAL_ERROR
+      "Running Axom's python tests requires pytest and its import-time dependencies."
+      "\nThe library installation paths can be specified with CMake variables: "
+      "PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR, PY_PACKAGING_DIR, PY_PYGMENTS_DIR."
+      "\nAlternatively, configure with AXOM_ENABLE_PYTHON_TESTS=OFF.")
+endif()
+
+# When Axom is configured with MPI,
+# if python environment does not contain required mpi4py module,
+# check if mpi4py library installation path was provided instead.
+if(AXOM_ENABLE_MPI
+   AND (NOT MPI4PY_ENV_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT PY_MPI4PY_DIR))
+    message(FATAL_ERROR
+      "Axom's python extension requires mpi4py when Axom library is configured with MPI."
+      "\nThe mpi4py library installation paths "
+      "can be specified with CMake variable: "
+      "PY_MPI4PY_DIR")
+endif()
+
+# nanobind extensions have hit "cannot allocate memory in static TLS block" 
+# when the module is loaded into an interpreter alongside CUDA runtime initialization. 
 # Also disable when sanitizers are enabled, requires environment variable manipulation:
 # https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
 if(nanobind_ROOT
    AND NOT AXOM_ENABLE_CUDA
    AND NOT AXOM_ENABLE_ASAN
-   AND NOT AXOM_ENABLE_UBSAN
-   AND
-   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
-   OR
-   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
-   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+   AND NOT AXOM_ENABLE_UBSAN)
 
     axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
     find_package(nanobind CONFIG REQUIRED)

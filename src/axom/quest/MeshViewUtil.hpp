@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_MESH_VIEW_UTIL_H_
-#define QUEST_MESH_VIEW_UTIL_H_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -847,4 +847,3 @@ private:
 }  // end namespace axom
 
 #endif  //  AXOM_USE_CONDUIT
-#endif  //  QUEST_MESH_VIEW_UTIL_H_

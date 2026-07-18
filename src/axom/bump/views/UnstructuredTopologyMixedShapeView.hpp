@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_MIXED_SHAPE_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_MIXED_SHAPE_VIEW_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -125,10 +125,18 @@ public:
     , m_shapeMap(shapemap)
     , m_indexing(m_sizes.size())
   {
-    SLIC_ASSERT(m_shapes.size() != 0);
-    SLIC_ASSERT(m_sizes.size() != 0);
-    SLIC_ASSERT(m_offsets.size() != 0);
-    SLIC_ASSERT(m_offsets.size() == m_sizes.size() && m_offsets.size() == m_shapes.size());
+#if !defined(AXOM_DEVICE_CODE)
+    SLIC_ERROR_IF(m_shapes.empty(), "Array view shapes is empty.");
+    SLIC_ERROR_IF(m_sizes.empty(), "Array view sizes is empty.");
+    SLIC_ERROR_IF(m_offsets.empty(), "Array view offsets is empty.");
+    SLIC_ERROR_IF(
+      m_offsets.size() != m_sizes.size() || m_offsets.size() != m_shapes.size(),
+      axom::fmt::format("Array views are different sizes: sizes={}, offsets={}, shapes={}.",
+                        m_sizes.size(),
+                        m_offsets.size(),
+                        m_shapes.size()));
+    SLIC_ERROR_IF(shapemap.empty(), "Shape map is empty.");
+#endif
   }
 
   /*!
@@ -173,7 +181,7 @@ public:
     const ConnectivityView shapeData(m_connectivity.data() + m_offsets[zoneIndex],
                                      m_sizes[zoneIndex]);
     const auto shapeID = m_shapeMap[m_shapes[zoneIndex]];
-    SLIC_ASSERT(shapeID >= Point_ShapeID && shapeID <= Mixed_ShapeID);
+    SLIC_ASSERT(isValidShapeID(shapeID));
 
     return ShapeType(shapeID, shapeData);
   }
@@ -190,5 +198,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

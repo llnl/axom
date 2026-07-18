@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -84,6 +85,16 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                   newCoordset,
                   newFields,
                   newMatset);
+    updateNames(n_topo->name(),
+                newTopoName,
+                n_coordset->name(),
+                newCoordsetName,
+                matset,
+                newMatsetName,
+                newTopo,
+                newCoordset,
+                newFields,
+                newMatset);
   }
   else
   {
@@ -99,6 +110,48 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                   newCoordset,
                   newFields,
                   newMatset);
+    updateNames(n_topo->name(),
+                newTopoName,
+                n_coordset->name(),
+                newCoordsetName,
+                matset,
+                newMatsetName,
+                newTopo,
+                newCoordset,
+                newFields,
+                newMatset);
+  }
+}
+
+void MIRAlgorithm::updateNames(const std::string &origTopoName,
+                               const std::string &newTopoName,
+                               const std::string &origCoordsetName,
+                               const std::string &newCoordsetName,
+                               const std::string &AXOM_UNUSED_PARAM(origMatsetName),
+                               const std::string &AXOM_UNUSED_PARAM(newMatsetName),
+                               conduit::Node &n_newTopo,
+                               conduit::Node &AXOM_UNUSED_PARAM(n_newCoordset),
+                               conduit::Node &n_newFields,
+                               conduit::Node &n_newMatset)
+{
+  // If the coordset was renamed in the output, make sure it the new topology references that new name.
+  if(origCoordsetName != newCoordsetName)
+  {
+    n_newTopo["coordset"] = newCoordsetName;
+  }
+  // If the topology was renamed in the output, make sure the matset and any fields reference that new name.
+  if(origTopoName != newTopoName)
+  {
+    n_newMatset["topology"] = newTopoName;
+
+    for(conduit::index_t i = 0; i < n_newFields.number_of_children(); i++)
+    {
+      conduit::Node &n_field = n_newFields[i];
+      if(n_field["topology"].as_string() == origTopoName)
+      {
+        n_field["topology"] = newTopoName;
+      }
+    }
   }
 }
 
@@ -125,6 +178,13 @@ void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &file
   // Make sure data are on host.
   conduit::Node n_mesh_host;
   axom::bump::utilities::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
+
+  // Check the mesh we're saving.
+  conduit::Node info;
+  if(!conduit::blueprint::mesh::verify(n_mesh_host, info))
+  {
+    printNode(n_mesh_host);
+  }
 
   conduit::relay::io::save(n_mesh_host, filebase + ".yaml", "yaml");
 #if defined(AXOM_USE_HDF5)

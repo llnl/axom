@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_UNSTRUCTUREDMESH_HPP_
-#define MINT_UNSTRUCTUREDMESH_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/Macros.hpp"
@@ -607,7 +607,7 @@ public:
     : UnstructuredMesh(ndims, group, "", "", node_capacity, cell_capacity, connectivity_capacity)
   { }
 
-    /// @}
+  /// @}
 
 #endif /* AXOM_MINT_USE_SIDRE */
 
@@ -991,7 +991,7 @@ public:
    * \brief Reserve space for the given number of cells.
    *
    * \param [in] cell_capacity the number of cells to reserve space for.
-   * \param [in] connectivity_capacity the ammount of space to reserve in the
+   * \param [in] connectivity_capacity the amount of space to reserve in the
    *  connectivity array. Ignored if TOPO == SINGLE_SHAPE.
    *
    * \post getCellCapacity() >= cell_capacity
@@ -1912,5 +1912,3 @@ inline void UnstructuredMesh<MIXED_SHAPE>::updateFaceRelations(IndexType numFace
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_UNSTRUCTUREDMESH_HPP_ */

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,14 +25,12 @@ extern "C" {
   #include "axom/sina/core/ID.hpp"
   #include "axom/sina/core/Run.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::adiakSinaCallback;
+using sina::ID;
+using sina::IDType;
+using sina::Record;
 
 using ::testing::DoubleEq;
 using ::testing::ElementsAre;
@@ -162,10 +161,5 @@ TEST_F(AdiakWriterTest, files_list)
   EXPECT_EQ(1, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"].number_of_children());
   EXPECT_EQ(fileListName, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"][0].as_string());
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom
 
 #endif  // AXOM_USE_ADIAK

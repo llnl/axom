@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -33,20 +34,57 @@ macro(axom_add_code_checks)
         set(_base_dirs "axom" "examples" "thirdparty/tests" "tools")
         set(_ext_expressions "*.cpp" "*.hpp" "*.inl"
                              "*.cxx" "*.hxx" "*.cc" "*.c" "*.h" "*.hh"
-                             "*.F" "*.f" "*.f90" "*.F90")
+                             "*.F" "*.f" "*.f90" "*.F90"
+                             "*.py"
+                             "*.cmake" "CMakeLists.txt")
 
-        set(_glob_expressions)
-        foreach(_exp ${_ext_expressions})
-            foreach(_base_dir ${_base_dirs})
-                list(APPEND _glob_expressions "${PROJECT_SOURCE_DIR}/${_base_dir}/${_exp}")
-            endforeach()
-        endforeach()
-
-        # Glob for list of files to run code checks on
         set(_sources)
-        file(GLOB_RECURSE _sources ${_glob_expressions})
+        set(_use_git_sources FALSE)
+
+        if(COMMAND blt_is_git_repo AND COMMAND blt_git)
+            blt_is_git_repo(OUTPUT_STATE _axom_is_git_repo
+                            SOURCE_DIR ${PROJECT_SOURCE_DIR})
+            if(_axom_is_git_repo)
+                set(_use_git_sources TRUE)
+            endif()
+        endif()
+
+        if(_use_git_sources)
+            blt_git(SOURCE_DIR ${PROJECT_SOURCE_DIR}
+                    GIT_COMMAND ls-files -- ${_base_dirs}
+                    OUTPUT_VARIABLE _git_ls_files
+                    RETURN_CODE _git_ls_files_result)
+
+            if(_git_ls_files_result EQUAL 0 AND NOT _git_ls_files STREQUAL "")
+                string(REPLACE "\n" ";" _sources "${_git_ls_files}")
+
+                # Keep only files handled by BLT language filters.
+                list(FILTER _sources INCLUDE REGEX "(\\.(cpp|hpp|inl|cxx|hxx|cc|c|h|hh|f|f90|py|cmake)|\\.F90|\\.F|CMakeLists\\.txt)$")
+
+                # Make source paths absolute.
+                set(_sources_prefixed)
+                foreach(_tracked_file ${_sources})
+                    list(APPEND _sources_prefixed "${PROJECT_SOURCE_DIR}/${_tracked_file}")
+                endforeach()
+                set(_sources ${_sources_prefixed})
+            else()
+                set(_use_git_sources FALSE)
+            endif()
+        else()
+            set(_glob_expressions)
+            foreach(_exp ${_ext_expressions})
+                foreach(_base_dir ${_base_dirs})
+                    list(APPEND _glob_expressions "${PROJECT_SOURCE_DIR}/${_base_dir}/${_exp}")
+                endforeach()
+            endforeach()
+
+            # Glob for list of files to run code checks on
+            file(GLOB_RECURSE _sources ${_glob_expressions})
+        endif()
 
         # Filter out exclusions
+        # Never run checks on local python environments
+        list(FILTER _sources EXCLUDE REGEX ".*[\\\\/]\\.venv[\\\\/].*")
         set(_exclude_expressions
             "${PROJECT_SOURCE_DIR}/axom/sidre/examples/lulesh2/*"
             "${PROJECT_SOURCE_DIR}/axom/slam/examples/lulesh2.0.3/*"
@@ -58,10 +96,11 @@ macro(axom_add_code_checks)
         blt_add_code_checks(PREFIX          axom
                             SOURCES         ${_sources}
                             CLANGFORMAT_CFG_FILE ${PROJECT_SOURCE_DIR}/.clang-format
+                            YAPF_CFG_FILE ${PROJECT_SOURCE_DIR}/.style.yapf
                             CPPCHECK_FLAGS  --enable=all --inconclusive)
 
         # Set FOLDER property for code check targets
-        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style)
+        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style yapf_check yapf_style)
             set(_tgt ${arg_PREFIX}_${_suffix})
             if(TARGET ${_tgt}) 
                 set_target_properties(${_tgt} PROPERTIES FOLDER "axom/code_checks")
@@ -228,8 +267,13 @@ endmacro(axom_add_library)
 ##               NUM_OMP_THREADS [n]
 ##               CONFIGURATIONS  [config1 [config2...]])
 ##
-## Wrapper around blt_add_test() that handles functionality that Axom applies to all
-## tests.
+## Wrapper around blt_add_test() that handles functionality 
+## that Axom applies to all tests.
+##
+## Note that NUM_OMP_THREADS delegates to the corresponding argument 
+## in blt_add_test() and sets the OpenMP environment variable OMP_NUM_THREADS.
+## When AXOM_ENABLE_OPENMP is set and NUM_OMP_THREADS is not provided, 
+## this macros also sets the environment variable OMP_NUM_THREADS=1.
 ##------------------------------------------------------------------------------
 macro(axom_add_test)
 
@@ -248,15 +292,25 @@ macro(axom_add_test)
                  NUM_OMP_THREADS ${arg_NUM_OMP_THREADS}
                  CONFIGURATIONS  ${arg_CONFIGURATIONS} )
 
-    ###########################################################################
+    #--------------------------------------------------------------------------
     # Newer versions of OpenMPI require OMPI_MCA_rmaps_base_oversubscribe=1
     # to run with more tasks than actual cores
     # Since this is an OpenMPI specific env var, it shouldn't interfere
     # with other mpi implementations.
-    ###########################################################################
+    #--------------------------------------------------------------------------
     set_property(TEST ${arg_NAME}
                  APPEND
                  PROPERTY ENVIRONMENT  "OMPI_MCA_rmaps_base_oversubscribe=1")
+
+    #--------------------------------------------------------------------------
+    # Cap OpenMP parallelism for tests that do not explicitly
+    # specify NUM_OMP_THREADS to avoid accidental oversubscription
+    #--------------------------------------------------------------------------
+    if(AXOM_ENABLE_OPENMP AND (NOT arg_NUM_OMP_THREADS))
+        set_property(TEST ${arg_NAME}
+                     APPEND 
+                     PROPERTY ENVIRONMENT OMP_NUM_THREADS=1)
+    endif()
 
 endmacro(axom_add_test)
 
@@ -499,8 +553,9 @@ macro(axom_write_unified_header)
     set(_header ${PROJECT_BINARY_DIR}/include/axom/${_lcname}.hpp)
     set(_tmp_header ${_header}.tmp)
 
-    file(WRITE ${_tmp_header} "\/\/ Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-\/\/ other Axom Project Developers. See the top-level LICENSE file for details.
+    file(WRITE ${_tmp_header} "\/\/ Copyright (c) Lawrence Livermore National Security, LLC and other
+\/\/ Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+\/\/ files for dates and other details.
 \/\/
 \/\/ SPDX-License-Identifier: (BSD-3-Clause)
 \n
@@ -547,3 +602,127 @@ macro(axom_configure_file _source _target)
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_tmp_target} ${_target})
     execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${_tmp_target})
 endmacro(axom_configure_file)
+
+##------------------------------------------------------------------------------
+## axom_python_test_environment(<output_var>)
+##
+## Composes the single ENVIRONMENT entry ("PYTHONPATH=<dir>:<dir>:...") needed to
+## run Axom's Python tests directly under ${Python_EXECUTABLE} without a wrapper script.
+##
+## We assemble one path list here, ordered:
+##
+##   1. the staged Python package tree (the 'axom' package)   -- runtime
+##   2. conduit's python module dir                            -- runtime
+##   3. numpy, then mpi4py (MPI configs)                       -- runtime
+##   4. pytest and its dependencies                            -- test harness
+##
+## Axom's own package tree comes first so it is preferred over anything the
+## interpreter might also provide. Entries whose cache variable is unset are skipped;
+## conduit/numpy/etc. already on the interpreter's path make the corresponding entries harmless no-ops.
+##------------------------------------------------------------------------------
+function(axom_python_test_environment output_var)
+    set(_paths "")
+
+    # (1) staged package tree -- mirrors run_python_with_axom.sh's _PYEXT_DIR
+    blt_list_append(TO _paths ELEMENTS "${PROJECT_BINARY_DIR}/python")
+
+    # (2,3) runtime dependencies
+    foreach(_var CONDUIT_PYTHON_MODULE_DIR PY_NUMPY_DIR PY_MPI4PY_DIR)
+        blt_list_append(TO _paths ELEMENTS "${${_var}}" IF ${_var})
+    endforeach()
+
+    # (4) test-harness dependencies
+    foreach(_var PY_PYTEST_DIR PY_PLUGGY_DIR PY_INICONFIG_DIR
+                 PY_PACKAGING_DIR PY_PYGMENTS_DIR)
+        blt_list_append(TO _paths ELEMENTS "${${_var}}" IF ${_var})
+    endforeach()
+
+    if(_paths)
+        list(JOIN _paths ":" _joined)
+        set(${output_var} "PYTHONPATH=${_joined}" PARENT_SCOPE)
+    else()
+        set(${output_var} "" PARENT_SCOPE)
+    endif()
+endfunction()
+
+##------------------------------------------------------------------------------
+## axom_add_python_test(NAME          [name]
+##                      SOURCE        [source]
+##                      OUTPUT_DIR    [dir]
+##                      COMMAND       [command]
+##                      NUM_MPI_TASKS [n])
+##
+## Wrapper around axom_add_test() that handles functionality
+## that Axom applies to all python tests.
+##
+## When SOURCE is provided, the test file is copied to OUTPUT_DIR and run under
+## pytest. When COMMAND is provided, it is registered directly as the test
+## command. SOURCE and COMMAND are mutually exclusive.
+##------------------------------------------------------------------------------
+macro(axom_add_python_test)
+
+    set(options)
+    set(singleValueArgs NAME SOURCE OUTPUT_DIR NUM_MPI_TASKS)
+    set(multiValueArgs COMMAND)
+
+    # Parse the arguments to the macro
+    cmake_parse_arguments(arg
+         "${options}" "${singleValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(arg_SOURCE AND arg_COMMAND)
+        message(FATAL_ERROR
+                "axom_add_python_test accepts either SOURCE or COMMAND, not both")
+    endif()
+
+    if(arg_COMMAND)
+        set(_test_command ${arg_COMMAND})
+    else()
+        if((NOT arg_SOURCE) OR (NOT arg_OUTPUT_DIR))
+            message(FATAL_ERROR
+                    "axom_add_python_test requires SOURCE and OUTPUT_DIR, or COMMAND")
+        endif()
+
+        # Copy python test file to build
+        axom_configure_file ("${arg_SOURCE}"
+                             "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
+
+        # Run unit test with pytest ("python3 -m pytest"), invoked directly
+        # rather than through the run_python_with_axom.sh wrapper. The full
+        # runtime + test environment is supplied via the test's ENVIRONMENT
+        # property (a single combined PYTHONPATH; see axom_python_test_environment).
+        # Running pytest natively keeps the tests composable with IDEs/debuggers
+        # and removes the bash-only wrapper from the test path.
+        # "-p no:cacheprovider" disables caching.
+        set(_test_command ${Python_EXECUTABLE}
+                          -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE})
+    endif()
+
+    axom_add_test(NAME          ${arg_NAME}
+                  COMMAND       ${_test_command}
+                  NUM_MPI_TASKS ${arg_NUM_MPI_TASKS})
+
+    axom_python_test_environment(_py_test_env)
+    if(_py_test_env)
+        set_property(TEST ${arg_NAME}
+                     APPEND
+                     PROPERTY ENVIRONMENT "${_py_test_env}")
+    endif()
+    unset(_py_test_env)
+    unset(_test_command)
+
+endmacro(axom_add_python_test)
+
+##------------------------------------------------------------------------------
+## axom_force_release_for_target
+##
+## This macro forces a target to be compiled in Release mode by adding compiler
+## optimization flags.
+##------------------------------------------------------------------------------
+macro(axom_force_release_for_target tgt)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        target_compile_options(${tgt} PRIVATE /O2)
+    else()
+        target_compile_options(${tgt} PRIVATE -O3 -g0)
+    endif()
+    target_compile_definitions(${tgt} PRIVATE NDEBUG)
+endmacro(axom_force_release_for_target)

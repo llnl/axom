@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_NUMERICS_LU_HPP_
-#define AXOM_NUMERICS_LU_HPP_
+#pragma once
 
 #include "axom/core/utilities/Utilities.hpp"  // NearlyEqual(), swap() and abs()
 #include "axom/core/memory_management.hpp"    // alloc() and free()
@@ -200,5 +200,3 @@ int lu_solve(const Matrix<T>& A, const int* pivots, const T* b, T* x)
 
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif /* AXOM_NUMERICS_LU_HPP_ */

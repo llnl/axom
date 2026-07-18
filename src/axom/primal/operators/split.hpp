@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file split.hpp
@@ -9,9 +12,6 @@
  * \brief Consists of a set of methods to split a primal primitive into
  *        (a collection of) another primal primitive
  */
-
-#ifndef AXOM_PRIMAL_SPLIT_HPP_
-#define AXOM_PRIMAL_SPLIT_HPP_
 
 #include "axom/core/Array.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"
@@ -117,5 +117,3 @@ AXOM_HOST_DEVICE void split(const Octahedron<Tp, 3>& oct, Tetrahedron<Tp, 3>* ou
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_SPLIT_HPP_

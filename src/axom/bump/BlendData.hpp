@@ -1,9 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_BLEND_DATA_HPP_
-#define AXOM_BUMP_BLEND_DATA_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 
@@ -63,7 +64,18 @@ struct BlendData
   CoeffView m_blendCoeffView {};       //!< Weights that make up blend groups.
 };
 
+/*!
+ * \brief Return the number of blend groups in the BlendData (the number of values produced from the BlendData)
+ *
+ * \param blend The BlendData we're querying.
+ *
+ * \return The number of blend groups in the BlendData.
+ */
+AXOM_HOST_DEVICE
+inline axom::IndexType numberOfValues(const BlendData &blend)
+{
+  return blend.m_blendGroupSizesView.size();
+}
+
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

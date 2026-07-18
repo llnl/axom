@@ -1,13 +1,12 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
 
 // Part class holds the material data for a single material.
-
-#ifndef __Part__
-#define __Part__
 
 #include <vector>
 
@@ -58,5 +57,3 @@ namespace tinyHydro {
   };
 
 } // end namespace tinyHydro
-
-#endif

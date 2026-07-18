@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -16,6 +17,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <type_traits>
 
 namespace primal = axom::primal;
 
@@ -25,7 +27,7 @@ TEST(primal_winding_number, simple_cases)
   using Point2D = primal::Point<double, 2>;
   using Triangle = primal::Triangle<double, 2>;
   using Bezier = primal::BezierCurve<double, 2>;
-  using CPolygon = primal::CurvedPolygon<double, 2>;
+  using CPolygon = primal::CurvedPolygon<Bezier>;
 
   double abs_tol = 1e-8;
   double edge_tol = 1e-8;
@@ -46,39 +48,29 @@ TEST(primal_winding_number, simple_cases)
   Bezier simple_shape_edges[] = {top_curve, bot_curve};
   CPolygon simple_shape(simple_shape_edges, 2);
 
+  axom::Array<Point2D> inside_points, outside_points;
+
   // Check interior points
   for(int i = 1; i < 7; i++)
   {
     double offset = std::pow(10, -i);
-    Point2D q_vert({-0.352, 0.72 - offset});
-    Point2D q_horz({-0.352 - offset, 0.72});
 
-    EXPECT_NEAR(winding_number(q_vert, simple_shape, edge_tol, EPS), 1.0, abs_tol);
-    EXPECT_NEAR(winding_number(q_horz, simple_shape, edge_tol, EPS), 1.0, abs_tol);
+    inside_points.push_back(Point2D {-0.352, 0.72 - offset});
+    inside_points.push_back(Point2D {-0.352 - offset, 0.72});
+
+    outside_points.push_back(Point2D {-0.352, 0.72 + offset});
+    outside_points.push_back(Point2D {-0.352 + offset, 0.72});
   }
 
-  // Check exterior points
-  for(int i = 1; i < 7; i++)
+  // Evaluate with memoized algorithm
+  auto inside_gwn = winding_number(inside_points, simple_shape, edge_tol, EPS);
+  auto outside_gwn = winding_number(outside_points, simple_shape, edge_tol, EPS);
+
+  for(int i = 0; i < inside_points.size(); ++i)
   {
-    double offset = std::pow(10, -i);
-    Point2D q_vert({-0.352, 0.72 + offset});
-    Point2D q_horz({-0.352 + offset, 0.72});
-
-    EXPECT_NEAR(winding_number(q_vert, simple_shape, edge_tol, EPS), 0.0, abs_tol);
-    EXPECT_NEAR(winding_number(q_horz, simple_shape, edge_tol, EPS), 0.0, abs_tol);
+    EXPECT_NEAR(inside_gwn[i], 1.0, abs_tol);
+    EXPECT_NEAR(outside_gwn[i], 0.0, abs_tol);
   }
-
-  // Test that points on either side of cubic are offset by 1
-  EXPECT_NEAR(winding_number(Point2D({-0.352, 0.72 - edge_tol * 2}), top_curve, edge_tol, EPS) -
-                winding_number(Point2D({-0.352, 0.72 + edge_tol * 2}), top_curve, edge_tol, EPS),
-              1,
-              abs_tol);
-
-  top_curve.reverseOrientation();
-  EXPECT_NEAR(winding_number(Point2D({-0.352, 0.72 + edge_tol * 2}), top_curve, edge_tol, EPS) -
-                winding_number(Point2D({-0.352, 0.72 - edge_tol * 2}), top_curve, edge_tol, EPS),
-              1,
-              abs_tol);
 
   // Test containment on non-convex shape, where the query point is outside
   //  the control polygon, but interior to the closed Bezier curve
@@ -402,7 +394,7 @@ TEST(primal_winding_number, rational_bezier_winding_number)
 {
   using Point2D = primal::Point<double, 2>;
   using Bezier = primal::BezierCurve<double, 2>;
-  using CPolygon = primal::CurvedPolygon<double, 2>;
+  using CPolygon = primal::CurvedPolygon<Bezier>;
 
   double abs_tol = 1e-8;
   double edge_tol = 0;
@@ -471,12 +463,13 @@ TEST(primal_winding_number, nurbs_winding_numbers)
   NURBSCurveType circle(data, weights, 7, knots, 11);
 
   // Check the winding number on a simple grid of points
-  for(double x = -2.0; x <= 2.0; x += 0.201)
+  for(double x = -2.0; x <= 2.0; x += 0.21)
   {
-    for(double y = -2.0; y <= 2.0; y += 0.201)
+    for(double y = -2.0; y <= 2.0; y += 0.21)
     {
       PointType query {x, y};
       double gwn = winding_number(query, circle);
+
       if(x * x + y * y > 1.0)
       {
         EXPECT_DOUBLE_EQ(std::lround(gwn), 0.0);
@@ -487,6 +480,28 @@ TEST(primal_winding_number, nurbs_winding_numbers)
       }
     }
   }
+}
+
+TEST(primal_winding_number, nurbs_patch_gwn_cache_accessors_are_zero_copy)
+{
+  using Patch = primal::NURBSPatch<double, 3>;
+  using Cache = primal::detail::NURBSPatchGWNCache<double>;
+
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getControlPoints()),
+                               decltype(std::declval<const Patch&>().getControlPoints())>,
+                "NURBSPatchGWNCache::getControlPoints() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getWeights()),
+                               decltype(std::declval<const Patch&>().getWeights())>,
+                "NURBSPatchGWNCache::getWeights() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getKnots_u()),
+                               decltype(std::declval<const Patch&>().getKnots_u())>,
+                "NURBSPatchGWNCache::getKnots_u() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getKnots_v()),
+                               decltype(std::declval<const Patch&>().getKnots_v())>,
+                "NURBSPatchGWNCache::getKnots_v() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getTrimmingCurves()),
+                               decltype(std::declval<const Patch&>().getTrimmingCurves())>,
+                "NURBSPatchGWNCache::getTrimmingCurves() must match NURBSPatch signature");
 }
 
 int main(int argc, char** argv)

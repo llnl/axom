@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_STRUCTURED_TOPOLOGY_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_STRUCTURED_TOPOLOGY_VIEW_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -128,13 +128,13 @@ public:
   {
     SLIC_ASSERT(zoneIndex < numberOfZones());
 
-    const auto localLogical = m_zoneIndexing.IndexToLogicalIndex(zoneIndex);
+    const auto localLogical = m_zoneIndexing.indexToLogicalIndex(zoneIndex);
     const auto jp = m_nodeIndexing.jStride();
     const auto kp = m_nodeIndexing.kStride();
 
     Shape3D shape;
     auto &data = shape.getIdsStorage();
-    data[0] = m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
+    data[0] = m_nodeIndexing.globalToGlobal(m_nodeIndexing.localToGlobal(localLogical));
     data[1] = data[0] + 1;
     data[2] = data[1] + jp;
     data[3] = data[2] - 1;
@@ -160,12 +160,12 @@ public:
   {
     SLIC_ASSERT(zoneIndex < numberOfZones());
 
-    const auto localLogical = m_zoneIndexing.IndexToLogicalIndex(zoneIndex);
+    const auto localLogical = m_zoneIndexing.indexToLogicalIndex(zoneIndex);
     const auto jp = m_nodeIndexing.jStride();
 
     Shape2D shape;
     auto &data = shape.getIdsStorage();
-    data[0] = m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
+    data[0] = m_nodeIndexing.globalToGlobal(m_nodeIndexing.localToGlobal(localLogical));
     data[1] = data[0] + 1;
     data[2] = data[1] + jp;
     data[3] = data[2] - 1;
@@ -187,11 +187,11 @@ public:
   {
     SLIC_ASSERT(zoneIndex < numberOfZones());
 
-    const auto localLogical = m_zoneIndexing.IndexToLogicalIndex(zoneIndex);
+    const auto localLogical = m_zoneIndexing.indexToLogicalIndex(zoneIndex);
 
     Shape1D shape;
     auto &data = shape.getIdsStorage();
-    data[0] = m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
+    data[0] = m_nodeIndexing.globalToGlobal(m_nodeIndexing.localToGlobal(localLogical));
     data[1] = data[0] + 1;
 
     return shape;
@@ -205,5 +205,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

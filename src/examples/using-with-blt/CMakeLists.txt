@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -61,6 +62,10 @@ set(example_depends axom axom::fmt)
 
 if(ENABLE_HIP)
   set(example_depends ${example_depends} blt::hip)
+endif ()
+
+if(ENABLE_CUDA)
+  set(example_depends ${example_depends} blt::cuda)
 endif ()
 
 blt_add_executable(NAME       example 

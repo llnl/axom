@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_STRIDED_STRUCTURED_INDEXING_HPP_
-#define AXOM_BUMP_STRIDED_STRUCTURED_INDEXING_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -85,7 +85,14 @@ struct StridedStructuredIndexing
     : m_dimensions(dims)
     , m_offsets(offsets)
     , m_strides(strides)
-  { }
+  {
+#if !defined(AXOM_DEVICE_CODE)
+    for(int d = 0; d < NDIMS; d++)
+    {
+      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must greater than or equal to 1.");
+    }
+#endif
+  }
 
   /*!
    * \brief Return the number of values in the index space.
@@ -136,7 +143,7 @@ struct StridedStructuredIndexing
    * \return The global index.
    */
   AXOM_HOST_DEVICE
-  IndexType GlobalToGlobal(const LogicalIndex &global) const
+  IndexType globalToGlobal(const LogicalIndex &global) const
   {
     IndexType gl {};
     for(int i = 0; i < NDIMS; i++)
@@ -155,16 +162,16 @@ struct StridedStructuredIndexing
    */
   /// @{
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, LogicalIndex>::type GlobalToGlobal(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, LogicalIndex>::type globalToGlobal(
     IndexType global) const
   {
     LogicalIndex gl;
     gl[0] = global;
-    return global;
+    return gl;
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, LogicalIndex>::type GlobalToGlobal(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, LogicalIndex>::type globalToGlobal(
     IndexType global) const
   {
     LogicalIndex gl;
@@ -174,7 +181,7 @@ struct StridedStructuredIndexing
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, LogicalIndex>::type GlobalToGlobal(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, LogicalIndex>::type globalToGlobal(
     IndexType global) const
   {
     LogicalIndex gl;
@@ -183,6 +190,7 @@ struct StridedStructuredIndexing
     gl[2] = global / m_strides[2];
     return gl;
   }
+
   /// @}
 
   /*!
@@ -191,7 +199,7 @@ struct StridedStructuredIndexing
    * \return local logical index.
    */
   AXOM_HOST_DEVICE
-  LogicalIndex GlobalToLocal(const LogicalIndex &global) const
+  LogicalIndex globalToLocal(const LogicalIndex &global) const
   {
     LogicalIndex local(global);
     for(int i = 0; i < NDIMS; i++)
@@ -209,9 +217,9 @@ struct StridedStructuredIndexing
    * \return The local index that corresponds to the \a local.
    */
   AXOM_HOST_DEVICE
-  IndexType GlobalToLocal(IndexType global) const
+  IndexType globalToLocal(IndexType global) const
   {
-    return LogicalIndexToIndex(GlobalToLocal(GlobalToGlobal(global)));
+    return logicalIndexToIndex(globalToLocal(globalToGlobal(global)));
   }
 
   /*!
@@ -220,7 +228,7 @@ struct StridedStructuredIndexing
    * \return global logical index.
    */
   AXOM_HOST_DEVICE
-  LogicalIndex LocalToGlobal(const LogicalIndex &local) const
+  LogicalIndex localToGlobal(const LogicalIndex &local) const
   {
     LogicalIndex global(local);
     for(int i = 0; i < NDIMS; i++)
@@ -236,9 +244,9 @@ struct StridedStructuredIndexing
    * \return local logical index.
    */
   AXOM_HOST_DEVICE
-  IndexType LocalToGlobal(IndexType local) const
+  IndexType localToGlobal(IndexType local) const
   {
-    return GlobalToGlobal(LocalToGlobal(IndexToLogicalIndex(local)));
+    return globalToGlobal(localToGlobal(indexToLogicalIndex(local)));
   }
 
   /*!
@@ -251,7 +259,7 @@ struct StridedStructuredIndexing
   /// @{
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, LogicalIndex>::type IndexToLogicalIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, LogicalIndex>::type indexToLogicalIndex(
     IndexType index) const
   {
     LogicalIndex logical;
@@ -260,7 +268,7 @@ struct StridedStructuredIndexing
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, LogicalIndex>::type IndexToLogicalIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, LogicalIndex>::type indexToLogicalIndex(
     IndexType index) const
   {
     LogicalIndex logical;
@@ -271,7 +279,7 @@ struct StridedStructuredIndexing
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, LogicalIndex>::type IndexToLogicalIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, LogicalIndex>::type indexToLogicalIndex(
     IndexType index) const
   {
     LogicalIndex logical;
@@ -282,6 +290,7 @@ struct StridedStructuredIndexing
     logical[2] = index / nxy;
     return logical;
   }
+
   /// @}
 
   /*!
@@ -292,7 +301,7 @@ struct StridedStructuredIndexing
    * \return The index that corresponds to the \a logical index.
    */
   AXOM_HOST_DEVICE
-  IndexType LogicalIndexToIndex(const LogicalIndex &logical) const
+  IndexType logicalIndexToIndex(const LogicalIndex &logical) const
   {
     IndexType index {};
     IndexType stride {1};
@@ -330,7 +339,7 @@ struct StridedStructuredIndexing
    * \return True if the index is within the index, false otherwise.
    */
   AXOM_HOST_DEVICE
-  bool contains(IndexType index) const { return contains(IndexToLogicalIndex(index)); }
+  bool contains(IndexType index) const { return contains(indexToLogicalIndex(index)); }
 
   /*!
    * \brief Expand the current StridedStructuredIndexing by one in each dimension.
@@ -397,7 +406,7 @@ struct StridedStructuredIndexing
 
   IndexType clamp(IndexType index) const
   {
-    return LogicalIndexToIndex(clamp(IndexToLogicalIndex(index)));
+    return logicalIndexToIndex(clamp(indexToLogicalIndex(index)));
   }
   /// @}
 
@@ -409,5 +418,3 @@ struct StridedStructuredIndexing
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

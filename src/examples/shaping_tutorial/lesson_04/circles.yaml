@@ -1,0 +1,27 @@
+dimensions: 2
+
+shapes:
+  - name: background
+    material: void
+    geometry:
+      format: none
+
+  - name: outer_shell
+    material: steel
+    geometry:
+      format: mfem
+      path: unit_circle.mesh
+      units: cm
+      operators:
+        - scale: 5
+
+  - name: inner_ball
+    material: void
+    geometry:
+      format: mfem
+      path: unit_circle.mesh
+      start_units: mm
+      end_units: cm
+      operators:
+        - scale: 25
+        - convert_units_to: cm

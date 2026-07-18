@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  *******************************************************************************
@@ -11,10 +14,8 @@
  *******************************************************************************
  */
 
-#ifndef INLET_PROXY_HPP
-#define INLET_PROXY_HPP
-
 #include <type_traits>
+#include <utility>
 
 #include "axom/inlet/Field.hpp"
 #include "axom/inlet/Container.hpp"
@@ -23,6 +24,22 @@ namespace axom
 {
 namespace inlet
 {
+
+namespace detail
+{
+template <typename T, typename SFINAE = void>
+struct has_ProxyFromInlet_specialization : std::false_type
+{ };
+
+template <typename T>
+struct has_ProxyFromInlet_specialization<
+  T,
+  typename std::enable_if<
+    std::is_same<T, decltype(std::declval<FromInlet<T>&>()(std::declval<const Proxy&>()))>::value>::type>
+  : std::true_type
+{ };
+}  // namespace detail
+
 /*!
  *******************************************************************************
  * \class Proxy
@@ -41,7 +58,7 @@ public:
   /*!
    *******************************************************************************
    * \brief Constructs a proxy view onto a container
-   * 
+   *
    * \param [in] container The container to construct a proxy into
    *******************************************************************************
    */
@@ -50,7 +67,7 @@ public:
   /*!
    *******************************************************************************
    * \brief Constructs a proxy view onto a field
-   * 
+   *
    * \param [in] field The field to construct a proxy into
    *******************************************************************************
    */
@@ -141,6 +158,28 @@ public:
   /*!
    *******************************************************************************
    * \brief Returns a user-defined type from the proxy
+   *
+   * \tparam T The type of the object to retrieve
+   * \return The retrieved object
+   * \pre The Proxy must refer to a container object
+   *******************************************************************************
+   */
+  template <typename T>
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_std_function<T>::value &&
+                            detail::has_ProxyFromInlet_specialization<T>::value,
+                          T>::type
+  get() const
+  {
+    SLIC_ASSERT_MSG(m_container != nullptr,
+                    "[Inlet] Tried to read a user-defined type from a Proxy "
+                    "containing a single field or function");
+    FromInlet<T> from_inlet;
+    return from_inlet(*this);
+  }
+
+  /*!
+   *******************************************************************************
+   * \brief Returns a user-defined type from the proxy
    * 
    * \tparam T The type of the object to retrieve
    * \return The retrieved object
@@ -148,7 +187,9 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_std_function<T>::value, T>::type
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_std_function<T>::value &&
+                            !detail::has_ProxyFromInlet_specialization<T>::value,
+                          T>::type
   get() const
   {
     SLIC_ASSERT_MSG(m_container != nullptr,
@@ -222,5 +263,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif  // INLET_PROXY_HPP

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -31,14 +32,28 @@
 #include "axom/sina/core/Record.hpp"
 #include "axom/sina/tests/SinaMatchers.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using axom::sina::testing::parseJsonValue;
+using axom::sina::testing::TEST_RECORD_VALUE_KEY;
+using axom::sina::testing::TestRecord;
+using sina::appendDocumentToHDF5;
+using sina::appendDocumentToJson;
+using sina::createRecordLoaderWithAllKnownTypes;
+using sina::Document;
+using sina::File;
+using sina::getRequiredField;
+using sina::getRequiredString;
+using sina::ID;
+using sina::IDType;
+using sina::loadDocument;
+using sina::Protocol;
+using sina::Record;
+using sina::RecordLoader;
+using sina::Relationship;
+using sina::restoreSlashes;
+using sina::saveDocument;
+using sina::validateAppendDocument;
 
 using ::testing::ElementsAre;
 using ::testing::HasSubstr;
@@ -735,6 +750,7 @@ void doFullAppendTest(
   // The hard one, now a blend of the prior and new record
   conduit::Node rec0;
   restoreSlashes(root["records"].child(0), rec0);
+
   EXPECT_EQ(rec0["type"].as_string(), "run");
   EXPECT_EQ(rec0["data"]["string"]["value"].as_string(), "goodbye!");
   EXPECT_EQ(rec0["data"].child("str/ings")["value"][0].as_string(), "z");
@@ -812,7 +828,6 @@ TEST(Document, test_appendOrderedCurvesToHDF5)
 {
   doAppendOrderedCurveTest("hdf5", appendDocumentToHDF5);
 }
-#endif
 
 TEST(Document, create_fromJson_roundtrip_hdf5)
 {
@@ -874,7 +889,4 @@ TEST(Document, saveDocument_hdf5)
   EXPECT_EQ("the type", readRecord["type"].as_string());
 }
 
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom
+#endif

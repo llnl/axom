@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -20,7 +21,11 @@ blt_list_append(
     arrays.cpp
     documentation_generation.cpp
     fields.cpp
+    homogeneous_collections.cpp
     lua_library.cpp
+    user_defined_variant.cpp
+    variant_struct_collections.cpp
+    variant_collections.cpp
     containers.cpp
     user_defined_type.cpp
     verification.cpp
@@ -40,11 +45,6 @@ foreach(example ${inlet_examples})
                         DEPENDS_ON inlet
                         FOLDER     axom/inlet/examples )
 endforeach()
-
-if (SOL_FOUND AND NOT AXOM_ENABLE_HIP)
-    # Set file back to C++ due to nvcc compiler error
-    set_source_files_properties(lua_library.cpp PROPERTIES LANGUAGE CXX)
-endif()
 
 if (SOL_FOUND AND MFEM_FOUND)
     axom_add_executable(NAME       inlet_mfem_coefficient_ex
@@ -72,14 +72,26 @@ if (SOL_FOUND)
     axom_add_test( NAME    inlet_fields_ex
                    COMMAND inlet_fields_ex)
 
+    axom_add_test( NAME    inlet_homogeneous_collections_ex
+                   COMMAND inlet_homogeneous_collections_ex )
+
     axom_add_test( NAME    inlet_lua_library_ex
                    COMMAND inlet_lua_library_ex )
+
+    axom_add_test( NAME    inlet_variant_collections_ex
+                   COMMAND inlet_variant_collections_ex )
+
+    axom_add_test( NAME    inlet_variant_struct_collections_ex
+                   COMMAND inlet_variant_struct_collections_ex )
 
     axom_add_test( NAME    inlet_containers_ex
                    COMMAND inlet_containers_ex)
 
     axom_add_test( NAME    inlet_user_defined_type_ex
                    COMMAND inlet_user_defined_type_ex --file ${CMAKE_CURRENT_LIST_DIR}/example1.lua)
+
+    axom_add_test( NAME    inlet_user_defined_variant_ex
+                   COMMAND inlet_user_defined_variant_ex )
 
     axom_add_test( NAME    inlet_verification_ex
                    COMMAND inlet_verification_ex )

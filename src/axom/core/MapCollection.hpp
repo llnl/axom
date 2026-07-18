@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  ******************************************************************************
@@ -104,9 +107,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef AXOM_MAP_COLLECTIONS_HPP_
-#define AXOM_MAP_COLLECTIONS_HPP_
 
 // Standard C++ headers
 #include <map>
@@ -428,5 +428,3 @@ T* MapCollection<T>::removeItem(IndexType idx)
 }
 
 }  // namespace axom
-
-#endif  // AXOM_MAP_COLLECTIONS_HPP_

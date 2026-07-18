@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file SubsettingPolicies.hpp
@@ -19,22 +22,14 @@
  *   * operator(): IntType -- alternate accessor for indirection
  */
 
-#ifndef SLAM_POLICIES_SUBSET_H_
-#define SLAM_POLICIES_SUBSET_H_
-
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 
 #include "axom/slam/NullSet.hpp"
-#include "axom/export/slam.h"
 
 #include <set>
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /**
  * \name OrderedSet_Subsetting_Policies
@@ -45,7 +40,7 @@ namespace policies
 
 struct NoSubset
 {
-  AXOM_SLAM_EXPORT static const NullSet<> s_nullSet;
+  inline static const NullSet<> s_nullSet {};
   using ParentSetType = const Set<>;
 
   AXOM_HOST_DEVICE NoSubset() { }
@@ -68,7 +63,7 @@ struct NoSubset
 
 struct VirtualParentSubset
 {
-  AXOM_SLAM_EXPORT static NullSet<> s_nullSet;
+  inline static NullSet<> s_nullSet {};
 
   using ParentSetType = Set<>;
 
@@ -202,8 +197,4 @@ private:
 
 /// \}
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_POLICIES_SUBSET_H_
+}  // end namespace axom::slam::policies

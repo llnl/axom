@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SIDRE_DEPRECATED_MCArray_HPP_
-#define SIDRE_DEPRECATED_MCArray_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"               // for disable copy/assignment macro
 #include "axom/core/utilities/Utilities.hpp"  // for memory allocation functions
@@ -347,7 +347,7 @@ inline void MCArray<T>::dynamicRealloc(axom::IndexType new_num_tuples)
   SLIC_ERROR_IF(this->m_resize_ratio < 1.0,
                 "Resize ratio of " << this->m_resize_ratio << " doesn't support dynamic resizing");
 
-  IndexType new_capacity = new_num_tuples * this->m_resize_ratio + 0.5;
+  const IndexType new_capacity = static_cast<IndexType>(new_num_tuples * this->m_resize_ratio + 0.5);
   return reallocViewData(new_capacity);
 }
 
@@ -402,5 +402,3 @@ inline void MCArray<T>::reallocViewData(IndexType new_capacity)
 } /* namespace deprecated */
 } /* namespace sidre */
 } /* namespace axom */
-
-#endif /* SIDRE_DEPRECATED_MCArray_HPP_ */

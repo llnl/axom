@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  *******************************************************************************
@@ -10,9 +13,6 @@
  * \brief This file contains the class definition of the Message.
  *******************************************************************************
  */
-
-#ifndef MESSAGE_HPP
-#define MESSAGE_HPP
 
 #include <cstring>
 #include <string>
@@ -386,5 +386,3 @@ inline bool isPackedMessagesEmpty(const char* packedMessages)
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

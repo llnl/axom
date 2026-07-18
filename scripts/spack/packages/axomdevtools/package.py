@@ -20,17 +20,18 @@ class Axomdevtools(BundlePackage):
 
     # 3.13 is bugfix/stable release
     depends_on("python@3.13")
-    depends_on("doxygen")
+
+    # 1.15.0 is latest release that compiles
+    depends_on("doxygen@1.15.0")
+
     depends_on("cppcheck+rules")
     depends_on("graphviz")
     depends_on("py-sphinx")
     depends_on("py-shroud")
     depends_on("py-sphinxcontrib-jquery")
+    depends_on("py-yapf@0.43.0")
 
     # 4.18 builds py-rpds-py, which then needs rust...
     depends_on("py-jsonschema@4.17")
-    depends_on("py-nanobind@2.7.0")
-    depends_on("py-pytest")
-    depends_on("py-numpy")
 
     depends_on("llvm+clang@19")

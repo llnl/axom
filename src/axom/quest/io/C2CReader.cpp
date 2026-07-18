@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -14,21 +15,73 @@
 #include "axom/primal.hpp"
 #include "axom/fmt.hpp"
 
+#include "c2c/C2C.hpp"
+
 #include <fstream>
+#include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace axom
 {
 namespace quest
 {
+namespace
+{
+c2c::LengthUnit toC2CLengthUnit(utilities::LengthUnit unit)
+{
+  switch(unit)
+  {
+  case utilities::LengthUnit::km:
+    return c2c::LengthUnit::km;
+  case utilities::LengthUnit::m:
+    return c2c::LengthUnit::m;
+  case utilities::LengthUnit::cm:
+    return c2c::LengthUnit::cm;
+  case utilities::LengthUnit::mm:
+    return c2c::LengthUnit::mm;
+  case utilities::LengthUnit::um:
+    return c2c::LengthUnit::um;
+  case utilities::LengthUnit::miles:
+    return c2c::LengthUnit::miles;
+  case utilities::LengthUnit::feet:
+    return c2c::LengthUnit::ft;
+  case utilities::LengthUnit::inches:
+    return c2c::LengthUnit::in;
+  case utilities::LengthUnit::mils:
+    return c2c::LengthUnit::mils;
+  case utilities::LengthUnit::dm:
+  case utilities::LengthUnit::hm:
+  case utilities::LengthUnit::dam:
+  case utilities::LengthUnit::am:
+  case utilities::LengthUnit::fm:
+  case utilities::LengthUnit::pm:
+  case utilities::LengthUnit::nm:
+  case utilities::LengthUnit::angstrom:
+  case utilities::LengthUnit::unspecified:
+    throw std::invalid_argument("Length unit is not supported by c2c");
+  }
+
+  throw std::invalid_argument("Unknown length unit");
+}
+}  // namespace
 
 void C2CReader::clear() { m_nurbsData.clear(); }
+
+void C2CReader::setLengthUnit(utilities::LengthUnit lengthUnit)
+{
+  toC2CLengthUnit(lengthUnit);
+  m_lengthUnit = lengthUnit;
+}
 
 int C2CReader::read()
 {
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in C2CReader::read()");
 
   using axom::utilities::string::endsWith;
+
+  // Always clear prior results so callers never observe stale curves after a failed read
+  this->clear();
 
   int ret = 1;
 
@@ -53,26 +106,127 @@ int C2CReader::readContour()
   using PointType = primal::Point<double, 2>;
 
   c2c::Contour contour = c2c::parseContour(m_fileName);
+  const c2c::LengthUnit c2cLengthUnit = toC2CLengthUnit(m_lengthUnit);
 
   SLIC_INFO(fmt::format("Loading contour with {} pieces", contour.getPieces().size()));
 
+  // Build results transactionally so we don't retain partial curves on error
+  CurveArray nurbs_data;
+  nurbs_data.reserve(contour.getPieces().size());
+
+  int piece_index = 0;
   for(auto* piece : contour.getPieces())
   {
-    const auto nurbsData = c2c::toNurbs(*piece, m_lengthUnit);
+    const auto nurbsData = c2c::toNurbs(*piece, c2cLengthUnit);
 
+    // Load control points
     axom::Array<PointType> controlPoints;
+    controlPoints.reserve(nurbsData.controlPoints.size());
     for(const auto& pt : nurbsData.controlPoints)
     {
       controlPoints.emplace_back(PointType {pt.getZ().getValue(), pt.getR().getValue()});
     }
+    const int npts = static_cast<int>(controlPoints.size());
+    if(npts <= 0)
+    {
+      continue;
+    }
 
-    m_nurbsData.emplace_back(controlPoints.data(),
-                             nurbsData.weights.data(),
-                             controlPoints.size(),
-                             nurbsData.knots.data(),
-                             nurbsData.knots.size());
+    // Load and check knot vector; check degree first then knots
+    const auto nkts = static_cast<axom::IndexType>(nurbsData.knots.size());
+    const int degree = static_cast<int>(nkts - npts - 1);
+    if(degree < 0)
+    {
+      SLIC_WARNING(
+        fmt::format("Invalid contour file '{}': computed negative NURBS degree for piece "
+                    "{} (npts={}, nkts={})",
+                    m_fileName,
+                    piece_index,
+                    npts,
+                    nkts));
+      return 1;
+    }
+
+    if(npts <= degree)
+    {
+      SLIC_WARNING(
+        fmt::format("Invalid contour file '{}': piece {} has too few control points for degree "
+                    "(degree={}, npts={}, nkts={})",
+                    m_fileName,
+                    piece_index,
+                    degree,
+                    npts,
+                    nkts));
+      return 1;
+    }
+
+    const axom::ArrayView<const double> knots_view(nurbsData.knots.data(), nkts);
+    primal::KnotVector<double> knotvec(knots_view,
+                                       degree,
+                                       primal::KnotVector<double>::SkipValidityChecks {});
+
+    if(!knotvec.isValid(true))
+    {
+      SLIC_WARNING(
+        fmt::format("Invalid contour file '{}': piece {} converted to an invalid NURBS knot vector "
+                    "(degree={}).",
+                    m_fileName,
+                    piece_index,
+                    degree));
+      return 1;
+    }
+
+    // Load and check weights; count must either be 0 or match control points
+    axom::Array<double> weights;
+    if(!nurbsData.weights.empty())
+    {
+      if(static_cast<axom::IndexType>(nurbsData.weights.size()) != controlPoints.size())
+      {
+        SLIC_WARNING(
+          fmt::format("Invalid contour file '{}': piece {} has {} weights for {} control points",
+                      m_fileName,
+                      piece_index,
+                      nurbsData.weights.size(),
+                      npts));
+        return 1;
+      }
+
+      // Check if weights are non-trivial (present and not all equal to 1)
+      bool has_non_trivial_weights = false;
+      for(const double& wt : nurbsData.weights)
+      {
+        if(wt != 1.0)
+        {
+          has_non_trivial_weights = true;
+          break;
+        }
+      }
+
+      // Only copy weights if they are non-trivial
+      if(has_non_trivial_weights)
+      {
+        weights.reserve(nurbsData.weights.size());
+        for(const double& wt : nurbsData.weights)
+        {
+          weights.push_back(wt);
+        }
+      }
+    }
+
+    // Construct NURBSCurve using Array constructors to avoid use-after-free
+    if(weights.empty())
+    {
+      nurbs_data.emplace_back(controlPoints, knotvec);
+    }
+    else
+    {
+      nurbs_data.emplace_back(controlPoints, weights, knotvec);
+    }
+
+    ++piece_index;
   }
 
+  m_nurbsData = std::move(nurbs_data);
   return 0;
 }
 

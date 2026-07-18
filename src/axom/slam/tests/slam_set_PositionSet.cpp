@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -203,7 +204,7 @@ TEST(slam_set_positionset, out_of_bounds_at)
 
   // add this line to avoid a warning in the output about thread safety
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(s.at(MAX_SET_SIZE), "");
+  EXPECT_DEATH_IF_SUPPORTED((void)s.at(MAX_SET_SIZE), "");
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif

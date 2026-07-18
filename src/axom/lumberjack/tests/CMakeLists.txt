@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -84,3 +85,17 @@ axom_add_executable(NAME       lumberjack_speed_test_no_combiners
 axom_add_test(NAME          lumberjack_speedTestNoCombiners
               COMMAND       lumberjack_speed_test_no_combiners
               NUM_MPI_TASKS 1)
+
+#------------------------------------------------------------------------------
+# Performance test with non-combinable messages
+#------------------------------------------------------------------------------
+axom_add_executable(NAME       lumberjack_speed_test_skip_noncombinable
+                    SOURCES    lumberjack_speedTestSkipNoncombinable.cpp
+                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                    DEPENDS_ON lumberjack
+                    FOLDER     axom/lumberjack/tests )
+
+axom_add_test(NAME          lumberjack_speedTestSkipNoncombinable
+              COMMAND       lumberjack_speed_test_skip_noncombinable
+              NUM_MPI_TASKS 1
+              PASS_REGULAR_EXPRESSION "After combining, there are 10,?001 messages.")

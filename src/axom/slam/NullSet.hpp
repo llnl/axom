@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file NullSet.hpp
@@ -9,9 +12,6 @@
  * \brief Sentinel set type indicating an empty set.
  *
  */
-
-#ifndef SLAM_NULL_SET_H_
-#define SLAM_NULL_SET_H_
 
 #include "axom/slic.hpp"
 #include "axom/slam/Set.hpp"
@@ -90,5 +90,3 @@ inline bool operator!=(NullSet const&, NullSet const&)
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_NULL_SET_H_

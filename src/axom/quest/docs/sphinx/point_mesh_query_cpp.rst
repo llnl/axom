@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -56,7 +57,7 @@ Signed Distance
 ---------------
 
 The C++ signed distance query is provided by the ``quest::SignedDistance`` class,
-which wraps an instance of ``primal::BVHTree``.
+which wraps an instance of ``spin::BVH``.
 Examples from ``<axom>/src/axom/quest/tests/quest_signed_distance.cpp``.
 
 Class header:

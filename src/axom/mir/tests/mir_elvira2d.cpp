@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -43,12 +44,21 @@ constexpr int maxAttempts()
 template <typename ExecSpace>
 struct braid2d_mat_test
 {
-  static void initialize(const std::string &type, const std::string &mattype, conduit::Node &n_mesh)
+  static void initialize(const std::string &type,
+                         const std::string &mattype,
+                         bool cleanMats,
+                         conduit::Node &n_mesh)
   {
     axom::StackArray<axom::IndexType, 2> dims {10, 10};
     axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
     axom::blueprint::testing::data::braid(type, dims, n_mesh);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, n_mesh);
+    const bool makeMixedField = false;  // for now
+    axom::blueprint::testing::data::make_matset(mattype,
+                                                "mesh",
+                                                zoneDims,
+                                                cleanMats,
+                                                makeMixedField,
+                                                n_mesh);
   }
 
   // Select a chunk of clean and mixed zones.
@@ -62,6 +72,7 @@ struct braid2d_mat_test
                    const std::string &name,
                    bool selectedZones = false,
                    bool pointMesh = false,
+                   bool cleanMats = false,
                    int nDomains = 1)
   {
     // Create the data (1+ domains)
@@ -71,7 +82,7 @@ struct braid2d_mat_test
       const std::string domainName = axom::fmt::format("domain_{:07}", dom);
       conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
 
-      initialize(type, mattype, hostDomain);
+      initialize(type, mattype, cleanMats, hostDomain);
       TestApp.saveVisualization(name + "_orig", hostDomain);
     }
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
@@ -109,7 +120,13 @@ struct braid2d_mat_test
           options["matset"] = "mat";
           options["plane"] = 1;
           options["pointmesh"] = pointMesh ? 1 : 0;
-
+          if(cleanMats)
+          {
+            // Set the output names
+            options["topologyName"] = "postmir_topology";
+            options["coordsetName"] = "postmir_coords";
+            options["matsetName"] = "postmir_matset";
+          }
           if(selectedZones)
           {
             selectZones(options);
@@ -121,6 +138,16 @@ struct braid2d_mat_test
         // device->host
         conduit::Node hostMIRMesh;
         utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+
+        // Verify the hostMIRMesh to look for errors.
+        conduit::Node info;
+        bool verifyOK = conduit::blueprint::mesh::verify(hostMIRMesh, info);
+        if(!verifyOK)
+        {
+          printNode(hostMIRMesh);
+          info.print();
+        }
+        EXPECT_TRUE(verifyOK);
 
         TestApp.saveVisualization(name, hostMIRMesh);
 
@@ -171,7 +198,7 @@ struct braid2d_mat_test
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_elvira, options)
+TEST(mir_elvira2d, options)
 {
   conduit::Node n_options;
 
@@ -187,7 +214,7 @@ TEST(mir_elvira, options)
 }
 
 //------------------------------------------------------------------------------
-TEST(mir_elvira, elvira_uniform_unibuffer_seq)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_seq");
   const bool selectZones = false;
@@ -198,16 +225,31 @@ TEST(mir_elvira, elvira_uniform_unibuffer_seq)
                                    selectZones,
                                    pointMesh);
   // Run 2 domain example
-  const int nDomains = 2;
-  braid2d_mat_test<seq_exec>::test("uniform",
-                                   "unibuffer",
-                                   "elvira_uniform_unibuffer",
-                                   selectZones,
-                                   pointMesh,
-                                   nDomains);
+  {
+    const int nDomains = 2;
+    const bool cleanMats = false;
+    braid2d_mat_test<seq_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats,
+                                     nDomains);
+  }
+
+  // Run clean mats example.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<seq_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_seq");
   const bool selectZones = true;
@@ -217,9 +259,20 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
                                    "elvira_uniform_unibuffer_sel",
                                    selectZones,
                                    pointMesh);
+
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<seq_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_sel_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_seq_pm)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_seq");
   const bool selectZones = false;
@@ -231,7 +284,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
                                    pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_seq");
   const bool selectZones = true;
@@ -244,7 +297,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
 }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_elvira, elvira_uniform_unibuffer_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_omp");
   const bool selectZones = false;
@@ -255,16 +308,30 @@ TEST(mir_elvira, elvira_uniform_unibuffer_omp)
                                    selectZones,
                                    pointMesh);
   // Run 2 domain example
-  const int nDomains = 2;
-  braid2d_mat_test<omp_exec>::test("uniform",
-                                   "unibuffer",
-                                   "elvira_uniform_unibuffer",
-                                   selectZones,
-                                   pointMesh,
-                                   nDomains);
+  {
+    const int nDomains = 2;
+    const bool cleanMats = false;
+    braid2d_mat_test<omp_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats,
+                                     nDomains);
+  }
+  // Run clean mats example.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<seq_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_omp");
   const bool selectZones = true;
@@ -274,9 +341,19 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
                                    "elvira_uniform_unibuffer_sel",
                                    selectZones,
                                    pointMesh);
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<omp_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_sel_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_pm_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_pm_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_omp");
   const bool selectZones = false;
@@ -288,7 +365,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_omp)
                                    pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_omp");
   const bool selectZones = true;
@@ -302,7 +379,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_omp)
 #endif
 
 #if defined(AXOM_USE_CUDA)
-TEST(mir_elvira, elvira_uniform_unibuffer_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_cuda");
   const bool selectZones = false;
@@ -313,16 +390,30 @@ TEST(mir_elvira, elvira_uniform_unibuffer_cuda)
                                     selectZones,
                                     pointMesh);
   // Run 2 domain example
-  const int nDomains = 2;
-  braid2d_mat_test<cuda_exec>::test("uniform",
-                                    "unibuffer",
-                                    "elvira_uniform_unibuffer",
-                                    selectZones,
-                                    pointMesh,
-                                    nDomains);
+  {
+    const int nDomains = 2;
+    const bool cleanMats = false;
+    braid2d_mat_test<cuda_exec>::test("uniform",
+                                      "unibuffer",
+                                      "elvira_uniform_unibuffer",
+                                      selectZones,
+                                      pointMesh,
+                                      cleanMats,
+                                      nDomains);
+  }
+  // Run clean mats example.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<seq_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_cuda");
   const bool selectZones = true;
@@ -332,9 +423,20 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
                                     "elvira_uniform_unibuffer_sel",
                                     selectZones,
                                     pointMesh);
+
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<cuda_exec>::test("uniform",
+                                      "unibuffer",
+                                      "elvira_uniform_unibuffer_sel_clean",
+                                      selectZones,
+                                      pointMesh,
+                                      cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_pm_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_pm_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_cuda");
   const bool selectZones = false;
@@ -346,7 +448,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_cuda)
                                     pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_cuda");
   const bool selectZones = true;
@@ -360,7 +462,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_cuda)
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_elvira, elvira_uniform_unibuffer_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_hip");
   const bool selectZones = false;
@@ -371,16 +473,30 @@ TEST(mir_elvira, elvira_uniform_unibuffer_hip)
                                    selectZones,
                                    pointMesh);
   // Run 2 domain example
-  const int nDomains = 2;
-  braid2d_mat_test<hip_exec>::test("uniform",
-                                   "unibuffer",
-                                   "elvira_uniform_unibuffer",
-                                   selectZones,
-                                   pointMesh,
-                                   nDomains);
+  {
+    const int nDomains = 2;
+    const bool cleanMats = false;
+    braid2d_mat_test<hip_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats,
+                                     nDomains);
+  }
+  // Run clean mats example.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<seq_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_hip");
   const bool selectZones = true;
@@ -390,9 +506,19 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
                                    "elvira_uniform_unibuffer_sel",
                                    selectZones,
                                    pointMesh);
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<hip_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_sel_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_pm_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_hip");
   const bool selectZones = false;
@@ -404,7 +530,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
                                    pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_hip");
   const bool selectZones = true;

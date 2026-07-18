@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -475,21 +476,23 @@ void UpdateElemInfo(Group* const prob)
 void DumpUltra(Group* const prob)
 {
 #if 1
+  constexpr int fname_size = 100;
   FILE* fp;
-  char fname[100];
+  char fname[fname_size];
   char* tail;
 
   //   VHashTraverse_t content ;
 
-  strcpy(fname, "problem");
+  snprintf(fname, fname_size, "problem");
 
+  int fname_rem = fname_size;
   /* Skip past the junk */
   for(tail = fname; isalpha(*tail); ++tail)
   {
-    ;
+    fname_rem--;
   }
 
-  sprintf(tail, "_%04d.ult", prob->getView("cycle")->getData<int>());
+  snprintf(tail, fname_rem, "_%04d.ult", prob->getView("cycle")->getData<int>());
 
   if((fp = fopen(fname, "w")) == nullptr)
   {

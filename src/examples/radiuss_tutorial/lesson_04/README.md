@@ -43,11 +43,9 @@ The input to this query is a collection of bounding boxes, and the output is ret
 > :memo: In this case, the input bounding boxes are identical to the query bounding boxes, but this is not generally the case
 
 ### Second step: Filtering and deduplicating the candidates
-The results from the previous step will, in general, contain numerous duplicates as well as the indices of degenerate triangles.
-For example, since every bounding box intersects itself, the results from the previous query contain all pairs ``(idx, idx)``  for a triangle with index ``idx``. 
-For pairs of distinct triangles ``idx1`` and ``idx2`` whose bounding boxes overlap, the results will contain both ``(idx1, idx2)`` and ``(idx2, idx1)``
+The results from the previous step will, in general, contain numerous duplicates as well as the indices of degenerate triangles. For example, since every bounding box intersects itself, the results from the previous query contain all pairs ``(idx, idx)``  for a triangle with index ``idx``.  For pairs of distinct triangles ``idx1`` and ``idx2`` whose bounding boxes overlap, the results will contain both ``(idx1, idx2)`` and ``(idx2, idx1)``
 
-In this phase, we filter out these duplicates, as well an pair containing a degenerate triangle. This is aided by building up a device-accessible array of boolean flags:
+In this phase, we filter out these duplicates, as well as any pairs containing a degenerate triangle. This is aided by building up a device-accessible array of boolean flags:
 ```cpp
     // Compute a device bool array of validity flags
     axom::Array<bool> is_valid_d(axom::ArrayOptions::Uninitialized {},
@@ -84,8 +82,8 @@ Our kernel therefore has the following implementation:
           const axom::IndexType potential = candidates_v[offsets_v[i] + j];
           if(i < potential && is_valid_v[i] && is_valid_v[potential])
           {
-            const auto idx = RAJA::atomicAdd<ATOMIC_POL>(numValidCandidates_p,
-                                                         axom::IndexType {1});
+            const auto idx = axom::atomicAdd<axom::auto_atomic>(numValidCandidates_p,
+                                                                axom::IndexType {1});
             indices_v[idx] = i;
             validCandidates_v[idx] = potential;
           }
@@ -97,7 +95,7 @@ Our kernel therefore has the following implementation:
 ```
 
 ### Third phase
-At this point, we have a pair of corresponding arrays and we can run a fairly straightforward kernel to check for actual intersections. As in the previous kernel, we use a ``RAJA::atomicAdd`` variable to obtain a unique location for each intersection pair:
+At this point, we have a pair of corresponding arrays, allowing us to run a fairly straightforward kernel to check for actual intersections. As in the previous kernel, we use the ``axom::atomicAdd`` reduction to obtain a unique location for each intersection pair:
 ```cpp
   // Iterate through valid candidates to find actual intersections
   IndexArray intersect_d[2] = {IndexArray(axom::ArrayOptions::Uninitialized {},
@@ -129,8 +127,7 @@ At this point, we have a pair of corresponding arrays and we can run a fairly st
                                    includeBoundaries,
                                    tol))
         {
-          const auto idx =
-            RAJA::atomicAdd<ATOMIC_POL>(numIntersections_p, axom::IndexType {1});
+          const auto idx = axom::atomicAdd<axom::auto_atomic>(numIntersections_p, axom::IndexType {1});
           intersect1_v[idx] = index;
           intersect2_v[idx] = candidate;
         }
@@ -152,7 +149,7 @@ The following uses ``car.stl``, a mesh with nearly 2 million triangles.
 #### Comparing sequential and OpenMP results on a Sapphire Rapids node
 
 ```shell
->./bin/lesson_04_device_spatial_indexes -i car.stl --policy raja_seq -v
+>./bin/lesson_04_device_spatial_indexes -i car.stl --policy seq -v
 
 [lesson_04: INFO] Loading the mesh took 0.154 seconds. 
 [lesson_04: INFO] Vertex welding took 1.22 seconds. 
@@ -175,7 +172,7 @@ The following uses ``car.stl``, a mesh with nearly 2 million triangles.
 ```
 
 ```shell
->./bin/lesson_04_device_spatial_indexes -i car.stl --policy raja_omp -v
+>./bin/lesson_04_device_spatial_indexes -i car.stl --policy omp -v
 
 [lesson_04: INFO] Loading the mesh took 0.992 seconds. 
 [lesson_04: INFO] Vertex welding took 1.17 seconds. 
@@ -201,7 +198,7 @@ The following uses ``car.stl``, a mesh with nearly 2 million triangles.
 
 ```shell
 # sequential
->./bin/lesson_04_device_spatial_indexes -i car.stl --policy raja_seq -v
+>./bin/lesson_04_device_spatial_indexes -i car.stl --policy seq -v
 
 [lesson_04: INFO] Loading the mesh took 0.434 seconds. 
 [lesson_04: INFO] Vertex welding took  9.6 seconds. 
@@ -225,7 +222,7 @@ The following uses ``car.stl``, a mesh with nearly 2 million triangles.
 
 ```shell 
 # cuda
->./bin/lesson_04_device_spatial_indexes -i car.stl --policy raja_cuda -v
+>./bin/lesson_04_device_spatial_indexes -i car.stl --policy cuda -v
        
 [lesson_04: INFO] Loading the mesh took 0.143 seconds. 
 [lesson_04: INFO] Vertex welding took 9.61 seconds. 

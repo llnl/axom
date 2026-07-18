@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_SPATIAL_OCTREE__HPP_
-#define AXOM_SPIN_SPATIAL_OCTREE__HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -128,7 +128,7 @@ public:
 
     while(minLev <= maxLev)
     {
-      GridPt gridPt = findGridCellAtLevel(pt, lev);
+      GridPt gridPt = findGridCellAtLevel(pt, static_cast<int>(lev));
       switch(this->blockStatus(gridPt, lev))
       {
       case BlockNotInTree:
@@ -142,7 +142,7 @@ public:
         lev = (maxLev + minLev) >> 1;
         break;
       case LeafBlock:
-        return BlockIndex(gridPt, lev);
+        return BlockIndex(gridPt, static_cast<int>(lev));
       }
     }
 
@@ -195,5 +195,3 @@ protected:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_SPATIAL_OCTREE__HPP_

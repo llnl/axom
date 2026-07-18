@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_RECTILINEAR_COORDSET_VIEW_HPP_
-#define AXOM_BUMP_RECTILINEAR_COORDSET_VIEW_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -33,6 +33,12 @@ public:
   using PointType = axom::primal::Point<DataType, 2>;
 
   AXOM_HOST_DEVICE constexpr static int dimension() { return 2; }
+
+  /*!
+   * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  RectilinearCoordsetView2() : m_coordinates(), m_indexing() { }
 
   /*!
    * \brief Constructor
@@ -104,7 +110,7 @@ public:
   AXOM_HOST_DEVICE
   PointType getPoint(IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
   /*!
@@ -127,7 +133,7 @@ public:
   AXOM_HOST_DEVICE
   PointType operator[](IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
 private:
@@ -148,6 +154,12 @@ public:
   using PointType = axom::primal::Point<DataType, 3>;
 
   AXOM_HOST_DEVICE constexpr static int dimension() { return 3; }
+
+  /*!
+   * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  RectilinearCoordsetView3() : m_coordinates(), m_indexing() { }
 
   /*!
    * \brief Constructor
@@ -225,7 +237,7 @@ public:
   AXOM_HOST_DEVICE
   PointType getPoint(IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
   /*!
@@ -248,7 +260,7 @@ public:
   AXOM_HOST_DEVICE
   PointType operator[](IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
 private:
@@ -259,5 +271,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

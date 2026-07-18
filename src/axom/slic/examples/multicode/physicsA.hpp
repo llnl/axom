@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef PHYSICSA_HPP_
-#define PHYSICSA_HPP_
+#pragma once
 
 // SLIC includes
 #include "axom/slic/interface/slic.hpp"
@@ -73,5 +73,3 @@ void timestep(int step, int n)
 inline void finalize() { physicsA_log.close(); }
 
 } /* namespace physicsA */
-
-#endif /* PHYSICSA_HPP_ */

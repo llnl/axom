@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_PATH_H_
-#define AXOM_CORE_PATH_H_
+#pragma once
 
 #include <initializer_list>
 #include <string>
@@ -116,5 +116,3 @@ bool operator==(const Path& lhs, const Path& rhs);
 inline bool operator!=(const Path& lhs, const Path& rhs) { return !(lhs == rhs); }
 
 }  // end namespace axom
-
-#endif  // AXOM_CORE_PATH_H_

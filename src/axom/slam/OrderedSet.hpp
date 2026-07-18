@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file OrderedSet.hpp
@@ -11,9 +14,6 @@
  *  repeated an arbitrary number of times (e.g. for indirection sets)
  *
  */
-
-#ifndef SLAM_ORDERED_SET_H_
-#define SLAM_ORDERED_SET_H_
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -183,9 +183,8 @@ public:
    * \class SetBuilder
    * \brief Helper class for constructing an ordered set.
    *
-   *  Uses named parameter idiom to enable function chaining and for better code
-   *  self-documentation
-   * */
+   *  Uses named parameter idiom to enable function chaining and for better code self-documentation
+   */
   struct SetBuilder
   {
     friend struct OrderedSet;
@@ -229,6 +228,14 @@ public:
       return *this;
     }
 
+    AXOM_HOST_DEVICE SetBuilder& data(DataType bufPtr, PositionType bufferSize)
+    {
+      static_assert(std::is_constructible<IndirectionPolicyType, DataType, PositionType>::value,
+                    "This indirection policy does not support sized data binding.");
+      m_data = IndirectionPolicyType(bufPtr, bufferSize);
+      return *this;
+    }
+
     SetBuilder& parent(ParentSetType* parSet)
     {
       m_parent = SubsettingPolicyType(parSet);
@@ -259,11 +266,13 @@ public:
 
       if(m_hasRange)
       {
-        const double str = m_stride.stride();
+        const auto str = m_stride.stride();
         const auto diff = (m_rangeUpper - m_rangeLower);
 
         // size is 0 if upper==lower, or stride is 0 or signs of diff and stride differ
-        return (diff == 0 || str == 0 || ((diff > 0) != (str > 0))) ? 0 : ceil(diff / str);
+        return (diff == 0 || str == 0 || ((diff > 0) != (str > 0)))
+          ? 0
+          : static_cast<PositionType>(ceil(diff / static_cast<double>(str)));
       }
       else
       {
@@ -435,10 +444,7 @@ public:  // Functions related to iteration
   const_iterator_pair range() const { return std::make_pair(begin(), end()); }
 
 public:
-  /**
-   * \brief Given a position in the Set, return a position in the larger index
-   *  space
-   */
+  /// \brief Given a position in the Set, return a position in the larger index space
   AXOM_HOST_DEVICE
   inline typename IndirectionPolicy::ConstIndirectionResult operator[](PositionType pos) const
   {
@@ -458,14 +464,14 @@ public:
     return IndirectionPolicy::indirection(pos * StridePolicyType::stride() +
                                           OffsetPolicyType::offset());
   }
-  inline ElementType at(PositionType pos) const { return operator[](pos); }
+  [[nodiscard]] inline ElementType at(PositionType pos) const { return operator[](pos); }
 
-  AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicyType::size(); }
+  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicyType::size(); }
 
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE inline bool empty() const { return SizePolicyType::empty(); }
+  [[nodiscard]] AXOM_HOST_DEVICE inline bool empty() const { return SizePolicyType::empty(); }
 
-  bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
   bool isSubset() const { return SubsettingPolicy::isSubset(); }
 
@@ -475,7 +481,10 @@ public:
    * An index pos is valid when \f$ 0 \le pos < size() \f$
    * \return true if the position is valid, false otherwise
    */
-  inline bool isValidIndex(PositionType pos) const { return pos >= 0 && pos < size(); }
+  [[nodiscard]] inline bool isValidIndex(PositionType pos) const
+  {
+    return pos >= 0 && pos < size();
+  }
 
   /**
    * \brief returns a PositionSet over the set's positions
@@ -521,5 +530,3 @@ bool OrderedSet<PosType, ElemType, SizePolicy, OffsetPolicy, StridePolicy, Indir
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_ORDERED_SET_H_

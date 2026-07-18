@@ -3,15 +3,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file intersect_patch_impl.hpp
  *
  * This file provides helper functions for testing the intersection
  * of rays and Bezier patches
  */
-
-#ifndef AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Polygon.hpp"
@@ -111,17 +110,13 @@ bool intersect_line_patch(const Line<T, 3> &line,
   //  This implies the patch is degenerate at the point of intersection.
   if(tp.size() > order_v * order_u)
   {
-    SLIC_WARNING(
-      "Too many intersections recorded for patch orders, suggesting a degenerate intersection."
-      "Returning early to avoid excessive computation.");
-
     success = false;
     return true;
   }
 
   // Check bounding box to skip the subdivision procedure
   // Expand the box a bit so that intersections near subdivision boundaries are accurately recorded
-  if(!intersect(line, patch.boundingBox().scale(1.5)))
+  if(!intersect(line, patch.boundingBox().expand(10 * EPS)))
   {
     return false;
   }
@@ -206,5 +201,3 @@ bool intersect_line_patch(const Line<T, 3> &line,
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_

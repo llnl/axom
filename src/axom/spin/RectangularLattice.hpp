@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_RECTANGULAR_LATTICE_HPP_
-#define AXOM_SPIN_RECTANGULAR_LATTICE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/NumericArray.hpp"
@@ -293,5 +293,3 @@ std::ostream& operator<<(std::ostream& os,
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_RECTANGULAR_LATTICE_HPP_

@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file MIRMeshTypes.hpp
  * 
  * \brief Contains the specifications for types aliases used throughout the MIR component.
  */
-
-#ifndef __MIR_MESH_TYPES_H__
-#define __MIR_MESH_TYPES_H__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"
@@ -59,4 +59,3 @@ using PointMap = slam::Map<Point2, BaseSet>;
 using IntMap = slam::Map<int, BaseSet>;
 }  // namespace mir
 }  // namespace axom
-#endif

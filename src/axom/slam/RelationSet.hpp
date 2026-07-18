@@ -1,14 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_MAPPED_RELATION_SET_H_
-#define SLAM_MAPPED_RELATION_SET_H_
+#pragma once
 
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/BivariateSet.hpp"
 #include "axom/slam/policies/BivariateSetInterfacePolicies.hpp"
+
+#include <optional>
 
 namespace axom
 {
@@ -116,10 +118,22 @@ public:
     return BaseType::INVALID_POS;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementIndex`.
+   *
+   * \return An engaged `std::optional` with the SparseIndex if the element exists, else empty.
+   */
+  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(PositionType pos1,
+                                                                     PositionType pos2) const
+  {
+    const auto idx = findElementIndex(pos1, pos2);
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
+  }
+
   /**
    * \brief Search for the FlatIndex of the element given its DenseIndex.
-   * \warning This function can be slow, since a linear search is performed on
-   *          the row each time.
+   * \warning This function can be slow, since a linear search is performed on the row each time.
    *
    * \param pos1  The first set position.
    * \param pos2  The second set position.
@@ -138,6 +152,20 @@ public:
       }
     }
     return BaseType::INVALID_POS;
+  }
+
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(s1, s2)`.
+   *
+   * \return An engaged `std::optional` with the FlatIndex if the element exists, else empty.
+   */
+  [[nodiscard]] AXOM_HOST_DEVICE std::optional<PositionType> findElementFlatIndexOptional(
+    PositionType s1,
+    PositionType s2) const
+  {
+    const auto idx = findElementFlatIndex(s1, s2);
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
   }
 
   /**
@@ -162,9 +190,20 @@ public:
     return BaseType::INVALID_POS;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(pos1)`.
+   *
+   * \return An engaged `std::optional` with the FlatIndex if the row contains any elements, else empty.
+   */
+  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  {
+    const auto idx = findElementFlatIndex(pos1);
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
+  }
+
   /**
-   * \brief Given the flat index, return the associated to-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated to-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -181,8 +220,7 @@ public:
   }
 
   /**
-   * \brief Given the flat index, return the associated from-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated from-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -213,7 +251,7 @@ public:
   SubsetType getElements(PositionType s1) const { return (*m_relation)[s1]; }
 
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE ElementType at(PositionType pos) const
+  [[nodiscard]] AXOM_HOST_DEVICE ElementType at(PositionType pos) const
   {
 #ifndef AXOM_DEVICE_CODE
     RelationSet::verifyPosition(pos);
@@ -237,19 +275,13 @@ public:
    */
   PositionType size(PositionType pos) const { return m_relation->size(pos); }
 
-  /*!
-   * \brief Return an iterator to the first pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
 
-  /*!
-   * \brief Return an iterator to one past the last pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to one past the last pair of set elements in the relation.
   IteratorType end() const { return IteratorType(this, totalSize()); }
 
-  bool isValid(bool verboseOutput = false) const
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const
   {
     if(m_relation == nullptr)
     {
@@ -270,14 +302,14 @@ public:
   //(and can be called from base ptr)
   // KW -- made this public to use from BivariateMap
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE PositionType size() const
+  [[nodiscard]] AXOM_HOST_DEVICE PositionType size() const
   {
     return PositionType(m_relation->relationData().size());
   }
 
 private:
   //range check only
-  bool isValidIndex(PositionType s1, PositionType s2) const
+  [[nodiscard]] bool isValidIndex(PositionType s1, PositionType s2) const
   {
     return s1 >= 0 && s1 < m_relation->fromSet()->size() && s2 >= 0 && s2 < m_relation->size(s1);
   }
@@ -303,5 +335,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_MAPPED_RELATION_SET_H_

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -359,7 +360,7 @@ OpPtr parseSlice(const inlet::Container &opContainer,
 OpPtr parseScale(const inlet::Container &opContainer,
                  const TransformableGeometryProperties &startProperties)
 {
-  verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {});
+  verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {"center"});
   auto factors = opContainer["scale"].get<std::vector<double>>();
   if(factors.size() == 1)
   {
@@ -370,7 +371,13 @@ OpPtr parseScale(const inlet::Container &opContainer,
   {
     factors.emplace_back(1.0);
   }
-  return std::make_shared<Scale>(factors[0], factors[1], factors[2], startProperties);
+  Point3D center {0., 0., 0.};
+  if(opContainer.contains("center"))
+  {
+    center = toPoint(opContainer, "center", startProperties.dimensions, Point3D {0, 0, 0});
+  }
+
+  return std::make_shared<Scale>(factors[0], factors[1], factors[2], center, startProperties);
 }
 
 /**
@@ -384,7 +391,7 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
                         const TransformableGeometryProperties &startProperties)
 {
   verifyObjectFields(opContainer, "convert_units_to", FieldSet {}, FieldSet {});
-  auto endUnits = parseLengthUnits(opContainer["convert_units_to"]);
+  auto endUnits = internal::parseLengthUnits(opContainer["convert_units_to"]);
   return std::make_shared<UnitConverter>(endUnits, startProperties);
 }
 

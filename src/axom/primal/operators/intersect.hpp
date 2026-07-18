@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file intersect.hpp
  *
  * \brief Consists of functions to test intersection among geometric primitives.
  */
-
-#ifndef AXOM_PRIMAL_INTERSECT_HPP_
-#define AXOM_PRIMAL_INTERSECT_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -43,6 +43,29 @@ namespace axom
 {
 namespace primal
 {
+
+/*!
+ * \brief Determines if two 3D segments intersect.
+ * \param [in] P A 3D line segment
+ * \param [in] Q A 3D line segment
+ * \param [out] intersection Intersection point of P and Q.
+ *   When the segments are collinear and overlap over a nonzero interval,
+ *   \a intersection is set to the first point of the overlap encountered when
+ *   moving from \a P.source() to \a P.target().
+ * \param [in] EPS Tolerance used in the segment-segment intersection test.
+ * \return true iff P intersects with Q, otherwise, false.
+ * \note The value of \a intersection should be ignored when this function
+ *   returns false.
+ */
+template <typename T>
+AXOM_HOST_DEVICE bool intersect(const Segment<T, 3>& P,
+                                const Segment<T, 3>& Q,
+                                Point<T, 3>& intersection,
+                                const T EPS = static_cast<T>(1e-08))
+{
+  return detail::intersect_segment_segment(P, Q, intersection, EPS);
+}
+
 /// \name Triangle Intersection Routines
 /// \accelerated
 /// @{
@@ -697,7 +720,6 @@ bool intersect(const BezierCurve<T, 2>& c1,
  * \param [in] c The input curve
  * \param [out] rp Parametric coordinates of intersections in \a r [0, inf)
  * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
- * Bezier curve is linear
  * \param [in] tol Tolerance parameter for physical distances
  * \param [in] EPS Tolerance parameter for parameter-space distances
  * 
@@ -719,8 +741,9 @@ bool intersect(const Ray<T, 2>& r,
 
   // for efficiency, linearity check actually uses a squared tolerance
   const double sq_tol = tol * tol;
+  const bool isHalfOpen = true;
 
-  return detail::intersect_ray_bezier(r, c, rp, cp, sq_tol, EPS, c.getOrder(), offset, scale);
+  return detail::intersect_ray_bezier(r, c, rp, cp, sq_tol, EPS, c.getOrder(), offset, scale, isHalfOpen);
 }
 
 /*!
@@ -1220,6 +1243,7 @@ bool intersect(const Ray<T, 3>& ray,
   double max_u_knot = patch.getKnots_u()[patch.getKnots_u().getNumKnots() - 1];
   double max_v_knot = patch.getKnots_v()[patch.getKnots_v().getNumKnots() - 1];
 
+  // Don't de-duplicate if we're in a failure state
   for(int i = 0; i < tc.size(); ++i)
   {
     // Also remove any intersections on the half-interval boundaries
@@ -1315,7 +1339,7 @@ bool intersect(const Line<T, 3>& line,
 
   // Check a bounding box of the entire NURBS first
   Point<T, 3> ip;
-  if(!intersect(line, patch.boundingBox(), ip))
+  if(!intersect(line, patch.boundingBox().expand(10 * tol), ip))
   {
     return false;
   }
@@ -1432,7 +1456,30 @@ bool intersect(const Line<T, 3>& line,
   return intersect(line, patch, t, u, v, tol, EPS, countUntrimmed, isHalfOpen, success);
 }
 
+/*!
+ * \brief Finds the intersection points for two NURBS curves in 2D.
+ * \param [in] n1 A 2D NURBSCurve.
+ * \param [in] n2 A 2D NURBSCurve.
+ * \param [out] p1 The array of parameters for intersection points in n1.
+ * \param [out] p2 The array of parameters for intersection points in n2.
+ * \param [in] tol Tolerance used in the segment pair intersection test.
+ * \return true iff n1 intersects with n2, otherwise, false.
+ * \note The number of new entries added to p1 and p2 is the number of
+ *       intersections, and corresponding entries in p1 and p2 are for the same
+ *       intersection. This function checks for intersections of Bezier segments
+ *       of the two NURBS curves. It does not perform simple bounding-box checks
+ *       to quickly determine no intersection, which could be done before
+ *       calling this function for better efficiency in some applications.
+ */
+template <typename T>
+bool intersect(const NURBSCurve<T, 2>& n1,
+               const NURBSCurve<T, 2>& n2,
+               axom::Array<T>& p1,
+               axom::Array<T>& p2,
+               double tol = 1.0E-8)
+{
+  return detail::intersect_nurbscurves(n1, n2, p1, p2, tol);
+}
+
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_HPP_

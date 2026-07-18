@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_
-#define AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -18,6 +18,9 @@
 #include "axom/fmt.hpp"
 
 #include "mfem.hpp"
+#include "mfem/linalg/dtensor.hpp"
+
+#include <cmath>
 
 namespace axom
 {
@@ -45,13 +48,8 @@ namespace detail
 template <typename ShapeType, typename PointType>
 bool AXOM_HOST_DEVICE checkInside(const ShapeType& shape, const PointType& pt)
 {
-  double wn {};
-  for(int c = 0; c < shape.numEdges(); c++)
-  {
-    wn += axom::primal::winding_number(pt, shape[c]);
-  }
   // A point inside the polygon should have non-zero winding number.
-  return (round(wn) != 0);
+  return (round(axom::primal::winding_number(pt, shape)) != 0);
 }
 
 }  // end namespace detail
@@ -68,7 +66,12 @@ public:
   // For now.
   using ExecSpace = axom::SEQ_EXEC;
 
-  using GeometryView = typename axom::ArrayView<axom::primal::CurvedPolygon<double, DIM>>;
+  using CurvedPolygonType = primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>;
+  using GeometryView = typename axom::ArrayView<CurvedPolygonType>;
+
+  using ContourCacheType = primal::CurvedPolygon<axom::primal::detail::NURBSCurveGWNCache<double>>;
+  using ContourCacheArray = typename axom::Array<ContourCacheType>;
+
   using PointType = primal::Point<double, DIM>;
   using GeometricBoundingBox = axom::primal::BoundingBox<double, DIM>;
   using BVH = typename axom::spin::BVH<NDIMS, ExecSpace, double>;
@@ -81,10 +84,13 @@ public:
    * \param geomView A view that contains the shapes being queried.
    *
    */
-  WindingNumberSampler(const std::string& shapeName, GeometryView geomView)
-    : m_shapeName(shapeName)
-    , m_geometryView(geomView)
-  { }
+  WindingNumberSampler(const std::string& shapeName, GeometryView geomView) : m_shapeName(shapeName)
+  {
+    for(const auto& contour : geomView)
+    {
+      m_contourCaches.push_back(ContourCacheType(contour));
+    }
+  }
 
   ~WindingNumberSampler() = default;
 
@@ -102,15 +108,15 @@ public:
     AXOM_ANNOTATE_SCOPE("Initialize spatial index");
 
     // Figure out bounding boxes for each geometric object.
-    const axom::IndexType geometrySize = m_geometryView.size();
+    const axom::IndexType geometrySize = m_contourCaches.size();
     axom::Array<GeometricBoundingBox> aabbs(geometrySize,
                                             geometrySize,
                                             axom::execution_space<ExecSpace>::allocatorID());
     auto aabbsView = aabbs.view();
-    const auto geometryView = m_geometryView;
+    const auto contourCaches = m_contourCaches;
     axom::for_all<ExecSpace>(
       geometrySize,
-      AXOM_LAMBDA(axom::IndexType i) { aabbsView[i] = geometryView[i].boundingBox(); });
+      AXOM_LAMBDA(axom::IndexType i) { aabbsView[i] = contourCaches[i].boundingBox(); });
 
     // Initialize the BVH using the bounding boxes.
     m_bvh.initialize(aabbs, aabbs.size());
@@ -126,7 +132,11 @@ public:
    * \param [in] dc The data collection containing the mesh and associated query points
    * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
    * inout samples
-   * \param [in] sampleRes The quadrature order at which to sample the inout field
+   * \param [in] sampleRes The sampling resolution in each logical direction.
+   * For custom quadrature families, these values specify the per-direction
+   * sample counts directly, which in turn determine the quadrature rule used
+   * in each logical direction.
+   * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
    * \param [in] projector A callback function to apply to points from the input mesh
    * before querying them on the spatial index
    * 
@@ -137,7 +147,8 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
                                                         shaping::QFunctionCollection& inoutQFuncs,
-                                                        int sampleRes,
+                                                        axom::ArrayView<int> sampleRes,
+                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     static_assert(axom::execution_space<ExecSpace>::onDevice() == false,
@@ -159,13 +170,17 @@ public:
     // Generate a Quadrature Function with the geometric positions, if not already available
     if(!inoutQFuncs.Has("positions"))
     {
-      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes);
+      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
     }
 
     // Access the positions QFunc and associated QuadratureSpace
     mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
     auto* sp = pos_coef->GetSpace();
     const int nq = sp->GetIntRule(0).GetNPoints();
+    const int numQueryPoints = sp->GetSize();
+    SLIC_ASSERT(numQueryPoints == NE * nq);
+
+    const auto pos = mfem::Reshape(pos_coef->Read(), dim, nq, NE);
 
     // Sample the in/out field at each point
     // store in QField which we register with the QFunc collection
@@ -173,36 +188,22 @@ public:
     const int vdim = 1;
     auto* inout = new mfem::QuadratureFunction(sp, vdim);
     inoutQFuncs.Register(inoutName, inout, true);
+    auto inout_vals = mfem::Reshape(inout->Write(), nq, NE);
 
     // Build an array of query points at the quad points.
     axom::utilities::Timer timer(true);
     AXOM_ANNOTATE_BEGIN("Create query points");
-    const int numQueryPoints = NE * nq;
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<ToPoint> queryPoints(numQueryPoints, numQueryPoints, allocatorID);
     auto queryPointsView = queryPoints.view();
     axom::for_all<ExecSpace>(
-      NE,
-      AXOM_LAMBDA(axom::IndexType i) {
-        // FIXME: GPU portability MFEM usage.
-        mfem::DenseMatrix m;
-        pos_coef->GetValues(i, m);
+      numQueryPoints,
+      AXOM_LAMBDA(axom::IndexType qpi) {
+        const int i = static_cast<int>(qpi / nq);
+        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
 
-        int qpi = i * nq;
-        if(projector)
-        {
-          for(int p = 0; p < nq; ++p)
-          {
-            queryPointsView[qpi++] = projector(FromPoint(m.GetColumn(p), dim));
-          }
-        }
-        else
-        {
-          for(int p = 0; p < nq; ++p)
-          {
-            queryPointsView[qpi++] = ToPoint(m.GetColumn(p), dim);
-          }
-        }
+        const double* coords = &pos(0, p, i);
+        queryPointsView[qpi] = projector ? projector(FromPoint(coords, dim)) : ToPoint(coords, dim);
       });
     AXOM_ANNOTATE_END("Create query points");
 
@@ -221,7 +222,7 @@ public:
     axom::Array<bool> inOutResult(numQueryPoints, numQueryPoints, allocatorID);
     auto inOutResultView = inOutResult.view();
     const auto candidatesView = candidates.view();
-    const auto geometryView = m_geometryView;
+    const auto contourCaches = m_contourCaches;
     axom::for_all<ExecSpace>(
       numQueryPoints,
       AXOM_LAMBDA(axom::IndexType qpi) {
@@ -232,25 +233,18 @@ public:
         for(axom::IndexType ci = 0; ci < numCandidates && in == false; ci++)
         {
           const auto candidateIndex = candidatesView[offsetsView[qpi] + ci];
-          in |= detail::checkInside(geometryView[candidateIndex], queryPoint);
+          in |= detail::checkInside(contourCaches[candidateIndex], queryPoint);
         }
         inOutResultView[qpi] = in;
       });
 
     // Store the results back into the MFEM quad function.
     axom::for_all<ExecSpace>(
-      NE,
-      AXOM_LAMBDA(axom::IndexType i) {
-        // FIXME: GPU portability MFEM usage.
-        mfem::Vector res;
-        inout->GetValues(i, res);
-
-        // Check this element i's quad points against candidate shapes.
-        axom::IndexType qpi = i * nq;
-        for(int p = 0; p < nq; p++, qpi++)
-        {
-          res(p) = inOutResultView[qpi] ? 1. : 0.;
-        }
+      numQueryPoints,
+      AXOM_LAMBDA(axom::IndexType qpi) {
+        const int i = static_cast<int>(qpi / nq);
+        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
+        inout_vals(p, i) = inOutResultView[qpi] ? 1. : 0.;
       });
     AXOM_ANNOTATE_END("InOut tests");
     timer.stop();
@@ -261,7 +255,7 @@ public:
       "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
       inoutName,
       timer.elapsed(),
-      static_cast<int>((NE * nq) / timer.elapsed())));
+      static_cast<int>(numQueryPoints / timer.elapsed())));
   }
 
   /*!
@@ -271,7 +265,8 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
                                                         shaping::QFunctionCollection&,
-                                                        int,
+                                                        axom::ArrayView<int> AXOM_UNUSED_PARAM(sampleRes),
+                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -286,26 +281,24 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* dc,
-    int sampleRes,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
-    const auto geometryView = m_geometryView;
+    const auto contourCaches = m_contourCaches;
     auto checkInside = [=](const PointType& pt) -> bool {
       // TODO: Use m_bvh to limit which curved polygons might contain point.
 
       // Check each candidate
       bool inside = false;
-      for(axom::IndexType i = 0; i < geometryView.size() && !inside; i++)
+      for(axom::IndexType i = 0; i < contourCaches.size() && !inside; i++)
       {
-        inside |= detail::checkInside(geometryView[i], pt);
+        inside |= detail::checkInside(contourCaches[i], pt);
       }
       return inside;
     };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
                                                             dc,
-                                                            sampleRes,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -318,7 +311,6 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
-    int AXOM_UNUSED_PARAM(sampleRes),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
@@ -333,12 +325,10 @@ private:
 
   std::string m_shapeName;
   GeometricBoundingBox m_bbox {};
-  GeometryView m_geometryView;
+  ContourCacheArray m_contourCaches;
   BVH m_bvh {};
 };
 
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -267,6 +268,62 @@ TEST(primal_knotvector, normalize)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_knotvector, derivative_basis_workspace_matches_reference)
+{
+  {
+    const int degree = 1;
+    axom::Array<double> knots {0.0, 0.0, 0.5, 1.0, 1.0};
+    primal::KnotVector<double> kv(knots, degree);
+
+    primal::KnotVector<double>::DerivativeBasisWorkspace workspace;
+
+    for(const double t : {0.25, 0.75})
+    {
+      const auto span = kv.findSpan(t);
+
+      const auto ref = kv.derivativeBasisFunctionsBySpan(span, t, 1);
+      const auto view = kv.derivativeBasisFunctionsBySpan(span, t, 1, workspace);
+
+      ASSERT_EQ(ref.size(), 2);
+      ASSERT_EQ(ref[0].size(), degree + 1);
+      ASSERT_EQ(ref[1].size(), degree + 1);
+
+      for(int j = 0; j <= degree; ++j)
+      {
+        EXPECT_NEAR(view[0][j], ref[0][j], 1e-14);
+        EXPECT_NEAR(view[1][j], ref[1][j], 1e-14);
+      }
+    }
+  }
+
+  {
+    const int degree = 2;
+    axom::Array<double> knots {0.0, 0.0, 0.0, 0.4, 1.0, 1.0, 1.0};
+    primal::KnotVector<double> kv(knots, degree);
+
+    primal::KnotVector<double>::DerivativeBasisWorkspace workspace;
+
+    for(const double t : {0.2, 0.7})
+    {
+      const auto span = kv.findSpan(t);
+
+      const auto ref = kv.derivativeBasisFunctionsBySpan(span, t, 1);
+      const auto view = kv.derivativeBasisFunctionsBySpan(span, t, 1, workspace);
+
+      ASSERT_EQ(ref.size(), 2);
+      ASSERT_EQ(ref[0].size(), degree + 1);
+      ASSERT_EQ(ref[1].size(), degree + 1);
+
+      for(int j = 0; j <= degree; ++j)
+      {
+        EXPECT_NEAR(view[0][j], ref[0][j], 1e-14);
+        EXPECT_NEAR(view[1][j], ref[1][j], 1e-14);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_knotvector, insert_knot)
 {
   const int degree = 3;
@@ -379,6 +436,161 @@ TEST(primal_knotvector, split)
   for(int i = 0; i < kvector3.getNumKnots(); ++i)
   {
     EXPECT_DOUBLE_EQ(kvector3[i], knots3[i]);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_knotvector, skip_validity_checks_constructors)
+{
+  using SkipTag = primal::KnotVector<double>::SkipValidityChecks;
+
+  constexpr int degree = 2;
+  constexpr int nkts = 9;
+  double valid_knots[] = {0.0, 0.0, 0.0, 0.2, 0.5, 0.8, 1.0, 1.0, 1.0};
+
+  // Test C-array constructor with SkipValidityChecks
+  {
+    primal::KnotVector<double> kvector(valid_knots, nkts, degree, SkipTag {});
+    EXPECT_TRUE(kvector.isValid());
+    EXPECT_EQ(degree, kvector.getDegree());
+    EXPECT_EQ(nkts, kvector.getNumKnots());
+  }
+
+  // Test ArrayView constructor with SkipValidityChecks
+  {
+    axom::ArrayView<double> knots_v(valid_knots, nkts);
+    primal::KnotVector<double> kvector(knots_v, degree, SkipTag {});
+    EXPECT_TRUE(kvector.isValid());
+    EXPECT_EQ(degree, kvector.getDegree());
+  }
+
+  // Test ArrayView<const T> constructor with SkipValidityChecks
+  {
+    axom::ArrayView<const double> knots_v(valid_knots, nkts);
+    primal::KnotVector<double> kvector(knots_v, degree, SkipTag {});
+    EXPECT_TRUE(kvector.isValid());
+    EXPECT_EQ(degree, kvector.getDegree());
+  }
+
+  // Test Array constructor with SkipValidityChecks
+  {
+    axom::Array<double> knot_arr;
+    knot_arr.assign(std::begin(valid_knots), std::end(valid_knots));
+    primal::KnotVector<double> kvector(knot_arr, degree, SkipTag {});
+    EXPECT_TRUE(kvector.isValid());
+    EXPECT_EQ(degree, kvector.getDegree());
+  }
+
+  // Test that invalid input doesn't assert with SkipValidityChecks
+  {
+    double invalid_knots[] = {0.0, 0.0};  // Too few knots
+    primal::KnotVector<double> kvector(invalid_knots, 2, degree, SkipTag {});
+    EXPECT_FALSE(kvector.isValid());
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_knotvector, validity_checks)
+{
+  using SkipTag = primal::KnotVector<double>::SkipValidityChecks;
+
+  // negative degree is invalid
+  {
+    const int degree = -5;
+    double knots[] = {0.0, 0.0, 1.0, 1.0};
+    primal::KnotVector<double> kvector(knots, 4, degree, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+    // Degree should be clamped to -1
+    EXPECT_EQ(-1, kvector.getDegree());
+  }
+
+  // empty knot vector is invalid
+  {
+    axom::ArrayView<double> empty_knots(nullptr, 0);
+    primal::KnotVector<double> kvector(empty_knots, 2, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+    EXPECT_EQ(0, kvector.getNumKnots());
+  }
+
+  // null knot vector is invalid
+  {
+    axom::ArrayView<double> null_knots(nullptr, 5);
+    primal::KnotVector<double> kvector(null_knots, 2, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+  }
+
+  // knot vector needs to be sufficiently large for the given degree
+  {
+    constexpr int degree = 3;
+    double knots[] = {0.0, 0.0, 1.0};  // Need at least degree+1 = 4 knots
+
+    primal::KnotVector<double> kvector(knots, 3, degree, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+  }
+
+  // knot vector needs enough knots for a clamped vector
+  {
+    constexpr int degree = 2;
+    double knots[] = {0.0, 0.0, 0.0};
+
+    primal::KnotVector<double> kvector(knots, 3, degree, SkipTag {});
+    EXPECT_FALSE(kvector.isValid());
+  }
+
+  // knot vector needs to be monotonic
+  {
+    constexpr int degree = 2;
+    double knots[] = {0.0, 0.0, 0.0, 0.5, 0.3, 1.0, 1.0, 1.0};  // 0.5 > 0.3
+
+    primal::KnotVector<double> kvector(knots, 8, degree, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+  }
+
+  // knot vector needs to be clamped at start
+  {
+    constexpr int degree = 2;
+    double knots[] = {0.0, 0.0, 0.1, 0.5, 0.8, 1.0, 1.0, 1.0};  // Start not clamped
+
+    primal::KnotVector<double> kvector(knots, 8, degree, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+  }
+
+  // .. and at end
+  {
+    constexpr int degree = 2;
+    double knots[] = {0.0, 0.0, 0.0, 0.5, 0.8, 0.9, 1.0, 1.0};  // End not clamped
+
+    primal::KnotVector<double> kvector(knots, 8, degree, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+  }
+
+  // knot vector multiplicities cannot be larger than degree
+  {
+    constexpr int degree = 2;
+    // Internal knot 0.5 has multiplicity 3, which exceeds degree 2
+    double knots[] = {0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0};
+
+    primal::KnotVector<double> kvector(knots, 9, degree, SkipTag {});
+
+    EXPECT_FALSE(kvector.isValid());
+  }
+
+  // .. but can equal degree
+  {
+    constexpr int degree = 3;
+    // Internal knot 0.5 has multiplicity 3, which equals degree - this should be valid
+    double knots[] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
+
+    primal::KnotVector<double> kvector(knots, 11, degree, SkipTag {});
+
+    EXPECT_TRUE(kvector.isValid());
   }
 }
 

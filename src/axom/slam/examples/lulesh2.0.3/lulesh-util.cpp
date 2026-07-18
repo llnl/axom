@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -202,9 +203,10 @@ namespace slamLulesh {
 #endif
         }
         else {
-          char msg[80];
+          constexpr int msg_size = 80;
+          char msg[msg_size];
           PrintCommandLineOptions(argv[0], myRank);
-          sprintf(msg, "ERROR: Unknown command line argument: %s\n", argv[i]);
+          snprintf(msg, msg_size, "ERROR: Unknown command line argument: %s\n", argv[i]);
           ParseError(msg, myRank);
         }
       }
@@ -297,15 +299,12 @@ namespace slamLulesh {
         << " actual energy at origin was " << locDom.e(ElemId)
         << ". Difference was " << std::fabs(resultCheckMap[gEdge].second - locDom.e(ElemId) ) );
 
-      double diff = std::fabs(resultCheckMap[gEdge].second - locDom.e(ElemId) );
-      double maxFabs = std::max( std::fabs(resultCheckMap[gEdge].second), std::fabs(locDom.e(ElemId) ) );
-      double relMaxFabs = 1.0e-6 * maxFabs;
-      double relMaxFabsWithAbsolute = relMaxFabs + 1.0e-8;
-
-      AXOM_UNUSED_VAR( diff);
-      AXOM_UNUSED_VAR( maxFabs);
-      AXOM_UNUSED_VAR( relMaxFabs);
-      AXOM_UNUSED_VAR( relMaxFabsWithAbsolute);
+#ifdef AXOM_DEBUG
+      const double diff = std::fabs(resultCheckMap[gEdge].second - locDom.e(ElemId));
+      const double maxFabs =
+        std::max(std::fabs(resultCheckMap[gEdge].second), std::fabs(locDom.e(ElemId)));
+      const double relMaxFabs = 1.0e-6 * maxFabs;
+      const double relMaxFabsWithAbsolute = relMaxFabs + 1.0e-8;
       SLIC_DEBUG("**  comparing "
           << resultCheckMap[gEdge].second << " with " << locDom.e(ElemId)
           << "\n\tfabs difference: " << diff
@@ -315,6 +314,7 @@ namespace slamLulesh {
           << "\n\tdiff of last two: " << relMaxFabsWithAbsolute - diff
           << "\n\tNearly equal: " << ( diff <= relMaxFabsWithAbsolute ? "TRUE" : "FALSE" )
       );
+#endif
     }
 
     return;

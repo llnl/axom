@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  *  \file SidreTypes.h
@@ -15,9 +18,6 @@
  * Note: Use only C code in this file.
  *       It is part of the C wrapper.
  */
-
-#ifndef SIDRETYPES_H
-#define SIDRETYPES_H
 
 // Axom includes
 #include "axom/config.hpp"
@@ -36,5 +36,3 @@ typedef short SIDRE_TypeID;
 typedef int SIDRE_TypeIDint;
 
 #define SIDRE_InvalidName NULL
-
-#endif  // SIDRETYPES_H

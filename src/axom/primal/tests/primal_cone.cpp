@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -28,6 +29,7 @@ double cone_volume(double baseRad, double topRad, double len)
 {
   return M_PI / 3 * len * (baseRad * baseRad + baseRad * topRad + topRad * topRad);
 }
+} /* end anonymous namespace */
 
 //------------------------------------------------------------------------------
 TEST(primal_cone, default_constructor)
@@ -109,8 +111,6 @@ TEST(primal_cone, assignment_operator)
   EXPECT_EQ(coneA.getBaseCenter(), coneB.getBaseCenter());
   EXPECT_EQ(coneA.volume(), coneB.volume());
 }
-
-} /* end anonymous namespace */
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])

@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file in_sphere.hpp
@@ -11,20 +14,133 @@
  *
  * This is a well known computational geometry primitive.  For reference,
  * see Section 3.1.6.4 in "Real-time collision detection" by C. Ericson.
+ *
+ * \note These routines use double-precision determinants and are not exact sign
+ *  oracles near degeneracy (e.g. nearly co-circular/co-spherical inputs).
+ *  See detail/predicate_determinants.hpp for the precision/robustness discussion
+ *  and in_sphere_orientation() for the tolerance (EPS) scaling caveat.
  */
-
-#ifndef AXOM_PRIMAL_IN_SPHERE_H_
-#define AXOM_PRIMAL_IN_SPHERE_H_
 
 #include "axom/core.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Triangle.hpp"
 #include "axom/primal/geometry/Tetrahedron.hpp"
+#include "axom/primal/geometry/OrientationResult.hpp"
+
+#include "axom/primal/operators/detail/predicate_determinants.hpp"
 
 namespace axom
 {
 namespace primal
 {
+/*!
+ * \brief Returns the raw 2D in-sphere determinant for a circumcircle test.
+ *
+ * A negative determinant means the query point is inside the circumcircle for
+ * a consistently oriented input triangle.
+ */
+template <typename T>
+inline double in_sphere_determinant(const Point<T, 2>& q,
+                                    const Point<T, 2>& p0,
+                                    const Point<T, 2>& p1,
+                                    const Point<T, 2>& p2)
+{
+  return detail::in_sphere_determinant(q, p0, p1, p2);
+}
+
+template <typename T>
+inline double in_sphere_determinant(const Point<T, 2>& q, const Triangle<T, 2>& tri)
+{
+  return in_sphere_determinant(q, tri[0], tri[1], tri[2]);
+}
+
+/*!
+ * \brief Returns the raw 3D in-sphere determinant for a circumsphere test.
+ *
+ * A negative determinant means the query point is inside the circumsphere for
+ * a consistently oriented input tetrahedron.
+ */
+template <typename T>
+inline double in_sphere_determinant(const Point<T, 3>& q,
+                                    const Point<T, 3>& p0,
+                                    const Point<T, 3>& p1,
+                                    const Point<T, 3>& p2,
+                                    const Point<T, 3>& p3)
+{
+  return detail::in_sphere_determinant(q, p0, p1, p2, p3);
+}
+
+template <typename T>
+inline double in_sphere_determinant(const Point<T, 3>& q, const Tetrahedron<T, 3>& tet)
+{
+  return in_sphere_determinant(q, tet[0], tet[1], tet[2], tet[3]);
+}
+
+/*!
+ * \brief Classifies a query point against a 2D triangle's circumcircle.
+ *
+ * \return ON_NEGATIVE_SIDE if inside, ON_POSITIVE_SIDE if outside, ON_BOUNDARY otherwise.
+ *
+ * \note \a EPS is compared against the raw in-sphere determinant, which is NOT
+ *  normalized by the coordinate magnitude. The determinant's matrix mixes linear
+ *  coordinate columns with a squared-norm column, so it has degree (DIM+2) in the
+ *  coordinates (degree 4 in 2D, degree 5 in 3D). The default EPS = 1e-8 is thus
+ *  only meaningful for points whose coordinates are O(1). For inputs with large
+ *  coordinates (or that are not centered near the origin), pass an EPS scaled to
+ *  the data, or call in_sphere_determinant() and apply your own scale-aware
+ *  tolerance. See quest::Delaunay's tolerance helpers for an example of the
+ *  latter approach.
+ */
+template <typename T>
+inline int in_sphere_orientation(const Point<T, 2>& q,
+                                 const Point<T, 2>& p0,
+                                 const Point<T, 2>& p1,
+                                 const Point<T, 2>& p2,
+                                 double EPS = 1e-8)
+{
+  const double det = in_sphere_determinant(q, p0, p1, p2);
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  return det < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+}
+
+template <typename T>
+inline int in_sphere_orientation(const Point<T, 2>& q, const Triangle<T, 2>& tri, double EPS = 1e-8)
+{
+  return in_sphere_orientation(q, tri[0], tri[1], tri[2], EPS);
+}
+
+/*!
+ * \brief Classifies a query point against a 3D tetrahedron's circumsphere.
+ *
+ * \return ON_NEGATIVE_SIDE if inside, ON_POSITIVE_SIDE if outside, ON_BOUNDARY otherwise.
+ */
+template <typename T>
+inline int in_sphere_orientation(const Point<T, 3>& q,
+                                 const Point<T, 3>& p0,
+                                 const Point<T, 3>& p1,
+                                 const Point<T, 3>& p2,
+                                 const Point<T, 3>& p3,
+                                 double EPS = 1e-8)
+{
+  const double det = in_sphere_determinant(q, p0, p1, p2, p3);
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  return det < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+}
+
+template <typename T>
+inline int in_sphere_orientation(const Point<T, 3>& q, const Tetrahedron<T, 3>& tet, double EPS = 1e-8)
+{
+  return in_sphere_orientation(q, tet[0], tet[1], tet[2], tet[3], EPS);
+}
+
 /*!
  * \brief Tests whether a query point lies inside a 2D triangle's circumcircle
  *
@@ -36,6 +152,8 @@ namespace primal
  * \param [in] p1 the second vertex of the triangle
  * \param [in] p2 the third vertex of the triangle
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumcircle are treated
+ *  as inside. Default: false.
  * \return true if the point is inside the circumcircle, false if it is on
  * the circle's boundary or outside the circle
  */
@@ -44,20 +162,11 @@ inline bool in_sphere(const Point<T, 2>& q,
                       const Point<T, 2>& p0,
                       const Point<T, 2>& p1,
                       const Point<T, 2>& p2,
-                      double EPS = 1e-8)
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
-  const auto ba = p1 - p0;
-  const auto ca = p2 - p0;
-  const auto qa = q - p0;
-
-  // clang-format off
-  const double det = axom::numerics::determinant(
-    ba[0], ba[1], ba.squared_norm(),
-    ca[0], ca[1], ca.squared_norm(),
-    qa[0], qa[1], qa.squared_norm());
-  // clang-format on
-
-  return axom::utilities::isNearlyEqual(det, 0., EPS) ? false : (det < 0);
+  const int res = in_sphere_orientation(q, p0, p1, p2, EPS);
+  return includeBoundary ? (res != primal::ON_POSITIVE_SIDE) : (res == primal::ON_NEGATIVE_SIDE);
 }
 
 /*!
@@ -66,12 +175,17 @@ inline bool in_sphere(const Point<T, 2>& q,
  * \param [in] q the query point
  * \param [in] tri the triangle
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumcircle are treated
+ *  as inside. Default: false.
  * \see in_sphere
  */
 template <typename T>
-inline bool in_sphere(const Point<T, 2>& q, const Triangle<T, 2>& tri, double EPS = 1e-8)
+inline bool in_sphere(const Point<T, 2>& q,
+                      const Triangle<T, 2>& tri,
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
-  return in_sphere(q, tri[0], tri[1], tri[2], EPS);
+  return in_sphere(q, tri[0], tri[1], tri[2], EPS, includeBoundary);
 }
 
 /*!
@@ -87,6 +201,8 @@ inline bool in_sphere(const Point<T, 2>& q, const Triangle<T, 2>& tri, double EP
  * \param [in] p2 the third vertex of the tetrahedron
  * \param [in] p3 the fourth vertex of the tetrahedron
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumsphere are treated
+ *  as inside. Default: false.
  * \return true if the point is inside the circumsphere, false if it is on
  * the sphere's boundary or outside the sphere
  */
@@ -96,22 +212,11 @@ inline bool in_sphere(const Point<T, 3>& q,
                       const Point<T, 3>& p1,
                       const Point<T, 3>& p2,
                       const Point<T, 3>& p3,
-                      double EPS = 1e-8)
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
-  const auto ba = p1 - p0;
-  const auto ca = p2 - p0;
-  const auto da = p3 - p0;
-  const auto qa = q - p0;
-
-  // clang-format off
-  const double det = axom::numerics::determinant(
-    ba[0], ba[1], ba[2], ba.squared_norm(),
-    ca[0], ca[1], ca[2], ca.squared_norm(),
-    da[0], da[1], da[2], da.squared_norm(),
-    qa[0], qa[1], qa[2], qa.squared_norm());
-  // clang-format on
-
-  return axom::utilities::isNearlyEqual(det, 0., EPS) ? false : (det < 0);
+  const int res = in_sphere_orientation(q, p0, p1, p2, p3, EPS);
+  return includeBoundary ? (res != primal::ON_POSITIVE_SIDE) : (res == primal::ON_NEGATIVE_SIDE);
 }
 
 /*!
@@ -120,12 +225,17 @@ inline bool in_sphere(const Point<T, 3>& q,
  * \param [in] q the query point
  * \param [in] tet the tetrahedron
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumsphere are treated
+ *  as inside. Default: false.
  * \see in_sphere
  */
 template <typename T>
-inline bool in_sphere(const Point<T, 3>& q, const Tetrahedron<T, 3>& tet, double EPS = 1e-8)
+inline bool in_sphere(const Point<T, 3>& q,
+                      const Tetrahedron<T, 3>& tet,
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
-  return in_sphere(q, tet[0], tet[1], tet[2], tet[3], EPS);
+  return in_sphere(q, tet[0], tet[1], tet[2], tet[3], EPS, includeBoundary);
 }
 
 /*!
@@ -178,5 +288,3 @@ inline bool in_sphere(const BoundingBox<T, 2>& bb, const Sphere<T, 2>& circle)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_SPHERE_H_

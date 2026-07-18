@@ -4,10 +4,10 @@
 "package_source_dir": "../..",
 "package_final_phase": "",
 "spack_url": "https://github.com/spack/spack.git",
-"spack_commit": "734c5db2121b01c373eed6538e452f18887e9e44",
+"spack_commit": "2e2169d5282d166f63e3ee4db8d4446c43cefa8a",
 "spack_configs_path": "scripts/spack/devtools_configs",
 "spack_packages_url": "https://github.com/spack/spack-packages.git",
-"spack_packages_commit": "a75a7f75182ffc7a51c6ca7f0fec4bf9b2705be8",
+"spack_packages_commit": "17ea6a6d483fc0bde1b2cca96ddaad0a10f2ef69",
 "spack_packages_path": "scripts/spack/packages",
 "spack_concretizer": "clingo"
 }

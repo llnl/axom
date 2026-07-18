@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_DISTRIBUTED_CLOSEST_POINT_IMPL_H_
-#define QUEST_DISTRIBUTED_CLOSEST_POINT_IMPL_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -1100,5 +1100,3 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  //  QUEST_DISTRIBUTED_CLOSEST_POINT_IMPL_H_

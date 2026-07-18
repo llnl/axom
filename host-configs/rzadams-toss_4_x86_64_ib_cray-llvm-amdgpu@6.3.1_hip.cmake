@@ -1,31 +1,31 @@
 #------------------------------------------------------------------------------
 # !!!! This is a generated file, edit at own risk !!!!
 #------------------------------------------------------------------------------
-# CMake executable path: /usr/tce/bin/cmake
+# CMake executable path: /usr/tce/packages/cmake/cmake-3.29.2/bin/cmake
 #------------------------------------------------------------------------------
 
-set(CMAKE_PREFIX_PATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/blt-develop-rooblwk6woxuono5ugb6v7matj6cs2zw;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/c2c-1.8.0-ntedglgnqawmjjv5gp4z7clo6hwbjp2v;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/caliper-2.12.1-qkfzuu2jpcjigctyzwoi752spudor4g2;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/conduit-0.9.5-afacowkpokduoln44nlot7maexmecztw;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/lua-5.4.6-uualmscaywhgyez3lamnhe6pyz3hiiv5;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/mfem-4.8.0-hbwtcdiqiakko7x7htmkehs63i2ncyiy;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/adiak-0.4.0-r6ks4fox2noboh7pzadlqdbfw776oxgn;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/hdf5-1.8.23-c4wzjjycrnuxck4wj2fy6bki7brzma43;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/parmetis-4.0.3-yjpzlwgcivvxrhhd3kkaxr37yu5u2uyo;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/hypre-2.24.0-ogmwaes45eiwghd2ftrqexj2lgukc2lm;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/raja-2025.09.0-jcwsmra5vvswzwb5b2jxojvepwocemrg;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/umpire-2025.09.0-gtcpjukxu4noapbekklsz6ckx55cztyf;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/zlib-1.3.1-u4wgzmzy2jxxldovv2jdlmbdvsaen3tw;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/metis-5.1.0-pdcvrjpfoyxkcymffj5uh7vc4lskperz;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/camp-2025.09.2-wue6ebzmhf65mogqnpxjpz5gdk474abh;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/fmt-11.0.2-w5znoktxjbwkzxjyprvgvww6s3eejtl7;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/none-none/compiler-wrapper-1.0-gp57b4mbq4ctshuybmbzq62fjybcm5tp;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_09_25_12_05_48/view/python-3.13.5;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_09_25_12_05_48/view/python-3.13.5;/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_09_25_12_05_48/view/python-3.13.5;/usr/tce;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_09_25_12_05_48/gcc-13.3.1/cppcheck-2.18.0-prdufaymm4rf6ugi5f2miqbjclhekg6w;/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.3.1;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_09_25_12_05_48/view/doxygen-1.13.2;/opt/rocm-6.3.1;/opt/rocm-6.3.1;/usr/tce/packages/rocmcc/rocmcc-6.4.2-magic/llvm;/opt/rocm-6.3.1/llvm;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_09_25_12_05_48/view/python-3.13.5;/opt/rocm-6.3.1;/opt/rocm-6.3.1;/opt/rocm-6.3.1" CACHE STRING "")
+set(CMAKE_PREFIX_PATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/adiak-0.4.0-c4srnrz5apjetx74dt6xjah63o3a7xcx;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/blt-0.7.1-kzmxfjvxm4drr2qhspckvwee6mrlc3e5;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/c2c-1.8.0-lm64gc55hpxilmtsw7geirys3q4wacu5;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/conduit-0.9.5-wswspowegvp5byl5inc2cikljzkcqg64;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/lua-5.4.8-j7ngytniswhoa536kqfzarcraarkicbm;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/mfem-4.9.0-xwg5un3mlbeog3j4voeltekra43ix3ga;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/py-nanobind-2.7.0-q2kwozph3gwgfyjnx43jp2gkbaghwxoj;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/py-pytest-9.0.0-jfdwo62b3p36blpm54gvocrcj6afccv5;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/hdf5-1.8.23-rb4cjthx4wz4wnpaizwmm2jycijdthqm;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/parmetis-4.0.3-ng66tt5fmjyfoiuuxyl4rxqv4ompawmd;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/py-mpi4py-4.1.1-s4a64moil7qmgczpelmmb344qxxavrzk;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/py-numpy-2.4.2-zcxbrxijjc3miotq6s3kq446afrgycuu;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/hypre-2.27.0-6m2jwyzqbksxgmdznvh54ytysxyme7jy;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/raja-git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2_develop-wcyqyggju4u2ornjjnamgdgfbqjrzsir;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/umpire-2025.12.0-5w5v22edixuttxwueaagiobpjzn5mcgr;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/zlib-1.3.1-5w5muvpvct6uruxrddscblsiyizl3uoc;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/metis-5.1.0-4punmdkye6rovr3u7ph7bgj66qim77du;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/camp-git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325_main-jnalmgzqx2nn2afq4gwhyjda3u6yub7y;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/fmt-11.0.2-opsfnufdiedpfpob5wgbvhcrhyhzfkaq;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/compiler-wrapper-1.0-pypgv2tridcfdliq3cjhfecu23umxcjd;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11;/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.14.0;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11;/usr/tce/packages/cmake/cmake-3.29.2;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/gcc-13.3.1/cppcheck-2.18.0-n6kdcwtwlrc3u3t47t7gokpyd4h6mc27;/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.3.1;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/doxygen-1.15.0;/opt/rocm-6.3.1;/opt/rocm-6.3.1;/usr/tce/packages/rocmcc/rocmcc-6.4.3-magic/llvm;/opt/rocm-6.3.1;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11;/opt/rocm-6.3.1;/opt/rocm-6.3.1;/opt/rocm-6.3.1" CACHE STRING "")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE STRING "")
 
-set(CMAKE_BUILD_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/axom-develop-zglvcg7vmwffhf5bnc37o4i3owbyalg4/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/axom-develop-zglvcg7vmwffhf5bnc37o4i3owbyalg4/lib64;;/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12" CACHE STRING "")
+set(CMAKE_BUILD_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/axom-develop-4srm7we3wjp7l4cfcshzov5nr52jna4r/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/axom-develop-4srm7we3wjp7l4cfcshzov5nr52jna4r/lib64;;/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12" CACHE STRING "")
 
-set(CMAKE_INSTALL_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/axom-develop-zglvcg7vmwffhf5bnc37o4i3owbyalg4/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1/axom-develop-zglvcg7vmwffhf5bnc37o4i3owbyalg4/lib64;;/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12" CACHE STRING "")
+set(CMAKE_INSTALL_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/axom-develop-4srm7we3wjp7l4cfcshzov5nr52jna4r/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1/axom-develop-4srm7we3wjp7l4cfcshzov5nr52jna4r/lib64;;/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12" CACHE STRING "")
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
 #------------------------------------------------------------------------------
 # Compilers
 #------------------------------------------------------------------------------
-# Compiler Spec: llvm-amdgpu@6.3.1/g7zrnyldcol3aelwfq7rjxzy2jysxezv
+# Compiler Spec: llvm-amdgpu@6.3.1/ns2pv5bzkpjolxzmhgkckj6glqymgd7e
 #------------------------------------------------------------------------------
 if(DEFINED ENV{SPACK_CC})
 
-  set(CMAKE_C_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/none-none/compiler-wrapper-1.0-gp57b4mbq4ctshuybmbzq62fjybcm5tp/libexec/spack/rocmcc/amdclang" CACHE PATH "")
+  set(CMAKE_C_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/compiler-wrapper-1.0-pypgv2tridcfdliq3cjhfecu23umxcjd/libexec/spack/rocmcc/amdclang" CACHE PATH "")
 
-  set(CMAKE_CXX_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/none-none/compiler-wrapper-1.0-gp57b4mbq4ctshuybmbzq62fjybcm5tp/libexec/spack/rocmcc/amdclang++" CACHE PATH "")
+  set(CMAKE_CXX_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/compiler-wrapper-1.0-pypgv2tridcfdliq3cjhfecu23umxcjd/libexec/spack/rocmcc/amdclang++" CACHE PATH "")
 
-  set(CMAKE_Fortran_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/none-none/compiler-wrapper-1.0-gp57b4mbq4ctshuybmbzq62fjybcm5tp/libexec/spack/rocmcc/amdflang" CACHE PATH "")
+  set(CMAKE_Fortran_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/compiler-wrapper-1.0-pypgv2tridcfdliq3cjhfecu23umxcjd/libexec/spack/rocmcc/amdflang" CACHE PATH "")
 
 else()
 
@@ -51,11 +51,11 @@ set(MPI_CXX_COMPILER "/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-
 
 set(MPI_Fortran_COMPILER "/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.3.1/bin/mpif90" CACHE PATH "")
 
+set(MPIEXEC_EXECUTABLE "/usr/global/tools/flux_wrappers/bin/srun" CACHE PATH "")
+
 set(MPIEXEC_NUMPROC_FLAG "-n" CACHE STRING "")
 
 set(ENABLE_MPI ON CACHE BOOL "")
-
-set(MPIEXEC_EXECUTABLE "/usr/global/tools/flux_wrappers/bin/srun" CACHE PATH "")
 
 #------------------------------------------------------------------------------
 # Hardware
@@ -69,7 +69,7 @@ set(ROCM_PATH "/opt/rocm-6.3.1" CACHE PATH "")
 
 set(CMAKE_HIP_ARCHITECTURES "gfx90a;gfx942" CACHE STRING "")
 
-set(CMAKE_HIP_COMPILER "/opt/rocm-6.3.1/llvm/bin/amdclang++" CACHE FILEPATH "")
+set(CMAKE_HIP_COMPILER "/opt/rocm-6.3.1/bin/amdclang++" CACHE FILEPATH "")
 
 #------------------------------------------------------------------------------
 
@@ -82,13 +82,15 @@ set(ENABLE_HIP ON CACHE BOOL "")
 
 set(ROCM_ROOT_DIR "/opt/rocm-6.3.1" CACHE PATH "")
 
-set(CMAKE_EXE_LINKER_FLAGS "-lxpmem -L/opt/cray/pe/mpich/8.1.29/gtl/lib -Wl,-rpath,/opt/cray/pe/mpich/8.1.29/gtl/lib -lmpi_gtl_hsa -Wl,--disable-new-dtags -L/opt/rocm-6.3.1/lib/llvm/lib -Wl,-rpath,/opt/rocm-6.3.1/lib/llvm/lib -L/opt/rocm-6.3.1/lib -Wl,-rpath,/opt/rocm-6.3.1/lib -lpgmath -lflang -lflangrti -lompstub -lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr " CACHE STRING "")
+set(BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE "ompstub" CACHE STRING "")
+
+set(CMAKE_EXE_LINKER_FLAGS "-lxpmem -L/opt/cray/pe/mpich/8.1.29/gtl/lib -Wl,-rpath,/opt/cray/pe/mpich/8.1.29/gtl/lib -lmpi_gtl_hsa -L/opt/rocm-6.3.1/lib/llvm/lib -Wl,-rpath,/opt/rocm-6.3.1/lib/llvm/lib -L/opt/rocm-6.3.1/lib -Wl,-rpath,/opt/rocm-6.3.1/lib -lpgmath -Wl,--disable-new-dtags -lflang -lflangrti -lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr " CACHE STRING "")
 
 #------------------------------------------------
 # Hardware Specifics
 #------------------------------------------------
 
-set(ENABLE_OPENMP OFF CACHE BOOL "")
+set(ENABLE_OPENMP ON CACHE BOOL "")
 
 set(ENABLE_GTEST_DEATH_TESTS ON CACHE BOOL "")
 
@@ -96,52 +98,66 @@ set(ENABLE_GTEST_DEATH_TESTS ON CACHE BOOL "")
 # TPLs
 #------------------------------------------------------------------------------
 
-set(TPL_ROOT "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_09_25_16_49_09/llvm-amdgpu-6.3.1" CACHE PATH "")
+set(TPL_ROOT "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/llvm-amdgpu-6.3.1" CACHE PATH "")
 
-set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.5-afacowkpokduoln44nlot7maexmecztw" CACHE PATH "")
+set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.5-wswspowegvp5byl5inc2cikljzkcqg64" CACHE PATH "")
 
-set(C2C_DIR "${TPL_ROOT}/c2c-1.8.0-ntedglgnqawmjjv5gp4z7clo6hwbjp2v" CACHE PATH "")
+set(C2C_DIR "${TPL_ROOT}/c2c-1.8.0-lm64gc55hpxilmtsw7geirys3q4wacu5" CACHE PATH "")
 
-set(MFEM_DIR "${TPL_ROOT}/mfem-4.8.0-hbwtcdiqiakko7x7htmkehs63i2ncyiy" CACHE PATH "")
+set(MFEM_DIR "${TPL_ROOT}/mfem-4.9.0-xwg5un3mlbeog3j4voeltekra43ix3ga" CACHE PATH "")
 
-set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-c4wzjjycrnuxck4wj2fy6bki7brzma43" CACHE PATH "")
+set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-rb4cjthx4wz4wnpaizwmm2jycijdthqm" CACHE PATH "")
 
-set(LUA_DIR "${TPL_ROOT}/lua-5.4.6-uualmscaywhgyez3lamnhe6pyz3hiiv5" CACHE PATH "")
+set(LUA_DIR "${TPL_ROOT}/lua-5.4.8-j7ngytniswhoa536kqfzarcraarkicbm" CACHE PATH "")
 
-set(RAJA_DIR "${TPL_ROOT}/raja-2025.09.0-jcwsmra5vvswzwb5b2jxojvepwocemrg" CACHE PATH "")
+set(RAJA_DIR "${TPL_ROOT}/raja-git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2_develop-wcyqyggju4u2ornjjnamgdgfbqjrzsir" CACHE PATH "")
 
-set(UMPIRE_DIR "${TPL_ROOT}/umpire-2025.09.0-gtcpjukxu4noapbekklsz6ckx55cztyf" CACHE PATH "")
+set(UMPIRE_DIR "${TPL_ROOT}/umpire-2025.12.0-5w5v22edixuttxwueaagiobpjzn5mcgr" CACHE PATH "")
 
 # OPENCASCADE not built
 
-set(ADIAK_DIR "${TPL_ROOT}/adiak-0.4.0-r6ks4fox2noboh7pzadlqdbfw776oxgn" CACHE PATH "")
+set(ADIAK_DIR "${TPL_ROOT}/adiak-0.4.0-c4srnrz5apjetx74dt6xjah63o3a7xcx" CACHE PATH "")
 
-set(CALIPER_DIR "${TPL_ROOT}/caliper-2.12.1-qkfzuu2jpcjigctyzwoi752spudor4g2" CACHE PATH "")
+# CALIPER not built
 
-set(CAMP_DIR "${TPL_ROOT}/camp-2025.09.2-wue6ebzmhf65mogqnpxjpz5gdk474abh" CACHE PATH "")
+set(CAMP_DIR "${TPL_ROOT}/camp-git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325_main-jnalmgzqx2nn2afq4gwhyjda3u6yub7y" CACHE PATH "")
 
 # scr not built
 
 #------------------------------------------------------------------------------
-# Devtools
+# Devtools & Python
 #------------------------------------------------------------------------------
 
-set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_09_25_12_05_48" CACHE PATH "")
+set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25" CACHE PATH "")
 
-set(CLANGFORMAT_EXECUTABLE "/usr/tce/packages/rocmcc/rocmcc-6.4.2-magic/llvm/bin/clang-format" CACHE PATH "")
+set(CLANGFORMAT_EXECUTABLE "/usr/tce/packages/rocmcc/rocmcc-6.4.3-magic/llvm/bin/clang-format" CACHE PATH "")
 
-set(Python_EXECUTABLE "${DEVTOOLS_ROOT}/._view/7qllb33pi46obvxaz6lidqsy2qlr3wkt/python-3.13.5/bin/python3" CACHE PATH "")
+set(Python_EXECUTABLE "${DEVTOOLS_ROOT}/._view/ywmag65dnysd7p4dhlmcoaaqqxfzgz5a/python-3.13.11/bin/python3" CACHE PATH "")
 
-set(JSONSCHEMA_EXECUTABLE "${DEVTOOLS_ROOT}/._view/7qllb33pi46obvxaz6lidqsy2qlr3wkt/python-3.13.5/bin/jsonschema" CACHE PATH "")
+set(JSONSCHEMA_EXECUTABLE "${DEVTOOLS_ROOT}/._view/ywmag65dnysd7p4dhlmcoaaqqxfzgz5a/python-3.13.11/bin/jsonschema" CACHE PATH "")
 
 set(ENABLE_DOCS ON CACHE BOOL "")
 
-set(SPHINX_EXECUTABLE "${DEVTOOLS_ROOT}/._view/7qllb33pi46obvxaz6lidqsy2qlr3wkt/python-3.13.5/bin/sphinx-build" CACHE PATH "")
+set(SPHINX_EXECUTABLE "${DEVTOOLS_ROOT}/._view/ywmag65dnysd7p4dhlmcoaaqqxfzgz5a/python-3.13.11/bin/sphinx-build" CACHE PATH "")
 
-set(SHROUD_EXECUTABLE "/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0/bin/shroud" CACHE PATH "")
+set(YAPF_EXECUTABLE "${DEVTOOLS_ROOT}/._view/ywmag65dnysd7p4dhlmcoaaqqxfzgz5a/python-3.13.11/bin/yapf" CACHE PATH "")
 
-set(CPPCHECK_EXECUTABLE "${DEVTOOLS_ROOT}/gcc-13.3.1/cppcheck-2.18.0-prdufaymm4rf6ugi5f2miqbjclhekg6w/bin/cppcheck" CACHE PATH "")
+set(SHROUD_EXECUTABLE "/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.14.0/bin/shroud" CACHE PATH "")
 
-set(DOXYGEN_EXECUTABLE "${DEVTOOLS_ROOT}/._view/7qllb33pi46obvxaz6lidqsy2qlr3wkt/doxygen-1.13.2/bin/doxygen" CACHE PATH "")
+set(CPPCHECK_EXECUTABLE "${DEVTOOLS_ROOT}/gcc-13.3.1/cppcheck-2.18.0-n6kdcwtwlrc3u3t47t7gokpyd4h6mc27/bin/cppcheck" CACHE PATH "")
+
+set(DOXYGEN_EXECUTABLE "${DEVTOOLS_ROOT}/._view/ywmag65dnysd7p4dhlmcoaaqqxfzgz5a/doxygen-1.15.0/bin/doxygen" CACHE PATH "")
+
+set(PY_NANOBIND_DIR "${TPL_ROOT}/py-nanobind-2.7.0-q2kwozph3gwgfyjnx43jp2gkbaghwxoj/lib/python3.13/site-packages" CACHE PATH "")
+
+set(PY_PYTEST_DIR "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/py-pytest-9.0.0-jfdwo62b3p36blpm54gvocrcj6afccv5/lib/python3.13/site-packages" CACHE PATH "")
+
+set(PY_NUMPY_DIR "${TPL_ROOT}/py-numpy-2.4.2-zcxbrxijjc3miotq6s3kq446afrgycuu/lib/python3.13/site-packages" CACHE PATH "")
+
+set(PY_PLUGGY_DIR "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/py-pluggy-1.6.0-n4ojmtqyawxz6gipk64pup3ahwz3xqpu/lib/python3.13/site-packages" CACHE PATH "")
+
+set(PY_INICONFIG_DIR "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2026_04_22_11_56_56/none-none/py-iniconfig-2.1.0-lf3yvch65se22jr7b5unfoxtse4ugkrk/lib/python3.13/site-packages" CACHE PATH "")
+
+set(PY_MPI4PY_DIR "${TPL_ROOT}/py-mpi4py-4.1.1-s4a64moil7qmgczpelmmb344qxxavrzk/lib/python3.13/site-packages" CACHE PATH "")
 
 

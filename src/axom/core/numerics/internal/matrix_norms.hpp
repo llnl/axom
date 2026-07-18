@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MATRIX_NORMS_HPP_
-#define AXOM_MATRIX_NORMS_HPP_
+#pragma once
 
 #include "axom/core/numerics/Matrix.hpp"      // for numerics::Matrix
 #include "axom/core/utilities/Utilities.hpp"  // for utilities::abs()
@@ -155,5 +155,3 @@ inline T matrix_frobenious_norm(const Matrix<T>& A)
 } /* end namespace internal */
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif /* AXOM_MATRIX_NORMS_HPP_ */

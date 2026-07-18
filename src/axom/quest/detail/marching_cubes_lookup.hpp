@@ -1,10 +1,15 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
   @file Static look-up tables for MarchingCubesImpl.
+
+  This file is intentionally included multiple times with different
+  _MC_LOOKUP_* macros to make selected lookup tables available in
+  host/device functions. Do not add an include guard or #pragma once.
 */
 
 // 2D case table

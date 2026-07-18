@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -42,7 +43,8 @@ int MIRApplication::initialize(int argc, char **argv)
   app.add_option("--gridsize", gridSize)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of zones along an axis.");
-  app.add_option("--method", method)->description("The MIR method name (equiz, elvira)");
+  app.add_option("--method", method)
+    ->description("The MIR method (or operation) name (equiz, elvira, traversal)");
   app.add_option("--numcircles", numCircles)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of circles to use for material creation.");
@@ -67,17 +69,15 @@ int MIRApplication::initialize(int argc, char **argv)
 
   std::stringstream pol_sstr;
   pol_sstr << "Set MIR runtime policy method.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
   app.add_option("-p, --policy", policy, pol_sstr.str())
     ->capture_default_str()
@@ -108,6 +108,7 @@ int MIRApplication::initialize(int argc, char **argv)
 int MIRApplication::execute()
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
+  axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
   if(handler)
   {
@@ -172,6 +173,7 @@ int MIRApplication::runMIR()
   }
 
   // Begin material interface reconstruction
+  timer.reset();
   timer.start();
   conduit::Node options, resultMesh;
   options["matset"] = "mat";
@@ -183,27 +185,25 @@ int MIRApplication::runMIR()
   {
     retval = runMIR_seq(dimension, mesh, options, resultMesh);
   }
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(policy == RuntimePolicy::omp)
   {
     retval = runMIR_omp(dimension, mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(policy == RuntimePolicy::cuda)
   {
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_cuda(dimension, mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(policy == RuntimePolicy::hip)
   {
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_hip(dimension, mesh, options, resultMesh);
   }
-  #endif
 #endif
   else
   {
@@ -221,6 +221,26 @@ int MIRApplication::runMIR()
   }
 
   return retval;
+}
+
+//--------------------------------------------------------------------------------
+size_t MIRApplication::estimateMemoryPoolSize() const
+{
+  // Estimate the mesh size
+  using FloatType = float;
+  using ConnType = int;
+  const auto nzones = static_cast<size_t>(pow(gridSize, dimension));
+  const auto nnodes = static_cast<size_t>(pow(gridSize + 1, dimension));
+  const auto topoSizeBytes =
+    ((((dimension == 3) ? 8 : 4) * nzones) + (nzones * 2)) * sizeof(ConnType);
+  const auto coordSizeBytes = (dimension * nnodes) * sizeof(FloatType);
+  const auto mixFraction = 1.5;
+  const auto matsetSizeBytes = (((nzones * mixFraction) * 2) * sizeof(ConnType)) +
+    (((nzones * mixFraction) * 1) * sizeof(FloatType)) + ((nzones * 2) * sizeof(ConnType));
+  const auto estMeshSizeBytes = topoSizeBytes + coordSizeBytes + matsetSizeBytes;
+  // Estimate pool size
+  const auto initialPoolSizeBytes = estMeshSizeBytes;
+  return initialPoolSizeBytes;
 }
 
 //--------------------------------------------------------------------------------

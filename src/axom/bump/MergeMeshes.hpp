@@ -1,9 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MERGE_MESHES_HPP_
-#define AXOM_BUMP_MERGE_MESHES_HPP_
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -11,11 +12,13 @@
 
 #include "axom/bump/views/Shapes.hpp"
 #include "axom/bump/views/dispatch_material.hpp"
+#include "axom/bump/views/dispatch_material_field.hpp"
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/MakePolyhedralTopology.hpp"
 #include "axom/bump/MergePolyhedralFaces.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -33,7 +36,7 @@ struct MeshInput
   conduit::Node *m_input {nullptr};                   //!< Pointer to Blueprint mesh.
   axom::ArrayView<axom::IndexType> m_nodeMapView {};  //!< Map for mesh nodeIds to nodeIds in final mesh.
   axom::ArrayView<axom::IndexType> m_nodeSliceView {};  //!< Node ids to be extracted and added to final mesh.
-  std::string topologyName {};                          //!< The name of the topology to use.
+  std::string m_topologyName {};                        //!< The name of the topology to use.
 };
 
 /*!
@@ -45,6 +48,27 @@ template <typename ExecSpace>
 class MergeMeshes
 {
 public:
+  MergeMeshes() : m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
   /*!
    * \brief Merge the input Blueprint meshes into a single Blueprint mesh.
    *
@@ -87,10 +111,14 @@ protected:
    */
   struct FieldInformation
   {
-    std::string topology;
-    std::string association;
-    int dtype;
-    std::vector<std::string> components;
+    std::string m_topology;
+    std::string m_association;
+    std::string m_matset;
+    int m_volume_dependent;
+    int m_dtype;
+    int m_have_values;
+    int m_have_matset_values;
+    std::vector<std::string> m_components;
   };
 
   /*!
@@ -110,11 +138,11 @@ protected:
       {
         if(inputs[i].m_input == nullptr) return false;
 
-        if(inputs[i].topologyName.empty())
+        if(inputs[i].m_topologyName.empty())
         {
           // If we did not specify which topology, make sure that there is only 1.
           const char *keys[] = {"coordsets", "topologies", "matsets"};
-          if(inputs[i].topologyName.empty())
+          if(inputs[i].m_topologyName.empty())
           {
             for(int k = 0; k < 3; k++)
             {
@@ -160,7 +188,7 @@ protected:
    */
   void singleInput(const std::vector<MeshInput> &inputs, conduit::Node &output) const
   {
-    axom::bump::utilities::copy<ExecSpace>(output, *(inputs[0].m_input));
+    axom::bump::utilities::copy<ExecSpace>(output, *(inputs[0].m_input), getAllocatorID());
   }
 
   /*!
@@ -173,9 +201,9 @@ protected:
    */
   const conduit::Node &getTopology(const MeshInput &input) const
   {
-    if(!input.topologyName.empty())
+    if(!input.m_topologyName.empty())
     {
-      return input.m_input->fetch_existing("topologies/" + input.topologyName);
+      return input.m_input->fetch_existing("topologies/" + input.m_topologyName);
     }
     return input.m_input->fetch_existing("topologies")[0];
   }
@@ -200,7 +228,10 @@ protected:
    *
    * \param inputs A vector of inputs to be merged.
    * \param n_options A node containing options.
-   * \param[out] output The node that will contain the merged mesh. 
+   * \param[out] output The node that will contain the merged mesh.
+   *
+   * \note We merge matsets first (for derived classes) so we can use the merged matset
+   *       when we merge mixed fields.
    */
   void mergeInputs(const std::vector<MeshInput> &inputs,
                    const conduit::Node &n_options,
@@ -208,8 +239,8 @@ protected:
   {
     mergeCoordset(inputs, output);
     mergeTopology(inputs, n_options, output);
-    mergeFields(inputs, output);
     mergeMatset(inputs, output);
+    mergeFields(inputs, output);
   }
 
   /*!
@@ -222,6 +253,8 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("mergeCoordset");
     namespace utils = axom::bump::utilities;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
     const axom::IndexType totalNodes = countNodes(inputs);
     conduit::Node &n_newCoordsets = output["coordsets"];
     conduit::Node *n_newValuesPtr = nullptr;
@@ -240,8 +273,6 @@ protected:
       // Make all of the components the first time.
       if(i == 0)
       {
-        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-
         conduit::Node &n_newCoordset = n_newCoordsets[n_srcCoordset.name()];
         n_newCoordset["type"] = "explicit";
         conduit::Node &n_newValues = n_newCoordset["values"];
@@ -252,13 +283,13 @@ protected:
         {
           const conduit::Node &n_srcComp = n_srcValues[c];
           conduit::Node &n_comp = n_newValues[n_srcComp.name()];
-          n_comp.set_allocator(c2a.getConduitAllocatorID());
+          n_comp.set_allocator(conduitAllocatorId);
           n_comp.set(conduit::DataType(n_srcComp.dtype().id(), totalNodes));
         }
       }
 
       // Copy this input's coordinates into the new coordset.
-      axom::bump::views::FloatNode_to_ArrayView(n_srcValues[0], [&](auto comp0) {
+      axom::bump::views::floatNodeToArrayView(n_srcValues[0], [&](auto comp0) {
         using FloatType = typename decltype(comp0)::value_type;
         for(int c = 0; c < nComps; c++)
         {
@@ -408,7 +439,7 @@ protected:
       // array, we sum the sizes. This is needed because connectivity might
       // have unused elements in it.
       axom::IndexType connLength = 0;
-      axom::bump::views::IndexNode_to_ArrayView(n_size, [&](auto sizesView) {
+      axom::bump::views::indexNodeToArrayView(n_size, [&](auto sizesView) {
         connLength = sumArrayView(sizesView);
       });
       totalConnLength += connLength;
@@ -429,7 +460,12 @@ protected:
     using value_type = typename ViewType::value_type;
     axom::ReduceSum<ExecSpace, value_type> sum(0);
     axom::for_all<ExecSpace>(view.size(), AXOM_LAMBDA(axom::IndexType index) { sum += view[index]; });
-    return static_cast<axom::IndexType>(sum.get());
+    const auto total = static_cast<axom::IndexType>(sum.get());
+    if(view.size() > 0)
+    {
+      SLIC_ERROR_IF(total == 0, "ReduceSum returned 0 for total.");
+    }
+    return total;
   }
 
   /*!
@@ -482,7 +518,7 @@ protected:
   {
     // Check the shape types.
     std::map<std::string, int> shape_map = buildShapeMap(inputs);
-    if(shape_map.find("polyhedral") != shape_map.end())
+    if(shape_map.find(views::PolyhedronTraits::name()) != shape_map.end())
     {
       // At least one input was polyhedral. Force all polyhedral output.
       mergeTopologiesPolyhedral(inputs, n_options, output);
@@ -507,6 +543,8 @@ protected:
                                    conduit::Node &output) const
   {
     namespace utils = axom::bump::utilities;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     AXOM_ANNOTATE_SCOPE("mergeTopologiesUnstructured");
     axom::IndexType totalConnLen = 0, totalZones = 0;
@@ -516,10 +554,10 @@ protected:
 
     // If there are polygon shapes then assume that the rest of the shapes
     // are 2D and should be promoted to polygons.
-    if(shape_map.find("polygonal") != shape_map.end() && shape_map.size() > 1)
+    if(shape_map.find(views::PolygonTraits::name()) != shape_map.end() && shape_map.size() > 1)
     {
       shape_map.clear();
-      shape_map["polygonal"] = axom::bump::views::shapeNameToID("polygonal");
+      shape_map[views::PolygonTraits::name()] = views::PolygonTraits::id();
     }
 
     conduit::Node *n_newTopoPtr = nullptr;
@@ -527,7 +565,6 @@ protected:
     for(axom::IndexType i = 0; i < n; i++)
     {
       const conduit::Node &n_srcTopo = getTopology(inputs[i]);
-
       const std::string srcShape = n_srcTopo.fetch_existing("elements/shape").as_string();
       const conduit::Node &n_srcConn = n_srcTopo.fetch_existing("elements/connectivity");
       const conduit::Node &n_srcSizes = n_srcTopo.fetch_existing("elements/sizes");
@@ -536,8 +573,6 @@ protected:
       // Make all of the elements the first time.
       if(i == 0)
       {
-        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-
         std::string newTopoName(n_srcTopo.name());
         if(n_options.has_child("topologyName"))
         {
@@ -550,15 +585,15 @@ protected:
         n_newTopo["coordset"] = n_srcTopo["coordset"].as_string();
 
         conduit::Node &n_newConn = n_newTopo["elements/connectivity"];
-        n_newConn.set_allocator(c2a.getConduitAllocatorID());
+        n_newConn.set_allocator(conduitAllocatorId);
         n_newConn.set(conduit::DataType(n_srcConn.dtype().id(), totalConnLen));
 
         conduit::Node &n_newSizes = n_newTopo["elements/sizes"];
-        n_newSizes.set_allocator(c2a.getConduitAllocatorID());
+        n_newSizes.set_allocator(conduitAllocatorId);
         n_newSizes.set(conduit::DataType(n_srcSizes.dtype().id(), totalZones));
 
         conduit::Node &n_newOffsets = n_newTopo["elements/offsets"];
-        n_newOffsets.set_allocator(c2a.getConduitAllocatorID());
+        n_newOffsets.set_allocator(conduitAllocatorId);
         n_newOffsets.set(conduit::DataType(n_srcConn.dtype().id(), totalZones));
 
         if(shape_map.size() > 1)
@@ -571,7 +606,7 @@ protected:
             n_shape_map[it->first] = it->second;
 
           conduit::Node &n_newShapes = n_newTopo["elements/shapes"];
-          n_newShapes.set_allocator(c2a.getConduitAllocatorID());
+          n_newShapes.set_allocator(conduitAllocatorId);
           n_newShapes.set(conduit::DataType(n_srcConn.dtype().id(), totalZones));
         }
         else
@@ -581,7 +616,7 @@ protected:
       }
 
       // Copy this input's connectivity into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::indexNodeToArrayViewSame(
         n_srcConn,
         n_srcSizes,
         n_srcOffsets,
@@ -605,7 +640,7 @@ protected:
         });
 
       // Copy this input's sizes into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
+      axom::bump::views::indexNodeToArrayView(n_srcSizes, [&](auto srcSizesView) {
         using ConnType = typename decltype(srcSizesView)::value_type;
         conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
         auto sizesView = utils::make_array_view<ConnType>(n_newSizes);
@@ -624,7 +659,7 @@ protected:
         {
           const conduit::Node &n_srcShapes = n_srcTopo.fetch_existing("elements/shapes");
 
-          axom::bump::views::IndexNode_to_ArrayView(n_srcShapes, [&](auto srcShapesView) {
+          axom::bump::views::indexNodeToArrayView(n_srcShapes, [&](auto srcShapesView) {
             using ConnType = typename decltype(srcShapesView)::value_type;
             conduit::Node &n_newShapes = n_newTopoPtr->fetch_existing("elements/shapes");
             auto shapesView = utils::make_array_view<ConnType>(n_newShapes);
@@ -640,7 +675,7 @@ protected:
           const conduit::Node &n_srcSizes = n_srcTopo.fetch_existing("elements/sizes");
           axom::IndexType nz = n_srcSizes.dtype().number_of_elements();
           conduit::Node &n_newShapes = n_newTopoPtr->fetch_existing("elements/shapes");
-          axom::bump::views::IndexNode_to_ArrayView(n_newShapes, [&](auto shapesView) {
+          axom::bump::views::indexNodeToArrayView(n_newShapes, [&](auto shapesView) {
             const int shapeId = axom::bump::views::shapeNameToID(srcShape);
             mergeTopology_default_shapes(shapesOffset, shapesView, nz, shapeId);
             shapesOffset += nz;
@@ -651,7 +686,7 @@ protected:
 
     // Make new offsets from the sizes.
     conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
-    axom::bump::views::IndexNode_to_ArrayView(n_newSizes, [&](auto sizesView) {
+    axom::bump::views::indexNodeToArrayView(n_newSizes, [&](auto sizesView) {
       using ConnType = typename decltype(sizesView)::value_type;
       conduit::Node &n_newOffsets = n_newTopoPtr->fetch_existing("elements/offsets");
       auto offsetsView = utils::make_array_view<ConnType>(n_newOffsets);
@@ -682,7 +717,7 @@ protected:
 
       // Make a new mesh input node and a topology node under it.
       phInputs[i].m_input = new conduit::Node;
-      phInputs[i].topologyName = inputs[i].topologyName;
+      phInputs[i].m_topologyName = inputs[i].m_topologyName;
       conduit::Node &n_phTopo = phInputs[i].m_input->operator[]("topologies/" + n_srcTopo.name());
       conduit::Node &n_phCoordset =
         phInputs[i].m_input->operator[]("coordsets/" + n_srcCoordset.name());
@@ -700,31 +735,31 @@ protected:
         // Convert the mesh to polyhedral.
         const std::string shape = n_srcTopo.fetch_existing("elements/shape").as_string();
         const conduit::Node &n_elem_conn = n_srcTopo.fetch_existing("elements/connectivity");
-        views::IndexNode_to_ArrayView(n_elem_conn, [&](auto connView) {
+        views::indexNodeToArrayView(n_elem_conn, [&](auto connView) {
           using ConnectivityType = typename decltype(connView)::value_type;
 
-          if(shape == "tet")
+          if(shape == views::TetTraits::name())
           {
             using TetShape = views::TetShape<ConnectivityType>;
             auto topologyView =
               views::make_unstructured_single_shape_topology<TetShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
-          else if(shape == "pyramid")
+          else if(shape == views::PyramidTraits::name())
           {
             using PyramidShape = views::PyramidShape<ConnectivityType>;
             auto topologyView =
               views::make_unstructured_single_shape_topology<PyramidShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
-          else if(shape == "wedge")
+          else if(shape == views::WedgeTraits::name())
           {
             using WedgeShape = views::WedgeShape<ConnectivityType>;
             auto topologyView =
               views::make_unstructured_single_shape_topology<WedgeShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
-          else if(shape == "hex")
+          else if(shape == views::HexTraits::name())
           {
             using HexShape = views::HexShape<ConnectivityType>;
             auto topologyView =
@@ -733,7 +768,7 @@ protected:
           }
           else if(shape == "mixed")
           {
-            const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+            const int allocatorID = getAllocatorID();
             axom::Array<IndexType> values, ids;
             auto shapeMap = views::buildShapeMap(n_srcTopo, values, ids, allocatorID);
             views::UnstructuredTopologyMixedShapeView<ConnectivityType> topologyView(
@@ -766,10 +801,11 @@ protected:
 
     // Make a polyhedral mesh from the input mesh.
     MakePolyhedralTopology<ExecSpace, TopologyView> makePH(topologyView);
+    makePH.setAllocatorID(getAllocatorID());
     makePH.execute(n_srcTopo, n_phTopo);
 
     // Improve the mesh by merging like faces.
-    MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo);
+    MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo, getAllocatorID());
   }
 
   /*!
@@ -824,6 +860,8 @@ protected:
                                       conduit::Node &output) const
   {
     namespace utils = axom::bump::utilities;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
     AXOM_ANNOTATE_SCOPE("mergeTopologiesPolyhedralInner");
 
     axom::IndexType totalElemConnLen = 0, totalElemZones = 0;
@@ -852,8 +890,6 @@ protected:
       // Make all of the elements the first time.
       if(i == 0)
       {
-        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-
         // Get new topo name.
         std::string newTopoName(n_srcTopo.name());
         if(n_options.has_child("topologyName"))
@@ -872,32 +908,32 @@ protected:
 
         // Allocate some bulk data.
         conduit::Node &n_newConn = n_newTopo["elements/connectivity"];
-        n_newConn.set_allocator(c2a.getConduitAllocatorID());
+        n_newConn.set_allocator(conduitAllocatorId);
         n_newConn.set(conduit::DataType(n_srcConn.dtype().id(), totalElemConnLen));
 
         conduit::Node &n_newSizes = n_newTopo["elements/sizes"];
-        n_newSizes.set_allocator(c2a.getConduitAllocatorID());
+        n_newSizes.set_allocator(conduitAllocatorId);
         n_newSizes.set(conduit::DataType(n_srcSizes.dtype().id(), totalElemZones));
 
         conduit::Node &n_newOffsets = n_newTopo["elements/offsets"];
-        n_newOffsets.set_allocator(c2a.getConduitAllocatorID());
+        n_newOffsets.set_allocator(conduitAllocatorId);
         n_newOffsets.set(conduit::DataType(n_srcOffsets.dtype().id(), totalElemZones));
 
         conduit::Node &n_newSEConn = n_newTopo["subelements/connectivity"];
-        n_newSEConn.set_allocator(c2a.getConduitAllocatorID());
+        n_newSEConn.set_allocator(conduitAllocatorId);
         n_newSEConn.set(conduit::DataType(n_srcSEConn.dtype().id(), totalSEConnLen));
 
         conduit::Node &n_newSESizes = n_newTopo["subelements/sizes"];
-        n_newSESizes.set_allocator(c2a.getConduitAllocatorID());
+        n_newSESizes.set_allocator(conduitAllocatorId);
         n_newSESizes.set(conduit::DataType(n_srcSESizes.dtype().id(), totalSEZones));
 
         conduit::Node &n_newSEOffsets = n_newTopo["subelements/offsets"];
-        n_newSEOffsets.set_allocator(c2a.getConduitAllocatorID());
+        n_newSEOffsets.set_allocator(conduitAllocatorId);
         n_newSEOffsets.set(conduit::DataType(n_srcSEOffsets.dtype().id(), totalSEZones));
       }
 
       // Copy this input's element connectivity into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::indexNodeToArrayViewSame(
         n_srcConn,
         n_srcSizes,
         n_srcOffsets,
@@ -923,7 +959,7 @@ protected:
         });
 
       // Copy this input's sizes into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
+      axom::bump::views::indexNodeToArrayView(n_srcSizes, [&](auto srcSizesView) {
         using ConnType = typename decltype(srcSizesView)::value_type;
         conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
         auto sizesView = utils::make_array_view<ConnType>(n_newSizes);
@@ -934,7 +970,7 @@ protected:
       });
 
       // Copy this input's subelement connectivity into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::indexNodeToArrayViewSame(
         n_srcSEConn,
         n_srcSESizes,
         n_srcSEOffsets,
@@ -959,7 +995,7 @@ protected:
         });
 
       // Copy this input's subelement sizes into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView(n_srcSESizes, [&](auto srcSESizesView) {
+      axom::bump::views::indexNodeToArrayView(n_srcSESizes, [&](auto srcSESizesView) {
         using ConnType = typename decltype(srcSESizesView)::value_type;
         conduit::Node &n_newSESizes = n_newTopoPtr->fetch_existing("subelements/sizes");
         auto seSizesView = utils::make_array_view<ConnType>(n_newSESizes);
@@ -973,7 +1009,7 @@ protected:
     // Make new offsets from the sizes.
     conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
     conduit::Node &n_newSESizes = n_newTopoPtr->fetch_existing("subelements/sizes");
-    axom::bump::views::IndexNode_to_ArrayView_same(
+    axom::bump::views::indexNodeToArrayViewSame(
       n_newSizes,
       n_newSESizes,
       [&](auto sizesView, auto seSizesView) {
@@ -1011,11 +1047,14 @@ protected:
                           ConnectivityView srcOffsetsView) const
   {
     using value_type = typename ConnectivityView::value_type;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     // Compress out any gaps in the offsets by making new offsets from the sizes.
     // This makes the code able to handle meshes that have gaps in its connectivity array.
-    axom::Array<value_type> actualOffsets(srcSizesView.size(), srcSizesView.size(), allocatorID);
+    axom::Array<value_type> actualOffsets(axom::ArrayOptions::Uninitialized(),
+                                          srcSizesView.size(),
+                                          srcSizesView.size(),
+                                          allocatorID);
     auto actualOffsetsView = actualOffsets.view();
     axom::exclusive_scan<ExecSpace>(srcSizesView, actualOffsetsView);
 
@@ -1029,7 +1068,8 @@ protected:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto destOffset = connOffset + actualOffsetsView[index];
           const auto srcOffset = srcOffsetsView[index];
-          for(value_type j = 0; j < srcSizesView[index]; j++)
+          const value_type jmax = srcSizesView[index];
+          for(value_type j = 0; j < jmax; j++)
           {
             const auto nodeId = srcConnView[srcOffset + j];
             const auto newNodeId = nodeMapView[nodeId];
@@ -1044,7 +1084,8 @@ protected:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto destOffset = connOffset + actualOffsetsView[index];
           const auto srcOffset = srcOffsetsView[index];
-          for(value_type j = 0; j < srcSizesView[index]; j++)
+          const value_type jmax = srcSizesView[index];
+          for(value_type j = 0; j < jmax; j++)
           {
             connView[destOffset + j] = coordOffset + srcConnView[srcOffset + j];
           }
@@ -1135,6 +1176,7 @@ protected:
     {
       // Make field information in case some inputs do not have the field.
       std::map<std::string, FieldInformation> fieldInfo;
+      const int InvalidVolumeDependent = -1;
       for(axom::IndexType i = 0; i < n; i++)
       {
         if(inputs[i].m_input->has_child("fields"))
@@ -1143,21 +1185,57 @@ protected:
           for(conduit::index_t c = 0; c < n_fields.number_of_children(); c++)
           {
             const conduit::Node &n_field = n_fields[c];
-            const conduit::Node &n_values = n_field.fetch_existing("values");
             FieldInformation fi;
-            fi.topology = n_field.fetch_existing("topology").as_string();
-            fi.association = n_field.fetch_existing("association").as_string();
-            if(n_values.number_of_children() > 0)
+            fi.m_topology = n_field.fetch_existing("topology").as_string();
+            fi.m_association = n_field.fetch_existing("association").as_string();
+            fi.m_matset = std::string();
+            fi.m_volume_dependent = InvalidVolumeDependent;
+            fi.m_dtype = -1;
+            fi.m_have_values = 0;
+            fi.m_have_matset_values = 0;
+
+            if(n_field.has_path("volume_dependent"))
             {
-              for(conduit::index_t comp = 0; comp < n_values.number_of_children(); comp++)
+              const auto &vd = n_field["volume_dependent"];
+              if(vd.dtype().is_string())
               {
-                fi.components.push_back(n_values[comp].name());
-                fi.dtype = n_values[comp].dtype().id();
+                fi.m_volume_dependent = (vd.as_string() == "true") ? 1 : 0;
+              }
+              else if(vd.dtype().is_number())
+              {
+                fi.m_volume_dependent = (vd.to_int() != 0) ? 1 : 0;
               }
             }
-            else
+
+            // If the field is a material field, save metadata.
+            if(n_field.has_path("matset") && n_field.has_path("matset_values"))
             {
-              fi.dtype = n_values.dtype().id();
+              fi.m_matset = n_field["matset"].as_string();
+              fi.m_have_matset_values = 1;
+              const conduit::Node &matset_values = n_field["matset_values"];
+              fi.m_dtype = matset_values.dtype().is_object() ? matset_values[0].dtype().id()
+                                                             : matset_values.dtype().id();
+
+              SLIC_ERROR_IF(fi.m_association == "vertex",
+                            "Material fields with vertex centering are not supported.");
+            }
+            // If the field has values (all do except for some material fields), save metadata.
+            if(n_field.has_path("values"))
+            {
+              fi.m_have_values = 1;
+              const conduit::Node &n_values = n_field.fetch_existing("values");
+              if(n_values.number_of_children() > 0)
+              {
+                for(conduit::index_t comp = 0; comp < n_values.number_of_children(); comp++)
+                {
+                  fi.m_components.push_back(n_values[comp].name());
+                  fi.m_dtype = n_values[comp].dtype().id();
+                }
+              }
+              else
+              {
+                fi.m_dtype = n_values.dtype().id();
+              }
             }
             fieldInfo[n_field.name()] = fi;
           }
@@ -1165,50 +1243,75 @@ protected:
       }
 
       // Make new fields
-      utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+      const auto conduitAllocatorId =
+        axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
       conduit::Node &n_newFields = output["fields"];
       for(auto it = fieldInfo.begin(); it != fieldInfo.end(); it++)
       {
         conduit::Node &n_newField = n_newFields[it->first];
-        n_newField["association"] = it->second.association;
-        n_newField["topology"] = it->second.topology;
-        conduit::Node &n_values = n_newField["values"];
-        if(it->second.components.empty())
+        n_newField["association"] = it->second.m_association;
+        n_newField["topology"] = it->second.m_topology;
+        if(!it->second.m_matset.empty())
+        {
+          n_newField["matset"] = it->second.m_matset;
+        }
+        if(it->second.m_volume_dependent != InvalidVolumeDependent)
+        {
+          n_newField["volume_dependent"] = ((it->second.m_volume_dependent == 1) ? "true" : "false");
+        }
+        // Handle values if present
+        if(it->second.m_components.empty())
         {
           // Scalar
-          conduit::Node &n_values = n_newField["values"];
-          n_values.set_allocator(c2a.getConduitAllocatorID());
-          const std::string srcPath("fields/" + it->first + "/values");
-          if(it->second.association == "element")
+          if(it->second.m_have_values)
           {
-            n_values.set(conduit::DataType(it->second.dtype, totalZones));
-            copyZonal(inputs, n_values, srcPath);
-          }
-          else if(it->second.association == "vertex")
-          {
-            n_values.set(conduit::DataType(it->second.dtype, totalNodes));
-            copyNodal(inputs, n_values, srcPath);
+            const std::string srcPath("fields/" + it->first + "/values");
+            conduit::Node &n_values = n_newField["values"];
+            n_values.set_allocator(conduitAllocatorId);
+            if(it->second.m_association == "element")
+            {
+              n_values.set(conduit::DataType(it->second.m_dtype, totalZones));
+              copyZonal(inputs, n_values, srcPath);
+            }
+            else if(it->second.m_association == "vertex")
+            {
+              n_values.set(conduit::DataType(it->second.m_dtype, totalNodes));
+              copyNodal(inputs, n_values, srcPath);
+            }
           }
         }
         else
         {
           // Vector
-          for(size_t ci = 0; ci < it->second.components.size(); ci++)
+          if(it->second.m_have_values)
           {
-            conduit::Node &n_comp = n_values[it->second.components[ci]];
-            n_comp.set_allocator(c2a.getConduitAllocatorID());
-            const std::string srcPath("fields/" + it->first + "/values/" + it->second.components[ci]);
-            if(it->second.association == "element")
+            conduit::Node &n_values = n_newField["values"];
+            for(size_t ci = 0; ci < it->second.m_components.size(); ci++)
             {
-              n_comp.set(conduit::DataType(it->second.dtype, totalZones));
-              copyZonal(inputs, n_comp, srcPath);
-            }
-            else if(it->second.association == "vertex")
-            {
-              n_comp.set(conduit::DataType(it->second.dtype, totalNodes));
-              copyNodal(inputs, n_comp, srcPath);
+              const std::string srcPath("fields/" + it->first + "/values/" +
+                                        it->second.m_components[ci]);
+              conduit::Node &n_comp = n_values[it->second.m_components[ci]];
+              n_comp.set_allocator(conduitAllocatorId);
+              if(it->second.m_association == "element")
+              {
+                n_comp.set(conduit::DataType(it->second.m_dtype, totalZones));
+                copyZonal(inputs, n_comp, srcPath);
+              }
+              else if(it->second.m_association == "vertex")
+              {
+                n_comp.set(conduit::DataType(it->second.m_dtype, totalNodes));
+                copyNodal(inputs, n_comp, srcPath);
+              }
             }
           }
+        }
+        // Handle matset_values if present.
+        if(it->second.m_have_matset_values)
+        {
+          // We make a path to the whole source field because mixed fields have
+          // different representations depending on the matset.
+          const std::string matSrcPath("fields/" + it->first);
+          copyMixedField(inputs, n_newField, matSrcPath);
         }
       }
     }
@@ -1233,13 +1336,13 @@ protected:
       if(inputs[i].m_input->has_path(srcPath))
       {
         const conduit::Node &n_src_values = inputs[i].m_input->fetch_existing(srcPath);
-        axom::bump::views::Node_to_ArrayView(n_values, n_src_values, [&](auto destView, auto srcView) {
+        axom::bump::views::nodeToArrayView(n_values, n_src_values, [&](auto destView, auto srcView) {
           copyZonal_copy(nzones, offset, destView, srcView);
         });
       }
       else
       {
-        axom::bump::views::Node_to_ArrayView(n_values, [&](auto destView) {
+        axom::bump::views::nodeToArrayView(n_values, [&](auto destView) {
           fillValues(nzones, offset, destView);
         });
       }
@@ -1309,13 +1412,13 @@ protected:
       {
         const conduit::Node &n_src_values = inputs[i].m_input->fetch_existing(srcPath);
 
-        axom::bump::views::Node_to_ArrayView(n_src_values, n_values, [&](auto srcView, auto destView) {
+        axom::bump::views::nodeToArrayView(n_src_values, n_values, [&](auto srcView, auto destView) {
           copyNodal_copy(inputs[i].m_nodeSliceView, nnodes, offset, destView, srcView);
         });
       }
       else
       {
-        axom::bump::views::Node_to_ArrayView(n_values, [&](auto destView) {
+        axom::bump::views::nodeToArrayView(n_values, [&](auto destView) {
           fillValues(nnodes, offset, destView);
         });
       }
@@ -1371,6 +1474,22 @@ protected:
   {
     // Do nothing.
   }
+
+  /*!
+   * \brief Merge a mixed field that exists on the various mesh inputs.
+   *
+   * \param inputs A vector of inputs to be merged.
+   * \param[out] n_field The new field that we're creating.
+   * \param srcPath The path to the source input's "matset_values" node.
+   */
+  virtual void copyMixedField(const std::vector<MeshInput> &AXOM_UNUSED_PARAM(inputs),
+                              conduit::Node &AXOM_UNUSED_PARAM(n_field),
+                              const std::string &AXOM_UNUSED_PARAM(srcPath)) const
+  {
+    // Do nothing.
+  }
+
+  int m_allocator_id;
 };
 
 /*!
@@ -1403,13 +1522,13 @@ public:
                FuncType &&func)
   {
     // Support various types of material data.
-    axom::bump::views::IndexNode_to_ArrayView_same(
+    axom::bump::views::indexNodeToArrayViewSame(
       n_material_ids,
       n_sizes,
       n_offsets,
       n_indices,
       [&](auto materialIdsView, auto sizesView, auto offsetsView, auto indicesView) {
-        axom::bump::views::FloatNode_to_ArrayView(n_volume_fractions, [&](auto volumeFractionsView) {
+        axom::bump::views::floatNodeToArrayView(n_volume_fractions, [&](auto volumeFractionsView) {
           // Invoke a function that can use these views.
           func(materialIdsView, sizesView, offsetsView, indicesView, volumeFractionsView);
         });
@@ -1429,6 +1548,25 @@ public:
   void dispatchMatset(conduit::Node &n_matset, FuncType &&func)
   {
     axom::bump::views::dispatch_material(n_matset, [&](auto matsetView) { func(matsetView); });
+  }
+
+  /*!
+   * \brief Takes a matset node and a mixed field node and turns them into a matset view,
+   *        using the mixed field as the volume fractions, and sends the view to the supplied
+   *        function.
+   *
+   * \tparam FuncType A callable object/function/lambda.
+   *
+   * \param n_matset A node containing any kind of matset.
+   * \param func The function to invoke on the matset view.
+   */
+  template <typename FuncType>
+  void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
+  {
+    axom::bump::views::dispatch_material_field(
+      n_matset,
+      n_field,
+      [&](auto matsetView, auto mixedFieldView) { func(matsetView, mixedFieldView); });
   }
 };
 
@@ -1486,6 +1624,25 @@ public:
       views::make_unibuffer_matset<IntElement, FloatElement, MAXMATERIALS>::view(n_matset);
     func(matsetView);
   }
+
+  /*!
+   * \brief Takes a matset node and a mixed field node and turns them into a matset view,
+   *        using the mixed field as the volume fractions, and sends the view to the supplied
+   *        function.
+   *
+   * \tparam FuncType A callable object/function/lambda.
+   *
+   * \param n_matset A node containing any kind of matset.
+   * \param func The function to invoke on the matset view.
+   */
+  template <typename FuncType>
+  void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
+  {
+    axom::bump::views::dispatch_material_unibuffer_field(
+      n_matset,
+      n_field,
+      [&](auto matsetView, auto mixedFieldView) { func(matsetView, mixedFieldView); });
+  }
 };
 
 /*!
@@ -1506,111 +1663,173 @@ public:
 #if !defined(__CUDACC__)
 private:
 #endif
-  /*!
-   * \brief Merge matsets that exist on the various mesh inputs.
-   *
-   * \param inputs A vector of inputs to be merged.
-   * \param[out] output The node that will contain the output mesh.
-   */
-  virtual void mergeMatset(const std::vector<MeshInput> &inputs, conduit::Node &output) const override
-  {
-    AXOM_ANNOTATE_SCOPE("mergeMatset");
-    namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+  using FieldInformation = typename MergeMeshes<ExecSpace>::FieldInformation;
 
-    // Make a pass through the inputs and make a list of the material names.
-    bool hasMatsets = false, defaultMaterial = false;
-    int nmats = 0;
+  struct MaterialInfo
+  {
+    bool hasMatsets;
+    bool defaultMaterial;
+    bool elementDominant;
+    bool multiBuffer;
+    int nmats;
     std::map<std::string, int> allMats;
-    std::string matsetName, topoName;
+    std::string matsetName;
+    std::string topoName;
+    axom::IndexType totalZones;
+    axom::IndexType totalMatCount;
+    int itype;
+    int ftype;
+  };
+
+  /*!
+   * \brief Get the material information we'll need to merge materials.
+   *
+   * \param inputs The inputs to be merged.
+   * \param[out] mi The material information.
+   */
+  void getMaterialInfo(const std::vector<MeshInput> &inputs, MaterialInfo &mi) const
+  {
+    // Make a pass through the inputs and make a list of the material names.
+    mi.hasMatsets = false;
+    mi.defaultMaterial = false;
+    mi.nmats = 0;
+    mi.allMats.clear();
+    mi.matsetName.clear();
+    mi.topoName.clear();
+    mi.totalZones = 0;
+    mi.totalMatCount = 0;
+    mi.itype = -1;
+    mi.ftype = -1;
+    mi.elementDominant = true;
+    mi.multiBuffer = false;
+
     for(size_t i = 0; i < inputs.size(); i++)
     {
       if(inputs[i].m_input->has_path("matsets"))
       {
         conduit::Node &n_matsets = inputs[i].m_input->fetch_existing("matsets");
         conduit::Node &n_matset = n_matsets[0];
-        matsetName = n_matset.name();
-        topoName = n_matset.fetch_existing("topology").as_string();
+        mi.matsetName = n_matset.name();
+        mi.topoName = n_matset.fetch_existing("topology").as_string();
+        mi.elementDominant = conduit::blueprint::mesh::matset::is_element_dominant(n_matset);
+        mi.multiBuffer = conduit::blueprint::mesh::matset::is_multi_buffer(n_matset) &&
+          !n_matset.has_child("material_ids");
         auto matInfo = axom::bump::views::materials(n_matset);
         for(const auto &info : matInfo)
         {
-          if(allMats.find(info.name) == allMats.end())
+          if(mi.allMats.find(info.m_name) == mi.allMats.end())
           {
-            allMats[info.name] = nmats++;
+            mi.allMats[info.m_name] = mi.nmats++;
           }
         }
-        hasMatsets = true;
+        mi.hasMatsets = true;
       }
       else
       {
-        defaultMaterial = true;
+        mi.defaultMaterial = true;
       }
     }
 
-    if(hasMatsets)
+    // One or more inputs did not have a matset.
+    if(mi.hasMatsets && mi.defaultMaterial)
     {
-      MaterialDispatch disp;
-      auto *This = this;
+      mi.allMats["default"] = mi.nmats++;
+    }
+  }
 
-      // One or more inputs did not have a matset.
-      if(defaultMaterial) allMats["default"] = nmats++;
+  /*!
+   * \brief Counts the size of the materials and stores the results into \a mi. This lets us know
+   *        how big the merged matset will be.
+   *
+   * \param inputs The inputs to be merged.
+   * \param[out] mi The material information.
+   */
+  template <typename MaterialDispatchType>
+  void countMaterialSizes(const std::vector<MeshInput> &inputs, MaterialInfo &mi) const
+  {
+    AXOM_ANNOTATE_SCOPE("sizes");
+    namespace utils = axom::bump::utilities;
+    // Make a pass through the matsets to determine the overall storage.
+    mi.totalZones = 0;
+    mi.totalMatCount = 0;
+    mi.itype = -1;
+    mi.ftype = -1;
 
-      // Make a pass through the matsets to determine the overall storage.
-      axom::IndexType totalZones = 0, totalMatCount = 0;
-      int itype, ftype;
+    MaterialDispatchType disp;
+    for(size_t i = 0; i < inputs.size(); i++)
+    {
+      const auto nzones = this->countZones(inputs, i);
+      mi.totalZones += nzones;
+
+      if(inputs[i].m_input->has_path("matsets"))
       {
-        AXOM_ANNOTATE_SCOPE("sizes");
-        for(size_t i = 0; i < inputs.size(); i++)
-        {
-          const auto nzones = this->countZones(inputs, i);
-          totalZones += nzones;
+        conduit::Node &n_matsets = inputs[i].m_input->fetch_existing("matsets");
+        conduit::Node &n_matset = n_matsets[0];
+        axom::IndexType matCount = 0;
+        auto *This = this;
+        disp.dispatchMatset(n_matset, [&](auto matsetView) {
+          // Figure out the types to use for storing the data.
+          using IType = typename decltype(matsetView)::IndexType;
+          using FType = typename decltype(matsetView)::FloatType;
+          mi.itype = utils::cpp2conduit<IType>::id;
+          mi.ftype = utils::cpp2conduit<FType>::id;
 
-          if(inputs[i].m_input->has_path("matsets"))
-          {
-            conduit::Node &n_matsets = inputs[i].m_input->fetch_existing("matsets");
-            conduit::Node &n_matset = n_matsets[0];
-            axom::IndexType matCount = 0;
-            disp.dispatchMatset(n_matset, [&](auto matsetView) {
-              // Figure out the types to use for storing the data.
-              using IType = typename decltype(matsetView)::IndexType;
-              using FType = typename decltype(matsetView)::FloatType;
-              itype = utils::cpp2conduit<IType>::id;
-              ftype = utils::cpp2conduit<FType>::id;
-
-              matCount = This->mergeMatset_count(matsetView, nzones);
-            });
-            totalMatCount += matCount;
-          }
-          else
-          {
-            totalMatCount += nzones;
-          }
-        }
+          matCount = This->mergeMatset_count(matsetView, nzones);
+        });
+        mi.totalMatCount += matCount;
       }
+      else
+      {
+        mi.totalMatCount += nzones;
+      }
+    }
+  }
+
+  /*!
+   * \brief Merge matsets that exist on the various mesh inputs.
+   *
+   * \param inputs A vector of inputs to be merged.
+   * \param[out] output The node that will contain the output mesh.
+   *
+   * \note We only create a unibuffer matset for the merged matset.
+   */
+  virtual void mergeMatset(const std::vector<MeshInput> &inputs, conduit::Node &output) const override
+  {
+    AXOM_ANNOTATE_SCOPE("mergeMatset");
+    namespace utils = axom::bump::utilities;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(this->getAllocatorID());
+
+    MaterialInfo mi;
+    getMaterialInfo(inputs, mi);
+
+    if(mi.hasMatsets)
+    {
+      countMaterialSizes<MaterialDispatch>(inputs, mi);
 
       // Allocate
       AXOM_ANNOTATE_BEGIN("allocate");
-      conduit::Node &n_newMatset = output["matsets/" + matsetName];
-      n_newMatset["topology"] = topoName;
+      conduit::Node &n_newMatset = output["matsets/" + mi.matsetName];
+      n_newMatset["topology"] = mi.topoName;
       conduit::Node &n_volume_fractions = n_newMatset["volume_fractions"];
-      n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-      n_volume_fractions.set(conduit::DataType(ftype, totalMatCount));
+      n_volume_fractions.set_allocator(conduitAllocatorId);
+      n_volume_fractions.set(conduit::DataType(mi.ftype, mi.totalMatCount));
 
       conduit::Node &n_material_ids = n_newMatset["material_ids"];
-      n_material_ids.set_allocator(c2a.getConduitAllocatorID());
-      n_material_ids.set(conduit::DataType(itype, totalMatCount));
+      n_material_ids.set_allocator(conduitAllocatorId);
+      n_material_ids.set(conduit::DataType(mi.itype, mi.totalMatCount));
 
       conduit::Node &n_sizes = n_newMatset["sizes"];
-      n_sizes.set_allocator(c2a.getConduitAllocatorID());
-      n_sizes.set(conduit::DataType(itype, totalZones));
+      n_sizes.set_allocator(conduitAllocatorId);
+      n_sizes.set(conduit::DataType(mi.itype, mi.totalZones));
 
       conduit::Node &n_offsets = n_newMatset["offsets"];
-      n_offsets.set_allocator(c2a.getConduitAllocatorID());
-      n_offsets.set(conduit::DataType(itype, totalZones));
+      n_offsets.set_allocator(conduitAllocatorId);
+      n_offsets.set(conduit::DataType(mi.itype, mi.totalZones));
 
       conduit::Node &n_indices = n_newMatset["indices"];
-      n_indices.set_allocator(c2a.getConduitAllocatorID());
-      n_indices.set(conduit::DataType(itype, totalMatCount));
+      n_indices.set_allocator(conduitAllocatorId);
+      n_indices.set(conduit::DataType(mi.itype, mi.totalMatCount));
       AXOM_ANNOTATE_END("allocate");
 
       {
@@ -1618,10 +1837,12 @@ private:
 
         // Make material_map.
         conduit::Node &n_material_map = n_newMatset["material_map"];
-        for(auto it = allMats.begin(); it != allMats.end(); it++)
+        for(auto it = mi.allMats.begin(); it != mi.allMats.end(); it++)
           n_material_map[it->first] = it->second;
 
         // Populate
+        MaterialDispatch disp;
+        auto *This = this;
         disp.execute(n_material_ids,
                      n_sizes,
                      n_offsets,
@@ -1657,7 +1878,7 @@ private:
                        axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
 
                        // Make indices.
-                       This->mergeMatset_indices(indicesView, totalMatCount);
+                       This->mergeMatset_indices(indicesView, mi.totalMatCount);
 
                        // Fill in material info.
                        zOffset = 0;
@@ -1672,7 +1893,7 @@ private:
 
                            disp.dispatchMatset(n_matset, [&](auto matsetView) {
                              This->mergeMatset_copy(n_matset,
-                                                    allMats,
+                                                    mi.allMats,
                                                     materialIdsView,
                                                     offsetsView,
                                                     volumeFractionsView,
@@ -1683,7 +1904,7 @@ private:
                          }
                          else
                          {
-                           const int dmat = allMats["default"];
+                           const int dmat = mi.allMats["default"];
                            This->mergeMatset_default(materialIdsView,
                                                      offsetsView,
                                                      volumeFractionsView,
@@ -1718,7 +1939,12 @@ private:
         const auto nmats = matsetView.numberOfMaterials(zoneIndex);
         matCount_reduce += nmats;
       });
-    return matCount_reduce.get();
+    const auto count = matCount_reduce.get();
+    if(nzones > 0)
+    {
+      SLIC_ERROR_IF(count == 0, "ReduceSum returned 0 for count.");
+    }
+    return count;
   }
 
   /*!
@@ -1811,8 +2037,6 @@ private:
                         axom::IndexType nzones,
                         axom::IndexType zOffset) const
   {
-    using IDList = typename decltype(matsetView)::IDList;
-    using VFList = typename decltype(matsetView)::VFList;
     using MatID = typename decltype(matsetView)::IndexType;
 
     // Make some maps for renumbering material numbers.
@@ -1820,10 +2044,10 @@ private:
     std::map<MatID, MatID> localToAll;
     for(const auto &info : localMaterialMap)
     {
-      const auto it = allMats.find(info.name);
+      const auto it = allMats.find(info.m_name);
       SLIC_ASSERT(it != allMats.end());
       MatID matno = it->second;
-      localToAll[info.number] = matno;
+      localToAll[info.m_number] = matno;
     }
     std::vector<MatID> localVec, allVec;
     for(auto it = localToAll.begin(); it != localToAll.end(); it++)
@@ -1832,7 +2056,7 @@ private:
       allVec.push_back(it->second);
     }
     // Put maps on device.
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = this->getAllocatorID();
     axom::Array<MatID> local(localVec.size(), localVec.size(), allocatorID);
     axom::Array<MatID> all(allVec.size(), allVec.size(), allocatorID);
     axom::copy(local.data(), localVec.data(), sizeof(MatID) * local.size());
@@ -1844,19 +2068,18 @@ private:
       nzones,
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
         // Get this zone's materials.
-        IDList ids;
-        VFList vfs;
-        matsetView.zoneMaterials(zoneIndex, ids, vfs);
+        auto zoneMat = matsetView.beginZone(zoneIndex);
+        const auto nmats = zoneMat.size();
 
         // Store the materials in the new material.
         const auto zoneStart = offsetsView[zOffset + zoneIndex];
-        for(axom::IndexType mi = 0; mi < ids.size(); mi++)
+        for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
         {
           const auto destIndex = zoneStart + mi;
-          volumeFractionsView[destIndex] = vfs[mi];
+          volumeFractionsView[destIndex] = zoneMat.volume_fraction();
 
           // Get the index of the material number in the local map.
-          const auto mapIndex = axom::utilities::binary_search(localView, ids[mi]);
+          const auto mapIndex = axom::utilities::binary_search(localView, zoneMat.material_id());
           SLIC_ASSERT(mapIndex != -1);
           // We'll store the all materials number.
           const auto allMatno = allView[mapIndex];
@@ -1895,9 +2118,238 @@ private:
         materialIdsView[zoneStart] = matno;
       });
   }
+
+  /*!
+   * \brief Determine the field information (data type and component paths).
+   *
+   * \param inputs The mesh inputs being merged.
+   * \param srcFieldPath The path to the source field.
+   * \param[out] fi The field information. We only fill in the dtype and component names.
+   */
+  void getMixedFieldInformation(const std::vector<MeshInput> &inputs,
+                                const std::string &srcFieldPath,
+                                const MaterialInfo &mi,
+                                FieldInformation &fi) const
+  {
+    fi.m_dtype = -1;
+    fi.m_components.clear();
+
+    std::string srcFieldMatsetValuesPath(srcFieldPath + "/matset_values");
+
+    for(size_t i = 0; i < inputs.size(); i++)
+    {
+      if(inputs[i].m_input->has_path(srcFieldMatsetValuesPath))
+      {
+        const conduit::Node &n_matset_values =
+          inputs[i].m_input->fetch_existing(srcFieldMatsetValuesPath);
+
+        // NOTE: we only try to populate components for fields that look like vectors
+        if(mi.multiBuffer)
+        {
+          for(conduit::index_t ci = 0; ci < n_matset_values.number_of_children(); ci++)
+          {
+            // n_component is a material name
+            const conduit::Node &n_component = n_matset_values[ci];
+
+            if(n_component.number_of_children() > 0)
+            {
+              // vector components under the material name
+              fi.m_dtype = n_component[0].dtype().id();
+              for(conduit::index_t sci = 0; sci < n_matset_values.number_of_children(); sci++)
+              {
+                fi.m_components.push_back(n_component[sci].name());
+              }
+            }
+            else
+            {
+              // scalar - the material name
+              fi.m_dtype = n_component.dtype().id();
+            }
+          }
+        }
+        else
+        {
+          // unibuffer
+          if(n_matset_values.number_of_children() > 0)
+          {
+            // vector - the component name
+            for(conduit::index_t ci = 0; ci < n_matset_values.number_of_children(); ci++)
+            {
+              const conduit::Node &n_component = n_matset_values[ci];
+              fi.m_dtype = n_component.dtype().id();
+              fi.m_components.push_back(n_component.name());
+            }
+          }
+          else
+          {
+            // scalar
+            fi.m_dtype = n_matset_values.dtype().id();
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  /*!
+   * \brief Merge a mixed field that exists on the various mesh inputs.
+   *
+   * \param inputs A vector of inputs to be merged.
+   * \param[out] n_field The new field that we're creating.
+   * \param srcPath The path to the source input's mixed field node.
+   * 
+   * \note This function relies on the materials having been merged first so we
+   *       can use their pre-existing merged arrays.
+   * \note Mixed fields in Blueprint at this time are limited to scalars.
+   */
+  virtual void copyMixedField(const std::vector<MeshInput> &inputs,
+                              conduit::Node &n_field,
+                              const std::string &srcFieldPath) const override
+  {
+    AXOM_ANNOTATE_SCOPE("copyMixedField");
+    MaterialInfo mi;
+    getMaterialInfo(inputs, mi);
+
+    if(mi.hasMatsets)
+    {
+      const auto conduitAllocatorId =
+        axom::sidre::ConduitMemory::axomAllocIdToConduit(this->getAllocatorID());
+
+      countMaterialSizes<MaterialDispatch>(inputs, mi);
+      const std::string matsetName(mi.matsetName);
+      n_field["matset"] = matsetName;
+
+      FieldInformation fi;
+      getMixedFieldInformation(inputs, srcFieldPath, mi, fi);
+      SLIC_ERROR_IF(
+        fi.m_dtype == -1,
+        axom::fmt::format("The new mixed field type for {} was not determined.", srcFieldPath));
+      SLIC_ERROR_IF(fi.m_components.size() > 0, "Vector mixed vars not supported");
+
+      // Get the Conduit node for the matset we built previously
+      conduit::Node *n_matset = const_cast<conduit::Node *>(
+        conduit::blueprint::mesh::utils::find_reference_node(n_field, "matset"));
+      SLIC_ERROR_IF(n_matset == nullptr,
+                    axom::fmt::format("The new matset {} was not found.", matsetName));
+
+      // Get some parts of the new unibuffer matset.
+      conduit::Node &n_material_ids = n_matset->fetch_existing("material_ids");
+      conduit::Node &n_sizes = n_matset->fetch_existing("sizes");
+      conduit::Node &n_offsets = n_matset->fetch_existing("offsets");
+      conduit::Node &n_indices = n_matset->fetch_existing("indices");
+
+      // Allocate the new mixed field.
+      conduit::Node &n_matset_values = n_field["matset_values"];
+      n_matset_values.set_allocator(conduitAllocatorId);
+      n_matset_values.set(conduit::DataType(mi.ftype, mi.totalMatCount));
+
+      // Dispatch the mixed material we built so we can access its arrays as views.
+      MaterialDispatch disp;
+      auto *This = this;
+      disp.execute(
+        n_material_ids,
+        n_sizes,
+        n_offsets,
+        n_indices,
+        n_matset_values,
+        [&](auto AXOM_UNUSED_PARAM(materialIdsView),
+            auto AXOM_UNUSED_PARAM(sizesView),
+            auto offsetsView,
+            auto AXOM_UNUSED_PARAM(indicesView),
+            auto matsetValuesView) {
+          // Iterate over the inputs and copy their mixed field
+          axom::IndexType zOffset = 0;
+          for(size_t i = 0; i < inputs.size(); i++)
+          {
+            const auto nzones = This->countZones(inputs, i);
+
+            if(inputs[i].m_input->has_child("matsets") && inputs[i].m_input->has_path(srcFieldPath))
+            {
+              // Get the source matset.
+              conduit::Node &n_matsets = inputs[i].m_input->fetch_existing("matsets");
+              conduit::Node &n_matset = n_matsets.fetch_existing(matsetName);
+              // Get the source field.
+              conduit::Node &n_src_field = inputs[i].m_input->fetch_existing(srcFieldPath);
+              // Dispatch the source mixed field.
+              disp.dispatchMixedField(n_matset,
+                                      n_src_field,
+                                      [&](auto srcMatsetView, auto srcMixedFieldView) {
+                                        This->mergeMixedField_copy(srcMatsetView,
+                                                                   srcMixedFieldView,
+                                                                   matsetValuesView,
+                                                                   offsetsView,
+                                                                   nzones,
+                                                                   zOffset);
+                                      });
+            }
+            else
+            {
+              This->mergeMixedField_default(matsetValuesView, offsetsView, nzones, zOffset);
+            }
+            zOffset += nzones;
+          }
+        });
+    }
+  }
+
+  /*!
+   * \brief Copy a mixed field from the \a srcMatsetView into the output \a mixedFieldView.
+   *
+   * \param srcMatsetView The input matset view that is used to traverse materials.
+   * \param srcMixedFieldView The input mixed field view that contains the field data for the materials.
+   * \param[out] outputView The output view that contains the merged field.
+   * \param offsetsView The offsets view that contains the offsets for the output zones.
+   * \param nzones The number of zones in the current input.
+   * \param zOffset The starting offset in the output mixed field view.
+   */
+  template <typename SourceMatsetView, typename SourceMixedFieldView, typename OutputFieldView, typename OffsetsView>
+  void mergeMixedField_copy(SourceMatsetView srcMatsetView,
+                            SourceMixedFieldView srcMixedFieldView,
+                            OutputFieldView outputView,
+                            OffsetsView offsetsView,
+                            axom::IndexType nzones,
+                            axom::IndexType zOffset) const
+  {
+    axom::for_all<ExecSpace>(
+      nzones,
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        // Get this zone's materials.
+        auto zoneMat = srcMatsetView.beginZone(zoneIndex);
+        const auto nmats = zoneMat.size();
+
+        // Store the materials in the new material.
+        const auto zoneStart = offsetsView[zOffset + zoneIndex];
+        for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
+        {
+          const auto destIndex = zoneStart + mi;
+          // Copy the value for the zoneMat from the mixed field view into the output.
+          outputView[destIndex] = srcMixedFieldView.value(zoneMat);
+        }
+      });
+  }
+
+  /*!
+   * \brief Fill a mixed field with a default value.
+   *
+   * \param[out] mixedFieldView The output view that contains the merged field.
+   * \param offsetsView The offsets view that contains the offsets for the output zones.
+   * \param nzones The number of zones in the current input.
+   * \param zOffset The starting offset in the output mixed field view.
+   */
+  template <typename MixedFieldView, typename OffsetsView>
+  void mergeMixedField_default(MixedFieldView mixedFieldView,
+                               OffsetsView offsetsView,
+                               axom::IndexType nzones,
+                               axom::IndexType zOffset) const
+  {
+    axom::for_all<ExecSpace>(
+      nzones,
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        const auto zoneStart = offsetsView[zOffset + zoneIndex];
+        mixedFieldView[zoneStart] = 0;
+      });
+  }
 };
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

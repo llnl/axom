@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  *******************************************************************************
@@ -11,9 +14,6 @@
  *  all Combiners.
  *******************************************************************************
  */
-
-#ifndef COMBINER_HPP
-#define COMBINER_HPP
 
 #include "axom/lumberjack/Message.hpp"
 
@@ -53,6 +53,17 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Function used by Lumberjack to indicate whether a Message class
+   * should be considered for this combiner. Default is true in the base class.
+   *
+   * \param [in] The Message to be considered. Unused in the base class
+   * but likely used in derived classes.   
+   *****************************************************************************
+   */
+  virtual bool isMessageCandidateForCombiner(const Message&) { return true; }
+
+  /*!
+   *****************************************************************************
    * \brief Function used by Lumberjack to indicate whether two Message classes
    * should be combined.  They are not actually combined by this function.
    *
@@ -77,5 +88,3 @@ public:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

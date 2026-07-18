@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file intersect_bezier_impl.hpp
@@ -9,9 +12,6 @@
  * This file provides helper functions for testing the intersection
  * of Bezier curves with other Bezier curves and other geometric objects
  */
-
-#ifndef AXOM_PRIMAL_INTERSECT_BEZIER_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_BEZIER_IMPL_HPP_
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
@@ -43,15 +43,17 @@ namespace detail
  * Bezier curve is linear
  * \param [in] order1 The order of \a c1
  * \param [in] order2 The order of \a c2
- * \param s_offset The offset in parameter space for \a c1
- * \param s_scale The scale in parameter space for \a c1
- * \param t_offset The offset in parameter space for \a c2
- * \param t_scale The scale in parameter space for \a c2
+ * \param [in] s_offset The offset in parameter space for \a c1
+ * \param [in] s_scale The scale in parameter space for \a c1
+ * \param [in] t_offset The offset in parameter space for \a c2
+ * \param [in] t_scale The scale in parameter space for \a c2
  *
- * Bezier curves can only intersect when their bounding boxes intersect.
- * The base case of the recursion is when we can approximate the curves as
- * line segments, where we directly find their intersections. Otherwise,
- * check for intersections recursively after bisecting one of the curves.
+ * Bezier curves can only intersect when their bounding boxes intersect. Curves
+ * intersecting tangentially will not have an intersection found. Intersections
+ * at curve endpoints may also be ignored. The base case of the recursion is
+ * when we can approximate the curves as line segments, where we directly find
+ * their intersections. Otherwise, check for intersections recursively after
+ * bisecting one of the curves.
  *
  * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
  * are used to track the local curve parameters during subdivisions
@@ -77,7 +79,7 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
  * their end points (a,b) and (c,d)
  *
  * \param [in] a,d,c,b the endpoints of the segments
- * \param [out] The parametrized s and t values at which intersection occurs
+ * \param [out] s,t The parametrized s and t values at which intersection occurs
  * Range of output values for \a s and \a t is [0,1).
  *
  * \return True, if the two line segments intersect, false otherwise.
@@ -111,26 +113,27 @@ bool intersect_2d_linear(const Point<T, 2> &a,
  *
  * \param [in] r The input ray
  * \param [in] c The input curve
- * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
  * \param [out] rp Parametric coordinates of intersections in \a r [0, inf)
+ * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
  * \param [in] sq_tol The squared tolerance parameter for distances in physical space
  * \param [in] EPS The tolerance parameter for distances in parameter space
  * \param [in] order The order of \a c
- * \param c_offset The offset in parameter space for \a c
- * \param c_scale The scale in parameter space for \a c
+ * \param [in] c_offset The offset in parameter space for \a c
+ * \param [in] c_scale The scale in parameter space for \a c
+ * \param [in] isHalfOpen If true, ignore intersections at t=1 in the parameter space of the curve
  *
  * A ray can only intersect a Bezier curve if it intersects its bounding box
  * The base case of the recursion is when we can approximate the curves parametrically with
  * line segments, where we directly find their intersection with the ray. Otherwise,
  * check for intersections recursively after bisecting the curve.
  *
- * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
- * are used to track the local curve parameters during subdivisions
+ * \note A BezierCurve is parametrized in [0,1] if isHalfOpen is false, and [0, 1) if true.
+ * The scale and offset parameters are used to track the local curve parameters during subdivisions
  *
  * \note This function can't be used to identify tangents at local a min/max
  *   of Bezier curves.
  * 
- * \return True if the two curves intersect, False otherwise
+ * \return True if the ray and curve intersect, False otherwise
  * \sa intersect_bezier
  */
 template <typename T>
@@ -142,7 +145,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale);
+                          double c_scale,
+                          bool isHalfOpen = true);
 
 /*!
  * \brief Recursive function to find intersections between a 2D sphere (circle)
@@ -155,8 +159,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \param [in] sq_tol The squared tolerance parameter for distances in physical space
  * \param [in] EPS The tolerance parameter for distances in parameter space
  * \param [in] order The order of \a c
- * \param c_offset The offset in parameter space for \a c
- * \param c_scale The scale in parameter space for \a c
+ * \param [in] c_offset The offset in parameter space for \a c
+ * \param [in] c_scale The scale in parameter space for \a c
  *
  * A circle can only intersect a Bezier curve if it intersects its bounding box
  * The base case of the recursion is when we can approximate the curve parametrically with
@@ -184,7 +188,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
                              double c_scale);
 
 /*!
- * \brief Tests intersection of a line and a cirlce
+ * \brief Tests intersection of a line and a circle
  *
  * \param [in] a, b the endpoints of a segment which defines the line
  * \param [out] c1, c2, t1, t2 The parametrized curve values (c) and 
@@ -326,20 +330,20 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale)
+                          double c_scale,
+                          bool isHalfOpen)
 {
   using BCurve = BezierCurve<T, 2>;
 
   // Check bounding box to short-circuit the intersection
   T r0, s0;
-  constexpr T factor = 1e-8;
 
   // Need to expand the bounding box, since this ray-bb intersection routine
   //  only parameterizes the ray on (0, inf)
   T tmin = axom::numerics::floating_point_limits<T>::min();
   T tmax = axom::numerics::floating_point_limits<T>::max();
 
-  if(!detail::intersect_ray(r, c.boundingBox().expand(factor), tmin, tmax, EPS))
+  if(!detail::intersect_ray(r, c.boundingBox().expand(10 * EPS), tmin, tmax, EPS))
   {
     return false;
   }
@@ -354,7 +358,7 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
     bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
-    if(foundIntersection && s0 < 1.0 - EPS)
+    if(foundIntersection && (!isHalfOpen || s0 < 1.0 - EPS))
     {
       rp.push_back(r0);
       cp.push_back(c_offset + c_scale * s0);
@@ -373,11 +377,11 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
     c_scale *= scaleFac;
 
     // Note: we want to find all intersections, so don't short-circuit
-    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale))
+    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }
-    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale))
+    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }
@@ -408,7 +412,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
 
   bool foundIntersection = false;
 
-  if(curve.isLinear(sq_tol))
+  if(curve.isLinear(sq_tol, true))
   {
     T c1, c2, t1, t2;
     if(intersect_2d_circle_line(circle, curve[0], curve[order], c1, c2, t1, t2, EPS))
@@ -536,8 +540,65 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
   return true;
 }
 
+template <typename T>
+bool intersect_nurbscurves(const NURBSCurve<T, 2> &n1,
+                           const NURBSCurve<T, 2> &n2,
+                           axom::Array<T> &p1,
+                           axom::Array<T> &p2,
+                           double tol)
+{
+  // Decompose both NURBS curves into Bezier segments
+  const auto beziers1 = n1.extractBezier();
+  const auto beziers2 = n2.extractBezier();
+
+  const axom::Array<T> knots1 = n1.getKnots().getUniqueKnots();
+  const axom::Array<T> knots2 = n2.getKnots().getUniqueKnots();
+
+  const double sq_tol = tol * tol;
+  const int ord1 = beziers1[0].getOrder();
+  const int ord2 = beziers2[0].getOrder();
+
+  bool foundIntersection = false;
+
+  // Loop over all Bezier segment pairs (is there a better way?)
+  for(int i = 0; i < beziers1.size(); ++i)
+  {
+    for(int j = 0; j < beziers2.size(); ++j)
+    {
+      axom::Array<T> u_local, v_local;
+
+      // Intersect Bezier segment i of n1 with Bezier segment j of n2
+      intersect_bezier_curves(beziers1[i],
+                              beziers2[j],
+                              u_local,
+                              v_local,
+                              sq_tol,
+                              ord1,
+                              ord2,
+                              0.0,
+                              1.0,
+                              0.0,
+                              1.0);
+
+      foundIntersection |= !u_local.empty();
+
+      // Map local Bezier parameters back to full NURBS parameters
+      for(int k = 0; k < u_local.size(); ++k)
+      {
+        // Knot intervals are simply given by indices i and j, due to the use of
+        // getUniqueKnots() above to set knots1 and knots2.
+        T u_full = axom::utilities::lerp(knots1[i], knots1[i + 1], u_local[k]);
+        T v_full = axom::utilities::lerp(knots2[j], knots2[j + 1], v_local[k]);
+
+        p1.push_back(u_full);
+        p2.push_back(v_full);
+      }
+    }
+  }
+
+  return foundIntersection;
+}
+
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_BEZIER_IMPL_HPP_

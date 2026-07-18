@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SIDRE_INDEXED_COLLECTION_HPP_
-#define SIDRE_INDEXED_COLLECTION_HPP_
+#pragma once
 
 // Standard C++ headers
 #include <iostream>
@@ -279,5 +279,3 @@ T* IndexedCollection<T>::removeItem(IndexType idx)
 }
 
 }  // end namespace axom
-
-#endif  // SIDRE_INDEXED_COLLECTION_HPP_

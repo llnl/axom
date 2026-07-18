@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -32,6 +33,7 @@ TEST(primal_beziercurve, sizing_constructors)
     constexpr int expOrder = -1;
     EXPECT_EQ(expOrder, bCurve.getOrder());
     EXPECT_EQ(expOrder + 1, bCurve.getControlPoints().size());
+    EXPECT_EQ(expOrder + 1, bCurve.getNumControlPoints());
     EXPECT_EQ(CoordsVec(), bCurve.getControlPoints());
     EXPECT_FALSE(bCurve.isRational());
   }
@@ -41,6 +43,7 @@ TEST(primal_beziercurve, sizing_constructors)
   {
     BezierCurveType bCurve(ord);
     EXPECT_EQ(ord, bCurve.getOrder());
+    EXPECT_EQ(ord + 1, bCurve.getNumControlPoints());
     EXPECT_EQ(ord + 1, static_cast<int>(bCurve.getControlPoints().size()));
     EXPECT_FALSE(bCurve.isRational());
   }
@@ -161,12 +164,14 @@ TEST(primal_beziercurve, set_order)
 
   BezierCurveType bCurve;
   EXPECT_EQ(-1, bCurve.getOrder());
+  EXPECT_EQ(0, bCurve.getNumControlPoints());
 
   const int order = 1;
   PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
 
   bCurve.setOrder(order);
   EXPECT_EQ(order, bCurve.getOrder());
+  EXPECT_EQ(order + 1, bCurve.getNumControlPoints());
 
   bCurve[0] = controlPoints[0];
   bCurve[1] = controlPoints[1];
@@ -178,6 +183,7 @@ TEST(primal_beziercurve, set_order)
 
   bCurve.clear();
   EXPECT_EQ(-1, bCurve.getOrder());
+  EXPECT_EQ(0, bCurve.getNumControlPoints());
   EXPECT_FALSE(bCurve.isRational());
 }
 

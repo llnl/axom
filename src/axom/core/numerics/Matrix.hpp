@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -13,9 +16,6 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-
-#ifndef AXOM_MATRIX_HPP_
-  #define AXOM_MATRIX_HPP_
 
 namespace axom
 {
@@ -625,13 +625,13 @@ AXOM_HOST_DEVICE Matrix<T>::Matrix(int rows, int cols, T* data, bool external)
   }
   else
   {
-  #if defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_DEVICE_CODE)
     assert(false);
-  #else
+#else
     const int nitems = m_rows * m_cols;
     m_data = allocate<T>(nitems);
     memcpy(m_data, data, nitems * sizeof(T));
-  #endif
+#endif
   }
 }
 
@@ -950,14 +950,14 @@ void Matrix<T>::copy(const Matrix<T>& rhs)
 template <typename T>
 AXOM_HOST_DEVICE void Matrix<T>::clear()
 {
-  #if defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_DEVICE_CODE)
   assert(m_usingExternal);
-  #else
+#else
   if(!m_usingExternal)
   {
     deallocate(m_data);
   }
-  #endif
+#endif
 
   m_rows = m_cols = 0;
 }
@@ -1094,5 +1094,3 @@ std::ostream& operator<<(std::ostream& os, const Matrix<T>& M)
 template <typename T>
 struct axom::fmt::formatter<axom::numerics::Matrix<T>> : ostream_formatter
 { };
-
-#endif /* AXOM_MATRIX_HPP_ */

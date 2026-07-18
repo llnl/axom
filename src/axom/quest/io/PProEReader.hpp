@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_PPROEREADER_HPP_
-#define QUEST_PPROEREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -42,5 +42,3 @@ private:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif /* QUEST_PPROEREADER_HPP_ */

@@ -1,18 +1,20 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRACT_ZONES_HPP
-#define AXOM_BUMP_EXTRACT_ZONES_HPP
+#pragma once
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/CoordsetBlender.hpp"
 #include "axom/bump/CoordsetSlicer.hpp"
 #include "axom/bump/FieldSlicer.hpp"
 #include "axom/bump/MatsetSlicer.hpp"
 #include "axom/bump/Options.hpp"
 #include "axom/bump/views/view_traits.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
 {
@@ -38,12 +40,12 @@ public:
    *
    * \param topoView The input topology view.
    * \param coordsetView The input coordset view.
-   * \param matsetView The input matset view.
    */
   ExtractZones(const TopologyView &topoView, const CoordsetView &coordsetView)
     : m_topologyView(topoView)
     , m_coordsetView(coordsetView)
     , m_zoneSlice()
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
 
   /*!
@@ -51,6 +53,26 @@ public:
    *
    */
   virtual ~ExtractZones() = default;
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Select zones from the input mesh by id and output them in the output mesh.
@@ -138,13 +160,14 @@ public:
     // Make originalElements.
     if(makeOriginalZones)
     {
-      utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+      const auto conduitAllocatorId =
+        axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
       conduit::Node &n_outFields = n_output["fields"];
       conduit::Node &n_origElements = n_outFields[opts.originalElementsField()];
       n_origElements["topology"] = newTopoName;
       n_origElements["association"] = "element";
-      n_origElements["values"].set_allocator(c2a.getConduitAllocatorID());
+      n_origElements["values"].set_allocator(conduitAllocatorId);
       n_origElements["values"].set(
         conduit::DataType(utils::cpp2conduit<axom::IndexType>::id, selectedZonesView.size()));
       axom::copy(n_origElements["values"].data_ptr(),
@@ -184,9 +207,10 @@ protected:
       // We need to make a zone slice array that contains selectedZonesView, plus extra indices.
       if(m_zoneSlice.size() == 0)
       {
-        const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+        const int allocatorID = getAllocatorID();
         const auto n = selectedZonesView.size() + extra.zones;
-        m_zoneSlice = axom::Array<axom::IndexType>(n, n, allocatorID);
+        m_zoneSlice =
+          axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
         view = m_zoneSlice.view();
         axom::copy(view.data(),
                    selectedZonesView.data(),
@@ -251,32 +275,48 @@ protected:
                 axom::Array<axom::IndexType> &nodeSlice) const
   {
     AXOM_ANNOTATE_SCOPE("nodeMap");
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     const auto nnodes = m_coordsetView.numberOfNodes();
 
     // Figure out the topology size based on selected zones.
-    axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
-    const TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        connsize_reduce += zone.numberOfNodes();
-      });
-    const auto newConnSize = connsize_reduce.get();
+    axom::IndexType newConnSize {};
+    if constexpr(!TopologyView::ShapeType::is_variable_size())
+    {
+      // If all shapes are the same size then we do not have to examine each zone.
+      newConnSize = selectedZonesView.size() * TopologyView::ShapeType::numberOfNodes();
+    }
+    else
+    {
+      axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
+      const TopologyView deviceTopologyView(m_topologyView);
+      axom::for_all<ExecSpace>(
+        selectedZonesView.size(),
+        AXOM_LAMBDA(axom::IndexType szIndex) {
+          const auto zoneIndex = selectedZonesView[szIndex];
+          const auto zone = deviceTopologyView.zone(zoneIndex);
+          connsize_reduce += zone.numberOfNodes();
+        });
+      newConnSize = connsize_reduce.get();
+    }
+    if(!selectedZonesView.empty())
+    {
+      SLIC_ERROR_IF(newConnSize == 0, "ReduceSum returned 0 for newConnSize.");
+    }
 
     Sizes sizes {};
     sizes.nodes = nnodes;
     sizes.zones = selectedZonesView.size();
     sizes.connectivity = newConnSize;
 
-    nodeSlice =
-      axom::Array<axom::IndexType>(sizes.nodes + extra.nodes, sizes.nodes + extra.nodes, allocatorID);
+    const auto nodeSliceSize = sizes.nodes + extra.nodes;
+    nodeSlice = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
+                                             nodeSliceSize,
+                                             nodeSliceSize,
+                                             allocatorID);
     auto nodeSliceView = nodeSlice.view();
     axom::for_all<ExecSpace>(
-      sizes.nodes + extra.nodes,
+      nodeSliceSize,
       AXOM_LAMBDA(axom::IndexType index) {
         nodeSliceView[index] = (index < sizes.nodes) ? index : 0;
       });
@@ -303,11 +343,16 @@ protected:
                        axom::Array<axom::IndexType> &nodeSlice) const
   {
     AXOM_ANNOTATE_SCOPE("compactNodeMap");
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
+
+    if(selectedZonesView.empty())
+    {
+      SLIC_INFO("No selected zones were given.");
+    }
 
     // We need to figure out which nodes to keep.
     const auto nnodes = m_coordsetView.numberOfNodes();
-    axom::Array<int> mask(nnodes, nnodes, allocatorID);
+    axom::Array<int> mask(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto maskView = mask.view();
     mask.fill(0);
 
@@ -328,23 +373,42 @@ protected:
         connsize_reduce += nids;
       });
     const auto newConnSize = connsize_reduce.get();
-
-    // Count the used nodes.
-    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
-    const int newNumNodes = mask_reduce.get();
+    if(!selectedZonesView.empty())
+    {
+      SLIC_ERROR_IF(newConnSize == 0, "ReduceSum returned 0 for newConnSize.");
+    }
 
     // Make a compact list of nodes.
-    axom::Array<int> maskOffsets(nnodes, nnodes, allocatorID);
+    axom::Array<int> maskOffsets(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto maskOffsetsView = maskOffsets.view();
     axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
 
+    // Count the used nodes.
+    int newNumNodes {};
+    if constexpr(axom::execution_space<ExecSpace>::onDevice())
+    {
+      axom::ReduceSum<ExecSpace, int> mask_reduce(0);
+      axom::for_all<ExecSpace>(
+        nnodes,
+        AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
+      newNumNodes = mask_reduce.get();
+    }
+    else
+    {
+      newNumNodes = maskOffsetsView[nnodes - 1] + maskView[nnodes - 1];
+    }
+    if(nnodes > 0)
+    {
+      SLIC_ERROR_IF(newNumNodes == 0, "ReduceSum returned 0 for newNumNodes.");
+    }
+
     // Make an array of original node ids that we can use to "slice" the nodal data.
-    old2new = axom::Array<ConnectivityType>(nnodes, nnodes, allocatorID);
-    nodeSlice =
-      axom::Array<axom::IndexType>(newNumNodes + extra.nodes, newNumNodes + extra.nodes, allocatorID);
+    old2new =
+      axom::Array<ConnectivityType>(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
+    nodeSlice = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
+                                             newNumNodes + extra.nodes,
+                                             newNumNodes + extra.nodes,
+                                             allocatorID);
     auto old2newView = old2new.view();
     auto nodeSliceView = nodeSlice.view();
     axom::for_all<ExecSpace>(
@@ -393,7 +457,8 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
     namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     const std::string shape = outputShape(n_topo);
     if(shape == "polyhedron")
@@ -412,19 +477,19 @@ protected:
       n_newTopo["elements/shape"] = outputShape(n_topo);
 
       conduit::Node &n_conn = n_newTopo["elements/connectivity"];
-      n_conn.set_allocator(c2a.getConduitAllocatorID());
+      n_conn.set_allocator(conduitAllocatorId);
       n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                    dataSizes.connectivity + extra.connectivity));
       auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
       conduit::Node &n_sizes = n_newTopo["elements/sizes"];
-      n_sizes.set_allocator(c2a.getConduitAllocatorID());
+      n_sizes.set_allocator(conduitAllocatorId);
       n_sizes.set(
         conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
       auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
       conduit::Node &n_offsets = n_newTopo["elements/offsets"];
-      n_offsets.set_allocator(c2a.getConduitAllocatorID());
+      n_offsets.set_allocator(conduitAllocatorId);
       n_offsets.set(
         conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
       auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
@@ -500,7 +565,7 @@ protected:
         auto shapesView = utils::make_array_view<ConnectivityType>(n_shapes);
 
         conduit::Node &n_newShapes = n_newTopo["elements/shapes"];
-        n_newShapes.set_allocator(c2a.getConduitAllocatorID());
+        n_newShapes.set_allocator(conduitAllocatorId);
         n_newShapes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                           dataSizes.zones + extra.zones));
         auto newShapesView = utils::make_array_view<ConnectivityType>(n_newShapes);
@@ -536,6 +601,7 @@ protected:
     AXOM_ANNOTATE_SCOPE("makeCoordset");
     // _bump_utilities_coordsetslicer_begin
     axom::bump::CoordsetSlicer<ExecSpace, CoordsetView> cs(m_coordsetView);
+    cs.setAllocatorID(getAllocatorID());
     n_newCoordset.reset();
     cs.execute(nodeSlice, n_coordset, n_newCoordset);
     // _bump_utilities_coordsetslicer_end
@@ -566,6 +632,7 @@ protected:
       const std::string association = n_field["association"].as_string();
       conduit::Node &n_newField = n_newFields[n_field.name()];
       axom::bump::FieldSlicer<ExecSpace> fs;
+      fs.setAllocatorID(getAllocatorID());
       if(association == "element")
       {
         fs.execute(zoneSlice, n_field, n_newField);
@@ -657,6 +724,7 @@ protected:
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
   axom::Array<axom::IndexType> m_zoneSlice;
+  int m_allocator_id;
 };
 
 /*!
@@ -780,37 +848,13 @@ protected:
                   conduit::Node &n_newMatset) const
   {
     AXOM_ANNOTATE_SCOPE("makeMatset");
-    // TODO: Make this "if constexpr" when Axom allows that.
-    if(axom::bump::views::view_traits<TopologyView>::supports_strided_structured())
-    {
-      // If the topology view supports strided structured then we need to convert the
-      // selected zones to "global" values to pull out the right zones from the material.
-      const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-      const auto nzones = selectedZonesView.size();
-      axom::Array<axom::IndexType> matZoneIds(nzones, nzones, allocatorID);
-      auto matZoneIdsView = matZoneIds.view();
-      const TopologyView deviceTopologyView(
-        ExtractZones<ExecSpace, TopologyView, CoordsetView>::m_topologyView);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          matZoneIdsView[index] =
-            deviceTopologyView.indexing().LocalToGlobal(selectedZonesView[index]);
-        });
-      MatsetSlicer<ExecSpace, MatsetView> ms(m_matsetView);
-      SliceData zSlice;
-      zSlice.m_indicesView = matZoneIdsView;
-      ms.execute(zSlice, n_matset, n_newMatset);
-    }
-    else
-    {
-      // _bump_utilities_matsetslicer_begin
-      MatsetSlicer<ExecSpace, MatsetView> ms(m_matsetView);
-      SliceData zSlice;
-      zSlice.m_indicesView = selectedZonesView;
-      ms.execute(zSlice, n_matset, n_newMatset);
-      // _bump_utilities_matsetslicer_end
-    }
+    // _bump_utilities_matsetslicer_begin
+    MatsetSlicer<ExecSpace, MatsetView> ms(m_matsetView);
+    ms.setAllocatorID(this->getAllocatorID());
+    SliceData zSlice;
+    zSlice.m_indicesView = selectedZonesView;
+    ms.execute(zSlice, n_matset, n_newMatset);
+    // _bump_utilities_matsetslicer_end
   }
 
   MatsetView m_matsetView;
@@ -818,5 +862,3 @@ protected:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

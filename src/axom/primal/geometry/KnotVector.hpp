@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file KnotVector.hpp
  *
  * \brief A class to represent knot vectors for NURBS
  */
-
-#ifndef AXOM_PRIMAL_KNOTVECTOR_HPP
-#define AXOM_PRIMAL_KNOTVECTOR_HPP
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -50,6 +50,15 @@ public:
                          "A knot vector must be defined using an arithmetic type");
 
 public:
+  /*!
+   * \brief Tag type to construct a KnotVector without asserting validity in the constructor
+   *
+   * This enables callers to construct a KnotVector from potentially-invalid input,
+   * then explicitly check \a isValid() and handle errors gracefully.
+   */
+  struct SkipValidityChecks
+  { };
+
   ///@{
   /**
    * \name Constructors for KnotVector
@@ -74,18 +83,34 @@ public:
    * \pre The \a knots can be empty when the degree is -1, otherwise knots.data() is not \a nullptr
    * \sa isValid() tests conditions for a valid knot span instance
    */
-  KnotVector(axom::ArrayView<const T> knots, int degree) : m_deg(degree)
+  KnotVector(axom::ArrayView<const T> knots, int degree)
+    : KnotVector(knots, degree, SkipValidityChecks {})
   {
-    SLIC_ASSERT(degree >= -1);
-    SLIC_ASSERT(knots.size() >= (degree + 1));
-    SLIC_ASSERT(knots.empty() || knots.data() != nullptr);
+    SLIC_ASSERT(isValid(true));
+  }
 
-    if(!knots.empty())
+  /*!
+   * \brief Constructor from a user-supplied knot vector without asserting \a isValid()
+   *
+   * \param [in] knots the knot vector
+   * \param [in] degree the degree of the curve
+   * \param [in] SkipValidityChecks tag to indicate validity is not asserted
+   *
+   * \post The KnotVector degree is clamped to be at least -1
+   * \post The KnotVector values will be copied when the input \a knots is non-empty and non-null
+   * \note The resulting KnotVector may be invalid; call \a isValid() to verify.
+   */
+  KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+    : m_deg(axom::utilities::clampLower(degree, -1))
+  {
+    if(knots.empty() || knots.data() == nullptr)
+    {
+      m_deg = -1;
+    }
+    else
     {
       m_knots = knots;
     }
-
-    SLIC_ASSERT(isValid());
   }
 
   /*!
@@ -97,6 +122,15 @@ public:
    */
   KnotVector(axom::ArrayView<T> knots, int degree)
     : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree)
+  { }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::ArrayView<T>) without asserting \a isValid()
+   *
+   * \overload for ArrayView of non-const T
+   */
+  KnotVector(axom::ArrayView<T> knots, int degree, SkipValidityChecks)
+    : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree, SkipValidityChecks {})
   { }
 
   /// \brief Default constructor for an empty (invalid) knot vector
@@ -126,6 +160,15 @@ public:
   { }
 
   /*!
+   * \brief Constructor from a user-supplied knot vector (C-style array) without asserting \a isValid()
+   *
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+   */
+  KnotVector(const T* knots, axom::IndexType nkts, int degree, SkipValidityChecks)
+    : KnotVector(axom::ArrayView<const T>(knots, nkts), degree, SkipValidityChecks {})
+  { }
+
+  /*!
    * \brief Constructor from a user-supplied knot vector (axom::Array)
    * 
    * \param [in] knots the knot vector
@@ -134,6 +177,15 @@ public:
    * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
   KnotVector(const axom::Array<T>& knots, int degree) : KnotVector(knots.view(), degree) { }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::Array) without asserting \a isValid()
+   *
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+   */
+  KnotVector(const axom::Array<T>& knots, int degree, SkipValidityChecks)
+    : KnotVector(knots.view(), degree, SkipValidityChecks {})
+  { }
 
   ///@}
 
@@ -206,6 +258,11 @@ public:
   /// \brief Return the number of control points implied by the knot vector
   axom::IndexType getNumControlPoints() const { return m_knots.size() - m_deg - 1; }
 
+  /// \brief Return the value of the smallest knot, or 0 if there are no knots
+  T getMinKnot() const { return (m_knots.size() > 0) ? m_knots[0] : T {}; }
+  /// \brief Return the value of the largest knot, or 0 if there are no knots
+  T getMaxKnot() const { return (m_knots.size() > 0) ? m_knots[m_knots.size() - 1] : T {}; }
+
   /// \brief Clear the list of knots
   void clear()
   {
@@ -213,12 +270,50 @@ public:
     m_knots.clear();
   }
 
-  /// \brief Return if the knot vector is valid
-  bool isValid() const
+  /*!
+   *  \brief Return if the knot vector is valid
+   * 
+   *  Checks that the knot vector satisfies all requirements for a valid B-spline/NURBS knot vector:
+   *  degree >= 0, sufficient knots, monotonic sequence, clamped ends, and valid internal multiplicities.
+   * 
+   *  \param [in] verbose When true, emits a warning message describing the first failing check.
+   * 
+   *  \note Only the *first* validation error is reported when \a verbose is true.
+   *        Fix that error and call \a isValid(true) again to discover subsequent errors.
+   * 
+   *  \return true if the knot vector satisfies all validity conditions, false otherwise
+   */
+  bool isValid(bool verbose = false) const
   {
     // Check degree
     if(m_deg < 0)
     {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: degree is negative");
+      return false;
+    }
+
+    if(m_knots.empty())
+    {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: knot array is empty");
+      return false;
+    }
+
+    if(m_knots.data() == nullptr)
+    {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: knot array data pointer is null");
+      return false;
+    }
+
+    // For clamped knot vectors, we require at least (p+1) repeated knots at each end
+    const axom::IndexType min_num_knots = static_cast<axom::IndexType>(2 * (m_deg + 1));
+    if(m_knots.size() < min_num_knots)
+    {
+      SLIC_WARNING_ROOT_IF(verbose,
+                           axom::fmt::format("Invalid KnotVector: knot array too small for degree "
+                                             "(degree={}, num_knots={}, min_num_knots={})",
+                                             m_deg,
+                                             m_knots.size(),
+                                             min_num_knots));
       return false;
     }
 
@@ -227,20 +322,44 @@ public:
     {
       if(m_knots[i] > m_knots[i + 1])
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not monotone (knot[{}]={} > knot[{}]={})",
+            i,
+            m_knots[i],
+            i + 1,
+            m_knots[i + 1]));
         return false;
       }
     }
 
     // Check for clamped-ness
-    auto nkts = m_knots.size();
+    const auto nkts = m_knots.size();
+    const auto minKnot = getMinKnot();
+    const auto maxKnot = getMaxKnot();
     for(int i = 0; i < m_deg + 1; ++i)
     {
-      if(m_knots[i] != m_knots[0])
+      if(m_knots[i] != minKnot)
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not clamped at start (knot[{}]={} != minKnot={})",
+            i,
+            m_knots[i],
+            minKnot));
         return false;
       }
-      if(m_knots[nkts - 1 - i] != m_knots[nkts - 1])
+      if(m_knots[nkts - 1 - i] != maxKnot)
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not clamped at end (knot[{}]={} != maxKnot={})",
+            nkts - 1 - i,
+            m_knots[nkts - 1 - i],
+            maxKnot));
         return false;
       }
     }
@@ -260,6 +379,13 @@ public:
         this_multiplicity++;
         if(this_multiplicity > m_deg)
         {
+          SLIC_WARNING_ROOT_IF(
+            verbose,
+            axom::fmt::format("Invalid KnotVector: internal knot multiplicity exceeds degree "
+                              "(knot={}, multiplicity={}, degree={})",
+                              this_knot,
+                              this_multiplicity,
+                              m_deg));
           return false;
         }
       }
@@ -303,7 +429,10 @@ public:
   ///@{
   /// \name Query/modify/access knots
 
-  /// \brief Accessor for the knot vector
+  /// \brief Accessor for the array of knots
+  axom::Array<T>& getArray() { return m_knots; }
+
+  /// \brief Const accessor for the array of knots
   const axom::Array<T>& getArray() const { return m_knots; }
 
   /*!
@@ -368,13 +497,20 @@ public:
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize()
   {
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    const T min_knot = getMinKnot();
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = (m_knots[i] - min_knot) / span;
+      for(T& knot : m_knots)
+      {
+        knot = (knot - min_knot) / span;
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = T {};
+      }
     }
   }
 
@@ -390,13 +526,20 @@ public:
   {
     SLIC_ASSERT(a < b);
 
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    const T min_knot = getMinKnot();
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = a + (m_knots[i] - min_knot) * (b - a) / span;
+      for(T& knot : m_knots)
+      {
+        knot = axom::utilities::lerp(a, b, (knot - min_knot) / span);
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = a;
+      }
     }
   }
 
@@ -413,7 +556,7 @@ public:
     }
 
     // Replace each knot with sum - knot_value
-    const T the_sum = m_knots[0] + m_knots[nkts - 1];
+    const T the_sum = getMinKnot() + getMaxKnot();
     for(int i = 0; i < nkts; ++i)
     {
       m_knots[i] = the_sum - m_knots[i];
@@ -458,10 +601,11 @@ public:
     SLIC_ASSERT(isValidParameter(t));
 
     int multiplicity;
-    auto span = findSpan(t, multiplicity);
+    const auto span = findSpan(t, multiplicity);
 
     // Compute how many knots should be inserted
-    int r = axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
+    const int r =
+      axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
 
     insertKnotBySpan(span, t, r);
   }
@@ -469,14 +613,11 @@ public:
   /// \brief Checks if given parameter is in knot span (to a tolerance)
   bool isValidParameter(T t, T EPS = 1e-5) const
   {
-    return t >= m_knots[0] - EPS && t <= m_knots[m_knots.size() - 1] + EPS;
+    return (t >= getMinKnot() - EPS) && (t <= getMaxKnot() + EPS);
   }
 
   /// \brief Checks if given parameter is *interior* to knot span (to a tolerance)
-  bool isValidInteriorParameter(T t) const
-  {
-    return t > m_knots[0] && t < m_knots[m_knots.size() - 1];
-  }
+  bool isValidInteriorParameter(T t) const { return (t > getMinKnot()) && (t < getMaxKnot()); }
 
   ///@}
 
@@ -507,12 +648,12 @@ public:
 
     // Handle cases where t is outside the knot span within a tolerance
     //  by implicitly clamping it to the nearest span
-    if(t <= m_knots[0])
+    if(t <= getMinKnot())
     {
       return m_deg;
     }
 
-    if(t >= m_knots[nkts - 1])
+    if(t >= getMaxKnot())
     {
       return nkts - m_deg - 2;
     }
@@ -550,11 +691,10 @@ public:
   {
     SLIC_ASSERT(isValidParameter(t));
 
-    const auto nkts = m_knots.size();
     const auto span = findSpan(t);
 
     // Early exit for known multiplicities
-    if(t <= m_knots[0] || t >= m_knots[nkts - 1])
+    if(t <= getMinKnot() || t >= getMaxKnot())
     {
       multiplicity = m_deg + 1;
       return span;
@@ -737,6 +877,286 @@ public:
   }
 
   /*!
+   * \brief Scratch storage for \a derivativeBasisFunctionsBySpan(...)
+   *
+   * Stores intermediate tables from Algorithms A2.2/A2.3 ("The NURBS Book")
+   * in contiguous, row-major buffers to avoid per-call dynamic allocations.
+   *
+   * Typical usage is to keep one instance per thread (e.g. `thread_local`) and
+   * reuse it across evaluations.
+   */
+  struct DerivativeBasisWorkspace
+  {
+    //! Derivative table of size `(n+1) x (p+1)` (row-major, derivative-order major)
+    axom::Array<T> ders;
+    //! Basis-function triangle from Algorithm A2.2 of size `(p+1) x (p+1)` (row-major)
+    axom::Array<T> ndu;
+    //! Alternating coefficient rows from Algorithm A2.3 of size `2 x (p+1)` (row-major)
+    axom::Array<T> a;
+    //! Left/right distance buffers from Algorithm A2.2 of length `p+1`
+    axom::Array<T> left;
+    axom::Array<T> right;
+
+    void ensure(int deg, int n)
+    {
+      const int p1 = deg + 1;
+      const int ndu_size = p1 * p1;
+      const int ders_size = (n + 1) * p1;
+      const int a_size = 2 * p1;
+
+      if(ndu.size() < ndu_size)
+      {
+        ndu.resize(ndu_size);
+      }
+      if(ders.size() < ders_size)
+      {
+        ders.resize(ders_size);
+      }
+      if(a.size() < a_size)
+      {
+        a.resize(a_size);
+      }
+      if(left.size() < p1)
+      {
+        left.resize(p1);
+      }
+      if(right.size() < p1)
+      {
+        right.resize(p1);
+      }
+    }
+  };
+
+  class DerivativeBasisView
+  {
+  public:
+    struct RowProxy
+    {
+      const T* row {nullptr};
+
+      AXOM_HOST_DEVICE const T& operator[](int col) const { return row[col]; }
+    };
+
+    DerivativeBasisView(const T* data, int nrows, int ncols)
+      : m_data(data)
+      , m_nrows(nrows)
+      , m_ncols(ncols)
+    { }
+
+    AXOM_HOST_DEVICE RowProxy operator[](int row) const
+    {
+      return RowProxy {m_data + row * m_ncols};
+    }
+
+    AXOM_HOST_DEVICE int getNumDerivatives() const { return m_nrows; }
+    AXOM_HOST_DEVICE int getNumBasisFunctions() const { return m_ncols; }
+
+  private:
+    const T* m_data {nullptr};
+    int m_nrows {0};
+    int m_ncols {0};
+  };
+
+  /*!
+   * \brief Evaluates the NURBS basis functions and derivatives using a caller-supplied workspace
+   *
+   * \note This overload avoids per-call dynamic allocations by reusing memory in \a workspace.
+   * \warning The returned views are only valid until \a workspace is reused.
+   */
+  DerivativeBasisView derivativeBasisFunctionsBySpan(axom::IndexType span,
+                                                     T t,
+                                                     int n,
+                                                     DerivativeBasisWorkspace& workspace) const
+  {
+    SLIC_ASSERT(isValidSpan(span, t));
+    SLIC_ASSERT(n >= 0);
+    SLIC_ASSERT(n <= m_deg);
+
+    const int p = m_deg;
+    const int p1 = p + 1;
+    workspace.ensure(p, n);
+
+    T* ders = workspace.ders.data();
+    T* ndu = workspace.ndu.data();
+    T* left = workspace.left.data();
+    T* right = workspace.right.data();
+
+    // Fast paths for the most common degrees in practice (especially in winding number use cases)
+    if(n == 1)
+    {
+      const auto& U = m_knots;
+      const T Ui = U[span];
+      const T Ui1 = U[span + 1];
+
+      if(p == 1)
+      {
+        const T denom = Ui1 - Ui;
+        if(denom != static_cast<T>(0))
+        {
+          const T inv = static_cast<T>(1) / denom;
+          ders[0] = (Ui1 - t) * inv;
+          ders[1] = (t - Ui) * inv;
+          ders[2] = -inv;
+          ders[3] = inv;
+        }
+        else
+        {
+          ders[0] = static_cast<T>(0);
+          ders[1] = static_cast<T>(0);
+          ders[2] = static_cast<T>(0);
+          ders[3] = static_cast<T>(0);
+        }
+
+        return DerivativeBasisView(ders, 2, p1);
+      }
+
+      if(p == 2)
+      {
+        // First compute the degree-1 basis functions on the current span: N_{i-1,1}, N_{i,1}
+        const T denom01 = Ui1 - Ui;
+        T N_im1_1 = static_cast<T>(0);
+        T N_i_1 = static_cast<T>(0);
+        if(denom01 != static_cast<T>(0))
+        {
+          const T inv = static_cast<T>(1) / denom01;
+          N_im1_1 = (Ui1 - t) * inv;
+          N_i_1 = (t - Ui) * inv;
+        }
+
+        // Denominators for degree-2 recurrence/derivatives
+        const T Uim1 = U[span - 1];
+        const T Uip2 = U[span + 2];
+        const T denomA = Ui1 - Uim1;  // U[i+1] - U[i-1]
+        const T denomB = Uip2 - Ui;   // U[i+2] - U[i]
+
+        const T invA =
+          (denomA != static_cast<T>(0)) ? (static_cast<T>(1) / denomA) : static_cast<T>(0);
+        const T invB =
+          (denomB != static_cast<T>(0)) ? (static_cast<T>(1) / denomB) : static_cast<T>(0);
+
+        // Basis values (row 0): N_{i-2,2}, N_{i-1,2}, N_{i,2}
+        ders[0] = (Ui1 - t) * invA * N_im1_1;
+        ders[1] = (t - Uim1) * invA * N_im1_1 + (Uip2 - t) * invB * N_i_1;
+        ders[2] = (t - Ui) * invB * N_i_1;
+
+        // First derivatives (row 1): d/dt N_{j,2} = 2/(U[j+2]-U[j])*N_{j,1} - 2/(U[j+3]-U[j+1])*N_{j+1,1}
+        // On the current span, N_{i-2,1} and N_{i+1,1} are zero.
+        ders[3] = static_cast<T>(-2) * invA * N_im1_1;
+        ders[4] = static_cast<T>(2) * invA * N_im1_1 - static_cast<T>(2) * invB * N_i_1;
+        ders[5] = static_cast<T>(2) * invB * N_i_1;
+
+        return DerivativeBasisView(ders, 2, p1);
+      }
+    }
+
+    // ndu stores both the triangular basis function table and denominator terms
+    // from Algorithm A2.2.  We store it in row-major order with stride p1.
+    ndu[0] = 1.;
+    for(int j = 1; j <= p; ++j)
+    {
+      left[j] = t - m_knots[span + 1 - j];
+      right[j] = m_knots[span + j] - t;
+      T saved = 0.0;
+
+      const auto ndu_j = ndu + j * p1;
+      for(int r = 0; r < j; ++r)
+      {
+        ndu_j[r] = right[r + 1] + left[j - r];
+        const T temp = ndu[r * p1 + (j - 1)] / ndu_j[r];
+        ndu[r * p1 + j] = saved + right[r + 1] * temp;
+        saved = left[j - r] * temp;
+      }
+      ndu_j[j] = saved;
+    }
+
+    // ders row 0: basis function values
+    for(int j = 0; j <= p; ++j)
+    {
+      ders[j] = ndu[j * p1 + p];
+    }
+
+    if(n == 0)
+    {
+      return DerivativeBasisView(ders, 1, p1);
+    }
+
+    // Fast path for the common case: first derivatives only.
+    // This simplifies Algorithm A2.3 since k is fixed to 1.
+    if(n == 1)
+    {
+      const auto denom_row = ndu + p * p1;
+      for(int r = 0; r <= p; ++r)
+      {
+        T d = 0.;
+        if(r >= 1)
+        {
+          d += ndu[(r - 1) * p1 + (p - 1)] / denom_row[r - 1];
+        }
+        if(r <= p - 1)
+        {
+          d -= ndu[r * p1 + (p - 1)] / denom_row[r];
+        }
+        ders[p1 + r] = d * static_cast<T>(p);
+      }
+
+      return DerivativeBasisView(ders, 2, p1);
+    }
+
+    // General case (n >= 2): Algorithm A2.3, implemented with workspace buffers.
+    T* a = workspace.a.data();
+
+    auto ndu_at = [&](int row, int col) -> T& { return ndu[row * p1 + col]; };
+    auto ders_at = [&](int row, int col) -> T& { return ders[row * p1 + col]; };
+    auto a_at = [&](int row, int col) -> T& { return a[row * p1 + col]; };
+
+    for(int r = 0; r <= p; ++r)
+    {
+      int s1 = 0, s2 = 1;
+      a_at(0, 0) = 1.;
+      for(int k = 1; k <= n; ++k)
+      {
+        T d = 0.;
+        const int rk = r - k;
+        const int pk = p - k;
+        if(r >= k)
+        {
+          a_at(s2, 0) = a_at(s1, 0) / ndu_at(pk + 1, rk);
+          d = a_at(s2, 0) * ndu_at(rk, pk);
+        }
+
+        const int j1 = (rk >= -1) ? 1 : -rk;
+        const int j2 = (r - 1 <= pk) ? (k - 1) : (p - r);
+        for(int j = j1; j <= j2; ++j)
+        {
+          a_at(s2, j) = (a_at(s1, j) - a_at(s1, j - 1)) / ndu_at(pk + 1, rk + j);
+          d += a_at(s2, j) * ndu_at(rk + j, pk);
+        }
+
+        if(r <= pk)
+        {
+          a_at(s2, k) = -a_at(s1, k - 1) / ndu_at(pk + 1, r);
+          d += a_at(s2, k) * ndu_at(r, pk);
+        }
+
+        ders_at(k, r) = d;
+        std::swap(s1, s2);
+      }
+    }
+
+    T factor = static_cast<T>(p);
+    for(int k = 1; k <= n; ++k)
+    {
+      for(int j = 0; j <= p; ++j)
+      {
+        ders_at(k, j) *= factor;
+      }
+      factor *= static_cast<T>(p - k);
+    }
+
+    return DerivativeBasisView(ders, n + 1, p1);
+  }
+
+  /*!
    * \brief Evaluates the NURBS basis functions and derivatives for parameter value t
    * 
    * \param [in] t The parameter value
@@ -900,5 +1320,3 @@ std::ostream& operator<<(std::ostream& os, const KnotVector<T>& kvector)
 template <typename T>
 struct axom::fmt::formatter<axom::primal::KnotVector<T>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_KNOTVECTOR_HPP

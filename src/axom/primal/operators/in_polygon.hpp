@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file in_polygon.hpp
@@ -11,9 +14,6 @@
  *
  * Uses a ray casting algorithm
  */
-
-#ifndef AXOM_PRIMAL_IN_POLYGON_HPP_
-#define AXOM_PRIMAL_IN_POLYGON_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
@@ -61,5 +61,3 @@ bool in_polygon(const Point<T, 2>& query,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_CURVED_POLYGON_H_

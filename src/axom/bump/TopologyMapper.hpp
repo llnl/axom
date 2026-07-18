@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_TOPOLOGY_MAPPER_HPP_
-#define AXOM_BUMP_TOPOLOGY_MAPPER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -15,6 +15,7 @@
 #include "axom/bump/PrimalAdaptor.hpp"
 #include "axom/bump/VariableShape.hpp"
 #include "axom/bump/utilities/utilities.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit.hpp>
 #include <conduit_relay.hpp>
@@ -23,6 +24,27 @@
 
 // Uncomment to emit debugging messages
 //#define AXOM_DEBUG_TOPOLOGY_MAPPER
+
+#if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_HIP)
+  #define AXOM_TM_ASSERT_OR_RETURN(CONDITION) \
+    do                                        \
+    {                                         \
+      if(!(CONDITION))                        \
+      {                                       \
+        return;                               \
+      }                                       \
+    } while(false)
+#else
+  #define AXOM_TM_ASSERT_OR_RETURN(CONDITION) \
+    do                                        \
+    {                                         \
+      SLIC_ASSERT(CONDITION);                 \
+      if(!(CONDITION))                        \
+      {                                       \
+        return;                               \
+      }                                       \
+    } while(false)
+#endif
 
 namespace axom
 {
@@ -45,8 +67,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYP
                                      double eps = 1.e-10)
 {
   constexpr bool tryFixOrientation = false;
-  const auto p = axom::primal::clip(shape1, shape2, eps, tryFixOrientation);
-  return p.area();
+  // Saves returning the polygon, we return the area.
+  return axom::primal::detail::clipPolygonPolygonArea(shape1, shape2, eps, tryFixOrientation);
 }
 
 // We define various shapeOverlap methods to handle
@@ -405,6 +427,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
  * \tparam SrcMatsetView The view type for the source matset.
  * \tparam TargetTopologyView The view type for the target topology.
  * \tparam TargetCoordsetView The view type for the target coordset.
+ * \tparam MAX_VERTS_2D The maximum number of vertices allowed in a polygon. This
+ *                      value is used only in 2D.
  * \tparam makeFaces Make faces instead of proper Polyhedron zones when polyhedra
  *                   are involved. This enables faster conversion between Blueprint
  *                   and Axom since making planes is less complicated than Axom's
@@ -421,6 +445,7 @@ template <typename ExecSpace,
           typename SrcMatsetView,
           typename TargetTopologyView,
           typename TargetCoordsetView,
+          int MAX_VERTS_2D = 12,
           bool makeFaces = true>
 class TopologyMapper
 {
@@ -428,8 +453,8 @@ public:
   static_assert(SrcCoordsetView::dimension() == TargetCoordsetView::dimension(),
                 "coordset dimension mismatch");
 
-  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView, makeFaces>;
-  using TargetShapeView = PrimalAdaptor<TargetTopologyView, TargetCoordsetView>;
+  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView, MAX_VERTS_2D, makeFaces>;
+  using TargetShapeView = PrimalAdaptor<TargetTopologyView, TargetCoordsetView, MAX_VERTS_2D>;
 
   /**
    * \brief Constructor
@@ -445,10 +470,31 @@ public:
                  const SrcMatsetView &srcMatsetView,
                  const TargetTopologyView &targetTopoView,
                  const TargetCoordsetView &targetCoordsetView)
-    : m_srcView({srcTopoView, srcCoordsetView})
+    : m_srcView(srcTopoView, srcCoordsetView)
     , m_srcMatsetView(srcMatsetView)
-    , m_targetView({targetTopoView, targetCoordsetView})
+    , m_targetView(targetTopoView, targetCoordsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /**
    * \brief Intersect the source and target topologies and map the source
@@ -486,7 +532,7 @@ public:
     using MatIntType = typename SrcMatsetView::IndexType;
     using MatFloatType = typename SrcMatsetView::FloatType;
 
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     const char *SRC_MATSET_NAME = "source/matsetName";
     const char *SRC_SELECTED_ZONES = "source/selectedZones";
@@ -497,7 +543,7 @@ public:
     // Make sure options are in the right memory space in case we are given lists of
     // selected zone ids.
     conduit::Node n_options_copy;
-    utils::copy<ExecSpace>(n_options_copy, n_options);
+    utils::copy<ExecSpace>(n_options_copy, n_options, getAllocatorID());
 
     // Ensure required options exist.
     const char *required[] = {SRC_MATSET_NAME, TARGET_TOPOLOGY_NAME, TARGET_MATSET_NAME};
@@ -537,12 +583,19 @@ public:
     using src_value_type = typename SrcCoordsetView::value_type;
     AXOM_ANNOTATE_BEGIN("bbox");
     const auto srcView = m_srcView;
-    SelectedZones<ExecSpace> srcSelection(srcView.numberOfZones(), n_options_copy, SRC_SELECTED_ZONES);
+    SelectedZones<ExecSpace> srcSelection(srcView.numberOfZones(),
+                                          n_options_copy,
+                                          SRC_SELECTED_ZONES,
+                                          allocatorID);
     srcSelection.setSorted(false);
     const auto srcSelectionView = srcSelection.view();
     const axom::IndexType nSrcZones = srcSelectionView.size();
     axom::Array<SrcBoundingBox> srcBoundingBoxes(nSrcZones, nSrcZones, allocatorID);
     auto srcBoundingBoxesView = srcBoundingBoxes.view();
+    if(!n_options_copy.has_path(SRC_SELECTED_ZONES))
+    {
+      SLIC_ASSERT(nSrcZones == srcSelectionView.size());
+    }
     axom::for_all<ExecSpace>(
       nSrcZones,
       AXOM_LAMBDA(axom::IndexType index) {
@@ -559,9 +612,16 @@ public:
     AXOM_ANNOTATE_BEGIN("target");
     const auto targetView = m_targetView;
     const auto nTargetZones = targetView.numberOfZones();
-    SelectedZones<ExecSpace> targetSelection(nTargetZones, n_options_copy, TARGET_SELECTED_ZONES);
+    SelectedZones<ExecSpace> targetSelection(nTargetZones,
+                                             n_options_copy,
+                                             TARGET_SELECTED_ZONES,
+                                             allocatorID);
     targetSelection.setSorted(false);
     const auto targetSelectionView = targetSelection.view();
+    if(!n_options_copy.has_path(TARGET_SELECTED_ZONES))
+    {
+      SLIC_ASSERT(nTargetZones == targetSelectionView.size());
+    }
     AXOM_ANNOTATE_END("target");
 
     // -------------------------------------------------------------------------
@@ -569,12 +629,13 @@ public:
     axom::spin::BVH<SrcCoordsetView::dimension(), ExecSpace, src_value_type> bvh;
     bvh.setAllocatorID(allocatorID);
     bvh.initialize(srcBoundingBoxesView, srcBoundingBoxesView.size());
+    axom::synchronize<ExecSpace>();
     AXOM_ANNOTATE_END("build");
 
     // -------------------------------------------------------------------------
     // Set up storage for a new matset.
     AXOM_ANNOTATE_BEGIN("allocation");
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
 
     // Make target matset.
     conduit::Node &n_targetMatset = n_targetMesh["matsets/" + targetMatsetName];
@@ -588,11 +649,11 @@ public:
     conduit::Node &n_offsets = n_targetMatset["offsets"];
 
     // Allocate memory for the output matset.
-    n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_material_ids.set_allocator(c2a.getConduitAllocatorID());
-    n_indices.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_volume_fractions.set_allocator(conduitAllocatorId);
+    n_material_ids.set_allocator(conduitAllocatorId);
+    n_indices.set_allocator(conduitAllocatorId);
+    n_sizes.set_allocator(conduitAllocatorId);
+    n_offsets.set_allocator(conduitAllocatorId);
 
     n_volume_fractions.set(
       conduit::DataType(utils::cpp2conduit<MatFloatType>::id, numMaterialSlots * nTargetZones));
@@ -600,16 +661,23 @@ public:
       conduit::DataType(utils::cpp2conduit<MatIntType>::id, numMaterialSlots * nTargetZones));
     n_sizes.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, nTargetZones));
     n_offsets.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, nTargetZones));
-    // n_indices are allocated later
+    // n_indices allocated later
 
     // Wrap the output matset data in some array views.
     auto material_ids = utils::make_array_view<MatIntType>(n_material_ids);
     auto volume_fractions = utils::make_array_view<MatFloatType>(n_volume_fractions);
     auto sizes = utils::make_array_view<MatIntType>(n_sizes);
     auto offsets = utils::make_array_view<MatIntType>(n_offsets);
-    volume_fractions.fill(MatFloatType(0.));
-    material_ids.fill(MaterialEmpty);
-    sizes.fill(MatIntType(0));
+    // Initialize the expected values.
+    axom::for_all<ExecSpace>(
+      numMaterialSlots * nTargetZones,
+      AXOM_LAMBDA(axom::IndexType index) {
+        volume_fractions[index] = MatFloatType {0};
+        material_ids[index] = MaterialEmpty;
+      });
+    axom::for_all<ExecSpace>(
+      nTargetZones,
+      AXOM_LAMBDA(axom::IndexType index) { sizes[index] = MatIntType {0}; });
     AXOM_ANNOTATE_END("allocation");
 
     // -------------------------------------------------------------------------
@@ -622,6 +690,8 @@ public:
       AXOM_LAMBDA(axom::IndexType index) {
         // Get the target zone as a primal shape.
         const axom::IndexType zi = targetSelectionView[index];
+        AXOM_TM_ASSERT_OR_RETURN(zi >= 0 && zi < targetView.numberOfZones());
+
         const auto targetBBox = targetView.getBoundingBox(zi);
         const auto targetShape = targetView.getShape(zi);
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
@@ -635,7 +705,12 @@ public:
         // Handle intersection in-depth of the bounding boxes intersected.
         auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
           const auto srcBboxIndex = leafNodes[currentNode];
+
+          // This should not happen but check that we're not given bad values.
+          AXOM_TM_ASSERT_OR_RETURN(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
+
           const auto srcZone = srcSelectionView[srcBboxIndex];
+          AXOM_TM_ASSERT_OR_RETURN(srcZone >= 0 && srcZone < srcView.numberOfZones());
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
           std::cout << "handleIntersection: targetZone=" << zi << ", srcZone=" << srcZone
                     << std::endl;
@@ -653,11 +728,9 @@ public:
 
             // Get the src material - there should just be one because we assume
             // that a clean matset is being mapped.
-            typename SrcMatsetView::IDList zoneMatIds;
-            typename SrcMatsetView::VFList zoneMatVFs;
-            srcMatsetView.zoneMaterials(srcZone, zoneMatIds, zoneMatVFs);
-            SLIC_ASSERT(zoneMatIds.size() == 1);
-            const auto mat = zoneMatIds[0];
+            auto zoneMat = srcMatsetView.beginZone(srcZone);
+            SLIC_ASSERT(zoneMat.size() == 1);
+            const auto mat = zoneMat.material_id();
 
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
             std::cout << "\tintersection:" << std::endl
@@ -738,9 +811,9 @@ public:
           // If the zone was not completely covered by other materials, increment
           // its size to include the empty material and set its VF.
           constexpr MatFloatType MatTolerance = 1.e-6;
-          if(sizes[index] == 0 || (1. - vfSum) > MatTolerance)
+          if(sizes[index] == 0 || (MatFloatType {1} - vfSum) > MatTolerance)
           {
-            vfs[sizes[index]] = 1. - vfSum;
+            vfs[sizes[index]] = MatFloatType {1} - vfSum;
             sizes[index]++;
             emptyCount += 1;
           }
@@ -753,6 +826,10 @@ public:
         n_targetMatset["material_map"]["empty"] = MaterialEmpty;
       }
       totalSize = reduceSize.get();
+      if(nTargetZones > 0)
+      {
+        SLIC_ERROR_IF(totalSize == 0, "ReduceSum returned 0 for totalSize.");
+      }
     }
 
     // -------------------------------------------------------------------------
@@ -764,8 +841,8 @@ public:
 
     // The volume_fractions and material_ids arrays contain gaps that we can compress out.
     conduit::Node n_new_volume_fractions, n_new_material_ids;
-    n_new_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_new_material_ids.set_allocator(c2a.getConduitAllocatorID());
+    n_new_volume_fractions.set_allocator(conduitAllocatorId);
+    n_new_material_ids.set_allocator(conduitAllocatorId);
     n_new_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MatFloatType>::id, totalSize));
     n_new_material_ids.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, totalSize));
     auto new_volume_fractions = utils::make_array_view<MatFloatType>(n_new_volume_fractions);
@@ -793,9 +870,10 @@ public:
   SrcShapeView m_srcView;
   SrcMatsetView m_srcMatsetView;
   TargetShapeView m_targetView;
+  int m_allocator_id;
 };
 
 }  // namespace bump
 }  // namespace axom
 
-#endif
+#undef AXOM_TM_ASSERT_OR_RETURN

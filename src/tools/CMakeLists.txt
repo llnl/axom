@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -74,19 +75,14 @@ if(AXOM_ENABLE_QUEST)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND RAJA_FOUND AND UMPIRE_FOUND)
 
         # Run the mesh_tester with the plane_simp_problems.stl example and
-        # different spatial indexes, raja policies
+        # different spatial indexes and execution policies
 
         set(plane_data_dir "${AXOM_DATA_DIR}/quest/plane_simp_problems.stl")
 
         set(_methods "bvh" "implicit" "uniform")
 
-        set (_policies "raja_seq")
-        blt_list_append(TO _policies ELEMENTS "raja_omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "raja_cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "raja_hip" IF AXOM_ENABLE_HIP)
-
         foreach(_method ${_methods})
-            foreach(_policy ${_policies})
+            foreach(_policy ${AXOM_EXECUTION_POLICIES})
 
                 set(_testname "mesh_tester_${_method}_${_policy}")
                 axom_add_test(
@@ -109,8 +105,7 @@ endif()
 # data_collection_util is a utility that generates blueprint-conforming sidre
 # output files from an input mfem mesh
 #------------------------------------------------------------------------------
-if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
-    MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND MFEM_FOUND)
 
     set(data_collection_util
         data_collection_util.cpp
@@ -133,27 +128,21 @@ if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
         FOLDER      axom/examples
         )
 
+    set(_nranks 1)
     if(AXOM_ENABLE_MPI)
-        axom_add_test(
-            NAME    data_collection_util_box2D
-            COMMAND data_collection_util --min -1 -1 --max 1 1 --res 16 16 -p 1
-            NUM_MPI_TASKS 2
-        )
-        axom_add_test(
-            NAME    data_collection_util_box3D
-            COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --res 16 16 16 -p 1
-            NUM_MPI_TASKS 2
-        )
-    else()
-        axom_add_test(
-            NAME    data_collection_util_box2D
-            COMMAND data_collection_util --min -1 -1 --max 1 1 --res 16 16 -p 1
-        )
-        axom_add_test(
-            NAME    data_collection_util_box3D
-            COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --res 16 16 16 -p 1
-        )
+        set(_nranks 2)
     endif()
+        
+    axom_add_test(
+        NAME    data_collection_util_box2D
+        COMMAND data_collection_util --min -1 -1 --max 1 1 --resolution 16 16 -p 1
+        NUM_MPI_TASKS ${_nranks}
+    )
+    axom_add_test(
+        NAME    data_collection_util_box3D
+        COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --resolution 16 16 16 -p 1
+        NUM_MPI_TASKS ${_nranks}
+    )
 
     install(TARGETS              data_collection_util
             DESTINATION          bin
@@ -193,31 +182,97 @@ if(AXOM_ENABLE_QUEST)
     endif()
 endif()
 
-#------------------------------------------------------------------------------
-# run_python_with_axom.sh.in is a utility that allows running python with
-# nanobind-generated extensions in the PYTHONPATH.
-# Based on Conduit's run_python_with_conduit.sh.in script.
-#------------------------------------------------------------------------------
-if(NANOBIND_FOUND)
 
-    # gen python helper to build directory
-    set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
+if(NANOBIND_FOUND)
+    #--------------------------------------------------------------------------
+    # run_python_with_axom.sh.in is a utility that allows running python with
+    # nanobind-generated extensions in the PYTHONPATH.
+    # Based on Conduit's run_python_with_conduit.sh.in script.
+    #--------------------------------------------------------------------------
+
+    # gen python helper to build directory.
+    # _PYEXT_DIR is the site-packages-shaped root that holds the 'axom' package.
+    # Adding an entry for the Sidre bindings to PYTHONPATH entry makes 'import axom.sidre' resolve.
+    set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/python)
+    set(_PYEXT_DIR_IS_RELATIVE FALSE)
 
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
                          "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
 
-    # gen python helper to install directory
-    set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+    # gen python helper for install.
+    # Mirror the installed package root.
+    # Keep relative package install dirs relative in the generated script too.
+    # It resolves them from its own bin/ directory at runtime so `cmake --install --prefix` remains usable.
+    if(AXOM_PYTHON_MODULE_INSTALL_PREFIX)
+        set(_PYEXT_DIR ${AXOM_PYTHON_MODULE_INSTALL_PREFIX})
+        if(IS_ABSOLUTE "${_PYEXT_DIR}")
+            set(_PYEXT_DIR_IS_RELATIVE FALSE)
+        else()
+            set(_PYEXT_DIR_IS_RELATIVE TRUE)
+        endif()
+    else()
+        set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+        set(_PYEXT_DIR_IS_RELATIVE FALSE)
+    endif()
 
+    set(_AXOM_INSTALL_PYTHON_HELPER
+        "${PROJECT_BINARY_DIR}/bin/run_python_with_axom_install.sh")
     axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
-                         "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
+                         "${_AXOM_INSTALL_PYTHON_HELPER}" @ONLY)
+    install(PROGRAMS "${_AXOM_INSTALL_PYTHON_HELPER}"
+            DESTINATION bin
+            RENAME run_python_with_axom.sh)
 
     unset(_PYEXT_DIR)
+    unset(_PYEXT_DIR_IS_RELATIVE)
+    unset(_AXOM_INSTALL_PYTHON_HELPER)
 
-    # Add unit test to check script
+    # Smoke test for the script: verify it makes Axom's bindings and runtime dependencies importable
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
         axom_add_test(
             NAME    run_python_with_axom_build
-            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre")
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import axom.sidre, conduit, numpy")
+    endif()
+
+    #--------------------------------------------------------------------------
+    # convert_sidre_protocol.py is a python version of the
+    # convert_sidre_protocol.cpp utility
+    #--------------------------------------------------------------------------
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
+                         "${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py" COPYONLY)
+
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
+                         "${CMAKE_INSTALL_PREFIX}/bin/convert_sidre_protocol.py" COPYONLY)
+
+    if(AXOM_ENABLE_PYTHON_TESTS AND AXOM_ENABLE_SIDRE)
+        set(_testname "convert_sidre_protocol_py")
+
+        if(AXOM_ENABLE_MPI AND AXOM_DATA_DIR)
+            set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
+
+            axom_add_python_test(
+              NAME ${_testname}
+              COMMAND ${Python_EXECUTABLE}
+                      ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
+                      --input ${box_dir}
+                      --output csp_output
+                      --protocol json
+                      --verbose
+              NUM_MPI_TASKS 3
+            )
+
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Writing out datastore")
+        else()
+            axom_add_python_test(
+              NAME ${_testname}
+              COMMAND ${Python_EXECUTABLE}
+                      ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
+                      --help
+            )
+
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Sidre protocol converter")
+        endif()
     endif()
 endif()

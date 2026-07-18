@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_BVH_H_
-#define AXOM_SPIN_BVH_H_
+#pragma once
 
 // axom core includes
 #include "axom/config.hpp"                               // for Axom compile-time definitions
@@ -578,5 +578,3 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::writeVtkFile(const std::string& fil
 
 }  // namespace spin
 }  // namespace axom
-
-#endif  // AXOM_SPIN_BVH_H_

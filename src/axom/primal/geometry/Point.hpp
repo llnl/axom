@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_POINT_HPP_
-#define AXOM_PRIMAL_POINT_HPP_
+#pragma once
 
 #include "axom/core/NumericArray.hpp"
 #include "axom/core/Macros.hpp"
@@ -15,6 +15,7 @@
 // C/C++ includes
 #include <cstring>
 #include <ostream>
+#include <type_traits>
 #include "axom/fmt.hpp"
 
 namespace axom
@@ -24,6 +25,24 @@ namespace primal
 // Forward declare the templated classes and operator functions
 template <typename T, int NDIMS>
 class Point;
+
+namespace detail
+{
+/// \name Type trait for Point class
+///@{
+template <typename T>
+struct is_point : std::false_type
+{ };
+
+template <typename T, int NDIMS>
+struct is_point<Point<T, NDIMS>> : std::true_type
+{ };
+
+template <typename T>
+constexpr bool is_point_v = is_point<T>::value;
+///@}
+
+}  // namespace detail
 
 /// \name Forward Declared Overloaded Operators
 ///@{
@@ -178,6 +197,27 @@ public:
    */
   AXOM_HOST_DEVICE
   friend inline bool operator!=(const Point& lhs, const Point& rhs) { return !(lhs == rhs); }
+
+  /*!
+   * \brief Equality comparison for points that checks that each component is
+   *        compared within a tolerance. This is simpler test than distance, which
+   *        requires multiplies.
+   *
+   * \param obj The point being compared to this object.
+   * \param tol The tolerance being used.
+   *
+   * \return True if the points are equal within the tolerance, false otherwise.
+   */
+  AXOM_HOST_DEVICE
+  bool isNearlyEqual(const Point& obj, const T tol = 1.e-10) const
+  {
+    bool value = true;
+    for(int d = 0; d < NDIMS && value; d++)
+    {
+      value = value && axom::utilities::isNearlyEqual(m_components[d], obj.m_components[d], tol);
+    }
+    return value;
+  }
 
   /*!
    * \brief Simple formatted print of a point instance
@@ -375,5 +415,3 @@ Point<T, NDIMS> transform_point(
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Point<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_POINT_HPP_

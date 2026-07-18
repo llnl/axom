@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_BASIC_INDEXING_HPP_
-#define AXOM_BUMP_BASIC_INDEXING_HPP_
+#pragma once
 
 namespace axom
 {
@@ -40,22 +40,22 @@ public:
 
   /// No-effect indexing transforms
 
-  AXOM_HOST_DEVICE inline axom::IndexType LocalToLocal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType localToLocal(axom::IndexType index) const
   {
     return index;
   }
 
-  AXOM_HOST_DEVICE inline axom::IndexType LocalToGlobal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType localToGlobal(axom::IndexType index) const
   {
     return index;
   }
 
-  AXOM_HOST_DEVICE inline axom::IndexType GlobalToLocal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType globalToLocal(axom::IndexType index) const
   {
     return index;
   }
 
-  AXOM_HOST_DEVICE inline axom::IndexType GlobalToGlobal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType globalToGlobal(axom::IndexType index) const
   {
     return index;
   }
@@ -83,5 +83,3 @@ public:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

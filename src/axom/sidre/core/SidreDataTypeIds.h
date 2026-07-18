@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  *  \file SiderDataTypeIds.h
@@ -15,9 +18,6 @@
  * Note: Use only C code in this file
  *       since it will be included from a C file.
  */
-
-#ifndef SIDRE_DATATYPEIDS_H_
-#define SIDRE_DATATYPEIDS_H_
 
 // Libraries and other axom headers
 #include "conduit.h"
@@ -43,5 +43,3 @@
 #define SIDRE_ULONG_ID CONDUIT_NATIVE_UNSIGNED_LONG_ID
 #define SIDRE_FLOAT_ID CONDUIT_NATIVE_FLOAT_ID
 #define SIDRE_DOUBLE_ID CONDUIT_NATIVE_DOUBLE_ID
-
-#endif /* SIDRE_DATATYPEIDS_H_ */

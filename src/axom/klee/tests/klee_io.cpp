@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -16,23 +17,37 @@
 #include <fstream>
 #include <sstream>
 
-namespace axom
-{
-namespace klee
-{
-namespace
-{
+namespace klee = axom::klee;
+namespace inlet = axom::inlet;
+namespace test = axom::klee::test;
+namespace primal = axom::primal;
+
+using klee::CompositeOperator;
+using klee::Dimensions;
+using klee::KleeError;
+using klee::LengthUnit;
+using klee::Rotation;
+using klee::Scale;
+using klee::ShapeSet;
+using klee::SliceOperator;
+using klee::TransformableGeometryProperties;
+using klee::Translation;
+using primal::Point3D;
 using primal::Vector3D;
+using test::AlmostEqPoint;
 using test::AlmostEqVector;
 using ::testing::Contains;
 using ::testing::HasSubstr;
 using ::testing::Truly;
 
+namespace
+{
 ShapeSet readShapeSetFromString(const std::string &input)
 {
   std::istringstream istream(input);
-  return readShapeSet(istream);
+  return klee::readShapeSet(istream);
 }
+}  // end namespace
 
 TEST(IOTest, readShapeSet_noShapes)
 {
@@ -270,7 +285,7 @@ TEST(IOTest, readShapeSet_file)
   fout << fileContents;
   fout.close();
 
-  auto shapeSet = readShapeSet(fileName);
+  auto shapeSet = klee::readShapeSet(fileName);
   EXPECT_EQ(1u, shapeSet.getShapes().size());
   EXPECT_EQ("testFile.yaml", shapeSet.getPath());
 }
@@ -335,6 +350,38 @@ TEST(IOTest, readShapeSet_geometryOperators)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
   EXPECT_EQ(LengthUnit::m, translation->getEndProperties().units);
   EXPECT_EQ(shapeSet.getDimensions(), translation->getEndProperties().dimensions);
+}
+
+TEST(IOTest, readShapeSet_geometryOperators_scaleWithCenter)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+      dimensions: 2
+      shapes:
+        - name: wheel
+          material: steel
+          geometry:
+            format: test_format
+            path: path/to/file.format
+            units: m
+            operators:
+              - scale: [1.5, 2.5]
+                center: [10, 20]
+    )");
+  auto &shapes = shapeSet.getShapes();
+  ASSERT_EQ(1u, shapes.size());
+  auto &geometryOperator = shapes[0].getGeometry().getGeometryOperator();
+  ASSERT_TRUE(geometryOperator);
+
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+
+  auto scale = dynamic_cast<const Scale *>(composite->getOperators()[0].get());
+  ASSERT_NE(scale, nullptr);
+  EXPECT_DOUBLE_EQ(1.5, scale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.5, scale->getYFactor());
+  EXPECT_DOUBLE_EQ(1.0, scale->getZFactor());
+  EXPECT_THAT(scale->getCenter(), AlmostEqPoint(Point3D {10, 20, 0}));
 }
 
 TEST(IOTest, readShapeSet_geometryOperatorsWithoutUnits)
@@ -651,10 +698,6 @@ TEST(IOTest, readShapeSet_namedGeometryOperators)
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
-
-}  // namespace
-}  // namespace klee
-}  // namespace axom
 
 int main(int argc, char *argv[])
 {

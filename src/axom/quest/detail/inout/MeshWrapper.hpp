@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file MeshWrapper.hpp
  *
  * \brief Defines a templated mesh wrapper class for the InOutOctree.
  */
-
-#ifndef AXOM_QUEST_INOUT_OCTREE_MESH_WRAPPER__HPP_
-#define AXOM_QUEST_INOUT_OCTREE_MESH_WRAPPER__HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -119,14 +119,8 @@ public:
   /** Accessor for the number of elements in the wrapped surface mesh */
   int numMeshCells() const
   {
-    if(m_meshWasReindexed)
-    {
-      return m_elementSet.size();
-    }
-    else
-    {
-      return m_surfaceMesh->getNumberOfCells();
-    }
+    return m_meshWasReindexed ? static_cast<int>(m_elementSet.size())
+                              : static_cast<int>(m_surfaceMesh->getNumberOfCells());
   }
 
   /**
@@ -597,5 +591,3 @@ public:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_OCTREE_MESH_WRAPPER__HPP_

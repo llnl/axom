@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -115,6 +116,39 @@ TEST(sidre_buffer, alloc_buffer_for_int_array)
   dbuff->deallocate();
 
   delete ds;
+}
+
+//------------------------------------------------------------------------------
+// Regression test (companion to https://github.com/LLNL/axom/issues/1695):
+// Buffer::getData() and Buffer::getVoidPtr() must be callable on a const Buffer,
+// e.g. one obtained through View::getBuffer() const.
+TEST(sidre_buffer, const_get_data)
+{
+  DataStore ds;
+
+  Buffer* dbuff = ds.createBuffer();
+  dbuff->allocate(INT_ID, 10);
+
+  int* data_ptr = dbuff->getData();
+  for(int i = 0; i < 10; i++)
+  {
+    data_ptr[i] = i * i;
+  }
+
+  // Access through a const reference
+  const Buffer& constBuff = *dbuff;
+
+  void* vptr = constBuff.getVoidPtr();
+  EXPECT_EQ(data_ptr, static_cast<int*>(vptr));
+
+  int* const_access = constBuff.getData();
+  ASSERT_NE(nullptr, const_access);
+  for(int i = 0; i < 10; i++)
+  {
+    EXPECT_EQ(i * i, const_access[i]);
+  }
+
+  dbuff->deallocate();
 }
 
 //------------------------------------------------------------------------------

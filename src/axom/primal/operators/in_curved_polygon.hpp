@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file in_curved_polygon.hpp
@@ -11,9 +14,6 @@
  *
  * Uses an adaptive winding number calculation
  */
-
-#ifndef AXOM_PRIMAL_IN_CURVED_POLYGON_HPP_
-#define AXOM_PRIMAL_IN_CURVED_POLYGON_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
@@ -31,6 +31,7 @@ namespace primal
 /*!
  * \brief Robustly determine if query point is interior to a curved polygon
  *
+ * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] query The query point to test
  * \param [in] cpoly The CurvedPolygon object to test for containment
  * \param [in] edge_tol The physical distance level at which objects are 
@@ -46,9 +47,9 @@ namespace primal
  *
  * \return A boolean value indicating containment.
  */
-template <typename T>
+template <typename T, typename CurveType>
 bool in_curved_polygon(const Point<T, 2>& query,
-                       const CurvedPolygon<T, 2>& cpoly,
+                       const CurvedPolygon<CurveType>& cpoly,
                        bool useNonzeroRule = true,
                        double edge_tol = 1e-8,
                        double EPS = 1e-8)
@@ -59,5 +60,3 @@ bool in_curved_polygon(const Point<T, 2>& query,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_CURVED_POLYGON_H_

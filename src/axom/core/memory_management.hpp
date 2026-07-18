@@ -1,13 +1,13 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MEMORYMANAGEMENT_HPP_
-#define AXOM_MEMORYMANAGEMENT_HPP_
+#pragma once
 
 // Axom includes
-#include "axom/config.hpp"  // for AXOM compile-time definitions
+#include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -19,18 +19,84 @@
   #include "umpire/resource/MemoryResourceTypes.hpp"
   #include "umpire/strategy/QuickPool.hpp"
 #else
-  #include <cstring>  // for std::memcpy
-  #include <cstdlib>  // for std::malloc, std::realloc, std::free
+  #include <cstring>
+  #include <cstdlib>
 #endif
 
+#include <cstddef>
+#include <cstdlib>
 #include <iostream>
+#include <mutex>
+#include <string>
 #include <type_traits>
 
 namespace axom
 {
+#ifdef AXOM_USE_UMPIRE
+namespace detail
+{
+/*!
+ * \brief Cache for Umpire data used in axom::copy.
+ */
+struct UmpireCopyContext
+{
+  umpire::strategy::AllocationStrategy* hostStrategy {nullptr};
+  umpire::op::MemoryOperationRegistry* operationRegistry {nullptr};
+};
+
+/*!
+ * \brief Gets a reference to an UmpireCopyContext object, initializing it on demand.
+ *        The static UmpireCopyContext is initialized via std::call_once so multiple
+ *        threads can call this function and only initialize the object once.
+ *
+ * \return A reference to the cached UmpireCopyContext.
+ */
+inline const UmpireCopyContext& getUmpireCopyContext() noexcept
+{
+  static std::once_flag once;
+  static UmpireCopyContext context {};
+
+  // Resolve Umpire's fallback HOST path once so the first threaded axom::copy()
+  // cannot race through lazy resource creation.
+  std::call_once(once, []() {
+    auto& rm = umpire::ResourceManager::getInstance();
+    context.hostStrategy = rm.getAllocator("HOST").getAllocationStrategy();
+    context.operationRegistry = &umpire::op::MemoryOperationRegistry::getInstance();
+  });
+
+  return context;
+}
+}  // namespace detail
+#endif
+
 // To co-exist with Umpire allocator ids, use negative values here.
 constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no/unknown allocator
 constexpr int MALLOC_ALLOCATOR_ID = -3;   //!< Refers to MemorySpace::Malloc
+
+/*!
+ * \brief Returns whether \a allocatorId is a valid Axom allocator id.
+ *
+ * \note When built without Umpire, the only valid allocator id is
+ *       \c axom::MALLOC_ALLOCATOR_ID.
+ */
+inline bool isValidAllocatorID(int allocatorId) noexcept
+{
+  if(allocatorId == INVALID_ALLOCATOR_ID)
+  {
+    return false;
+  }
+
+#if defined(AXOM_USE_UMPIRE)
+  if(allocatorId == MALLOC_ALLOCATOR_ID)
+  {
+    return true;
+  }
+
+  return umpire::ResourceManager::getInstance().isAllocator(allocatorId);
+#else
+  return allocatorId == MALLOC_ALLOCATOR_ID;
+#endif
+}
 
 // _memory_space_start
 /*!
@@ -145,6 +211,33 @@ inline int getAllocatorIDFromPointer(const void* ptr)
 }
 
 /*!
+ * \brief Determines whether an allocator id is for shared memory.
+ *
+ * \param allocID An allocator id.
+ *
+ * \return True if the allocator id is for shared memory; false otherwise.
+ */
+bool isSharedMemoryAllocator(int allocID);
+
+/*!
+ * \brief Get the allocator ID for Axom's shared memory allocator.
+ *
+ * \param [in] minSegmentSize Minimum desired shared-memory segment size in bytes (0 to use defaults).
+ *             This value is treated as a minimum; the implementation will use the maximum
+ *             of this value and Umpire's default shared-memory segment size when creating the allocator.
+ *             This minimum is applied when creating the allocator and is ignored if the allocator
+ *             already exists (except for validation).
+ *
+ * \note The shared-memory segment size cannot be increased after creation. If the allocator already
+ * exists and \a minSegmentSize is larger than its existing segment size, this function aborts with
+ * an explanatory message.
+ *
+ * \return The allocator ID for Axom's shared memory allocator (if Axom is built with Umpire shared memory support),
+ *         or INVALID_ALLOCATOR_ID otherwise.
+ */
+int getSharedMemoryAllocatorID(std::size_t minSegmentSize = 0);
+
+/*!
  * \brief Allocates a chunk of memory of type T.
  *
  * \param [in] n the number of elements to allocate.
@@ -161,6 +254,20 @@ inline int getAllocatorIDFromPointer(const void* ptr)
  */
 template <typename T>
 inline T* allocate(std::size_t n, int allocID = getDefaultAllocatorID()) noexcept;
+
+/*!
+ * \brief Allocates a chunk of memory of type T with a user-supplied allocation name.
+ *
+ * \param [in] n the number of elements to allocate.
+ * \param [in] name allocation name (must be non-empty for shared memory allocators)
+ * \param [in] allocID the Umpire allocator to use (optional)
+ *
+ * \return pointer to the new allocation or a nullptr if allocation failed.
+ */
+template <typename T>
+inline T* allocate(std::size_t n,
+                   const std::string& name,
+                   int allocID = getDefaultAllocatorID()) noexcept;
 
 /*!
  * \brief Frees the chunk of memory pointed to by the supplied pointer, p.
@@ -237,6 +344,9 @@ public:
   /// \brief Returns the allocator ID.
   int getID() const { return m_id; }
 
+  /// \brief Returns the MemorySpace type for the given allocator.
+  MemorySpace getSpace() const;
+
 private:
   int m_id;
 };
@@ -251,8 +361,7 @@ inline T* allocate(std::size_t n, int allocID) noexcept
   const std::size_t numbytes = n * sizeof(T);
 
 #ifdef AXOM_USE_UMPIRE
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.isAllocator(allocID))
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
     return static_cast<T*>(allocator.allocate(numbytes));
@@ -261,6 +370,32 @@ inline T* allocate(std::size_t n, int allocID) noexcept
 
   if(allocID == MALLOC_ALLOCATOR_ID)
   {
+    return static_cast<T*>(std::malloc(numbytes));
+  }
+
+  std::cerr << "Unrecognized allocator id " << allocID << std::endl;
+  axom::utilities::processAbort();
+
+  return nullptr;  // Silence warning.
+}
+
+template <typename T>
+inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
+{
+  const std::size_t numbytes = n * sizeof(T);
+
+#ifdef AXOM_USE_UMPIRE
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
+  {
+    umpire::Allocator allocator = rm.getAllocator(allocID);
+    return name.empty() ? static_cast<T*>(allocator.allocate(numbytes))
+                        : static_cast<T*>(allocator.allocate(name, numbytes));
+  }
+#endif
+
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    AXOM_UNUSED_VAR(name);
     return static_cast<T*>(std::malloc(numbytes));
   }
 
@@ -364,11 +499,11 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 {
 #ifdef AXOM_USE_UMPIRE
+  const auto& copyContext = detail::getUmpireCopyContext();
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  umpire::op::MemoryOperationRegistry& op_registry =
-    umpire::op::MemoryOperationRegistry::getInstance();
+  umpire::op::MemoryOperationRegistry& op_registry = *copyContext.operationRegistry;
 
-  auto dstStrategy = rm.getAllocator("HOST").getAllocationStrategy();
+  auto dstStrategy = copyContext.hostStrategy;
   auto srcStrategy = dstStrategy;
 
   using AllocationRecord = umpire::util::AllocationRecord;
@@ -553,6 +688,6 @@ inline bool isDeviceAllocator(int allocator_id)
 inline bool isDeviceAllocator(int AXOM_UNUSED_PARAM(allocator_id)) { return false; }
 #endif
 
-}  // namespace axom
+inline MemorySpace Allocator::getSpace() const { return axom::detail::getAllocatorSpace(m_id); }
 
-#endif /* AXOM_MEMORYMANAGEMENT_HPP_ */
+}  // namespace axom

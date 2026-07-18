@@ -1,14 +1,17 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
-#define AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/PrimalAdaptor.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -41,7 +44,28 @@ public:
   MakeZoneVolumes(const TopologyView &topologyView, const CoordsetView &coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Create a new field from the input topology and place it in \a n_output.
@@ -55,9 +79,9 @@ public:
                const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                conduit::Node &n_outputField) const
   {
-    // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
     namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Determine output size.
     const auto outputSize = m_topologyView.numberOfZones();
@@ -67,7 +91,7 @@ public:
     n_outputField["association"] = "element";
     n_outputField["topology"] = n_topology.name();
     conduit::Node &n_values = n_outputField["values"];
-    n_values.set_allocator(c2a.getConduitAllocatorID());
+    n_values.set_allocator(conduitAllocatorId);
     n_values.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
     auto valuesView = utils::make_array_view<value_type>(n_values);
 
@@ -91,9 +115,8 @@ public:
 private:
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

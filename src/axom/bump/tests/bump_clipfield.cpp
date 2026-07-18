@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -15,6 +16,7 @@
 #include <cstdlib>
 
 namespace bump = axom::bump;
+namespace views = axom::bump::views;
 namespace utils = axom::bump::utilities;
 
 std::string baselineDirectory()
@@ -32,14 +34,14 @@ TEST(bump_clipfield, options)
   int nzones = 6;
 
   conduit::Node options;
-  axom::bump::clipping::ClipOptions opts(options);
+  axom::bump::extraction::FieldOptions opts(options);
 
-  options["clipField"] = "distance";
-  EXPECT_EQ(opts.clipField(), options["clipField"].as_string());
+  options["field"] = "distance";
+  EXPECT_EQ(opts.field(), options["field"].as_string());
 
-  EXPECT_EQ(opts.clipValue(), 0.);
-  options["clipValue"] = 2.5f;
-  EXPECT_EQ(opts.clipValue(), 2.5f);
+  EXPECT_EQ(opts.value(), 0.);
+  options["value"] = 2.5f;
+  EXPECT_EQ(opts.value(), 2.5f);
 
   EXPECT_EQ(opts.topologyName("default"), "default");
   options["topologyName"] = "topo";
@@ -211,7 +213,7 @@ TEST(bump_clipfield, blend_group_builder)
 
   using NamingPolicyView = typename axom::bump::HashNaming<axom::IndexType>::View;
 
-  axom::bump::clipping::BlendGroupBuilder<seq_exec, NamingPolicyView> builder;
+  axom::bump::extraction::BlendGroupBuilder<seq_exec, NamingPolicyView> builder;
   builder.setBlendGroupSizes(blendGroups.view(), blendGroupsLen.view());
   builder.setBlendGroupOffsets(blendOffsets.view(), blendGroupOffsets.view());
   builder.setBlendViews(blendNames.view(),
@@ -439,9 +441,10 @@ void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh, options;
-  axom::bump::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
-  options["clipField"] = "distance";
-  options["clipValue"] = 0.;
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
+  options["field"] = "distance";
+  options["value"] = 0.;
   options["inside"] = 1;
   options["outside"] = 1;
   clipper.execute(deviceMesh, options, deviceClipMesh);
@@ -450,6 +453,8 @@ void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
   // Copy device->host
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -526,7 +531,7 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   // Create options to control the clipping.
   const std::string clipTopoName("cliptopo");
   conduit::Node options;
-  options["clipField"] = "distance";
+  options["field"] = "distance";
   options["inside"] = 1;
   options["outside"] = 1;
   options["topologyName"] = clipTopoName;
@@ -536,12 +541,15 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -558,39 +566,34 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   const auto connView =
     utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/connectivity"));
 
-  options["clipField"] = "new_braid";
-  options["clipValue"] = 1.;
+  options["field"] = "new_braid";
+  options["value"] = 1.;
   options["fields"].reset();
   options["fields/new_braid"] = "new_braid2";
   options["fields/color"] = "new_color";
   options["fields/new_radial"] = "new_radial2";
 
-  conduit::Node deviceClipMixedMesh;
-  if(n_device_topo.has_path("elements/shape") &&
-     n_device_topo.fetch_existing("elements/shape").as_string() == "mixed")
+  const auto shape = n_device_topo.fetch_existing("elements/shape").as_string();
+
+  conduit::Node deviceClipMesh2;
+  if(shape == "polygonal")
   {
-    auto shapesView =
-      utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/shapes"));
     const auto sizesView =
       utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/sizes"));
     const auto offsetsView =
       utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/offsets"));
 
-    // Make the shape map.
-    volatile int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    axom::Array<axom::IndexType> values, ids;
-    auto shapeMap = axom::bump::views::buildShapeMap(n_device_topo, values, ids, allocatorID);
-
-    using MixedTopoView = axom::bump::views::UnstructuredTopologyMixedShapeView<axom::IndexType>;
-    MixedTopoView mixedTopoView(connView, shapesView, sizesView, offsetsView, shapeMap);
+    using PolyTopoView =
+      views::UnstructuredTopologySingleShapeView<views::PolygonShape<axom::IndexType>>;
+    PolyTopoView polyTopoView(connView, sizesView, offsetsView);
 
     // Clip the data
-    axom::bump::clipping::ClipField<ExecSpace, MixedTopoView, ExpCoordsetView> mixedClipper(
-      mixedTopoView,
+    axom::bump::extraction::ClipField<ExecSpace, PolyTopoView, ExpCoordsetView> polyClipper(
+      polyTopoView,
       expCoordsetView);
-    mixedClipper.execute(deviceClipMesh, options, deviceClipMixedMesh);
+    polyClipper.execute(deviceClipMesh, options, deviceClipMesh2);
   }
-  else
+  else if(shape == "quad")
   {
     // Depending on optimizations, we might get a mesh with just quads.
     using QuadTopoView =
@@ -598,18 +601,25 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
     QuadTopoView quadTopoView(connView);
 
     // Clip the data
-    axom::bump::clipping::ClipField<ExecSpace, QuadTopoView, ExpCoordsetView> quadClipper(
+    axom::bump::extraction::ClipField<ExecSpace, QuadTopoView, ExpCoordsetView> quadClipper(
       quadTopoView,
       expCoordsetView);
-    quadClipper.execute(deviceClipMesh, options, deviceClipMixedMesh);
+    quadClipper.execute(deviceClipMesh, options, deviceClipMesh2);
+  }
+  else
+  {
+    std::cout << "The test got an unexpected shape " << shape << std::endl;
+    FAIL();
   }
 
   // Copy device->host
-  conduit::Node hostClipMixedMesh;
-  utils::copy<seq_exec>(hostClipMixedMesh, deviceClipMixedMesh);
+  conduit::Node hostClipMesh2;
+  utils::copy<seq_exec>(hostClipMesh2, deviceClipMesh2);
+
+  TestApp.saveVisualization(name + "_clip2", hostClipMesh2);
 
   // Handle baseline comparison.
-  EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_mixed", hostClipMixedMesh));
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_clip2", hostClipMesh2));
 }
 
 TEST(bump_clipfield, uniform2d)
@@ -659,18 +669,21 @@ void braid_rectilinear_clip_test(const std::string &name)
 
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "distance";
+  options["field"] = "distance";
   options["inside"] = 1;
   options["outside"] = 1;
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -735,11 +748,14 @@ void strided_structured_clip_test(const std::string &name, const conduit::Node &
   using TopoView = decltype(topoView);
 
   // Clip the data
-  axom::bump::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, deviceOptions, deviceClipMesh);
 
   // device->host
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -766,8 +782,8 @@ TEST(bump_clipfield, strided_structured_2d)
 {
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "vert_vals";
-  options["clipValue"] = 6.5;
+  options["field"] = "vert_vals";
+  options["value"] = 6.5;
   options["inside"] = 1;
   options["outside"] = 1;
   strided_structured_clip_test_exec("strided_structured_2d", options);
@@ -810,18 +826,21 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
 
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "distance";
+  options["field"] = "distance";
   options["inside"] = 1;
   options["outside"] = 0;
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -918,19 +937,22 @@ void braid3d_mixed_clip_test(const std::string &name)
 
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "distance";
-  options["clipValue"] = 12.f;
+  options["field"] = "distance";
+  options["value"] = 12.f;
   options["inside"] = 1;
   options["outside"] = 0;
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -984,6 +1006,7 @@ struct point_merge_test
   {
     conduit::Node hostMesh;
     create(hostMesh);
+    TestApp.saveVisualization("pointmerge_orig", hostMesh);
 
     // host->device
     conduit::Node deviceMesh;
@@ -1002,9 +1025,9 @@ struct point_merge_test
 
     // Clip
     conduit::Node options, deviceClipMesh;
-    options["clipField"] = "clip";
-    options["clipValue"] = 0.5;
-    using Clip = axom::bump::clipping::ClipField<ExecSpace, TopologyView, CoordsetView>;
+    options["field"] = "clip";
+    options["value"] = 0.5;
+    using Clip = axom::bump::extraction::ClipField<ExecSpace, TopologyView, CoordsetView>;
     Clip clip(topologyView, coordsetView);
     clip.execute(deviceMesh, options, deviceClipMesh);
 
@@ -1012,6 +1035,8 @@ struct point_merge_test
     conduit::Node hostClipMesh;
     utils::copy<axom::SEQ_EXEC>(hostClipMesh, deviceClipMesh);
     //printNode(hostClipMesh);
+
+    TestApp.saveVisualization("pointmerge", hostClipMesh);
 
     // Check that the points were merged when making the new mesh.
     std::vector<float> x {{2.0, 2.0, 0.0, 1.0, 2.0, 1.5, 1.0}};
@@ -1024,11 +1049,10 @@ struct point_merge_test
       EXPECT_FLOAT_EQ(hostClipMesh["coordsets/coords/values/y"].as_float_accessor()[i], y[i]);
     }
 
-    // Check that the degenerate quads were turned into triangles.
-    std::vector<int> shapes {{2, 2, 3, 2}};
-    std::vector<int> sizes {{3, 3, 4, 3}};
-    std::vector<int> offsets {{0, 4, 8, 12}};
-    compare_values(shapes, hostClipMesh["topologies/mesh/elements/shapes"].as_int_accessor());
+    // Check that we git tris and a pentagon.
+    EXPECT_EQ(hostClipMesh["topologies/mesh/elements/shape"].as_string(), "polygonal");
+    std::vector<int> sizes {{3, 3, 5}};
+    std::vector<int> offsets {{0, 4, 8}};
     compare_values(sizes, hostClipMesh["topologies/mesh/elements/sizes"].as_int_accessor());
     compare_values(offsets, hostClipMesh["topologies/mesh/elements/offsets"].as_int_accessor());
   }
@@ -1072,18 +1096,20 @@ struct test_selectedzones
     hostOptions["selectedZones"].set(std::vector<axom::IndexType> {{1, 3, 4, 5, 7}});
     hostOptions["inside"] = 1;
     hostOptions["outside"] = 1;
-    hostOptions["clipField"] = "zero";
+    hostOptions["field"] = "zero";
 
     conduit::Node deviceOptions, deviceResult;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
 
-    axom::bump::clipping::ClipField<ExecSpace, TopologyView, CoordsetView> clip(topologyView,
-                                                                                coordsetView);
+    axom::bump::extraction::ClipField<ExecSpace, TopologyView, CoordsetView> clip(topologyView,
+                                                                                  coordsetView);
     clip.execute(deviceMesh, deviceOptions, deviceResult);
 
     // device->host
     conduit::Node hostResult;
     utils::copy<seq_exec>(hostResult, deviceResult);
+
+    TestApp.saveVisualization("selectedzones1", hostResult);
 
     // Handle baseline comparison.
     EXPECT_TRUE(TestApp.test<ExecSpace>("selectedzones1", hostResult));
@@ -1091,14 +1117,16 @@ struct test_selectedzones
     //---------------------
     // Try a different clip
     hostOptions["outside"] = 0;
-    hostOptions["clipField"] = "radial";
-    hostOptions["clipValue"] = 3.2;
+    hostOptions["field"] = "radial";
+    hostOptions["value"] = 3.2;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
     deviceResult.reset();
     clip.execute(deviceMesh, deviceOptions, deviceResult);
 
     // device->host
     utils::copy<seq_exec>(hostResult, deviceResult);
+
+    TestApp.saveVisualization("selectedzones2", hostResult);
 
     EXPECT_TRUE(TestApp.test<ExecSpace>("selectedzones2", hostResult));
   }

@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_POLICY_UGRID_STORAGE_HPP
-#define AXOM_SPIN_POLICY_UGRID_STORAGE_HPP
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/execution/for_all.hpp"
@@ -278,4 +278,3 @@ struct FlatGridView
 }  // namespace policy
 }  // namespace spin
 }  // namespace axom
-#endif  // AXOM_SPIN_POLICY_UGRID_STORAGE_HPP

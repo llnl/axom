@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -340,10 +341,8 @@ axom::Array<IndexPair> naiveFindIntersections(const TriangleMesh& triMesh,
   RAJA::RangeSegment col_range(0, validCount);
 
   using KERNEL_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-  using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
-  RAJA::ReduceSum<REDUCE_POL, int> numIntersect(0);
+  axom::ReduceSum<ExecSpace, int> numIntersect(0);
 
   // Compute the number of intersections
   timer.start();
@@ -376,7 +375,7 @@ axom::Array<IndexPair> naiveFindIntersections(const TriangleMesh& triMesh,
     counter_d.fill(0);
     auto* counter_p = counter_d.data();
 
-    // RAJA loop to populate array with intersections
+    // populate array with intersections
     timer.start();
     auto intersections_v = intersections_d.view();
     RAJA::kernel<KERNEL_POL>(
@@ -384,7 +383,7 @@ axom::Array<IndexPair> naiveFindIntersections(const TriangleMesh& triMesh,
       AXOM_LAMBDA(int col, int row) {
         if(row < col && trianglesIntersect(valid_v[row], valid_v[col]))
         {
-          const auto idx = RAJA::atomicAdd<ATOMIC_POL>(counter_p, 2);
+          const auto idx = axom::atomicAdd<axom::auto_atomic>(counter_p, axom::IndexType {2});
           intersections_v[idx + 0] = valid_v[row];
           intersections_v[idx + 1] = valid_v[col];
         }

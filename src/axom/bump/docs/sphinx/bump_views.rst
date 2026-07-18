@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level COPYRIGHT file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -21,7 +22,7 @@ Axom provides ``axom::ArrayView`` to wrap data in a non-owning data structure th
 kernels. The BUMP component provides the ``axom::bump::utilities::make_array_view()``
 function to help wrap arrays stored in ``conduit::Node`` to ``axom::ArrayView``. To use the
 ``make_array_view`` function, one must know the type held within the Conduit node. If that is
-not the case, then consider using one of the dispatch ''Node_to_ArrayView'' functions.
+not the case, then consider using one of the dispatch ''nodeToArrayView'' functions.
 
 .. code-block:: cpp
 
@@ -164,15 +165,23 @@ Matsets
 
 The BUMP component provides material views to wrap Blueprint matsets behind an interface that
 supports queries of the matset data without having to care much about its internal representation.
-Blueprint provides 4 flavors of matset, each with a different representation. The 
-``axom::bump::views::UnibufferMaterialView`` class wraps unibuffer matsets, which consist of
-several arrays that define materials for each zone in the associated topology. The view's
-methods allow algorithms to query the list of materials for each zone.
+Blueprint describes 3 flavors of matset, each with a different representation: unibuffer
+element-dominant, multibuffer element-dominant, and multibuffer material-dominant. The
+``axom::bump::views::UnibufferMaterialView`` class wraps unibuffer element-dominant matsets,
+which consist of several arrays that define materials for each zone in the associated topology.
+The view's methods allow algorithms to query the list of materials for each zone.
 
 .. literalinclude:: ../../tests/bump_views.cpp
    :start-after: _bump_views_matsetview_begin
    :end-before: _bump_views_matsetview_end
    :language: C++
+
+Mixed (or material-dependent) fields are supported using `axom::bump::views::MixedFieldView`.
+Mixed field data are arranged in the same manner as their related matset, leading to
+multiple representations. This class is used in conjunction with a material view with the material
+view providing the iterators that are used for traversal and the mixed field view for accessing
+the field values.  The ``axom::bump::views::dispatch_material_field()`` function can be
+used to simplify creating mixed field views.
 
 ----------
 Dispatch
@@ -192,7 +201,7 @@ Blueprint data can readily be wrapped in ``axom::ArrayView`` using the ``axom::b
 function. There are dispatch functions for ``conduit::Node`` data arrays that automate the
 wrapping to ``axom::ArrayView`` and passing the views to a user-supplied lambda.
 
-To generically wrap any type of datatype supported by Conduit, the ``axom::bump::views::Node_to_ArrayView()``
+To generically wrap any type of datatype supported by Conduit, the ``axom::bump::views::nodeToArrayView()``
 function can be used. This template function takes a variable number of ``conduit::Node``
 arguments and a generic lambda function that accepts the view arguments. The lambda gets
 instantiated for every supported Conduit data type.
@@ -200,22 +209,22 @@ instantiated for every supported Conduit data type.
 .. code-block:: cpp
 
     conduit::Node n; // Assume it contains data values
-    axom::bump::views::Node_to_ArrayView(n["foo"], n["bar"], [&](auto fooView, auto barView)
+    axom::bump::views::nodeToArrayView(n["foo"], n["bar"], [&](auto fooView, auto barView)
     {
       // Use fooView and barView axom::ArrayView objects to access data.
       // They can have different types.
     });
 
-Using ``axom::bump::views::Node_to_ArrayView`` with multiple data values can instantiate
+Using ``axom::bump::views::nodeToArrayView`` with multiple data values can instantiate
 the supplied lambda many times so be careful. It is more common when wrapping multiple
-nodes that they are the same type. The ``axom::bump::views::Node_to_ArrayView_same`` function
+nodes that they are the same type. The ``axom::bump::views::nodeToArrayViewSame`` function
 ensures that the lambdas get instantiated with views that wrap the Conduit  nodes in
 array views that of the same type.
 
 .. code-block:: cpp
 
     conduit::Node n; // Assume it contains data values
-    axom::bump::views::Node_to_ArrayView_same(n["foo"], n["bar"], [&](auto fooView, auto barView)
+    axom::bump::views::nodeToArrayViewSame(n["foo"], n["bar"], [&](auto fooView, auto barView)
     {
       // Use fooView and barView axom::ArrayView objects to access data.
       // They have the same types.
@@ -225,10 +234,10 @@ When dealing with mesh data structures, it is common to have data that are using
 types or only floating-point types. Axom provides functions that limit the lambda instantiation
 to only those selected types using the following functions:
 
- * ``axom::bump::views::IndexNode_to_ArrayView()``
- * ``axom::bump::views::IndexNode_to_ArrayView_same()``
- * ``axom::bump::views::FloatNode_to_ArrayView()``
- * ``axom::bump::views::FloatNode_to_ArrayView_same()``
+ * ``axom::bump::views::indexNodeToArrayView()``
+ * ``axom::bump::views::indexNodeToArrayViewSame()``
+ * ``axom::bump::views::floatNodeToArrayView()``
+ * ``axom::bump::views::floatNodeToArrayViewSame()``
 
 The "Index" functions limit lambda instantiation to common index types signed/unsigned 32/64-bit
 integers. The "Float" functions instantiate lambdas with float32 and float64 types.

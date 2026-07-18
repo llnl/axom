@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -821,7 +822,7 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     BezierPatchType patch(controlPoints, weights, order_u, order_v);
 
     patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
-    patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
+    patch.evaluateLinearDerivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluateSecondDerivatives(u,
                                     v,
                                     batch3_val,
@@ -854,7 +855,7 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     patch.swapAxes();
 
     patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
-    patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
+    patch.evaluateLinearDerivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluateSecondDerivatives(u,
                                     v,
                                     batch3_val,

@@ -1,9 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_COORDSET_BLENDER_HPP_
-#define AXOM_BUMP_COORDSET_BLENDER_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
@@ -12,6 +13,7 @@
 #include "axom/bump/BlendData.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/slic.hpp"
 
 #include <conduit/conduit.hpp>
@@ -52,7 +54,8 @@ public:
   void execute(const BlendData &blend,
                const CoordsetViewType &view,
                const conduit::Node &n_input,
-               conduit::Node &n_output) const
+               conduit::Node &n_output,
+               int allocator_id = axom::execution_space<ExecSpace>::allocatorID()) const
   {
     using value_type = typename CoordsetViewType::value_type;
     using PointType = typename CoordsetViewType::PointType;
@@ -66,8 +69,7 @@ public:
     const auto nComponents = axes.size();
     SLIC_ASSERT(PointType::DIMENSION == nComponents);
 
-    // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
 
     n_output.reset();
     n_output["type"] = "explicit";
@@ -84,7 +86,7 @@ public:
     {
       // Allocate data in the Conduit node and make a view.
       conduit::Node &comp = n_values[axes[i]];
-      comp.set_allocator(c2a.getConduitAllocatorID());
+      comp.set_allocator(conduitAllocatorId);
       comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = utils::make_array_view<value_type>(comp);
     }
@@ -145,5 +147,3 @@ public:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

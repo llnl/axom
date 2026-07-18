@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file multimat.hpp
@@ -9,9 +12,6 @@
  * \brief Contains the MultiMat library header and its template implementation
  *
  */
-#ifndef MULTIMAT_H_
-#define MULTIMAT_H_
-
 #include "axom/slam.hpp"
 
 #include <vector>
@@ -283,7 +283,7 @@ public:
 
   //functions related to fields
 
-  int getNumberOfFields() const { return m_fieldNameVec.size(); }
+  int getNumberOfFields() const { return static_cast<int>(m_fieldNameVec.size()); }
 
   /**
    * \brief Add a field to the MultiMat object
@@ -1278,5 +1278,3 @@ std::ostream& operator<<(std::ostream& os, DataTypeSupported type);
 }  //end namespace axom
 
 #include "axom/multimat/mmfield.hpp"
-
-#endif

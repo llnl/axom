@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 #include <memory>
 #include <utility>
@@ -10,9 +13,6 @@
 #include "axom/fmt.hpp"
 #include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/core/Path.hpp"
-
-#ifndef INLET_UTILS_HPP
-  #define INLET_UTILS_HPP
 
 namespace axom
 {
@@ -53,15 +53,15 @@ struct VerificationError
  * \param errs The list of errors, must be of type \p std::vector<VerificationError>*
  *****************************************************************************
  */
-  #define INLET_VERIFICATION_WARNING(path, msg, errs) \
-    if(errs)                                          \
-    {                                                 \
-      errs->push_back({axom::Path {path}, msg});      \
-    }                                                 \
-    else                                              \
-    {                                                 \
-      SLIC_WARNING(msg);                              \
-    }
+#define INLET_VERIFICATION_WARNING(path, msg, errs) \
+  if(errs)                                          \
+  {                                                 \
+    errs->push_back({axom::Path {path}, msg});      \
+  }                                                 \
+  else                                              \
+  {                                                 \
+    SLIC_WARNING(msg);                              \
+  }
 
 /*!
 *****************************************************************************
@@ -135,6 +135,7 @@ namespace detail
 const std::string COLLECTION_GROUP_NAME = "_inlet_collection";
 const std::string COLLECTION_INDICES_NAME = "_inlet_collection_indices";
 const std::string STRUCT_COLLECTION_FLAG = "_inlet_struct_collection";
+const std::string VARIANT_STRUCT_COLLECTION_FLAG = "_inlet_variant_struct_collection";
 const std::string REQUIRED_FLAG = "required";
 const std::string STRICT_FLAG = "strict";
 }  // namespace detail
@@ -189,5 +190,3 @@ ReaderResult collectionRetrievalResult(const bool contains_other_type,
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

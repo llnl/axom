@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_ADIAK_HPP
-#define SINA_ADIAK_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -65,5 +65,3 @@ void adiakSinaCallback(const char *name,
 }  // namespace axom
 
 #endif  // AXOM_USE_ADIAK
-
-#endif  // SINA_ADIAK_HPP

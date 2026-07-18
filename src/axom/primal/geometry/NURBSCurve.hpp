@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file NURBSCurve.hpp
  *
  * \brief A NURBS curve primitive
  */
-
-#ifndef AXOM_PRIMAL_NURBSCURVE_HPP_
-#define AXOM_PRIMAL_NURBSCURVE_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -25,6 +25,7 @@
 
 #include "axom/primal/operators/curvature.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
+#include "axom/primal/operators/is_convex.hpp"
 
 #include <vector>
 #include <ostream>
@@ -61,6 +62,7 @@ template <typename T, int NDIMS>
 class NURBSCurve
 {
 public:
+  using NumericType = T;
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
   using SegmentType = Segment<T, NDIMS>;
@@ -404,7 +406,7 @@ public:
     for(int idx = 0; idx < n_segments; ++idx)
     {
       T theta_start = theta_0 + pi23 * idx;
-      T theta_end = std::min(theta_start + pi23, theta_1);
+      T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
 
       arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
 
@@ -621,8 +623,14 @@ public:
    */
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
 
-  /// \brief Returns a copy of the NURBS curve's control points
-  CoordsVec getControlPoints() const { return m_controlPoints; }
+  const PointType& getInitPoint() const { return m_controlPoints[0]; }
+  const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
+
+  /// \brief Returns a reference to the NURBS curve's control points
+  CoordsVec& getControlPoints() { return m_controlPoints; }
+
+  /// \brief Returns a const reference to the NURBS curve's control points
+  const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -654,8 +662,11 @@ public:
     m_weights[idx] = weight;
   }
 
-  /// \brief Returns a copy of the NURBS curve's control points
-  WeightsVec getWeights() const { return m_weights; }
+  /// \brief Returns a reference to the NURBS curve's weights
+  WeightsVec& getWeights() { return m_weights; }
+
+  /// \brief Returns a const reference to the NURBS curve's weights
+  const WeightsVec& getWeights() const { return m_weights; }
 
   /// \brief Returns an axis-aligned bounding box containing the NURBS curve
   BoundingBoxType boundingBox() const
@@ -669,6 +680,56 @@ public:
     return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
+  /*!
+   * \brief Predicate to check if the NURBS curve is approximately linear
+   *
+   * This function checks if the interior control points of the NURBSCurve
+   * are approximately on the line segment defined by its two endpoints.
+   *
+   * \param [in] tol Threshold for squared distance
+   * \param [in] useStrictLinear If true, checks that the control points are
+   *   evenly spaced along the endpoint segment (in addition to being near the
+   *   segment). This is a stronger condition and may return false for curves
+   *   that are geometrically linear but have a non-uniform control-point
+   *   distribution along the segment.
+   * \return True if curve is near-linear
+   */
+  bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
+  {
+    const int npts = getNumControlPoints();
+    if(npts <= 2)
+    {
+      return true;
+    }
+
+    const int end_idx = npts - 1;
+    if(useStrictLinear)
+    {
+      for(int p = 1; p < end_idx; ++p)
+      {
+        if(const double t = p / static_cast<T>(end_idx);
+           squared_distance(m_controlPoints[p],
+                            PointType::lerp(m_controlPoints[0], m_controlPoints[end_idx], t)) > tol)
+        {
+          return false;
+        }
+      }
+    }
+    else
+    {
+      const SegmentType seg(m_controlPoints[0], m_controlPoints[end_idx]);
+      for(int p = 1; p < end_idx; ++p)
+      {
+        if(squared_distance(m_controlPoints[p], seg) > tol)
+        {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   ///@}
 
   ///@{
@@ -676,6 +737,8 @@ public:
 
   /// \brief Returns the number of knots in the NURBS Curve
   axom::IndexType getNumKnots() const { return m_knotvec.getNumKnots(); }
+
+  auto getNumKnotSpans() const { return m_knotvec.getNumKnotSpans(); }
 
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize() { m_knotvec.normalize(); }
@@ -728,17 +791,17 @@ public:
    */
   void setKnots(const KnotVectorType& knotVector) { m_knotvec = knotVector; }
 
-  /// \brief Return a copy of the knot vector
-  KnotVectorType getKnots() const { return m_knotvec; }
+  /// \brief Return a reference to the knot vector
+  KnotVectorType& getKnots() { return m_knotvec; }
 
-  /// \brief Return a copy of the knot vector as an array
-  axom::Array<T> getKnotsArray() const { return m_knotvec.getArray(); }
+  /// \brief Return a const reference to the knot vector
+  const KnotVectorType& getKnots() const { return m_knotvec; }
 
-  /// \brief Get minimum knot
-  T getMinKnot() const { return m_knotvec[0]; }
+  /// \brief Get minimum knot value
+  T getMinKnot() const { return m_knotvec.getMinKnot(); }
 
-  /// \brief Get maximum knot
-  T getMaxKnot() const { return m_knotvec[m_knotvec.getNumKnots() - 1]; }
+  /// \brief Get maximum knot value
+  T getMaxKnot() const { return m_knotvec.getMaxKnot(); }
 
   /// \brief Reverses the order of the NURBS curve's control points and weights
   void reverseOrientation()
@@ -797,7 +860,7 @@ public:
     const auto span = m_knotvec.findSpan(t, s);
 
     // Fix the maximum multiplicity of the knot
-    int r = std::min(target_multiplicity - s, p - s);
+    int r = axom::utilities::min(target_multiplicity - s, p - s);
     if(r <= 0)
     {
       return span;  // Early exit if no knots to add
@@ -1059,7 +1122,6 @@ public:
   void evaluateDerivatives(T t, int d, PointType& eval, axom::Array<VectorType>& ders) const
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    SLIC_ASSERT(d >= 1);
     t = axom::utilities::clampVal(t, getMinKnot(), getMaxKnot());
 
     const int p = m_knotvec.getDegree();
@@ -1067,20 +1129,15 @@ public:
 
     const bool isCurveRational = this->isRational();
 
-    int du = std::min(d, p);
+    int du = axom::utilities::min(d, p);
     const auto span = m_knotvec.findSpan(t);
-    const auto N_evals = m_knotvec.derivativeBasisFunctionsBySpan(span, t, du);
-std::cout << "dtdt(" << t << "): d=" << d << ", du=" << du << ", span=" << span << ", N_evals={";
-for(const auto &val : N_evals)
-{
-   std::cout << val << ", ";
-}
-std::cout << "}\n";
+    thread_local typename KnotVector<T>::DerivativeBasisWorkspace basis_workspace;
+    const auto N_evals = m_knotvec.derivativeBasisFunctionsBySpan(span, t, du, basis_workspace);
 
-    // Store w(u) in Awders[0][NDIMS], w'(u) in Awders[1][NDIMS], ...
+    // Store w(u) in Awders[NDIMS][0], w'(u) in Awders[NDIMS][1], ...
     axom::Array<Point<T, NDIMS + 1>> Awders(d + 1);
 
-    // Compute the homogeneous point and its d derivatives
+    // Compute the homogenous point and its d derivatives
     for(int k = 0; k <= du; k++)
     {
       Point<T, NDIMS + 1> Pw(0.0);
@@ -1104,75 +1161,29 @@ std::cout << "}\n";
     // and Awders[0][NDIMS] is w(u).
 
     // Zero out the points
-    for(int k = 0; k < d; k++)
+    for(int i = 0; i < NDIMS; ++i)
     {
-      for(int j = 0; j < NDIMS; ++j)
+      eval[i] = 0.0;
+      for(int k = 0; k < d; k++)
       {
-        ders[k][j] = 0.0;
+        ders[k][i] = 0.0;
       }
     }
 
     // Separate k = 0 case
-    const T w = Awders[0][NDIMS];
-    for(int j = 0; j < NDIMS; ++j)
+    Point<T, NDIMS + 1> v = Awders[0];
+    for(int i = 0; i < NDIMS; ++i)
     {
-      eval[j] = Awders[0][j] / w;
+      eval[i] = v[i] / Awders[0][NDIMS];
     }
 
     // Separate k = 1 case
+    v = Awders[1];
     for(int j = 0; j < NDIMS; ++j)
     {
-      // C'(t) = (A'(t) - w'(t) * C(t)) / w(t)
-      ders[0][j] = (Awders[1][j] - Awders[1][NDIMS] * eval[j]) / w;
+      ders[0][j] = (v[j] - Awders[1][NDIMS] * eval[j]) / Awders[0][NDIMS];
     }
 
-#if 1
-#pragma message "Got my newer version."
-    for(int k = 2; k <= d; k++)
-    {
-std::cout << "\tk=" << k << ", eval=" << eval << ", Awders[" << k << "]=" << Awders[k] << std::endl;
-      // Eq. 4.8 on page 125.
-      //
-      //                      k
-      //  (k)      (k)     ----         (i)   (k-i)
-      // C  (t) = A  (t) - \     ( k ) w  (t)C    (t)
-      //                   /     ( i )
-      //                   ----
-      //                    i=1
-      //         ------------------------------------
-      //                         w(t)
-      //
-      // (shown here for 2nd derivative)
-      // C''(t) = (A''(t) - 2w'(t)C'(t) - w''(t)C(t)) / w(t)
-      //
-      //
-      // w(t) = Awders[0][NDIMS]
-      // w'(t) = Awders[1][NDIMS]
-      // w''(t) = Awders[2][NDIMS]
-      // ...
-      // A(t) = Awders[0]
-      // A'(t) = Awders[1]
-      // A''(t) = Awders[2]
-      // ...
-      // C(t) = eval
-      // C'(t) = ders[0]
-      // C''(t) = ders[1]
-      // ...
-      auto Ck = VectorType(Awders[k].data(), NDIMS);
-      for(int i = 1; i <= k; i++)
-      {
-        const auto bin = axom::utilities::binomialCoefficient(k, i);
-        const auto k_i = k - i;
-        const auto wi = Awders[i][NDIMS];
-        for(int j = 0; j < NDIMS; ++j)
-        {
-          Ck[j] -= bin * wi * ders[k_i][j];
-        }
-      }
-std::cout << "\tk=" << k << ", v=" << v << std::endl;
-      ders[k - 1] = Ck / w;
-    }
-#else
     // Recursive formula for k >= 2
     for(int k = 2; k <= d; k++)
     {
@@ -1181,6 +1192,7 @@ std::cout << "\tk=" << k << ", v=" << v << std::endl;
       {
         v[j] = v[j] - Awders[k][NDIMS] * eval[j];
       }
+
       for(int i = 1; i < k; i++)
       {
         auto bin = axom::utilities::binomialCoefficient(k, i);
@@ -1195,8 +1207,8 @@ std::cout << "\tk=" << k << ", v=" << v << std::endl;
         ders[k - 1][j] = v[j] / Awders[0][NDIMS];
       }
     }
-#endif
   }
+
   ///@}
 
   ///@{
@@ -1288,6 +1300,19 @@ std::cout << "\tk=" << k << ", v=" << v << std::endl;
     }
 
     return true;
+  }
+
+  /*!
+   * \brief Splits a NURBS curve into two curves at the middle parameter value
+   *
+   * \param [out] n1 First output NURBS curve
+   * \param [out] n2 Second output NURBS curve
+   * \param [in] normalizeParameters Whether to normalize the output curves
+   */
+  void bisect(NURBSCurve<T, NDIMS>& n1, NURBSCurve<T, NDIMS>& n2, bool normalizeParameters = false) const
+  {
+    auto mid_t = 0.5 * (getMinKnot() + getMaxKnot());
+    split(mid_t, n1, n2, normalizeParameters);
   }
 
   /*!
@@ -1433,7 +1458,7 @@ std::cout << "\tk=" << k << ", v=" << v << std::endl;
    *  
    * \param t The parameter value. 
    * 
-   * \return The curvature value at u. 
+   * \return The curvature value at t. 
    */ 
   double curvature(T t) const 
   { 
@@ -1457,7 +1482,7 @@ std::cout << "\tk=" << k << ", v=" << v << std::endl;
     SLIC_ASSERT(d == 1 || d == 2);
     PointType eval;
     axom::Array<VectorType> curveDers;
-    // Evaluate d+1 curve derivatives at u. 
+    // Evaluate d+1 curve derivatives at t. 
     evaluateDerivatives(t, 3, eval, curveDers);
     axom::primal::curvatureDerivatives(d, curveDers, ders);
   }
@@ -1551,5 +1576,3 @@ std::ostream& operator<<(std::ostream& os, const NURBSCurve<T, NDIMS>& nCurve)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::NURBSCurve<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_NURBSCURVE_HPP_

@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file CellGenerator.hpp
@@ -9,9 +12,6 @@
  * \brief Contains the specification for the CellGenerator class.
  * 
  */
-
-#ifndef __CELL_GENERATOR_H__
-#define __CELL_GENERATOR_H__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -124,5 +124,3 @@ public:
 
 }  // namespace mir
 }  // namespace axom
-
-#endif

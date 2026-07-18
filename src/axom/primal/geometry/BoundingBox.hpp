@@ -1,16 +1,17 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_BOUNDINGBOX_HPP_
-#define AXOM_PRIMAL_BOUNDINGBOX_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/numerics/floating_point_limits.hpp"
 #include "axom/core/NumericLimits.hpp"
+#include "axom/core/utilities/Utilities.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
@@ -198,6 +199,7 @@ public:
    * \note If the intersection is empty, the bounding box will be cleared
    * \return A reference to the bounding box after it has been intersected
    */
+  AXOM_HOST_DEVICE
   BoundingBox& intersect(const BoundingBox& otherBox);
 
   /*!
@@ -255,7 +257,7 @@ public:
    * \note If \a otherBB is empty, we return true
    */
   template <typename OtherType>
-  bool contains(const BoundingBox<OtherType, NDIMS>& otherBB) const;
+  AXOM_HOST_DEVICE bool contains(const BoundingBox<OtherType, NDIMS>& otherBB) const;
 
   /*!
    * \param [in] otherBB the bounding box that we are checking.
@@ -286,6 +288,7 @@ public:
    * \pre dimension >= -1 && dimension < NDIMS
    * \note if dimension==-1, the bounding box is split along its longest edge.
    */
+  AXOM_HOST_DEVICE
   void bisect(BoxType& right, BoxType& left, int dimension = -1) const;
 
   /*!
@@ -425,7 +428,7 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS>::BoundingBox(const PointType* pts, int n)
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
 template <typename OtherT>
-bool BoundingBox<T, NDIMS>::contains(const BoundingBox<OtherT, NDIMS>& otherBB) const
+AXOM_HOST_DEVICE bool BoundingBox<T, NDIMS>::contains(const BoundingBox<OtherT, NDIMS>& otherBB) const
 {
   return otherBB.isValid() ? this->contains(otherBB.getMin()) && this->contains(otherBB.getMax())
                            : true;
@@ -608,12 +611,12 @@ std::ostream& BoundingBox<T, NDIMS>::print(std::ostream& os) const
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::intersect(const BoundingBox& otherBox)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::intersect(const BoundingBox& otherBox)
 {
   for(int i = 0; i < NDIMS; ++i)
   {
-    m_min[i] = std::max(m_min[i], otherBox.m_min[i]);
-    m_max[i] = std::min(m_max[i], otherBox.m_max[i]);
+    m_min[i] = axom::utilities::max(m_min[i], otherBox.m_min[i]);
+    m_max[i] = axom::utilities::min(m_max[i], otherBox.m_max[i]);
   }
 
   if(!isValid())
@@ -626,7 +629,7 @@ BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::intersect(const BoundingBox& other
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-void BoundingBox<T, NDIMS>::bisect(BoxType& right, BoxType& left, int dim) const
+AXOM_HOST_DEVICE void BoundingBox<T, NDIMS>::bisect(BoxType& right, BoxType& left, int dim) const
 {
   SLIC_ASSERT(this->isValid());
 
@@ -722,5 +725,3 @@ std::ostream& operator<<(std::ostream& os, const BoundingBox<T, NDIMS>& bb)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::BoundingBox<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_BOUNDINGBOX_HPP_

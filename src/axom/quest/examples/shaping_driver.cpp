@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -20,10 +21,17 @@
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
 
-// NOTE: The shaping driver requires Axom to be configured with conduit or mfem and
-// the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION CMake option
+// NOTE: The shaping driver requires Axom to be configured with conduit or mfem.
 #if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
-  #error Shaping functionality requires Axom to be configured with Conduit or MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+  #error Shaping functionality requires Axom to be configured with Conduit or MFEM
+#endif
+
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+    #include "conduit_relay_mpi_io_blueprint.hpp"
+  #else
+    #include "conduit_relay_io_blueprint.hpp"
+  #endif
 #endif
 
 #include "mfem.hpp"
@@ -33,6 +41,7 @@
 #endif
 
 // C/C++ includes
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <memory>
@@ -45,6 +54,28 @@ namespace sidre = axom::sidre;
 
 using VolFracSampling = quest::shaping::VolFracSampling;
 using SamplingMethod = quest::SamplingShaper::SamplingMethod;
+
+namespace
+{
+using Point2D = primal::Point<double, 2>;
+using Point3D = primal::Point<double, 3>;
+
+struct AxisymmetricProjector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(Point3D pt) const
+  {
+    const double& x = pt[0];
+    const double& y = pt[1];
+    const double& z = pt[2];
+    return Point2D {z, sqrt(x * x + y * y)};
+  }
+};
+
+struct Projector23
+{
+  AXOM_HOST_DEVICE Point3D operator()(Point2D pt) const { return Point3D {pt[0], pt[1], 0.}; }
+};
+}  // namespace
 
 //------------------------------------------------------------------------------
 
@@ -75,7 +106,9 @@ public:
   ShapingMethod shapingMethod {ShapingMethod::Sampling};
   SamplingMethod samplingMethod {SamplingMethod::InOut};
   RuntimePolicy policy {RuntimePolicy::seq};
-  int quadratureOrder {5};
+  std::vector<int> samplingResolution {5, 5, 5};
+  // We set quadratureType to Invalid to select the default method.
+  int quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
   int outputOrder {2};
   int samplesPerKnotSpan {25};
   int refinementLevel {7};
@@ -89,9 +122,12 @@ public:
 
 private:
   bool m_verboseOutput {false};
+  bool m_dumpOctreeVtk {false};
 
 public:
   bool isVerbose() const { return m_verboseOutput; }
+
+  bool dumpOctreeVtk() const { return m_dumpOctreeVtk; }
 
   /// Generate an mfem Cartesian mesh, scaled to the bounding box range
   mfem::Mesh* createBoxMesh()
@@ -250,7 +286,7 @@ public:
         ->expected(2, 3)
         ->required();
 
-      inline_mesh_subcommand->add_option("--res", boxResolution)
+      inline_mesh_subcommand->add_option("--res, --resolution", boxResolution)
         ->description("Resolution of the box mesh (i,j[,k])")
         ->expected(2, 3)
         ->required();
@@ -278,11 +314,11 @@ public:
         ->capture_default_str()
         ->check(axom::CLI::NonNegativeNumber);
 
-      sampling_options->add_option("-q,--quadrature-order", quadratureOrder)
+      sampling_options->add_option("--sampling-resolution", samplingResolution)
         ->description(
-          "Quadrature order for sampling the inout field. \n"
+          "Sampling resolution per element for the inout field (x,y,[z]). \n"
           "Determines number of samples per element in determining volume fraction field")
-        ->capture_default_str()
+        ->expected(1, 3)
         ->check(axom::CLI::PositiveNumber);
 
       std::map<std::string, VolFracSampling> vfsamplingMap {
@@ -294,6 +330,25 @@ public:
           "Sampling either at quadrature points or collocated with degrees of freedom")
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
+
+      std::map<std::string, int> quadTypeMap {
+        {"default", mfem::Quadrature1D::Invalid},
+        {"gausslegendre", mfem::Quadrature1D::GaussLegendre},
+        {"gausslobatto", mfem::Quadrature1D::GaussLobatto},
+        {"openuniform", mfem::Quadrature1D::OpenUniform},
+        {"closeduniform", mfem::Quadrature1D::ClosedUniform},
+        {"openhalfuniform", mfem::Quadrature1D::OpenHalfUniform},
+        {"closedgl", mfem::Quadrature1D::ClosedGL}};
+      sampling_options->add_option("-q,--quadrature-type", quadratureType)
+        ->description(
+          "Quadrature type. \n"
+          "Selects the type of quadrature that determines point placement within elements.")
+        ->capture_default_str()
+        ->transform(axom::CLI::CheckedTransformer(quadTypeMap, axom::CLI::ignore_case));
+
+      sampling_options->add_flag("--dump-octree-vtk", m_dumpOctreeVtk)
+        ->description("Writes InOutOctree visualization VTK files when using inout sampling")
+        ->capture_default_str();
     }
 
     // parameters that only apply to the intersection method
@@ -439,6 +494,42 @@ void finalizeLogger()
 }
 
 //------------------------------------------------------------------------------
+/// Write the quadrature points as a Blueprint mesh.
+void save_quadrature_points(mfem::QuadratureFunction* positions)
+{
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+  const int dim = positions->GetSpace()->GetMesh()->Dimension();
+
+  conduit::Node n_mesh;
+  mfem::real_t* X = const_cast<mfem::real_t*>(positions->GetData());
+  const int npts = positions->Size() / positions->GetVDim();
+  const conduit::index_t stride = dim * sizeof(mfem::real_t);
+  n_mesh["coordsets/coords/type"] = "explicit";
+  n_mesh["coordsets/coords/values/x"].set_external(X, npts, 0, stride);
+  n_mesh["coordsets/coords/values/y"].set_external(X, npts, sizeof(mfem::real_t), stride);
+  if(dim > 2)
+  {
+    n_mesh["coordsets/coords/values/z"].set_external(X, npts, 2 * sizeof(mfem::real_t), stride);
+  }
+  n_mesh["topologies/points/type"] = "unstructured";
+  n_mesh["topologies/points/coordset"] = "coords";
+  n_mesh["topologies/points/elements/shape"] = "point";
+  std::vector<int> tmp(npts);
+  std::iota(tmp.begin(), tmp.end(), 0);
+  n_mesh["topologies/points/elements/connectivity"].set(tmp);
+  n_mesh["topologies/points/elements/offset"].set(tmp);
+  std::fill(tmp.begin(), tmp.end(), 1);
+  n_mesh["topologies/points/elements/sizes"].set(tmp);
+
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+  conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5", MPI_COMM_WORLD);
+  #else
+  conduit::relay::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5");
+  #endif
+#endif
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
   axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
@@ -501,10 +592,6 @@ int main(int argc, char** argv)
                         axom::fmt::join(errs, "\n")));
 
     finalizeLogger();
-
-#ifdef AXOM_USE_MPI
-    MPI_Finalize();
-#endif
     exit(1);
   }
 
@@ -570,28 +657,36 @@ int main(int argc, char** argv)
   // Set specific parameters for a SamplingShaper, if appropriate
   if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
   {
+    int res[3] = {5, 5, 5};
+    if(params.samplingResolution.size() == 1)
+    {
+      res[0] = res[1] = res[2] = params.samplingResolution[0];
+    }
+    else
+    {
+      for(size_t i = 0; i < std::min(size_t {3}, params.samplingResolution.size()); i++)
+      {
+        res[i] = params.samplingResolution[i];
+      }
+    }
+    axom::ArrayView<int> sampleRes(res, shaper->getDC()->GetMesh()->Dimension());
+
     samplingShaper->setSamplingType(params.vfSampling);
-    samplingShaper->setQuadratureOrder(params.quadratureOrder);
+    samplingShaper->setSamplingResolution(sampleRes);
+    samplingShaper->setQuadratureType(params.quadratureType);
     samplingShaper->setVolumeFractionOrder(params.outputOrder);
     samplingShaper->setSamplingMethod(params.samplingMethod);
+    samplingShaper->setInOutOctreeVtkOutputEnabled(params.dumpOctreeVtk());
+    samplingShaper->setInOutOctreeVtkOutputDirectory("vis");
 
     // register point projectors
     if(shapingDC.GetMesh()->Dimension() == 3)
     {
-      samplingShaper->setPointProjector32([](primal::Point<double, 3> pt) {
-        const double& x = pt[0];
-        const double& y = pt[1];
-        const double& z = pt[2];
-        return primal::Point<double, 2> {z, sqrt(x * x + y * y)};
-      });
+      samplingShaper->setPointProjector32(AxisymmetricProjector32 {});
     }
     else if(shapingDC.GetMesh()->Dimension() == 2)
     {
-      samplingShaper->setPointProjector23([](primal::Point<double, 2> pt) {
-        const double& x = pt[0];
-        const double& y = pt[1];
-        return primal::Point<double, 3> {x, y, 0.};
-      });
+      samplingShaper->setPointProjector23(Projector23 {});
     }
   }
 
@@ -741,6 +836,16 @@ int main(int argc, char** argv)
   {
     AXOM_ANNOTATE_SCOPE("save shaping results");
     shaper->getDC()->Save();
+
+    // Save quadrature sample point positions as a Blueprint mesh in verbose mode.
+    if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
+    {
+      mfem::QuadratureFunction* positions = samplingShaper->getShapeQFunction("positions");
+      if(positions && params.isVerbose())
+      {
+        save_quadrature_points(positions);
+      }
+    }
   }
 #endif
 

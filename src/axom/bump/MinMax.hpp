@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_MINMAX_HPP_
-#define AXOM_BUMP_MINMAX_HPP_
+#pragma once
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/reductions.hpp"
@@ -43,7 +43,7 @@ struct MinMax
     SLIC_ASSERT(n.dtype().number_of_elements() > 0);
     std::pair<ReturnType, ReturnType> retval;
 
-    axom::bump::views::Node_to_ArrayView(n, [&](auto nview) { retval = execute(nview); });
+    axom::bump::views::nodeToArrayView(n, [&](auto nview) { retval = execute(nview); });
     return retval;
   }
 
@@ -74,5 +74,3 @@ struct MinMax
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

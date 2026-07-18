@@ -1,9 +1,11 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_EXAMPLES_MIR_APPLICATION_HPP
-#define AXOM_MIR_EXAMPLES_MIR_APPLICATION_HPP
+
+#pragma once
+
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 
@@ -59,6 +61,13 @@ protected:
   virtual void saveMesh(const conduit::Node &n_mesh, const std::string &path);
 
   /*!
+   * \brief Estimate memory needed to perform MIR operations.
+   *
+   * \return A size in bytes.
+   */
+  size_t estimateMemoryPoolSize() const;
+
+  /*!
    * \brief A static error handler for Conduit.
    */
   static void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1);
@@ -75,5 +84,3 @@ protected:
   std::string annotationMode;
   std::string protocol;
 };
-
-#endif

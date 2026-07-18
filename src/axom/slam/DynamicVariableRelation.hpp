@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file DynamicVariableRelation.hpp
@@ -11,9 +14,6 @@
  * second set. This relation is dynamic; the related entities can change
  * at runtime.
  */
-
-#ifndef SLAM_DYNAMIC_VARIABLE_RELATION_HPP_
-#define SLAM_DYNAMIC_VARIABLE_RELATION_HPP_
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
@@ -309,5 +309,3 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(bool verboseO
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_VARIABLE_RELATION_HPP_

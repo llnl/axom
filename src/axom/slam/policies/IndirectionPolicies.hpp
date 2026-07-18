@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file IndirectionPolicies.hpp
@@ -29,19 +32,12 @@
  *  allocating/deallocating their own memory
  */
 
-#ifndef SLAM_POLICIES_INDIRECTION_H_
-#define SLAM_POLICIES_INDIRECTION_H_
-
 #include "axom/core/Macros.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/NumericLimits.hpp"
 #include "axom/slic/interface/slic.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 namespace detail
 {
@@ -80,68 +76,64 @@ struct IndexedIndirection : public BasePolicy
                       bool verboseOutput = false) const;
 
   template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ResultPtr> getIndirection(
-    IndirectionRefType buf,
-    PositionType pos = 0)
+  AXOM_HOST_DEVICE static inline ResultPtr getIndirection(IndirectionRefType buf, PositionType pos = 0)
   {
-    return &buf[pos];
-  }
-
-  template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ConstResultPtr> getConstIndirection(
-    IndirectionConstRefType buf,
-    PositionType pos = 0)
-  {
-    return &buf[pos];
-  }
-
-  template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<!DeviceEnable, ResultPtr> getIndirection(
-    IndirectionRefType buf,
-    PositionType pos = 0)
-  {
+    if constexpr(DeviceEnable)
+    {
+      return &buf[pos];
+    }
+    else
+    {
 #ifdef AXOM_DEVICE_CODE
-    AXOM_UNUSED_VAR(buf);
-    AXOM_UNUSED_VAR(pos);
-    SLIC_ASSERT_MSG(
-      false,
-      BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
+      AXOM_UNUSED_VAR(buf);
+      AXOM_UNUSED_VAR(pos);
+      SLIC_ASSERT_MSG(
+        false,
+        BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
 
   // Disable no-return warnings from device code
   #if defined(__CUDA_ARCH__)
-    __trap();
+      __trap();
   #elif defined(__HIP_DEVICE_COMPILE__)
-    abort();
+      abort();
   #endif
-    return nullptr;
+      return nullptr;
 #else
-    // Always return a value.
-    return &buf[pos];
+      // Always return a value.
+      return &buf[pos];
 #endif
+    }
   }
 
   template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<!DeviceEnable, ConstResultPtr>
-  getConstIndirection(IndirectionConstRefType buf, PositionType pos = 0)
+  AXOM_HOST_DEVICE static inline ConstResultPtr getConstIndirection(IndirectionConstRefType buf,
+                                                                    PositionType pos = 0)
   {
+    if constexpr(DeviceEnable)
+    {
+      return &buf[pos];
+    }
+    else
+    {
 #ifdef AXOM_DEVICE_CODE
-    AXOM_UNUSED_VAR(buf);
-    AXOM_UNUSED_VAR(pos);
-    SLIC_ASSERT_MSG(
-      false,
-      BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
+      AXOM_UNUSED_VAR(buf);
+      AXOM_UNUSED_VAR(pos);
+      SLIC_ASSERT_MSG(
+        false,
+        BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
 
   // Disable no-return warnings from device code
   #if defined(__CUDA_ARCH__)
-    __trap();
+      __trap();
   #elif defined(__HIP_DEVICE_COMPILE__)
-    abort();
+      abort();
   #endif
-    return nullptr;
+      return nullptr;
 #else
-    // Always return a value.
-    return &buf[pos];
+      // Always return a value.
+      return &buf[pos];
 #endif
+    }
   }
 
   AXOM_HOST_DEVICE inline ConstIndirectionResult indirection(PositionType pos) const
@@ -296,17 +288,22 @@ struct CArrayIndirectionBase
   static constexpr bool IsMutableBuffer = false;
   static constexpr const char* Name = "SLAM::CArrayIndirection";
 
-  AXOM_HOST_DEVICE CArrayIndirectionBase(IndirectionPtrType buf = nullptr) : m_arrBuf(buf) { }
+  AXOM_HOST_DEVICE CArrayIndirectionBase(IndirectionPtrType buf = nullptr,
+                                         PositionType size = axom::numeric_limits<PositionType>::max())
+    : m_arrBuf(buf)
+    , m_arrSize(size)
+  { }
 
   AXOM_HOST_DEVICE IndirectionBufferType data() const { return m_arrBuf; }
   AXOM_HOST_DEVICE IndirectionBufferType& ptr() { return m_arrBuf; }
 
   bool hasIndirection() const { return m_arrBuf != nullptr; }
 
-  constexpr PositionType size() const { return axom::numeric_limits<PositionType>::max(); }
+  AXOM_HOST_DEVICE PositionType size() const { return m_arrSize; }
 
 private:
   IndirectionBufferType m_arrBuf;
+  PositionType m_arrSize;
 };
 
 /**
@@ -463,8 +460,4 @@ using ArrayViewIndirection =
 
 /// \}
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_POLICIES_INDIRECTION_H_
+}  // end namespace axom::slam::policies

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -93,19 +94,19 @@ void time_repeat_clips_all(const Primal3D::TetrahedronType &a,
 {
   time_repeat_clips<axom::SEQ_EXEC>(a, b, count, caseName);
 
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   {
     time_repeat_clips<axom::OMP_EXEC>(a, b, count, caseName);
   }
 #endif
 
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   {
     time_repeat_clips<axom::CUDA_EXEC<256>>(a, b, count, caseName);
   }
 #endif
 
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   {
     time_repeat_clips<axom::HIP_EXEC<256>>(a, b, count, caseName);
   }

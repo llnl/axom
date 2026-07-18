@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/quest/interface/signed_distance.hpp"
@@ -16,6 +17,8 @@
 #ifdef AXOM_USE_MPI
   #include <mpi.h>
 #endif
+
+#include <string>
 
 namespace axom
 {
@@ -58,10 +61,11 @@ static struct parameters_t
 {
   int dimension; /*!< the dimension, 2 or 3 */
 
-  bool verbose;              /*!< logger verbosity */
-  bool is_closed_surface;    /*!< indicates if the input is a closed surface */
-  bool use_shared_memory;    /*!< use MPI-3 shared memory for the surface mesh */
-  bool compute_sign;         /*!< indicates if sign should be computed */
+  bool verbose;                           /*!< logger verbosity */
+  bool is_closed_surface;                 /*!< indicates if the input is a closed surface */
+  bool use_shared_memory;                 /*!< use Umpire shared memory for the surface mesh */
+  std::size_t shared_memory_segment_size; /*!< minimum shared-memory segment size (bytes) */
+  bool compute_sign;                      /*!< indicates if sign should be computed */
   int allocator_id;          /*!< the allocator ID to create BVH with (-1 for default) */
   SignedDistExec exec_space; /*!< indicates the execution space to run in */
 
@@ -73,6 +77,7 @@ static struct parameters_t
     , verbose(false)
     , is_closed_surface(true)
     , use_shared_memory(false)
+    , shared_memory_segment_size(0)
     , compute_sign(true)
     , allocator_id(-1)
     , exec_space(SignedDistExec::CPU)
@@ -93,10 +98,11 @@ static bool s_must_delete_mesh = false;
 static bool s_must_finalize_logger = false;
 static bool s_logger_is_initialized = false;
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
 static unsigned char* s_shared_mesh_buffer = nullptr;
-MPI_Comm s_intra_node_comm = MPI_COMM_NULL;
-MPI_Win s_window = MPI_WIN_NULL;
+#else
+static std::string s_shared_memory_requirements(
+  "Shared memory requires MPI and an Umpire library built with shared memory support");
 #endif
 
 }  // end anonymous namespace
@@ -122,27 +128,21 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
   // STEP 0: read the STL mesh
   int rc = INIT_FAILED;
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   if(Parameters.use_shared_memory)
   {
     rc = internal::read_stl_mesh_shared(file,
                                         comm,
                                         s_shared_mesh_buffer,
                                         s_surface_mesh,
-                                        s_intra_node_comm,
-                                        s_window);
+                                        Parameters.shared_memory_segment_size);
   }
   else
   {
     rc = internal::read_stl_mesh(file, s_surface_mesh, comm);
   }
-
 #else
-
-  SLIC_WARNING_IF(Parameters.use_shared_memory,
-                  "Shared memory requires MPI3 and building Axom with "
-                  "AXOM_USE_MPI3 set to ON");
+  SLIC_WARNING_IF(Parameters.use_shared_memory, s_shared_memory_requirements);
 
   rc = internal::read_stl_mesh(file, s_surface_mesh, comm);
 #endif
@@ -156,6 +156,10 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
   // STEP 1: initialized the signed distance query
   s_must_delete_mesh = true;
   rc = signed_distance_init(s_surface_mesh, comm);
+  if(rc != INIT_SUCCESS)
+  {
+    signed_distance_finalize();
+  }
   return rc;
 }
 
@@ -313,10 +317,19 @@ void signed_distance_use_shared_memory(bool status)
 
   Parameters.use_shared_memory = status;
 
-#ifndef AXOM_USE_MPI3
+#if !defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   SLIC_WARNING_IF(Parameters.use_shared_memory,
-                  "Enabling shared memory requires MPI-3. Option is ignored!");
+                  s_shared_memory_requirements + " Option is ignored!");
 #endif
+}
+
+//------------------------------------------------------------------------------
+void signed_distance_set_shared_memory_size(std::size_t minSegmentSize)
+{
+  SLIC_ERROR_IF(signed_distance_initialized(),
+                "signed distance query already initialized; setting option has no effect!");
+
+  Parameters.shared_memory_segment_size = minSegmentSize;
 }
 
 //------------------------------------------------------------------------------
@@ -499,10 +512,8 @@ void signed_distance_finalize()
   SLIC_ASSERT(!signed_distance_initialized());
   internal::logger_finalize(s_must_finalize_logger);
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-  internal::mpi_comm_free(&s_intra_node_comm);
-  internal::mpi_win_free(&s_window);
-  s_shared_mesh_buffer = nullptr;
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+  deallocate(s_shared_mesh_buffer);
 #endif
 }
 

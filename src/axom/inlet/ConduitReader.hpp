@@ -1,7 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  *******************************************************************************
@@ -10,9 +13,6 @@
  * \brief This file contains the class definition of the ConduitReader.
  *******************************************************************************
  */
-
-#ifndef INLET_CONDUITREADER_HPP
-#define INLET_CONDUITREADER_HPP
 
 #include "axom/inlet/Reader.hpp"
 
@@ -75,6 +75,11 @@ public:
   ReaderResult getStringMap(const std::string& id,
                             std::unordered_map<VariantKey, std::string>& values) override;
 
+  ReaderResult getVariantMap(const std::string& id,
+                             std::unordered_map<int, VariantValue>& values) override;
+  ReaderResult getVariantMap(const std::string& id,
+                             std::unordered_map<VariantKey, VariantValue>& values) override;
+
   ReaderResult getIndices(const std::string& id, std::vector<int>& indices) override;
   ReaderResult getIndices(const std::string& id, std::vector<VariantKey>& indices) override;
 
@@ -109,17 +114,17 @@ private:
   ReaderResult getValue(const conduit::Node* node, std::string& value);
   ReaderResult getValue(const conduit::Node* node, double& value);
   ReaderResult getValue(const conduit::Node* node, bool& value);
+  ReaderResult getValue(const conduit::Node* node, VariantValue& value);
 
   template <typename T>
   ReaderResult getDictionary(const std::string& id, std::unordered_map<VariantKey, T>& values);
 
   template <typename T>
   ReaderResult getArray(const std::string& id, std::unordered_map<int, T>& values);
+  ReaderResult getVariantArray(const std::string& id, std::unordered_map<int, VariantValue>& values);
   conduit::Node m_root;
   const std::string m_protocol;
 };
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

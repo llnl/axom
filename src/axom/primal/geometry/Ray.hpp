@@ -1,10 +1,10 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_RAY_HPP_
-#define AXOM_PRIMAL_RAY_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Segment.hpp"
@@ -166,5 +166,3 @@ std::ostream& operator<<(std::ostream& os, const Ray<T, NDIMS>& ray)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Ray<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_RAY_HPP_

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -25,8 +26,9 @@ enum class ArrayFeatureBenchmarks
   Constructors = 1 << 0,
   Insertion = 1 << 1,
   Iterators = 1 << 2,
+  Access = 1 << 3,
 
-  All = Constructors | Insertion | Iterators
+  All = Constructors | Insertion | Iterators | Access
 };
 
 inline ArrayFeatureBenchmarks operator|(ArrayFeatureBenchmarks lhs, ArrayFeatureBenchmarks rhs)
@@ -62,12 +64,13 @@ struct axom::fmt::formatter<ArrayFeatureBenchmarks>
   }
 
   template <typename FormatContext>
-  auto format(ArrayFeatureBenchmarks feature, FormatContext& ctx)
+  auto format(ArrayFeatureBenchmarks feature, FormatContext& ctx) const
   {
     static const std::map<ArrayFeatureBenchmarks, std::string> feature_map = {
       {ArrayFeatureBenchmarks::Constructors, "Constructors"},
       {ArrayFeatureBenchmarks::Insertion, "Insertion"},
-      {ArrayFeatureBenchmarks::Iterators, "Iterators"}};
+      {ArrayFeatureBenchmarks::Iterators, "Iterators"},
+      {ArrayFeatureBenchmarks::Access, "Access"}};
 
     if(feature == ArrayFeatureBenchmarks::None)
     {
@@ -369,6 +372,97 @@ void iterate_direct(benchmark::State& state)
 }
 
 //-----------------------------------------------------------------------------
+// Benchmarks for contiguous 1D element access
+//-----------------------------------------------------------------------------
+template <typename Container>
+void access_bracket(benchmark::State& state)
+{
+  using T = typename Container::value_type;
+  const int size = state.range(0);
+
+  Container data(size);
+  for(int i = 0; i < size; ++i)
+  {
+    data[i] = static_cast<T>(i);
+  }
+
+  for(auto _ : state)
+  {
+    T sum {};
+    for(int i = 0; i < size; ++i)
+    {
+      sum += data[i];
+    }
+    benchmark::DoNotOptimize(sum);
+  }
+
+  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * size);
+}
+
+template <typename Container>
+void address_bracket(benchmark::State& state)
+{
+  using T = typename Container::value_type;
+  const int size = state.range(0);
+
+  Container data(size);
+
+  for(auto _ : state)
+  {
+    for(int i = 0; i < size; ++i)
+    {
+      T* ptr = &data[i];
+      benchmark::DoNotOptimize(ptr);
+    }
+  }
+
+  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * size);
+}
+
+template <typename T>
+void access_flatIndex(benchmark::State& state)
+{
+  const int size = state.range(0);
+
+  axom::Array<T, 1> data(size);
+  for(int i = 0; i < size; ++i)
+  {
+    data[i] = static_cast<T>(i);
+  }
+
+  for(auto _ : state)
+  {
+    T sum {};
+    for(int i = 0; i < size; ++i)
+    {
+      sum += data.flatIndex(i);
+    }
+    benchmark::DoNotOptimize(sum);
+  }
+
+  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * size);
+}
+
+template <typename T>
+void address_flatIndex(benchmark::State& state)
+{
+  const int size = state.range(0);
+
+  axom::Array<T, 1> data(size);
+
+  for(auto _ : state)
+  {
+    for(int i = 0; i < size; ++i)
+    {
+      T* ptr = &data.flatIndex(i);
+      benchmark::DoNotOptimize(ptr);
+    }
+  }
+
+  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()) * size);
+}
+
+//-----------------------------------------------------------------------------
 // Register all the tests
 //-----------------------------------------------------------------------------
 
@@ -407,6 +501,30 @@ void RegisterBenchmark()
     benchmark::RegisterBenchmark(tname("vector::iterate_direct"), &iterate_direct<std::vector<T>>)->Apply(CustomArgs);
   }
   // clang-format on
+}
+
+void RegisterAccessBenchmarks()
+{
+  if((args_benchmark_features & ArrayFeatureBenchmarks::Access) == ArrayFeatureBenchmarks::None)
+  {
+    return;
+  }
+
+  benchmark::RegisterBenchmark("Array<double>::access_bracket",
+                               &access_bracket<axom::Array<double, 1>>)
+    ->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("Array<double>::access_flatIndex", &access_flatIndex<double>)
+    ->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("Array<double>::address_bracket",
+                               &address_bracket<axom::Array<double, 1>>)
+    ->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("Array<double>::address_flatIndex", &address_flatIndex<double>)
+    ->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("vector<double>::access_bracket", &access_bracket<std::vector<double>>)
+    ->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("vector<double>::address_bracket",
+                               &address_bracket<std::vector<double>>)
+    ->Apply(CustomArgs);
 }
 
 //-----------------------------------------------------------------------------
@@ -469,6 +587,7 @@ int main(int argc, char* argv[])
           {"constructors", ArrayFeatureBenchmarks::Constructors},
           {"insertion", ArrayFeatureBenchmarks::Insertion},
           {"iterators", ArrayFeatureBenchmarks::Iterators},
+          {"access", ArrayFeatureBenchmarks::Access},
           {"all", ArrayFeatureBenchmarks::All}};
 
         std::string lower_feature = feature;
@@ -506,6 +625,7 @@ int main(int argc, char* argv[])
   }
 
   RegisterBenchmarks<Types>();
+  RegisterAccessBenchmarks();
   ::benchmark::RunSpecifiedBenchmarks();
   return 0;
 }

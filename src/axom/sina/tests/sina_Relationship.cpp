@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -10,14 +11,11 @@
 
 #include "axom/sina/core/Relationship.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::ID;
+using sina::IDType;
+using sina::Relationship;
 
 char const EXPECTED_GLOBAL_OBJECT_ID_KEY[] = "object";
 char const EXPECTED_LOCAL_OBJECT_ID_KEY[] = "local_object";
@@ -168,8 +166,3 @@ TEST(Relationship, toNode_globalIds)
   EXPECT_FALSE(asNode.has_child(EXPECTED_LOCAL_SUBJECT_ID_KEY));
   EXPECT_FALSE(asNode.has_child(EXPECTED_LOCAL_OBJECT_ID_KEY));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

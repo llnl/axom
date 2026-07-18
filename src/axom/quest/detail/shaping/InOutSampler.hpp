@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file InOutSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using the InOutOctree
  */
-
-#ifndef AXOM_QUEST_INOUT_SAMPLER__HPP_
-#define AXOM_QUEST_INOUT_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -85,12 +85,20 @@ public:
     SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
   }
 
-  void initSpatialIndex(double vertexWeldThreshold)
+  void initSpatialIndex(double vertexWeldThreshold,
+                        bool shouldOutputVtk = false,
+                        const std::string& vtkOutputDirectory = "")
   {
     AXOM_ANNOTATE_SCOPE("generate InOutOctree");
     // Create octree over mesh's bounding box
     m_octree = new InOutOctreeType(m_bbox, m_surfaceMesh);
     m_octree->setVertexWeldThreshold(vertexWeldThreshold);
+    m_octree->setVtkOutputEnabled(shouldOutputVtk);
+    if(shouldOutputVtk)
+    {
+      m_octree->setVtkOutputDirectory(vtkOutputDirectory);
+      m_octree->setVtkOutputPrefix(axom::fmt::format("{}_", m_shapeName));
+    }
     m_octree->generateIndex();
   }
 
@@ -115,7 +123,8 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
                                                         shaping::QFunctionCollection& inoutQFuncs,
-                                                        int sampleRes,
+                                                        axom::ArrayView<int> sampleRes,
+                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using PointType = primal::Point<double, DIM>;
@@ -126,6 +135,7 @@ public:
                                               dc,
                                               inoutQFuncs,
                                               sampleRes,
+                                              quadratureType,
                                               checkInside,
                                               projector);
   }
@@ -137,7 +147,8 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
                                                         shaping::QFunctionCollection&,
-                                                        int,
+                                                        axom::ArrayView<int> AXOM_UNUSED_PARAM(sampleRes),
+                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -152,7 +163,6 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* dc,
-    int sampleRes,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -161,7 +171,6 @@ public:
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
                                                             dc,
-                                                            sampleRes,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -174,7 +183,6 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
-    int AXOM_UNUSED_PARAM(sampleRes),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
@@ -197,5 +205,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_SAMPLER__HPP_

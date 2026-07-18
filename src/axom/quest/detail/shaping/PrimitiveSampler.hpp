@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /**
  * \file PrimitiveSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using primal geometric primitives
  */
-
-#ifndef AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
-#define AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -134,11 +134,9 @@ public:
 
     SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
 
-#if defined(AXOM_USE_RAJA)
     // Print out the total volume of all the tetrahedra
     auto prim_view = m_primitives.view();
-    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<REDUCE_POL, double> total_tet_vol(0.0);
+    axom::ReduceSum<ExecSpace, double> total_tet_vol(0.0);
     axom::for_all<ExecSpace>(
       num_cells,
       AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += prim_view[i].volume(); });
@@ -146,7 +144,6 @@ public:
     SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
                                      "Total volume of all generated tetrahedra is {:.2Lf}",
                                      total_tet_vol.get()));
-#endif  //defined(AXOM_USE_RAJA)
   }
 
   void initSpatialIndex()
@@ -166,7 +163,11 @@ public:
     * \param [in] dc The data collection containing the mesh and associated query points
     * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
     * inout samples
-    * \param [in] sampleRes The quadrature order at which to sample the inout field
+    * \param [in] sampleRes The sampling resolution in each logical direction.
+    * For custom quadrature families, these values specify the per-direction
+    * sample counts directly, which in turn determine the quadrature rule used
+    * in each logical direction.
+    * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
     * \param [in] projector A callback function to apply to points from the input mesh
     * before querying them on the spatial index
     * 
@@ -177,7 +178,8 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
                                                         shaping::QFunctionCollection& inoutQFuncs,
-                                                        int sampleRes,
+                                                        axom::ArrayView<int> sampleRes,
+                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using FromPoint = primal::Point<double, FromDim>;
@@ -195,7 +197,7 @@ public:
     // Generate a Quadrature Function with the geometric positions, if not already available
     if(!inoutQFuncs.Has("positions"))
     {
-      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes);
+      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
     }
 
     // Access the positions QFunc and associated QuadratureSpace
@@ -290,7 +292,8 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
                                                         shaping::QFunctionCollection&,
-                                                        int,
+                                                        axom::ArrayView<int> AXOM_UNUSED_PARAM(sampleRes),
+                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -305,7 +308,6 @@ public:
    */
   template <int FromDim, int ToDim = DIM>
   void computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
-                                      int AXOM_UNUSED_PARAM(sampleRes),
                                       int AXOM_UNUSED_PARAM(outputOrder),
                                       PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
@@ -331,5 +333,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_

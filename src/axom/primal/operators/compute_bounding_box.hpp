@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#pragma once
 
 /*!
  * \file compute_bounding_box.hpp
  *
  * \brief Consists of functions to create bounding boxes.
  */
-
-#ifndef AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_
-#define AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_
 
 #include "axom/core/numerics/Matrix.hpp"       // for Matrix
 #include "axom/core/Macros.hpp"                // for AXOM_HOST__DEVICE
@@ -192,5 +192,3 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_

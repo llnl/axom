@@ -3,8 +3,9 @@
 #
 copyright:
   -
-  - Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-  - other Axom Project Developers. See the top-level LICENSE file for details.
+  - Copyright (c) Lawrence Livermore National Security, LLC and other
+  - Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+  - files for dates and other details.
   -
   - "SPDX-License-Identifier: (BSD-3-Clause)"
 
@@ -18,13 +19,13 @@ options:
   F_module_name_library_template: axom_{library_lower}
   # Change the default template for Fortran functions to include the library name.
   F_name_impl_template: "{library_lower}_{F_name_scope}{F_name_api}{function_suffix}"
+  F_result_as_arg: name
 
 format:
   C_prefix: SLIC_
   # Any C++ function which returns a string will be wrapped in
   # Fortran as a subroutine with an additional character argument
   # for the result.
-  F_string_result_as_arg: name
 
 ######################################################################
 

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -13,14 +14,11 @@
 #include "axom/sina/core/Datum.hpp"
 #include "axom/sina/core/ConduitUtil.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::addStringsToNode;
+using sina::Datum;
+using sina::ValueType;
 
 using ::testing::DoubleEq;
 using ::testing::ElementsAre;
@@ -188,8 +186,3 @@ TEST(Datum, toJson)
   EXPECT_EQ(scal_list, scal_child_vals);
   EXPECT_EQ(val_list, str_child_vals);
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

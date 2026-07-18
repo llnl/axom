@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -32,7 +33,7 @@ set(slam_tiny_hydro_lib_depends_on slam fmt)
 axom_add_library(
     NAME        slam_tinyHydro_ex
     SOURCES     ${tinyHydro_lib_sources}
-                ${tinyHydro_lib_headers}
+    HEADERS     ${tinyHydro_lib_headers}
     DEPENDS_ON  ${slam_tiny_hydro_lib_depends_on}
     FOLDER      axom/slam/examples 
     OBJECT      TRUE )

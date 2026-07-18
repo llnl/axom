@@ -4,12 +4,13 @@
   "homepage": "https://github.com/llnl/axom",
   "description": "Host-config generator for Axom TPLs",
   "dependencies": ["blt"],
+  "$comment":"Umpire removed from default-features due to fmt link errors",
   "default-features": [
     "conduit",
     "lua",
     "mfem",
-    "openmp",
     "opencascade",
+    "openmp",
     "raja"
   ],
   "features": {

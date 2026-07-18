@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -1240,10 +1241,13 @@ void MFEMSidreDataCollection::addScalarBasedField(const std::string& field_name,
 }
 
 // private method
-void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& field_name,
-                                                         GridFunction* gf,
-                                                         const std::string& buffer_name,
-                                                         IndexType offset)
+void MFEMSidreDataCollection::addVectorBasedField(const std::string& field_name,
+                                                  mfem::Vector* field,
+                                                  const std::string& buffer_name,
+                                                  IndexType offset,
+                                                  int vdim,
+                                                  int ndof,
+                                                  Ordering::Type ordering)
 {
   sidre::Group* grp = m_bp_grp->getGroup("fields/" + field_name);
   SLIC_ASSERT_MSG(grp != nullptr, "field " << field_name << " does not exist");
@@ -1251,33 +1255,18 @@ void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& fiel
   const int FLD_SZ = 20;
   char fidxName[FLD_SZ];
 
-  int vdim = gf->FESpace()->GetVDim();
-  int ndof = gf->FESpace()->GetNDofs();
-  Ordering::Type ordering = gf->FESpace()->GetOrdering();
-
-  if(gf->GetData() == nullptr)
+  if(field->GetData() == nullptr)
   {
     AllocNamedBuffer(buffer_name, offset + vdim * ndof);
-    // gf->data is set below.
+    // field->data is set below.
   }
-
-  /*
-   *  Mesh blueprint for a vector-based grid function is of the form
-   *    /fields/field_name/basis
-   *              -- string value is GridFunction's FEC::Name
-   *    /fields/field_name/values/x0
-   *    /fields/field_name/values/x1
-   *    ...
-   *    /fields/field_name/values/xn
-   *              -- each coordinate is an array of size ndof
-   */
 
   // Get/create the Group "values".
   sidre::Group* vg = alloc_group(grp, "values");
 
-  // Create the Views "x0", "x1", etc inside the "values" Group, vg.
+  // Create the Views "x0", "x1", etc inside the "values" Group.
   // If we have a named buffer for field_name, attach it to the Views;
-  // otherwise set the Views to use gf->GetData() as external data.
+  // otherwise set the Views to use field->GetData() as external data.
   sidre::DataType dtype = sidre::DataType::c_double(ndof);
   const int entry_stride = (ordering == Ordering::byNODES ? 1 : vdim);
   const int vdim_stride = (ordering == Ordering::byNODES ? ndof : 1);
@@ -1300,7 +1289,7 @@ void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& fiel
       dtype.set_offset(dtype.offset() + dtype.element_bytes() * vdim_stride);
     }
 
-    gf->NewDataAndSize(bv->getData<double*>() + offset, vdim * ndof);
+    field->NewDataAndSize(bv->getData<double*>() + offset, vdim * ndof);
   }
   else
   {
@@ -1308,7 +1297,7 @@ void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& fiel
     {
       std::snprintf(fidxName, FLD_SZ, "x%d", d);
       sidre::View* xv = alloc_view(vg, fidxName, dtype);
-      xv->setExternalDataPtr(gf->GetData());
+      xv->setExternalDataPtr(field->GetData());
       dtype.set_offset(dtype.offset() + dtype.element_bytes() * vdim_stride);
     }
   }
@@ -1321,11 +1310,64 @@ void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& fiel
     SLIC_ASSERT_MSG(
       (ndof > 0 && xv->isApplied()) || (ndof == 0 && xv->isEmpty() && xv->isDescribed()),
       "invalid View state");
-    SLIC_ASSERT_MSG(ndof == 0 || xv->getData() == gf->GetData() + d * vdim_stride,
-                    "View data is different from GridFunction data");
-    SLIC_ASSERT_MSG(xv->getNumElements() == ndof, "View size is different from GridFunction size");
+    SLIC_ASSERT_MSG(ndof == 0 || xv->getData() == field->GetData() + d * vdim_stride,
+                    "View data is different from field data");
+    SLIC_ASSERT_MSG(xv->getNumElements() == ndof, "View size is different from field size");
   }
   #endif
+}
+
+// private method
+void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& field_name,
+                                                         GridFunction* gf,
+                                                         const std::string& buffer_name,
+                                                         IndexType offset)
+{
+  /*
+   *  Mesh blueprint for a vector-based grid function is of the form
+   *    /fields/field_name/basis
+   *              -- string value is GridFunction's FEC::Name
+   *    /fields/field_name/values/x0
+   *    /fields/field_name/values/x1
+   *    ...
+   *    /fields/field_name/values/xn
+   *              -- each coordinate is an array of size ndof
+   */
+  addVectorBasedField(field_name,
+                      gf,
+                      buffer_name,
+                      offset,
+                      gf->FESpace()->GetVDim(),
+                      gf->FESpace()->GetNDofs(),
+                      gf->FESpace()->GetOrdering());
+}
+
+// private method
+void MFEMSidreDataCollection::addVectorBasedQuadratureFunction(const std::string& field_name,
+                                                               mfem::QuadratureFunction* qf,
+                                                               const std::string& buffer_name,
+                                                               IndexType offset)
+{
+  /*
+   *  Mesh blueprint for a vector-based quadrature function is of the form
+   *    /fields/field_name/basis
+   *              -- string value encodes the QuadratureSpace order and vdim
+   *    /fields/field_name/values/x0
+   *    /fields/field_name/values/x1
+   *    ...
+   *    /fields/field_name/values/xn
+   *              -- each component is an array of size QuadratureSpace::GetSize()
+   *
+   *  MFEM stores QuadratureFunction vectors in byVDIM order, i.e. one tuple per
+   *  quadrature point with component data interleaved in memory.
+   */
+  addVectorBasedField(field_name,
+                      qf,
+                      buffer_name,
+                      offset,
+                      qf->GetVDim(),
+                      qf->GetSpace()->GetSize(),
+                      Ordering::byVDIM);
 }
 
 // private method
@@ -1506,7 +1548,10 @@ void MFEMSidreDataCollection::RegisterQField(const std::string& field_name,
   // A QField has the following schema:
   // <m_bp_grp>/fields/<field_name>/
   // <m_bp_grp>/fields/<field_name>/topology     = "mesh"
-  // <m_bp_grp>/fields/<field_name>/values       = array of size QuadratureFunction::Size()
+  // <m_bp_grp>/fields/<field_name>/values       = scalar array of size
+  //                                               QuadratureFunction::Size()
+  //                                               or mcarray components of size
+  //                                               QuadratureSpace::GetSize()
   // <m_bp_grp>/fields/<field_name>/basis        = string that encodes the QF
   //                                               integration order and vector dimension
   //                                               "QF_Default_[ORDER]_[VDIM]"
@@ -1522,8 +1567,16 @@ void MFEMSidreDataCollection::RegisterQField(const std::string& field_name,
   // This is always 'mesh'
   v = alloc_view(grp, "topology")->setString("mesh");
 
-  // Set the View "<m_bp_grp>/fields/<field_name>/values"
-  addScalarBasedField(field_name, qf, buffer_name, offset, qf->Size());
+  if(qf->GetVDim() == 1)
+  {
+    // Set the View "<m_bp_grp>/fields/<field_name>/values"
+    addScalarBasedField(field_name, qf, buffer_name, offset, qf->Size());
+  }
+  else
+  {
+    // Set the Group "<m_bp_grp>/fields/<field_name>/values"
+    addVectorBasedQuadratureFunction(field_name, qf, buffer_name, offset);
+  }
 
   // Register field_name in the blueprint_index group.
   if(myid == 0)
@@ -1583,7 +1636,8 @@ void MFEMSidreDataCollection::RegisterAttributeField(const std::string& attr_nam
 
   // Register new attribute array with attr_map
   sidre::View* a = m_bp_grp->getGroup("fields")->getGroup(attr_name)->getView("values");
-  mfem::Array<int>* attr = new mfem::Array<int>(a->getData<int*>(), a->getNumElements());
+  mfem::Array<int>* attr =
+    new mfem::Array<int>(a->getData<int*>(), static_cast<int>(a->getNumElements()));
 
   attr_map.Register(attr_name, attr, true);
 }
@@ -2414,7 +2468,7 @@ void MFEMSidreDataCollection::reconstructMesh()
   View* element_attribute_view = m_bp_grp->getView(element_attribute_path + "/values");
 
   int* element_attributes = element_attribute_view->getData<int*>();
-  int num_elements = element_attribute_view->getNumElements();
+  int num_elements = static_cast<int>(element_attribute_view->getNumElements());
 
   const std::string boundary_elements_path = "topologies/" + s_boundary_topology_name + "/elements";
 
