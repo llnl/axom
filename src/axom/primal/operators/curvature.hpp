@@ -11,8 +11,7 @@
  *
  */
 
-#ifndef AXOM_PRIMAL_CURVATURE_HPP_
-#define AXOM_PRIMAL_CURVATURE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
@@ -98,4 +97,3 @@ T curvatureDerivative(const VectorType& D1,
 }  // namespace primal
 }  // namespace axom
 
-#endif  // AXOM_PRIMAL_CURVATURE_HPP_
