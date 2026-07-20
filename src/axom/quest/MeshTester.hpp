@@ -56,6 +56,8 @@ enum class WatertightStatus : signed char
  * \param [out] degenerateIndices indices of degenerate mesh triangles
  * \param [in] intersectionThreshold Tolerance threshold for triangle 
  * intersection tests (default: 1E-8)
+ * \param [in] hostAllocator Allocator to use for host-accessible scratch and
+ * staging
  * After running this function over a surface mesh, intersection will be filled
  * with pairs of indices of intersecting triangles and degenerateIndices will
  * be filled with the indices of the degenerate triangles in the mesh.
@@ -67,7 +69,8 @@ template <typename ExecSpace, typename FloatType>
 void findTriMeshIntersectionsBVH(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
                                  std::vector<std::pair<int, int>>& intersections,
                                  std::vector<int>& degenerateIndices,
-                                 double intersectionThreshold = 1E-8)
+                                 double intersectionThreshold = 1E-8,
+                                 HostAllocator hostAllocator = HostAllocator {})
 {
   AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsBVH");
 
@@ -76,7 +79,7 @@ void findTriMeshIntersectionsBVH(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* sur
 
   constexpr detail::AccelType UseBVH = detail::AccelType::BVH;
   using CandidateFinder = detail::CandidateFinder<UseBVH, ExecSpace, FloatType>;
-  CandidateFinder impl(surface_mesh, intersectionThreshold);
+  CandidateFinder impl(surface_mesh, intersectionThreshold, hostAllocator);
   impl.initialize();
   axom::Array<IndexType> intersectFirst, intersectSecond, degenerate;
   impl.findTriMeshIntersections(intersectFirst, intersectSecond, degenerate);
@@ -100,6 +103,8 @@ void findTriMeshIntersectionsBVH(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* sur
  * structure (default: 0)
  * \param [in] intersectionThreshold Tolerance threshold for triangle
  * intersection tests (default: 1E-8)
+ * \param [in] hostAllocator Allocator to use for host-accessible scratch and
+ * staging
  * After running this function over a surface mesh, intersection will be filled
  * with pairs of indices of intersecting triangles and degenerateIndices will
  * be filled with the indices of the degenerate triangles in the mesh.
@@ -117,7 +122,8 @@ void findTriMeshIntersectionsImplicitGrid(mint::UnstructuredMesh<mint::SINGLE_SH
                                           std::vector<std::pair<int, int>>& intersections,
                                           std::vector<int>& degenerateIndices,
                                           int spatialIndexResolution = 0,
-                                          double intersectionThreshold = 1E-8)
+                                          double intersectionThreshold = 1E-8,
+                                          HostAllocator hostAllocator = HostAllocator {})
 {
   AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsImplicitGrid");
 
@@ -126,7 +132,7 @@ void findTriMeshIntersectionsImplicitGrid(mint::UnstructuredMesh<mint::SINGLE_SH
 
   constexpr detail::AccelType UseImplicit = detail::AccelType::ImplicitGrid;
   using CandidateFinder = detail::CandidateFinder<UseImplicit, ExecSpace, FloatType>;
-  CandidateFinder impl(surface_mesh, intersectionThreshold);
+  CandidateFinder impl(surface_mesh, intersectionThreshold, hostAllocator);
   impl.initialize(spatialIndexResolution);
   axom::Array<IndexType> intersectFirst, intersectSecond, degenerate;
   impl.findTriMeshIntersections(intersectFirst, intersectSecond, degenerate);
@@ -150,6 +156,8 @@ void findTriMeshIntersectionsImplicitGrid(mint::UnstructuredMesh<mint::SINGLE_SH
  * structure (default: 0)
  * \param [in] intersectionThreshold Tolerance threshold for triangle
  * intersection tests (default: 1E-8)
+ * \param [in] hostAllocator Allocator to use for host-accessible scratch and
+ * staging
  * After running this function over a surface mesh, intersection will be filled
  * with pairs of indices of intersecting triangles and degenerateIndices will
  * be filled with the indices of the degenerate triangles in the mesh.
@@ -167,7 +175,8 @@ void findTriMeshIntersectionsUniformGrid(mint::UnstructuredMesh<mint::SINGLE_SHA
                                          std::vector<std::pair<int, int>>& intersections,
                                          std::vector<int>& degenerateIndices,
                                          int spatialIndexResolution = 0,
-                                         double intersectionThreshold = 1E-8)
+                                         double intersectionThreshold = 1E-8,
+                                         HostAllocator hostAllocator = HostAllocator {})
 {
   AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsUniformGrid");
 
@@ -176,7 +185,7 @@ void findTriMeshIntersectionsUniformGrid(mint::UnstructuredMesh<mint::SINGLE_SHA
 
   constexpr detail::AccelType UseUniform = detail::AccelType::UniformGrid;
   using CandidateFinder = detail::CandidateFinder<UseUniform, ExecSpace, FloatType>;
-  CandidateFinder impl(surface_mesh, intersectionThreshold);
+  CandidateFinder impl(surface_mesh, intersectionThreshold, hostAllocator);
   impl.initialize(spatialIndexResolution);
   axom::Array<IndexType> intersectFirst, intersectSecond, degenerate;
   impl.findTriMeshIntersections(intersectFirst, intersectSecond, degenerate);

@@ -81,8 +81,8 @@ struct CandidateFinderBase
 {
   using BoxType = typename primal::BoundingBox<FloatType, 3>;
   using PointType = typename primal::Point<FloatType, 3>;
-#ifdef AXOM_USE_UMPIRE
   static constexpr bool ExecOnDevice = axom::execution_space<ExecSpace>::onDevice();
+#ifdef AXOM_USE_UMPIRE
   static constexpr MemorySpace Space =
     ExecOnDevice ? axom::MemorySpace::Device : axom::MemorySpace::Host;
   static constexpr MemorySpace HostSpace = axom::MemorySpace::Host;
@@ -99,9 +99,15 @@ struct CandidateFinderBase
    *  triangle intersection tests.
    */
   CandidateFinderBase(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
-                      double intersectionThreshold)
+                      double intersectionThreshold,
+                      HostAllocator hostAllocator = HostAllocator {})
     : m_surfaceMesh(surface_mesh)
     , m_intersectionThreshold(intersectionThreshold)
+    , m_hostAllocator(hostAllocator)
+    , m_allocatorId(ExecOnDevice ? axom::detail::getAllocatorID<Space>() : m_hostAllocator.getID())
+    , m_tris(0, 0, m_allocatorId, m_hostAllocator)
+    , m_aabbs(0, 0, m_allocatorId, m_hostAllocator)
+    , m_degenerate(0, 0, m_allocatorId, m_hostAllocator)
   { }
 
   /*!
@@ -144,6 +150,8 @@ protected:
 
   mint::UnstructuredMesh<mint::SINGLE_SHAPE>* m_surfaceMesh;
   double m_intersectionThreshold;
+  HostAllocator m_hostAllocator;
+  int m_allocatorId;
   int m_ncells;
   axom::Array<detail::Triangle3, 1, Space> m_tris;
   axom::Array<BoxType, 1, Space> m_aabbs;
@@ -206,18 +214,19 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
   using HostIndexArray = axom::Array<IndexType, 1, HostSpace>;
 
   // Get CSR arrays for candidate data
-  IndexArray offsets, counts;
+  IndexArray offsets(0, 0, m_allocatorId, m_hostAllocator);
+  IndexArray counts(0, 0, m_allocatorId, m_hostAllocator);
   IndexView candidates = getCandidates(offsets, counts);
 
-  IndexArray indices(candidates.size());
-  IndexArray validCandidates(candidates.size());
+  IndexArray indices(candidates.size(), candidates.size(), m_allocatorId, m_hostAllocator);
+  IndexArray validCandidates(candidates.size(), candidates.size(), m_allocatorId, m_hostAllocator);
 
   auto v_indices = indices.view();
   auto v_validCandidates = validCandidates.view();
 
   IndexType numCandidates;
   {
-    IndexArray numValidCandidates(1);
+    IndexArray numValidCandidates(1, 1, m_allocatorId, m_hostAllocator);
     numValidCandidates.fill(0);
     auto v_numValidCandidates = numValidCandidates.view();
 
@@ -242,11 +251,11 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
     axom::copy(&numCandidates, numValidCandidates.data(), sizeof(IndexType));
   }
 
-  IndexArray firstIsectPair(candidates.size());
-  IndexArray secondIsectPair(candidates.size());
+  IndexArray firstIsectPair(candidates.size(), candidates.size(), m_allocatorId, m_hostAllocator);
+  IndexArray secondIsectPair(candidates.size(), candidates.size(), m_allocatorId, m_hostAllocator);
   IndexType isectCounter;
   {
-    IndexArray numIsectPairs(1);
+    IndexArray numIsectPairs(1, 1, m_allocatorId, m_hostAllocator);
     auto v_numIsectPairs = numIsectPairs.view();
 
     auto v_firstIsectPair = firstIsectPair.view();
@@ -276,9 +285,9 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
 
   {
     // copy results to output on host
-    firstIndex = HostIndexArray(firstIsectPair);
-    secondIndex = HostIndexArray(secondIsectPair);
-    HostIndexArray host_degenerate = m_degenerate;
+    firstIndex = axom::Array<IndexType>(firstIsectPair, m_hostAllocator.getID(), m_hostAllocator);
+    secondIndex = axom::Array<IndexType>(secondIsectPair, m_hostAllocator.getID(), m_hostAllocator);
+    HostIndexArray host_degenerate(m_degenerate, m_hostAllocator);
     for(int i = 0; i < host_degenerate.size(); i++)
     {
       if(host_degenerate[i] == 1)
@@ -306,16 +315,20 @@ struct CandidateFinder<AccelType::BVH, ExecSpace, FloatType>
     axom::Array<IndexType, 1, Space>& offsets,
     axom::Array<IndexType, 1, Space>& counts) override
   {
-    int allocatorId = axom::detail::getAllocatorID<Space>();
     spin::BVH<3, ExecSpace, FloatType> bvh;
-    bvh.setAllocatorID(allocatorId);
+    bvh.setAllocatorID(this->m_allocatorId);
     bvh.initialize(this->m_aabbs.view(), this->m_aabbs.size());
 
     offsets.resize(this->m_aabbs.size());
     counts.resize(this->m_aabbs.size());
 
     // Search for intersecting bounding boxes of triangles
-    bvh.findBoundingBoxes(offsets, counts, m_currCandidates, this->m_aabbs.size(), this->m_aabbs.view());
+    bvh.findBoundingBoxes(offsets,
+                          counts,
+                          m_currCandidates,
+                          this->m_aabbs.size(),
+                          this->m_aabbs.view(),
+                          this->m_hostAllocator);
 
     return m_currCandidates;
   }
@@ -387,11 +400,10 @@ struct CandidateFinder<AccelType::ImplicitGrid, ExecSpace, FloatType>
     axom::Array<IndexType, 1, Space>& offsets,
     axom::Array<IndexType, 1, Space>& counts) override
   {
-    int allocatorId = axom::detail::getAllocatorID<Space>();
     axom::spin::ImplicitGrid<3, ExecSpace, IndexType> gridIndex(m_globalBox,
                                                                 &m_resolutions,
                                                                 this->m_aabbs.size(),
-                                                                allocatorId);
+                                                                this->m_allocatorId);
     gridIndex.insert(this->m_aabbs.size(), this->m_aabbs.data());
 
     offsets.resize(this->m_aabbs.size());
@@ -439,9 +451,10 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
     axom::Array<IndexType, 1, Space>& offsets,
     axom::Array<IndexType, 1, Space>& counts) override
   {
-    int allocatorId = axom::detail::getAllocatorID<Space>();
-
-    axom::Array<IndexType, 1, Space> indices(this->m_aabbs.size());
+    axom::Array<IndexType, 1, Space> indices(this->m_aabbs.size(),
+                                             this->m_aabbs.size(),
+                                             this->m_allocatorId,
+                                             this->m_hostAllocator);
     const auto indices_v = indices.view();
     for_all<ExecSpace>(this->m_aabbs.size(), AXOM_LAMBDA(IndexType idx) { indices_v[idx] = idx; });
 
@@ -450,7 +463,7 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
     spin::UniformGrid<IndexType, 3, ExecSpace, FlatStorage> gridIndex(m_resolutions,
                                                                       this->m_aabbs.view(),
                                                                       indices.view(),
-                                                                      allocatorId);
+                                                                      this->m_allocatorId);
 
     offsets.resize(this->m_aabbs.size());
     counts.resize(this->m_aabbs.size());
