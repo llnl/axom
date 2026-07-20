@@ -84,7 +84,22 @@ public:
    * \param geomView A view that contains the shapes being queried.
    *
    */
-  WindingNumberSampler(const std::string& shapeName, GeometryView geomView) : m_shapeName(shapeName)
+  WindingNumberSampler(const std::string& shapeName, GeometryView geomView)
+    : WindingNumberSampler(shapeName, geomView, HostAllocator {})
+  { }
+
+  /*!
+   * \brief Constructor for a WindingNumberSampler
+   *
+   * \param shapeName The name of the shape; will be used for the field for the associated samples
+   * \param geomView A view that contains the shapes being queried.
+   * \param hostAllocator Allocator to use for host-accessible scratch and staging
+   *
+   */
+  WindingNumberSampler(const std::string& shapeName, GeometryView geomView, HostAllocator hostAllocator)
+    : m_shapeName(shapeName)
+    , m_hostAllocator(hostAllocator)
+    , m_contourCaches(0, 0, m_hostAllocator.getID(), m_hostAllocator)
   {
     for(const auto& contour : geomView)
     {
@@ -109,9 +124,8 @@ public:
 
     // Figure out bounding boxes for each geometric object.
     const axom::IndexType geometrySize = m_contourCaches.size();
-    axom::Array<GeometricBoundingBox> aabbs(geometrySize,
-                                            geometrySize,
-                                            axom::execution_space<ExecSpace>::allocatorID());
+    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    axom::Array<GeometricBoundingBox> aabbs(geometrySize, geometrySize, allocatorID, m_hostAllocator);
     auto aabbsView = aabbs.view();
     const auto contourCaches = m_contourCaches;
     axom::for_all<ExecSpace>(
@@ -194,7 +208,7 @@ public:
     axom::utilities::Timer timer(true);
     AXOM_ANNOTATE_BEGIN("Create query points");
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    axom::Array<ToPoint> queryPoints(numQueryPoints, numQueryPoints, allocatorID);
+    axom::Array<ToPoint> queryPoints(numQueryPoints, numQueryPoints, allocatorID, m_hostAllocator);
     auto queryPointsView = queryPoints.view();
     axom::for_all<ExecSpace>(
       numQueryPoints,
@@ -209,17 +223,17 @@ public:
 
     // Look up all of the query points. This will allocate the candidates array.
     AXOM_ANNOTATE_BEGIN("findPoints");
-    axom::Array<axom::IndexType> offsets(numQueryPoints, numQueryPoints, allocatorID);
-    axom::Array<axom::IndexType> sizes(numQueryPoints, numQueryPoints, allocatorID);
+    axom::Array<axom::IndexType> offsets(numQueryPoints, numQueryPoints, allocatorID, m_hostAllocator);
+    axom::Array<axom::IndexType> sizes(numQueryPoints, numQueryPoints, allocatorID, m_hostAllocator);
     axom::Array<axom::IndexType> candidates;
     auto offsetsView = offsets.view();
     auto sizesView = sizes.view();
-    m_bvh.findPoints(offsetsView, sizesView, candidates, numQueryPoints, queryPointsView);
+    m_bvh.findPoints(offsetsView, sizesView, candidates, numQueryPoints, queryPointsView, m_hostAllocator);
     AXOM_ANNOTATE_END("findPoints");
 
     // Check each element's quad points for in/out.
     AXOM_ANNOTATE_BEGIN("InOut tests");
-    axom::Array<bool> inOutResult(numQueryPoints, numQueryPoints, allocatorID);
+    axom::Array<bool> inOutResult(numQueryPoints, numQueryPoints, allocatorID, m_hostAllocator);
     auto inOutResultView = inOutResult.view();
     const auto candidatesView = candidates.view();
     const auto contourCaches = m_contourCaches;
@@ -324,6 +338,7 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(WindingNumberSampler);
 
   std::string m_shapeName;
+  HostAllocator m_hostAllocator;
   GeometricBoundingBox m_bbox {};
   ContourCacheArray m_contourCaches;
   BVH m_bvh {};
