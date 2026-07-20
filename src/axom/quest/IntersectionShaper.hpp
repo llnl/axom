@@ -676,10 +676,10 @@ private:
     axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator, m_hostAllocator);
 
     // Initialize 2D triangles from mesh (ignore z coordinate)
-    axom::Array<IndexType> nodeIds(3);
+    axom::Array<IndexType> nodeIds(3, 3, host_allocator, m_hostAllocator);
 
     // Buffer is 3D for stl mesh
-    axom::Array<Point3D> pts(3);
+    axom::Array<Point3D> pts(3, 3, host_allocator, m_hostAllocator);
 
     for(int i = 0; i < m_tricount; i++)
     {
@@ -763,8 +763,8 @@ private:
     axom::Array<TetrahedronType> tets_host(m_tetcount, m_tetcount, host_allocator, m_hostAllocator);
 
     // Initialize tetrahedra
-    axom::Array<IndexType> nodeIds(4);
-    axom::Array<Point3D> pts(4);
+    axom::Array<IndexType> nodeIds(4, 4, host_allocator, m_hostAllocator);
+    axom::Array<Point3D> pts(4, 4, host_allocator, m_hostAllocator);
 
     for(int i = 0; i < m_tetcount; i++)
     {
@@ -836,7 +836,7 @@ private:
     // Number of points in polyline
     int pointcount = getSurfaceMesh()->getNumberOfNodes();
 
-    axom::Array<Point2D> polyline(pointcount, pointcount);
+    axom::Array<Point2D> polyline(pointcount, pointcount, host_allocator, m_hostAllocator);
 
     SLIC_INFO(axom::fmt::format(
       "{:-^80}",
@@ -965,10 +965,10 @@ private:
       axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator, m_hostAllocator);
 
       // Initialize 2D triangles from segment mesh (3rd point is on the x-axis)
-      axom::Array<IndexType> nodeIds(2);
+      axom::Array<IndexType> nodeIds(2, 2, host_allocator, m_hostAllocator);
 
       // Buffer to store 2D points
-      axom::Array<Point2D> pts(2);
+      axom::Array<Point2D> pts(2, 2, host_allocator, m_hostAllocator);
 
       for(int i = 0; i < m_tricount / 2; i++)
       {
@@ -1574,8 +1574,8 @@ public:
                     " IntersectionShaper::applyReplacementRules.");
 
     // Allocate some memory for the replacement rule data arrays.
-    Array<double> vf_subtract_array(dataSize, dataSize, m_allocatorId);
-    Array<double> vf_writable_array(dataSize, dataSize, m_allocatorId);
+    Array<double> vf_subtract_array(dataSize, dataSize, m_allocatorId, m_hostAllocator);
+    Array<double> vf_writable_array(dataSize, dataSize, m_allocatorId, m_hostAllocator);
     ArrayView<double> vf_subtract(vf_subtract_array);
     ArrayView<double> vf_writable(vf_writable_array);
 
@@ -2807,7 +2807,8 @@ public:
 
     vertCoords = axom::Array<double>(m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
                                      m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
-                                     allocId);
+                                     allocId,
+                                     m_hostAllocator);
     auto vertCoordsView = vertCoords.view();
 
     axom::for_all<ExecSpace>(
@@ -2822,8 +2823,9 @@ public:
           auto vertId = quadVerts[j];
           for(int k = 0; k < NUM_COMPS_PER_VERT; k++)
           {
-            vertCoordsView[(i * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT) + (j * NUM_COMPS_PER_VERT) + k] =
-              coordArrays[k][vertId];
+            const auto coordIdx =
+              (i * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT) + (j * NUM_COMPS_PER_VERT) + k;
+            vertCoordsView[coordIdx] = coordArrays[k][vertId];
           }
         }
       });
@@ -2881,7 +2883,8 @@ public:
 
     vertCoords = axom::Array<double>(m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
                                      m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
-                                     allocId);
+                                     allocId,
+                                     m_hostAllocator);
     auto vertCoordsView = vertCoords.view();
 
     axom::for_all<ExecSpace>(
@@ -2896,8 +2899,9 @@ public:
           auto vertId = hexVerts[j];
           for(int k = 0; k < NUM_COMPS_PER_VERT; k++)
           {
-            vertCoordsView[(i * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT) + (j * NUM_COMPS_PER_VERT) + k] =
-              coordArrays[k][vertId];
+            const auto coordIdx =
+              (i * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT) + (j * NUM_COMPS_PER_VERT) + k;
+            vertCoordsView[coordIdx] = coordArrays[k][vertId];
           }
         }
       });
@@ -2945,8 +2949,12 @@ public:
 
     axom::Array<double>& fillVertCoords =
       axom::execution_space<ExecSpace>::onDevice() ? tmpVertCoords : vertCoords;
+    const int fillAllocId =
+      axom::execution_space<ExecSpace>::onDevice() ? m_hostAllocator.getID() : m_allocatorId;
     fillVertCoords = axom::Array<double>(m_cellCount * num_verts_per_cell * num_comps_per_vert,
-                                         m_cellCount * num_verts_per_cell * num_comps_per_vert);
+                                         m_cellCount * num_verts_per_cell * num_comps_per_vert,
+                                         fillAllocId,
+                                         m_hostAllocator);
 
     // Initialize vertices from mfem mesh and
     // set each shape volume fraction to 1
