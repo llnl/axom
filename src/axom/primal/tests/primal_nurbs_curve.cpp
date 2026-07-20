@@ -1214,8 +1214,7 @@ NURBS3D promoteTo3D(const NURBS2D& input, const VectorType& xvec, const VectorTy
   for(int i = 0; i < input.getNumControlPoints(); ++i)
   {
     const auto& p2 = input[i];
-    output[i] =
-      PointType((xvec * p2[0] + yvec * p2[1]).data(), PointType::DIMENSION);
+    output[i] = PointType((xvec * p2[0] + yvec * p2[1]).data(), PointType::DIMENSION);
   }
 
   output.setKnots(input.getKnots());
@@ -1238,11 +1237,8 @@ void checkCircularArcCurvature2D(T tol)
   using NURBSCurveType = primal::NURBSCurve<T, 2>;
 
   const T radius = 4.;
-  const auto curve = NURBSCurveType::make_circular_arc_nurbs(T(0.15) * T(M_PI),
-                                                             T(1.85) * T(M_PI),
-                                                             T(0.),
-                                                             T(0.),
-                                                             radius);
+  const auto curve =
+    NURBSCurveType::make_circular_arc_nurbs(T(0.15) * T(M_PI), T(1.85) * T(M_PI), T(0.), T(0.), radius);
 
   constexpr int numSamples = 17;
   for(int i = 0; i < numSamples; ++i)
@@ -1260,11 +1256,8 @@ void checkCircularArcCurvature3D(T tol)
   using Vector3D = primal::Vector<T, 3>;
 
   const T radius = 4.;
-  const auto curve2d = NURBSCurve2D::make_circular_arc_nurbs(T(0.1) * T(M_PI),
-                                                             T(1.6) * T(M_PI),
-                                                             T(0.),
-                                                             T(0.),
-                                                             radius);
+  const auto curve2d =
+    NURBSCurve2D::make_circular_arc_nurbs(T(0.1) * T(M_PI), T(1.6) * T(M_PI), T(0.), T(0.), radius);
 
   const T a0 = T(M_PI) / T(4.);
   const T a1 = a0 + T(M_PI) / T(2.);
@@ -1286,11 +1279,8 @@ void checkCircularArcCurvatureDerivative2D(T tol)
   using NURBSCurveType = primal::NURBSCurve<T, 2>;
 
   const T radius = 4.;
-  const auto curve = NURBSCurveType::make_circular_arc_nurbs(T(0.15) * T(M_PI),
-                                                             T(1.85) * T(M_PI),
-                                                             T(0.),
-                                                             T(0.),
-                                                             radius);
+  const auto curve =
+    NURBSCurveType::make_circular_arc_nurbs(T(0.15) * T(M_PI), T(1.85) * T(M_PI), T(0.), T(0.), radius);
 
   constexpr int numSamples = 17;
   for(int i = 0; i < numSamples; ++i)
@@ -1308,11 +1298,8 @@ void checkCircularArcCurvatureDerivative3D(T tol)
   using Vector3D = primal::Vector<T, 3>;
 
   const T radius = 4.;
-  const auto curve2d = NURBSCurve2D::make_circular_arc_nurbs(T(0.1) * T(M_PI),
-                                                             T(1.6) * T(M_PI),
-                                                             T(0.),
-                                                             T(0.),
-                                                             radius);
+  const auto curve2d =
+    NURBSCurve2D::make_circular_arc_nurbs(T(0.1) * T(M_PI), T(1.6) * T(M_PI), T(0.), T(0.), radius);
 
   const T a0 = T(M_PI) / T(4.);
   const T a1 = a0 + T(M_PI) / T(2.);
@@ -1360,9 +1347,7 @@ TEST(primal_nurbscurve, curvature_reverse_orientation)
   using PointType = primal::Point<CoordType, DIM>;
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
 
-  PointType controlPoints[3] = {PointType {0.0, 0.0},
-                                PointType {0.5, 0.5},
-                                PointType {1.0, 0.0}};
+  PointType controlPoints[3] = {PointType {0.0, 0.0}, PointType {0.5, 0.5}, PointType {1.0, 0.0}};
   NURBSCurveType curve(controlPoints, 3, 2);
   NURBSCurveType reversed(curve);
   reversed.reverseOrientation();
@@ -1370,9 +1355,7 @@ TEST(primal_nurbscurve, curvature_reverse_orientation)
   for(const CoordType t : {0.0, 0.25, 0.5, 0.75, 1.0})
   {
     EXPECT_NEAR(curve.curvature(t), -reversed.curvature(1.0 - t), 1e-12);
-    EXPECT_NEAR(curve.curvatureDerivative(t),
-                reversed.curvatureDerivative(1.0 - t),
-                1e-12);
+    EXPECT_NEAR(curve.curvatureDerivative(t), reversed.curvatureDerivative(1.0 - t), 1e-12);
   }
 }
 
@@ -1389,17 +1372,15 @@ TEST(primal_nurbscurve, quartic_graph_derivatives_and_curvature)
   // f(x) = 0.25 * (x + 1) * (x - 2) * (x^2 - 0.25)
   // over x in [-1, 2], parameterized by x(t) = -1 + 3 t.
   auto analyticY = [](CoordType t) {
-    return (81.0 / 4.0) * t * t * t * t - (135.0 / 4.0) * t * t * t +
-      (243.0 / 16.0) * t * t - (27.0 / 16.0) * t;
+    return (81.0 / 4.0) * t * t * t * t - (135.0 / 4.0) * t * t * t + (243.0 / 16.0) * t * t -
+      (27.0 / 16.0) * t;
   };
 
   auto analyticYp = [](CoordType t) {
     return 81.0 * t * t * t - (405.0 / 4.0) * t * t + (243.0 / 8.0) * t - (27.0 / 16.0);
   };
 
-  auto analyticYpp = [](CoordType t) {
-    return 243.0 * t * t - (405.0 / 2.0) * t + (243.0 / 8.0);
-  };
+  auto analyticYpp = [](CoordType t) { return 243.0 * t * t - (405.0 / 2.0) * t + (243.0 / 8.0); };
 
   auto analyticYppp = [](CoordType t) { return 486.0 * t - (405.0 / 2.0); };
 
@@ -1415,16 +1396,14 @@ TEST(primal_nurbscurve, quartic_graph_derivatives_and_curvature)
     const CoordType ypp = analyticYpp(t);
     const CoordType yppp = analyticYppp(t);
     const CoordType denom = 9.0 + yp * yp;
-    return 3.0 * yppp / std::pow(denom, 1.5) -
-      9.0 * yp * ypp * ypp / std::pow(denom, 2.5);
+    return 3.0 * yppp / std::pow(denom, 1.5) - 9.0 * yp * ypp * ypp / std::pow(denom, 2.5);
   };
 
-  PointType controlPoints[5] = {
-    PointType {-1.0, 0.0},
-    PointType {-0.25, -27.0 / 64.0},
-    PointType {0.5, 27.0 / 16.0},
-    PointType {1.25, -135.0 / 64.0},
-    PointType {2.0, 0.0}};
+  PointType controlPoints[5] = {PointType {-1.0, 0.0},
+                                PointType {-0.25, -27.0 / 64.0},
+                                PointType {0.5, 27.0 / 16.0},
+                                PointType {1.25, -135.0 / 64.0},
+                                PointType {2.0, 0.0}};
 
   NURBSCurveType curve(controlPoints, 5, 4);
 
@@ -1472,9 +1451,11 @@ TEST(primal_nurbscurve, repeated_knot_kink_behavior)
 
   // This quadratic nonrational NURBS curve has an internal knot with
   // multiplicity equal to the degree, so it is only C^0 at t = 0.5.
-  PointType controlPoints[5] = {
-    PointType {0.0, 0.0}, PointType {1.0, 0.0}, PointType {1.0, 1.0},
-    PointType {2.0, 1.0}, PointType {3.0, 1.0}};
+  PointType controlPoints[5] = {PointType {0.0, 0.0},
+                                PointType {1.0, 0.0},
+                                PointType {1.0, 1.0},
+                                PointType {2.0, 1.0},
+                                PointType {3.0, 1.0}};
   CoordType knots[8] = {0.0, 0.0, 0.0, 0.5, 0.5, 1.0, 1.0, 1.0};
   NURBSCurveType curve(controlPoints, 5, knots, 8);
 
@@ -1544,8 +1525,7 @@ TEST(primal_nurbscurve, repeated_knot_kink_behavior)
 
   const CoordType kLeft = curve.curvature(tLeft);
   const CoordType kRight = curve.curvature(tRight);
-  const CoordType expectedKLeft =
-    1.0 / (2.0 * std::pow(1.0 - 4.0 * eps + 8.0 * eps * eps, 1.5));
+  const CoordType expectedKLeft = 1.0 / (2.0 * std::pow(1.0 - 4.0 * eps + 8.0 * eps * eps, 1.5));
   EXPECT_NEAR(kLeft, expectedKLeft, 1e-9);
   EXPECT_NEAR(kRight, 0.0, 1e-12);
 }

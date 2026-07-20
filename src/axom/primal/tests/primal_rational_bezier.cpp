@@ -211,9 +211,7 @@ TEST(primal_rationalbezier, curvature)
   using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
 
   const CoordType weight = 1.0 / std::sqrt(2.0);
-  PointType controlPoints[3] = {PointType {1.0, 0.0},
-                                PointType {1.0, 1.0},
-                                PointType {0.0, 1.0}};
+  PointType controlPoints[3] = {PointType {1.0, 0.0}, PointType {1.0, 1.0}, PointType {0.0, 1.0}};
   CoordType weights[3] = {1.0, weight, 1.0};
   BezierCurveType curve(controlPoints, weights, 2);
 

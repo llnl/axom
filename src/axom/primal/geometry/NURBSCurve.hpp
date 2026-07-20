@@ -1459,9 +1459,9 @@ public:
    * \param t The parameter value. 
    * 
    * \return The curvature value at t. 
-   */ 
-  double curvature(T t) const 
-  { 
+   */
+  double curvature(T t) const
+  {
     PointType eval;
     VectorType Dt, DtDt;
     evaluateSecondDerivative(t, eval, Dt, DtDt);

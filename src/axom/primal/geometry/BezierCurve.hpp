@@ -875,8 +875,7 @@ public:
         {
           eval[i] =
             (1 - t) * (1 - t) * dCarray[0] + 2 * (1 - t) * t * dCarray[1] + t * t * dCarray[2];
-          Dt[i] =
-            ord * ((1 - t) * (dCarray[1] - dCarray[0]) + t * (dCarray[2] - dCarray[1]));
+          Dt[i] = ord * ((1 - t) * (dCarray[1] - dCarray[0]) + t * (dCarray[2] - dCarray[1]));
           DtDt[i] = ord * (ord - 1) * (dCarray[2] - 2 * dCarray[1] + dCarray[0]);
           DtDtDt[i] = 0.0;
         }
@@ -885,9 +884,9 @@ public:
           const T omt = 1 - t;
           eval[i] = omt * omt * omt * dCarray[0] + 3 * omt * omt * t * dCarray[1] +
             3 * omt * t * t * dCarray[2] + t * t * t * dCarray[3];
-          Dt[i] = ord * (omt * omt * (dCarray[1] - dCarray[0]) +
-                         2 * omt * t * (dCarray[2] - dCarray[1]) +
-                         t * t * (dCarray[3] - dCarray[2]));
+          Dt[i] = ord *
+            (omt * omt * (dCarray[1] - dCarray[0]) + 2 * omt * t * (dCarray[2] - dCarray[1]) +
+             t * t * (dCarray[3] - dCarray[2]));
           DtDt[i] = ord * (ord - 1) *
             (omt * (dCarray[2] - 2 * dCarray[1] + dCarray[0]) +
              t * (dCarray[3] - 2 * dCarray[2] + dCarray[1]));

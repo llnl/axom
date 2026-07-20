@@ -32,18 +32,18 @@ namespace primal
  * \param[in] DtDt The 2nd derivative of the curve.
  *
  * \return The curvature evaluated at \a u.
- */ 
+ */
 template <typename VectorType, typename T = typename VectorType::CoordType>
-T curvature(const VectorType &Dt, const VectorType &DtDt)
+T curvature(const VectorType& Dt, const VectorType& DtDt)
 {
-  if constexpr (VectorType::dimension() == 2)
+  if constexpr(VectorType::dimension() == 2)
   {
-    const T xp = Dt[0];    // x'
-    const T yp = Dt[1];    // y'
+    const T xp = Dt[0];  // x'
+    const T yp = Dt[1];  // y'
 
-    const T xpp = DtDt[0]; // x''
-    const T ypp = DtDt[1]; // y''
-  
+    const T xpp = DtDt[0];  // x''
+    const T ypp = DtDt[1];  // y''
+
     // This is signed curvature as formulated at:
     // https://en.wikipedia.org/wiki/Curvature#Curvature_of_a_graph
     // k = (x'y'' - y'x'') / pow(x'x' + y'y', 3./2.)
@@ -68,9 +68,7 @@ T curvature(const VectorType &Dt, const VectorType &DtDt)
  *         parameter.
  */
 template <typename VectorType, typename T = typename VectorType::CoordType>
-T curvatureDerivative(const VectorType& D1,
-                      const VectorType& D2,
-                      const VectorType& D3)
+T curvatureDerivative(const VectorType& D1, const VectorType& D2, const VectorType& D3)
 {
   const T D1Norm = D1.norm();
   const T D1Norm3 = pow(D1Norm, 3.);
@@ -89,11 +87,9 @@ T curvatureDerivative(const VectorType& D1,
     const T cross12Norm = cross12.norm();
     const T crossTerm = cross12.dot(cross13);
 
-    return crossTerm / (cross12Norm * D1Norm3) -
-      3. * cross12Norm * D1.dot(D2) / D1Norm5;
+    return crossTerm / (cross12Norm * D1Norm3) - 3. * cross12Norm * D1.dot(D2) / D1Norm5;
   }
 }
 
 }  // namespace primal
 }  // namespace axom
-
