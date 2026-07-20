@@ -57,88 +57,42 @@ T curvature(const VectorType &Dt, const VectorType &DtDt)
   }
 }
 
-/*! 
- * \brief Evaluates the curvature derivatives using supplied curve derivatives.
- *  
- * \param[in] d The number of derivatives to compute (1=1st deriv, 2=1st & 2nd derivs) 
- * \param[in] curveDerivs The derivatives, up to order \a d, of the curve.
- * \param[out] ders An array that will contain the curvature derivatives. 
- */ 
+/*!
+ * \brief Evaluates the first parameter derivative of curvature using supplied
+ *        curve derivatives.
+ *
+ * \param[in] D1 The 1st derivative of the curve.
+ * \param[in] D2 The 2nd derivative of the curve.
+ * \param[in] D3 The 3rd derivative of the curve.
+ *
+ * \return The curvature derivative evaluated with respect to the curve
+ *         parameter.
+ */
 template <typename VectorType, typename T = typename VectorType::CoordType>
-void curvatureDerivatives(int d,
-                          const axom::Array<VectorType> &curveDerivs,
-                          axom::Array<T> &ders)
+T curvatureDerivative(const VectorType& D1,
+                      const VectorType& D2,
+                      const VectorType& D3)
 {
-  SLIC_ASSERT(d == 1 || d == 2);
-  SLIC_ASSERT(curveDerivs.size() == 3);
-
-  ders.resize(d);
-
-  const VectorType& D1 = curveDerivs[0];
-  const VectorType& D2 = curveDerivs[1];
-  const VectorType& D3 = curveDerivs[2];
-
-#if 0
-  // Original 2D only
-  const T xp = D1[0];    // x' 
-  const T xpp = D2[0];   // x'' 
-  const T xppp = D3[0];  // x''' 
-
-  const T yp = D1[1];    // y' 
-  const T ypp = D2[1];   // y'' 
-  const T yppp = D3[1];  // y''' 
-  
-  // 1st derivative of curvature. 
-  const T xp2_plus_yp2 = xp * xp + yp * yp; 
-  const T A = -3. * (xp * ypp - yp * xpp) * 2. * (xp * xpp + yp * ypp); 
-  const T B = 2. * pow(xp2_plus_yp2, 5. / 2.); 
-  const T C = xp * yppp - yp * xppp; 
-  const T D = pow(xp2_plus_yp2, 3. / 2.); 
-  ders[0] = A / B + C / D; 
-  
-  if(d >= 2) 
-  { 
-    // 2nd derivative of curvature. 
-    const T E = 15. * (-yp * xpp + xp * ypp) * 
-      pow(2. * xp * xpp + 2. * yp * ypp, 2.) / 
-      (4. * pow(xp2_plus_yp2, 7. / 2.)); 
-    const T F = 3. * (2. * xp * xpp + 2. * yp * ypp) * 
-      (-yp * xppp + xp * yppp) / pow(xp2_plus_yp2, 5. / 2.); 
-    const T G = 3. * (-yp * xpp + xp * ypp) * 
-      (2. * (xpp * xpp) + 2. * (ypp * ypp) + 2. * xp * xppp + 2. * yp * yppp) / 
-      (2. * pow(xp2_plus_yp2, 5. / 2.)); 
-    const T H = (-ypp * xppp + xpp * yppp) / pow(xp2_plus_yp2, 3. / 2.); 
-
-    ders[1] = E - F - G + H; 
-  }
-#else
   const T D1Norm = D1.norm();
   const T D1Norm3 = pow(D1Norm, 3.);
   const T D1Norm5 = pow(D1Norm, 5.);
-  const T D1D2Norm = VectorType::cross_product(D1, D2).norm();
-  const T D1D3Norm = VectorType::cross_product(D1, D3).norm();
 
-  // 1st derivative of curvature. 
-  const T A = -3. * D1D2Norm * 2. * D1.dot(D2);
-  const T B = 2. * D1Norm5;
-  const T C = D1D3Norm;
-  const T D = D1Norm3;
-  ders[0] = A / B + C / D; 
-
-  if(d >= 2) 
-  { 
-    // 2nd derivative of curvature. 
-    const T E = 15. * D1D2Norm * pow(2. * D1.dot(D2), 2.) / (4. * pow(D1Norm, 7.));
-
-    const T F = 3. * (2. * D1.dot(D2)) * D1D3Norm / D1Norm5;
-
-    const T G = 3. * D1D2Norm * (D2.squared_norm() * D1.dot(D3)) / D1Norm5;
-
-    const T H = VectorType::cross_product(D2, D3).norm() / D1Norm3;
-
-    ders[1] = E - F - G + H; 
+  if constexpr(VectorType::dimension() == 2)
+  {
+    const T det12 = D1[0] * D2[1] - D1[1] * D2[0];
+    const T det13 = D1[0] * D3[1] - D1[1] * D3[0];
+    return det13 / D1Norm3 - 3. * det12 * D1.dot(D2) / D1Norm5;
   }
-#endif
+  else
+  {
+    const auto cross12 = VectorType::cross_product(D1, D2);
+    const auto cross13 = VectorType::cross_product(D1, D3);
+    const T cross12Norm = cross12.norm();
+    const T crossTerm = cross12.dot(cross13);
+
+    return crossTerm / (cross12Norm * D1Norm3) -
+      3. * cross12Norm * D1.dot(D2) / D1Norm5;
+  }
 }
 
 }  // namespace primal

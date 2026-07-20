@@ -958,21 +958,18 @@ public:
   }
 
   /*!
-   * \brief Evaluates the curvature derivatives at \a t
+   * \brief Evaluates the first curvature derivative at parameter \a t
    *
    * \param [in] t The parameter value
-   * \param [in] d The number of derivatives to compute (must be 1 or 2)
-   * \param [out] ders An array that will contain the curvature derivatives at \a t
+   *
+   * \return The first curvature derivative with respect to the curve parameter
    */
-  void curvatureDerivatives(T t, int d, axom::Array<T>& ders) const
+  double curvatureDerivative(T t) const
   {
-    SLIC_ASSERT(d == 1 || d == 2);
-
-    axom::Array<VectorType> curveDers(3);
-    curveDers[0] = dt(t);
-    curveDers[1] = dtdt(t);
-    curveDers[2] = d3td3(t);
-    axom::primal::curvatureDerivatives(d, curveDers, ders);
+    PointType eval;
+    VectorType Dt, DtDt, DtDtDt;
+    evaluateThirdDerivative(t, eval, Dt, DtDt, DtDtDt);
+    return axom::primal::curvatureDerivative(Dt, DtDt, DtDtDt);
   }
 
   ///@}
