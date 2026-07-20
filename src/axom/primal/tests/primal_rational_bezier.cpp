@@ -220,12 +220,7 @@ TEST(primal_rationalbezier, curvature)
   for(const CoordType t : {0.0, 0.25, 0.5, 0.75, 1.0})
   {
     EXPECT_NEAR(curve.curvature(t), 1.0, 1e-12);
-
-    axom::Array<CoordType> curvatureDers;
-    curve.curvatureDerivatives(t, 2, curvatureDers);
-    ASSERT_EQ(curvatureDers.size(), 2);
-    EXPECT_NEAR(curvatureDers[0], 0.0, 1e-10);
-    EXPECT_NEAR(curvatureDers[1], 0.0, 1e-10);
+    EXPECT_NEAR(curve.curvatureDerivative(t), 0.0, 1e-10);
   }
 }
 

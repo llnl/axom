@@ -42,7 +42,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
-- Primal: Adds `BezierCurve::curvature()` and `BezierCurve::curvatureDerivatives()` helpers, complementing the
+- Primal: Adds `BezierCurve::curvature()` and `BezierCurve::curvatureDerivative()` helpers, complementing the
   existing curvature support on `NURBSCurve`.
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
