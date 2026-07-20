@@ -52,7 +52,7 @@ cmake --build build --target style
 ## Comments & documentation
 
 - Prefer Doxygen-style docstrings for public APIs:
-  - `@brief` for summary
-  - `@param[in]` / `@param[in,out]` for parameters
-  - `@tparam` for template parameters
+  - `\brief` for summary
+  - `\param[in]` / `\param[in,out]` for parameters
+  - `\tparam` for template parameters
 - Use `///` for short Doxygen comments on declarations when a full block is overkill.
