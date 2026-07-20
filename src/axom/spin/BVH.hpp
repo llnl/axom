@@ -11,6 +11,7 @@
 #include "axom/core/Macros.hpp"                          // for Axom macros
 #include "axom/core/Types.hpp"                           // for axom::IndexType
 #include "axom/core/numerics/floating_point_limits.hpp"  // floating_point_limits
+#include "axom/core/memory_management.hpp"               // for HostAllocator
 
 #include "axom/core/execution/execution_space.hpp"  // for execution spaces
 
@@ -344,6 +345,13 @@ public:
                   axom::Array<IndexType>& candidates,
                   IndexType numPts,
                   PointIndexable points) const;
+  template <typename PointIndexable>
+  void findPoints(axom::ArrayView<IndexType> offsets,
+                  axom::ArrayView<IndexType> counts,
+                  axom::Array<IndexType>& candidates,
+                  IndexType numPts,
+                  PointIndexable points,
+                  HostAllocator hostAllocator) const;
 
   /*!
    * \brief Finds the candidate bins that intersect the given rays.
@@ -370,6 +378,13 @@ public:
                 axom::Array<IndexType>& candidates,
                 IndexType numRays,
                 RayIndexable rays) const;
+  template <typename RayIndexable>
+  void findRays(axom::ArrayView<IndexType> offsets,
+                axom::ArrayView<IndexType> counts,
+                axom::Array<IndexType>& candidates,
+                IndexType numRays,
+                RayIndexable rays,
+                HostAllocator hostAllocator) const;
 
   /*!
    * \brief Finds the candidate bins that intersect the given bounding boxes.
@@ -396,6 +411,13 @@ public:
                          axom::Array<IndexType>& candidates,
                          IndexType numBoxes,
                          BoxIndexable boxes) const;
+  template <typename BoxIndexable>
+  void findBoundingBoxes(axom::ArrayView<IndexType> offsets,
+                         axom::ArrayView<IndexType> counts,
+                         axom::Array<IndexType>& candidates,
+                         IndexType numBoxes,
+                         BoxIndexable boxes,
+                         HostAllocator hostAllocator) const;
 
   /*!
    * \brief Writes the BVH to the specified VTK file for visualization.
@@ -485,6 +507,19 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexTyp
                                                         IndexType numPts,
                                                         PointIndexable pts) const
 {
+  findPoints(offsets, counts, candidates, numPts, pts, HostAllocator {});
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
+template <typename PointIndexable>
+void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexType> offsets,
+                                                        axom::ArrayView<IndexType> counts,
+                                                        axom::Array<IndexType>& candidates,
+                                                        IndexType numPts,
+                                                        PointIndexable pts,
+                                                        HostAllocator hostAllocator) const
+{
   AXOM_ANNOTATE_SCOPE("BVH::findPoints");
 
   using IterBase = typename IteratorTraits<PointIndexable>::BaseType;
@@ -500,8 +535,13 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexTyp
     return bb.contains(p);
   };
 
-  candidates =
-    m_bvh->template findCandidatesImpl<PointType>(predicate, offsets, counts, numPts, pts, m_AllocatorID);
+  candidates = m_bvh->template findCandidatesImpl<PointType>(predicate,
+                                                             offsets,
+                                                             counts,
+                                                             numPts,
+                                                             pts,
+                                                             m_AllocatorID,
+                                                             hostAllocator);
 }
 
 //------------------------------------------------------------------------------
@@ -512,6 +552,19 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType>
                                                       axom::Array<IndexType>& candidates,
                                                       IndexType numRays,
                                                       RayIndexable rays) const
+{
+  findRays(offsets, counts, candidates, numRays, rays, HostAllocator {});
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
+template <typename RayIndexable>
+void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType> offsets,
+                                                      axom::ArrayView<IndexType> counts,
+                                                      axom::Array<IndexType>& candidates,
+                                                      IndexType numRays,
+                                                      RayIndexable rays,
+                                                      HostAllocator hostAllocator) const
 {
   AXOM_ANNOTATE_SCOPE("BVH::findRays");
 
@@ -531,8 +584,13 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType>
     return primal::detail::intersect_ray(r, bb, tmp, TOL);
   };
 
-  candidates =
-    m_bvh->template findCandidatesImpl<RayType>(predicate, offsets, counts, numRays, rays, m_AllocatorID);
+  candidates = m_bvh->template findCandidatesImpl<RayType>(predicate,
+                                                           offsets,
+                                                           counts,
+                                                           numRays,
+                                                           rays,
+                                                           m_AllocatorID,
+                                                           hostAllocator);
 }
 
 //------------------------------------------------------------------------------
@@ -543,6 +601,19 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(axom::ArrayView<I
                                                                axom::Array<IndexType>& candidates,
                                                                IndexType numBoxes,
                                                                BoxIndexable boxes) const
+{
+  findBoundingBoxes(offsets, counts, candidates, numBoxes, boxes, HostAllocator {});
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
+template <typename BoxIndexable>
+void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(axom::ArrayView<IndexType> offsets,
+                                                               axom::ArrayView<IndexType> counts,
+                                                               axom::Array<IndexType>& candidates,
+                                                               IndexType numBoxes,
+                                                               BoxIndexable boxes,
+                                                               HostAllocator hostAllocator) const
 {
   AXOM_ANNOTATE_SCOPE("BVH::findBoundingBoxes");
 
@@ -564,7 +635,8 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(axom::ArrayView<I
                                                            counts,
                                                            numBoxes,
                                                            boxes,
-                                                           m_AllocatorID);
+                                                           m_AllocatorID,
+                                                           hostAllocator);
 }
 
 //------------------------------------------------------------------------------

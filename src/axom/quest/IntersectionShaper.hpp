@@ -1093,7 +1093,7 @@ private:
     axom::Array<IndexType> offsets(m_cellCount, m_cellCount, device_allocator, m_hostAllocator);
     axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator, m_hostAllocator);
     axom::Array<IndexType> candidates;
-    bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, quad_bbs_device_view);
+    bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, quad_bbs_device_view, m_hostAllocator);
 
     // Get the total number of candidates
     const auto counts_device_view = counts.view();
@@ -1277,7 +1277,7 @@ private:
     axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator, m_hostAllocator);
     axom::Array<IndexType> candidates;
     AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
-    bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, hex_bbs_device_view);
+    bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, hex_bbs_device_view, m_hostAllocator);
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates

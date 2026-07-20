@@ -151,14 +151,14 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   axom::Array<IndexType> bbOffsets(cellCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> bbCounts(cellCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> bbCandidates;
-  bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, hexBbs.size(), hexBbs);
+  bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, hexBbs.size(), hexBbs, hostAllocator);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_bbs");
 
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_rays");
   axom::Array<IndexType> rayOffsets(cellCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> rayCounts(cellCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> rayCandidates;
-  bvh.findRays(rayOffsets, rayCounts, rayCandidates, hexRaysView.size(), hexRaysView);
+  bvh.findRays(rayOffsets, rayCounts, rayCandidates, hexRaysView.size(), hexRaysView, hostAllocator);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_rays");
 
   auto bbCountsView = bbCounts.view();
@@ -284,14 +284,14 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   axom::Array<IndexType> bbOffsets(tetCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> bbCounts(tetCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> bbCandidates;
-  bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, tetBbs.size(), tetBbsView);
+  bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, tetBbs.size(), tetBbsView, hostAllocator);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_bbs");
 
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_rays");
   axom::Array<IndexType> rayOffsets(tetCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> rayCounts(tetCount, 0, allocId, hostAllocator);
   axom::Array<IndexType> rayCandidates;
-  bvh.findRays(rayOffsets, rayCounts, rayCandidates, tetRaysView.size(), tetRaysView);
+  bvh.findRays(rayOffsets, rayCounts, rayCandidates, tetRaysView.size(), tetRaysView, hostAllocator);
   AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_rays");
 
   auto bbCountsView = bbCounts.view();

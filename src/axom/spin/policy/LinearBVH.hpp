@@ -260,7 +260,8 @@ public:
                                             const axom::ArrayView<IndexType> counts,
                                             IndexType numObjs,
                                             PrimitiveIndexable objs,
-                                            int allocatorID) const;
+                                            int allocatorID,
+                                            HostAllocator hostAllocator) const;
 
   void writeVtkFileImpl(const std::string& fileName) const;
 
@@ -381,7 +382,8 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
   const axom::ArrayView<IndexType> counts,
   IndexType numObjs,
   PrimitiveIndexable objs,
-  int allocatorID) const
+  int allocatorID,
+  HostAllocator hostAllocator) const
 
 {
   AXOM_ANNOTATE_SCOPE("LinearBVH::findCandidatesImpl");
@@ -435,7 +437,8 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 
   // STEP 3: allocate memory for all candidates
   AXOM_ANNOTATE_BEGIN("allocate_candidates");
-  auto candidates = axom::Array<IndexType>(total_candidates, total_candidates, allocatorID);
+  auto candidates =
+    axom::Array<IndexType>(total_candidates, total_candidates, allocatorID, hostAllocator);
   AXOM_ANNOTATE_END("allocate_candidates");
   const auto candidates_v = candidates.view();
 
@@ -466,7 +469,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 #else  // CPU-only and no RAJA: do single traversal
   AXOM_UNUSED_VAR(allocatorID);
 
-  axom::Array<IndexType> search_candidates;
+  axom::Array<IndexType> search_candidates(0, 0, hostAllocator.getID(), hostAllocator);
   int current_offset = 0;
 
   // STEP 1: do single-pass traversal with std::vector for candidates
