@@ -954,7 +954,10 @@ public:
    */
   double curvature(T t) const
   {
-    return axom::primal::curvature(dt(t), dtdt(t));
+    PointType eval;
+    VectorType Dt, DtDt;
+    evaluateSecondDerivative(t, eval, Dt, DtDt);
+    return axom::primal::curvature(Dt, DtDt);
   }
 
   /*!
