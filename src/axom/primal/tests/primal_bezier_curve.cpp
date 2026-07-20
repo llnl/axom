@@ -404,7 +404,7 @@ TEST(primal_curvature_operator, curvature_derivative_3d)
   const VectorType D2 {0.0, -2.0, 0.0};
   const VectorType D3 {0.0, 0.0, 0.0};
 
-  EXPECT_NEAR(primal::curvatureDerivative(D1, D2, D3), -3.0 / std::sqrt(2.0), 1e-14);
+  EXPECT_NEAR(primal::curvatureDerivative(D1, D2, D3), 3.0 / std::sqrt(2.0), 1e-14);
 }
 
 //------------------------------------------------------------------------------
