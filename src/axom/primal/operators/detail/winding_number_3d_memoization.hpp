@@ -192,7 +192,7 @@ public:
     //  since the expanded portions are never visible
     m_oBox = m_alteredPatch.orientedBoundingBox();
     m_bBox.clear();
-    for(int n = 0; n < split_patches.size(); ++n)
+    for(axom::IndexType n = 0; n < split_patches.size(); ++n)
     {
       if(split_patches[n].getNumTrimmingCurves() == 0)
       {
@@ -235,8 +235,8 @@ public:
   //!
   //! By limiting access to these functions, we ensure memoized information is always accurate
   decltype(auto) getControlPoints() const { return m_alteredPatch.getControlPoints(); }
-  int getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
-  int getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
+  axom::IndexType getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
+  axom::IndexType getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
   decltype(auto) getWeights() const { return m_alteredPatch.getWeights(); }
   decltype(auto) getKnots_u() const { return m_alteredPatch.getKnots_u(); }
   decltype(auto) getKnots_v() const { return m_alteredPatch.getKnots_v(); }
@@ -367,7 +367,7 @@ public:
     //  need to use precomputed values
     if(!mustComputeNormal)
     {
-      for(int n = 0; n < precomputed_normals.size(); ++n)
+      for(axom::IndexType n = 0; n < precomputed_normals.size(); ++n)
       {
         m_nurbs_caches[n].setNormal(precomputed_normals[n], precomputed_surface_areas[n]);
       }

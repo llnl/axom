@@ -692,7 +692,7 @@ public:
    *  i.e. is not performing knot insertion/removal.
    *  Will replace existing knot vectots with uniform ones.
    */
-  void setNumControlPoints(int npts_u, int npts_v)
+  void setNumControlPoints(axom::IndexType npts_u, axom::IndexType npts_v)
   {
     SLIC_ASSERT(npts_u > getDegree_u());
     SLIC_ASSERT(npts_v > getDegree_v());
@@ -709,10 +709,10 @@ public:
   }
 
   /// \brief Returns the number of control points in the NURBS Patch on the first axis
-  int getNumControlPoints_u() const { return static_cast<int>(m_controlPoints.shape()[0]); }
+  axom::IndexType getNumControlPoints_u() const { return m_controlPoints.shape()[0]; }
 
   /// \brief Returns the number of control points in the NURBS Patch on the second axis
-  int getNumControlPoints_v() const { return static_cast<int>(m_controlPoints.shape()[1]); }
+  axom::IndexType getNumControlPoints_v() const { return m_controlPoints.shape()[1]; }
 
   /*!
    * \brief Set the number control points in u
@@ -722,7 +722,7 @@ public:
    * \warning This method does NOT maintain the patch shape,
    *  i.e. is not performing knot insertion/removal.
    */
-  void setNumControlPoints_u(int npts)
+  void setNumControlPoints_u(axom::IndexType npts)
   {
     SLIC_ASSERT(npts > getDegree_u());
 
@@ -744,7 +744,7 @@ public:
    * \warning This method does NOT maintain the patch shape,
    *  i.e. is not performing knot insertion/removal.
    */
-  void setNumControlPoints_v(int npts)
+  void setNumControlPoints_v(axom::IndexType npts)
   {
     SLIC_ASSERT(npts > getDegree_v());
 
@@ -1027,10 +1027,10 @@ public:
 
     const bool isRationalPatch = isRational();
 
-    const int np = getNumControlPoints_u() - 1;
+    const int np = static_cast<int>(getNumControlPoints_u() - 1);
     const int p = getDegree_u();
 
-    const int nq = getNumControlPoints_v() - 1;
+    const int nq = static_cast<int>(getNumControlPoints_v() - 1);
 
     // Find the span and initial multiplicity of the knot
     int s = 0;
@@ -1043,8 +1043,8 @@ public:
       return k;
     }
 
-    // Temp variable
-    axom::IndexType L;
+    // Temporary span index stays `int` since the surrounding algorithm is degree/span based.
+    int L;
 
     // Compute the alphas, which depend only on the knot vector
     axom::Array<T, 2> alpha(p - s, r + 1);
@@ -1194,9 +1194,9 @@ public:
 
     const bool isRationalPatch = isRational();
 
-    const int np = getNumControlPoints_u() - 1;
+    const int np = static_cast<int>(getNumControlPoints_u() - 1);
 
-    const int nq = getNumControlPoints_v() - 1;
+    const int nq = static_cast<int>(getNumControlPoints_v() - 1);
     const int q = getDegree_v();
 
     // Find the span and initial multiplicity of the knot
@@ -1210,8 +1210,8 @@ public:
       return k;
     }
 
-    // Temp variable
-    axom::IndexType L;
+    // Temporary span index stays `int` since the surrounding algorithm is degree/span based.
+    int L;
 
     // Compute the alphas, which depend only on the knot vector
     axom::Array<T, 2> alpha(q - s, r + 1);
@@ -2669,8 +2669,8 @@ public:
     // Set up the correct sizes and weights of the bounding curves
     axom::Array<NURBSCurve<T, 2>> boundingPoly(4);
 
-    const int npts_u = getNumControlPoints_u();
-    const int npts_v = getNumControlPoints_v();
+    const axom::IndexType npts_u = getNumControlPoints_u();
+    const axom::IndexType npts_v = getNumControlPoints_v();
 
     boundingPoly[0].setParameters(npts_v, getDegree_v());
     boundingPoly[0].setKnots(getKnots_v());
@@ -2773,7 +2773,7 @@ public:
   void addTrimmingCurves(const TrimmingCurveVec& curves)
   {
     m_isTrimmed = true;
-    for(int i = 0; i < curves.size(); ++i)
+    for(axom::IndexType i = 0; i < curves.size(); ++i)
     {
       m_trimmingCurves.push_back(curves[i]);
     }
@@ -3210,7 +3210,7 @@ public:
     const auto kq = m_knotvec_v.getNumKnotSpans();
 
     axom::Array<NURBSPatch<T, NDIMS>> strips(kp);
-    for(int i = 0; i < strips.size(); ++i)
+    for(axom::IndexType i = 0; i < strips.size(); ++i)
     {
       strips[i].setParameters(p + 1, m + 1, p, q);
       if(isRationalPatch)
@@ -3339,7 +3339,7 @@ public:
 
     // For each strip, do Bezier extraction on the v-axis
     axom::Array<BezierPatch<T, NDIMS>> beziers(kp * kq);
-    for(int i = 0; i < beziers.size(); ++i)
+    for(axom::IndexType i = 0; i < beziers.size(); ++i)
     {
       beziers[i].setOrder(p, q);
       if(isRationalPatch)
@@ -3348,11 +3348,11 @@ public:
       }
     }
 
-    for(int s_i = 0; s_i < strips.size(); ++s_i)
+    for(axom::IndexType s_i = 0; s_i < strips.size(); ++s_i)
     {
       auto& strip = strips[s_i];
-      int n_i = strip.getNumControlPoints_u() - 1;
-      int nb = s_i * m_knotvec_v.getNumKnotSpans();
+      const axom::IndexType n_i = strip.getNumControlPoints_u() - 1;
+      axom::IndexType nb = s_i * m_knotvec_v.getNumKnotSpans();
 
       // Handle this case separately
       if(q == 0)
@@ -4073,7 +4073,7 @@ public:
         // Extract the Bezier curves of the NURBS curve, checking each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
         const auto beziers = curve.extractBezier();
-        for(int i = 0; i < beziers.size(); ++i)
+        for(axom::IndexType i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_circle_p;
@@ -4095,7 +4095,7 @@ public:
           }
 
           // Scale the intersection parameters back into the span of the NURBS curve
-          for(int j = 0; j < temp_curve_p.size(); ++j)
+          for(axom::IndexType j = 0; j < temp_curve_p.size(); ++j)
           {
             circle_params.push_back(temp_circle_p[j]);
             curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
@@ -4175,7 +4175,7 @@ public:
     // Sort the circle parameters
     std::sort(circle_params.begin(), circle_params.end());
 
-    for(int i = 0; i < circle_params.size() - 1; ++i)
+    for(axom::IndexType i = 0; i < circle_params.size() - 1; ++i)
     {
       // Skip any duplicate parameters
       if(circle_params[i + 1] - circle_params[i] < 1e-10)
@@ -4286,7 +4286,7 @@ public:
     if(isTrimmed())
     {
       os << ", trimming curves [";
-      for(int i = 0; i < m_trimmingCurves.size(); ++i)
+      for(axom::IndexType i = 0; i < m_trimmingCurves.size(); ++i)
       {
         os << m_trimmingCurves[i];
         if(i < m_trimmingCurves.size() - 1)
@@ -4364,7 +4364,7 @@ private:
     const bool isRationalPatch = isRational();
 
     const int p = getDegree_u();
-    const int nq = getNumControlPoints_v() - 1;
+    const axom::IndexType nq = getNumControlPoints_v() - 1;
 
     p1 = *this;
     p2.m_isTrimmed = m_isTrimmed;
@@ -4434,7 +4434,7 @@ private:
 
     const bool isRationalPatch = isRational();
 
-    const int np = getNumControlPoints_u() - 1;
+    const axom::IndexType np = getNumControlPoints_u() - 1;
     const int q = getDegree_v();
 
     p1 = *this;
@@ -4533,7 +4533,7 @@ private:
         // Extract the Bezier curves of the NURBS curve, and check each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
         const auto beziers = curve.extractBezier();
-        for(int i = 0; i < beziers.size(); ++i)
+        for(axom::IndexType i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_ray_p;
@@ -4558,7 +4558,7 @@ private:
                                        false);
 
           // Scale the intersection parameters back into the span of the NURBS curve
-          for(int j = 0; j < temp_curve_p.size(); ++j)
+          for(axom::IndexType j = 0; j < temp_curve_p.size(); ++j)
           {
             ray_params.push_back(temp_ray_p[j]);
             curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
@@ -4596,7 +4596,7 @@ private:
       // Sort the ray parameters
       std::sort(ray_params.begin(), ray_params.end());
 
-      for(int i = 0; i < ray_params.size() - 1; ++i)
+      for(axom::IndexType i = 0; i < ray_params.size() - 1; ++i)
       {
         // Skip any duplicate parameters
         if(ray_params[i + 1] - ray_params[i] < 1e-10)
