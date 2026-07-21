@@ -19,6 +19,7 @@
 
 namespace
 {
+#if defined(AXOM_USE_UMPIRE)
 bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
 {
   if(!axom::isMemorySpaceAvailable(space))
@@ -26,7 +27,6 @@ bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
     return false;
   }
 
-#if defined(AXOM_USE_UMPIRE)
   try
   {
     switch(space)
@@ -71,10 +71,10 @@ bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
   {
     return false;
   }
-#endif
 
   return true;
 }
+#endif
 
 /*!
  * \brief Calculate the new capacity for an Array given an increase in the size.

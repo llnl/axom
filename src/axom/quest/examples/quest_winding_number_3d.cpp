@@ -298,6 +298,8 @@ GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
     SLIC_INFO(axom::fmt::format("Using policy omp with {} threads", omp_get_max_threads()));
     return pick_gwn_method<axom::OMP_EXEC>(triangulate, approximation_order);
   }
+#else
+  AXOM_UNUSED_VAR(policy);
 #endif
 
   SLIC_INFO("Using policy seq");

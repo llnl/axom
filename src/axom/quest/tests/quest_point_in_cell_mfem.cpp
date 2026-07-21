@@ -59,9 +59,9 @@ const int NUM_TEST_PTS = 10000;
 const int TEST_GRID_RES = 3;
 #endif
 
+#if defined(AXOM_USE_UMPIRE)
 bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
 {
-#if defined(AXOM_USE_UMPIRE)
   try
   {
     switch(space)
@@ -106,12 +106,10 @@ bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
   {
     return false;
   }
-#else
-  AXOM_UNUSED_VAR(space);
-#endif
 
   return true;
 }
+#endif
 
 template <typename ExecSpace>
 int runtimeAllocatorIdForExecSpace()
