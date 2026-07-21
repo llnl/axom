@@ -49,7 +49,7 @@ public:
  * \brief Sample an RNG with lookahead.
  *  Based on PCG implementation: https://www.pcg-random.org
  */
-AXOM_HOST_DEVICE uint64_t SampleRNG(uint64_t seed, int distance)
+AXOM_HOST_DEVICE uint64_t SampleRNG(uint64_t seed, axom::IndexType distance)
 {
   uint64_t a = 6364136223846793005ULL;
   uint64_t output = seed;
@@ -63,7 +63,7 @@ AXOM_HOST_DEVICE uint64_t SampleRNG(uint64_t seed, int distance)
   if(distance > 0)
   {
     uint64_t a_n = 1;
-    int n = distance;
+    axom::IndexType n = distance;
     while(n > 0)
     {
       if(n % 2 == 1)
@@ -76,9 +76,9 @@ AXOM_HOST_DEVICE uint64_t SampleRNG(uint64_t seed, int distance)
     output *= a_n;
   }
 
-  uint32_t xorshifted = ((output >> 18u) ^ output) >> 27u;
-  uint32_t rot = output >> 59u;
-  return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+  uint32_t xorshifted = static_cast<uint32_t>(((output >> 18u) ^ output) >> 27u);
+  uint32_t rot = static_cast<uint32_t>(output >> 59u);
+  return (xorshifted >> rot) | (xorshifted << ((32u - rot) & 31u));
 }
 
 template <typename ExecPolicy, typename T>
@@ -89,8 +89,7 @@ void test_flatmap_init_and_query(axom::IndexType num_elems, axom::IndexType rep_
   axom::utilities::Timer initTimer(false);
   axom::utilities::Timer findTimer(false);
   axom::utilities::Timer rehashTimer(false);
-  std::random_device rnd_dev {};
-  for(int i = 0; i < rep_count; i++)
+  for(axom::IndexType i = 0; i < rep_count; i++)
   {
     axom::Array<T> keys_vec(num_elems, num_elems, allocatorID);
     axom::Array<T> values_vec(num_elems, num_elems, allocatorID);
