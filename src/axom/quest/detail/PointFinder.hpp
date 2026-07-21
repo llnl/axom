@@ -92,7 +92,7 @@ public:
     if(DeviceExec)
     {
       // Copy the host-side bounding boxes to GPU memory.
-      m_cellBBoxes = axom::Array<SpatialBoundingBox>(cellBBoxesHost, m_allocatorID);
+      m_cellBBoxes = axom::Array<SpatialBoundingBox>(cellBBoxesHost, m_allocatorID, m_hostAllocator);
     }
     else
     {
@@ -130,7 +130,9 @@ public:
 
     if(DeviceExec)
     {
-      axom::Array<SpacePoint> dev_ptr(axom::ArrayView<const SpacePoint>(&pt, 1), m_allocatorID);
+      axom::Array<SpacePoint> dev_ptr(axom::ArrayView<const SpacePoint>(&pt, 1),
+                                      m_allocatorID,
+                                      m_hostAllocator);
       locatePoints(dev_ptr, &containingCell, &isopar);
     }
     else
@@ -167,8 +169,8 @@ public:
 
     axom::IndexType npts = pts.size();
 
-    IndexArray offsets(npts, npts, m_allocatorID);
-    IndexArray counts(npts, npts, m_allocatorID);
+    IndexArray offsets(npts, npts, m_allocatorID, m_hostAllocator);
+    IndexArray counts(npts, npts, m_allocatorID, m_hostAllocator);
 
 #ifdef AXOM_USE_RAJA
     IndexView countsPtr = counts;
@@ -188,7 +190,7 @@ public:
     axom::IndexType totalCount = totalCountReduce.get();
 
     // Step 3: allocate memory for all candidates
-    IndexArray candidates(totalCount, totalCount, m_allocatorID);
+    IndexArray candidates(totalCount, totalCount, m_allocatorID, m_hostAllocator);
     IndexView candidatesPtr = candidates;
     IndexView offsetsPtr = offsets;
     const SpatialBoundingBox* cellBBoxes = m_cellBBoxes.data();
