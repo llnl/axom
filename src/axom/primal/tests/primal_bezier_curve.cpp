@@ -414,19 +414,19 @@ TEST(primal_curvature_operator, curvature_derivative_3d_wavy_curve)
   constexpr CoordType amplitude = 0.5;
   constexpr CoordType frequency = 20.0;
 
-  auto D1 = [](CoordType theta) {
+  auto D1 = [=](CoordType theta) {
     return VectorType {-radius * std::sin(theta),
                        radius * std::cos(theta),
                        -amplitude * frequency * std::sin(frequency * theta)};
   };
 
-  auto D2 = [](CoordType theta) {
+  auto D2 = [=](CoordType theta) {
     return VectorType {-radius * std::cos(theta),
                        -radius * std::sin(theta),
                        -amplitude * frequency * frequency * std::cos(frequency * theta)};
   };
 
-  auto D3 = [](CoordType theta) {
+  auto D3 = [=](CoordType theta) {
     return VectorType {radius * std::sin(theta),
                        -radius * std::cos(theta),
                        amplitude * frequency * frequency * frequency * std::sin(frequency * theta)};
