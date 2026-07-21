@@ -214,8 +214,8 @@ public:
       SLIC_ASSERT(knot_deg_u >= 0 && knot_deg_v >= 0);
       AXOM_MAYBE_UNUSED const int deg_u = utilities::max(0, knot_deg_u);
       AXOM_MAYBE_UNUSED const int deg_v = utilities::max(0, knot_deg_v);
-      const int npts_u = knotVector_u.getNumControlPoints();
-      const int npts_v = knotVector_v.getNumControlPoints();
+      const axom::IndexType npts_u = knotVector_u.getNumControlPoints();
+      const axom::IndexType npts_v = knotVector_v.getNumControlPoints();
       SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
 
       if(controlPoints.empty())
@@ -988,10 +988,10 @@ public:
   T getMaxKnot_v() const { return m_knotvec_v.getMaxKnot(); }
 
   /// \brief Return the length of the knot vector on the first axis
-  int getNumKnots_u() const { return m_knotvec_u.getNumKnots(); }
+  axom::IndexType getNumKnots_u() const { return m_knotvec_u.getNumKnots(); }
 
   /// \brief Return the length of the knot vector on the second axis
-  int getNumKnots_v() const { return m_knotvec_v.getNumKnots(); }
+  axom::IndexType getNumKnots_v() const { return m_knotvec_v.getNumKnots(); }
 
   /*! 
    * \brief Insert a knot to the u knot vector to have the given multiplicity
@@ -1034,7 +1034,7 @@ public:
 
     // Find the span and initial multiplicity of the knot
     int s = 0;
-    const auto k = m_knotvec_u.findSpan(u, s);
+    const int k = static_cast<int>(m_knotvec_u.findSpan(u, s));
 
     // Find how many knots we need to insert
     int r = axom::utilities::min(target_multiplicity - s, p - s);
@@ -1201,7 +1201,7 @@ public:
 
     // Find the span and initial multiplicity of the knot
     int s = 0;
-    const auto k = m_knotvec_v.findSpan(v, s);
+    const int k = static_cast<int>(m_knotvec_v.findSpan(v, s));
 
     // Find how many knots we need to insert
     int r = axom::utilities::min(target_multiplicity - s, q - s);
@@ -1362,7 +1362,7 @@ public:
   void reverseOrientation_u()
   {
     auto patch_shape = m_controlPoints.shape();
-    const int npts_u_mid = (patch_shape[0] + 1) / 2;
+    const int npts_u_mid = static_cast<int>((patch_shape[0] + 1) / 2);
 
     for(int q = 0; q < patch_shape[1]; ++q)
     {
@@ -1388,7 +1388,7 @@ public:
 
     for(auto& curve : m_trimmingCurves)
     {
-      for(int i = 0; i < curve.getNumControlPoints(); ++i)
+      for(axom::IndexType i = 0; i < curve.getNumControlPoints(); ++i)
       {
         curve[i][0] = min_u + max_u - curve[i][0];
       }
@@ -1401,7 +1401,7 @@ public:
   void reverseOrientation_v()
   {
     auto patch_shape = m_controlPoints.shape();
-    const int npts_v_mid = (patch_shape[1] + 1) / 2;
+    const int npts_v_mid = static_cast<int>((patch_shape[1] + 1) / 2);
 
     for(int p = 0; p < patch_shape[0]; ++p)
     {
@@ -1427,7 +1427,7 @@ public:
 
     for(auto& curve : m_trimmingCurves)
     {
-      for(int i = 0; i < curve.getNumControlPoints(); ++i)
+      for(axom::IndexType i = 0; i < curve.getNumControlPoints(); ++i)
       {
         curve[i][1] = min_v + max_v - curve[i][1];
       }
@@ -1477,7 +1477,7 @@ public:
 
     for(auto& curve : m_trimmingCurves)
     {
-      for(int j = 0; j < curve.getNumControlPoints(); ++j)
+      for(axom::IndexType j = 0; j < curve.getNumControlPoints(); ++j)
       {
         axom::utilities::swap(curve[j][0], curve[j][1]);
       }
@@ -1518,11 +1518,11 @@ public:
     const T n = static_cast<T>(m_knotvec_u.getNumKnotSpans());
     const T m = static_cast<T>(m_knotvec_v.getNumKnotSpans());
 
-    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, n);
-    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, m);
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), T {0}, n);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), T {0}, m);
 
-    m_knotvec_u.rescale(0, n);
-    m_knotvec_v.rescale(0, m);
+    m_knotvec_u.rescale(T {0}, n);
+    m_knotvec_v.rescale(T {0}, m);
   }
 
   /*!
@@ -1721,8 +1721,8 @@ public:
       }
     }
 
-    int nkts_v = m_knotvec_v.getNumKnots();
-    int nkts_u = m_knotvec_u.getNumKnots();
+    int nkts_v = static_cast<int>(m_knotvec_v.getNumKnots());
+    int nkts_u = static_cast<int>(m_knotvec_u.getNumKnots());
 
     // Add the control points on the v direction
     for(int i = 0; i < n; ++i)
@@ -1872,35 +1872,36 @@ public:
     }
 
     // Fix the u knot vector
-    newKnotVec_u.resize(m_knotvec_u.getNumKnots() + 2 * m_knotvec_u.getDegree());
+    const axom::IndexType numKnots_u = m_knotvec_u.getNumKnots();
+    const axom::IndexType numKnots_v = m_knotvec_v.getNumKnots();
+
+    newKnotVec_u.resize(numKnots_u + 2 * m_knotvec_u.getDegree());
     for(int i = 0; i <= deg_u; ++i)
     {
       newKnotVec_u[i] = m_knotvec_u[0] - expansionAmount_u;
     }
-    for(int i = 0; i < m_knotvec_u.getNumKnots() - 2; ++i)
+    for(axom::IndexType i = 0; i < numKnots_u - 2; ++i)
     {
       newKnotVec_u[i + deg_u + 1] = m_knotvec_u[i + 1];
     }
     for(int i = 0; i <= deg_u; ++i)
     {
-      newKnotVec_u[i + deg_u + m_knotvec_u.getNumKnots() - 1] =
-        m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + expansionAmount_u;
+      newKnotVec_u[i + deg_u + numKnots_u - 1] = m_knotvec_u[numKnots_u - 1] + expansionAmount_u;
     }
 
     // Fix the v knot vector
-    newKnotVec_v.resize(m_knotvec_v.getNumKnots() + 2 * m_knotvec_v.getDegree());
+    newKnotVec_v.resize(numKnots_v + 2 * m_knotvec_v.getDegree());
     for(int i = 0; i <= deg_v; ++i)
     {
       newKnotVec_v[i] = m_knotvec_v[0] - expansionAmount_v;
     }
-    for(int i = 0; i < m_knotvec_v.getNumKnots() - 2; ++i)
+    for(axom::IndexType i = 0; i < numKnots_v - 2; ++i)
     {
       newKnotVec_v[i + deg_v + 1] = m_knotvec_v[i + 1];
     }
     for(int i = 0; i <= deg_v; ++i)
     {
-      newKnotVec_v[i + deg_v + m_knotvec_v.getNumKnots() - 1] =
-        m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + expansionAmount_v;
+      newKnotVec_v[i + deg_v + numKnots_v - 1] = m_knotvec_v[numKnots_v - 1] + expansionAmount_v;
     }
 
     m_controlPoints = newControlPoints;
@@ -2789,7 +2790,7 @@ public:
   void clearTrimmingCurves() { m_trimmingCurves.clear(); }
 
   /// \brief Get number of trimming curves
-  int getNumTrimmingCurves() const { return m_trimmingCurves.size(); }
+  axom::IndexType getNumTrimmingCurves() const { return m_trimmingCurves.size(); }
 
   /*!
    * \brief Predicate to check if the patch is "trivially trimmed" in parameter space.
@@ -2812,7 +2813,7 @@ public:
       return false;
     }
 
-    const int ncurves = getNumTrimmingCurves();
+    const axom::IndexType ncurves = getNumTrimmingCurves();
     if(ncurves != 4)
     {
       return false;
@@ -4244,8 +4245,8 @@ public:
     int deg_u = m_knotvec_u.getDegree();
     int deg_v = m_knotvec_v.getDegree();
 
-    int nkts_u = m_knotvec_u.getNumKnots();
-    int nkts_v = m_knotvec_v.getNumKnots();
+    const axom::IndexType nkts_u = m_knotvec_u.getNumKnots();
+    const axom::IndexType nkts_v = m_knotvec_v.getNumKnots();
 
     os << "{ degree (" << deg_u << ", " << deg_v << ") NURBS Patch, ";
     os << "control points [";
@@ -4309,7 +4310,7 @@ private:
 
     for(auto& curve : m_trimmingCurves)
     {
-      for(int i = 0; i < curve.getNumControlPoints(); ++i)
+      for(axom::IndexType i = 0; i < curve.getNumControlPoints(); ++i)
       {
         curve[i][0] = c + (d - c) * (curve[i][0] - a) / (b - a);
       }
@@ -4325,7 +4326,7 @@ private:
 
     for(auto& curve : m_trimmingCurves)
     {
-      for(int i = 0; i < curve.getNumControlPoints(); ++i)
+      for(axom::IndexType i = 0; i < curve.getNumControlPoints(); ++i)
       {
         curve[i][1] = c + (d - c) * (curve[i][1] - a) / (b - a);
       }
