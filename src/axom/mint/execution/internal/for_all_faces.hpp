@@ -10,6 +10,7 @@
 #include "axom/config.hpp"                          // compile time definitions
 #include "axom/core/execution/execution_space.hpp"  // for execution_space traits
 #include "axom/core/execution/for_all.hpp"          // for axom::for_all
+#include "axom/core/memory_management.hpp"
 
 // mint includes
 #include "axom/mint/execution/xargs.hpp"             // for xargs
@@ -165,6 +166,15 @@ inline void for_all_faces(xargs::index, const Mesh& m, KernelType&& kernel)
   return for_all_faces_impl<ExecPolicy>(xargs::index(), m, std::forward<KernelType>(kernel));
 }
 
+template <typename ExecPolicy, typename KernelType>
+inline void for_all_faces(xargs::index,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator AXOM_UNUSED_PARAM(hostAllocator))
+{
+  return for_all_faces<ExecPolicy>(xargs::index(), m, std::forward<KernelType>(kernel));
+}
+
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_faces_impl(xargs::nodeids, const StructuredMesh& m, KernelType&& kernel)
@@ -261,7 +271,8 @@ inline void for_all_faces_impl(xargs::nodeids, const StructuredMesh& m, KernelTy
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_faces_impl(xargs::nodeids,
                                const UnstructuredMesh<SINGLE_SHAPE>& m,
-                               KernelType&& kernel)
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getNumberOfFaces() <= 0,
                 "No faces in the mesh, perhaps you meant to call "
@@ -275,7 +286,7 @@ inline void for_all_faces_impl(xargs::nodeids,
 
   // Move faces to nodes onto device
   axom::Array<IndexType> faces_to_nodes_d = on_device
-    ? axom::Array<IndexType>(faces_to_nodes_h, device_allocator)
+    ? axom::Array<IndexType>(faces_to_nodes_h, device_allocator, hostAllocator)
     : axom::Array<IndexType>();
 
   auto faces_to_nodes_view = on_device ? faces_to_nodes_d.view() : faces_to_nodes_h;
@@ -294,7 +305,8 @@ inline void for_all_faces_impl(xargs::nodeids,
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_faces_impl(xargs::nodeids,
                                const UnstructuredMesh<MIXED_SHAPE>& m,
-                               KernelType&& kernel)
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getNumberOfFaces() <= 0,
                 "No faces in the mesh, perhaps you meant to call "
@@ -310,10 +322,11 @@ inline void for_all_faces_impl(xargs::nodeids,
 
   // Move faces to nodes and offsets onto device
   axom::Array<IndexType> faces_to_nodes_d = on_device
-    ? axom::Array<IndexType>(faces_to_nodes_h, device_allocator)
+    ? axom::Array<IndexType>(faces_to_nodes_h, device_allocator, hostAllocator)
     : axom::Array<IndexType>();
-  axom::Array<IndexType> offsets_d =
-    on_device ? axom::Array<IndexType>(offsets_h, device_allocator) : axom::Array<IndexType>();
+  axom::Array<IndexType> offsets_d = on_device
+    ? axom::Array<IndexType>(offsets_h, device_allocator, hostAllocator)
+    : axom::Array<IndexType>();
 
   auto faces_to_nodes_view = on_device ? faces_to_nodes_d.view() : faces_to_nodes_h;
   auto offsets_view = on_device ? offsets_d.view() : offsets_h;
@@ -329,7 +342,10 @@ inline void for_all_faces_impl(xargs::nodeids,
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_faces(xargs::nodeids, const Mesh& m, KernelType&& kernel)
+inline void for_all_faces(xargs::nodeids,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ASSERT(m.getDimension() > 1 && m.getDimension() <= 3);
 
@@ -341,12 +357,18 @@ inline void for_all_faces(xargs::nodeids, const Mesh& m, KernelType&& kernel)
   else if(m.hasMixedCellTypes())
   {
     const UnstructuredMesh<MIXED_SHAPE>& um = static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
-    for_all_faces_impl<ExecPolicy>(xargs::nodeids(), um, std::forward<KernelType>(kernel));
+    for_all_faces_impl<ExecPolicy>(xargs::nodeids(),
+                                   um,
+                                   std::forward<KernelType>(kernel),
+                                   hostAllocator);
   }
   else
   {
     const UnstructuredMesh<SINGLE_SHAPE>& um = static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
-    for_all_faces_impl<ExecPolicy>(xargs::nodeids(), um, std::forward<KernelType>(kernel));
+    for_all_faces_impl<ExecPolicy>(xargs::nodeids(),
+                                   um,
+                                   std::forward<KernelType>(kernel),
+                                   hostAllocator);
   }
 }
 
@@ -467,7 +489,10 @@ inline void for_all_faces_impl(xargs::cellids, const StructuredMesh& m, KernelTy
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, Topology TOPO, typename KernelType>
-inline void for_all_faces_impl(xargs::cellids, const UnstructuredMesh<TOPO>& m, KernelType&& kernel)
+inline void for_all_faces_impl(xargs::cellids,
+                               const UnstructuredMesh<TOPO>& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getNumberOfFaces() <= 0,
                 "No faces in the mesh, perhaps you meant to call "
@@ -481,7 +506,7 @@ inline void for_all_faces_impl(xargs::cellids, const UnstructuredMesh<TOPO>& m, 
 
   // Move faces to cells onto device
   axom::Array<IndexType> faces_to_cells_d = on_device
-    ? axom::Array<IndexType>(faces_to_cells_h, device_allocator)
+    ? axom::Array<IndexType>(faces_to_cells_h, device_allocator, hostAllocator)
     : axom::Array<IndexType>();
 
   auto faces_to_cells_view = on_device ? faces_to_cells_d.view() : faces_to_cells_h;
@@ -497,7 +522,10 @@ inline void for_all_faces_impl(xargs::cellids, const UnstructuredMesh<TOPO>& m, 
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_faces(xargs::cellids, const Mesh& m, KernelType&& kernel)
+inline void for_all_faces(xargs::cellids,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ASSERT(m.getDimension() > 1 && m.getDimension() <= 3);
 
@@ -509,12 +537,18 @@ inline void for_all_faces(xargs::cellids, const Mesh& m, KernelType&& kernel)
   else if(m.hasMixedCellTypes())
   {
     const UnstructuredMesh<MIXED_SHAPE>& um = static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
-    for_all_faces_impl<ExecPolicy>(xargs::cellids(), um, std::forward<KernelType>(kernel));
+    for_all_faces_impl<ExecPolicy>(xargs::cellids(),
+                                   um,
+                                   std::forward<KernelType>(kernel),
+                                   hostAllocator);
   }
   else
   {
     const UnstructuredMesh<SINGLE_SHAPE>& um = static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
-    for_all_faces_impl<ExecPolicy>(xargs::cellids(), um, std::forward<KernelType>(kernel));
+    for_all_faces_impl<ExecPolicy>(xargs::cellids(),
+                                   um,
+                                   std::forward<KernelType>(kernel),
+                                   hostAllocator);
   }
 }
 
@@ -647,7 +681,10 @@ inline void for_all_faces_impl(xargs::coords, const UniformMesh& m, KernelType&&
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_faces_impl(xargs::coords, const RectilinearMesh& m, KernelType&& kernel)
+inline void for_all_faces_impl(xargs::coords,
+                               const RectilinearMesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   constexpr bool NO_COPY = true;
 
@@ -666,10 +703,12 @@ inline void for_all_faces_impl(xargs::coords, const RectilinearMesh& m, KernelTy
                                                 m.getNodeResolution(Y_COORDINATE));
 
   // Move xy values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
-  axom::Array<double> y_vals_d =
-    on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
+  axom::Array<double> y_vals_d = on_device
+    ? axom::Array<double>(y_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
 
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
@@ -708,8 +747,9 @@ inline void for_all_faces_impl(xargs::coords, const RectilinearMesh& m, KernelTy
                                                   m.getNodeResolution(Z_COORDINATE));
 
     // Move z values onto device
-    axom::Array<double> z_vals_d =
-      on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
+    axom::Array<double> z_vals_d = on_device
+      ? axom::Array<double>(z_vals_h, device_allocator, hostAllocator)
+      : axom::Array<double>();
 
     auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
 
@@ -793,18 +833,23 @@ struct for_all_face_nodes_functor
   template <typename ExecPolicy, typename MeshType, typename KernelType>
   inline void operator()(ExecPolicy AXOM_UNUSED_PARAM(policy),
                          const MeshType& m,
+                         HostAllocator hostAllocator,
                          KernelType&& kernel) const
   {
     constexpr bool valid_mesh_type = std::is_base_of<Mesh, MeshType>::value;
     AXOM_STATIC_ASSERT(valid_mesh_type);
 
+    AXOM_UNUSED_VAR(hostAllocator);
     for_all_faces_impl<ExecPolicy>(xargs::nodeids(), m, std::forward<KernelType>(kernel));
   }
 };
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_faces_impl(xargs::coords, const CurvilinearMesh& m, KernelType&& kernel)
+inline void for_all_faces_impl(xargs::coords,
+                               const CurvilinearMesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ASSERT(m.getDimension() > 1 && m.getDimension() <= 3);
 
@@ -813,19 +858,24 @@ inline void for_all_faces_impl(xargs::coords, const CurvilinearMesh& m, KernelTy
   {
     for_all_coords<ExecPolicy, 2, 2>(for_all_face_nodes_functor(),
                                      m,
+                                     hostAllocator,
                                      std::forward<KernelType>(kernel));
   }
   else
   {
     for_all_coords<ExecPolicy, 3, 4>(for_all_face_nodes_functor(),
                                      m,
+                                     hostAllocator,
                                      std::forward<KernelType>(kernel));
   }
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType, Topology TOPO>
-inline void for_all_faces_impl(xargs::coords, const UnstructuredMesh<TOPO>& m, KernelType&& kernel)
+inline void for_all_faces_impl(xargs::coords,
+                               const UnstructuredMesh<TOPO>& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   constexpr bool NO_COPY = true;
 
@@ -842,10 +892,12 @@ inline void for_all_faces_impl(xargs::coords, const UnstructuredMesh<TOPO>& m, K
   auto y_vals_h = axom::ArrayView<const double>(m.getCoordinateArray(Y_COORDINATE), coordinate_size);
 
   // Move xy values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
-  axom::Array<double> y_vals_d =
-    on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
+  axom::Array<double> y_vals_d = on_device
+    ? axom::Array<double>(y_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
 
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
@@ -866,7 +918,8 @@ inline void for_all_faces_impl(xargs::coords, const UnstructuredMesh<TOPO>& m, K
 
         numerics::Matrix<double> coordsMatrix(dimension, 2, coords, NO_COPY);
         kernel(faceID, coordsMatrix, nodeIDs);
-      });
+      },
+      hostAllocator);
   }
   else
   {
@@ -874,8 +927,9 @@ inline void for_all_faces_impl(xargs::coords, const UnstructuredMesh<TOPO>& m, K
       axom::ArrayView<const double>(m.getCoordinateArray(Z_COORDINATE), coordinate_size);
 
     // Move z values onto device
-    axom::Array<double> z_vals_d =
-      on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
+    axom::Array<double> z_vals_d = on_device
+      ? axom::Array<double>(z_vals_h, device_allocator, hostAllocator)
+      : axom::Array<double>();
 
     auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
 
@@ -894,13 +948,17 @@ inline void for_all_faces_impl(xargs::coords, const UnstructuredMesh<TOPO>& m, K
 
         numerics::Matrix<double> coordsMatrix(dimension, numNodes, coords, NO_COPY);
         kernel(faceID, coordsMatrix, nodeIDs);
-      });
+      },
+      hostAllocator);
   }
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_faces(xargs::coords, const Mesh& m, KernelType&& kernel)
+inline void for_all_faces(xargs::coords,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() <= 1 || m.getDimension() > 3, "Invalid dimension");
 
@@ -912,12 +970,12 @@ inline void for_all_faces(xargs::coords, const Mesh& m, KernelType&& kernel)
   else if(m.getMeshType() == STRUCTURED_RECTILINEAR_MESH)
   {
     const RectilinearMesh& rm = static_cast<const RectilinearMesh&>(m);
-    for_all_faces_impl<ExecPolicy>(xargs::coords(), rm, std::forward<KernelType>(kernel));
+    for_all_faces_impl<ExecPolicy>(xargs::coords(), rm, std::forward<KernelType>(kernel), hostAllocator);
   }
   else if(m.getMeshType() == STRUCTURED_CURVILINEAR_MESH)
   {
     const CurvilinearMesh& cm = static_cast<const CurvilinearMesh&>(m);
-    for_all_faces_impl<ExecPolicy>(xargs::coords(), cm, std::forward<KernelType>(kernel));
+    for_all_faces_impl<ExecPolicy>(xargs::coords(), cm, std::forward<KernelType>(kernel), hostAllocator);
   }
   else if(m.getMeshType() == UNSTRUCTURED_MESH)
   {
@@ -925,14 +983,20 @@ inline void for_all_faces(xargs::coords, const Mesh& m, KernelType&& kernel)
     {
       const UnstructuredMesh<MIXED_SHAPE>& um = static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
 
-      for_all_faces_impl<ExecPolicy>(xargs::coords(), um, std::forward<KernelType>(kernel));
+      for_all_faces_impl<ExecPolicy>(xargs::coords(),
+                                     um,
+                                     std::forward<KernelType>(kernel),
+                                     hostAllocator);
     }
     else
     {
       const UnstructuredMesh<SINGLE_SHAPE>& um =
         static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
 
-      for_all_faces_impl<ExecPolicy>(xargs::coords(), um, std::forward<KernelType>(kernel));
+      for_all_faces_impl<ExecPolicy>(xargs::coords(),
+                                     um,
+                                     std::forward<KernelType>(kernel),
+                                     hostAllocator);
     }
   }
   else
