@@ -44,6 +44,7 @@ public:
     Success,
     Failure
   };
+
 public:
   C2CReader() = default;
 

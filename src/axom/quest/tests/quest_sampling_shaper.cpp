@@ -887,13 +887,11 @@ shapes:
   contour_file.write(unit_circle_contour);
 
   fs::TempFile assembly_file(testname, ".assembly");
-  assembly_file.write(
-    axom::fmt::format("pieces = contour(path='{}')", contour_file.getPath()));
+  assembly_file.write(axom::fmt::format("pieces = contour(path='{}')", contour_file.getPath()));
 
   fs::TempFile shape_file(testname, ".yaml");
-  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
-                                     circle_material,
-                                     assembly_file.getPath()));
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), circle_material, assembly_file.getPath()));
 
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());
