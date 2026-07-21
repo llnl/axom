@@ -633,42 +633,9 @@ public:
     }
     else
     {
-      if constexpr(std::is_trivially_copyable_v<KeyValuePair>)
+      if(tryDeviceAwareRehash(count))
       {
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
-        MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
-        if(space == MemorySpace::Device || space == MemorySpace::Unified)
-        {
-  #if defined(AXOM_USE_CUDA)
-          int host_allocator_id = axom::detail::getAllocatorID<MemorySpace::Host>();
-          FlatMap host_map(*this, axom::Allocator {host_allocator_id});
-          host_map.rehash(count);
-
-          FlatMap rehashed_device(host_map, m_allocator);
-          this->swap(rehashed_device);
-          return;
-  #elif defined(AXOM_USE_HIP)
-    #if !defined(AXOM_GPUCC)
-          // Similar to the issue in ArrayBase (PR #1582), using FlatMap from
-          // a GPU-enabled Axom library but with a host-only compiler results
-          // in an ODR violation.
-
-          // HACK: this looks ugly, but is the best we can do pending a DR:
-          // https://stackoverflow.com/questions/44059557/whats-the-right-way-to-call-static-assertfalse
-          // https://cplusplus.github.io/CWG/issues/2518.html
-          static_assert(std::is_pod_v<KeyType> && !std::is_pod_v<KeyType>,
-                        "Cannot instantiate device-aware FlatMap operations when file is compiled "
-                        "with a host-only compiler. Axom was built with GPU support, so you should "
-                        "build all source files using FlatMap with a CUDA/HIP compiler.");
-          using ExecSpace = axom::SEQ_EXEC;
-    #else
-          using ExecSpace = axom::HIP_EXEC<256>;
-    #endif
-          this->parallelRehash<ExecSpace>(count);
-          return;
-  #endif
-        }
-#endif
+        return;
       }
       FlatMap rehashed(m_size,
                        std::make_move_iterator(begin()),
@@ -738,9 +705,9 @@ private:
   template <typename... Args>
   void emplaceImpl(const std::pair<iterator, bool>& pos, bool assign_on_existence, Args&&... args);
 
-  template <typename ExecSpace>
-  void parallelRehash(IndexType count);
+  bool tryDeviceAwareRehash(IndexType count);
 
+private:
   constexpr static IndexType MIN_NUM_BUCKETS {29};
 
   Allocator m_allocator;
