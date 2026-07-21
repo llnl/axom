@@ -83,36 +83,68 @@ int C2CReader::read()
   // Always clear prior results so callers never observe stale curves after a failed read
   this->clear();
 
-  int ret = 1;
+  CurveArray inputCurves;
+  int ret = (readInternal(m_fileName, inputCurves) == ResultType::Success) ? 0 : 1;
+  m_nurbsData = std::move(inputCurves);
 
-  if(endsWith(m_fileName, ".contour"))
+  return ret;
+}
+
+C2CReader::ResultType C2CReader::readInternal(const std::string &filename, CurveArray &inputCurves)
+{
+  ResultType ret = ResultType::Failure;
+
+  if(utilities::string::endsWith(filename, ".contour"))
   {
-    ret = readContour();
+    ret = readContour(filename, inputCurves);
   }
-  else if(endsWith(m_fileName, ".assembly"))
+  else if(utilities::string::endsWith(filename, ".assembly"))
   {
-    SLIC_WARNING("Input was an assembly! This is not currently supported");
+    ret = readAssembly(filename, inputCurves);
   }
   else
   {
-    SLIC_WARNING("Not a valid c2c file");
+    SLIC_WARNING(axom::fmt::format("{} is not a valid c2c file", filename));
   }
 
   return ret;
 }
 
-int C2CReader::readContour()
+C2CReader::ResultType C2CReader::readAssembly(const std::string &filename, CurveArray &inputCurves)
+{
+  const c2c::Assembly assembly = c2c::parseAssembly(filename);
+
+  SLIC_INFO(fmt::format("Loading assembly with {} pieces", assembly.getNumEntries()));
+
+  if(inputCurves.empty())
+  {
+    // Make an initial guess at the number of curves we may need.
+    const int contoursPerFileGuess = 6;
+    inputCurves.reserve(assembly.getNumEntries() * contoursPerFileGuess);
+  }
+
+  ResultType ret = ResultType::Success;
+  for(auto it = assembly.begin(); it != assembly.end(); it++)
+  {
+    if(ret == ResultType::Success)
+    {
+      ret = readInternal(it->getPath(), inputCurves);
+    }
+  }
+  return ret;
+}
+
+C2CReader::ResultType C2CReader::readContour(const std::string &filename, CurveArray &inputCurves)
 {
   using PointType = primal::Point<double, 2>;
 
-  c2c::Contour contour = c2c::parseContour(m_fileName);
+  c2c::Contour contour = c2c::parseContour(filename);
   const c2c::LengthUnit c2cLengthUnit = toC2CLengthUnit(m_lengthUnit);
 
   SLIC_INFO(fmt::format("Loading contour with {} pieces", contour.getPieces().size()));
 
   // Build results transactionally so we don't retain partial curves on error
-  CurveArray nurbs_data;
-  nurbs_data.reserve(contour.getPieces().size());
+  inputCurves.reserve(inputCurves.size() + contour.getPieces().size());
 
   int piece_index = 0;
   for(auto* piece : contour.getPieces())
@@ -140,11 +172,11 @@ int C2CReader::readContour()
       SLIC_WARNING(
         fmt::format("Invalid contour file '{}': computed negative NURBS degree for piece "
                     "{} (npts={}, nkts={})",
-                    m_fileName,
+                    filename,
                     piece_index,
                     npts,
                     nkts));
-      return 1;
+      return ResultType::Failure;
     }
 
     if(npts <= degree)
@@ -152,12 +184,12 @@ int C2CReader::readContour()
       SLIC_WARNING(
         fmt::format("Invalid contour file '{}': piece {} has too few control points for degree "
                     "(degree={}, npts={}, nkts={})",
-                    m_fileName,
+                    filename,
                     piece_index,
                     degree,
                     npts,
                     nkts));
-      return 1;
+      return ResultType::Failure;
     }
 
     const axom::ArrayView<const double> knots_view(nurbsData.knots.data(), nkts);
@@ -170,10 +202,10 @@ int C2CReader::readContour()
       SLIC_WARNING(
         fmt::format("Invalid contour file '{}': piece {} converted to an invalid NURBS knot vector "
                     "(degree={}).",
-                    m_fileName,
+                    filename,
                     piece_index,
                     degree));
-      return 1;
+      return ResultType::Failure;
     }
 
     // Load and check weights; count must either be 0 or match control points
@@ -184,11 +216,11 @@ int C2CReader::readContour()
       {
         SLIC_WARNING(
           fmt::format("Invalid contour file '{}': piece {} has {} weights for {} control points",
-                      m_fileName,
+                      filename,
                       piece_index,
                       nurbsData.weights.size(),
                       npts));
-        return 1;
+        return ResultType::Failure;
       }
 
       // Check if weights are non-trivial (present and not all equal to 1)
@@ -216,18 +248,17 @@ int C2CReader::readContour()
     // Construct NURBSCurve using Array constructors to avoid use-after-free
     if(weights.empty())
     {
-      nurbs_data.emplace_back(controlPoints, knotvec);
+      inputCurves.emplace_back(controlPoints, knotvec);
     }
     else
     {
-      nurbs_data.emplace_back(controlPoints, weights, knotvec);
+      inputCurves.emplace_back(controlPoints, weights, knotvec);
     }
 
     ++piece_index;
   }
 
-  m_nurbsData = std::move(nurbs_data);
-  return 0;
+  return ResultType::Success;
 }
 
 void C2CReader::log()
