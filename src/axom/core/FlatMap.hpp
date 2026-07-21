@@ -387,7 +387,7 @@ public:
     detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(), m_buckets.view());
 
     // Also reset metadata.
-    IndexType numGroupsRounded = 1 << m_numGroups2;
+    IndexType numGroupsRounded = IndexType {1} << m_numGroups2;
     m_metadata.clear();
     m_metadata.resize(numGroupsRounded, detail::flat_map::GroupBucket {});
 
@@ -731,7 +731,7 @@ private:
 
   Allocator m_allocator;
 
-  IndexType m_numGroups2;  // Number of groups of 15 buckets, expressed as a power of 2
+  int m_numGroups2;  // Number of groups of 15 buckets, expressed as a power of 2
   IndexType m_size;
   axom::Array<detail::flat_map::GroupBucket> m_metadata;
 
@@ -822,11 +822,11 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
-    std::int32_t numGroups = std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
+    std::int32_t numGroups = static_cast<std::int32_t>((bucket_count + BucketsPerGroup) / BucketsPerGroup);
     m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups - 1));
   }
 
-  IndexType numGroupsRounded = 1 << m_numGroups2;
+  IndexType numGroupsRounded = IndexType {1} << m_numGroups2;
   IndexType numBuckets = numGroupsRounded * BucketsPerGroup - 1;
 
   using BucketType = detail::flat_map::GroupBucket;

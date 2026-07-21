@@ -51,7 +51,7 @@ public:
   */
   AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& shape,
                              axom::ArrayStrideOrder arrayStrideOrder,
-                             int fastestStrideLength = 1)
+                             T fastestStrideLength = 1)
   {
     initializeShape(shape, arrayStrideOrder, fastestStrideLength);
   }
@@ -68,7 +68,7 @@ public:
   template <typename DirType>
   AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& shape,
                              const axom::StackArray<DirType, DIM>& slowestDirs,
-                             int fastestStrideLength = 1)
+                             T fastestStrideLength = 1)
   {
     initializeShape(shape, slowestDirs, fastestStrideLength);
   }
@@ -137,7 +137,7 @@ public:
   */
   inline AXOM_HOST_DEVICE void initializeShape(const axom::StackArray<T, DIM>& shape,
                                                ArrayStrideOrder arrayStrideOrder,
-                                               int fastestStrideLength = 1)
+                                               T fastestStrideLength = 1)
   {
     assert(arrayStrideOrder == ArrayStrideOrder::COLUMN || arrayStrideOrder == ArrayStrideOrder::ROW ||
            (DIM == 1 && arrayStrideOrder == ArrayStrideOrder::BOTH));
@@ -181,7 +181,7 @@ public:
   template <typename DirType>
   inline AXOM_HOST_DEVICE void initializeShape(const axom::StackArray<T, DIM>& shape,
                                                const axom::StackArray<DirType, DIM>& slowestDirs,
-                                               int fastestStrideLength = 1)
+                                               T fastestStrideLength = 1)
   {
     assert(isPermutation(slowestDirs));
     for(int d = 0; d < DIM; ++d)

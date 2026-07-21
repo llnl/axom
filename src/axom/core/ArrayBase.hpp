@@ -165,7 +165,7 @@ public:
    *  elements in row-major order.
    */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, DIM>& shape, int min_stride = 1)
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, DIM>& shape, IndexType min_stride = 1)
     : m_shape {shape}
     , m_mapping(shape, ArrayStrideOrder::ROW, min_stride)
     , m_minStride(m_mapping.fastestStrideLength())
@@ -399,7 +399,7 @@ protected:
    * \brief Updates the internal striding information to a row-major format
    * Intended to be called after shape is updated.
    */
-  AXOM_HOST_DEVICE void updateStrides(int min_stride = 1)
+  AXOM_HOST_DEVICE void updateStrides(IndexType min_stride = 1)
   {
     // Update m_mapping strides while preserving stride order.
     m_mapping.initializeShape(m_shape, m_mapping.slowestDirs(), min_stride);

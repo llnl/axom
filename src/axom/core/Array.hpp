@@ -76,9 +76,9 @@ struct DefaultStoragePolicy
    */
   template <typename Func>
   T* reallocate(T* old_data,
-                int AXOM_UNUSED_PARAM(old_capacity),
+                IndexType AXOM_UNUSED_PARAM(old_capacity),
                 int allocator_id,
-                int new_capacity,
+                IndexType new_capacity,
                 Func&& nontrivial_move)
   {
     // Create a new block of memory, and move the elements over.
@@ -1867,7 +1867,8 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::dynamicRealloc(IndexType new_nu
   // Using resize strategy from LLVM libc++ (vector::__recommend()):
   //   new_capacity = max(capacity() * resize_ratio, new_num_elements)
   IndexType new_capacity =
-    axom::utilities::max<IndexType>(this->capacity() * m_resize_ratio + 0.5, new_num_elements);
+    axom::utilities::max<IndexType>(static_cast<IndexType>(this->capacity() * m_resize_ratio + 0.5),
+                                    new_num_elements);
   const IndexType block_size = this->blockSize();
   const IndexType remainder = new_capacity % block_size;
   if(remainder != 0)
