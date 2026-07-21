@@ -544,6 +544,7 @@ private:
    * \return status true \f$ \iff i \in [A,B] \f$, otherwise false
    */
   bool indexInRange(int i, int A, int B) const { return (i >= A && i <= B); }
+  bool indexInRange(IndexType i, IndexType A, IndexType B) const { return (i >= A && i <= B); }
 
   /*!
    * \brief Helper method to check to validate the supplied dimension.
@@ -559,7 +560,7 @@ private:
    */
   bool validIndex(IndexType idx) const
   {
-    return indexInRange(static_cast<int>(idx), 0, numNodes() - 1);
+    return indexInRange(idx, IndexType {0}, numNodes() - 1);
   }
 
   /*!
