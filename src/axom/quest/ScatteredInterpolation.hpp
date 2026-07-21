@@ -316,7 +316,7 @@ private:
     const int npts = pts.size();
     if(npts <= 1)
     {
-      axom::Array<axom::IndexType> reordered(npts, npts);
+      axom::Array<axom::IndexType> reordered(npts, npts, m_hostAllocator.getID(), m_hostAllocator);
       for(int idx = 0; idx < npts; ++idx)
       {
         reordered[idx] = idx;
@@ -439,7 +439,7 @@ private:
     }
 
     // Extract and return the reordered point indices.
-    axom::Array<axom::IndexType> reordered(npts, npts);
+    axom::Array<axom::IndexType> reordered(npts, npts, m_hostAllocator.getID(), m_hostAllocator);
     for(int idx = 0; idx < npts; ++idx)
     {
       reordered[idx] = bucketed[static_cast<std::size_t>(idx)].second;
@@ -449,6 +449,19 @@ private:
   }
 
 public:
+  /*!
+   * \brief Constructs a scattered interpolation object.
+   *
+   * \param [in] hostAllocator allocator used for host-resident BRIO ordering data.
+   */
+  explicit ScatteredInterpolation(HostAllocator hostAllocator = HostAllocator {})
+    : m_hostAllocator(hostAllocator)
+    , m_brio_data(0, 0, hostAllocator.getID(), hostAllocator)
+  { }
+
+  /// Returns the host allocator used for host-resident ordering data.
+  HostAllocator getHostAllocator() const { return m_hostAllocator; }
+
   /**
    * \brief Builds a Delaunay triangulation over the point set from \a mesh_node
    *
@@ -742,6 +755,7 @@ public:
 private:
   DelaunayTriangulation m_delaunay;
 
+  HostAllocator m_hostAllocator;
   axom::Array<axom::IndexType> m_brio_data;
   VertexIndirectionSet m_brio;
   BoundingBoxType m_bounding_box;
