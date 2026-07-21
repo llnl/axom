@@ -462,7 +462,19 @@ public:
                             const QueryGeom* queryObjs,
                             axom::ArrayView<IndexType> outOffsets,
                             axom::ArrayView<IndexType> outCounts,
-                            axom::Array<IndexType>& outCandidates) const;
+                            axom::Array<IndexType>& outCandidates) const
+  {
+    getCandidatesAsArray(qsize, queryObjs, outOffsets, outCounts, outCandidates, HostAllocator {});
+  }
+
+  /// \overload
+  template <typename QueryGeom>
+  void getCandidatesAsArray(axom::IndexType qsize,
+                            const QueryGeom* queryObjs,
+                            axom::ArrayView<IndexType> outOffsets,
+                            axom::ArrayView<IndexType> outCounts,
+                            axom::Array<IndexType>& outCandidates,
+                            HostAllocator hostAllocator) const;
 
   /// \overload
   void getCandidatesAsArray(axom::ArrayView<const SpacePoint> queryObjs,
@@ -470,7 +482,27 @@ public:
                             axom::ArrayView<IndexType> outCounts,
                             axom::Array<IndexType>& outCandidates) const
   {
-    getCandidatesAsArray(queryObjs.size(), queryObjs.data(), outOffsets, outCounts, outCandidates);
+    getCandidatesAsArray(queryObjs.size(),
+                         queryObjs.data(),
+                         outOffsets,
+                         outCounts,
+                         outCandidates,
+                         HostAllocator {});
+  }
+
+  /// \overload
+  void getCandidatesAsArray(axom::ArrayView<const SpacePoint> queryObjs,
+                            axom::ArrayView<IndexType> outOffsets,
+                            axom::ArrayView<IndexType> outCounts,
+                            axom::Array<IndexType>& outCandidates,
+                            HostAllocator hostAllocator) const
+  {
+    getCandidatesAsArray(queryObjs.size(),
+                         queryObjs.data(),
+                         outOffsets,
+                         outCounts,
+                         outCandidates,
+                         hostAllocator);
   }
 
   /// \overload
@@ -479,7 +511,27 @@ public:
                             axom::ArrayView<IndexType> outCounts,
                             axom::Array<IndexType>& outCandidates) const
   {
-    getCandidatesAsArray(queryObjs.size(), queryObjs.data(), outOffsets, outCounts, outCandidates);
+    getCandidatesAsArray(queryObjs.size(),
+                         queryObjs.data(),
+                         outOffsets,
+                         outCounts,
+                         outCandidates,
+                         HostAllocator {});
+  }
+
+  /// \overload
+  void getCandidatesAsArray(axom::ArrayView<const SpatialBoundingBox> queryObjs,
+                            axom::ArrayView<IndexType> outOffsets,
+                            axom::ArrayView<IndexType> outCounts,
+                            axom::Array<IndexType>& outCandidates,
+                            HostAllocator hostAllocator) const
+  {
+    getCandidatesAsArray(queryObjs.size(),
+                         queryObjs.data(),
+                         outOffsets,
+                         outCounts,
+                         outCandidates,
+                         hostAllocator);
   }
 
   /*!
@@ -811,7 +863,8 @@ void ImplicitGrid<NDIMS, ExecSpace, IndexType>::getCandidatesAsArray(
   const QueryGeom* queryObjs,
   axom::ArrayView<IndexType> outOffsets,
   axom::ArrayView<IndexType> outCounts,
-  axom::Array<IndexType>& outCandidates) const
+  axom::Array<IndexType>& outCandidates,
+  HostAllocator hostAllocator) const
 {
   SLIC_ERROR_IF(outOffsets.size() < qsize, "outOffsets must have at least qsize elements");
   SLIC_ERROR_IF(outCounts.size() < qsize, "outCounts must have at least qsize elements");
@@ -833,7 +886,7 @@ void ImplicitGrid<NDIMS, ExecSpace, IndexType>::getCandidatesAsArray(
   axom::IndexType totalCount = totalCountReduce.get();
 
   // Step 3: allocate memory for all candidates
-  outCandidates = axom::Array<IndexType>(totalCount, totalCount, m_allocatorId);
+  outCandidates = axom::Array<IndexType>(totalCount, totalCount, m_allocatorId, hostAllocator);
   const auto candidates_v = outCandidates.view();
 
   // Step 4: fill candidate array for each query box
@@ -851,6 +904,7 @@ void ImplicitGrid<NDIMS, ExecSpace, IndexType>::getCandidatesAsArray(
       gridQuery.visitCandidates(queryObjs[i], onCandidate);
     });
 #else
+  outCandidates = axom::Array<IndexType>(0, 0, m_allocatorId, hostAllocator);
   outOffsets[0] = 0;
   for(int i = 0; i < qsize; i++)
   {
