@@ -119,9 +119,9 @@ public:
     m_bezierSubdivisionMaps.resize(m_numSpans);
     auto beziers = a_curve.extractBezier();
 
-    for(int idx = 0; idx < m_numSpans; ++idx)
+    for(axom::IndexType idx = 0; idx < m_numSpans; ++idx)
     {
-      m_bezierSubdivisionMaps[idx][std::make_pair(0, 0)] =
+      m_bezierSubdivisionMaps[static_cast<std::size_t>(idx)][std::make_pair(0, 0)] =
         BezierCurveData<T>(beziers[idx], false, bbExpansionAmount);
     }
 
@@ -163,7 +163,7 @@ public:
                                                double bbExpansionAmount = 0.0) const
   {
     using Key = std::pair<int, int>;
-    auto& level_map = m_bezierSubdivisionMaps[idx];
+    auto& level_map = m_bezierSubdivisionMaps[static_cast<std::size_t>(idx)];
     const Key hash_key {refinementLevel, refinementIndex};
 
     // If already there, return it
@@ -240,7 +240,7 @@ private:
   BoundingBox<T, 2> m_boundingBox;
   int m_numControlPoints;
   int m_degree;
-  int m_numSpans;
+  axom::IndexType m_numSpans;
 
   Point<T, 2> m_initPoint, m_endPoint;
 

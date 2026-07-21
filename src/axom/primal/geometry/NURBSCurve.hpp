@@ -1328,7 +1328,7 @@ public:
     bool isCurveRational = this->isRational();
     int p = getDegree();
     int n = getNumControlPoints() - 1;
-    int ks = m_knotvec.getNumKnotSpans();
+    axom::IndexType ks = m_knotvec.getNumKnotSpans();
 
     axom::Array<BezierCurve<T, NDIMS>> beziers(ks);
     for(auto& bezier : beziers)

@@ -1515,8 +1515,8 @@ public:
   /// \brief Normalize to the span [0, N] x [0, M] where N and M are the number of spans in u and v
   void normalizeBySpan()
   {
-    auto n = m_knotvec_u.getNumKnotSpans();
-    auto m = m_knotvec_v.getNumKnotSpans();
+    const T n = static_cast<T>(m_knotvec_u.getNumKnotSpans());
+    const T m = static_cast<T>(m_knotvec_v.getNumKnotSpans());
 
     rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, n);
     rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, m);
