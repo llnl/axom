@@ -245,7 +245,7 @@ public:
   double getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
   double getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
   decltype(auto) getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
-  int getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
+  axom::IndexType getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
   decltype(auto) getParameterSpaceDiagonal() const { return m_pboxDiag; }
   //@}
 
@@ -268,10 +268,10 @@ public:
     constexpr double k_dir_eps = 1e-3;
 
     // Generate a random direction with simple hashes
-    unsigned int seed1 =
-      std::hash<T> {}(m_bBox.getMin()[0] + m_bBox.getMin()[1] + m_bBox.getMin()[2]);
-    unsigned int seed2 =
-      std::hash<T> {}(m_bBox.getMax()[0] + m_bBox.getMax()[1] + m_bBox.getMax()[2]);
+    unsigned int seed1 = static_cast<unsigned int>(
+      std::hash<T> {}(m_bBox.getMin()[0] + m_bBox.getMin()[1] + m_bBox.getMin()[2]));
+    unsigned int seed2 = static_cast<unsigned int>(
+      std::hash<T> {}(m_bBox.getMax()[0] + m_bBox.getMax()[1] + m_bBox.getMax()[2]));
 
     double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed1);
     double u = axom::utilities::random_real(-1.0, 1.0, seed2);
@@ -295,7 +295,7 @@ public:
   //@}
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
-  TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
+  TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(axom::IndexType curveIndex,
                                                                  int quadNPts,
                                                                  int refinementLevel,
                                                                  int refinementIndex) const

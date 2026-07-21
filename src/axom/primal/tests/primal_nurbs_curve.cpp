@@ -227,7 +227,7 @@ TEST(primal_nurbscurve, knotless_array_constructors)
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 
-    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    for(axom::IndexType p = 0; p < cur.getNumControlPoints(); ++p)
     {
       EXPECT_EQ(controlPoints[p], cur[p]);
       if(expect_rational)
@@ -317,7 +317,7 @@ TEST(primal_nurbscurve, knotted_array_constructor)
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 
-    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    for(axom::IndexType p = 0; p < cur.getNumControlPoints(); ++p)
     {
       EXPECT_EQ(controlPoints[p], cur[p]);
       if(expect_rational)

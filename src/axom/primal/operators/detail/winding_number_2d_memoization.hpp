@@ -157,7 +157,7 @@ public:
   }
 
   /// \brief Query the map. If curve is not found, add it and its pair from subdivision
-  const BezierCurveData<T>& getSubdivisionData(int idx,
+  const BezierCurveData<T>& getSubdivisionData(axom::IndexType idx,
                                                int refinementLevel,
                                                int refinementIndex,
                                                double bbExpansionAmount = 0.0) const
@@ -198,9 +198,9 @@ public:
   //! \name Functions that mirror functionality of NURBSCurve and BezierCurve so signatures match in GWN evaluation.
   //!
   //! By limiting access to these functions, we ensure memoized information is always accurate
-  auto getNumKnotSpans() const { return m_numSpans; }
+  axom::IndexType getNumKnotSpans() const { return m_numSpans; }
   auto boundingBox() const { return m_boundingBox; }
-  auto getNumControlPoints() const { return m_numControlPoints; }
+  axom::IndexType getNumControlPoints() const { return m_numControlPoints; }
   auto getDegree() const { return m_degree; }
 
   const auto& getInitPoint() const { return m_initPoint; }
@@ -227,7 +227,7 @@ public:
     {
       os << m_bezierSubdivisionMaps[0][std::make_pair(0, 0)].getCurve();
     }
-    for(int i = 1; i < m_numSpans; ++i)
+    for(axom::IndexType i = 1; i < m_numSpans; ++i)
     {
       os << ", " << m_bezierSubdivisionMaps[i][std::make_pair(0, 0)].getCurve();
     }
@@ -238,7 +238,7 @@ public:
 
 private:
   BoundingBox<T, 2> m_boundingBox;
-  int m_numControlPoints;
+  axom::IndexType m_numControlPoints;
   int m_degree;
   axom::IndexType m_numSpans;
 
