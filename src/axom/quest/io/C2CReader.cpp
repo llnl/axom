@@ -74,63 +74,96 @@ void C2CReader::setLengthUnit(utilities::LengthUnit lengthUnit)
   m_lengthUnit = lengthUnit;
 }
 
+bool C2CReader::hasValidExtension(const std::string &filename)
+{
+  return utilities::string::endsWith(filename, ".contour") ||
+    utilities::string::endsWith(filename, ".assembly");
+}
+
 int C2CReader::read()
 {
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in C2CReader::read()");
-
-  using axom::utilities::string::endsWith;
 
   // Always clear prior results so callers never observe stale curves after a failed read
   this->clear();
 
   CurveArray inputCurves;
-  int ret = (readInternal(m_fileName, inputCurves) == ResultType::Success) ? 0 : 1;
-  m_nurbsData = std::move(inputCurves);
+  const auto result = readInternal(m_fileName, inputCurves);
+  const int ret = (result == ResultType::Success) ? 0 : 1;
+  if(result == ResultType::Success)
+  {
+    m_nurbsData = std::move(inputCurves);
+  }
 
   return ret;
 }
 
 C2CReader::ResultType C2CReader::readInternal(const std::string &filename, CurveArray &inputCurves)
 {
-  ResultType ret = ResultType::Failure;
+  try
+  {
+    if(!hasValidExtension(filename))
+    {
+      SLIC_WARNING(axom::fmt::format("{} is not a valid c2c file", filename));
+      return ResultType::Failure;
+    }
 
-  if(utilities::string::endsWith(filename, ".contour"))
-  {
-    ret = readContour(filename, inputCurves);
+    if(utilities::string::endsWith(filename, ".contour"))
+    {
+      return readContour(filename, inputCurves);
+    }
+    else if(utilities::string::endsWith(filename, ".assembly"))
+    {
+      return readAssembly(filename, inputCurves);
+    }
   }
-  else if(utilities::string::endsWith(filename, ".assembly"))
+  catch(const std::exception &e)
   {
-    ret = readAssembly(filename, inputCurves);
+    SLIC_WARNING(
+      axom::fmt::format("Failed to read c2c file '{}': {}", filename, e.what()));
   }
-  else
+  catch(...)
   {
-    SLIC_WARNING(axom::fmt::format("{} is not a valid c2c file", filename));
+    SLIC_WARNING(axom::fmt::format("Failed to read c2c file '{}'", filename));
   }
 
-  return ret;
+  return ResultType::Failure;
 }
 
 C2CReader::ResultType C2CReader::readAssembly(const std::string &filename, CurveArray &inputCurves)
 {
   const c2c::Assembly assembly = c2c::parseAssembly(filename);
+  std::string assemblyDir;
+  utilities::filesystem::getDirName(assemblyDir, filename);
 
   SLIC_INFO(fmt::format("Loading assembly with {} pieces", assembly.getNumEntries()));
 
-  if(inputCurves.empty())
-  {
-    // Make an initial guess at the number of curves we may need.
-    const int contoursPerFileGuess = 6;
-    inputCurves.reserve(assembly.getNumEntries() * contoursPerFileGuess);
-  }
+  // Make an initial guess at the number of curves we may need.
+  const int contoursPerFileGuess = 6;
+  CurveArray assemblyCurves;
+  assemblyCurves.reserve(assembly.getNumEntries() * contoursPerFileGuess);
 
   ResultType ret = ResultType::Success;
   for(auto it = assembly.begin(); it != assembly.end(); it++)
   {
     if(ret == ResultType::Success)
     {
-      ret = readInternal(it->getPath(), inputCurves);
+      const auto entryPath =
+        utilities::filesystem::prefixRelativePath(it->getPath(), assemblyDir);
+      ret = readInternal(entryPath, assemblyCurves);
     }
   }
+
+  if(ret == ResultType::Success)
+  {
+    // Move the curves out to inputCurves.
+    inputCurves.reserve(inputCurves.size() + assemblyCurves.size());
+    for(auto &curve : assemblyCurves)
+    {
+      inputCurves.emplace_back(std::move(curve));
+    }
+  }
+
   return ret;
 }
 
@@ -143,7 +176,6 @@ C2CReader::ResultType C2CReader::readContour(const std::string &filename, CurveA
 
   SLIC_INFO(fmt::format("Loading contour with {} pieces", contour.getPieces().size()));
 
-  // Build results transactionally so we don't retain partial curves on error
   inputCurves.reserve(inputCurves.size() + contour.getPieces().size());
 
   int piece_index = 0;

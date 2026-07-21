@@ -58,6 +58,9 @@ public:
   /// Clears data associated with this reader
   void clear();
 
+  /// Returns true if the file has a recognized c2c extension.
+  static bool hasValidExtension(const std::string &filename);
+
   /*!
    * \brief Read the contour file provided by \a setFileName()
    * 
