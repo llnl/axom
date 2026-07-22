@@ -114,6 +114,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant("tools", default=True, description="Build tools")
     variant("tutorials", default=True, description="Build tutorials")
 
+    variant(
+        "cpp14",
+        default=False,
+        description="Build with C++14 support. "
+        "Deprecated -- use the cxxstd variant version.",
+    )
+
     variant("fortran", default=True, description="Build with Fortran support")
 
     variant("python", default=False, description="Build python support")
@@ -166,12 +173,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         values=("11", "14", "17", "20"),
         description="C++ standard to build with",
     )
-    # C++14 required as of 0.7.0
-    conflicts("cxxstd=11", when="@0.7.0:")
-    # C++17 required as of 0.12.0
-    conflicts("cxxstd=14", when="@0.12.0:")
-    # C++20 required as of unreleased 0.15.0 (Should be 0.15.0)
-    conflicts("cxxstd=17", when="@0.14.0:")
 
     # -----------------------------------------------------------------------
     # Dependencies
@@ -347,6 +348,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # Conflicts
     # -----------------------------------------------------------------------
 
+    # C++14 required as of 0.6.2
+    conflicts("cxxstd=11", when="@0.6.2:")
+    # C++17 required as of 0.12.0
+    conflicts("cxxstd=14", when="@0.12.0:")
+    # C++20 required as of unreleased 0.15.0 (Should be 0.15.0)
+    conflicts("cxxstd=17", when="@0.14.0:")
+
     # Conduit's cmake config files moved and < 0.4.0 can't find it
     conflicts("^conduit@0.7.2:", when="@:0.4.0")
 
@@ -428,6 +436,11 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         else:
             entries.append(cmake_cache_option("ENABLE_FORTRAN", False))
 
+        if (
+            spec.satisfies("+cpp14") or self.cxx_std == "14"
+        ) and spec.satisfies("@:0.6.1"):
+            entries.append(cmake_cache_string("BLT_CXX_STD", "c++14", ""))
+
         # Add optimization flag workaround for builds with cray compiler
         if spec.satisfies("%cce"):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
@@ -465,9 +478,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             if spec.satisfies("^blt@:0.5.1"):
                 # This is handled internally by BLT now
-                if self.cxx_std == "14":
+                if spec.satisfies("+cpp14") or self.cxx_std == "14":
                     cudaflags += " -std=c++14"
-                if self.cxx_std == "11":
+                else:
                     cudaflags += " -std=c++11"
             entries.append(cmake_cache_string("CMAKE_CUDA_FLAGS", cudaflags, force=True))
 
