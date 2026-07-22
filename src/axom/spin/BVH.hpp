@@ -328,6 +328,9 @@ public:
    * \param [in]  numPts the total number of query points supplied
    * \param [in]  points array of points to query against the BVH
    *
+   * \note The overload without `HostAllocator` is a compatibility path that
+   *  uses Axom's current default host allocator for candidate host staging.
+   *
    * \note Upon completion, the ith query point has:
    *  * counts[ i ] candidates
    *  * Stored in the candidates array in the following range:
@@ -345,6 +348,8 @@ public:
                   axom::Array<IndexType>& candidates,
                   IndexType numPts,
                   PointIndexable points) const;
+  /// \overload
+  /// \param [in] hostAllocator allocator for candidate host staging.
   template <typename PointIndexable>
   void findPoints(axom::ArrayView<IndexType> offsets,
                   axom::ArrayView<IndexType> counts,
@@ -362,6 +367,9 @@ public:
    * \param [in] numRays the total number of rays
    * \param [in] rays array of the rays to query against the BVH
    *
+   * \note The overload without `HostAllocator` is a compatibility path that
+   *  uses Axom's current default host allocator for candidate host staging.
+   *
    * \note After the call to findRays(), the ith ray has:
    *  * counts[ i ] candidates
    *  * candidates stored in [ offsets[ i ], offsets[i]+counts[i] ]
@@ -378,6 +386,8 @@ public:
                 axom::Array<IndexType>& candidates,
                 IndexType numRays,
                 RayIndexable rays) const;
+  /// \overload
+  /// \param [in] hostAllocator allocator for candidate host staging.
   template <typename RayIndexable>
   void findRays(axom::ArrayView<IndexType> offsets,
                 axom::ArrayView<IndexType> counts,
@@ -395,6 +405,9 @@ public:
    * \param [in]  numBoxes the total number of bounding boxes
    * \param [in]  boxes array of boxes to query against the BVH
    *
+   * \note The overload without `HostAllocator` is a compatibility path that
+   *  uses Axom's current default host allocator for candidate host staging.
+   *
    * \note After the call to findBoundingBoxes(), the ith bounding box has:
    *  * counts[ i ] candidates
    *  * candidates stored in [ offsets[ i ], offsets[i]+counts[i] ]
@@ -411,6 +424,8 @@ public:
                          axom::Array<IndexType>& candidates,
                          IndexType numBoxes,
                          BoxIndexable boxes) const;
+  /// \overload
+  /// \param [in] hostAllocator allocator for candidate host staging.
   template <typename BoxIndexable>
   void findBoundingBoxes(axom::ArrayView<IndexType> offsets,
                          axom::ArrayView<IndexType> counts,

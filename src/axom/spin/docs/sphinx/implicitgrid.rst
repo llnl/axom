@@ -38,9 +38,13 @@ After including the header and setting up types, set up the index.
 Inexpensive queries to the index reduce the number of calls to a
 (possibly) expensive test routine.
 
+Candidate-output APIs that allocate or stage host data have overloads that
+accept ``axom::HostAllocator``. Prefer those overloads in new code when host
+allocator ownership is available; overloads without a host allocator are
+compatibility paths that use Axom's current default host allocator.
+
 .. literalinclude:: ../../examples/spin_introduction.cpp
    :start-after: _igrid_query_start
    :end-before: _igrid_query_end
    :language: C++
-
 

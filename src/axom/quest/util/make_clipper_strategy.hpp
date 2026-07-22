@@ -35,6 +35,10 @@ namespace util
  * klee geometry formats.  It issues a warning for unrecognized
  * formats.
  *
+ * \note This compatibility overload uses Axom's current default host allocator
+ *       for any constructor-time host scratch. Prefer the overload that accepts
+ *       `HostAllocator` when host allocator ownership is available.
+ *
  * @return Pointer to new MeshClipperStrategy, or null if the
  * specified geometry is not an axom-provided one.
  */

@@ -145,6 +145,9 @@ bool isMemorySpaceAvailable(MemorySpace space) noexcept;
  *
  * \note `MemorySpace::Dynamic` resolves to the current default allocator.
  * \note `MemorySpace::Host` resolves to Axom's current default host allocator.
+ *       This is a legacy compatibility path; new APIs that allocate
+ *       host-resident storage or host staging should pass `HostAllocator`
+ *       explicitly.
  * \note This function aborts if the requested memory space is unavailable in
  *       the current build.
  */
@@ -400,6 +403,11 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
  * \param [in] n the number of items to copy.
  * \param [in] The value to copy. It must be trivially copyable for use with GPU.
  *
+ * \note This compatibility overload uses Axom's current default host allocator
+ *       for any host scratch needed to fill non-host allocations. Prefer the
+ *       overload that accepts `HostAllocator` when host allocator ownership is
+ *       available.
+ *
  * \note When using Umpire if dst is not registered with the
  *  ResourceManager then the default host allocation strategy is assumed for
  *  that pointer.
@@ -452,6 +460,10 @@ private:
  *
  * This type is intended for APIs where the allocator specifically refers to host-resident
  * storage or host staging memory.
+ *
+ * Default construction is provided for compatibility with existing defaulting
+ * APIs. New production code should prefer constructing `HostAllocator` from an
+ * explicit allocator ID and passing it through APIs that allocate host scratch.
  */
 struct HostAllocator
 {

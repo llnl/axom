@@ -183,6 +183,8 @@ public:
    *
    * \note The output candidate array is allocated inside the function, using
    *  the given allocator ID passed in during implicit grid initialization.
+   *  The overload without `HostAllocator` is a compatibility path that uses
+   *  Axom's current default host allocator for host staging and fallback.
    *
    * \note Upon completion, the ith query point has:
    *  * counts[ i ] candidates
@@ -195,6 +197,7 @@ public:
                             axom::Array<IndexType>& outCandidates) const;
 
   /// \overload
+  /// \param [in] hostAllocator allocator for host staging and fallback.
   void getCandidatesAsArray(axom::ArrayView<const BoxType> queryObjs,
                             axom::ArrayView<IndexType> outOffsets,
                             axom::ArrayView<IndexType> outCounts,

@@ -70,6 +70,17 @@ two choices separate::
   axom::HostAllocator hostAlloc {axom::MALLOC_ALLOCATOR_ID};
   // Pass dataAllocId for primary storage and hostAlloc for host scratch/staging.
 
+Several Core APIs now expose explicit host allocator overloads. For example,
+``axom::Array`` constructors can receive both the primary allocator ID and an
+``axom::HostAllocator``, and ``axom::fill()`` can receive a host allocator for
+temporary host scratch used when filling non-host allocations::
+
+  axom::fill(devicePtr, numValues, value, hostAlloc);
+
+Overloads that do not receive ``axom::HostAllocator`` remain available for
+compatibility. They forward through Axom's current default host allocator and
+should be treated as legacy convenience paths in new production code.
+
 Changing the default host and global allocators (legacy)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

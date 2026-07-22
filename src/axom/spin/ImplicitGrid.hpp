@@ -452,6 +452,9 @@ public:
    *  memory space accessible from the given execution space, and be of
    *  length qsize.
    *
+   * \note The overloads without `HostAllocator` are compatibility paths that
+   *  use Axom's current default host allocator for host staging and fallback.
+   *
    * \note Upon completion, the ith query point has:
    *  * counts[ i ] candidates
    *  * Stored in the candidates array in the following range:
@@ -468,6 +471,7 @@ public:
   }
 
   /// \overload
+  /// \param [in] hostAllocator allocator for host staging and fallback.
   template <typename QueryGeom>
   void getCandidatesAsArray(axom::IndexType qsize,
                             const QueryGeom* queryObjs,

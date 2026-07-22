@@ -50,6 +50,9 @@ public:
    *   of octs grows exponentially with level
    *   (@see quest::discretize(const axom::ArrayView<Point2D> &polyline, int pointcount, int levels, axom::Array<OctType> &out, int &octcount)).
    *   In practice, keep this number to 11 or less.
+   *
+   * \note The overload without `HostAllocator` is a compatibility path that
+   *       uses Axom's current default host allocator for constructor scratch.
    */
   MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name = "");
   MonotonicZSORClipper(const klee::Geometry& kGeom,

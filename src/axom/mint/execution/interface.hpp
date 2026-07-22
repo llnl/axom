@@ -92,6 +92,11 @@ namespace mint
  *
  * \pre m != nullptr
  *
+ * \note Overloads that accept `HostAllocator` use it for host staging needed
+ *       by coordinate-rich execution signatures. Overloads without
+ *       `HostAllocator` are compatibility paths that use Axom's current
+ *       default host allocator.
+ *
  * \tparam ExecPolicy the execution policy, e.g., serial or parallel
  * \tparam ArgType object indicating the arguments to the kernel
  * \tparam KernelType
@@ -209,6 +214,11 @@ inline void for_all_nodes(const Mesh* m, HostAllocator hostAllocator, KernelType
  * \param [in] kernel user-supplied kernel to execute on each cell.
  *
  * \pre m != nullptr
+ *
+ * \note Overloads that accept `HostAllocator` use it for host staging needed
+ *       by connectivity, coordinate, offset, or adjacency execution
+ *       signatures. Overloads without `HostAllocator` are compatibility paths
+ *       that use Axom's current default host allocator.
  *
  * \tparam ExecPolicy the execution policy, e.g., serial or parallel
  * \tparam ArgType object indicating the arguments to the kernel
@@ -333,6 +343,11 @@ inline void for_all_cells(const Mesh* m, HostAllocator hostAllocator, KernelType
  * \param [in] kernel user-supplied kernel to execute on each face.
  *
  * \pre m != nullptr
+ *
+ * \note Overloads that accept `HostAllocator` use it for host staging needed
+ *       by connectivity, coordinate, offset, or adjacency execution
+ *       signatures. Overloads without `HostAllocator` are compatibility paths
+ *       that use Axom's current default host allocator.
  *
  * \tparam ExecPolicy the execution policy, e.g., serial or parallel
  * \tparam ArgType object indicating the arguments to the kernel

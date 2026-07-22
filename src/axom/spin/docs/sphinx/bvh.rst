@@ -42,6 +42,11 @@ probe point must be tested against each triangle.
 Note that the returned packed candidate intersection array (``candidatesPtr`` above)
 needs to be deallocated by the caller.
 
+When using candidate-query overloads that allocate ``axom::Array`` output, pass
+an ``axom::HostAllocator`` when host staging or host fallback allocation should
+be controlled explicitly. Query overloads without a host allocator remain
+available as compatibility paths and use Axom's current default host allocator.
+
 Finally, test the point against all candidate neighbor triangles.
 
 .. literalinclude:: ../../examples/spin_introduction.cpp
