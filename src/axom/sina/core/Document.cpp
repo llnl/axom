@@ -1232,7 +1232,8 @@ void saveDocument(const Document &document, const std::string &fileName, int pro
 void appendDocument(const Document &document,
                     const std::string &filepath,
                     int mergeProtocol,
-                    Protocol outputProtocol)
+                    Protocol outputProtocol,
+                    const bool overwriteCurves)
 {
   Protocol actualProtocol = outputProtocol;
 
@@ -1253,12 +1254,12 @@ void appendDocument(const Document &document,
   switch(actualProtocol)
   {
   case Protocol::JSON:
-    appendDocumentToJson(filepath, document, mergeProtocol);
+    appendDocumentToJson(filepath, document, mergeProtocol, overwriteCurves);
     break;
 
   case Protocol::HDF5:
 #ifdef AXOM_USE_HDF5
-    appendDocumentToHDF5(filepath, document, mergeProtocol);
+    appendDocumentToHDF5(filepath, document, mergeProtocol, overwriteCurves);
 #else
     throw std::runtime_error("HDF5 not compiled in. File: " + filepath);
 #endif

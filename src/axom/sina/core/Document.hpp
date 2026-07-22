@@ -384,12 +384,16 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
  * \param filepath Path to the existing file
  * \param mergeProtocol How to handle conflicts (1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
  * \param outputProtocol Optional format override (default: AUTO_DETECT)
+ * \param overwriteCurves Indicates that curves should be overwritten instead of appended to. Useful for cases
+ *                        where a data source must pass the full curve each time. Note: the type of the data
+ *                        can't change on overwrite, don't use ints for floats etc.
  * \throws std::runtime_error If the file cannot be opened or the format is unsupported
  */
 void appendDocument(const Document &document,
                     const std::string &filepath,
                     int mergeProtocol = 1,
-                    Protocol Protocol = Protocol::AUTO_DETECT);
+                    Protocol Protocol = Protocol::AUTO_DETECT,
+                    const bool overwriteCurves = false);
 
 /**
  * \brief Check a node against some file handle and return a Conduit node populated with any errors that

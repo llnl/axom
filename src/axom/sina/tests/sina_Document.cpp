@@ -659,7 +659,7 @@ void doEveryErrorTest(
   const std::string &protocol,
   std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc,
   bool skipValidation = false,
-  bool curvesAreFullLength = false)
+  bool overwriteCurves = false)
 {
   std::string append_to_file = "test." + protocol;
   axom::sina::Document append_to_doc =
@@ -672,7 +672,7 @@ void doEveryErrorTest(
      "curve_sets": {"set_1": {"independent": {"0": {"value": [4, 5, 6]}}}},
      "library_data": {"my_lib": {"library_data": {"my_inner_lib": {"user_defined": {"foo/bar": "baz/qux"}}}}}}]})");
   axom::sina::Document new_doc = Document(appendFrom, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3, skipValidation, curvesAreFullLength);
+  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3, skipValidation, overwriteCurves);
   // Make sure no data changed
   conduit::Node root;
   conduit::relay::io::load(append_to_file, root);
