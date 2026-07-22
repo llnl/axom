@@ -73,6 +73,8 @@ inline const UmpireCopyContext& getUmpireCopyContext() noexcept
 constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no/unknown allocator
 constexpr int MALLOC_ALLOCATOR_ID = -3;   //!< Refers to MemorySpace::Malloc
 
+struct HostAllocator;
+
 /*!
  * \brief Returns whether \a allocatorId is a valid Axom allocator id.
  *
@@ -404,6 +406,22 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
  */
 template <typename T>
 inline void fill(void* dst, std::size_t n, const T& value) noexcept;
+
+/*!
+ * \brief Fills memory with a value, using an explicit host allocator for any
+ * host-resident scratch needed to fill non-host allocations.
+ *
+ * \param [in/out] dst the destination to copy to.
+ * \param [in] n the number of items to copy.
+ * \param [in] value the value to copy. It must be trivially copyable for use with GPU.
+ * \param [in] hostAllocator allocator used for host-resident scratch.
+ *
+ * \note When using Umpire if dst is not registered with the
+ *  ResourceManager then the default host allocation strategy is assumed for
+ *  that pointer.
+ */
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T& value, HostAllocator hostAllocator) noexcept;
 
 /// @}
 // _memory_management_routines_end
@@ -818,7 +836,22 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 template <typename T>
 inline void fill(void* dst, std::size_t n, const T& value) noexcept
 {
+  axom::fill(dst, n, value, HostAllocator {});
+}
+
+/*!
+ * \brief Fill allocation with given value.
+ *
+ * \param [in] dst fill destination
+ * \param [in] n number of values (of type T) to fill
+ * \param [in] value value to fill
+ * \param [in] hostAllocator allocator used for host-resident scratch
+ */
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T& value, HostAllocator hostAllocator) noexcept
+{
   bool doHostFill = true;
+  AXOM_UNUSED_VAR(hostAllocator);
 #if defined(AXOM_USE_UMPIRE)
   // Since data might be copied to GPU, it needs to be trivially copyable.
   static_assert(std::is_trivially_copyable<T>::value, "value must be trivially copyable.");
@@ -833,12 +866,12 @@ inline void fill(void* dst, std::size_t n, const T& value) noexcept
 
       // Device memory: fill on host, then copy to device
       const auto num_bytes = n * sizeof(T);
-      T* src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
+      T* src = allocate<T>(n, hostAllocator.getID());
       for(std::size_t i = 0; i < n; ++i)
       {
         src[i] = value;
       }
-      rm.copy(dst, src, num_bytes);
+      axom::copy(dst, src, num_bytes);
       deallocate<T>(src);
     }
   }
