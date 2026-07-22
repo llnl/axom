@@ -29,6 +29,13 @@ namespace util
 std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geometry& kleeGeometry,
                                                            const std::string& name)
 {
+  return make_clipper_strategy(kleeGeometry, name, HostAllocator {});
+}
+
+std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geometry& kleeGeometry,
+                                                           const std::string& name,
+                                                           HostAllocator hostAllocator)
+{
   std::shared_ptr<MeshClipperStrategy> strategy;
 
   const std::string& format = kleeGeometry.getFormat();
@@ -55,15 +62,15 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
   }
   else if(format == "sor3D")
   {
-    strategy.reset(new SORClipper(kleeGeometry, name));
+    strategy.reset(new SORClipper(kleeGeometry, name, hostAllocator));
   }
   else if(format == "cyl3D")
   {
-    strategy.reset(new MonotonicZSORClipper(kleeGeometry, name));
+    strategy.reset(new MonotonicZSORClipper(kleeGeometry, name, hostAllocator));
   }
   else if(format == "cone3D")
   {
-    strategy.reset(new MonotonicZSORClipper(kleeGeometry, name));
+    strategy.reset(new MonotonicZSORClipper(kleeGeometry, name, hostAllocator));
   }
   else
   {

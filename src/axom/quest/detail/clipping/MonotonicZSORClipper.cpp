@@ -23,6 +23,12 @@ namespace experimental
 {
 
 MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name)
+  : MonotonicZSORClipper(kGeom, name, HostAllocator {})
+{ }
+
+MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
+                                           const std::string& name,
+                                           HostAllocator hostAllocator)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_maxRadius(0.0)
@@ -32,7 +38,7 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const st
   extractClipperInfo();
 
   combineRadialSegments(m_sorCurve);
-  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view(), HostAllocator {});
+  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view(), hostAllocator);
   if(turnIndices.size() > 2)
   {
     // The 2 "turns" allowed are the first and last points.  Anything else is a switchback.

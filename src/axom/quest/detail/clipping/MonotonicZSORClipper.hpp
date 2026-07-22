@@ -52,6 +52,9 @@ public:
    *   In practice, keep this number to 11 or less.
    */
   MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name = "");
+  MonotonicZSORClipper(const klee::Geometry& kGeom,
+                       const std::string& name,
+                       HostAllocator hostAllocator);
 
   /*!
    * @brief Construct with parameters to override the specifications
