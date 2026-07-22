@@ -11,8 +11,7 @@
  *        from a set, stride, and backing buffer.
  */
 
-#ifndef SLAM_MAP_BUILDERS_HPP_
-#define SLAM_MAP_BUILDERS_HPP_
+#pragma once
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
@@ -152,5 +151,3 @@ auto make_map_ct(const SetType* set, T* data)
 }
 
 }  // namespace axom::slam
-
-#endif  // SLAM_MAP_BUILDERS_HPP_

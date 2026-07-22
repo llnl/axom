@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_STATICARRAY_HPP_
-#define AXOM_STATICARRAY_HPP_
+#pragma once
 
 #include "axom/config.hpp"           // for compile-time defines
 #include "axom/core/Macros.hpp"      // for axom macros
@@ -163,5 +162,3 @@ private:
 };
 
 } /* namespace axom */
-
-#endif /* AXOM_STATICARRAY_HPP_ */

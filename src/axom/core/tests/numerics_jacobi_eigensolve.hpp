@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // Axom includes
 #include "axom/core/numerics/Matrix.hpp"             // for numerics::Matrix
 #include "axom/core/utilities/Utilities.hpp"         // random_real()/isNearlyEqual

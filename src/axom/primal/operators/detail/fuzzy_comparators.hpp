@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file fuzzy_comparators.hpp
  *
  * This file provides helper functions for fuzzy comparisons
  */
-
-#ifndef AXOM_PRIMAL_FUZZY_COMPARATORS_HPP_
-#define AXOM_PRIMAL_FUZZY_COMPARATORS_HPP_
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -87,5 +86,3 @@ inline bool isGpeq(double x, double y, bool includeEqual = false, double EPS = 1
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_FUZZY_COMPARATORS_HPP_

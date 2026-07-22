@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file GWNMethods.hpp
  *
  * \brief Helper classes and type traits for GWN Evaluation methods
  */
-
-#ifndef AXOM_QUEST_GWN_METHODS_HPP_
-#define AXOM_QUEST_GWN_METHODS_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -1157,4 +1156,3 @@ IntegralStats compute_integrals(const mfem::GridFunction& gf)
 
 }  // namespace quest
 }  // namespace axom
-#endif

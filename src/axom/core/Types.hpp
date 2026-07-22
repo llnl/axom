@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *  \file Types.hpp
  *
  *  \brief Exposes some common types used by axom components.
  */
-
-#ifndef AXOM_TYPES_HPP_
-#define AXOM_TYPES_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
@@ -207,10 +206,8 @@ struct mpi_traits<std::uint64_t>
 };
   #endif  // AXOM_NO_INT64_T
 
-  /// @}
+/// @}
 
 #endif  // AXOM_USE_MPI
 
 }  // end namespace axom
-
-#endif  // AXOM_TYPES_HPP_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_SIGNED_DISTANCE_INTERFACE_HPP_
-#define QUEST_SIGNED_DISTANCE_INTERFACE_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -341,5 +340,3 @@ void signed_distance_finalize();
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif /* QUEST_SIGNED_DISTANCE_INTERFACE_HPP_ */

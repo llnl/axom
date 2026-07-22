@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_BASIC_INDEXING_HPP_
-#define AXOM_BUMP_BASIC_INDEXING_HPP_
+#pragma once
 
 namespace axom
 {
@@ -84,5 +83,3 @@ public:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BLUEPRINT_TESTING_HELPERS_HPP_
-#define AXOM_BLUEPRINT_TESTING_HELPERS_HPP_
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -906,4 +906,3 @@ protected:
 }  // end namespace testing
 }  // end namespace blueprint
 }  // end namespace axom
-#endif

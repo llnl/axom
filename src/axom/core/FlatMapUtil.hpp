@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_FlatMap_Util_HPP
-#define Axom_Core_FlatMap_Util_HPP
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/FlatMap.hpp"
@@ -516,5 +515,3 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
 }
 
 }  // namespace axom
-
-#endif

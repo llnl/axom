@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import pysidre
+import axom.sidre as sidre
 import random
 
 
@@ -16,20 +16,20 @@ def verify_empty_group_named(dg, name):
     assert not dg.hasGroup(0)
     assert not dg.hasGroup(1)
     assert not dg.hasGroup("some_name")
-    assert dg.getGroupIndex("some_other_name") == pysidre.InvalidIndex
-    assert dg.getFirstValidGroupIndex() == pysidre.InvalidIndex
-    assert dg.getNextValidGroupIndex(0) == pysidre.InvalidIndex
-    assert dg.getNextValidGroupIndex(4) == pysidre.InvalidIndex
+    assert dg.getGroupIndex("some_other_name") == sidre.InvalidIndex
+    assert dg.getFirstValidGroupIndex() == sidre.InvalidIndex
+    assert dg.getNextValidGroupIndex(0) == sidre.InvalidIndex
+    assert dg.getNextValidGroupIndex(4) == sidre.InvalidIndex
 
     assert dg.getNumViews() == 0
     assert not dg.hasView(-1)
     assert not dg.hasView(0)
     assert not dg.hasView(1)
     assert not dg.hasView("some_name")
-    assert dg.getViewIndex("some_other_name") == pysidre.InvalidIndex
-    assert dg.getFirstValidViewIndex() == pysidre.InvalidIndex
-    assert dg.getNextValidViewIndex(0) == pysidre.InvalidIndex
-    assert dg.getNextValidViewIndex(4) == pysidre.InvalidIndex
+    assert dg.getViewIndex("some_other_name") == sidre.InvalidIndex
+    assert dg.getFirstValidViewIndex() == sidre.InvalidIndex
+    assert dg.getNextValidViewIndex(0) == sidre.InvalidIndex
+    assert dg.getNextValidViewIndex(4) == sidre.InvalidIndex
 
 
 def verify_buffer_identity(ds, bs):
@@ -41,7 +41,7 @@ def verify_buffer_identity(ds, bs):
     # Does ds contain the buffer IDs and pointers we expect?
     iterated_count = 0
     idx = ds.getFirstValidBufferIndex()
-    while idx != pysidre.InvalidIndex and iterated_count < bufcount:
+    while idx != sidre.InvalidIndex and iterated_count < bufcount:
         assert idx in bs
         if idx in bs:
             assert bs[idx] == ds.getBuffer(idx)
@@ -50,11 +50,11 @@ def verify_buffer_identity(ds, bs):
 
     # Have we iterated over exactly the number of buffers we expect, finishing on InvalidIndex?
     assert iterated_count == bufcount
-    assert idx == pysidre.InvalidIndex
+    assert idx == sidre.InvalidIndex
 
 
 def test_default_ctor():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
 
     # After construction, the DataStore should contain no buffers.
     assert ds.getNumBuffers() == 0
@@ -64,9 +64,9 @@ def test_default_ctor():
     assert not ds.hasBuffer(1)
     assert not ds.hasBuffer(8)
 
-    assert ds.getFirstValidBufferIndex() == pysidre.InvalidIndex
-    assert ds.getNextValidBufferIndex(0) == pysidre.InvalidIndex
-    assert ds.getNextValidBufferIndex(4) == pysidre.InvalidIndex
+    assert ds.getFirstValidBufferIndex() == sidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(0) == sidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(4) == sidre.InvalidIndex
 
     # The new DataStore should contain exactly one group, the root group.
     # The root group should be named "" and should contain no views and no groups.
@@ -82,7 +82,7 @@ def test_default_ctor():
 # The dtor destroys all buffers and deletes the root group.
 # An outside tool should be used to check for proper memory cleanup.
 def test_create_destroy_buffers_basic():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     # Basic tests
@@ -92,7 +92,7 @@ def test_create_destroy_buffers_basic():
     buffer_index = ds.getFirstValidBufferIndex()
     assert dbuff.getIndex() == 0
     assert dbuff.getIndex() == buffer_index
-    assert ds.getNextValidBufferIndex(buffer_index) == pysidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(buffer_index) == sidre.InvalidIndex
 
     # Do we get the buffer we expect?
     assert dbuff == ds.getBuffer(buffer_index)
@@ -102,14 +102,14 @@ def test_create_destroy_buffers_basic():
     ds.destroyBuffer(buffer_index)
     # should be no buffers
     assert ds.getNumBuffers() == 0
-    assert ds.getFirstValidBufferIndex() == pysidre.InvalidIndex
+    assert ds.getFirstValidBufferIndex() == sidre.InvalidIndex
     assert not ds.hasBuffer(buffer_index)
     assert ds.getBuffer(buffer_index) is None
     assert ds.getBuffer(bad_buffer_index) is None
 
 
 def test_create_destroy_buffers_order():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     dbuff = ds.createBuffer()
@@ -119,7 +119,7 @@ def test_create_destroy_buffers_order():
     ds.destroyBuffer(dbuff)
 
     # After destroy, test that buffer index should be available again for reuse.
-    dbuff2 = ds.createBuffer(pysidre.TypeID.FLOAT32_ID, 16)
+    dbuff2 = ds.createBuffer(sidre.TypeID.FLOAT32_ID, 16)
     d2_index = dbuff2.getIndex()
     assert ds.getFirstValidBufferIndex() == buffer_index
     assert d2_index == buffer_index
@@ -164,7 +164,7 @@ def test_create_destroy_buffers_order():
 
 
 def test_create_destroy_buffers_views():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     dbuff3 = ds.createBuffer()
@@ -253,39 +253,39 @@ def irhall(n):
 # Test iteration through buffers, as well as proper index and buffer behavior
 # while buffers are created and deleted
 def test_iterate_buffers_basic():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     bad_buffer_index = 9999
     # Do we get sidre::InvalidIndex for several queries with no buffers?
-    assert ds.getFirstValidBufferIndex() == pysidre.InvalidIndex
-    assert ds.getNextValidBufferIndex(0) == pysidre.InvalidIndex
-    assert ds.getNextValidBufferIndex(bad_buffer_index) == pysidre.InvalidIndex
-    assert ds.getNextValidBufferIndex(pysidre.InvalidIndex) == pysidre.InvalidIndex
+    assert ds.getFirstValidBufferIndex() == sidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(0) == sidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(bad_buffer_index) == sidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(sidre.InvalidIndex) == sidre.InvalidIndex
 
     # Create one data buffer, verify its index is zero, and that iterators behave as expected
     initial = ds.createBuffer()
     assert initial.getIndex() == 0
     assert ds.getNumBuffers() == 1
     assert ds.getFirstValidBufferIndex() == 0
-    assert ds.getNextValidBufferIndex(0) == pysidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(0) == sidre.InvalidIndex
 
     # Destroy the data buffer, verify that iterators behave as expected
     ds.destroyBuffer(initial)
     assert ds.getNumBuffers() == 0
-    assert ds.getFirstValidBufferIndex() == pysidre.InvalidIndex
-    assert ds.getNextValidBufferIndex(0) == pysidre.InvalidIndex
+    assert ds.getFirstValidBufferIndex() == sidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(0) == sidre.InvalidIndex
 
 
 def test_iterate_buffers_simple():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     bs = {}
     bufcount = 20
 
     for i in range(bufcount):
-        b = ds.createBuffer(pysidre.TypeID.FLOAT64_ID, 400 * i)
+        b = ds.createBuffer(sidre.TypeID.FLOAT64_ID, 400 * i)
         idx = b.getIndex()
         bs[idx] = b
 
@@ -293,14 +293,14 @@ def test_iterate_buffers_simple():
 
 
 def test_iterate_buffers_iterators():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     bs = {}
     bufcount = 20
 
     for i in range(bufcount):
-        b = ds.createBuffer(pysidre.TypeID.FLOAT64_ID, 400 * i)
+        b = ds.createBuffer(sidre.TypeID.FLOAT64_ID, 400 * i)
         idx = b.getIndex()
         bs[idx] = b
 
@@ -308,7 +308,7 @@ def test_iterate_buffers_iterators():
     for buff in ds.buffers():
         idx = buff.getIndex()
         found_buffers += 1
-        assert pysidre.indexIsValid(idx)
+        assert sidre.indexIsValid(idx)
         assert ds.getBuffer(idx) == buff
         assert bs[idx] == buff
     assert found_buffers == bufcount
@@ -316,7 +316,7 @@ def test_iterate_buffers_iterators():
 
 # Test creating and allocating buffers, then destroying several of them
 def test_create_delete_buffers_iterate():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     bs = {}
@@ -324,7 +324,7 @@ def test_create_delete_buffers_iterate():
 
     # Initially, create some buffers of varying size
     for i in range(bufcount):
-        b = ds.createBuffer(pysidre.TypeID.FLOAT64_ID, (400 * i) % 10000)
+        b = ds.createBuffer(sidre.TypeID.FLOAT64_ID, (400 * i) % 10000)
         b.allocate()
         idx = b.getIndex()
         bs[idx] = b
@@ -341,12 +341,12 @@ def test_create_delete_buffers_iterate():
 
 
 def test_iterate_buffers_with_delete_iterators():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     init_buff_count = 22
     for i in range(init_buff_count):
-        ds.createBuffer(pysidre.TypeID.FLOAT64_ID, 400 * i)
+        ds.createBuffer(sidre.TypeID.FLOAT64_ID, 400 * i)
     assert ds.getNumBuffers() == init_buff_count
 
     # Remove a few buffers by index
@@ -358,7 +358,7 @@ def test_iterate_buffers_with_delete_iterators():
 
     # Add a buffer, expect it to reuse a lower index
     assert not ds.hasBuffer(5)
-    buff = ds.createBuffer(pysidre.TypeID.FLOAT64_ID, 10)
+    buff = ds.createBuffer(sidre.TypeID.FLOAT64_ID, 10)
     idx = buff.getIndex()
     assert idx < init_buff_count
     assert ds.hasBuffer(idx)
@@ -378,14 +378,14 @@ def test_iterate_buffers_with_delete_iterators():
     for buff in ds.buffers():
         idx = buff.getIndex()
         found_buffers += 1
-        assert pysidre.indexIsValid(idx)
+        assert sidre.indexIsValid(idx)
         assert ds.getBuffer(idx) == buff
     assert found_buffers == exp_buff_count
 
 
 # Test creating+allocating buffers, then destroying several of them, repeatedly
 def test_loop_create_delete_buffers_iterate():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     bs = {}
@@ -394,7 +394,7 @@ def test_loop_create_delete_buffers_iterate():
 
     # Initially, create some buffers of varying size
     for i in range(initbufcount):
-        b = ds.createBuffer(pysidre.TypeID.FLOAT64_ID, (400 * i) % 10000)
+        b = ds.createBuffer(sidre.TypeID.FLOAT64_ID, (400 * i) % 10000)
         b.allocate()
         idx = b.getIndex()
         bs[idx] = b
@@ -422,7 +422,7 @@ def test_loop_create_delete_buffers_iterate():
         elif delta > 0:
             addcount = delta
             for _ in range(addcount):
-                buf = ds.createBuffer(pysidre.TypeID.FLOAT64_ID, 400)
+                buf = ds.createBuffer(sidre.TypeID.FLOAT64_ID, 400)
                 buf.allocate()
                 addid = buf.getIndex()
                 assert ds.hasBuffer(addid)

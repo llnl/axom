@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPIOMANAGER_H
+#define WRAPIOMANAGER_H
+
 /**
  * \file wrapIOManager.h
  * \brief Shroud generated wrapper for IOManager class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPIOMANAGER_H
-#define WRAPIOMANAGER_H
 
 #include "axom/sidre/interface/c_fortran/wrapGroup.h"
 #include "axom/sidre/interface/c_fortran/wrapDataStore.h"

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_DISTRIBUTED_CLOSEST_POINT_H_
-#define QUEST_DISTRIBUTED_CLOSEST_POINT_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
@@ -212,5 +211,3 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  //  QUEST_DISTRIBUTED_CLOSEST_POINT_H_

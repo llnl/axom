@@ -13,8 +13,7 @@
  * in low-level facilities that cannot depend on higher-level utilities headers.
  */
 
-#ifndef AXOM_CORE_UTILITIES_ABORT_HPP_
-#define AXOM_CORE_UTILITIES_ABORT_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -25,5 +24,3 @@ namespace axom::utilities
  */
 [[noreturn]] void processAbort();
 }  // namespace axom::utilities
-
-#endif  // AXOM_CORE_UTILITIES_ABORT_HPP_

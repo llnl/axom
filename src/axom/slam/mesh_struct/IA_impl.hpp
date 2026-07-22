@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_IA_IMPL_H_
-#define SLAM_IA_IMPL_H_
+#pragma once
 
 /*
  * \file IA_impl.hpp
@@ -1284,5 +1283,3 @@ bool IAMesh<TDIM, SDIM, P>::isConforming(bool verboseOutput) const
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_IA_IMPL_H_

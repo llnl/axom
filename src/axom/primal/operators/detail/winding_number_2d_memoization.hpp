@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number_2d_memoization.hpp
  *
  * \brief Consists of data structures that accelerate GWN queries through "memoization,"
  *         i.e. dynamically caching and reusing intermediate curve subdivisions.
  */
-
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -369,5 +368,3 @@ struct nurbs_cache_2d_traits<axom::OMP_EXEC>
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_

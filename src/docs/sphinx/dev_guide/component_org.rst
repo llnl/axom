@@ -302,22 +302,30 @@ in other languages Axom supports.
 Python Interfaces
 ====================================
 
-We use the nanobind library to generate Python APIs from our C++
-interface code. Nanobind is a python binding library that generates code
-from a *cpp* file that describes C++ functions and their interfaces.
+We use the `nanobind <https://nanobind.readthedocs.io/en/latest/>`_ library
+to build Python APIs from our C++ interface code. A component's bindings are
+hand-written in a nanobind translation unit (e.g., ``src/axom/sidre/nanobind_sidre.cpp``)
+that describes the classes and functions to expose.
+nanobind compiles this into an extension module.
 
-Please refer to the `nanobind documentation <https://nanobind.readthedocs.io/en/latest/>`_ for more information.
+The bindings install as a Python package. Each bound component is an extension
+under the ``axom`` package (for example ``axom.sidre``), with type stubs
+and a ``py.typed`` marker so editors and type checkers can introspect it.
+The pure-Python package scaffolding lives once under ``src/python/src/`` and is
+installed by the CMake build (and, in the future, will be reused verbatim by a pip/uv wheel).
 
-The python interpreter can be launched with Axom extension(s) in the PYTHONPATH
-by running the convenience script::
+The end-user view of the Python interface, e.g. how to install and import it,
+is documented in the Sidre user guide's Python interface page.
+This section covers how the bindings are built and how to add more of them.
 
-  ./bin/run_python_with_axom.sh <optional .py to run>
+To build the bindings, configure Axom with nanobind (Python with the ``Development.Module`` component,
+and nanobind discoverable by the interpreter). This requirement differs from Shroud, which generates Fortran interface files that do not require Shroud at build time once generated.
 
-.. note:: The Python interface requires Axom to be configured with nanobind
-          to build and use the interface. This requirement is different from shroud,
-          which generates interface files. Once shroud generates the interface
-          files, users are not required to configure Axom with shroud to use the
-          Fortran interface.
+.. note:: A spack environment with a view, or (in the future) the pip/uv wheel,
+          makes ``import axom.sidre`` work in a plain interpreter.
+          For running ad hoc Python scripts against a build tree, we provide a
+          generated ``run_python_with_axom.sh`` helper to resolve the runtime dependencies
+          (Conduit, NumPy, mpi4py) on ``PYTHONPATH``.
 
 .. warning:: nanobind's numpy interface does not currently support
              `arbitrary Python objects <https://nanobind.readthedocs.io/en/latest/ndarray.html#limitations-related-to-dtypes>`_.

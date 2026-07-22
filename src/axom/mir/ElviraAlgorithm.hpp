@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_ELVIRA_ALGORITHM_HPP_
-#define AXOM_MIR_ELVIRA_ALGORITHM_HPP_
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -1134,5 +1134,3 @@ private:
 
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

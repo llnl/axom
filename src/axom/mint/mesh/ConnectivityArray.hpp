@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_ConnectivityArray_HPP_
-#define MINT_ConnectivityArray_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/Macros.hpp"
@@ -717,5 +716,3 @@ private:
 } /* namespace axom */
 
 #include "axom/mint/mesh/internal/ConnectivityArray_typed_indirection.hpp"
-
-#endif /* MINT_ConnectivityArray_HPP_ */

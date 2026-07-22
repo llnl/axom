@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Set.hpp
  *
  * \brief Basic API for a Set of entities in a simulation
  *
  */
-
-#ifndef SLAM_SET_H_
-#define SLAM_SET_H_
 
 #include <cstddef>
 #include <vector>
@@ -170,5 +169,3 @@ inline bool operator!=(const Set<P1, E1>& set1, const Set<P2, E2>& set2)
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_SET_H_

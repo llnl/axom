@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_ERROR_HPP_
-#define AXOM_KLEE_ERROR_HPP_
+#pragma once
 
 #include "axom/inlet/inlet_utils.hpp"
 
@@ -54,5 +53,3 @@ private:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_ERROR_HPP_

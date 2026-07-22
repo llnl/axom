@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_BLEND_DATA_HPP_
-#define AXOM_BUMP_BLEND_DATA_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 
@@ -79,5 +79,3 @@ inline axom::IndexType numberOfValues(const BlendData &blend)
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

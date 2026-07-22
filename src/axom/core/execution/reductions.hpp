@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_REDUCTIONS_HPP_
-#define AXOM_CORE_EXECUTION_REDUCTIONS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -351,5 +350,3 @@ using ReduceBitOr = axom::serial::reductions::ReduceBitOr<ExecSpace, T>;
 
 }  // namespace axom
 #endif  // AXOM_HAVE_RAJA
-
-#endif

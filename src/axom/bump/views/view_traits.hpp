@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEW_TRAITS_HPP_
-#define AXOM_BUMP_VIEW_TRAITS_HPP_
+#pragma once
 
 #include "axom/core/utilities/BitUtilities.hpp"
 #include "axom/bump/views/StructuredTopologyView.hpp"
@@ -120,5 +119,3 @@ AXOM_MAKE_TRAIT(double)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

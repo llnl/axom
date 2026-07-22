@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_FlatMap_HPP
-#define Axom_Core_FlatMap_HPP
+#pragma once
 
 #include <cstdint>
 #include <tuple>
@@ -1000,5 +999,3 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
 }  // namespace axom
 
 #include "FlatMapUtil.hpp"
-
-#endif  // Axom_Core_FlatMap_HPP

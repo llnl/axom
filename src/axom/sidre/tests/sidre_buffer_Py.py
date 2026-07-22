@@ -4,14 +4,14 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import pysidre
+import axom.sidre as sidre
 import numpy as np
 
 NUM_BYTES_INT_32 = 4
 
 
 def test_create_buffers():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     assert ds.getNumBuffers() == 0
 
     dbuff_0 = ds.createBuffer()
@@ -34,17 +34,17 @@ def test_create_buffers():
 
 
 def test_alloc_buffer_for_int_array():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     dbuff = ds.createBuffer()
     elem_count = 10
 
-    dbuff.allocate(pysidre.TypeID.INT32_ID, elem_count)
+    dbuff.allocate(sidre.TypeID.INT32_ID, elem_count)
 
     # Should be a warning and no-op, buffer is already allocated, we don't want
     # to re-allocate and leak memory.
     dbuff.allocate()
 
-    assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
+    assert dbuff.getTypeID() == sidre.TypeID.INT32_ID
     assert dbuff.getNumElements() == elem_count
     assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * elem_count
 
@@ -65,12 +65,12 @@ def test_alloc_buffer_for_int_array():
 def test_init_buffer_for_int_array():
     elem_count = 10
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     dbuff = ds.createBuffer()
 
-    dbuff.allocate(pysidre.TypeID.INT32_ID, elem_count)
+    dbuff.allocate(sidre.TypeID.INT32_ID, elem_count)
 
-    assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
+    assert dbuff.getTypeID() == sidre.TypeID.INT32_ID
     assert dbuff.getNumElements() == elem_count
     assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * elem_count
 
@@ -92,12 +92,12 @@ def test_realloc_buffer():
     orig_elem_count = 5
     mod_elem_count = 10
 
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     dbuff = ds.createBuffer()
 
-    dbuff.allocate(pysidre.TypeID.INT32_ID, orig_elem_count)
+    dbuff.allocate(sidre.TypeID.INT32_ID, orig_elem_count)
 
-    assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
+    assert dbuff.getTypeID() == sidre.TypeID.INT32_ID
     assert dbuff.getNumElements() == orig_elem_count
     assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * orig_elem_count
 
@@ -111,7 +111,7 @@ def test_realloc_buffer():
 
     dbuff.reallocate(mod_elem_count)
 
-    assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
+    assert dbuff.getTypeID() == sidre.TypeID.INT32_ID
     assert dbuff.getNumElements() == mod_elem_count
     assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * mod_elem_count
 

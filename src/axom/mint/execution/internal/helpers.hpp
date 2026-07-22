@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_EXECUTION_HELPERS_HPP_
-#define MINT_EXECUTION_HELPERS_HPP_
+#pragma once
 
 // mint includes
 #include "axom/mint/config.hpp"     // for compile-time definitions
@@ -113,5 +112,3 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
 } /* namespace internal */
 } /* namespace mint     */
 } /* namespace axom     */
-
-#endif /* MINT_EXECUTION_HELPERS_HPP_ */

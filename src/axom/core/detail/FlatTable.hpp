@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_Detail_FlatTable_Hpp
-#define Axom_Core_Detail_FlatTable_Hpp
+#pragma once
 
 #include <climits>
 
@@ -582,5 +581,3 @@ struct alignas(T) TypeErasedStorage
 }  // namespace axom
 
 #undef _AXOM_CORE_HAVE_SSE2
-
-#endif  // Axom_Core_Detail_FlatTable_Hpp

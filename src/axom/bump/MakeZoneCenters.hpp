@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MAKE_ZONE_CENTERS_HPP_
-#define AXOM_BUMP_MAKE_ZONE_CENTERS_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
@@ -185,5 +185,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

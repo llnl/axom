@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRACTION_TABLE_HPP_
-#define AXOM_BUMP_EXTRACTION_TABLE_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -404,5 +403,3 @@ private:
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

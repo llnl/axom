@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_PC2CREADER_HPP_
-#define QUEST_PC2CREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -95,5 +94,3 @@ private:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_PC2CREADER_HPP_
