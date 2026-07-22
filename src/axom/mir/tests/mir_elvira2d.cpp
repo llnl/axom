@@ -120,6 +120,7 @@ struct braid2d_mat_test
           options["matset"] = "mat";
           options["plane"] = 1;
           options["pointmesh"] = pointMesh ? 1 : 0;
+          options["verbose"] = 1;
           if(cleanMats)
           {
             // Set the output names

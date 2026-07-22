@@ -101,6 +101,7 @@ struct test_Elvira3D
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node deviceMIRMesh;
     conduit::Node options;
+    options["verbose"] = 1;
     options["matset"] = "mat";
     options["plane"] = pointMesh ? 1 : 0;
     options["pointmesh"] = pointMesh ? 1 : 0;
