@@ -48,11 +48,14 @@ T curvature(const VectorType& Dt, const VectorType& DtDt)
     // https://en.wikipedia.org/wiki/Curvature#Curvature_of_a_graph
     // k = (x'y'' - y'x'') / pow(x'x' + y'y', 3./2.)
     const T xp2_plus_yp2 = xp * xp + yp * yp;
-    return (xp * ypp - yp * xpp) / pow(xp2_plus_yp2, 3. / 2.);
+    SLIC_ASSERT(xp2_plus_yp2 > T {0});
+    return (xp * ypp - yp * xpp) / (xp2_plus_yp2 * sqrt(xp2_plus_yp2));
   }
   else
   {
-    return VectorType::cross_product(Dt, DtDt).norm() / pow(Dt.norm(), 3.);
+    const auto Dt_norm = Dt.norm();
+    SLIC_ASSERT(Dt_norm != T {0});
+    return VectorType::cross_product(Dt, DtDt).norm() / (Dt_norm * Dt_norm * Dt_norm);
   }
 }
 
@@ -71,8 +74,9 @@ template <typename VectorType, typename T = typename VectorType::CoordType>
 T curvatureDerivative(const VectorType& D1, const VectorType& D2, const VectorType& D3)
 {
   const T D1Norm = D1.norm();
-  const T D1Norm3 = pow(D1Norm, 3.);
-  const T D1Norm5 = pow(D1Norm, 5.);
+  SLIC_ASSERT(D1Norm != T {0});
+  const T D1Norm3 = D1Norm * D1Norm * D1Norm;
+  const T D1Norm5 = D1Norm3 * D1Norm * D1Norm;
 
   if constexpr(VectorType::dimension() == 2)
   {
@@ -86,7 +90,6 @@ T curvatureDerivative(const VectorType& D1, const VectorType& D2, const VectorTy
     const auto cross13 = VectorType::cross_product(D1, D3);
     const T cross12Norm = cross12.norm();
     const T crossTerm = cross12.dot(cross13);
-
     return crossTerm / (cross12Norm * D1Norm3) - 3. * cross12Norm * D1.dot(D2) / D1Norm5;
   }
 }
