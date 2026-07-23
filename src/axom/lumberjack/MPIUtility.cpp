@@ -72,7 +72,7 @@ MPI_Request mpiNonBlockingSendMessagesWithRequest(MPI_Comm comm,
                                                   int destinationRank,
                                                   const char* packedMessagesToBeSent)
 {
-  MPI_Request mpiRequest;
+  MPI_Request mpiRequest = MPI_REQUEST_NULL;
   MPI_Isend(const_cast<char*>(packedMessagesToBeSent),
             std::strlen(packedMessagesToBeSent),
             MPI_CHAR,

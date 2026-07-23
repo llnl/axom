@@ -30,8 +30,11 @@ namespace lumberjack
  *******************************************************************************
  * \class NonCollectiveRootCommunicator
  *
- * \brief Based off of RootCommunicator. This communicator pushes
-    messages from any rank to root non-collectively, if any messages are sent.
+ * \brief Pushes messages from any rank to root non-collectively.
+ *
+ * This communicator is intended for best-effort logging in abort scenarios.
+ * Non-root sends are non-blocking. Send buffers stay valid until MPI completes
+ * or finalization releases ownership to avoid waiting on root.
  *******************************************************************************
  */
 class NonCollectiveRootCommunicator : public axom::lumberjack::Communicator
@@ -149,7 +152,18 @@ private:
     std::unique_ptr<char[]> buffer;
   };
 
+  /*!
+   *****************************************************************************
+   * \brief Polls pending sends and releases completed send buffers.
+   *****************************************************************************
+   */
   void drainCompletedSends();
+
+  /*!
+   *****************************************************************************
+   * \brief Releases pending send state without waiting for incomplete sends.
+   *****************************************************************************
+   */
   void releasePendingSends();
 
   MPI_Comm m_mpiComm;

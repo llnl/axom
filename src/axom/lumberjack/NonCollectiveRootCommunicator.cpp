@@ -28,7 +28,6 @@ namespace lumberjack
 {
 void NonCollectiveRootCommunicator::initialize(MPI_Comm comm, int ranksLimit)
 {
-  m_pendingSends.clear();
   if(ranksLimit < 1)
   {
     std::cerr << "Error: Ranks limit passed to NonCollectiveRootCommunicator "
@@ -92,7 +91,6 @@ void NonCollectiveRootCommunicator::push(const char* packedMessagesToBeSent,
   }
   else
   {
-    drainCompletedSends();
     if(isPackedMessagesEmpty(packedMessagesToBeSent) == false)
     {
       const int messageSize = static_cast<int>(std::strlen(packedMessagesToBeSent));
@@ -139,9 +137,7 @@ void NonCollectiveRootCommunicator::releasePendingSends()
     MPI_Test(&pendingSend.request, &complete, MPI_STATUS_IGNORE);
     if(!complete)
     {
-      // Keep the send buffer valid without blocking finalization. This
-      // communicator is used for best-effort non-collective error reporting;
-      // waiting here could hang if root is no longer receiving.
+      // Keep the buffer valid for MPI without blocking finalization.
       MPI_Request_free(&pendingSend.request);
       pendingSend.buffer.release();
     }
