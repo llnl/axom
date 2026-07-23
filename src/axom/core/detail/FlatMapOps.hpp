@@ -39,6 +39,8 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata,
                            HostAllocator host_allocator)
 {
 #if !defined(AXOM_USE_UMPIRE) || !defined(AXOM_USE_CUDA)
+  // Note: HIP can access device memory from the host and does not need special
+  // handling - we just defer to the host path in all cases.
   AXOM_UNUSED_VAR(host_allocator);
 #endif
 
@@ -49,8 +51,6 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata,
   }
 
 #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
-  // Note: HIP can access device memory from the host and does not need special
-  // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
   // CUDA-only: buckets located in device-only memory and non-trivially
   // destructible. We'll need to "relocate" the objects to the host to
@@ -83,6 +83,8 @@ inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
                         HostAllocator host_allocator)
 {
 #if !defined(AXOM_USE_UMPIRE) || !defined(AXOM_USE_CUDA)
+  // Note: HIP can access device memory from the host and does not need special
+  // handling - we just defer to the host path in all cases.
   AXOM_UNUSED_VAR(host_allocator);
 #endif
 
@@ -94,9 +96,6 @@ inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
 
   axom::ArrayView<StoragePair> to_buckets_stage = to_buckets;
 #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
-  // Note: HIP can access device memory from the host and does not need special
-  // handling - we just defer to the host path in all cases.
-
   // Non-trivially copyable:
   // "Relocate" to the host to call host-based copy constructor.
   MemorySpace meta_space = getAllocatorSpace(metadata.getAllocatorID());
