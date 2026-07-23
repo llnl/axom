@@ -9,7 +9,7 @@ Core memory management
 ******************************************************
 
 The Axom Core component provides mechanisms to control which memory spaces
-allocations occur to support code execution on CPUs and GPUs and integration
+are used for allocations to support code execution on CPUs and GPUs and integration
 with tools like `Umpire`_. Memory spaces are specified in the Core interface
 using enum values:
 
@@ -54,8 +54,8 @@ Explicit host allocation
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 When an API argument semantically means "host-resident storage" (including host
-staging/scratch for device operations), prefer passing an ``axom::HostAllocator``.
-This makes host allocation behavior independent of process-global defaults and
+staging/scratch for device operations), prefer passing an ``axom::HostAllocator``
+object. This makes host allocation behavior independent of process-global defaults and
 reduces sensitivity to initialization order.
 
 The following illustrates the general pattern::
@@ -84,8 +84,10 @@ should be treated as legacy convenience paths in new production code.
 Changing the default host and global allocators (legacy)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+THe contents of this section refer to Axom *legacy* convenience routines,
+meaning those that do not take an explicit host allocator argument.
 The default host allocator controls what Axom uses when code asks for
-``MemorySpace::Host`` through legacy convenience paths. This is separate from
+``MemorySpace::Host`` through these legacy convenience paths. This is separate from
 the global default allocator used for ``MemorySpace::Dynamic``.
 
 In practice, that means:
