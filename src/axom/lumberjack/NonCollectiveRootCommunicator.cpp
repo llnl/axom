@@ -137,7 +137,7 @@ void NonCollectiveRootCommunicator::releasePendingSends()
     MPI_Test(&pendingSend.request, &complete, MPI_STATUS_IGNORE);
     if(!complete)
     {
-      // Keep the buffer valid for MPI without blocking finalization.
+      // Intentionally leak the buffer to keep it valid for MPI.
       MPI_Request_free(&pendingSend.request);
       pendingSend.buffer.release();
     }

@@ -162,6 +162,8 @@ private:
   /*!
    *****************************************************************************
    * \brief Releases pending send state without waiting for incomplete sends.
+   *
+   * Incomplete send buffers are intentionally leaked to keep them valid for MPI.
    *****************************************************************************
    */
   void releasePendingSends();
