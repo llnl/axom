@@ -19,7 +19,7 @@
 
 namespace
 {
-#if defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
 bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
 {
   if(!axom::isMemorySpaceAvailable(space))
