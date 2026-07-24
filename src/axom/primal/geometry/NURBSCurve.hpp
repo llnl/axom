@@ -23,6 +23,7 @@
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
+#include "axom/primal/operators/curvature.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/primal/operators/is_convex.hpp"
 
@@ -389,7 +390,7 @@ public:
       std::swap(theta_0, theta_1);
     }
 
-    SLIC_ASSERT(theta_1 - theta_0 <= 2.0 * M_PI);
+    SLIC_ASSERT(static_cast<T>(theta_1 - theta_0) <= static_cast<T>(2.0 * M_PI));
 
     T pi23 = 2.0 * M_PI / 3.0;
     int n_segments = std::ceil((theta_1 - theta_0) / pi23);
@@ -1447,6 +1448,41 @@ public:
     return beziers;
   }
 
+  ///@}
+
+  ///@{
+  /// \name Functions dealing with curvature
+
+  /*! 
+   * \brief Evaluates the curvature at parameter value \a t.
+   *  
+   * \param t The parameter value. 
+   * 
+   * \return The curvature value at t. 
+   */
+  double curvature(T t) const
+  {
+    PointType eval;
+    VectorType Dt, DtDt;
+    evaluateSecondDerivative(t, eval, Dt, DtDt);
+    return axom::primal::curvature(Dt, DtDt);
+  }
+
+  /*!
+   * \brief Evaluates the first curvature derivative at parameter \a t
+   *
+   * \param t The parameter value.
+   *
+   * \return The first curvature derivative with respect to the curve parameter.
+   */
+  double curvatureDerivative(T t) const
+  {
+    PointType eval;
+    axom::Array<VectorType> curveDers;
+    // Evaluate 1st, 2nd, and 3rd curve derivatives at t.
+    evaluateDerivatives(t, 3, eval, curveDers);
+    return axom::primal::curvatureDerivative(curveDers[0], curveDers[1], curveDers[2]);
+  }
   ///@}
 
   /*!
