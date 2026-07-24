@@ -6,7 +6,8 @@
   "dependencies": [
     {
       "name": "hdf5",
-      "features": ["tools"]
+      "default-features": false,
+      "features": ["tools", "zlib"]
     }, 
     "blt",
     {
