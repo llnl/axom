@@ -159,32 +159,6 @@ InputParams params;
 //!@brief Return allocator id suitable for the given runtime policy.
 int allocatorIdFromPolicy(axom::runtime_policy::Policy policy)
 {
-#if 0
-  AXOM_UNUSED_VAR(policy);
-#if defined(AXOM_USE_UMPIRE)
-  const axom::HostAllocator hostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
-  int allocatorID = policy == axom::runtime_policy::Policy::seq ? hostAllocator.getID() :
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-    policy == axom::runtime_policy::Policy::omp ? hostAllocator.getID()
-    :
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-    policy == axom::runtime_policy::Policy::cuda
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Device>()
-    :
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-    policy == axom::runtime_policy::Policy::hip
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Device>()
-    :
-  #endif
-    axom::INVALID_ALLOCATOR_ID;
-#else
-  int allocatorID = axom::getDefaultAllocatorID();
-#endif
-
-#else
-
   int allocatorID = axom::getDefaultAllocatorID();
 
 #if !defined(AXOM_USE_UMPIRE)
@@ -195,35 +169,34 @@ int allocatorIdFromPolicy(axom::runtime_policy::Policy policy)
 
   allocatorID = axom::INVALID_ALLOCATOR_ID;
 
-  if ( policy == axom::runtime_policy::Policy::seq )
+  if(policy == axom::runtime_policy::Policy::seq)
   {
     allocatorID = hostAllocator.getID();
   }
- 
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-  if ( policy == axom::runtime_policy::Policy::omp )
+
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  if(policy == axom::runtime_policy::Policy::omp)
   {
     allocatorID = hostAllocator.getID();
   }
-#endif
+  #endif
 
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  if ( policy == axom::runtime_policy::Policy::cuda )
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  if(policy == axom::runtime_policy::Policy::cuda)
   {
     allocatorID = axom::detail::getAllocatorID<axom::MemorySpace::Device>();
   }
-#endif
+  #endif
 
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  if ( policy == axom::runtime_policy::Policy::hip )
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  if(policy == axom::runtime_policy::Policy::hip)
   {
     allocatorID = axom::detail::getAllocatorID<axom::MemorySpace::Device>();
   }
-#endif
+  #endif
 
 #endif  // AXOM_USE_UMPIRE
 
-#endif
   return allocatorID;
 }
 
