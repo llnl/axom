@@ -672,7 +672,8 @@ void doEveryErrorTest(
      "curve_sets": {"set_1": {"independent": {"0": {"value": [4, 5, 6]}}}},
      "library_data": {"my_lib": {"library_data": {"my_inner_lib": {"user_defined": {"foo/bar": "baz/qux"}}}}}}]})");
   axom::sina::Document new_doc = Document(appendFrom, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3, skipValidation, overwriteCurves);
+  conduit::Node resultMsg =
+    appendDocumentFunc(append_to_file, new_doc, 3, skipValidation, overwriteCurves);
   // Make sure no data changed
   conduit::Node root;
   conduit::relay::io::load(append_to_file, root);
@@ -702,7 +703,8 @@ void doSimpleAppendTest(
   Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
   saveDocument(empty_doc, empty_file, enum_protocol);
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(empty_file, new_doc, 3, true, false);  // skip validation
+  conduit::Node resultMsg =
+    appendDocumentFunc(empty_file, new_doc, 3, true, false);  // skip validation
   EXPECT_EQ(resultMsg.number_of_children(), 0);
   conduit::Node root;
   conduit::relay::io::load(empty_file, root);
@@ -837,13 +839,13 @@ void doAppendOverwriteCurveTest(
   std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
 {
   std::string overwrite_file = "test_overwrite." + protocol;
-  axom::sina::Document overwritten_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
+  axom::sina::Document overwritten_doc =
+    Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
   const std::string overwrite_str = R"(
     { "records": [ { "type": "run", "application": "test", "local_id": "bar1", "curve_sets": { "set_1": {
       "dependent": { "0": {"value": [1.0, 2.0, 3.0, 4.0]}, "1": {"value": [-1.0, -2.0, -3.0, -4.0]} },
       "independent": { "0": {"value": [4.0, 5.0, 6.0, 7.0]}, "1": {"value": [-4.0, -5.0, -6.0, -7.0]} } } } } ] })";
-  axom::sina::Document overwrite_doc =
-    Document(overwrite_str, createRecordLoaderWithAllKnownTypes());
+  axom::sina::Document overwrite_doc = Document(overwrite_str, createRecordLoaderWithAllKnownTypes());
   Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
   saveDocument(overwritten_doc, overwrite_file, enum_protocol);
   conduit::Node resultMsg = appendDocumentFunc(overwrite_file, overwrite_doc, 3, false, true);

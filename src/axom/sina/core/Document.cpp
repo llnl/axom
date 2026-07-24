@@ -1007,7 +1007,7 @@ conduit::Node append(ConduitRelayLike &appendTo,
                      bool isHDF5,
                      bool skipValidation,
                      const std::string &original_file_path,
-                     bool overwriteCurves )
+                     bool overwriteCurves)
 {
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
   // We need to figure out where each record is in appendTo, since there's no guarantee in the order
