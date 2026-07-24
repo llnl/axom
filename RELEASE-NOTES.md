@@ -52,6 +52,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   a point lies within a sphere. Use `getOrientation()` when a tolerance-aware boundary classification is needed.
 - Python: Adds the `AXOM_PYTHON_MODULE_INSTALL_PREFIX` CMake variable to control where Axom installs its Python
   package(s), relative to the install prefix.
+- Quest: The C2CReader was enhanced to provide assembly support.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
