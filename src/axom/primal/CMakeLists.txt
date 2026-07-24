@@ -54,6 +54,7 @@ set( primal_headers
     ## operators
     operators/clip.hpp
     operators/closest_point.hpp
+    operators/curvature.hpp
     operators/evaluate_integral.hpp
     operators/evaluate_integral_curve.hpp
     operators/evaluate_integral_surface.hpp

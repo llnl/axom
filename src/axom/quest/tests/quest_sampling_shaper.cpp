@@ -863,6 +863,44 @@ shapes:
   }
 }
 
+TEST_F(SamplingShaperTest2D, basic_circle_assembly_transform)
+{
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: circle_assembly
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+    operators:
+      - scale: .5
+)";
+
+  const std::string circle_material = "circleMat";
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile assembly_file(testname, ".assembly");
+  assembly_file.write(axom::fmt::format("pieces = contour(path='{}')", contour_file.getPath()));
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), circle_material, assembly_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+  this->runShaping();
+
+  constexpr double expected_volume = M_PI / 4.;
+  this->checkExpectedVolumeFractions(circle_material, expected_volume, 2e-2);
+}
+
 TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
@@ -2667,6 +2705,37 @@ shapes:
 
   fs::TempFile shape_file(testname, ".yaml");
   shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.contour"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
+}
+
+TEST_F(SamplingShaperTest2D, loadShape_missing_c2c_assembly_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant c2c assembly; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: missing_c2c_assembly
+  material: mat
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.assembly"));
 
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());

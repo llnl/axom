@@ -46,6 +46,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
+- Primal: Adds `curvature()` and `curvatureDerivative()` methods to `BezierCurve` and `NURBSCurve`.
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
 - Sidre: Added `axom::sidre::View::checksum()` and `axom::sidre::Group::checksum()` methods that return checksum values. A `Group::checksum(conduit::Node&)` overload emits diffable checksum metadata for group/view subtrees.
@@ -55,6 +56,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   a point lies within a sphere. Use `getOrientation()` when a tolerance-aware boundary classification is needed.
 - Python: Adds the `AXOM_PYTHON_MODULE_INSTALL_PREFIX` CMake variable to control where Axom installs its Python
   package(s), relative to the install prefix.
+- Quest: The C2CReader was enhanced to provide assembly support.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
