@@ -7,6 +7,7 @@ Primal includes the following primitives:
 - Segment, Ray, Vector
 - Plane, Triangle, Polygon
 - Quadrilateral
+- BezierCurve, NURBSCurve
 - Sphere
 - Tetrahedron
 - Hexahedron
@@ -19,6 +20,10 @@ Classes in Primal are templated on coordinate type (double, float, etc.) and
 dimension.  The primitives do not inherit from a common base class.  This was a
 design choice in favor of simplicity and performance.  Geometric primitives can
 be tested for equality and can be printed to strings.
+
+Curve primitives such as ``BezierCurve`` and ``NURBSCurve`` also provide
+evaluation, derivative, and curvature-related helpers; see the generated
+Primal API documentation for the full interface.
 
 Primal also includes functions to merge a pair of BoundingBox or a pair of 
 OrientedBoundingBox objects and to create new OrientedBoundingBox objects 
@@ -39,4 +44,3 @@ less error-prone to write ``#include axom/primal.hpp``.
    :start-after: _using_start
    :end-before: _using_end
    :language: C++
-
