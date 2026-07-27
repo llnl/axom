@@ -130,6 +130,31 @@ public:
     return name;
   }
 
+  /**
+   * \brief Get whether the algorithm should issue verbose output.
+   * \return True if the output should be verbose, false otherwise.
+   */
+  bool verbose() const { return flagValue("verbose", false); }
+
+protected:
+  /**
+   * \brief Get whether the flag is set in the options.
+   *
+   * \param key The name of the key that contains the flag.
+   * \param defaultValue The default value for the flag.
+   *
+   * \return True if key is present and set to non-zero, false otherwise.
+   */
+  bool flagValue(const std::string &key, bool defaultValue) const
+  {
+    bool retval = defaultValue;
+    if(options().has_path(key))
+    {
+      retval = options().fetch_existing(key).to_int() != 0;
+    }
+    return retval;
+  }
+
 protected:
   const conduit::Node &m_options;  // A reference to the options node.
 };

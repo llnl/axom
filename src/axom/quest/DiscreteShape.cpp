@@ -10,6 +10,9 @@
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
+#ifdef AXOM_USE_C2C
+  #include "axom/quest/io/C2CReader.hpp"
+#endif
 
 #include <algorithm>
 #include <stdexcept>
@@ -147,10 +150,11 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     m_meshRep.reset(meshRep);
   }
 #ifdef AXOM_USE_C2C
-  else if(utilities::string::endsWith(shapePath, ".contour"))
+  else if(C2CReader::hasValidExtension(shapePath))
   {
-    SLIC_ERROR_ROOT_IF(file_format != "c2c",
-                       axom::fmt::format(" '{}' format requires .contour file type", file_format));
+    SLIC_ERROR_ROOT_IF(
+      file_format != "c2c",
+      axom::fmt::format(" '{}' format requires a .contour or .assembly file type", file_format));
 
     // Get the transforms that are being applied to the mesh as a single concatenated matrix
     auto transform = getTransforms();
