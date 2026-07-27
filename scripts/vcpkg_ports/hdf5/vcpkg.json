@@ -6,6 +6,14 @@
   "homepage": "https://www.hdfgroup.org/downloads/hdf5/",
   "license": "BSD-3-Clause",
   "supports": "!uwp",
+  "$comment": [
+    "Overlay of the pinned upstream hdf5 manifest used by uberenv's in-place vcpkg ports copy.",
+    "Upstream hdf5 defaults are [\"szip\", \"zlib\"]. We intentionally drop \"szip\" from default-features here",
+    "but keep the explicit \"szip\" feature below so users can still opt in when needed.",
+    "This works around vcpkg pulling libaec through hdf5's default szip feature in Axom's Windows GHA builds.",
+    "The problem was not libaec compatibility; the relevant issue was that the libaec source download repeatedly",
+    "failed from its upstream archive URL with HTTP 429 in GitHub Actions, making Windows dependency bootstrap flaky."
+  ],
   "dependencies": [
     {
       "name": "vcpkg-cmake",
@@ -16,6 +24,7 @@
       "host": true
     }
   ],
+  "$comment_default_features": "Upstream default-features were [\"szip\", \"zlib\"]. Keep only zlib by default so CI does not pull libaec unless szip is explicitly requested.",
   "default-features": [
     "zlib"
   ],
@@ -36,6 +45,7 @@
       ]
     },
     "szip": {
+      "$comment": "Retained as an opt-in feature. It is intentionally not part of default-features in this overlay because the libaec download repeatedly hit HTTP 429 in the Windows GHA path.",
       "description": "Build with szip",
       "dependencies": [
         "libaec"
