@@ -19,31 +19,6 @@ namespace klee
 {
 namespace
 {
-std::string operatorName(const GeometryOperator& op)
-{
-  if(dynamic_cast<const Translation*>(&op))
-  {
-    return "translate";
-  }
-  if(dynamic_cast<const Rotation*>(&op))
-  {
-    return "rotate";
-  }
-  if(dynamic_cast<const Scale*>(&op))
-  {
-    return "scale";
-  }
-  if(dynamic_cast<const UnitConverter*>(&op))
-  {
-    return "convert_units_to";
-  }
-  if(dynamic_cast<const SliceOperator*>(&op))
-  {
-    return "slice";
-  }
-  return "unknown";
-}
-
 void requireMatrixOperator(const std::shared_ptr<const GeometryOperator>& op, int index)
 {
   if(std::dynamic_pointer_cast<const MatrixOperator>(op))
@@ -57,7 +32,7 @@ void requireMatrixOperator(const std::shared_ptr<const GeometryOperator>& op, in
                    axom::fmt::format("Cannot convert geometry to matrix: {} ({}) is not a "
                                      "matrix operator.",
                                      ordinal,
-                                     operatorName(*op))});
+                                     op->getName())});
 }
 }  // namespace
 
@@ -302,7 +277,7 @@ numerics::Matrix<double> Geometry::getTransform() const
                            axom::fmt::format("Cannot convert geometry to matrix: operator {} ({}) "
                                              "is not supported by matrix extraction.",
                                              operatorIndex,
-                                             operatorName(*op))});
+                                             op->getName())});
         }
         const auto& matrix = visitor.getMatrix();
         numerics::Matrix<double> res(identity4x4);
@@ -324,7 +299,7 @@ numerics::Matrix<double> Geometry::getTransform() const
         throw KleeError({Path {"geometry/operators"},
                          axom::fmt::format("Cannot convert geometry to matrix: operator ({}) is "
                                            "not supported by matrix extraction.",
-                                           operatorName(*m_operator))});
+                                           m_operator->getName())});
       }
     }
   }

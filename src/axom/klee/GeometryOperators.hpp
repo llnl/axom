@@ -17,6 +17,7 @@
 #include "axom/primal/geometry/Vector.hpp"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace axom
@@ -42,6 +43,9 @@ public:
   explicit GeometryOperator(const TransformableGeometryProperties &startProperties);
 
   virtual ~GeometryOperator() = default;
+
+  /// Returns the name of this operator
+  virtual std::string getName() const = 0;
 
   /**
    * Get the properties that the operator expects to start in
@@ -98,6 +102,8 @@ public:
 
   using OpPtr = std::shared_ptr<const GeometryOperator>;
 
+  std::string getName() const override { return "composite"; }
+
   void accept(GeometryOperatorVisitor &visitor) const override;
 
   /**
@@ -139,6 +145,8 @@ public:
    * \return a vector by which points should be offset
    */
   const primal::Vector3D &getOffset() const { return m_offset; }
+
+  std::string getName() const override { return "translate"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
@@ -187,6 +195,8 @@ public:
    * \return the vector, which when combined with the center, defines the axis of rotation.
    */
   const primal::Vector3D &getAxis() const { return m_axis; }
+
+  std::string getName() const override { return "rotate"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
@@ -289,6 +299,8 @@ public:
   primal::Point3D &getCenter() { return m_center; }
   const primal::Point3D &getCenter() const { return m_center; }
 
+  std::string getName() const override { return "scale"; }
+
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -310,6 +322,8 @@ public:
    * \param startProperties the properties before the operation
    */
   UnitConverter(LengthUnit endUnits, const TransformableGeometryProperties &startProperties);
+
+  std::string getName() const override { return "convert_units_to"; }
 
   TransformableGeometryProperties getEndProperties() const override;
 
@@ -368,6 +382,8 @@ public:
    * \return the direction of the positive Y axis
    */
   const primal::Vector3D &getUp() const { return m_up; }
+
+  std::string getName() const override { return "slice"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
