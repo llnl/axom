@@ -105,9 +105,9 @@ TEST(utils_fileUtilities, getFileExtension)
     {R"(directory.with.dot\file.lua)", ".lua"},
     {R"(C:\directory\FILE.YML)", ".YML"}};
 
-  for(const auto& testCase : testCases)
+  for(const auto& [path, expected_ext] : testCases)
   {
-    EXPECT_EQ(testCase.second, fs::getFileExtension(testCase.first)) << testCase.first;
+    EXPECT_EQ(expected_ext, fs::getFileExtension(path)) << path;
   }
 }
 
