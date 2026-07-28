@@ -543,7 +543,6 @@ private:
    *
    * \return status true \f$ \iff i \in [A,B] \f$, otherwise false
    */
-  bool indexInRange(int i, int A, int B) const { return (i >= A && i <= B); }
   bool indexInRange(IndexType i, IndexType A, IndexType B) const { return (i >= A && i <= B); }
 
   /*!
