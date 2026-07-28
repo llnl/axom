@@ -74,7 +74,7 @@ User guides and source code documentation are always linked on this site.
   *  `Source documentation <doxygen/html/index.html>`__
 
 .. list-table::
-   :align: center
+   :align: left
 
    * - Core
      - :doc:`User Guide <axom/core/docs/sphinx/index>`
