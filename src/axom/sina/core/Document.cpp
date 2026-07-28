@@ -1124,15 +1124,12 @@ namespace internal
 
 Protocol detectOutputProtocol(const std::string &filepath)
 {
-  size_t dotPos = filepath.find_last_of('.');
-
-  if(dotPos == std::string::npos)
+  std::string ext = axom::utilities::filesystem::getFileExtension(filepath);
+  if(ext.empty())
   {
     throw std::runtime_error("Cannot detect file format: no extension found in '" + filepath + "'");
   }
 
-  // Get extension and convert to lowercase
-  std::string ext = filepath.substr(dotPos);
   axom::utilities::string::toLower(ext);  // Modifies ext in-place
 
   if(ext == ".json" || ext == ".jsn")
