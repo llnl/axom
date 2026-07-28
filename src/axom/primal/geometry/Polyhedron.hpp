@@ -211,7 +211,7 @@ public:
         nbrs[iv][curr_idx] = nbrs[iv][inbr];
         curr_idx++;
       }
-      num_nbrs[iv] = curr_idx;
+      num_nbrs[iv] = static_cast<std::int8_t>(curr_idx);
     }
   }
 

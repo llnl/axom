@@ -147,7 +147,7 @@ public:
     {
       for(int d = 0; d < DIM; ++d)
       {
-        m_slowestDirs[d] = DIM - 1 - d;
+        m_slowestDirs[d] = static_cast<std::uint16_t>(DIM - 1 - d);
       }
       m_strides[0] = fastestStrideLength;
       for(int d = 1; d < DIM; ++d)
@@ -159,7 +159,7 @@ public:
     {
       for(int d = 0; d < DIM; ++d)
       {
-        m_slowestDirs[d] = d;
+        m_slowestDirs[d] = static_cast<std::uint16_t>(d);
       }
       m_strides[DIM - 1] = fastestStrideLength;
       for(int d = DIM - 2; d >= 0; --d)
@@ -186,7 +186,7 @@ public:
     assert(isPermutation(slowestDirs));
     for(int d = 0; d < DIM; ++d)
     {
-      m_slowestDirs[d] = slowestDirs[d];
+      m_slowestDirs[d] = static_cast<std::uint16_t>(slowestDirs[d]);
     }
     m_strides[m_slowestDirs[DIM - 1]] = fastestStrideLength;
     for(int d = DIM - 2; d >= 0; --d)
@@ -260,7 +260,8 @@ public:
     m_strides = strides;
     for(int d = 0; d < DIM; ++d)
     {
-      m_slowestDirs[d] = orderPref == axom::ArrayStrideOrder::ROW ? d : DIM - 1 - d;
+      m_slowestDirs[d] =
+        static_cast<std::uint16_t>(orderPref == axom::ArrayStrideOrder::ROW ? d : DIM - 1 - d);
     }
     for(int s = 0; s < DIM; ++s)
     {
