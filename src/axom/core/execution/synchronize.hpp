@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_SYNCHRONIZE_HPP_
-#define AXOM_CORE_EXECUTION_SYNCHRONIZE_HPP_
+#pragma once
 
 #include "axom/config.hpp"                         /* for compile time defs. */
 #include "axom/core/Macros.hpp"                    /* for AXOM_STATIC_ASSERT */
@@ -37,5 +36,3 @@ inline void synchronize<SEQ_EXEC>() noexcept
 { }
 
 }  // namespace axom
-
-#endif /* AXOM_CORE_EXECUTION_SYNCHRONIZE_HPP_ */

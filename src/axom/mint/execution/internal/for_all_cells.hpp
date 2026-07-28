@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FOR_ALL_CELLS_HPP_
-#define MINT_FOR_ALL_CELLS_HPP_
+#pragma once
 
 // Axom core includes
 #include "axom/config.hpp"                          // compile time definitions
@@ -785,5 +784,3 @@ inline void for_all_cells(xargs::coords, const Mesh& m, KernelType&& kernel)
 } /* namespace internal */
 } /* namespace mint     */
 } /* namespace axom     */
-
-#endif /* MINT_FOR_ALL_CELLS_HPP_ */

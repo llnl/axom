@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayPointLocation.hpp
  *
@@ -14,9 +16,6 @@
  * toward the query point until it is found or the walk exits the boundary.
  * Fallback strategies handle edge cases (cycles, numerical issues).
  */
-
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_POINT_LOCATION_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_POINT_LOCATION_HPP_
 
 namespace axom
 {
@@ -457,5 +456,3 @@ inline typename Delaunay<DIM>::IndexType Delaunay<DIM>::findContainingElement(co
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

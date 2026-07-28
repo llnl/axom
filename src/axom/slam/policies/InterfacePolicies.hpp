@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_InterfacePolicies_HPP
-#define SLAM_InterfacePolicies_HPP
+#pragma once
 
 /**
  * \file InterfacePolicies.hpp
@@ -58,5 +57,3 @@ struct ConcreteInterface
 }  // namespace policies
 }  // namespace slam
 }  // namespace axom
-
-#endif  // SLAM_InterfacePolicies_HPP

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *
  * \file BitUtilities.hpp
@@ -11,9 +13,6 @@
  * \brief Header file containing bitwise utility functions.
  *
  */
-
-#ifndef AXOM_BIT_UTILITIES_HPP
-#define AXOM_BIT_UTILITIES_HPP
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -25,7 +24,7 @@
 // Check for and setup defines for platform-specific intrinsics
 // Note: `__GNUC__` is defined for the gnu, clang and intel compilers
 #if defined(AXOM_USE_CUDA)
-  // Intrinsics included implicitly
+// Intrinsics included implicitly
 
 #elif defined(AXOM_USE_HIP)
   #include <hip/hip_runtime.h>
@@ -296,5 +295,3 @@ constexpr void setBitOn(FlagType &flags, BitType bit)
 #undef _AXOM_CORE_USE_INTRINSICS_MSVC
 #undef _AXOM_CORE_USE_INTRINSICS_GCC
 #undef _AXOM_CORE_USE_INTRINSICS_PPC
-
-#endif  // AXOM_BIT_UTILITIES_HPP

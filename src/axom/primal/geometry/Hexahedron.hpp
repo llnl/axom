@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef HEXAHEDRON_HPP_
-#define HEXAHEDRON_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 
@@ -385,5 +384,3 @@ std::ostream& operator<<(std::ostream& os, const Hexahedron<T, NDIMS>& hex)
 
 } /* namespace primal */
 } /* namespace axom */
-
-#endif /* HEXAHEDRON_HPP_ */

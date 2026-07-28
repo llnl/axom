@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -13,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_IOBATON_HPP_
-#define SIDRE_IOBATON_HPP_
 
 #include "mpi.h"
 
@@ -121,5 +120,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_IOBATON_HPP_ */

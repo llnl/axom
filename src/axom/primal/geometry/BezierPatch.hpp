@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file BezierPatch.hpp
  *
  * \brief A BezierPatch primitive
  */
-
-#ifndef AXOM_PRIMAL_BEZIERPATCH_HPP_
-#define AXOM_PRIMAL_BEZIERPATCH_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -2091,5 +2090,3 @@ std::ostream& operator<<(std::ostream& os, const BezierPatch<T, NDIMS>& bPatch)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_BEZIERPATCH_HPP_

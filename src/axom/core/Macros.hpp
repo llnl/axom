@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file AxomMacros.hpp
  *
  * \brief Contains several useful macros for the axom project
  */
-
-#ifndef AXOM_MACROS_HPP_
-#define AXOM_MACROS_HPP_
 
 #include "axom/config.hpp"
 #include <cassert>  // for assert()
@@ -424,5 +423,3 @@
  * \brief Assert \a EXP in a way that is valid inside constexpr functions.
  */
 #define AXOM_CONSTEXPR_ASSERT(EXP) ::axom::detail::constexprAssert((EXP), #EXP, __FILE__, __LINE__)
-
-#endif  // AXOM_MACROS_HPP_

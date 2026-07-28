@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP_
-#define AXOM_KLEE_GEOMETRYOPERATOR_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
@@ -18,6 +17,7 @@
 #include "axom/primal/geometry/Vector.hpp"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace axom
@@ -43,6 +43,9 @@ public:
   explicit GeometryOperator(const TransformableGeometryProperties &startProperties);
 
   virtual ~GeometryOperator() = default;
+
+  /// Returns the name of this operator
+  virtual std::string getName() const = 0;
 
   /**
    * Get the properties that the operator expects to start in
@@ -99,12 +102,15 @@ public:
 
   using OpPtr = std::shared_ptr<const GeometryOperator>;
 
+  std::string getName() const override { return "composite"; }
+
   void accept(GeometryOperatorVisitor &visitor) const override;
 
   /**
    * Add the given operator to the end of the list of operators in this composite.
    *
    * \param op the operator to add
+   * \throws std::invalid_argument if \a op cannot start from this composite's current end properties
    */
   void addOperator(const OpPtr &op);
 
@@ -140,6 +146,8 @@ public:
    * \return a vector by which points should be offset
    */
   const primal::Vector3D &getOffset() const { return m_offset; }
+
+  std::string getName() const override { return "translate"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
@@ -188,6 +196,8 @@ public:
    * \return the vector, which when combined with the center, defines the axis of rotation.
    */
   const primal::Vector3D &getAxis() const { return m_axis; }
+
+  std::string getName() const override { return "rotate"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
@@ -290,6 +300,8 @@ public:
   primal::Point3D &getCenter() { return m_center; }
   const primal::Point3D &getCenter() const { return m_center; }
 
+  std::string getName() const override { return "scale"; }
+
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -312,8 +324,16 @@ public:
    */
   UnitConverter(LengthUnit endUnits, const TransformableGeometryProperties &startProperties);
 
+  std::string getName() const override { return "convert_units_to"; }
+
   TransformableGeometryProperties getEndProperties() const override;
 
+  /**
+   * Convert this operator to its matrix representation.
+   *
+   * \return a 4x4 affine transformation matrix
+   * \throws std::invalid_argument if the start or end units are unspecified
+   */
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -321,6 +341,7 @@ public:
   /**
    * Get the conversion factor used to convert from the start units to the end units
    * \return the unit conversion factor
+   * \throws std::invalid_argument if the start or end units are unspecified
    */
   double getConversionFactor() const;
 
@@ -370,6 +391,8 @@ public:
    */
   const primal::Vector3D &getUp() const { return m_up; }
 
+  std::string getName() const override { return "slice"; }
+
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -412,5 +435,3 @@ public:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_GEOMETRYOPERATOR_HPP_

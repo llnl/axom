@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_DISCRETIZE_HPP_
-#define QUEST_DISCRETIZE_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/Macros.hpp"
@@ -117,5 +116,3 @@ int mesh_from_discretized_polyline(const axom::ArrayView<OctType>& octs,
 }  // end namespace axom
 
 #include "detail/Discretize_detail.hpp"
-
-#endif  // QUEST_DISCRETIZE_HPP_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_STRUCTUREDMESH_HPP_
-#define MINT_STRUCTUREDMESH_HPP_
+#pragma once
 
 #include "axom/core/Types.hpp"       // for axom types
 #include "axom/core/Macros.hpp"      // for axom macros
@@ -1229,5 +1228,3 @@ inline IndexType StructuredMesh::getCellFaceIDsInternal(IndexType cellID,
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_STRUCTUREDMESH_HPP_ */

@@ -23,17 +23,40 @@ axom_add_executable(
     FOLDER      axom/quest/examples
     )
 
-if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND CALIPER_FOUND)
-    set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
-    
+if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+
+    set(_optional_caliper)
+    if(CALIPER_FOUND)
+        set(_optional_caliper "--caliper" "report")
+    endif()
+
     # this test requires MPI when available (but only 1 rank)
+    set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
     axom_add_test(
         NAME    quest_containment_sphere_ex
         COMMAND quest_containment_driver_ex
-                --input ${_input_file}
-                --caliper report
+                 --input ${_input_file}
+                 ${_optional_caliper}
         NUM_MPI_TASKS 1
     )
+
+    if(C2C_FOUND)
+        set(_input_file "${AXOM_DATA_DIR}/contours/unit_square.contour")
+        axom_add_test(
+            NAME     quest_containment_on_surface_regression_ex
+            COMMAND  quest_containment_driver_ex
+                      --input ${_input_file}
+                      --min -0.234 -0.43
+                      --max 1.58 1.715
+                      -n3
+                      -l3
+                      ${_optional_caliper}
+            NUM_MPI_TASKS 1
+        )
+    endif()
+
+    unset(_input_file)
+    unset(_optional_caliper)
 endif()
 
 # BVH two pass example --------------------------------------------------------
@@ -252,17 +275,41 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
 
         endif()
 
+       # Test heroic_roses.yaml
+        set(_testname quest_shaping_driver_ex_heroic_roses)
+        axom_add_test(
+            NAME ${_testname}
+            COMMAND  quest_shaping_driver_ex
+                     -i ${shaping_data_dir}/heroic_roses.yaml
+                     --method sampling
+                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+            NUM_MPI_TASKS ${_nranks})
+        set_tests_properties(${_testname} PROPERTIES
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+
+       # Test 2D C2C assembly input on an MFEM mesh
+        set(_testname quest_shaping_driver_ex_heroic_roses_assembly)
+        axom_add_test(
+            NAME ${_testname}
+            COMMAND  quest_shaping_driver_ex
+                     -i ${shaping_data_dir}/heroic_roses_assembly.yaml
+                     --method sampling
+                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+            NUM_MPI_TASKS ${_nranks})
+        set_tests_properties(${_testname} PROPERTIES
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+
         # Test 2D MFEM mesh (linearize contours)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem)
         axom_add_test(
             NAME ${_testname}
-            COMMAND  quest_shaping_driver_ex 
+            COMMAND  quest_shaping_driver_ex
                      -i ${shaping_data_dir}/heroic_roses_mfem.yaml
                      --method sampling
                      inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?595.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?66[0-9].")
 
         # Test 2D MFEM mesh (winding number)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem_cp)

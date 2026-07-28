@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_DIMENSIONS_HPP_
-#define AXOM_KLEE_DIMENSIONS_HPP_
+
+#pragma once
 
 #include "axom/fmt.hpp"
 
@@ -44,5 +44,3 @@ struct axom::fmt::formatter<axom::klee::Dimensions> : ostream_formatter
     }
   }
 };
-
-#endif  // AXOM_KLEE_DIMENSIONS_HPP_

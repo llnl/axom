@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_surface.hpp
  *
@@ -16,9 +18,6 @@
  * for trimmed parametric surfaces and volumes" by D. Gunderman et al.
  * https://doi.org/10.1016/j.cad.2021.103093
  */
-
-#ifndef PRIMAL_EVAL_INTEGRAL_SURFACE_HPP_
-#define PRIMAL_EVAL_INTEGRAL_SURFACE_HPP_
 
 // Axom includes
 #include "axom/core.hpp"
@@ -405,5 +404,3 @@ LambdaRetType evaluate_volume_integral(const axom::Array<NURBSPatch<T, 3>>& patc
 
 }  // namespace primal
 }  // end namespace axom
-
-#endif

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file InletVector.hpp
@@ -12,9 +14,6 @@
  * which wraps Primal's Vector class
  *******************************************************************************
  */
-
-#ifndef INLET_INLETVECTOR_HPP
-#define INLET_INLETVECTOR_HPP
 
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/fmt.hpp"
@@ -145,5 +144,3 @@ inline std::ostream& operator<<(std::ostream& os, const InletVector& v)
 template <>
 struct axom::fmt::formatter<axom::inlet::InletVector> : ostream_formatter
 { };
-
-#endif  // INLET_INLETVECTOR_HPP

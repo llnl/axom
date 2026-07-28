@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SubsettingPolicies.hpp
  *
@@ -19,9 +21,6 @@
  *   * [optional]
  *   * operator(): IntType -- alternate accessor for indirection
  */
-
-#ifndef SLAM_POLICIES_SUBSET_H_
-#define SLAM_POLICIES_SUBSET_H_
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -199,5 +198,3 @@ private:
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_SUBSET_H_

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // Axom includes
 #include "axom/core/Array.hpp"
 #include "axom/core/numerics/polynomial_solvers.hpp"

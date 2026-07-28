@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_TESTRECORD_HPP
-#define SINA_TESTRECORD_HPP
+#pragma once
 
 #include "axom/sina/core/ConduitUtil.hpp"
 #include "axom/sina/core/Record.hpp"
@@ -83,5 +82,3 @@ conduit::Node TestRecord<T>::toNode(CurveSet::CurveOrder curveOrder) const
 }  // namespace testing
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_TESTRECORD_HPP

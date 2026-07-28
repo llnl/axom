@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file RangeSet.hpp
  *
  * \brief Basic API for an ordered set of entities in a simulation
  *
  */
-
-#ifndef SLAM_RANGE_SET_H_
-#define SLAM_RANGE_SET_H_
 
 #include "axom/slam/OrderedSet.hpp"
 
@@ -111,5 +110,3 @@ using RangeSet = GenericRangeSet<P, E>;
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_RANGE_SET_H_

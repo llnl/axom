@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file MPIUtility.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the definitions of MPI utility functions.
  *******************************************************************************
  */
-
-#ifndef MPIUTILITY_HPP
-#define MPIUTILITY_HPP
 
 #include "mpi.h"
 
@@ -82,5 +81,3 @@ void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* 
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

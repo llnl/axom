@@ -104,6 +104,11 @@ if(ENABLE_TESTS)
     blt_add_test(NAME   lesson_03_klee_operators_and_validation
                 COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.yaml)
 
+    if(AXOM_USE_LUA)
+      blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua
+                   COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.lua)
+    endif()
+
     if(AXOM_USE_LUA AND AXOM_USE_MFEM)
       blt_add_test(NAME    lesson_04_quest_sampling_shaper
                    COMMAND lesson_04_quest_sampling_shaper -m ../lesson_04/circle_input.lua 

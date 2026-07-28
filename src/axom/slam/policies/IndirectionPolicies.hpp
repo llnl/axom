@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file IndirectionPolicies.hpp
  *
@@ -29,9 +31,6 @@
  * \note Slam's Sets, Relations and Maps are not responsible for
  *  allocating/deallocating their own memory
  */
-
-#ifndef SLAM_POLICIES_INDIRECTION_H_
-#define SLAM_POLICIES_INDIRECTION_H_
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/Array.hpp"
@@ -462,5 +461,3 @@ using ArrayViewIndirection =
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_INDIRECTION_H_

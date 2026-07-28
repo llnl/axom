@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -13,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_VIEW_HPP_
-#define SIDRE_VIEW_HPP_
 
 // Standard C++ headers
 #include <string>
@@ -921,7 +920,7 @@ public:
     SLIC_CHECK_MSG(
       isAllocated(),
       SIDRE_VIEW_LOG_PREPEND << "No view data present, memory has not been allocated.");
-    SLIC_CHECK_MSG(isDescribed(), SIDRE_VIEW_LOG_PREPEND "View data description not present.");
+    SLIC_CHECK_MSG(isDescribed(), SIDRE_VIEW_LOG_PREPEND << "View data description not present.");
 
     // this will return a default value
     return m_node.value();
@@ -934,12 +933,26 @@ public:
    *
    * \sa getData()
    */
+  /// @{
   template <typename DataType>
   DataType getData()
   {
     DataType data = m_node.value();
     return data;
   }
+
+  /*!
+   * \overload
+   */
+  template <typename DataType>
+  DataType getData() const
+  {
+    // Mirror getVoidPtr() const: the View is logically const
+    // (its description is not modified) but the data it references remains mutable.
+    DataType data = const_cast<Node&>(m_node).value();
+    return data;
+  }
+  /// @}
 
   /*!
    * \brief Returns a void pointer to the view's data
@@ -1237,14 +1250,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(IndexType idx)
+  DataType getAttributeScalar(IndexType idx) const
   {
     const Attribute* attr = getAttribute(idx);
     const Node& node = m_attr_values.getValueNodeRef(attr);
@@ -1253,14 +1265,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(const std::string& name)
+  DataType getAttributeScalar(const std::string& name) const
   {
     const Attribute* attr = getAttribute(name);
     const Node& node = m_attr_values.getValueNodeRef(attr);
@@ -1269,14 +1280,13 @@ public:
   }
 
   /*!
-   * \brief Lightweight templated wrapper around getAttributeScalar()
-   *  that can be used when you are calling getAttributeScalar(), but not
-   *  assigning the return type.
+   * \brief Lightweight templated wrapper around getAttributeScalar() that can be used
+   *  when you are calling getAttributeScalar(), but not assigning the return type.
    *
    * \sa getAttributeScalar()
    */
   template <typename DataType>
-  DataType getAttributeScalar(const Attribute* attr)
+  DataType getAttributeScalar(const Attribute* attr) const
   {
     SLIC_CHECK_MSG(attr != nullptr,
                    SIDRE_VIEW_LOG_PREPEND << "getAttributeScalar: called with a null Attribute");
@@ -1725,5 +1735,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_VIEW_HPP_ */

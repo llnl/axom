@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_MESH_VIEW_UTIL_H_
-#define QUEST_MESH_VIEW_UTIL_H_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -848,4 +847,3 @@ private:
 }  // end namespace axom
 
 #endif  //  AXOM_USE_CONDUIT
-#endif  //  QUEST_MESH_VIEW_UTIL_H_

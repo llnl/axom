@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef OCTAHEDRON_HPP_
-#define OCTAHEDRON_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
@@ -250,5 +249,3 @@ std::ostream& operator<<(std::ostream& os, const Octahedron<T, NDIMS>& oct)
 
 } /* namespace primal */
 } /* namespace axom */
-
-#endif /* OCTAHEDRON_HPP_ */

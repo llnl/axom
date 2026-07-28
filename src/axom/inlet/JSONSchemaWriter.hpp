@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file JSONSchemaWriter.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of the JSONSchemaWriter.
  *******************************************************************************
  */
-
-#ifndef INLET_JSONSCHEMAWRITER_HPP
-#define INLET_JSONSCHEMAWRITER_HPP
 
 #include <string>
 #include <vector>
@@ -65,5 +64,3 @@ private:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

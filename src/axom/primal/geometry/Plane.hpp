@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_PLANE_HPP_
-#define AXOM_PRIMAL_PLANE_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/numerics/matvecops.hpp"
@@ -392,5 +391,3 @@ AXOM_HOST_DEVICE Plane<T, 3> make_plane(const Point<T, 3>& x1,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_PLANE_HPP_

@@ -5,6 +5,7 @@
 import os
 import shutil
 import socket
+import tempfile
 from os.path import join as pjoin
 
 from spack_repo.builtin.build_systems.cached_cmake import (
@@ -277,15 +278,20 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("mfem~mpi", when="~mpi")
         depends_on("mfem@4.5.0:", when="@0.7.0:")
 
-    depends_on("python", when="+python")
-
     # Python
     with when("+python"):
+        depends_on("python")
+
+        # extending python allows spack environment views to import axom from python
+        extends("python")
+
         depends_on("py-nanobind@2.7.0:")
         depends_on("py-pytest")
+        depends_on("py-packaging")
+        depends_on("py-pygments")
         depends_on("py-numpy")
         depends_on("py-mpi4py", when="+mpi")
-        depends_on("conduit+python")
+        depends_on("conduit+python", when="+conduit")
 
     # Devtools
     with when("+devtools"):
@@ -757,6 +763,16 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
 
+        if spec.satisfies("+python"):
+            # Install Axom's Python package(s) so a spack environment view merges them into
+            # a single site-packages and `import axom.sidre` works without updating PYTHONPATH
+            entries.append(
+                cmake_cache_path(
+                    "AXOM_PYTHON_MODULE_INSTALL_PREFIX",
+                    spec["python"].package.platlib,
+                )
+            )
+
         if spec.satisfies("^py-jsonschema"):
             jsonschema_dir = get_spec_path(spec, "py-jsonschema", path_replacements, use_bin=True)
             jsonschema_path = os.path.join(jsonschema_dir, "jsonschema")
@@ -787,20 +803,23 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 )
 
         if spec.satisfies("+python"):
+            python_platlib = spec["python"].package.platlib
+
             # pytest requires pluggy and iniconfig
+            # newer pytest releases also import packaging/pygments from separate Spack prefixes.
             for dep in (
                 "py-nanobind",
                 "py-pytest",
                 "py-numpy",
                 "py-pluggy",
                 "py-iniconfig",
+                "py-packaging",
+                "py-pygments",
                 "py-mpi4py",
             ):
                 if spec.satisfies("^{0}".format(dep)):
-                    dep_dir = get_spec_path(spec, dep, path_replacements, use_lib=True)
-                    py_libdir = join_path(
-                        dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages"
-                    )
+                    dep_dir = get_spec_path(spec, dep, path_replacements)
+                    py_libdir = join_path(dep_dir, python_platlib)
                     entries.append(
                         cmake_cache_path("%s_DIR" % dep.upper().replace("-", "_"), py_libdir)
                     )
@@ -845,7 +864,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     def test_install_using_cmake(self):
         """build example with cmake and run"""
         example_src_dir = join_path(self.prefix.examples.axom, "using-with-cmake")
-        example_stage_dir = "./cmake"
+        example_test_dir = tempfile.mkdtemp(prefix="axom-cmake-example-")
+        example_stage_dir = join_path(example_test_dir, "using-with-cmake")
         shutil.copytree(example_src_dir, example_stage_dir)
         with working_dir(join_path(example_stage_dir, "build"), create=True):
             cmake_args = ["-C ../host-config.cmake", example_src_dir]
@@ -861,10 +881,60 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     def test_install_using_make(self):
         """build example with make and run"""
         example_src_dir = join_path(self.prefix.examples.axom, "using-with-make")
-        example_stage_dir = "./make"
+        example_test_dir = tempfile.mkdtemp(prefix="axom-make-example-")
+        example_stage_dir = join_path(example_test_dir, "using-with-make")
         shutil.copytree(example_src_dir, example_stage_dir)
         with working_dir(example_stage_dir, create=True):
             make(f"AXOM_DIR={self.prefix}")
             example = Executable("./example")
             example()
             make("clean")
+
+    @run_after("install", when="+examples+python+tools components=sidre")
+    @on_package_attributes(run_tests=True)
+    def test_install_using_python(self):
+        """run python example against installed axom"""
+        example = join_path(self.prefix.examples.axom, "using-with-python", "example.py")
+        python_runner = join_path(self.prefix.bin, "run_python_with_axom.sh")
+        if not os.path.isfile(example):
+            raise RuntimeError("Missing installed python example: {0}".format(example))
+        if not os.path.isfile(python_runner):
+            raise RuntimeError("Missing installed python runner: {0}".format(python_runner))
+        run_python = Executable(python_runner)
+        run_python(example)
+
+    @run_after("install", when="+python components=sidre")
+    @on_package_attributes(run_tests=True)
+    def test_axom_sidre_installed_into_site_packages(self):
+        """Check axom.sidre installed into a site-packages-shaped prefix
+        and imports from view-shaped site-packages paths.
+        """
+        python_pkg = self.spec["python"].package
+        python_platlib = python_pkg.platlib
+        site_packages = join_path(self.prefix, python_platlib)
+        sidre_pkg_dir = join_path(site_packages, "axom", "sidre")
+        if not os.path.isdir(sidre_pkg_dir):
+            raise RuntimeError(
+                "axom.sidre was not installed under the interpreter platlib: "
+                "{0}".format(sidre_pkg_dir)
+            )
+
+        # Assemble the Python package directories a view would merge into site-packages.
+        import_path = [site_packages]
+        if self.spec.satisfies("+conduit"):
+            for conduit_py in (
+                join_path(self.spec["conduit"].prefix, python_platlib),
+                join_path(self.spec["conduit"].prefix, "python-modules"),
+            ):
+                if os.path.isdir(conduit_py):
+                    import_path.append(conduit_py)
+
+        for dep in ("py-numpy", "py-mpi4py"):
+            if self.spec.satisfies("^{0}".format(dep)):
+                dep_py = join_path(self.spec[dep].prefix, python_platlib)
+                if os.path.isdir(dep_py):
+                    import_path.append(dep_py)
+
+        imports = "import axom.sidre as s; import numpy; print('axom.sidre', s.__version__)"
+        python = Executable(join_path(self.spec["python"].prefix.bin, "python3"))
+        python("-c", imports, extra_env={"PYTHONPATH": ":".join(import_path)})

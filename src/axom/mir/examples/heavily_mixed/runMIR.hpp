@@ -3,8 +3,9 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_EXAMPLES_HEAVILY_MIXED_RUNMIR_HPP
-#define AXOM_MIR_EXAMPLES_HEAVILY_MIXED_RUNMIR_HPP
+
+#pragma once
+
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -175,5 +176,3 @@ int runMIR_hip(int dimension,
                const conduit::Node &mesh,
                const conduit::Node &options,
                conduit::Node &result);
-
-#endif

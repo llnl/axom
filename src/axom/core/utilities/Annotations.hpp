@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file Annotations.hpp
  *
@@ -12,9 +14,6 @@
  * The annotations API and macros are always available but they are effectively no-ops
  * unless axom is built with caliper and adiak support
  */
-
-#ifndef AXOM_CORE_ANNOTATIONS_HPP_
-#define AXOM_CORE_ANNOTATIONS_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -100,5 +99,3 @@ std::map<std::string, std::string> retrieve_metadata();
 }  // namespace annotations
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_CORE_ANNOTATIONS_HPP_
