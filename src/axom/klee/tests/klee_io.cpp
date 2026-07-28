@@ -438,8 +438,8 @@ TEST(IOTest, readShapeSet_luaUnavailableDiagnostic)
   catch(const KleeError &err)
   {
     EXPECT_STREQ(
-      "Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library "
-      "support. Rebuild Axom with Lua enabled or convert deck to YAML.",
+      "Lua input files require Axom configured with AXOM_ENABLE_LUA=ON and Sol library "
+      "support. Rebuild Axom with Lua enabled or convert the file to YAML.",
       err.what());
   }
 }

@@ -43,11 +43,11 @@ is specified in :code:`windshield.stl`. Note that Klee does not specify
 what a particular material means. A material is simply a label which can
 be used by a host code to apply properties to part of a mesh.
 
-Lua Input Decks
+Lua Input Files
 ***************
-Klee can also read Lua input decks when Axom is configured with
-:code:`AXOM_ENABLE_LUA=ON` and Sol support. Lua decks use the same Klee schema
-as YAML decks. The Lua is evaluated and then read into Inlet. 
+Klee can also read Lua input files when Axom is configured with :code:`AXOM_ENABLE_LUA=ON`
+and Sol support. Lua files use the same Klee schema as YAML files.
+The Lua is evaluated and then read into Inlet.
 
 File-based reads use an explicit :code:`axom::klee::InputFormat` when provided.
 Otherwise they infer the format from the file extension 
@@ -93,8 +93,8 @@ The following YAML and Lua inputs are equivalent:
       }
     }
 
-Because Lua is evaluated before Klee reads the deck, ordinary table values can
-be generated programmatically:
+Because Lua is evaluated before Klee reads the input file,
+ordinary table values can be generated programmatically:
 
 .. code-block:: lua
 
@@ -127,11 +127,11 @@ For Lua input, a one-value scale is written as a one-entry table, for example
 :code:`{ scale = {2.0} }`.
 
 Common Lua input errors are reported as Klee parsing errors.
-A Lua deck read without Lua support reports:
+A Lua input file read without Lua support reports:
 
 .. code-block:: text
 
-    Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. Rebuild Axom with Lua enabled or convert deck to YAML.
+    Lua input files require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. Rebuild Axom with Lua enabled or convert the file to YAML.
 
 Unsupported file extensions are rejected before parsing, and unexpected top-level globals
 or syntax errors are reported during Inlet verification or Lua evaluation.
@@ -139,14 +139,14 @@ Unknown nested fields follow the same Inlet schema strictness rules as YAML inpu
 
 Error Reporting
 ***************
-Klee validates user-provided YAML and Lua input decks while reading them.
+Klee validates user-provided YAML and Lua input files while reading them.
 When validation fails, Klee reports the problem by throwing an exception,
 usually :code:`axom::klee::KleeError`.
 
 Using exceptions lets Klee return detailed feedback at the point where the invalid input is detected, 
 including the input path reported by Inlet.
 
-Callers that read input decks should catch :code:`axom::klee::KleeError` and display :code:`what()`
+Callers that read input files should catch :code:`axom::klee::KleeError` and display :code:`what()`
 or inspect :code:`getErrors()` when multiple verification errors are available.
 Klee may still throw standard exceptions such as :code:`std::logic_error` or :code:`std::invalid_argument`
 for programming errors or inconsistent manually constructed objects.
@@ -156,7 +156,7 @@ Paths
 The paths specified in shapes are specified either as absolute paths
 (begin with a :code:`/`), or as relative paths. Absolute paths are evaluated
 as absolute paths in the file systems. Relative paths are evaluated relative
-to the Klee input deck (not the current working directory). For example, in the
+to the Klee input file (not the current working directory). For example, in the
 file :code:`/path/to/my_shapes.yaml`, the table below illustrates how
 different paths would be specified.
 

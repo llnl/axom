@@ -118,7 +118,7 @@ void defineGeometry(inlet::Container &geometry)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
-                     "The path of the input file, relative to the Klee input deck."
+                     "The path of the input file, relative to the Klee input file."
                      "Required unless 'format' is 'none'");
   internal::defineDimensionsField(geometry,
                                   "start_dimensions",
@@ -314,7 +314,7 @@ internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions
 /**
  * Infer the Klee input format from a file path.
  *
- * \param filePath the input deck path
+ * \param filePath the input file path
  * \return the inferred input format
  * \throws KleeError if the file extension is not a supported Klee input extension
  */
@@ -345,7 +345,7 @@ InputFormat inferInputFormat(const std::string &filePath)
 /**
  * Create an Inlet reader for a Klee input format.
  *
- * \param format the input deck format to read
+ * \param format the input file format to read
  * \return a reader for \a format
  * \throws KleeError if \a format is unsupported or Lua support was not enabled
  */
@@ -361,8 +361,8 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format)
 #else
     throw KleeError(
       {Path {"<unknown path>"},
-       "Lua input decks require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. "
-       "Rebuild Axom with Lua enabled or convert deck to YAML."});
+       "Lua input files require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. "
+       "Rebuild Axom with Lua enabled or convert the file to YAML."});
 #endif
   }
 
@@ -386,7 +386,7 @@ const char *inputFormatName(InputFormat format)
  * Run a reader parse operation and convert parse failures to KleeError.
  *
  * \param parse callable that returns true on successful parse
- * \param format the input deck format being parsed
+ * \param format the input file format being parsed
  * \param path the path to report in any generated error
  * \param sourceDescription a human-readable description of the parsed source
  * \throws KleeError if parsing fails or the reader throws while parsing
@@ -426,7 +426,7 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
     if(name.find('/') == std::string::npos)
     {
       errors.push_back({Path {name},
-                        axom::fmt::format("Unexpected global variable '{}' in Lua input deck. "
+                        axom::fmt::format("Unexpected global variable '{}' in Lua input file. "
                                           "Use 'local' for helper values and functions.",
                                           name)});
     }
@@ -434,7 +434,7 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
 }
 
 /**
- * Read a ShapeSet from a reader that has already parsed an input deck.
+ * Read a ShapeSet from a reader that has already parsed an input file.
  *
  * \param reader the parsed Inlet reader
  * \param rejectUnexpectedGlobals true if unexpected top-level Lua globals should be rejected
