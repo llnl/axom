@@ -412,7 +412,8 @@ public:
   Array& operator=(std::initializer_list<T> elems)
   {
     clear();
-    insert(0, elems.size(), elems.begin());
+    const IndexType num_elems = static_cast<IndexType>(elems.size());
+    insert(0, num_elems, elems.begin());
     return *this;
   }
 
@@ -1209,7 +1210,8 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(std::initializer_list<T> elems, int a
   : m_allocator_id(allocator_id)
   , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  initialize_from_other(elems.begin(), elems.size(), 1 /* stride */, MemorySpace::Dynamic, true);
+  const IndexType num_elems = static_cast<IndexType>(elems.size());
+  initialize_from_other(elems.begin(), num_elems, 1 /* stride */, MemorySpace::Dynamic, true);
 }
 
 //------------------------------------------------------------------------------
@@ -1405,9 +1407,10 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::assign(InputIt first, InputIt l
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 inline void Array<T, DIM, SPACE, StoragePolicy>::assign(std::initializer_list<T> elems)
 {
-  resize(elems.size());
-  m_arrayOps.destroy(m_data, 0, elems.size());
-  m_arrayOps.fill_range(m_data, 0, elems.size(), elems.begin(), MemorySpace::Dynamic);
+  const IndexType num_elems = static_cast<IndexType>(elems.size());
+  resize(num_elems);
+  m_arrayOps.destroy(m_data, 0, num_elems);
+  m_arrayOps.fill_range(m_data, 0, num_elems, elems.begin(), MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
