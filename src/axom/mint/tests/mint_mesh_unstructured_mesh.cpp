@@ -2171,9 +2171,9 @@ void resize_cells(UnstructuredMesh<TOPO>* mesh)
   /* Append one more, should trigger a resize. */
   append_cell_single(mesh, 1);
   n_cells++;
-  cell_capacity = axom::utilities::max<IndexType>(
-    static_cast<IndexType>(cell_capacity * resize_ratio + 0.5),
-    n_cells);
+  cell_capacity =
+    axom::utilities::max<IndexType>(static_cast<IndexType>(cell_capacity * resize_ratio + 0.5),
+                                    n_cells);
   connec_capacity = mesh->getCellNodesCapacity();
   ASSERT_EQ(n_cells, mesh->getNumberOfCells());
   ASSERT_EQ(cell_capacity, mesh->getCellCapacity());
@@ -2190,9 +2190,9 @@ void resize_cells(UnstructuredMesh<TOPO>* mesh)
   mesh->setCellResizeRatio(resize_ratio);
   append_cell_multiple(mesh, 100);
   n_cells += 100;
-  cell_capacity = axom::utilities::max<IndexType>(
-    static_cast<IndexType>(cell_capacity * resize_ratio + 0.5),
-    n_cells);
+  cell_capacity =
+    axom::utilities::max<IndexType>(static_cast<IndexType>(cell_capacity * resize_ratio + 0.5),
+                                    n_cells);
   ASSERT_EQ(n_cells, mesh->getNumberOfCells());
   ASSERT_EQ(cell_capacity, mesh->getCellCapacity());
 

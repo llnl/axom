@@ -822,7 +822,8 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
-    std::int32_t numGroups = static_cast<std::int32_t>((bucket_count + BucketsPerGroup) / BucketsPerGroup);
+    std::int32_t numGroups =
+      static_cast<std::int32_t>((bucket_count + BucketsPerGroup) / BucketsPerGroup);
     m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups - 1));
   }
 

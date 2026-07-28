@@ -43,8 +43,7 @@ IndexType calc_ID_capacity(const ConnectivityArray<NO_INDIRECTION>& connec, Inde
     IndexType stride = connec.getNumberOfValuesForID();
     const IndexType expandedCapacity =
       static_cast<IndexType>(connec.getValueCapacity() * connec.getResizeRatio() + 0.5);
-    IndexType newCapacity =
-      axom::utilities::max<IndexType>(expandedCapacity, new_n_IDs * stride);
+    IndexType newCapacity = axom::utilities::max<IndexType>(expandedCapacity, new_n_IDs * stride);
     IndexType remainder = newCapacity % stride;
     if(remainder != 0)
     {
