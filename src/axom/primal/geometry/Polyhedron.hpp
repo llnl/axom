@@ -312,7 +312,7 @@ public:
     {
       if(m_vertices[i] == pt)
       {
-        m_neighbors.addNeighbors(i, nbrs);
+        m_neighbors.addNeighbors(static_cast<std::int8_t>(i), nbrs);
       }
     }
   }
@@ -331,7 +331,7 @@ public:
   AXOM_HOST_DEVICE
   void addNeighbors(int vtxId, std::initializer_list<std::int8_t> nbrs)
   {
-    m_neighbors.addNeighbors(vtxId, nbrs);
+    m_neighbors.addNeighbors(static_cast<std::int8_t>(vtxId), nbrs);
   }
 
   /*!
@@ -346,7 +346,10 @@ public:
    * \pre vtxId < getVertices()
    */
   AXOM_HOST_DEVICE
-  void addNeighbors(int vtxId, int nbr) { m_neighbors.addNeighbors(vtxId, nbr); }
+  void addNeighbors(int vtxId, int nbr)
+  {
+    m_neighbors.addNeighbors(static_cast<std::int8_t>(vtxId), static_cast<std::int8_t>(nbr));
+  }
 
   /*! Clears the list of vertices and neighbors */
   AXOM_HOST_DEVICE void clear()
@@ -463,9 +466,9 @@ public:
           face_offset[facesAdded] = curFaceIndex;
           faces[curFaceIndex++] = i;
           std::int8_t curFaceSize = 1;
-          std::int8_t vstart = i;
-          std::int8_t vnext = ni;
-          std::int8_t vprev = i;
+          std::int8_t vstart = static_cast<std::int8_t>(i);
+          std::int8_t vnext = static_cast<std::int8_t>(ni);
+          std::int8_t vprev = static_cast<std::int8_t>(i);
 
           // Add neighboring vertices until we reach the starting vertex.
           while(vnext != vstart)

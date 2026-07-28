@@ -116,7 +116,7 @@ void test_remove(TestMap& test)
   std::size_t to_erase = test.size();
   for(std::size_t i = 0; i < to_erase; i++)
   {
-    Key key = (Key)i;
+    const auto key = static_cast<Key>(i);
     bool erased = test.erase(key);
     EXPECT_EQ(erased, true);
     EXPECT_EQ(test.find(key), test.end());

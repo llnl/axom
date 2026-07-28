@@ -744,7 +744,7 @@ int winding_number(const Point<T, 3>& q,
     }
   }
 
-  return std::lround(wn);
+  return static_cast<int>(std::lround(wn));
 }
 
 /*!
