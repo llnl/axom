@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BivariateMap.hpp
  *
  * \brief Contains the BivariateMap class, a map for a BivariateSet
  *
  */
-
-#ifndef SLAM_BIVARIATE_MAP_HPP_
-#define SLAM_BIVARIATE_MAP_HPP_
 
 #include "axom/slam/Map.hpp"
 #include "axom/slam/Relation.hpp"
@@ -237,8 +236,7 @@ public:
    * \param bSet    A reference to the map's associated bivariate set
    * \param data    The data buffer to set the map's data to.
    * \param shape   (Optional) The number of DataType that each element in the
-   *                set will be mapped to.
-   *                When using a \a RuntimeStridePolicy, the default is 1.
+   *                set will be mapped to. When using a \a RuntimeStridePolicy, the default is 1.
    * \note  When using a compile time StridePolicy, \a stride must be equal to
    *        \a stride(), when provided.
    */
@@ -287,8 +285,7 @@ public:
   ///
 
   /**
-   * \brief  Access the value in the map using a FlatIndex in the range of 0 to
-   *         `size()*numComp()`
+   * \brief  Access the value in the map using a FlatIndex in the range of 0 to size()*numComp()`
    *
    * \return The value for the j<sup>th</sup> component of the i<sup>th</sup>
    *         element, where `setIndex = i * numComp() + j`.
@@ -299,8 +296,7 @@ public:
 
 public:
   /**
-   * \brief Returns a SubMap containing the subset of the BivariateMap given the
-   *        first set index
+   * \brief Returns a SubMap containing the subset of the BivariateMap given the first set index
    * \pre 0 <= firstIdx < size(firstIdx)
    */
   AXOM_HOST_DEVICE ConstSubMapType operator()(SetPosition firstIdx) const
@@ -427,10 +423,7 @@ public:
    */
   OrderedSetType indexSet(SetPosition s1) const { return set()->getElements(s1); }
 
-  /**
-   * \brief Search for the FlatIndex of an element given its DenseIndex in the
-   *        BivariateSet.
-   */
+  /// \brief Search for the FlatIndex of an element given its DenseIndex in the BivariateSet.
   AXOM_HOST_DEVICE inline SetPosition flatIndex(SetPosition s1, SetPosition s2) const
   {
     return set()->findElementFlatIndex(s1, s2);
@@ -503,7 +496,7 @@ public:
 
   AXOM_HOST_DEVICE MapType* getMap() { return &m_map; }
 
-  bool isValid(bool verboseOutput = false) const
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const
   {
     return set()->isValid(verboseOutput) && m_map.isValid(verboseOutput);
   }
@@ -578,8 +571,7 @@ typename BivariateMap<T, BSet, IndPol, StrPol, IfacePol>::NullBivariateSetType c
 
 /**
  * \class BivariateMapIterator
- * \brief An iterator type for a BivariateMap, iterating via its
- *        ElementFlatIndex.
+ * \brief An iterator type for a BivariateMap, iterating via its ElementFlatIndex.
  *
  *  This iterator class iterates over all elements in the associated map.
  */
@@ -606,18 +598,14 @@ public:
   static constexpr PositionType INVALID_POS = -2;
 
 public:
-  /**
-     * \brief Construct a new BivariateMap Iterator given an ElementFlatIndex
-     */
+  /// \brief Construct a new BivariateMap Iterator given an ElementFlatIndex
   AXOM_HOST_DEVICE FlatIterator(BivariateMapPtr sMap, PositionType pos)
     : IterBase(pos)
     , m_map(sMap)
     , m_bsetIterator(m_map->set(), pos / m_map->numComp())
   { }
 
-  /**
-     * \brief Returns the current map element pointed to by the iterator.
-     */
+  /// \brief Returns the current map element pointed to by the iterator.
   AXOM_SUPPRESS_HD_WARN
   AXOM_HOST_DEVICE DataRefType operator*() const
   {
@@ -626,21 +614,16 @@ public:
 
   AXOM_HOST_DEVICE pointer operator->() const { return &(*this); }
 
-  /**
-     * \brief return the current iterator's first index into the BivariateSet
-     */
+  /// \brief return the current iterator's first index into the BivariateSet
   PositionType firstIndex() const { return m_bsetIterator.firstIndex(); }
 
-  /**
-     * \brief return the current iterator's second index (DenseIndex)
-     *        into the BivariateSet
-     */
+  /// \brief return the current iterator's second index (DenseIndex) into the BivariateSet
   PositionType secondIndex() const { return m_bsetIterator.secondIndex(); }
 
   /// \brief return the current iterator's component index
   PositionType compIndex() const { return this->m_pos % numComp(); }
 
-  /** \brief Returns the number of components per element in the map. */
+  /// \brief Returns the number of components per element in the map.
   AXOM_SUPPRESS_HD_WARN
   AXOM_HOST_DEVICE PositionType numComp() const { return m_map->numComp(); }
 
@@ -663,12 +646,10 @@ private:
 /**
  * \class BivariateMap::RangeIterator
  *
- * \brief An iterator type for a BivariateMap, iterating over elements in an
- *  associated BivariateSet.
+ * \brief An iterator type for a BivariateMap, iterating over elements in an associated BivariateSet.
  *
  *  Unlike the FlatIterator, which iterates over all map elements, the
- *  RangeIterator may point to a range of elements in the case of non-unit
- *  stride.
+ *  RangeIterator may point to a range of elements in the case of non-unit stride.
  */
 template <typename T, typename BSet, typename IndPol, typename StrPol, typename IfacePol>
 template <bool Const>
@@ -694,9 +675,7 @@ public:
   static constexpr PositionType INVALID_POS = -2;
 
 public:
-  /*!
-   * \brief Construct a new BivariateMap Iterator given an ElementFlatIndex
-   */
+  /// \brief Construct a new BivariateMap Iterator given an ElementFlatIndex
   AXOM_HOST_DEVICE RangeIterator(BivariateMapPtr sMap, PositionType pos)
     : IterBase(pos)
     , m_map(sMap)
@@ -704,14 +683,12 @@ public:
     , m_bsetIterator(m_map->set(), pos)
   { }
 
-  /*!
-   * \brief Returns the range of elements pointed to by this iterator.
-   */
+  /// \brief Returns the range of elements pointed to by this iterator.
   AXOM_HOST_DEVICE reference operator*() const { return *m_mapIterator; }
 
   AXOM_HOST_DEVICE pointer operator->() const { return m_mapIterator.operator->(); }
 
-  /*!
+  /**
    * \brief Returns the iterator's value at the given component index.
    *
    * \pre `sizeof(compIdx) == StridePolicy::NumDims`
@@ -724,10 +701,10 @@ public:
     return value(comp_idx...);
   }
 
-  /** \brief Returns the first component value after n increments.  */
+  /// \brief Returns the first component value after n increments.
   DataRefType operator[](PositionType n) const { return *(this->operator+(n)); }
 
-  /*!
+  /**
    * \brief Return the value at the iterator's position for a given component
    *  index. Same as operator()
    */
@@ -737,23 +714,16 @@ public:
     return m_mapIterator(comp...);
   }
 
-  /**
-     * \brief return the current iterator's first index into the BivariateSet
-     */
+  /// \brief return the current iterator's first index into the BivariateSet
   PositionType firstIndex() const { return m_bsetIterator.firstIndex(); }
 
-  /**
-     * \brief return the current iterator's second index (DenseIndex)
-     *        into the BivariateSet
-     */
+  /// \brief return the current iterator's second index (DenseIndex) into the BivariateSet
   PositionType secondIndex() const { return m_bsetIterator.secondIndex(); }
 
-  /**
-   * \brief Return the current iterator's flat bivariate index.
-   */
+  /// \brief Return the current iterator's flat bivariate index.
   AXOM_HOST_DEVICE PositionType flatIndex() const { return m_mapIterator.flatIndex(); }
 
-  /** \brief Returns the number of components per element in the map. */
+  /// \brief Returns the number of components per element in the map.
   PositionType numComp() const { return m_map->numComp(); }
 
 protected:
@@ -774,5 +744,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_BIVARIATE_MAP_HPP_

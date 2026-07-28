@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  *
@@ -13,9 +15,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef SIDRE_BUFFER_HPP_
-#define SIDRE_BUFFER_HPP_
 
 // Standard C++ headers
 #include <set>
@@ -93,7 +92,18 @@ public:
   /*!
    * \brief Return void-pointer to data held by Buffer.
    */
+  /// @{
   void* getVoidPtr() { return m_node.data_ptr(); }
+
+  /*!
+   * \overload
+   *
+   * \note A const Buffer still exposes its data as a mutable pointer:
+   *  const-ness refers to the Buffer's description, not to the data it holds.
+   * \sa View::getVoidPtr()
+   */
+  void* getVoidPtr() const { return const_cast<Node&>(m_node).data_ptr(); }
+  /// @}
 
   /*!
    * \brief Return data held by Buffer (return type is type caller assigns
@@ -102,6 +112,7 @@ public:
    *        Note that if Buffer is not allocated, an empty Conduit
    *        Node::Value is returned.
    */
+  /// @{
   Node::Value getData()
   {
     if(!isAllocated())
@@ -112,6 +123,25 @@ public:
 
     return m_node.value();
   }
+
+  /*!
+   * \overload
+   *
+   * \note A const Buffer exposes its data as a mutable Node::Value
+   *  const-ness refers to the Buffer's description, not its data.
+   * \sa View::getdata() const
+   */
+  Node::Value getData() const
+  {
+    if(!isAllocated())
+    {
+      SLIC_CHECK_MSG(isAllocated(), "Buffer data is not allocated.");
+      return Node().value();
+    }
+
+    return const_cast<Node&>(m_node).value();
+  }
+  /// @}
 
   /*!
    * \brief Return type of data owned by this Buffer object.
@@ -316,5 +346,3 @@ private:
 
 } /* end namespace sidre */
 } /* end namespace axom */
-
-#endif /* SIDRE_BUFFER_HPP_ */

@@ -25,7 +25,7 @@
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
 
-#include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 
 #include "mfem.hpp"
 
@@ -167,7 +167,7 @@ public:
     std::stringstream pol_sstr;
     pol_sstr << "Set runtime policy method.";
     pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
 #endif
 
@@ -332,8 +332,9 @@ int main(int argc, char** argv)
   // Declare possible geometry input types
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
   axom::Array<NURBSPatch3D> patches;
+  const std::string fileExtension = axom::utilities::filesystem::getFileExtension(input.inputFile);
 
-  if(axom::utilities::string::endsWith(input.inputFile, ".stl"))
+  if(fileExtension == ".stl")
   {
     AXOM_ANNOTATE_SCOPE("read_stl");
 
@@ -360,7 +361,7 @@ int main(int argc, char** argv)
     SLIC_INFO(
       axom::fmt::format(axom::utilities::locale(), "Loaded {} triangles", stl_reader.getNumFaces()));
   }
-  else if(axom::utilities::string::endsWith(input.inputFile, ".step"))
+  else if(fileExtension == ".step")
   {
     AXOM_ANNOTATE_SCOPE("read_step");
 

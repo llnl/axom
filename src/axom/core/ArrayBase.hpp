@@ -4,18 +4,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAYBASE_HPP_
-#define AXOM_ARRAYBASE_HPP_
+#pragma once
 
-#include "axom/config.hpp"                    // for compile-time defines
-#include "axom/core/Macros.hpp"               // for axom macros
-#include "axom/core/MDMapping.hpp"            // for index conversion
-#include "axom/core/memory_management.hpp"    // for memory allocation functions
-#include "axom/core/utilities/Utilities.hpp"  // for processAbort()
-#include "axom/core/Types.hpp"                // for IndexType definition
+#include "axom/config.hpp"
+#include "axom/core/Macros.hpp"
+#include "axom/core/MDMapping.hpp"
+#include "axom/core/memory_management.hpp"
+#include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/Types.hpp"
 #include "axom/core/StackArray.hpp"
-#include "axom/core/numerics/matvecops.hpp"  // for dot_product
-#include "axom/core/execution/for_all.hpp"   // for for_all, *_EXEC
+#include "axom/core/numerics/matvecops.hpp"
+#include "axom/core/execution/for_all.hpp"
 
 // C/C++ includes
 #include <iostream>  // for std::cerr and std::ostream
@@ -562,6 +561,21 @@ class ArrayBase<T, 1, ArrayType>
 private:
   constexpr static bool is_array_view = detail::ArrayTraits<ArrayType>::is_view;
 
+  /*!
+   * \brief Empty stand-in for the stride of an owning 1D Array.
+   *
+   * Owning 1D arrays are always contiguous, so their stride is the compile-time constant 1.
+   * Encoding that in the type (rather than storing a runtime int that is invariantly 1)
+   * lets operator[] and flatIndex() compile down to data()[idx], with no runtime multiply on the
+   * address-generation path. ArrayViews support runtime spacing and continue to store their stride as an int.
+   */
+  struct UnitStrideTag
+  {
+    AXOM_HOST_DEVICE constexpr UnitStrideTag(int = 1) { }
+    AXOM_HOST_DEVICE constexpr operator int() const { return 1; }
+  };
+  using StrideStorage = typename std::conditional<is_array_view, int, UnitStrideTag>::type;
+
 public:
   /* If ArrayType is an ArrayView, we use shallow-const semantics, akin to
    * std::span; a const ArrayView will still allow for mutating the underlying
@@ -574,25 +588,42 @@ public:
 
   AXOM_HOST_DEVICE ArrayBase(IndexType = 0) { }
 
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1) : m_stride(stride) { }
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1) : m_stride(stride)
+  {
+    assert(is_array_view || stride == 1);
+  }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const StackArray<IndexType, 1>& stride)
     : m_stride(static_cast<int>(stride[0]))
-  { }
+  {
+    assert(is_array_view || stride[0] == 1);
+  }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const MDMapping<1>& mapping)
-    : m_stride(mapping.strides()[0])
-  { }
+    : m_stride(static_cast<int>(mapping.strides()[0]))
+  {
+    assert(is_array_view || mapping.strides()[0] == 1);
+  }
 
-  // Empty implementation because no member data
-  template <typename OtherArrayType>
-  AXOM_HOST_DEVICE ArrayBase(const ArrayBase<typename std::remove_const<T>::type, 1, OtherArrayType>&)
-  { }
-
-  // Empty implementation because no member data
+  /*!
+   * \brief Copy the stride from another 1D array-like object.
+   *
+   * When this array is a view, the source's spacing must be preserved so the
+   * view continues to address the same elements. When this array is owning,
+   * the stride is the compile-time unit stride regardless of the source
+   * (a deep copy from a strided view compacts into contiguous storage).
+   */
   template <typename OtherArrayType>
   AXOM_HOST_DEVICE ArrayBase(
-    const ArrayBase<const typename std::remove_const<T>::type, 1, OtherArrayType>&)
+    const ArrayBase<typename std::remove_const<T>::type, 1, OtherArrayType>& other)
+    : m_stride(static_cast<int>(other.minStride()))
+  { }
+
+  /// \overload
+  template <typename OtherArrayType>
+  AXOM_HOST_DEVICE ArrayBase(
+    const ArrayBase<const typename std::remove_const<T>::type, 1, OtherArrayType>& other)
+    : m_stride(static_cast<int>(other.minStride()))
   { }
 
   /// \brief Returns the dimensions of the Array
@@ -606,7 +637,7 @@ public:
   /*!
    * \brief Returns the stride between adjacent items.
    */
-  AXOM_HOST_DEVICE IndexType minStride() const { return m_stride; }
+  AXOM_HOST_DEVICE constexpr IndexType minStride() const { return m_stride; }
 
   /*!
    * \brief Accessor, returns a reference to the given value.
@@ -655,8 +686,8 @@ public:
   /// @}
 
   /// \brief Swaps two ArrayBases
-  /// No member data, so this is a no-op
-  void swap(ArrayBase&) { }
+  /// Swaps the stride; this is a no-op for owning arrays (unit stride).
+  void swap(ArrayBase& other) { std::swap(m_stride, other.m_stride); }
 
   /// \brief Set the shape
   /// No member data, so this is a no-op
@@ -666,7 +697,7 @@ protected:
   /*!
    * \brief Returns the minimum "chunk size" that should be allocated
    */
-  IndexType blockSize() const { return m_stride; }
+  constexpr IndexType blockSize() const { return m_stride; }
 
   /*!
    * \brief Updates the internal dimensions and striding based on the insertion
@@ -700,7 +731,7 @@ private:
   }
   /// @}
 
-  int m_stride {1};
+  StrideStorage m_stride {1};
 };
 
 //------------------------------------------------------------------------------
@@ -1074,6 +1105,67 @@ public:
   }
 
   /*!
+   * \brief Fills an uninitialized array with a strided range of objects of type T.
+   *
+   * Similar to fill_range, but handles source data with non-unit stride. When src_stride == 1,
+   * this behaves identically to fill_range (and uses the same fast path). When src_stride > 1,
+   * elements are copied from positions 0, src_stride, 2*src_stride, etc.
+   *
+   * \param [inout] array the array to fill
+   * \param [in] begin the index at which to begin placing elements
+   * \param [in] nelems the number of elements to copy
+   * \param [in] values pointer to the first element of the source data
+   * \param [in] src_stride spacing between consecutive source elements
+   * \param [in] valueSpace the memory space in which values resides
+   */
+  void fill_range_strided(T* array,
+                          IndexType begin,
+                          IndexType nelems,
+                          const T* values,
+                          IndexType src_stride,
+                          MemorySpace valueSpace)
+  {
+    if constexpr(std::is_trivially_copyable_v<T>)
+    {
+      if(src_stride == 1)
+      {
+        // Contiguous case - use efficient bulk copy
+        axom::copy(array + begin, values, sizeof(T) * nelems);
+      }
+      else
+      {
+        // Strided case - element-by-element copy
+        StagingBuffer dst_buf(space, array, begin, nelems);
+        DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems * src_stride, true);
+
+        T* dst = dst_buf.getStagingBuffer();
+        const T* src = src_buf.getStagingBuffer();
+
+        for(IndexType i = 0; i < nelems; ++i)
+        {
+          dst[i] = src[i * src_stride];
+        }
+        // Staging buffers clean up automatically via destructors
+      }
+    }
+    else
+    {
+      // Non-trivially copyable - use placement new with stride
+      StagingBuffer dst_buf(space, array, begin, nelems);
+      DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems * src_stride, true);
+
+      T* dst = dst_buf.getStagingBuffer();
+      const T* src = src_buf.getStagingBuffer();
+
+      for(IndexType i = 0; i < nelems; ++i)
+      {
+        new(&dst[i]) T(src[i * src_stride]);
+      }
+      // Staging buffers clean up automatically via destructors
+    }
+  }
+
+  /*!
    * \brief Constructs a new element in uninitialized memory.
    *
    * \param [inout] array the array to construct in
@@ -1300,5 +1392,3 @@ private:
 }  // namespace detail
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAYBASE_HPP_ */

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_MATERIAL_HPP_
-#define AXOM_BUMP_DISPATCH_MATERIAL_HPP_
+#pragma once
 
 #include "axom/bump/views/MaterialView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
@@ -19,66 +18,56 @@ namespace bump
 {
 namespace views
 {
-
-/*!
- * \brief Make a unibuffer matset view from a Conduit node.
- */
-template <typename IntType, typename FloatType, size_t MAXMATERIALS = 20>
-struct make_unibuffer_matset
+namespace detail
 {
-  using MatsetView = UnibufferMaterialView<IntType, FloatType, MAXMATERIALS>;
+template <axom::IndexType MAXMATERIALS>
+constexpr void verifyPositiveMaxMaterials()
+{
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
+}
 
-  /*!
-   * \brief Wrap the Conduit node as a unibuffer matset view.
-   *
-   * \param n_matset The Conduit node that contains the matset.
-   *
-   * \return A UnibufferMaterialView.
-   */
-  static MatsetView view(const conduit::Node &n_matset)
-  {
-    namespace utils = axom::bump::utilities;
-    verify(n_matset, "matset");
-    MatsetView m;
-    m.set(utils::make_array_view<IntType>(n_matset["material_ids"]),
-          utils::make_array_view<FloatType>(n_matset["volume_fractions"]),
-          utils::make_array_view<IntType>(n_matset["sizes"]),
-          utils::make_array_view<IntType>(n_matset["offsets"]),
-          utils::make_array_view<IntType>(n_matset["indices"]));
-    return m;
-  }
-};
+inline void verifyMixedField(const conduit::Node &n_field)
+{
+  SLIC_ERROR_IF(!n_field.has_path("matset_values"),
+                "The mixed field does not contain matset_values");
+}
 
 /*!
- * \brief Dispatch a Conduit node containing a unibuffer matset to a function as the appropriate type of matset view.
+ * \brief Dispatch Conduit nodes containing a unibuffer element-dominant matset and a values array
+ *        to a function as the appropriate type of matset view.
  *
  * \tparam FuncType The function/lambda type that will take the matset.
  *
  * \param matset The node that contains the matset.
+ * \param values The node that contains the values to be used as volume fractions.
  * \param func   The function/lambda that will operate on the matset view.
+ *
+ * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
+bool dispatch_material_unibuffer_with_values(const conduit::Node &matset,
+                                             const conduit::Node &values,
+                                             FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_uni_buffer(matset))
   {
-    indexNodeToArrayViewSame(
-      matset["material_ids"],
-      matset["sizes"],
-      matset["offsets"],
-      matset["indices"],
-      [&](auto material_ids, auto sizes, auto offsets, auto indices) {
-        floatNodeToArrayView(matset["volume_fractions"], [&](auto volume_fractions) {
-          using IndexType = typename decltype(material_ids)::value_type;
-          using FloatType = typename decltype(volume_fractions)::value_type;
+    indexNodeToArrayViewSame(matset["material_ids"],
+                             matset["sizes"],
+                             matset["offsets"],
+                             matset["indices"],
+                             [&](auto material_ids, auto sizes, auto offsets, auto indices) {
+                               floatNodeToArrayView(values, [&](auto typedValues) {
+                                 using IndexType = typename decltype(material_ids)::value_type;
+                                 using FloatType = typename decltype(typedValues)::value_type;
 
-          UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
-          matsetView.set(material_ids, volume_fractions, sizes, offsets, indices);
-          func(matsetView);
-        });
-      });
+                                 UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
+                                 matsetView.set(material_ids, typedValues, sizes, offsets, indices);
+                                 func(matsetView);
+                               });
+                             });
     retval = true;
   }
   return retval;
@@ -111,85 +100,31 @@ IntElement getMaterialID(const conduit::Node &matset,
 }
 
 /*!
- * \brief Dispatch a Conduit node containing a multibuffer matset to a function as the appropriate type of matset view.
+ * \brief Dispatch a Conduit node containing a multibuffer element-dominant matset
+ *        to a function as the appropriate type of matset view.
  *
  * \tparam FuncType The function/lambda type that will take the matset.
  *
  * \param matset The node that contains the matset.
+ * \param values_object The node that contains the values object to be used as volume fractions.
  * \param func   The function/lambda that will operate on the matset view.
+ *
+ * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
+bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
+                                                    const conduit::Node &values_object,
+                                                    FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
   verify(matset, "matset");
-  if(conduit::blueprint::mesh::matset::is_multi_buffer(matset))
+  if(conduit::blueprint::mesh::matset::is_multi_buffer(matset) &&
+     conduit::blueprint::mesh::matset::is_element_dominant(matset))
   {
-    const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
-    if(volume_fractions.number_of_children() > 0)
+    if(values_object.number_of_children() > 0)
     {
-      const conduit::Node &n_firstValues = volume_fractions[0].fetch_existing("values");
-      const conduit::Node &n_firstIndices = volume_fractions[0].fetch_existing("indices");
-      indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
-        floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
-          using IntElement =
-            typename std::remove_const<typename decltype(firstIndices)::value_type>::type;
-          using FloatElement =
-            typename std::remove_const<typename decltype(firstValues)::value_type>::type;
-          using IntView = axom::ArrayView<IntElement>;
-          using FloatView = axom::ArrayView<FloatElement>;
-
-          MultiBufferMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
-
-          for(conduit::index_t i = 0; i < volume_fractions.number_of_children(); i++)
-          {
-            const conduit::Node &values = volume_fractions[i].fetch_existing("values");
-            const conduit::Node &indices = volume_fractions[i].fetch_existing("indices");
-
-            const IntElement *indices_ptr = indices.value();
-            const FloatElement *values_ptr = values.value();
-
-            IntView indices_view(const_cast<IntElement *>(indices_ptr),
-                                 indices.dtype().number_of_elements());
-            FloatView values_view(const_cast<FloatElement *>(values_ptr),
-                                  values.dtype().number_of_elements());
-
-            // Get the material number if we can.
-            IntElement matno = getMaterialID<IntElement>(matset,
-                                                         volume_fractions[i].name(),
-                                                         static_cast<IntElement>(i));
-
-            matsetView.add(matno, indices_view, values_view);
-          }
-
-          func(matsetView);
-        });
-      });
-      retval = true;
-    }
-  }
-  return retval;
-}
-
-/*!
- * \brief Dispatch a Conduit node containing a element-dominant matset to a function as the appropriate type of matset view.
- *
- * \tparam FuncType The function/lambda type that will take the matset.
- *
- * \param matset The node that contains the matset.
- * \param func   The function/lambda that will operate on the matset view.
- */
-template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&func)
-{
-  bool retval = false;
-  verify(matset, "matset");
-  if(conduit::blueprint::mesh::matset::is_element_dominant(matset))
-  {
-    const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
-    if(volume_fractions.number_of_children() > 0)
-    {
-      const conduit::Node &n_firstValues = volume_fractions[0];
+      const conduit::Node &n_firstValues = values_object[0];
       floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
         using FloatElement =
           typename std::remove_const<typename decltype(firstValues)::value_type>::type;
@@ -198,16 +133,16 @@ bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&
 
         ElementDominantMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
 
-        for(conduit::index_t i = 0; i < volume_fractions.number_of_children(); i++)
+        for(conduit::index_t i = 0; i < values_object.number_of_children(); i++)
         {
-          const conduit::Node &values = volume_fractions[i];
+          const conduit::Node &values = values_object[i];
           const FloatElement *values_ptr = values.value();
           FloatView values_view(const_cast<FloatElement *>(values_ptr),
                                 values.dtype().number_of_elements());
 
           // Get the material number if we can.
           IntElement matno =
-            getMaterialID<IntElement>(matset, volume_fractions[i].name(), static_cast<IntElement>(i));
+            getMaterialID<IntElement>(matset, values_object[i].name(), static_cast<IntElement>(i));
 
           matsetView.add(matno, values_view);
         }
@@ -226,21 +161,27 @@ bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&
  * \tparam FuncType The function/lambda type that will take the matset.
  *
  * \param matset The node that contains the matset.
+ * \param values_object The node that contains the values to use as volume fractions and indices.
  * \param func   The function/lambda that will operate on the matset view.
+ *
+ * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &&func)
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
+bool dispatch_material_material_dominant_with_values(const conduit::Node &matset,
+                                                     const conduit::Node &values_object,
+                                                     FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
   verify(matset, "matset");
-  if(conduit::blueprint::mesh::matset::is_material_dominant(matset))
+  if(conduit::blueprint::mesh::matset::is_multi_buffer(matset) &&
+     conduit::blueprint::mesh::matset::is_material_dominant(matset))
   {
-    const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
     const conduit::Node &element_ids = matset.fetch_existing("element_ids");
-    if(volume_fractions.number_of_children() > 0 &&
-       volume_fractions.number_of_children() == element_ids.number_of_children())
+    if(values_object.number_of_children() > 0 &&
+       values_object.number_of_children() == element_ids.number_of_children())
     {
-      const conduit::Node &n_firstValues = volume_fractions[0];
+      const conduit::Node &n_firstValues = values_object[0];
       const conduit::Node &n_firstIndices = element_ids[0];
 
       indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
@@ -254,10 +195,10 @@ bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &
 
           MaterialDominantMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
 
-          for(conduit::index_t i = 0; i < volume_fractions.number_of_children(); i++)
+          for(conduit::index_t i = 0; i < values_object.number_of_children(); i++)
           {
             const conduit::Node &indices = element_ids[i];
-            const conduit::Node &values = volume_fractions[i];
+            const conduit::Node &values = values_object[i];
 
             const IntElement *indices_ptr = indices.value();
             const FloatElement *values_ptr = values.value();
@@ -283,6 +224,102 @@ bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &
   return retval;
 }
 
+}  // end namespace detail
+
+/*!
+ * \brief Make a unibuffer matset view from a Conduit node.
+ */
+template <typename IntType, typename FloatType, axom::IndexType MAXMATERIALS = 20>
+struct make_unibuffer_matset
+{
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
+  using MatsetView = UnibufferMaterialView<IntType, FloatType, MAXMATERIALS>;
+
+  /*!
+   * \brief Wrap the Conduit node as a unibuffer matset view.
+   *
+   * \param n_matset The Conduit node that contains the matset.
+   *
+   * \return A UnibufferMaterialView.
+   */
+  static MatsetView view(const conduit::Node &n_matset)
+  {
+    namespace utils = axom::bump::utilities;
+    verify(n_matset, "matset");
+    MatsetView m;
+    m.set(utils::make_array_view<IntType>(n_matset["material_ids"]),
+          utils::make_array_view<FloatType>(n_matset["volume_fractions"]),
+          utils::make_array_view<IntType>(n_matset["sizes"]),
+          utils::make_array_view<IntType>(n_matset["offsets"]),
+          utils::make_array_view<IntType>(n_matset["indices"]));
+    return m;
+  }
+};
+
+/*!
+ * \brief Dispatch a Conduit node containing a unibuffer matset to a function as
+ *        the appropriate type of matset view.
+ *
+ * \tparam FuncType The function/lambda type that will take the matset.
+ *
+ * \param matset The node that contains the matset.
+ * \param func   The function/lambda that will operate on the matset view.
+ *
+ * \return true if the dispatch worked, false otherwise.
+ */
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
+bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
+{
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
+  verify(matset, "matset");
+  return detail::dispatch_material_unibuffer_with_values<FuncType, MAXMATERIALS>(
+    matset,
+    matset["volume_fractions"],
+    std::forward<FuncType>(func));
+}
+
+/*!
+ * \brief Dispatch a Conduit node containing a element-dominant matset to a function as
+ *        the appropriate type of matset view.
+ *
+ * \tparam FuncType The function/lambda type that will take the matset.
+ *
+ * \param matset The node that contains the matset.
+ * \param func   The function/lambda that will operate on the matset view.
+ *
+ * \return true if the dispatch worked, false otherwise.
+ */
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
+bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&func)
+{
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
+  verify(matset, "matset");
+  return detail::dispatch_material_element_dominant_with_values(matset,
+                                                                matset["volume_fractions"],
+                                                                std::forward<FuncType>(func));
+}
+
+/*!
+ * \brief Dispatch a Conduit node containing a material-dominant matset to a function as the appropriate type of matset view.
+ *
+ * \tparam FuncType The function/lambda type that will take the matset.
+ *
+ * \param matset The node that contains the matset.
+ * \param func   The function/lambda that will operate on the matset view.
+ *
+ * \return true if the dispatch worked, false otherwise.
+ */
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
+bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &&func)
+{
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
+  verify(matset, "matset");
+  return detail::dispatch_material_material_dominant_with_values<FuncType, MAXMATERIALS>(
+    matset,
+    matset["volume_fractions"],
+    std::forward<FuncType>(func));
+}
+
 /*!
  * \brief Dispatch a Conduit node containing a matset to a function as the appropriate type of matset view.
  *
@@ -290,24 +327,33 @@ bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &
  *
  * \param matset The node that contains the matset.
  * \param func   The function/lambda that will operate on the matset view.
+ *
+ * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material(const conduit::Node &matset, FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval =
     dispatch_material_unibuffer<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+  // Multibuffer
+  if(!retval)
+  {
+    retval = dispatch_material_element_dominant<FuncType, MAXMATERIALS>(matset,
+                                                                        std::forward<FuncType>(func));
+  }
   if(!retval)
   {
     retval =
-      dispatch_material_multibuffer<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+      dispatch_material_material_dominant<FuncType, MAXMATERIALS>(matset,
+                                                                  std::forward<FuncType>(func));
   }
-  if(!retval)
+  // NOTE: Blueprint describes a unibuffer material-dominant matset type but does not technically implement it.
+  //       https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html#material-sets
+  if(!retval && conduit::blueprint::mesh::matset::is_uni_buffer(matset) &&
+     conduit::blueprint::mesh::matset::is_material_dominant(matset))
   {
-    retval = dispatch_material_element_dominant(matset, std::forward<FuncType>(func));
-  }
-  if(!retval)
-  {
-    retval = dispatch_material_material_dominant(matset, std::forward<FuncType>(func));
+    SLIC_ERROR("Unibuffer material dominant matsets are unsupported.");
   }
   return retval;
 }
@@ -315,5 +361,3 @@ bool dispatch_material(const conduit::Node &matset, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

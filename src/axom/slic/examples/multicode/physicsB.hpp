@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef PHYSICSB_HPP_
-#define PHYSICSB_HPP_
+#pragma once
 
 // SLIC includes
 #include "axom/slic/interface/slic.hpp"
@@ -76,5 +75,3 @@ void timestep(int step, int n)
 inline void finalize() { physicsB_log.close(); }
 
 } /* namespace physicsB */
-
-#endif /* PHYSICSB_HPP_ */

@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPGROUP_H
+#define WRAPGROUP_H
+
 /**
  * \file wrapGroup.h
  * \brief Shroud generated wrapper for Group class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPGROUP_H
-#define WRAPGROUP_H
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"

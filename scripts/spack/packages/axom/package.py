@@ -5,6 +5,7 @@
 import os
 import shutil
 import socket
+import tempfile
 from os.path import join as pjoin
 
 from spack_repo.builtin.build_systems.cached_cmake import (
@@ -15,6 +16,8 @@ from spack_repo.builtin.build_systems.cached_cmake import (
 )
 from spack_repo.builtin.build_systems.cuda import CudaPackage
 from spack_repo.builtin.build_systems.rocm import ROCmPackage
+
+from spack.package import *
 
 # Axom components we expose to Spack. Core is always built and is not listed here.
 _AXOM_COMPONENTS = (
@@ -33,9 +36,6 @@ _AXOM_COMPONENTS = (
     "slic",
     "spin",
 )
-
-
-from spack.package import *
 
 
 def get_spec_path(spec, package_name, path_replacements={}, use_bin=False, use_lib=False):
@@ -145,10 +145,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         values=any_combination_of("all", *_AXOM_COMPONENTS).with_default("all"),
     )
 
+    variant("int64", default=True, description="Use 64bit integers for IndexType")
+
     # variants for package dependencies
     variant("adiak", default=False, when="@0.13:", description="Build with adiak")
-    variant("caliper", default=False, when="@0.13:", description="Build with caliper")
     variant("c2c", default=False, description="Build with c2c")
+    variant("caliper", default=False, when="@0.13:", description="Build with caliper")
     variant("conduit", default=True, description="Build with conduit")
     variant("hdf5", default=True, description="Build with hdf5")
     variant("lua", default=True, description="Build with Lua")
@@ -157,8 +159,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant("raja", default=True, description="Build with raja")
     variant("scr", default=False, description="Build with SCR")
     variant("umpire", default=True, description="Build with umpire")
-
-    variant("int64", default=True, description="Use 64bit integers for IndexType")
 
     varmsg = "Build development tools (such as Sphinx, Doxygen, etc...)"
     variant("devtools", default=False, description=varmsg)
@@ -176,10 +176,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("cmake@3.21:", type="build", when="+rocm")
 
     depends_on("blt", type="build")
-    depends_on("blt@0.5.1:0.5.3", type="build", when="@0.6.1:0.8")
-    depends_on("blt@0.6.2:", type="build", when="@0.9:")
-    depends_on("blt@0.7", type="build", when="@0.11:")
     depends_on("blt@0.7.1:", type="build", when="@0.12:")
+    depends_on("blt@0.7", type="build", when="@0.11:")
+    depends_on("blt@0.6.2", type="build", when="@0.9:0.10")
+    depends_on("blt@0.5.1:0.5.3", type="build", when="@0.6.1:0.8")
 
     depends_on("mpi", when="+mpi")
 
@@ -201,8 +201,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     with when("+umpire"):
         depends_on("umpire")
         depends_on("umpire@2025.12:", when="@0.13:")
-        depends_on("umpire@2025.09.0:", when="@0.10:")
-        depends_on("umpire@2024.02.0:", when="@0.9:")
+        depends_on("umpire@2025.09:", when="@0.12:")
+        depends_on("umpire@2025.03", when="@0.11")
+        depends_on("umpire@2024.07", when="@0.10")
+        depends_on("umpire@2024.02", when="@0.9")
         depends_on("umpire@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("umpire@6.0.0", when="@0.6.0")
         depends_on("umpire@5:5.0.1", when="@:0.5.0")
@@ -212,8 +214,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     with when("+raja"):
         depends_on("raja")
         depends_on("raja@2025.12.1:", when="@0.13:")
-        depends_on("raja@2025.09.0:", when="@0.10:")
-        depends_on("raja@2024.02.0:", when="@0.9:")
+        depends_on("raja@2025.09:", when="@0.12:")
+        depends_on("raja@2025.03", when="@0.11")
+        depends_on("raja@2024.07", when="@0.10")
+        depends_on("raja@2024.02", when="@0.9")
         depends_on("raja@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("raja@0.14.0", when="@0.6.0")
         depends_on("raja@:0.13.0", when="@:0.5.0")
@@ -226,7 +230,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
-        depends_on("caliper")
+        depends_on("caliper+adiak")
 
         depends_on("caliper+cuda", when="+cuda")
         depends_on("caliper~cuda", when="~cuda")
@@ -254,7 +258,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on(f"umpire {ext_cuda_dep}", when=f"+umpire {ext_cuda_dep}")
         depends_on(f"caliper {ext_cuda_dep}", when=f"+caliper {ext_cuda_dep}")
         depends_on(f"caliper {ext_cuda_dep}", when=f"+profiling {ext_cuda_dep}")
-
         depends_on(f"mfem {ext_cuda_dep}", when=f"+mfem {ext_cuda_dep}")
 
     for val in ROCmPackage.amdgpu_targets:
@@ -275,15 +278,20 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("mfem~mpi", when="~mpi")
         depends_on("mfem@4.5.0:", when="@0.7.0:")
 
-    depends_on("python", when="+python")
-
     # Python
     with when("+python"):
-        depends_on("py-nanobind@2.7.0")
+        depends_on("python")
+
+        # extending python allows spack environment views to import axom from python
+        extends("python")
+
+        depends_on("py-nanobind@2.7.0:")
         depends_on("py-pytest")
+        depends_on("py-packaging")
+        depends_on("py-pygments")
         depends_on("py-numpy")
         depends_on("py-mpi4py", when="+mpi")
-        depends_on("conduit+python")
+        depends_on("conduit+python", when="+conduit")
 
     # Devtools
     with when("+devtools"):
@@ -415,11 +423,14 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("%cce"):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
 
+            # Remove unusable -Mfreeform flag injected by spack
+            entries = [entry.replace("-Mfreeform", "") for entry in entries]
+
+        # Disable intrusive warning:
+        #   icpx: remark: note that use of '-g' without any optimization-level
+        #   option will turn off most compiler optimizations similar to use of
+        #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
         if spec.satisfies("%oneapi"):
-            # Disable intrusive warning:
-            #   icpx: remark: note that use of '-g' without any optimization-level
-            #   option will turn off most compiler optimizations similar to use of
-            #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
             entries.append(
                 cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization")
             )
@@ -496,9 +507,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             # Additional library path for cray compiler
             if spec.satisfies("%cce"):
-                hip_link_flags += "-L/opt/cray/pe/cce/{0}/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/{0}/cce/x86_64/lib ".format(
-                    spec.compiler.version
-                )
+                lib_path = "/opt/cray/pe/cce/{0}/cce/x86_64/lib".format(spec.compiler.version)
+                hip_link_flags += "-L{0} -Wl,-rpath,{0}".format(lib_path)
 
             if spec.satisfies("+fortran"):
                 link_remove_list = []
@@ -698,7 +708,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             else:
                 entries.append(f"# {dep.upper()} not built\n")
 
-        if spec.satisfies("+umpire") and spec.satisfies("^camp"):
+        if (spec.satisfies("+raja") or spec.satisfies("+umpire")) and spec.satisfies("^camp"):
             dep_dir = get_spec_path(spec, "camp", path_replacements)
             entries.append(cmake_cache_path("CAMP_DIR", dep_dir))
 
@@ -750,9 +760,18 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
-            # Get path to python executable
             python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
+
+        if spec.satisfies("+python"):
+            # Install Axom's Python package(s) so a spack environment view merges them into
+            # a single site-packages and `import axom.sidre` works without updating PYTHONPATH
+            entries.append(
+                cmake_cache_path(
+                    "AXOM_PYTHON_MODULE_INSTALL_PREFIX",
+                    spec["python"].package.platlib,
+                )
+            )
 
         if spec.satisfies("^py-jsonschema"):
             jsonschema_dir = get_spec_path(spec, "py-jsonschema", path_replacements, use_bin=True)
@@ -784,20 +803,23 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 )
 
         if spec.satisfies("+python"):
+            python_platlib = spec["python"].package.platlib
+
             # pytest requires pluggy and iniconfig
+            # newer pytest releases also import packaging/pygments from separate Spack prefixes.
             for dep in (
                 "py-nanobind",
                 "py-pytest",
                 "py-numpy",
                 "py-pluggy",
                 "py-iniconfig",
+                "py-packaging",
+                "py-pygments",
                 "py-mpi4py",
             ):
                 if spec.satisfies("^{0}".format(dep)):
-                    dep_dir = get_spec_path(spec, dep, path_replacements, use_lib=True)
-                    py_libdir = join_path(
-                        dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages"
-                    )
+                    dep_dir = get_spec_path(spec, dep, path_replacements)
+                    py_libdir = join_path(dep_dir, python_platlib)
                     entries.append(
                         cmake_cache_path("%s_DIR" % dep.upper().replace("-", "_"), py_libdir)
                     )
@@ -837,12 +859,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             print("Running Axom Unit Tests...")
             make("test")
 
-    @run_after("install")
+    @run_after("install", when="+examples")
     @on_package_attributes(run_tests=True)
     def test_install_using_cmake(self):
         """build example with cmake and run"""
         example_src_dir = join_path(self.prefix.examples.axom, "using-with-cmake")
-        example_stage_dir = "./cmake"
+        example_test_dir = tempfile.mkdtemp(prefix="axom-cmake-example-")
+        example_stage_dir = join_path(example_test_dir, "using-with-cmake")
         shutil.copytree(example_src_dir, example_stage_dir)
         with working_dir(join_path(example_stage_dir, "build"), create=True):
             cmake_args = ["-C ../host-config.cmake", example_src_dir]
@@ -853,15 +876,65 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             example()
             make("clean")
 
-    @run_after("install")
+    @run_after("install", when="+examples")
     @on_package_attributes(run_tests=True)
     def test_install_using_make(self):
         """build example with make and run"""
         example_src_dir = join_path(self.prefix.examples.axom, "using-with-make")
-        example_stage_dir = "./make"
+        example_test_dir = tempfile.mkdtemp(prefix="axom-make-example-")
+        example_stage_dir = join_path(example_test_dir, "using-with-make")
         shutil.copytree(example_src_dir, example_stage_dir)
         with working_dir(example_stage_dir, create=True):
             make(f"AXOM_DIR={self.prefix}")
             example = Executable("./example")
             example()
             make("clean")
+
+    @run_after("install", when="+examples+python+tools components=sidre")
+    @on_package_attributes(run_tests=True)
+    def test_install_using_python(self):
+        """run python example against installed axom"""
+        example = join_path(self.prefix.examples.axom, "using-with-python", "example.py")
+        python_runner = join_path(self.prefix.bin, "run_python_with_axom.sh")
+        if not os.path.isfile(example):
+            raise RuntimeError("Missing installed python example: {0}".format(example))
+        if not os.path.isfile(python_runner):
+            raise RuntimeError("Missing installed python runner: {0}".format(python_runner))
+        run_python = Executable(python_runner)
+        run_python(example)
+
+    @run_after("install", when="+python components=sidre")
+    @on_package_attributes(run_tests=True)
+    def test_axom_sidre_installed_into_site_packages(self):
+        """Check axom.sidre installed into a site-packages-shaped prefix
+        and imports from view-shaped site-packages paths.
+        """
+        python_pkg = self.spec["python"].package
+        python_platlib = python_pkg.platlib
+        site_packages = join_path(self.prefix, python_platlib)
+        sidre_pkg_dir = join_path(site_packages, "axom", "sidre")
+        if not os.path.isdir(sidre_pkg_dir):
+            raise RuntimeError(
+                "axom.sidre was not installed under the interpreter platlib: "
+                "{0}".format(sidre_pkg_dir)
+            )
+
+        # Assemble the Python package directories a view would merge into site-packages.
+        import_path = [site_packages]
+        if self.spec.satisfies("+conduit"):
+            for conduit_py in (
+                join_path(self.spec["conduit"].prefix, python_platlib),
+                join_path(self.spec["conduit"].prefix, "python-modules"),
+            ):
+                if os.path.isdir(conduit_py):
+                    import_path.append(conduit_py)
+
+        for dep in ("py-numpy", "py-mpi4py"):
+            if self.spec.satisfies("^{0}".format(dep)):
+                dep_py = join_path(self.spec[dep].prefix, python_platlib)
+                if os.path.isdir(dep_py):
+                    import_path.append(dep_py)
+
+        imports = "import axom.sidre as s; import numpy; print('axom.sidre', s.__version__)"
+        python = Executable(join_path(self.spec["python"].prefix.bin, "python3"))
+        python("-c", imports, extra_env={"PYTHONPATH": ":".join(import_path)})

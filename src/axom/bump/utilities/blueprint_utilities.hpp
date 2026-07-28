@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_BLUEPRINT_UTILITIES_HPP_
-#define AXOM_BUMP_BLUEPRINT_UTILITIES_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -33,5 +32,3 @@ std::vector<std::string> coordsetAxes(const conduit::Node &n_input);
 }  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

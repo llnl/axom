@@ -14,30 +14,8 @@
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
-#include <cstdlib>  // for exit, EXIT_SUCCESS, EXIT_FAILURE
-
-#ifdef AXOM_USE_MPI
-  #include <mpi.h>
-#endif
-
-namespace axom
+namespace axom::utilities
 {
-namespace utilities
-{
-void processAbort()
-{
-#ifndef AXOM_USE_MPI
-  abort();
-#else
-  int mpi = 0;
-  MPI_Initialized(&mpi);
-  if(mpi)
-  {
-    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-  }
-  abort();
-#endif
-}
 
 int binomialCoefficient(int n, int k)
 {
@@ -63,5 +41,4 @@ int binomialCoefficient(int n, int k)
   return val;
 }
 
-}  // end namespace utilities
-}  // end namespace axom
+}  // end namespace axom::utilities

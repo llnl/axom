@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SIDRE_DEPRECATED_MCArray_HPP_
-#define SIDRE_DEPRECATED_MCArray_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"               // for disable copy/assignment macro
 #include "axom/core/utilities/Utilities.hpp"  // for memory allocation functions
@@ -403,5 +402,3 @@ inline void MCArray<T>::reallocViewData(IndexType new_capacity)
 } /* namespace deprecated */
 } /* namespace sidre */
 } /* namespace axom */
-
-#endif /* SIDRE_DEPRECATED_MCArray_HPP_ */

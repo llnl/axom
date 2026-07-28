@@ -21,14 +21,7 @@ axom_add_executable(
     )
 
 if(AXOM_ENABLE_TESTS)
-    set (_policies "seq")
-    if(RAJA_FOUND AND UMPIRE_FOUND)
-        blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-    endif()
-
-    foreach(_policy ${_policies})
+    foreach(_policy ${AXOM_EXECUTION_POLICIES})
         set(_num_threads)
         if(_policy STREQUAL "omp")
             set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})

@@ -62,13 +62,14 @@ namespace slamLulesh {
 /**********************************************************************/
   void DumpToVisit(Domain& domain, int numFiles, int myRank, int numRanks)
   {
-    char subdirName[32];
-    char basename[32];
+    constexpr int buff_size = 32;
+ 
+    char subdirName[buff_size];
+    char basename[buff_size];
     DBfile *db;
 
-
-    sprintf(basename,   "lulesh_plot_c%d",  domain.cycle());
-    sprintf(subdirName, "data_%d",          myRank);
+    snprintf(basename, buff_size,  "lulesh_plot_c%d",  domain.cycle());
+    snprintf(subdirName, buff_size, "data_%d",          myRank);
 
 #ifdef AXOM_USE_MPI
 
@@ -83,12 +84,13 @@ namespace slamLulesh {
 
     int myiorank = PMPIO_GroupRank(bat, myRank);
 
-    char fileName[64];
+    constexpr int fileName_size = 64;
+    char fileName[fileName_size];
 
     if (myiorank == 0)
-      strcpy(fileName, basename);
+      snprintf(fileName, fileName_size, basename);
     else
-      sprintf(fileName, "%s.%03d", basename, myiorank);
+      snprintf(fileName, fileName_size, "%s.%03d", basename, myiorank);
 
     db = (DBfile*)PMPIO_WaitForBaton(bat, fileName, subdirName);
 

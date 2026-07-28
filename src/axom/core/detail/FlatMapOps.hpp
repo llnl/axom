@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_Detail_FlatMapOps_Hpp
-#define Axom_Core_Detail_FlatMapOps_Hpp
+#pragma once
 
 #include "axom/core/detail/FlatTable.hpp"
 
@@ -137,5 +136,3 @@ inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
 }  // namespace flat_map
 }  // namespace detail
 }  // namespace axom
-
-#endif

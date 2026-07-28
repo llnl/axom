@@ -4,16 +4,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file orientation.hpp
  *
  * \brief Consists of a set of templated (overloaded) routines used to calculate
  *  the orientation of a given point to another geometric entity.
  *
+ * \note These routines use double-precision determinants and are not exact sign
+ *  oracles near degeneracy (e.g. nearly collinear/coplanar inputs).
+ *  See detail/predicate_determinants.hpp for the precision/robustness discussion.
  */
-
-#ifndef AXOM_PRIMAL_ORIENTATION_HPP_
-#define AXOM_PRIMAL_ORIENTATION_HPP_
 
 #include "axom/core/numerics/Determinants.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -24,12 +26,39 @@
 #include "axom/primal/geometry/Triangle.hpp"
 #include "axom/primal/geometry/OrientationResult.hpp"
 
+#include "axom/primal/operators/detail/predicate_determinants.hpp"
+
 #include "axom/slic/interface/slic.hpp"
 
 namespace axom
 {
 namespace primal
 {
+/*!
+ * \brief Returns the raw 2D orientation determinant for three points.
+ *
+ * This determinant is twice the signed area of triangle `(a,b,c)`.
+ */
+template <typename T>
+inline double orientation_determinant(const Point<T, 2>& a, const Point<T, 2>& b, const Point<T, 2>& c)
+{
+  return detail::orientation_determinant(a, b, c);
+}
+
+/*!
+ * \brief Returns the raw 3D orientation determinant for four points.
+ *
+ * This determinant is six times the signed volume of tetrahedron `(a,b,c,d)`.
+ */
+template <typename T>
+inline double orientation_determinant(const Point<T, 3>& a,
+                                      const Point<T, 3>& b,
+                                      const Point<T, 3>& c,
+                                      const Point<T, 3>& d)
+{
+  return detail::orientation_determinant(a, b, c, d);
+}
+
 /*!
  * \brief Computes the orientation of a point \a p with respect to an
  *  oriented triangle \a tri
@@ -51,21 +80,14 @@ namespace primal
 template <typename T>
 inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double EPS = 1e-9)
 {
-  const Vector<T, 3> A(p, tri[0]);
-  const Vector<T, 3> B(p, tri[1]);
-  const Vector<T, 3> C(p, tri[2]);
-
-  // clang-format off
-  double det = numerics::determinant( A[0], A[1], A[2],
-                                      B[0], B[1], B[2],
-                                      C[0], C[1], C[2]);
-  // clang-format on
+  const double det = detail::orientation_determinant(p, tri[0], tri[1], tri[2]);
 
   if(axom::utilities::isNearlyEqual(det, 0., EPS))
   {
     return primal::ON_BOUNDARY;
   }
 
+  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
   return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
 }
 
@@ -90,23 +112,16 @@ inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double E
 template <typename T>
 inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EPS = 1e-9)
 {
-  const Vector<T, 2> A(p, seg[0]);
-  const Vector<T, 2> B(p, seg[1]);
-
-  // clang-format off
-  double det = numerics::determinant( A[0], A[1],
-                                      B[0], B[1]);
-  // clang-format on
+  const double det = detail::orientation_determinant(p, seg[0], seg[1]);
 
   if(axom::utilities::isNearlyEqual(det, 0., EPS))
   {
     return primal::ON_BOUNDARY;
   }
 
+  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
   return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
 }
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_ORIENTATION_HPP_

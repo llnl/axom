@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef __ZOO_CLIPPING_TABLES_H__
-#define __ZOO_CLIPPING_TABLES_H__
+#pragma once
 
 /**
  * \file ZooClippingTables.hpp
@@ -31,4 +30,3 @@ extern const std::vector<std::vector<int>> triangularPrismClipTableVec;
 extern const std::vector<std::vector<int>> hexahedronClipTableVec;
 }  // namespace mir
 }  // namespace axom
-#endif

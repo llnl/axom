@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_EQUIZ_ALGORITHM_HPP_
-#define AXOM_MIR_EQUIZ_ALGORITHM_HPP_
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -141,6 +141,7 @@ protected:
                   "The mesh and the material do not have the same number of zones.");
 
     // Copy the options.
+    const axom::bump::Options opts(n_options);
     conduit::Node n_options_copy;
     utils::copy<ExecSpace>(n_options_copy, n_options, getAllocatorID());
     n_options_copy["topology"] = n_topo.name();
@@ -159,8 +160,11 @@ protected:
     // Come up with lists of clean/mixed zones.
     axom::Array<axom::IndexType> cleanZones, mixedZones;
     makeZoneLists(n_options_copy, cleanZones, mixedZones);
-    SLIC_INFO(
-      axom::fmt::format("cleanZones: {}, mixedZones: {}", cleanZones.size(), mixedZones.size()));
+    if(opts.verbose())
+    {
+      SLIC_INFO(
+        axom::fmt::format("cleanZones: {}, mixedZones: {}", cleanZones.size(), mixedZones.size()));
+    }
 
     if(cleanZones.size() > 0 && mixedZones.size() > 0)
     {
@@ -1232,5 +1236,3 @@ private:
 
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

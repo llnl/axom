@@ -4,16 +4,17 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-import pysidre
+import axom.sidre as sidre
 import numpy as np
+import numpy.typing as npt
 
 # This example file is based on sidre_createdatastore.cpp.
 # The python interface is a work-in-progress, and does not yet support
 # all the features in the C++ source.
 
 
-def create_datastore(region):
-    ds = pysidre.DataStore()
+def create_datastore(region: npt.NDArray[np.int_]) -> sidre.DataStore:
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     # Create two attributes
@@ -41,10 +42,10 @@ def create_datastore(region):
 	each node in a 16 x 16 x 16 hexahedron mesh.  Each view is described by
 	number of elements, offset, and stride into that data.
 	"""
-    buff = ds.createBuffer(pysidre.TypeID.DOUBLE_ID, 3 * nodecount).allocate()
-    nodes.createView("x", buff).apply(pysidre.TypeID.DOUBLE_ID, nodecount, 0, 3)
-    nodes.createView("y", buff).apply(pysidre.TypeID.DOUBLE_ID, nodecount, 1, 3)
-    nodes.createView("z", buff).apply(pysidre.TypeID.DOUBLE_ID, nodecount, 2, 3)
+    buff = ds.createBuffer(sidre.TypeID.DOUBLE_ID, 3 * nodecount).allocate()
+    nodes.createView("x", buff).apply(sidre.TypeID.DOUBLE_ID, nodecount, 0, 3)
+    nodes.createView("y", buff).apply(sidre.TypeID.DOUBLE_ID, nodecount, 1, 3)
+    nodes.createView("z", buff).apply(sidre.TypeID.DOUBLE_ID, nodecount, 2, 3)
     """
 	Populate "fields" group
 
@@ -54,8 +55,8 @@ def create_datastore(region):
 	and stride (1).  These Views could point to data associated with
 	each of the 15 x 15 x 15 hexahedron elements defined by the nodes above.
 	"""
-    temp = fields.createViewAndAllocate("temp", pysidre.TypeID.DOUBLE_ID, eltcount)
-    rho = fields.createViewAndAllocate("rho", pysidre.TypeID.DOUBLE_ID, eltcount)
+    temp = fields.createViewAndAllocate("temp", sidre.TypeID.DOUBLE_ID, eltcount)
+    rho = fields.createViewAndAllocate("rho", sidre.TypeID.DOUBLE_ID, eltcount)
 
     # Explicitly set values for the "vis" Attribute on the "temp" and "rho" buffers.
     temp.setAttributeScalar("vis", 1)
@@ -68,12 +69,12 @@ def create_datastore(region):
 
     # numpy of int region has been passed in as a function argument.  As with "temp"
     # and "rho", view "region" has default offset and stride.
-    ext.createView("region", region).apply(pysidre.TypeID.INT_ID, eltcount)
+    ext.createView("region", region).apply(sidre.TypeID.INT_ID, eltcount)
 
     return ds
 
 
-def access_datastore(ds):
+def access_datastore(ds: sidre.DataStore) -> sidre.DataStore:
     # Retrieve Group pointers
     root = ds.getRoot()
     state = root.getGroup("state")
@@ -107,7 +108,7 @@ def access_datastore(ds):
     return ds
 
 
-def iterate_datastore(ds):
+def iterate_datastore(ds: sidre.DataStore) -> None:
     fill_line = "=" * 80
     print(fill_line)
 

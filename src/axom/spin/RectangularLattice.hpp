@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_RECTANGULAR_LATTICE_HPP_
-#define AXOM_SPIN_RECTANGULAR_LATTICE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/NumericArray.hpp"
@@ -294,5 +293,3 @@ std::ostream& operator<<(std::ostream& os,
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_RECTANGULAR_LATTICE_HPP_

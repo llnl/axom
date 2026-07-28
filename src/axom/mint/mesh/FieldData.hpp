@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FIELDDATA_HPP_
-#define MINT_FIELDDATA_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/Macros.hpp"  // for Axom macros
@@ -683,5 +682,3 @@ inline T* FieldData::createField(const std::string& name,
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* FIELDDATA_HPP_ */

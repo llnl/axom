@@ -4,9 +4,9 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_FlatMap_HPP
-#define Axom_Core_FlatMap_HPP
+#pragma once
 
+#include <cstdint>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -74,6 +74,8 @@ public:
   using mapped_type = ValueType;
   using size_type = IndexType;
   using value_type = KeyValuePair;
+  using hasher = Hash;
+  using hash_result_type = typename Hash::result_type;
   using iterator = IteratorImpl<false>;
   using const_iterator = IteratorImpl<true>;
 
@@ -179,7 +181,7 @@ public:
     static_assert(std::is_copy_constructible<ValueType>::value,
                   "Cannot copy an axom::FlatMap when value type is not "
                   "copy-constructible.");
-    if(*this != other)
+    if(this != &other)
     {
       FlatMap new_map(other);
       swap(new_map);
@@ -287,8 +289,25 @@ public:
    *  if the key wasn't found.
    */
   /// @{
-  iterator find(const KeyType& key);
-  const_iterator find(const KeyType& key) const;
+  AXOM_FORCE_INLINE iterator find(const KeyType& key);
+  AXOM_FORCE_INLINE const_iterator find(const KeyType& key) const;
+  /// @}
+
+  /*!
+   * \brief Try to find an entry with a given key and a precomputed hash.
+   *
+   * \param [in] key the key to search for
+   * \param [in] hash the precomputed hash for \a key
+   *
+   * \return An iterator pointing to the corresponding key-value pair, or end()
+   *  if the key wasn't found.
+   *
+   * \pre hash must be equivalent to hasher{}(key) for this FlatMap's Hash policy.
+   *  Supplying a hash computed for a different key or Hash policy can miss an existing key
+   */
+  /// @{
+  AXOM_FORCE_INLINE iterator find_with_hash(const KeyType& key, hash_result_type hash);
+  AXOM_FORCE_INLINE const_iterator find_with_hash(const KeyType& key, hash_result_type hash) const;
   /// @}
 
   /*!
@@ -332,7 +351,6 @@ public:
    *
    * \pre ValueType is default-constructible
    */
-  /// @{
   ValueType& operator[](const KeyType& key)
   {
     static_assert(std::is_default_constructible<ValueType>::value,
@@ -340,14 +358,6 @@ public:
                   "default-constructible.");
     return this->try_emplace(key).first->second;
   }
-  const ValueType& operator[](const KeyType& key) const
-  {
-    static_assert(std::is_default_constructible<ValueType>::value,
-                  "Cannot use axom::FlatMap::operator[] when value type is not "
-                  "default-constructible.");
-    return this->try_emplace(key).first->second;
-  }
-  /// @}
 
   /*!
    * \brief Return the number of entries matching a given key.
@@ -840,7 +850,13 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType num_elems,
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 {
-  auto hash = Hash {}(key);
+  return find_with_hash(key, Hash {}(key));
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+auto FlatMap<KeyType, ValueType, Hash>::find_with_hash(const KeyType& key, hash_result_type hash)
+  -> iterator
+{
   iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)
@@ -857,7 +873,13 @@ auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
 {
-  auto hash = Hash {}(key);
+  return find_with_hash(key, Hash {}(key));
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+auto FlatMap<KeyType, ValueType, Hash>::find_with_hash(const KeyType& key, hash_result_type hash) const
+  -> const_iterator
+{
   const_iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)
@@ -888,22 +910,37 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
 {
   auto hash = Hash {}(key);
 
-  // If the key already exists, return the existing iterator.
-  iterator existing_elem = this->find(key);
+  // Single fused probe: visit key matches and locate the insertion slot in a single pass
+  iterator existing_elem = this->end();
+  IndexType newBucket =
+    this->probeEmplaceIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
+      if(this->m_buckets[bucket_index].get().first == key)
+      {
+        existing_elem = iterator(this, bucket_index);
+        return false;
+      }
+      return true;
+    });
+
   if(existing_elem != this->end())
   {
     return {existing_elem, false};
   }
   // Resize to double the number of bucket groups if insertion would put us
   // above the maximum load factor.
-  if(((m_loadCount + 1) / (double)bucket_count()) >= MAX_LOAD_FACTOR)
+  // MAX_LOAD_FACTOR is exactly 7/8, so (count + 1) / buckets >= 7/8 is
+  // equivalent to 8 * (count + 1) >= 7 * buckets in exact integer arithmetic.
+  // This avoids a floating-point division on every insertion.
+  static_assert(MAX_LOAD_FACTOR == 0.875,
+                "Integer load-factor check below assumes MAX_LOAD_FACTOR == 7/8.");
+  if(8 * (static_cast<std::uint64_t>(m_loadCount) + 1) >=
+     7 * static_cast<std::uint64_t>(bucket_count()))
   {
     IndexType newNumGroups = m_metadata.size() * 2;
     rehash(newNumGroups * BucketsPerGroup - 1);
+    // The table was rebuilt, so the slot is stale. If we got here, the key is missing
+    newBucket = this->probeEmptyIndex(m_numGroups2, m_metadata, hash);
   }
-
-  // Get an empty index to place the element into.
-  IndexType newBucket = this->probeEmptyIndex(m_numGroups2, m_metadata, hash);
 
   // Add a hash to the corresponding bucket slot.
   this->setBucketHash(m_metadata, newBucket, hash);
@@ -954,5 +991,3 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
 }  // namespace axom
 
 #include "FlatMapUtil.hpp"
-
-#endif  // Axom_Core_FlatMap_HPP

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAY_HPP_
-#define AXOM_ARRAY_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/MDMapping.hpp"
@@ -135,6 +134,11 @@ struct DefaultStoragePolicy
  *  Specifically, we do not require axom::Array to initialize/construct
  *  its memory at allocation time and we use axom's memory_management
  *  and allocator ID abstractions rather than std::allocator.
+ *
+ *  Move semantics follow standard container conventions: moved-from Arrays are
+ *  left in a valid-but-unspecified state and may be safely reused
+ *  (e.g. assigned to, cleared, or appended to). 
+  * The allocator id of a moved-from Array remains valid.
  *
  *  Array always retains exclusive ownership of its data and is responsible for
  *  freeing its memory.
@@ -293,6 +297,8 @@ public:
 
   /*! 
    * \brief Move constructor for an Array instance 
+   *
+   * \note The moved-from Array is left in a valid-but-unspecified state and may be reused.
    */
   Array(Array&& other) noexcept;
 
@@ -369,6 +375,8 @@ public:
 
   /*! 
    * \brief Move assignment operator for Array
+   *
+   * \note The moved-from Array is left in a valid-but-unspecified state and may be reused.
    */
   Array& operator=(Array&& other) noexcept
   {
@@ -390,7 +398,6 @@ public:
       other.m_num_elements = 0;
       other.m_capacity = 0;
       other.m_resize_ratio = DEFAULT_RESIZE_RATIO;
-      other.m_allocator_id = INVALID_ALLOCATOR_ID;
     }
 
     return *this;
@@ -983,17 +990,17 @@ protected:
   void initialize(IndexType num_elements, IndexType capacity, bool should_default_construct = true);
 
   /*!
-   * \brief Helper function for initializing an Array instance with an existing
-   *  range of elements.
+   * \brief Helper function for initializing an Array instance with an existing range of elements.
    *
    * \param [in] data pointer to the existing array of elements
    * \param [in] num_elements the number of elements in the existing array
+   * \param [in] src_stride the inter-element stride between elements of the existing array
    * \param [in] data_space the memory space in which data has been allocated
-   * \param [in] user_provided_allocator true if the Array's allocator ID was
-   *  provided by the user
+   * \param [in] user_provided_allocator true if the Array's allocator ID was provided by the user
    */
   void initialize_from_other(const T* data,
                              IndexType num_elements,
+                             IndexType src_stride,
                              MemorySpace data_space,
                              bool user_provided_allocator);
 
@@ -1202,7 +1209,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(std::initializer_list<T> elems, int a
   : m_allocator_id(allocator_id)
   , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  initialize_from_other(elems.begin(), elems.size(), MemorySpace::Dynamic, true);
+  initialize_from_other(elems.begin(), elems.size(), 1 /* stride */, MemorySpace::Dynamic, true);
 }
 
 //------------------------------------------------------------------------------
@@ -1262,7 +1269,6 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(Array&& other) noexcept
   other.m_num_elements = 0;
   other.m_capacity = 0;
   other.m_resize_ratio = DEFAULT_RESIZE_RATIO;
-  other.m_allocator_id = INVALID_ALLOCATOR_ID;
 }
 
 //------------------------------------------------------------------------------
@@ -1275,6 +1281,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayTyp
 {
   initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
                         static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
                         axom::detail::getAllocatorSpace(m_allocator_id),
                         false);
 }
@@ -1289,6 +1296,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherAr
 {
   initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
                         static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
                         axom::detail::getAllocatorSpace(m_allocator_id),
                         false);
 }
@@ -1306,6 +1314,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayTyp
 
   initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
                         static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
                         axom::detail::getAllocatorSpace(src_allocator),
                         true);
 }
@@ -1323,6 +1332,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherAr
 
   initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
                         static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
                         axom::detail::getAllocatorSpace(src_allocator),
                         true);
 }
@@ -1388,7 +1398,7 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::assign(InputIt first, InputIt l
   {
     tmp.push_back(*it);
   }
-  initialize_from_other(tmp.data(), tmp.size(), MemorySpace::Dynamic, true);
+  initialize_from_other(tmp.data(), tmp.size(), 1 /* stride */, MemorySpace::Dynamic, true);
 }
 
 //------------------------------------------------------------------------------
@@ -1715,6 +1725,7 @@ template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
   const T* other_data,
   IndexType num_elements,
+  IndexType src_stride,
   MemorySpace other_data_space,
   bool AXOM_DEBUG_PARAM(user_provided_allocator))
 {
@@ -1734,9 +1745,15 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
   m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
   this->setCapacity(num_elements);
-  // Use fill_range to ensure that copy constructors are invoked for each
-  // element.
-  m_arrayOps.fill_range(m_data, 0, num_elements, other_data, other_data_space);
+  // Use strided copy when necessary, otherwise use efficient contiguous copy
+  if(src_stride == 1)
+  {
+    m_arrayOps.fill_range(m_data, 0, num_elements, other_data, other_data_space);
+  }
+  else
+  {
+    m_arrayOps.fill_range_strided(m_data, 0, num_elements, other_data, src_stride, other_data_space);
+  }
   this->updateNumElements(num_elements);
 }
 
@@ -1873,5 +1890,3 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::dynamicRealloc(IndexType new_nu
 }
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAY_HPP_ */

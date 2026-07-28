@@ -4,13 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file SynchronizedStream.hpp
  *
  */
-
-#ifndef SYNCHRONIZEDSTREAM_HPP_
-#define SYNCHRONIZEDSTREAM_HPP_
 
 #include "axom/slic/core/LogStream.hpp"
 
@@ -204,5 +203,3 @@ private:
 
 } /* namespace slic */
 } /* namespace axom */
-
-#endif /* SYNCHRONIZEDSTREAM_HPP_ */

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_IA_IMPL_H_
-#define SLAM_IA_IMPL_H_
+#pragma once
 
 /*
  * \file IA_impl.hpp
@@ -14,13 +13,19 @@
  */
 
 #include "axom/core/Macros.hpp"
+#include "axom/core/StaticArray.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/ModularInt.hpp"
+#include "axom/slam/mesh_struct/detail/FacetPairingMap.hpp"
 
 #include "axom/fmt.hpp"
 
 #include <vector>
 #include <map>
+#include <array>
+#include <algorithm>
+#include <memory>
+#include <cstddef>
 
 namespace axom
 {
@@ -295,10 +300,11 @@ typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::vertexStar(Ind
     {
       // If nbr is valid, has not already been found and contains the vertex in question,
       // add it and enqueue to check neighbors.
-      if(element_set.isValidEntry(nbr)  //
-         && !is_subset(nbr, ret)        //
+      if(nbr != INVALID_ELEMENT_INDEX  //
+         && !is_subset(nbr, ret)       //
          && is_subset(vertex_idx, ev_rel[nbr]))
       {
+        SLIC_ASSERT(element_set.isValidEntry(nbr));
         ret.push_back(nbr);
         element_traverse_queue.push_back(nbr);
       }
@@ -386,8 +392,9 @@ void IAMesh<TDIM, SDIM, P>::removeElement(IndexType element_idx)
       for(auto nbr : ee_rel[element_idx])
       {
         // update to a valid neighbor that is incident in vertex_i
-        if(element_set.isValidEntry(nbr) && is_subset(vertex_i, ev_rel[nbr]))
+        if(nbr != INVALID_ELEMENT_INDEX && is_subset(vertex_i, ev_rel[nbr]))
         {
+          SLIC_ASSERT(element_set.isValidEntry(nbr));
           new_elem = nbr;
           break;
         }
@@ -402,8 +409,9 @@ void IAMesh<TDIM, SDIM, P>::removeElement(IndexType element_idx)
   //erase neighbor element's adjacency data pointing to deleted element
   for(auto nbr : ee_rel[element_idx])
   {
-    if(isValidElement(nbr))
+    if(nbr != INVALID_ELEMENT_INDEX)
     {
+      SLIC_ASSERT(isValidElement(nbr));
       auto nbr_ee = ee_rel[nbr];
       for(auto idx : nbr_ee.positions())
       {
@@ -579,118 +587,263 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(cons
 }
 
 template <int TDIM, int SDIM, typename P>
-void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
-                                                  const std::vector<IndexType>& new_elements)
+typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::reuseElement(IndexType element_idx,
+                                                                              const IndexType* vlist,
+                                                                              const IndexType* neighbors)
 {
-  using FaceLinkVerts = axom::StackArray<IndexType, TDIM - 1>;
+  SLIC_ASSERT_MSG(element_idx >= 0 && element_idx < element_set.size(),
+                  "Trying to reuse an out-of-range element index:" << element_idx);
+  SLIC_ASSERT_MSG(!element_set.isValidEntry(element_idx),
+                  "Trying to reuse an element slot that is already valid:" << element_idx);
 
-  // Struct used to associate a collection of vertex indices with a face of the mesh
-  struct FaceLinkMapping
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
   {
-    IndexType boundary_hash;  // unique identifier for collection of face link verts
-    IndexType element_idx;    // the element containing this face
-    IndexType face_idx;       // the index of the face w.r.t. the element
-  };
+    SLIC_ASSERT_MSG(vertex_set.isValidEntry(vlist[i]),
+                    "Trying to reuse an element with invalid vertex index:" << vlist[i]);
+  }
 
-  const IndexType totalVerts = elements().size();
-  std::vector<FaceLinkMapping> mapping;
-  mapping.reserve(TDIM * new_elements.size());
+  element_set[element_idx] = element_idx;
 
-  // helper lambda for determining if a face on one element (given by boundary verts nbr_verts)
-  // is shared with another element (given by boundary verts elem_verts)
-  auto isSharedFace =
-    [](const BoundarySubset& nbr_verts, IndexType face_idx, const BoundarySubset& elem_verts) {
-      // v_skip is not a vertex in this face
-      const auto v_skip = (face_idx == 0) ? VERTS_PER_ELEM - 1 : face_idx - 1;
-      for(int v_idx = 0; v_idx < VERTS_PER_ELEM; ++v_idx)
-      {
-        if(v_idx != v_skip &&                         // v_idx is a vertex in this face
-           !is_subset(nbr_verts[v_idx], elem_verts))  //and is not in other elem
-        {
-          return false;
-        }
-      }
-      return true;
-    };
-
-  for(auto el : new_elements)
+  auto bdry = ev_rel[element_idx];
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
   {
-    const auto bdry = ev_rel[el];
-    for(int face_i = 0; face_i < VERTS_PER_ELEM; ++face_i)
+    bdry[i] = vlist[i];
+  }
+
+  auto adj = ee_rel[element_idx];
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
+  {
+    adj[i] = neighbors[i];
+  }
+
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
+  {
+    const IndexType v = vlist[i];
+    IndexType& cbdry = coboundaryElement(v);
+    if(!element_set.isValidEntry(cbdry))
     {
-      // This face is either a boundary facet of the star...
-      const auto vert_i = (face_i == 0) ? VERTS_PER_ELEM - 1 : face_i - 1;
-      if(bdry[vert_i] == vertex_idx)
-      {
-        // figure out which face this is on the neighbor
-        // and update neighbor's adjacency to point to current element
-        const IndexType nbr = ee_rel[el][face_i];
-        if(element_set.isValidEntry(nbr))
-        {
-          const auto nbr_ev = ev_rel[nbr];
-          auto nbr_ee = ee_rel[nbr];
+      cbdry = element_idx;
+    }
+  }
 
-          for(auto face_j : nbr_ev.positions())
-          {
-            if(!element_set.isValidEntry(nbr_ee[face_j]) && isSharedFace(nbr_ev, face_j, bdry))
-            {
-              nbr_ee[face_j] = el;
-              break;
-            }
-          }
+  return element_idx;
+}
+
+/**
+ * \brief Create the link-face key for an incident face of a star element.
+ *
+ * An incident face contains the apex vertex; removing the apex leaves a face of its link:
+ *  - 2D (triangles): the single non-apex (link) vertex of the incident edge.
+ *  - 3D (tetrahedra): the two non-apex (link) vertices of the incident triangle,
+ *    i.e. the endpoints of the link edge (auto-sorted by LinkFace).
+ *
+ * \param element_idx Index of the star element
+ * \param face_idx Local face index (1..VERTS_PER_ELEM-1; local face 0 is the link
+ *  face opposite the apex and is not keyed here)
+ * \return The link-face key identifying this incident face
+ */
+template <int TDIM, int SDIM, typename P>
+typename detail::FacetPairingMap<TDIM, typename IAMesh<TDIM, SDIM, P>::IndexType>::KeyType
+IAMesh<TDIM, SDIM, P>::createFacetKey(IndexType element_idx, int face_idx) const
+{
+  using KeyType = typename detail::FacetPairingMap<TDIM, IndexType>::KeyType;
+
+  // Get element vertices using SLAM relation accessor
+  const auto element_vertices = ev_rel[element_idx];
+
+  if constexpr(TDIM == 2)
+  {
+    // 2D: key is the single non-apex (link) vertex of the incident edge
+    SLIC_ASSERT(face_idx == 1 || face_idx == 2);
+    return KeyType(face_idx == 1 ? element_vertices[1] : element_vertices[0]);
+  }
+  else
+  {
+    // 3D: key is the two non-apex (link) vertices of the incident triangle
+    SLIC_ASSERT(face_idx >= 1 && face_idx <= 3);
+    IndexType v0, v1;
+    switch(face_idx)
+    {
+    case 1:
+      v0 = element_vertices[1];
+      v1 = element_vertices[2];
+      break;
+    case 2:
+      v0 = element_vertices[2];
+      v1 = element_vertices[0];
+      break;
+    default:  // face 3
+      v0 = element_vertices[0];
+      v1 = element_vertices[1];
+      break;
+    }
+    return KeyType(v0, v1);  // Auto-sorted by LinkFace constructor
+  }
+}
+
+/**
+ * \brief Find which face of a neighbor element shares vertices with a given face.
+ *
+ * Uses SLAM's ModularInt for wraparound arithmetic and relation accessors
+ * to find which vertex is opposite to the shared face.
+ *
+ * \param neighbor_idx Index of the neighbor element
+ * \param current_element_idx Index of the current element
+ * \param current_face_idx Local face index on the current element
+ * \return Local face index on the neighbor element
+ */
+template <int TDIM, int SDIM, typename P>
+int IAMesh<TDIM, SDIM, P>::findNeighborFaceIndex(IndexType neighbor_idx,
+                                                 IndexType current_element_idx,
+                                                 int current_face_idx) const
+{
+  // Get vertices using SLAM relation accessors
+  const auto current_vertices = ev_rel[current_element_idx];
+  const auto neighbor_vertices = ev_rel[neighbor_idx];
+
+  // Use ModularInt for face indexing
+  ModularFacetIndex mod_face(current_face_idx);
+
+  if constexpr(TDIM == 2)
+  {
+    // In 2D, the shared edge has two vertices (all except the opposite vertex)
+    // Face i is opposite to vertex (i-1), so the shared vertices are at positions i and i+1
+    const IndexType v0 = current_vertices[mod_face];
+    const IndexType v1 = current_vertices[mod_face + 1];
+
+    // Find which vertex of the neighbor is NOT in the shared edge
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      if(neighbor_vertices[i] != v0 && neighbor_vertices[i] != v1)
+      {
+        // The face opposite to vertex i is (i+1) % VERTS_PER_ELEM
+        ModularVertexIndex mod_vert(i);
+        return mod_vert + 1;
+      }
+    }
+
+    SLIC_ASSERT_MSG(false, "Failed to find neighbor face in 2D");
+    return -1;
+  }
+  else
+  {
+    // In 3D, the shared face has three vertices (all except the opposite vertex)
+    // Face i is opposite to vertex (i-1), so shared vertices are at positions i, i+1, i+2
+    const IndexType v0 = current_vertices[mod_face];
+    const IndexType v1 = current_vertices[mod_face + 1];
+    const IndexType v2 = current_vertices[mod_face + 2];
+
+    // Find which vertex of the neighbor is NOT in the shared face
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      if(neighbor_vertices[i] != v0 && neighbor_vertices[i] != v1 && neighbor_vertices[i] != v2)
+      {
+        // The face opposite to vertex i is (i+1) % VERTS_PER_ELEM
+        ModularVertexIndex mod_vert(i);
+        return mod_vert + 1;
+      }
+    }
+
+    SLIC_ASSERT_MSG(false, "Failed to find neighbor face in 3D");
+    return -1;
+  }
+}
+
+//=================================================================================
+// fixVertexNeighborhood - pairs the interior faces of the star via FacetPairingMap
+//=================================================================================
+
+template <int TDIM, int SDIM, typename P>
+void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType apex,
+                                                  const std::vector<IndexType>& star_elements)
+{
+  using FacetMap = detail::FacetPairingMap<TDIM, IndexType>;
+  using LinkFaceKey = typename FacetMap::KeyType;
+  using StarSlot = typename FacetMap::DataType;
+
+  // Prepare the link-face pairing table for the expected number of incident faces
+  FacetMap facet_map;
+  facet_map.prepareForInsertions(star_elements.size());
+
+  // Statistics tracking (for validation)
+  int num_link_faces = 0;      // local face 0 of each element: the link face (opposite apex)
+  int num_incident_faces = 0;  // the TDIM faces of each element that contain apex
+
+  // Each star element has TDIM+1 faces.
+  // In the IA convention, local face i is opposite local vertex i-1 and `apex` is the last local vertex, so:
+  //  - local face 0 is opposite `apex`: it is this element's link face, and its
+  //    neighbor lies OUTSIDE the star, so we repair that one adjacency directly.
+  //  - the other TDIM faces contain `apex`: with `apex` removed each is a face of
+  //    the link, and we pair it against the other star element that shares it.
+  for(IndexType element_idx : star_elements)
+  {
+    // Get element vertices and adjacencies using SLAM relation accessors
+    const auto element_vertices = ev_rel[element_idx];
+    auto element_neighbors = ee_rel[element_idx];
+
+    for(int local_face_idx = 0; local_face_idx < VERTS_PER_ELEM; ++local_face_idx)
+    {
+      // Use ModularInt to find the vertex opposite to this face
+      ModularFacetIndex mod_face(local_face_idx);
+      const int vertex_position = mod_face - 1;
+
+      // The face opposite `apex` (local face 0) is the link face
+      if(element_vertices[vertex_position] == apex)
+      {
+        // LINK face of this star element (opposite apex).
+        // Its neighbor lies outside the star, so repair that single adjacency directly.
+        ++num_link_faces;
+
+        const IndexType neighbor = element_neighbors[local_face_idx];
+        if(neighbor != INVALID_ELEMENT_INDEX)
+        {
+          SLIC_ASSERT(element_set.isValidEntry(neighbor));
+
+          // Find which face of the neighbor shares these vertices
+          const int neighbor_face_idx = findNeighborFaceIndex(neighbor, element_idx, local_face_idx);
+
+          // Update or verify neighbor's adjacency using SLAM relation accessor
+          auto neighbor_adjacencies = ee_rel[neighbor];
+          SLIC_ASSERT(neighbor_adjacencies[neighbor_face_idx] == INVALID_ELEMENT_INDEX ||
+                      neighbor_adjacencies[neighbor_face_idx] == element_idx);
+          neighbor_adjacencies[neighbor_face_idx] = element_idx;
         }
       }
-      // ... or it is incident in the common vertex: vertex_idx
       else
       {
-        // Add all element-face associations to an array;
-        // we'll update the adjacencies outside this loop
-        FaceLinkVerts face_link_verts {};
-        for(int i = 0, idx = 0; i < TDIM; ++i)
-        {
-          if(i != vert_i &&          // i is a vertex in face_i
-             bdry[i] != vertex_idx)  // and not the common vertex
-          {
-            face_link_verts[idx++] = bdry[i];
-          }
-        }
+        // INCIDENT face (contains apex). Its key is the corresponding link face.
+        ++num_incident_faces;
 
-        FaceLinkMapping m;
-        if(TDIM == 2)
-        {
-          m.boundary_hash = face_link_verts[0];
-        }
-        else  // TDIM == 3
-        {
-          // compute unique identifier based on sorted face link vertices
-          m.boundary_hash = (face_link_verts[0] < face_link_verts[1])
-            ? face_link_verts[0] * totalVerts + face_link_verts[1]
-            : face_link_verts[1] * totalVerts + face_link_verts[0];
-        }
+        // Build the link-face key for matching
+        const LinkFaceKey link_face_key = createFacetKey(element_idx, local_face_idx);
 
-        m.element_idx = el;
-        m.face_idx = face_i;
-        mapping.emplace_back(m);
+        // Try to match the other star element sharing this link face
+        if(auto match = facet_map.findAndExtract(link_face_key))
+        {
+          // Second sighting: wire the two star elements adjacent across this link face
+          SLIC_ASSERT_MSG(match->element_idx != element_idx,
+                          "Each interior face of the star should be shared by two elements");
+
+          auto match_element_neighbors = ee_rel[match->element_idx];
+          match_element_neighbors[match->local_face] = element_idx;
+          element_neighbors[local_face_idx] = match->element_idx;
+        }
+        else
+        {
+          // First sighting: insert the star element/face that owns this link face
+          StarSlot parked_slot(element_idx, local_face_idx);
+          facet_map.insert(link_face_key, parked_slot);
+        }
       }
     }
   }
 
-  SLIC_ASSERT(mapping.size() == new_elements.size() * TDIM);
-
-  // Sort by face vertices
-  std::sort(mapping.begin(), mapping.end(), [](const FaceLinkMapping& lhs, const FaceLinkMapping& rhs) {
-    return lhs.boundary_hash < rhs.boundary_hash;
-  });
-
-  // Apply neighbor data from matching face pairs
-  const int SZ = mapping.size();
-  for(int idx = 1; idx < SZ; idx += 2)
-  {
-    const auto& left = mapping[idx - 1];
-    const auto& right = mapping[idx];
-    ee_rel.modify(left.element_idx, left.face_idx, right.element_idx);
-    ee_rel.modify(right.element_idx, right.face_idx, left.element_idx);
-  }
+  // Validate star topology
+  AXOM_UNUSED_VAR(num_incident_faces);
+  AXOM_UNUSED_VAR(num_link_faces);
+  SLIC_ASSERT(num_incident_faces == static_cast<int>(star_elements.size()) * TDIM);
+  SLIC_ASSERT_MSG(facet_map.allFacetsPaired(),
+                  "Every interior face of the star should be paired exactly twice");
 }
 
 // Remove all the invalid entries in the IA structure
@@ -699,84 +852,125 @@ void IAMesh<TDIM, SDIM, P>::compact()
 {
   constexpr IndexType INVALID_VERTEX = VertexSet::INVALID_ENTRY;
   constexpr IndexType INVALID_ELEMENT = ElementSet::INVALID_ENTRY;
+  const IndexType vertex_size = vertex_set.size();
+  const IndexType element_size = element_set.size();
+  const auto& vertex_data = vertex_set.data();
+  const auto& element_data = element_set.data();
+  auto& ev_data = ev_rel.data();
+  auto& ve_data = ve_rel.data();
+  auto& ee_data = ee_rel.data();
 
-  //Construct an array that maps original set indices to new compacted indices
-  IndexArray vertex_set_map(vertex_set.size(), INVALID_VERTEX);
-  IndexArray element_set_map(element_set.size(), INVALID_ELEMENT);
-
-  int v_count = 0;
-  for(auto v : vertex_set.positions())
+  bool has_invalid_vertices = false;
+  IndexType v_count = 0;
+  for(IndexType v = 0; v < vertex_size; ++v)
   {
-    if(vertex_set.isValidEntry(v))
+    has_invalid_vertices |= vertex_data[v] == INVALID_VERTEX;
+    v_count += (vertex_data[v] != INVALID_VERTEX) ? 1 : 0;
+  }
+
+  bool has_invalid_elements = false;
+  std::unique_ptr<IndexType[]> element_set_map(new IndexType[element_size]);
+  IndexType e_count = 0;
+  for(IndexType e = 0; e < element_size; ++e)
+  {
+    if(element_data[e] != INVALID_ELEMENT)
+    {
+      element_set_map[e] = e_count++;
+    }
+    else
+    {
+      has_invalid_elements = true;
+    }
+  }
+
+  if(!has_invalid_vertices && !has_invalid_elements)
+  {
+    return;
+  }
+
+  auto remapElement = [&](IndexType old_element) {
+    return (old_element >= 0 && old_element < element_size &&
+            element_data[old_element] != INVALID_ELEMENT)
+      ? element_set_map[old_element]
+      : INVALID_ELEMENT;
+  };
+
+  if(!has_invalid_vertices)
+  {
+    for(IndexType e = 0; e < element_size; ++e)
+    {
+      if(element_data[e] == INVALID_ELEMENT)
+      {
+        continue;
+      }
+
+      const IndexType new_e = element_set_map[e];
+      const IndexType old_base = e * VERTS_PER_ELEM;
+      const IndexType new_base = new_e * VERTS_PER_ELEM;
+      for(int i = 0; i < VERTS_PER_ELEM; ++i)
+      {
+        ev_data[new_base + i] = ev_data[old_base + i];
+        ee_data[new_base + i] = remapElement(ee_data[old_base + i]);
+      }
+    }
+
+    for(IndexType v = 0; v < vertex_size; ++v)
+    {
+      ve_data[v] = remapElement(ve_data[v]);
+    }
+
+    element_set.reset(e_count);
+    ev_rel.updateSizes();
+    ee_rel.updateSizes();
+    return;
+  }
+
+  std::unique_ptr<IndexType[]> vertex_set_map(new IndexType[vertex_size]);
+  v_count = 0;
+  for(IndexType v = 0; v < vertex_size; ++v)
+  {
+    if(vertex_data[v] != INVALID_VERTEX)
     {
       vertex_set_map[v] = v_count++;
     }
   }
 
-  int e_count = 0;
-  for(auto e : element_set.positions())
+  auto remapVertex = [&](IndexType old_vertex) {
+    return (old_vertex >= 0 && old_vertex < vertex_size && vertex_data[old_vertex] != INVALID_VERTEX)
+      ? vertex_set_map[old_vertex]
+      : INVALID_VERTEX;
+  };
+
+  for(IndexType e = 0; e < element_size; ++e)
   {
-    if(element_set.isValidEntry(e))
+    if(element_data[e] == INVALID_ELEMENT)
     {
-      element_set_map[e] = e_count++;
+      continue;
+    }
+
+    const IndexType new_e = element_set_map[e];
+    const IndexType old_base = e * VERTS_PER_ELEM;
+    const IndexType new_base = new_e * VERTS_PER_ELEM;
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      ev_data[new_base + i] = remapVertex(ev_data[old_base + i]);
+      ee_data[new_base + i] = remapElement(ee_data[old_base + i]);
     }
   }
 
-  //update the EV boundary relation
-  for(auto e : element_set.positions())
+  auto& coord_data = vcoord_map.data();
+  for(IndexType v = 0; v < vertex_size; ++v)
   {
-    const auto new_e = element_set_map[e];
-    if(new_e != INVALID_ELEMENT)
+    if(vertex_data[v] == INVALID_VERTEX)
     {
-      const auto ev_old = ev_rel[e];
-      auto ev_new = ev_rel[new_e];
-      for(auto i : ev_new.positions())
-      {
-        const auto old = ev_old[i];
-        ev_new[i] = (old != INVALID_VERTEX) ? vertex_set_map[old] : INVALID_VERTEX;
-      }
+      continue;
     }
+
+    const IndexType new_v = vertex_set_map[v];
+    ve_data[new_v] = remapElement(ve_data[v]);
+    coord_data[new_v] = coord_data[v];
   }
 
-  //update the VE coboundary relation
-  for(auto v : vertex_set.positions())
-  {
-    const auto new_v = vertex_set_map[v];
-    if(new_v != INVALID_VERTEX)
-    {
-      // cardinality of VE relation is 1
-      const auto old = ve_rel[v][0];
-      ve_rel[new_v][0] = (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
-    }
-  }
-
-  //update the EE adjacency relation
-  for(auto e : element_set.positions())
-  {
-    int new_e = element_set_map[e];
-    if(new_e != INVALID_ELEMENT)
-    {
-      const auto ee_old = ee_rel[e];
-      auto ee_new = ee_rel[new_e];
-      for(auto i : ee_new.positions())
-      {
-        const auto old = ee_old[i];
-        ee_new[i] = (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
-      }
-    }
-  }
-
-  //Update the coordinate positions map
-  for(auto v : vertex_set.positions())
-  {
-    int new_entry_index = vertex_set_map[v];
-    if(new_entry_index != INVALID_VERTEX)
-    {
-      vcoord_map[new_entry_index] = vcoord_map[v];
-    }
-  }
-
-  //update the sets
   vertex_set.reset(v_count);
   element_set.reset(e_count);
 
@@ -784,6 +978,22 @@ void IAMesh<TDIM, SDIM, P>::compact()
   ve_rel.updateSizes();
   ee_rel.updateSizes();
   vcoord_map.resize(v_count);
+}
+
+template <int TDIM, int SDIM, typename P>
+void IAMesh<TDIM, SDIM, P>::reserveVertices(IndexType vertex_capacity)
+{
+  vertex_set.reserve(vertex_capacity);
+  ve_rel.reserve(vertex_capacity);
+  vcoord_map.reserve(vertex_capacity);
+}
+
+template <int TDIM, int SDIM, typename P>
+void IAMesh<TDIM, SDIM, P>::reserveElements(IndexType element_capacity)
+{
+  element_set.reserve(element_capacity);
+  ev_rel.reserve(element_capacity);
+  ee_rel.reserve(element_capacity);
 }
 
 template <int TDIM, int SDIM, typename P>
@@ -894,7 +1104,182 @@ bool IAMesh<TDIM, SDIM, P>::isValid(bool verboseOutput) const
   return bValid;
 }
 
+template <int TDIM, int SDIM, typename P>
+typename IAMesh<TDIM, SDIM, P>::FacetKey IAMesh<TDIM, SDIM, P>::getSortedFacetKey(
+  IndexType element_idx,
+  IndexType facet_idx) const
+{
+  FacetKey key {};
+  if(!element_set.isValidEntry(element_idx))
+  {
+    return key;
+  }
+
+  SLIC_ASSERT_MSG(0 <= facet_idx && facet_idx < VERTS_PER_ELEM, "Face index is invalid.");
+
+  const auto verts = ev_rel[element_idx];
+  ModularVertexIndex mod_face(facet_idx);
+  for(int i = 0; i < VERTS_PER_ELEM - 1; ++i)
+  {
+    key[i] = verts[mod_face + i];
+  }
+
+  std::sort(key.begin(), key.end());
+  return key;
+}
+
+template <int TDIM, int SDIM, typename P>
+bool IAMesh<TDIM, SDIM, P>::isConforming(bool verboseOutput) const
+{
+  fmt::memory_buffer out;
+
+  bool valid = isValid(verboseOutput);
+
+  struct FacetBucket
+  {
+    axom::StaticArray<FacetRecord, 2> records;
+    int incident_count {0};
+  };
+
+  std::map<FacetKey, FacetBucket> facet_records;
+
+  auto facetKeyString = [](const FacetKey& facet_key) {
+    return fmt::format("[{}]", fmt::join(facet_key, ", "));
+  };
+
+  for(auto element_idx : elements().positions())
+  {
+    if(!isValidElement(element_idx))
+    {
+      continue;
+    }
+
+    // check that element vertices are all valid and non-repeating
+    const auto verts = boundaryVertices(element_idx);
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      if(!isValidVertex(verts[i]))
+      {
+        if(verboseOutput)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tElement {} references invalid vertex {}",
+                         element_idx,
+                         verts[i]);
+        }
+        valid = false;
+      }
+
+      for(int j = i + 1; j < VERTS_PER_ELEM; ++j)
+      {
+        if(verts[i] == verts[j])
+        {
+          if(verboseOutput)
+          {
+            fmt::format_to(std::back_inserter(out),
+                           "\n\tElement {} repeats vertex {}",
+                           element_idx,
+                           verts[i]);
+          }
+          valid = false;
+        }
+      }
+    }
+
+    // build facet-element co-boundary in facet_records
+    const auto neighbors = adjacentElements(element_idx);
+    for(int facet_idx = 0; facet_idx < VERTS_PER_ELEM; ++facet_idx)
+    {
+      const FacetKey facet_key = getSortedFacetKey(element_idx, facet_idx);
+      FacetBucket& bucket = facet_records[facet_key];
+      bucket.incident_count++;
+      if(bucket.incident_count <= 2)
+      {
+        bucket.records.push_back({element_idx, facet_idx, neighbors[facet_idx]});
+      }
+      else
+      {
+        if(verboseOutput && bucket.incident_count == 3)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tFacet {} is non-manifold (>=3 incident elements); "
+                         "first two are ({}:{}) and ({}:{})",
+                         facetKeyString(facet_key),
+                         bucket.records[0].element_idx,
+                         bucket.records[0].facet_idx,
+                         bucket.records[1].element_idx,
+                         bucket.records[1].facet_idx);
+        }
+        valid = false;
+      }
+    }
+  }
+
+  // check for valid facet-coboundary relation
+  // each facet is referenced once if it is on mesh boundary;
+  // and twice otherwise, with consistent adjacencies
+  for(const auto& [facet_key, bucket] : facet_records)
+  {
+    if(bucket.incident_count == 1)
+    {
+      const FacetRecord& record = bucket.records[0];
+      if(isValidElement(record.neighbor_idx))
+      {
+        if(verboseOutput)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tBoundary face {} on element {} facet {} points to neighbor {}",
+                         facetKeyString(facet_key),
+                         record.element_idx,
+                         record.facet_idx,
+                         record.neighbor_idx);
+        }
+        valid = false;
+      }
+    }
+    else if(bucket.incident_count == 2)
+    {
+      const FacetRecord& lhs = bucket.records[0];
+      const FacetRecord& rhs = bucket.records[1];
+      if(lhs.element_idx == rhs.element_idx || lhs.neighbor_idx != rhs.element_idx ||
+         rhs.neighbor_idx != lhs.element_idx)
+      {
+        if(verboseOutput)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tInterior facet {} has inconsistent adjacency: "
+                         "({}:{}) -> {}, ({}:{}) -> {}",
+                         facetKeyString(facet_key),
+                         lhs.element_idx,
+                         lhs.facet_idx,
+                         lhs.neighbor_idx,
+                         rhs.element_idx,
+                         rhs.facet_idx,
+                         rhs.neighbor_idx);
+        }
+        valid = false;
+      }
+    }
+    else
+    {
+      // bucket.incident_count > 2 was already reported, if requested
+    }
+  }
+
+  if(verboseOutput)
+  {
+    if(valid)
+    {
+      SLIC_INFO("IA mesh was conforming");
+    }
+    else
+    {
+      SLIC_INFO("IA mesh was not conforming.\n Summary: " << fmt::to_string(out));
+    }
+  }
+
+  return valid;
+}
+
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_IA_IMPL_H_

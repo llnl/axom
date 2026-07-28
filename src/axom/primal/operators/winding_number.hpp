@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number.hpp
  *
  * \brief Consists of methods to compute the generalized winding number (GWN) 
  *        for points with respect to various geometric objects.
  */
-
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_HPP_
 
 // Axom includes
 #include "axom/core.hpp"
@@ -936,5 +935,3 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_H_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_CURVESET_HPP
-#define SINA_CURVESET_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -187,5 +186,3 @@ void setDefaultCurveOrder(CurveSet::CurveOrder order);
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_CURVESET_HPP

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_SHAPESET_HPP_
-#define AXOM_KLEE_SHAPESET_HPP_
+#pragma once
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Shape.hpp"
@@ -55,6 +54,7 @@ public:
    *
    * \param dimensions the dimension for all the shapes
    * \note This function must be called before calling \a getDimensions()
+   * \throws std::logic_error if \a dimensions is not Dimensions::Two or Dimensions::Three
    */
   void setDimensions(Dimensions dimensions);
 
@@ -63,6 +63,7 @@ public:
    *
    * \pre Only valid after \a setDimensions() has been called on this instance
    * \sa setDimensions()
+   * \throws std::logic_error if dimensions have not been set
    */
   Dimensions getDimensions() const;
 
@@ -74,5 +75,3 @@ private:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_SHAPESET_HPP_

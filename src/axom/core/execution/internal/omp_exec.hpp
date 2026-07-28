@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_OMP_EXEC_HPP_
-#define AXOM_OMP_EXEC_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
@@ -82,5 +81,3 @@ struct execution_space<OMP_EXEC>
 };
 
 }  // namespace axom
-
-#endif  // AXOM_OMP_EXEC_HPP_

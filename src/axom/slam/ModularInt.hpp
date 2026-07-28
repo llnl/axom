@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file ModularInt.hpp
  *
@@ -14,11 +16,9 @@
  *
  */
 
-#ifndef SLAM_MODULAR_INT_H_
-#define SLAM_MODULAR_INT_H_
-
 #include "axom/slic/interface/slic.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
+#include "axom/core/Macros.hpp"
 
 namespace axom
 {
@@ -40,11 +40,11 @@ template <typename SizePolicy = policies::RuntimeSize<int>>
 class ModularInt : private SizePolicy
 {
 public:
-  ModularInt(int val = 0, int modulusVal = SizePolicy::DEFAULT_VALUE)
+  constexpr ModularInt(int val = 0, int modulusVal = SizePolicy::DEFAULT_VALUE)
     : SizePolicy(modulusVal)
     , m_val(val)
   {
-    SLIC_ASSERT(modulus() != 0);
+    AXOM_CONSTEXPR_ASSERT(modulus() != 0);
     normalize();
   }
 
@@ -53,13 +53,12 @@ public:
    *
    * \param mi other ModularInt
    */
-  ModularInt(const ModularInt& mi) : SizePolicy(mi), m_val(mi.m_val)
+  constexpr ModularInt(const ModularInt& mi) : SizePolicy(mi), m_val(mi.m_val)
   {
-    SLIC_ASSERT(modulus() != 0);
+    AXOM_CONSTEXPR_ASSERT(modulus() != 0);
 
-    // For efficiency, we are assuming that argument mi is consistent
-    // (and avoiding normalization). This assumption is tested in debug
-    // builds...
+    // For efficiency, we are assuming that argument mi is consistent and avoid normalization.
+    // This assumption is tested in debug builds...
     //normalize();
     verifyValue();
   }
@@ -69,10 +68,9 @@ public:
    *
    * \param mi other ModularInt
    * \return A reference to the constructed object
-   * \note This operator only modifies the value of the local instance.
-   * It does not modify the \a modulus()
+   * \note This operator only modifies the value of the local instance. It does not modify the \a modulus()
    */
-  ModularInt& operator=(const ModularInt& mi)
+  constexpr ModularInt& operator=(const ModularInt& mi)
   {
     if(&mi != this)
     {
@@ -85,9 +83,9 @@ public:
   /**
    * \brief Implicit cast of a ModularInt to an int
    */
-  operator int() const { return m_val; }
+  constexpr operator int() const { return m_val; }
 
-  int modulus() const { return SizePolicy::size(); }
+  constexpr int modulus() const { return SizePolicy::size(); }
 
   /// \name ModularInt arithmetic operations
   ///
@@ -97,14 +95,14 @@ public:
   /// @{
 
   /** Pre-increment operator */
-  ModularInt& operator++()
+  constexpr ModularInt& operator++()
   {
     add(1);
     return *this;
   }
 
   /** Post-increment operator */
-  const ModularInt operator++(int)
+  constexpr const ModularInt operator++(int)
   {
     ModularInt tmp(m_val, modulus());
     add(1);
@@ -112,14 +110,14 @@ public:
   }
 
   /** Pre-decrement operator */
-  ModularInt& operator--()
+  constexpr ModularInt& operator--()
   {
     subtract(1);
     return *this;
   }
 
   /** Post-decrement operator */
-  const ModularInt operator--(int)
+  constexpr const ModularInt operator--(int)
   {
     ModularInt tmp(m_val, modulus());
     subtract(1);
@@ -127,21 +125,21 @@ public:
   }
 
   /** \brief Addition assignment operator */
-  ModularInt& operator+=(int val)
+  constexpr ModularInt& operator+=(int val)
   {
     add(val);
     return *this;
   }
 
   /** \brief Subtraction assignment operator */
-  ModularInt& operator-=(int val)
+  constexpr ModularInt& operator-=(int val)
   {
     subtract(val);
     return *this;
   }
 
   /** \brief Multiplication assignment operator */
-  ModularInt& operator*=(int val)
+  constexpr ModularInt& operator*=(int val)
   {
     multiply(val);
     return *this;
@@ -151,8 +149,7 @@ public:
 
   /// \name ModularInt equality operations
   ///
-  /// \note Equality operations allow the operands to have
-  /// different \a SizePolicy types
+  /// \note Equality operations allow the operands to have different \a SizePolicy types
   /// @{
 
   /**
@@ -160,23 +157,21 @@ public:
    *
    * \param mi Other ModularInt
    * \note This function supports ModularInts with different SizePolicies
-   * \return True when both ModularInts have the same modulus()
-   * and the same value, false otherwise.
+   * \return True when both ModularInts have the same modulus() and the same value, false otherwise.
    */
   template <typename OtherSizePolicy>
-  bool operator==(const ModularInt<OtherSizePolicy>& mi) const
+  constexpr bool operator==(const ModularInt<OtherSizePolicy>& mi) const
   {
     return (this->modulus() == mi.modulus()) && (m_val == static_cast<int>(mi));
   }
 
   /**
    * \brief Inequality comparison operator
-   * \return True if the two ModularInts are not equal
-   * (as defined by operator==() )
+   * \return True if the two ModularInts are not equal (as defined by operator==() )
    * \sa operator==()
    */
   template <typename OtherSizePolicy>
-  bool operator!=(const ModularInt<OtherSizePolicy>& mi) const
+  constexpr bool operator!=(const ModularInt<OtherSizePolicy>& mi) const
   {
     return !operator==(mi);
   }
@@ -184,26 +179,24 @@ public:
   /// @}
 
 private:
-  void add(int val)
+  constexpr void add(int val)
   {
     m_val += val;
     normalize();
   }
-  void subtract(int val)
+  constexpr void subtract(int val)
   {
     m_val -= val;
     normalize();
   }
-  void multiply(int val)
+  constexpr void multiply(int val)
   {
     m_val *= val;
     normalize();
   }
 
-  /**
-   * Normalizes to invariant for ModularInt. Namely: 0 <= m_val < size()
-   */
-  void normalize()
+  /// Normalizes to invariant for ModularInt. Namely: 0 <= m_val < size()
+  constexpr void normalize()
   {
     const int sz = modulus();
 
@@ -228,8 +221,7 @@ private:
     }
 #else  // MODINT_MODLESS
 
-    // this version assumes that we are usually only adding
-    // small offsets to avoid the div
+    // this version assumes that we are usually only adding small offsets to avoid the div
     //            if(m_val >= 0)
     while(m_val >= sz) m_val -= sz;
     //            else
@@ -239,19 +231,14 @@ private:
     verifyValue();
   }
 
-  void verifyValue()
-  {
-    SLIC_ASSERT_MSG(
-      m_val >= 0 && m_val < modulus(),
-      "ModularInt: Value must be between 0 and " << modulus() << " but value was " << m_val << ".");
-  }
+  constexpr void verifyValue() { AXOM_CONSTEXPR_ASSERT(m_val >= 0 && m_val < modulus()); }
 
 private:
   int m_val;
 };
 
 template <typename SizePolicy>
-ModularInt<SizePolicy> operator+(const ModularInt<SizePolicy>& zn, const int n)
+constexpr ModularInt<SizePolicy> operator+(const ModularInt<SizePolicy>& zn, const int n)
 {
   ModularInt<SizePolicy> tmp(zn);
   tmp += n;
@@ -259,7 +246,7 @@ ModularInt<SizePolicy> operator+(const ModularInt<SizePolicy>& zn, const int n)
 }
 
 template <typename SizePolicy>
-ModularInt<SizePolicy> operator+(const int n, const ModularInt<SizePolicy>& zn)
+constexpr ModularInt<SizePolicy> operator+(const int n, const ModularInt<SizePolicy>& zn)
 {
   ModularInt<SizePolicy> tmp(zn);
   tmp += n;
@@ -267,7 +254,7 @@ ModularInt<SizePolicy> operator+(const int n, const ModularInt<SizePolicy>& zn)
 }
 
 template <typename SizePolicy>
-ModularInt<SizePolicy> operator-(const ModularInt<SizePolicy>& zn, const int n)
+constexpr ModularInt<SizePolicy> operator-(const ModularInt<SizePolicy>& zn, const int n)
 {
   ModularInt<SizePolicy> tmp(zn);
   tmp -= n;
@@ -275,7 +262,7 @@ ModularInt<SizePolicy> operator-(const ModularInt<SizePolicy>& zn, const int n)
 }
 
 template <typename SizePolicy>
-ModularInt<SizePolicy> operator-(const int n, const ModularInt<SizePolicy>& zn)
+constexpr ModularInt<SizePolicy> operator-(const int n, const ModularInt<SizePolicy>& zn)
 {
   ModularInt<SizePolicy> tmp(zn);
   tmp -= n;
@@ -283,7 +270,7 @@ ModularInt<SizePolicy> operator-(const int n, const ModularInt<SizePolicy>& zn)
 }
 
 template <typename SizePolicy>
-ModularInt<SizePolicy> operator*(const ModularInt<SizePolicy>& zn, const int n)
+constexpr ModularInt<SizePolicy> operator*(const ModularInt<SizePolicy>& zn, const int n)
 {
   ModularInt<SizePolicy> tmp(zn);
   tmp *= n;
@@ -291,7 +278,7 @@ ModularInt<SizePolicy> operator*(const ModularInt<SizePolicy>& zn, const int n)
 }
 
 template <typename SizePolicy>
-ModularInt<SizePolicy> operator*(const int n, const ModularInt<SizePolicy>& zn)
+constexpr ModularInt<SizePolicy> operator*(const int n, const ModularInt<SizePolicy>& zn)
 {
   ModularInt<SizePolicy> tmp(zn);
   tmp *= n;
@@ -300,5 +287,3 @@ ModularInt<SizePolicy> operator*(const int n, const ModularInt<SizePolicy>& zn)
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_MODULAR_INT_H_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_SHAPES_HPP_
-#define AXOM_BUMP_VIEWS_SHAPES_HPP_
+#pragma once
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
@@ -87,7 +86,7 @@ struct PointTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 1> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -136,7 +135,7 @@ struct LineTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 2> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -190,7 +189,7 @@ struct TriTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 3> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -245,7 +244,7 @@ struct QuadTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 4> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -1212,5 +1211,3 @@ AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

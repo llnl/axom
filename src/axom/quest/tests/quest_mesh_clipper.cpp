@@ -247,16 +247,14 @@ public:
       std::stringstream pol_sstr;
       pol_sstr << "Set runtime policy for intersection-based sampling method.";
       pol_sstr << "\nSet to 'seq' or 0 to use the sequential policy.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
 
       intersection_options->add_option("-p, --policy", policy, pol_sstr.str())

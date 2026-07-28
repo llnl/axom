@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *  \file SimpleLogger.hpp
  *
  *  \brief Header file containing definition of SimpleLogger class.
  *
  */
-
-#ifndef SLIC_SIMPLELOGGER_HPP_
-#define SLIC_SIMPLELOGGER_HPP_
 
 // Other axom headers
 #include "axom/config.hpp"
@@ -103,5 +102,3 @@ private:
 
 }  // namespace slic
 }  // namespace axom
-
-#endif  // SLIC_SIMPLELOGGER_HPP_

@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_CLIP_FIELD_FILTER_DEVICE_HPP_
-#define AXOM_MIR_CLIP_FIELD_FILTER_DEVICE_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/mir.hpp"
@@ -143,5 +143,3 @@ public:
 }  // end namespace clipping
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

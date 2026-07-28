@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Inlet.hpp
@@ -12,9 +14,6 @@
  *        for the Inlet component.
  *******************************************************************************
  */
-
-#ifndef INLET_INLET_HPP
-#define INLET_INLET_HPP
 
 #include <memory>
 #include <string>
@@ -364,6 +363,22 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Add an array of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the array
+   * \param [in] description Description of the array
+   *
+   * \return Reference to the created array
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantArray(const std::string& name,
+                                         const std::string& description = "")
+  {
+    return m_globalContainer.addVariantArray(name, description);
+  }
+
+  /*!
+   *****************************************************************************
    * \brief Add an array of user-defined type to the input file schema.
    *
    * \param [in] name Name of the array
@@ -375,6 +390,25 @@ public:
   Container& addStructArray(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addStructArray(name, description);
+  }
+
+  /*!
+   *****************************************************************************
+   * \brief Add an array of variant user-defined types to the input file schema.
+   *
+   * \param [in] name Name of the array
+   * \param [in] discriminator Name of the field selecting the alternative
+   * \param [in] description Description of the array
+   *
+   * \return Helper used to register struct alternatives
+   *****************************************************************************
+   */
+  template <typename Variant>
+  VariantStructCollection<Variant> addVariantStructArray(const std::string& name,
+                                                         const std::string& discriminator = "type",
+                                                         const std::string& description = "")
+  {
+    return m_globalContainer.addVariantStructArray<Variant>(name, discriminator, description);
   }
 
   /*!
@@ -462,6 +496,22 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Add a dictionary of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the dict
+   * \param [in] description Description of the dictionary
+   *
+   * \return Reference to the created dictionary
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantDictionary(const std::string& name,
+                                              const std::string& description = "")
+  {
+    return m_globalContainer.addVariantDictionary(name, description);
+  }
+
+  /*!
+   *****************************************************************************
    * \brief Add an dictionary of user-defined type to the input file schema.
    *
    * \param [in] name Name of the dictionary
@@ -473,6 +523,26 @@ public:
   Container& addStructDictionary(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addStructDictionary(name, description);
+  }
+
+  /*!
+   *****************************************************************************
+   * \brief Add a dictionary of variant user-defined types to the input file schema.
+   *
+   * \param [in] name Name of the dictionary
+   * \param [in] discriminator Name of the field selecting the alternative
+   * \param [in] description Description of the dictionary
+   *
+   * \return Helper used to register struct alternatives
+   *****************************************************************************
+   */
+  template <typename Variant>
+  VariantStructCollection<Variant> addVariantStructDictionary(
+    const std::string& name,
+    const std::string& discriminator = "type",
+    const std::string& description = "")
+  {
+    return m_globalContainer.addVariantStructDictionary<Variant>(name, discriminator, description);
   }
 
   /*!
@@ -496,5 +566,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

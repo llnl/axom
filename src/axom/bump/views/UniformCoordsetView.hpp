@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_UNIFORM_COORDSET_VIEW_HPP_
-#define AXOM_BUMP_UNIFORM_COORDSET_VIEW_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -139,5 +138,3 @@ public:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

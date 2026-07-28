@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *
  * \file Utilities.hpp
@@ -12,12 +14,10 @@
  *
  */
 
-#ifndef AXOM_UTILITIES_HPP_
-#define AXOM_UTILITIES_HPP_
-
 #include "axom/config.hpp"  // for compile-time definitions
 #include "axom/core/Types.hpp"
 #include "axom/core/Macros.hpp"  // for AXOM_STATIC_ASSERT
+#include "axom/core/utilities/Abort.hpp"
 
 #include <cassert>  // for assert()
 #include <cmath>    // for log2()
@@ -30,11 +30,6 @@ namespace axom
 {
 namespace utilities
 {
-/*!
- * \brief Gracefully aborts the application
- */
-void processAbort();
-
 /*!
  * \brief Returns the absolute value of x.
  * \accelerated
@@ -573,5 +568,3 @@ inline std::uint64_t hash_bytes(const std::uint8_t* data, std::uint32_t length)
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_UTILITIES_HPP_

@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_ELVIRA_ALGORITHM_HPP_
-#define AXOM_MIR_ELVIRA_ALGORITHM_HPP_
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -185,6 +185,7 @@ protected:
                   "The mesh and the material do not have the same number of zones.");
 
     // Copy the options to make sure they are in the right memory space.
+    const ELVIRAOptions opts(n_options);
     conduit::Node n_options_copy;
     utils::copy<ExecSpace>(n_options_copy, n_options, getAllocatorID());
     n_options_copy["topology"] = n_topo.name();
@@ -204,8 +205,11 @@ protected:
     zlb.setAllocatorID(getAllocatorID());
     zlb.execute(selectedZonesView, cleanZones, mixedZones);
     SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == selectedZonesView.size());
-    SLIC_INFO(
-      axom::fmt::format("cleanZones: {}, mixedZones: {}", cleanZones.size(), mixedZones.size()));
+    if(opts.verbose())
+    {
+      SLIC_INFO(
+        axom::fmt::format("cleanZones: {}, mixedZones: {}", cleanZones.size(), mixedZones.size()));
+    }
 
     if(cleanZones.size() > 0 && mixedZones.size() > 0)
     {
@@ -301,7 +305,7 @@ protected:
         utils::copy<ExecSpace>(n_newMatset, n_matset);
 
         // Add an originalElements array.
-        const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
+        const std::string originalElementsField(opts.originalElementsField());
         addOriginal(n_newFields[originalElementsField], n_newTopo.name(), "element", cleanZones);
       }
       else
@@ -533,6 +537,7 @@ protected:
     // Handle options.
     // When coordinates have float value, we can't necessarily get beyond a
     // certain tolerance so set the tolerance accordingly.
+    const ELVIRAOptions opts(n_options);
     constexpr double DEFAULT_TOLERANCE = std::is_same<CoordType, float>::value
       ? (axom::numeric_limits<float>::epsilon() * 4.f)
       : 1.e-10;
@@ -607,8 +612,11 @@ protected:
     const auto maxCuts = reduce_maxcuts.get();
     SLIC_ASSERT(numFragments > 0);
     SLIC_ASSERT(maxCuts > 0);
-    SLIC_INFO(
-      axom::fmt::format("ElviraAlgorithm: numFragments: {}, maxCuts: {}", numFragments, maxCuts));
+    if(opts.verbose())
+    {
+      SLIC_INFO(
+        axom::fmt::format("ElviraAlgorithm: numFragments: {}, maxCuts: {}", numFragments, maxCuts));
+    }
 
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     if(!axom::execution_space<ExecSpace>::onDevice())
@@ -1134,5 +1142,3 @@ private:
 
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

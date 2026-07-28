@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutOctreeStats.hpp
  *
  * \brief Defines helper class to generate statistics about an InOutOctree.
  */
-
-#ifndef AXOM_QUEST_INOUT_OCTREE_STATS__HPP_
-#define AXOM_QUEST_INOUT_OCTREE_STATS__HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -336,5 +335,3 @@ private:
 }  // namespace detail
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_OCTREE_STATS__HPP_

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Communicator.hpp
@@ -12,9 +14,6 @@
  * Communicator.
  *******************************************************************************
  */
-
-#ifndef COMMUNICATOR_HPP
-#define COMMUNICATOR_HPP
 
 #include <mpi.h>
 #include <vector>
@@ -165,5 +164,3 @@ public:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

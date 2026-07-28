@@ -1,0 +1,4 @@
+mounts:
+  paths:
+    - "ro:/collab/usr/gapps/axom/devtools"
+    - "ro:/usr/WS1/axom/libs"

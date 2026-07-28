@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_ELVIRA_ALGORITHM_DETAIL_HPP_
-#define AXOM_MIR_ELVIRA_ALGORITHM_DETAIL_HPP_
+
+#pragma once
 
 // Most includes happen in the ElviraAlgorithm.hpp header file that includes this file.
 
@@ -43,31 +43,13 @@ public:
    * \brief Get whether the plane equation fields should appear in the output.
    * \return True if plane equation fields should appear, false otherwise.
    */
-  bool plane() const { return flagValue("plane"); }
+  bool plane() const { return flagValue("plane", false); }
 
   /**
    * \brief Get whether the output should be a point mesh.
    * \return True if the output should be a point mesh, false otherwise.
    */
-  bool pointmesh() const { return flagValue("pointmesh"); }
-
-protected:
-  /**
-   * \brief Get whether the flag is set in the options.
-   *
-   * \param key The name of the key that contains the flag.
-   *
-   * \return True if key is present and set to non-zero, false otherwise.
-   */
-  bool flagValue(const std::string &key) const
-  {
-    bool retval = false;
-    if(options().has_path(key))
-    {
-      retval = options().fetch_existing(key).to_int() != 0;
-    }
-    return retval;
-  }
+  bool pointmesh() const { return flagValue("pointmesh", false); }
 };
 
 namespace detail
@@ -1105,5 +1087,3 @@ struct MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
 }  // end namespace detail
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

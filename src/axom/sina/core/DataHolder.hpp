@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_DATAHOLDER_HPP
-#define SINA_DATAHOLDER_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -201,5 +200,3 @@ private:
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_DATAHOLDER_HPP
