@@ -8,6 +8,7 @@
 #include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/fmt.hpp"
 
+#include <filesystem>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -85,6 +86,18 @@ std::string joinPath(const std::string& fileDir,
                            (sep_count == 2) ? sutil::removeSuffix(fileDir, separator) : fileDir,
                            !has_empties && sep_count == 0 ? separator : "",
                            fileName);
+}
+
+//-----------------------------------------------------------------------------
+std::string getFileExtension(const std::string& path)
+{
+#if defined(WIN32)
+  return std::filesystem::path(path).extension().string();
+#else
+  std::string native_path = path;
+  std::replace(native_path.begin(), native_path.end(), '\\', '/');
+  return std::filesystem::path(native_path).extension().string();
+#endif
 }
 
 //-----------------------------------------------------------------------------

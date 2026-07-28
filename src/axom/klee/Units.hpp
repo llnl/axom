@@ -31,6 +31,7 @@ namespace internal
  * \param unitsAsProxy The Inlet proxy from which to get the unit string.
  *
  * \return A LengthUnit containing the unit type.
+ * \throws KleeError if the unit string is invalid
  */
 LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy);
 

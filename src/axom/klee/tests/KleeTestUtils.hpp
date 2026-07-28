@@ -34,6 +34,7 @@ class MockOperator : public GeometryOperator
 {
 public:
   using GeometryOperator::GeometryOperator;
+  MOCK_METHOD(std::string, getName, (), (const));
   MOCK_METHOD(TransformableGeometryProperties, getEndProperties, (), (const));
   MOCK_METHOD(void, accept, (GeometryOperatorVisitor &), (const));
   TransformableGeometryProperties getBaseEndProperties() const

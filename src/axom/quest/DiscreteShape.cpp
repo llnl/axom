@@ -8,14 +8,13 @@
 #include "axom/quest/Discretize.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 #ifdef AXOM_USE_C2C
   #include "axom/quest/io/C2CReader.hpp"
 #endif
 
 #include <algorithm>
-#include <stdexcept>
 #include <utility>
 
 namespace axom
@@ -106,12 +105,13 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
   std::string shapePath =
     axom::utilities::filesystem::prefixRelativePath(m_shape.getGeometry().getPath(), m_prefixPath);
+  const std::string fileExtension = utilities::filesystem::getFileExtension(shapePath);
   SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
 
   // Initialize revolved volume.
   m_revolvedVolume = 0.;
 
-  if(utilities::string::endsWith(shapePath, ".stl"))
+  if(fileExtension == ".stl")
   {
     SLIC_ERROR_ROOT_IF(file_format != "stl",
                        axom::fmt::format(" '{}' format requires .stl file type", file_format));
@@ -131,7 +131,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     // Transform the coordinates of the linearized mesh.
     applyTransforms();
   }
-  else if(utilities::string::endsWith(shapePath, ".proe"))
+  else if(fileExtension == ".proe")
   {
     SLIC_ERROR_ROOT_IF(file_format != "proe",
                        axom::fmt::format(" '{}' format requires .proe file type", file_format));
@@ -217,7 +217,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   }
 #endif
 #ifdef AXOM_USE_MFEM
-  else if(utilities::string::endsWith(shapePath, ".mesh"))
+  else if(fileExtension == ".mesh")
   {
     SLIC_ERROR_ROOT_IF(file_format != "mfem",
                        axom::fmt::format(" '{}' format requires .mesh file extension", file_format));
@@ -621,17 +621,21 @@ void DiscreteShape::createRepresentationOfSOR()
 
 void DiscreteShape::applyTransforms()
 {
-  numerics::Matrix<double> transformation = getTransforms();
+  if(!m_shape.getGeometry().getGeometryOperator())
+  {
+    return;
+  }
 
-  // Apply transformation to coordinates of each vertex in mesh
+  const int spaceDim = m_meshRep->getDimension();
+  const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
+  double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
+  double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
+  double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
+
+  numerics::Matrix<double> transformation = getTransforms();
+  // Apply transformation to coordinates of each vertex in mesh.
   if(!transformation.isIdentity())
   {
-    const int spaceDim = m_meshRep->getDimension();
-    const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
-    double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
-    double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
-    double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
-
     double xformed[4];
     for(int i = 0; i < numSurfaceVertices; ++i)
     {

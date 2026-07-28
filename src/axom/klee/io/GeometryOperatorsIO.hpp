@@ -69,6 +69,7 @@ public:
    * @param startProperties properties of the geometry before the first operator
    * @param namedOperators a map of any named operators
    * @return the (possibly null) operator
+   * @throws KleeError if the operator data is invalid for the given properties
    */
   std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties &startProperties,
                                                  const NamedOperatorMap &namedOperators) const;
@@ -120,6 +121,8 @@ struct NamedOperatorMapData
    *
    * @param fileDimensions the dimensions that shapes should be in in this file.
    * @return the name of converted operators
+   * @throws KleeError if a named operator is invalid or its declared end units
+   *         do not match its actual end units
    */
   NamedOperatorMap makeNamedOperatorMap(Dimensions fileDimensions) const;
 
@@ -142,17 +145,32 @@ private:
 template <>
 struct FromInlet<axom::klee::internal::GeometryOperatorData>
 {
+  /**
+   * Convert an Inlet container to geometry operator data.
+   *
+   * @throws axom::klee::KleeError if nested operator data is invalid
+   */
   axom::klee::internal::GeometryOperatorData operator()(const axom::inlet::Container &base);
 };
 
 template <>
 struct FromInlet<axom::klee::internal::NamedOperatorData>
 {
+  /**
+   * Convert an Inlet container to named operator data.
+   *
+   * @throws axom::klee::KleeError if required unit fields are missing or invalid
+   */
   axom::klee::internal::NamedOperatorData operator()(const axom::inlet::Container &base);
 };
 
 template <>
 struct FromInlet<axom::klee::internal::NamedOperatorMapData>
 {
+  /**
+   * Convert an Inlet container to named operator map data.
+   *
+   * @throws axom::klee::KleeError if nested named operator data is invalid
+   */
   axom::klee::internal::NamedOperatorMapData operator()(const axom::inlet::Container &base);
 };
