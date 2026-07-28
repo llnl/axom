@@ -110,6 +110,7 @@ public:
    * Add the given operator to the end of the list of operators in this composite.
    *
    * \param op the operator to add
+   * \throws std::invalid_argument if \a op cannot start from this composite's current end properties
    */
   void addOperator(const OpPtr &op);
 
@@ -327,6 +328,12 @@ public:
 
   TransformableGeometryProperties getEndProperties() const override;
 
+  /**
+   * Convert this operator to its matrix representation.
+   *
+   * \return a 4x4 affine transformation matrix
+   * \throws std::invalid_argument if the start or end units are unspecified
+   */
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -334,6 +341,7 @@ public:
   /**
    * Get the conversion factor used to convert from the start units to the end units
    * \return the unit conversion factor
+   * \throws std::invalid_argument if the start or end units are unspecified
    */
   double getConversionFactor() const;
 

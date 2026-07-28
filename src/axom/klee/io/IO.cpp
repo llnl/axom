@@ -205,6 +205,7 @@ void defineKleeSchema(inlet::Inlet &document)
  * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the geometry description for the shape
+ * \throws KleeError if the converted geometry does not match the expected dimensions
  */
 Geometry convert(GeometryData const &data,
                  Dimensions fileDimensions,
@@ -254,6 +255,8 @@ Geometry convert(GeometryData const &data,
  * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
+ * \throws KleeError if the geometry data is invalid
+ * \throws std::logic_error if mutually exclusive material replacement lists are both populated
  */
 Shape convert(ShapeData const &data,
               Dimensions fileDimensions,
@@ -273,6 +276,8 @@ Shape convert(ShapeData const &data,
  * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
+ * \throws KleeError if any shape's geometry data is invalid
+ * \throws std::logic_error if mutually exclusive material replacement lists are both populated
  */
 std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
                            Dimensions const &fileDimensions,
@@ -294,6 +299,7 @@ std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
  * \param startDimensions the number of dimensions that operators should
  * start at unless otherwise specified
  * \return all named operators read from the document
+ * \throws KleeError if named operator conversion fails
  */
 internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions startDimensions)
 {
@@ -305,6 +311,13 @@ internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions
   return internal::NamedOperatorMap {};
 }
 
+/**
+ * Infer the Klee input format from a file path.
+ *
+ * \param filePath the input deck path
+ * \return the inferred input format
+ * \throws KleeError if the file extension is not a supported Klee input extension
+ */
 InputFormat inferInputFormat(const std::string &filePath)
 {
   auto extension = utilities::filesystem::getFileExtension(filePath);
@@ -329,6 +342,13 @@ InputFormat inferInputFormat(const std::string &filePath)
                        extension)});
 }
 
+/**
+ * Create an Inlet reader for a Klee input format.
+ *
+ * \param format the input deck format to read
+ * \return a reader for \a format
+ * \throws KleeError if \a format is unsupported or Lua support was not enabled
+ */
 std::unique_ptr<inlet::Reader> createReader(InputFormat format)
 {
   switch(format)
@@ -362,6 +382,15 @@ const char *inputFormatName(InputFormat format)
   return "unknown";
 }
 
+/**
+ * Run a reader parse operation and convert parse failures to KleeError.
+ *
+ * \param parse callable that returns true on successful parse
+ * \param format the input deck format being parsed
+ * \param path the path to report in any generated error
+ * \param sourceDescription a human-readable description of the parsed source
+ * \throws KleeError if parsing fails or the reader throws while parsing
+ */
 template <typename Parse>
 void parseOrThrow(Parse &&parse,
                   InputFormat format,
@@ -404,6 +433,14 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
   }
 }
 
+/**
+ * Read a ShapeSet from a reader that has already parsed an input deck.
+ *
+ * \param reader the parsed Inlet reader
+ * \param rejectUnexpectedGlobals true if unexpected top-level Lua globals should be rejected
+ * \return the parsed and verified ShapeSet
+ * \throws KleeError if schema verification or semantic validation fails
+ */
 ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader, bool rejectUnexpectedGlobals)
 {
   sidre::DataStore dataStore;

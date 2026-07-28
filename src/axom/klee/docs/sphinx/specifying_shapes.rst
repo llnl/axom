@@ -137,6 +137,20 @@ Unsupported file extensions are rejected before parsing, and unexpected top-leve
 or syntax errors are reported during Inlet verification or Lua evaluation.
 Unknown nested fields follow the same Inlet schema strictness rules as YAML input.
 
+Error Reporting
+***************
+Klee validates user-provided YAML and Lua input decks while reading them.
+When validation fails, Klee reports the problem by throwing an exception,
+usually :code:`axom::klee::KleeError`.
+
+Using exceptions lets Klee return detailed feedback at the point where the invalid input is detected, 
+including the input path reported by Inlet.
+
+Callers that read input decks should catch :code:`axom::klee::KleeError` and display :code:`what()`
+or inspect :code:`getErrors()` when multiple verification errors are available.
+Klee may still throw standard exceptions such as :code:`std::logic_error` or :code:`std::invalid_argument`
+for programming errors or inconsistent manually constructed objects.
+
 Paths
 *****
 The paths specified in shapes are specified either as absolute paths

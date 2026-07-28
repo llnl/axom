@@ -17,6 +17,14 @@ namespace klee
 {
 namespace internal
 {
+/**
+ * Parse length units from a string.
+ *
+ * \param unitsAsString the unit string to parse
+ * \param path the input path to report on failure
+ * \return the parsed length unit
+ * \throws KleeError if the unit string is invalid
+ */
 LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path)
 {
   try

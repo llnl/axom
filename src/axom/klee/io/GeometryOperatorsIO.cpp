@@ -90,8 +90,7 @@ std::unordered_set<std::string> getChildNames(const inlet::Container &container)
  * Verify that a Container has the correct fields.
  *
  * While Inlet can do a lot of the verification, there are some situations
- * where we need some extra manual checks. For example, operators can look
- * like this:
+ * where we need some extra manual checks. For example, operators can look like this:
  *
  * \code{.yaml}
  *
@@ -114,6 +113,7 @@ std::unordered_set<std::string> getChildNames(const inlet::Container &container)
  * \param name the name of the container. This must be one of its fields.
  * \param additionalRequiredFields any additional required fields
  * \param optionalFields any additional optional fields
+ * \throws KleeError if a required field is missing or an unexpected field is present
  */
 void verifyObjectFields(const inlet::Container &containerToTest,
                         const std::string &name,
@@ -155,6 +155,7 @@ void verifyObjectFields(const inlet::Container &containerToTest,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the operator fields or vector dimensions are invalid
  */
 OpPtr parseTranslate(const inlet::Container &opContainer,
                      const TransformableGeometryProperties &startProperties)
@@ -170,6 +171,7 @@ OpPtr parseTranslate(const inlet::Container &opContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the rotation is invalid for the start dimensions or operator fields
  */
 OpPtr parseRotate(const inlet::Container &opContainer,
                   const TransformableGeometryProperties &startProperties)
@@ -238,6 +240,7 @@ OpPtr makeCheckedSlice(Point3D origin,
  * \param planeName the name of the plane ("x", "y", or "z")
  * \param defaultNormal the default normal vector
  * \return the point to use as the origin
+ * \throws KleeError if the specified origin is not on the slice plane
  */
 primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContainer,
                                             char const *planeName,
@@ -275,6 +278,7 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
  * \param sliceContainer the Container describing the slice
  * \param defaultNormal the default normal vector
  * \return the vector to use as the normal
+ * \throws KleeError if the specified normal is not parallel to the slice plane normal
  */
 primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContainer,
                                              const primal::Vector3D &defaultNormal)
@@ -303,6 +307,7 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
  * \param defaultUp the default up vector for the plane being parsed
  * \param startProperties the properties prior to this operator
  * \return the parsed plane
+ * \throws KleeError if the slice fields or values are invalid
  */
 OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
                              char const *planeName,
@@ -326,6 +331,7 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the slice fields or values are invalid
  */
 OpPtr parseSlice(const inlet::Container &opContainer,
                  const TransformableGeometryProperties &startProperties)
@@ -364,6 +370,7 @@ OpPtr parseSlice(const inlet::Container &opContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the scale fields or vector dimensions are invalid
  */
 OpPtr parseScale(const inlet::Container &opContainer,
                  const TransformableGeometryProperties &startProperties)
@@ -394,6 +401,7 @@ OpPtr parseScale(const inlet::Container &opContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the unit string or operator fields are invalid
  */
 OpPtr parseConvertUnits(const inlet::Container &opContainer,
                         const TransformableGeometryProperties &startProperties)
@@ -410,6 +418,7 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
  * \param startProperties the properties before the "ref" command
  * \param namedOperators a map of named operators from which to get referenced operators
  * \return the created operator
+ * \throws KleeError if the reference is missing or the operator fields are invalid
  */
 OpPtr parseRef(const inlet::Container &opContainer,
                const TransformableGeometryProperties &startProperties,
@@ -457,6 +466,7 @@ OpPtr parseRef(const inlet::Container &opContainer,
  * \param startProperties the properties before the operator
  * \param namedOperators a map of named operators from which to get referenced operators
  * \return the created operator
+ * \throws KleeError if the operator type or fields are invalid
  */
 OpPtr convertOperator(SingleOperatorData const &data,
                       TransformableGeometryProperties startProperties,

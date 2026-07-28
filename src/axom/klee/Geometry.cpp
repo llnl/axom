@@ -19,6 +19,13 @@ namespace klee
 {
 namespace
 {
+/**
+ * Require that an operator can be represented as an affine matrix.
+ *
+ * \param op the operator to check
+ * \param index the one-based operator index, or a negative value for an unnamed single operator
+ * \throws KleeError if \a op is not a MatrixOperator
+ */
 void requireMatrixOperator(const std::shared_ptr<const GeometryOperator>& op, int index)
 {
   if(std::dynamic_pointer_cast<const MatrixOperator>(op))

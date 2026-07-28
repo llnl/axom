@@ -27,7 +27,7 @@ enum class InputFormat
  *
  * \param stream the stream from which to read the ShapeSet
  * \note This overload reads YAML for backward compatibility.
- * \throws runtime_error if the input is invalid
+ * \throws KleeError if parsing, schema verification, or semantic validation fails
  */
 ShapeSet readShapeSet(std::istream &stream);
 
@@ -36,7 +36,8 @@ ShapeSet readShapeSet(std::istream &stream);
  *
  * \param stream the stream from which to read the ShapeSet
  * \param format the input deck format to use
- * \throws runtime_error if the input is invalid
+ * \throws KleeError if parsing, schema verification, or semantic validation fails,
+ *         or if the requested input format is unsupported by this build
  */
 ShapeSet readShapeSet(std::istream &stream, InputFormat format);
 
@@ -47,7 +48,8 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format);
  * \note The input format is inferred from the file extension. Files without
  * an extension are read as YAML for backward compatibility.
  * \return the ShapeSet read from the file
- * \throws runtime_error if the input is invalid
+ * \throws KleeError if the extension is unsupported or if parsing,
+ *         schema verification, or semantic validation fails
  */
 ShapeSet readShapeSet(const std::string &filePath);
 
@@ -57,7 +59,8 @@ ShapeSet readShapeSet(const std::string &filePath);
  * \param filePath the file from which to read the ShapeSet
  * \param format the input deck format to use, regardless of the file extension
  * \return the ShapeSet read from the file
- * \throws runtime_error if the input is invalid
+ * \throws KleeError if parsing, schema verification, or semantic validation fails,
+ *         or if the requested input format is unsupported by this build
  */
 ShapeSet readShapeSet(const std::string &filePath, InputFormat format);
 
