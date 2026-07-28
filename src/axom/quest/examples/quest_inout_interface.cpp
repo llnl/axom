@@ -203,8 +203,7 @@ int main(int argc, char** argv)
   }
 
   // Note: contour files are only supported when Axom is configured with C2C
-  using axom::utilities::string::endsWith;
-  const int dim = endsWith(fileName, ".contour") ? 2 : 3;
+  const int dim = axom::utilities::filesystem::getFileExtension(fileName) == ".contour" ? 2 : 3;
   rc = quest::inout_set_dimension(dim);
   if(rc != quest::QUEST_INOUT_SUCCESS)
   {

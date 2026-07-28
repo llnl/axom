@@ -40,10 +40,10 @@ void AffineMatrixVisitor::visit(const klee::CompositeOperator&)
   SLIC_WARNING_ROOT("CompositeOperator not supported for Shaper query");
   m_isValid = false;
 }
-void AffineMatrixVisitor::visit(const klee::SliceOperator&)
+void AffineMatrixVisitor::visit(const klee::SliceOperator& slice)
 {
-  SLIC_WARNING_ROOT("SliceOperator not yet supported for Shaper query");
-  m_isValid = false;
+  m_matrix = slice.toMatrix();
+  m_isValid = true;
 }
 
 }  // end namespace axom::klee
