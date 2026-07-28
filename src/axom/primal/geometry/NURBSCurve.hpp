@@ -312,7 +312,8 @@ public:
   NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots)
     : NURBSCurve(pts.view(),
                  axom::ArrayView<const T>(nullptr, 0),
-                 KnotVectorType(knots, knots.size() - pts.size() - 1))
+                 KnotVectorType(knots,
+                                static_cast<int>(knots.size() - pts.size() - 1)))
   { }
 
   /*!
@@ -327,7 +328,10 @@ public:
   NURBSCurve(const axom::Array<PointType>& pts,
              const axom::Array<T>& weights,
              const axom::Array<T>& knots)
-    : NURBSCurve(pts.view(), weights.view(), KnotVectorType(knots, knots.size() - pts.size() - 1))
+    : NURBSCurve(pts.view(),
+                 weights.view(),
+                 KnotVectorType(knots,
+                                static_cast<int>(knots.size() - pts.size() - 1)))
   { }
 
   /*!
@@ -393,7 +397,7 @@ public:
     SLIC_ASSERT(static_cast<T>(theta_1 - theta_0) <= static_cast<T>(2.0 * M_PI));
 
     T pi23 = 2.0 * M_PI / 3.0;
-    int n_segments = std::ceil((theta_1 - theta_0) / pi23);
+    const int n_segments = static_cast<int>(std::ceil((theta_1 - theta_0) / pi23));
 
     NURBSCurve arc_curve(1 + 2 * n_segments, 2);
     arc_curve.makeRational();
@@ -612,7 +616,6 @@ public:
    * 
    * \return A reference to the control point at index \a idx
    */
-  PointType& operator[](int idx) { return m_controlPoints[idx]; }
   PointType& operator[](axom::IndexType idx) { return m_controlPoints[idx]; }
 
   /*!
@@ -622,7 +625,6 @@ public:
    * 
    * \return A const reference to the control point at index \a idx
    */
-  const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
   const PointType& operator[](axom::IndexType idx) const { return m_controlPoints[idx]; }
 
   const PointType& getInitPoint() const { return m_controlPoints[0]; }
@@ -642,12 +644,6 @@ public:
    * 
    * \return The weight at index \a idx
    */
-  const T& getWeight(int idx) const
-  {
-    SLIC_ASSERT(isRational());
-    return m_weights[idx];
-  }
-
   const T& getWeight(axom::IndexType idx) const
   {
     SLIC_ASSERT(isRational());
@@ -662,14 +658,6 @@ public:
    * 
    * \pre Requires that the curve be rational, and the weight be rational
    */
-  void setWeight(int idx, T weight)
-  {
-    SLIC_ASSERT(isRational());
-    SLIC_ASSERT(weight > 0);
-
-    m_weights[idx] = weight;
-  }
-
   void setWeight(axom::IndexType idx, T weight)
   {
     SLIC_ASSERT(isRational());
@@ -723,7 +711,7 @@ public:
     {
       for(axom::IndexType p = 1; p < end_idx; ++p)
       {
-        if(const double t = p / static_cast<T>(end_idx);
+        if(const double t = static_cast<double>(p) / static_cast<double>(end_idx);
            squared_distance(m_controlPoints[p],
                             PointType::lerp(m_controlPoints[0], m_controlPoints[end_idx], t)) > tol)
         {
@@ -1375,11 +1363,11 @@ public:
 
     axom::Array<T> alphas(p - 1);
 
-    int m = n + p + 1;
-    int a = p;
-    int b = p + 1;
+    const axom::IndexType m = n + p + 1;
+    axom::IndexType a = p;
+    axom::IndexType b = p + 1;
 
-    int nb = 0;
+    axom::IndexType nb = 0;
 
     for(int i = 0; i <= p; ++i)
     {
@@ -1392,13 +1380,13 @@ public:
 
     while(b < m)
     {
-      int i = b;
+      const axom::IndexType i = b;
       while(b < m && m_knotvec[b] == m_knotvec[b + 1])
       {
         b++;
       }
 
-      int mult = b - i + 1;
+      const int mult = static_cast<int>(b - i + 1);
 
       if(mult < p)
       {
