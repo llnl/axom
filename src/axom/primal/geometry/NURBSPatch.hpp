@@ -838,10 +838,16 @@ public:
   /// \name Query/modify patch's geometry (control points, weights, bounding box, ...)
 
   /// Retrieves the control point at index \a (idx_p, idx_q)
-  PointType& operator()(int ui, int vi) { return m_controlPoints(ui, vi); }
+  PointType& operator()(axom::IndexType ui, axom::IndexType vi)
+  {
+    return m_controlPoints(ui, vi);
+  }
 
   /// Retrieves the vector of control points at index \a idx
-  const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
+  const PointType& operator()(axom::IndexType ui, axom::IndexType vi) const
+  {
+    return m_controlPoints(ui, vi);
+  }
 
   /// Returns a reference to the NURBS patch's control points
   CoordsMat& getControlPoints() { return m_controlPoints; }
@@ -856,7 +862,7 @@ public:
    * \param [in] vi The index of the weight on the second axis
    * \pre Requires that the surface be rational
    */
-  const T& getWeight(int ui, int vi) const
+  const T& getWeight(axom::IndexType ui, axom::IndexType vi) const
   {
     SLIC_ASSERT(isRational());
     return m_weights(ui, vi);
@@ -871,7 +877,7 @@ public:
    * \pre Requires that the surface be rational
    * \pre Requires that the weight be positive
    */
-  void setWeight(int ui, int vi, T weight)
+  void setWeight(axom::IndexType ui, axom::IndexType vi, T weight)
   {
     SLIC_ASSERT(isRational());
     SLIC_ASSERT(weight > 0);
@@ -2285,34 +2291,34 @@ public:
 
         for(int j = 0; j <= l; ++j)
         {
-          auto bin = axom::utilities::binomialCoefficient(l, j);
+          const auto bin_lj = axom::utilities::binomialCoefficient(l, j);
           for(int n = 0; n < NDIMS; ++n)
           {
-            v1[n] -= bin * Awders[0][j][NDIMS] * ders[k][l - j][n];
+            v1[n] -= bin_lj * Awders[0][j][NDIMS] * ders[k][l - j][n];
           }
         }
 
         for(int i = 1; i <= k; ++i)
         {
-          auto bin = axom::utilities::binomialCoefficient(k, i);
+          const auto bin_ki = axom::utilities::binomialCoefficient(k, i);
           for(int n = 0; n < NDIMS; ++n)
           {
-            v1[n] -= bin * Awders[i][0][NDIMS] * ders[k - i][l][n];
+            v1[n] -= bin_ki * Awders[i][0][NDIMS] * ders[k - i][l][n];
           }
 
           auto v2 = Point<T, NDIMS + 1>::zero();
           for(int j = 1; j <= l; ++j)
           {
-            auto bin = axom::utilities::binomialCoefficient(l, j);
+            const auto bin_lj = axom::utilities::binomialCoefficient(l, j);
             for(int n = 0; n < NDIMS; ++n)
             {
-              v2[n] += bin * Awders[i][j][NDIMS] * ders[k - i][l - j][n];
+              v2[n] += bin_lj * Awders[i][j][NDIMS] * ders[k - i][l - j][n];
             }
           }
 
           for(int n = 0; n < NDIMS; ++n)
           {
-            v1[n] -= bin * v2[n];
+            v1[n] -= bin_ki * v2[n];
           }
         }
 
