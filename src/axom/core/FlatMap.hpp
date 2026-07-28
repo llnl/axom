@@ -601,12 +601,18 @@ public:
   /*!
    * \brief Returns the current load factor of the FlatMap.
    */
-  double load_factor() const { return (static_cast<double>(m_loadCount) / bucket_count()); }
+  double load_factor() const
+  {
+    return static_cast<double>(m_loadCount) / static_cast<double>(bucket_count());
+  }
 
   /*!
    * \brief Returns the maximum load factor of the FlatMap.
    */
-  double max_load_factor() const { return MAX_LOAD_FACTOR; }
+  double max_load_factor() const
+  {
+    return static_cast<double>(MAX_LOAD_FACTOR_NUM) / MAX_LOAD_FACTOR_DEN;
+  }
 
   /*!
    * \brief Returns the allocator ID the FlatMap is allocated with.
@@ -673,7 +679,7 @@ public:
    */
   void reserve(IndexType count)
   {
-    if(count >= max_load_factor() * bucket_count())
+    if(exceedsMaxLoadFactor(count, bucket_count()))
     {
       rehash(count);
     }
@@ -740,7 +746,22 @@ private:
   axom::Array<PairStorage> m_buckets;
 
   // Boost flat_unordered_map uses a fixed load factor.
-  constexpr static double MAX_LOAD_FACTOR = 0.875;
+  constexpr static std::uint64_t MAX_LOAD_FACTOR_NUM {7};
+  constexpr static std::uint64_t MAX_LOAD_FACTOR_DEN {8};
+
+  static constexpr IndexType bucketCapacityForSize(IndexType size)
+  {
+    const auto requested_size = static_cast<std::uint64_t>(size);
+    return static_cast<IndexType>((MAX_LOAD_FACTOR_DEN * requested_size + MAX_LOAD_FACTOR_NUM - 1) /
+                                  MAX_LOAD_FACTOR_NUM);
+  }
+
+  static constexpr bool exceedsMaxLoadFactor(IndexType size, IndexType bucket_count)
+  {
+    return MAX_LOAD_FACTOR_DEN * static_cast<std::uint64_t>(size) >=
+      MAX_LOAD_FACTOR_NUM * static_cast<std::uint64_t>(bucket_count);
+  }
+
   std::uint64_t m_loadCount;
 };
 
@@ -817,7 +838,8 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   , m_loadCount(0)
 {
   IndexType minBuckets = MIN_NUM_BUCKETS;
-  bucket_count = axom::utilities::max<IndexType>(minBuckets, bucket_count / MAX_LOAD_FACTOR);
+  const IndexType loadFactorBuckets = bucketCapacityForSize(bucket_count);
+  bucket_count = axom::utilities::max<IndexType>(minBuckets, loadFactorBuckets);
   // Get the smallest power-of-two number of groups satisfying:
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
@@ -928,14 +950,8 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
     return {existing_elem, false};
   }
   // Resize to double the number of bucket groups if insertion would put us
-  // above the maximum load factor.
-  // MAX_LOAD_FACTOR is exactly 7/8, so (count + 1) / buckets >= 7/8 is
-  // equivalent to 8 * (count + 1) >= 7 * buckets in exact integer arithmetic.
-  // This avoids a floating-point division on every insertion.
-  static_assert(MAX_LOAD_FACTOR == 0.875,
-                "Integer load-factor check below assumes MAX_LOAD_FACTOR == 7/8.");
-  if(8 * (static_cast<std::uint64_t>(m_loadCount) + 1) >=
-     7 * static_cast<std::uint64_t>(bucket_count()))
+  // above the maximum load factor using exact integer arithmetic.
+  if(exceedsMaxLoadFactor(static_cast<IndexType>(m_loadCount + 1), bucket_count()))
   {
     IndexType newNumGroups = m_metadata.size() * 2;
     rehash(newNumGroups * BucketsPerGroup - 1);
