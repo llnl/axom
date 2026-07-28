@@ -176,7 +176,7 @@ public:
 
         const auto bdry = m_mesh.boundaryVertices(element_idx);
 
-        typename IAMeshType::ModularVertexIndex mod_idx(n_idx);
+        typename IAMeshType::ModularVertexIndex mod_idx(static_cast<int>(n_idx));
         BoundaryFacet facet;
         for(int i = 0; i < VERTS_PER_FACET; i++)
         {

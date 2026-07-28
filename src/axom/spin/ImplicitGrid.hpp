@@ -298,9 +298,9 @@ public:
 
           const IndexType word = elemIdx / BitsetType::BitsPerWord;
 
-          for(int j = lower; j <= upper; ++j)
+          for(IndexType j = lower; j <= upper; ++j)
           {
-            binData[idim][j].atomicSet(elemIdx);
+            binData[idim][j].atomicSet(static_cast<typename BitsetType::Index>(elemIdx));
             axom::atomicMin<ExecSpace>(&minBlkBins[idim][j], word);
             axom::atomicMax<ExecSpace>(&maxBlkBins[idim][j], word);
           }
