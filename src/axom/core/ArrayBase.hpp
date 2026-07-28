@@ -567,14 +567,14 @@ private:
    * Owning 1D arrays are always contiguous, so their stride is the compile-time constant 1.
    * Encoding that in the type (rather than storing a runtime int that is invariantly 1)
    * lets operator[] and flatIndex() compile down to data()[idx], with no runtime multiply on the
-   * address-generation path. ArrayViews support runtime spacing and continue to store their stride as an int.
+   * address-generation path. ArrayViews support runtime spacing and continue to store their stride.
    */
   struct UnitStrideTag
   {
-    AXOM_HOST_DEVICE constexpr UnitStrideTag(int = 1) { }
-    AXOM_HOST_DEVICE constexpr operator int() const { return 1; }
+    AXOM_HOST_DEVICE constexpr UnitStrideTag(IndexType = 1) { }
+    AXOM_HOST_DEVICE constexpr operator IndexType() const { return 1; }
   };
-  using StrideStorage = typename std::conditional<is_array_view, int, UnitStrideTag>::type;
+  using StrideStorage = typename std::conditional<is_array_view, IndexType, UnitStrideTag>::type;
 
 public:
   /* If ArrayType is an ArrayView, we use shallow-const semantics, akin to
@@ -588,19 +588,20 @@ public:
 
   AXOM_HOST_DEVICE ArrayBase(IndexType = 0) { }
 
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1) : m_stride(stride)
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, IndexType stride = 1)
+    : m_stride(stride)
   {
     assert(is_array_view || stride == 1);
   }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const StackArray<IndexType, 1>& stride)
-    : m_stride(static_cast<int>(stride[0]))
+    : m_stride(stride[0])
   {
     assert(is_array_view || stride[0] == 1);
   }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const MDMapping<1>& mapping)
-    : m_stride(static_cast<int>(mapping.strides()[0]))
+    : m_stride(mapping.strides()[0])
   {
     assert(is_array_view || mapping.strides()[0] == 1);
   }
@@ -616,14 +617,14 @@ public:
   template <typename OtherArrayType>
   AXOM_HOST_DEVICE ArrayBase(
     const ArrayBase<typename std::remove_const<T>::type, 1, OtherArrayType>& other)
-    : m_stride(static_cast<int>(other.minStride()))
+    : m_stride(other.minStride())
   { }
 
   /// \overload
   template <typename OtherArrayType>
   AXOM_HOST_DEVICE ArrayBase(
     const ArrayBase<const typename std::remove_const<T>::type, 1, OtherArrayType>& other)
-    : m_stride(static_cast<int>(other.minStride()))
+    : m_stride(other.minStride())
   { }
 
   /// \brief Returns the dimensions of the Array
