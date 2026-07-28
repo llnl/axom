@@ -145,14 +145,14 @@ TEST(core_flatmap_unit, float_keys_in_unit_interval)
 
   for(int i = 1; i <= NUM_ELEMS; i++)
   {
-    float key = i / static_cast<float>(NUM_ELEMS + 2);
+    const float key = static_cast<float>(i) / static_cast<float>(NUM_ELEMS + 2);
     test_map[key] = i;
   }
 
   EXPECT_EQ(test_map.size(), NUM_ELEMS);
   for(int i = 1; i <= NUM_ELEMS; i++)
   {
-    float key = i / static_cast<float>(NUM_ELEMS + 2);
+    const float key = static_cast<float>(i) / static_cast<float>(NUM_ELEMS + 2);
     auto it = test_map.find(key);
     ASSERT_NE(it, test_map.end());
     EXPECT_EQ(it->second, i);
@@ -317,7 +317,7 @@ TEST(core_flatmap_unit, fused_emplace_probe_recomputes_slot_after_rehash)
 
   const axom::IndexType init_buckets = test_map.bucket_count();
   const axom::IndexType size_no_rehash =
-    static_cast<axom::IndexType>(test_map.max_load_factor() * init_buckets);
+    static_cast<axom::IndexType>(test_map.max_load_factor() * static_cast<double>(init_buckets));
 
   // Fill right up to the no-rehash threshold.
   for(axom::IndexType i = 0; i < size_no_rehash; i++)

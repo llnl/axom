@@ -540,7 +540,7 @@ struct SequentialLookupPolicy : ProbePolicy
 
     // Return if the overflow bit is set on the bucket. That indicates whether
     // we are deleting an element in the middle of a probing sequence.
-    return metadata[group_index].getMaybeOverflowed(hash);
+    return metadata[group_index].getMaybeOverflowed(static_cast<std::uint8_t>(hash));
   }
 
   AXOM_HOST_DEVICE IndexType nextValidIndex(ArrayView<const GroupBucket> metadata,
