@@ -86,6 +86,31 @@ TEST(utils_fileUtilities, joinPath)
   }
 }
 
+TEST(utils_fileUtilities, getFileExtension)
+{
+  const std::pair<const char*, const char*> testCases[] = {
+    {"", ""},
+    {"file", ""},
+    {"file.txt", ".txt"},
+    {"file.tar.gz", ".gz"},
+    {"file.", "."},
+    {".gitignore", ""},
+    {".config.json", ".json"},
+    {".", ""},
+    {"..", ""},
+    {"directory/", ""},
+    {"directory.with.dot/file", ""},
+    {"directory.with.dot/file.yaml", ".yaml"},
+    {R"(directory.with.dot\file)", ""},
+    {R"(directory.with.dot\file.lua)", ".lua"},
+    {R"(C:\directory\FILE.YML)", ".YML"}};
+
+  for(const auto& [path, expected_ext] : testCases)
+  {
+    EXPECT_EQ(expected_ext, fs::getFileExtension(path)) << path;
+  }
+}
+
 TEST(utils_fileUtilities, pathExists)
 {
   std::cout << "Testing pathExists() function" << std::endl;

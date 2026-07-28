@@ -101,8 +101,8 @@ int numOpenMPThreads()
 
 std::string withoutExtension(const std::string& filename)
 {
-  const auto extPos = filename.find_last_of('.');
-  return extPos == std::string::npos ? filename : filename.substr(0, extPos);
+  const std::string extension = axom::utilities::filesystem::getFileExtension(filename);
+  return extension.empty() ? filename : filename.substr(0, filename.size() - extension.size());
 }
 
 }  // namespace
