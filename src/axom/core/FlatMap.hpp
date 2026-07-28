@@ -601,7 +601,7 @@ public:
   /*!
    * \brief Returns the current load factor of the FlatMap.
    */
-  double load_factor() const { return ((double)m_loadCount) / bucket_count(); }
+  double load_factor() const { return (static_cast<double>(m_loadCount) / bucket_count()); }
 
   /*!
    * \brief Returns the maximum load factor of the FlatMap.

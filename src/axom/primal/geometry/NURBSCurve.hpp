@@ -312,8 +312,7 @@ public:
   NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots)
     : NURBSCurve(pts.view(),
                  axom::ArrayView<const T>(nullptr, 0),
-                 KnotVectorType(knots,
-                                static_cast<int>(knots.size() - pts.size() - 1)))
+                 KnotVectorType(knots, static_cast<int>(knots.size() - pts.size() - 1)))
   { }
 
   /*!
@@ -330,8 +329,7 @@ public:
              const axom::Array<T>& knots)
     : NURBSCurve(pts.view(),
                  weights.view(),
-                 KnotVectorType(knots,
-                                static_cast<int>(knots.size() - pts.size() - 1)))
+                 KnotVectorType(knots, static_cast<int>(knots.size() - pts.size() - 1)))
   { }
 
   /*!

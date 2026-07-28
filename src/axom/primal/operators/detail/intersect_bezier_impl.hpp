@@ -357,7 +357,7 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
 
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
-    bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
+    foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
     if(foundIntersection && (!isHalfOpen || s0 < 1.0 - EPS))
     {
       rp.push_back(r0);
