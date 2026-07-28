@@ -111,7 +111,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
 
   const int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
 
-  const int ncells = mesh->getNumberOfCells();
+  const IndexType ncells = mesh->getNumberOfCells();
 
   axom::Array<BoxType> aabbs(ncells, ncells, allocatorId);
   const auto v_aabbs = aabbs.view();
@@ -121,10 +121,10 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
     mesh,
     AXOM_LAMBDA(IndexType cellIdx, axom::numerics::Matrix<double> & coords, const IndexType* nodeIds) {
       AXOM_UNUSED_VAR(nodeIds);
-      int numNodes = coords.getNumColumns();
+      const int numNodes = coords.getNumColumns();
       BoxType aabb;
 
-      for(IndexType inode = 0; inode < numNodes; ++inode)
+      for(int inode = 0; inode < numNodes; ++inode)
       {
         const double* node = coords.getColumn(inode);
         PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};
@@ -250,7 +250,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
 
   int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
 
-  const int ncells = mesh->getNumberOfCells();
+  const IndexType ncells = mesh->getNumberOfCells();
 
   axom::Array<TriangleType> triangles(ncells, ncells, allocatorId);
   const auto v_triangles = triangles.view();
@@ -262,9 +262,9 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
       AXOM_UNUSED_VAR(nodeIds);
       TriangleType tri;
 
-      int numNodes = coords.getNumColumns();
+      const int numNodes = coords.getNumColumns();
       SLIC_ASSERT(numNodes == 3);
-      for(IndexType inode = 0; inode < numNodes; ++inode)
+      for(int inode = 0; inode < numNodes; ++inode)
       {
         const double* node = coords.getColumn(inode);
         PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};

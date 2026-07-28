@@ -1029,7 +1029,7 @@ void append_node_structs(UnstructuredMesh<TOPO>* mesh, IndexType n_nodes)
 
   for(IndexType i = 0; i < n_nodes; ++i)
   {
-    for(IndexType dim = 0; dim < ndims; ++dim)
+    for(int dim = 0; dim < ndims; ++dim)
     {
       coords[ndims * i + dim] = getCoordValue(ndims, i + cur_n_nodes, dim);
     }
@@ -1061,7 +1061,7 @@ void append_node_arrays(UnstructuredMesh<TOPO>* mesh, IndexType n_nodes)
   FieldVariable<double>* fv = getFieldVar(mesh, NODE_CENTERED);
   double* coords = new double[ndims * n_nodes];
 
-  for(IndexType dim = 0; dim < ndims; ++dim)
+  for(int dim = 0; dim < ndims; ++dim)
   {
     for(IndexType i = 0; i < n_nodes; ++i)
     {
@@ -1613,7 +1613,7 @@ void insert_node_structs(UnstructuredMesh<TOPO>* mesh,
 
   for(IndexType i = 0; i < n_nodes; ++i)
   {
-    for(IndexType dim = 0; dim < ndims; ++dim)
+    for(int dim = 0; dim < ndims; ++dim)
     {
       coords[ndims * i + dim] = getCoordValue(ndims, final_pos + i, dim);
     }
@@ -1653,7 +1653,7 @@ void insert_node_arrays(UnstructuredMesh<TOPO>* mesh,
   FieldVariable<double>* fv = getFieldVar(mesh, NODE_CENTERED);
   double* coords = new double[ndims * n_nodes];
 
-  for(IndexType dim = 0; dim < ndims; ++dim)
+  for(int dim = 0; dim < ndims; ++dim)
   {
     for(IndexType i = 0; i < n_nodes; ++i)
     {
@@ -2171,7 +2171,9 @@ void resize_cells(UnstructuredMesh<TOPO>* mesh)
   /* Append one more, should trigger a resize. */
   append_cell_single(mesh, 1);
   n_cells++;
-  cell_capacity = axom::utilities::max<IndexType>(cell_capacity * resize_ratio + 0.5, n_cells);
+  cell_capacity = axom::utilities::max<IndexType>(
+    static_cast<IndexType>(cell_capacity * resize_ratio + 0.5),
+    n_cells);
   connec_capacity = mesh->getCellNodesCapacity();
   ASSERT_EQ(n_cells, mesh->getNumberOfCells());
   ASSERT_EQ(cell_capacity, mesh->getCellCapacity());
@@ -2188,7 +2190,9 @@ void resize_cells(UnstructuredMesh<TOPO>* mesh)
   mesh->setCellResizeRatio(resize_ratio);
   append_cell_multiple(mesh, 100);
   n_cells += 100;
-  cell_capacity = axom::utilities::max<IndexType>(cell_capacity * resize_ratio + 0.5, n_cells);
+  cell_capacity = axom::utilities::max<IndexType>(
+    static_cast<IndexType>(cell_capacity * resize_ratio + 0.5),
+    n_cells);
   ASSERT_EQ(n_cells, mesh->getNumberOfCells());
   ASSERT_EQ(cell_capacity, mesh->getCellCapacity());
 
@@ -2364,7 +2368,7 @@ bool check_cellFaceNodeType(UniformMesh* s_mesh,
     IndexType faceCell1, faceCell2;
     s_mesh->getFaceCellIDs(faceIDs[f], faceCell1, faceCell2);
     IndexType oppCell = (c == faceCell2 ? faceCell1 : faceCell2);
-    std::string key = make_face_key(nodeCount, faceNodeIDs, '.');
+    std::string key = make_face_key(static_cast<int>(nodeCount), faceNodeIDs, '.');
     s_info[key] = FaceInfo(key, nodeCount, faceType, oppCell);
   }
 
@@ -2378,7 +2382,7 @@ bool check_cellFaceNodeType(UniformMesh* s_mesh,
     d_mesh->getFaceCellIDs(faceIDs[f], faceCell1, faceCell2);
     IndexType oppCell = (c == faceCell2 ? faceCell1 : faceCell2);
 
-    std::string key = make_face_key(nodeCount, faceNodeIDs, '.');
+    std::string key = make_face_key(static_cast<int>(nodeCount), faceNodeIDs, '.');
     FaceInfo info(key, nodeCount, faceType, oppCell);
 
     // If this face exists in s_mesh, and matches,

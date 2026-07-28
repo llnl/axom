@@ -315,13 +315,14 @@ TEST(core_flatmap_unit, fused_emplace_probe_recomputes_slot_after_rehash)
   using MapType = axom::FlatMap<int, int, ConstantHash64>;
   MapType test_map;
 
-  const int init_buckets = test_map.bucket_count();
-  const int size_no_rehash = static_cast<int>(test_map.max_load_factor() * init_buckets);
+  const axom::IndexType init_buckets = test_map.bucket_count();
+  const axom::IndexType size_no_rehash =
+    static_cast<axom::IndexType>(test_map.max_load_factor() * init_buckets);
 
   // Fill right up to the no-rehash threshold.
-  for(int i = 0; i < size_no_rehash; i++)
+  for(axom::IndexType i = 0; i < size_no_rehash; i++)
   {
-    test_map.insert_or_assign(i, i);
+    test_map.insert_or_assign(static_cast<int>(i), static_cast<int>(i));
   }
   ASSERT_EQ(test_map.bucket_count(), init_buckets);
   ASSERT_EQ(test_map.size(), size_no_rehash);
@@ -332,7 +333,7 @@ TEST(core_flatmap_unit, fused_emplace_probe_recomputes_slot_after_rehash)
   ASSERT_EQ(test_map.bucket_count(), init_buckets);
   ASSERT_EQ(test_map.size(), size_no_rehash - 1);
 
-  const int buckets_before = test_map.bucket_count();
+  const axom::IndexType buckets_before = test_map.bucket_count();
   const int new_key = 100000;
   test_map.insert_or_assign(new_key, 42);
 

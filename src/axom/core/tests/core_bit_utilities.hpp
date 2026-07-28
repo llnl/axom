@@ -154,13 +154,13 @@ TEST(core_bit_utilities, countl_zero)
 
   for(int i = 0; i < BITS; ++i)
   {
-    std::int32_t val = ::shifted(i);
+    std::int32_t val = static_cast<std::int32_t>(::shifted(i));
     EXPECT_EQ(BITS - i - 1, axom::utilities::countl_zero(val));
 
     // Value doesn't change if you set bits to right of leading zero
     for(int j = 0; j < i; ++j)
     {
-      std::int32_t val2 = ::shifted(i) + ::shifted(j);
+      std::int32_t val2 = static_cast<std::int32_t>(::shifted(i) + ::shifted(j));
       EXPECT_EQ(axom::utilities::countl_zero(val), axom::utilities::countl_zero(val2));
     }
   }
