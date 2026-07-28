@@ -200,47 +200,46 @@ TEST(primal_nurbspatch, knotless_array_constructors)
                             9.309, 10.319, 11.329};
   // clang-format on
 
-  auto check_patch =
-    [=](const NURBSPatchType& patch,
-        int deg_u,
-        int deg_v,
-        int expected_npts_u,
-        int expected_npts_v,
-        bool expect_rational) {
-      EXPECT_EQ(deg_u, patch.getDegree_u());
-      EXPECT_EQ(deg_v, patch.getDegree_v());
+  auto check_patch = [=](const NURBSPatchType& patch,
+                         int deg_u,
+                         int deg_v,
+                         int expected_npts_u,
+                         int expected_npts_v,
+                         bool expect_rational) {
+    EXPECT_EQ(deg_u, patch.getDegree_u());
+    EXPECT_EQ(deg_v, patch.getDegree_v());
 
-      EXPECT_EQ(expected_npts_u, patch.getControlPoints().shape()[0]);
-      EXPECT_EQ(expected_npts_v, patch.getControlPoints().shape()[1]);
-      EXPECT_EQ(expected_npts_u * expected_npts_v, patch.getControlPoints().size());
+    EXPECT_EQ(expected_npts_u, patch.getControlPoints().shape()[0]);
+    EXPECT_EQ(expected_npts_v, patch.getControlPoints().shape()[1]);
+    EXPECT_EQ(expected_npts_u * expected_npts_v, patch.getControlPoints().size());
 
-      EXPECT_EQ(expected_npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
-      EXPECT_EQ(expected_npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
+    EXPECT_EQ(expected_npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
+    EXPECT_EQ(expected_npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
 
-      if(expect_rational)
+    if(expect_rational)
+    {
+      EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
+      EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
+      EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
+    }
+    else
+    {
+      EXPECT_TRUE(patch.getWeights().empty());
+    }
+
+    int idx = 0;
+    for(int u = 0; u < npts_u; ++u)
+    {
+      for(int v = 0; v < npts_v; ++v, ++idx)
       {
-        EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
-        EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
-        EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
-      }
-      else
-      {
-        EXPECT_TRUE(patch.getWeights().empty());
-      }
-
-      int idx = 0;
-      for(int u = 0; u < npts_u; ++u)
-      {
-        for(int v = 0; v < npts_v; ++v, ++idx)
+        EXPECT_EQ(patch(u, v), controlPoints[idx]);
+        if(expect_rational)
         {
-          EXPECT_EQ(patch(u, v), controlPoints[idx]);
-          if(expect_rational)
-          {
-            EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
-          }
+          EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
         }
       }
-    };
+    }
+  };
 
   // test C-array constructors
   {
@@ -326,47 +325,46 @@ TEST(primal_nurbspatch, knot_array_constructor)
   double knots_u[npts_u + degree_u + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
   double knots_v[npts_v + degree_v + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
 
-  auto check_patch =
-    [=](const NURBSPatchType& patch,
-        int deg_u,
-        int deg_v,
-        int expected_npts_u,
-        int expected_npts_v,
-        bool expect_rational) {
-      EXPECT_EQ(deg_u, patch.getDegree_u());
-      EXPECT_EQ(deg_v, patch.getDegree_v());
+  auto check_patch = [=](const NURBSPatchType& patch,
+                         int deg_u,
+                         int deg_v,
+                         int expected_npts_u,
+                         int expected_npts_v,
+                         bool expect_rational) {
+    EXPECT_EQ(deg_u, patch.getDegree_u());
+    EXPECT_EQ(deg_v, patch.getDegree_v());
 
-      EXPECT_EQ(expected_npts_u, patch.getControlPoints().shape()[0]);
-      EXPECT_EQ(expected_npts_v, patch.getControlPoints().shape()[1]);
-      EXPECT_EQ(expected_npts_u * expected_npts_v, patch.getControlPoints().size());
+    EXPECT_EQ(expected_npts_u, patch.getControlPoints().shape()[0]);
+    EXPECT_EQ(expected_npts_v, patch.getControlPoints().shape()[1]);
+    EXPECT_EQ(expected_npts_u * expected_npts_v, patch.getControlPoints().size());
 
-      EXPECT_EQ(expected_npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
-      EXPECT_EQ(expected_npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
+    EXPECT_EQ(expected_npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
+    EXPECT_EQ(expected_npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
 
-      if(expect_rational)
+    if(expect_rational)
+    {
+      EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
+      EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
+      EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
+    }
+    else
+    {
+      EXPECT_TRUE(patch.getWeights().empty());
+    }
+
+    int idx = 0;
+    for(int u = 0; u < npts_u; ++u)
+    {
+      for(int v = 0; v < npts_v; ++v, ++idx)
       {
-        EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
-        EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
-        EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
-      }
-      else
-      {
-        EXPECT_TRUE(patch.getWeights().empty());
-      }
-
-      int idx = 0;
-      for(int u = 0; u < npts_u; ++u)
-      {
-        for(int v = 0; v < npts_v; ++v, ++idx)
+        EXPECT_EQ(patch(u, v), controlPoints[idx]);
+        if(expect_rational)
         {
-          EXPECT_EQ(patch(u, v), controlPoints[idx]);
-          if(expect_rational)
-          {
-            EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
-          }
+          EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
         }
       }
-    };
+    }
+  };
 
   // test from C-style arrays
   {

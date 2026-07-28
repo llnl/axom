@@ -838,10 +838,7 @@ public:
   /// \name Query/modify patch's geometry (control points, weights, bounding box, ...)
 
   /// Retrieves the control point at index \a (idx_p, idx_q)
-  PointType& operator()(axom::IndexType ui, axom::IndexType vi)
-  {
-    return m_controlPoints(ui, vi);
-  }
+  PointType& operator()(axom::IndexType ui, axom::IndexType vi) { return m_controlPoints(ui, vi); }
 
   /// Retrieves the vector of control points at index \a idx
   const PointType& operator()(axom::IndexType ui, axom::IndexType vi) const
