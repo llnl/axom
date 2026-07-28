@@ -699,7 +699,7 @@ void check_emplace(axom::Array<T>& v)
   /* Set the existing data in v */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    v[i] = i - 5 * i + 7;
+    v[i] = static_cast<T>(i - 5 * i + 7);
   }
 
   /* Emplace a new element, should resize. */
@@ -742,7 +742,7 @@ void check_emplace(axom::Array<T>& v)
   T* data_ptr = v.data();
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    data_ptr[i] = i + n_insert_front;
+    data_ptr[i] = static_cast<T>(i + n_insert_front);
   }
 
   /* Emplace into the front of the Array. */
@@ -835,7 +835,7 @@ void check_external_view(axom::ArrayView<T>& v)
   /* Set the elements in the array. */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    v[i] = i;
+    v[i] = static_cast<T>(i);
   }
 
   /* Check the elements using the raw pointer. */
@@ -847,7 +847,7 @@ void check_external_view(axom::ArrayView<T>& v)
   /* Set the elements using the raw pointer. */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    data_ptr[i] = i * i;
+    data_ptr[i] = static_cast<T>(i * i);
   }
 
   /* Check the elements using the () operator. */

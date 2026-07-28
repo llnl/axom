@@ -38,13 +38,13 @@ public:
   template <typename T>
   KeyType getKey(T input)
   {
-    return (KeyType)input;
+    return static_cast<KeyType>(input);
   }
 
   template <typename T>
   ValueType getValue(T input)
   {
-    return (ValueType)input;
+    return static_cast<ValueType>(input);
   }
 
   ValueType getDefaultValue() { return ValueType(); }
@@ -114,6 +114,7 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_find)
   using MapType = typename TestFixture::MapType;
   using MapViewConstType = typename TestFixture::MapViewConstType;
   using ExecSpace = typename TestFixture::ExecSpace;
+  using KeyType = typename MapType::key_type;
 
   MapType test_map;
 
@@ -148,7 +149,8 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_find)
   axom::for_all<ExecSpace>(
     NUM_ELEMS + EXTRA_THREADS,
     AXOM_LAMBDA(axom::IndexType idx) {
-      auto it = test_map_view.find(idx);
+      const auto key = static_cast<KeyType>(idx);
+      auto it = test_map_view.find(key);
       if(it != test_map_view.end())
       {
         keys_out[idx] = it->first;
@@ -159,7 +161,7 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_find)
       {
         valid_out[idx] = false;
       }
-      values_out_bracket[idx] = test_map_view[idx];
+      values_out_bracket[idx] = test_map_view[key];
     });
 
   axom::Array<int> valid_host(valid_vec, this->getHostAllocatorID());
@@ -187,6 +189,8 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_modify)
   using MapType = typename TestFixture::MapType;
   using MapViewType = typename TestFixture::MapViewType;
   using ExecSpace = typename TestFixture::ExecSpace;
+  using KeyType = typename MapType::key_type;
+  using ValueType = typename MapType::mapped_type;
 
   MapType test_map;
 
@@ -211,10 +215,10 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_modify)
   axom::for_all<ExecSpace>(
     NUM_ELEMS + EXTRA_THREADS,
     AXOM_LAMBDA(axom::IndexType idx) {
-      auto it = test_map_view.find(idx);
+      auto it = test_map_view.find(static_cast<KeyType>(idx));
       if(it != test_map_view.end())
       {
-        it->second = idx * 11.0 + 7.0;
+        it->second = static_cast<ValueType>(idx * 11.0 + 7.0);
       }
     });
 
