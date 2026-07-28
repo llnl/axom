@@ -47,7 +47,9 @@ Lua Input Files
 ***************
 Klee can also read Lua input files when Axom is configured with :code:`AXOM_ENABLE_LUA=ON`
 and Sol support. Lua files use the same Klee schema as YAML files.
-The Lua is evaluated and then read into Inlet.
+Klee evaluates the Lua once, when the input file is read, and then passes the
+resulting values to Inlet. It does not re-evaluate the Lua during later loops,
+timesteps, or shape-processing operations.
 
 File-based reads use an explicit :code:`axom::klee::InputFormat` when provided.
 Otherwise they infer the format from the file extension 
