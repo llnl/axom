@@ -155,7 +155,7 @@ namespace detail
  * underlying PairStorage into the new table without materializing key-value
  * pairs through the batched insert path.
  */
-template <typename ExecSpace, typename Hash, typename PairStorage>
+template <typename ExecSpace, typename Hash, typename KeyValuePair, typename PairStorage>
 void deviceRehashBuckets(ArrayView<flat_map::GroupBucket> old_metadata,
                          ArrayView<PairStorage> old_buckets,
                          int new_num_groups2,
@@ -181,8 +181,9 @@ void deviceRehashBuckets(ArrayView<flat_map::GroupBucket> old_metadata,
         return;
       }
 
-      LookupPolicy lookup {};
       auto hash = Hash {}(old_buckets[bucket_idx].get().first);
+      // We use the k MSBs of the hash as the initial group probe point,
+      // where ngroups = 2^k.
       const auto init = LookupPolicy::initGroupProbe(hash, new_num_groups2);
       const auto group_mask = init.group_mask;
       auto curr_group = init.curr_group;
@@ -198,16 +199,21 @@ void deviceRehashBuckets(ArrayView<flat_map::GroupBucket> old_metadata,
           {
             new_metadata[curr_group].template setOverflow<true>(hash_8);
             group_locks[curr_group].unlock();
-            curr_group = (curr_group + lookup.getNext(iteration)) & group_mask;
+            curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) & group_mask;
             ++iteration;
           }
           else
           {
             new_metadata[curr_group].template setBucket<true>(empty_slot, hash_8);
             IndexType new_bucket = curr_group * GroupBucket::Size + empty_slot;
-            // Relocate raw storage directly so device rehash does not depend on
-            // pair construction or copy-oriented batched insertion code paths.
+          // Device code preserves the raw-storage relocation path; host code
+          // constructs into the destination bucket for non-trivial types.
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
             new_buckets[new_bucket] = old_buckets[bucket_idx];
+#else
+            new(&new_buckets[new_bucket].data) KeyValuePair(std::move(old_buckets[bucket_idx].get()));
+            old_buckets[bucket_idx].get().~KeyValuePair();
+#endif
             group_locks[curr_group].unlock();
             break;
           }
@@ -238,17 +244,18 @@ bool FlatMap<KeyType, ValueType, Hash>::tryDeviceAwareRehash(IndexType count)
 
     // Rebuild the table layout in device-accessible memory while preserving
     // the existing bucket payloads as raw storage.
-    detail::deviceRehashBuckets<ExecSpace, Hash>(m_metadata.view(),
-                                                 m_buckets.view(),
-                                                 new_map.m_numGroups2,
-                                                 new_map.m_metadata.view(),
-                                                 new_map.m_buckets.view());
+    detail::deviceRehashBuckets<ExecSpace, Hash, KeyValuePair>(m_metadata.view(),
+                                                               m_buckets.view(),
+                                                               new_map.m_numGroups2,
+                                                               new_map.m_metadata.view(),
+                                                               new_map.m_buckets.view());
 
     new_map.m_size = old_size;
     new_map.m_loadCount = old_size;
 
-    // The objects have been relocated into new_map. Prevent the old storage
-    // from destroying the relocated buckets when it is swapped out and freed.
+    // The occupied bucket payloads have been transferred into new_map. Prevent
+    // the old storage from destroying those buckets when it is swapped out and
+    // freed.
     m_size = 0;
     m_loadCount = 0;
 
