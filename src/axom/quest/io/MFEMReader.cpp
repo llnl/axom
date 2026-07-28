@@ -16,11 +16,8 @@
 #include <mfem.hpp>
 
 #include <map>
-#include <algorithm>
-#include <fstream>
-#include <memory>
-#include <sstream>
 #include <string>
+#include <memory>
 
 // MFEM does not support reading patch-based 1D NURBS meshes until after the v4.9
 // release. Prefer patch-based extraction only when the MFEM version is new
@@ -37,151 +34,6 @@ namespace quest
 {
 namespace internal
 {
-namespace
-{
-enum class PatchReadResult
-{
-  NotPatchFormat,
-  Success,
-  Failure
-};
-
-// MFEM 4.9.1 patch-format 1D NURBS reconstruction is intermittently corrupted
-// in CUDA builds before Axom sees the patch data, so for actual "patches"
-// files we re-read the patch blocks with MFEM's own stream parser instead.
-PatchReadResult read_nurbs_patches_1d(const std::string &fileName,
-                                      const mfem::Mesh &mesh,
-                                      std::map<int, axom::Array<primal::NURBSCurve<double, 2>>> &curvemap)
-{
-  using ControlPoint = primal::Point<double, 2>;
-  auto is_rational = [](const axom::Array<double> &weights) -> bool {
-    if(weights.empty())
-    {
-      return false;
-    }
-
-    const double first = weights[0];
-    for(int i = 1; i < weights.size(); ++i)
-    {
-      if(weights[i] != first)
-      {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  std::ifstream input(fileName);
-  if(!input)
-  {
-    SLIC_WARNING(axom::fmt::format("Cannot open the provided MFEM mesh file '{}'", fileName));
-    return PatchReadResult::Failure;
-  }
-
-  // MFEM's NURBSPatch stream constructor does not skip inline/comment-only
-  // lines inside a patch block. Strip comments once up front, then let MFEM
-  // parse the cleaned patch payload.
-  std::ostringstream cleaned;
-  std::string line;
-  while(std::getline(input, line))
-  {
-    const auto comment_pos = line.find('#');
-    if(comment_pos != std::string::npos)
-    {
-      line.erase(comment_pos);
-    }
-    cleaned << line << '\n';
-  }
-
-  std::istringstream sanitized_input(cleaned.str());
-  std::string ident;
-  bool found_patches = false;
-  while(sanitized_input)
-  {
-    if(!(sanitized_input >> std::ws >> ident))
-    {
-      break;
-    }
-    if(ident == "patches")
-    {
-      found_patches = true;
-      break;
-    }
-  }
-
-  if(!found_patches)
-  {
-    return PatchReadResult::NotPatchFormat;
-  }
-
-  const auto *nurbsExt = mesh.NURBSext;
-  if(nurbsExt == nullptr)
-  {
-    SLIC_WARNING("MFEM mesh is missing its NURBS extension");
-    return PatchReadResult::Failure;
-  }
-
-  const int num_patches = nurbsExt->GetNP();
-  for(int patchId = 0; patchId < num_patches; ++patchId)
-  {
-    // Keep patch attributes/topology from the loaded MFEM mesh, but source the
-    // patch control net from the sanitized file stream to avoid the corrupted
-    // in-memory CUDA reconstruction path.
-    const int attribute = mesh.GetPatchAttribute(patchId);
-    mfem::NURBSPatch patch(sanitized_input);
-    if(patch.GetNKV() != 1 || patch.GetNC() != 3)
-    {
-      SLIC_WARNING(axom::fmt::format(
-        "MFEM patch {} has unsupported dimensions for a 1D curve in 2D space (nkv={}, nc={}).",
-        patchId,
-        patch.GetNKV(),
-        patch.GetNC()));
-      return PatchReadResult::Failure;
-    }
-
-    mfem::KnotVector &kv0 = *patch.GetKV(0);
-    const int ncp = kv0.GetNCP();
-    axom::Array<ControlPoint> cp(0, ncp);
-    axom::Array<double> weights(0, ncp);
-    for(int i = 0; i < ncp; ++i)
-    {
-      const double wt = patch(i, 2);
-      if(wt <= 0.0)
-      {
-        SLIC_WARNING(
-          axom::fmt::format("MFEM patch {} has non-positive weight {} at control point {}.",
-                            patchId,
-                            wt,
-                            i));
-        return PatchReadResult::Failure;
-      }
-
-      cp.push_back({patch(i, 0) / wt, patch(i, 1) / wt});
-      weights.push_back(wt);
-    }
-
-    const int degree = kv0.Size() - ncp - 1;
-    if(degree < 0)
-    {
-      SLIC_WARNING(axom::fmt::format(
-        "MFEM patch {} has inconsistent NURBS data: {} knots and {} control points.",
-        patchId,
-        kv0.Size(),
-        ncp));
-      return PatchReadResult::Failure;
-    }
-
-    axom::ArrayView<const double> knots_view(&kv0[0], kv0.Size());
-    const primal::KnotVector<double> kv(knots_view, degree);
-
-    is_rational(weights) ? curvemap[attribute].push_back({cp, weights, kv})
-                         : curvemap[attribute].push_back({cp, kv});
-  }
-
-  return PatchReadResult::Success;
-}
-}  // namespace
-
 /*!
  * \brief Read the MFEM file and build the desired type of geometry from it using a supplied function.
  *        The MFEM files must contain only 1D curves in 2D space.
@@ -245,6 +97,56 @@ int read_mfem(const std::string &fileName,
     return cp;
   };
 
+#if MFEM_VERSION >= AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
+  // lambda to extract the weights for curve idx from the mfem mesh
+  // Patch-based NURBS meshes can have multiple elements (knot spans) per patch.
+  // For robust extraction, build control points/weights from patch DOFs (not element DOFs).
+  auto get_patch_controlpoints = [nodes, fes, &mesh](int patchId) -> axom::Array<ControlPoint> {
+    mfem::Array<int> dofs;
+    mesh->NURBSext->GetPatchDofs(patchId, dofs);
+    if(dofs.Size() <= 0)
+    {
+      SLIC_WARNING(
+        axom::fmt::format("MFEM patch {} has no DOFs; cannot extract NURBS curve.", patchId));
+      return {};
+    }
+
+    mfem::Array<int> vdofs(dofs);
+    fes->DofsToVDofs(vdofs);
+
+    mfem::Vector v;
+    nodes->GetSubVector(vdofs, v);
+    const auto ord = fes->GetOrdering();
+
+    const int ncp = dofs.Size();
+    axom::Array<ControlPoint> cp(0, ncp);
+    for(int i = 0; i < ncp; ++i)
+    {
+      ord == mfem::Ordering::byVDIM ? cp.push_back({v[i], v[i + ncp]})
+                                    : cp.push_back({v[2 * i], v[2 * i + 1]});
+    }
+
+    return cp;
+  };
+
+  auto get_patch_weights = [&mesh](int patchId) -> axom::Array<double> {
+    mfem::Array<int> dofs;
+    mesh->NURBSext->GetPatchDofs(patchId, dofs);
+    if(dofs.Size() <= 0)
+    {
+      return {};
+    }
+
+    const int nw = dofs.Size();
+    axom::Array<double> w(nw, nw);
+
+    mfem::Vector mfem_vec_weights(w.data(), nw);
+    mesh->NURBSext->GetWeights().GetSubVector(dofs, mfem_vec_weights);
+
+    return w;
+  };
+#endif
+
 #if MFEM_VERSION < AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
   auto get_element_weights = [fes, &mesh](int elemId) -> axom::Array<double> {
     mfem::Array<int> dofs;
@@ -292,117 +194,43 @@ int read_mfem(const std::string &fileName,
   if(isNURBS)
   {
 #if MFEM_VERSION >= AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
-    // Parse patch-format 1D NURBS directly from the mesh file using MFEM's
-    // NURBSPatch stream parser, bypassing the intermittently corrupted CUDA
-    // in-memory NURBS reconstruction path.
-    switch(read_nurbs_patches_1d(fileName, *mesh, curvemap))
-    {
-    case PatchReadResult::Success:
-      return MFEMReader::READ_SUCCESS;
-    case PatchReadResult::Failure:
-      return MFEMReader::READ_FAILED;
-    case PatchReadResult::NotPatchFormat:
-      // Older MFEM NURBS files use the knotvectors-based format and should
-      // continue through the normal instantiated-patch path below.
-      break;
-    }
-
-    mfem::Array<mfem::NURBSPatch *> patches;
-    mesh->GetNURBSPatches(patches);
-
-    const int num_patches = patches.Size();
+    // When MFEM can read patch-based 1D NURBS meshes, prefer reading curves from
+    // patches (which can contain multiple knot spans). This patch-based
+    // extraction is also compatible with older MFEM NURBS mesh v1.0 files.
+    const int num_patches = fes->GetNURBSext()->GetNP();
     for(int patchId = 0; patchId < num_patches; ++patchId)
     {
       const int attribute = mesh->GetPatchAttribute(patchId);
-      mfem::NURBSPatch *patch = patches[patchId];
-      if(patch == nullptr)
+
+      mfem::Array<const mfem::KnotVector *> kvs;
+      mesh->NURBSext->GetPatchKnotVectors(patchId, kvs);
+      if(kvs.Size() < 1 || kvs[0] == nullptr)
       {
         SLIC_WARNING(
-          axom::fmt::format("MFEM patch {} could not be instantiated; cannot extract NURBS curve.",
+          axom::fmt::format("MFEM patch {} has no valid knot vector; cannot extract NURBS curve.",
                             patchId));
-        for(int i = 0; i < patches.Size(); ++i)
-        {
-          delete patches[i];
-        }
         return MFEMReader::READ_FAILED;
       }
-
-      if(patch->GetNKV() != 1 || patch->GetNC() != 3)
-      {
-        SLIC_WARNING(axom::fmt::format(
-          "MFEM patch {} has unsupported dimensions for a 1D curve in 2D space (nkv={}, nc={}).",
-          patchId,
-          patch->GetNKV(),
-          patch->GetNC()));
-        for(int i = 0; i < patches.Size(); ++i)
-        {
-          delete patches[i];
-        }
-        return MFEMReader::READ_FAILED;
-      }
-
-      const mfem::KnotVector &kv0 = *patch->GetKV(0);
+      const mfem::KnotVector &kv0 = *kvs[0];
       if(kv0.Size() <= 0)
       {
         SLIC_WARNING(
           axom::fmt::format("MFEM patch {} has an empty knot vector; cannot extract NURBS curve.",
                             patchId));
-        for(int i = 0; i < patches.Size(); ++i)
-        {
-          delete patches[i];
-        }
         return MFEMReader::READ_FAILED;
       }
-
-      const int ncp = kv0.GetNCP();
-      axom::Array<ControlPoint> cp(0, ncp);
-      axom::Array<double> w(0, ncp);
-      for(int i = 0; i < ncp; ++i)
-      {
-        const double wt = (*patch)(i, 2);
-        if(wt <= 0.0)
-        {
-          SLIC_WARNING(
-            axom::fmt::format("MFEM patch {} has non-positive weight {} at control point {}.",
-                              patchId,
-                              wt,
-                              i));
-          for(int j = 0; j < patches.Size(); ++j)
-          {
-            delete patches[j];
-          }
-          return MFEMReader::READ_FAILED;
-        }
-
-        cp.push_back({(*patch)(i, 0) / wt, (*patch)(i, 1) / wt});
-        w.push_back(wt);
-      }
-
-      const int degree = kv0.Size() - ncp - 1;
-      if(degree < 0)
-      {
-        SLIC_WARNING(axom::fmt::format(
-          "MFEM patch {} has inconsistent NURBS data: {} knots and {} control points.",
-          patchId,
-          kv0.Size(),
-          ncp));
-        for(int i = 0; i < patches.Size(); ++i)
-        {
-          delete patches[i];
-        }
-        return MFEMReader::READ_FAILED;
-      }
-
       axom::ArrayView<const double> knots_view(&kv0[0], kv0.Size());
-      const primal::KnotVector<double> kv(knots_view, degree);
+      const primal::KnotVector<double> kv(knots_view, kv0.GetOrder());
+
+      const auto cp = get_patch_controlpoints(patchId);
+      const auto w = get_patch_weights(patchId);
+      if(cp.empty())
+      {
+        return MFEMReader::READ_FAILED;
+      }
 
       is_rational(w) ? curvemap[attribute].push_back({cp, w, kv})
                      : curvemap[attribute].push_back({cp, kv});
-    }
-
-    for(int i = 0; i < patches.Size(); ++i)
-    {
-      delete patches[i];
     }
 #else
     {
