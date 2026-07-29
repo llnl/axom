@@ -813,8 +813,8 @@ int NonTrivialDtor::dtor_calls {0};
 
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 {
-  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialDtor>;
-  using HostArray = typename TestFixture::template HostTArray<NonTrivialDtor>;
+  using DynamicArrayType = typename TestFixture::template DynamicTArray<NonTrivialDtor>;
+  using HostArrayType = typename TestFixture::template HostTArray<NonTrivialDtor>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -822,7 +822,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
   NonTrivialDtor::dtor_calls = 0;
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
 
   // Initialization should not invoke the destructor
   EXPECT_EQ(NonTrivialDtor::dtor_calls, 0);
@@ -837,7 +837,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 
   // Check array contents on host
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     // Non-destructed elements should be in original state
     for(int i = 0; i < N - 100; i++)
     {
@@ -863,7 +863,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 
   // All elements should be in the destructed state
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     for(int i = 0; i < N; ++i)
     {
       EXPECT_EQ(localArr[i].m_val, NonTrivialDtor::MAGIC_DTOR);
@@ -1195,7 +1195,7 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, unified_mem_preference)
 {
-  using KernelArray = typename TestFixture::KernelArray;
+  using KernelArrayType = typename TestFixture::KernelArray;
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
   if(TestFixture::exec_space_memory != axom::MemorySpace::Unified &&
@@ -1220,14 +1220,14 @@ AXOM_TYPED_TEST(core_array_for_all, unified_mem_preference)
 
   for(bool devicePref : {false, true})
   {
-    KernelArray arr;
+    KernelArrayType arr;
     arr.setDevicePreference(devicePref);
 
     // Check that we can do a few miscellaneous array operations.
     // At the moment, we can't really test that they're actually being
     // performed on the host or the device, so just check that nothing breaks.
     arr.resize(N);
-    KernelArray arr_copy(arr);
+    KernelArrayType arr_copy(arr);
     arr.push_back(1);
     arr.insert(arr.begin(), -1);
     arr.clear();

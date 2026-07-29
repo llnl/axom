@@ -376,16 +376,16 @@ TEST(core_flatmap_unit, find_with_hash_uses_precomputed_hash)
 
 AXOM_TYPED_TEST(core_flatmap, default_init)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
   EXPECT_EQ(0, test_map.size());
   EXPECT_EQ(true, test_map.empty());
 }
 
 AXOM_TYPED_TEST(core_flatmap, iterators)
 {
-  using MapType = typename TestFixture::MapType;
-  using MapIterType = typename MapType::iterator;
+  using MapTypeLocal = typename TestFixture::MapType;
+  using MapIterType = typename MapTypeLocal::iterator;
 
   MapIterType empty_iterator;
   MapIterType empty_iterator_2;
@@ -393,7 +393,7 @@ AXOM_TYPED_TEST(core_flatmap, iterators)
   // Default-constructed iterators should all be equivalent.
   EXPECT_EQ(empty_iterator, empty_iterator_2);
 
-  MapType test_map;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -409,7 +409,7 @@ AXOM_TYPED_TEST(core_flatmap, iterators)
     EXPECT_NE(empty_iterator, it.first);
   }
 
-  MapType test_map_2 = test_map;
+  MapTypeLocal test_map_2 = test_map;
   for(int i = 0; i < NUM_ELEMS; i++)
   {
     auto key = this->getKey(i);
@@ -424,13 +424,13 @@ AXOM_TYPED_TEST(core_flatmap, iterators)
 
 AXOM_TYPED_TEST(core_flatmap, prealloc_buckets)
 {
-  using MapType = typename TestFixture::MapType;
+  using MapTypeLocal = typename TestFixture::MapType;
 
   const std::vector<int> sizes = {100, 400, 1000, 4000, 10000};
 
   for(int size : sizes)
   {
-    MapType test_map(size);
+    MapTypeLocal test_map(size);
     EXPECT_EQ(0, test_map.size());
     EXPECT_LE(size, test_map.bucket_count() * test_map.max_load_factor());
   }
@@ -438,8 +438,8 @@ AXOM_TYPED_TEST(core_flatmap, prealloc_buckets)
 
 AXOM_TYPED_TEST(core_flatmap, insert_only)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -479,8 +479,8 @@ AXOM_TYPED_TEST(core_flatmap, insert_only)
 
 AXOM_TYPED_TEST(core_flatmap, insert_or_assign)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -547,10 +547,10 @@ TEST(core_flatmap_moveonly, try_emplace)
 
 AXOM_TYPED_TEST(core_flatmap, initializer_list)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map {{this->getKey(0), this->getValue(10.0)},
-                    {this->getKey(1), this->getValue(20.0)},
-                    {this->getKey(2), this->getValue(30.0)}};
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map {{this->getKey(0), this->getValue(10.0)},
+                         {this->getKey(1), this->getValue(20.0)},
+                         {this->getKey(2), this->getValue(30.0)}};
 
   EXPECT_EQ(3, test_map.size());
 
@@ -576,8 +576,8 @@ AXOM_TYPED_TEST(core_flatmap, initializer_list)
 
 AXOM_TYPED_TEST(core_flatmap, index_operator_default)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -607,8 +607,8 @@ AXOM_TYPED_TEST(core_flatmap, index_operator_default)
 
 AXOM_TYPED_TEST(core_flatmap, init_and_clear)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   // Insert enough elements to trigger a resize of the buckets.
   // This allows us to test that a clear() doesn't reset the allocated buckets.
@@ -642,8 +642,8 @@ AXOM_TYPED_TEST(core_flatmap, init_and_clear)
 
 AXOM_TYPED_TEST(core_flatmap, init_and_move)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
   int NUM_ELEMS = 40;
 
   for(int i = 0; i < NUM_ELEMS; i++)
@@ -654,7 +654,7 @@ AXOM_TYPED_TEST(core_flatmap, init_and_move)
     test_map[key] = value;
   }
 
-  MapType moved_to_map = std::move(test_map);
+  MapTypeLocal moved_to_map = std::move(test_map);
 
   EXPECT_EQ(test_map.size(), 0);
   EXPECT_EQ(test_map.load_factor(), 0);
@@ -741,8 +741,8 @@ TEST(core_flatmap_moveonly, insert_batched_seq_move_iterators)
 
 AXOM_TYPED_TEST(core_flatmap, init_and_copy)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
   int NUM_ELEMS = 40;
 
   for(int i = 0; i < NUM_ELEMS; i++)
@@ -755,7 +755,7 @@ AXOM_TYPED_TEST(core_flatmap, init_and_copy)
 
   const axom::IndexType expected_buckets = test_map.bucket_count();
 
-  MapType int_to_dbl_copy = test_map;
+  MapTypeLocal int_to_dbl_copy = test_map;
 
   EXPECT_EQ(test_map.size(), NUM_ELEMS);
   EXPECT_EQ(test_map.bucket_count(), expected_buckets);
@@ -773,8 +773,8 @@ AXOM_TYPED_TEST(core_flatmap, init_and_copy)
 
 AXOM_TYPED_TEST(core_flatmap, copy_assign)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
   const int NUM_ELEMS = 40;
 
   for(int i = 0; i < NUM_ELEMS; i++)
@@ -783,7 +783,7 @@ AXOM_TYPED_TEST(core_flatmap, copy_assign)
   }
 
   // Copy-assign over a non-empty map with different contents should replace prior contents
-  MapType copied_map;
+  MapTypeLocal copied_map;
   copied_map[this->getKey(NUM_ELEMS + 5)] = this->getValue(0.0);
   copied_map = test_map;
 
@@ -800,7 +800,7 @@ AXOM_TYPED_TEST(core_flatmap, copy_assign)
   EXPECT_EQ(test_map.size(), NUM_ELEMS);
 
   // Self-assignment is a no-op
-  copied_map = static_cast<const MapType&>(copied_map);
+  copied_map = static_cast<const MapTypeLocal&>(copied_map);
   EXPECT_EQ(copied_map.size(), NUM_ELEMS);
   for(int i = 0; i < NUM_ELEMS; i++)
   {
@@ -812,8 +812,8 @@ AXOM_TYPED_TEST(core_flatmap, copy_assign)
 
 AXOM_TYPED_TEST(core_flatmap, const_lookup)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
   const int NUM_ELEMS = 20;
 
   for(int i = 0; i < NUM_ELEMS; i++)
@@ -823,7 +823,7 @@ AXOM_TYPED_TEST(core_flatmap, const_lookup)
 
   // Read-only lookups must be through const reference (matching std::unordered_map)
   // operator[] is intentionally non-const since it inserts on a missing key
-  const MapType& const_map = test_map;
+  const MapTypeLocal& const_map = test_map;
   EXPECT_EQ(const_map.size(), NUM_ELEMS);
   for(int i = 0; i < NUM_ELEMS; i++)
   {
@@ -847,8 +847,8 @@ AXOM_TYPED_TEST(core_flatmap, const_lookup)
 
 AXOM_TYPED_TEST(core_flatmap, insert_until_rehash)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const axom::IndexType INIT_CAPACITY = test_map.bucket_count();
   const double LOAD_FACTOR = test_map.max_load_factor();
@@ -890,8 +890,8 @@ AXOM_TYPED_TEST(core_flatmap, insert_until_rehash)
 
 AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const axom::IndexType INIT_CAPACITY = test_map.bucket_count();
   const double LOAD_FACTOR = test_map.max_load_factor();
@@ -952,8 +952,8 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
 
 AXOM_TYPED_TEST(core_flatmap, iterator_loop)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -969,7 +969,7 @@ AXOM_TYPED_TEST(core_flatmap, iterator_loop)
 
   int iter_count = 0;
   // Test constant iteration
-  for(typename MapType::const_iterator it = test_map.begin(); it != test_map.end(); ++it)
+  for(typename MapTypeLocal::const_iterator it = test_map.begin(); it != test_map.end(); ++it)
   {
     auto pair = *it;
     auto iter_key = pair.first;
@@ -1004,8 +1004,8 @@ AXOM_TYPED_TEST(core_flatmap, iterator_loop)
 
 AXOM_TYPED_TEST(core_flatmap, iterator_loop_write)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -1018,7 +1018,7 @@ AXOM_TYPED_TEST(core_flatmap, iterator_loop_write)
   }
 
   // Test mutable iteration
-  for(typename MapType::iterator it = test_map.begin(); it != test_map.end(); ++it)
+  for(typename MapTypeLocal::iterator it = test_map.begin(); it != test_map.end(); ++it)
   {
     auto pair = *it;
     auto iter_key = pair.first;
@@ -1042,8 +1042,8 @@ AXOM_TYPED_TEST(core_flatmap, iterator_loop_write)
 
 AXOM_TYPED_TEST(core_flatmap, range_for_loop)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -1093,8 +1093,8 @@ AXOM_TYPED_TEST(core_flatmap, range_for_loop)
 
 AXOM_TYPED_TEST(core_flatmap, range_for_loop_write)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -1131,10 +1131,10 @@ AXOM_TYPED_TEST(core_flatmap, range_for_loop_write)
 
 AXOM_TYPED_TEST(core_flatmap, copy_host_device)
 {
-  using MapType = typename TestFixture::MapType;
+  using MapTypeLocal = typename TestFixture::MapType;
 
-  using HostExec = typename TestFixture::HostExec;
-  using DeviceExec = typename TestFixture::DeviceExec;
+  using HostExecType = typename TestFixture::HostExec;
+  using DeviceExecType = typename TestFixture::DeviceExec;
 
   // CUDA failure - Skip tests if key or value is of type std::string
   #if defined(AXOM_USE_CUDA) && defined(__GLIBCXX__)
@@ -1150,10 +1150,10 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
   }
   #endif
 
-  const int host_alloc_id = axom::execution_space<HostExec>::allocatorID();
-  const int device_alloc_id = axom::execution_space<DeviceExec>::allocatorID();
+  const int host_alloc_id = axom::execution_space<HostExecType>::allocatorID();
+  const int device_alloc_id = axom::execution_space<DeviceExecType>::allocatorID();
 
-  MapType test_map(axom::Allocator {host_alloc_id});
+  MapTypeLocal test_map(axom::Allocator {host_alloc_id});
 
   const int NUM_ELEMS = 100;
   const int EMPTY_CHECKS = 100;
@@ -1168,7 +1168,7 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
   }
 
   // Copy from the host to the device.
-  MapType test_map_device = MapType(test_map, axom::Allocator {device_alloc_id});
+  MapTypeLocal test_map_device = MapTypeLocal(test_map, axom::Allocator {device_alloc_id});
 
   // Check that maps are equivalent with a different allocator ID.
   EXPECT_EQ(test_map_device.getAllocator().getID(), device_alloc_id);
@@ -1176,7 +1176,7 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
   EXPECT_EQ(test_map_device.size(), test_map.size());
 
   // Copy back to the host.
-  MapType test_map_host = MapType(test_map_device, axom::Allocator {host_alloc_id});
+  MapTypeLocal test_map_host = MapTypeLocal(test_map_device, axom::Allocator {host_alloc_id});
 
   // Check that maps are equivalent with the same allocator ID.
   EXPECT_EQ(test_map_host.getAllocator().getID(), host_alloc_id);
@@ -1207,8 +1207,8 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
 
 AXOM_TYPED_TEST(core_flatmap, empty_view)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int EMPTY_CHECKS = 100;
 
@@ -1231,8 +1231,8 @@ AXOM_TYPED_TEST(core_flatmap, empty_view)
 
 AXOM_TYPED_TEST(core_flatmap, view_iterators)
 {
-  using MapType = typename TestFixture::MapType;
-  using MapViewType = typename MapType::View;
+  using MapTypeLocal = typename TestFixture::MapType;
+  using MapViewType = typename MapTypeLocal::View;
   using MapIterType = typename MapViewType::iterator;
 
   MapIterType empty_iterator;
@@ -1241,7 +1241,7 @@ AXOM_TYPED_TEST(core_flatmap, view_iterators)
   // Default-constructed iterators should all be equivalent.
   EXPECT_EQ(empty_iterator, empty_iterator_2);
 
-  MapType test_map;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -1285,8 +1285,8 @@ AXOM_TYPED_TEST(core_flatmap, view_iterators)
 
 AXOM_TYPED_TEST(core_flatmap, init_view)
 {
-  using MapType = typename TestFixture::MapType;
-  MapType test_map;
+  using MapTypeLocal = typename TestFixture::MapType;
+  MapTypeLocal test_map;
 
   const int NUM_ELEMS = 100;
   const int EMPTY_CHECKS = 100;
