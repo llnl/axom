@@ -1,9 +1,10 @@
-# requires clang 14
-# https://releases.llvm.org/14.0.0/tools/clang/docs/ClangFormatStyleOptions.html
+# requires clang 19
+# https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormatStyleOptions.html
 
 BasedOnStyle: Google
 Language: Cpp
-Standard: Cpp11
+Standard: c++17
+LineEnding: LF
 
 AccessModifierOffset: -2
 AllowAllArgumentsOnNextLine: false
@@ -41,6 +42,8 @@ ConstructorInitializerIndentWidth: 2
 ContinuationIndentWidth: 2
 ColumnLimit: 100
 
+DerivePointerAlignment: false
+
 FixNamespaceComments: true
 
 IndentCaseLabels: false
@@ -48,7 +51,9 @@ IndentPPDirectives: BeforeHash
 IndentWidth: 2
 
 PenaltyExcessCharacter: 10
+PointerAlignment: Left
 
+ReferenceAlignment: Left
 ReflowComments: false
 
 SortIncludes: false
