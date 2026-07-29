@@ -313,14 +313,14 @@ public:
    * \return Returns maximum number of items that can be stored in this Bucket instance.
    *
    */
-  int get_capacity() const { return m_capacity; }
+  IndexType get_capacity() const { return m_capacity; }
 
   /*!
    * \brief Returns current number of items in this Bucket instance.
    *
    * \return Returns current number of items in this Bucket instance.
    */
-  int get_size() const { return m_size; }
+  IndexType get_size() const { return m_size; }
   ///@}
 
   axom_map::Node<Key, T>* m_list;
