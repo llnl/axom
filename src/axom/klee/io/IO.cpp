@@ -37,6 +37,7 @@ namespace klee
 {
 namespace
 {
+bool isLuaKeyword(const std::string &name);
 bool isLuaIdentifier(const std::string &name);
 
 #ifdef AXOM_USE_LUA
@@ -175,11 +176,11 @@ public:
         const std::string name = entry.first.as<std::string>();
         if(!isLuaIdentifier(name))
         {
-          throw KleeError(
-            {exportPath(name),
-             axom::fmt::format("Invalid Klee Lua binding name '{}'. Binding names must be Lua "
-                               "identifiers.",
-                               name)});
+          const auto reason = isLuaKeyword(name)
+            ? "Reserved Lua keywords cannot be used as binding names."
+            : "Binding names must be Lua identifiers.";
+          throw KleeError({exportPath(name),
+                           axom::fmt::format("Invalid Klee Lua binding name '{}'. {}", name, reason)});
         }
         if(reservedNames.find(name) != reservedNames.end())
         {
@@ -562,6 +563,17 @@ InputFormat inferInputFormat(const std::string& filePath)
                        extension)});
 }
 
+bool isLuaKeyword(const std::string &name)
+{
+  static const std::unordered_set<std::string> keywords {
+    "and", "break", "do", "else", "elseif", "end", "false",
+    "for", "function", "goto", "if", "in", "local", "nil",
+    "not", "or", "repeat", "return", "then", "true", "until",
+    "while",
+  };
+  return keywords.find(name) != keywords.end();
+}
+
 bool isLuaIdentifier(const std::string &name)
 {
   if(name.empty())
@@ -577,8 +589,9 @@ bool isLuaIdentifier(const std::string &name)
     return false;
   }
   return std::all_of(name.begin() + 1, name.end(), [&](char ch) {
-    return isNameChar(static_cast<unsigned char>(ch));
-  });
+           return isNameChar(static_cast<unsigned char>(ch));
+         }) &&
+    !isLuaKeyword(name);
 }
 
 void validateInputVariables(const InputVariables &variables)
@@ -587,10 +600,12 @@ void validateInputVariables(const InputVariables &variables)
   {
     if(!isLuaIdentifier(entry.first))
     {
-      throw KleeError({Path {entry.first.empty() ? "<empty>" : entry.first},
-                       axom::fmt::format("Invalid Klee Lua input variable name '{}'. Input "
-                                         "variable names must be Lua identifiers.",
-                                         entry.first)});
+      const auto reason = isLuaKeyword(entry.first)
+        ? "Reserved Lua keywords cannot be used as input variable names."
+        : "Input variable names must be Lua identifiers.";
+      throw KleeError(
+        {Path {entry.first.empty() ? "<empty>" : entry.first},
+         axom::fmt::format("Invalid Klee Lua input variable name '{}'. {}", entry.first, reason)});
     }
   }
 }

@@ -158,7 +158,7 @@ dimensions, or operator values at run time:
     }
 
 Input variables are Lua-only and may be booleans, integers, doubles, or strings.
-Their names must be Lua identifiers. They are ordinary mutable globals by
+Their names must be non-keyword Lua identifiers. They are ordinary mutable globals by
 construction and are allowed by Klee's unexpected-global check. Deck code can
 reassign these names, so applications should treat them as initial values rather
 than read-only controls. Other helper values in the deck should still be declared
@@ -212,7 +212,7 @@ at run time without recompiling the C++ application:
       }
     }
 
-Bindings chunks must return a table whose exported keys are Lua identifiers.
+Bindings chunks must return a table whose exported keys are non-keyword Lua identifiers.
 Exported values may be booleans, numbers, strings, tables, or functions. Like
 input variables, exported bindings are ordinary Lua globals; deck code can
 reassign exported names and can mutate exported tables.
