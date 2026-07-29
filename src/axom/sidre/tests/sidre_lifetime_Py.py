@@ -946,6 +946,73 @@ def test_external_view_onto_sidre_storage_still_reads_correctly():
     assert view.getDataArray()[7] == 8.0
 
 
+# The exemption lives in one place (pinExternalDataOwner), so every entry point
+# that pins inherits it. Cover the two that createView does not reach, and the
+# boundary the exemption must not cross.
+def test_set_external_data_onto_sidre_storage_does_not_retain_datastore():
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    field = root.createViewAndAllocate("field", sidre.TypeID.FLOAT64_ID, 8)
+    data = field.getBuffer().getDataArray()
+
+    target = root.createView("aliased")
+    target.setExternalData(sidre.TypeID.FLOAT64_ID, 8, data)
+
+    ref = weakref.ref(ds)
+    del target, data, field, root, ds
+    _force_gc()
+
+    assert ref() is None, "DataStore retained by a setExternalData pin onto its own storage"
+
+
+def test_copied_view_onto_sidre_storage_does_not_retain_datastore():
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    field = root.createViewAndAllocate("field", sidre.TypeID.FLOAT64_ID, 8)
+    data = field.getBuffer().getDataArray()
+    source = root.createView("aliased", sidre.TypeID.FLOAT64_ID, 8, data)
+
+    # copyView re-pins the destination from the source's pin; an exempt source has
+    # no pin to copy, so the destination must not acquire one either.
+    root.createGroup("copy_target").copyView(source)
+
+    ref = weakref.ref(ds)
+    del source, data, field, root, ds
+    _force_gc()
+
+    assert ref() is None, "DataStore retained by a copied view's pin onto its own storage"
+
+
+def test_external_view_onto_another_datastores_storage_is_still_pinned():
+    # The exemption is per-DataStore: a view in the `consumer` DataStore pointing at storage
+    # owned by the  `donor` DataStore is not exempt and must still be pinned.
+    # The observable consequence is that the pin keeps the donor alive.
+    donor = sidre.DataStore()
+    donor_field = donor.getRoot().createViewAndAllocate("field", sidre.TypeID.FLOAT64_ID, 8)
+    data = donor_field.getBuffer().getDataArray()
+    data[:] = np.arange(8) + 1.0
+
+    consumer = sidre.DataStore()
+    view = consumer.getRoot().createView("aliased", sidre.TypeID.FLOAT64_ID, 8, data)
+
+    donor_ref = weakref.ref(donor)
+    del data, donor_field, donor
+    _force_gc()
+
+    assert donor_ref() is not None, "aliased donor storage was not pinned by the consuming view"
+    assert view.getDataArray()[0] == 1.0
+    assert view.getDataArray()[7] == 8.0
+
+    # Pinning across DataStores must not make the *consumer* immortal:
+    # its pin references the donor, not itself, so collecting it releases the donor too.
+    consumer_ref = weakref.ref(consumer)
+    del view, consumer
+    _force_gc()
+
+    assert consumer_ref() is None, "consumer DataStore retained by its own external-data pin"
+    assert donor_ref() is None, "donor storage still pinned after the consuming view went away"
+
+
 if __name__ == "__main__":
     import sys
 
