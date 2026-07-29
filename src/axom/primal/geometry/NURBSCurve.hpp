@@ -394,28 +394,31 @@ public:
 
     SLIC_ASSERT(static_cast<T>(theta_1 - theta_0) <= static_cast<T>(2.0 * M_PI));
 
-    T pi23 = 2.0 * M_PI / 3.0;
+    const T pi23 = static_cast<T>(2.0 * M_PI / 3.0);
     const int n_segments = static_cast<int>(std::ceil((theta_1 - theta_0) / pi23));
 
     NURBSCurve arc_curve(1 + 2 * n_segments, 2);
     arc_curve.makeRational();
 
     // Define the first control point
-    arc_curve[0] = PointType({std::cos(theta_0), std::sin(theta_0)});
-    arc_curve.setWeight(0, 1.0);
+    arc_curve[0] = PointType(
+      {static_cast<T>(std::cos(theta_0)), static_cast<T>(std::sin(theta_0))});
+    arc_curve.setWeight(0, T {1});
 
     // Need to split up the curve if it spans more than 120 degrees, possibly twice
     for(int idx = 0; idx < n_segments; ++idx)
     {
-      T theta_start = theta_0 + pi23 * idx;
-      T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
+      const T theta_start = theta_0 + pi23 * static_cast<T>(idx);
+      const T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
 
-      arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
+      arc_curve[1 + 2 * idx + 1] = PointType(
+        {static_cast<T>(std::cos(theta_end)), static_cast<T>(std::sin(theta_end))});
 
-      T weight_num = std::sin(theta_end - theta_start);
-      T weight_denom = 2.0 * std::sin((theta_end - theta_start) / 2.0);
+      const T weight_num = static_cast<T>(std::sin(theta_end - theta_start));
+      const T weight_denom =
+        T {2.0} * static_cast<T>(std::sin((theta_end - theta_start) / T {2.0}));
       arc_curve.setWeight(1 + 2 * idx + 0, weight_num / weight_denom);
-      arc_curve.setWeight(1 + 2 * idx + 1, 1.0);
+      arc_curve.setWeight(1 + 2 * idx + 1, T {1});
 
       arc_curve[1 + 2 * idx + 0] =
         PointType({(arc_curve[1 + 2 * idx + 1][1] - arc_curve[1 + 2 * idx - 1][1]) / weight_num,
@@ -431,8 +434,10 @@ public:
 
     for(int i = 0; i < n_segments - 1; ++i)
     {
-      arc_curve.setKnot(3 + 2 * i + 0, static_cast<T>(i + 1) / n_segments);
-      arc_curve.setKnot(3 + 2 * i + 1, static_cast<T>(i + 1) / n_segments);
+      arc_curve.setKnot(
+        3 + 2 * i + 0, static_cast<T>(i + 1) / static_cast<T>(n_segments));
+      arc_curve.setKnot(
+        3 + 2 * i + 1, static_cast<T>(i + 1) / static_cast<T>(n_segments));
     }
 
     if(is_cw)
@@ -1146,14 +1151,14 @@ public:
       for(int j = 0; j <= p; j++)
       {
         auto offset = span - p + j;
-        const double weight = isCurveRational ? m_weights[offset] : 1.0;
+        const T weight = isCurveRational ? m_weights[offset] : T {1};
 
         // Compute the weighted point.
         for(int i = 0; i < NDIMS; ++i)
         {
-          Pw[i] += N_evals[k][j] * weight * m_controlPoints[offset][i];
+          Pw[i] += static_cast<T>(N_evals[k][j]) * weight * m_controlPoints[offset][i];
         }
-        Pw[NDIMS] += N_evals[k][j] * weight;
+        Pw[NDIMS] += static_cast<T>(N_evals[k][j]) * weight;
       }
 
       Awders[k] = Pw;
@@ -1197,7 +1202,7 @@ public:
 
       for(int i = 1; i < k; i++)
       {
-        auto bin = axom::utilities::binomialCoefficient(k, i);
+        const T bin = static_cast<T>(axom::utilities::binomialCoefficient(k, i));
         for(int j = 0; j < NDIMS; ++j)
         {
           v[j] = v[j] - bin * Awders[i][NDIMS] * ders[k - i - 1][j];
