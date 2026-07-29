@@ -936,6 +936,23 @@ TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
   }
 }
 
+TEST(IOTest, readShapeSet_luaInputVariableRejectsKeyword)
+{
+  LuaInputOptions options;
+  options.variables = {{"end", klee::InputVariableValue {2}}};
+
+  try
+  {
+    readShapeSetFromString("dimensions = 2; shapes = {}", InputFormat::Lua, options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Reserved Lua keywords"));
+    EXPECT_THAT(err.what(), HasSubstr("end"));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaBindingsChunkRejectsInvalidExportName)
 {
   LuaInputOptions options;
@@ -959,6 +976,28 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsInvalidExportName)
   {
     EXPECT_THAT(err.what(), HasSubstr("Invalid Klee Lua binding name"));
     EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaBindingsChunkRejectsKeywordExport)
+{
+  LuaInputOptions options;
+  options.bindings = LuaBindingsChunk {R"(
+    return {
+      ["function"] = 2
+    }
+  )",
+                                      "runtime_bindings"};
+
+  try
+  {
+    readShapeSetFromString("dimensions = 2; shapes = {}", InputFormat::Lua, options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Reserved Lua keywords"));
+    EXPECT_THAT(err.what(), HasSubstr("function"));
   }
 }
 
