@@ -416,7 +416,8 @@ TEST(core_device_hash, hash_float_bit_pattern)
   const int NUM_KEYS = 1000;
   for(int i = 1; i <= NUM_KEYS; i++)
   {
-    float_hashes.insert(float_hasher(i / static_cast<float>(NUM_KEYS + 1)));
+    float_hashes.insert(
+      float_hasher(static_cast<float>(i) / static_cast<float>(NUM_KEYS + 1)));
     double_hashes.insert(double_hasher(i / static_cast<double>(NUM_KEYS + 1)));
   }
   EXPECT_EQ(float_hashes.size(), NUM_KEYS);
