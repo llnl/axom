@@ -27,9 +27,35 @@
 cmake_minimum_required(VERSION 3.21)
 project(axom_python LANGUAGES CXX)
 
+# Optional: build against Python's stable ABI (abi3) so one wheel serves every CPython >= 3.12 on the machine.
+# Opt-in (default OFF) to provide per-Python wheel tags by default.
+# Enable with BOTH build-time flags (they must agree; see pyproject.toml and src/python/README.md):
+#   -C cmake.define.AXOM_PYTHON_STABLE_ABI=ON  -C wheel.py-api=cp312
+# nanobind silently builds a non-stable module below Python 3.12,
+# so an abi3 wheel needs a 3.12+ interpreter (which also provides Development.SABIModule).
+option(AXOM_PYTHON_STABLE_ABI
+       "Build the extension against Python's stable ABI (abi3); needs Python >= 3.12" OFF)
+
 # Development.Module (not Development) so we link libpython-free extensions,
-# matching the in-tree build's discovery.
-find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+# matching the in-tree build's discovery. Development.SABIModule is requested as
+# an OPTIONAL component (nanobind's recommended pattern) so a stable-ABI build
+# (AXOM_PYTHON_STABLE_ABI=ON, which needs Python >= 3.12) can find it, 
+# without a conditional component list.
+find_package(Python 3.10 REQUIRED
+             COMPONENTS Interpreter Development.Module
+             OPTIONAL_COMPONENTS Development.SABIModule)
+
+# An optional component that is silently absent would turn a requested abi3 build
+# into a confusing failure inside nanobind (or a non-stable module), so fail here
+# with the actionable message instead.
+if(AXOM_PYTHON_STABLE_ABI AND NOT Python_Development.SABIModule_FOUND)
+    message(FATAL_ERROR
+            "AXOM_PYTHON_STABLE_ABI=ON requires Python's Development.SABIModule "
+            "component (CPython >= 3.12), which was not found for "
+            "${Python_EXECUTABLE} (version ${Python_VERSION}). Build with a 3.12+ "
+            "interpreter or leave AXOM_PYTHON_STABLE_ABI off.")
+endif()
+
 find_package(axom CONFIG REQUIRED)
 find_package(nanobind CONFIG REQUIRED)   # supplied via build-system.requires
 
@@ -65,7 +91,14 @@ set(_sidre_binding_sources
 # (e.g. a sidre::Group*) are recognized by another module from the same build.
 # nanobind only shares type bindings across modules that agree on domain *and* nanobind ABI, compiler, and build mode,
 # hence the one-build/one-wheel rule. This mirrors src/axom/sidre/CMakeLists.txt.
-nanobind_add_module(_sidre NB_DOMAIN axom ${_sidre_binding_sources})
+#
+# STABLE_ABI is appended only when AXOM_PYTHON_STABLE_ABI is set
+# nanobind degrades to a non-stable build below 3.12.
+set(_axom_nb_module_args NB_DOMAIN axom)
+if(AXOM_PYTHON_STABLE_ABI)
+    list(APPEND _axom_nb_module_args STABLE_ABI)
+endif()
+nanobind_add_module(_sidre ${_axom_nb_module_args} ${_sidre_binding_sources})
 
 # conduit::conduit_python provides conduit_python.hpp and is needed only by the binding TU, not by libsidre.
 target_link_libraries(_sidre PRIVATE axom::sidre conduit::conduit_python)
