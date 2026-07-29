@@ -41,43 +41,6 @@ bool isLuaKeyword(const std::string &name);
 bool isLuaIdentifier(const std::string &name);
 
 #ifdef AXOM_USE_LUA
-// Klee Lua callbacks are parse-time sugar for ordinary Klee operator fields.
-// The schema registers both the concrete field and a hidden function alias at
-// the same public input path. Only those callback-capable paths should make the
-// concrete field reader return NotFound for a Lua function; everywhere else, a
-// function at a Klee field path is still WrongType.
-bool isKleeLuaCallbackPath(const std::string& id)
-{
-  const auto tokens = axom::utilities::string::split(id, '/');
-  if(tokens.empty())
-  {
-    return false;
-  }
-
-  static const std::unordered_set<std::string> operatorFields {
-    "translate",
-    "rotate",
-    "center",
-    "axis",
-    "scale",
-  };
-  if(operatorFields.find(tokens.back()) != operatorFields.end())
-  {
-    return true;
-  }
-
-  static const std::unordered_set<std::string> sliceFields {
-    "x",
-    "y",
-    "z",
-    "origin",
-    "normal",
-    "up",
-  };
-  return tokens.size() >= 2 && tokens[tokens.size() - 2] == "slice" &&
-    sliceFields.find(tokens.back()) != sliceFields.end();
-}
-
 class KleeLuaReader : public inlet::LuaReader
 {
 public:
@@ -238,12 +201,6 @@ public:
                                          static_cast<std::string>(chunkPath),
                                          ex.what())});
     }
-  }
-
-protected:
-  bool shouldTreatFunctionAsNotFound(const std::string& id) const override
-  {
-    return isKleeLuaCallbackPath(id);
   }
 };
 #endif
