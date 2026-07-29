@@ -437,6 +437,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
         if (spec.satisfies("+cpp14") or self.cxx_std == "14") and spec.satisfies("@:0.6.1"):
             entries.append(cmake_cache_string("BLT_CXX_STD", "c++14", ""))
+        else:
+            entries.append(cmake_cache_string("BLT_CXX_STD", f"c++{self.cxx_std}"))
 
         # Add optimization flag workaround for builds with cray compiler
         if spec.satisfies("%cce"):
