@@ -117,8 +117,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant(
         "cpp14",
         default=False,
-        description="Build with C++14 support. "
-        "Deprecated -- use the cxxstd variant version.",
+        description="Build with C++14 support. Deprecated -- use the cxxstd variant version.",
     )
 
     variant("fortran", default=True, description="Build with Fortran support")
@@ -241,7 +240,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
-        depends_on("caliper+adiak")
+        depends_on("caliper+adiak~papi")
 
         depends_on("caliper+cuda", when="+cuda")
         depends_on("caliper~cuda", when="~cuda")
@@ -352,8 +351,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("cxxstd=11", when="@0.6.2:")
     # C++17 required as of 0.12.0
     conflicts("cxxstd=14", when="@0.12.0:")
-    # C++20 required as of unreleased 0.15.0 (Should be 0.15.0)
-    conflicts("cxxstd=17", when="@0.14.0:")
+    # C++20 required as of unreleased 0.15.0
+    conflicts("cxxstd=17", when="@0.15.0:")
 
     # Conduit's cmake config files moved and < 0.4.0 can't find it
     conflicts("^conduit@0.7.2:", when="@:0.4.0")
@@ -436,9 +435,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         else:
             entries.append(cmake_cache_option("ENABLE_FORTRAN", False))
 
-        if (
-            spec.satisfies("+cpp14") or self.cxx_std == "14"
-        ) and spec.satisfies("@:0.6.1"):
+        if (spec.satisfies("+cpp14") or self.cxx_std == "14") and spec.satisfies("@:0.6.1"):
             entries.append(cmake_cache_string("BLT_CXX_STD", "c++14", ""))
 
         # Add optimization flag workaround for builds with cray compiler
@@ -537,7 +534,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 link_dir_remove_list = []
 
                 if self.cxx_std == "20":
-                    link_dir_remove_list += ["/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12"]
+                    link_dir_remove_list += [
+                        "/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12"
+                    ]
                     link_dir_remove_list += ["/opt/rh/gcc-toolset-12/root/usr/lib64"]
 
                 # Remove extra link library for crayftn
@@ -551,14 +550,16 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 if link_lib_remove_list:
                     entries.append(
                         cmake_cache_string(
-                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", ";".join(link_lib_remove_list)
+                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE",
+                            ";".join(link_lib_remove_list),
                         )
                     )
 
                 if link_dir_remove_list:
                     entries.append(
                         cmake_cache_string(
-                            "BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE", ";".join(link_dir_remove_list)
+                            "BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE",
+                            ";".join(link_dir_remove_list),
                         )
                     )
 
@@ -803,8 +804,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             # a single site-packages and `import axom.sidre` works without updating PYTHONPATH
             entries.append(
                 cmake_cache_path(
-                    "AXOM_PYTHON_MODULE_INSTALL_PREFIX",
-                    spec["python"].package.platlib,
+                    "AXOM_PYTHON_MODULE_INSTALL_PREFIX", spec["python"].package.platlib
                 )
             )
 
@@ -950,8 +950,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         sidre_pkg_dir = join_path(site_packages, "axom", "sidre")
         if not os.path.isdir(sidre_pkg_dir):
             raise RuntimeError(
-                "axom.sidre was not installed under the interpreter platlib: "
-                "{0}".format(sidre_pkg_dir)
+                "axom.sidre was not installed under the interpreter platlib: {0}".format(
+                    sidre_pkg_dir
+                )
             )
 
         # Assemble the Python package directories a view would merge into site-packages.
