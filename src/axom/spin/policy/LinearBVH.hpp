@@ -24,6 +24,7 @@
 
 // C/C++ includes
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -304,13 +305,17 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
 
   // STEP 1: Build a RadixTree consisting of the bounding boxes, sorted
   // by their corresponding morton code.
+  SLIC_ASSERT(numBoxes <= std::numeric_limits<std::int32_t>::max());
+  const auto numBoxesInt = static_cast<std::int32_t>(numBoxes);
+
   lbvh::RadixTree<FloatType, NDIMS> radix_tree;
   primal::BoundingBox<FloatType, NDIMS> global_bounds;
-  lbvh::build_radix_tree<ExecSpace>(boxes, numBoxes, global_bounds, radix_tree, scaleFactor, allocatorID);
+  lbvh::build_radix_tree<ExecSpace>(
+    boxes, numBoxesInt, global_bounds, radix_tree, scaleFactor, allocatorID);
 
   // STEP 2: emit the BVH data-structure from the radix tree
   m_bounds = global_bounds;
-  allocate(numBoxes, allocatorID);
+  allocate(numBoxesInt, allocatorID);
 
   // STEP 3: emit the BVH
   const std::int32_t size = radix_tree.m_size;
@@ -472,7 +477,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
   // STEP 1: do single-pass traversal with std::vector for candidates
   AXOM_ANNOTATE_BEGIN("PASS[1]:fill_traversal");
   for_all<ExecSpace>(numObjs, [&](IndexType i) {
-    int matching_leaves = 0;
+    IndexType matching_leaves = 0;
     PrimitiveType obj {objs[i]};
     offsets[i] = current_offset;
 

@@ -1681,7 +1681,7 @@ private:
         for(int n2 = 0; n2 <= p - n1; ++n2)
         {
           const int n3 = p - n1 - n2;
-          const int curr = tetIdx(p, n1, n2);
+          const axom::IndexType curr = tetIdx(p, n1, n2);
 
           // Pick the predecessor state and the second point used in the midpoint average.
           axom::IndexType prev = -1;
@@ -1745,7 +1745,7 @@ private:
       for(int m = 0; m <= n - j; ++m)
       {
         const int p = j + m;
-        const int state = tetIdx(p, 0, j);
+        const axom::IndexType state = tetIdx(p, 0, j);
         set_eval_point(t0, m, j, getTetPt(state, i, j));
       }
     }
@@ -1758,7 +1758,7 @@ private:
       for(int m = 0; m <= j; ++m)
       {
         const int p = i + m;
-        const int state = tetIdx(p, i, m);
+        const axom::IndexType state = tetIdx(p, i, m);
         set_eval_point(t1, m, i, getTetPt(state, i, j));
       }
     }
@@ -1772,7 +1772,7 @@ private:
       for(int m = 0; m <= i; ++m)
       {
         const int p = m + k;
-        const int state = tetIdx(p, m, 0);
+        const axom::IndexType state = tetIdx(p, m, 0);
         set_eval_point(t2, m, k, getTetPt(state, i, j));
       }
     }
