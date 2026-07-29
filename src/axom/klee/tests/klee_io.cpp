@@ -1199,7 +1199,7 @@ TEST(IOTest, readShapeSet_luaOperatorCallbacks)
               center = function() return Vector.new(1, 2, 3) end
             },
             { translate = function() return {4, 5, 6} end },
-            { scale = function() return 2.0 end },
+            { scale = function() return {2.0} end },
             {
               scale = function() return {1.5, 2.5, 3.5} end,
               center = function() return {1, 1, 1} end

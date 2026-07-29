@@ -257,13 +257,14 @@ functions. Callbacks should be pure functions of local deck variables.
       }
     }
 
-Vector-valued callbacks return raw numeric Lua tables such as :code:`{x, y}` or
-:code:`{x, y, z}`. The typed :code:`Vector.new(...)` object is also accepted.
-Scalar-valued callbacks return a number. Supported callback fields are
+Vector-valued callbacks return raw numeric Lua tables such as :code:`{x, y}` or :code:`{x, y, z}`.
+The typed :code:`Vector.new(...)` object is also accepted.
+Scalar-valued callbacks return a number. 
+Supported callback fields are
 :code:`translate`, :code:`axis`, :code:`center`, :code:`scale`,
 :code:`slice.origin`, :code:`slice.normal`, :code:`slice.up`, :code:`rotate`,
-:code:`slice.x`, :code:`slice.y`, and :code:`slice.z`. For :code:`scale`, a
-number means uniform scaling and a table means per-axis scaling.
+:code:`slice.x`, :code:`slice.y`, and :code:`slice.z`.
+For :code:`scale`, a one-entry table means uniform scaling and a multi-entry table means per-axis scaling.
 
 Common Lua input errors are reported as Klee parsing errors.
 A Lua input file read without Lua support reports:

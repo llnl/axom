@@ -31,7 +31,9 @@ namespace
 {
 using OpPtr = CompositeOperator::OpPtr;
 using OperatorParser =
-  std::function<OpPtr(const SingleOperatorData &, const TransformableGeometryProperties &)>;
+  std::function<OpPtr(const SingleOperatorData &,
+                      const TransformableGeometryProperties &,
+                      const std::string &)>;
 using internal::toDoubleVector;
 using primal::Point3D;
 using primal::Vector3D;
@@ -351,13 +353,14 @@ void verifyObjectFields(const inlet::Container& containerToTest,
  * \throws KleeError if the operator fields or vector dimensions are invalid
  */
 OpPtr parseTranslate(const SingleOperatorData &data,
-                     const TransformableGeometryProperties &startProperties)
+                     const TransformableGeometryProperties &startProperties,
+                     const std::string &shapeName)
 {
   const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "translate", FieldSet {}, FieldSet {});
   return std::make_shared<Translation>(
-    getVector(opContainer, "translate", startProperties.dimensions, data.m_shapeName),
-                                       startProperties);
+    getVector(opContainer, "translate", startProperties.dimensions, shapeName),
+    startProperties);
 }
 
 /**
@@ -369,7 +372,8 @@ OpPtr parseTranslate(const SingleOperatorData &data,
  * \throws KleeError if the rotation is invalid for the start dimensions or operator fields
  */
 OpPtr parseRotate(const SingleOperatorData &data,
-                  const TransformableGeometryProperties &startProperties)
+                  const TransformableGeometryProperties &startProperties,
+                  const std::string &shapeName)
 {
   const auto &opContainer = *data.m_container;
   switch(startProperties.dimensions)
@@ -379,8 +383,8 @@ OpPtr parseRotate(const SingleOperatorData &data,
     verifyObjectFields(opContainer, "rotate", FieldSet {}, {"center"});
     Vector3D axis {0, 0, 1};
     return std::make_shared<Rotation>(
-      getScalar(opContainer, "rotate", data.m_shapeName),
-      getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, data.m_shapeName),
+      getScalar(opContainer, "rotate", shapeName),
+      getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, shapeName),
       axis,
       startProperties);
   }
@@ -389,9 +393,9 @@ OpPtr parseRotate(const SingleOperatorData &data,
   {
     verifyObjectFields(opContainer, "rotate", {"axis"}, {"center"});
     return std::make_shared<Rotation>(
-      getScalar(opContainer, "rotate", data.m_shapeName),
-      getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, data.m_shapeName),
-      getVector(opContainer, "axis", Dimensions::Three, data.m_shapeName),
+      getScalar(opContainer, "rotate", shapeName),
+      getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, shapeName),
+      getVector(opContainer, "axis", Dimensions::Three, shapeName),
       startProperties);
   }
   break;
@@ -533,7 +537,8 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
  * \throws KleeError if the slice fields or values are invalid
  */
 OpPtr parseSlice(const SingleOperatorData &data,
-                 const TransformableGeometryProperties &startProperties)
+                 const TransformableGeometryProperties &startProperties,
+                 const std::string &shapeName)
 {
   const auto &opContainer = *data.m_container;
   if(startProperties.dimensions != Dimensions::Three)
@@ -549,7 +554,7 @@ OpPtr parseSlice(const SingleOperatorData &data,
                                   {1, 0, 0},
                                   {0, 0, 1},
                                   startProperties,
-                                  data.m_shapeName);
+                                  shapeName);
   }
   else if(containsFieldOrCallback(sliceContainer, "y"))
   {
@@ -558,7 +563,7 @@ OpPtr parseSlice(const SingleOperatorData &data,
                                   {0, 1, 0},
                                   {1, 0, 0},
                                   startProperties,
-                                  data.m_shapeName);
+                                  shapeName);
   }
   else if(containsFieldOrCallback(sliceContainer, "z"))
   {
@@ -567,14 +572,14 @@ OpPtr parseSlice(const SingleOperatorData &data,
                                   {0, 0, 1},
                                   {0, 1, 0},
                                   startProperties,
-                                  data.m_shapeName);
+                                  shapeName);
   }
 
   verifyObjectFields(sliceContainer, "origin", {"normal", "up"}, FieldSet {});
 
-  return makeCheckedSlice(getPoint(sliceContainer, "origin", Dimensions::Three, data.m_shapeName),
-                          getVector(sliceContainer, "normal", Dimensions::Three, data.m_shapeName),
-                          getVector(sliceContainer, "up", Dimensions::Three, data.m_shapeName),
+  return makeCheckedSlice(getPoint(sliceContainer, "origin", Dimensions::Three, shapeName),
+                          getVector(sliceContainer, "normal", Dimensions::Three, shapeName),
+                          getVector(sliceContainer, "up", Dimensions::Three, shapeName),
                           startProperties,
                           sliceContainer.name());
 }
@@ -588,7 +593,8 @@ OpPtr parseSlice(const SingleOperatorData &data,
  * \throws KleeError if the scale fields or vector dimensions are invalid
  */
 OpPtr parseScale(const SingleOperatorData &data,
-                 const TransformableGeometryProperties &startProperties)
+                 const TransformableGeometryProperties &startProperties,
+                 const std::string &shapeName)
 {
   const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {"center"});
@@ -596,7 +602,7 @@ OpPtr parseScale(const SingleOperatorData &data,
     ? wrapCallbackErrors<std::vector<double>>(
         opContainer,
         "scale",
-        data.m_shapeName,
+        shapeName,
         [&]() {
           return callbackVectorToDoubleVector(
             opContainer[callbackName("scale")].call<inlet::FunctionType::Vector>());
@@ -613,10 +619,10 @@ OpPtr parseScale(const SingleOperatorData &data,
     if(actualSize != expectedSize)
     {
       throw KleeError({fieldPath(opContainer, "scale"),
-                       fmt::format("{}: Wrong size for scale. Expected {}. Got {}.",
-                                   callbackContext(opContainer, "scale", data.m_shapeName),
-                                   expectedSize,
-                                   actualSize)});
+                        fmt::format("{}: Wrong size for scale. Expected {}. Got {}.",
+                                    callbackContext(opContainer, "scale", shapeName),
+                                    expectedSize,
+                                    actualSize)});
     }
   }
   else
@@ -630,8 +636,11 @@ OpPtr parseScale(const SingleOperatorData &data,
   Point3D center {0., 0., 0.};
   if(containsFieldOrCallback(opContainer, "center"))
   {
-    center =
-      getPoint(opContainer, "center", startProperties.dimensions, Point3D {0, 0, 0}, data.m_shapeName);
+    center = getPoint(opContainer,
+                      "center",
+                      startProperties.dimensions,
+                      Point3D {0, 0, 0},
+                      shapeName);
   }
 
   return std::make_shared<Scale>(factors[0], factors[1], factors[2], center, startProperties);
@@ -646,7 +655,8 @@ OpPtr parseScale(const SingleOperatorData &data,
  * \throws KleeError if the unit string or operator fields are invalid
  */
 OpPtr parseConvertUnits(const SingleOperatorData &data,
-                        const TransformableGeometryProperties &startProperties)
+                        const TransformableGeometryProperties &startProperties,
+                        const std::string &)
 {
   const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "convert_units_to", FieldSet {}, FieldSet {});
@@ -714,7 +724,8 @@ OpPtr parseRef(const SingleOperatorData &data,
  */
 OpPtr convertOperator(SingleOperatorData const& data,
                       TransformableGeometryProperties startProperties,
-                      const NamedOperatorMap& namedOperators)
+                      const NamedOperatorMap &namedOperators,
+                      const std::string &shapeName)
 {
   std::unordered_map<std::string, OperatorParser> parsers {
     {"translate", parseTranslate},
@@ -724,7 +735,8 @@ OpPtr convertOperator(SingleOperatorData const& data,
     {"convert_units_to", parseConvertUnits},
     {"ref",
      [&namedOperators](const SingleOperatorData &opData,
-                       const TransformableGeometryProperties &startProperties) {
+                       const TransformableGeometryProperties &startProperties,
+                       const std::string &) {
        return parseRef(opData, startProperties, namedOperators);
      }},
   };
@@ -733,7 +745,7 @@ OpPtr convertOperator(SingleOperatorData const& data,
   {
     if(containsFieldOrCallback(*data.m_container, entry.first.c_str()))
     {
-      return entry.second(data, startProperties);
+      return entry.second(data, startProperties, shapeName);
     }
   }
 
@@ -761,17 +773,8 @@ GeometryOperatorData::GeometryOperatorData(const Path& path)
 GeometryOperatorData::GeometryOperatorData(const Path& path,
                                            std::vector<SingleOperatorData>&& singleOperatorData)
   : m_path {path}
-  , m_singleOperatorData {singleOperatorData}
+  , m_singleOperatorData {std::move(singleOperatorData)}
 { }
-
-void GeometryOperatorData::setShapeName(std::string shapeName)
-{
-  m_shapeName = std::move(shapeName);
-  for(auto &data : m_singleOperatorData)
-  {
-    data.m_shapeName = m_shapeName;
-  }
-}
 
 inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
                                                      const std::string &fieldName,
@@ -827,8 +830,9 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
 }
 
 std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
-  const TransformableGeometryProperties& startProperties,
-  const NamedOperatorMap& namedOperators) const
+  const TransformableGeometryProperties &startProperties,
+  const NamedOperatorMap &namedOperators,
+  const std::string &shapeName) const
 {
   if(m_singleOperatorData.empty())
   {
@@ -842,7 +846,8 @@ std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
   auto composite = std::make_shared<CompositeOperator>(startProperties);
   for(auto& data : m_singleOperatorData)
   {
-    composite->addOperator(convertOperator(data, composite->getEndProperties(), namedOperators));
+    composite->addOperator(
+      convertOperator(data, composite->getEndProperties(), namedOperators, shapeName));
   }
   return composite;
 }
@@ -889,7 +894,7 @@ NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(Dimensions fileDimen
       dimensions,
       opData.startUnits,
     };
-    auto op = opData.value.makeOperator(startProperties, namedOperators);
+    auto op = opData.value.makeOperator(startProperties, namedOperators, "");
 
     if(op->getEndProperties().units != opData.endUnits)
     {
@@ -909,7 +914,7 @@ struct FromInlet<axom::klee::internal::SingleOperatorData>
 {
   axom::klee::internal::SingleOperatorData operator()(const axom::inlet::Container& base)
   {
-    return axom::klee::internal::SingleOperatorData {&base, ""};
+    return axom::klee::internal::SingleOperatorData {&base};
   }
 };
 
