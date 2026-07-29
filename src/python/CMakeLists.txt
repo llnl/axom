@@ -1,0 +1,124 @@
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+#------------------------------------------------------------------------------
+# Thin, binding-only build of Axom's Python extension module(s).
+#
+# This project compiles Axom's nanobind translation unit(s) against an already-installed Axom and Conduit.
+# It does NOT build Axom or its third-party libraries. 
+#
+# It is driven by the scikit-build-core project in the sibling pyproject.toml (see src/python/README.md),
+# but is a valid standalone CMake project as well.
+#
+# When driven by scikit-build-core (uv build / uv pip install),
+# point find_package at the installs with -Daxom_DIR / -DConduit_DIR:
+# scikit-build-core force-sets CMAKE_PREFIX_PATH to the isolated build env (to locate its own nanobind),
+# so a user-supplied CMAKE_PREFIX_PATH is ignored.
+# A standalone cmake invocation has no such layer and uses CMAKE_PREFIX_PATH directly:
+#
+#   cmake -S src/python -B build/py \
+#     -DCMAKE_PREFIX_PATH="$AXOM_INSTALL;$CONDUIT_INSTALL;$(python -m nanobind --cmake_dir)"
+#   cmake --build   build/py
+#   cmake --install build/py --prefix <site-packages-shaped-dir>
+#------------------------------------------------------------------------------
+
+cmake_minimum_required(VERSION 3.21)
+project(axom_python LANGUAGES CXX)
+
+# Development.Module (not Development) so we link libpython-free extensions,
+# matching the in-tree build's discovery.
+find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+find_package(axom CONFIG REQUIRED)
+find_package(nanobind CONFIG REQUIRED)   # supplied via build-system.requires
+
+# The wheel's version metadata is read from this checkout's src/cmake/AxomVersion.cmake 
+# (see [[tool.dynamic-metadata]] in pyproject.toml),
+# but the extension is compiled and linked against the Axom install found above.
+#
+# Building from a checkout that does not match the install would produce a wheel
+# whose axom.__version__ misreports its own binary, so they must agree.
+# (AXOM_VERSION_* come from axom-config.cmake; SKBUILD_PROJECT_VERSION is injected by scikit-build-core,
+# so this check is active for wheel builds and skipped for a standalone cmake invocation.)
+if(DEFINED SKBUILD_PROJECT_VERSION AND DEFINED AXOM_VERSION_MAJOR)
+    set(_axom_installed_version
+        "${AXOM_VERSION_MAJOR}.${AXOM_VERSION_MINOR}.${AXOM_VERSION_PATCH}")
+    if(NOT SKBUILD_PROJECT_VERSION VERSION_EQUAL _axom_installed_version)
+        message(FATAL_ERROR
+                "Axom version mismatch: the wheel's metadata version is "
+                "${SKBUILD_PROJECT_VERSION} (from src/cmake/AxomVersion.cmake in this "
+                "source tree) but the Axom install it would link against is "
+                "${_axom_installed_version} (axom_DIR=${axom_DIR}). Build the wheel from "
+                "the source tree that produced the install, or point axom_DIR at an "
+                "install built from this source tree.")
+    endif()
+endif()
+
+#------------------------------------------------------------------------------
+# Binding sources. The translation unit lives with its component, not in this project directory.
+#------------------------------------------------------------------------------
+set(_sidre_binding_sources
+    "${CMAKE_CURRENT_SOURCE_DIR}/../axom/sidre/nanobind_sidre.cpp")
+
+# Build the extension under the shared 'axom' nanobind domain so that C++ types bound in one Axom module
+# (e.g. a sidre::Group*) are recognized by another module from the same build.
+# nanobind only shares type bindings across modules that agree on domain *and* nanobind ABI, compiler, and build mode,
+# hence the one-build/one-wheel rule. This mirrors src/axom/sidre/CMakeLists.txt.
+nanobind_add_module(_sidre NB_DOMAIN axom ${_sidre_binding_sources})
+
+# conduit::conduit_python provides conduit_python.hpp and is needed only by the binding TU, not by libsidre.
+target_link_libraries(_sidre PRIVATE axom::sidre conduit::conduit_python)
+
+# Bake the linked libraries' locations into the module's rpath so it resolves libsidre/libconduit/HDF5
+# from the Axom/Conduit install with no LD_LIBRARY_PATH.
+# pyproject also sets CMAKE_INSTALL_RPATH_USE_LINK_PATH for the wheel;
+# this makes the standalone `cmake --install` path behave the same.
+set_target_properties(_sidre PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+#------------------------------------------------------------------------------
+# HIP: replicate the in-tree special-case from src/axom/sidre/CMakeLists.txt.
+# CMake treats MODULE libraries separately from executables, so HIP executable
+# link flags are not applied to the module automatically.
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_HIP)
+    set_source_files_properties(${_sidre_binding_sources} PROPERTIES LANGUAGE HIP)
+    string(REPLACE " " ";" _axom_py_module_link_flags "${CMAKE_EXE_LINKER_FLAGS}")
+    target_link_options(_sidre PRIVATE ${_axom_py_module_link_flags})
+    unset(_axom_py_module_link_flags)
+endif()
+
+#------------------------------------------------------------------------------
+# Type stubs (PEP 561).
+#
+# nanobind_add_stub imports the module ('import _sidre') to introspect it.
+#
+# Turn this off on hosts where the build-time import is problematic:
+#   -C cmake.define.AXOM_PYTHON_GENERATE_STUB=OFF
+# The wheel still ships the checked-in package stub (axom/sidre/__init__.pyi)
+# and py.typed via wheel.packages, so it stays a typed package either way;
+# only the detailed _sidre.pyi (which __init__.pyi re-exports) is then absent.
+#------------------------------------------------------------------------------
+option(AXOM_PYTHON_GENERATE_STUB
+       "Generate the _sidre.pyi type stub at build time (imports the module)" ON)
+
+if(AXOM_PYTHON_GENERATE_STUB)
+    nanobind_add_stub(
+        _sidre_stub
+        MODULE _sidre
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/_sidre.pyi"
+        PYTHON_PATH $<TARGET_FILE_DIR:_sidre>
+        DEPENDS _sidre)
+
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/_sidre.pyi"
+            DESTINATION axom/sidre)
+endif()
+
+#------------------------------------------------------------------------------
+# Install only build products here. 
+# The pure-Python package files 
+# (axom/__init__.py, axom/py.typed, axom/sidre/__init__.py, axom/sidre/__init__.pyi)
+# ship as pure Python via [tool.scikit-build] wheel.packages in pyproject.toml,
+# so they are not installed by CMake (avoiding double-packaging).
+#------------------------------------------------------------------------------
+install(TARGETS _sidre LIBRARY DESTINATION axom/sidre)
