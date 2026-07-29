@@ -753,7 +753,12 @@ public:
    *
    * \return load_factor the ratio between the amount of items in the Map and the amount of buckets.
    */
-  float load_factor() const { return m_size / m_bucket_count; }
+  float load_factor() const
+  {
+    return (m_bucket_count == 0)
+      ? 0.F
+      : static_cast<float>(m_size) / static_cast<float>(m_bucket_count);
+  }
 
   /*!
    * \brief Returns whether a rehash is necessary for this Map instance. Does so based on two metrics. The
@@ -769,7 +774,7 @@ public:
    */
   bool check_rehash() const
   {
-    if(m_size / m_bucket_count >= m_load_factor || m_bucket_fill == true)
+    if(load_factor() >= m_load_factor || m_bucket_fill == true)
     {
       return true;
     }
