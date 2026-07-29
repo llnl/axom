@@ -21,13 +21,13 @@
 #include "axom/core/Types.hpp"
 #include "axom/slic/interface/slic.hpp"
 
-#include "core/SidreTypes.hpp"
-#include "core/Buffer.hpp"
-#include "core/View.hpp"
-#include "core/DataStore.hpp"
-#include "core/Group.hpp"
+#include "axom/sidre/core/SidreTypes.hpp"
+#include "axom/sidre/core/Buffer.hpp"
+#include "axom/sidre/core/View.hpp"
+#include "axom/sidre/core/DataStore.hpp"
+#include "axom/sidre/core/Group.hpp"
 #if defined(AXOM_USE_MPI)
-  #include "spio/IOManager.hpp"
+  #include "axom/sidre/spio/IOManager.hpp"
 #endif
 
 // Separate Conduit header for python functionality
