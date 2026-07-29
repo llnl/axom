@@ -248,7 +248,7 @@ htmlhelp_basename = 'Axomdoc'
 # override wide tables in RTD theme
 # (Thanks to https://rackerlabs.github.io/docs-rackspace/tools/rtd-tables.html)
 # These folders are copied to the documentation's HTML output
-html_static_path = ['docs/sphinx/_static/theme_overrides.css']
+html_static_path = [os.path.join(conf_directory, 'docs/sphinx/_static')]
 
 # These paths are either relative to html_static_path
 # or fully qualified paths (eg. https://...)
