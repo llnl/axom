@@ -28,3 +28,9 @@ TEST(utils_system, getHostName)
   std::cout << "host name = " << host_name << std::endl;
   EXPECT_TRUE(host_name != "");
 }
+
+TEST(utils_system, getEnvironmentVariable)
+{
+  EXPECT_EQ(axom::utilities::getEnvironmentVariable("AXOM_ENV_VAR_THAT_SHOULD_NOT_EXIST"), "");
+  EXPECT_NE(axom::utilities::getEnvironmentVariable("PATH"), "");
+}

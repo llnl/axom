@@ -10,6 +10,7 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/FlatMap.hpp"
 #include "axom/core/FlatMapView.hpp"
+#include "axom/core/utilities/System.hpp"
 
 // gtest includes
 #include "gtest/gtest.h"
@@ -77,6 +78,17 @@ struct ConstantHash
 
   AXOM_HOST_DEVICE axom::IndexType operator()(KeyType) const { return 0; }
 };
+
+int getFlatMapStressIters(int default_value)
+{
+  const std::string env_iters =
+    axom::utilities::getEnvironmentVariable("AXOM_FLATMAP_TEST_STRESS_ITERS");
+  if(!env_iters.empty())
+  {
+    return std::max(1, std::atoi(env_iters.c_str()));
+  }
+  return default_value;
+}
 
 using ViewTypes = ::testing::Types<
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
@@ -523,11 +535,7 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_batch_with_gaps_and_dups)
   const std::mt19937::result_type seed_batch_2 = 3511204532u;
 
   // Repeat the test as necessary to catch scheduling dependent regression
-  int num_trials = 20;
-  if(const char *env_iters = std::getenv("AXOM_FLATMAP_TEST_STRESS_ITERS"))
-  {
-    num_trials = std::max(1, std::atoi(env_iters));
-  }
+  const int num_trials = getFlatMapStressIters(20);
 
   for(int trial = 0; trial < num_trials; ++trial)
   {

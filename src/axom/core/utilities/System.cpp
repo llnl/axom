@@ -10,11 +10,13 @@
   #include <windows.h>
   #include <tchar.h>
 #else
+  #include <cstdlib>
   #include <unistd.h>
   #include <limits.h>
   #include <pwd.h>
 #endif
 
+#include <cstdlib>
 #include <iostream>
 
 namespace axom
@@ -114,6 +116,24 @@ std::locale locale(const std::string& name)
   }
 
   return loc;
+}
+
+std::string getEnvironmentVariable(const std::string& name)
+{
+#ifdef WIN32
+  char* value = nullptr;
+  std::size_t len = 0;
+  if(_dupenv_s(&value, &len, name.c_str()) == 0 && value != nullptr)
+  {
+    std::string result(value);
+    std::free(value);
+    return result;
+  }
+  return "";
+#else
+  const char* value = std::getenv(name.c_str());
+  return value != nullptr ? std::string(value) : std::string {};
+#endif
 }
 
 }  // end namespace utilities
