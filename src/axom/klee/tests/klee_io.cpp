@@ -31,6 +31,7 @@ using klee::InputVariables;
 using klee::KleeError;
 using klee::LengthUnit;
 using klee::LuaBindingsChunk;
+using klee::LuaInputOptions;
 using klee::Rotation;
 using klee::Scale;
 using klee::ShapeSet;
@@ -61,27 +62,10 @@ ShapeSet readShapeSetFromString(const std::string& input, InputFormat format)
 
 ShapeSet readShapeSetFromString(const std::string& input,
                                 InputFormat format,
-                                const InputVariables& variables)
+                                const LuaInputOptions& options)
 {
   std::istringstream istream(input);
-  return klee::readShapeSet(istream, format, variables);
-}
-
-ShapeSet readShapeSetFromString(const std::string& input,
-                                InputFormat format,
-                                const LuaBindingsChunk& bindings)
-{
-  std::istringstream istream(input);
-  return klee::readShapeSet(istream, format, bindings);
-}
-
-ShapeSet readShapeSetFromString(const std::string& input,
-                                InputFormat format,
-                                const InputVariables& variables,
-                                const LuaBindingsChunk& bindings)
-{
-  std::istringstream istream(input);
-  return klee::readShapeSet(istream, format, variables, bindings);
+  return klee::readShapeSet(istream, format, options);
 }
 }  // end namespace
 
@@ -452,6 +436,9 @@ TEST(IOTest, readShapeSet_streamDefaultsToYaml)
 
 TEST(IOTest, readShapeSet_yamlRejectsInputVariables)
 {
+  LuaInputOptions options;
+  options.variables = {{"dimensions", klee::InputVariableValue {2}}};
+
   try
   {
     readShapeSetFromString(R"(
@@ -459,7 +446,7 @@ TEST(IOTest, readShapeSet_yamlRejectsInputVariables)
       shapes: []
     )",
                            InputFormat::YAML,
-                           {{"dimensions", klee::InputVariableValue {2}}});
+                           options);
     FAIL() << "Should have thrown";
   }
   catch(const KleeError& err)
@@ -471,6 +458,14 @@ TEST(IOTest, readShapeSet_yamlRejectsInputVariables)
 
 TEST(IOTest, readShapeSet_yamlRejectsLuaBindings)
 {
+  LuaInputOptions options;
+  options.bindings = LuaBindingsChunk {R"(
+    return {
+      dimensions = 2
+    }
+  )",
+                                      "runtime_bindings"};
+
   try
   {
     readShapeSetFromString(R"(
@@ -478,12 +473,7 @@ TEST(IOTest, readShapeSet_yamlRejectsLuaBindings)
       shapes: []
     )",
                            InputFormat::YAML,
-                           LuaBindingsChunk {R"(
-                             return {
-                               dimensions = 2
-                             }
-                           )",
-                                             "runtime_bindings"});
+                           options);
     FAIL() << "Should have thrown";
   }
   catch(const KleeError& err)
@@ -520,10 +510,11 @@ TEST(IOTest, readShapeSet_explicitLuaOverridesFileExtension)
 {
   axom::utilities::filesystem::TempFile input {"explicitLua", "yaml"};
   input.write(R"(
-    dimensions = 2
     shapes = {})");
 
-  auto shapeSet = klee::readShapeSet(input.getPath(), InputFormat::Lua);
+  LuaInputOptions options;
+  options.variables = {{"dimensions", klee::InputVariableValue {2}}};
+  auto shapeSet = klee::readShapeSet(input.getPath(), InputFormat::Lua, options);
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
   EXPECT_EQ(input.getPath(), shapeSet.getPath());
 }
@@ -576,6 +567,8 @@ TEST(IOTest, readShapeSet_luaInputVariablesProvideInitialDimensionAndOperator)
     {"shape_suffix", klee::InputVariableValue {std::string {"2d"}}},
     {"lift", klee::InputVariableValue {3.0}},
   };
+  LuaInputOptions options;
+  options.variables = variables;
 
   auto shapeSet = readShapeSetFromString(R"(
     local function shape_path()
@@ -598,7 +591,7 @@ TEST(IOTest, readShapeSet_luaInputVariablesProvideInitialDimensionAndOperator)
     }
   )",
                                          InputFormat::Lua,
-                                         variables);
+                                         options);
 
   ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
   ASSERT_EQ(1u, shapeSet.getShapes().size());
@@ -618,6 +611,8 @@ TEST(IOTest, readShapeSet_luaInputVariablesAreInitialMutableGlobals)
     {"dimensions", klee::InputVariableValue {2}},
     {"lift", klee::InputVariableValue {3.0}},
   };
+  LuaInputOptions options;
+  options.variables = variables;
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 3
@@ -639,7 +634,7 @@ TEST(IOTest, readShapeSet_luaInputVariablesAreInitialMutableGlobals)
     }
   )",
                                          InputFormat::Lua,
-                                         variables);
+                                         options);
 
   ASSERT_EQ(Dimensions::Three, shapeSet.getDimensions());
   ASSERT_EQ(1u, shapeSet.getShapes().size());
@@ -665,6 +660,8 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialDimensionAndOperator)
     }
   )",
                              "runtime_bindings"};
+  LuaInputOptions options;
+  options.bindings = bindings;
 
   auto shapeSet = readShapeSetFromString(R"(
     local function shape_path()
@@ -687,7 +684,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialDimensionAndOperator)
     }
   )",
                                          InputFormat::Lua,
-                                         bindings);
+                                         options);
 
   ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
   ASSERT_EQ(1u, shapeSet.getShapes().size());
@@ -712,6 +709,8 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialMutableGlobals)
     }
   )",
                              "runtime_bindings"};
+  LuaInputOptions options;
+  options.bindings = bindings;
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 3
@@ -733,7 +732,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialMutableGlobals)
     }
   )",
                                          InputFormat::Lua,
-                                         bindings);
+                                         options);
 
   ASSERT_EQ(Dimensions::Three, shapeSet.getDimensions());
   ASSERT_EQ(1u, shapeSet.getShapes().size());
@@ -761,6 +760,9 @@ TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
     {"dimensions", klee::InputVariableValue {2}},
     {"shape_suffix", klee::InputVariableValue {std::string {"2d"}}},
   };
+  LuaInputOptions options;
+  options.variables = variables;
+  options.bindings = bindings;
 
   auto shapeSet = readShapeSetFromString(R"(
     local function shape_path()
@@ -783,8 +785,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
     }
   )",
                                          InputFormat::Lua,
-                                         variables,
-                                         bindings);
+                                         options);
 
   ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
   ASSERT_EQ(1u, shapeSet.getShapes().size());
@@ -813,6 +814,8 @@ TEST(IOTest, readShapeSet_luaBindingsChunkIsolatesUnexportedGlobals)
     }
   )",
                              "runtime_bindings"};
+  LuaInputOptions options;
+  options.bindings = bindings;
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 2
@@ -837,7 +840,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkIsolatesUnexportedGlobals)
     }
   )",
                                          InputFormat::Lua,
-                                         bindings);
+                                         options);
 
   ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
   ASSERT_EQ(1u, shapeSet.getShapes().size());
@@ -856,7 +859,10 @@ TEST(IOTest, readShapeSet_luaBindingsChunkCannotSetSchemaGlobalsWithoutExporting
       {"dimensions = 2; return {}", "_G.dimensions = 2; return {}"})
   {
     LuaBindingsChunk bindings {source, "runtime_bindings"};
-    EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, bindings), KleeError);
+    LuaInputOptions options;
+    options.bindings = bindings;
+    EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, options),
+                 KleeError);
   }
 }
 
@@ -876,6 +882,9 @@ TEST(IOTest, readShapeSet_luaBindingsClosureRetainsIsolatedEnvironment)
     }
   )",
                              "runtime_bindings"};
+  LuaInputOptions options;
+  options.variables = variables;
+  options.bindings = bindings;
 
   auto shapeSet = readShapeSetFromString(R"(
     shapes = {
@@ -894,8 +903,7 @@ TEST(IOTest, readShapeSet_luaBindingsClosureRetainsIsolatedEnvironment)
     }
   )",
                                          InputFormat::Lua,
-                                         variables,
-                                         bindings);
+                                         options);
 
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   const auto& geometry = shapeSet.getShapes()[0].getGeometry();
@@ -908,6 +916,9 @@ TEST(IOTest, readShapeSet_luaBindingsClosureRetainsIsolatedEnvironment)
 
 TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
 {
+  LuaInputOptions options;
+  options.variables = {{"shape-dim", klee::InputVariableValue {2}}};
+
   try
   {
     readShapeSetFromString(R"(
@@ -915,7 +926,7 @@ TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
       shapes = {}
     )",
                            InputFormat::Lua,
-                           {{"shape-dim", klee::InputVariableValue {2}}});
+                           options);
     FAIL() << "Should have thrown";
   }
   catch(const KleeError& err)
@@ -927,18 +938,21 @@ TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
 
 TEST(IOTest, readShapeSet_luaBindingsChunkRejectsInvalidExportName)
 {
+  LuaInputOptions options;
+  options.bindings = LuaBindingsChunk {R"(
+    return {
+      ["shape-dim"] = 2
+    }
+  )",
+                                      "runtime_bindings"};
+
   try
   {
     readShapeSetFromString(R"(
       shapes = {}
     )",
                            InputFormat::Lua,
-                           LuaBindingsChunk {R"(
-                             return {
-                               ["shape-dim"] = 2
-                             }
-                           )",
-                                             "runtime_bindings"});
+                           options);
     FAIL() << "Should have thrown";
   }
   catch(const KleeError& err)
@@ -950,18 +964,21 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsInvalidExportName)
 
 TEST(IOTest, readShapeSet_luaBindingsChunkRejectsReservedGlobalName)
 {
+  LuaInputOptions options;
+  options.bindings = LuaBindingsChunk {R"(
+    return {
+      math = 2
+    }
+  )",
+                                      "runtime_bindings"};
+
   try
   {
     readShapeSetFromString(R"(
       shapes = {}
     )",
                            InputFormat::Lua,
-                           LuaBindingsChunk {R"(
-                             return {
-                               math = 2
-                             }
-                           )",
-                                             "runtime_bindings"});
+                           options);
     FAIL() << "Should have thrown";
   }
   catch(const KleeError& err)
@@ -973,19 +990,22 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsReservedGlobalName)
 
 TEST(IOTest, readShapeSet_luaBindingsChunkRejectsDuplicateInputVariableName)
 {
+  LuaInputOptions options;
+  options.variables = {{"dimensions", klee::InputVariableValue {2}}};
+  options.bindings = LuaBindingsChunk {R"(
+    return {
+      dimensions = 3
+    }
+  )",
+                                      "runtime_bindings"};
+
   try
   {
     readShapeSetFromString(R"(
       shapes = {}
     )",
                            InputFormat::Lua,
-                           {{"dimensions", klee::InputVariableValue {2}}},
-                           LuaBindingsChunk {R"(
-                             return {
-                               dimensions = 3
-                             }
-                           )",
-                                             "runtime_bindings"});
+                           options);
     FAIL() << "Should have thrown";
   }
   catch(const KleeError& err)
@@ -997,6 +1017,9 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsDuplicateInputVariableName)
 
 TEST(IOTest, readShapeSet_luaBindingsChunkRequiresTableReturn)
 {
+  LuaInputOptions options;
+  options.bindings = LuaBindingsChunk {"return 2", "runtime_bindings"};
+
   try
   {
     readShapeSetFromString(R"(
@@ -1004,7 +1027,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRequiresTableReturn)
       shapes = {}
     )",
                            InputFormat::Lua,
-                           LuaBindingsChunk {"return 2", "runtime_bindings"});
+                           options);
     FAIL() << "Should have thrown";
   }
   catch(const KleeError& err)
