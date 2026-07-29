@@ -708,23 +708,22 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
  * Read a ShapeSet from a reader that has already parsed an input file.
  *
  * \param reader the parsed Inlet reader
- * \param rejectUnexpectedGlobals true if unexpected top-level Lua globals should be rejected
- * \param enableLuaCallbacks true if Lua callbacks should be enabled
+ * \param format the input format used by the reader
  * \param allowedGlobals external Lua globals permitted in the input
  * \return the parsed and verified ShapeSet
  * \throws KleeError if schema verification or semantic validation fails
  */
 ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader,
-                                bool rejectUnexpectedGlobals,
-                                bool enableLuaCallbacks,
+                                InputFormat format,
                                 const std::unordered_set<std::string> &allowedGlobals)
 {
+  const bool isLuaInput = format == InputFormat::Lua;
   sidre::DataStore dataStore;
   inlet::Inlet doc(std::move(reader), dataStore.getRoot());
-  defineKleeSchema(doc, enableLuaCallbacks);
+  defineKleeSchema(doc, isLuaInput);
   std::vector<inlet::VerificationError> errors;
   bool verified = doc.verify(&errors);
-  if(rejectUnexpectedGlobals)
+  if(isLuaInput)
   {
     appendUnexpectedGlobalErrors(doc, errors, allowedGlobals);
     verified = verified && errors.empty();
@@ -769,8 +768,7 @@ ShapeSet readShapeSet(std::istream &stream,
                Path {"<stream>"},
                "from stream");
   return readShapeSetFromReader(std::move(reader),
-                                format == InputFormat::Lua,
-                                format == InputFormat::Lua,
+                                format,
                                 allowedGlobals);
 }
 
@@ -800,8 +798,7 @@ ShapeSet readShapeSet(const std::string &filePath,
                Path {filePath},
                axom::fmt::format("from file '{}'", filePath));
   auto shapeSet = readShapeSetFromReader(std::move(reader),
-                                         format == InputFormat::Lua,
-                                         format == InputFormat::Lua,
+                                         format,
                                          allowedGlobals);
   shapeSet.setPath(filePath);
   return shapeSet;
