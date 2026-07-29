@@ -292,7 +292,7 @@ endif()
 
 foreach(test ${BLT_SMOKE_TESTS})
     get_filename_component( test_name ${test} NAME_WE )
-    axom_add_executable(
+    blt_add_executable(
         NAME       ${test_name}_test
         SOURCES    ${test}
         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
@@ -304,7 +304,7 @@ foreach(test ${BLT_SMOKE_TESTS})
 
 endforeach()
 
-set( ADDL_SMOKE_FLAGS "${BLT_WARNINGS_AS_ERRORS_FLAG} ${BLT_ENABLE_ALL_WARNINGS_FLAG}")
+set( ADDL_SMOKE_FLAGS "${BLT_WARNINGS_AS_ERRORS_CXX_FLAG} ${BLT_ENABLE_ALL_WARNINGS_CXX_FLAG}")
 
 set_target_properties(compiler_flag_uninitialized_test
     PROPERTIES COMPILE_FLAGS "${ADDL_SMOKE_FLAGS} ${AXOM_DISABLE_UNINITIALIZED_WARNINGS}")
