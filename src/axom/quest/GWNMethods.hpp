@@ -209,11 +209,22 @@ public:
         axom::Array<BoxType> aabbs(ncurves, ncurves);
         auto aabbs_view = aabbs.view();
 
-        axom::for_all<ExecSpace>(
-          ncurves,
-          AXOM_LAMBDA(axom::IndexType i) {
-            aabbs_view[i] = m_processed_curves_view[i].boundingBox();
-          });
+        if constexpr(axom::execution_space<ExecSpace>::onDevice())
+        {
+          axom::for_all<ExecSpace>(
+            ncurves,
+            AXOM_LAMBDA(axom::IndexType i) {
+              aabbs_view[i] = m_processed_curves_view[i].boundingBox();
+            });
+        }
+        else
+        {
+          axom::for_all<ExecSpace>(
+            ncurves,
+            AXOM_HOST_LAMBDA(axom::IndexType i) {
+              aabbs_view[i] = m_processed_curves_view[i].boundingBox();
+            });
+        }
         m_bvh.initialize(aabbs_view, ncurves);
       }
 
@@ -638,11 +649,22 @@ public:
         axom::Array<BoxType> aabbs(npatches, npatches);
         auto aabbs_view = aabbs.view();
 
-        axom::for_all<ExecSpace>(
-          npatches,
-          AXOM_LAMBDA(axom::IndexType i) {
-            aabbs_view[i] = m_processed_patches_view[i].boundingBox();
-          });
+        if constexpr(axom::execution_space<ExecSpace>::onDevice())
+        {
+          axom::for_all<ExecSpace>(
+            npatches,
+            AXOM_LAMBDA(axom::IndexType i) {
+              aabbs_view[i] = m_processed_patches_view[i].boundingBox();
+            });
+        }
+        else
+        {
+          axom::for_all<ExecSpace>(
+            npatches,
+            AXOM_HOST_LAMBDA(axom::IndexType i) {
+              aabbs_view[i] = m_processed_patches_view[i].boundingBox();
+            });
+        }
         m_bvh.initialize(aabbs_view, npatches);
       }
 
