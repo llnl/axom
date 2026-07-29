@@ -401,8 +401,7 @@ public:
     arc_curve.makeRational();
 
     // Define the first control point
-    arc_curve[0] = PointType(
-      {static_cast<T>(std::cos(theta_0)), static_cast<T>(std::sin(theta_0))});
+    arc_curve[0] = PointType({static_cast<T>(std::cos(theta_0)), static_cast<T>(std::sin(theta_0))});
     arc_curve.setWeight(0, T {1});
 
     // Need to split up the curve if it spans more than 120 degrees, possibly twice
@@ -411,12 +410,11 @@ public:
       const T theta_start = theta_0 + pi23 * static_cast<T>(idx);
       const T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
 
-      arc_curve[1 + 2 * idx + 1] = PointType(
-        {static_cast<T>(std::cos(theta_end)), static_cast<T>(std::sin(theta_end))});
+      arc_curve[1 + 2 * idx + 1] =
+        PointType({static_cast<T>(std::cos(theta_end)), static_cast<T>(std::sin(theta_end))});
 
       const T weight_num = static_cast<T>(std::sin(theta_end - theta_start));
-      const T weight_denom =
-        T {2.0} * static_cast<T>(std::sin((theta_end - theta_start) / T {2.0}));
+      const T weight_denom = T {2.0} * static_cast<T>(std::sin((theta_end - theta_start) / T {2.0}));
       arc_curve.setWeight(1 + 2 * idx + 0, weight_num / weight_denom);
       arc_curve.setWeight(1 + 2 * idx + 1, T {1});
 
@@ -434,10 +432,8 @@ public:
 
     for(int i = 0; i < n_segments - 1; ++i)
     {
-      arc_curve.setKnot(
-        3 + 2 * i + 0, static_cast<T>(i + 1) / static_cast<T>(n_segments));
-      arc_curve.setKnot(
-        3 + 2 * i + 1, static_cast<T>(i + 1) / static_cast<T>(n_segments));
+      arc_curve.setKnot(3 + 2 * i + 0, static_cast<T>(i + 1) / static_cast<T>(n_segments));
+      arc_curve.setKnot(3 + 2 * i + 1, static_cast<T>(i + 1) / static_cast<T>(n_segments));
     }
 
     if(is_cw)

@@ -106,11 +106,7 @@ public:
    */
   template <typename InputIt>
   FlatMap(InputIt first, InputIt last, IndexType bucket_count = -1)
-    : FlatMap(static_cast<IndexType>(std::distance(first, last)),
-              first,
-              last,
-              bucket_count,
-              Allocator {})
+    : FlatMap(static_cast<IndexType>(std::distance(first, last)), first, last, bucket_count, Allocator {})
   { }
 
   /*!

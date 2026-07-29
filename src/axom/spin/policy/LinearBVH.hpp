@@ -310,8 +310,12 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
 
   lbvh::RadixTree<FloatType, NDIMS> radix_tree;
   primal::BoundingBox<FloatType, NDIMS> global_bounds;
-  lbvh::build_radix_tree<ExecSpace>(
-    boxes, numBoxesInt, global_bounds, radix_tree, scaleFactor, allocatorID);
+  lbvh::build_radix_tree<ExecSpace>(boxes,
+                                    numBoxesInt,
+                                    global_bounds,
+                                    radix_tree,
+                                    scaleFactor,
+                                    allocatorID);
 
   // STEP 2: emit the BVH data-structure from the radix tree
   m_bounds = global_bounds;

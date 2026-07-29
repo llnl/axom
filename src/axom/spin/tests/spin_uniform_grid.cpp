@@ -151,10 +151,10 @@ void checkBinCounts(axom::spin::UniformGrid<T, NDIMS>& v,
   for(axom::IndexType i = 0; i < bcount; ++i)
   {
     const auto grid_count = static_cast<axom::IndexType>(v.getBinContents(i).size());
-    const bool binAgrees = (bincounts.count(i) < 1 && v.isBinEmpty(i)) || (bincounts[i] == grid_count);
+    const bool binAgrees =
+      (bincounts.count(i) < 1 && v.isBinEmpty(i)) || (bincounts[i] == grid_count);
     EXPECT_TRUE(binAgrees) << "Difference at bin " << i << ": v has " << v.getBinContents(i).size()
-                           << " and bincounts has "
-                           << (bincounts.count(i) < 1 ? 0 : bincounts[i]);
+                           << " and bincounts has " << (bincounts.count(i) < 1 ? 0 : bincounts[i]);
   }
 }
 
@@ -568,7 +568,8 @@ public:
 
     const auto iota_v = m_iota.view();
     axom::for_all<ExecSpace>(
-      this->m_numObjects, AXOM_LAMBDA(axom::IndexType idx) { iota_v[idx] = idx; });
+      this->m_numObjects,
+      AXOM_LAMBDA(axom::IndexType idx) { iota_v[idx] = idx; });
   }
 
   std::unique_ptr<DynamicUniformGridType> constructUniformGridDynamic()

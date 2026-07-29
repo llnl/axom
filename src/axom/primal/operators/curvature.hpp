@@ -55,8 +55,7 @@ T curvature(const VectorType& Dt, const VectorType& DtDt)
   {
     const double dt_norm = Dt.norm();
     SLIC_ASSERT(dt_norm != 0.0);
-    return static_cast<T>(VectorType::cross_product(Dt, DtDt).norm() /
-                          (dt_norm * dt_norm * dt_norm));
+    return static_cast<T>(VectorType::cross_product(Dt, DtDt).norm() / (dt_norm * dt_norm * dt_norm));
   }
 }
 

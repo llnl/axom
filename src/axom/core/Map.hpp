@@ -755,9 +755,8 @@ public:
    */
   float load_factor() const
   {
-    return (m_bucket_count == 0)
-      ? 0.F
-      : static_cast<float>(m_size) / static_cast<float>(m_bucket_count);
+    return (m_bucket_count == 0) ? 0.F
+                                 : static_cast<float>(m_size) / static_cast<float>(m_bucket_count);
   }
 
   /*!

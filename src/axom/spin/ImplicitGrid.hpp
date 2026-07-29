@@ -1008,7 +1008,8 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
       continue;
     }
     // currWord now contains the resulting candidacy information for our given point
-    const int numBits = axom::utilities::min(bitsPerWord, nbits - (iword * bitsPerWord));
+    const int numBits =
+      axom::utilities::min(bitsPerWord, static_cast<int>(nbits - (iword * bitsPerWord)));
     int currBit = axom::utilities::countr_zero(currWord);
     while(currBit < numBits)
     {
@@ -1075,7 +1076,8 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
       continue;
     }
     // currWord now contains the resulting candidacy information for our given point
-    const int numBits = axom::utilities::min(bitsPerWord, nbits - (iword * bitsPerWord));
+    const int numBits =
+      axom::utilities::min(bitsPerWord, static_cast<int>(nbits - (iword * bitsPerWord)));
     int currBit = axom::utilities::countr_zero(currWord);
     while(currBit < numBits)
     {
