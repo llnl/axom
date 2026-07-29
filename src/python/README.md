@@ -204,11 +204,12 @@ uv pip install nanobind 'scikit-build-core[pyproject]'
 uv pip install -e src/python --no-build-isolation \
   -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" \
   -C build-dir=build/py -C editable.rebuild=true
-uv run pytest -o python_files='*_Py.py' src/axom/sidre/tests/
+(cd "$(mktemp -d)" && uv run --project "$OLDPWD" \
+   pytest -o python_files='*_Py.py' "$OLDPWD/src/axom/sidre/tests/")
 ```
 
-Axom's Python tests are named `*_Py.py`, which pytest's default `python_files` patterns do not match,
-so name the pattern explicitly (as above) or nothing is collected.
+Note that Axom's Python tests are named `*_Py.py`, which pytest's default `python_files` patterns do not match
+and several tests write output files into the current directory, so we run them from a scratch directory.
 
 ### Stable ABI (abi3)
 

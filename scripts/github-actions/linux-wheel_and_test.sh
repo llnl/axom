@@ -116,7 +116,15 @@ echo "~~~~~~ RUN THE SIDRE PYTHON SUITE VIA PLAIN pytest ~~~~~~"
 # (test_*.py, *_test.py) do not match -- an unqualified run collects nothing and exits 5.
 # Name the pattern explicitly so collection is deterministic.
 # The MPI-only spio test skips itself at module level when sidre was built without MPI.
+# Several tests write output tmp files into the current directory,
+# so run from a scratch directory
 or_die uv pip install --python "${VENV_PY}" pytest
+TEST_DIR="$(pwd)/src/axom/sidre/tests"
+SCRATCH="$(mktemp -d)"
+# Note: not a ( subshell ) -- or_die exits on failure, and from a subshell that would
+# only exit the subshell and let the lane report success.
+cd "${SCRATCH}"
 or_die "${VENV_PY}" -m pytest -s -p no:cacheprovider \
     -o python_files='*_Py.py' \
-    src/axom/sidre/tests/
+    "${TEST_DIR}"
+cd - > /dev/null
