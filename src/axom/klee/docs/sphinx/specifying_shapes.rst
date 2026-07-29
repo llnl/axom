@@ -215,6 +215,13 @@ Exported values may be booleans, numbers, strings, tables, or functions. Like
 input variables, exported bindings are ordinary Lua globals; deck code can
 reassign exported names and can mutate exported tables.
 
+Klee evaluates the chunk in an isolated Lua environment. Preloaded Lua
+libraries and caller-provided input variables remain visible, but globals
+assigned by the chunk do not leak into the input deck unless they are returned
+in the export table. Exported functions retain access to the chunk's private
+environment. This name isolation is not a security sandbox; applications
+should execute only trusted Lua bindings code.
+
 Use :code:`local` helper functions and constants for intermediate values so the
 global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example
