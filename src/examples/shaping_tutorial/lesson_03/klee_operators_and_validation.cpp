@@ -161,8 +161,9 @@ int main(int argc, char** argv)
 
     std::ifstream bindingsStream {bindingsFilename};
     std::string bindingsSource {std::istreambuf_iterator<char>(bindingsStream), {}};
-    axom::klee::LuaBindingsChunk bindings {bindingsSource, bindingsFilename};
-    return axom::klee::readShapeSet(inputFilename, bindings);
+    axom::klee::LuaInputOptions options;
+    options.bindings = axom::klee::LuaBindingsChunk {bindingsSource, bindingsFilename};
+    return axom::klee::readShapeSet(inputFilename, options);
   };
 
   // Load the klee shape file and extract some information

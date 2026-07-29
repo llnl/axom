@@ -129,11 +129,12 @@ dimensions, or operator values at run time:
 
 .. code-block:: c++
 
-    axom::klee::InputVariables vars {
+    axom::klee::LuaInputOptions options;
+    options.variables = {
       {"dimensions", axom::klee::InputVariableValue {2}},
       {"shape_suffix", axom::klee::InputVariableValue {std::string {"2d"}}}
     };
-    auto shapeSet = axom::klee::readShapeSet("shape.lua", vars);
+    auto shapeSet = axom::klee::readShapeSet("shape.lua", options);
 
 .. code-block:: lua
 
@@ -172,7 +173,8 @@ at run time without recompiling the C++ application:
 
 .. code-block:: c++
 
-    axom::klee::LuaBindingsChunk bindings {
+    axom::klee::LuaInputOptions options;
+    options.bindings = axom::klee::LuaBindingsChunk {
       R"(
         local dim = 2
         local lift = 3.0
@@ -191,7 +193,7 @@ at run time without recompiling the C++ application:
       )",
       "runtime_bindings"
     };
-    auto shapeSet = axom::klee::readShapeSet("shape.lua", bindings);
+    auto shapeSet = axom::klee::readShapeSet("shape.lua", options);
 
 .. code-block:: lua
 

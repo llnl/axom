@@ -10,6 +10,7 @@
 
 #include <string>
 #include <istream>
+#include <optional>
 #include <unordered_map>
 #include <variant>
 
@@ -37,6 +38,16 @@ using InputVariableValue = std::variant<bool, int, double, std::string>;
 /// Variables to set as ordinary mutable globals before a Lua input deck is evaluated.
 using InputVariables = std::unordered_map<std::string, InputVariableValue>;
 
+/// Optional caller-provided values and bindings for a Lua input deck.
+struct LuaInputOptions
+{
+  /// Primitive values to install as initial mutable Lua globals.
+  InputVariables variables;
+
+  /// Chunk to evaluate before the input deck; returned entries become mutable Lua globals.
+  std::optional<LuaBindingsChunk> bindings;
+};
+
 /**
  * Read a ShapeSet from an input stream.
  *
@@ -57,43 +68,17 @@ ShapeSet readShapeSet(std::istream& stream);
 ShapeSet readShapeSet(std::istream& stream, InputFormat format);
 
 /**
- * Read a ShapeSet from an input stream with caller-provided input variables.
+ * Read a ShapeSet from an input stream with caller-provided Lua inputs.
  *
  * \param stream the stream from which to read the ShapeSet
  * \param format the input deck format to use
- * \param variables primitive values to set as initial mutable Lua globals
- * \note Input variables are supported only for Lua input decks.
- * \throws runtime_error if the input is invalid
- */
-ShapeSet readShapeSet(std::istream &stream, InputFormat format, const InputVariables &variables);
-
-/**
- * Read a ShapeSet from an input stream with caller-provided Lua bindings.
- *
- * \param stream the stream from which to read the ShapeSet
- * \param format the input deck format to use
- * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings, which become initial mutable Lua globals
- * \note Lua bindings are supported only for Lua input decks.
- * \throws runtime_error if the input is invalid
- */
-ShapeSet readShapeSet(std::istream &stream, InputFormat format, const LuaBindingsChunk &bindings);
-
-/**
- * Read a ShapeSet from an input stream with caller-provided input variables and Lua bindings.
- *
- * \param stream the stream from which to read the ShapeSet
- * \param format the input deck format to use
- * \param variables primitive values to set as initial mutable Lua globals
- * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings, which become initial mutable Lua globals
- * \note Input variables and Lua bindings are supported only for Lua input decks.
- * \throws runtime_error if the input is invalid
+ * \param options optional variables and bindings for a Lua input deck
+ * \note Non-empty Lua input options are supported only for Lua input decks.
+ * \throws KleeError if the input or Lua input options are invalid
  */
 ShapeSet readShapeSet(std::istream &stream,
                       InputFormat format,
-                      const InputVariables &variables,
-                      const LuaBindingsChunk &bindings);
+                      const LuaInputOptions &options);
 
 /**
  * Read a ShapeSet from a specified file
@@ -119,45 +104,31 @@ ShapeSet readShapeSet(const std::string& filePath);
 ShapeSet readShapeSet(const std::string& filePath, InputFormat format);
 
 /**
- * Read a ShapeSet from a specified file with caller-provided input variables.
+ * Read a ShapeSet from a specified file with caller-provided Lua inputs.
  *
  * \param filePath the file from which to read the ShapeSet
- * \param variables primitive values to set as initial mutable Lua globals
- * \note The input format is inferred from the file extension. Input variables
- *       are supported only for Lua input decks.
+ * \param options optional variables and bindings for a Lua input deck
+ * \note The input format is inferred from the file extension. Non-empty Lua
+ *       input options are supported only for Lua input decks.
  * \return the ShapeSet read from the file
- * \throws runtime_error if the input is invalid
+ * \throws KleeError if the input or Lua input options are invalid
  */
-ShapeSet readShapeSet(const std::string &filePath, const InputVariables &variables);
+ShapeSet readShapeSet(const std::string &filePath, const LuaInputOptions &options);
 
 /**
- * Read a ShapeSet from a specified file with caller-provided Lua bindings.
+ * Read a ShapeSet from a specified file using an explicit format and
+ * caller-provided Lua inputs.
  *
  * \param filePath the file from which to read the ShapeSet
- * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings, which become initial mutable Lua globals
- * \note The input format is inferred from the file extension. Lua bindings are
- *       supported only for Lua input decks.
+ * \param format the input file format to use, regardless of the file extension
+ * \param options optional variables and bindings for a Lua input deck
+ * \note Non-empty Lua input options are supported only for Lua input decks.
  * \return the ShapeSet read from the file
- * \throws runtime_error if the input is invalid
- */
-ShapeSet readShapeSet(const std::string &filePath, const LuaBindingsChunk &bindings);
-
-/**
- * Read a ShapeSet from a specified file with caller-provided input variables and Lua bindings.
- *
- * \param filePath the file from which to read the ShapeSet
- * \param variables primitive values to set as initial mutable Lua globals
- * \param bindings Lua chunk evaluated before deck parsing; must return a table
- *        of exported bindings, which become initial mutable Lua globals
- * \note The input format is inferred from the file extension. Input variables
- *       and Lua bindings are supported only for Lua input decks.
- * \return the ShapeSet read from the file
- * \throws runtime_error if the input is invalid
+ * \throws KleeError if the input or Lua input options are invalid
  */
 ShapeSet readShapeSet(const std::string &filePath,
-                      const InputVariables &variables,
-                      const LuaBindingsChunk &bindings);
+                      InputFormat format,
+                      const LuaInputOptions &options);
 
 }  // namespace klee
 }  // namespace axom
