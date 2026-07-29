@@ -98,8 +98,8 @@ they target controlled environments (an LC host-config, a spack view, or a CI im
 .. note::
    **Do not install Conduit from PyPI.** Axom's bindings pass ``conduit::Node`` objects across the
    C++ boundary to the ``conduit`` Python module, so that module must wrap the *same* ``libconduit``
-   that Axom was compiled and linked against. Two separate PyPI packages are easy to reach for by
-   mistake, and neither works:
+   that Axom was compiled and linked against.
+   Two separate PyPI packages are easy to reach for by mistake, and neither works:
 
    * ``conduit`` is an **unrelated project** (a stream-transformation library for power-engineering
      analytics).

@@ -28,11 +28,14 @@ in the Sidre user guide's "Python interface" page (`src/axom/sidre/docs/sphinx/p
 ## Two ways to get the Python interface
 
 The two paths differ only in *who* compiles the `_sidre` extension and *how you import it*.
-They compile the **same** binding translation unit (`src/axom/sidre/nanobind_sidre.cpp`)
-under the **same** nanobind domain (`NB_DOMAIN axom`) and ship the **same** pure-Python tree
-from this directory, so `import axom.sidre` behaves identically either way.
-Both also stand on top of a fully built, installed Axom plus a matching Conduit 
-(neither path builds Axom's C++ libraries or its third-party libraries).
+They compile:
+
+- the **same** binding translation unit (`src/axom/sidre/nanobind_sidre.cpp`)
+- under the **same** nanobind domain (`NB_DOMAIN axom`)
+- and ship the **same** pure-Python tree from this directory, so `import axom.sidre` behaves identically either way.
+
+Both also stand on top of a fully built, installed Axom plus a matching Conduit --
+neither path builds Axom's C++ libraries or its third-party libraries.
 
 ### Path A -- in-tree CMake build, imported via `PYTHONPATH`
 
@@ -51,7 +54,7 @@ so an ad hoc script "just works" without a venv:
 <build>/bin/run_python_with_axom.sh my_script.py
 ```
 
-This is the natural path during Axom development since it doesn't require a separate packaging step,
+This is a natural path during Axom development since it doesn't require a separate packaging step,
 and rebuilding Axom rebuilds the bindings in place. 
 The wrapper is bash-only and does not compose with Jupyter kernels, IDE runners, or debuggers;
 for those, use the venv of Path B.
@@ -70,9 +73,9 @@ uv pip install dist/axom-*.whl
 The wheel's `CMakeLists.txt` runs `find_package(axom CONFIG REQUIRED)` and
 compiles only `nanobind_sidre.cpp` -- it consumes the install, but does not rebuild it.
 
-This is the path for distributing or consuming the bindings in an ordinary Python environment:
-it does not require modifying the `PYTHONPATH` or running through a wrapper, so it works with scripts,
-IDEs, debuggers and Jupyter kernels. The user guide has the step-by-step instructions
+Use this path for distributing or consuming the bindings in an ordinary Python environment.
+It does not require modifying the `PYTHONPATH` or running through a wrapper, so it works with scripts,
+IDEs, debuggers and Jupyter kernels. The user guide has the step-by-step instructions.
 For details on building it, see the "Building the wheel: reference" section below.
 
 ### What `uv` builds -- and what it does not
@@ -80,6 +83,7 @@ For details on building it, see the "Building the wheel: reference" section belo
 `uv build` (through scikit-build-core) runs the wheel's `CMakeLists.txt`,
 which compiles the single binding TU and links it against an already-installed
 `axom::sidre` and `conduit::conduit_python`. 
+
 It does **not** build:
 
 - **Axom's C++ libraries** -- supplied by the `find_package(axom)` install.
@@ -250,4 +254,5 @@ never in the runtime dependencies.
 
 - These files are installed verbatim (no template substitution). They contain no CMake-configured values.
 - This directory doubles as the root of the pip/uv wheel project (`pyproject.toml` + `CMakeLists.txt`),
-  which reuses the very files above, so the two delivery modes cannot drift.
+  which reuses these files.
+

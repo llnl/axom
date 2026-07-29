@@ -18,8 +18,7 @@
 # so a user-supplied CMAKE_PREFIX_PATH is ignored.
 # A standalone cmake invocation has no such layer and uses CMAKE_PREFIX_PATH directly:
 #
-#   cmake -S src/python -B build/py \
-#     -DCMAKE_PREFIX_PATH="$AXOM_INSTALL;$CONDUIT_INSTALL;$(python -m nanobind --cmake_dir)"
+#   cmake -S src/python -B build/py -DCMAKE_PREFIX_PATH="$AXOM_INSTALL;$CONDUIT_INSTALL;$(python -m nanobind --cmake_dir)"
 #   cmake --build   build/py
 #   cmake --install build/py --prefix <site-packages-shaped-dir>
 #------------------------------------------------------------------------------
@@ -37,9 +36,9 @@ option(AXOM_PYTHON_STABLE_ABI
        "Build the extension against Python's stable ABI (abi3); needs Python >= 3.12" OFF)
 
 # Development.Module (not Development) so we link libpython-free extensions,
-# matching the in-tree build's discovery. Development.SABIModule is requested as
-# an OPTIONAL component (nanobind's recommended pattern) so a stable-ABI build
-# (AXOM_PYTHON_STABLE_ABI=ON, which needs Python >= 3.12) can find it, 
+# matching the in-tree build's discovery.
+# Development.SABIModule is requested as an OPTIONAL component (nanobind's recommended pattern) 
+# so a stable-ABI build (AXOM_PYTHON_STABLE_ABI=ON, which needs Python >= 3.12) can find it,
 # without a conditional component list.
 find_package(Python 3.10 REQUIRED
              COMPONENTS Interpreter Development.Module
