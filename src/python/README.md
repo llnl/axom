@@ -95,7 +95,8 @@ Axom and its TPLs come from the CMake/spack world, and `uv` adds only the thin b
 Keeping the wheel thin makes it fast and reproducible against a known install.
 
 Conduit is therefore deliberately not a dependency of the wheel; its Python module reaches the
-venv through a `.pth` file pointing at the same-build Conduit (see "Same-build Conduit" below).
+venv through a generated `.pth` file pointing at the same-build Conduit
+(see "Same-build Conduit" below).
 Two distinct things on PyPI are worth mentioning:
 
 - **`conduit` on PyPI is an unrelated project** -- it is a a stream-transformation library 
@@ -163,6 +164,24 @@ when Axom was installed.
 Pass `-C cmake.define.Conduit_DIR="$CONDUIT_INSTALL/lib/cmake/conduit"` only if
 that recorded path no longer resolves (e.g. a relocated install, a different mount, or a container path).
 
+If the Axom install is MPI-enabled, make the wheel build use the same compiler
+and MPI wrapper family that built Axom. The values can be copied from the Axom
+build's `CMakeCache.txt` or host-config:
+
+```bash
+uv build --wheel \
+  -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" \
+  -C cmake.define.CMAKE_C_COMPILER="$AXOM_C_COMPILER" \
+  -C cmake.define.CMAKE_CXX_COMPILER="$AXOM_CXX_COMPILER" \
+  -C cmake.define.MPI_C_COMPILER="$AXOM_MPI_C_COMPILER" \
+  -C cmake.define.MPI_CXX_COMPILER="$AXOM_MPI_CXX_COMPILER" \
+  src/python
+```
+
+This matters because `axom-config.cmake` re-runs CMake's MPI discovery while
+loading Axom's MPI-enabled dependencies, and a plain environment may discover a
+different system MPI than the one recorded in the Axom install.
+
 Do *not* use `CMAKE_PREFIX_PATH`. Under scikit-build-core (which drives `uv build` and `uv pip install`)
 it is force-set to the isolated build environment (that is how the build locates its own bundled `nanobind`)
 so a user-supplied value would be overwritten and ignored, and `find_package(axom)` 
@@ -181,10 +200,50 @@ Two constraints apply to every workflow below:
 
 - **Same-build Conduit.** The bindings exchange `conduit::Node`s with the `conduit` Python module
   through Conduit's C capsule API, so that module must wrap the *same* `libconduit` the install links.
-  Expose the install's own Conduit with a one-line `.pth` in the venv's `site-packages`
-  (the user guide shows the command); do not install either PyPI package (see "What `uv` builds" above).
+  The wheel writes a `conduit.pth` file into the venv's `site-packages` using
+  `CONDUIT_PYTHON_MODULE_DIR` from Conduit's CMake config. Do not install either
+  PyPI package (see "What `uv` builds" above).
 - **Matching interpreter.** Build with the interpreter family whose toolchain/glibc matches the host-config. 
   On LC, pin it explicitly: `uv venv --python $(which python3)`.
+- **Matching compiler/MPI wrappers.** For MPI Axom installs, pass the same
+  C/C++ compilers and MPI wrappers used by the Axom build, as shown above.
+
+If Axom is already installed in a venv but `import conduit` fails, this is the
+only manual step usually needed:
+
+```bash
+CONDUIT_PYTHON_MODULE_DIR=/path/to/conduit/install/lib/pythonX.Y/site-packages
+printf '%s\n' "$CONDUIT_PYTHON_MODULE_DIR" > \
+  "$(uv run python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/conduit.pth"
+uv run python -c "import axom.sidre, conduit; print(conduit.__file__)"
+```
+
+Use `CONDUIT_PYTHON_MODULE_DIR` from Conduit's CMake config. On current LC
+installs it is usually `lib/pythonX.Y/site-packages`, not `python-modules`.
+
+If Conduit's Python module is not recorded by Conduit's CMake config, pass it
+explicitly:
+
+```bash
+uv build --wheel \
+  -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" \
+  -C cmake.define.CONDUIT_PYTHON_MODULE_DIR="$CONDUIT_INSTALL/lib/pythonX.Y/site-packages" \
+  src/python
+```
+
+The wheel also installs development helpers:
+
+```bash
+axom-python-config --host-config  # path to axom/share/axom-python-host-config.cmake
+axom-python-config --env-script   # path to axom/share/axom-python-env.sh
+```
+
+Use the host-config to seed downstream CMake projects with the same Axom,
+Conduit, compiler, MPI and Python settings used by the wheel:
+
+```bash
+cmake -C "$(axom-python-config --host-config)" -S <source-dir> -B <build-dir>
+```
 
 ### Per-host-config wheelhouse
 
@@ -252,7 +311,5 @@ never in the runtime dependencies.
 
 ## Notes
 
-- These files are installed verbatim (no template substitution). They contain no CMake-configured values.
 - This directory doubles as the root of the pip/uv wheel project (`pyproject.toml` + `CMakeLists.txt`),
   which reuses these files.
-

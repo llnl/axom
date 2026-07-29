@@ -67,6 +67,9 @@ Homepage = "https://github.com/LLNL/axom"
 Documentation = "https://axom.readthedocs.io"
 Source = "https://github.com/LLNL/axom"
 
+[project.scripts]
+axom-python-config = "axom.config:main"
+
 # Source the wheel version from the C++ library's canonical version file, so it can never drift from libaxom.
 # Build from a full repo checkout: the sdist does not carry this out-of-tree file,
 # and standalone-sdist/PyPI is out of scope (see the sdist note under [tool.scikit-build]).
@@ -110,4 +113,3 @@ wheel.packages = ["src/axom"]
 [tool.scikit-build.cmake.define]
 # Resolve libsidre/libconduit/HDF5 from their install locations at runtime with no LD_LIBRARY_PATH.
 CMAKE_INSTALL_RPATH_USE_LINK_PATH = "ON"
-

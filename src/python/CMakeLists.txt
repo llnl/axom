@@ -24,7 +24,7 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.21)
-project(axom_python LANGUAGES CXX)
+project(axom_python LANGUAGES C CXX)
 
 # Optional: build against Python's stable ABI (abi3) so one wheel serves every CPython >= 3.12 on the machine.
 # Opt-in (default OFF) to provide per-Python wheel tags by default.
@@ -57,6 +57,52 @@ endif()
 
 find_package(axom CONFIG REQUIRED)
 find_package(nanobind CONFIG REQUIRED)   # supplied via build-system.requires
+
+set(_axom_py_conduit_cmake_dir "")
+if(DEFINED Conduit_DIR)
+    set(_axom_py_conduit_cmake_dir "${Conduit_DIR}")
+elseif(DEFINED CONDUIT_INSTALL_PREFIX)
+    set(_axom_py_conduit_cmake_dir "${CONDUIT_INSTALL_PREFIX}/lib/cmake/conduit")
+elseif(DEFINED AXOM_CONDUIT_DIR)
+    set(_axom_py_conduit_cmake_dir "${AXOM_CONDUIT_DIR}/lib/cmake/conduit")
+endif()
+
+set(_axom_py_conduit_prefix "")
+if(DEFINED CONDUIT_INSTALL_PREFIX)
+    set(_axom_py_conduit_prefix "${CONDUIT_INSTALL_PREFIX}")
+elseif(DEFINED AXOM_CONDUIT_DIR)
+    set(_axom_py_conduit_prefix "${AXOM_CONDUIT_DIR}")
+elseif(DEFINED CONDUIT_DIR)
+    set(_axom_py_conduit_prefix "${CONDUIT_DIR}")
+endif()
+
+set(_axom_py_conduit_python_module_dir "")
+if(DEFINED CONDUIT_PYTHON_MODULE_DIR)
+    if(IS_ABSOLUTE "${CONDUIT_PYTHON_MODULE_DIR}")
+        set(_axom_py_conduit_python_module_dir "${CONDUIT_PYTHON_MODULE_DIR}")
+    elseif(_axom_py_conduit_prefix)
+        set(_axom_py_conduit_python_module_dir
+            "${_axom_py_conduit_prefix}/${CONDUIT_PYTHON_MODULE_DIR}")
+    endif()
+elseif(_axom_py_conduit_prefix)
+    foreach(_axom_py_conduit_python_module_dir_candidate
+            "${_axom_py_conduit_prefix}/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
+            "${_axom_py_conduit_prefix}/python-modules")
+        if(EXISTS "${_axom_py_conduit_python_module_dir_candidate}/conduit")
+            set(_axom_py_conduit_python_module_dir
+                "${_axom_py_conduit_python_module_dir_candidate}")
+            break()
+        endif()
+    endforeach()
+endif()
+
+if(NOT _axom_py_conduit_python_module_dir
+   OR NOT EXISTS "${_axom_py_conduit_python_module_dir}/conduit")
+    message(FATAL_ERROR
+            "Could not determine the Conduit Python module directory for this "
+            "Axom install. Pass -C cmake.define.CONDUIT_PYTHON_MODULE_DIR=<path> "
+            "where <path> contains the same-build conduit Python package.")
+endif()
 
 # The wheel's version metadata is read from this checkout's src/cmake/AxomVersion.cmake 
 # (see [[tool.dynamic-metadata]] in pyproject.toml),
@@ -107,6 +153,31 @@ target_link_libraries(_sidre PRIVATE axom::sidre conduit::conduit_python)
 # pyproject also sets CMAKE_INSTALL_RPATH_USE_LINK_PATH for the wheel;
 # this makes the standalone `cmake --install` path behave the same.
 set_target_properties(_sidre PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+#------------------------------------------------------------------------------
+# Generated runtime/development helpers.
+#
+# A thin wheel is tied to the Axom/Conduit install it was built against. Ship the
+# corresponding Conduit Python path and CMake configuration hints with the wheel
+# so users do not have to rediscover them by hand.
+#------------------------------------------------------------------------------
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/axom-python-host-config.cmake.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/axom-python-host-config.cmake"
+               @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/axom-python-env.sh.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/axom-python-env.sh"
+               @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/axom-python-host-config.cmake"
+              "${CMAKE_CURRENT_BINARY_DIR}/axom-python-env.sh"
+        DESTINATION axom/share)
+
+if(_axom_py_conduit_python_module_dir)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/conduit.pth.in"
+                   "${CMAKE_CURRENT_BINARY_DIR}/conduit.pth"
+                   @ONLY)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/conduit.pth"
+            DESTINATION ".")
+endif()
 
 #------------------------------------------------------------------------------
 # HIP: replicate the in-tree special-case from src/axom/sidre/CMakeLists.txt.
