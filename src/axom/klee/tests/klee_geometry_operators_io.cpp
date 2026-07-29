@@ -80,7 +80,7 @@ OperatorPointer readOperators(const TransformableGeometryProperties& startProper
     throw KleeError(errors);
   }
   auto opData = doc["test_list"].get<GeometryOperatorData>();
-  return opData.makeOperator(startProperties, namedOperators);
+  return opData.makeOperator(startProperties, namedOperators, "");
 }
 
 /**

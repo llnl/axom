@@ -444,8 +444,8 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
     if(size < 1 || size > 3)
     {
       throw std::runtime_error(
-        fmt::format("[Inlet] Lua vector function returned a table with {0} entries; expected 1 to "
-                    "3 numeric entries",
+        fmt::format("[Inlet] Lua vector function returned a table with {0} entries; "
+                    "expected 1 to 3 numeric entries",
                     size));
     }
 
@@ -463,12 +463,6 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
       values.push_back(value.value());
     }
     return FunctionType::Vector {values.data(), static_cast<int>(values.size())};
-  }
-
-  axom::sol::optional<double> scalar_option = res;
-  if(scalar_option)
-  {
-    return FunctionType::Vector {scalar_option.value()};
   }
 
   throw std::runtime_error("[Inlet] Lua function call failed, return types possibly incorrect");

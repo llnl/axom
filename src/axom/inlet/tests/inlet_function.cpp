@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 #include <array>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -79,6 +80,15 @@ TEST(inlet_function, simple_vec3_to_vec3_raw_table_return)
   EXPECT_FLOAT_EQ(result[0], 2);
   EXPECT_FLOAT_EQ(result[1], 4);
   EXPECT_FLOAT_EQ(result[2], 6);
+}
+
+TEST(inlet_function, vector_function_rejects_scalar_return)
+{
+  auto inlet = createBasicInlet("function foo () return 2.0 end");
+  auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {});
+
+  EXPECT_TRUE(func);
+  EXPECT_THROW(func.call<FunctionType::Vector>(), std::runtime_error);
 }
 
 TEST(inlet_function, simple_vec3_to_vec3_raw_partial_init)

@@ -29,7 +29,6 @@ using NamedOperatorMap = std::unordered_map<std::string, std::shared_ptr<const G
 struct SingleOperatorData
 {
   const inlet::Container *m_container;
-  std::string m_shapeName;
 };
 
 /// The data for the "operator" component of "geometry" objects.
@@ -70,11 +69,13 @@ public:
    *
    * @param startProperties properties of the geometry before the first operator
    * @param namedOperators a map of any named operators
+   * @param shapeName the owning shape name, or empty for named operators
    * @return the (possibly null) operator
    * @throws KleeError if the operator data is invalid for the given properties
    */
-  std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties& startProperties,
-                                                 const NamedOperatorMap& namedOperators) const;
+  std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties &startProperties,
+                                                 const NamedOperatorMap &namedOperators,
+                                                 const std::string &shapeName) const;
 
   /**
    * Get the path of this operator in the source document
@@ -82,17 +83,9 @@ public:
    */
   const Path& getPath() const { return m_path; }
 
-  /**
-   * Set the name of the shape that owns these operators, when known.
-   *
-   * @param shapeName the owning shape name
-   */
-  void setShapeName(std::string shapeName);
-
 private:
   Path m_path;
   std::vector<SingleOperatorData> m_singleOperatorData;
-  std::string m_shapeName;
 };
 
 /// Data for a named operator.

@@ -80,10 +80,10 @@ bool isKleeLuaCallbackPath(const std::string& id)
 class KleeLuaReader : public inlet::LuaReader
 {
 public:
-  std::unordered_set<std::string> topLevelGlobalNames() const
+  std::unordered_set<std::string> topLevelGlobalNames()
   {
     std::unordered_set<std::string> names;
-    auto lua = const_cast<KleeLuaReader *>(this)->solState();
+    auto lua = solState();
     for(const auto &entry : lua->globals())
     {
       if(entry.first.get_type() == axom::sol::type::string)
@@ -190,14 +190,7 @@ public:
                              "Klee Lua binding name '{}' duplicates another external Lua binding.",
                              name)});
         }
-        if(!exportedNames.insert(name).second)
-        {
-          throw KleeError(
-            {exportPath(name),
-             axom::fmt::format("Klee Lua bindings chunk '{}' exports '{}' more than once.",
-                               static_cast<std::string>(chunkPath),
-                               name)});
-        }
+        exportedNames.insert(name);
 
         switch(entry.second.get_type())
         {
@@ -289,7 +282,6 @@ struct FromInlet<axom::klee::ShapeData>
                                   base["replaces"].get<std::vector<std::string>>(),
                                   base["does_not_replace"].get<std::vector<std::string>>(),
                                   base.get<axom::klee::GeometryData>("geometry")};
-    data.geometry.operatorData.setShapeName(data.name);
     return data;
   }
 };
@@ -431,7 +423,8 @@ void defineKleeSchema(inlet::Inlet &document, bool enableLuaCallbacks)
  */
 Geometry convert(GeometryData const& data,
                  Dimensions fileDimensions,
-                 internal::NamedOperatorMap const& namedOperators)
+                 internal::NamedOperatorMap const &namedOperators,
+                 const std::string &shapeName)
 {
   const bool has_start_dims = data.startDimensions != Dimensions::Unspecified;
   const bool has_explicit_dims = data.explicitDimensions != Dimensions::Unspecified;
@@ -454,7 +447,7 @@ Geometry convert(GeometryData const& data,
   Geometry geometry {startProperties,
                      data.format,
                      data.path,
-                     data.operatorData.makeOperator(startProperties, namedOperators)};
+                     data.operatorData.makeOperator(startProperties, namedOperators, shapeName)};
 
   const auto computed_end_dims = geometry.getEndProperties().dimensions;
   const auto expected_end_dims = has_explicit_dims ? data.explicitDimensions : fileDimensions;
@@ -488,7 +481,7 @@ Shape convert(ShapeData const& data,
                 data.material,
                 data.materialsReplaced,
                 data.materialsNotReplaced,
-                convert(data.geometry, fileDimensions, namedOperators)};
+                convert(data.geometry, fileDimensions, namedOperators, data.name)};
 }
 
 /**
