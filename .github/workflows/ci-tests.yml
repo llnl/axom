@@ -118,6 +118,30 @@ jobs:
         with:
           name: Test Results ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
           path: "**/Test.xml"
+  build_wheel_and_test:
+    # Build the thin pip/uv wheel (src/python) against a freshly installed Axom
+    # and run the Sidre Python suite from it without a wrapper or PYTHONPATH updates.
+    # Uses the nanobind-enabled gcc image
+    runs-on: ubuntu-24.04
+    needs:
+    - set_image_vars
+    container:
+      image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
+      volumes:
+      - /home/axom/axom
+      # Required - default is set to user "axom"
+      options: --user root
+    steps:
+    - name: Checkout Axom
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      with:
+        submodules: recursive
+    - name: Build wheel and test - gcc@13.3.1
+      timeout-minutes: 80
+      run: |
+        HOST_CONFIG=gcc@13.3.1.cmake \
+        BUILD_TYPE=Debug \
+        ./scripts/github-actions/linux-wheel_and_test.sh
   windows_build_and_test:
     runs-on: windows-latest
     strategy:
