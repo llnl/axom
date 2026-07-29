@@ -61,6 +61,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Adds support for lua-based input decks for shaping
 - Slam: Adds convenience aliases in `axom/slam/Aliases.hpp` for the most common set and relation configurations, 
   including `ArraySet`, `ArrayViewSet`, `VariableRelation`, `ConstantRelation` and their `View` forms.
+- Python: Adds a scikit-build-core project under `src/python/` for building a thin, pip/uv-installable `axom` wheel.
+  The wheel compiles Axom's bindings against an already-installed Axom.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -104,6 +106,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Status-returning reader/writer operations in `C2CReader`, `MFEMReader`, `ProEReader`,
   `STEPReader`, `STLReader`, `STLWriter`, and their parallel variants are now marked `[[nodiscard]]`.
   Callers that previously ignored returned status values must check them to avoid compiler diagnostics.
+- Python: Sidre's bindings all name their arguments, so they can be passed by keyword and show up in IDE
+  completion and signature help.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
