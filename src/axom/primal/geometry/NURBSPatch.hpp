@@ -148,7 +148,7 @@ public:
    * \param [in] deg_u, deg_v The patch's degrees on the first and second axis
    * \pre Requires npts_d > deg_d and deg_d >= 0 for d = u, v 
    */
-  NURBSPatch(int npts_u, int npts_v, int deg_u, int deg_v)
+  NURBSPatch(axom::IndexType npts_u, axom::IndexType npts_v, int deg_u, int deg_v)
     : m_knotvec_u(npts_u, deg_u)
     , m_knotvec_v(npts_v, deg_v)
   {
@@ -293,7 +293,11 @@ public:
    * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
    */
-  NURBSPatch(const PointType* pts, int npts_u, int npts_v, int deg_u, int deg_v)
+  NURBSPatch(const PointType* pts,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
+             int deg_u,
+             int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
                  KnotVectorType(npts_u, deg_u),
@@ -309,7 +313,12 @@ public:
    * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
    */
-  NURBSPatch(const PointType* pts, const T* weights, int npts_u, int npts_v, int deg_u, int deg_v)
+  NURBSPatch(const PointType* pts,
+             const T* weights,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
+             int deg_u,
+             int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(weights, {{weights ? npts_u : 0, weights ? npts_v : 0}}),
                  KnotVectorType(npts_u, deg_u),
@@ -324,7 +333,11 @@ public:
    * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
    */
-  NURBSPatch(const CoordsVec& pts, int npts_u, int npts_v, int deg_u, int deg_v)
+  NURBSPatch(const CoordsVec& pts,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
+             int deg_u,
+             int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
                  KnotVectorType(npts_u, deg_u),
@@ -340,7 +353,12 @@ public:
    * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
    */
-  NURBSPatch(const CoordsVec& pts, const WeightsVec& weights, int npts_u, int npts_v, int deg_u, int deg_v)
+  NURBSPatch(const CoordsVec& pts,
+             const WeightsVec& weights,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
+             int deg_u,
+             int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(weights.data(), {{npts_u, npts_v}}),
                  KnotVectorType(npts_u, deg_u),
@@ -390,16 +408,18 @@ public:
    * \pre Requires valid pointers and knot vectors
    */
   NURBSPatch(const PointType* pts,
-             int npts_u,
-             int npts_v,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
              const T* knots_u,
              int nkts_u,
              const T* knots_v,
              int nkts_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
-                 KnotVectorType(axom::ArrayView<const T>(knots_u, nkts_u), nkts_u - npts_u - 1),
-                 KnotVectorType(axom::ArrayView<const T>(knots_v, nkts_v), nkts_v - npts_v - 1))
+                 KnotVectorType(axom::ArrayView<const T>(knots_u, nkts_u),
+                                static_cast<int>(nkts_u - npts_u - 1)),
+                 KnotVectorType(axom::ArrayView<const T>(knots_v, nkts_v),
+                                static_cast<int>(nkts_v - npts_v - 1)))
   { }
 
   /*!
@@ -418,16 +438,18 @@ public:
    */
   NURBSPatch(const PointType* pts,
              const T* weights,
-             int npts_u,
-             int npts_v,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
              const T* knots_u,
              int nkts_u,
              const T* knots_v,
              int nkts_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(weights, {{weights ? npts_u : 0, weights ? npts_v : 0}}),
-                 KnotVectorType(axom::ArrayView<const T>(knots_u, nkts_u), nkts_u - npts_u - 1),
-                 KnotVectorType(axom::ArrayView<const T>(knots_v, nkts_v), nkts_v - npts_v - 1))
+                 KnotVectorType(axom::ArrayView<const T>(knots_u, nkts_u),
+                                static_cast<int>(nkts_u - npts_u - 1)),
+                 KnotVectorType(axom::ArrayView<const T>(knots_v, nkts_v),
+                                static_cast<int>(nkts_v - npts_v - 1)))
   { }
 
   /*!
@@ -442,14 +464,14 @@ public:
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
-             int npts_u,
-             int npts_v,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
              const axom::Array<T>& knots_u,
              const axom::Array<T>& knots_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
-                 KnotVectorType(knots_u.view(), knots_u.size() - npts_u - 1),
-                 KnotVectorType(knots_v.view(), knots_v.size() - npts_v - 1))
+                 KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - npts_u - 1)),
+                 KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - npts_v - 1)))
   { }
 
   /*!
@@ -466,14 +488,14 @@ public:
    */
   NURBSPatch(const CoordsVec& pts,
              const WeightsVec& weights,
-             int npts_u,
-             int npts_v,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
              const axom::Array<T>& knots_u,
              const axom::Array<T>& knots_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(weights.data(), {{npts_u, npts_v}}),
-                 KnotVectorType(knots_u.view(), knots_u.size() - npts_u - 1),
-                 KnotVectorType(knots_v.view(), knots_v.size() - npts_v - 1))
+                 KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - npts_u - 1)),
+                 KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - npts_v - 1)))
   { }
 
   /*!
@@ -487,8 +509,8 @@ public:
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
-             int npts_u,
-             int npts_v,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
              const KnotVectorType& knotvec_u,
              const KnotVectorType& knotvec_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
@@ -510,8 +532,8 @@ public:
    */
   NURBSPatch(const CoordsVec& pts,
              const WeightsVec& weights,
-             int npts_u,
-             int npts_v,
+             axom::IndexType npts_u,
+             axom::IndexType npts_v,
              const KnotVectorType& knotvec_u,
              const KnotVectorType& knotvec_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
@@ -533,8 +555,8 @@ public:
   NURBSPatch(const CoordsMat& pts, const axom::Array<T>& knots_u, const axom::Array<T>& knots_v)
     : NURBSPatch(pts.view(),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
-                 KnotVectorType(knots_u.view(), knots_u.size() - pts.shape()[0] - 1),
-                 KnotVectorType(knots_v.view(), knots_v.size() - pts.shape()[1] - 1))
+                 KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - pts.shape()[0] - 1)),
+                 KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - pts.shape()[1] - 1)))
   { }
 
   /*!
@@ -554,8 +576,8 @@ public:
              const axom::Array<T>& knots_v)
     : NURBSPatch(pts.view(),
                  weights.view(),
-                 KnotVectorType(knots_u.view(), knots_u.size() - pts.shape()[0] - 1),
-                 KnotVectorType(knots_v.view(), knots_v.size() - pts.shape()[1] - 1))
+                 KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - pts.shape()[0] - 1)),
+                 KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - pts.shape()[1] - 1)))
   { }
 
   /*!
@@ -601,7 +623,7 @@ public:
    * 
    * \warning This method will replace existing knot vectors with a uniform one.
    */
-  void setParameters(int npts_u, int npts_v, int deg_u, int deg_v)
+  void setParameters(axom::IndexType npts_u, axom::IndexType npts_v, int deg_u, int deg_v)
   {
     SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
     SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
@@ -1016,13 +1038,13 @@ public:
    */
   axom::IndexType insertKnot_u(T u, int target_multiplicity = 1)
   {
-    SLIC_ASSERT_MSG(isValidParameter_u(u, 1e-5),
+    SLIC_ASSERT_MSG(isValidParameter_u(u, static_cast<T>(1e-5)),
                     axom::fmt::format("Requested u-parameter {} for knot insertion is outside "
                                       "valid range [{},{}] with tolerance {}",
                                       u,
                                       getMinKnot_u(),
                                       getMaxKnot_u(),
-                                      1e-5));
+                                      static_cast<T>(1e-5)));
 
     u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
 
@@ -1183,13 +1205,13 @@ public:
    */
   axom::IndexType insertKnot_v(T v, int target_multiplicity = 1)
   {
-    SLIC_ASSERT_MSG(isValidParameter_v(v, 1e-5),
+    SLIC_ASSERT_MSG(isValidParameter_v(v, static_cast<T>(1e-5)),
                     axom::fmt::format("Requested v-parameter {} for knot insertion is outside "
                                       "valid range [{},{}] with tolerance {}",
                                       v,
                                       getMinKnot_v(),
                                       getMaxKnot_v(),
-                                      1e-5));
+                                      static_cast<T>(1e-5)));
 
     v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
@@ -1948,7 +1970,7 @@ public:
     const auto deg_u = getDegree_u();
     const auto deg_v = getDegree_v();
 
-    int ind_u = span_u - deg_u;
+    const axom::IndexType ind_u = span_u - deg_u;
 
     PointType S = PointType::zero();
 
@@ -1959,7 +1981,7 @@ public:
       for(int l = 0; l <= deg_v; ++l)
       {
         Point<T, NDIMS + 1> temp = Point<T, NDIMS + 1>::zero();
-        int ind_v = span_v - deg_v + l;
+        const axom::IndexType ind_v = span_v - deg_v + l;
         for(int k = 0; k <= deg_u; ++k)
         {
           auto& the_weight = m_weights(ind_u + k, ind_v);
@@ -1990,7 +2012,7 @@ public:
       for(int l = 0; l <= deg_v; ++l)
       {
         PointType temp = PointType::zero();
-        int ind_v = span_v - deg_v + l;
+        const axom::IndexType ind_v = span_v - deg_v + l;
         for(int k = 0; k <= deg_u; ++k)
         {
           for(int i = 0; i < NDIMS; ++i)
@@ -2043,13 +2065,13 @@ public:
    */
   NURBSCurveType isocurve_u(T u) const
   {
-    SLIC_ASSERT_MSG(isValidParameter_u(u, 1e-5),
+    SLIC_ASSERT_MSG(isValidParameter_u(u, static_cast<T>(1e-5)),
                     axom::fmt::format("Requested u-parameter {} for isocurve evaluation is "
                                       "outside valid range [{},{}] with tolerance {}",
                                       u,
                                       getMinKnot_u(),
                                       getMaxKnot_u(),
-                                      1e-5));
+                                      static_cast<T>(1e-5)));
 
     u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
 
@@ -2070,12 +2092,12 @@ public:
     // Find the control points by evaluating each column of the patch
     const auto span_u = m_knotvec_u.findSpan(u);
     const auto N_evals_u = m_knotvec_u.calculateBasisFunctionsBySpan(span_u, u);
-    for(int q = 0; q < patch_shape[1]; ++q)
+    for(axom::IndexType q = 0; q < patch_shape[1]; ++q)
     {
       Point<T, NDIMS + 1> H;
       for(int j = 0; j <= deg_u; ++j)
       {
-        const auto offset = span_u - deg_u + j;
+        const axom::IndexType offset = span_u - deg_u + j;
         const T weight = isRationalPatch ? m_weights(offset, q) : 1.0;
         const auto& controlPoint = m_controlPoints(offset, q);
 
@@ -2114,13 +2136,13 @@ public:
    */
   NURBSCurveType isocurve_v(T v) const
   {
-    SLIC_ASSERT_MSG(isValidParameter_v(v, 1e-5),
+    SLIC_ASSERT_MSG(isValidParameter_v(v, static_cast<T>(1e-5)),
                     axom::fmt::format("Requested v-parameter {} for isocurve evaluation is "
                                       "outside valid range [{},{}] with tolerance {}",
                                       v,
                                       getMinKnot_v(),
                                       getMaxKnot_v(),
-                                      1e-5));
+                                      static_cast<T>(1e-5)));
 
     v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
 
@@ -2141,12 +2163,12 @@ public:
     // Find the control points by evaluating each row of the patch
     const auto span_v = m_knotvec_v.findSpan(v);
     const auto N_evals_v = m_knotvec_v.calculateBasisFunctionsBySpan(span_v, v);
-    for(int p = 0; p < patch_shape[0]; ++p)
+    for(axom::IndexType p = 0; p < patch_shape[0]; ++p)
     {
       Point<T, NDIMS + 1> H;
       for(int i = 0; i <= deg_v; ++i)
       {
-        const auto offset = span_v - deg_v + i;
+        const axom::IndexType offset = span_v - deg_v + i;
         const T weight = isRationalPatch ? m_weights(p, offset) : 1.0;
         const auto& controlPoint = m_controlPoints(p, offset);
 
@@ -4357,12 +4379,12 @@ private:
   void uncheckedSplit_u(T u, NURBSPatch& p1, NURBSPatch& p2) const
   {
     SLIC_ASSERT_MSG(
-      isValidParameter_u(u, 1e-5),
+      isValidParameter_u(u, static_cast<T>(1e-5)),
       axom::fmt::format("Requested u-parameter {} for subdivision is outside valid range ({},{})",
                         u,
                         getMinKnot_u(),
                         getMaxKnot_u(),
-                        1e-5));
+                        static_cast<T>(1e-5)));
 
     const bool isRationalPatch = isRational();
 
@@ -4428,12 +4450,12 @@ private:
   void uncheckedSplit_v(T v, NURBSPatch& p1, NURBSPatch& p2) const
   {
     SLIC_ASSERT_MSG(
-      isValidParameter_v(v, 1e-5),
+      isValidParameter_v(v, static_cast<T>(1e-5)),
       axom::fmt::format("Requested v-parameter {} for subdivision is outside valid range ({},{})",
                         v,
                         getMinKnot_v(),
                         getMaxKnot_v(),
-                        1e-5));
+                        static_cast<T>(1e-5)));
 
     const bool isRationalPatch = isRational();
 

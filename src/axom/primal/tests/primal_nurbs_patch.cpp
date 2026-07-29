@@ -1652,8 +1652,8 @@ TEST(primal_nurbspatch, extract_degenerate)
 
     EXPECT_EQ(bezier_list_u.size(), npts_u * v_spans);
 
-    axom::numerics::linspace(0.0, 1.0, u_ranges, u_spans + 1);
-    axom::numerics::linspace(0.0, 1.0, v_ranges, v_spans + 1);
+    axom::numerics::linspace(0.0, 1.0, u_ranges, static_cast<int>(u_spans + 1));
+    axom::numerics::linspace(0.0, 1.0, v_ranges, static_cast<int>(v_spans + 1));
 
     // bezier_list is ordered lexicographically by v, then u
     for(int i = 0; i < u_spans; ++i)
@@ -1697,8 +1697,8 @@ TEST(primal_nurbspatch, extract_degenerate)
 
     EXPECT_EQ(bezier_list_v.size(), npts_v * u_spans);
 
-    axom::numerics::linspace(0.0, 1.0, u_ranges, u_spans + 1);
-    axom::numerics::linspace(0.0, 1.0, v_ranges, v_spans + 1);
+    axom::numerics::linspace(0.0, 1.0, u_ranges, static_cast<int>(u_spans + 1));
+    axom::numerics::linspace(0.0, 1.0, v_ranges, static_cast<int>(v_spans + 1));
 
     // bezier_list is ordered lexicographically by v, then u
     for(int i = 0; i < u_spans; ++i)
