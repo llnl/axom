@@ -90,13 +90,25 @@ pip / uv wheel (thin, external Axom)
 ------------------------------------
 
 The wheel compiles only the binding code against an already-installed Axom and Conduit;
-it does not build Axom or its third-party libraries. 
-Because a pip-built Conduit would produce a second, ABI-incompatible ``libconduit`` in the same process,
-the wheel relies on the Conduit Python module from the same Axom/Conduit build,
-exposed via a ``.pth`` file rather than a PyPI install.
+it does not build Axom or its third-party libraries.
 A wheel is therefore specific to the toolchain/glibc of the Axom install it was built against.
 These wheels are not portable and not intended for PyPI; 
 they target controlled environments (an LC host-config, a spack view, or a CI image).
+
+.. note::
+   **Do not install Conduit from PyPI.** Axom's bindings pass ``conduit::Node`` objects across the
+   C++ boundary to the ``conduit`` Python module, so that module must wrap the *same* ``libconduit``
+   that Axom was compiled and linked against. Two separate PyPI packages are easy to reach for by
+   mistake, and neither works:
+
+   * ``conduit`` is an **unrelated project** (a stream-transformation library for power-engineering
+     analytics).
+   * ``llnl-conduit`` **is** LLNL's Conduit, but installing it produces a *separate build* of the library,
+     compiled by pip with its own compiler, flags and third-party configuration.
+     It is unlikely to be ABI-compatible with the spack/CMake Conduit inside your Axom install,
+     and using it would put two ``libconduit`` libraries in one process.
+
+   Instead, expose the Conduit that your Axom was built against, using the one-line ``.pth`` file in step 3 below.
 
 Quick start
 ^^^^^^^^^^^
@@ -116,7 +128,7 @@ Conduit is located transitively through Axom's own CMake config, so it normally 
    $ uv pip install /path/to/axom/src/python \
        -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake"
 
-   # 3. Expose the *same-build* Conduit Python module (never a PyPI 'conduit').
+   # 3. Expose the *same-build* Conduit Python module (not a PyPI package; see the note above).
    $ echo "$CONDUIT_INSTALL/python-modules" > \
        "$(uv run python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/conduit.pth"
 

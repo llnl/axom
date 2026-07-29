@@ -48,8 +48,9 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 # conduit is a hard runtime dependency that intentionally does NOT appear here:
-# the PyPI name 'conduit' is an unrelated package, and a pip-built Conduit would put a second,
-# ABI-incompatible libconduit in the process (see src/python/README.md and the bindings design notes).
+# the PyPI name 'conduit' is an unrelated project, and 'llnl-conduit' is a separate build of
+# Conduit that is unlikely to be ABI-compatible with the one Axom links -- either way pip would put a
+# second libconduit in the process (see src/python/README.md).
 # The conduit Python module must come from the same Conduit build Axom links, exposed via a .pth file.
 # Revisit if Conduit ever ships a thin, find_package-based binding wheel.
 dependencies = ["numpy>=1.22"]

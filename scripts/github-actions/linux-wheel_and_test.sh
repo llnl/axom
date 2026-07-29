@@ -14,8 +14,6 @@
 #   2. build the wheel from src/python against that install (find_package(axom));
 #   3. install the wheel into a fresh uv venv;
 #   4. expose the *same-build* Conduit python module via a .pth file
-#      (a pip-built Conduit would put a second, ABI-incompatible libconduit in the process,
-#      so we point at the Conduit the install links; see src/python/README.md);
 #   5. run the Sidre Python test suite with plain `uv run pytest`.
 #
 # Intended for the gcc docker image, which is nanobind-enabled.
