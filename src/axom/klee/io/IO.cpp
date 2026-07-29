@@ -599,23 +599,21 @@ void validateInputVariables(const InputVariables &variables)
  * Create an Inlet reader for a Klee input format.
  *
  * \param format the input file format to read
- * \param variables primitive values to inject before Lua input evaluation
- * \param bindings optional Lua chunk to evaluate before input evaluation
+ * \param options optional variables and bindings for Lua input evaluation
  * \param allowedGlobals receives external names permitted in the input
  * \return a reader for \a format
  * \throws KleeError if \a format is unsupported, Lua support was not enabled,
  *         or the external Lua bindings are invalid for the selected format
  */
 std::unique_ptr<inlet::Reader> createReader(InputFormat format,
-                                            const InputVariables &variables,
-                                            const LuaBindingsChunk *bindings,
+                                            const LuaInputOptions &options,
                                             std::unordered_set<std::string> &allowedGlobals)
 {
   allowedGlobals.clear();
-  if(format != InputFormat::Lua && (!variables.empty() || bindings != nullptr))
+  if(format != InputFormat::Lua && (!options.variables.empty() || options.bindings))
   {
     throw KleeError({Path {"<unknown path>"},
-                     bindings != nullptr
+                     options.bindings
                        ? "Klee Lua bindings are only supported for Lua input decks."
                        : "Klee input variables are only supported for Lua input decks."});
   }
@@ -629,11 +627,11 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format,
   {
     auto reader = std::make_unique<KleeLuaReader>();
     const auto reservedGlobals = reader->topLevelGlobalNames();
-    validateInputVariables(variables);
+    validateInputVariables(options.variables);
     // External inputs are ordinary Lua globals installed before deck parsing.
     // allowedGlobals only prevents Klee's unexpected-global check from rejecting
     // those names; it does not make them read-only inside the deck.
-    for(const auto &entry : variables)
+    for(const auto &entry : options.variables)
     {
       if(reservedGlobals.find(entry.first) != reservedGlobals.end())
       {
@@ -646,9 +644,10 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format,
       reader->setInputVariable(entry.first, entry.second);
       allowedGlobals.insert(entry.first);
     }
-    if(bindings != nullptr)
+    if(options.bindings)
     {
-      auto exportedNames = reader->applyBindingsChunk(*bindings, reservedGlobals, allowedGlobals);
+      auto exportedNames =
+        reader->applyBindingsChunk(*options.bindings, reservedGlobals, allowedGlobals);
       allowedGlobals.insert(exportedNames.begin(), exportedNames.end());
     }
     return reader;
@@ -782,43 +781,17 @@ ShapeSet readShapeSet(std::istream& stream) { return readShapeSet(stream, InputF
 
 ShapeSet readShapeSet(std::istream& stream, InputFormat format)
 {
-  return readShapeSet(stream, format, InputVariables {});
+  return readShapeSet(stream, format, LuaInputOptions {});
 }
 
 ShapeSet readShapeSet(std::istream &stream,
                       InputFormat format,
-                      const InputVariables &variables)
+                      const LuaInputOptions &options)
 {
   std::string contents {std::istreambuf_iterator<char>(stream), {}};
 
   std::unordered_set<std::string> allowedGlobals;
-  auto reader = createReader(format, variables, nullptr, allowedGlobals);
-  parseOrThrow([&]() { return reader->parseString(contents); },
-               format,
-               Path {"<stream>"},
-               "from stream");
-  return readShapeSetFromReader(std::move(reader),
-                                format == InputFormat::Lua,
-                                format == InputFormat::Lua,
-                                allowedGlobals);
-}
-
-ShapeSet readShapeSet(std::istream &stream,
-                      InputFormat format,
-                      const LuaBindingsChunk &bindings)
-{
-  return readShapeSet(stream, format, InputVariables {}, bindings);
-}
-
-ShapeSet readShapeSet(std::istream &stream,
-                      InputFormat format,
-                      const InputVariables &variables,
-                      const LuaBindingsChunk &bindings)
-{
-  std::string contents {std::istreambuf_iterator<char>(stream), {}};
-
-  std::unordered_set<std::string> allowedGlobals;
-  auto reader = createReader(format, variables, &bindings, allowedGlobals);
+  auto reader = createReader(format, options, allowedGlobals);
   parseOrThrow([&]() { return reader->parseString(contents); },
                format,
                Path {"<stream>"},
@@ -836,50 +809,20 @@ ShapeSet readShapeSet(const std::string& filePath)
 
 ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
 {
-  const InputVariables variables;
-  std::unordered_set<std::string> allowedGlobals;
-  auto reader = createReader(format, variables, nullptr, allowedGlobals);
-  parseOrThrow([&]() { return reader->parseFile(filePath); },
-               format,
-               Path {filePath},
-               axom::fmt::format("from file '{}'", filePath));
-  auto shapeSet = readShapeSetFromReader(std::move(reader),
-                                         format == InputFormat::Lua,
-                                         format == InputFormat::Lua,
-                                         allowedGlobals);
-  shapeSet.setPath(filePath);
-  return shapeSet;
+  return readShapeSet(filePath, format, LuaInputOptions {});
 }
 
-ShapeSet readShapeSet(const std::string &filePath, const InputVariables &variables)
+ShapeSet readShapeSet(const std::string &filePath, const LuaInputOptions &options)
 {
-  const auto format = inferInputFormat(filePath);
-  std::unordered_set<std::string> allowedGlobals;
-  auto reader = createReader(format, variables, nullptr, allowedGlobals);
-  parseOrThrow([&]() { return reader->parseFile(filePath); },
-               format,
-               Path {filePath},
-               axom::fmt::format("from file '{}'", filePath));
-  auto shapeSet = readShapeSetFromReader(std::move(reader),
-                                         format == InputFormat::Lua,
-                                         format == InputFormat::Lua,
-                                         allowedGlobals);
-  shapeSet.setPath(filePath);
-  return shapeSet;
-}
-
-ShapeSet readShapeSet(const std::string &filePath, const LuaBindingsChunk &bindings)
-{
-  return readShapeSet(filePath, InputVariables {}, bindings);
+  return readShapeSet(filePath, inferInputFormat(filePath), options);
 }
 
 ShapeSet readShapeSet(const std::string &filePath,
-                      const InputVariables &variables,
-                      const LuaBindingsChunk &bindings)
+                      InputFormat format,
+                      const LuaInputOptions &options)
 {
-  const auto format = inferInputFormat(filePath);
   std::unordered_set<std::string> allowedGlobals;
-  auto reader = createReader(format, variables, &bindings, allowedGlobals);
+  auto reader = createReader(format, options, allowedGlobals);
   parseOrThrow([&]() { return reader->parseFile(filePath); },
                format,
                Path {filePath},
