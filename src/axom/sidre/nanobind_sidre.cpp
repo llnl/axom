@@ -11,6 +11,8 @@
 #include <nanobind/ndarray.h>
 #include <nanobind/make_iterator.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -351,12 +353,67 @@ DataStore* owningDataStore(View* view)
 //! Erase all pins recorded for \a ds (called when the DataStore is collected).
 void releaseDataStoreExternalPins(DataStore* ds) { externalDataOwnerRegistry().erase(ds); }
 
+//! Release the pin recorded for \a view, if any (defined below).
+void releaseExternalDataOwner(View* view);
+
+/*!
+ * \brief True when \a ptr already points into storage owned by a Buffer of \a ds.
+ *
+ * Such storage cannot dangle: Sidre owns it, and it outlives any Python proxy.
+ * Pinning it would cause problems, as described on pinExternalDataOwner() below.
+ *
+ * \note The scan is linear in the number of Buffers in \a ds and runs once per external-data pin
+ *  (i.e. per createView/setExternalData call that supplies an ndarray), so creating many external views
+ *  in a DataStore that also holds many Buffers could be expensive.
+ *
+ * \note Scoped to Buffers of \a ds only. A pointer into another DataStore's Buffer
+ *  is not tracked by this registry, and would still need a pin.
+ */
+bool isOwnedByDataStoreBuffer(DataStore* ds, const void* ptr)
+{
+  if(ds == nullptr || ptr == nullptr)
+  {
+    return false;
+  }
+
+  const auto p = reinterpret_cast<std::uintptr_t>(ptr);
+  for(auto& buffer : ds->buffers())
+  {
+    const void* base_ptr = buffer.getVoidPtr();
+    if(base_ptr == nullptr)
+    {
+      continue;
+    }
+    const auto base = reinterpret_cast<std::uintptr_t>(base_ptr);
+    const auto bytes = static_cast<std::uintptr_t>(buffer.getTotalBytes());
+    if(p >= base && p < base + bytes)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 /*!
  * \brief Record \a owner as the pin for \a view, scoped to its DataStore.
  *
  * On the first pin into a given DataStore, installs a weak reference on the
  * DataStore's Python object so the sub-map is cleared when the DataStore is
  * destroyed. Re-assigning a View*'s pin releases the previous ndarray wrapper.
+ *
+ * \note Storage that Sidre already owns is deliberately *not* pinned.
+ *  Pinning it would create a reference cycle that this registry cannot break:
+ *  the pin holds a strong reference to the ndarray, an ndarray produced by Buffer/View.getDataArray()
+ *  transitively holds a strong reference to that Sidre object's Python wrapper,
+ *  and that wrapper keeps the DataStore's Python object alive. But this is the
+ *  object whose collection is supposed to fire the weakref callback that releases the pin.
+ *  The cycle runs through this C++ registry, so Python's cyclic collector cannot see or break it,
+ *  and the DataStore, Group, View and Buffer would be retained for the life of the process
+ *  (nanobind reports them at shutdown as leaked instances).
+ *  The idiom that triggers it is common: `data = view.getBuffer().getDataArray()`
+ *  followed by `group.createView("name", data)`. Skipping the pin is safe because the
+ *  Buffer owns that storage; the dangling-pointer hazard the pin exists to prevent
+ *  only arises for storage owned by a Python object.
  */
 void pinExternalDataOwner(View* view, const nb::ndarray<>& owner)
 {
@@ -367,6 +424,14 @@ void pinExternalDataOwner(View* view, const nb::ndarray<>& owner)
                   "pinExternalDataOwner: a non-null View is expected to have an owning DataStore");
   if(view == nullptr || ds == nullptr)
   {
+    return;
+  }
+
+  // Sidre-owned storage needs no pin, and pinning it would leak the DataStore
+  if(isOwnedByDataStoreBuffer(ds, owner.data()))
+  {
+    // Drop any pin a previous, non-Sidre-owned array left on this View.
+    releaseExternalDataOwner(view);
     return;
   }
 

@@ -891,6 +891,61 @@ def test_concurrent_datastores_registry_isolation():
     assert ref2() is None, "DS2 external data not collected after destroyView"
 
 
+# ---------------------------------------------------------------------------
+# External views onto sidre-owned storage must not pin their own DataStore
+# ---------------------------------------------------------------------------
+# The binding pins the numpy owner of an external view so a dropped temporary
+# cannot leave sidre holding a dangling pointer. Storage that sidre already owns
+# must be exempt: pinning it forms a cycle the registry cannot break (pin -> array
+# -> sidre wrapper -> DataStore python object, whose collection is what releases
+# the pin), retaining the DataStore, Group, View and Buffer for the life of the process.
+def test_opaque_view_onto_sidre_storage_does_not_retain_datastore():
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    field = root.createViewAndAllocate("field", sidre.TypeID.FLOAT64_ID, 20)
+    data = field.getBuffer().getDataArray()
+
+    ref = weakref.ref(ds)
+    root.createView("aliased", data)  # undescribed/opaque overload
+
+    del data, field, root, ds
+    _force_gc()
+
+    assert ref() is None, "DataStore retained by a pin onto sidre-owned storage"
+
+
+def test_described_external_view_onto_sidre_storage_does_not_retain_datastore():
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    field = root.createViewAndAllocate("field", sidre.TypeID.FLOAT64_ID, 20)
+    data = field.getBuffer().getDataArray()
+
+    ref = weakref.ref(ds)
+    root.createView("aliased", sidre.TypeID.FLOAT64_ID, 20, data)
+
+    del data, field, root, ds
+    _force_gc()
+
+    assert ref() is None, "DataStore retained by a pin onto sidre-owned storage"
+
+
+def test_external_view_onto_sidre_storage_still_reads_correctly():
+    # The exemption removes the pin, not the aliasing:
+    # the view must still read the buffer it points into.
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    field = root.createViewAndAllocate("field", sidre.TypeID.FLOAT64_ID, 8)
+    data = field.getBuffer().getDataArray()
+    data[:] = np.arange(8) + 1.0
+
+    view = root.createView("aliased", sidre.TypeID.FLOAT64_ID, 8, data)
+    del data
+    _force_gc()
+
+    assert view.getDataArray()[0] == 1.0
+    assert view.getDataArray()[7] == 8.0
+
+
 if __name__ == "__main__":
     import sys
 
