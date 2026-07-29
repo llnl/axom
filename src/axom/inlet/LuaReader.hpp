@@ -17,6 +17,8 @@
 #include "axom/inlet/Reader.hpp"
 #include "axom/sol_forward.hpp"
 
+#include <unordered_set>
+
 namespace axom
 {
 // Forward declarations to avoid having to include "sol.hpp" in everything
@@ -110,23 +112,6 @@ protected:
    */
   std::shared_ptr<axom::sol::state> solState() { return m_lua; }
 
-  /*!
-   *****************************************************************************
-   * \brief Should a function at a scalar/map path be treated as absent?
-   *
-   * Inlet normally accepts Lua functions only through getFunction(),
-   * i.e. for schema entries created with Container::addFunction().
-   * If a scalar or map reader sees a function, the input path exists
-   * but has the wrong kind of value, so the default is ReaderResult::WrongType.
-   *
-   * Derived readers may override this for specific paths that intentionally
-   * have both a concrete field schema entry and an alternate function schema entry.
-   * Returning ReaderResult::NotFound lets the concrete field stay absent
-   * so the function schema entry can claim the same public input path.
-   *****************************************************************************
-   */
-  virtual bool shouldTreatFunctionAsNotFound(const std::string& id) const;
-
 private:
   // Expect this to be called for only Inlet-supported types.
   template <typename T>
@@ -182,6 +167,10 @@ private:
   // The elements in the global table preloaded by Sol/Lua, these are ignored
   // to ensure that name retrieval only includes user-provided paths
   std::vector<std::string> m_preloaded_globals;
+
+  // Paths successfully retrieved through getFunction(). These may serve as
+  // schema-supported alternatives to concrete scalar or map fields.
+  std::unordered_set<std::string> m_function_paths;
 };
 
 }  // end namespace inlet

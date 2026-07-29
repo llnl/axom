@@ -781,34 +781,14 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
                                                      const std::string &description,
                                                      bool enableLuaCallbacks)
 {
-  auto& opContainer = parent.addStructArray(fieldName, description).strict();
+  auto &opContainer = parent.addStructArray(fieldName, description).strict();
+  auto &slice = opContainer.addStruct("slice");
 
-  opContainer.addDoubleArray("translate");
-
-  opContainer.addDouble("rotate");
-  opContainer.addDoubleArray("center");
-  opContainer.addDoubleArray("axis");
-
-  opContainer.addDoubleArray("scale");
-
-  opContainer.addString("convert_units_to");
-
-  auto& slice = opContainer.addStruct("slice");
-  slice.addDouble("x");
-  slice.addDouble("y");
-  slice.addDouble("z");
-  slice.addDoubleArray("origin");
-  slice.addDoubleArray("normal");
-  slice.addDoubleArray("up");
-
-  opContainer.addString("ref");
   if(enableLuaCallbacks)
   {
-    // These Lua-only function alternatives read from the public field paths via
-    // pathOverride, leaving YAML and concrete Lua field parsing unchanged.
-    // KleeLuaReader::shouldTreatFunctionAsNotFound() is what lets a function at
-    // one of these paths bypass the concrete field and be claimed by the alias.
-    // Keep this list in sync with isKleeLuaCallbackPath() in IO.cpp.
+    // Register the function alternatives before reading the corresponding concrete fields.
+    // LuaReader then knows that a function at one of these exact public paths is supported
+    // by the schema rather than a type error.
     opContainer.addFunction(callbackName("translate"),
                             inlet::FunctionTag::Vector,
                             {},
@@ -826,6 +806,25 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
     slice.addFunction(callbackName("normal"), inlet::FunctionTag::Vector, {}, "", "normal");
     slice.addFunction(callbackName("up"), inlet::FunctionTag::Vector, {}, "", "up");
   }
+
+  opContainer.addDoubleArray("translate");
+
+  opContainer.addDouble("rotate");
+  opContainer.addDoubleArray("center");
+  opContainer.addDoubleArray("axis");
+
+  opContainer.addDoubleArray("scale");
+
+  opContainer.addString("convert_units_to");
+
+  slice.addDouble("x");
+  slice.addDouble("y");
+  slice.addDouble("z");
+  slice.addDoubleArray("origin");
+  slice.addDoubleArray("normal");
+  slice.addDoubleArray("up");
+
+  opContainer.addString("ref");
   return opContainer;
 }
 
