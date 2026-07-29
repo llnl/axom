@@ -105,8 +105,8 @@ void test_flatmap_init_and_query(axom::IndexType num_elems, axom::IndexType rep_
     axom::for_all<ExecPolicy>(
       num_elems,
       AXOM_LAMBDA(axom::IndexType index) {
-        keys[index] = SampleRNG(rnd, 2 * index);
-        values[index] = SampleRNG(rnd, 2 * index + 1);
+        keys[index] = static_cast<T>(SampleRNG(rnd, 2 * index));
+        values[index] = static_cast<T>(SampleRNG(rnd, 2 * index + 1));
       });
 
     // Construct a flat map in a single batch.

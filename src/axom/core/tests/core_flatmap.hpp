@@ -455,7 +455,7 @@ AXOM_TYPED_TEST(core_flatmap, insert_only)
     EXPECT_EQ(value, test_map.at(key));
     EXPECT_TRUE(initial_insert.second);
 
-    int current_bucket_capacity = test_map.bucket_count();
+    const axom::IndexType current_bucket_capacity = test_map.bucket_count();
 
     // Inserting a duplicate key should not change the value.
     auto value_dup = this->getValue(i * 10.0 + 5.0);
@@ -625,7 +625,7 @@ AXOM_TYPED_TEST(core_flatmap, init_and_clear)
 
   EXPECT_EQ(NUM_ELEMS_RESIZE, test_map.size());
 
-  int buckets_before_clear = test_map.bucket_count();
+  const axom::IndexType buckets_before_clear = test_map.bucket_count();
 
   test_map.clear();
 
@@ -753,7 +753,7 @@ AXOM_TYPED_TEST(core_flatmap, init_and_copy)
     test_map[key] = value;
   }
 
-  int expected_buckets = test_map.bucket_count();
+  const axom::IndexType expected_buckets = test_map.bucket_count();
 
   MapType int_to_dbl_copy = test_map;
 
@@ -850,11 +850,12 @@ AXOM_TYPED_TEST(core_flatmap, insert_until_rehash)
   using MapType = typename TestFixture::MapType;
   MapType test_map;
 
-  const int INIT_CAPACITY = test_map.bucket_count();
+  const axom::IndexType INIT_CAPACITY = test_map.bucket_count();
   const double LOAD_FACTOR = test_map.max_load_factor();
-  const int SIZE_NO_REHASH = LOAD_FACTOR * INIT_CAPACITY;
+  const axom::IndexType SIZE_NO_REHASH =
+    static_cast<axom::IndexType>(LOAD_FACTOR * static_cast<double>(INIT_CAPACITY));
 
-  for(int i = 0; i < SIZE_NO_REHASH; i++)
+  for(axom::IndexType i = 0; i < SIZE_NO_REHASH; i++)
   {
     auto key = this->getKey(i);
     auto value = this->getValue(2. * i + 1);
@@ -875,7 +876,7 @@ AXOM_TYPED_TEST(core_flatmap, insert_until_rehash)
   EXPECT_EQ(test_map.size(), SIZE_NO_REHASH + 1);
 
   // Check consistency of values.
-  for(int i = 0; i < SIZE_NO_REHASH + 1; i++)
+  for(axom::IndexType i = 0; i < SIZE_NO_REHASH + 1; i++)
   {
     auto key = this->getKey(i);
     auto value = this->getValue(2. * i + 1);
@@ -892,11 +893,12 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
   using MapType = typename TestFixture::MapType;
   MapType test_map;
 
-  const int INIT_CAPACITY = test_map.bucket_count();
+  const axom::IndexType INIT_CAPACITY = test_map.bucket_count();
   const double LOAD_FACTOR = test_map.max_load_factor();
-  const int NUM_INSERTS = LOAD_FACTOR * INIT_CAPACITY * 4;
+  const axom::IndexType NUM_INSERTS =
+    static_cast<axom::IndexType>(LOAD_FACTOR * static_cast<double>(INIT_CAPACITY) * 4.0);
 
-  for(int i = 0; i < NUM_INSERTS; i++)
+  for(axom::IndexType i = 0; i < NUM_INSERTS; i++)
   {
     auto key = this->getKey(i);
     auto value = this->getValue(2. * i + 1);
@@ -906,8 +908,8 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
   EXPECT_EQ(test_map.size(), NUM_INSERTS);
   EXPECT_GE(test_map.bucket_count(), NUM_INSERTS);
 
-  int num_deletions = 0;
-  for(int i = 0; i < NUM_INSERTS; i += 3)
+  axom::IndexType num_deletions = 0;
+  for(axom::IndexType i = 0; i < NUM_INSERTS; i += 3)
   {
     auto key = this->getKey(i);
 
@@ -925,7 +927,7 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
   EXPECT_EQ(test_map.size(), NUM_INSERTS - num_deletions);
 
   // Check consistency of values.
-  for(int i = 0; i < NUM_INSERTS; i++)
+  for(axom::IndexType i = 0; i < NUM_INSERTS; i++)
   {
     auto key = this->getKey(i);
     auto value = this->getValue(2. * i + 1);
