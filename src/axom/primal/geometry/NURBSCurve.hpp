@@ -122,7 +122,7 @@ public:
     * 
     * \pre npts > degree, degree >= -1
     */
-  NURBSCurve(int npts, int degree) : m_knotvec(KnotVectorType(npts, degree))
+  NURBSCurve(axom::IndexType npts, int degree) : m_knotvec(KnotVectorType(npts, degree))
   {
     SLIC_ASSERT(npts > degree);
     SLIC_ASSERT(degree >= -1);
@@ -221,7 +221,7 @@ public:
    * 
    * \pre Requires valid pointers, npts > degree, degree >= 0
    */
-  NURBSCurve(const PointType* pts, int npts, int degree)
+  NURBSCurve(const PointType* pts, axom::IndexType npts, int degree)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const double>(nullptr, 0),
                  KnotVectorType(npts, degree))
@@ -237,7 +237,7 @@ public:
    * 
    * \pre Requires valid pointers, npts > degree, npts == nwts, and degree >= 0
    */
-  NURBSCurve(const PointType* pts, const T* weights, int npts, int degree)
+  NURBSCurve(const PointType* pts, const T* weights, axom::IndexType npts, int degree)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const T>(weights, npts),
                  KnotVectorType(npts, degree))
@@ -253,10 +253,10 @@ public:
    * 
    * \pre Requires valid pointers, a valid knot vector and npts > degree
    */
-  NURBSCurve(const PointType* pts, int npts, const T* knots, int nkts)
+  NURBSCurve(const PointType* pts, axom::IndexType npts, const T* knots, int nkts)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const T>(nullptr, 0),
-                 KnotVectorType(knots, nkts, nkts - npts - 1))
+                 KnotVectorType(knots, nkts, static_cast<int>(nkts - npts - 1)))
   { }
 
   /*!
@@ -270,10 +270,14 @@ public:
    * 
    * \pre Requires valid pointers, a valid knot vector, npts > degree, npts == nwts, wts > 0
    */
-  NURBSCurve(const PointType* pts, const T* weights, int npts, const T* knots, int nkts)
+  NURBSCurve(const PointType* pts,
+             const T* weights,
+             axom::IndexType npts,
+             const T* knots,
+             int nkts)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const T>(weights, npts),
-                 KnotVectorType(knots, nkts, nkts - npts - 1))
+                 KnotVectorType(knots, nkts, static_cast<int>(nkts - npts - 1)))
   { }
 
   /*!
@@ -476,7 +480,7 @@ public:
    * 
    * \warning This method will replace existing knot vector with a uniform one.
    */
-  void setParameters(int npts, int degree)
+  void setParameters(axom::IndexType npts, int degree)
   {
     SLIC_ASSERT(npts > degree);
     SLIC_ASSERT(degree >= 0);
