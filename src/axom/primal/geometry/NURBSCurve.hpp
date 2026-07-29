@@ -270,11 +270,7 @@ public:
    * 
    * \pre Requires valid pointers, a valid knot vector, npts > degree, npts == nwts, wts > 0
    */
-  NURBSCurve(const PointType* pts,
-             const T* weights,
-             axom::IndexType npts,
-             const T* knots,
-             int nkts)
+  NURBSCurve(const PointType* pts, const T* weights, axom::IndexType npts, const T* knots, int nkts)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const T>(weights, npts),
                  KnotVectorType(knots, nkts, static_cast<int>(nkts - npts - 1)))

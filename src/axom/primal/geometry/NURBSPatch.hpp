@@ -293,11 +293,7 @@ public:
    * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
    */
-  NURBSPatch(const PointType* pts,
-             axom::IndexType npts_u,
-             axom::IndexType npts_v,
-             int deg_u,
-             int deg_v)
+  NURBSPatch(const PointType* pts, axom::IndexType npts_u, axom::IndexType npts_v, int deg_u, int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
                  KnotVectorType(npts_u, deg_u),
@@ -333,11 +329,7 @@ public:
    * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
    */
-  NURBSPatch(const CoordsVec& pts,
-             axom::IndexType npts_u,
-             axom::IndexType npts_v,
-             int deg_u,
-             int deg_v)
+  NURBSPatch(const CoordsVec& pts, axom::IndexType npts_u, axom::IndexType npts_v, int deg_u, int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
                  KnotVectorType(npts_u, deg_u),
@@ -553,10 +545,11 @@ public:
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts, const axom::Array<T>& knots_u, const axom::Array<T>& knots_v)
-    : NURBSPatch(pts.view(),
-                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
-                 KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - pts.shape()[0] - 1)),
-                 KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - pts.shape()[1] - 1)))
+    : NURBSPatch(
+        pts.view(),
+        axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+        KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - pts.shape()[0] - 1)),
+        KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - pts.shape()[1] - 1)))
   { }
 
   /*!
@@ -574,10 +567,11 @@ public:
              const WeightsMat& weights,
              const axom::Array<T>& knots_u,
              const axom::Array<T>& knots_v)
-    : NURBSPatch(pts.view(),
-                 weights.view(),
-                 KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - pts.shape()[0] - 1)),
-                 KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - pts.shape()[1] - 1)))
+    : NURBSPatch(
+        pts.view(),
+        weights.view(),
+        KnotVectorType(knots_u.view(), static_cast<int>(knots_u.size() - pts.shape()[0] - 1)),
+        KnotVectorType(knots_v.view(), static_cast<int>(knots_v.size() - pts.shape()[1] - 1)))
   { }
 
   /*!
