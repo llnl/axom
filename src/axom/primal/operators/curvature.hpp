@@ -38,24 +38,25 @@ T curvature(const VectorType& Dt, const VectorType& DtDt)
 {
   if constexpr(VectorType::dimension() == 2)
   {
-    const T xp = Dt[0];  // x'
-    const T yp = Dt[1];  // y'
+    const double xp = Dt[0];  // x'
+    const double yp = Dt[1];  // y'
 
-    const T xpp = DtDt[0];  // x''
-    const T ypp = DtDt[1];  // y''
+    const double xpp = DtDt[0];  // x''
+    const double ypp = DtDt[1];  // y''
 
     // This is signed curvature as formulated at:
     // https://en.wikipedia.org/wiki/Curvature#Curvature_of_a_graph
     // k = (x'y'' - y'x'') / pow(x'x' + y'y', 3./2.)
-    const T xp2_plus_yp2 = xp * xp + yp * yp;
-    SLIC_ASSERT(xp2_plus_yp2 > T {0});
-    return (xp * ypp - yp * xpp) / (xp2_plus_yp2 * sqrt(xp2_plus_yp2));
+    const double xp2_plus_yp2 = xp * xp + yp * yp;
+    SLIC_ASSERT(xp2_plus_yp2 > 0.0);
+    return static_cast<T>((xp * ypp - yp * xpp) / (xp2_plus_yp2 * sqrt(xp2_plus_yp2)));
   }
   else
   {
-    const auto Dt_norm = Dt.norm();
-    SLIC_ASSERT(Dt_norm != T {0});
-    return VectorType::cross_product(Dt, DtDt).norm() / (Dt_norm * Dt_norm * Dt_norm);
+    const double dt_norm = Dt.norm();
+    SLIC_ASSERT(dt_norm != 0.0);
+    return static_cast<T>(VectorType::cross_product(Dt, DtDt).norm() /
+                          (dt_norm * dt_norm * dt_norm));
   }
 }
 
@@ -73,24 +74,27 @@ T curvature(const VectorType& Dt, const VectorType& DtDt)
 template <typename VectorType, typename T = typename VectorType::CoordType>
 T curvatureDerivative(const VectorType& D1, const VectorType& D2, const VectorType& D3)
 {
-  const T D1Norm = D1.norm();
-  SLIC_ASSERT(D1Norm != T {0});
-  const T D1Norm3 = D1Norm * D1Norm * D1Norm;
-  const T D1Norm5 = D1Norm3 * D1Norm * D1Norm;
+  const double d1_norm = D1.norm();
+  SLIC_ASSERT(d1_norm != 0.0);
+  const double d1_norm3 = d1_norm * d1_norm * d1_norm;
+  const double d1_norm5 = d1_norm3 * d1_norm * d1_norm;
 
   if constexpr(VectorType::dimension() == 2)
   {
-    const T det12 = D1[0] * D2[1] - D1[1] * D2[0];
-    const T det13 = D1[0] * D3[1] - D1[1] * D3[0];
-    return det13 / D1Norm3 - 3. * det12 * D1.dot(D2) / D1Norm5;
+    const double det12 = D1[0] * D2[1] - D1[1] * D2[0];
+    const double det13 = D1[0] * D3[1] - D1[1] * D3[0];
+    const double d1_dot_d2 = D1.dot(D2);
+    return static_cast<T>(det13 / d1_norm3 - 3.0 * det12 * d1_dot_d2 / d1_norm5);
   }
   else
   {
     const auto cross12 = VectorType::cross_product(D1, D2);
     const auto cross13 = VectorType::cross_product(D1, D3);
-    const T cross12Norm = cross12.norm();
-    const T crossTerm = cross12.dot(cross13);
-    return crossTerm / (cross12Norm * D1Norm3) - 3. * cross12Norm * D1.dot(D2) / D1Norm5;
+    const double cross12_norm = cross12.norm();
+    const double cross_term = cross12.dot(cross13);
+    const double d1_dot_d2 = D1.dot(D2);
+    return static_cast<T>(cross_term / (cross12_norm * d1_norm3) -
+                          3.0 * cross12_norm * d1_dot_d2 / d1_norm5);
   }
 }
 
