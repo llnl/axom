@@ -247,9 +247,11 @@ int main(int argc, char** argv)
     ->required()
     ->check(axom::CLI::ExistingFile)
     ->check([&supported_extensions](const std::string& filename) {
+      auto extension = axom::utilities::filesystem::getFileExtension(filename);
+      axom::utilities::string::toLower(extension);
       for(auto& ext : supported_extensions)
       {
-        if(axom::utilities::string::endsWith(filename, ext))
+        if(extension == ext)
         {
           return std::string();
         }
@@ -263,14 +265,15 @@ int main(int argc, char** argv)
 
   // Create appropriate reader based on file extension
   std::unique_ptr<axom::inlet::Reader> reader;
+  auto extension = axom::utilities::filesystem::getFileExtension(inputFilename);
+  axom::utilities::string::toLower(extension);
 
-  if(axom::utilities::string::endsWith(inputFilename, ".yaml") ||
-     axom::utilities::string::endsWith(inputFilename, ".yml"))
+  if(extension == ".yaml" || extension == ".yml")
   {
     reader = std::make_unique<axom::inlet::YAMLReader>();
   }
 #ifdef AXOM_USE_LUA
-  else if(axom::utilities::string::endsWith(inputFilename, ".lua"))
+  else if(extension == ".lua")
   {
     reader = std::make_unique<axom::inlet::LuaReader>();
   }
