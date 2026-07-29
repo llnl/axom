@@ -798,6 +798,114 @@ TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
+TEST(IOTest, readShapeSet_luaBindingsChunkIsolatesUnexportedGlobals)
+{
+  LuaBindingsChunk bindings {R"(
+    dimensions = 3
+    unexported_value = "bindings"
+    math = {
+      sqrt = function() return -1 end
+    }
+    _G.also_unexported = "bindings"
+
+    return {
+      exported_lift = 4.0
+    }
+  )",
+                             "runtime_bindings"};
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    local isolation_ok =
+      unexported_value == nil and
+      also_unexported == nil and
+      math.sqrt(9.0) == 3.0
+
+    shapes = {
+      {
+        name = "isolated",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = isolation_ok and "isolated.stl" or "leaked.stl",
+          units = "cm",
+          operators = {
+            { translate = {math.sqrt(4.0), exported_lift} }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         bindings);
+
+  ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_EQ("isolated.stl", geometry.getPath());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {2.0, 4.0, 0.0}));
+}
+
+TEST(IOTest, readShapeSet_luaBindingsChunkCannotSetSchemaGlobalsWithoutExporting)
+{
+  for(const std::string& source :
+      {"dimensions = 2; return {}", "_G.dimensions = 2; return {}"})
+  {
+    LuaBindingsChunk bindings {source, "runtime_bindings"};
+    EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, bindings), KleeError);
+  }
+}
+
+TEST(IOTest, readShapeSet_luaBindingsClosureRetainsIsolatedEnvironment)
+{
+  InputVariables variables {
+    {"dimensions", klee::InputVariableValue {2}},
+    {"base_offset", klee::InputVariableValue {1.5}},
+  };
+  LuaBindingsChunk bindings {R"(
+    private_offset = 3.5
+
+    return {
+      offset = function()
+        return {base_offset, private_offset}
+      end
+    }
+  )",
+                             "runtime_bindings"};
+
+  auto shapeSet = readShapeSetFromString(R"(
+    shapes = {
+      {
+        name = "closure",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "closure.stl",
+          units = "cm",
+          operators = {
+            { translate = offset }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         variables,
+                                         bindings);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.5, 3.5, 0.0}));
+}
+
 TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
 {
   try

@@ -114,7 +114,12 @@ public:
 
     try
     {
-      auto result = lua->script(bindings.source);
+      // Evaluate bindings in their own environment so assignments made by the
+      // chunk do not mutate the input file's globals. The fallback keeps
+      // preloaded libraries and caller-provided input variables visible.
+      axom::sol::environment bindingsEnvironment {*lua, axom::sol::create, lua->globals()};
+      bindingsEnvironment["_G"] = bindingsEnvironment;
+      auto result = lua->script(bindings.source, bindingsEnvironment);
       if(!result.valid())
       {
         axom::sol::error err = result;
