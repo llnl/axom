@@ -66,7 +66,7 @@ then build a **binding-only** wheel against that install and install it into a v
 
 ```bash
 # Axom + Conduit already built and installed; compile just the bindings against them.
-uv build --wheel -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" src/python
+uv build --wheel -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake" src/python
 uv pip install dist/axom-*.whl
 ```
 
@@ -157,11 +157,15 @@ Producing portable, many-platform wheels would additionally need a tool such as 
 plus a bundling/repair step, which is out of scope here.
 
 **Pointing the build at the install.** Pass one flag,
-`-C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake"`.
+`-C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake"`.
+Use an absolute path to the directory containing `axom-config.cmake`.
+Relative paths may be interpreted from scikit-build-core's temporary build directory.
+The underlying CMake package variable is `axom_DIR` because the project calls `find_package(axom)`,
+and that spelling still works. `AXOM_DIR` is accepted as an Axom-conventional alias by this wheel build.
+
 Conduit does not need a flag of its own in the common case since `find_package(axom CONFIG)`
 pulls in Conduit via `find_dependency`, using the Conduit prefix recorded in `axom-config.cmake`
-when Axom was installed.
-Pass `-C cmake.define.Conduit_DIR="$CONDUIT_INSTALL/lib/cmake/conduit"` only if
+when Axom was installed. Pass `-C cmake.define.Conduit_DIR="$CONDUIT_INSTALL/lib/cmake/conduit"` only if
 that recorded path no longer resolves (e.g. a relocated install, a different mount, or a container path).
 
 If the Axom install is MPI-enabled, make the wheel build use the same compiler
@@ -170,7 +174,7 @@ build's `CMakeCache.txt` or host-config:
 
 ```bash
 uv build --wheel \
-  -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" \
+  -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake" \
   -C cmake.define.CMAKE_C_COMPILER="$AXOM_C_COMPILER" \
   -C cmake.define.CMAKE_CXX_COMPILER="$AXOM_CXX_COMPILER" \
   -C cmake.define.MPI_C_COMPILER="$AXOM_MPI_C_COMPILER" \
@@ -226,7 +230,7 @@ explicitly:
 
 ```bash
 uv build --wheel \
-  -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" \
+  -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake" \
   -C cmake.define.CONDUIT_PYTHON_MODULE_DIR="$CONDUIT_INSTALL/lib/pythonX.Y/site-packages" \
   src/python
 ```
@@ -247,12 +251,13 @@ cmake -C "$(axom-python-config --host-config)" -S <source-dir> -B <build-dir>
 
 ### Per-host-config wheelhouse
 
-Prebuilt wheels live in a per-host-config wheelhouse, e.g. `/usr/workspace/<...>/wheelhouse/<hostconfig>/` 
-(one directory per host-config, since a wheel is not portable across toolchains).
-Consume it with `--find-links` (or a `[tool.uv.sources]` entry):
+Axom does not assume a central public wheelhouse. If a site, CI job, or team
+publishes prebuilt Axom wheels, keep them separated by host-config because these
+wheels are not portable across toolchains. Consume that site-provided directory
+with `--find-links` (or a `[tool.uv.sources]` entry):
 
 ```bash
-uv pip install axom --find-links /path/to/wheelhouse/dane-gcc13
+uv pip install axom --find-links /path/to/site/wheelhouse/<hostconfig>
 ```
 
 ### Developer loop (editable, rebuild-on-import)
@@ -265,7 +270,7 @@ if it misbehaves, reinstall the editable wheel to force a rebuild:
 ```bash
 uv pip install nanobind 'scikit-build-core[pyproject]'
 uv pip install -e src/python --no-build-isolation \
-  -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" \
+  -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake" \
   -C build-dir=build/py -C editable.rebuild=true
 (cd "$(mktemp -d)" && uv run --project "$OLDPWD" \
    pytest -o python_files='*_Py.py' "$OLDPWD/src/axom/sidre/tests/")
@@ -285,7 +290,7 @@ the scikit-build-core setting sets the wheel tag, and the two must agree):
 uv build --wheel \
   -C cmake.define.AXOM_PYTHON_STABLE_ABI=ON \
   -C wheel.py-api=cp312 \
-  -C cmake.define.axom_DIR="$AXOM_INSTALL/lib/cmake" \
+  -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake" \
   src/python
 ```
 

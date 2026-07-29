@@ -13,7 +13,7 @@
 # but is a valid standalone CMake project as well.
 #
 # When driven by scikit-build-core (uv build / uv pip install),
-# point find_package at the installs with -Daxom_DIR / -DConduit_DIR:
+# point find_package at the installs with -DAXOM_DIR / -DConduit_DIR:
 # scikit-build-core force-sets CMAKE_PREFIX_PATH to the isolated build env (to locate its own nanobind),
 # so a user-supplied CMAKE_PREFIX_PATH is ignored.
 # A standalone cmake invocation has no such layer and uses CMAKE_PREFIX_PATH directly:
@@ -53,6 +53,10 @@ if(AXOM_PYTHON_STABLE_ABI AND NOT Python_Development.SABIModule_FOUND)
             "component (CPython >= 3.12), which was not found for "
             "${Python_EXECUTABLE} (version ${Python_VERSION}). Build with a 3.12+ "
             "interpreter or leave AXOM_PYTHON_STABLE_ABI off.")
+endif()
+
+if(DEFINED AXOM_DIR AND NOT DEFINED axom_DIR)
+    set(axom_DIR "${AXOM_DIR}" CACHE PATH "Axom CMake package directory")
 endif()
 
 find_package(axom CONFIG REQUIRED)
@@ -120,8 +124,8 @@ if(DEFINED SKBUILD_PROJECT_VERSION AND DEFINED AXOM_VERSION_MAJOR)
                 "Axom version mismatch: the wheel's metadata version is "
                 "${SKBUILD_PROJECT_VERSION} (from src/cmake/AxomVersion.cmake in this "
                 "source tree) but the Axom install it would link against is "
-                "${_axom_installed_version} (axom_DIR=${axom_DIR}). Build the wheel from "
-                "the source tree that produced the install, or point axom_DIR at an "
+                "${_axom_installed_version} (AXOM_DIR=${axom_DIR}). Build the wheel from "
+                "the source tree that produced the install, or point AXOM_DIR at an "
                 "install built from this source tree.")
     endif()
 endif()
