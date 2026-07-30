@@ -749,13 +749,17 @@ ReaderResult LuaReader::getVariantMapInternal(const std::string& id,
                                               std::unordered_map<Key, VariantValue>& values)
 {
   values.clear();
-  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
-
-  axom::sol::table table;
-  if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), table))
+  const auto object = getObject(id);
+  if(!object.valid())
   {
     return ReaderResult::NotFound;
   }
+  if(object.get_type() != axom::sol::type::table)
+  {
+    return ReaderResult::WrongType;
+  }
+
+  const auto table = object.as<axom::sol::table>();
 
   const auto is_correct_key_type = [](const axom::sol::type type) {
     const bool is_number = type == axom::sol::type::number;
@@ -788,16 +792,18 @@ ReaderResult LuaReader::getVariantMapInternal(const std::string& id,
 template <typename T>
 ReaderResult LuaReader::getIndicesInternal(const std::string& id, std::vector<T>& indices)
 {
-  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
-
-  axom::sol::table table;
-  if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), table))
+  indices.clear();
+  const auto object = getObject(id);
+  if(!object.valid())
   {
     return ReaderResult::NotFound;
   }
+  if(object.get_type() != axom::sol::type::table)
+  {
+    return ReaderResult::WrongType;
+  }
 
-  indices.clear();
-
+  const auto table = object.as<axom::sol::table>();
   // std::transform ends up being messier here
   for(const auto& entry : table)
   {

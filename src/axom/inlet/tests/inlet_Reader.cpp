@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <memory>
@@ -506,6 +507,76 @@ TEST(inlet_Reader_lua, functionLookupDoesNotChangeFieldAndMapResults)
   std::unordered_map<int, double> values;
   EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("foo", values));
   EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("bar/baz", values));
+}
+
+TEST(inlet_Reader_lua, variantMapsAndIndicesUseConsistentObjectLookup)
+{
+  axom::inlet::LuaReader reader;
+  reader.parseString(R"(
+    callback = function() return {1, 2} end
+    nested = {
+      [7] = {
+        values = {[2] = 42, [5] = "five"},
+        dictionary = {[2] = 42, label = true}
+      }
+    }
+  )");
+
+  auto callback =
+    reader.getFunction("callback", axom::inlet::FunctionTag::Vector, {});
+  ASSERT_TRUE(callback);
+
+  std::unordered_map<int, axom::inlet::VariantValue> values {
+    {99, axom::inlet::VariantValue {99}}};
+  EXPECT_EQ(ReaderResult::WrongType,
+            reader.getVariantMap("callback", values));
+  EXPECT_TRUE(values.empty());
+  EXPECT_EQ(ReaderResult::NotFound,
+            reader.getVariantMap("missing", values));
+  EXPECT_TRUE(values.empty());
+
+  EXPECT_EQ(ReaderResult::Success,
+            reader.getVariantMap("nested/7/values", values));
+  const std::unordered_map<int, axom::inlet::VariantValue> expectedValues {
+    {2, axom::inlet::VariantValue {42}},
+    {5, axom::inlet::VariantValue {std::string {"five"}}}};
+  EXPECT_EQ(expectedValues, values);
+
+  std::vector<int> indices {99};
+  EXPECT_EQ(ReaderResult::WrongType,
+            reader.getIndices("callback", indices));
+  EXPECT_TRUE(indices.empty());
+  EXPECT_EQ(ReaderResult::NotFound,
+            reader.getIndices("missing", indices));
+  EXPECT_TRUE(indices.empty());
+
+  EXPECT_EQ(ReaderResult::Success,
+            reader.getIndices("nested/7/values", indices));
+  std::sort(indices.begin(), indices.end());
+  EXPECT_EQ((std::vector<int> {2, 5}), indices);
+
+  std::unordered_map<axom::inlet::VariantKey, axom::inlet::VariantValue>
+    dictionary;
+  EXPECT_EQ(ReaderResult::Success,
+            reader.getVariantMap("nested/7/dictionary", dictionary));
+  EXPECT_EQ(2u, dictionary.size());
+  EXPECT_EQ(axom::inlet::VariantValue {42},
+            dictionary[axom::inlet::VariantKey {2}]);
+  EXPECT_EQ(axom::inlet::VariantValue {true},
+            dictionary[axom::inlet::VariantKey {"label"}]);
+
+  std::vector<axom::inlet::VariantKey> dictionaryIndices;
+  EXPECT_EQ(ReaderResult::Success,
+            reader.getIndices("nested/7/dictionary", dictionaryIndices));
+  EXPECT_EQ(2u, dictionaryIndices.size());
+  EXPECT_NE(dictionaryIndices.end(),
+            std::find(dictionaryIndices.begin(),
+                      dictionaryIndices.end(),
+                      axom::inlet::VariantKey {2}));
+  EXPECT_NE(dictionaryIndices.end(),
+            std::find(dictionaryIndices.begin(),
+                      dictionaryIndices.end(),
+                      axom::inlet::VariantKey {"label"}));
 }
 #endif
 
