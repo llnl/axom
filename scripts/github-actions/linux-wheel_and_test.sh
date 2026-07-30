@@ -13,8 +13,8 @@
 #   1. configure + build + install Axom (with Python bindings) from a docker t-config;
 #   2. build the wheel from src/python against that install (find_package(axom));
 #   3. install the wheel into a fresh uv venv;
-#   4. expose the *same-build* Conduit python module via a .pth file
-#   5. run the Sidre Python test suite with plain `uv run pytest`.
+#   4. verify the wheel installed conduit.pth for the same-build Conduit python module;
+#   5. run the Sidre Python test suite with plain pytest.
 #
 # Intended for the gcc docker image, which is nanobind-enabled.
 
@@ -51,26 +51,13 @@ or_die python3 ./config-build.py \
 or_die cmake --build "${BUILD_DIR}" -j "${NUM_BUILD_PROCS}"
 or_die cmake --install "${BUILD_DIR}"
 
-# Resolve the Axom install prefix and the Conduit python-modules directory from
-# the CMake cache. Prefer CONDUIT_PYTHON_MODULE_DIR (the exact directory the
-# in-tree build uses for the same purpose); fall back to CONDUIT_DIR/python-modules.
+# Resolve the Axom install prefix from the CMake cache
 CACHE="${BUILD_DIR}/CMakeCache.txt"
 AXOM_INSTALL=$(awk -F= '/^CMAKE_INSTALL_PREFIX:[A-Z]*=/{print $2}' "${CACHE}")
-CONDUIT_PY_DIR=$(awk -F= '/^CONDUIT_PYTHON_MODULE_DIR:[A-Z]*=/{print $2}' "${CACHE}")
-if [[ -z "${CONDUIT_PY_DIR}" ]]; then
-    CONDUIT_DIR=$(awk -F= '/^CONDUIT_DIR:[A-Z]*=/{print $2}' "${CACHE}")
-    CONDUIT_PY_DIR="${CONDUIT_DIR}/python-modules"
-fi
 echo "AXOM_INSTALL=${AXOM_INSTALL}"
-echo "CONDUIT_PY_DIR=${CONDUIT_PY_DIR}"
 
 if [[ -z "${AXOM_INSTALL}" || ! -d "${AXOM_INSTALL}" ]]; then
     echo "ERROR: Axom install prefix not found (${AXOM_INSTALL})."
-    exit 1
-fi
-if [[ -z "${CONDUIT_PY_DIR}" || ! -d "${CONDUIT_PY_DIR}" ]]; then
-    echo "ERROR: Conduit python-modules dir not found (${CONDUIT_PY_DIR})."
-    echo "       The wheel needs the same-build Conduit python module (see src/python/README.md)."
     exit 1
 fi
 
@@ -82,17 +69,19 @@ fi
 uv --version
 
 echo "~~~~~~ BUILD THE THIN WHEEL FROM src/python ~~~~~~"
-# Point find_package at the install with axom_DIR.
-# Don't use CMAKE_PREFIX_PATH since scikit-build-core force-sets that to its isolated build environment 
-# (and uses it to locate its own nanobind).
-# Conduit resolves transitively from axom's config, which records its Conduit prefix;
-# pass -C cmake.define.Conduit_DIR=... as well if that recorded path has moved. See src/python/README.md.
+# Point find_package at the install with AXOM_DIR
+# Conduit resolves transitively from axom's config, which records its Conduit prefix
 rm -rf dist
 or_die uv build --wheel \
-    -C cmake.define.axom_DIR="${AXOM_INSTALL}/lib/cmake" \
+    -C cmake.define.AXOM_DIR="${AXOM_INSTALL}/lib/cmake" \
     --out-dir dist \
     src/python
 ls -l dist
+AXOM_WHEEL=$(find dist -maxdepth 1 -name 'axom-*.whl' -print -quit)
+if [[ -z "${AXOM_WHEEL}" ]]; then
+    echo "ERROR: Axom wheel not found in dist/."
+    exit 1
+fi
 
 echo "~~~~~~ FRESH VENV + INSTALL THE WHEEL ~~~~~~"
 # Pin the interpreter that built the wheel, so the venv cannot pick a different one.
@@ -100,31 +89,33 @@ VENV_DIR=/tmp/axom-wheel-venv
 rm -rf "${VENV_DIR}"
 or_die uv venv --python "$(command -v python3)" "${VENV_DIR}"
 VENV_PY="${VENV_DIR}/bin/python"
-or_die uv pip install --python "${VENV_PY}" dist/*.whl
+or_die uv pip install --python "${VENV_PY}" "${AXOM_WHEEL}[test]"
 
-echo "~~~~~~ EXPOSE SAME-BUILD CONDUIT VIA .pth ~~~~~~"
+echo "~~~~~~ VERIFY WHEEL-INSTALLED CONDUIT .pth ~~~~~~"
 PURELIB=$("${VENV_PY}" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-echo "${CONDUIT_PY_DIR}" > "${PURELIB}/conduit.pth"
-echo "wrote ${PURELIB}/conduit.pth -> ${CONDUIT_PY_DIR}"
+CONDUIT_PTH="${PURELIB}/conduit.pth"
+if [[ ! -f "${CONDUIT_PTH}" ]]; then
+    echo "ERROR: Expected wheel to install ${CONDUIT_PTH}."
+    echo "       The wheel should expose the same-build Conduit python module without a manual PYTHONPATH update."
+    exit 1
+fi
+CONDUIT_PY_DIR=$(sed -n '1p' "${CONDUIT_PTH}")
+if [[ -z "${CONDUIT_PY_DIR}" || ! -d "${CONDUIT_PY_DIR}" ]]; then
+    echo "ERROR: ${CONDUIT_PTH} points to missing Conduit python module directory '${CONDUIT_PY_DIR}'."
+    exit 1
+fi
+echo "verified ${CONDUIT_PTH} -> ${CONDUIT_PY_DIR}"
 
-echo "~~~~~~ IMPORT SMOKE TEST (no wrapper, no PYTHONPATH) ~~~~~~"
+echo "~~~~~~ IMPORT SMOKE TEST ~~~~~~"
 or_die "${VENV_PY}" -c \
     "import axom, axom.sidre, conduit, numpy; print('axom', axom.__version__); print('axom.sidre', axom.sidre.__version__)"
 
 echo "~~~~~~ RUN THE SIDRE PYTHON SUITE VIA PLAIN pytest ~~~~~~"
-# Axom's Python tests are named *_Py.py, which pytest's default python_files patterns
-# (test_*.py, *_test.py) do not match -- an unqualified run collects nothing and exits 5.
-# Name the pattern explicitly so collection is deterministic.
-# The MPI-only spio test skips itself at module level when sidre was built without MPI.
-# Several tests write output tmp files into the current directory,
-# so run from a scratch directory
-or_die uv pip install --python "${VENV_PY}" pytest
+# Axom's Python tests are named *_Py.py, which pytest's default python_files patterns do not match
 TEST_DIR="$(pwd)/src/axom/sidre/tests"
 SCRATCH="$(mktemp -d)"
-# Note: not a ( subshell ) -- or_die exits on failure, and from a subshell that would
-# only exit the subshell and let the lane report success.
-cd "${SCRATCH}"
+pushd "${SCRATCH}" > /dev/null
 or_die "${VENV_PY}" -m pytest -s -p no:cacheprovider \
     -o python_files='*_Py.py' \
     "${TEST_DIR}"
-cd - > /dev/null
+popd > /dev/null
