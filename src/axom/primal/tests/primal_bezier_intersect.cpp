@@ -669,9 +669,7 @@ TEST(primal_bezier_inter, ray_quadratic_bezier_split_boundary)
   using RayType = primal::Ray<CoordType, DIM>;
 
   constexpr int order = 2;
-  PointType data[order + 1] = {PointType {-1.0, 0.0},
-                               PointType {0.0, 1.0},
-                               PointType {1.0, 0.0}};
+  PointType data[order + 1] = {PointType {-1.0, 0.0}, PointType {0.0, 1.0}, PointType {1.0, 0.0}};
   BezierCurveType curve(data, order);
 
   const RayType ray(PointType {0.0, -1.0}, VectorType {0.0, 1.0});

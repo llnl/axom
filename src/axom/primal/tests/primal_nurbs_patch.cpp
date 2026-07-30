@@ -650,13 +650,12 @@ TEST(primal_nurbspatch, float_knot_array_constructor_and_isocurves)
   constexpr int degree_u = 2;
   constexpr int degree_v = 1;
 
-  PointType controlPoints[npts_u * npts_v] = {
-    PointType {0.f, 0.f, 0.f},
-    PointType {0.f, 1.f, 1.f},
-    PointType {1.f, 0.f, 0.f},
-    PointType {1.f, 1.f, 1.f},
-    PointType {2.f, 0.f, 0.f},
-    PointType {2.f, 1.f, 1.f}};
+  PointType controlPoints[npts_u * npts_v] = {PointType {0.f, 0.f, 0.f},
+                                              PointType {0.f, 1.f, 1.f},
+                                              PointType {1.f, 0.f, 0.f},
+                                              PointType {1.f, 1.f, 1.f},
+                                              PointType {2.f, 0.f, 0.f},
+                                              PointType {2.f, 1.f, 1.f}};
   CoordType weights[npts_u * npts_v] = {1.f, 2.f, 2.f, 3.f, 1.f, 2.f};
   CoordType knots_u[npts_u + degree_u + 1] = {0.f, 0.f, 0.f, 1.f, 1.f, 1.f};
   CoordType knots_v[npts_v + degree_v + 1] = {0.f, 0.f, 1.f, 1.f};
