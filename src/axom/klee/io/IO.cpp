@@ -419,7 +419,9 @@ Geometry convert(GeometryData const& data,
   Geometry geometry {startProperties,
                      data.format,
                      data.path,
-                     data.operatorData.makeOperator(startProperties, namedOperators, shapeName)};
+                     data.operatorData.makeOperator(startProperties,
+                                                    namedOperators,
+                                                    axom::fmt::format("shape '{}'", shapeName))};
 
   const auto computed_end_dims = geometry.getEndProperties().dimensions;
   const auto expected_end_dims = has_explicit_dims ? data.explicitDimensions : fileDimensions;
