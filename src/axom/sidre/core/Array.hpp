@@ -115,9 +115,9 @@ struct SidreStoragePolicy
    */
   template <typename Func>
   T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
-                int AXOM_UNUSED_PARAM(old_capacity),
+                IndexType AXOM_UNUSED_PARAM(old_capacity),
                 int AXOM_UNUSED_PARAM(allocator_id),
-                int new_capacity,
+                IndexType new_capacity,
                 Func&& AXOM_UNUSED_PARAM(nontrivial_move))
   {
     if(m_view->isEmpty())

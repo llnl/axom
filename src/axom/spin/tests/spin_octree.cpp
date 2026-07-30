@@ -16,7 +16,6 @@ TEST(spin_octree, topological_octree_parent_child)
   SLIC_INFO("*** This test exercises the parent/child relation in spin::OctreeBase");
 
   static const int DIM = 2;
-  using CoordType = int;
   using LeafNodeType = axom::spin::BlockData;
 
   using OctreeType = axom::spin::OctreeBase<DIM, LeafNodeType>;
@@ -43,7 +42,7 @@ TEST(spin_octree, topological_octree_parent_child)
     int recombineIndex = 0;
     for(int dim = 0; dim < DIM; ++dim)
     {
-      CoordType coordVal = childBlock.pt()[dim];
+      const auto coordVal = childBlock.pt()[dim];
       EXPECT_TRUE(coordVal == 0 || coordVal == 1);
 
       bool expBit = (childIndexSet[i] & 1 << dim) > 0;

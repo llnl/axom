@@ -87,7 +87,7 @@ struct execution_space
   static constexpr bool async() noexcept { return false; }
   static constexpr bool valid() noexcept { return false; }
   static constexpr bool onDevice() noexcept { return false; }
-  static constexpr char* name() noexcept { return (char*)"[UNDEFINED]"; }
+  static constexpr const char* name() noexcept { return "[UNDEFINED]"; }
   static int allocatorID() noexcept { return axom::INVALID_ALLOCATOR_ID; }
   static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
