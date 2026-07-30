@@ -299,6 +299,41 @@ TEST(inlet_function, function_value_alternative_preserves_concrete_value)
   EXPECT_DOUBLE_EQ(inlet["foo"].get<double>(), 4.0);
 }
 
+TEST(inlet_function, auto_named_function_value_alternative_uses_input_path)
+{
+  // set and access function in alternative
+  {
+    auto inlet = createBasicInlet("function foo () return 2.0 end");
+    inlet.addFunctionAsValueAlternative(FunctionTag::Double, {}, "foo");
+    inlet.addDouble("foo");
+
+    EXPECT_TRUE(inlet.verify());
+    auto& container = inlet.getGlobalContainer();
+    EXPECT_TRUE(container.containsFunctionValueAlternative("foo"));
+
+    const auto names = container.getFunctionValueAlternativeNames();
+    ASSERT_EQ(names.size(), 1u);
+    EXPECT_EQ(names[0], "foo");
+    EXPECT_DOUBLE_EQ(
+      container.getFunctionValueAlternative("foo").call<double>(),
+      2.0);
+  }
+
+  // set and access value in alternative
+  {
+    auto concreteInlet = createBasicInlet("foo = 4.0");
+    concreteInlet.addFunctionAsValueAlternative(FunctionTag::Double, {}, "foo");
+    concreteInlet.addDouble("foo");
+
+    EXPECT_TRUE(concreteInlet.verify());
+    auto& concreteContainer = concreteInlet.getGlobalContainer();
+    EXPECT_FALSE(concreteContainer.containsFunctionValueAlternative("foo"));
+
+    EXPECT_TRUE(concreteContainer.getFunctionValueAlternativeNames().empty());
+    EXPECT_DOUBLE_EQ(concreteInlet["foo"].get<double>(), 4.0);
+  }
+}
+
 TEST(inlet_function, required_function_value_alternative_missing)
 {
   auto inlet = createBasicInlet("");

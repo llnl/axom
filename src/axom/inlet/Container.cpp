@@ -1008,6 +1008,47 @@ Verifiable<Function>& Container::addFunctionAsValueAlternative(
     true);
 }
 
+Verifiable<Function>& Container::addFunctionAsValueAlternative(
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const std::string& inputPath,
+  const std::string& description)
+{
+  return addFunctionAsValueAlternative(
+    nextFunctionValueAlternativeName(),
+    ret_type,
+    arg_types,
+    inputPath,
+    description);
+}
+
+Verifiable<Function>& Container::addFunctionAsValueAlternative(
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const InputPath& inputPath,
+  const std::string& description)
+{
+  return addFunctionAsValueAlternative(
+    nextFunctionValueAlternativeName(),
+    ret_type,
+    arg_types,
+    inputPath,
+    description);
+}
+
+std::string Container::nextFunctionValueAlternativeName()
+{
+  std::string name;
+  std::string fullName;
+  do
+  {
+    name =
+      axom::fmt::format("__inlet_function_value_alternative_{}", m_nextFunctionValueAlternativeId++);
+    fullName = utilities::string::appendPrefix(m_name, name);
+  } while(m_sidreRootGroup->hasGroup(fullName));
+  return name;
+}
+
 Verifiable<Function>& Container::addFunctionWithInputPath(
   const std::string& name,
   const FunctionTag ret_type,
@@ -1079,7 +1120,12 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
     {
       registerFunctionAlternativePath(lookupPath);
     }
-    return storeFunction(sidreGroup, std::move(func), fullName, name);
+    auto& storedFunction = storeFunction(sidreGroup, std::move(func), fullName, name);
+    if(isValueAlternative)
+    {
+      m_functionValueAlternatives[inputPath.value] = &storedFunction;
+    }
+    return storedFunction;
   }
 }
 
@@ -1474,6 +1520,36 @@ const std::unordered_map<std::string, std::unique_ptr<Field>>& Container::getChi
 const std::unordered_map<std::string, std::unique_ptr<Function>>& Container::getChildFunctions() const
 {
   return m_functionChildren;
+}
+
+bool Container::containsFunctionValueAlternative(const std::string& inputPath) const
+{
+  const auto iter = m_functionValueAlternatives.find(inputPath);
+  return iter != m_functionValueAlternatives.end() &&
+    static_cast<bool>(*iter->second);
+}
+
+Function& Container::getFunctionValueAlternative(const std::string& inputPath) const
+{
+  const auto iter = m_functionValueAlternatives.find(inputPath);
+  SLIC_ERROR_IF(
+    iter == m_functionValueAlternatives.end(),
+    axom::fmt::format("[Inlet] Function value alternative not found for input path: {0}", inputPath));
+  
+  return *iter->second;
+}
+
+std::vector<std::string> Container::getFunctionValueAlternativeNames() const
+{
+  std::vector<std::string> result;
+  for(const auto& entry : m_functionValueAlternatives)
+  {
+    if(static_cast<bool>(*entry.second))
+    {
+      result.push_back(entry.first);
+    }
+  }
+  return result;
 }
 
 }  // namespace inlet

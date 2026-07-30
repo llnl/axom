@@ -49,30 +49,9 @@ std::string childName(const inlet::Container& container, const std::string& name
   return result;
 }
 
-// Callback schema entries are internal aliases: the public input path remains
-// the ordinary operator field name, while Inlet stores the function separately.
-constexpr char const *LUA_CALLBACK_SUFFIX = "__klee_lua_callback";
-
-std::string callbackName(char const *fieldName)
-{
-  return std::string(fieldName) + LUA_CALLBACK_SUFFIX;
-}
-
-std::string publicNameForCallback(const std::string &childName)
-{
-  const std::string suffix = LUA_CALLBACK_SUFFIX;
-  if(childName.size() > suffix.size() &&
-     childName.compare(childName.size() - suffix.size(), suffix.size(), suffix) == 0)
-  {
-    return childName.substr(0, childName.size() - suffix.size());
-  }
-  return childName;
-}
-
 bool hasCallback(const inlet::Container &container, char const *fieldName)
 {
-  const auto name = callbackName(fieldName);
-  return container.contains(name);
+  return container.containsFunctionValueAlternative(fieldName);
 }
 
 bool containsFieldOrCallback(const inlet::Container &container, char const *fieldName)
@@ -139,7 +118,7 @@ double getScalar(const inlet::Container &container,
   if(hasCallback(container, fieldName))
   {
     return wrapCallbackErrors<double>(container, fieldName, shapeName, [&]() {
-      return container[callbackName(fieldName)].call<inlet::FunctionType::Double>();
+      return container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::Double>();
     });
   }
   return container[fieldName].get<double>();
@@ -165,7 +144,7 @@ std::vector<double> getDoubleVector(const inlet::Container &container,
   {
     auto values = wrapCallbackErrors<std::vector<double>>(container, fieldName, shapeName, [&]() {
       return callbackVectorToDoubleVector(
-        container[callbackName(fieldName)].call<inlet::FunctionType::Vector>());
+        container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::Vector>());
     });
     auto actualSize = values.size();
     auto expectedSize = static_cast<std::size_t>(expectedDims);
@@ -270,12 +249,9 @@ std::unordered_set<std::string> getChildNames(const inlet::Container& container)
     }
   }
 
-  for(auto& child : container.getChildFunctions())
+  for(const auto &name : container.getFunctionValueAlternativeNames())
   {
-    if(*child.second)
-    {
-      allChildren.insert(publicNameForCallback(childName(container, child.first)));
-    }
+    allChildren.insert(name);
   }
 
   return allChildren;
@@ -605,7 +581,7 @@ OpPtr parseScale(const SingleOperatorData &data,
         shapeName,
         [&]() {
           return callbackVectorToDoubleVector(
-            opContainer[callbackName("scale")].call<inlet::FunctionType::Vector>());
+            opContainer.getFunctionValueAlternative("scale").call<inlet::FunctionType::Vector>());
         })
     : opContainer["scale"].get<std::vector<double>>();
 
@@ -798,7 +774,6 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
     const auto addCallbackAlternative =
       [](inlet::Container &container, const char *fieldName, inlet::FunctionTag returnType) {
         container.addFunctionAsValueAlternative(
-          callbackName(fieldName),
           returnType,
           {},
           fieldName);
