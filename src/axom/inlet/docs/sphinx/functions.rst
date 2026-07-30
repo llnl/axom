@@ -63,6 +63,40 @@ In Lua, the following operations on the ``Vector`` type are supported (for ``Vec
 #. Dimension retrieval: ``d = u.dim``
 #. Component retrieval: ``d = u.x``, ``d = u.y``, ``d = u.z``
 
+Aliased input paths
+-------------------
+
+A function's schema name and its path in the input do not need to match.
+Inlet provides an ``InputPath`` descriptor to allow a path to retain the same meaning
+when a schema is expanded across a struct array or dictionary:
+
+.. code-block:: C++
+
+  using axom::inlet::InputPath;
+
+  // Every element reads the same root-level callback.
+  shapes.addFunction(
+    "transform_callback",
+    axom::inlet::FunctionTag::Vector,
+    {axom::inlet::FunctionTag::Vector},
+    InputPath::exact("shared_transform"));
+
+  // Every element reads its own "transform" callback.
+  shapes.addFunction(
+    "transform_callback",
+    axom::inlet::FunctionTag::Vector,
+    {axom::inlet::FunctionTag::Vector},
+    InputPath::relativeToCollectionElement("transform"));
+
+An exact path is used unchanged, regardless of where the function is stored in the schema.
+A collection-relative path is joined to each concrete collection element.
+Outside a collection, it is relative to the current ``Container``.
+
+The ``addFunction(name, returnType, argumentTypes, description, pathOverride)`` overload
+remains available. Its string override retains the rule that 
+it is exact outside a struct collection and relative to each element inside one.
+Prefer ``InputPath`` when adding new aliases so this behavior is explicit at the call site.
+
 Functions as value alternatives
 -------------------------------
 
@@ -83,6 +117,8 @@ With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``, while
 ``scale = function() return {2.0, 3.0, 4.0} end`` populates ``scale_callback``.
 The two schema entries may be added in either order. A function encountered at a normal
 field path remains a type error unless this alternative has been declared.
+``addFunctionAsValueAlternative`` also accepts an ``InputPath`` descriptor when exact
+or collection-relative resolution needs to be explicit.
 
 Accessing
 ---------

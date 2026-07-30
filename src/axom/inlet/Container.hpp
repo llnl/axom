@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 #include "axom/fmt.hpp"
@@ -66,6 +67,44 @@ class Container;
 
 template <typename Variant>
 class VariantStructCollection;
+
+/*!
+ *****************************************************************************
+ * \brief Controls how an aliased input path is resolved.
+ *****************************************************************************
+ */
+enum class InputPathMode
+{
+  Exact,
+  RelativeToCollectionElement
+};
+
+/*!
+ *****************************************************************************
+ * \brief Describes an input path whose resolution semantics must remain
+ * explicit when a schema is expanded across a struct collection.
+ *****************************************************************************
+ */
+struct InputPath
+{
+  InputPath(std::string path, InputPathMode pathMode)
+    : value(std::move(path))
+    , mode(pathMode)
+  { }
+
+  static InputPath exact(std::string path)
+  {
+    return InputPath(std::move(path), InputPathMode::Exact);
+  }
+
+  static InputPath relativeToCollectionElement(std::string path)
+  {
+    return InputPath(std::move(path), InputPathMode::RelativeToCollectionElement);
+  }
+
+  std::string value;
+  InputPathMode mode;
+};
 
 namespace detail
 {
@@ -750,6 +789,25 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Get a function from an explicitly resolved input path.
+   *
+   * \param [in] name        Name of the function in the schema
+   * \param [in] ret_type    The return type of the function
+   * \param [in] arg_types   The argument types of the function
+   * \param [in] inputPath   Explicit input path and resolution mode
+   * \param [in] description Description of the function
+   *
+   * \return Reference to the created Function
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunction(const std::string& name,
+                                    FunctionTag ret_type,
+                                    const std::vector<FunctionTag>& arg_types,
+                                    const InputPath& inputPath,
+                                    const std::string& description = "");
+
+  /*!
+   *****************************************************************************
    * \brief Get a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
@@ -772,6 +830,18 @@ public:
     FunctionTag ret_type,
     const std::vector<FunctionTag>& arg_types,
     const std::string& inputPath,
+    const std::string& description = "");
+
+  /*!
+   *********************************************************************************
+   * \brief Get a function value alternative from an explicitly resolved input path.
+   *********************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    const std::string& name,
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const InputPath& inputPath,
     const std::string& description = "");
 
   /*!
@@ -1305,8 +1375,7 @@ private:
                                                  FunctionTag ret_type,
                                                  const std::vector<FunctionTag>& arg_types,
                                                  const std::string& description,
-                                                 const std::string& inputPath,
-                                                 bool inputPathIsRelative,
+                                                 const InputPath& inputPath,
                                                  bool isValueAlternative);
 
   /*!

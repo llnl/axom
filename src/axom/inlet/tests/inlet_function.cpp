@@ -23,6 +23,7 @@ using axom::inlet::FunctionTag;
 using axom::inlet::FunctionType;
 using axom::inlet::Inlet;
 using axom::inlet::InletType;
+using axom::inlet::InputPath;
 using axom::inlet::LuaReader;
 using axom::inlet::VerificationError;
 
@@ -181,6 +182,19 @@ TEST(inlet_function, function_path_override)
                      "public_name");
 
   auto callback = inlet["internal_group/internal_name"].get<std::function<double(double)>>();
+  EXPECT_DOUBLE_EQ(callback(3.0), 5.0);
+}
+
+TEST(inlet_function, explicit_exact_function_input_path)
+{
+  auto inlet = createBasicInlet("function public_name (x) return x + 2 end");
+
+  inlet.addFunction("internal_name",
+                    FunctionTag::Double,
+                    {FunctionTag::Double},
+                    InputPath::exact("public_name"));
+
+  auto callback = inlet["internal_name"].get<std::function<double(double)>>();
   EXPECT_DOUBLE_EQ(callback(3.0), 5.0);
 }
 
@@ -429,6 +443,20 @@ struct FromInlet<Foo>
   }
 };
 
+struct FooDictionary
+{
+  std::unordered_map<std::string, Foo> values;
+};
+
+template <>
+struct FromInlet<FooDictionary>
+{
+  FooDictionary operator()(const axom::inlet::Container& base)
+  {
+    return {base["foo"].get<std::unordered_map<std::string, Foo>>()};
+  }
+};
+
 struct FooWithValueAlternative
 {
   std::function<double()> bar;
@@ -514,7 +542,51 @@ TEST(inlet_function, function_path_override_in_array_of_struct)
   EXPECT_FLOAT_EQ(foos[12].baz({1, 2, 3})[0], 3);
 }
 
-TEST(inlet_function, function_value_alternative_in_array_of_struct)
+TEST(inlet_function, explicit_exact_function_input_path_in_array_of_struct)
+{
+  auto inlet = createBasicInlet(
+    "shared_callback = function (v) return 4*v end; "
+    "foo = { [7] = { bar = true }, [12] = { bar = false } }");
+
+  auto& arr_container = inlet.addStructArray("foo");
+  arr_container.addBool("bar");
+  arr_container.addFunction("baz",
+                            FunctionTag::Vector,
+                            {FunctionTag::Vector},
+                            InputPath::exact("shared_callback"));
+
+  auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
+  EXPECT_FLOAT_EQ(foos[7].baz({1, 2, 3})[0], 4);
+  EXPECT_FLOAT_EQ(foos[12].baz({1, 2, 3})[0], 4);
+}
+
+TEST(inlet_function, explicit_relative_function_input_path_in_nested_dictionary_of_struct)
+{
+  auto inlet = createBasicInlet(
+    "groups = { "
+    "  [0] = { foo = { first = { bar = true, "
+    "                            callback = function (v) return 2*v end }, "
+    "                  second = { bar = false, "
+    "                             callback = function (v) return 3*v end } } }, "
+    "  [1] = { foo = { third = { bar = true, "
+    "                            callback = function (v) return 4*v end } } } }");
+
+  auto& group_container = inlet.addStructArray("groups");
+  auto& dict_container = group_container.addStructDictionary("foo");
+  dict_container.addBool("bar");
+  dict_container.addFunction(
+    "baz",
+    FunctionTag::Vector,
+    {FunctionTag::Vector},
+    InputPath::relativeToCollectionElement("callback"));
+
+  auto groups = inlet["groups"].get<std::unordered_map<int, FooDictionary>>();
+  EXPECT_FLOAT_EQ(groups[0].values["first"].baz({1, 2, 3})[0], 2);
+  EXPECT_FLOAT_EQ(groups[0].values["second"].baz({1, 2, 3})[0], 3);
+  EXPECT_FLOAT_EQ(groups[1].values["third"].baz({1, 2, 3})[0], 4);
+}
+
+TEST(inlet_function, explicit_relative_function_value_alternative_in_array_of_struct)
 {
   auto inlet = createBasicInlet(
     "foo = { [7] = { bar = function () return 2 end }, "
@@ -526,7 +598,7 @@ TEST(inlet_function, function_value_alternative_in_array_of_struct)
     "bar_callback",
     FunctionTag::Double,
     {},
-    "bar");
+    InputPath::relativeToCollectionElement("bar"));
 
   EXPECT_TRUE(inlet.verify());
   auto foos =
@@ -606,7 +678,7 @@ TEST(inlet_function, nested_function_in_struct)
   EXPECT_DOUBLE_EQ(second_func(4.0), 7.0);
 }
 
-TEST(inlet_function, function_path_override_in_nested_struct)
+TEST(inlet_function, explicit_relative_function_input_path_in_nested_struct)
 {
   std::string testString =
     "quux = { [0] = { foo = { callback = function (x) return x + 1 end } }, "
@@ -618,8 +690,7 @@ TEST(inlet_function, function_path_override_in_nested_struct)
   foo_schema.addFunction("bar",
                          FunctionTag::Double,
                          {FunctionTag::Double},
-                         "",
-                         "callback");
+                         InputPath::relativeToCollectionElement("callback"));
 
   auto foos = inlet["quux"].get<std::vector<FooWithScalarFunc>>();
   EXPECT_DOUBLE_EQ(foos[0].bar(4.0), 5.0);

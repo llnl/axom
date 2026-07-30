@@ -433,6 +433,22 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Get a function from an explicitly resolved input path.
+   *
+   * \see Container::addFunction
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunction(const std::string& name,
+                                    const FunctionTag ret_type,
+                                    const std::vector<FunctionTag>& arg_types,
+                                    const InputPath& inputPath,
+                                    const std::string& description = "")
+  {
+    return m_globalContainer.addFunction(name, ret_type, arg_types, inputPath, description);
+  }
+
+  /*!
+   *****************************************************************************
    * \brief Get a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
@@ -444,6 +460,29 @@ public:
     FunctionTag ret_type,
     const std::vector<FunctionTag>& arg_types,
     const std::string& inputPath,
+    const std::string& description = "")
+  {
+    return m_globalContainer.addFunctionAsValueAlternative(
+      name,
+      ret_type,
+      arg_types,
+      inputPath,
+      description);
+  }
+
+  /*!
+   *****************************************************************************
+   * \brief Get a function value alternative from an explicitly resolved input
+   * path.
+   *
+   * \see Container::addFunctionAsValueAlternative
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    const std::string& name,
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const InputPath& inputPath,
     const std::string& description = "")
   {
     return m_globalContainer.addFunctionAsValueAlternative(
