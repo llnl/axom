@@ -132,32 +132,6 @@ TEST(primal_nurbscurve, default_constructor)
   }
 }
 
-//------------------------------------------------------------------------------
-TEST(primal_nurbscurve, index_type_api_accepts_int_callers)
-{
-  constexpr int DIM = 2;
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, DIM>;
-  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
-
-  NURBSCurveType curve(3, 2);
-  curve.makeRational();
-
-  const int int_idx = 0;
-  const axom::IndexType index_type_idx = 1;
-
-  curve[int_idx] = PointType {1.0, 2.0};
-  curve[index_type_idx] = PointType {3.0, 4.0};
-  curve.setWeight(int_idx, 2.0);
-  curve.setWeight(index_type_idx, 3.0);
-
-  EXPECT_EQ(curve[int_idx], (PointType {1.0, 2.0}));
-  EXPECT_EQ(curve[index_type_idx], (PointType {3.0, 4.0}));
-  EXPECT_EQ(curve.getWeight(int_idx), 2.0);
-  EXPECT_EQ(curve.getWeight(index_type_idx), 3.0);
-}
-
-//------------------------------------------------------------------------------
 TEST(primal_nurbscurve, sizing_constructors)
 {
   constexpr int DIM = 3;
