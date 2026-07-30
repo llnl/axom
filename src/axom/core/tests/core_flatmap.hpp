@@ -55,6 +55,38 @@ TEST(core_flatmap_unit, quadratic_probing)
   }
 }
 
+TEST(core_flatmap_unit, constructor_bucket_count_rounds_to_group_boundary)
+{
+  using MapType = axom::FlatMap<int, int>;
+
+  auto expected_bucket_count = [](axom::IndexType requested_size) {
+    constexpr axom::IndexType MIN_NUM_BUCKETS = 29;
+    constexpr axom::IndexType BUCKETS_PER_GROUP = axom::detail::flat_map::GroupBucket::Size;
+    constexpr std::uint64_t MAX_LOAD_FACTOR_NUM = 7;
+
+    const axom::IndexType load_factor_buckets = requested_size + requested_size / MAX_LOAD_FACTOR_NUM;
+    const axom::IndexType buckets = axom::utilities::max(MIN_NUM_BUCKETS, load_factor_buckets);
+
+    const axom::IndexType buckets_with_sentinel = buckets + 1;
+    const axom::IndexType num_groups =
+      (buckets_with_sentinel + BUCKETS_PER_GROUP - 1) / BUCKETS_PER_GROUP;
+    axom::IndexType rounded_groups = 1;
+    while(rounded_groups < num_groups)
+    {
+      rounded_groups *= 2;
+    }
+
+    return rounded_groups * BUCKETS_PER_GROUP - 1;
+  };
+
+  for(const axom::IndexType requested_size : {0, 1, 25, 26, 27, 28, 29, 30, 31, 55, 56})
+  {
+    SCOPED_TRACE(requested_size);
+    const MapType test_map(requested_size);
+    EXPECT_EQ(expected_bucket_count(requested_size), test_map.bucket_count());
+  }
+}
+
 inline void flatmap_get_value(double key, std::string& out) { out = std::to_string(key); }
 
 inline void flatmap_get_value(int key, std::string& out) { out = std::to_string(key); }

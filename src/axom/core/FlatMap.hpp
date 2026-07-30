@@ -745,15 +745,27 @@ private:
   using PairStorage = detail::flat_map::TypeErasedStorage<KeyValuePair>;
   axom::Array<PairStorage> m_buckets;
 
-  // Boost flat_unordered_map uses a fixed load factor.
+  // Boost flat_unordered_map uses a fixed maximum load factor of 7/8.
+  // MAX_LOAD_FACTOR_NUM and MAX_LOAD_FACTOR_DEN name the fraction directly:
+  //   max_load_factor() == MAX_LOAD_FACTOR_NUM / MAX_LOAD_FACTOR_DEN
+  //
+  // Constructor sizing historically computed:
+  //   static_cast<IndexType>(requested_bucket_count / 0.875)
+  //
+  // For non-negative integer inputs, truncating requested_bucket_count / (7/8)
+  // is equivalent to:
+  //   requested_bucket_count + requested_bucket_count / 7
+  //
+  // Keep bucketCapacityForSize() truncating, not ceiling, to preserve the
+  // previous bucket-count behavior at group boundaries.
   constexpr static std::uint64_t MAX_LOAD_FACTOR_NUM {7};
   constexpr static std::uint64_t MAX_LOAD_FACTOR_DEN {8};
 
   static constexpr IndexType bucketCapacityForSize(IndexType size)
   {
-    const auto requested_size = static_cast<std::uint64_t>(size);
-    return static_cast<IndexType>((MAX_LOAD_FACTOR_DEN * requested_size + MAX_LOAD_FACTOR_NUM - 1) /
-                                  MAX_LOAD_FACTOR_NUM);
+    // Integer equivalent of truncating size / (7/8), avoiding floating-point
+    // conversion warnings and avoiding overflow from size * 8.
+    return size + size / MAX_LOAD_FACTOR_NUM;
   }
 
   static constexpr bool exceedsMaxLoadFactor(IndexType size, IndexType bucket_count)
@@ -844,8 +856,10 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
+    // Integer equivalent of ceil((bucket_count + 1) / double(BucketsPerGroup)).
+    const IndexType bucketCountWithSentinel = bucket_count + 1;
     std::int32_t numGroups =
-      static_cast<std::int32_t>((bucket_count + BucketsPerGroup) / BucketsPerGroup);
+      static_cast<std::int32_t>((bucketCountWithSentinel + BucketsPerGroup - 1) / BucketsPerGroup);
     m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups - 1));
   }
 
