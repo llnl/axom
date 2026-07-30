@@ -90,7 +90,7 @@ pip / uv wheel (thin, external Axom)
 ------------------------------------
 
 The wheel compiles only the Sidre binding against an already-installed Axom.
-It is tied to that Axom install, its Conduit install, and its host-config; 
+It is tied to that Axom install, its Conduit install, and its host-config;
 it is not a portable PyPI-style wheel.
 
 .. note::
@@ -154,8 +154,8 @@ The installed wheel also carries a CMake host-config for downstream projects:
 
    $ cmake -C "$(uv run axom-python-config --host-config)" -S /path/to/project -B build
 
-For build details, including MPI compiler wrappers, editable installs, stable
-ABI wheels, and site-specific wheelhouses, see ``src/python/README.md``.
+For build details, including MPI compiler wrappers, editable installs,
+and stable ABI wheels, see ``src/python/README.md``.
 
 Using Axom in Jupyter
 ^^^^^^^^^^^^^^^^^^^^^
