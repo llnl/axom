@@ -146,19 +146,18 @@ uv build --wheel \
 Build from the source tree that produced the install. The build compares the
 wheel metadata version with the installed Axom version and fails if they differ.
 
-The wheel also installs development helpers:
+The wheel also installs development helpers, which report their own paths:
 
 ```bash
 axom-python-config --host-config  # path to axom/share/axom-python-host-config.cmake
 axom-python-config --env-script   # path to axom/share/axom-python-env.sh
 ```
 
-Use the host-config to seed downstream CMake projects with the same Axom,
-Conduit, compiler, MPI and Python settings used by the wheel:
-
-```bash
-cmake -C "$(axom-python-config --host-config)" -S <source-dir> -B <build-dir>
-```
+The host-config seeds a downstream CMake project with the same Axom, Conduit,
+compiler, MPI and Python settings the wheel used; the env script exports the
+subset of those that CMake reads from the environment. Both are generated only
+by this wheel build, not by the in-tree CMake install. See the "pip / uv wheel"
+section of the Sidre user guide for the usage examples.
 
 ### Developer loop (editable, rebuild-on-import)
 
@@ -212,8 +211,3 @@ so the wheel cannot force MPI dependencies at install time.
 The `mpi` extra declares `mpi4py`, and the `test` extra declares `pytest`.
 Runtime dependencies intentionally stay minimal: `numpy` is required,
 while Conduit's Python module is exposed by the generated `conduit.pth` file.
-
-## Notes
-
-- This directory doubles as the root of the pip/uv wheel project (`pyproject.toml` + `CMakeLists.txt`),
-  which reuses these files.

@@ -26,6 +26,10 @@ set(AXOM_INSTALL_PREFIX "@AXOM_INSTALL_PREFIX@" CACHE PATH "Axom install prefix"
 
 set(Conduit_DIR "@_axom_py_conduit_cmake_dir@" CACHE PATH "Conduit CMake package directory")
 set(CONDUIT_DIR "@AXOM_CONDUIT_DIR@" CACHE PATH "Conduit install prefix")
+# NOTE: after find_package(axom), ConduitConfig.cmake may set the normal
+# CONDUIT_PYTHON_MODULE_DIR variable to a path relative to Conduit's install root,
+# shadowing this cache entry. Use AXOM_CONDUIT_PYTHON_MODULE_DIR instead
+# since axom-config.cmake records it as an absolute path.
 set(CONDUIT_PYTHON_MODULE_DIR "@_axom_py_conduit_python_module_dir@" CACHE PATH "Conduit Python module directory")
 
 if(EXISTS "@CMAKE_C_COMPILER@")

@@ -18,17 +18,11 @@
 #
 # Intended for the gcc docker image, which is nanobind-enabled.
 
+# Fail on the first error, including inside pipelines, and trace every command so
+# a CI failure is readable from the log alone.
 set -e
 set -o pipefail
-
-function or_die () {
-    "$@"
-    local status=$?
-    if [[ $status != 0 ]]; then
-        echo "ERROR $status command: $*"
-        exit $status
-    fi
-}
+set -x
 
 HOST_CONFIG="${HOST_CONFIG:-gcc@13.3.1.cmake}"
 BUILD_TYPE="${BUILD_TYPE:-Debug}"
@@ -44,12 +38,12 @@ echo "~~~~~~~~~~~~~~~~~~~~~~"
 NUM_BUILD_PROCS=$(python3 -c 'import os; print(max(2, os.cpu_count() * 8 // 10))')
 
 echo "~~~~~~ CONFIGURE + BUILD + INSTALL AXOM (+python) ~~~~~~"
-or_die python3 ./config-build.py \
+python3 ./config-build.py \
     -bp "${BUILD_DIR}" \
     -hc "./host-configs/docker/${HOST_CONFIG}" \
     -bt "${BUILD_TYPE}"
-or_die cmake --build "${BUILD_DIR}" -j "${NUM_BUILD_PROCS}"
-or_die cmake --install "${BUILD_DIR}"
+cmake --build "${BUILD_DIR}" -j "${NUM_BUILD_PROCS}"
+cmake --install "${BUILD_DIR}"
 
 # Resolve the Axom install prefix from the CMake cache
 CACHE="${BUILD_DIR}/CMakeCache.txt"
@@ -63,7 +57,7 @@ fi
 
 echo "~~~~~~ ENSURE uv IS AVAILABLE ~~~~~~"
 if ! command -v uv >/dev/null 2>&1; then
-    or_die python3 -m pip install --user uv
+    python3 -m pip install --user uv
     export PATH="${HOME}/.local/bin:${PATH}"
 fi
 uv --version
@@ -72,7 +66,7 @@ echo "~~~~~~ BUILD THE THIN WHEEL FROM src/python ~~~~~~"
 # Point find_package at the install with AXOM_DIR
 # Conduit resolves transitively from axom's config, which records its Conduit prefix
 rm -rf dist
-or_die uv build --wheel \
+uv build --wheel \
     -C cmake.define.AXOM_DIR="${AXOM_INSTALL}/lib/cmake" \
     --out-dir dist \
     src/python
@@ -87,13 +81,13 @@ echo "~~~~~~ FRESH VENV + INSTALL THE WHEEL ~~~~~~"
 # Pin the interpreter that built the wheel, so the venv cannot pick a different one.
 VENV_DIR=/tmp/axom-wheel-venv
 rm -rf "${VENV_DIR}"
-or_die uv venv --python "$(command -v python3)" "${VENV_DIR}"
+uv venv --python "$(command -v python3)" "${VENV_DIR}"
 VENV_PY="${VENV_DIR}/bin/python"
-or_die uv pip install --python "${VENV_PY}" "${AXOM_WHEEL}[test]"
+uv pip install --python "${VENV_PY}" "${AXOM_WHEEL}[test]"
 
 echo "~~~~~~ VERIFY WHEEL-INSTALLED CONDUIT .pth ~~~~~~"
-PURELIB=$("${VENV_PY}" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')
-CONDUIT_PTH="${PURELIB}/conduit.pth"
+PLATLIB=$("${VENV_PY}" -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')
+CONDUIT_PTH="${PLATLIB}/conduit.pth"
 if [[ ! -f "${CONDUIT_PTH}" ]]; then
     echo "ERROR: Expected wheel to install ${CONDUIT_PTH}."
     echo "       The wheel should expose the same-build Conduit python module without a manual PYTHONPATH update."
@@ -107,7 +101,7 @@ fi
 echo "verified ${CONDUIT_PTH} -> ${CONDUIT_PY_DIR}"
 
 echo "~~~~~~ IMPORT SMOKE TEST ~~~~~~"
-or_die "${VENV_PY}" -c \
+"${VENV_PY}" -c \
     "import axom, axom.sidre, conduit, numpy; print('axom', axom.__version__); print('axom.sidre', axom.sidre.__version__)"
 
 echo "~~~~~~ RUN THE SIDRE PYTHON SUITE VIA PLAIN pytest ~~~~~~"
@@ -115,7 +109,7 @@ echo "~~~~~~ RUN THE SIDRE PYTHON SUITE VIA PLAIN pytest ~~~~~~"
 TEST_DIR="$(pwd)/src/axom/sidre/tests"
 SCRATCH="$(mktemp -d)"
 pushd "${SCRATCH}" > /dev/null
-or_die "${VENV_PY}" -m pytest -s -p no:cacheprovider \
+"${VENV_PY}" -m pytest -s -p no:cacheprovider \
     -o python_files='*_Py.py' \
     "${TEST_DIR}"
 popd > /dev/null
