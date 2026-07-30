@@ -1013,6 +1013,92 @@ def test_external_view_onto_another_datastores_storage_is_still_pinned():
     assert donor_ref() is None, "donor storage still pinned after the consuming view went away"
 
 
+# ---------------------------------------------------------------------------
+# Aliasing an already-pinned external view must not pin a sidre wrapper
+# ---------------------------------------------------------------------------
+# Storage behind an external view is owned by Python, not sidre, so a view onto
+# it does need a pin -- but the array handed in may be
+# `external_view.getDataArray()`, which is owned by that View's python wrapper.
+# Pinning that array recreates the cycle the buffer exemption avoids
+# (pin -> array -> View wrapper -> DataStore python object, whose collection is
+# what releases the pin). The pin must be redirected to the original numpy owner.
+def test_view_aliasing_a_pinned_external_view_does_not_retain_datastore():
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    source_data = np.arange(8, dtype=np.float64) + 1.0
+    external = root.createView("external", sidre.TypeID.FLOAT64_ID, 8, source_data)
+
+    # Owned by `external`'s python wrapper, not by source_data.
+    aliased_data = external.getDataArray()
+    root.createView("aliased", sidre.TypeID.FLOAT64_ID, 8, aliased_data)
+
+    ref = weakref.ref(ds)
+    del aliased_data, external, root, ds
+    _force_gc()
+
+    assert ref() is None, "DataStore retained by a pin onto its own external view's storage"
+
+
+def test_view_aliasing_a_pinned_external_view_still_pins_the_numpy_owner():
+    # The redirect must not drop the pin. Destroy the source view so *its* pin is
+    # gone, leaving the aliasing view's redirected pin as the only thing keeping
+    # the numpy storage alive. A fix that simply skipped the pin (the way the
+    # sidre-owned case does) would let the array be collected here and leave the
+    # aliasing view pointing at freed memory.
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    source_data = np.arange(8, dtype=np.float64) + 1.0
+    external = root.createView("external", sidre.TypeID.FLOAT64_ID, 8, source_data)
+
+    aliased = root.createView("aliased", sidre.TypeID.FLOAT64_ID, 8, external.getDataArray())
+
+    array_ref = weakref.ref(source_data)
+    del external
+    root.destroyView("external")  # releases the source view's own pin
+    del source_data
+    _force_gc()
+
+    assert array_ref() is not None, "numpy owner was not pinned by the aliasing view"
+    assert aliased.getDataArray()[0] == 1.0
+    assert aliased.getDataArray()[7] == 8.0
+
+    # Drop everything before returning: leaving a live DataStore (and its pin)
+    # in this frame perturbs later tests in this module, which assert on
+    # collection of their own DataStores.
+    del aliased, root, ds
+    _force_gc()
+
+
+def test_setExternalData_aliasing_a_pinned_external_view_does_not_retain_datastore():
+    # Same redirect, reached through setExternalData rather than createView.
+    # Structured like the createView case above so it discriminates the redirect
+    # from a fix that merely skips the pin: the source view is destroyed, so the
+    # redirected pin is the only remaining reference to the numpy storage.
+    ds = sidre.DataStore()
+    root = ds.getRoot()
+    source_data = np.arange(8, dtype=np.float64) + 1.0
+    external = root.createView("external", sidre.TypeID.FLOAT64_ID, 8, source_data)
+
+    target = root.createView("target")
+    target.setExternalData(sidre.TypeID.FLOAT64_ID, 8, external.getDataArray())
+
+    array_ref = weakref.ref(source_data)
+    del external
+    root.destroyView("external")  # releases the source view's own pin
+    del source_data
+    _force_gc()
+
+    assert array_ref() is not None, "numpy owner was not pinned by the aliasing view"
+    assert target.getDataArray()[0] == 1.0
+    assert target.getDataArray()[7] == 8.0
+
+    ref = weakref.ref(ds)
+    del target, root, ds
+    _force_gc()
+
+    assert ref() is None, "DataStore retained by a setExternalData pin onto its own external storage"
+
+
 if __name__ == "__main__":
     import sys
 

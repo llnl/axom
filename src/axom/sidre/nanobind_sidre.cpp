@@ -395,6 +395,49 @@ bool isOwnedByDataStoreBuffer(DataStore* ds, const void* ptr)
 }
 
 /*!
+ * \brief Return the pin already recorded in \a ds whose storage contains \a ptr, else nullptr.
+ *
+ * Used to redirect a pin away from an array that is merely a window onto storage
+ * this DataStore already pins. See the discussion on pinExternalDataOwner().
+ *
+ * \note The scan is linear in the number of pins recorded for \a ds, alongside the
+ *  Buffer scan in isOwnedByDataStoreBuffer(), and runs once per external-data pin.
+ *
+ * \note The returned pointer is into the registry's map and is invalidated by the
+ *  next insertion, so callers must copy the ndarray before modifying the map.
+ */
+const nb::ndarray<>* findExistingPinOwning(DataStore* ds, const void* ptr)
+{
+  if(ds == nullptr || ptr == nullptr)
+  {
+    return nullptr;
+  }
+
+  auto entry = externalDataOwnerRegistry().find(ds);
+  if(entry == externalDataOwnerRegistry().end())
+  {
+    return nullptr;
+  }
+
+  const auto p = reinterpret_cast<std::uintptr_t>(ptr);
+  for(const auto& pin : entry->second.pins)
+  {
+    const void* base_ptr = pin.second.data();
+    if(base_ptr == nullptr)
+    {
+      continue;
+    }
+    const auto base = reinterpret_cast<std::uintptr_t>(base_ptr);
+    const auto bytes = static_cast<std::uintptr_t>(pin.second.nbytes());
+    if(p >= base && p < base + bytes)
+    {
+      return &pin.second;
+    }
+  }
+  return nullptr;
+}
+
+/*!
  * \brief Record \a owner as the pin for \a view, scoped to its DataStore.
  *
  * On the first pin into a given DataStore, installs a weak reference on the
@@ -414,6 +457,15 @@ bool isOwnedByDataStoreBuffer(DataStore* ds, const void* ptr)
  *  followed by `group.createView("name", data)`. Skipping the pin is safe because the
  *  Buffer owns that storage; the dangling-pointer hazard the pin exists to prevent
  *  only arises for storage owned by a Python object.
+ *
+ * \note The same cycle also arises one step removed, when the array is a window onto
+ *  storage this DataStore already pins -- `arr = external_view.getDataArray()` followed
+ *  by `group.createView("name", arr)`. Here the storage is *not* Sidre-owned, so a pin is
+ *  genuinely needed, but `arr` is owned by the source View's Python wrapper and pinning it
+ *  would retain the DataStore just as above. The pin is therefore redirected to the
+ *  original owner recorded for that storage (see findExistingPinOwning()), which owns the
+ *  memory and holds no Sidre reference. The redirect is per-DataStore, so aliasing another
+ *  DataStore's external storage still pins the array as given.
  */
 void pinExternalDataOwner(View* view, const nb::ndarray<>& owner)
 {
@@ -435,6 +487,18 @@ void pinExternalDataOwner(View* view, const nb::ndarray<>& owner)
     return;
   }
 
+  // The array may be a window onto storage this DataStore already pins, e.g.
+  // `arr = external_view.getDataArray()` followed by `group.createView(name, arr)`.
+  // Such an array is owned by the source View's Python wrapper, so pinning it
+  // recreates the cycle described above. Pin the original owner instead: it is
+  // the object that actually owns the memory and it holds no Sidre reference.
+  // Copy it out before touching the map, which may rehash.
+  nb::ndarray<> pinned(owner);
+  if(const nb::ndarray<>* existing = findExistingPinOwning(ds, owner.data()))
+  {
+    pinned = nb::ndarray<>(*existing);
+  }
+
   DataStoreExternalPins& entry = externalDataOwnerRegistry()[ds];
   if(!entry.datastore_weakref.is_valid())
   {
@@ -452,7 +516,7 @@ void pinExternalDataOwner(View* view, const nb::ndarray<>& owner)
   }
 
   // Map assignment releases the previous ndarray wrapper if one was present.
-  entry.pins[view] = nb::ndarray<>(owner);
+  entry.pins[view] = pinned;
 }
 
 void releaseExternalDataOwner(View* view)
