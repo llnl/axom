@@ -99,7 +99,7 @@ The underlying CMake package variable is `axom_DIR`.
 Do not use `CMAKE_PREFIX_PATH` for `uv build` or `uv pip install` since scikit-build-core
 uses it internally for the isolated build environment.
 
-Conduit is found through `axom-config.cmake` in the normal case.
+Conduit and its Python package path are found through `axom-config.cmake` in the normal case.
 Add `Conduit_DIR` only if Axom's recorded Conduit package path no longer resolves:
 
 ```bash
@@ -109,8 +109,7 @@ uv build --wheel \
   src/python
 ```
 
-Add `CONDUIT_PYTHON_MODULE_DIR` only if Conduit's Python package path is not
-recorded by Conduit's CMake config:
+Add `CONDUIT_PYTHON_MODULE_DIR` only if Axom's recorded Conduit Python package path is missing or stale:
 
 ```bash
 uv build --wheel \

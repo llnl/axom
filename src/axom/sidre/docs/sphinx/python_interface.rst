@@ -135,7 +135,7 @@ installing ``mpi4py`` or ``pytest`` directly is also fine.
 If ``axom.sidre`` is already installed in a venv but ``import conduit`` fails,
 add the same-build Conduit Python package with one ``.pth`` file. On current LC
 installs this path is usually ``$CONDUIT_INSTALL/lib/pythonX.Y/site-packages``;
-the authoritative value is ``CONDUIT_PYTHON_MODULE_DIR`` in Conduit's CMake config.
+the value recorded by an Axom install is ``AXOM_CONDUIT_PYTHON_MODULE_DIR`` in ``axom-config.cmake``.
 
 .. code-block:: bash
 

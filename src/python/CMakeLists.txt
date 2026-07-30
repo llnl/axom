@@ -52,50 +52,24 @@ endif()
 find_package(axom CONFIG REQUIRED)
 find_package(nanobind CONFIG REQUIRED)   # supplied via build-system.requires
 
-set(_axom_py_conduit_cmake_dir "")
-if(DEFINED Conduit_DIR)
-    set(_axom_py_conduit_cmake_dir "${Conduit_DIR}")
-elseif(DEFINED CONDUIT_INSTALL_PREFIX)
-    set(_axom_py_conduit_cmake_dir "${CONDUIT_INSTALL_PREFIX}/lib/cmake/conduit")
-elseif(DEFINED AXOM_CONDUIT_DIR)
+set(_axom_py_conduit_cmake_dir "${Conduit_DIR}")
+if(NOT _axom_py_conduit_cmake_dir AND AXOM_CONDUIT_DIR)
     set(_axom_py_conduit_cmake_dir "${AXOM_CONDUIT_DIR}/lib/cmake/conduit")
 endif()
 
-set(_axom_py_conduit_prefix "")
-if(DEFINED CONDUIT_INSTALL_PREFIX)
-    set(_axom_py_conduit_prefix "${CONDUIT_INSTALL_PREFIX}")
-elseif(DEFINED AXOM_CONDUIT_DIR)
-    set(_axom_py_conduit_prefix "${AXOM_CONDUIT_DIR}")
-elseif(DEFINED CONDUIT_DIR)
-    set(_axom_py_conduit_prefix "${CONDUIT_DIR}")
-endif()
-
-set(_axom_py_conduit_python_module_dir "")
-if(DEFINED CONDUIT_PYTHON_MODULE_DIR)
-    if(IS_ABSOLUTE "${CONDUIT_PYTHON_MODULE_DIR}")
-        set(_axom_py_conduit_python_module_dir "${CONDUIT_PYTHON_MODULE_DIR}")
-    elseif(_axom_py_conduit_prefix)
-        set(_axom_py_conduit_python_module_dir
-            "${_axom_py_conduit_prefix}/${CONDUIT_PYTHON_MODULE_DIR}")
-    endif()
-elseif(_axom_py_conduit_prefix)
-    foreach(_axom_py_conduit_python_module_dir_candidate
-            "${_axom_py_conduit_prefix}/lib/python${Python_VERSION_MAJOR}.${Python_VERSION_MINOR}/site-packages"
-            "${_axom_py_conduit_prefix}/python-modules")
-        if(EXISTS "${_axom_py_conduit_python_module_dir_candidate}/conduit")
-            set(_axom_py_conduit_python_module_dir
-                "${_axom_py_conduit_python_module_dir_candidate}")
-            break()
-        endif()
-    endforeach()
+set(_axom_py_conduit_python_module_dir "${CONDUIT_PYTHON_MODULE_DIR}")
+if(NOT _axom_py_conduit_python_module_dir AND AXOM_CONDUIT_PYTHON_MODULE_DIR)
+    set(_axom_py_conduit_python_module_dir "${AXOM_CONDUIT_PYTHON_MODULE_DIR}")
 endif()
 
 if(NOT _axom_py_conduit_python_module_dir
    OR NOT EXISTS "${_axom_py_conduit_python_module_dir}/conduit")
     message(FATAL_ERROR
-            "Could not determine the Conduit Python module directory for this "
-            "Axom install. Pass -C cmake.define.CONDUIT_PYTHON_MODULE_DIR=<path> "
-            "where <path> contains the same-build conduit Python package.")
+            "Could not find Conduit's Python package for this Axom install. "
+            "Expected AXOM_CONDUIT_PYTHON_MODULE_DIR or CONDUIT_PYTHON_MODULE_DIR "
+            "to name a directory containing the same-build conduit Python package. "
+            "Reconfigure Axom with CONDUIT_PYTHON_MODULE_DIR=<path>, or pass "
+            "-C cmake.define.CONDUIT_PYTHON_MODULE_DIR=<path> to this wheel build.")
 endif()
 
 # Keep the wheel metadata version aligned with the Axom install it links.
