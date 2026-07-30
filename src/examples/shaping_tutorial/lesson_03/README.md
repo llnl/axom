@@ -398,7 +398,7 @@ The code example for this lesson loads a Klee file, performs some validation and
 ### Load and validate the Klee input
 
 ```cpp
-axom::klee::ShapeSet shapeset
+axom::klee::ShapeSet shapeSet;
 try
 {
   shapeSet = axom::klee::readShapeSet(inputFilename);
@@ -419,17 +419,17 @@ catch(axom::klee::KleeError& error)
 }
 ```
 
-The validator example also accepts an optional `--bindings-file` argument for
-Lua decks. The bindings file is a Lua chunk that returns a table of exported
-variables and helper functions, which are installed as initial mutable globals
-before the deck is evaluated. This lets an application provide runtime Lua
-customization without rebuilding the executable, while still allowing the deck
-to reassign those globals if it chooses:
+The validator example also accepts an optional `--initialization-file` argument
+for Lua decks. The initialization file is a Lua chunk that returns a table of
+exported variables and helper functions, which are installed as initial mutable
+globals before the deck is evaluated. This lets an application provide runtime
+Lua customization without rebuilding the executable, while still allowing the
+deck to reassign those globals if it chooses:
 
 ```bash
 ./bin/lesson_03_klee_operators_and_validation \
-  ../lesson_03/ice_cream_bindings.lua \
-  --bindings-file ../lesson_03/ice_cream_runtime_bindings.lua
+  ../lesson_03/ice_cream_initialized.lua \
+  --initialization-file ../lesson_03/ice_cream_initialization.lua
 ```
 
 Next, we loop through the shapes and print out information about each shape. We're using an `fmt::memory_buffer` (similar to a `std::stringstream`) to write everything in a single log statement:

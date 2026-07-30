@@ -203,11 +203,11 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
                          COMMAND shaping_tutorial_lesson_03_klee_operators_and_validation
                                  ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream.lua)
 
-            blt_add_test(NAME    shaping_tutorial_lesson_03_klee_operators_and_validation_lua_bindings
+            blt_add_test(NAME    shaping_tutorial_lesson_03_klee_operators_and_validation_lua_initialization
                          COMMAND shaping_tutorial_lesson_03_klee_operators_and_validation
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream_bindings.lua
-                                 --bindings-file
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream_runtime_bindings.lua)
+                                 ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream_initialized.lua
+                                 --initialization-file
+                                 ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream_initialization.lua)
         endif()
     endif()
     

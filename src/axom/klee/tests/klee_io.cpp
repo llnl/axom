@@ -16,6 +16,7 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <fstream>
 #include <sstream>
 
@@ -27,10 +28,10 @@ namespace primal = axom::primal;
 using klee::CompositeOperator;
 using klee::Dimensions;
 using klee::InputFormat;
-using klee::InputVariables;
 using klee::KleeError;
 using klee::LengthUnit;
-using klee::LuaBindingsChunk;
+using klee::LuaInitialGlobals;
+using klee::LuaInitializationChunk;
 using klee::LuaInputOptions;
 using klee::Rotation;
 using klee::Scale;
@@ -434,10 +435,10 @@ TEST(IOTest, readShapeSet_streamDefaultsToYaml)
   }
 }
 
-TEST(IOTest, readShapeSet_yamlRejectsInputVariables)
+TEST(IOTest, readShapeSet_yamlRejectsInitialLuaGlobals)
 {
   LuaInputOptions options;
-  options.variables = {{"dimensions", klee::InputVariableValue {2}}};
+  options.initialGlobals = {{"dimensions", klee::LuaGlobalValue {2}}};
 
   try
   {
@@ -451,20 +452,20 @@ TEST(IOTest, readShapeSet_yamlRejectsInputVariables)
   }
   catch(const KleeError& err)
   {
-    EXPECT_THAT(err.what(), HasSubstr("input variables"));
+    EXPECT_THAT(err.what(), HasSubstr("initial Lua globals"));
     EXPECT_THAT(err.what(), HasSubstr("Lua"));
   }
 }
 
-TEST(IOTest, readShapeSet_yamlRejectsLuaBindings)
+TEST(IOTest, readShapeSet_yamlRejectsLuaInitialization)
 {
   LuaInputOptions options;
-  options.bindings = LuaBindingsChunk {R"(
+  options.initialization = LuaInitializationChunk {R"(
     return {
       dimensions = 2
     }
   )",
-                                      "runtime_bindings"};
+                                      "runtime_initialization"};
 
   try
   {
@@ -478,7 +479,7 @@ TEST(IOTest, readShapeSet_yamlRejectsLuaBindings)
   }
   catch(const KleeError& err)
   {
-    EXPECT_THAT(err.what(), HasSubstr("Lua bindings"));
+    EXPECT_THAT(err.what(), HasSubstr("Lua initialization"));
     EXPECT_THAT(err.what(), HasSubstr("Lua input decks"));
   }
 }
@@ -513,8 +514,20 @@ TEST(IOTest, readShapeSet_explicitLuaOverridesFileExtension)
     shapes = {})");
 
   LuaInputOptions options;
-  options.variables = {{"dimensions", klee::InputVariableValue {2}}};
+  options.initialGlobals = {{"dimensions", klee::LuaGlobalValue {2}}};
   auto shapeSet = klee::readShapeSet(input.getPath(), InputFormat::Lua, options);
+  EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  EXPECT_EQ(input.getPath(), shapeSet.getPath());
+}
+
+TEST(IOTest, readShapeSet_inferredLuaAcceptsInitializationOptions)
+{
+  axom::utilities::filesystem::TempFile input {"inferredLua", "lua"};
+  input.write("shapes = {}");
+
+  LuaInputOptions options;
+  options.initialGlobals = {{"dimensions", klee::LuaGlobalValue {2}}};
+  auto shapeSet = klee::readShapeSet(input.getPath(), options);
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
   EXPECT_EQ(input.getPath(), shapeSet.getPath());
 }
@@ -560,19 +573,20 @@ TEST(IOTest, readShapeSet_luaStreamMinimalShapeList)
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
 }
 
-TEST(IOTest, readShapeSet_luaInputVariablesProvideInitialDimensionAndOperator)
+TEST(IOTest, readShapeSet_luaInitialGlobalsProvideDimensionAndOperator)
 {
-  InputVariables variables {
-    {"dimensions", klee::InputVariableValue {2}},
-    {"shape_suffix", klee::InputVariableValue {std::string {"2d"}}},
-    {"lift", klee::InputVariableValue {3.0}},
+  LuaInitialGlobals initialGlobals {
+    {"dimensions", klee::LuaGlobalValue {2}},
+    {"shape_suffix", klee::LuaGlobalValue {std::string {"2d"}}},
+    {"lift", klee::LuaGlobalValue {3.0}},
+    {"use_suffix", klee::LuaGlobalValue {true}},
   };
   LuaInputOptions options;
-  options.variables = variables;
+  options.initialGlobals = initialGlobals;
 
   auto shapeSet = readShapeSetFromString(R"(
     local function shape_path()
-      return "part_" .. shape_suffix .. ".stl"
+      return use_suffix and ("part_" .. shape_suffix .. ".stl") or "part.stl"
     end
 
     shapes = {
@@ -605,18 +619,19 @@ TEST(IOTest, readShapeSet_luaInputVariablesProvideInitialDimensionAndOperator)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
-TEST(IOTest, readShapeSet_luaInputVariablesAreInitialMutableGlobals)
+TEST(IOTest, readShapeSet_luaInitialGlobalsAreMutable)
 {
-  InputVariables variables {
-    {"dimensions", klee::InputVariableValue {2}},
-    {"lift", klee::InputVariableValue {3.0}},
+  LuaInitialGlobals initialGlobals {
+    {"dimensions", klee::LuaGlobalValue {2}},
+    {"lift", klee::LuaGlobalValue {3.0}},
   };
   LuaInputOptions options;
-  options.variables = variables;
+  options.initialGlobals = initialGlobals;
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 3
-    lift = 7.0
+    lift = nil
+    local resolved_lift = lift or 7.0
 
     shapes = {
       {
@@ -627,7 +642,7 @@ TEST(IOTest, readShapeSet_luaInputVariablesAreInitialMutableGlobals)
           path = "part.stl",
           units = "cm",
           operators = {
-            { translate = {1.0, 2.0, lift} }
+            { translate = {1.0, 2.0, resolved_lift} }
           }
         }
       }
@@ -647,21 +662,22 @@ TEST(IOTest, readShapeSet_luaInputVariablesAreInitialMutableGlobals)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 2.0, 7.0}));
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialDimensionAndOperator)
+TEST(IOTest, readShapeSet_luaInitializationProvidesDimensionAndOperator)
 {
-  LuaBindingsChunk bindings {R"(
+  LuaInitializationChunk initialization {R"(
     local dim = 2
     local lift = 3.0
 
     return {
       dimensions = dim,
       shape_suffix = "2d",
-      lift = lift
+      lift = lift,
+      enabled = true
     }
   )",
-                             "runtime_bindings"};
+                                            "runtime_initialization"};
   LuaInputOptions options;
-  options.bindings = bindings;
+  options.initialization = initialization;
 
   auto shapeSet = readShapeSetFromString(R"(
     local function shape_path()
@@ -674,7 +690,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialDimensionAndOperator)
         material = "steel",
         geometry = {
           format = "stl",
-          path = shape_path(),
+          path = enabled and shape_path() or "disabled.stl",
           units = "cm",
           operators = {
             { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} }
@@ -698,9 +714,9 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialDimensionAndOperator)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialMutableGlobals)
+TEST(IOTest, readShapeSet_luaInitializationExportsMutableGlobals)
 {
-  LuaBindingsChunk bindings {R"(
+  LuaInitializationChunk initialization {R"(
     return {
       dimensions = 2,
       settings = {
@@ -708,9 +724,9 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialMutableGlobals)
       }
     }
   )",
-                             "runtime_bindings"};
+                                            "runtime_initialization"};
   LuaInputOptions options;
-  options.bindings = bindings;
+  options.initialization = initialization;
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 3
@@ -745,24 +761,24 @@ TEST(IOTest, readShapeSet_luaBindingsChunkProvidesInitialMutableGlobals)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 2.0, 7.0}));
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
+TEST(IOTest, readShapeSet_luaInitializationCanUseInitialGlobals)
 {
-  LuaBindingsChunk bindings {R"(
+  LuaInitializationChunk initialization {R"(
     local lift = 3.0
 
     return {
       lift = lift
     }
   )",
-                             "runtime_bindings"};
+                                            "runtime_initialization"};
 
-  InputVariables variables {
-    {"dimensions", klee::InputVariableValue {2}},
-    {"shape_suffix", klee::InputVariableValue {std::string {"2d"}}},
+  LuaInitialGlobals initialGlobals {
+    {"dimensions", klee::LuaGlobalValue {2}},
+    {"shape_suffix", klee::LuaGlobalValue {std::string {"2d"}}},
   };
   LuaInputOptions options;
-  options.variables = variables;
-  options.bindings = bindings;
+  options.initialGlobals = initialGlobals;
+  options.initialization = initialization;
 
   auto shapeSet = readShapeSetFromString(R"(
     local function shape_path()
@@ -799,23 +815,23 @@ TEST(IOTest, readShapeSet_luaBindingsChunkAndInputVariables)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkIsolatesUnexportedGlobals)
+TEST(IOTest, readShapeSet_luaInitializationIsolatesUnexportedGlobals)
 {
-  LuaBindingsChunk bindings {R"(
+  LuaInitializationChunk initialization {R"(
     dimensions = 3
-    unexported_value = "bindings"
+    unexported_value = "private"
     math = {
       sqrt = function() return -1 end
     }
-    _G.also_unexported = "bindings"
+    _G.also_unexported = "private"
 
     return {
       exported_lift = 4.0
     }
   )",
-                             "runtime_bindings"};
+                                            "runtime_initialization"};
   LuaInputOptions options;
-  options.bindings = bindings;
+  options.initialization = initialization;
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 2
@@ -853,26 +869,26 @@ TEST(IOTest, readShapeSet_luaBindingsChunkIsolatesUnexportedGlobals)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {2.0, 4.0, 0.0}));
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkCannotSetSchemaGlobalsWithoutExporting)
+TEST(IOTest, readShapeSet_luaInitializationCannotSetSchemaGlobalsWithoutExporting)
 {
   for(const std::string& source :
       {"dimensions = 2; return {}", "_G.dimensions = 2; return {}"})
   {
-    LuaBindingsChunk bindings {source, "runtime_bindings"};
+    LuaInitializationChunk initialization {source, "runtime_initialization"};
     LuaInputOptions options;
-    options.bindings = bindings;
+    options.initialization = initialization;
     EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, options),
                  KleeError);
   }
 }
 
-TEST(IOTest, readShapeSet_luaBindingsClosureRetainsIsolatedEnvironment)
+TEST(IOTest, readShapeSet_luaInitializationClosureRetainsEnvironment)
 {
-  InputVariables variables {
-    {"dimensions", klee::InputVariableValue {2}},
-    {"base_offset", klee::InputVariableValue {1.5}},
+  LuaInitialGlobals initialGlobals {
+    {"dimensions", klee::LuaGlobalValue {2}},
+    {"base_offset", klee::LuaGlobalValue {1.5}},
   };
-  LuaBindingsChunk bindings {R"(
+  LuaInitializationChunk initialization {R"(
     private_offset = 3.5
 
     return {
@@ -881,10 +897,10 @@ TEST(IOTest, readShapeSet_luaBindingsClosureRetainsIsolatedEnvironment)
       end
     }
   )",
-                             "runtime_bindings"};
+                                            "runtime_initialization"};
   LuaInputOptions options;
-  options.variables = variables;
-  options.bindings = bindings;
+  options.initialGlobals = initialGlobals;
+  options.initialization = initialization;
 
   auto shapeSet = readShapeSetFromString(R"(
     shapes = {
@@ -914,32 +930,137 @@ TEST(IOTest, readShapeSet_luaBindingsClosureRetainsIsolatedEnvironment)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.5, 3.5, 0.0}));
 }
 
-TEST(IOTest, readShapeSet_luaInputVariableRejectsInvalidName)
+TEST(IOTest, readShapeSet_luaInitializationPreservesLuaInteger)
 {
   LuaInputOptions options;
-  options.variables = {{"shape-dim", klee::InputVariableValue {2}}};
+  options.initialization = LuaInitializationChunk {R"(
+    return {
+      exact_integer = 9007199254740993
+    }
+  )",
+                                                        "integer_initialization"};
 
-  try
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    local integer_is_exact = exact_integer == 9007199254740993
+    shapes = {
+      {
+        name = "integer",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = integer_is_exact and "exact.stl" or "rounded.stl",
+          units = "cm"
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  EXPECT_EQ("exact.stl", shapeSet.getShapes()[0].getGeometry().getPath());
+}
+
+TEST(IOTest, readShapeSet_luaInitializationIsolationIsShallow)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    math.initialization_value = 4.0
+    return {}
+  )",
+                                                        "shallow_initialization"};
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "shared_table",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = math.initialization_value == 4.0 and "shared.stl" or "isolated.stl",
+          units = "cm"
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  EXPECT_EQ("shared.stl", shapeSet.getShapes()[0].getGeometry().getPath());
+}
+
+TEST(IOTest, readShapeSet_luaInitializationRejectsInvalidChunks)
+{
+  struct InvalidInitialization
   {
-    readShapeSetFromString(R"(
-      dimensions = 2
-      shapes = {}
-    )",
-                           InputFormat::Lua,
-                           options);
-    FAIL() << "Should have thrown";
-  }
-  catch(const KleeError& err)
+    std::string source;
+    std::string expectedMessage;
+  };
+
+  const std::array<InvalidInitialization, 6> invalidInitializations {{
+    {"", "empty"},
+    {"return {", "Failed to evaluate"},
+    {"error('initialization boom')", "initialization boom"},
+    {"local value = 2", "must return a table"},
+    {"return {[1] = 2}", "string keys"},
+    {"return {bad = Vector.new(1, 2)}", "unsupported value type"},
+  }};
+
+  for(const auto& invalid : invalidInitializations)
   {
-    EXPECT_THAT(err.what(), HasSubstr("Invalid Klee Lua input variable name"));
-    EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
+    LuaInputOptions options;
+    options.initialization =
+      LuaInitializationChunk {invalid.source, "invalid_initialization"};
+
+    try
+    {
+      readShapeSetFromString(
+        "dimensions = 2; shapes = {}",
+        InputFormat::Lua,
+        options);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr("invalid_initialization"));
+      EXPECT_THAT(err.what(), HasSubstr(invalid.expectedMessage));
+    }
   }
 }
 
-TEST(IOTest, readShapeSet_luaInputVariableRejectsKeyword)
+TEST(IOTest, readShapeSet_luaInitialGlobalRejectsInvalidName)
+{
+  const std::array<std::string, 3> invalidNames {{"", "shape-dim", "\xC3\xA9"}};
+  for(const auto& name : invalidNames)
+  {
+    LuaInputOptions options;
+    options.initialGlobals = {{name, klee::LuaGlobalValue {2}}};
+
+    try
+    {
+      readShapeSetFromString(R"(
+        dimensions = 2
+        shapes = {}
+      )",
+                             InputFormat::Lua,
+                             options);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr("Invalid initial Lua global name"));
+      EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaInitialGlobalRejectsKeyword)
 {
   LuaInputOptions options;
-  options.variables = {{"end", klee::InputVariableValue {2}}};
+  options.initialGlobals = {{"end", klee::LuaGlobalValue {2}}};
 
   try
   {
@@ -953,15 +1074,32 @@ TEST(IOTest, readShapeSet_luaInputVariableRejectsKeyword)
   }
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkRejectsInvalidExportName)
+TEST(IOTest, readShapeSet_luaInitialGlobalRejectsReservedGlobalName)
 {
   LuaInputOptions options;
-  options.bindings = LuaBindingsChunk {R"(
+  options.initialGlobals = {{"math", klee::LuaGlobalValue {2}}};
+
+  try
+  {
+    readShapeSetFromString("dimensions = 2; shapes = {}", InputFormat::Lua, options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("conflicts with an existing Lua global"));
+    EXPECT_THAT(err.what(), HasSubstr("math"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaInitializationRejectsInvalidExportName)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
     return {
       ["shape-dim"] = 2
     }
   )",
-                                      "runtime_bindings"};
+                                      "runtime_initialization"};
 
   try
   {
@@ -974,20 +1112,20 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsInvalidExportName)
   }
   catch(const KleeError& err)
   {
-    EXPECT_THAT(err.what(), HasSubstr("Invalid Klee Lua binding name"));
+    EXPECT_THAT(err.what(), HasSubstr("Invalid exported Lua global name"));
     EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
   }
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkRejectsKeywordExport)
+TEST(IOTest, readShapeSet_luaInitializationRejectsKeywordExport)
 {
   LuaInputOptions options;
-  options.bindings = LuaBindingsChunk {R"(
+  options.initialization = LuaInitializationChunk {R"(
     return {
       ["function"] = 2
     }
   )",
-                                      "runtime_bindings"};
+                                      "runtime_initialization"};
 
   try
   {
@@ -1001,15 +1139,15 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsKeywordExport)
   }
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkRejectsReservedGlobalName)
+TEST(IOTest, readShapeSet_luaInitializationRejectsReservedGlobalName)
 {
   LuaInputOptions options;
-  options.bindings = LuaBindingsChunk {R"(
+  options.initialization = LuaInitializationChunk {R"(
     return {
       math = 2
     }
   )",
-                                      "runtime_bindings"};
+                                      "runtime_initialization"};
 
   try
   {
@@ -1027,16 +1165,16 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsReservedGlobalName)
   }
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkRejectsDuplicateInputVariableName)
+TEST(IOTest, readShapeSet_luaInitializationRejectsDuplicateInitialGlobal)
 {
   LuaInputOptions options;
-  options.variables = {{"dimensions", klee::InputVariableValue {2}}};
-  options.bindings = LuaBindingsChunk {R"(
+  options.initialGlobals = {{"dimensions", klee::LuaGlobalValue {2}}};
+  options.initialization = LuaInitializationChunk {R"(
     return {
       dimensions = 3
     }
   )",
-                                      "runtime_bindings"};
+                                      "runtime_initialization"};
 
   try
   {
@@ -1049,15 +1187,16 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRejectsDuplicateInputVariableName)
   }
   catch(const KleeError& err)
   {
-    EXPECT_THAT(err.what(), HasSubstr("duplicates another external Lua binding"));
+    EXPECT_THAT(err.what(), HasSubstr("duplicates an initial Lua global"));
     EXPECT_THAT(err.what(), HasSubstr("dimensions"));
   }
 }
 
-TEST(IOTest, readShapeSet_luaBindingsChunkRequiresTableReturn)
+TEST(IOTest, readShapeSet_luaInitializationRequiresTableReturn)
 {
   LuaInputOptions options;
-  options.bindings = LuaBindingsChunk {"return 2", "runtime_bindings"};
+  options.initialization =
+    LuaInitializationChunk {"return 2", "runtime_initialization"};
 
   try
   {
@@ -1072,7 +1211,7 @@ TEST(IOTest, readShapeSet_luaBindingsChunkRequiresTableReturn)
   catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("must return a table"));
-    EXPECT_THAT(err.what(), HasSubstr("runtime_bindings"));
+    EXPECT_THAT(err.what(), HasSubstr("runtime_initialization"));
   }
 }
 
