@@ -329,6 +329,43 @@ Function& Container::storeFunction(axom::sidre::Group* sidreGroup,
   return *(emplace_result.first->second);
 }
 
+ReaderResult Container::adjustForFunctionAlternative(const std::string& inputPath,
+                                                     ReaderResult result) const
+{
+  if(result == ReaderResult::WrongType &&
+     m_functionAlternativePaths.find(inputPath) != m_functionAlternativePaths.end())
+  {
+    return ReaderResult::NotFound;
+  }
+  return result;
+}
+
+void Container::registerValueInputPath(const std::string& inputPath, axom::sidre::Group* group)
+{
+  m_valueInputPathGroups.emplace(inputPath, group);
+}
+
+void Container::registerFunctionAlternativePath(const std::string& inputPath)
+{
+  m_functionAlternativePaths.insert(inputPath);
+
+  const auto groups = m_valueInputPathGroups.equal_range(inputPath);
+  for(auto iter = groups.first; iter != groups.second; ++iter)
+  {
+    auto* group = iter->second;
+    if(group->hasView("retrieval_status"))
+    {
+      auto* statusView = group->getView("retrieval_status");
+      const auto status =
+        static_cast<ReaderResult>(static_cast<int>(statusView->getData()));
+      if(status == ReaderResult::WrongType)
+      {
+        statusView->setScalar(static_cast<int>(ReaderResult::NotFound));
+      }
+    }
+  }
+}
+
 template <typename T, typename SFINAE>
 VerifiableScalar& Container::addPrimitive(const std::string& name,
                                           const std::string& description,
@@ -376,6 +413,7 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
+    registerValueInputPath(lookupPath, sidreGroup);
     auto typeId = addPrimitiveHelper(sidreGroup, lookupPath, forArray, val);
     return addField(sidreGroup, typeId, fullName, name);
   }
@@ -387,7 +425,7 @@ axom::sidre::DataTypeId Container::addPrimitiveHelper<bool>(axom::sidre::Group* 
                                                             bool forArray,
                                                             bool val)
 {
-  const auto result = m_reader.getBool(lookupPath, val);
+  const auto result = adjustForFunctionAlternative(lookupPath, m_reader.getBool(lookupPath, val));
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val ? std::int8_t(1) : std::int8_t(0));
@@ -405,7 +443,7 @@ axom::sidre::DataTypeId Container::addPrimitiveHelper<int>(axom::sidre::Group* s
                                                            bool forArray,
                                                            int val)
 {
-  const auto result = m_reader.getInt(lookupPath, val);
+  const auto result = adjustForFunctionAlternative(lookupPath, m_reader.getInt(lookupPath, val));
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val);
@@ -423,7 +461,7 @@ axom::sidre::DataTypeId Container::addPrimitiveHelper<double>(axom::sidre::Group
                                                               bool forArray,
                                                               double val)
 {
-  const auto result = m_reader.getDouble(lookupPath, val);
+  const auto result = adjustForFunctionAlternative(lookupPath, m_reader.getDouble(lookupPath, val));
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val);
@@ -441,7 +479,7 @@ axom::sidre::DataTypeId Container::addPrimitiveHelper<std::string>(axom::sidre::
                                                                    bool forArray,
                                                                    std::string val)
 {
-  const auto result = m_reader.getString(lookupPath, val);
+  const auto result = adjustForFunctionAlternative(lookupPath, m_reader.getString(lookupPath, val));
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewString("value", val);
@@ -853,8 +891,13 @@ Verifiable<Container>& Container::addPrimitiveArray(const std::string& name,
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
+    registerValueInputPath(lookupPath, container.sidreGroup());
     std::vector<VariantKey> indices;
-    if(isDict)
+    if(m_functionAlternativePaths.find(lookupPath) != m_functionAlternativePaths.end())
+    {
+      markRetrievalStatus(*container.sidreGroup(), ReaderResult::NotFound);
+    }
+    else if(isDict)
     {
       indices = detail::PrimitiveArrayHelper<VariantKey, T>::add(container, m_reader, lookupPath);
     }
@@ -897,7 +940,33 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                                              const std::string& description,
                                              const std::string& pathOverride)
 {
-  return addFunctionWithInputPath(name, ret_type, arg_types, description, pathOverride, false);
+  return addFunctionWithInputPath(
+    name,
+    ret_type,
+    arg_types,
+    description,
+    pathOverride,
+    false,
+    false);
+}
+
+Verifiable<Function>& Container::addFunctionAsValueAlternative(
+  const std::string& name,
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const std::string& inputPath,
+  const std::string& description)
+{
+  SLIC_ERROR_IF(inputPath.empty(),
+                "[Inlet] A function value alternative requires a non-empty input path");
+  return addFunctionWithInputPath(
+    name,
+    ret_type,
+    arg_types,
+    description,
+    inputPath,
+    false,
+    true);
 }
 
 Verifiable<Function>& Container::addFunctionWithInputPath(
@@ -906,7 +975,8 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
   const std::vector<FunctionTag>& arg_types,
   const std::string& description,
   const std::string& inputPath,
-  const bool inputPathIsRelative)
+  const bool inputPathIsRelative,
+  const bool isValueAlternative)
 {
   // If it has indices, we're adding a function to an array
   // of structs, so we need to iterate over the subcontainers
@@ -916,7 +986,7 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(funcs),
     name,
-    [&name, &ret_type, &arg_types, &description, &inputPath](
+    [&name, &ret_type, &arg_types, &description, &inputPath, isValueAlternative](
       Container& subcontainer,
       const std::string& path) -> Verifiable<Function>& {
       const bool hasPathOverride = !inputPath.empty();
@@ -925,7 +995,8 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
                                                    arg_types,
                                                    description,
                                                    hasPathOverride ? inputPath : path,
-                                                   hasPathOverride);
+                                                   hasPathOverride,
+                                                   isValueAlternative);
     });
   if(is_nested)
   {
@@ -965,6 +1036,10 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
+    if(isValueAlternative && func)
+    {
+      registerFunctionAlternativePath(lookupPath);
+    }
     return storeFunction(sidreGroup, std::move(func), fullName, name);
   }
 }

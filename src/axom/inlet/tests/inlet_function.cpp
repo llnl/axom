@@ -91,6 +91,25 @@ TEST(inlet_function, vector_function_rejects_scalar_return)
   EXPECT_THROW(func.call<FunctionType::Vector>(), std::runtime_error);
 }
 
+TEST(inlet_function, vector_function_rejects_malformed_table_returns)
+{
+  const std::array<std::string, 5> inputs {{
+    "function foo () return {} end",
+    "function foo () return {1, 2, 3, 4} end",
+    "function foo () return {[1] = 1, [3] = 3} end",
+    "function foo () return {1, 'two'} end",
+    "function foo () return {1, 2, label = 3} end",
+  }};
+
+  for(const auto& input : inputs)
+  {
+    auto inlet = createBasicInlet(input);
+    auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {});
+    ASSERT_TRUE(func);
+    EXPECT_THROW(func.call<FunctionType::Vector>(), std::runtime_error);
+  }
+}
+
 TEST(inlet_function, simple_vec3_to_vec3_raw_partial_init)
 {
   std::string testString = "function foo (v) return 2*v end";
@@ -163,6 +182,65 @@ TEST(inlet_function, function_path_override)
 
   auto callback = inlet["internal_group/internal_name"].get<std::function<double(double)>>();
   EXPECT_DOUBLE_EQ(callback(3.0), 5.0);
+}
+
+TEST(inlet_function, function_value_alternative_is_schema_order_independent)
+{
+  const auto addSchema = [](Inlet& inlet, bool functionFirst) {
+    if(!functionFirst)
+    {
+      inlet.addDouble("foo");
+    }
+    inlet.addFunctionAsValueAlternative(
+      "foo_callback",
+      FunctionTag::Double,
+      {},
+      "foo");
+    if(functionFirst)
+    {
+      inlet.addDouble("foo");
+    }
+  };
+
+  for(const bool functionFirst : {true, false})
+  {
+    auto inlet = createBasicInlet("function foo () return 2.0 end");
+    addSchema(inlet, functionFirst);
+
+    EXPECT_TRUE(inlet.verify());
+    EXPECT_FALSE(inlet.contains("foo"));
+    ASSERT_TRUE(inlet.contains("foo_callback"));
+    EXPECT_DOUBLE_EQ(inlet["foo_callback"].call<double>(), 2.0);
+  }
+}
+
+TEST(inlet_function, function_value_alternative_preserves_concrete_value)
+{
+  auto inlet = createBasicInlet("foo = 4.0");
+  inlet.addFunctionAsValueAlternative(
+    "foo_callback",
+    FunctionTag::Double,
+    {},
+    "foo");
+  inlet.addDouble("foo");
+
+  EXPECT_TRUE(inlet.verify());
+  EXPECT_FALSE(inlet.contains("foo_callback"));
+  ASSERT_TRUE(inlet.contains("foo"));
+  EXPECT_DOUBLE_EQ(inlet["foo"].get<double>(), 4.0);
+}
+
+TEST(inlet_function, returned_function_keeps_lua_state_alive)
+{
+  std::function<double(double)> callback;
+  {
+    auto inlet = createBasicInlet(
+      "offset = 3.0; function foo (value) return value + offset end");
+    inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::Double});
+    callback = inlet["foo"].get<std::function<double(double)>>();
+  }
+
+  EXPECT_DOUBLE_EQ(callback(4.0), 7.0);
 }
 
 TEST(inlet_function, simple_void_to_double_through_container)
@@ -351,6 +429,20 @@ struct FromInlet<Foo>
   }
 };
 
+struct FooWithValueAlternative
+{
+  std::function<double()> bar;
+};
+
+template <>
+struct FromInlet<FooWithValueAlternative>
+{
+  FooWithValueAlternative operator()(const axom::inlet::Container& base)
+  {
+    return {base["bar_callback"]};
+  }
+};
+
 TEST(inlet_function, simple_vec3_to_vec3_struct)
 {
   std::string testString = "foo = { bar = true; baz = function (v) return 2*v end }";
@@ -420,6 +512,27 @@ TEST(inlet_function, function_path_override_in_array_of_struct)
   auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
   EXPECT_FLOAT_EQ(foos[7].baz({1, 2, 3})[0], 2);
   EXPECT_FLOAT_EQ(foos[12].baz({1, 2, 3})[0], 3);
+}
+
+TEST(inlet_function, function_value_alternative_in_array_of_struct)
+{
+  auto inlet = createBasicInlet(
+    "foo = { [7] = { bar = function () return 2 end }, "
+    "        [12] = { bar = function () return 3 end } }");
+
+  auto& arr_container = inlet.addStructArray("foo");
+  arr_container.addDouble("bar");
+  arr_container.addFunctionAsValueAlternative(
+    "bar_callback",
+    FunctionTag::Double,
+    {},
+    "bar");
+
+  EXPECT_TRUE(inlet.verify());
+  auto foos =
+    inlet["foo"].get<std::unordered_map<int, FooWithValueAlternative>>();
+  EXPECT_DOUBLE_EQ(foos[7].bar(), 2.0);
+  EXPECT_DOUBLE_EQ(foos[12].bar(), 3.0);
 }
 
 TEST(inlet_function, dimension_dependent_result)

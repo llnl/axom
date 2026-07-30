@@ -17,8 +17,6 @@
 #include "axom/inlet/Reader.hpp"
 #include "axom/sol_forward.hpp"
 
-#include <unordered_set>
-
 namespace axom
 {
 // Forward declarations to avoid having to include "sol.hpp" in everything
@@ -132,6 +130,17 @@ private:
 
   /*!
    *****************************************************************************
+   * \brief Resolve an input path to its Lua object.
+   *
+   * \param [in] id The path to resolve
+   *
+   * \return The object at \a id, or an invalid object if the path was not found
+   *****************************************************************************
+   */
+  axom::sol::object getObject(const std::string& id);
+
+  /*!
+   *****************************************************************************
    * \brief Obtains the Lua table reached by successive indexing through the
    * range of keys described by a pair of iterators
    * 
@@ -167,10 +176,6 @@ private:
   // The elements in the global table preloaded by Sol/Lua, these are ignored
   // to ensure that name retrieval only includes user-provided paths
   std::vector<std::string> m_preloaded_globals;
-
-  // Paths successfully retrieved through getFunction(). These may serve as
-  // schema-supported alternatives to concrete scalar or map fields.
-  std::unordered_set<std::string> m_function_paths;
 };
 
 }  // end namespace inlet

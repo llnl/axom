@@ -37,11 +37,16 @@ The return type and argument types are described with the ``inlet::FunctionTag``
   * ``Void`` - corresponds to C++ ``void``, should only be used for functions that don't return a value
 
 Note that a single type tag is passed for the return type, while a vector of tags is passed
-for the argument types.  Currently a maximum of two arguments are supported. 
+for the argument types.  Currently a maximum of two arguments are supported.
 To declare a function with no arguments, simply leave the list of argument types empty.
 
 .. note::  The ``InletVector`` type (and its Lua representation) are statically-sized vectors with
   a maximum dimension of three.  That is, they can also be used to represent two-dimensional vectors.
+
+A Lua callback declared with a ``Vector`` return type may return either a ``Vector.new(...)``
+value or an ordinary Lua table containing one to three numeric components. Ordinary table
+returns must use contiguous integer indices starting at one; sparse tables, named entries,
+and non-numeric components are rejected when the callback is called.
 
 In Lua, the following operations on the ``Vector`` type are supported (for ``Vector`` s ``u``, ``v``, and ``w``):
 
@@ -57,6 +62,27 @@ In Lua, the following operations on the ``Vector`` type are supported (for ``Vec
 #. Dot and cross products: ``d = u:dot(v)``, ``w = u:cross(v)``
 #. Dimension retrieval: ``d = u.dim``
 #. Component retrieval: ``d = u.x``, ``d = u.y``, ``d = u.z``
+
+Functions as value alternatives
+-------------------------------
+
+Some schemas accept either a concrete value or a function that computes that value. Use
+``addFunctionAsValueAlternative`` to declare this relationship explicitly. The callback
+has its own schema name but reads from the same input path as the concrete field:
+
+.. code-block:: C++
+
+  inlet.addFunctionAsValueAlternative(
+    "scale_callback",
+    axom::inlet::FunctionTag::Vector,
+    {},
+    "scale");
+  inlet.addDoubleArray("scale");
+
+With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``, while
+``scale = function() return {2.0, 3.0, 4.0} end`` populates ``scale_callback``.
+The two schema entries may be added in either order. A function encountered at a normal
+field path remains a type error unless this alternative has been declared.
 
 Accessing
 ---------
@@ -83,6 +109,10 @@ by calling it directly:
   double result = inlet["coef"].call<double>(axom::inlet::FunctionType::Vector{3, 5, 7});
 
 .. note::  Using ``call<ReturnType>(ArgType1, ArgType2, ...)`` requires both that the return type
-  be explicitly specified and that argument types be passed with the exact type as used in the 
+  be explicitly specified and that argument types be passed with the exact type as used in the
   signature defined as part of the schema.  This is because the arguments do not participate in
   overload resolution.
+
+Callbacks copied out of Inlet keep their Lua state alive and remain callable after the Inlet
+object is destroyed. Lua execution errors and invalid callback return values are reported as
+``std::runtime_error`` at the call site.
