@@ -272,14 +272,32 @@ bindings and Conduit run under a free-threaded interpreter.
 
 Wheel metadata is static, but whether the underlying Axom is an MPI build is a build-time choice,
 so the wheel cannot force the MPI dependency at install time.
-When you need mpi4py (to pass a communicator to `IOManager`, or to initialize MPI), install the extra explicitly:
+When installing from this source tree, put extras on the local project path and
+keep the same CMake `-C` options used to build against the Axom install:
 
 ```bash
-uv pip install 'axom[mpi]'
+uv pip install 'src/python[mpi]' \
+  -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake"
+
+uv pip install 'src/python[test]' \
+  -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake"
+
+uv pip install 'src/python[mpi,test]' \
+  -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake"
 ```
 
-pytest lives in the `test` extra (`uv pip install 'axom[test]'`),
-never in the runtime dependencies.
+Use `mpi` for `mpi4py` support (passing a communicator to `IOManager`, or initializing MPI)
+and `test` for pytest. If Axom is already installed and you only need the optional dependency package,
+installing `mpi4py` or `pytest` directly is also fine.
+
+For a prebuilt wheel from a site wheelhouse, put extras on the package name:
+
+```bash
+uv pip install 'axom[mpi]' --find-links /path/to/site/wheelhouse/<hostconfig>
+uv pip install 'axom[test]' --find-links /path/to/site/wheelhouse/<hostconfig>
+```
+
+pytest lives in the `test` extra, never in the runtime dependencies.
 
 ## Notes
 

@@ -116,6 +116,22 @@ Use an absolute ``AXOM_DIR`` pointing at the directory containing
 
    $ uv run python -c "import axom.sidre, conduit, numpy; print(axom.__version__)"
 
+Optional dependencies use the normal Python extras syntax on the local source
+path. Keep the same CMake ``-C`` options used for the Axom install:
+
+.. code-block:: bash
+
+   $ uv pip install '/path/to/axom/src/python[mpi]' \
+       -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake"
+
+   $ uv pip install '/path/to/axom/src/python[test]' \
+       -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake"
+
+Use ``[mpi]`` for ``mpi4py`` support, ``[test]`` for ``pytest``,
+or combine extras as ``'/path/to/axom/src/python[mpi,test]'``.
+If the Axom wheel is already installed and you only need the optional dependency package,
+installing ``mpi4py`` or ``pytest`` directly is also fine.
+
 If ``axom.sidre`` is already installed in a venv but ``import conduit`` fails,
 add the same-build Conduit Python package with one ``.pth`` file. On current LC
 installs this path is usually ``$CONDUIT_INSTALL/lib/pythonX.Y/site-packages``;
@@ -146,7 +162,7 @@ Using Axom in Jupyter
 
 Because the wheel and the Conduit ``.pth`` live in the venv's ``site-packages``,
 a Jupyter kernel running in that venv imports ``axom.sidre`` natively -- there is
-nothing extra to configure, and no need to modify ``PYTHONPATH``. 
+nothing extra to configure, and no need to modify ``PYTHONPATH``.
 Add Jupyter to the same venv and register it as a kernel:
 
 .. code-block:: bash
@@ -154,6 +170,17 @@ Add Jupyter to the same venv and register it as a kernel:
    $ uv pip install jupyterlab ipykernel
    $ uv run python -m ipykernel install --user --name axom --display-name "Axom (uv)"
    $ uv run jupyter lab
+
+For more IDE-like completions, signature help, and hover documentation in JupyterLab,
+install the language-server packages in the same venv:
+
+.. code-block:: bash
+
+   $ uv pip install jupyterlab-lsp 'python-lsp-server[all]'
+
+The Axom wheel installs PEP 561 type information and generated ``.pyi`` stubs for ``axom.sidre``.
+JupyterLab's LSP extension can use those stubs for richer completion and overload help
+than the classic notebook frontend usually shows.
 
 Select the **Axom (uv)** kernel, then for example:
 
@@ -168,6 +195,15 @@ Select the **Axom (uv)** kernel, then for example:
    np.asarray(view.getDataArray())[:] = [1.0, 2.0, 3.0, 4.0]   # zero-copy view
    print(np.asarray(grp.getView("velocity").getDataArray()))
 
+.. warning::
+
+   Sidre currently preserves the C++ API's no-op semantics for some invalid operations.
+   For example, ``grp.createGroup("foo")`` followed by another ``grp.createGroup("foo")``
+   returns ``None`` for the second call unless ``accept_existing=True`` is passed.
+   The related SLIC diagnostic may be written to the process stderr/log stream
+   instead of appearing as a notebook cell error, so notebook code should either check for ``None``
+   or use the explicit ``accept_existing`` option when reusing a group is intended.
+
 If the kernel cannot import ``axom.sidre``, it is nearly always either the wrong kernel
 (one outside the venv) or a missing Conduit ``.pth``. Check both from inside the notebook:
 
@@ -177,7 +213,10 @@ If the kernel cannot import ``axom.sidre``, it is nearly always either the wrong
    import conduit; print(conduit.__file__)    # expect $CONDUIT_INSTALL/lib/pythonX.Y/site-packages/...
 
 If the underlying Axom is an MPI build and you need to pass a communicator to
-``IOManager`` (or to initialize MPI), install the ``mpi`` extra with ``uv pip install 'axom[mpi]'``.
+``IOManager`` (or to initialize MPI), install the ``mpi`` extra.
+For a local source install, use ``uv pip install '/path/to/axom/src/python[mpi]' -C ...``
+as shown above; for a prebuilt wheel from a wheelhouse,
+use ``uv pip install 'axom[mpi]' --find-links <wheelhouse>``.
 
 ====================================
 Working with Conduit and NumPy
