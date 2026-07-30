@@ -1096,7 +1096,8 @@ def test_setExternalData_aliasing_a_pinned_external_view_does_not_retain_datasto
     del target, root, ds
     _force_gc()
 
-    assert ref() is None, "DataStore retained by a setExternalData pin onto its own external storage"
+    assert ref() is None, (
+        "DataStore retained by a setExternalData pin onto its own external storage")
 
 
 if __name__ == "__main__":

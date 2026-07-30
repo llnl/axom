@@ -1328,7 +1328,14 @@ NB_MODULE(_sidre, m_sidre)
          nb::arg("attr").none(),
          "Set Attribute (by pointer) to its default value")
 
-    // Scalar setters for int and python float (C++ double)
+    // Scalar setters for int and python float (C++ double).
+    //
+    // NOTE: the value argument is bound with .noconvert(), so nanobind skips its
+    // converting overload pass and only an exact python int or float is accepted.
+    // This is deliberate. With conversion enabled, nanobind tries the overloads in declaration order,
+    // so a numpy float binds to the int overload and the value is silently truncated
+    // (e.g. np.float32(3.5) stored as 3). Rejecting the call is better than storing the wrong number.
+    // Callers holding a numpy scalar convert at the call site, e.g. int(x), float(x) or x.item().
     .def(
       "setAttributeScalar",
       [](View& self, IndexType idx, int value) { return self.setAttributeScalar(idx, value); },
