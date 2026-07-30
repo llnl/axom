@@ -57,19 +57,35 @@ if(NOT _axom_py_conduit_cmake_dir AND AXOM_CONDUIT_DIR)
     set(_axom_py_conduit_cmake_dir "${AXOM_CONDUIT_DIR}/lib/cmake/conduit")
 endif()
 
-set(_axom_py_conduit_python_module_dir "${CONDUIT_PYTHON_MODULE_DIR}")
-if(NOT _axom_py_conduit_python_module_dir AND AXOM_CONDUIT_PYTHON_MODULE_DIR)
+# Conduit's Python package directory -- needs to be absolute
+set(AXOM_PYTHON_CONDUIT_MODULE_DIR "" CACHE PATH
+    "Directory holding the same-build conduit Python package; overrides the value recorded by the Axom install")
+
+if(AXOM_PYTHON_CONDUIT_MODULE_DIR)       # use explicit override, if provided
+    set(_axom_py_conduit_python_module_dir "${AXOM_PYTHON_CONDUIT_MODULE_DIR}")
+elseif(AXOM_CONDUIT_PYTHON_MODULE_DIR)   # else, use value from Axom's export
     set(_axom_py_conduit_python_module_dir "${AXOM_CONDUIT_PYTHON_MODULE_DIR}")
+else()                                   # and fallback to conduit's path
+    set(_axom_py_conduit_python_module_dir "${CONDUIT_PYTHON_MODULE_DIR}")
+endif()
+
+if(_axom_py_conduit_python_module_dir
+   AND NOT IS_ABSOLUTE "${_axom_py_conduit_python_module_dir}")
+    get_filename_component(_axom_py_conduit_python_module_dir
+                           "${AXOM_CONDUIT_DIR}/${_axom_py_conduit_python_module_dir}" ABSOLUTE)
 endif()
 
 if(NOT _axom_py_conduit_python_module_dir
    OR NOT EXISTS "${_axom_py_conduit_python_module_dir}/conduit")
     message(FATAL_ERROR
-            "Could not find Conduit's Python package for this Axom install. "
-            "Expected AXOM_CONDUIT_PYTHON_MODULE_DIR or CONDUIT_PYTHON_MODULE_DIR "
-            "to name a directory containing the same-build conduit Python package. "
-            "Reconfigure Axom with CONDUIT_PYTHON_MODULE_DIR=<path>, or pass "
-            "-C cmake.define.CONDUIT_PYTHON_MODULE_DIR=<path> to this wheel build.")
+            "Could not find Conduit's Python package for this Axom install.\n"
+            "  Looked for a directory containing a 'conduit' package at: "
+            "'${_axom_py_conduit_python_module_dir}'\n"
+            "  AXOM_CONDUIT_DIR                = ${AXOM_CONDUIT_DIR}\n"
+            "  AXOM_CONDUIT_PYTHON_MODULE_DIR  = ${AXOM_CONDUIT_PYTHON_MODULE_DIR}\n"
+            "Either rebuild Axom against a Conduit configured with Python support, or "
+            "pass the path explicitly:\n"
+            "  -C cmake.define.AXOM_PYTHON_CONDUIT_MODULE_DIR=<path>")
 endif()
 
 # Keep the wheel metadata version aligned with the Axom install it links.

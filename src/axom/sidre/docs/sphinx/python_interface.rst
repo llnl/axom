@@ -133,15 +133,14 @@ If the Axom wheel is already installed and you only need the optional dependency
 installing ``mpi4py`` or ``pytest`` directly is also fine.
 
 If ``axom.sidre`` is already installed in a venv but ``import conduit`` fails,
-add the same-build Conduit Python package with one ``.pth`` file. On current LC
-installs this path is usually ``$CONDUIT_INSTALL/lib/pythonX.Y/site-packages``;
-the value recorded by an Axom install is ``AXOM_CONDUIT_PYTHON_MODULE_DIR`` in ``axom-config.cmake``.
+add the same-build Conduit Python package with one ``.pth`` file.
+An Axom install records this path as ``AXOM_CONDUIT_PYTHON_MODULE_DIR`` in ``axom-config.cmake``:
 
 .. code-block:: bash
 
-   $ CONDUIT_PYTHON_MODULE_DIR=/path/to/conduit/install/lib/pythonX.Y/site-packages
-   $ printf '%s\n' "$CONDUIT_PYTHON_MODULE_DIR" > \
-       "$(uv run python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/conduit.pth"
+   $ CONDUIT_PY_DIR=/path/to/conduit/install/python-modules
+   $ printf '%s\n' "$CONDUIT_PY_DIR" > \
+       "$(uv run python -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')/axom-conduit.pth"
    $ uv run python -c "import axom.sidre, conduit; print(conduit.__file__)"
 
 If your site publishes a host-config-specific wheelhouse, install from the path

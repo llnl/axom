@@ -109,14 +109,19 @@ uv build --wheel \
   src/python
 ```
 
-Add `CONDUIT_PYTHON_MODULE_DIR` only if Axom's recorded Conduit Python package path is missing or stale:
+Add `AXOM_PYTHON_CONDUIT_MODULE_DIR` only if Axom's recorded Conduit Python package path is
+missing or stale:
 
 ```bash
 uv build --wheel \
   -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake" \
-  -C cmake.define.CONDUIT_PYTHON_MODULE_DIR="$CONDUIT_INSTALL/lib/pythonX.Y/site-packages" \
+  -C cmake.define.AXOM_PYTHON_CONDUIT_MODULE_DIR="$CONDUIT_INSTALL/python-modules" \
   src/python
 ```
+
+Note the deliberately distinct name: `CONDUIT_PYTHON_MODULE_DIR` cannot be used here.
+`find_package(axom)` pulls in `ConduitConfig.cmake`, which sets that variable with a plain
+`set()` and so overwrites whatever the caller passed.
 
 For MPI-enabled Axom installs, pass the same compiler and MPI wrapper family
 used by the Axom build. Copy these from the Axom build's `CMakeCache.txt` or
