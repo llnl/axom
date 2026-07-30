@@ -142,27 +142,31 @@ int main(int argc, char** argv)
   // CLI
   axom::CLI::App app {"Klee Input Validator and Summary"};
   std::string inputFilename;
-  std::string bindingsFilename;
+  std::string initializationFilename;
   app.add_option("input", inputFilename)
     ->description("Klee input file")
     ->required()
     ->check(axom::CLI::ExistingFile);
-  app.add_option("--bindings-file", bindingsFilename)
-    ->description("Optional Lua chunk that returns a table of runtime bindings")
+  app.add_option("--initialization-file", initializationFilename)
+    ->description("Optional Lua chunk that returns a table of initial globals")
     ->check(axom::CLI::ExistingFile);
 
   CLI11_PARSE(app, argc, argv);
 
   auto loadShapeSet = [&]() {
-    if(bindingsFilename.empty())
+    if(initializationFilename.empty())
     {
       return axom::klee::readShapeSet(inputFilename);
     }
 
-    std::ifstream bindingsStream {bindingsFilename};
-    std::string bindingsSource {std::istreambuf_iterator<char>(bindingsStream), {}};
+    std::ifstream initializationStream {initializationFilename};
+    std::string initializationSource {
+      std::istreambuf_iterator<char>(initializationStream),
+      {}};
     axom::klee::LuaInputOptions options;
-    options.bindings = axom::klee::LuaBindingsChunk {bindingsSource, bindingsFilename};
+    options.initialization = axom::klee::LuaInitializationChunk {
+      initializationSource,
+      initializationFilename};
     return axom::klee::readShapeSet(inputFilename, options);
   };
 

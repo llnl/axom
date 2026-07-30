@@ -108,11 +108,11 @@ if(ENABLE_TESTS)
       blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua
                    COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.lua)
 
-      blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua_bindings
+      blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua_initialization
                    COMMAND lesson_03_klee_operators_and_validation
-                           ../lesson_03/ice_cream_bindings.lua
-                           --bindings-file
-                           ../lesson_03/ice_cream_runtime_bindings.lua)
+                           ../lesson_03/ice_cream_initialized.lua
+                           --initialization-file
+                           ../lesson_03/ice_cream_initialization.lua)
     endif()
 
     if(AXOM_USE_LUA AND AXOM_USE_MFEM)
