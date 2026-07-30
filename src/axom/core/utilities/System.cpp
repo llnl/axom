@@ -10,7 +10,6 @@
   #include <windows.h>
   #include <tchar.h>
 #else
-  #include <cstdlib>
   #include <unistd.h>
   #include <limits.h>
   #include <pwd.h>
