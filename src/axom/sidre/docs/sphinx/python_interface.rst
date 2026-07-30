@@ -89,35 +89,23 @@ After ``spack install``, the environment's interpreter should have a working Axo
 pip / uv wheel (thin, external Axom)
 ------------------------------------
 
-The wheel compiles only the binding code against an already-installed Axom and Conduit;
-it does not build Axom or its third-party libraries.
-A wheel is therefore specific to the toolchain/glibc of the Axom install it was built against.
-These wheels are not portable and not intended for PyPI; 
-they target controlled environments (an LC host-config, a spack view, or a CI image).
+The wheel compiles only the Sidre binding against an already-installed Axom.
+It is tied to that Axom install, its Conduit install, and its host-config; 
+it is not a portable PyPI-style wheel.
 
 .. note::
-   **Do not install Conduit from PyPI.** Axom's bindings pass ``conduit::Node`` objects across the
-   C++ boundary to the ``conduit`` Python module, so that module must wrap the *same* ``libconduit``
-   that Axom was compiled and linked against.
-   Two separate PyPI packages are easy to reach for by mistake, and neither works:
+   **Do not install Conduit from PyPI.** ``axom.sidre`` must use the same
+   ``libconduit`` that Axom was built against. The PyPI packages named
+   ``conduit`` and ``llnl-conduit`` do not provide that same build.
 
-   * ``conduit`` is an **unrelated project** (a stream-transformation library for power-engineering
-     analytics).
-   * ``llnl-conduit`` **is** LLNL's Conduit, but installing it produces a *separate build* of the library,
-     compiled by pip with its own compiler, flags and third-party configuration.
-     It is unlikely to be ABI-compatible with the spack/CMake Conduit inside your Axom install,
-     and using it would put two ``libconduit`` libraries in one process.
-
-   Instead, use the Conduit that your Axom was built against. The Axom wheel
-   records that same-build Conduit Python path in the venv with a ``conduit.pth`` file.
+   Use the Conduit Python package from the Conduit install recorded by Axom.
+   Wheels built by Axom's Python project record that path in ``conduit.pth``.
 
 Quick start
 ^^^^^^^^^^^
 
-Point the wheel build at the Axom install with ``AXOM_DIR``. This should be the
-directory containing ``axom-config.cmake``, usually ``$AXOM_INSTALL/lib/cmake``.
-Use an absolute path; relative paths can be interpreted from the temporary build
-directory that ``uv`` creates.
+Use an absolute ``AXOM_DIR`` pointing at the directory containing
+``axom-config.cmake``, usually ``$AXOM_INSTALL/lib/cmake``.
 
 .. code-block:: bash
 
@@ -129,7 +117,9 @@ directory that ``uv`` creates.
    $ uv run python -c "import axom.sidre, conduit, numpy; print(axom.__version__)"
 
 If ``axom.sidre`` is already installed in a venv but ``import conduit`` fails,
-add the same-build Conduit Python package with one ``.pth`` file:
+add the same-build Conduit Python package with one ``.pth`` file. On current LC
+installs this path is usually ``$CONDUIT_INSTALL/lib/pythonX.Y/site-packages``;
+the authoritative value is ``CONDUIT_PYTHON_MODULE_DIR`` in Conduit's CMake config.
 
 .. code-block:: bash
 
@@ -138,44 +128,18 @@ add the same-build Conduit Python package with one ``.pth`` file:
        "$(uv run python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')/conduit.pth"
    $ uv run python -c "import axom.sidre, conduit; print(conduit.__file__)"
 
-Use the Conduit install that Axom was built against. 
-The correct path is ``CONDUIT_PYTHON_MODULE_DIR`` in Conduit's CMake config. 
-On current LC installs it is usually ``$CONDUIT_INSTALL/lib/pythonX.Y/site-packages``.
+If your site publishes a host-config-specific wheelhouse, install from the path
+they provide with ``uv pip install axom --find-links <wheelhouse>``.
+Axom does not assume a central wheelhouse.
 
-.. note::
-
-   Prebuilt wheelhouses are site-specific.
-   If your platform team publishes one for your host-config, install from the path they provide with
-   ``uv pip install axom --find-links <wheelhouse>``.
-   This page does not assume a central Axom wheelhouse exists.
-
-Use the wheel's generated host-config when configuring downstream CMake projects:
+The installed wheel also carries a CMake host-config for downstream projects:
 
 .. code-block:: bash
 
    $ cmake -C "$(uv run axom-python-config --host-config)" -S /path/to/project -B build
 
-Three details matter when building the wheel yourself:
-
-* Use ``AXOM_DIR`` or ``axom_DIR``, not ``CMAKE_PREFIX_PATH``. 
-  ``axom_DIR`` is CMake's package variable for ``find_package(axom)``
-  ``AXOM_DIR`` is accepted by Axom's wheel build as a conventional uppercase alias.
-  scikit-build-core (which backs ``uv build`` and ``uv pip install``) 
-  force-sets ``CMAKE_PREFIX_PATH`` to its own isolated build environment, 
-  so a user-supplied value would be overwritten and ``find_package(axom)`` would fail.
-  A standalone ``cmake -S src/python`` has no such layer and can use ``CMAKE_PREFIX_PATH`` directly.
-* Add ``-C cmake.define.Conduit_DIR="$CONDUIT_INSTALL/lib/cmake/conduit"`` only if
-  Conduit has moved since Axom was installed: Axom's config records the Conduit
-  prefix it was built against, and that recorded path is what the transitive lookup uses.
-  If Conduit's Python module lives in a nonstandard location that is not recorded
-  by Conduit's CMake config, also pass ``-C cmake.define.CONDUIT_PYTHON_MODULE_DIR=/path/to/site-packages``.
-* For MPI-enabled Axom installs, use the same C/C++ compilers and MPI compiler
-  wrappers that built Axom. Copy these from the Axom build's ``CMakeCache.txt``
-  or host-config.
-* Build from the source tree that produced the install.
-  The wheel takes its version from ``src/cmake/AxomVersion.cmake`` in the checkout, 
-  and the build fails with an explicit message if that disagrees with the installed Axom, 
-  so a wheel can never misreport the version of the binary inside it.
+For build details, including MPI compiler wrappers, editable installs, stable
+ABI wheels, and site-specific wheelhouses, see ``src/python/README.md``.
 
 Using Axom in Jupyter
 ^^^^^^^^^^^^^^^^^^^^^
@@ -214,9 +178,6 @@ If the kernel cannot import ``axom.sidre``, it is nearly always either the wrong
 
 If the underlying Axom is an MPI build and you need to pass a communicator to
 ``IOManager`` (or to initialize MPI), install the ``mpi`` extra with ``uv pip install 'axom[mpi]'``.
-
-For site-specific wheelhouses, the editable developer loop, and the optional
-stable-ABI build, see ``src/python/README.md``.
 
 ====================================
 Working with Conduit and NumPy
