@@ -495,6 +495,47 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Add an automatically named function value alternative.
+   *
+   * \see Container::addFunctionAsValueAlternative
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const std::string& inputPath,
+    const std::string& description = "")
+  {
+    return m_globalContainer.addFunctionAsValueAlternative(
+      ret_type,
+      arg_types,
+      inputPath,
+      description);
+  }
+
+  /*!
+   *****************************************************************************
+   * \brief Add an automatically named function value alternative from an
+   * explicitly resolved input path.
+   *
+   * \see Container::addFunctionAsValueAlternative
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const InputPath& inputPath,
+    const std::string& description = "")
+  {
+    return m_globalContainer.addFunctionAsValueAlternative(
+      ret_type,
+      arg_types,
+      inputPath,
+      description);
+  }
+
+  /*!
+   *****************************************************************************
    * \brief Add a dictionary of Boolean Fields to the input file schema.
    *
    * \param [in] name Name of the dict

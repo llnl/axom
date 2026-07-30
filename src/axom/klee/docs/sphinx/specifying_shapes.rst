@@ -276,7 +276,7 @@ functions. Callbacks should be pure functions of local deck variables.
 
 Vector-valued callbacks return raw numeric Lua tables such as :code:`{x, y}` or :code:`{x, y, z}`.
 The typed :code:`Vector.new(...)` object is also accepted.
-Scalar-valued callbacks return a number. 
+Scalar-valued callbacks return a number.
 Supported callback fields are
 :code:`translate`, :code:`axis`, :code:`center`, :code:`scale`,
 :code:`slice.origin`, :code:`slice.normal`, :code:`slice.up`, :code:`rotate`,

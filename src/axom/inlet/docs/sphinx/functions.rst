@@ -93,7 +93,7 @@ A collection-relative path is joined to each concrete collection element.
 Outside a collection, it is relative to the current ``Container``.
 
 The ``addFunction(name, returnType, argumentTypes, description, pathOverride)`` overload
-remains available. Its string override retains the rule that 
+remains available. Its string override retains the rule that
 it is exact outside a struct collection and relative to each element inside one.
 Prefer ``InputPath`` when adding new aliases so this behavior is explicit at the call site.
 
@@ -101,30 +101,36 @@ Functions as value alternatives
 -------------------------------
 
 Some schemas accept either a concrete value or a function that computes that value.
-Use ``addFunctionAsValueAlternative`` to declare this relationship explicitly. 
-The callback has its own schema name but reads from the same input path
-as the concrete field:
+Use ``addFunctionAsValueAlternative`` to declare this relationship explicitly.
+The recommended overload lets Inlet own the callback's internal storage name and
+associates it with the concrete field's input path:
 
 .. code-block:: C++
 
   inlet.addFunctionAsValueAlternative(
-    "scale_callback",
     axom::inlet::FunctionTag::Vector,
     {},
     "scale");
   inlet.addDoubleArray("scale");
 
 With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``,
-while ``scale = function() return {2.0, 3.0, 4.0} end`` populates ``scale_callback``.
+while ``scale = function() return {2.0, 3.0, 4.0} end`` supplies the function
+alternative associated with ``scale``. Use ``containsFunctionValueAlternative("scale")``
+and ``getFunctionValueAlternative("scale")`` on the containing ``Container`` to
+query and retrieve it without depending on an internal schema name.
+
+An overload that takes a schema name first remains available when the callback needs
+an independently addressable schema entry. Both forms accept an ``InputPath`` descriptor
+when exact or collection-relative resolution needs to be explicit.
+
 The two schema entries may be added in either order. A function encountered at a normal
 field path remains a type error unless this alternative has been declared.
-``addFunctionAsValueAlternative`` also accepts an ``InputPath`` descriptor when exact
-or collection-relative resolution needs to be explicit.
 
-Only the selected schema entry exists: ``contains`` reports the concrete field when a
-value was supplied and the function entry when a callback was supplied. A value with an
-unrelated type matches neither entry and fails verification. The shared input path is
-recognized by strict containers and is not reported as unexpected.
+Only the selected representation exists: ``contains`` reports the concrete field when a
+value was supplied, and ``containsFunctionValueAlternative`` reports the callback when a
+function was supplied. A value with an unrelated type matches neither representation and
+fails verification. The shared input path is recognized by strict containers and is not
+reported as unexpected.
 
 The returned function and the concrete field remain independently verifiable schema entries.
 Consequently, ``required()`` and registered verifiers apply to the entry on
