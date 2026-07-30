@@ -66,7 +66,7 @@ Path fieldPath(const inlet::Container &container, char const *fieldName)
 
 std::string callbackContext(const inlet::Container &container,
                             char const *fieldName,
-                            const std::string &shapeName)
+                            const std::string &ownerLabel)
 {
   Path path {container.name()};
   std::string operatorIndex = path.baseName();
@@ -77,20 +77,21 @@ std::string callbackContext(const inlet::Container &container,
 
   const auto operatorLabel = operatorIndex.empty() ? std::string {"operator at "} + container.name()
                                                    : std::string {"operator "} + operatorIndex;
-  if(shapeName.empty())
+  if(ownerLabel.empty())
   {
     return axom::fmt::format("Error evaluating callback for '{}' in {}", fieldName, operatorLabel);
   }
-  return axom::fmt::format("Error evaluating callback for '{}' in shape '{}' {}",
-                           fieldName,
-                           shapeName,
-                           operatorLabel);
+  return axom::fmt::format(
+    "Error evaluating callback for '{}' in {} {}",
+    fieldName,
+    ownerLabel,
+    operatorLabel);
 }
 
 template <typename Result, typename Func>
 Result wrapCallbackErrors(const inlet::Container &container,
                           char const *fieldName,
-                          const std::string &shapeName,
+                          const std::string &ownerLabel,
                           Func &&func)
 {
   // Convert generic Inlet/Lua callback failures into Klee diagnostics at the
@@ -107,17 +108,17 @@ Result wrapCallbackErrors(const inlet::Container &container,
   {
     throw KleeError(
       {fieldPath(container, fieldName),
-       axom::fmt::format("{}: {}", callbackContext(container, fieldName, shapeName), ex.what())});
+       axom::fmt::format("{}: {}", callbackContext(container, fieldName, ownerLabel), ex.what())});
   }
 }
 
 double getScalar(const inlet::Container &container,
                  char const *fieldName,
-                 const std::string &shapeName)
+                 const std::string &ownerLabel)
 {
   if(hasCallback(container, fieldName))
   {
-    return wrapCallbackErrors<double>(container, fieldName, shapeName, [&]() {
+    return wrapCallbackErrors<double>(container, fieldName, ownerLabel, [&]() {
       return container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::Double>();
     });
   }
@@ -138,11 +139,11 @@ std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vect
 std::vector<double> getDoubleVector(const inlet::Container &container,
                                     char const *fieldName,
                                     Dimensions expectedDims,
-                                    const std::string &shapeName)
+                                    const std::string &ownerLabel)
 {
   if(hasCallback(container, fieldName))
   {
-    auto values = wrapCallbackErrors<std::vector<double>>(container, fieldName, shapeName, [&]() {
+    auto values = wrapCallbackErrors<std::vector<double>>(container, fieldName, ownerLabel, [&]() {
       return callbackVectorToDoubleVector(
         container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::Vector>());
     });
@@ -152,7 +153,7 @@ std::vector<double> getDoubleVector(const inlet::Container &container,
     {
       throw KleeError({fieldPath(container, fieldName),
                        fmt::format("{}: Wrong size for {}. Expected {}. Got {}.",
-                                   callbackContext(container, fieldName, shapeName),
+                                   callbackContext(container, fieldName, ownerLabel),
                                    fieldName,
                                    expectedSize,
                                    actualSize)});
@@ -166,9 +167,9 @@ template <typename T>
 T toArrayLike(const inlet::Container &parent,
               char const *fieldName,
               Dimensions expectedDims,
-              const std::string &shapeName)
+              const std::string &ownerLabel)
 {
-  auto values = getDoubleVector(parent, fieldName, expectedDims, shapeName);
+  auto values = getDoubleVector(parent, fieldName, expectedDims, ownerLabel);
   return T {values.data(), static_cast<int>(expectedDims)};
 }
 
@@ -177,11 +178,11 @@ T toArrayLike(const inlet::Container &parent,
               char const *fieldName,
               Dimensions expectedDims,
               const T &defaultValue,
-              const std::string &shapeName)
+              const std::string &ownerLabel)
 {
   if(containsFieldOrCallback(parent, fieldName))
   {
-    return toArrayLike<T>(parent, fieldName, expectedDims, shapeName);
+    return toArrayLike<T>(parent, fieldName, expectedDims, ownerLabel);
   }
   return defaultValue;
 }
@@ -189,35 +190,35 @@ T toArrayLike(const inlet::Container &parent,
 Point3D getPoint(const inlet::Container &parent,
                  char const *fieldName,
                  Dimensions expectedDims,
-                 const std::string &shapeName)
+                 const std::string &ownerLabel)
 {
-  return toArrayLike<Point3D>(parent, fieldName, expectedDims, shapeName);
+  return toArrayLike<Point3D>(parent, fieldName, expectedDims, ownerLabel);
 }
 
 Point3D getPoint(const inlet::Container &parent,
                  char const *fieldName,
                  Dimensions expectedDims,
                  const Point3D &defaultValue,
-                 const std::string &shapeName)
+                 const std::string &ownerLabel)
 {
-  return toArrayLike(parent, fieldName, expectedDims, defaultValue, shapeName);
+  return toArrayLike(parent, fieldName, expectedDims, defaultValue, ownerLabel);
 }
 
 Vector3D getVector(const inlet::Container &parent,
                    char const *fieldName,
                    Dimensions expectedDims,
-                   const std::string &shapeName)
+                   const std::string &ownerLabel)
 {
-  return toArrayLike<Vector3D>(parent, fieldName, expectedDims, shapeName);
+  return toArrayLike<Vector3D>(parent, fieldName, expectedDims, ownerLabel);
 }
 
 Vector3D getVector(const inlet::Container &parent,
                    char const *fieldName,
                    Dimensions expectedDims,
                    const Vector3D &defaultValue,
-                   const std::string &shapeName)
+                   const std::string &ownerLabel)
 {
-  return toArrayLike(parent, fieldName, expectedDims, defaultValue, shapeName);
+  return toArrayLike(parent, fieldName, expectedDims, defaultValue, ownerLabel);
 }
 
 /**
@@ -330,12 +331,12 @@ void verifyObjectFields(const inlet::Container& containerToTest,
  */
 OpPtr parseTranslate(const SingleOperatorData &data,
                      const TransformableGeometryProperties &startProperties,
-                     const std::string &shapeName)
+                     const std::string &ownerLabel)
 {
   const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "translate", FieldSet {}, FieldSet {});
   return std::make_shared<Translation>(
-    getVector(opContainer, "translate", startProperties.dimensions, shapeName),
+    getVector(opContainer, "translate", startProperties.dimensions, ownerLabel),
     startProperties);
 }
 
@@ -349,7 +350,7 @@ OpPtr parseTranslate(const SingleOperatorData &data,
  */
 OpPtr parseRotate(const SingleOperatorData &data,
                   const TransformableGeometryProperties &startProperties,
-                  const std::string &shapeName)
+                  const std::string &ownerLabel)
 {
   const auto &opContainer = *data.m_container;
   switch(startProperties.dimensions)
@@ -359,8 +360,8 @@ OpPtr parseRotate(const SingleOperatorData &data,
     verifyObjectFields(opContainer, "rotate", FieldSet {}, {"center"});
     Vector3D axis {0, 0, 1};
     return std::make_shared<Rotation>(
-      getScalar(opContainer, "rotate", shapeName),
-      getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, shapeName),
+      getScalar(opContainer, "rotate", ownerLabel),
+      getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, ownerLabel),
       axis,
       startProperties);
   }
@@ -369,9 +370,9 @@ OpPtr parseRotate(const SingleOperatorData &data,
   {
     verifyObjectFields(opContainer, "rotate", {"axis"}, {"center"});
     return std::make_shared<Rotation>(
-      getScalar(opContainer, "rotate", shapeName),
-      getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, shapeName),
-      getVector(opContainer, "axis", Dimensions::Three, shapeName),
+      getScalar(opContainer, "rotate", ownerLabel),
+      getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, ownerLabel),
+      getVector(opContainer, "axis", Dimensions::Three, ownerLabel),
       startProperties);
   }
   break;
@@ -421,9 +422,9 @@ OpPtr makeCheckedSlice(Point3D origin,
 primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContainer,
                                             char const *planeName,
                                             const primal::Vector3D &defaultNormal,
-                                            const std::string &shapeName)
+                                            const std::string &ownerLabel)
 {
-  double axisIntercept = getScalar(sliceContainer, planeName, shapeName);
+  double axisIntercept = getScalar(sliceContainer, planeName, ownerLabel);
 
   primal::Point3D defaultOrigin;
   int nonZeroIndex = -1;
@@ -441,7 +442,7 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
     return defaultOrigin;
   }
 
-  primal::Point3D givenOrigin = getPoint(sliceContainer, "origin", Dimensions::Three, shapeName);
+  primal::Point3D givenOrigin = getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel);
   if(givenOrigin[nonZeroIndex] != axisIntercept)
   {
     throw KleeError({sliceContainer["origin"].name(), "The origin must be on the slice plane"});
@@ -459,14 +460,14 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
  */
 primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContainer,
                                              const primal::Vector3D &defaultNormal,
-                                             const std::string &shapeName)
+                                             const std::string &ownerLabel)
 {
   if(!containsFieldOrCallback(sliceContainer, "normal"))
   {
     return defaultNormal;
   }
 
-  primal::Vector3D givenNormal = getVector(sliceContainer, "normal", Dimensions::Three, shapeName);
+  primal::Vector3D givenNormal = getVector(sliceContainer, "normal", Dimensions::Three, ownerLabel);
   auto cross = primal::Vector3D::cross_product(givenNormal, defaultNormal);
   bool parallel = cross.is_zero();
   if(!parallel)
@@ -492,14 +493,14 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
                              Vector3D const &defaultNormal,
                              Vector3D const &defaultUp,
                              const TransformableGeometryProperties &startProperties,
-                             const std::string &shapeName)
+                             const std::string &ownerLabel)
 {
   verifyObjectFields(sliceContainer, planeName, FieldSet {}, {"origin", "normal", "up"});
   const primal::Vector3D defaultNormalVec {defaultNormal.data()};
 
-  auto origin = getPerpendicularSliceOrigin(sliceContainer, planeName, defaultNormalVec, shapeName);
-  auto normal = getPerpendicularSliceNormal(sliceContainer, defaultNormalVec, shapeName);
-  auto up = getVector(sliceContainer, "up", Dimensions::Three, defaultUp, shapeName);
+  auto origin = getPerpendicularSliceOrigin(sliceContainer, planeName, defaultNormalVec, ownerLabel);
+  auto normal = getPerpendicularSliceNormal(sliceContainer, defaultNormalVec, ownerLabel);
+  auto up = getVector(sliceContainer, "up", Dimensions::Three, defaultUp, ownerLabel);
 
   return makeCheckedSlice(origin, normal, up, startProperties, sliceContainer.name());
 }
@@ -514,7 +515,7 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
  */
 OpPtr parseSlice(const SingleOperatorData &data,
                  const TransformableGeometryProperties &startProperties,
-                 const std::string &shapeName)
+                 const std::string &ownerLabel)
 {
   const auto &opContainer = *data.m_container;
   if(startProperties.dimensions != Dimensions::Three)
@@ -530,7 +531,7 @@ OpPtr parseSlice(const SingleOperatorData &data,
                                   {1, 0, 0},
                                   {0, 0, 1},
                                   startProperties,
-                                  shapeName);
+                                  ownerLabel);
   }
   else if(containsFieldOrCallback(sliceContainer, "y"))
   {
@@ -539,7 +540,7 @@ OpPtr parseSlice(const SingleOperatorData &data,
                                   {0, 1, 0},
                                   {1, 0, 0},
                                   startProperties,
-                                  shapeName);
+                                  ownerLabel);
   }
   else if(containsFieldOrCallback(sliceContainer, "z"))
   {
@@ -548,14 +549,14 @@ OpPtr parseSlice(const SingleOperatorData &data,
                                   {0, 0, 1},
                                   {0, 1, 0},
                                   startProperties,
-                                  shapeName);
+                                  ownerLabel);
   }
 
   verifyObjectFields(sliceContainer, "origin", {"normal", "up"}, FieldSet {});
 
-  return makeCheckedSlice(getPoint(sliceContainer, "origin", Dimensions::Three, shapeName),
-                          getVector(sliceContainer, "normal", Dimensions::Three, shapeName),
-                          getVector(sliceContainer, "up", Dimensions::Three, shapeName),
+  return makeCheckedSlice(getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel),
+                          getVector(sliceContainer, "normal", Dimensions::Three, ownerLabel),
+                          getVector(sliceContainer, "up", Dimensions::Three, ownerLabel),
                           startProperties,
                           sliceContainer.name());
 }
@@ -570,7 +571,7 @@ OpPtr parseSlice(const SingleOperatorData &data,
  */
 OpPtr parseScale(const SingleOperatorData &data,
                  const TransformableGeometryProperties &startProperties,
-                 const std::string &shapeName)
+                 const std::string &ownerLabel)
 {
   const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {"center"});
@@ -578,7 +579,7 @@ OpPtr parseScale(const SingleOperatorData &data,
     ? wrapCallbackErrors<std::vector<double>>(
         opContainer,
         "scale",
-        shapeName,
+        ownerLabel,
         [&]() {
           return callbackVectorToDoubleVector(
             opContainer.getFunctionValueAlternative("scale").call<inlet::FunctionType::Vector>());
@@ -594,7 +595,7 @@ OpPtr parseScale(const SingleOperatorData &data,
     {
       throw KleeError({fieldPath(opContainer, "scale"),
                         fmt::format("{}: Wrong size for scale. Expected {}. Got {}.",
-                                    callbackContext(opContainer, "scale", shapeName),
+                                    callbackContext(opContainer, "scale", ownerLabel),
                                     expectedSize,
                                     actualSize)});
     }
@@ -615,7 +616,7 @@ OpPtr parseScale(const SingleOperatorData &data,
                       "center",
                       startProperties.dimensions,
                       Point3D {0, 0, 0},
-                       shapeName);
+                      ownerLabel);
   }
 
   if(isUniform)
@@ -710,7 +711,7 @@ OpPtr parseRef(const SingleOperatorData &data,
 OpPtr convertOperator(SingleOperatorData const& data,
                       TransformableGeometryProperties startProperties,
                       const NamedOperatorMap &namedOperators,
-                      const std::string &shapeName)
+                      const std::string &ownerLabel)
 {
   std::unordered_map<std::string, OperatorParser> parsers {
     {"translate", parseTranslate},
@@ -730,7 +731,7 @@ OpPtr convertOperator(SingleOperatorData const& data,
   {
     if(containsFieldOrCallback(*data.m_container, entry.first.c_str()))
     {
-      return entry.second(data, startProperties, shapeName);
+      return entry.second(data, startProperties, ownerLabel);
     }
   }
 
@@ -817,7 +818,7 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
 std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
   const TransformableGeometryProperties &startProperties,
   const NamedOperatorMap &namedOperators,
-  const std::string &shapeName) const
+  const std::string &ownerLabel) const
 {
   if(m_singleOperatorData.empty())
   {
@@ -832,7 +833,7 @@ std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
   for(auto& data : m_singleOperatorData)
   {
     composite->addOperator(
-      convertOperator(data, composite->getEndProperties(), namedOperators, shapeName));
+      convertOperator(data, composite->getEndProperties(), namedOperators, ownerLabel));
   }
   return composite;
 }
@@ -879,7 +880,8 @@ NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(Dimensions fileDimen
       dimensions,
       opData.startUnits,
     };
-    auto op = opData.value.makeOperator(startProperties, namedOperators, "");
+    const auto ownerLabel = axom::fmt::format("named operator '{}'", opData.name);
+    auto op = opData.value.makeOperator(startProperties, namedOperators, ownerLabel);
 
     if(op->getEndProperties().units != opData.endUnits)
     {

@@ -241,6 +241,9 @@ Selected operator fields may also be written as zero-argument Lua callbacks.
 Klee evaluates each callback exactly once while reading the deck; the resulting
 shape still contains ordinary affine or slice operators, not runtime Lua
 functions. Callbacks should be pure functions of local deck variables.
+Callbacks in a named operator are evaluated when that named operator is
+constructed. Each :code:`ref` reuses the resulting concrete operator rather
+than evaluating its callbacks again for the referring shape.
 
 .. code-block:: lua
 
@@ -308,8 +311,8 @@ or inspect :code:`getErrors()` when multiple verification errors are available.
 Klee may still throw standard exceptions such as :code:`std::logic_error` or :code:`std::invalid_argument`
 for programming errors or inconsistent manually constructed objects.
 
-Callback failures include the field, shape name when available, and operator
-location, for example:
+Callback failures include the field, owning shape or named operator,
+and operator location, for example:
 
 .. code-block:: text
 
@@ -641,6 +644,12 @@ object. This is a list where each entry has the following values:
 :end_units (optional, must specify this or units): the units in which the
   last operator is specified. It is an error if the units aren't properly
   converted to `end_units` after applying all operations.
+
+For Lua input, named-operator values support the same callback-capable fields
+as shape operators. Klee constructs named operators before shapes, evaluates
+each of their callbacks once, and shares that concrete result through every :code:`ref`.
+A named-operator callback therefore cannot depend on the identity of a shape
+that later refers to it.
 
 The example below demonstrates how to create and then use a named operator.
 Notice how we can use multiple :code:`ref` entries in the list of
