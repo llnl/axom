@@ -269,9 +269,9 @@ constexpr void setBit(FlagType &flags, BitType bit, bool value = true)
   using UnsignedFlagType = std::make_unsigned_t<FlagType>;
   assert(static_cast<int>(bit) < BitTraits<FlagType>::BITS_PER_WORD << 3);
   const auto mask = static_cast<UnsignedFlagType>(UnsignedFlagType {1} << bit);
-  const auto flags_unsigned = static_cast<UnsignedFlagType>(flags);
   flags = static_cast<FlagType>(
-    value ? (flags_unsigned | mask) : (flags_unsigned & static_cast<UnsignedFlagType>(~mask)));
+    value ? (static_cast<UnsignedFlagType>(flags) | mask)
+          : (static_cast<UnsignedFlagType>(flags) & ~mask));
 }
 
 /*!

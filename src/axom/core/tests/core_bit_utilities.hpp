@@ -207,4 +207,11 @@ TEST(core_bit_utilities, setbit_bitisset)
     axom::utilities::setBit(value, i, false);
     EXPECT_EQ(axom::utilities::bitIsSet(value, i), false);
   }
+
+  std::int8_t signed_value = 0;
+  axom::utilities::setBit(signed_value, 7, true);
+  EXPECT_EQ(static_cast<std::uint8_t>(signed_value), std::uint8_t {0x80});
+
+  axom::utilities::setBit(signed_value, 7, false);
+  EXPECT_EQ(signed_value, 0);
 }
