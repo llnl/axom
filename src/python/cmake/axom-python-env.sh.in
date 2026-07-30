@@ -49,10 +49,14 @@ _axom_python_export CXX "@CMAKE_CXX_COMPILER@"
 _axom_python_export AXOM_INSTALL_PREFIX "@AXOM_INSTALL_PREFIX@"
 _axom_python_export CONDUIT_DIR "@AXOM_CONDUIT_DIR@"
 _axom_python_export CONDUIT_PYTHON_MODULE_DIR "@_axom_py_conduit_python_module_dir@"
+_axom_python_export ENABLE_MPI "@AXOM_USE_MPI@"
+_axom_python_export AXOM_ENABLE_MPI "@AXOM_USE_MPI@"
 _axom_python_export CMAKE_C_COMPILER "@CMAKE_C_COMPILER@"
 _axom_python_export CMAKE_CXX_COMPILER "@CMAKE_CXX_COMPILER@"
-_axom_python_export MPI_C_COMPILER "@MPI_C_COMPILER@"
-_axom_python_export MPI_CXX_COMPILER "@MPI_CXX_COMPILER@"
+if [ "@AXOM_USE_MPI@" = "ON" ] || [ "@AXOM_USE_MPI@" = "TRUE" ] || [ "@AXOM_USE_MPI@" = "1" ]; then
+  _axom_python_export MPI_C_COMPILER "@MPI_C_COMPILER@"
+  _axom_python_export MPI_CXX_COMPILER "@MPI_CXX_COMPILER@"
+fi
 if [ -x "${_axom_python_prefix_dir}/bin/python" ]; then
   _axom_python_export Python_EXECUTABLE "${_axom_python_prefix_dir}/bin/python"
 else

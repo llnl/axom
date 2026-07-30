@@ -55,6 +55,40 @@ if [[ -z "${AXOM_INSTALL}" || ! -d "${AXOM_INSTALL}" ]]; then
     exit 1
 fi
 
+cache_value() {
+    awk -F= -v key="$1" '$1 ~ "^" key ":[^=]*$" {print $2; exit}' "${CACHE}"
+}
+
+cache_bool_is_on() {
+    local value
+    value=$(cache_value "$1")
+    case "${value^^}" in
+        ON|TRUE|YES|1)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+require_cmake_define_from_cache() {
+    local name="$1"
+    local value
+    value=$(cache_value "${name}")
+    if [[ -z "${value}" ]]; then
+        echo "ERROR: Required CMake cache entry ${name} was not found in ${CACHE}."
+        exit 1
+    fi
+    WHEEL_BUILD_ARGS+=("-C" "cmake.define.${name}=${value}")
+}
+
+AXOM_WHEEL_ENABLE_MPI=OFF
+if cache_bool_is_on ENABLE_MPI || cache_bool_is_on AXOM_ENABLE_MPI; then
+    AXOM_WHEEL_ENABLE_MPI=ON
+fi
+echo "AXOM_WHEEL_ENABLE_MPI=${AXOM_WHEEL_ENABLE_MPI}"
+
 echo "~~~~~~ ENSURE uv IS AVAILABLE ~~~~~~"
 if ! command -v uv >/dev/null 2>&1; then
     python3 -m pip install --user uv
@@ -66,10 +100,16 @@ echo "~~~~~~ BUILD THE THIN WHEEL FROM src/python ~~~~~~"
 # Point find_package at the install with AXOM_DIR
 # Conduit resolves transitively from axom's config, which records its Conduit prefix
 rm -rf dist
-uv build --wheel \
-    -C cmake.define.AXOM_DIR="${AXOM_INSTALL}/lib/cmake" \
-    --out-dir dist \
-    src/python
+WHEEL_BUILD_ARGS=(
+    "-C" "cmake.define.AXOM_DIR=${AXOM_INSTALL}/lib/cmake"
+)
+require_cmake_define_from_cache CMAKE_C_COMPILER
+require_cmake_define_from_cache CMAKE_CXX_COMPILER
+if [[ "${AXOM_WHEEL_ENABLE_MPI}" == "ON" ]]; then
+    require_cmake_define_from_cache MPI_C_COMPILER
+    require_cmake_define_from_cache MPI_CXX_COMPILER
+fi
+uv build --wheel "${WHEEL_BUILD_ARGS[@]}" --out-dir dist src/python
 ls -l dist
 AXOM_WHEEL=$(find dist -maxdepth 1 -name 'axom-*.whl' -print -quit)
 if [[ -z "${AXOM_WHEEL}" ]]; then
@@ -83,7 +123,11 @@ VENV_DIR=/tmp/axom-wheel-venv
 rm -rf "${VENV_DIR}"
 uv venv --python "$(command -v python3)" "${VENV_DIR}"
 VENV_PY="${VENV_DIR}/bin/python"
-uv pip install --python "${VENV_PY}" "${AXOM_WHEEL}[test]"
+AXOM_WHEEL_EXTRAS="test"
+if [[ "${AXOM_WHEEL_ENABLE_MPI}" == "ON" ]]; then
+    AXOM_WHEEL_EXTRAS="test,mpi"
+fi
+uv pip install --python "${VENV_PY}" "${AXOM_WHEEL}[${AXOM_WHEEL_EXTRAS}]"
 
 echo "~~~~~~ VERIFY WHEEL-INSTALLED CONDUIT .pth ~~~~~~"
 PLATLIB=$("${VENV_PY}" -c 'import sysconfig; print(sysconfig.get_paths()["platlib"])')
@@ -103,6 +147,11 @@ echo "verified ${CONDUIT_PTH} -> ${CONDUIT_PY_DIR}"
 echo "~~~~~~ IMPORT SMOKE TEST ~~~~~~"
 "${VENV_PY}" -c \
     "import axom, axom.sidre, conduit, numpy; print('axom', axom.__version__); print('axom.sidre', axom.sidre.__version__)"
+if [[ "${AXOM_WHEEL_ENABLE_MPI}" == "ON" ]]; then
+    "${VENV_PY}" -c "import mpi4py, axom.sidre as sidre; assert sidre.AXOM_ENABLE_MPI"
+else
+    "${VENV_PY}" -c "import axom.sidre as sidre; assert not sidre.AXOM_ENABLE_MPI"
+fi
 
 echo "~~~~~~ RUN THE SIDRE PYTHON SUITE VIA PLAIN pytest ~~~~~~"
 # Axom's Python tests are named *_Py.py, which pytest's default python_files patterns do not match

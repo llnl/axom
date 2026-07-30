@@ -154,8 +154,8 @@ axom-python-config --env-script   # path to axom/share/axom-python-env.sh
 ```
 
 The host-config seeds a downstream CMake project with the same Axom, Conduit,
-compiler, MPI and Python settings the wheel used; the env script exports the
-subset of those that CMake reads from the environment. Both are generated only
+compiler, `ENABLE_MPI`, MPI wrapper and Python settings the wheel used; the env script
+exports the subset of those that CMake reads from the environment. Both are generated only
 by this wheel build, not by the in-tree CMake install. See the "pip / uv wheel"
 section of the Sidre user guide for the usage examples.
 
@@ -211,3 +211,4 @@ so the wheel cannot force MPI dependencies at install time.
 The `mpi` extra declares `mpi4py`, and the `test` extra declares `pytest`.
 Runtime dependencies intentionally stay minimal: `numpy` is required,
 while Conduit's Python module is exposed by the generated `conduit.pth` file.
+
