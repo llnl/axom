@@ -734,8 +734,9 @@ public:
    * \param [in] ret_type     The return type of the function
    * \param [in] arg_types    The argument types of the function
    * \param [in] description  Description of the function
-   * \param [in] pathOverride The path within the input file to read from, if
-   * different than the structure of the Sidre datastore
+   * \param [in] pathOverride The path within the input file to read from,
+   * if different than the structure of the Sidre datastore. When adding to a
+   * struct collection, this is resolved relative to each concrete element.
    *
    * \return Reference to the created Function
    *****************************************************************************
@@ -1251,7 +1252,7 @@ private:
 
   /*!
    *****************************************************************************
-   * \brief Adds the Function.
+   * \brief Stores an already-read Function in this Container's schema.
    * 
    * \param [in] The Sidre Group corresponding to the Function that will be added.
    * \param [in] func The actual callable to store
@@ -1262,10 +1263,23 @@ private:
    * \return The child Function matching the target name.
    *****************************************************************************
    */
-  Function& addFunctionInternal(axom::sidre::Group* sidreGroup,
-                                FunctionVariant&& func,
-                                const std::string& fullName,
-                                const std::string& name);
+  Function& storeFunction(axom::sidre::Group* sidreGroup,
+                          FunctionVariant&& func,
+                          const std::string& fullName,
+                          const std::string& name);
+
+  /*!
+   *****************************************************************************
+   * \brief Adds a function using an input path that may be relative to each
+   * concrete nested container.
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunctionWithInputPath(const std::string& name,
+                                                 FunctionTag ret_type,
+                                                 const std::vector<FunctionTag>& arg_types,
+                                                 const std::string& description,
+                                                 const std::string& inputPath,
+                                                 bool inputPathIsRelative);
 
   axom::sidre::View* baseGet(const std::string& name) const;
 
