@@ -273,7 +273,8 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
   AXOM_HOST_DEVICE
   static inline MortonIndexType mortonize(CoordType x, CoordType y)
   {
-    return (Base::expandBits(x) | (Base::expandBits(y) << 1));
+    return (Base::expandBits(static_cast<MortonIndexType>(x)) |
+            (Base::expandBits(static_cast<MortonIndexType>(y)) << 1));
   }
 
   /*!
@@ -284,7 +285,8 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
   AXOM_HOST_DEVICE
   static inline MortonIndexType mortonize(const primal::Point<CoordType, NDIM>& pt)
   {
-    return (Base::expandBits(pt[0]) | (Base::expandBits(pt[1]) << 1));
+    return (Base::expandBits(static_cast<MortonIndexType>(pt[0])) |
+            (Base::expandBits(static_cast<MortonIndexType>(pt[1])) << 1));
   }
 
   /*!
@@ -412,8 +414,9 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
   {
     const MortonIndexType b5 = GetB(5);
 
-    return (Base::expandBits(x & b5) | (Base::expandBits(y & b5) << 1) |
-            (Base::expandBits(z & b5) << 2));
+    return (Base::expandBits(static_cast<MortonIndexType>(x) & b5) |
+            (Base::expandBits(static_cast<MortonIndexType>(y) & b5) << 1) |
+            (Base::expandBits(static_cast<MortonIndexType>(z) & b5) << 2));
   }
 
   /*!
@@ -426,8 +429,9 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
   {
     const MortonIndexType b5 = GetB(5);
 
-    return (Base::expandBits(pt[0] & b5) | (Base::expandBits(pt[1] & b5) << 1) |
-            (Base::expandBits(pt[2] & b5) << 2));
+    return (Base::expandBits(static_cast<MortonIndexType>(pt[0]) & b5) |
+            (Base::expandBits(static_cast<MortonIndexType>(pt[1]) & b5) << 1) |
+            (Base::expandBits(static_cast<MortonIndexType>(pt[2]) & b5) << 2));
   }
 
   /*!

@@ -276,7 +276,7 @@ void test_split_edge(primal::CurvedPolygon<CurveType>& curved_polygon)
   nCurve.split(.5, nCurve2, nCurve3);
 
   EXPECT_EQ(curved_polygon.numEdges(), 4);
-  for(int i = 0; i < curved_polygon[0].getNumControlPoints(); ++i)
+  for(axom::IndexType i = 0; i < curved_polygon[0].getNumControlPoints(); ++i)
   {
     for(int dimi = 0; dimi < 2; ++dimi)
     {

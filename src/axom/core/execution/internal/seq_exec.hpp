@@ -61,6 +61,7 @@ struct execution_space<SEQ_EXEC>
   AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
   AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[SEQ_EXEC]"; }
+
   static int allocatorID() noexcept
   {
 #ifdef AXOM_USE_UMPIRE

@@ -73,7 +73,7 @@ namespace
 template <typename T>
 T getRandom()
 {
-  return static_cast<T>(((double)rand()) / RAND_MAX);
+  return static_cast<T>(static_cast<double>(rand()) / RAND_MAX);
 }
 } /* end anonymous namespace */
 

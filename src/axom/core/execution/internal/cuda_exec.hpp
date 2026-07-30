@@ -61,6 +61,7 @@ struct execution_space<CUDA_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
   AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
   AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return true; }
   AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[CUDA_EXEC]"; }
+
   static int allocatorID() noexcept
   {
     return axom::getUmpireResourceAllocatorID(umpire::resource::Device);

@@ -88,6 +88,7 @@ struct execution_space
   AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[UNDEFINED]"; }
+
   static int allocatorID() noexcept { return axom::INVALID_ALLOCATOR_ID; }
   AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
