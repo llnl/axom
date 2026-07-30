@@ -101,8 +101,9 @@ wheel.packages = ["src/axom"]
 # If that ever changes, vendor the TU into this tree during a pre-sdist step (or move the project root above the TU).
 #
 # STABLE_ABI / abi3 (cp312): opt-in, so the default build produces per-Python-version wheel tags.
-# To build one abi3 wheel that serves every CPython >= 3.12 on the machine, pass BOTH of these at build time.
-# They must agree, since the first makes nanobind build the limited-API module and the second sets the wheel tag:
+# To build one abi3 wheel that serves every CPython >= 3.12 on the machine, use CMake >= 3.26
+# and Python >= 3.12, and pass BOTH of these at build time. They must agree, since the first
+# makes nanobind build the limited-API module and the second sets the wheel tag:
 #   uv build --wheel -C cmake.define.AXOM_PYTHON_STABLE_ABI=ON -C wheel.py-api=cp312 ...
 #
 # wheel.py-api is intentionally left unset here rather than hard-coded to cp312:

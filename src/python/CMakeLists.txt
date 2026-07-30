@@ -18,16 +18,31 @@ project(axom_python LANGUAGES C CXX)
 option(AXOM_PYTHON_STABLE_ABI
        "Build the extension against Python's stable ABI (abi3); needs Python >= 3.12" OFF)
 
-find_package(Python 3.10 REQUIRED
-             COMPONENTS Interpreter Development.Module
-             OPTIONAL_COMPONENTS Development.SABIModule)
+if(AXOM_PYTHON_STABLE_ABI AND CMAKE_VERSION VERSION_LESS 3.26)
+    message(FATAL_ERROR
+            "AXOM_PYTHON_STABLE_ABI=ON requires CMake >= 3.26 because "
+            "FindPython's Development.SABIModule component is needed "
+            "to locate Python stable ABI development artifacts. "
+            "Current CMake is ${CMAKE_VERSION}. "
+            "Build with CMake >= 3.26 or leave AXOM_PYTHON_STABLE_ABI off.")
+endif()
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.26)
+    find_package(Python 3.10 REQUIRED
+                 COMPONENTS Interpreter Development.Module
+                 OPTIONAL_COMPONENTS Development.SABIModule)
+else()
+    find_package(Python 3.10 REQUIRED
+                 COMPONENTS Interpreter Development.Module)
+endif()
 
 if(AXOM_PYTHON_STABLE_ABI AND NOT Python_Development.SABIModule_FOUND)
     message(FATAL_ERROR
-            "AXOM_PYTHON_STABLE_ABI=ON requires Python's Development.SABIModule "
-            "component (CPython >= 3.12), which was not found for "
-            "${Python_EXECUTABLE} (version ${Python_VERSION}). Build with a 3.12+ "
-            "interpreter or leave AXOM_PYTHON_STABLE_ABI off.")
+            "AXOM_PYTHON_STABLE_ABI=ON requires CMake >= 3.26 and Python's "
+            "Development.SABIModule component (CPython >= 3.12), "
+            "which was not found for ${Python_EXECUTABLE} (version ${Python_VERSION}). "
+            "Build with a 3.12+ interpreter that provides stable ABI development artifacts, "
+            "or leave AXOM_PYTHON_STABLE_ABI off.")
 endif()
 
 if(DEFINED AXOM_DIR AND NOT DEFINED axom_DIR)

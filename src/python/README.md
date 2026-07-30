@@ -172,8 +172,9 @@ and several tests write output files into the current directory, so we run them 
 ### Stable ABI (abi3)
 
 By default the wheel is tagged for the exact CPython that built it.
-Opt into a single abi3 wheel that serves every CPython >= 3.12 on the machine
-by passing both flags together (the CMake option makes nanobind build the limited-API module;
+With CMake >= 3.26 and Python >= 3.12, opt into a single abi3 wheel that serves
+every CPython >= 3.12 on the machine by passing both flags together 
+(the CMake option makes nanobind build the limited-API module;
 the scikit-build-core setting sets the wheel tag, and the two must agree):
 
 ```bash
@@ -184,12 +185,15 @@ uv build --wheel \
   src/python
 ```
 
-Below Python 3.12 nanobind silently builds a non-stable module, so only enable this on a 3.12+ interpreter;
-the build fails with an explicit message if the interpreter does not provide `Development.SABIModule`,
-rather than quietly producing a mislabelled wheel. Stable ABI relaxes the Python-version coupling,
-not the toolchain coupling: an abi3 wheel is still specific to the host-config it was built against.
-Free-threaded (`abi3t`) wheels are not built today; scikit-build-core 1.0+ can emit those tags once the
-bindings and Conduit run under a free-threaded interpreter.
+Below Python 3.12 nanobind silently builds a non-stable module, 
+so only enable this on a 3.12+ interpreter. CMake's `FindPython` needs its
+`Development.SABIModule` component for this path, which is available starting in CMake 3.26.
+The build fails with an explicit message if either prerequisite is missing,
+rather than quietly producing a mislabelled wheel.
+Stable ABI relaxes the Python-version coupling, not the toolchain coupling:
+an abi3 wheel is still specific to the host-config it was built against.
+Free-threaded (`abi3t`) wheels are not built today; scikit-build-core 1.0+
+can emit those tags once the bindings and Conduit run under a free-threaded interpreter.
 
 ### Package metadata and extras
 
