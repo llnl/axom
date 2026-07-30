@@ -310,16 +310,16 @@ Field& Container::addField(axom::sidre::Group* sidreGroup,
   return *(emplace_result.first->second);
 }
 
-Function& Container::addFunctionInternal(axom::sidre::Group* sidreGroup,
-                                         FunctionVariant&& func,
-                                         const std::string& fullName,
-                                         const std::string& name)
+Function& Container::storeFunction(axom::sidre::Group* sidreGroup,
+                                   FunctionVariant&& func,
+                                   const std::string& fullName,
+                                   const std::string& name)
 {
   const size_t found = name.find_last_of("/");
   auto currContainer = this;
   if(found != std::string::npos)
   {
-    // This will add any intermediate Containers (if not present) before adding the field
+    // This will add any intermediate Containers (if not present) before storing the function
     currContainer = &addContainer(name.substr(0, found));
   }
   const auto& emplace_result = currContainer->m_functionChildren.emplace(
@@ -897,6 +897,17 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                                              const std::string& description,
                                              const std::string& pathOverride)
 {
+  return addFunctionWithInputPath(name, ret_type, arg_types, description, pathOverride, false);
+}
+
+Verifiable<Function>& Container::addFunctionWithInputPath(
+  const std::string& name,
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const std::string& description,
+  const std::string& inputPath,
+  const bool inputPathIsRelative)
+{
   // If it has indices, we're adding a function to an array
   // of structs, so we need to iterate over the subcontainers
   // corresponding to elements of the array
@@ -905,32 +916,16 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(funcs),
     name,
-    [&name, &ret_type, &arg_types, &description, &pathOverride](
+    [&name, &ret_type, &arg_types, &description, &inputPath](
       Container& subcontainer,
       const std::string& path) -> Verifiable<Function>& {
-      std::string nestedPathOverride = path;
-      if(!pathOverride.empty())
-      {
-        // Function aliases can keep an internal schema name while reading from
-        // a public input path. For struct arrays, apply the override relative
-        // to each concrete element path found by transformFromNestedElements().
-        if(path.empty())
-        {
-          if(subcontainer.isStructCollection() || !subcontainer.m_nested_aggregates.empty())
-          {
-            nestedPathOverride = pathOverride;
-          }
-          else
-          {
-            nestedPathOverride = Path::join({Path(subcontainer.name()), Path(pathOverride)});
-          }
-        }
-        else
-        {
-          nestedPathOverride = Path::join({Path(path).parent(), Path(pathOverride)});
-        }
-      }
-      return subcontainer.addFunction(name, ret_type, arg_types, description, nestedPathOverride);
+      const bool hasPathOverride = !inputPath.empty();
+      return subcontainer.addFunctionWithInputPath(name,
+                                                   ret_type,
+                                                   arg_types,
+                                                   description,
+                                                   hasPathOverride ? inputPath : path,
+                                                   hasPathOverride);
     });
   if(is_nested)
   {
@@ -955,14 +950,22 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
     SLIC_ERROR_IF(sidreGroup == nullptr,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
-    // If a pathOverride is specified, needed when Inlet-internal groups
-    // are part of fullName
-    std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
+    // A caller-provided override becomes relative when a schema is expanded across
+    // a struct collection. Exact paths supplied by the expansion itself remain unchanged.
+    std::string lookupPath = inputPath;
+    if(lookupPath.empty())
+    {
+      lookupPath = fullName;
+    }
+    else if(inputPathIsRelative)
+    {
+      lookupPath = Path::join({Path(m_name), Path(inputPath)});
+    }
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
-    return addFunctionInternal(sidreGroup, std::move(func), fullName, name);
+    return storeFunction(sidreGroup, std::move(func), fullName, name);
   }
 }
 
