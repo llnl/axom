@@ -141,16 +141,9 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/conduit.pth"
         DESTINATION ".")
 
 #------------------------------------------------------------------------------
-# HIP: replicate the in-tree special-case from src/axom/sidre/CMakeLists.txt.
-# CMake treats MODULE libraries separately from executables, so HIP executable
-# link flags are not applied to the module automatically.
+# TODO: 
+#   - Check that we can generate local bindings for HIP/CUDA
 #------------------------------------------------------------------------------
-if(AXOM_ENABLE_HIP)
-    set_source_files_properties(${_sidre_binding_sources} PROPERTIES LANGUAGE HIP)
-    string(REPLACE " " ";" _axom_py_module_link_flags "${CMAKE_EXE_LINKER_FLAGS}")
-    target_link_options(_sidre PRIVATE ${_axom_py_module_link_flags})
-    unset(_axom_py_module_link_flags)
-endif()
 
 #------------------------------------------------------------------------------
 # nanobind_add_stub imports the module ('import _sidre') to introspect it.
