@@ -845,6 +845,32 @@ public:
     const std::string& description = "");
 
   /*!
+   *********************************************************************************
+   * \brief Add an automatically named function value alternative.
+   *
+   * The function remains accessible through \a inputPath using
+   * getFunctionValueAlternative(), without exposing its internal storage name.
+   *********************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const std::string& inputPath,
+    const std::string& description = "");
+
+  /*!
+   *********************************************************************************
+   * \brief Add an automatically named function value alternative from an
+   * explicitly resolved input path.
+   *********************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const InputPath& inputPath,
+    const std::string& description = "");
+
+  /*!
    *******************************************************************************
    * \brief Returns a stored value of primitive type.
    * 
@@ -1127,6 +1153,29 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Return whether a function value alternative was supplied at the
+   * given input path.
+   *****************************************************************************
+   */
+  bool containsFunctionValueAlternative(const std::string& inputPath) const;
+
+  /*!
+   *****************************************************************************
+   * \brief Retrieve the function value alternative associated with an input
+   * path.
+   *****************************************************************************
+   */
+  Function& getFunctionValueAlternative(const std::string& inputPath) const;
+
+  /*!
+   *****************************************************************************
+   * \brief Return the input paths of supplied function value alternatives.
+   *****************************************************************************
+   */
+  std::vector<std::string> getFunctionValueAlternativeNames() const;
+
+  /*!
+   *****************************************************************************
    * \return The full name of this Container.
    *****************************************************************************
    */
@@ -1378,6 +1427,8 @@ private:
                                                  const InputPath& inputPath,
                                                  bool isValueAlternative);
 
+  std::string nextFunctionValueAlternativeName();
+
   /*!
    *****************************************************************************
    * \brief Adjust a Reader result when a function satisfies a declared value
@@ -1593,7 +1644,9 @@ private:
   std::unordered_map<std::string, std::unique_ptr<Field>> m_fieldChildren;
   std::unordered_map<std::string, std::unique_ptr<Function>> m_functionChildren;
   std::unordered_set<std::string> m_functionAlternativePaths;
+  std::unordered_map<std::string, Function*> m_functionValueAlternatives;
   std::unordered_multimap<std::string, axom::sidre::Group*> m_valueInputPathGroups;
+  std::size_t m_nextFunctionValueAlternativeId {0};
   Verifier m_verifier;
 
   // Used for ownership only - need to take ownership of these so children
