@@ -493,6 +493,7 @@ TEST(inlet_Reader_lua, functionLookupDoesNotChangeFieldAndMapResults)
     "foo = function() return 1 end\n"
     "bar = { baz = function() return {1, 2, 3} end }");
 
+  // Function lookup must not cache a coercion that changes later typed reads.
   auto scalarFunction =
     reader.getFunction("foo", axom::inlet::FunctionTag::Double, {});
   auto vectorFunction =
@@ -526,6 +527,7 @@ TEST(inlet_Reader_lua, variantMapsAndIndicesUseConsistentObjectLookup)
     reader.getFunction("callback", axom::inlet::FunctionTag::Vector, {});
   ASSERT_TRUE(callback);
 
+  // Map and index queries should agree on missing, non-table, and nested objects.
   std::unordered_map<int, axom::inlet::VariantValue> values {
     {99, axom::inlet::VariantValue {99}}};
   EXPECT_EQ(ReaderResult::WrongType,
