@@ -18,9 +18,10 @@
 #include <string>
 #include <functional>
 #include <set>
+#include <tuple>
 #include <typeindex>
 #include <unordered_map>
-#include <tuple>
+#include <unordered_set>
 #include <type_traits>
 #include <variant>
 
@@ -748,6 +749,32 @@ public:
                                     const std::string& pathOverride = "");
 
   /*!
+   *****************************************************************************
+   * \brief Get a function that is an alternative representation of a primitive
+   * value or collection in the input deck.
+   *
+   * The function is stored in the Inlet schema under \a name, but is read from
+   * \a inputPath. If a function exists there, a primitive field or collection
+   * that reads the same input path is treated as absent rather than as having
+   * the wrong type. The function and concrete value may be added in either order.
+   *
+   * \param [in] name        Name under which to store the function
+   * \param [in] ret_type    The return type of the function
+   * \param [in] arg_types   The argument types of the function
+   * \param [in] inputPath   Path of the function in the input deck
+   * \param [in] description Description of the function
+   *
+   * \return Reference to the created Function
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    const std::string& name,
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const std::string& inputPath,
+    const std::string& description = "");
+
+  /*!
    *******************************************************************************
    * \brief Returns a stored value of primitive type.
    * 
@@ -1279,7 +1306,32 @@ private:
                                                  const std::vector<FunctionTag>& arg_types,
                                                  const std::string& description,
                                                  const std::string& inputPath,
-                                                 bool inputPathIsRelative);
+                                                 bool inputPathIsRelative,
+                                                 bool isValueAlternative);
+
+  /*!
+   *****************************************************************************
+   * \brief Adjust a Reader result when a function satisfies a declared value
+   * alternative at the same input path.
+   *****************************************************************************
+   */
+  ReaderResult adjustForFunctionAlternative(const std::string& inputPath,
+                                            ReaderResult result) const;
+
+  /*!
+   *****************************************************************************
+   * \brief Record the Sidre group populated from an input value path.
+   *****************************************************************************
+   */
+  void registerValueInputPath(const std::string& inputPath, axom::sidre::Group* group);
+
+  /*!
+   *****************************************************************************
+   * \brief Record a successfully read function alternative and update any
+   * value schema entry that was added first.
+   *****************************************************************************
+   */
+  void registerFunctionAlternativePath(const std::string& inputPath);
 
   axom::sidre::View* baseGet(const std::string& name) const;
 
@@ -1471,6 +1523,8 @@ private:
   std::unordered_map<std::string, std::unique_ptr<Container>> m_containerChildren;
   std::unordered_map<std::string, std::unique_ptr<Field>> m_fieldChildren;
   std::unordered_map<std::string, std::unique_ptr<Function>> m_functionChildren;
+  std::unordered_set<std::string> m_functionAlternativePaths;
+  std::unordered_multimap<std::string, axom::sidre::Group*> m_valueInputPathGroups;
   Verifier m_verifier;
 
   // Used for ownership only - need to take ownership of these so children

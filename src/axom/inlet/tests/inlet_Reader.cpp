@@ -485,7 +485,7 @@ TEST(inlet_Reader_lua, functionValueIsWrongTypeForFieldsAndMaps)
   EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("bar/baz", values));
 }
 
-TEST(inlet_Reader_lua, registeredFunctionPathIsAbsentForConcreteFieldsAndMaps)
+TEST(inlet_Reader_lua, functionLookupDoesNotChangeFieldAndMapResults)
 {
   axom::inlet::LuaReader reader;
   reader.parseString(
@@ -500,12 +500,12 @@ TEST(inlet_Reader_lua, registeredFunctionPathIsAbsentForConcreteFieldsAndMaps)
   ASSERT_TRUE(vectorFunction);
 
   double scalar = 0.0;
-  EXPECT_EQ(ReaderResult::NotFound, reader.getDouble("foo", scalar));
-  EXPECT_EQ(ReaderResult::NotFound, reader.getDouble("bar/baz", scalar));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("foo", scalar));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("bar/baz", scalar));
 
   std::unordered_map<int, double> values;
-  EXPECT_EQ(ReaderResult::NotFound, reader.getDoubleMap("foo", values));
-  EXPECT_EQ(ReaderResult::NotFound, reader.getDoubleMap("bar/baz", values));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("foo", values));
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("bar/baz", values));
 }
 #endif
 

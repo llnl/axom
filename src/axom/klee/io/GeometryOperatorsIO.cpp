@@ -608,11 +608,9 @@ OpPtr parseScale(const SingleOperatorData &data,
             opContainer[callbackName("scale")].call<inlet::FunctionType::Vector>());
         })
     : opContainer["scale"].get<std::vector<double>>();
-  if(factors.size() == 1)
-  {
-    return std::make_shared<Scale>(factors[0], factors[0], factors[0], startProperties);
-  }
-  if(hasCallback(opContainer, "scale"))
+
+  const bool isUniform = factors.size() == 1;
+  if(!isUniform && hasCallback(opContainer, "scale"))
   {
     auto actualSize = factors.size();
     auto expectedSize = static_cast<std::size_t>(startProperties.dimensions);
@@ -625,14 +623,15 @@ OpPtr parseScale(const SingleOperatorData &data,
                                     actualSize)});
     }
   }
-  else
+  else if(!isUniform)
   {
     factors = toDoubleVector(opContainer["scale"], startProperties.dimensions, "scale");
   }
-  if(startProperties.dimensions == Dimensions::Two)
+  if(!isUniform && startProperties.dimensions == Dimensions::Two)
   {
     factors.emplace_back(1.0);
   }
+
   Point3D center {0., 0., 0.};
   if(containsFieldOrCallback(opContainer, "center"))
   {
@@ -640,7 +639,17 @@ OpPtr parseScale(const SingleOperatorData &data,
                       "center",
                       startProperties.dimensions,
                       Point3D {0, 0, 0},
-                      shapeName);
+                       shapeName);
+  }
+
+  if(isUniform)
+  {
+    return std::make_shared<Scale>(
+      factors[0],
+      factors[0],
+      factors[0],
+      center,
+      startProperties);
   }
 
   return std::make_shared<Scale>(factors[0], factors[1], factors[2], center, startProperties);
@@ -786,25 +795,27 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
 
   if(enableLuaCallbacks)
   {
-    // Register the function alternatives before reading the corresponding concrete fields.
-    // LuaReader then knows that a function at one of these exact public paths is supported
-    // by the schema rather than a type error.
-    opContainer.addFunction(callbackName("translate"),
-                            inlet::FunctionTag::Vector,
-                            {},
-                            "",
-                            "translate");
-    opContainer.addFunction(callbackName("rotate"), inlet::FunctionTag::Double, {}, "", "rotate");
-    opContainer.addFunction(callbackName("center"), inlet::FunctionTag::Vector, {}, "", "center");
-    opContainer.addFunction(callbackName("axis"), inlet::FunctionTag::Vector, {}, "", "axis");
-    opContainer.addFunction(callbackName("scale"), inlet::FunctionTag::Vector, {}, "", "scale");
+    const auto addCallbackAlternative =
+      [](inlet::Container &container, const char *fieldName, inlet::FunctionTag returnType) {
+        container.addFunctionAsValueAlternative(
+          callbackName(fieldName),
+          returnType,
+          {},
+          fieldName);
+      };
 
-    slice.addFunction(callbackName("x"), inlet::FunctionTag::Double, {}, "", "x");
-    slice.addFunction(callbackName("y"), inlet::FunctionTag::Double, {}, "", "y");
-    slice.addFunction(callbackName("z"), inlet::FunctionTag::Double, {}, "", "z");
-    slice.addFunction(callbackName("origin"), inlet::FunctionTag::Vector, {}, "", "origin");
-    slice.addFunction(callbackName("normal"), inlet::FunctionTag::Vector, {}, "", "normal");
-    slice.addFunction(callbackName("up"), inlet::FunctionTag::Vector, {}, "", "up");
+    addCallbackAlternative(opContainer, "translate", inlet::FunctionTag::Vector);
+    addCallbackAlternative(opContainer, "rotate", inlet::FunctionTag::Double);
+    addCallbackAlternative(opContainer, "center", inlet::FunctionTag::Vector);
+    addCallbackAlternative(opContainer, "axis", inlet::FunctionTag::Vector);
+    addCallbackAlternative(opContainer, "scale", inlet::FunctionTag::Vector);
+
+    addCallbackAlternative(slice, "x", inlet::FunctionTag::Double);
+    addCallbackAlternative(slice, "y", inlet::FunctionTag::Double);
+    addCallbackAlternative(slice, "z", inlet::FunctionTag::Double);
+    addCallbackAlternative(slice, "origin", inlet::FunctionTag::Vector);
+    addCallbackAlternative(slice, "normal", inlet::FunctionTag::Vector);
+    addCallbackAlternative(slice, "up", inlet::FunctionTag::Vector);
   }
 
   opContainer.addDoubleArray("translate");
