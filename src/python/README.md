@@ -58,6 +58,7 @@ src/python/
   src/
     axom/                       <- the 'axom' regular package
       __init__.py               <- top-level package metadata
+      config.py                 <- locates the wheel-generated helpers (axom-python-config)
       py.typed                  <- PEP 561 marker (typed package)
       sidre/
         __init__.py             <- re-exports the compiled 'axom.sidre._sidre'
@@ -67,6 +68,11 @@ src/python/
 ```
 
 Parenthesized entries are build products and are intentionally not in the repository.
+
+Both build paths install this tree. Only the wheel build additionally generates
+`axom/share/axom-python-host-config.cmake` and `axom/share/axom-python-env.sh`;
+on a CMake installation `axom.config.has_wheel_config()` returns `False` and the
+path accessors raise `FileNotFoundError` with that explanation.
 
 Each bound Axom component installs as a submodule of the `axom` package
 (`axom.sidre`, and later `axom.quest`, `axom.primal`, ...).

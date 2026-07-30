@@ -208,6 +208,8 @@ if(NANOBIND_FOUND)
                         "${_axom_py_build_root}/axom/__init__.py" COPYONLY)
     axom_configure_file("${_axom_py_pkg_src}/axom/py.typed"
                         "${_axom_py_build_root}/axom/py.typed" COPYONLY)
+    axom_configure_file("${_axom_py_pkg_src}/axom/config.py"
+                        "${_axom_py_build_root}/axom/config.py" COPYONLY)
     axom_configure_file("${_axom_py_pkg_src}/axom/sidre/__init__.py"
                         "${_axom_py_build_root}/axom/sidre/__init__.py" COPYONLY)
     # Hand-written package stub: re-exports the generated _sidre.pyi statically
@@ -249,6 +251,7 @@ if(NANOBIND_FOUND)
     # Namespace-root package files install once (not per component).
     install(FILES "${_axom_py_pkg_src}/axom/__init__.py"
                   "${_axom_py_pkg_src}/axom/py.typed"
+                  "${_axom_py_pkg_src}/axom/config.py"
             DESTINATION "${AXOM_PYTHON_MODULE_INSTALL_PREFIX}/axom")
 endif()
 
