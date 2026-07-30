@@ -940,13 +940,32 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                                              const std::string& description,
                                              const std::string& pathOverride)
 {
+  const auto pathMode = (isStructCollection() || !m_nested_aggregates.empty())
+    ? InputPathMode::RelativeToCollectionElement
+    : InputPathMode::Exact;
   return addFunctionWithInputPath(
     name,
     ret_type,
     arg_types,
     description,
-    pathOverride,
-    false,
+    InputPath {pathOverride, pathMode},
+    false);
+}
+
+Verifiable<Function>& Container::addFunction(const std::string& name,
+                                             const FunctionTag ret_type,
+                                             const std::vector<FunctionTag>& arg_types,
+                                             const InputPath& inputPath,
+                                             const std::string& description)
+{
+  SLIC_ERROR_IF(inputPath.value.empty(),
+                "[Inlet] An explicit function input path must be non-empty");
+  return addFunctionWithInputPath(
+    name,
+    ret_type,
+    arg_types,
+    description,
+    inputPath,
     false);
 }
 
@@ -959,13 +978,33 @@ Verifiable<Function>& Container::addFunctionAsValueAlternative(
 {
   SLIC_ERROR_IF(inputPath.empty(),
                 "[Inlet] A function value alternative requires a non-empty input path");
+  const auto pathMode = (isStructCollection() || !m_nested_aggregates.empty())
+    ? InputPathMode::RelativeToCollectionElement
+    : InputPathMode::Exact;
+  return addFunctionWithInputPath(
+    name,
+    ret_type,
+    arg_types,
+    description,
+    InputPath {inputPath, pathMode},
+    true);
+}
+
+Verifiable<Function>& Container::addFunctionAsValueAlternative(
+  const std::string& name,
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const InputPath& inputPath,
+  const std::string& description)
+{
+  SLIC_ERROR_IF(inputPath.value.empty(),
+                "[Inlet] A function value alternative requires a non-empty input path");
   return addFunctionWithInputPath(
     name,
     ret_type,
     arg_types,
     description,
     inputPath,
-    false,
     true);
 }
 
@@ -974,8 +1013,7 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
   const FunctionTag ret_type,
   const std::vector<FunctionTag>& arg_types,
   const std::string& description,
-  const std::string& inputPath,
-  const bool inputPathIsRelative,
+  const InputPath& inputPath,
   const bool isValueAlternative)
 {
   // If it has indices, we're adding a function to an array
@@ -989,13 +1027,16 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
     [&name, &ret_type, &arg_types, &description, &inputPath, isValueAlternative](
       Container& subcontainer,
       const std::string& path) -> Verifiable<Function>& {
-      const bool hasPathOverride = !inputPath.empty();
+      InputPath nestedInputPath = inputPath;
+      if(nestedInputPath.value.empty())
+      {
+        nestedInputPath = InputPath::exact(path);
+      }
       return subcontainer.addFunctionWithInputPath(name,
                                                    ret_type,
                                                    arg_types,
                                                    description,
-                                                   hasPathOverride ? inputPath : path,
-                                                   hasPathOverride,
+                                                   nestedInputPath,
                                                    isValueAlternative);
     });
   if(is_nested)
@@ -1021,16 +1062,14 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
     SLIC_ERROR_IF(sidreGroup == nullptr,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
-    // A caller-provided override becomes relative when a schema is expanded across
-    // a struct collection. Exact paths supplied by the expansion itself remain unchanged.
-    std::string lookupPath = inputPath;
+    std::string lookupPath = inputPath.value;
     if(lookupPath.empty())
     {
       lookupPath = fullName;
     }
-    else if(inputPathIsRelative)
+    else if(inputPath.mode == InputPathMode::RelativeToCollectionElement)
     {
-      lookupPath = Path::join({Path(m_name), Path(inputPath)});
+      lookupPath = Path::join({Path(m_name), Path(inputPath.value)});
     }
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
