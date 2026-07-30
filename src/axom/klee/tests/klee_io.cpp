@@ -1408,6 +1408,125 @@ TEST(IOTest, readShapeSet_luaNamedGeometryOperatorsWithNestedRef)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
 
+TEST(IOTest, readShapeSet_luaNamedOperatorCallbackIsEvaluatedOnceAndReused)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local callback_calls = 0
+
+    dimensions = 2
+
+    named_operators = {
+      {
+        name = "shared_callback",
+        units = "cm",
+        value = {
+          {
+            translate = function()
+              callback_calls = callback_calls + 1
+              return {callback_calls, 2}
+            end
+          }
+        }
+      }
+    }
+
+    shapes = {
+      {
+        name = "first",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "first.stl",
+          units = "cm",
+          operators = {
+            { ref = "shared_callback" }
+          }
+        }
+      },
+      {
+        name = "second",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "second.stl",
+          units = "cm",
+          operators = {
+            { ref = "shared_callback" }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(2u, shapeSet.getShapes().size());
+  auto firstComposite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  auto secondComposite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[1].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(firstComposite);
+  ASSERT_TRUE(secondComposite);
+  ASSERT_EQ(1u, firstComposite->getOperators().size());
+  ASSERT_EQ(1u, secondComposite->getOperators().size());
+
+  // Both refs reuse the concrete named operator built before either shape.
+  EXPECT_EQ(firstComposite->getOperators()[0], secondComposite->getOperators()[0]);
+  auto sharedOperator =
+    std::dynamic_pointer_cast<const CompositeOperator>(firstComposite->getOperators()[0]);
+  ASSERT_TRUE(sharedOperator);
+  ASSERT_EQ(1u, sharedOperator->getOperators().size());
+  auto translation =
+    std::dynamic_pointer_cast<const Translation>(sharedOperator->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1, 2, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaNamedOperatorCallbackErrorIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+
+      named_operators = {
+        {
+          name = "bad_named_operator",
+          units = "cm",
+          value = {
+            {
+              translate = function()
+                error("named callback boom")
+              end
+            }
+          }
+        }
+      }
+
+      shapes = {
+        {
+          name = "placeholder",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "placeholder.stl",
+            units = "cm"
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError &err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("translate"));
+    EXPECT_THAT(err.what(), HasSubstr("named operator"));
+    EXPECT_THAT(err.what(), HasSubstr("bad_named_operator"));
+    EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+    EXPECT_THAT(err.what(), HasSubstr("named callback boom"));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaDifferentDimensions)
 {
   auto shapeSet = readShapeSetFromString(R"(

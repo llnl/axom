@@ -1535,7 +1535,7 @@ Function& Container::getFunctionValueAlternative(const std::string& inputPath) c
   SLIC_ERROR_IF(
     iter == m_functionValueAlternatives.end(),
     axom::fmt::format("[Inlet] Function value alternative not found for input path: {0}", inputPath));
-  
+
   return *iter->second;
 }
 

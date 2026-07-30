@@ -69,13 +69,13 @@ public:
    *
    * @param startProperties properties of the geometry before the first operator
    * @param namedOperators a map of any named operators
-   * @param shapeName the owning shape name, or empty for named operators
+   * @param ownerLabel a description of the owning shape or named operator, for callback errors
    * @return the (possibly null) operator
    * @throws KleeError if the operator data is invalid for the given properties
    */
   std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties &startProperties,
                                                  const NamedOperatorMap &namedOperators,
-                                                 const std::string &shapeName) const;
+                                                 const std::string &ownerLabel) const;
 
   /**
    * Get the path of this operator in the source document
