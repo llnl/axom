@@ -125,6 +125,19 @@ double getScalar(const inlet::Container &container,
   return container[fieldName].get<double>();
 }
 
+std::string getString(const inlet::Container &container,
+                      char const *fieldName,
+                      const std::string &ownerLabel)
+{
+  if(hasCallback(container, fieldName))
+  {
+    return wrapCallbackErrors<std::string>(container, fieldName, ownerLabel, [&]() {
+      return container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::String>();
+    });
+  }
+  return container[fieldName].get<std::string>();
+}
+
 std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vector &value)
 {
   std::vector<double> result;
@@ -358,22 +371,32 @@ OpPtr parseRotate(const SingleOperatorData &data,
   case Dimensions::Two:
   {
     verifyObjectFields(opContainer, "rotate", FieldSet {}, {"center"});
+    auto angle = getScalar(opContainer, "rotate", ownerLabel);
+    auto center =
+      getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, ownerLabel);
     Vector3D axis {0, 0, 1};
-    return std::make_shared<Rotation>(
-      getScalar(opContainer, "rotate", ownerLabel),
-      getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, ownerLabel),
-      axis,
-      startProperties);
+    return std::make_shared<Rotation>(angle, center, axis, startProperties);
   }
   break;
   case Dimensions::Three:
   {
     verifyObjectFields(opContainer, "rotate", {"axis"}, {"center"});
-    return std::make_shared<Rotation>(
-      getScalar(opContainer, "rotate", ownerLabel),
-      getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, ownerLabel),
-      getVector(opContainer, "axis", Dimensions::Three, ownerLabel),
-      startProperties);
+    auto angle = getScalar(opContainer, "rotate", ownerLabel);
+    auto center =
+      getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, ownerLabel);
+    auto axis = getVector(opContainer, "axis", Dimensions::Three, ownerLabel);
+    if(axis.is_zero())
+    {
+      auto message = std::string {"The 'axis' vector must not be a zero vector"};
+      if(hasCallback(opContainer, "axis"))
+      {
+        message = axom::fmt::format("{}: {}",
+                                    callbackContext(opContainer, "axis", ownerLabel),
+                                    message);
+      }
+      throw KleeError({fieldPath(opContainer, "axis"), message});
+    }
+    return std::make_shared<Rotation>(angle, center, axis, startProperties);
   }
   break;
   default:
@@ -554,11 +577,10 @@ OpPtr parseSlice(const SingleOperatorData &data,
 
   verifyObjectFields(sliceContainer, "origin", {"normal", "up"}, FieldSet {});
 
-  return makeCheckedSlice(getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel),
-                          getVector(sliceContainer, "normal", Dimensions::Three, ownerLabel),
-                          getVector(sliceContainer, "up", Dimensions::Three, ownerLabel),
-                          startProperties,
-                          sliceContainer.name());
+  auto origin = getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel);
+  auto normal = getVector(sliceContainer, "normal", Dimensions::Three, ownerLabel);
+  auto up = getVector(sliceContainer, "up", Dimensions::Three, ownerLabel);
+  return makeCheckedSlice(origin, normal, up, startProperties, sliceContainer.name());
 }
 
 /**
@@ -642,11 +664,30 @@ OpPtr parseScale(const SingleOperatorData &data,
  */
 OpPtr parseConvertUnits(const SingleOperatorData &data,
                         const TransformableGeometryProperties &startProperties,
-                        const std::string &)
+                        const std::string &ownerLabel)
 {
   const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "convert_units_to", FieldSet {}, FieldSet {});
-  auto endUnits = internal::parseLengthUnits(opContainer["convert_units_to"]);
+  const auto unitName = getString(opContainer, "convert_units_to", ownerLabel);
+  const auto path = fieldPath(opContainer, "convert_units_to");
+  LengthUnit endUnits;
+  try
+  {
+    endUnits = internal::parseLengthUnits(unitName, static_cast<std::string>(path));
+  }
+  catch(const KleeError &err)
+  {
+    if(!hasCallback(opContainer, "convert_units_to"))
+    {
+      throw;
+    }
+    throw KleeError(
+      {path,
+       axom::fmt::format(
+         "{}: {}",
+         callbackContext(opContainer, "convert_units_to", ownerLabel),
+         err.what())});
+  }
   return std::make_shared<UnitConverter>(endUnits, startProperties);
 }
 
@@ -661,18 +702,25 @@ OpPtr parseConvertUnits(const SingleOperatorData &data,
  */
 OpPtr parseRef(const SingleOperatorData &data,
                const TransformableGeometryProperties &startProperties,
-               const NamedOperatorMap &namedOperators)
+               const NamedOperatorMap &namedOperators,
+               const std::string &ownerLabel)
 {
   const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "ref", FieldSet {}, FieldSet {});
-  std::string const& operatorName = opContainer["ref"];
+  const auto operatorName = getString(opContainer, "ref", ownerLabel);
   auto opIter = namedOperators.find(operatorName);
   if(opIter == namedOperators.end())
   {
     std::string message = "No operator named '";
     message += operatorName;
     message += '\'';
-    throw KleeError({opContainer["ref"].name(), message});
+    if(hasCallback(opContainer, "ref"))
+    {
+      message = axom::fmt::format("{}: {}",
+                                  callbackContext(opContainer, "ref", ownerLabel),
+                                  message);
+    }
+    throw KleeError({fieldPath(opContainer, "ref"), message});
   }
   auto referencedOperator = opIter->second;
   bool startUnitsMatch = startProperties.units == referencedOperator->getStartProperties().units;
@@ -722,8 +770,8 @@ OpPtr convertOperator(SingleOperatorData const& data,
     {"ref",
      [&namedOperators](const SingleOperatorData &opData,
                        const TransformableGeometryProperties &startProperties,
-                       const std::string &) {
-       return parseRef(opData, startProperties, namedOperators);
+                       const std::string &ownerLabel) {
+       return parseRef(opData, startProperties, namedOperators, ownerLabel);
      }},
   };
 
@@ -785,6 +833,8 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
     addCallbackAlternative(opContainer, "center", inlet::FunctionTag::Vector);
     addCallbackAlternative(opContainer, "axis", inlet::FunctionTag::Vector);
     addCallbackAlternative(opContainer, "scale", inlet::FunctionTag::Vector);
+    addCallbackAlternative(opContainer, "convert_units_to", inlet::FunctionTag::String);
+    addCallbackAlternative(opContainer, "ref", inlet::FunctionTag::String);
 
     addCallbackAlternative(slice, "x", inlet::FunctionTag::Double);
     addCallbackAlternative(slice, "y", inlet::FunctionTag::Double);

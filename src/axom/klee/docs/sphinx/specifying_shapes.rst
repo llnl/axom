@@ -245,6 +245,17 @@ Callbacks in a named operator are evaluated when that named operator is
 constructed. Each :code:`ref` reuses the resulting concrete operator rather
 than evaluating its callbacks again for the referring shape.
 
+Callback evaluation order is deterministic. Klee processes
+:code:`named_operators` before :code:`shapes`, entries in each list in source
+order, and each geometry's operators in source order. Within a multi-field
+operator, fields are evaluated in this order:
+
+* :code:`rotate`, then :code:`center`, then :code:`axis` (when present)
+* :code:`scale`, then :code:`center` (when present)
+* perpendicular slice :code:`x`, :code:`y`, or :code:`z`, then
+  :code:`origin`, :code:`normal`, and :code:`up` (when present)
+* arbitrary slice :code:`origin`, then :code:`normal`, then :code:`up`
+
 .. code-block:: lua
 
     local dim = 2
@@ -280,10 +291,11 @@ than evaluating its callbacks again for the referring shape.
 Vector-valued callbacks return raw numeric Lua tables such as :code:`{x, y}` or :code:`{x, y, z}`.
 The typed :code:`Vector.new(...)` object is also accepted.
 Scalar-valued callbacks return a number.
+String-valued callbacks return a string.
 Supported callback fields are
-:code:`translate`, :code:`axis`, :code:`center`, :code:`scale`,
-:code:`slice.origin`, :code:`slice.normal`, :code:`slice.up`, :code:`rotate`,
-:code:`slice.x`, :code:`slice.y`, and :code:`slice.z`.
+:code:`translate`, :code:`axis`, :code:`center`, :code:`scale`, :code:`slice.origin`,
+:code:`slice.normal`, :code:`slice.up`, :code:`rotate`, :code:`slice.x`,
+:code:`slice.y`, :code:`slice.z`, :code:`convert_units_to`, and :code:`ref`.
 For :code:`scale`, a one-entry table means uniform scaling and a multi-entry table means per-axis scaling.
 
 Common Lua input errors are reported as Klee parsing errors.
@@ -523,7 +535,7 @@ Operators may also have additional required or optional parameters.
   :value: an angle, in degrees by which the shape will be rotated
     counterclockwise.
   :additional required parameters:
-    :axis: (3D only) the axis of rotation
+    :axis: (3D only) the nonzero axis of rotation
   :optional arguments:
     :center: a point specifying the center of rotation
   :example:
@@ -716,7 +728,8 @@ the transformation was defined when you use it.
 
 In addition to using :code:`ref` in an individual shape's operators, you
 can also use it in other named operators. The only restriction is that it
-be defined in the list before it is used.
+be defined in the list before it is used. For Lua input, this restriction also
+applies when a :code:`ref` callback returns the operator name.
 
 .. code-block:: yaml
 

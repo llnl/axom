@@ -25,6 +25,17 @@ namespace internal
 {
 
 /*!
+ * \brief Parse a unit string, reporting an invalid value at the supplied input path.
+ *
+ * \param unitsAsString the unit string to parse
+ * \param path the input path to report on failure
+ *
+ * \return A LengthUnit containing the unit type.
+ * \throws KleeError if the unit string is invalid
+ */
+LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path);
+
+/*!
  * \brief This function parses a string and returns a LengthUnit. It is a compatibility
  *        function that throws a KleeError if the unit is invalid.
  *

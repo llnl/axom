@@ -336,6 +336,23 @@ TEST(GeometryOperatorsIO, readRotation_3D_optionalFields)
   EXPECT_EQ(expectedProperties, rotation.getEndProperties());
 }
 
+TEST(GeometryOperatorsIO, readRotation_3D_zeroAxis)
+{
+  try
+  {
+    readSingleOperator<Rotation>({Dimensions::Three, LengthUnit::cm}, R"(
+      rotate: 45
+      axis: [0, 0, 0]
+    )");
+    FAIL() << "Should have rejected a zero rotation axis";
+  }
+  catch(const KleeError &err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("axis"));
+    EXPECT_THAT(err.what(), HasSubstr("zero"));
+  }
+}
+
 TEST(GeometryOperatorsIO, readRotation_3D_axisMissing)
 {
   try
