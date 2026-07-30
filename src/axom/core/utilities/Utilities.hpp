@@ -494,7 +494,8 @@ AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
 {
   std::int32_t index = -1;
   std::int32_t left = 0;
-  std::int32_t right = cont.size() - 1;
+  const std::int32_t cont_size = static_cast<std::int32_t>(cont.size());
+  std::int32_t right = cont_size - 1;
   while(left <= right)
   {
     std::int32_t m = (left + right) / 2;

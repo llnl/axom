@@ -200,42 +200,46 @@ TEST(primal_nurbspatch, knotless_array_constructors)
                             9.309, 10.319, 11.329};
   // clang-format on
 
-  auto check_patch =
-    [=](const NURBSPatchType& patch, int deg_u, int deg_v, int npts_u, int npts_v, bool expect_rational) {
-      EXPECT_EQ(deg_u, patch.getDegree_u());
-      EXPECT_EQ(deg_v, patch.getDegree_v());
+  auto check_patch = [=](const NURBSPatchType& patch,
+                         int deg_u,
+                         int deg_v,
+                         int expected_npts_u,
+                         int expected_npts_v,
+                         bool expect_rational) {
+    EXPECT_EQ(deg_u, patch.getDegree_u());
+    EXPECT_EQ(deg_v, patch.getDegree_v());
 
-      EXPECT_EQ(npts_u, patch.getControlPoints().shape()[0]);
-      EXPECT_EQ(npts_v, patch.getControlPoints().shape()[1]);
-      EXPECT_EQ(npts_u * npts_v, patch.getControlPoints().size());
+    EXPECT_EQ(expected_npts_u, patch.getControlPoints().shape()[0]);
+    EXPECT_EQ(expected_npts_v, patch.getControlPoints().shape()[1]);
+    EXPECT_EQ(expected_npts_u * expected_npts_v, patch.getControlPoints().size());
 
-      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
-      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
+    EXPECT_EQ(expected_npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
+    EXPECT_EQ(expected_npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
 
-      if(expect_rational)
+    if(expect_rational)
+    {
+      EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
+      EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
+      EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
+    }
+    else
+    {
+      EXPECT_TRUE(patch.getWeights().empty());
+    }
+
+    int idx = 0;
+    for(int u = 0; u < npts_u; ++u)
+    {
+      for(int v = 0; v < npts_v; ++v, ++idx)
       {
-        EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
-        EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
-        EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
-      }
-      else
-      {
-        EXPECT_TRUE(patch.getWeights().empty());
-      }
-
-      int idx = 0;
-      for(int u = 0; u < npts_u; ++u)
-      {
-        for(int v = 0; v < npts_v; ++v, ++idx)
+        EXPECT_EQ(patch(u, v), controlPoints[idx]);
+        if(expect_rational)
         {
-          EXPECT_EQ(patch(u, v), controlPoints[idx]);
-          if(expect_rational)
-          {
-            EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
-          }
+          EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
         }
       }
-    };
+    }
+  };
 
   // test C-array constructors
   {
@@ -321,42 +325,46 @@ TEST(primal_nurbspatch, knot_array_constructor)
   double knots_u[npts_u + degree_u + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
   double knots_v[npts_v + degree_v + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
 
-  auto check_patch =
-    [=](const NURBSPatchType& patch, int deg_u, int deg_v, int npts_u, int npts_v, bool expect_rational) {
-      EXPECT_EQ(deg_u, patch.getDegree_u());
-      EXPECT_EQ(deg_v, patch.getDegree_v());
+  auto check_patch = [=](const NURBSPatchType& patch,
+                         int deg_u,
+                         int deg_v,
+                         int expected_npts_u,
+                         int expected_npts_v,
+                         bool expect_rational) {
+    EXPECT_EQ(deg_u, patch.getDegree_u());
+    EXPECT_EQ(deg_v, patch.getDegree_v());
 
-      EXPECT_EQ(npts_u, patch.getControlPoints().shape()[0]);
-      EXPECT_EQ(npts_v, patch.getControlPoints().shape()[1]);
-      EXPECT_EQ(npts_u * npts_v, patch.getControlPoints().size());
+    EXPECT_EQ(expected_npts_u, patch.getControlPoints().shape()[0]);
+    EXPECT_EQ(expected_npts_v, patch.getControlPoints().shape()[1]);
+    EXPECT_EQ(expected_npts_u * expected_npts_v, patch.getControlPoints().size());
 
-      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
-      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
+    EXPECT_EQ(expected_npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
+    EXPECT_EQ(expected_npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
 
-      if(expect_rational)
+    if(expect_rational)
+    {
+      EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
+      EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
+      EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
+    }
+    else
+    {
+      EXPECT_TRUE(patch.getWeights().empty());
+    }
+
+    int idx = 0;
+    for(int u = 0; u < npts_u; ++u)
+    {
+      for(int v = 0; v < npts_v; ++v, ++idx)
       {
-        EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
-        EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
-        EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
-      }
-      else
-      {
-        EXPECT_TRUE(patch.getWeights().empty());
-      }
-
-      int idx = 0;
-      for(int u = 0; u < npts_u; ++u)
-      {
-        for(int v = 0; v < npts_v; ++v, ++idx)
+        EXPECT_EQ(patch(u, v), controlPoints[idx]);
+        if(expect_rational)
         {
-          EXPECT_EQ(patch(u, v), controlPoints[idx]);
-          if(expect_rational)
-          {
-            EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
-          }
+          EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
         }
       }
-    };
+    }
+  };
 
   // test from C-style arrays
   {
@@ -626,6 +634,56 @@ TEST(primal_nurbspatch, isocurve_evaluate)
         EXPECT_NEAR(pt_v[k], isocurves_v[i][j][k], 1e-10);
       }
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbspatch, float_knot_array_constructor_and_isocurves)
+{
+  constexpr int DIM = 3;
+  using CoordType = float;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+
+  constexpr axom::IndexType npts_u = 3;
+  constexpr axom::IndexType npts_v = 2;
+  constexpr int degree_u = 2;
+  constexpr int degree_v = 1;
+
+  PointType controlPoints[npts_u * npts_v] = {PointType {0.f, 0.f, 0.f},
+                                              PointType {0.f, 1.f, 1.f},
+                                              PointType {1.f, 0.f, 0.f},
+                                              PointType {1.f, 1.f, 1.f},
+                                              PointType {2.f, 0.f, 0.f},
+                                              PointType {2.f, 1.f, 1.f}};
+  CoordType weights[npts_u * npts_v] = {1.f, 2.f, 2.f, 3.f, 1.f, 2.f};
+  CoordType knots_u[npts_u + degree_u + 1] = {0.f, 0.f, 0.f, 1.f, 1.f, 1.f};
+  CoordType knots_v[npts_v + degree_v + 1] = {0.f, 0.f, 1.f, 1.f};
+
+  NURBSPatchType patch(controlPoints,
+                       weights,
+                       npts_u,
+                       npts_v,
+                       knots_u,
+                       static_cast<int>(npts_u + degree_u + 1),
+                       knots_v,
+                       static_cast<int>(npts_v + degree_v + 1));
+
+  ASSERT_TRUE(patch.isValidNURBS());
+  ASSERT_TRUE(patch.isRational());
+  EXPECT_EQ(patch.getDegree_u(), degree_u);
+  EXPECT_EQ(patch.getDegree_v(), degree_v);
+
+  const CoordType u = 0.5f;
+  const CoordType v = 0.25f;
+  const auto surface_pt = patch.evaluate(u, v);
+  const auto isocurve_u_pt = patch.isocurve_u(u).evaluate(v);
+  const auto isocurve_v_pt = patch.isocurve_v(v).evaluate(u);
+
+  for(int dim = 0; dim < DIM; ++dim)
+  {
+    EXPECT_NEAR(surface_pt[dim], isocurve_u_pt[dim], 1.e-5f);
+    EXPECT_NEAR(surface_pt[dim], isocurve_v_pt[dim], 1.e-5f);
   }
 }
 
@@ -1644,8 +1702,8 @@ TEST(primal_nurbspatch, extract_degenerate)
 
     EXPECT_EQ(bezier_list_u.size(), npts_u * v_spans);
 
-    axom::numerics::linspace(0.0, 1.0, u_ranges, u_spans + 1);
-    axom::numerics::linspace(0.0, 1.0, v_ranges, v_spans + 1);
+    axom::numerics::linspace(0.0, 1.0, u_ranges, static_cast<int>(u_spans + 1));
+    axom::numerics::linspace(0.0, 1.0, v_ranges, static_cast<int>(v_spans + 1));
 
     // bezier_list is ordered lexicographically by v, then u
     for(int i = 0; i < u_spans; ++i)
@@ -1689,8 +1747,8 @@ TEST(primal_nurbspatch, extract_degenerate)
 
     EXPECT_EQ(bezier_list_v.size(), npts_v * u_spans);
 
-    axom::numerics::linspace(0.0, 1.0, u_ranges, u_spans + 1);
-    axom::numerics::linspace(0.0, 1.0, v_ranges, v_spans + 1);
+    axom::numerics::linspace(0.0, 1.0, u_ranges, static_cast<int>(u_spans + 1));
+    axom::numerics::linspace(0.0, 1.0, v_ranges, static_cast<int>(v_spans + 1));
 
     // bezier_list is ordered lexicographically by v, then u
     for(int i = 0; i < u_spans; ++i)

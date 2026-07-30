@@ -6,6 +6,7 @@
 
 #include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/core/utilities/System.hpp"
 #include "axom/fmt.hpp"
 
 #include <filesystem>
@@ -219,8 +220,8 @@ TempFile::TempFile(const std::string& file_name, const std::string& ext)
 #else
   // create a tmp file with the requested prefix
   // note: mkstemp requires the last six chars to be "XXXXXX"
-  const char* tmpdir = getenv("TMPDIR");
-  const std::string dir = tmpdir ? tmpdir : "/tmp";
+  const std::string tmpdir = getEnvironmentVariable("TMPDIR");
+  const std::string dir = tmpdir.empty() ? "/tmp" : tmpdir;
   const std::string tmp_file_name = joinPath(dir, file_name + "XXXXXX");
   std::vector<char> buf(tmp_file_name.begin(), tmp_file_name.end());
   buf.push_back('\0');

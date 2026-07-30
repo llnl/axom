@@ -103,14 +103,14 @@ int lu_decompose(Matrix<T>& LU, int* pivots)
   {
     // descend down the ith column and find pivot
     T max_element = utilities::abs(LU(i, i));  // stores max element
-    pivots[i] = i;                             // row of max element
+    pivots[i] = static_cast<int>(i);           // row of max element
     for(IndexType j = i + 1; j < size; ++j)
     {
       T abs_value = utilities::abs(LU(j, i));
       if(max_element < abs_value)
       {
         max_element = abs_value;
-        pivots[i] = j;
+        pivots[i] = static_cast<int>(j);
       }
 
     }  // END for all rows

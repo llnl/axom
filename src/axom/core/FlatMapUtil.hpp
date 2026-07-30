@@ -270,7 +270,7 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
   // duplicates overwrite earlier ones.
   if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
   {
-    const IndexType num_elems = std::distance(kv_begin, kv_end);
+    const IndexType num_elems = static_cast<IndexType>(std::distance(kv_begin, kv_end));
 
     // Ensure we have enough capacity up-front to avoid repeated rehashing.
     this->reserve(this->size() + num_elems);
@@ -290,7 +290,7 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
     using HashResult = typename Hash::result_type;
     using GroupBucket = detail::flat_map::GroupBucket;
 
-    IndexType num_elems = std::distance(kv_begin, kv_end);
+    IndexType num_elems = static_cast<IndexType>(std::distance(kv_begin, kv_end));
 
     // Batched insertion assumes probing sequences are gap-free
     // (i.e., there are no tombstones from prior erase() operations).
@@ -362,7 +362,7 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
         const auto init =
           detail::flat_map::SequentialLookupPolicy<HashResult>::initGroupProbe(hash, ngroups_pow_2);
         const HashResult group_mask = init.group_mask;
-        HashResult curr_group = init.curr_group;
+        IndexType curr_group = init.curr_group;
 
         std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
 
@@ -468,7 +468,9 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
             else
             {
               // Move to next group.
-              curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) & group_mask;
+              curr_group = static_cast<IndexType>(
+                (static_cast<HashResult>(curr_group) + LookupPolicy {}.getNext(iteration)) &
+                group_mask);
               iteration++;
             }
           }

@@ -790,9 +790,9 @@ inline bool oneZeroOthersMatch(double x, double y, double z, double EPS)
 AXOM_HOST_DEVICE
 inline int countZeros(double x, double y, double z, double EPS)
 {
-  return (int)axom::utilities::isNearlyEqual(x, 0.0, EPS) +
-    (int)axom::utilities::isNearlyEqual(y, 0.0, EPS) +
-    (int)axom::utilities::isNearlyEqual(z, 0.0, EPS);
+  return static_cast<int>(axom::utilities::isNearlyEqual(x, 0.0, EPS)) +
+    static_cast<int>(axom::utilities::isNearlyEqual(y, 0.0, EPS)) +
+    static_cast<int>(axom::utilities::isNearlyEqual(z, 0.0, EPS));
 }
 
 /*! @} */

@@ -41,7 +41,7 @@ struct execution_space<OMP_EXEC>
   static constexpr bool async() noexcept { return false; }
   static constexpr bool valid() noexcept { return true; }
   static constexpr bool onDevice() noexcept { return false; }
-  static constexpr char* name() noexcept { return (char*)"[OMP_EXEC]"; }
+  static constexpr const char* name() noexcept { return "[OMP_EXEC]"; }
 
   static int allocatorID() noexcept { return axom::getAllocatorIDFromMemorySpace(memory_space); }
   static constexpr runtime_policy::Policy runtimePolicy() noexcept

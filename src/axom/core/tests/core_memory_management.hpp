@@ -797,7 +797,7 @@ TEST(core_memory_management, allocator_id_from_pointer)
   axom::deallocate<int>(buf);
 
   // Allocate directly (not through allocator).
-  buf = (int*)std::malloc(N * sizeof(int));
+  buf = static_cast<int*>(std::malloc(N * sizeof(int)));
   id = axom::getAllocatorIDFromPointer(buf);
   EXPECT_EQ(id, axom::MALLOC_ALLOCATOR_ID);
   std::free(buf);
