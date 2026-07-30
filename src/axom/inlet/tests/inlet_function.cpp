@@ -83,6 +83,26 @@ TEST(inlet_function, simple_vec3_to_vec3_raw_table_return)
   EXPECT_FLOAT_EQ(result[2], 6);
 }
 
+TEST(inlet_function, vector_function_accepts_one_and_two_entry_table_returns)
+{
+  auto inlet = createBasicInlet(
+    "function one () return {4.0} end\n"
+    "function two () return {4.0, 5.0} end");
+
+  auto one = inlet.reader().getFunction("one", FunctionTag::Vector, {});
+  ASSERT_TRUE(one);
+  const auto oneResult = one.call<FunctionType::Vector>();
+  EXPECT_EQ(oneResult.dim, 1);
+  EXPECT_FLOAT_EQ(oneResult[0], 4.0);
+
+  auto two = inlet.reader().getFunction("two", FunctionTag::Vector, {});
+  ASSERT_TRUE(two);
+  const auto twoResult = two.call<FunctionType::Vector>();
+  EXPECT_EQ(twoResult.dim, 2);
+  EXPECT_FLOAT_EQ(twoResult[0], 4.0);
+  EXPECT_FLOAT_EQ(twoResult[1], 5.0);
+}
+
 TEST(inlet_function, vector_function_rejects_scalar_return)
 {
   auto inlet = createBasicInlet("function foo () return 2.0 end");
@@ -94,6 +114,7 @@ TEST(inlet_function, vector_function_rejects_scalar_return)
 
 TEST(inlet_function, vector_function_rejects_malformed_table_returns)
 {
+  // Lua vectors must be dense numeric sequences with a supported dimension.
   const std::array<std::string, 5> inputs {{
     "function foo () return {} end",
     "function foo () return {1, 2, 3, 4} end",
@@ -108,6 +129,39 @@ TEST(inlet_function, vector_function_rejects_malformed_table_returns)
     auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {});
     ASSERT_TRUE(func);
     EXPECT_THROW(func.call<FunctionType::Vector>(), std::runtime_error);
+  }
+}
+
+TEST(inlet_function, scalar_and_string_functions_reject_wrong_return_types)
+{
+  auto inlet = createBasicInlet(
+    "function scalar () return 'not a number' end\n"
+    "function string () return {} end");
+
+  auto scalar = inlet.reader().getFunction("scalar", FunctionTag::Double, {});
+  ASSERT_TRUE(scalar);
+  EXPECT_THROW(scalar.call<FunctionType::Double>(), std::runtime_error);
+
+  auto string = inlet.reader().getFunction("string", FunctionTag::String, {});
+  ASSERT_TRUE(string);
+  EXPECT_THROW(string.call<FunctionType::String>(), std::runtime_error);
+}
+
+TEST(inlet_function, lua_callback_runtime_error_is_catchable)
+{
+  auto inlet = createBasicInlet("function foo () error('callback failed') end");
+  auto func = inlet.reader().getFunction("foo", FunctionTag::Double, {});
+  ASSERT_TRUE(func);
+
+  try
+  {
+    func.call<FunctionType::Double>();
+    FAIL() << "Expected the Lua callback to throw";
+  }
+  catch(const std::runtime_error& error)
+  {
+    EXPECT_NE(std::string(error.what()).find("callback failed"),
+              std::string::npos);
   }
 }
 
@@ -200,6 +254,7 @@ TEST(inlet_function, explicit_exact_function_input_path)
 
 TEST(inlet_function, function_value_alternative_is_schema_order_independent)
 {
+  // Both schema entries inspect "foo"; declaration order must not select one.
   const auto addSchema = [](Inlet& inlet, bool functionFirst) {
     if(!functionFirst)
     {
@@ -244,8 +299,84 @@ TEST(inlet_function, function_value_alternative_preserves_concrete_value)
   EXPECT_DOUBLE_EQ(inlet["foo"].get<double>(), 4.0);
 }
 
+TEST(inlet_function, required_function_value_alternative_missing)
+{
+  auto inlet = createBasicInlet("");
+  inlet.addDouble("foo");
+  inlet
+    .addFunctionAsValueAlternative(
+      "foo_callback",
+      FunctionTag::Double,
+      {},
+      "foo")
+    .required();
+
+  std::vector<VerificationError> errors;
+  EXPECT_FALSE(inlet.verify(&errors));
+  EXPECT_FALSE(errors.empty());
+  EXPECT_FALSE(inlet.contains("foo"));
+  EXPECT_FALSE(inlet.contains("foo_callback"));
+  EXPECT_FALSE(inlet.getGlobalContainer().exists());
+}
+
+TEST(inlet_function, function_value_alternative_rejects_unrelated_wrong_type)
+{
+  const auto addSchema = [](Inlet& inlet, bool functionFirst) {
+    if(!functionFirst)
+    {
+      inlet.addDouble("foo");
+    }
+    inlet.addFunctionAsValueAlternative(
+      "foo_callback",
+      FunctionTag::Double,
+      {},
+      "foo");
+    if(functionFirst)
+    {
+      inlet.addDouble("foo");
+    }
+  };
+
+  for(const bool functionFirst : {true, false})
+  {
+    auto inlet = createBasicInlet("foo = 'not a number or function'");
+    addSchema(inlet, functionFirst);
+
+    EXPECT_FALSE(inlet.verify());
+    EXPECT_FALSE(inlet.contains("foo"));
+    EXPECT_FALSE(inlet.contains("foo_callback"));
+    // The input exists even though neither schema entry accepts its type.
+    EXPECT_TRUE(inlet.isUserProvided("foo"));
+    EXPECT_FALSE(inlet.isUserProvided("foo_callback"));
+    EXPECT_FALSE(inlet.getGlobalContainer().exists());
+  }
+}
+
+TEST(inlet_function, function_value_alternative_is_valid_in_strict_container)
+{
+  for(const bool useFunction : {true, false})
+  {
+    auto inlet =
+      createBasicInlet(useFunction ? "function foo () return 2.0 end" : "foo = 4.0");
+    inlet.getGlobalContainer().strict();
+    inlet.addFunctionAsValueAlternative(
+      "foo_callback",
+      FunctionTag::Double,
+      {},
+      "foo");
+    inlet.addDouble("foo");
+
+    EXPECT_TRUE(inlet.verify());
+    EXPECT_TRUE(inlet.unexpectedNames().empty());
+    EXPECT_EQ(inlet.contains("foo_callback"), useFunction);
+    EXPECT_EQ(inlet.contains("foo"), !useFunction);
+    EXPECT_TRUE(inlet.getGlobalContainer().exists());
+  }
+}
+
 TEST(inlet_function, returned_function_keeps_lua_state_alive)
 {
+  // An extracted callback must retain its Lua state after Inlet is destroyed.
   std::function<double(double)> callback;
   {
     auto inlet = createBasicInlet(
@@ -255,6 +386,26 @@ TEST(inlet_function, returned_function_keeps_lua_state_alive)
   }
 
   EXPECT_DOUBLE_EQ(callback(4.0), 7.0);
+}
+
+TEST(inlet_function, returned_functions_share_their_lua_state)
+{
+  std::function<double()> increment;
+  std::function<double()> current;
+  {
+    auto inlet = createBasicInlet(
+      "value = 0\n"
+      "function increment () value = value + 1; return value end\n"
+      "function current () return value end");
+    inlet.addFunction("increment", FunctionTag::Double, {});
+    inlet.addFunction("current", FunctionTag::Double, {});
+    increment = inlet["increment"].get<std::function<double()>>();
+    current = inlet["current"].get<std::function<double()>>();
+  }
+
+  EXPECT_DOUBLE_EQ(current(), 0.0);
+  EXPECT_DOUBLE_EQ(increment(), 1.0);
+  EXPECT_DOUBLE_EQ(current(), 1.0);
 }
 
 TEST(inlet_function, simple_void_to_double_through_container)
@@ -574,6 +725,7 @@ TEST(inlet_function, explicit_relative_function_input_path_in_nested_dictionary_
   auto& group_container = inlet.addStructArray("groups");
   auto& dict_container = group_container.addStructDictionary("foo");
   dict_container.addBool("bar");
+  // Resolve "callback" from each dictionary value, not the enclosing schema.
   dict_container.addFunction(
     "baz",
     FunctionTag::Vector,

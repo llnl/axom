@@ -100,9 +100,10 @@ Prefer ``InputPath`` when adding new aliases so this behavior is explicit at the
 Functions as value alternatives
 -------------------------------
 
-Some schemas accept either a concrete value or a function that computes that value. Use
-``addFunctionAsValueAlternative`` to declare this relationship explicitly. The callback
-has its own schema name but reads from the same input path as the concrete field:
+Some schemas accept either a concrete value or a function that computes that value.
+Use ``addFunctionAsValueAlternative`` to declare this relationship explicitly. 
+The callback has its own schema name but reads from the same input path
+as the concrete field:
 
 .. code-block:: C++
 
@@ -113,12 +114,22 @@ has its own schema name but reads from the same input path as the concrete field
     "scale");
   inlet.addDoubleArray("scale");
 
-With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``, while
-``scale = function() return {2.0, 3.0, 4.0} end`` populates ``scale_callback``.
+With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``,
+while ``scale = function() return {2.0, 3.0, 4.0} end`` populates ``scale_callback``.
 The two schema entries may be added in either order. A function encountered at a normal
 field path remains a type error unless this alternative has been declared.
 ``addFunctionAsValueAlternative`` also accepts an ``InputPath`` descriptor when exact
 or collection-relative resolution needs to be explicit.
+
+Only the selected schema entry exists: ``contains`` reports the concrete field when a
+value was supplied and the function entry when a callback was supplied. A value with an
+unrelated type matches neither entry and fails verification. The shared input path is
+recognized by strict containers and is not reported as unexpected.
+
+The returned function and the concrete field remain independently verifiable schema entries.
+Consequently, ``required()`` and registered verifiers apply to the entry on
+which they are configured. The narrow value-alternative API does not currently provide
+a group-level annotation meaning "either representation is required."
 
 Accessing
 ---------
