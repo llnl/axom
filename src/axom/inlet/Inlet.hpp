@@ -430,6 +430,30 @@ public:
   {
     return m_globalContainer.addFunction(name, ret_type, arg_types, description);
   }
+
+  /*!
+   *****************************************************************************
+   * \brief Get a function that is an alternative representation of a primitive
+   * value or collection in the input deck.
+   *
+   * \see Container::addFunctionAsValueAlternative
+   *****************************************************************************
+   */
+  Verifiable<Function>& addFunctionAsValueAlternative(
+    const std::string& name,
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const std::string& inputPath,
+    const std::string& description = "")
+  {
+    return m_globalContainer.addFunctionAsValueAlternative(
+      name,
+      ret_type,
+      arg_types,
+      inputPath,
+      description);
+  }
+
   /*!
    *****************************************************************************
    * \brief Add a dictionary of Boolean Fields to the input file schema.

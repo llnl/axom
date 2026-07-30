@@ -1369,7 +1369,10 @@ TEST(IOTest, readShapeSet_luaOperatorCallbacks)
               center = function() return Vector.new(1, 2, 3) end
             },
             { translate = function() return {4, 5, 6} end },
-            { scale = function() return {2.0} end },
+            {
+              scale = function() return {2.0} end,
+              center = function() return {3, 4, 5} end
+            },
             {
               scale = function() return {1.5, 2.5, 3.5} end,
               center = function() return {1, 1, 1} end
@@ -1422,6 +1425,7 @@ TEST(IOTest, readShapeSet_luaOperatorCallbacks)
   EXPECT_DOUBLE_EQ(2.0, uniformScale->getXFactor());
   EXPECT_DOUBLE_EQ(2.0, uniformScale->getYFactor());
   EXPECT_DOUBLE_EQ(2.0, uniformScale->getZFactor());
+  EXPECT_THAT(uniformScale->getCenter(), AlmostEqPoint(Point3D {3, 4, 5}));
 
   auto vectorScale = dynamic_cast<const Scale*>(composite->getOperators()[3].get());
   ASSERT_NE(vectorScale, nullptr);
@@ -1861,7 +1865,7 @@ TEST(IOTest, readShapeSet_geometryOperators_scaleWithCenter)
             path: path/to/file.format
             units: m
             operators:
-              - scale: [1.5, 2.5]
+              - scale: [1.5]
                 center: [10, 20]
     )");
   auto& shapes = shapeSet.getShapes();
@@ -1876,8 +1880,8 @@ TEST(IOTest, readShapeSet_geometryOperators_scaleWithCenter)
   auto scale = dynamic_cast<const Scale*>(composite->getOperators()[0].get());
   ASSERT_NE(scale, nullptr);
   EXPECT_DOUBLE_EQ(1.5, scale->getXFactor());
-  EXPECT_DOUBLE_EQ(2.5, scale->getYFactor());
-  EXPECT_DOUBLE_EQ(1.0, scale->getZFactor());
+  EXPECT_DOUBLE_EQ(1.5, scale->getYFactor());
+  EXPECT_DOUBLE_EQ(1.5, scale->getZFactor());
   EXPECT_THAT(scale->getCenter(), AlmostEqPoint(Point3D {10, 20, 0}));
 }
 
