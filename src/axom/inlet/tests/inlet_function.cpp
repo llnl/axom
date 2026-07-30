@@ -150,6 +150,21 @@ TEST(inlet_function, simple_double_to_double_through_container)
   EXPECT_FLOAT_EQ(result, (arg * 3.4) + 9.64);
 }
 
+TEST(inlet_function, function_path_override)
+{
+  auto inlet = createBasicInlet("function public_name (x) return x + 2 end");
+
+  auto& schema = inlet.addStruct("internal_group");
+  schema.addFunction("internal_name",
+                     FunctionTag::Double,
+                     {FunctionTag::Double},
+                     "",
+                     "public_name");
+
+  auto callback = inlet["internal_group/internal_name"].get<std::function<double(double)>>();
+  EXPECT_DOUBLE_EQ(callback(3.0), 5.0);
+}
+
 TEST(inlet_function, simple_void_to_double_through_container)
 {
   std::string testString = "function foo () return 9.64 end";
@@ -384,6 +399,29 @@ TEST(inlet_function, simple_vec3_to_vec3_array_of_struct)
   EXPECT_FLOAT_EQ(second_result[2], 18);
 }
 
+TEST(inlet_function, function_path_override_in_array_of_struct)
+{
+  std::string testString =
+    "foo = { [7] = { bar = true, "
+    "                callback = function (v) return 2*v end }, "
+    "       [12] = { bar = false, "
+    "                 callback = function (v) return 3*v end } "
+    "}";
+  auto inlet = createBasicInlet(testString);
+
+  auto& arr_container = inlet.addStructArray("foo");
+  arr_container.addBool("bar");
+  arr_container.addFunction("baz",
+                            FunctionTag::Vector,
+                            {FunctionTag::Vector},
+                            "",
+                            "callback");
+
+  auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
+  EXPECT_FLOAT_EQ(foos[7].baz({1, 2, 3})[0], 2);
+  EXPECT_FLOAT_EQ(foos[12].baz({1, 2, 3})[0], 3);
+}
+
 TEST(inlet_function, dimension_dependent_result)
 {
   std::string testString =
@@ -453,6 +491,26 @@ TEST(inlet_function, nested_function_in_struct)
   // Check that the function object contains a valid target
   EXPECT_TRUE(static_cast<bool>(second_func));
   EXPECT_DOUBLE_EQ(second_func(4.0), 7.0);
+}
+
+TEST(inlet_function, function_path_override_in_nested_struct)
+{
+  std::string testString =
+    "quux = { [0] = { foo = { callback = function (x) return x + 1 end } }, "
+    "         [1] = { foo = { callback = function (x) return x + 3 end } } }";
+  auto inlet = createBasicInlet(testString);
+
+  auto& quux_schema = inlet.addStructArray("quux");
+  auto& foo_schema = quux_schema.addStruct("foo");
+  foo_schema.addFunction("bar",
+                         FunctionTag::Double,
+                         {FunctionTag::Double},
+                         "",
+                         "callback");
+
+  auto foos = inlet["quux"].get<std::vector<FooWithScalarFunc>>();
+  EXPECT_DOUBLE_EQ(foos[0].bar(4.0), 5.0);
+  EXPECT_DOUBLE_EQ(foos[1].bar(4.0), 7.0);
 }
 
 template <typename Ret, typename... Args>
