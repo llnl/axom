@@ -166,6 +166,12 @@ Similarly, the Axom global allocator can be changed. For example::
     axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
   axom::setDefaultAllocator(allocId);
 
+  // Since Axom exposes additional MemorySpace enum values when configured with Umpire,
+  // the previous example can also be done this way
+  int allocId =
+    axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Pinned);
+  axom::setDefaultAllocator(allocId); 
+
 One important thing to note is that, when Umpire is enabled, you cannot set
 the global allocator to Axom malloc::
 
