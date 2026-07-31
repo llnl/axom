@@ -10,11 +10,11 @@
 # Build the thin, pip/uv-installable Axom wheel and exercise it end to end,
 # without using the run_python_with_axom.sh wrapper or updating the PYTHONPATH:
 #
-#   1. configure + build + install Axom (with Python bindings) from a docker t-config;
-#   2. build the wheel from src/python against that install (find_package(axom));
-#   3. install the wheel into a fresh uv venv;
-#   4. verify the wheel installed conduit.pth for the same-build Conduit python module;
-#   5. run the Sidre Python test suite with plain pytest.
+#   1. build the wheel from src/python against the prebuilt Axom install
+#      specified by AXOM_DIR or AXOM_INSTALL (find_package(axom));
+#   2. install the wheel into a fresh uv venv;
+#   3. verify the wheel installed conduit.pth for the same-build Conduit python module;
+#   4. run the Sidre Python test suite with plain pytest.
 #
 # Intended for the gcc docker image, which is nanobind-enabled.
 
@@ -24,67 +24,63 @@ set -e
 set -o pipefail
 set -x
 
-HOST_CONFIG="${HOST_CONFIG:-gcc@13.3.1.cmake}"
-BUILD_TYPE="${BUILD_TYPE:-Debug}"
-BUILD_DIR="${BUILD_DIR:-builddir_wheel}"
+HOST_CONFIG="${HOST_CONFIG:-host-configs/docker/gcc@13.3.1.cmake}"
 
 echo "~~~~ helpful info ~~~~"
 echo "USER=$(id -u -n)"
 echo "PWD=$(pwd)"
 echo "HOST_CONFIG=${HOST_CONFIG}"
-echo "BUILD_TYPE=${BUILD_TYPE}"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
-NUM_BUILD_PROCS=$(python3 -c 'import os; print(max(2, os.cpu_count() * 8 // 10))')
+absolute_path() {
+    local path="$1"
+    local dir
+    local base
+    dir=$(dirname "${path}")
+    base=$(basename "${path}")
+    printf "%s/%s" "$(cd "${dir}" && pwd -P)" "${base}"
+}
 
-echo "~~~~~~ CONFIGURE + BUILD + INSTALL AXOM (+python) ~~~~~~"
-python3 ./config-build.py \
-    -bp "${BUILD_DIR}" \
-    -hc "./host-configs/docker/${HOST_CONFIG}" \
-    -bt "${BUILD_TYPE}"
-cmake --build "${BUILD_DIR}" -j "${NUM_BUILD_PROCS}"
-cmake --install "${BUILD_DIR}"
-
-# Resolve the Axom install prefix from the CMake cache
-CACHE="${BUILD_DIR}/CMakeCache.txt"
-AXOM_INSTALL=$(awk -F= '/^CMAKE_INSTALL_PREFIX:[A-Z]*=/{print $2}' "${CACHE}")
-echo "AXOM_INSTALL=${AXOM_INSTALL}"
-
-if [[ -z "${AXOM_INSTALL}" || ! -d "${AXOM_INSTALL}" ]]; then
-    echo "ERROR: Axom install prefix not found (${AXOM_INSTALL})."
+if [[ ! -f "${HOST_CONFIG}" ]]; then
+    echo "ERROR: Host-config not found: ${HOST_CONFIG}" >&2
     exit 1
 fi
+HOST_CONFIG_PATH=$(absolute_path "${HOST_CONFIG}")
+echo "HOST_CONFIG_PATH=${HOST_CONFIG_PATH}"
 
-cache_value() {
-    awk -F= -v key="$1" '$1 ~ "^" key ":[^=]*$" {print $2; exit}' "${CACHE}"
-}
-
-cache_bool_is_on() {
-    local value
-    value=$(cache_value "$1")
-    case "${value^^}" in
-        ON|TRUE|YES|1)
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-require_cmake_define_from_cache() {
+# extract value from host-config line of the form `set(${name} ON CACHE BOOL "")`
+# then capitalizes it and looks for true-like patterns
+cmake_bool_from_file_is_on() {
     local name="$1"
     local value
-    value=$(cache_value "${name}")
-    if [[ -z "${value}" ]]; then
-        echo "ERROR: Required CMake cache entry ${name} was not found in ${CACHE}."
-        exit 1
-    fi
-    WHEEL_BUILD_ARGS+=("-C" "cmake.define.${name}=${value}")
+    value=$(awk -v name="${name}" '
+        $0 ~ "set\\(" name "[ \t\"]+" {
+            line = $0
+            sub("^[ \t]*set\\(" name "[ \t\"]+", "", line)
+            sub("[ \t\"\\)].*$", "", line)
+            print line
+            exit
+        }
+    ' "${HOST_CONFIG_PATH}")
+    value="${value^^}"
+    [[ "${value}" == "ON" || "${value}" == "TRUE" || "${value}" == "YES" || "${value}" == "1" ]]
 }
 
+if [[ -n "${AXOM_INSTALL:-}" && -z "${AXOM_DIR:-}" ]]; then
+    AXOM_DIR="${AXOM_INSTALL%/}/lib/cmake"
+fi
+
+if [[ -z "${AXOM_DIR:-}" || ! -f "${AXOM_DIR}/axom-config.cmake" ]]; then
+    echo "ERROR: Axom CMake package not found." >&2
+    echo "       Set AXOM_DIR to the directory containing axom-config.cmake," >&2
+    echo "       or set AXOM_INSTALL to an Axom install prefix." >&2
+    exit 1
+fi
+AXOM_DIR=$(absolute_path "${AXOM_DIR}")
+echo "AXOM_DIR=${AXOM_DIR}"
+
 AXOM_WHEEL_ENABLE_MPI=OFF
-if cache_bool_is_on ENABLE_MPI || cache_bool_is_on AXOM_ENABLE_MPI; then
+if cmake_bool_from_file_is_on ENABLE_MPI; then
     AXOM_WHEEL_ENABLE_MPI=ON
 fi
 echo "AXOM_WHEEL_ENABLE_MPI=${AXOM_WHEEL_ENABLE_MPI}"
@@ -100,16 +96,12 @@ echo "~~~~~~ BUILD THE THIN WHEEL FROM src/python ~~~~~~"
 # Point find_package at the install with AXOM_DIR
 # Conduit resolves transitively from axom's config, which records its Conduit prefix
 rm -rf dist
-WHEEL_BUILD_ARGS=(
-    "-C" "cmake.define.AXOM_DIR=${AXOM_INSTALL}/lib/cmake"
-)
-require_cmake_define_from_cache CMAKE_C_COMPILER
-require_cmake_define_from_cache CMAKE_CXX_COMPILER
-if [[ "${AXOM_WHEEL_ENABLE_MPI}" == "ON" ]]; then
-    require_cmake_define_from_cache MPI_C_COMPILER
-    require_cmake_define_from_cache MPI_CXX_COMPILER
-fi
-uv build --wheel "${WHEEL_BUILD_ARGS[@]}" --out-dir dist src/python
+uv build --wheel \
+    -C cmake.args=-C \
+    -C "cmake.args=${HOST_CONFIG_PATH}" \
+    -C "cmake.define.AXOM_DIR=${AXOM_DIR}" \
+    --out-dir dist \
+    src/python
 ls -l dist
 AXOM_WHEEL=$(find dist -maxdepth 1 -name 'axom-*.whl' -print -quit)
 if [[ -z "${AXOM_WHEEL}" ]]; then

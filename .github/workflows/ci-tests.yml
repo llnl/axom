@@ -119,8 +119,8 @@ jobs:
           name: Test Results ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
           path: "**/Test.xml"
   build_wheel_and_test:
-    # Build the thin pip/uv wheel (src/python) against a freshly installed Axom
-    # and run the Sidre Python suite from it without a wrapper or PYTHONPATH updates.
+    # Build the thin pip/uv wheel (src/python) against the prebuilt Axom install
+    # in the docker image's host-config and run the Sidre Python suite from it
     # Uses the nanobind-enabled gcc image
     runs-on: ubuntu-24.04
     needs:
@@ -139,8 +139,15 @@ jobs:
     - name: Build wheel and test - gcc@13.3.1
       timeout-minutes: 80
       run: |
-        HOST_CONFIG=gcc@13.3.1.cmake \
-        BUILD_TYPE=Debug \
+        shopt -s nullglob
+        axom_cmake_dirs=(/home/axom/axom_tpls/gcc-13.3.1/axom-develop-*/lib/cmake)
+        if [[ ${#axom_cmake_dirs[@]} -ne 1 ]]; then
+          echo "Expected exactly one prebuilt Axom CMake package, found ${#axom_cmake_dirs[@]}"
+          printf '%s\n' "${axom_cmake_dirs[@]}"
+          exit 1
+        fi
+        HOST_CONFIG=host-configs/docker/gcc@13.3.1.cmake \
+        AXOM_DIR="${axom_cmake_dirs[0]}" \
         ./scripts/github-actions/linux-wheel_and_test.sh
   windows_build_and_test:
     runs-on: windows-latest

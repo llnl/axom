@@ -129,17 +129,15 @@ Note the deliberately distinct name: `CONDUIT_PYTHON_MODULE_DIR` cannot be used 
 `find_package(axom)` pulls in `ConduitConfig.cmake`, which sets that variable with a plain
 `set()` and so overwrites whatever the caller passed.
 
-For MPI-enabled Axom installs, pass the same compiler and MPI wrapper family
-used by the Axom build. Copy these from the Axom build's `CMakeCache.txt` or
-host-config:
+When building against a host-config, pass the same cache script used for the
+Axom install instead of duplicating compiler and MPI settings one variable at a
+time:
 
 ```bash
 uv build --wheel \
+  -C cmake.args=-C \
+  -C cmake.args=/absolute/path/to/host-config.cmake \
   -C cmake.define.AXOM_DIR="$AXOM_INSTALL/lib/cmake" \
-  -C cmake.define.CMAKE_C_COMPILER="$AXOM_C_COMPILER" \
-  -C cmake.define.CMAKE_CXX_COMPILER="$AXOM_CXX_COMPILER" \
-  -C cmake.define.MPI_C_COMPILER="$AXOM_MPI_C_COMPILER" \
-  -C cmake.define.MPI_CXX_COMPILER="$AXOM_MPI_CXX_COMPILER" \
   src/python
 ```
 
@@ -211,4 +209,6 @@ so the wheel cannot force MPI dependencies at install time.
 The `mpi` extra declares `mpi4py`, and the `test` extra declares `pytest`.
 Runtime dependencies intentionally stay minimal: `numpy` is required,
 while Conduit's Python module is exposed by the generated `conduit.pth` file.
-
+The GitHub wheel test lane builds against an explicitly passed prebuilt Axom
+install, passes the matching host-config through `cmake.args=-C`, and selects
+the `mpi` extra automatically when that host-config reports `ENABLE_MPI=ON`.
