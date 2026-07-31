@@ -6,7 +6,7 @@
 
 #pragma once
 
-/**
+/*!
  * \file shaping_helpers.hpp
  *
  * \brief Common shaping helper utilities and backend-specific helper facade
@@ -30,7 +30,7 @@ namespace axom
 template <typename Signature, size_t MaxSize = 16>
 class function;
 
-/**
+/*!
  * \brief Basic implementation of a host/device compatible analogue to std::function
  *
  * \tparam R The return type of the callable object
@@ -48,12 +48,24 @@ private:
 public:
   AXOM_HOST_DEVICE function() : invoke(nullptr) { }
 
+  /*!
+   * \brief Constructs a function object from a callable object
+   *
+   * \tparam Callable The type of the callable object
+   * \param callable The callable object to store and invoke
+   *
+   * This constructor stores the callable object in the internal storage
+   * and sets up the invoke function pointer to call the stored object.
+   * The callable object must be trivially copyable and its size must not
+   * exceed the maximum storage size.
+   */
   template <typename Callable>
   AXOM_HOST_DEVICE function(Callable callable)
   {
     static_assert(sizeof(Callable) <= MaxSize, "Callable object too large!");
     static_assert(std::is_trivially_copyable<Callable>::value,
                   "Callable must be trivially copyable!");
+    //SLIC_WARNING("sizeof(Callable): " << sizeof(Callable));
 
     invoke = [](const void* storage, Args... args) -> R {
       return (*reinterpret_cast<const Callable*>(storage))(std::forward<Args>(args)...);
@@ -61,6 +73,15 @@ public:
     new(&storage) Callable(std::move(callable));
   }
 
+  /*!
+   * \brief invoke the stored callable object
+   *
+   * \param args The arguments to be forwarded to the callable object
+   *
+   * \return The result of invoking the callable object with the provided arguments.
+   *         If the callable object is not set (i.e., `invoke` is null), a default-constructed
+   *         value of type R is returned.
+   */
   AXOM_HOST_DEVICE R operator()(Args... args) const
   {
     if(!invoke)
@@ -70,6 +91,11 @@ public:
     return invoke(&storage, std::forward<Args>(args)...);
   }
 
+  /*!
+   * \brief Explicit conversion operator to check the validity of the object
+   *
+   * \return True if `invoke` is not null, false otherwise
+   */
   AXOM_HOST_DEVICE explicit operator bool() const { return invoke != nullptr; }
 
 private:
