@@ -882,7 +882,6 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
 
   mfem::Mesh* mesh = dc->GetMesh();
   const int dim = mesh->Dimension();
-  const int NE = mesh->GetNE();
 
   auto* fec = new mfem::L2_FECollection(order, dim, mfem::BasisType::Positive);
   auto* fes = new mfem::FiniteElementSpace(mesh, fec);
