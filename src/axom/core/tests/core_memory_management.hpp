@@ -485,7 +485,7 @@ TEST(core_memory_management, allocator_id_from_pointer)
   axom::deallocate<int>(buf);
 
   // Allocate directly (not through allocator).
-  buf = (int*)std::malloc(N * sizeof(int));
+  buf = static_cast<int*>(std::malloc(N * sizeof(int)));
   id = axom::getAllocatorIDFromPointer(buf);
   EXPECT_EQ(id, axom::MALLOC_ALLOCATOR_ID);
   std::free(buf);
@@ -516,7 +516,7 @@ TEST(core_memory_management, interspace_reallocation)
   int* origOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
   for(std::size_t i = 0; i < maxNK; ++i)
   {
-    origOnHost[i] = 100 + i;
+    origOnHost[i] = static_cast<int>(100 + i);
   }
   int* tempOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
 

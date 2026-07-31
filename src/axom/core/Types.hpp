@@ -33,7 +33,8 @@ using float64 = double;
   by using CMake -DAXOM_DEPRECATED_TYPES=<WARN|ERROR|ALLOW>
   Eventually, these types will be removed.
 */
-#if AXOM_DEPRECATED_TYPES_N == 1 || AXOM_DEPRECATED_TYPES_N == 2
+#if defined(AXOM_DEPRECATED_TYPES_N) && \
+  (AXOM_DEPRECATED_TYPES_N == 1 || AXOM_DEPRECATED_TYPES_N == 2)
   #if AXOM_DEPRECATED_TYPES_N == 1
     #if defined(_MSC_VER)
       #pragma message( \
