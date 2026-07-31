@@ -57,15 +57,16 @@ struct execution_space<CUDA_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
 
   static constexpr MemorySpace memory_space = MemorySpace::Device;
 
-  static constexpr bool async() noexcept { return false; }
-  static constexpr bool valid() noexcept { return true; }
-  static constexpr bool onDevice() noexcept { return true; }
-  static constexpr const char* name() noexcept { return "[CUDA_EXEC]"; }
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[CUDA_EXEC]"; }
+
   static int allocatorID() noexcept
   {
     return axom::getAllocatorIDFromMemorySpace(memory_space);
   }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::cuda;
   }
@@ -98,12 +99,15 @@ struct execution_space<CUDA_EXEC<BLOCK_SIZE, ASYNC>>
 
   static constexpr MemorySpace memory_space = MemorySpace::Device;
 
-  static constexpr bool async() noexcept { return true; }
-  static constexpr bool valid() noexcept { return true; }
-  static constexpr bool onDevice() noexcept { return true; }
-  static constexpr char* name() noexcept { return (char*)"[CUDA_EXEC] (async)"; }
-  static int allocatorID() noexcept { return axom::getAllocatorIDFromMemorySpace(memory_space); }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[CUDA_EXEC] (async)"; }
+  static int allocatorID() noexcept
+  {
+    return axom::getAllocatorIDFromMemorySpace(memory_space);
+  }
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::cuda;
   }

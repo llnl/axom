@@ -48,15 +48,16 @@ struct execution_space<SEQ_EXEC>
 
   static constexpr MemorySpace memory_space = MemorySpace::Host;
 
-  static constexpr bool async() noexcept { return false; }
-  static constexpr bool valid() noexcept { return true; }
-  static constexpr bool onDevice() noexcept { return false; }
-  static constexpr const char* name() noexcept { return "[SEQ_EXEC]"; }
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[SEQ_EXEC]"; }
+
   static int allocatorID() noexcept
   {
     return axom::getAllocatorIDFromMemorySpace(memory_space);
   }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::seq;
   }
