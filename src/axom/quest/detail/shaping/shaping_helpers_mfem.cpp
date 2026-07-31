@@ -884,8 +884,6 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   const int dim = mesh->Dimension();
   const int NE = mesh->GetNE();
 
-  std::cout << axom::fmt::format("Mesh has dim {} and {} elements", dim, NE) << std::endl;
-
   auto* fec = new mfem::L2_FECollection(order, dim, mfem::BasisType::Positive);
   auto* fes = new mfem::FiniteElementSpace(mesh, fec);
   auto* volFrac = new mfem::GridFunction(fes);

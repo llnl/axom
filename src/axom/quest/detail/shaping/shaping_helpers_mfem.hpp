@@ -232,6 +232,13 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
                                        axom::ArrayView<int> sampleResolution,
                                        axom::numerics::QuadratureType quadratureType);
 
+/*!
+ * \brief Creates a new GridFunction based on \a inout and registers it with the \a dc DataCollection.
+ *
+ * \param dc The DataCollection that will contain the new GridFunction.
+ * \param inout The quadrature data that contains the inout values for each element.
+ * \param name The name to use when registering the new GridFunction.
+ */
 void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     mfem::QuadratureFunction* inout,
                                     const std::string& name);
