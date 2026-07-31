@@ -66,7 +66,11 @@ struct MFEMState
 
   void deleteShapeFunction(const std::string& AXOM_UNUSED_PARAM(name))
   {
-    // TODO: remove the function from m_inoutShapeQFuncs if it exists.
+    // NOTE: The current shaping behavior stores individual per-shape quadrature functions
+    //       in m_inoutShapeQFuncs and the existing behavior does not clear them out.
+    //       This takes memory so this method exists to have the shaper clear the named
+    //       function when no longer needed. We would just remove the \a name function from
+    //       m_inoutShapeQFuncs if it exists.
   }
 
   mfem::QuadratureFunction* getMaterialFunction(const std::string& name)
