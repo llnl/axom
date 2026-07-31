@@ -47,10 +47,10 @@ struct execution_space<OMP_EXEC>
   static constexpr MemorySpace memory_space = MemorySpace::Dynamic;
 #endif
 
-  static constexpr bool async() noexcept { return false; }
-  static constexpr bool valid() noexcept { return true; }
-  static constexpr bool onDevice() noexcept { return false; }
-  static constexpr const char* name() noexcept { return "[OMP_EXEC]"; }
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[OMP_EXEC]"; }
 
   static int allocatorID() noexcept
   {
@@ -60,7 +60,7 @@ struct execution_space<OMP_EXEC>
     return axom::getDefaultAllocatorID();
 #endif
   }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::omp;
   }
