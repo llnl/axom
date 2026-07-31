@@ -43,10 +43,7 @@ struct execution_space<OMP_EXEC>
   AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[OMP_EXEC]"; }
 
-  static int allocatorID() noexcept
-  {
-    return axom::getAllocatorIDFromMemorySpace(memory_space);
-  }
+  static int allocatorID() noexcept { return axom::getAllocatorIDFromMemorySpace(memory_space); }
   AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::omp;
