@@ -58,7 +58,7 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
   static constexpr bool async() noexcept { return false; }
   static constexpr bool valid() noexcept { return true; }
   static constexpr bool onDevice() noexcept { return true; }
-  static constexpr char* name() noexcept { return (char*)"[HIP_EXEC]"; }
+  static constexpr const char* name() noexcept { return "[HIP_EXEC]"; }
   static int allocatorID() noexcept
   {
     return axom::getUmpireResourceAllocatorID(umpire::resource::Device);

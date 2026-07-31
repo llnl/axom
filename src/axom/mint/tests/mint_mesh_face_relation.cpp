@@ -942,11 +942,11 @@ bool faceMatches(FaceTypeNodes &a, FaceTypeNodes &b)
  * (modulo start point) must match.  The order of faces can differ between
  * test and answer data.
  */
-bool verifyFaceNodesTypes(int fcount,
+bool verifyFaceNodesTypes(IndexType fcount,
                           IndexType *f2n,
                           IndexType *f2noffsets,
                           CellType *f2ntypes,
-                          int stdfacecount,
+                          IndexType stdfacecount,
                           IndexType *stdFaceNodes,
                           CellType *stdFaceTypes,
                           std::string &errmesg)
@@ -956,9 +956,9 @@ bool verifyFaceNodesTypes(int fcount,
   FaceBuilderType testfnodes, stdfnodes;
 
   // First, build a map of the test data face nodes.
-  for(int f = 0; f < fcount; ++f)
+  for(IndexType f = 0; f < fcount; ++f)
   {
-    int nodecount = f2noffsets[f + 1] - f2noffsets[f];
+    const int nodecount = static_cast<int>(f2noffsets[f + 1] - f2noffsets[f]);
     std::string key = internal::make_face_key(nodecount, &f2n[f2noffsets[f]], '.');
     std::vector<IndexType> facenodes(nodecount);
     std::copy(f2n + f2noffsets[f], f2n + f2noffsets[f] + nodecount, facenodes.begin());
@@ -966,10 +966,10 @@ bool verifyFaceNodesTypes(int fcount,
   }
 
   // Then, build a map of the standard face nodes.  Use the same hash scheme.
-  int offset = 0;
-  for(int f = 0; f < stdfacecount; ++f)
+  IndexType offset = 0;
+  for(IndexType f = 0; f < stdfacecount; ++f)
   {
-    int nodecount = getCellInfo(stdFaceTypes[f]).num_nodes;
+    const int nodecount = getCellInfo(stdFaceTypes[f]).num_nodes;
     std::string key = internal::make_face_key(nodecount, &stdFaceNodes[offset], '.');
     std::vector<IndexType> facenodes(nodecount);
     std::copy(stdFaceNodes + offset, stdFaceNodes + offset + nodecount, facenodes.begin());

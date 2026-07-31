@@ -282,7 +282,7 @@ void check_header(std::ifstream& file)
  */
 void check_scalar(const Field* field, std::ifstream& file, unsigned int offset = 0)
 {
-  const int num_components = field->getNumComponents();
+  const IndexType num_components = field->getNumComponents();
   const IndexType num_values = field->getNumTuples();
 
   std::string buffer;
@@ -322,7 +322,7 @@ void check_scalar(const Field* field, std::ifstream& file, unsigned int offset =
  */
 void check_vector_data(const Field* field, std::ifstream& file)
 {
-  const int num_components = field->getNumComponents();
+  const IndexType num_components = field->getNumComponents();
   const IndexType num_values = field->getNumTuples();
 
   if(field->getType() == DOUBLE_FIELD_TYPE)
@@ -331,7 +331,7 @@ void check_vector_data(const Field* field, std::ifstream& file)
     double temp;
     for(IndexType idx = 0; idx < num_values; ++idx)
     {
-      for(int dim = 0; dim < num_components; ++dim)
+      for(IndexType dim = 0; dim < num_components; ++dim)
       {
         file >> temp;
         EXPECT_DOUBLE_EQ(temp, field_data[num_components * idx + dim]);
@@ -350,7 +350,7 @@ void check_vector_data(const Field* field, std::ifstream& file)
     int temp;
     for(IndexType idx = 0; idx < num_values; ++idx)
     {
-      for(int dim = 0; dim < num_components; ++dim)
+      for(IndexType dim = 0; dim < num_components; ++dim)
       {
         file >> temp;
         EXPECT_EQ(temp, field_data[num_components * idx + dim]);
@@ -374,12 +374,12 @@ void check_vector_data(const Field* field, std::ifstream& file)
  */
 void check_multidim_data(const Field* field, std::ifstream& file)
 {
-  const int num_components = field->getNumComponents();
+  const IndexType num_components = field->getNumComponents();
   const int field_type = field->getType();
   check_scalar(field, file, 0);
 
   std::string type, name, d_type;
-  for(int comp = 1; comp < num_components; ++comp)
+  for(IndexType comp = 1; comp < num_components; ++comp)
   {
     file >> type >> name >> d_type;
     EXPECT_EQ(type, "SCALARS");
@@ -599,7 +599,7 @@ void check_cells(const Mesh* mesh, std::ifstream& file)
 
   /* First need to get total size of the connectivity array. */
   /* If the mesh only has one cell type we can calculate this directly. */
-  int max_cell_nodes = mesh->getNumberOfCellNodes(0);
+  IndexType max_cell_nodes = mesh->getNumberOfCellNodes(0);
   IndexType total_size = (max_cell_nodes + 1) * num_cells;
 
   /* If the mesh has mixed cells then we need to loop over the elements. */
@@ -608,7 +608,7 @@ void check_cells(const Mesh* mesh, std::ifstream& file)
     total_size = num_cells;
     for(IndexType cellIdx = 0; cellIdx < num_cells; ++cellIdx)
     {
-      const int num_cell_nodes = mesh->getNumberOfCellNodes(cellIdx);
+      const IndexType num_cell_nodes = mesh->getNumberOfCellNodes(cellIdx);
       max_cell_nodes = utilities::max(num_cell_nodes, max_cell_nodes);
       total_size += num_cell_nodes;
     }
@@ -626,12 +626,12 @@ void check_cells(const Mesh* mesh, std::ifstream& file)
   IndexType* cell_nodes = new IndexType[max_cell_nodes];
   for(IndexType cellIdx = 0; cellIdx < num_cells; ++cellIdx)
   {
-    const int num_cell_nodes = mesh->getNumberOfCellNodes(cellIdx);
+    const IndexType num_cell_nodes = mesh->getNumberOfCellNodes(cellIdx);
     mesh->getCellNodeIDs(cellIdx, cell_nodes);
 
     file >> temp;
     EXPECT_EQ(temp, num_cell_nodes);
-    for(int i = 0; i < num_cell_nodes; ++i)
+    for(IndexType i = 0; i < num_cell_nodes; ++i)
     {
       file >> temp;
       EXPECT_EQ(temp, cell_nodes[i]);

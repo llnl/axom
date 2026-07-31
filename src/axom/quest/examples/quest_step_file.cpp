@@ -456,7 +456,7 @@ public:
       const int mfem_attribute = wireId + 1;
 
       const int degree = curve.getDegree();
-      const int ncp = curve.getNumControlPoints();
+      const auto ncp = curve.getNumControlPoints();
       const auto& knots = curve.getKnots().getArray();
       SLIC_ASSERT(knots.size() == ncp + degree + 1);
 

@@ -49,8 +49,8 @@ primal::BoundingBox<double, 3> getBounds(const axom::mint::Mesh* mesh)
   primal::BoundingBox<double, 3> bb;
   primal::Point<double, 3> pt;
 
-  const int nnodes = mesh->getNumberOfNodes();
-  for(int inode = 0; inode < nnodes; ++inode)
+  const axom::IndexType nnodes = mesh->getNumberOfNodes();
+  for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
     mesh->getNode(inode, pt.data());
     bb.addPoint(pt);
@@ -115,7 +115,7 @@ TEST(quest_signed_distance, sphere_test)
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
-  const int nnodes = umesh->getNumberOfNodes();
+  const axom::IndexType nnodes = umesh->getNumberOfNodes();
 
   SLIC_INFO("Generate BVHTree...");
   constexpr bool is_watertight = true;
@@ -128,7 +128,7 @@ TEST(quest_signed_distance, sphere_test)
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  for(int inode = 0; inode < nnodes; ++inode)
+  for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
     primal::Point<double, 3> pt;
     umesh->getNode(inode, pt.data());
@@ -213,7 +213,7 @@ TEST(quest_signed_distance, sphere_test_with_normals)
   double* normal_computed_y = umesh->createField<double>("normal_computed_y", mint::NODE_CENTERED);
   double* normal_computed_z = umesh->createField<double>("normal_computed_z", mint::NODE_CENTERED);
 
-  const int nnodes = umesh->getNumberOfNodes();
+  const axom::IndexType nnodes = umesh->getNumberOfNodes();
 
   SLIC_INFO("Generate BVHTree...");
   constexpr bool is_watertight = true;
@@ -226,7 +226,7 @@ TEST(quest_signed_distance, sphere_test_with_normals)
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  for(int inode = 0; inode < nnodes; ++inode)
+  for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
     PointType pt;
     umesh->getNode(inode, pt.data());
@@ -339,7 +339,7 @@ void run_vectorized_sphere_test()
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
-  const int nnodes = umesh->getNumberOfNodes();
+  const axom::IndexType nnodes = umesh->getNumberOfNodes();
 
   SLIC_INFO("Generate BVHTree...");
   constexpr bool is_watertight = true;
@@ -353,7 +353,7 @@ void run_vectorized_sphere_test()
   double linf = axom::numeric_limits<double>::min();
 
   axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, host_allocator);
-  for(int inode = 0; inode < nnodes; inode++)
+  for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
     umesh->getNode(inode, queryPts[inode].data());
   }
@@ -367,7 +367,7 @@ void run_vectorized_sphere_test()
   // Copy output to host
   axom::copy(phi_computed, phi_computed_device, nnodes * sizeof(double));
 
-  for(int inode = 0; inode < nnodes; ++inode)
+  for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
     phi_expected[inode] = analytic_sphere.computeSignedDistance(queryPts[inode]);
     EXPECT_NEAR(phi_computed[inode], phi_expected[inode], 1.e-2);
@@ -483,7 +483,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
-  const int nnodes = umesh->getNumberOfNodes();
+  const axom::IndexType nnodes = umesh->getNumberOfNodes();
 
   SLIC_INFO("Generate BVHTree...");
   // _quest_distance_cpp_init_start
@@ -522,7 +522,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   double linf = axom::numeric_limits<double>::min();
 
   axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, host_allocator);
-  for(int inode = 0; inode < nnodes; inode++)
+  for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
     umesh->getNode(inode, queryPts[inode].data());
   }
@@ -536,7 +536,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   // Copy output to host
   axom::copy(phi_computed, phi_computed_device, nnodes * sizeof(double));
 
-  for(int inode = 0; inode < nnodes; ++inode)
+  for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
     phi_expected[inode] = analytic_sphere.computeSignedDistance(queryPts[inode]);
     EXPECT_NEAR(phi_computed[inode], phi_expected[inode], 1.e-2);
