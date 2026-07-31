@@ -84,7 +84,7 @@ should be treated as legacy convenience paths in new production code.
 Changing the default host and global allocators (legacy)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-THe contents of this section refer to Axom *legacy* convenience routines,
+The contents of this section refer to Axom *legacy* convenience routines,
 meaning those that do not take an explicit host allocator argument.
 The default host allocator controls what Axom uses when code asks for
 ``MemorySpace::Host`` through these legacy convenience paths. This is separate from
