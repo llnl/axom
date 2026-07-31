@@ -58,6 +58,12 @@ if(NOT _axom_py_conduit_cmake_dir AND AXOM_CONDUIT_DIR)
 endif()
 
 # Conduit's Python package directory -- needs to be absolute
+#
+# NOTE: Renamed from CONDUIT_PYTHON_MODULE_DIR to avoid collision:
+# find_package(axom) pulls in ConduitConfig.cmake, which sets
+# CONDUIT_PYTHON_MODULE_DIR with plain set() and would overwrite
+# any value the user passed. AXOM_PYTHON_CONDUIT_MODULE_DIR is
+# distinct and not shadowed by Conduit's config.
 set(AXOM_PYTHON_CONDUIT_MODULE_DIR "" CACHE PATH
     "Directory holding the same-build conduit Python package; overrides the value recorded by the Axom install")
 

@@ -34,6 +34,10 @@ echo "~~~~~~~~~~~~~~~~~~~~~~"
 
 absolute_path() {
     local path="$1"
+    if [[ ! -e "${path}" ]]; then
+        echo "ERROR: Path does not exist: ${path}" >&2
+        return 1
+    fi
     local dir
     local base
     dir=$(dirname "${path}")
