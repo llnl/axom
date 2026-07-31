@@ -241,6 +241,16 @@ std::string materialNameFromMaterialInOutFieldName(const std::string& fieldName)
  */
 std::string materialNameFromVolumeFractionFieldName(const std::string& fieldName);
 
+/*!
+ * \brief Checks that input sample resolution array view is appropriate for the
+ *        mesh dimension and quadrature type.
+ *
+ * \tparam MeshState A type that contains mesh state.
+ *
+ * \param meshState The mesh state
+ * \param sampleResolution An array view that contains the sample resolutions in each dimension.
+ * \param quadratureType The quadrature type.
+ */
 template <typename MeshState>
 void checkSampleResolution(const MeshState& meshState,
                            axom::ArrayView<int> sampleResolution,
