@@ -91,7 +91,13 @@ echo "AXOM_WHEEL_ENABLE_MPI=${AXOM_WHEEL_ENABLE_MPI}"
 
 echo "~~~~~~ ENSURE uv IS AVAILABLE ~~~~~~"
 if ! command -v uv >/dev/null 2>&1; then
-    python3 -m pip install --user uv
+    # Distro Pythons (e.g. Ubuntu 24.04) ship a PEP 668 EXTERNALLY-MANAGED marker, which makes `pip install --user` fail.
+    # uv only lands in the user site directory so opting out is safe here.
+    pip_args="--user"
+    if python3 -c 'import os, sysconfig, sys; sys.exit(0 if os.path.exists(os.path.join(sysconfig.get_path("stdlib"), "EXTERNALLY-MANAGED")) else 1)'; then
+        pip_args="${pip_args} --break-system-packages"
+    fi
+    python3 -m pip install ${pip_args} uv
     export PATH="${HOME}/.local/bin:${PATH}"
 fi
 uv --version
