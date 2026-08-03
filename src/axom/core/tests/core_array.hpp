@@ -10,6 +10,7 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
 
 #include "gtest/gtest.h"
 
@@ -19,62 +20,6 @@
 
 namespace
 {
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
-{
-  if(!axom::isMemorySpaceAvailable(space))
-  {
-    return false;
-  }
-
-  try
-  {
-    switch(space)
-    {
-    case axom::MemorySpace::Host:
-      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
-      break;
-    case axom::MemorySpace::Device:
-  #if defined(UMPIRE_ENABLE_DEVICE)
-      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
-      break;
-  #else
-      return false;
-  #endif
-    case axom::MemorySpace::Unified:
-  #if defined(UMPIRE_ENABLE_UM)
-      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
-      break;
-  #else
-      return false;
-  #endif
-    case axom::MemorySpace::Pinned:
-  #if defined(UMPIRE_ENABLE_PINNED)
-      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
-      break;
-  #else
-      return false;
-  #endif
-    case axom::MemorySpace::Constant:
-  #if defined(UMPIRE_ENABLE_CONST)
-      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
-      break;
-  #else
-      return false;
-  #endif
-    case axom::MemorySpace::Malloc:
-    case axom::MemorySpace::Dynamic:
-      break;
-    }
-  }
-  catch(const std::exception&)
-  {
-    return false;
-  }
-
-  return true;
-}
-#endif
 
 /*!
  * \brief Calculate the new capacity for an Array given an increase in the size.
@@ -1160,7 +1105,7 @@ TEST(core_array, checkFill)
 #if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
 TEST(core_array, checkFillDevice)
 {
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     GTEST_SKIP() << "Device allocator is unavailable at runtime.";
   }
@@ -1218,7 +1163,7 @@ TEST(core_array, checkAssignView)
 #if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
 TEST(core_array, checkAssignDevice)
 {
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     GTEST_SKIP() << "Device allocator is unavailable at runtime.";
   }
@@ -1234,7 +1179,7 @@ TEST(core_array, checkAssignDevice)
 
 TEST(core_array, checkAssignViewDevice)
 {
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     GTEST_SKIP() << "Device allocator is unavailable at runtime.";
   }
@@ -1408,25 +1353,25 @@ TEST(core_array, checkAlloc)
   };
 
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
-  if(runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     memory_locations.push_back(axom::getUmpireResourceAllocatorID(umpire::resource::Device));
   }
 #endif
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_UM)
-  if(runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
   {
     memory_locations.push_back(axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
   }
 #endif
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_CONST)
-  if(runtimeMemorySpaceAvailable(axom::MemorySpace::Constant))
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Constant))
   {
     memory_locations.push_back(axom::getUmpireResourceAllocatorID(umpire::resource::Constant));
   }
 #endif
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_PINNED)
-  if(runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
   {
     memory_locations.push_back(axom::getUmpireResourceAllocatorID(umpire::resource::Pinned));
   }
@@ -1448,7 +1393,7 @@ TEST(core_array, checkAlloc)
 // Then, if Umpire is available, we can use the space as an explicit template parameter
 #if defined(AXOM_USE_UMPIRE)
   #ifdef UMPIRE_ENABLE_DEVICE
-      if(runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+      if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
       {
         axom::Array<int, 1, axom::MemorySpace::Device> v_int_device(capacity, capacity);
         ::check_alloc(v_int_device, axom::getUmpireResourceAllocatorID(umpire::resource::Device));
@@ -1457,7 +1402,7 @@ TEST(core_array, checkAlloc)
       }
   #endif
   #ifdef UMPIRE_ENABLE_UM
-      if(runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+      if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
       {
         axom::Array<int, 1, axom::MemorySpace::Unified> v_int_unified(capacity, capacity);
         ::check_alloc(v_int_unified, axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
@@ -1467,7 +1412,7 @@ TEST(core_array, checkAlloc)
       }
   #endif
   #ifdef UMPIRE_ENABLE_CONST
-      if(runtimeMemorySpaceAvailable(axom::MemorySpace::Constant))
+      if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Constant))
       {
         axom::Array<int, 1, axom::MemorySpace::Constant> v_int_const(capacity, capacity);
         ::check_alloc(v_int_const, axom::getUmpireResourceAllocatorID(umpire::resource::Constant));
@@ -1476,7 +1421,7 @@ TEST(core_array, checkAlloc)
       }
   #endif
   #ifdef UMPIRE_ENABLE_PINNED
-      if(runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
+      if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
       {
         axom::Array<int, 1, axom::MemorySpace::Pinned> v_int_pinned(capacity, capacity);
         ::check_alloc(v_int_pinned, axom::getUmpireResourceAllocatorID(umpire::resource::Pinned));
@@ -1633,7 +1578,7 @@ void checkIteratorDeviceImpl()
 
 TEST(core_array, checkIteratorDevice)
 {
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     GTEST_SKIP() << "Device allocator is unavailable at runtime.";
   }
@@ -2215,7 +2160,7 @@ TEST(core_array, checkDevice)
   GTEST_SKIP() << "CUDA or HIP is not available, skipping tests that use Array "
                   "in device code";
 #else
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     GTEST_SKIP() << "Device allocator is unavailable at runtime.";
   }
@@ -2255,7 +2200,7 @@ TEST(core_array, checkDevice2D)
   GTEST_SKIP() << "CUDA or HIP is not available, skipping tests that use Array "
                   "in device code";
 #else
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     GTEST_SKIP() << "Device allocator is unavailable at runtime.";
   }
@@ -2325,7 +2270,7 @@ TEST(core_array, checkDefaultInitializationDevice)
   GTEST_SKIP() << "CUDA or HIP is not available, skipping tests that use Array "
                   "in device code";
 #else
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
   {
     GTEST_SKIP() << "Device allocator is unavailable at runtime.";
   }
@@ -2598,7 +2543,7 @@ TEST(core_array, host_space_copy_uses_explicit_host_allocator_for_incompatible_s
     #else
                 constexpr axom::MemorySpace sourceSpace = axom::MemorySpace::Pinned;
     #endif
-                if(!runtimeMemorySpaceAvailable(sourceSpace))
+                if(!axom::utilities::runtimeMemorySpaceAvailable(sourceSpace))
                 {
                   std::exit(0);
                 }
@@ -2944,7 +2889,7 @@ TEST(core_array, reserve_nontrivial_reloc_2)
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
 TEST(core_array, reserve_nontrivial_reloc_um)
 {
-  if(!runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
   {
     GTEST_SKIP() << "Unified allocator is unavailable at runtime.";
   }

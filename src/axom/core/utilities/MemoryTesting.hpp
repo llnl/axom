@@ -12,11 +12,13 @@
  *
  */
 
-#ifndef AXOM_MEMORY_TESTING_HPP_
-#define AXOM_MEMORY_TESTING_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
+#include "axom/core/memory_management.hpp"
+
+#include <exception>
 
 namespace axom
 {
@@ -35,7 +37,62 @@ int globalDefaultAllocatorForExecSpace()
 #endif
 }
 
+inline bool runtimeMemorySpaceAvailable(axom::MemorySpace space)
+{
+  if(!axom::isMemorySpaceAvailable(space))
+  {
+    return false;
+  }
+
+#if defined(AXOM_USE_UMPIRE)
+  try
+  {
+    switch(space)
+    {
+    case axom::MemorySpace::Host:
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      break;
+    case axom::MemorySpace::Device:
+  #if defined(UMPIRE_ENABLE_DEVICE)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Unified:
+  #if defined(UMPIRE_ENABLE_UM)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Pinned:
+  #if defined(UMPIRE_ENABLE_PINNED)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Constant:
+  #if defined(UMPIRE_ENABLE_CONST)
+      axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
+      break;
+  #else
+      return false;
+  #endif
+    case axom::MemorySpace::Malloc:
+    case axom::MemorySpace::Dynamic:
+      break;
+    }
+  }
+  catch(const std::exception&)
+  {
+    return false;
+  }
+#endif
+
+  return true;
+}
+
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_MEMORY_TESTING_HPP_
