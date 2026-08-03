@@ -1200,9 +1200,9 @@ struct DeviceInsert
 
 AXOM_TYPED_TEST(core_array_for_all, device_insert)
 {
-  using ExecSpaceType = typename TestFixture::ExecSpace;
-  using DynamicArrayType = typename TestFixture::template DynamicTArray<DeviceInsert>;
-  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArrayType>;
+  using ExecSpace = typename TestFixture::ExecSpace;
+  using DynamicArray = typename TestFixture::template DynamicTArray<DeviceInsert>;
+  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
 
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   int kernelAllocID = TestFixture::getKernelAllocatorID();
@@ -1223,13 +1223,13 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   constexpr axom::IndexType N = 374;
 
   DynamicArrayOfArrays arr_container(1, 1, umAllocID);
-  arr_container[0] = DynamicArrayType(0, N, kernelAllocID);
+  arr_container[0] = DynamicArray(0, N, kernelAllocID);
   const auto arr_v = arr_container.view();
 
   EXPECT_EQ(arr_container[0].size(), 0);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
-  axom::for_all<ExecSpaceType>(
+  axom::for_all<ExecSpace>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) {
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && !defined(AXOM_DEVICE_CODE)
@@ -1250,16 +1250,16 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
     });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpaceType>::async())
+  if(axom::execution_space<ExecSpace>::async())
   {
-    axom::synchronize<ExecSpaceType>();
+    axom::synchronize<ExecSpace>();
   }
 
   EXPECT_EQ(arr_container[0].size(), N);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
   // Copy array to host.
-  DynamicArrayType arr_host(arr_container[0], hostAllocID);
+  DynamicArray arr_host(arr_container[0], hostAllocID);
 
   // Device-side inserts may occur in any order.
   // Sort them before we check the inserted values.
@@ -1270,7 +1270,7 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   for(int i = 0; i < N; i++)
   {
     EXPECT_EQ(arr_host[i].m_value, 3 * i + 5);
-    if(axom::execution_space<ExecSpaceType>::onDevice())
+    if(axom::execution_space<ExecSpace>::onDevice())
     {
       EXPECT_EQ(arr_host[i].m_host_or_device, INSERT_ON_DEVICE);
     }
