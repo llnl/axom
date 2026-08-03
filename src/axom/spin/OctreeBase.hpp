@@ -478,10 +478,10 @@ public:
   }
 
   /// \brief The max level for leaf blocks of the octree
-  int maxLeafLevel() const { return m_levels.size(); }
+  int maxLeafLevel() const { return static_cast<int>(m_levels.size()); }
 
   /// \brief The max level for internal blocks of the octree
-  int maxInternalLevel() const { return m_levels.size() - 1; }
+  int maxInternalLevel() const { return static_cast<int>(m_levels.size()) - 1; }
 
 public:
   ///@{

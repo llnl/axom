@@ -96,28 +96,12 @@ public:
   ~Polygon() { m_vertices.clear(); }
 
   /*!
-   * \brief Copy assignment operator for Polygon (static array specialization).
-   *        Specializations are necessary to remove warnings.
-   */
-  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
-            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Static, int> = 0>
-  AXOM_HOST_DEVICE Polygon& operator=(const Polygon& other)
-  {
-    if(this == &other)
-    {
-      return *this;
-    }
-
-    m_vertices = other.m_vertices;
-    return *this;
-  }
-
-  /*!
    * \brief Copy assignment operator for Polygon.
-   *        (dynamic array specialization)
+   *
+   * Suppress CUDA warnings for dynamic axom::Array.
    */
-  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
-            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Dynamic, int> = 0>
+  AXOM_SUPPRESS_HD_WARN
+  AXOM_HOST_DEVICE
   Polygon& operator=(const Polygon& other)
   {
     if(this == &other)
@@ -129,19 +113,14 @@ public:
     return *this;
   }
 
-  /// Copy constructor for Polygon. Specializations are necessary to
-  /// remove __host__ __device__ warning for axom::Array usage with
-  /// the dynamic array type.
-  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
-            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Dynamic, int> = 0>
-  Polygon(const Polygon& other) : m_vertices(other.m_vertices)
-  { }
-
-  /// Copy constructor for Polygon (static array specialization)
-  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
-            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Static, int> = 0>
-  AXOM_HOST_DEVICE Polygon(const Polygon& other) : m_vertices(other.m_vertices)
-  { }
+  /*!
+   * \brief Copy constructor for Polygon.
+   *
+   * Suppress CUDA warnings for dynamic axom::Array.
+   */
+  AXOM_SUPPRESS_HD_WARN
+  AXOM_HOST_DEVICE
+  Polygon(const Polygon& other) : m_vertices(other.m_vertices) { }
 
   /*!
    * \brief Constructor for an empty polygon that reserves space for
