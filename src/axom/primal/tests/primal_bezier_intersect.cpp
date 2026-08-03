@@ -658,6 +658,27 @@ TEST(primal_bezier_inter, ray_no_intersections_bezier)
   checkIntersectionsRay(ray, curve, exp_intersections, exp_intersections, eps, eps_test);
 }
 
+TEST(primal_bezier_inter, ray_quadratic_bezier_split_boundary)
+{
+  constexpr int DIM = 2;
+
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+  using RayType = primal::Ray<CoordType, DIM>;
+
+  constexpr int order = 2;
+  PointType data[order + 1] = {PointType {-1.0, 0.0}, PointType {0.0, 1.0}, PointType {1.0, 0.0}};
+  BezierCurveType curve(data, order);
+
+  const RayType ray(PointType {0.0, -1.0}, VectorType {0.0, 1.0});
+
+  const axom::Array<CoordType> exp_ray_params = {1.5};
+  const axom::Array<CoordType> exp_curve_params = {0.5};
+  checkIntersectionsRay(ray, curve, exp_ray_params, exp_curve_params, 1E-10, 1E-8);
+}
+
 TEST(primal_bezier_inter, ray_linear_bezier_interp_params)
 {
   constexpr int DIM = 2;

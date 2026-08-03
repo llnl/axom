@@ -73,7 +73,7 @@ void bcast_int(int& value, MPI_Comm comm) { MPI_Bcast(&value, 1, MPI_INT, 0, com
 // Serial versions
 constexpr int MPI_COMM_WORLD = -1;
 
-int comm_rank(MPI_Comm comm) { return 0; }
+int comm_rank(MPI_Comm) { return 0; }
 void barrier(MPI_Comm)
 {
   // no-op

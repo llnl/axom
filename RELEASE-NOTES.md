@@ -53,6 +53,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Python: Adds the `AXOM_PYTHON_MODULE_INSTALL_PREFIX` CMake variable to control where Axom installs its Python
   package(s), relative to the install prefix.
 - Quest: The C2CReader was enhanced to provide assembly support.
+- Core: Adds `utilities::filesystem::getFileExtension(str)`
+- Klee: Adds support for lua-based input decks for shaping
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -64,6 +66,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 - CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
 - Core: Moved length unit parsing and conversion helpers into `axom::utilities`.
+- Core/Primal: Updated several array, NURBS count/accessor, and mapping stride/capacity interfaces to use `axom::IndexType` consistently, and tightened several `FlatMap`/`MortonIndex` conversions to reduce MSVC narrowing warnings.
 - Quest: Updated `C2CReader` to use `axom::utilities::LengthUnit` at its public length-unit interface.
 - Quest: Updated `STEPReader` to use centralized length unit parsing and conversion logic.
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication

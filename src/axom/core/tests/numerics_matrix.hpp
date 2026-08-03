@@ -426,8 +426,8 @@ TEST(numerics_matrix, getRow)
 
   for(IndexType i = 0; i < N; ++i)
   {
-    A.fillRow(i, i + 1);
-    row_sums[i] = N * (i + 1);
+    A.fillRow(i, static_cast<int>(i + 1));
+    row_sums[i] = static_cast<int>(N * (i + 1));
   }
 
   IndexType p = 0;
@@ -605,7 +605,7 @@ TEST(numerics_matrix, swapColumns)
   axom::numerics::Matrix<int> A(M, N);
   for(IndexType i = 0; i < N; ++i)
   {
-    A.fillColumn(i, i + 1);
+    A.fillColumn(i, static_cast<int>(i + 1));
   }
 
   int first_column = 0;
