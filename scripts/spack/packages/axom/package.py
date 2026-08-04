@@ -114,8 +114,11 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant("tools", default=True, description="Build tools")
     variant("tutorials", default=True, description="Build tutorials")
 
-    # Hard requirement after Axom 0.6.1
-    variant("cpp14", default=True, description="Build with C++14 support")
+    variant(
+        "cpp14",
+        default=False,
+        description="Build with C++14 support. Deprecated -- use the cxxstd variant version.",
+    )
 
     variant("fortran", default=True, description="Build with Fortran support")
 
@@ -162,6 +165,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     varmsg = "Build development tools (such as Sphinx, Doxygen, etc...)"
     variant("devtools", default=False, description=varmsg)
+
+    variant(
+        "cxxstd",
+        default="20",
+        values=("11", "14", "17", "20"),
+        description="C++ standard to build with",
+    )
 
     # -----------------------------------------------------------------------
     # Dependencies
@@ -230,7 +240,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
-        depends_on("caliper+adiak")
+        depends_on("caliper+adiak~papi")
 
         depends_on("caliper+cuda", when="+cuda")
         depends_on("caliper~cuda", when="~cuda")
@@ -336,8 +346,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # -----------------------------------------------------------------------
     # Conflicts
     # -----------------------------------------------------------------------
-    # Hard requirement after Axom 0.6.1
-    conflicts("~cpp14", when="@0.6.2:")
+
+    # C++14 required as of 0.6.2
+    conflicts("cxxstd=11", when="@0.6.2:")
+    # C++17 required as of 0.12.0
+    conflicts("cxxstd=14", when="@0.12.0:")
+    # C++20 required as of unreleased 0.15.0
+    conflicts("cxxstd=17", when="@0.15.0:")
 
     # Conduit's cmake config files moved and < 0.4.0 can't find it
     conflicts("^conduit@0.7.2:", when="@:0.4.0")
@@ -395,6 +410,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             special_case,
         )
 
+    @property
+    def cxx_std(self):
+        return self.spec.variants.get("cxxstd").value
+
     def initconfig_compiler_entries(self):
         spec = self.spec
         entries = super().initconfig_compiler_entries()
@@ -416,8 +435,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         else:
             entries.append(cmake_cache_option("ENABLE_FORTRAN", False))
 
-        if spec.satisfies("+cpp14") and spec.satisfies("@:0.6.1"):
+        if (spec.satisfies("+cpp14") or self.cxx_std == "14") and spec.satisfies("@:0.6.1"):
             entries.append(cmake_cache_string("BLT_CXX_STD", "c++14", ""))
+        else:
+            entries.append(cmake_cache_string("BLT_CXX_STD", f"c++{self.cxx_std}"))
 
         # Add optimization flag workaround for builds with cray compiler
         if spec.satisfies("%cce"):
@@ -456,7 +477,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             if spec.satisfies("^blt@:0.5.1"):
                 # This is handled internally by BLT now
-                if spec.satisfies("+cpp14"):
+                if spec.satisfies("+cpp14") or self.cxx_std == "14":
                     cudaflags += " -std=c++14"
                 else:
                     cudaflags += " -std=c++11"
@@ -511,20 +532,36 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 hip_link_flags += "-L{0} -Wl,-rpath,{0}".format(lib_path)
 
             if spec.satisfies("+fortran"):
-                link_remove_list = []
+                link_lib_remove_list = []
+                link_dir_remove_list = []
+
+                if self.cxx_std == "20":
+                    link_dir_remove_list += [
+                        "/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12"
+                    ]
+                    link_dir_remove_list += ["/opt/rh/gcc-toolset-12/root/usr/lib64"]
 
                 # Remove extra link library for crayftn
                 if self.is_fortran_compiler("crayftn"):
-                    link_remove_list += ["unwind"]
+                    link_lib_remove_list += ["unwind"]
 
                 # Remove injected OpenMP stub library
                 if spec.satisfies("+openmp"):
-                    link_remove_list += ["ompstub"]
+                    link_lib_remove_list += ["ompstub"]
 
-                if link_remove_list:
+                if link_lib_remove_list:
                     entries.append(
                         cmake_cache_string(
-                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", ";".join(link_remove_list)
+                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE",
+                            ";".join(link_lib_remove_list),
+                        )
+                    )
+
+                if link_dir_remove_list:
+                    entries.append(
+                        cmake_cache_string(
+                            "BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE",
+                            ";".join(link_dir_remove_list),
                         )
                     )
 
@@ -586,7 +623,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
             )
 
-        if spec.satisfies("+openmp") and spec.satisfies("+rocm") and spec.satisfies("%cce"):
+        # For cce up to version 20.0.0
+        if spec.satisfies("+openmp") and spec.satisfies("+rocm") and spec.satisfies("%cce@:20"):
             openmp_gen_exp = (
                 "$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:"
                 "-fopenmp=libomp>;$<$<COMPILE_LANGUAGE:"
@@ -768,8 +806,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             # a single site-packages and `import axom.sidre` works without updating PYTHONPATH
             entries.append(
                 cmake_cache_path(
-                    "AXOM_PYTHON_MODULE_INSTALL_PREFIX",
-                    spec["python"].package.platlib,
+                    "AXOM_PYTHON_MODULE_INSTALL_PREFIX", spec["python"].package.platlib
                 )
             )
 
@@ -915,8 +952,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         sidre_pkg_dir = join_path(site_packages, "axom", "sidre")
         if not os.path.isdir(sidre_pkg_dir):
             raise RuntimeError(
-                "axom.sidre was not installed under the interpreter platlib: "
-                "{0}".format(sidre_pkg_dir)
+                "axom.sidre was not installed under the interpreter platlib: {0}".format(
+                    sidre_pkg_dir
+                )
             )
 
         # Assemble the Python package directories a view would merge into site-packages.

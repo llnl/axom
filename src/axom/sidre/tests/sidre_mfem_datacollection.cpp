@@ -311,7 +311,9 @@ TEST(sidre_datacollection, dc_reload_gf_vdim)
   // Register to allocate storage internally, then write to it
   sdc_writer.RegisterField(field_name, &gf_write);
 
-  mfem::ConstantCoefficient three_and_a_half(3.5);
+  mfem::Vector three_and_a_half_values(vdim);
+  three_and_a_half_values = 3.5;
+  mfem::VectorConstantCoefficient three_and_a_half(three_and_a_half_values);
   gf_write.ProjectCoefficient(three_and_a_half);
 
   EXPECT_TRUE(sdc_writer.verifyMeshBlueprint());
@@ -1096,10 +1098,14 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
   mfem::ConstantCoefficient three_and_a_half(3.5);
   first_gf_write.ProjectCoefficient(three_and_a_half);
 
-  mfem::ConstantCoefficient five_and_a_half(5.5);
+  mfem::Vector five_and_a_half_values(3);
+  five_and_a_half_values = 5.5;
+  mfem::VectorConstantCoefficient five_and_a_half(five_and_a_half_values);
   second_gf_write.ProjectCoefficient(five_and_a_half);
 
-  mfem::ConstantCoefficient seven_and_a_half(5.5);
+  mfem::Vector seven_and_a_half_values(3);
+  seven_and_a_half_values = 5.5;
+  mfem::VectorConstantCoefficient seven_and_a_half(seven_and_a_half_values);
   third_gf_write.ProjectCoefficient(seven_and_a_half);
 
   sdc_writer.SetCycle(0);

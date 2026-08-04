@@ -13,7 +13,7 @@ jobs:
   run_uberenv:
     name: Runs ${{ matrix.triplet }} ${{ matrix.cfg }} uberenv with vcpkg
     # The type of runner that the job will run on
-    runs-on: windows-latest
+    runs-on: windows-2022
     strategy:
       fail-fast: false
       matrix:

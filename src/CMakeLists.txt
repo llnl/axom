@@ -46,7 +46,7 @@ if ("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
     # Set some default BLT options before loading BLT only if not included in
     # another project
     if (NOT BLT_CXX_STD)
-        set(BLT_CXX_STD "c++17" CACHE STRING "")
+        set(BLT_CXX_STD "c++20" CACHE STRING "")
     endif()
 
     # These are not used in Axom, turn them off

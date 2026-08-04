@@ -33,7 +33,6 @@ const std::string g_color_blue("blue");
 
 const std::string g_name_animal("animal");
 const std::string g_animal_none("human");
-const std::string g_animal_cat("cat");
 const std::string g_animal_dog("dog");
 
 const std::string g_namea("a");
