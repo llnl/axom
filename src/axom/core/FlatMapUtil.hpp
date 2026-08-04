@@ -126,92 +126,6 @@ private:
   ValueIterator m_valueIter {nullptr};
 };
 
-/*!
- * \class FlatMapOffsetIterator
- * \brief Iterator helper for iterating over filled buckets given an array of
- *  bucket indices.
- */
-template <typename KeyType, typename ValueType>
-class FlatMapOffsetIterator
-  : public IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>
-{
-private:
-  using BaseType = IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>;
-  using KeyValuePair = std::pair<const KeyType, ValueType>;
-  using PairStorage = detail::flat_map::TypeErasedStorage<KeyValuePair>;
-
-public:
-  // Iterator traits required to satisfy LegacyRandomAccessIterator concept
-  // before C++20
-  // See: https://en.cppreference.com/w/cpp/iterator/iterator_traits
-  using difference_type = IndexType;
-  using value_type = std::pair<const KeyType, ValueType>;
-  using reference = value_type&;
-  using pointer = value_type*;
-  using iterator_category = std::random_access_iterator_tag;
-
-  FlatMapOffsetIterator() = default;
-
-  AXOM_HOST_DEVICE FlatMapOffsetIterator(PairStorage* buckets, IndexType* offsets)
-    : m_buckets {buckets}
-    , m_offsets {offsets}
-  { }
-
-  AXOM_HOST_DEVICE reference operator*() const { return m_buckets[m_offsets[this->m_pos]].get(); }
-
-protected:
-  /** Implementation of advance() as required by IteratorBase */
-  AXOM_HOST_DEVICE void advance(IndexType n) { BaseType::m_pos += n; }
-
-private:
-  PairStorage* m_buckets {nullptr};
-  IndexType* m_offsets {nullptr};
-};
-
-/**
- * \brief Helper function to gather filled buckets within a FlatMap.
- *
- *  Workaround for a limitation within CUDA where a lambda cannot be defined in
- *  a protected or private member function.
- */
-template <typename ExecSpace>
-void gatherFilledBuckets(ArrayView<flat_map::GroupBucket> group_metadata,
-                         ArrayView<IndexType> filled_bucket_indexes,
-                         IndexType num_buckets,
-                         int allocator_id)
-{
-  using flat_map::GroupBucket;
-
-  IndexType* counter = axom::allocate<IndexType>(1, allocator_id);
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
-  if(detail::getAllocatorSpace(allocator_id) == MemorySpace::Device)
-  {
-    for_all<ExecSpace>(1, AXOM_LAMBDA(IndexType) { *counter = 0; });
-  }
-  else
-  {
-    *counter = 0;
-  }
-#else
-  *counter = 0;
-#endif
-
-  for_all<ExecSpace>(
-    num_buckets,
-    AXOM_LAMBDA(IndexType bucket_idx) {
-      IndexType group_idx = bucket_idx / GroupBucket::Size;
-      int slot_idx = bucket_idx % GroupBucket::Size;
-      if(group_metadata[group_idx].metadata.buckets[slot_idx] > GroupBucket::Sentinel)
-      {
-        // Bucket contains an element.
-        IndexType dest = axom::atomicAdd<ExecSpace>(counter, IndexType {1});
-        filled_bucket_indexes[dest] = bucket_idx;
-      }
-    });
-
-  axom::deallocate(counter);
-}
-
 }  // namespace detail
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -231,27 +145,126 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   return new_map;
 }
 
-template <typename KeyType, typename ValueType, typename Hash>
-template <typename ExecSpace>
-void FlatMap<KeyType, ValueType, Hash>::parallelRehash(IndexType count)
+namespace detail
 {
-  using detail::FlatMapOffsetIterator;
 
-  // If the FlatMap is constructed in device-only memory, construct in
-  // parallel on the device.
-  axom::Array<IndexType> filled_bucket_idx_vec(m_size, m_size, m_allocator.getID());
+/**
+ * \brief Rehashes occupied FlatMap buckets directly on the device.
+ *
+ * Recomputes the destination slot for each filled bucket and relocates the
+ * underlying PairStorage into the new table without materializing key-value
+ * pairs through the batched insert path.
+ */
+template <typename ExecSpace, typename Hash, typename KeyValuePair, typename PairStorage>
+void deviceRehashBuckets(ArrayView<flat_map::GroupBucket> old_metadata,
+                         ArrayView<PairStorage> old_buckets,
+                         int new_num_groups2,
+                         ArrayView<flat_map::GroupBucket> new_metadata,
+                         ArrayView<PairStorage> new_buckets)
+{
+  using LookupPolicy = flat_map::SequentialLookupPolicy<typename Hash::result_type>;
+  using GroupBucket = flat_map::GroupBucket;
 
-  detail::gatherFilledBuckets<ExecSpace>(m_metadata.view(),
-                                         filled_bucket_idx_vec.view(),
-                                         m_buckets.size(),
-                                         m_allocator.getID());
+  const IndexType num_groups = 1 << new_num_groups2;
+  Array<SpinLock> lock_vec(num_groups, num_groups, new_metadata.getAllocatorID());
+  const auto group_locks = lock_vec.view();
 
-  FlatMapOffsetIterator bucket_begin {m_buckets.data(), filled_bucket_idx_vec.data()};
+  const IndexType num_old_buckets = old_buckets.size();
 
-  FlatMap new_map(count, m_allocator);
-  new_map.template insert<ExecSpace>(bucket_begin, bucket_begin + m_size);
+  for_all<ExecSpace>(
+    num_old_buckets,
+    AXOM_LAMBDA(IndexType bucket_idx) {
+      IndexType group_idx = bucket_idx / GroupBucket::Size;
+      int slot_idx = bucket_idx % GroupBucket::Size;
+      if(old_metadata[group_idx].metadata.buckets[slot_idx] <= GroupBucket::Sentinel)
+      {
+        return;
+      }
 
-  this->swap(new_map);
+      auto hash = Hash {}(old_buckets[bucket_idx].get().first);
+      // We use the k MSBs of the hash as the initial group probe point,
+      // where ngroups = 2^k.
+      const auto init = LookupPolicy::initGroupProbe(hash, new_num_groups2);
+      const auto group_mask = init.group_mask;
+      auto curr_group = init.curr_group;
+      const std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
+
+      int iteration = 0;
+      while(iteration < new_metadata.size())
+      {
+        if(group_locks[curr_group].tryLock())
+        {
+          int empty_slot = new_metadata[curr_group].getEmptyBucket();
+          if(empty_slot == GroupBucket::InvalidSlot)
+          {
+            new_metadata[curr_group].template setOverflow<true>(hash_8);
+            group_locks[curr_group].unlock();
+            curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) & group_mask;
+            ++iteration;
+          }
+          else
+          {
+            new_metadata[curr_group].template setBucket<true>(empty_slot, hash_8);
+            IndexType new_bucket = curr_group * GroupBucket::Size + empty_slot;
+          // Device code preserves the raw-storage relocation path; host code
+          // constructs into the destination bucket for non-trivial types.
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+            new_buckets[new_bucket] = old_buckets[bucket_idx];
+#else
+            new(&new_buckets[new_bucket].data) KeyValuePair(std::move(old_buckets[bucket_idx].get()));
+            old_buckets[bucket_idx].get().~KeyValuePair();
+#endif
+            group_locks[curr_group].unlock();
+            break;
+          }
+        }
+      }
+    });
+}
+
+}  // namespace detail
+
+template <typename KeyType, typename ValueType, typename Hash>
+bool FlatMap<KeyType, ValueType, Hash>::tryDeviceAwareRehash(IndexType count)
+{
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
+  MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
+  if(space == MemorySpace::Device || space == MemorySpace::Unified)
+  {
+    const IndexType old_size = m_size;
+  #if defined(AXOM_USE_CUDA)
+    using ExecSpace = axom::CUDA_EXEC<256>;
+  #elif defined(AXOM_USE_HIP)
+    using ExecSpace = axom::HIP_EXEC<256>;
+  #else
+    return false;
+  #endif
+
+    FlatMap new_map(count, m_allocator);
+
+    // Rebuild the table layout in device-accessible memory while preserving
+    // the existing bucket payloads as raw storage.
+    detail::deviceRehashBuckets<ExecSpace, Hash, KeyValuePair>(m_metadata.view(),
+                                                               m_buckets.view(),
+                                                               new_map.m_numGroups2,
+                                                               new_map.m_metadata.view(),
+                                                               new_map.m_buckets.view());
+
+    new_map.m_size = old_size;
+    new_map.m_loadCount = old_size;
+
+    // The occupied bucket payloads have been transferred into new_map. Prevent
+    // the old storage from destroying those buckets when it is swapped out and
+    // freed.
+    m_size = 0;
+    m_loadCount = 0;
+
+    this->swap(new_map);
+    return true;
+  }
+#endif
+  AXOM_UNUSED_VAR(count);
+  return false;
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
