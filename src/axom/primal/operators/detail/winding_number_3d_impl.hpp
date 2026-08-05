@@ -438,7 +438,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
 
   // Can't rotate the patch as pre-processing if working with cached data
   double quad = 0;
-  for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
+  for(axom::IndexType n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the patch without any refinement
     const auto& trimming_curve_data = nurbs.getTrimmingCurveQuadratureData(n, quad_npts, 0, 0);
@@ -501,7 +501,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   constexpr double gwn_modulo = 0.25 * M_1_PI;
 
   double quad = 0;
-  for(int n = 0; n < nurbs_eval->getNumTrimmingCurves(); ++n)
+  for(axom::IndexType n = 0; n < nurbs_eval->getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the *rotated* patch without any refinement
     const auto trimming_curve_data = TrimmingCurveQuadratureData<T>(*nurbs_eval, n, quad_npts, 0, 0);

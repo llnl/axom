@@ -343,7 +343,7 @@ struct STLVectorIndirectionBase
 
   bool hasIndirection() const { return m_vecBuf != nullptr; }
 
-  PositionType size() const { return m_vecBuf->size(); }
+  PositionType size() const { return static_cast<PositionType>(m_vecBuf->size()); }
 
   static IndirectionBufferType create(PositionType size, ConstIndirectionResult value, int allocatorId)
   {
@@ -390,7 +390,7 @@ struct ArrayIndirectionBase
 
   bool hasIndirection() const { return m_vecBuf != nullptr; }
 
-  PositionType size() const { return m_vecBuf->size(); }
+  PositionType size() const { return static_cast<PositionType>(m_vecBuf->size()); }
 
   static IndirectionBufferType create(PositionType size, ConstIndirectionResult value, int allocatorID)
   {
@@ -430,11 +430,11 @@ struct ArrayViewIndirectionBase
   AXOM_HOST_DEVICE ArrayViewIndirectionBase(IndirectionBufferType buf = {}) : m_vecBuf(buf) { }
 
   ArrayViewIndirectionBase(ArrayIndirection<PositionType, ElementType> ind)
-    : m_vecBuf(ind.data().data(), ind.data().size())
+    : m_vecBuf(ind.data().data(), static_cast<PositionType>(ind.data().size()))
   { }
 
   ArrayViewIndirectionBase(STLVectorIndirection<PositionType, ElementType> ind)
-    : m_vecBuf(ind.data().data(), ind.data().size())
+    : m_vecBuf(ind.data().data(), static_cast<PositionType>(ind.data().size()))
   { }
 
   AXOM_HOST_DEVICE IndirectionBufferType data() { return m_vecBuf; }
@@ -445,7 +445,7 @@ struct ArrayViewIndirectionBase
 
   bool hasIndirection() const { return m_vecBuf.data() != nullptr; }
 
-  PositionType size() const { return m_vecBuf.size(); }
+  PositionType size() const { return static_cast<PositionType>(m_vecBuf.size()); }
 
 private:
   IndirectionBufferType m_vecBuf;

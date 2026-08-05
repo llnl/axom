@@ -132,7 +132,6 @@ TEST(primal_nurbscurve, default_constructor)
   }
 }
 
-//------------------------------------------------------------------------------
 TEST(primal_nurbscurve, sizing_constructors)
 {
   constexpr int DIM = 3;
@@ -227,7 +226,7 @@ TEST(primal_nurbscurve, knotless_array_constructors)
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 
-    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    for(axom::IndexType p = 0; p < cur.getNumControlPoints(); ++p)
     {
       EXPECT_EQ(controlPoints[p], cur[p]);
       if(expect_rational)
@@ -317,7 +316,7 @@ TEST(primal_nurbscurve, knotted_array_constructor)
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 
-    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    for(axom::IndexType p = 0; p < cur.getNumControlPoints(); ++p)
     {
       EXPECT_EQ(controlPoints[p], cur[p]);
       if(expect_rational)
@@ -1563,10 +1562,10 @@ TEST(primal_nurbscurve, nurbscurve_intersections)
 
   axom::Array<CoordType> p1, p2, q1, q2;
   const bool found = intersect(curve1, curve2, p1, p2);
-  const int num_intersections = p1.size();
+  const axom::IndexType num_intersections = p1.size();
   EXPECT_TRUE(found && num_intersections == 1 && num_intersections == p2.size());
 
-  for(int j = 0; j < num_intersections; ++j)
+  for(axom::IndexType j = 0; j < num_intersections; ++j)
   {
     intersection1 = curve1.evaluate(p1[j]);
     intersection2 = curve2.evaluate(p2[j]);

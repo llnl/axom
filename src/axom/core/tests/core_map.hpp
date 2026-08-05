@@ -28,7 +28,7 @@ using TestKey = int;
 using TestVal = int;
 using TestMap = experimental::Map<TestKey, TestVal, IdentityHash>;
 
-TestMap init(int N, int len)
+TestMap init(axom::IndexType N, axom::IndexType len)
 {
   TestMap test(N, len);
   EXPECT_EQ(N * len, test.max_size());
@@ -45,30 +45,30 @@ void test_storage(TestMap& test)
   using T = TestMap::mapped_type;
 
   EXPECT_TRUE(test.empty());
-  for(int i = 0; i < test.max_size(); i++)
+  for(axom::IndexType i = 0; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     T value = key * 27;
     auto ret_test = test.insert(key, value);
     EXPECT_TRUE(ret_test.second);
   }
   EXPECT_FALSE(test.empty());
-  for(int i = 0; i < test.max_size(); i++)
+  for(axom::IndexType i = 0; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     EXPECT_EQ(key * 27, test.find(key).value);
   }
   //This should fail, since we're at capacity.
-  auto ret = test.insert(test.max_size(), 900);
+  auto ret = test.insert(static_cast<Key>(test.max_size()), 900);
   EXPECT_FALSE(ret.second);
 }
 
 void test_subscript(TestMap& test)
 {
   using Key = TestMap::key_type;
-  for(int i = 0; i < test.size(); i++)
+  for(axom::IndexType i = 0; i < test.size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     EXPECT_EQ(key * 27, test[key]);
   }
 }
@@ -78,33 +78,33 @@ void test_insert_assign(TestMap& test)
   using Key = TestMap::key_type;
   using T = TestMap::mapped_type;
 
-  for(int i = 0; i < test.max_size(); i++)
+  for(axom::IndexType i = 0; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     T value = key * 27;
     auto ret_test = test.insert_or_assign(key, value);
     EXPECT_EQ(true, ret_test.second);
   }
 
   EXPECT_EQ(false, test.empty());
-  for(int i = 0; i < test.max_size(); i++)
+  for(axom::IndexType i = 0; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     EXPECT_EQ(key * 27, test.find(key).value);
   }
 
-  for(int i = 0; i < test.max_size(); i++)
+  for(axom::IndexType i = 0; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     T value = key * 28;
     auto ret_test = test.insert_or_assign(key, value);
     EXPECT_EQ(false, ret_test.second);
     EXPECT_EQ(ret_test.first->key, key);
   }
   EXPECT_EQ(test.size(), test.max_size());
-  for(int i = 0; i < test.max_size(); i++)
+  for(axom::IndexType i = 0; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     EXPECT_EQ(key * 28, test.find(key).value);
   }
 }
@@ -116,7 +116,7 @@ void test_remove(TestMap& test)
   std::size_t to_erase = test.size();
   for(std::size_t i = 0; i < to_erase; i++)
   {
-    Key key = (Key)i;
+    const auto key = static_cast<Key>(i);
     bool erased = test.erase(key);
     EXPECT_EQ(erased, true);
     EXPECT_EQ(test.find(key), test.end());
@@ -128,7 +128,7 @@ void test_remove(TestMap& test)
   EXPECT_EQ(test.size(), 1);
 }
 
-void test_rehash(TestMap& test, int num, int fact)
+void test_rehash(TestMap& test, axom::IndexType num, int fact)
 {
   using Key = TestMap::key_type;
   using T = TestMap::mapped_type;
@@ -136,26 +136,26 @@ void test_rehash(TestMap& test, int num, int fact)
   auto original_size = test.size();
   test.rehash(num, fact);
 
-  for(int i = 0; i < original_size; i++)
+  for(axom::IndexType i = 0; i < original_size; i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     EXPECT_EQ(key * 27, test.find(key).value);
   }
 
-  for(int i = original_size; i < test.max_size(); i++)
+  for(axom::IndexType i = original_size; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     T value = key * 27;
     auto ret_test = test.insert(key, value);
     EXPECT_EQ(true, ret_test.second);
   }
 
-  for(int i = original_size; i < test.max_size(); i++)
+  for(axom::IndexType i = original_size; i < test.max_size(); i++)
   {
-    Key key = i;
+    Key key = static_cast<Key>(i);
     EXPECT_EQ(key * 27, test.find(key).value);
   }
-  auto ret = test.insert(test.max_size(), 900);
+  auto ret = test.insert(static_cast<Key>(test.max_size()), 900);
   EXPECT_EQ(false, ret.second);
 }
 
@@ -180,7 +180,7 @@ experimental::axom_map::Pair<Key, T> init_pair(experimental::axom_map::Node<Key,
 }
 
 template <typename Key, typename T>
-experimental::axom_map::Bucket<Key, T> init_bucket(int length)
+experimental::axom_map::Bucket<Key, T> init_bucket(axom::IndexType length)
 {
   axom::experimental::axom_map::Bucket<Key, T> b(length);
 
@@ -190,28 +190,29 @@ experimental::axom_map::Bucket<Key, T> init_bucket(int length)
 // The first parameter is the number of buckets;
 // the second is a lambda to fill the buckets
 template <typename Key, typename T>
-experimental::axom_map::Bucket<Key, T> init_filled_bucket(int length, std::function<T(Key)>&& fn)
+experimental::axom_map::Bucket<Key, T> init_filled_bucket(axom::IndexType length,
+                                                          std::function<T(Key)>&& fn)
 {
   axom::experimental::axom_map::Bucket<Key, T> b(length);
 
-  for(int i = 0; i < length; ++i)
+  for(axom::IndexType i = 0; i < length; ++i)
   {
-    b.insert_update(i, fn(i));
+    b.insert_update(static_cast<Key>(i), fn(static_cast<Key>(i)));
   }
 
   return b;
 }
 
 template <typename MapType>
-MapType init_filled_map(int numBucket,
-                        int bucketLength,
+MapType init_filled_map(axom::IndexType numBucket,
+                        axom::IndexType bucketLength,
                         std::function<typename MapType::mapped_type(typename MapType::key_type)>&& fn)
 {
   using T = typename MapType::mapped_type;
 
   MapType map(numBucket, bucketLength);
 
-  const int sz = numBucket * bucketLength;
+  const axom::IndexType sz = numBucket * bucketLength;
   bool validState = true;
   do
   {
@@ -222,10 +223,11 @@ MapType init_filled_map(int numBucket,
 
     if(validState)
     {
-      for(int i = 0; i < sz; ++i)
+      for(axom::IndexType i = 0; i < sz; ++i)
       {
-        auto res = map.insert_or_assign(i, fn(i));
-        const bool validInsert = (res.second == true || res.first->key == i);
+        const auto key = static_cast<typename MapType::key_type>(i);
+        auto res = map.insert_or_assign(key, fn(key));
+        const bool validInsert = (res.second == true || res.first->key == key);
         if(!validInsert)
         {
           validState = false;
@@ -236,10 +238,11 @@ MapType init_filled_map(int numBucket,
   } while(!validState);
 
   // Check that the values actually got inserted
-  for(int i = 0; i < sz; ++i)
+  for(axom::IndexType i = 0; i < sz; ++i)
   {
-    T exp_value = fn(i);
-    T value = map[i];
+    const auto key = static_cast<typename MapType::key_type>(i);
+    T exp_value = fn(key);
+    T value = map[key];
     EXPECT_EQ(exp_value, value);
   }
 

@@ -62,7 +62,7 @@ int PSTEPReader::read(bool validate_model)
         }
 
         // broadcast the trimming curves for this patch
-        const int numTrimmingCurves = patch.getNumTrimmingCurves();
+        const int numTrimmingCurves = static_cast<int>(patch.getNumTrimmingCurves());
         bcast_int(numTrimmingCurves);
         for(auto& cur : patch.getTrimmingCurves())
         {

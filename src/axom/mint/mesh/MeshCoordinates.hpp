@@ -543,7 +543,7 @@ private:
    *
    * \return status true \f$ \iff i \in [A,B] \f$, otherwise false
    */
-  bool indexInRange(int i, int A, int B) const { return (i >= A && i <= B); }
+  bool indexInRange(IndexType i, IndexType A, IndexType B) const { return (i >= A && i <= B); }
 
   /*!
    * \brief Helper method to check to validate the supplied dimension.
@@ -557,10 +557,7 @@ private:
    * \param [in] idx the node index to check
    * \return status true if the index is valid, false, otherwise.
    */
-  bool validIndex(IndexType idx) const
-  {
-    return indexInRange(static_cast<int>(idx), 0, numNodes() - 1);
-  }
+  bool validIndex(IndexType idx) const { return indexInRange(idx, IndexType {0}, numNodes() - 1); }
 
   /*!
    * \brief Helper method to initialize the internal array data-structures.

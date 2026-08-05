@@ -144,23 +144,24 @@ TEST(spin_uniform_grid, indexing)
 
 // Verify the count in each bin against the map maintained "by hand".
 template <typename T, int NDIMS>
-void checkBinCounts(axom::spin::UniformGrid<T, NDIMS>& v, std::map<int, int>& bincounts)
+void checkBinCounts(axom::spin::UniformGrid<T, NDIMS>& v,
+                    std::map<axom::IndexType, axom::IndexType>& bincounts)
 {
-  int bcount = v.getNumBins();
-  for(int i = 0; i < bcount; ++i)
+  const axom::IndexType bcount = v.getNumBins();
+  for(axom::IndexType i = 0; i < bcount; ++i)
   {
-    bool binAgrees = (bincounts.count(i) < 1 && v.isBinEmpty(i)) ||
-      (bincounts[i] == ((int)v.getBinContents(i).size()));
+    const auto grid_count = static_cast<axom::IndexType>(v.getBinContents(i).size());
+    const bool binAgrees =
+      (bincounts.count(i) < 1 && v.isBinEmpty(i)) || (bincounts[i] == grid_count);
     EXPECT_TRUE(binAgrees) << "Difference at bin " << i << ": v has " << v.getBinContents(i).size()
-                           << " and bincounts has "
-                           << (((int)bincounts.count(i)) < 1 ? 0 : bincounts[i]);
+                           << " and bincounts has " << (bincounts.count(i) < 1 ? 0 : bincounts[i]);
   }
 }
 
 // Increment the count for a bin
-void incr(std::map<int, int>& m, int idx)
+void incr(std::map<axom::IndexType, axom::IndexType>& m, axom::IndexType idx)
 {
-  int dat = 0;
+  axom::IndexType dat = 0;
   if(m.count(idx) > 0)
   {
     dat = m[idx];
@@ -169,7 +170,7 @@ void incr(std::map<int, int>& m, int idx)
 }
 
 // Zero out the count for a bin
-void zero(std::map<int, int>& m, int idx) { m.erase(idx); }
+void zero(std::map<axom::IndexType, axom::IndexType>& m, axom::IndexType idx) { m.erase(idx); }
 
 TEST(spin_uniform_grid, add_stuff_3D)
 {
@@ -185,7 +186,7 @@ TEST(spin_uniform_grid, add_stuff_3D)
   int res[DIM] = {resolution, resolution, resolution};
   axom::spin::UniformGrid<int, DIM> valid(origin, maxpoint, res);
 
-  std::map<int, int> check;
+  std::map<axom::IndexType, axom::IndexType> check;
 
   QPoint pt1 = QPoint::make_point(2.5, 2.5, 2.5);
   QBBox bbox1(pt1);
@@ -266,7 +267,7 @@ TEST(spin_uniform_grid, delete_stuff_3D)
   int res[DIM] = {resolution, resolution, resolution};
   axom::spin::UniformGrid<int, DIM> valid(origin, maxpoint, res);
 
-  std::map<int, int> check;
+  std::map<axom::IndexType, axom::IndexType> check;
 
   // Insert something small (one bin), then clear its bin
   QPoint pt1 = QPoint::make_point(1.1, 1.1, 1.1);
@@ -336,7 +337,7 @@ TEST(spin_uniform_grid, add_stuff_2D)
   int res[DIM] = {resolution, resolution};
   axom::spin::UniformGrid<int, DIM> valid(origin, maxpoint, res);
 
-  std::map<int, int> check;
+  std::map<axom::IndexType, axom::IndexType> check;
 
   QPoint pt1 = QPoint::make_point(2.5, 2.5);
   QBBox bbox1(pt1);
@@ -414,7 +415,7 @@ TEST(spin_uniform_grid, delete_stuff_2D)
   int res[DIM] = {resolution, resolution};
   axom::spin::UniformGrid<int, DIM> valid(origin, maxpoint, res);
 
-  std::map<int, int> check;
+  std::map<axom::IndexType, axom::IndexType> check;
 
   // Insert something small (one bin), then clear its bin
   QPoint pt1 = QPoint::make_point(1.1, 1.1);
@@ -529,24 +530,26 @@ public:
   using PointType = axom::primal::Point<double, DIM>;
   using BoxType = axom::primal::BoundingBox<double, DIM>;
 
-  using DynamicUniformGridType = axom::spin::UniformGrid<int, DIM, ExecSpace>;
+  using DynamicUniformGridType = axom::spin::UniformGrid<axom::IndexType, DIM, ExecSpace>;
 
-  using FlatStorageType = axom::spin::policy::FlatGridStorage<int>;
-  using FlatUniformGridType = axom::spin::UniformGrid<int, DIM, ExecSpace, FlatStorageType>;
+  using FlatStorageType = axom::spin::policy::FlatGridStorage<axom::IndexType>;
+  using FlatUniformGridType =
+    axom::spin::UniformGrid<axom::IndexType, DIM, ExecSpace, FlatStorageType>;
 
   spin_uniform_grid_templated()
     : m_allocatorID(ExecTraits<ExecSpace>::getAllocatorId())
     , m_unifiedAllocatorID(ExecTraits<ExecSpace>::getUnifiedAllocatorId())
   { }
 
-  void setNumObjects(int num_objects) { this->m_numObjects = num_objects; }
+  void setNumObjects(axom::IndexType num_objects) { this->m_numObjects = num_objects; }
 
   void initialize()
   {
     this->m_boundingBoxes = axom::Array<BoxType>(0, this->m_numObjects, m_allocatorID);
-    this->m_iota = axom::Array<int>(this->m_numObjects, this->m_numObjects, m_allocatorID);
+    this->m_iota =
+      axom::Array<axom::IndexType>(this->m_numObjects, this->m_numObjects, m_allocatorID);
     // generate n random objects to insert into the uniform grid.
-    for(int i = 0; i < this->m_numObjects; i++)
+    for(axom::IndexType i = 0; i < this->m_numObjects; i++)
     {
       PointType min, max;
       for(int idim = 0; idim < DIM; idim++)
@@ -564,7 +567,9 @@ public:
     }
 
     const auto iota_v = m_iota.view();
-    axom::for_all<ExecSpace>(this->m_numObjects, AXOM_LAMBDA(int idx) { iota_v[idx] = idx; });
+    axom::for_all<ExecSpace>(
+      this->m_numObjects,
+      AXOM_LAMBDA(axom::IndexType idx) { iota_v[idx] = idx; });
   }
 
   std::unique_ptr<DynamicUniformGridType> constructUniformGridDynamic()
@@ -591,9 +596,9 @@ private:
   int m_allocatorID;
   int m_unifiedAllocatorID;
 
-  int m_numObjects;
+  axom::IndexType m_numObjects;
   axom::Array<BoxType> m_boundingBoxes;
-  axom::Array<int> m_iota;
+  axom::Array<axom::IndexType> m_iota;
 };
 
 template <typename ExecSpace>

@@ -69,7 +69,7 @@ void check_static_array_policy()
         s_arrays_view[i].push_back(idx);
       }
 
-      sizes_view[0][i] = s_arrays_view[i].size();
+      sizes_view[0][i] = static_cast<int>(s_arrays_view[i].size());
     });
 
   if(axom::execution_space<ExecSpace>::async())
