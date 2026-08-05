@@ -14,8 +14,10 @@
  ******************************************************************************
  */
 
-#include <limits>
 #include <iostream>
+#include <cstring>
+#include <limits>
+#include <utility>
 
 #include "axom/lumberjack/NonCollectiveRootCommunicator.hpp"
 #include "axom/lumberjack/MPIUtility.hpp"
@@ -41,7 +43,11 @@ void NonCollectiveRootCommunicator::initialize(MPI_Comm comm, int ranksLimit)
   m_ranksLimit = ranksLimit;
 }
 
-void NonCollectiveRootCommunicator::finalize() { MPI_Comm_free(&m_mpiComm); }
+void NonCollectiveRootCommunicator::finalize()
+{
+  releasePendingSends();
+  MPI_Comm_free(&m_mpiComm);
+}
 
 MPI_Comm NonCollectiveRootCommunicator::comm() { return m_mpiComm; }
 
@@ -87,9 +93,56 @@ void NonCollectiveRootCommunicator::push(const char* packedMessagesToBeSent,
   {
     if(isPackedMessagesEmpty(packedMessagesToBeSent) == false)
     {
-      mpiNonBlockingSendMessages(m_mpiComm, 0, packedMessagesToBeSent);
+      const int messageSize = static_cast<int>(std::strlen(packedMessagesToBeSent));
+      PendingSend pendingSend;
+      pendingSend.request = MPI_REQUEST_NULL;
+      pendingSend.buffer.reset(new char[messageSize + 1]);
+      std::memcpy(pendingSend.buffer.get(), packedMessagesToBeSent, messageSize + 1);
+
+      pendingSend.request =
+        mpiNonBlockingSendMessagesWithRequest(m_mpiComm, 0, pendingSend.buffer.get());
+      m_pendingSends.push_back(std::move(pendingSend));
+    }
+    drainCompletedSends();
+  }
+}
+
+void NonCollectiveRootCommunicator::drainCompletedSends()
+{
+  for(auto it = m_pendingSends.begin(); it != m_pendingSends.end();)
+  {
+    int complete = 0;
+    MPI_Test(&it->request, &complete, MPI_STATUS_IGNORE);
+    if(complete)
+    {
+      it = m_pendingSends.erase(it);
+    }
+    else
+    {
+      ++it;
     }
   }
+}
+
+void NonCollectiveRootCommunicator::releasePendingSends()
+{
+  for(auto& pendingSend : m_pendingSends)
+  {
+    if(pendingSend.request == MPI_REQUEST_NULL)
+    {
+      continue;
+    }
+
+    int complete = 0;
+    MPI_Test(&pendingSend.request, &complete, MPI_STATUS_IGNORE);
+    if(!complete)
+    {
+      // Intentionally leak the buffer to keep it valid for MPI.
+      MPI_Request_free(&pendingSend.request);
+      pendingSend.buffer.release();
+    }
+  }
+  m_pendingSends.clear();
 }
 
 bool NonCollectiveRootCommunicator::isOutputNode()
