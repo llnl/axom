@@ -74,6 +74,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Changed to `#pragma once` instead of unique header guard defines
 - Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
   Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
+- Uberenv's spack updated to v1.2.2
+- Updates blt submodule to [BLT version 0.7.2](https://github.com/LLNL/blt/releases/tag/v0.7.2)
+- Updates to [camp version 2026.07.1](https://github.com/LLNL/camp/releases/tag/v2026.07.1)
+- Updates to [RAJA version 2026.07.0](https://github.com/LLNL/RAJA/releases/tag/v2026.07.0)
+- Updates to [Umpire version 2026.07.1](https://github.com/LLNL/Umpire/releases/tag/v2026.07.1)
+- Updates to [Caliper version 2.15.0](https://github.com/LLNL/Caliper/releases/tag/v2.15.0)
+- Updates to [Conduit version 0.9.7](https://github.com/LLNL/conduit/releases/tag/v0.9.7)
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
