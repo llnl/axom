@@ -164,8 +164,8 @@ spack:
     cuda:
       buildable: False
       externals:
-      - spec: cuda@12.9.1 +allow-unsupported-compilers
-        prefix: /usr/tce/packages/cuda/cuda-12.9.1
+      - spec: cuda@13.1.1 +allow-unsupported-compilers
+        prefix: /usr/tce/packages/cuda/cuda-13.1.1
 
     netlib-lapack:
       buildable: false
@@ -400,4 +400,3 @@ spack:
       externals:
       - spec: py-yapf@0.43.0
         prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2026_02_17_14_42_14/view/python-3.13.11/
-
