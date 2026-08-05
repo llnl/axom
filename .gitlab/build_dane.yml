@@ -108,3 +108,17 @@ dane-gcc_13_3_1_no_fortran-full:
 #    COMPILER: "intel@19.0.4"
 #    SPEC: "%${COMPILER}+mfem~cpp14"
 #  extends: .full_build_on_dane
+
+
+####
+# Component Build jobs
+dane-llvm_sina-only:
+  rules:
+    # Do we want it as a $TEST_COMPONENTS instead of a $TEST_SINA? Would these ever be turned off?
+    - if: '$CI_COMMIT_BRANCH =~ /_qnone/ || $ON_DANE == "OFF" || $TEST_SINA == "OFF"'
+      when: never
+  variables:
+    COMPILER: "llvm@19.1.3"
+    HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
+    EXTRA_CMAKE_OPTIONS: "-DAXOM_ENABLE_ALL_COMPONENTS=OFF -DAXOM_ENABLE_SINA=ON"
+  extends: .src_build_on_dane
