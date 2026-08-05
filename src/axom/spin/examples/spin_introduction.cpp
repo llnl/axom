@@ -291,7 +291,7 @@ UniformGridType* buildUniformGrid(std::vector<TriangleType>& tris)
 
   // The number of bins along one side of the UniformGrid.
   // This is a heuristic.
-  int res = (int)(1 + std::pow(tcount, 1 / 3.));
+  int res = static_cast<int>(1 + std::pow(tcount, 1. / 3.));
   int ress[3] = {res, res, res};
 
   // Construct the UniformGrid with minimum point, maximum point,
@@ -506,7 +506,7 @@ BVH2DType* buildBVHTree(std::vector<Triangle2DType>& tris)
   }
 
   // Build bounding volume hierarchy from bounding boxes
-  tree->initialize(bboxes.data(), bboxes.size());
+  tree->initialize(bboxes.data(), static_cast<axom::IndexType>(bboxes.size()));
 
   return tree;
 }

@@ -519,8 +519,7 @@ public:
 
   bool isInput2D() const
   {
-    using axom::utilities::string::endsWith;
-    return endsWith(inputFile, ".contour");
+    return axom::utilities::filesystem::getFileExtension(inputFile) == ".contour";
   }
 
   bool isVerbose() const { return m_verboseOutput; }

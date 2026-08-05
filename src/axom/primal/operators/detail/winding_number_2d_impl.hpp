@@ -588,7 +588,7 @@ double nurbs_winding_number(const Point<T, 2>& q,
 
   // Compute the GWN for each Bezier segment
   double gwn = 0.0;
-  for(int i = 0; i < beziers.size(); i++)
+  for(axom::IndexType i = 0; i < beziers.size(); ++i)
   {
     bool isOnThisCurve = false;
     gwn += detail::bezier_winding_number(q, beziers[i], isOnThisCurve, edge_tol, EPS);

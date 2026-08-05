@@ -203,7 +203,7 @@ IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points, std::vector<IndexType
   // Relation, element to vertex boundary relation
   for(auto e : element_set)
   {
-    const int offset = VERTS_PER_ELEM * e;
+    const IndexType offset = VERTS_PER_ELEM * e;
     for(int idx = 0; idx < VERTS_PER_ELEM; ++idx)
     {
       ev_rel.insert(e, tri[offset + idx]);
@@ -247,10 +247,10 @@ IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points, std::vector<IndexType
 
       if(element_set.isValidEntry(other_element_idx))
       {
-        int idx0 = element_i * VERTS_PER_ELEM + side_i;
+        const IndexType idx0 = element_i * VERTS_PER_ELEM + side_i;
         element_element_vec[idx0] = other_element_idx;
 
-        int idx1 = other_element_idx * VERTS_PER_ELEM + other_side_idx;
+        const IndexType idx1 = other_element_idx * VERTS_PER_ELEM + other_side_idx;
         element_element_vec[idx1] = element_i;
       }
     }
@@ -320,7 +320,7 @@ typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::getElementFace
 {
   constexpr int VERTS_PER_FACET = VERTS_PER_ELEM - 1;
 
-  ModularVertexIndex mod_face(face_idx);
+  const ModularVertexIndex mod_face(static_cast<int>(face_idx));
 
   IndexArray ret;
   ret.reserve(VERTS_PER_FACET);
@@ -1118,7 +1118,7 @@ typename IAMesh<TDIM, SDIM, P>::FacetKey IAMesh<TDIM, SDIM, P>::getSortedFacetKe
   SLIC_ASSERT_MSG(0 <= facet_idx && facet_idx < VERTS_PER_ELEM, "Face index is invalid.");
 
   const auto verts = ev_rel[element_idx];
-  ModularVertexIndex mod_face(facet_idx);
+  ModularVertexIndex mod_face(static_cast<int>(facet_idx));
   for(int i = 0; i < VERTS_PER_ELEM - 1; ++i)
   {
     key[i] = verts[mod_face + i];

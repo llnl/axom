@@ -1185,6 +1185,7 @@ AXOM_HOST_DEVICE double clipPolygonPolygonArea(
  *
  * \sa axom::primal::clip()
  */
+AXOM_SUPPRESS_HD_WARN
 template <typename T, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
 AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clipPolygonPlane(
   const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& subjectPolygon,

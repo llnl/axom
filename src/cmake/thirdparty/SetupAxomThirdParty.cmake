@@ -53,16 +53,16 @@ if (UMPIRE_DIR)
     axom_assert_is_directory(DIR_VARIABLE UMPIRE_DIR)
     find_dependency(umpire REQUIRED PATHS "${UMPIRE_DIR}" NO_SYSTEM_ENVIRONMENT_PATH)
     axom_assert_find_succeeded(PROJECT_NAME Umpire
-                               TARGET       umpire
+                               TARGET       umpire::umpire
                                DIR_VARIABLE UMPIRE_DIR)
     set(UMPIRE_FOUND TRUE)
 
-    blt_convert_to_system_includes(TARGET umpire)
+    blt_convert_to_system_includes(TARGET umpire::umpire)
 
     # Check whether the Umpire defines symbols for shared memory
     blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
                             VERBOSE_OUTPUT OFF
-                            DEPENDS_ON umpire
+                            DEPENDS_ON umpire::umpire
                             SOURCE_STRING [=[
         #include <umpire/config.hpp>
         #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
