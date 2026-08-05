@@ -7,6 +7,7 @@
 #include "gtest/gtest.h"
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/slic.hpp"
@@ -1992,7 +1993,7 @@ std::vector<int> getKnownAllocIds()
 {
   std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
 #ifdef AXOM_USE_UMPIRE
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  allocIds.push_back(axom::HostAllocator {}.getID());
   #ifdef AXOM_USE_GPU
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());

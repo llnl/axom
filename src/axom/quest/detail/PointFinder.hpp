@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "axom/core/memory_management.hpp"
 #include "axom/spin/ImplicitGrid.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 
@@ -64,9 +65,14 @@ public:
    *
    * \sa constructors in PointInCell class for more details about parameters
    */
-  PointFinder(const MeshWrapperType* meshWrapper, const int* res, double bboxScaleFactor, int allocatorID)
+  PointFinder(const MeshWrapperType* meshWrapper,
+              const int* res,
+              double bboxScaleFactor,
+              int allocatorID,
+              HostAllocator hostAllocator)
     : m_meshWrapper(meshWrapper)
     , m_allocatorID(allocatorID)
+    , m_hostAllocator(hostAllocator)
   {
     SLIC_ASSERT(m_meshWrapper != nullptr);
     SLIC_ASSERT(bboxScaleFactor >= 1.);
@@ -76,18 +82,17 @@ public:
     // setup bounding boxes -- Slightly scaled for robustness
 
     SpatialBoundingBox meshBBox;
-#ifdef AXOM_USE_UMPIRE
-    axom::Array<SpatialBoundingBox, 1, MemorySpace::Host> cellBBoxesHost(numCells);
-#else
-    axom::Array<SpatialBoundingBox> cellBBoxesHost(numCells);
-#endif
+    axom::Array<SpatialBoundingBox> cellBBoxesHost(numCells,
+                                                   numCells,
+                                                   m_hostAllocator.getID(),
+                                                   m_hostAllocator);
     m_meshWrapper->template computeBoundingBoxes<NDIMS>(bboxScaleFactor,
                                                         cellBBoxesHost.data(),
                                                         meshBBox);
     if(DeviceExec)
     {
       // Copy the host-side bounding boxes to GPU memory.
-      m_cellBBoxes = axom::Array<SpatialBoundingBox>(cellBBoxesHost, m_allocatorID);
+      m_cellBBoxes = axom::Array<SpatialBoundingBox>(cellBBoxesHost, m_allocatorID, m_hostAllocator);
     }
     else
     {
@@ -125,7 +130,9 @@ public:
 
     if(DeviceExec)
     {
-      axom::Array<SpacePoint> dev_ptr(axom::ArrayView<const SpacePoint>(&pt, 1), m_allocatorID);
+      axom::Array<SpacePoint> dev_ptr(axom::ArrayView<const SpacePoint>(&pt, 1),
+                                      m_allocatorID,
+                                      m_hostAllocator);
       locatePoints(dev_ptr, &containingCell, &isopar);
     }
     else
@@ -150,29 +157,20 @@ public:
 
 #ifdef AXOM_USE_RAJA
     using IndexView = axom::ArrayView<IndexType>;
-  #ifdef AXOM_USE_UMPIRE
-    using HostIndexArray = axom::Array<IndexType, 1, axom::MemorySpace::Host>;
-    using HostPointArray = axom::Array<SpacePoint, 1, axom::MemorySpace::Host>;
-
-    using HostIndexView = axom::ArrayView<IndexType, 1, axom::MemorySpace::Host>;
-    using HostPointView = axom::ArrayView<SpacePoint, 1, axom::MemorySpace::Host>;
-    using ConstHostPointView = axom::ArrayView<const SpacePoint, 1, axom::MemorySpace::Host>;
-  #else
-    using HostIndexArray = IndexArray;
+    using HostIndexArray = axom::Array<IndexType>;
     using HostPointArray = axom::Array<SpacePoint>;
 
-    using HostIndexView = IndexView;
+    using HostIndexView = axom::ArrayView<IndexType>;
     using HostPointView = axom::ArrayView<SpacePoint>;
     using ConstHostPointView = axom::ArrayView<const SpacePoint>;
-  #endif  // AXOM_USE_UMPIRE
-#endif    // AXOM_USE_RAJA
+#endif  // AXOM_USE_RAJA
 
     auto gridQuery = m_grid.getQueryObject();
 
     axom::IndexType npts = pts.size();
 
-    IndexArray offsets(npts, npts, m_allocatorID);
-    IndexArray counts(npts, npts, m_allocatorID);
+    IndexArray offsets(npts, npts, m_allocatorID, m_hostAllocator);
+    IndexArray counts(npts, npts, m_allocatorID, m_hostAllocator);
 
 #ifdef AXOM_USE_RAJA
     IndexView countsPtr = counts;
@@ -192,7 +190,7 @@ public:
     axom::IndexType totalCount = totalCountReduce.get();
 
     // Step 3: allocate memory for all candidates
-    IndexArray candidates(totalCount, totalCount, m_allocatorID);
+    IndexArray candidates(totalCount, totalCount, m_allocatorID, m_hostAllocator);
     IndexView candidatesPtr = candidates;
     IndexView offsetsPtr = offsets;
     const SpatialBoundingBox* cellBBoxes = m_cellBBoxes.data();
@@ -218,87 +216,70 @@ public:
         countsPtr[i] = currCount;
       });
 
-    // Temporary host arrays we copy device-side data into when the candidate
-    // search is conducted on the GPU
-    HostPointArray ptsHost, outIsoparHost;
-    HostIndexArray outCellIdsHost;
-    HostIndexArray candidatesHost, offsetsHost, countsHost;
-
-    // For sequential/OpenMP execution, just use the argument pointers
-    // directly.
-    HostIndexView outCellIdsPtr(outCellIds, pts.size());
-    HostPointView outIsoparPtr(outIsoparametricCoords, pts.size());
-
-    // If the candidate search takes place on the GPU, we need to copy the
-    // device-side data first, then set these array views to point to the
-    // intermediate arrays. Otherwise, we can set these to point to the result
-    // arrays directly.
-    ConstHostPointView ptsHostPtr;
-    HostIndexView candidatesHostPtr, offsetsHostPtr, countsHostPtr;
+    auto locateCandidatesHost = [&](ConstHostPointView ptsHostPtr,
+                                    HostIndexView candidatesHostPtr,
+                                    HostIndexView offsetsHostPtr,
+                                    HostIndexView countsHostPtr,
+                                    HostIndexView outCellIdsPtr,
+                                    HostPointView outIsoparPtr) {
+      // Step 5: Check each candidate
+      // TODO: This only supports sequential execution right now, because we
+      // don't build MFEM in a thread-safe manner.
+      const MeshWrapperType* meshWrapperPtr = m_meshWrapper;
+      for_all<SEQ_EXEC>(
+        npts,
+        AXOM_HOST_LAMBDA(IndexType i) {
+          outCellIdsPtr[i] = PointInCellTraits<mesh_tag>::NO_CELL;
+          const SpacePoint& pt = ptsHostPtr[i];
+          SpacePoint isopar;
+          for(int icell = 0; icell < countsHostPtr[i]; icell++)
+          {
+            const int cellIdx = candidatesHostPtr[icell + offsetsHostPtr[i]];
+            if(meshWrapperPtr->locatePointInCell(cellIdx, pt.data(), isopar.data()))
+            {
+              outCellIdsPtr[i] = cellIdx;
+              break;
+            }
+          }
+          if(outIsoparametricCoords != nullptr)
+          {
+            outIsoparPtr[i] = isopar;
+          }
+        });
+    };
 
     if(DeviceExec)
     {
-      // Copy points and candidate intersections to host memory.
-      ptsHost = pts;
-      candidatesHost = candidates;
-      offsetsHost = offsets;
-      countsHost = counts;
-      // Set up views from intermediate host arrays
-      ptsHostPtr = ptsHost;
-      candidatesHostPtr = candidatesHost;
-      offsetsHostPtr = offsetsHost;
-      countsHostPtr = countsHost;
-      // Allocate intermediate output buffers on the host side.
-      outCellIdsHost.resize(pts.size());
-      if(outIsoparametricCoords)
+      HostPointArray ptsHost(pts, m_hostAllocator.getID(), m_hostAllocator);
+      HostIndexArray candidatesHost(candidates, m_hostAllocator.getID(), m_hostAllocator);
+      HostIndexArray offsetsHost(offsets, m_hostAllocator.getID(), m_hostAllocator);
+      HostIndexArray countsHost(counts, m_hostAllocator.getID(), m_hostAllocator);
+      HostIndexArray outCellIdsHost(npts, npts, m_hostAllocator.getID(), m_hostAllocator);
+      HostPointArray outIsoparHost(0, 0, m_hostAllocator.getID(), m_hostAllocator);
+      if(outIsoparametricCoords != nullptr)
       {
-        outIsoparHost.resize(pts.size());
+        outIsoparHost.resize(npts);
       }
-      outCellIdsPtr = outCellIdsHost;
-      outIsoparPtr = outIsoparHost;
+
+      locateCandidatesHost(ptsHost, candidatesHost, offsetsHost, countsHost, outCellIdsHost, outIsoparHost);
+
+      // Copy back to GPU memory.
+      axom::copy(outCellIds, outCellIdsHost.data(), outCellIdsHost.size() * sizeof(IndexType));
+      if(outIsoparametricCoords != nullptr)
+      {
+        axom::copy(outIsoparametricCoords,
+                   outIsoparHost.data(),
+                   outIsoparHost.size() * sizeof(SpacePoint));
+      }
     }
     else
     {
-      ptsHostPtr = pts;
-      candidatesHostPtr = candidates;
-      offsetsHostPtr = offsets;
-      countsHostPtr = counts;
-    }
-
-    // Step 5: Check each candidate
-    // TODO: This only supports sequential execution right now, because we
-    // don't build MFEM in a thread-safe manner.
-    const MeshWrapperType* meshWrapperPtr = m_meshWrapper;
-    for_all<SEQ_EXEC>(
-      npts,
-      AXOM_HOST_LAMBDA(IndexType i) {
-        outCellIdsPtr[i] = PointInCellTraits<mesh_tag>::NO_CELL;
-        const SpacePoint& pt = ptsHostPtr[i];
-        SpacePoint isopar;
-        for(int icell = 0; icell < countsHostPtr[i]; icell++)
-        {
-          const int cellIdx = candidatesHostPtr[icell + offsetsHostPtr[i]];
-          // if isopar is in the proper range
-          if(meshWrapperPtr->locatePointInCell(cellIdx, pt.data(), isopar.data()))
-          {
-            // then we have found the cellID
-            outCellIdsPtr[i] = cellIdx;
-            break;
-          }
-        }
-        if(outIsoparametricCoords != nullptr)
-        {
-          outIsoparPtr[i] = isopar;
-        }
-      });
-
-    if(DeviceExec)
-    {
-      // Copy back to GPU memory.
-      axom::copy(outCellIds, outCellIdsHost.data(), outCellIdsHost.size() * sizeof(IndexType));
-      axom::copy(outIsoparametricCoords,
-                 outIsoparHost.data(),
-                 outIsoparHost.size() * sizeof(SpacePoint));
+      locateCandidatesHost(pts,
+                           candidates,
+                           offsets,
+                           counts,
+                           HostIndexView(outCellIds, pts.size()),
+                           HostPointView(outIsoparametricCoords, pts.size()));
     }
 #else   // AXOM_USE_RAJA
     for(int i = 0; i < npts; i++)
@@ -341,6 +322,7 @@ private:
   const MeshWrapperType* m_meshWrapper;
   axom::Array<SpatialBoundingBox> m_cellBBoxes;
   int m_allocatorID;
+  HostAllocator m_hostAllocator;
 };
 
 }  // end namespace detail

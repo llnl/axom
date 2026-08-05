@@ -15,8 +15,227 @@
   #endif
 #endif
 
+#include <atomic>
+
 namespace axom
 {
+
+namespace
+{
+const char* memorySpaceName(MemorySpace space) noexcept
+{
+  switch(space)
+  {
+  case MemorySpace::Malloc:
+    return "Malloc";
+  case MemorySpace::Dynamic:
+    return "Dynamic";
+  case MemorySpace::Host:
+    return "Host";
+#if defined(AXOM_USE_UMPIRE)
+  case MemorySpace::Device:
+    return "Device";
+  case MemorySpace::Unified:
+    return "Unified";
+  case MemorySpace::Pinned:
+    return "Pinned";
+  case MemorySpace::Constant:
+    return "Constant";
+#endif
+  }
+
+  return "Unknown";
+}
+
+int platformHostAllocatorID() noexcept
+{
+#if defined(AXOM_USE_UMPIRE)
+  return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+#else
+  return MALLOC_ALLOCATOR_ID;
+#endif
+}
+
+int initialDefaultHostAllocatorID() noexcept { return MALLOC_ALLOCATOR_ID; }
+
+struct HostAllocatorConfig
+{
+  explicit HostAllocatorConfig(int allocId) noexcept : allocatorId {allocId}, locked {false} { }
+
+  int get() const noexcept { return allocatorId.load(std::memory_order_relaxed); }
+
+  void set(int allocId) noexcept { allocatorId.store(allocId, std::memory_order_relaxed); }
+
+  bool isLocked() const noexcept { return locked.load(std::memory_order_relaxed); }
+
+  void markUsed() noexcept { locked.store(true, std::memory_order_relaxed); }
+
+private:
+  std::atomic<int> allocatorId;
+  std::atomic<bool> locked;
+};
+
+HostAllocatorConfig& defaultHostAllocatorConfig() noexcept
+{
+  static HostAllocatorConfig config {initialDefaultHostAllocatorID()};
+  return config;
+}
+}  // namespace
+
+namespace detail
+{
+
+void markDefaultHostAllocatorUsed(int allocId) noexcept
+{
+  const int defaultHostAllocId = defaultHostAllocatorConfig().get();
+  if(defaultHostAllocId != MALLOC_ALLOCATOR_ID && allocId == defaultHostAllocId)
+  {
+    defaultHostAllocatorConfig().markUsed();
+  }
+}
+
+}  // namespace detail
+
+bool isMemorySpaceAvailable(MemorySpace space) noexcept
+{
+  switch(space)
+  {
+  case MemorySpace::Malloc:
+  case MemorySpace::Dynamic:
+  case MemorySpace::Host:
+    return true;
+#if defined(AXOM_USE_UMPIRE)
+
+  case MemorySpace::Device:
+  #if defined(UMPIRE_ENABLE_DEVICE)
+    return true;
+  #else
+    return false;
+  #endif
+  case MemorySpace::Unified:
+  #if defined(UMPIRE_ENABLE_UM)
+    return true;
+  #else
+    return false;
+  #endif
+  case MemorySpace::Pinned:
+  #if defined(UMPIRE_ENABLE_PINNED)
+    return true;
+  #else
+    return false;
+  #endif
+  case MemorySpace::Constant:
+  #if defined(UMPIRE_ENABLE_CONST)
+    return true;
+  #else
+    return false;
+  #endif
+
+#endif
+  }
+
+  return false;
+}
+
+int getAllocatorIDFromMemorySpace(MemorySpace space)
+{
+  switch(space)
+  {
+  case MemorySpace::Dynamic:
+    return getDefaultAllocatorID();
+  case MemorySpace::Malloc:
+    return MALLOC_ALLOCATOR_ID;
+  case MemorySpace::Host:
+    return getDefaultHostAllocatorID();
+
+#if defined(AXOM_USE_UMPIRE)
+  case MemorySpace::Device:
+  #if defined(UMPIRE_ENABLE_DEVICE)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
+  #else
+    break;
+  #endif
+  case MemorySpace::Unified:
+  #if defined(UMPIRE_ENABLE_UM)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+  #else
+    break;
+  #endif
+  case MemorySpace::Pinned:
+  #if defined(UMPIRE_ENABLE_PINNED)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
+  #else
+    break;
+  #endif
+  case MemorySpace::Constant:
+  #if defined(UMPIRE_ENABLE_CONST)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
+  #else
+    break;
+  #endif
+
+#endif
+  }
+
+  std::cerr << "Axom memory space \"" << memorySpaceName(space)
+            << "\" is not available in this build." << std::endl;
+  axom::utilities::processAbort();
+
+  return INVALID_ALLOCATOR_ID;  // Silence warning.
+}
+
+void setDefaultAllocator(MemorySpace space)
+{
+#if defined(AXOM_USE_UMPIRE)
+  if(space == MemorySpace::Host)
+  {
+    setDefaultAllocator(platformHostAllocatorID());
+    return;
+  }
+#endif
+  setDefaultAllocator(getAllocatorIDFromMemorySpace(space));
+}
+
+void setDefaultHostAllocator(MemorySpace space)
+{
+  switch(space)
+  {
+  case MemorySpace::Malloc:
+    setDefaultHostAllocator(MALLOC_ALLOCATOR_ID);
+    return;
+  case MemorySpace::Host:
+    setDefaultHostAllocator(platformHostAllocatorID());
+    return;
+  default:
+    break;
+  }
+
+  std::cerr << "Axom memory space \"" << memorySpaceName(space)
+            << "\" is not a valid default host allocator." << std::endl;
+  axom::utilities::processAbort();
+}
+
+void setDefaultHostAllocator(int allocId)
+{
+  if(!isAllocatorCompatibleWithMemorySpace(allocId, MemorySpace::Host))
+  {
+    std::cerr << "Allocator id " << allocId << " is not compatible with Axom's host memory space."
+              << std::endl;
+    axom::utilities::processAbort();
+  }
+
+  const int currentAllocId = defaultHostAllocatorConfig().get();
+  if(currentAllocId != allocId && defaultHostAllocatorConfig().isLocked())
+  {
+    std::cerr << "Default host allocator cannot be changed from " << currentAllocId << " to "
+              << allocId << " after an allocation has been made from it." << std::endl;
+    axom::utilities::processAbort();
+  }
+
+  defaultHostAllocatorConfig().set(allocId);
+}
+
+int getDefaultHostAllocatorID() { return defaultHostAllocatorConfig().get(); }
 
 bool isSharedMemoryAllocator(int allocID)
 {

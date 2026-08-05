@@ -243,7 +243,8 @@ void replacementRuleTest(const std::string &shapeFile,
                          const std::string &policyName,
                          RuntimePolicy policy,
                          double tolerance,
-                         bool initialMats = false)
+                         bool initialMats = false,
+                         axom::HostAllocator hostAllocator = axom::HostAllocator {})
 {
   // Make potential baseline filenames for this test. Make a policy-specific
   // baseline that we can check first. If it is not present, the next baseline is tried.
@@ -276,7 +277,7 @@ void replacementRuleTest(const std::string &shapeFile,
   // data collection communicator gets set to MPI_COMM_NULL, which is bad for the C2C reader.
   dc.SetComm(MPI_COMM_WORLD);
 #endif
-  quest::IntersectionShaper shaper(policy, axom::INVALID_ALLOCATOR_ID, shapeSet, &dc);
+  quest::IntersectionShaper shaper(policy, axom::INVALID_ALLOCATOR_ID, hostAllocator, shapeSet, &dc);
   shaper.setLevel(refinementLevel);
 
   // Borrowed from shaping_driver.

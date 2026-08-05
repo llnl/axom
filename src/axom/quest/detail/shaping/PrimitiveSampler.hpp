@@ -49,7 +49,8 @@ public:
 
 public:
   /**
-    * \brief Constructor for a PrimitiveSampler over a collection of triangles (in 2D) or tetrahedra (in 3D)
+    * \brief Constructor for a PrimitiveSampler over a collection of triangles
+    * (in 2D) or tetrahedra (in 3D)
     *
     * \param shapeName The name of the shape; will be used for the field for the associated samples
     * \param surfaceMesh Pointer to the surface mesh
@@ -57,7 +58,24 @@ public:
     * \note Does not take ownership of the surface mesh
     */
   PrimitiveSampler(const std::string& shapeName, std::shared_ptr<mint::Mesh> surfaceMesh)
+    : PrimitiveSampler(shapeName, surfaceMesh, HostAllocator {})
+  { }
+
+  /**
+    * \brief Constructor for a PrimitiveSampler over a collection of triangles
+    * (in 2D) or tetrahedra (in 3D)
+    *
+    * \param shapeName The name of the shape; will be used for the field for the associated samples
+    * \param surfaceMesh Pointer to the surface mesh
+    * \param hostAllocator Allocator to use for host-accessible scratch and staging
+    *
+    * \note Does not take ownership of the surface mesh
+    */
+  PrimitiveSampler(const std::string& shapeName,
+                   std::shared_ptr<mint::Mesh> surfaceMesh,
+                   HostAllocator hostAllocator)
     : m_shapeName(shapeName)
+    , m_hostAllocator(hostAllocator)
     , m_surfaceMesh(surfaceMesh)
   { }
 
@@ -100,12 +118,18 @@ public:
 
     // extract the primitives and their bounding boxes
     const int num_cells = pmesh->getNumberOfCells();
-    m_aabbs.resize(num_cells);
-    m_primitives.resize(num_cells);
+    axom::Array<GeometricBoundingBox> aabbs_host(num_cells,
+                                                 num_cells,
+                                                 m_hostAllocator.getID(),
+                                                 m_hostAllocator);
+    axom::Array<SimplexType> primitives_host(num_cells,
+                                             num_cells,
+                                             m_hostAllocator.getID(),
+                                             m_hostAllocator);
     for(int i = 0; i < num_cells; ++i)
     {
       const axom::IndexType* connec = pmesh->getCellNodeIDs(i);
-      auto& simplex = m_primitives[i];
+      auto& simplex = primitives_host[i];
       for(int j = 0; j < NDIMS + 1; ++j)
       {
         simplex[j] = verts[connec[j]];
@@ -128,9 +152,13 @@ public:
       // TODO: WE should only consider simplices in the bounding box of the current domain
       if(!is_degenerate)
       {
-        m_aabbs[i] = primal::compute_bounding_box(simplex);
+        aabbs_host[i] = primal::compute_bounding_box(simplex);
       }
     }
+
+    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    m_aabbs = axom::Array<GeometricBoundingBox>(aabbs_host, allocatorID, m_hostAllocator);
+    m_primitives = axom::Array<SimplexType>(primitives_host, allocatorID, m_hostAllocator);
 
     SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
 
@@ -223,7 +251,8 @@ public:
     // Get the positions of the query points, project them if needed
     axom::ArrayView<FromPoint> orig_qpts_v(reinterpret_cast<FromPoint*>(pos_coef->HostReadWrite()),
                                            nq);
-    axom::Array<ToPoint> projected_qpts(0);
+    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    axom::Array<ToPoint> projected_qpts(0, 0, allocatorID, m_hostAllocator);
     if(projector)
     {
       AXOM_ANNOTATE_SCOPE("project query points");
@@ -243,11 +272,11 @@ public:
     axom::ArrayView<double> inout_view(const_cast<double*>(inout->HostRead()), nq);
     axom::for_all<ExecSpace>(nq, AXOM_LAMBDA(axom::IndexType i) { inout_view[i] = 0.; });
 
-    axom::Array<IndexType> offsets(nq, nq);
-    axom::Array<IndexType> counts(nq, nq);
+    axom::Array<IndexType> offsets(nq, nq, allocatorID, m_hostAllocator);
+    axom::Array<IndexType> counts(nq, nq, allocatorID, m_hostAllocator);
     axom::Array<IndexType> candidates;
 
-    m_bvh.findPoints(offsets.view(), counts.view(), candidates, nq, query_view);
+    m_bvh.findPoints(offsets.view(), counts.view(), candidates, nq, query_view, m_hostAllocator);
 
     auto counts_view = counts.view();
     auto offsets_view = offsets.view();
@@ -320,6 +349,7 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(PrimitiveSampler);
 
   std::string m_shapeName;
+  HostAllocator m_hostAllocator;
 
   BVHType m_bvh;
 

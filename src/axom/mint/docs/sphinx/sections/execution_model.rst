@@ -76,6 +76,13 @@ See the :ref:`sections/tutorial` for code snippets that illustrate how to use
 the :ref:`NodeTraversalFunctions`, :ref:`CellTraversalFunctions` and
 :ref:`FaceTraversalFunctions` of the :ref:`sections/execution_model`.
 
+Some traversal signatures stage coordinates, connectivity, offsets, or
+adjacency data for execution on a device. The traversal APIs provide overloads
+that accept ``axom::HostAllocator`` for that host-resident staging. Prefer
+those overloads in new code when host allocator ownership is available.
+Traversal overloads without a host allocator remain compatibility paths and use
+Axom's current default host allocator.
+
 .. _executionPolicy:
 
 Execution Policy

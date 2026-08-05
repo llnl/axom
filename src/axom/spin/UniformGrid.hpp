@@ -183,6 +183,8 @@ public:
    *
    * \note The output candidate array is allocated inside the function, using
    *  the given allocator ID passed in during implicit grid initialization.
+   *  The overload without `HostAllocator` is a compatibility path that uses
+   *  Axom's current default host allocator for host staging and fallback.
    *
    * \note Upon completion, the ith query point has:
    *  * counts[ i ] candidates
@@ -193,6 +195,14 @@ public:
                             axom::ArrayView<IndexType> outOffsets,
                             axom::ArrayView<IndexType> outCounts,
                             axom::Array<IndexType>& outCandidates) const;
+
+  /// \overload
+  /// \param [in] hostAllocator allocator for host staging and fallback.
+  void getCandidatesAsArray(axom::ArrayView<const BoxType> queryObjs,
+                            axom::ArrayView<IndexType> outOffsets,
+                            axom::ArrayView<IndexType> outCounts,
+                            axom::Array<IndexType>& outCandidates,
+                            HostAllocator hostAllocator) const;
 
   /*!
    * \brief Clears the bin indicated by index.
@@ -697,6 +707,18 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   axom::ArrayView<IndexType> outCounts,
   axom::Array<IndexType>& outCandidates) const
 {
+  getCandidatesAsArray(queryObjs, outOffsets, outCounts, outCandidates, HostAllocator {});
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
+void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
+  axom::ArrayView<const BoxType> queryObjs,
+  axom::ArrayView<IndexType> outOffsets,
+  axom::ArrayView<IndexType> outCounts,
+  axom::Array<IndexType>& outCandidates,
+  HostAllocator hostAllocator) const
+{
   IndexType qsize = queryObjs.size();
   SLIC_ASSERT(qsize > 0);
   SLIC_ASSERT(qsize == outOffsets.size());
@@ -724,8 +746,9 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   axom::IndexType totalCount = totalCountReduce.get();
 
   // Step 3: allocate memory for all candidates
-  axom::Array<IndexType> queryIndex(totalCount, totalCount, this->getAllocatorID());
-  outCandidates = axom::Array<IndexType>(totalCount, totalCount, this->getAllocatorID());
+  axom::Array<IndexType> queryIndex(totalCount, totalCount, this->getAllocatorID(), hostAllocator);
+  outCandidates =
+    axom::Array<IndexType>(totalCount, totalCount, this->getAllocatorID(), hostAllocator);
   const auto query_idx_view = queryIndex.view();
   const auto candidates_view = outCandidates.view();
 
@@ -774,7 +797,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   // Step 6: Count and flag unique intersection pairs, in order to map them
   // to a deduplicated candidate intersection array.
   axom::ReduceSum<ExecSpace, IndexType> dedupCountReduce(0);
-  axom::Array<IndexType> dedupTgtIdx(totalCount, totalCount, this->getAllocatorID());
+  axom::Array<IndexType> dedupTgtIdx(totalCount, totalCount, this->getAllocatorID(), hostAllocator);
   const auto dedup_idx_view = dedupTgtIdx.view();
   for_all<ExecSpace>(
     totalCount,
@@ -802,7 +825,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   // Step 7: Fill the array of deduplicated candidates based on the index
   // mapping generated previously.
   axom::IndexType dedupSize = dedupCountReduce.get();
-  axom::Array<IndexType> dedupedCandidates(dedupSize, dedupSize, this->getAllocatorID());
+  axom::Array<IndexType> dedupedCandidates(dedupSize, dedupSize, this->getAllocatorID(), hostAllocator);
   const auto dedup_cand_view = dedupedCandidates.view();
 
   // Reset counts counter for counting unique candidates per query box.
@@ -834,6 +857,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   outCandidates = std::move(dedupedCandidates);
 
 #else   // AXOM_USE_RAJA
+  outCandidates = axom::Array<IndexType>(0, 0, this->getAllocatorID(), hostAllocator);
   outOffsets[0] = 0;
   for(int i = 0; i < qsize; i++)
   {

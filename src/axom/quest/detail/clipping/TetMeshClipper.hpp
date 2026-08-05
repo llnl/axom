@@ -145,6 +145,7 @@ private:
    */
   template <typename ExecSpace>
   void computeSurfaceTrianglesAndBVH(int allocId,
+                                     HostAllocator hostAllocator,
                                      axom::Array<Triangle3DType>& surfTris,
                                      spin::BVH<3, ExecSpace, double>& bvh);
 
@@ -152,7 +153,7 @@ private:
    * @brief Compute the tet-mesh geometry surface as trianglular facets.
    */
   template <typename ExecSpace>
-  axom::Array<Triangle3DType> computeGeometrySurface(int allocId);
+  axom::Array<Triangle3DType> computeGeometrySurface(int allocId, HostAllocator hostAllocator);
 
   /*!
    * @brief Add a polyhedral topology to an unstructured tet mesh.

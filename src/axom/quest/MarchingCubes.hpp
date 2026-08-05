@@ -19,6 +19,7 @@
 #ifdef AXOM_USE_CONDUIT
 
   // Axom includes
+  #include "axom/core/memory_management.hpp"
   #include "axom/core/execution/runtime_policy.hpp"
   #include "axom/mint/mesh/UnstructuredMesh.hpp"
 
@@ -118,10 +119,18 @@ public:
    *             running sequentially on the CPU.
    * @param [in] allocatorID Data allocator ID.  Choose something compatible
    *             with \c runtimePolicy.  See \c execution_space.
+   * @param [in] hostAllocator Host allocator used for host-resident scratch
+   *             and staging allocations. Defaults to Axom's legacy host
+   *             allocator convenience path.
    * @param [in] dataParallelism Data parallel implementation choice.
   */
   MarchingCubes(RuntimePolicy runtimePolicy,
                 int allocatorId,
+                MarchingCubesDataParallelism dataParallelism);
+
+  MarchingCubes(RuntimePolicy runtimePolicy,
+                int allocatorId,
+                HostAllocator hostAllocator,
                 MarchingCubesDataParallelism dataParallelism);
 
   /*!
@@ -294,6 +303,7 @@ public:
 private:
   RuntimePolicy m_runtimePolicy;
   int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
+  HostAllocator m_hostAllocator {};
 
   //! @brief Choice of full or partial data-parallelism, or byPolicy.
   MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;

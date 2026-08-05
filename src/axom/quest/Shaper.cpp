@@ -33,10 +33,19 @@ Shaper::Shaper(RuntimePolicy execPolicy,
                int allocatorId,
                const klee::ShapeSet& shapeSet,
                sidre::MFEMSidreDataCollection* dc)
+  : Shaper(execPolicy, allocatorId, HostAllocator {}, shapeSet, dc)
+{ }
+
+Shaper::Shaper(RuntimePolicy execPolicy,
+               int allocatorId,
+               HostAllocator hostAllocator,
+               const klee::ShapeSet& shapeSet,
+               sidre::MFEMSidreDataCollection* dc)
   : m_execPolicy(execPolicy)
   , m_allocatorId(allocatorId != axom::INVALID_ALLOCATOR_ID
                     ? allocatorId
                     : axom::policyToDefaultAllocatorID(execPolicy))
+  , m_hostAllocator(hostAllocator)
   , m_shapeSet(shapeSet)
   , m_dc(dc)
   #if defined(AXOM_USE_CONDUIT)
@@ -60,10 +69,20 @@ Shaper::Shaper(RuntimePolicy execPolicy,
                const klee::ShapeSet& shapeSet,
                sidre::Group* bpGrp,
                const std::string& topo)
+  : Shaper(execPolicy, allocatorId, HostAllocator {}, shapeSet, bpGrp, topo)
+{ }
+
+Shaper::Shaper(RuntimePolicy execPolicy,
+               int allocatorId,
+               HostAllocator hostAllocator,
+               const klee::ShapeSet& shapeSet,
+               sidre::Group* bpGrp,
+               const std::string& topo)
   : m_execPolicy(execPolicy)
   , m_allocatorId(allocatorId != axom::INVALID_ALLOCATOR_ID
                     ? allocatorId
                     : axom::policyToDefaultAllocatorID(execPolicy))
+  , m_hostAllocator(hostAllocator)
   , m_shapeSet(shapeSet)
 #if defined(AXOM_USE_CONDUIT)
   , m_bpGrp(bpGrp)
@@ -91,10 +110,20 @@ Shaper::Shaper(RuntimePolicy execPolicy,
                const klee::ShapeSet& shapeSet,
                conduit::Node& bpNode,
                const std::string& topo)
+  : Shaper(execPolicy, allocatorId, HostAllocator {}, shapeSet, bpNode, topo)
+{ }
+
+Shaper::Shaper(RuntimePolicy execPolicy,
+               int allocatorId,
+               HostAllocator hostAllocator,
+               const klee::ShapeSet& shapeSet,
+               conduit::Node& bpNode,
+               const std::string& topo)
   : m_execPolicy(execPolicy)
   , m_allocatorId(allocatorId != axom::INVALID_ALLOCATOR_ID
                     ? allocatorId
                     : axom::policyToDefaultAllocatorID(execPolicy))
+  , m_hostAllocator(hostAllocator)
   , m_shapeSet(shapeSet)
 #if defined(AXOM_USE_CONDUIT)
   , m_bpGrp(nullptr)
@@ -245,7 +274,7 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
     axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
 
   // Code for discretizing shapes has been factored into DiscreteShape class.
-  DiscreteShape discreteShape(shape, m_dataStore.getRoot(), m_prefixPath);
+  DiscreteShape discreteShape(shape, m_dataStore.getRoot(), m_hostAllocator, m_prefixPath);
   discreteShape.setSamplesPerKnotSpan(m_samplesPerKnotSpan);
   discreteShape.setVertexWeldThreshold(m_vertexWeldThreshold);
   discreteShape.setRefinementType(m_refinementType);

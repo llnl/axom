@@ -13,12 +13,16 @@
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/synchronize.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
 
 // gtest includes
 #include "gtest/gtest.h"
 
+#include <exception>
+
 namespace testing
 {
+
 template <typename ExecSpace, axom::MemorySpace SPACE = axom::MemorySpace::Dynamic>
 struct ArrayTestParams
 {
@@ -53,6 +57,15 @@ public:
   using DynamicArray = axom::Array<axom::IndexType, 1, axom::MemorySpace::Dynamic>;
   using KernelArray = axom::Array<axom::IndexType, 1, exec_space_memory>;
   using KernelArrayView = axom::ArrayView<axom::IndexType, 1, exec_space_memory>;
+
+  void SetUp() override
+  {
+    if(!axom::utilities::runtimeMemorySpaceAvailable(exec_space_memory))
+    {
+      GTEST_SKIP() << "Skipping test because the allocator for the kernel memory space "
+                   << static_cast<int>(exec_space_memory) << " is unavailable at runtime.";
+    }
+  }
 
   static int getKernelAllocatorID() { return axom::detail::getAllocatorID<exec_space_memory>(); }
 };
@@ -92,6 +105,11 @@ AXOM_CUDA_TEST(core_array_for_all, capture_test)
 {
   using ExecSpace = axom::CUDA_EXEC<256>;
   using KernelArray = axom::Array<int, 1, axom::MemorySpace::Device>;
+
+  if(!axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  {
+    GTEST_SKIP() << "Device allocator is unavailable at runtime.";
+  }
 
   EXPECT_DEATH_IF_SUPPORTED(
     {
@@ -1124,29 +1142,36 @@ struct DeviceInsert
 
 AXOM_TYPED_TEST(core_array_for_all, device_insert)
 {
-  using ExecSpaceType = typename TestFixture::ExecSpace;
-  using DynamicArrayType = typename TestFixture::template DynamicTArray<DeviceInsert>;
-  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArrayType>;
+  using ExecSpace = typename TestFixture::ExecSpace;
+  using DynamicArray = typename TestFixture::template DynamicTArray<DeviceInsert>;
+  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
 
+  int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   int kernelAllocID = TestFixture::getKernelAllocatorID();
-  int umAllocID = kernelAllocID;
+  int umAllocID = hostAllocID;
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
   // Use unified memory for frequent movement between device operations
   // and value checking on host
-  umAllocID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  {
+    umAllocID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+  }
+  else if(axom::execution_space<ExecSpace>::onDevice())
+  {
+    GTEST_SKIP() << "Unified allocator is unavailable at runtime.";
+  }
 #endif
-  int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   constexpr axom::IndexType N = 374;
 
   DynamicArrayOfArrays arr_container(1, 1, umAllocID);
-  arr_container[0] = DynamicArrayType(0, N, kernelAllocID);
+  arr_container[0] = DynamicArray(0, N, kernelAllocID);
   const auto arr_v = arr_container.view();
 
   EXPECT_EQ(arr_container[0].size(), 0);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
-  axom::for_all<ExecSpaceType>(
+  axom::for_all<ExecSpace>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) {
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && !defined(AXOM_DEVICE_CODE)
@@ -1167,16 +1192,16 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
     });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpaceType>::async())
+  if(axom::execution_space<ExecSpace>::async())
   {
-    axom::synchronize<ExecSpaceType>();
+    axom::synchronize<ExecSpace>();
   }
 
   EXPECT_EQ(arr_container[0].size(), N);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
   // Copy array to host.
-  DynamicArrayType arr_host(arr_container[0], hostAllocID);
+  DynamicArray arr_host(arr_container[0], hostAllocID);
 
   // Device-side inserts may occur in any order.
   // Sort them before we check the inserted values.
@@ -1187,7 +1212,7 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   for(int i = 0; i < N; i++)
   {
     EXPECT_EQ(arr_host[i].m_value, 3 * i + 5);
-    if(axom::execution_space<ExecSpaceType>::onDevice())
+    if(axom::execution_space<ExecSpace>::onDevice())
     {
       EXPECT_EQ(arr_host[i].m_host_or_device, INSERT_ON_DEVICE);
     }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "axom/config.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/slic.hpp"
 
@@ -110,6 +111,9 @@ public:
    * the bounding boxes. Default: 1e-8
    * \param [in] allocatorId Currently unused. Default value is based on the
    *  allocator ID set for the specified execution space.
+   * \param [in] hostAllocator Host allocator used for host-resident bounding
+   *  boxes and host-side staging buffers. Defaults to Axom's legacy host
+   *  allocator convenience path.
    *
    * \note The bboxTolerance should be a small positive number.  It helps avoid
    * numerical issues in the bounding box containment queries by slightly
@@ -126,7 +130,8 @@ public:
   PointInCell(MeshType* mesh,
               int* resolution = nullptr,
               double bboxTolerance = 1e-8,
-              int allocatorID = axom::execution_space<ExecSpace>::allocatorID())
+              int allocatorID = axom::execution_space<ExecSpace>::allocatorID(),
+              HostAllocator hostAllocator = HostAllocator {})
     : m_meshWrapper(mesh)
     , m_pointFinder2D(nullptr)
     , m_pointFinder3D(nullptr)
@@ -140,10 +145,12 @@ public:
     switch(m_meshWrapper.meshDimension())
     {
     case 2:
-      m_pointFinder2D = new PointFinder2D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID);
+      m_pointFinder2D =
+        new PointFinder2D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID, hostAllocator);
       break;
     case 3:
-      m_pointFinder3D = new PointFinder3D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID);
+      m_pointFinder3D =
+        new PointFinder3D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID, hostAllocator);
       break;
     default:
       SLIC_ERROR("Point in Cell query only defined for 2D or 3D meshes.");

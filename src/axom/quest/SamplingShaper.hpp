@@ -143,6 +143,21 @@ public:
     }
   }
 
+  SamplingShaper(RuntimePolicy execPolicy,
+                 int allocatorId,
+                 HostAllocator hostAllocator,
+                 const klee::ShapeSet& shapeSet,
+                 sidre::MFEMSidreDataCollection* dc)
+    : Shaper(execPolicy, allocatorId, hostAllocator, shapeSet, dc)
+  {
+    // Initialize the default number of samples based on the mesh dimension.
+    const int dim = getMeshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(5);
+    }
+  }
+
   ~SamplingShaper()
   {
     m_inoutShapeQFuncs.DeleteData(true);
@@ -374,7 +389,8 @@ public:
     const auto format = this->shapeFormat(shape);
     if(useWindingNumberSampler(shape))
     {
-      m_sampler = std::make_unique<WindingNumberSampler2D>(shapeName, m_contours.view());
+      m_sampler =
+        std::make_unique<WindingNumberSampler2D>(shapeName, m_contours.view(), m_hostAllocator);
     }
     else if(format == "c2c" || format == "mfem")
     {
@@ -390,21 +406,25 @@ public:
       switch(this->getExecutionPolicy())
       {
       case Policy::seq:
-        m_sampler = std::make_unique<PrimitiveSampler3D_seq>(shapeName, m_surfaceMesh);
+        m_sampler =
+          std::make_unique<PrimitiveSampler3D_seq>(shapeName, m_surfaceMesh, m_hostAllocator);
         break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case Policy::omp:
-        m_sampler = std::make_unique<PrimitiveSampler3D_omp>(shapeName, m_surfaceMesh);
+        m_sampler =
+          std::make_unique<PrimitiveSampler3D_omp>(shapeName, m_surfaceMesh, m_hostAllocator);
         break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case Policy::cuda:
-        m_sampler = std::make_unique<PrimitiveSampler3D_cuda>(shapeName, m_surfaceMesh);
+        m_sampler =
+          std::make_unique<PrimitiveSampler3D_cuda>(shapeName, m_surfaceMesh, m_hostAllocator);
         break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case Policy::hip:
-        m_sampler = std::make_unique<PrimitiveSampler3D_hip>(shapeName, m_surfaceMesh);
+        m_sampler =
+          std::make_unique<PrimitiveSampler3D_hip>(shapeName, m_surfaceMesh, m_hostAllocator);
         break;
 #endif
       default:

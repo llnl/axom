@@ -46,6 +46,11 @@ First, construct the ``UniformGrid`` and load it with triangles.
 
 Then, for every triangle, look up its possible neighbors
 
+Candidate-output APIs that allocate or stage host data have overloads that
+accept ``axom::HostAllocator``. Prefer those overloads in new code when host
+allocator ownership is available; overloads without a host allocator are
+compatibility paths that use Axom's current default host allocator.
+
 .. literalinclude:: ../../examples/spin_introduction.cpp
    :start-after: _ugrid_candidate_start
    :end-before: _ugrid_candidate_end
@@ -61,4 +66,3 @@ and test the triangle against those neighbors.
 The ``UniformGrid`` has its best effect when objects are roughly the same size and 
 evenly distributed over the region of interest, and when bins are close to the 
 characteristic size of objects in the region of interest.  
-

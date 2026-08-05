@@ -1479,7 +1479,7 @@ std::vector<int> getKnownAllocIds()
 {
   std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
 #ifdef AXOM_USE_UMPIRE
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  allocIds.push_back(axom::HostAllocator {}.getID());
   #ifdef AXOM_USE_GPU
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
@@ -3583,24 +3583,10 @@ TEST(sidre_group, import_conduit_lists)
 
 //------------------------------------------------------------------------------
 
-inline int pointerToAllocatorID(const void* ptr)
-{
-#ifdef AXOM_USE_UMPIRE
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.hasAllocator(const_cast<void*>(ptr)))
-  {
-    umpire::Allocator allocator = rm.getAllocator(const_cast<void*>(ptr));
-    return allocator.getId();
-  }
-#endif
-  AXOM_UNUSED_VAR(ptr);
-  return axom::getDefaultAllocatorID();
-}
-
 TEST(sidre_group, import_conduit_into_mem_space)
 {
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
-  const int hostAllocId = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
+  const int hostAllocId = axom::HostAllocator {}.getID();
   const int devAllocId = axom::detail::getAllocatorID<axom::MemorySpace::Device>();
 #else
   // Memory space testing is trivial without device memory.
@@ -3618,8 +3604,9 @@ TEST(sidre_group, import_conduit_into_mem_space)
   conduit::Node node;
   node["origOnHost"].set_dtype(dtype);
   node["origOnDev"].set_external(dtype, devArray);
-  EXPECT_EQ(pointerToAllocatorID(node["origOnHost"].data_ptr()), hostAllocId);
-  EXPECT_EQ(pointerToAllocatorID(node["origOnDev"].data_ptr()), devAllocId);
+  EXPECT_TRUE(axom::isHostAccessibleAllocatorID(
+    axom::getAllocatorIDFromPointer(node["origOnHost"].data_ptr())));
+  EXPECT_EQ(axom::getAllocatorIDFromPointer(node["origOnDev"].data_ptr()), devAllocId);
 
   /*
     Regardless of where the source data is, the destination
@@ -3638,11 +3625,11 @@ TEST(sidre_group, import_conduit_into_mem_space)
     EXPECT_TRUE(destGroup->hasView("origOnDev"));
 
     const auto* viewWithHostData = destGroup->getView("origOnHost");
-    int allocIdForHostData = pointerToAllocatorID(viewWithHostData->getVoidPtr());
+    int allocIdForHostData = axom::getAllocatorIDFromPointer(viewWithHostData->getVoidPtr());
     EXPECT_EQ(allocIdForHostData, destAllocId);
 
     const auto* viewWithDevData = destGroup->getView("origOnDev");
-    int allocIdForDevData = pointerToAllocatorID(viewWithDevData->getVoidPtr());
+    int allocIdForDevData = axom::getAllocatorIDFromPointer(viewWithDevData->getVoidPtr());
     EXPECT_EQ(allocIdForDevData, destAllocId);
   }
 
@@ -3658,11 +3645,11 @@ TEST(sidre_group, import_conduit_into_mem_space)
     EXPECT_TRUE(destGroup->hasView("origOnDev"));
 
     const auto* viewWithHostData = destGroup->getView("origOnHost");
-    int allocIdForHostData = pointerToAllocatorID(viewWithHostData->getVoidPtr());
+    int allocIdForHostData = axom::getAllocatorIDFromPointer(viewWithHostData->getVoidPtr());
     EXPECT_EQ(allocIdForHostData, destAllocId);
 
     const auto* viewWithDevData = destGroup->getView("origOnDev");
-    int allocIdForDevData = pointerToAllocatorID(viewWithDevData->getVoidPtr());
+    int allocIdForDevData = axom::getAllocatorIDFromPointer(viewWithDevData->getVoidPtr());
     EXPECT_EQ(allocIdForDevData, destAllocId);
   }
 

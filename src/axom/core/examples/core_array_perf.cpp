@@ -159,30 +159,44 @@ InputParams params;
 //!@brief Return allocator id suitable for the given runtime policy.
 int allocatorIdFromPolicy(axom::runtime_policy::Policy policy)
 {
-  AXOM_UNUSED_VAR(policy);
-#if defined(AXOM_USE_UMPIRE)
-  int allocatorID = policy == axom::runtime_policy::Policy::seq
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Host>()
-    :
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-    policy == axom::runtime_policy::Policy::omp
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Host>()
-    :
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-    policy == axom::runtime_policy::Policy::cuda
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Device>()
-    :
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-    policy == axom::runtime_policy::Policy::hip
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Device>()
-    :
-  #endif
-    axom::INVALID_ALLOCATOR_ID;
-#else
   int allocatorID = axom::getDefaultAllocatorID();
-#endif
+
+#if !defined(AXOM_USE_UMPIRE)
+  AXOM_UNUSED_VAR(policy);
+#else
+
+  const axom::HostAllocator hostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
+
+  allocatorID = axom::INVALID_ALLOCATOR_ID;
+
+  if(policy == axom::runtime_policy::Policy::seq)
+  {
+    allocatorID = hostAllocator.getID();
+  }
+
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  if(policy == axom::runtime_policy::Policy::omp)
+  {
+    allocatorID = hostAllocator.getID();
+  }
+  #endif
+
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  if(policy == axom::runtime_policy::Policy::cuda)
+  {
+    allocatorID = axom::detail::getAllocatorID<axom::MemorySpace::Device>();
+  }
+  #endif
+
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  if(policy == axom::runtime_policy::Policy::hip)
+  {
+    allocatorID = axom::detail::getAllocatorID<axom::MemorySpace::Device>();
+  }
+  #endif
+
+#endif  // AXOM_USE_UMPIRE
+
   return allocatorID;
 }
 
@@ -204,11 +218,18 @@ public:
   {
     m_allocatorId = allocatorIdFromPolicy(params.runtimePolicy);
 #ifdef AXOM_USE_UMPIRE
-    umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-    umpire::Allocator allocator = rm.getAllocator(m_allocatorId);
-    std::cout << axom::fmt::format("Allocator id: {}, Umpire memory space {}",
-                                   m_allocatorId,
-                                   allocator.getName())
+    std::string name;
+    if(m_allocatorId == axom::MALLOC_ALLOCATOR_ID)
+    {
+      name = "Malloc";
+    }
+    else
+    {
+      umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+      name = rm.getAllocator(m_allocatorId).getName();
+    }
+
+    std::cout << axom::fmt::format("Allocator id: {}, Umpire memory space {}", m_allocatorId, name)
               << std::endl;
 #else
     std::cout << axom::fmt::format("Allocator id: {}, default memory space", m_allocatorId)

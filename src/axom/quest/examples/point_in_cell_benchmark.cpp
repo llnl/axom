@@ -187,6 +187,7 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
   // Get ids of necessary allocators
   constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const axom::HostAllocator hostAllocator {host_allocator};
   const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
   BoxType meshBb;
@@ -198,7 +199,7 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
   }
   SLIC_DEBUG("Mesh bounding box " << meshBb);
 
-  axom::Array<PointType> pts_h(npts, npts, host_allocator);
+  axom::Array<PointType> pts_h(npts, npts, host_allocator, hostAllocator);
 
   // Generate random points
   utilities::Timer timer(true);
@@ -215,7 +216,11 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
 
   // Initialize the spatial index
   timer.start();
-  quest::PointInCell<mesh_tag, ExecSpace> query(&mesh, bins.data());
+  quest::PointInCell<mesh_tag, ExecSpace> query(&mesh,
+                                                bins.data(),
+                                                1e-8,
+                                                device_allocator,
+                                                hostAllocator);
   query.setPrintLevel(args.verbosity);
   query.setInitialGuessType(args.init_guess_type);
   query.setInitialGridOrder(args.init_guess_order);
@@ -224,13 +229,13 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
   SLIC_INFO(axom::fmt::format("Initialized point-in-cell query in {} s.", timer.elapsed()));
 
   // Run query
-  axom::Array<IndexType> outCellIds_d(npts, npts, device_allocator);
-  axom::Array<PointType> outIsoParams_d(npts, npts, device_allocator);
+  axom::Array<IndexType> outCellIds_d(npts, npts, device_allocator, hostAllocator);
+  axom::Array<PointType> outIsoParams_d(npts, npts, device_allocator, hostAllocator);
 
   auto outCellIds_v = outCellIds_d.view();
   auto outIsoParams_v = outIsoParams_d.view();
 
-  axom::Array<PointType> pts_d = axom::Array<PointType>(pts_h, device_allocator);
+  axom::Array<PointType> pts_d = axom::Array<PointType>(pts_h, device_allocator, hostAllocator);
 
   timer.start();
   query.locatePoints(pts_d.view(), outCellIds_v.data(), outIsoParams_v.data());
@@ -242,10 +247,12 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
                               npts / time));
 
   // Copy back to host
-  axom::Array<IndexType> outCellIds_h =
-    on_device ? axom::Array<IndexType>(outCellIds_d, host_allocator) : std::move(outCellIds_d);
-  axom::Array<PointType> outIsoParams_h =
-    on_device ? axom::Array<PointType>(outIsoParams_d, host_allocator) : std::move(outIsoParams_d);
+  axom::Array<IndexType> outCellIds_h = on_device
+    ? axom::Array<IndexType>(outCellIds_d, host_allocator, hostAllocator)
+    : std::move(outCellIds_d);
+  axom::Array<PointType> outIsoParams_h = on_device
+    ? axom::Array<PointType>(outIsoParams_d, host_allocator, hostAllocator)
+    : std::move(outIsoParams_d);
 
   // Verify the results by reconstructing physical points from refrerence coordinates
   if(verifyPoints)

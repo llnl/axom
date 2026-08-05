@@ -22,8 +22,15 @@ namespace experimental
 {
 
 SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
+  : SORClipper(kGeom, name, HostAllocator {})
+{ }
+
+SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name, HostAllocator hostAllocator)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sor") : name)
+  , m_hostAllocator(hostAllocator)
+  , m_fsorImpls(0, 0, hostAllocator.getID(), hostAllocator)
+  , m_sorCurve(0, 0, hostAllocator.getID(), hostAllocator)
   , m_maxRadius(0.0)
   , m_minRadius(std::numeric_limits<double>::max())
 {
@@ -44,7 +51,7 @@ SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
 
   MonotonicZSORClipper::combineRadialSegments(m_sorCurve);
 
-  axom::Array<axom::Array<Point2DType>> sections;
+  axom::Array<axom::Array<Point2DType>> sections(0, 0, hostAllocator.getID(), hostAllocator);
   splitIntoMonotonicSections(m_sorCurve.view(), sections);
   for(int i = 0; i < sections.size(); ++i)
   {
@@ -55,7 +62,8 @@ SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
                                                                  section,
                                                                  m_sorOrigin,
                                                                  m_sorDirection,
-                                                                 m_levelOfRefinement));
+                                                                 m_levelOfRefinement,
+                                                                 hostAllocator));
   }
 }
 
@@ -76,7 +84,8 @@ bool SORClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
    * correct sign.
    */
   const axom::IndexType cellCount = ovlap.size();
-  axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
+  axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID(), hostAllocator);
   for(auto& fsorImpl : m_fsorImpls)
   {
     tmpOvlap.fill(0.0);
@@ -107,7 +116,8 @@ void SORClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> p
                                             axom::Array<axom::Array<Point2DType>>& sections)
 {
   AXOM_ANNOTATE_SCOPE("SORClipper::splitIntoMonotonicSections");
-  axom::Array<axom::IndexType> splitIdx = MonotonicZSORClipper::findZSwitchbacks(pts);
+  axom::Array<axom::IndexType> splitIdx =
+    MonotonicZSORClipper::findZSwitchbacks(pts, m_hostAllocator);
 
   const axom::IndexType sectionCount = splitIdx.size() - 1;
   sections.clear();
@@ -117,7 +127,10 @@ void SORClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> p
     axom::IndexType firstInSection = splitIdx[i];
     axom::IndexType lastInSection = splitIdx[i + 1];
     auto& curSection = sections[i];
-    curSection.reserve(lastInSection - firstInSection + 1);
+    curSection = axom::Array<Point2DType>(0,
+                                          lastInSection - firstInSection + 1,
+                                          m_hostAllocator.getID(),
+                                          m_hostAllocator);
     for(axom::IndexType j = firstInSection; j <= lastInSection; ++j)
     {
       curSection.push_back(pts[j]);
@@ -187,7 +200,11 @@ void SORClipper::extractClipperInfo()
       "***SORClipper: Discrete function must have an even number of values.  It has {}.",
       n));
 
-  m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2);
+  m_sorCurve = axom::Array<Point2DType>(axom::ArrayOptions::Uninitialized(),
+                                        n / 2,
+                                        n / 2,
+                                        m_hostAllocator.getID(),
+                                        m_hostAllocator);
   for(int i = 0; i < n / 2; ++i)
   {
     m_sorCurve[i] = Point2DType {discreteFunctionArray[i * 2], discreteFunctionArray[i * 2 + 1]};

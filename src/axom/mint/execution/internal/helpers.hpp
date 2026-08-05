@@ -11,6 +11,7 @@
 #include "axom/mint/mesh/Mesh.hpp"  // for Mesh
 
 #include "axom/core/Macros.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/core/StackArray.hpp"       // for axom::StackArray
 #include "axom/core/numerics/Matrix.hpp"  // for Matrix
 
@@ -41,7 +42,10 @@ namespace internal
  */
 
 template <typename ExecPolicy, int NDIM, int NNODES, typename FOR_ALL_FUNCTOR, typename MeshType, typename KernelType>
-inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType& m, KernelType&& kernel)
+inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes,
+                           const MeshType& m,
+                           HostAllocator hostAllocator,
+                           KernelType&& kernel)
 {
   SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_UNIFORM_MESH, "Not valid for UniformMesh.");
   SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_RECTILINEAR_MESH, "Not valid for RectilinearMesh.");
@@ -70,20 +74,23 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
     : axom::ArrayView<const double>();
 
   // Move xyz values onto device
-  axom::Array<double> x_vals_d = axom::Array<double>(x_vals_h, device_allocator);
+  axom::Array<double> x_vals_d = axom::Array<double>(x_vals_h, device_allocator, hostAllocator);
   auto x_vals_view = x_vals_d.view();
 
-  axom::Array<double> y_vals_d =
-    (NDIM > 1) ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> y_vals_d = (NDIM > 1)
+    ? axom::Array<double>(y_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto y_vals_view = (NDIM > 1) ? y_vals_d.view() : y_vals_h;
 
-  axom::Array<double> z_vals_d =
-    (NDIM > 2) ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> z_vals_d = (NDIM > 2)
+    ? axom::Array<double>(z_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto z_vals_view = (NDIM > 2) ? z_vals_d.view() : z_vals_h;
 
   for_all_nodes(
     ExecPolicy(),
     m,
+    hostAllocator,
     AXOM_LAMBDA(IndexType objectID, const IndexType* nodeIDs, IndexType numNodes) {
       AXOM_UNUSED_VAR(numNodes);
       assert(numNodes == NNODES);
@@ -107,6 +114,15 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
       numerics::Matrix<double> coordsMatrix(NDIM, NNODES, localCoords, NO_COPY);
       kernel(objectID, coordsMatrix, nodeIDs);
     });
+}
+
+template <typename ExecPolicy, int NDIM, int NNODES, typename FOR_ALL_FUNCTOR, typename MeshType, typename KernelType>
+inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType& m, KernelType&& kernel)
+{
+  for_all_coords<ExecPolicy, NDIM, NNODES>(for_all_nodes,
+                                           m,
+                                           HostAllocator {},
+                                           std::forward<KernelType>(kernel));
 }
 
 } /* namespace internal */

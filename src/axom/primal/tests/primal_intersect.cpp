@@ -10,6 +10,7 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
 
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
@@ -30,6 +31,7 @@ namespace primal = axom::primal;
 
 namespace
 {
+
 template <int NDIMS>
 primal::Point<double, NDIMS> randomPt(double beg, double end)
 {
@@ -2590,14 +2592,7 @@ void check_plane_bb_intersect()
   // Save current/default allocator
   const int current_allocator = axom::getDefaultAllocatorID();
 
-  // Determine new allocator (for CUDA or HIP policy, set to device)
-  umpire::Allocator allocator =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(axom::execution_space<ExecSpace>::allocatorID()));
-
-  // Set new default to device
-  axom::setDefaultAllocator(allocator.getId());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // Initialize bounding box and planes on device,
   // intersection results in unified memory to check results on host.
@@ -2671,14 +2666,7 @@ void check_plane_seg_intersect()
   // Save current/default allocator
   const int current_allocator = axom::getDefaultAllocatorID();
 
-  // Determine new allocator (for CUDA or HIP policy, set to device)
-  umpire::Allocator allocator =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(axom::execution_space<ExecSpace>::allocatorID()));
-
-  // Set new default to device
-  axom::setDefaultAllocator(allocator.getId());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // Initialize planes and segments on device,
   // intersection results in unified memory to check results on host.
@@ -2761,12 +2749,7 @@ void check_segment_segment_intersect_policy()
 
   const int current_allocator = axom::getDefaultAllocatorID();
 
-  umpire::Allocator allocator =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(axom::execution_space<ExecSpace>::allocatorID()));
-
-  axom::setDefaultAllocator(allocator.getId());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   const int result_allocator = (axom::execution_space<ExecSpace>::onDevice()
                                   ? rm.getAllocator(umpire::resource::Unified).getId()

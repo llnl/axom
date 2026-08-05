@@ -243,8 +243,9 @@ inline int isend_using_schema(conduit::Node& node,
 class DistributedClosestPointImpl
 {
 public:
-  DistributedClosestPointImpl(int allocatorID, bool isVerbose)
+  DistributedClosestPointImpl(int allocatorID, HostAllocator hostAllocator, bool isVerbose)
     : m_allocatorID(allocatorID)
+    , m_hostAllocator(hostAllocator)
     , m_isVerbose(isVerbose)
     , m_mpiComm(MPI_COMM_NULL)
     , m_rank(-1)
@@ -265,6 +266,8 @@ public:
     // TODO: If appropriate, how to check for compatibility with runtime policy?
     m_allocatorID = allocatorID;
   }
+
+  void setHostAllocator(HostAllocator hostAllocator) { m_hostAllocator = hostAllocator; }
 
   /*!
    @brief Import object mesh points from the object blueprint mesh into internal memory.
@@ -516,6 +519,7 @@ public:
 
 protected:
   int m_allocatorID;
+  HostAllocator m_hostAllocator;
   bool m_isVerbose;
 
   MPI_Comm m_mpiComm;
@@ -575,10 +579,10 @@ public:
       Also see setAllocatorID().
     @param [i[ isVerbose
   */
-  DistributedClosestPointExec(int allocatorID, bool isVerbose)
-    : DistributedClosestPointImpl(allocatorID, isVerbose)
-    , m_objectPtCoords(0, 0, allocatorID)
-    , m_objectPtDomainIds(0, 0, allocatorID)
+  DistributedClosestPointExec(int allocatorID, HostAllocator hostAllocator, bool isVerbose)
+    : DistributedClosestPointImpl(allocatorID, hostAllocator, isVerbose)
+    , m_objectPtCoords(0, 0, allocatorID, hostAllocator)
+    , m_objectPtDomainIds(0, 0, allocatorID, hostAllocator)
   {
     SLIC_ASSERT(allocatorID != axom::INVALID_ALLOCATOR_ID);
 
@@ -606,8 +610,8 @@ public:
     }
 
     // Copy points to internal memory
-    PointArray coords(ptCount, ptCount);
-    axom::Array<axom::IndexType> domIds(ptCount, ptCount);
+    PointArray coords(ptCount, ptCount, m_hostAllocator.getID(), m_hostAllocator);
+    axom::Array<axom::IndexType> domIds(ptCount, ptCount, m_hostAllocator.getID(), m_hostAllocator);
     std::size_t copiedCount = 0;
     conduit::Node tmpValues;
     for(axom::IndexType d = 0; d < mdMeshNode.number_of_children(); ++d)
@@ -644,8 +648,8 @@ public:
       copiedCount += N;
     }
     // copy computed data to ExecSpace
-    m_objectPtCoords = PointArray(coords, m_allocatorID);
-    m_objectPtDomainIds = axom::Array<axom::IndexType>(domIds, m_allocatorID);
+    m_objectPtCoords = PointArray(coords, m_allocatorID, m_hostAllocator);
+    m_objectPtDomainIds = axom::Array<axom::IndexType>(domIds, m_allocatorID, m_hostAllocator);
   }
 
   bool generateBVHTree() override
@@ -659,7 +663,7 @@ public:
     // move the object point data to avoid repetitive page faults.
     if(m_objectPtCoords.getAllocatorID() != m_allocatorID)
     {
-      PointArray tmpPoints(m_objectPtCoords, m_allocatorID);
+      PointArray tmpPoints(m_objectPtCoords, m_allocatorID, m_hostAllocator);
       m_objectPtCoords.swap(tmpPoints);
     }
 
@@ -679,10 +683,13 @@ public:
   /// Allgather one bounding box from each rank.
   void gatherBoundingBoxes(const BoxType& aabb, BoxArray& all_aabbs) const
   {
-    axom::Array<double> sendbuf(2 * DIM);
+    axom::Array<double> sendbuf(2 * DIM, 2 * DIM, m_hostAllocator.getID(), m_hostAllocator);
     aabb.getMin().to_array(&sendbuf[0]);
     aabb.getMax().to_array(&sendbuf[DIM]);
-    axom::Array<double> recvbuf(m_nranks * sendbuf.size());
+    axom::Array<double> recvbuf(m_nranks * sendbuf.size(),
+                                m_nranks * sendbuf.size(),
+                                m_hostAllocator.getID(),
+                                m_hostAllocator);
     // Note: Using axom::Array<double,2> may reduce clutter a tad.
     int errf = MPI_Allgather(sendbuf.data(),
                              2 * DIM,
@@ -885,7 +892,7 @@ public:
     SLIC_ASSERT(bvh != nullptr);
 
     const int npts = m_objectPtCoords.size();
-    axom::Array<BoxType> boxesArray(npts, npts, m_allocatorID);
+    axom::Array<BoxType> boxesArray(npts, npts, m_allocatorID, m_hostAllocator);
     auto boxesView = boxesArray.view();
     auto pointsView = m_objectPtCoords.view();
 
@@ -939,17 +946,21 @@ public:
       /// Create ArrayViews in ExecSpace that are compatible with fields
       // This deep-copies host memory in xferDom to device memory.
       // TODO: Avoid copying arrays (here and at the end) if both are on the host
-      auto cp_idx = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-                             : axom::Array<axom::IndexType>(cpIndexes, m_allocatorID);
-      auto cp_domidx = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-                                : axom::Array<axom::IndexType>(cpDomainIndexes, m_allocatorID);
-      auto cp_rank = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-                              : axom::Array<axom::IndexType>(cpRanks, m_allocatorID);
+      auto cp_idx = is_first
+        ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID, m_hostAllocator)
+        : axom::Array<axom::IndexType>(cpIndexes, m_allocatorID, m_hostAllocator);
+      auto cp_domidx = is_first
+        ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID, m_hostAllocator)
+        : axom::Array<axom::IndexType>(cpDomainIndexes, m_allocatorID, m_hostAllocator);
+      auto cp_rank = is_first
+        ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID, m_hostAllocator)
+        : axom::Array<axom::IndexType>(cpRanks, m_allocatorID, m_hostAllocator);
 
       /// PROBLEM: The striding does not appear to be retained by conduit relay
       ///          We might need to transform it? or to use a single array w/ pointers into it?
-      auto cp_pos = is_first ? axom::Array<PointType>(qPtCount, qPtCount, m_allocatorID)
-                             : axom::Array<PointType>(cpCoords, m_allocatorID);
+      auto cp_pos = is_first
+        ? axom::Array<PointType>(qPtCount, qPtCount, m_allocatorID, m_hostAllocator)
+        : axom::Array<PointType>(cpCoords, m_allocatorID, m_hostAllocator);
 
       // DEBUG
       const bool has_cp_distance = xferDom.has_path("debug/cp_distance");
@@ -958,9 +969,9 @@ public:
         : ArrayView<double>();
 
       auto cp_dist = has_cp_distance
-        ? (is_first ? axom::Array<double>(qPtCount, qPtCount, m_allocatorID)
-                    : axom::Array<double>(minDist, m_allocatorID))
-        : axom::Array<double>(0, 0, m_allocatorID);
+        ? (is_first ? axom::Array<double>(qPtCount, qPtCount, m_allocatorID, m_hostAllocator)
+                    : axom::Array<double>(minDist, m_allocatorID, m_hostAllocator))
+        : axom::Array<double>(0, 0, m_allocatorID, m_hostAllocator);
       // END DEBUG
 
       if(is_first)
@@ -979,7 +990,7 @@ public:
       auto query_min_dist = cp_dist.view();
 
       /// Create an ArrayView in ExecSpace that is compatible with queryPts
-      PointArray execPoints(queryPts, m_allocatorID);
+      PointArray execPoints(queryPts, m_allocatorID, m_hostAllocator);
       auto query_pts = execPoints.view();
 
       if(hasObjectPoints)
@@ -988,12 +999,10 @@ public:
         auto it = m_bvh->getTraverser();
         const int rank = m_rank;
 
-        axom::Array<double> sqDistThresh_host(1,
-                                              1,
-                                              axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+        axom::Array<double> sqDistThresh_host(1, 1, m_hostAllocator.getID(), m_hostAllocator);
         sqDistThresh_host[0] = m_sqDistanceThreshold;
         axom::Array<double> sqDistThresh_device =
-          axom::Array<double>(sqDistThresh_host, m_allocatorID);
+          axom::Array<double>(sqDistThresh_host, m_allocatorID, m_hostAllocator);
         auto sqDistThresh_device_view = sqDistThresh_device.view();
 
         auto ptCoordsView = m_objectPtCoords.view();

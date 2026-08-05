@@ -27,8 +27,16 @@ const axom::StackArray<axom::IndexType, 2> twoZeros {0, 0};
 MarchingCubes::MarchingCubes(RuntimePolicy runtimePolicy,
                              int allocatorID,
                              MarchingCubesDataParallelism dataParallelism)
+  : MarchingCubes(runtimePolicy, allocatorID, HostAllocator {}, dataParallelism)
+{ }
+
+MarchingCubes::MarchingCubes(RuntimePolicy runtimePolicy,
+                             int allocatorID,
+                             HostAllocator hostAllocator,
+                             MarchingCubesDataParallelism dataParallelism)
   : m_runtimePolicy(runtimePolicy)
   , m_allocatorID(allocatorID)
+  , m_hostAllocator(hostAllocator)
   , m_dataParallelism(dataParallelism)
   , m_singles()
   , m_topologyName()
@@ -38,14 +46,14 @@ MarchingCubes::MarchingCubes(RuntimePolicy runtimePolicy,
   , m_maskPath()
   , m_facetIndexOffsets(0, 0)
   , m_facetCount(0)
-  , m_caseIdsFlat(0, 0, m_allocatorID)
-  , m_crossingFlags(0, 0, m_allocatorID)
-  , m_scannedFlags(0, 0, m_allocatorID)
-  , m_facetIncrs(0, 0, m_allocatorID)
-  , m_facetNodeIds(twoZeros, m_allocatorID)
-  , m_facetNodeCoords(twoZeros, m_allocatorID)
-  , m_facetParentIds(0, 0, m_allocatorID)
-  , m_facetDomainIds(0, 0, m_allocatorID)
+  , m_caseIdsFlat(0, 0, m_allocatorID, m_hostAllocator)
+  , m_crossingFlags(0, 0, m_allocatorID, m_hostAllocator)
+  , m_scannedFlags(0, 0, m_allocatorID, m_hostAllocator)
+  , m_facetIncrs(0, 0, m_allocatorID, m_hostAllocator)
+  , m_facetNodeIds(twoZeros, m_allocatorID, m_hostAllocator)
+  , m_facetNodeCoords(twoZeros, m_allocatorID, m_hostAllocator)
+  , m_facetParentIds(0, 0, m_allocatorID, m_hostAllocator)
+  , m_facetDomainIds(0, 0, m_allocatorID, m_hostAllocator)
 { }
 
 // Set the object up for a blueprint mesh state.
@@ -195,19 +203,13 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
       && internalMemorySpace != axom::MemorySpace::Host
 #endif
       ;
-    const int hostAllocatorId = hostAndInternalMemoriesAreSeparate
-      ?
-#ifdef AXOM_USE_UMPIRE
-      axom::detail::getAllocatorID<axom::MemorySpace::Host>()
-#else
-      axom::detail::getAllocatorID<axom::MemorySpace::Dynamic>()
-#endif
-      : m_allocatorID;
+    const int hostAllocatorId =
+      hostAndInternalMemoriesAreSeparate ? m_hostAllocator.getID() : m_allocatorID;
 
     if(hostAndInternalMemoriesAreSeparate)
     {
-      axom::Array<double, 2> tmpfacetNodeCoords(m_facetNodeCoords, hostAllocatorId);
-      axom::Array<axom::IndexType, 2> tmpfacetNodeIds(m_facetNodeIds, hostAllocatorId);
+      axom::Array<double, 2> tmpfacetNodeCoords(m_facetNodeCoords, hostAllocatorId, m_hostAllocator);
+      axom::Array<axom::IndexType, 2> tmpfacetNodeIds(m_facetNodeIds, hostAllocatorId, m_hostAllocator);
       mesh.appendNodes(tmpfacetNodeCoords.data(), contourNodeCount);
       mesh.appendCells(tmpfacetNodeIds.data(), contourCellCount);
     }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "axom/config.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic.hpp"
 
@@ -85,6 +86,14 @@ public:
     associated with the runtime policy.
   */
   void setAllocatorID(int allocatorID);
+
+  /*!
+   * \brief Sets the host allocator used for host-resident scratch and staging.
+   *
+   * If not explicitly set, this defaults to Axom's legacy host allocator
+   * convenience path.
+   */
+  void setHostAllocator(HostAllocator hostAllocator);
 
   /**
    * \brief Set the MPI communicator.
@@ -195,6 +204,7 @@ private:
   MPI_Comm m_mpiComm;
   bool m_mpiCommIsPrivate;
   int m_allocatorID;
+  HostAllocator m_hostAllocator {};
   int m_dimension {-1};
   bool m_isVerbose {false};
   double m_sqDistanceThreshold;

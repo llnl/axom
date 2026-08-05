@@ -130,6 +130,19 @@ TEST(IntersectionShaperTest, case1_seq)
     replacementRuleTestSet(case1, "seq", RuntimePolicy::seq, tolerance);
   }
 }
+
+TEST(IntersectionShaperTest, case1_seq_explicit_host_allocator)
+{
+  if(testApp.selected("seq", 1))
+  {
+    replacementRuleTest(case1.front(),
+                        "seq",
+                        RuntimePolicy::seq,
+                        tolerance,
+                        false,
+                        axom::HostAllocator {axom::MALLOC_ALLOCATOR_ID});
+  }
+}
 #endif
 #if defined(RUN_AXOM_OMP_TESTS)
 TEST(IntersectionShaperTest, case1_omp)

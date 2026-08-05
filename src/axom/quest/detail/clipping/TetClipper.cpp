@@ -48,10 +48,15 @@ bool TetClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const auto cellCount = shapeMesh.getCellCount();
   if(cellLabels.size() < cellCount || cellLabels.getAllocatorID() != allocId)
   {
-    cellLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+    cellLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                        cellCount,
+                                        cellCount,
+                                        allocId,
+                                        hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -99,6 +104,7 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
    */
 
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   auto vertCount = shapeMesh.getVertexCount();
   auto cellCount = shapeMesh.getCellCount();
   auto meshCellVolumes = shapeMesh.getCellVolumes();
@@ -124,8 +130,8 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   axom::ArrayView<bool> aboveView[4];
   for(IndexType p = 0; p < 4; ++p)
   {
-    below[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId);
-    above[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId);
+    below[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId, hostAllocator);
+    above[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId, hostAllocator);
     belowView[p] = below[p].view();
     aboveView[p] = above[p].view();
   }
@@ -202,11 +208,13 @@ bool TetClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   const auto cellCount = cellIds.size();
   const auto tetCount = cellCount * NUM_TETS_PER_HEX;
   if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
   {
-    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
+    tetLabels =
+      axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId, hostAllocator);
   }
 
   switch(shapeMesh.getRuntimePolicy())
@@ -331,9 +339,10 @@ bool TetClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
 {
   AXOM_ANNOTATE_SCOPE("TetClipper::getGeometryAsTets");
   int allocId = shapeMesh.getAllocatorID();
+  HostAllocator hostAllocator = shapeMesh.getHostAllocator();
   if(tets.getAllocatorID() != allocId || tets.size() != 1)
   {
-    tets = axom::Array<TetrahedronType>(1, 1, allocId);
+    tets = axom::Array<TetrahedronType>(1, 1, allocId, hostAllocator);
   }
   // Copy tet into tets array, which may be in non-host memory.
   axom::copy(tets.data(), &m_tet, sizeof(TetrahedronType));

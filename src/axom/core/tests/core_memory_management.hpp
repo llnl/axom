@@ -9,12 +9,18 @@
 #include "gtest/gtest.h"
 
 #include "axom/core/memory_management.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   #include "umpire/config.hpp"
   #include "umpire/Allocator.hpp"
   #include "umpire/ResourceManager.hpp"
 #endif
+
+#include <cstdlib>
+#include <exception>
+#include <string>
+#include <vector>
 
 //------------------------------------------------------------------------------
 // HELPER METHODS
@@ -24,12 +30,39 @@
 // in check_alloc_realloc_free when reallocating to 3 * ARRAY_SIZE.
 constexpr int ARRAY_SIZE = 5345;
 
+struct ScopedDefaultAllocatorState
+{
+  ScopedDefaultAllocatorState()
+    : m_defaultAllocator(axom::getDefaultAllocatorID())
+    , m_defaultHostAllocator(axom::getDefaultHostAllocatorID())
+  { }
+
+  ~ScopedDefaultAllocatorState()
+  {
+    axom::setDefaultAllocator(m_defaultAllocator);
+    axom::setDefaultHostAllocator(m_defaultHostAllocator);
+  }
+
+  int m_defaultAllocator;
+  int m_defaultHostAllocator;
+};
+
+#if defined(AXOM_USE_UMPIRE)
+void appendAllocatorIDIfAvailable(std::vector<int>& allocatorIds, axom::MemorySpace space)
+{
+  if(axom::utilities::runtimeMemorySpaceAvailable(space))
+  {
+    allocatorIds.push_back(axom::getAllocatorIDFromMemorySpace(space));
+  }
+}
+#endif
+
 class CopyTest : public ::testing::TestWithParam<::testing::tuple<std::string, std::string>>
 {
 public:
   void SetUp() override
   {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
 #endif
 
@@ -48,7 +81,7 @@ public:
     {
       src_array = m_static_src_array;
     }
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     else
     {
       auto source_allocator = rm.getAllocator(src_string);
@@ -68,7 +101,7 @@ public:
     {
       dst_array = m_static_dst_array;
     }
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     else
     {
       auto source_allocator = rm.getAllocator(dst_string);
@@ -79,7 +112,7 @@ public:
 
   void TearDown() override
   {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     auto& rm = umpire::ResourceManager::getInstance();
 #endif
 
@@ -91,7 +124,7 @@ public:
     {
       std::free(src_array);
     }
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     else if(src_string != "STATIC")
     {
       rm.deallocate(src_array);
@@ -106,7 +139,7 @@ public:
     {
       std::free(dst_array);
     }
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     else if(dst_string != "STATIC")
     {
       rm.deallocate(dst_array);
@@ -126,7 +159,7 @@ private:
   int m_static_dst_array[ARRAY_SIZE];
 };
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 void check_alloc_and_free(int allocatorID = axom::getDefaultAllocatorID(), bool hostAccessible = true)
 #else
 void check_alloc_and_free(bool hostAccessible = true)
@@ -134,13 +167,12 @@ void check_alloc_and_free(bool hostAccessible = true)
 {
   for(int size = 0; size <= ARRAY_SIZE; size = size * 2 + 1)
   {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     int* buffer = axom::allocate<int>(size, allocatorID);
 
     if(size > 0)
     {
-      umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-      EXPECT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      EXPECT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
 #else
     int* buffer = axom::allocate<int>(size);
@@ -164,7 +196,7 @@ void check_alloc_and_free(bool hostAccessible = true)
   }
 }
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 void check_alloc_realloc_free(int allocatorID = axom::getDefaultAllocatorID(),
                               bool hostAccessible = true)
 #else
@@ -175,13 +207,12 @@ void check_alloc_realloc_free(bool hostAccessible = true)
   {
     int buffer_size = size;
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     int* buffer = axom::allocate<int>(buffer_size, allocatorID);
 
-    umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
     if(buffer_size > 0)
     {
-      ASSERT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      ASSERT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
 #else
     int* buffer = axom::allocate<int>(buffer_size);
@@ -204,12 +235,14 @@ void check_alloc_realloc_free(bool hostAccessible = true)
 
     // Reallocate to a larger size.
     buffer_size *= 3;
-    buffer = axom::reallocate<int>(buffer, buffer_size);
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
+    buffer = axom::reallocate<int>(buffer, buffer_size, allocatorID);
     if(buffer_size > 0)
     {
-      ASSERT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      ASSERT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
+#else
+    buffer = axom::reallocate<int>(buffer, buffer_size);
 #endif
 
     if(hostAccessible)
@@ -229,12 +262,14 @@ void check_alloc_realloc_free(bool hostAccessible = true)
 
     // Reallocate to a smaller size.
     buffer_size /= 5;
-    buffer = axom::reallocate<int>(buffer, buffer_size);
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
+    buffer = axom::reallocate<int>(buffer, buffer_size, allocatorID);
     if(buffer_size > 0)
     {
-      ASSERT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      ASSERT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
+#else
+    buffer = axom::reallocate<int>(buffer, buffer_size);
 #endif
 
     if(hostAccessible)
@@ -256,79 +291,289 @@ void check_alloc_realloc_free(bool hostAccessible = true)
 // UNIT TESTS
 //------------------------------------------------------------------------------
 
-#ifdef AXOM_USE_UMPIRE
+TEST(core_memory_management, memory_space_availability)
+{
+  EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Malloc));
+  EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Dynamic));
+  EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Host));
+
+#if defined(AXOM_USE_UMPIRE)
+
+  #if defined(UMPIRE_ENABLE_DEVICE)
+  EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Device));
+  #endif
+
+  #if defined(UMPIRE_ENABLE_UM)
+  EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Unified));
+  #endif
+
+  #if defined(UMPIRE_ENABLE_PINNED)
+  EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Pinned));
+  #endif
+
+  #if defined(UMPIRE_ENABLE_CONST)
+  EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Constant));
+  #endif
+
+#endif
+}
+
+TEST(core_memory_management, get_allocator_id_from_memory_space)
+{
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID,
+            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Malloc));
+  EXPECT_EQ(axom::getDefaultAllocatorID(),
+            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Dynamic));
+  EXPECT_EQ(axom::getDefaultHostAllocatorID(),
+            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+}
+
+TEST(core_memory_management, allocator_memory_space_compatibility)
+{
+  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
+                                                         axom::MemorySpace::Malloc));
+  EXPECT_TRUE(
+    axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID, axom::MemorySpace::Host));
+  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
+                                                         axom::MemorySpace::Dynamic));
+
+#if defined(AXOM_USE_UMPIRE)
+  const int platformHostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  EXPECT_TRUE(
+    axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID, axom::MemorySpace::Host));
+  EXPECT_FALSE(
+    axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID, axom::MemorySpace::Malloc));
+#endif
+}
+
+TEST(core_memory_management, set_get_default_host_allocator)
+{
+  ScopedDefaultAllocatorState scopedState;
+  const int defaultAllocatorID = axom::getDefaultAllocatorID();
+
+#if defined(AXOM_USE_UMPIRE)
+  const int platformHostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
+#else
+  const int platformHostAllocatorID = axom::MALLOC_ALLOCATOR_ID;
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
+#endif
+
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  EXPECT_EQ(defaultAllocatorID, axom::getDefaultAllocatorID());
+  EXPECT_EQ(defaultAllocatorID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Dynamic));
+
+  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
+  EXPECT_EQ(platformHostAllocatorID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  EXPECT_EQ(defaultAllocatorID, axom::getDefaultAllocatorID());
+
+#if defined(AXOM_USE_UMPIRE)
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  axom::setDefaultAllocator(axom::MemorySpace::Host);
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultAllocatorID());
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
+#endif
+}
+
+#if defined(AXOM_USE_UMPIRE)
+
+bool hostAllocationUsesExpectedAllocator(int selectedHostAllocId,
+                                         int expectedAllocId,
+                                         bool setGlobalDefaultToHost = false)
+{
+  axom::setDefaultHostAllocator(selectedHostAllocId);
+
+  if(setGlobalDefaultToHost)
+  {
+    axom::setDefaultAllocator(axom::MemorySpace::Host);
+  }
+
+  const int resolvedHostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
+  if(resolvedHostAllocatorID != selectedHostAllocId)
+  {
+    return false;
+  }
+
+  int* buffer = axom::allocate<int>(ARRAY_SIZE, resolvedHostAllocatorID);
+  if(buffer == nullptr)
+  {
+    return false;
+  }
+
+  const bool allocatorMatches = axom::getAllocatorIDFromPointer(buffer) == expectedAllocId;
+  axom::deallocate(buffer);
+  return allocatorMatches;
+}
+
+TEST(core_memory_management, host_space_allocation_uses_umpire_host_default)
+{
+  EXPECT_EXIT(([]() {
+                if(!hostAllocationUsesExpectedAllocator(
+                     axom::getUmpireResourceAllocatorID(umpire::resource::Host),
+                     axom::getUmpireResourceAllocatorID(umpire::resource::Host)))
+                {
+                  std::exit(1);
+                }
+
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
+}
+
+TEST(core_memory_management, host_space_allocation_uses_malloc_host_default)
+{
+  EXPECT_EXIT(
+    ([]() {
+      if(!hostAllocationUsesExpectedAllocator(axom::MALLOC_ALLOCATOR_ID, axom::MALLOC_ALLOCATOR_ID))
+      {
+        std::exit(1);
+      }
+
+      std::exit(0);
+    })(),
+    ::testing::ExitedWithCode(0),
+    "");
+}
+
+TEST(core_memory_management, host_space_allocation_ignores_global_default_allocator)
+{
+  EXPECT_EXIT(
+    ([]() {
+      const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+      axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+      axom::setDefaultAllocator(axom::MemorySpace::Host);
+
+      if(axom::getDefaultAllocatorID() != hostAllocatorID)
+      {
+        std::exit(1);
+      }
+
+      if(!hostAllocationUsesExpectedAllocator(axom::MALLOC_ALLOCATOR_ID, axom::MALLOC_ALLOCATOR_ID))
+      {
+        std::exit(1);
+      }
+
+      std::exit(0);
+    })(),
+    ::testing::ExitedWithCode(0),
+    "");
+}
+
+TEST(core_memory_management, changing_default_host_allocator_after_host_allocation_fails)
+{
+  EXPECT_DEATH_IF_SUPPORTED(
+    []() {
+      const int hostAllocatorID =
+        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      axom::setDefaultHostAllocator(hostAllocatorID);
+      int* buffer =
+        axom::allocate<int>(ARRAY_SIZE, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+      AXOM_UNUSED_VAR(buffer);
+      axom::setDefaultHostAllocator(axom::MALLOC_ALLOCATOR_ID);
+    }(),
+    "Default host allocator cannot be changed");
+}
 
 TEST(core_memory_management, set_get_default_memory_space)
 {
-  const int HostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-  EXPECT_EQ(HostAllocatorID, axom::getDefaultAllocatorID());
+  ScopedDefaultAllocatorState scopedState;
+  const int HostAllocatorID = axom::getDefaultHostAllocatorID();
+  const int platformHostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  EXPECT_EQ(HostAllocatorID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
 
   #if defined(AXOM_USE_GPU)
 
-    #ifdef UMPIRE_ENABLE_PINNED
-  const int PinnedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Pinned);
-
-  axom::setDefaultAllocator(PinnedAllocatorID);
-  EXPECT_EQ(PinnedAllocatorID, axom::getDefaultAllocatorID());
+    #if defined(UMPIRE_ENABLE_PINNED)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
+  {
+    const int PinnedAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Pinned);
+    axom::setDefaultAllocator(axom::MemorySpace::Pinned);
+    EXPECT_EQ(PinnedAllocatorID, axom::getDefaultAllocatorID());
+  }
     #endif
 
-    #ifdef UMPIRE_ENABLE_DEVICE
-  const int DeviceAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
-  axom::setDefaultAllocator(DeviceAllocatorID);
-  EXPECT_EQ(DeviceAllocatorID, axom::getDefaultAllocatorID());
+    #if defined(UMPIRE_ENABLE_DEVICE)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  {
+    const int DeviceAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
+    axom::setDefaultAllocator(axom::MemorySpace::Device);
+    EXPECT_EQ(DeviceAllocatorID, axom::getDefaultAllocatorID());
+  }
     #endif
 
-    #ifdef UMPIRE_ENABLE_CONST
-  const int ConstantAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Constant);
-  axom::setDefaultAllocator(ConstantAllocatorID);
-  EXPECT_EQ(ConstantAllocatorID, axom::getDefaultAllocatorID());
+    #if defined(UMPIRE_ENABLE_CONST)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Constant))
+  {
+    const int ConstantAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Constant);
+    axom::setDefaultAllocator(axom::MemorySpace::Constant);
+    EXPECT_EQ(ConstantAllocatorID, axom::getDefaultAllocatorID());
+  }
     #endif
 
-    #ifdef UMPIRE_ENABLE_UM
-  const int UnifiedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
-  axom::setDefaultAllocator(UnifiedAllocatorID);
-  EXPECT_EQ(UnifiedAllocatorID, axom::getDefaultAllocatorID());
+    #if defined(UMPIRE_ENABLE_UM)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  {
+    const int UnifiedAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Unified);
+    axom::setDefaultAllocator(axom::MemorySpace::Unified);
+    EXPECT_EQ(UnifiedAllocatorID, axom::getDefaultAllocatorID());
+  }
     #endif
 
   #endif  // AXOM_USE_GPU
 
-  axom::setDefaultAllocator(HostAllocatorID);
-  EXPECT_EQ(HostAllocatorID, axom::getDefaultAllocatorID());
+  axom::setDefaultAllocator(axom::MemorySpace::Host);
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultAllocatorID());
 }
 #endif /* AXOM_USE_UMPIRE */
 
 //------------------------------------------------------------------------------
 TEST(core_memory_management, alloc_free)
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 
   constexpr bool HOST_ACCESSIBLE = true;
 
-  const int HostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const int HostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
   check_alloc_and_free(HostAllocatorID, HOST_ACCESSIBLE);
 
   #if defined(AXOM_USE_GPU)
 
   constexpr bool NOT_HOST_ACCESSIBLE = false;
 
-    #ifdef UMPIRE_ENABLE_PINNED
-  const int PinnedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Pinned);
-  check_alloc_and_free(PinnedAllocatorID, HOST_ACCESSIBLE);
+    #if defined(UMPIRE_ENABLE_PINNED)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
+  {
+    const int PinnedAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Pinned);
+    check_alloc_and_free(PinnedAllocatorID, HOST_ACCESSIBLE);
+  }
     #endif
 
-    #ifdef UMPIRE_ENABLE_DEVICE
-  const int DeviceAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
-  check_alloc_and_free(DeviceAllocatorID, NOT_HOST_ACCESSIBLE);
+    #if defined(UMPIRE_ENABLE_DEVICE)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  {
+    const int DeviceAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
+    check_alloc_and_free(DeviceAllocatorID, NOT_HOST_ACCESSIBLE);
+  }
     #endif
 
-    #ifdef UMPIRE_ENABLE_CONST
-  const int ConstantAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Constant);
-  check_alloc_and_free(ConstantAllocatorID, NOT_HOST_ACCESSIBLE);
+    #if defined(UMPIRE_ENABLE_CONST)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Constant))
+  {
+    const int ConstantAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Constant);
+    check_alloc_and_free(ConstantAllocatorID, NOT_HOST_ACCESSIBLE);
+  }
     #endif
 
-    #ifdef UMPIRE_ENABLE_UM
-  const int UnifiedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
-  check_alloc_and_free(UnifiedAllocatorID, HOST_ACCESSIBLE);
+    #if defined(UMPIRE_ENABLE_UM)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  {
+    const int UnifiedAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Unified);
+    check_alloc_and_free(UnifiedAllocatorID, HOST_ACCESSIBLE);
+  }
     #endif
 
   #endif  // AXOM_USE_GPU
@@ -341,36 +586,43 @@ TEST(core_memory_management, alloc_free)
 //------------------------------------------------------------------------------
 TEST(core_memory_management, alloc_realloc_free)
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 
   constexpr bool HOST_ACCESSIBLE = true;
 
-  const int HostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const int HostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
   check_alloc_realloc_free(HostAllocatorID, HOST_ACCESSIBLE);
 
   #if defined(AXOM_USE_GPU)
 
   constexpr bool NOT_HOST_ACCESSIBLE = false;
 
-    #ifdef UMPIRE_ENABLE_PINNED
-  const int PinnedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Pinned);
-  check_alloc_realloc_free(PinnedAllocatorID, HOST_ACCESSIBLE);
+    #if defined(UMPIRE_ENABLE_PINNED)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
+  {
+    const int PinnedAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Pinned);
+    check_alloc_realloc_free(PinnedAllocatorID, HOST_ACCESSIBLE);
+  }
     #endif
 
-    #ifdef UMPIRE_ENABLE_DEVICE
-  const int DeviceAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
-  check_alloc_realloc_free(DeviceAllocatorID, NOT_HOST_ACCESSIBLE);
+    #if defined(UMPIRE_ENABLE_DEVICE)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  {
+    const int DeviceAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
+    check_alloc_realloc_free(DeviceAllocatorID, NOT_HOST_ACCESSIBLE);
+  }
     #endif
 
     // Umpire doesn't allow reallocation of Constant memory.
     // check_alloc_realloc_free( axom::getAllocator( umpire::resource::Constant ),
     // false );
 
-    #ifdef UMPIRE_ENABLE_UM
-
-  const int UnifiedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
-  check_alloc_realloc_free(UnifiedAllocatorID, HOST_ACCESSIBLE);
-
+    #if defined(UMPIRE_ENABLE_UM)
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  {
+    const int UnifiedAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Unified);
+    check_alloc_realloc_free(UnifiedAllocatorID, HOST_ACCESSIBLE);
+  }
     #endif
 
   #endif /* AXOM_USE_GPU */
@@ -404,31 +656,37 @@ TEST_P(CopyTest, Copy)
   }
 }
 
-const std::string copy_locations[] = {"NEW",
-                                      "MALLOC",
-                                      "STATIC"
+std::vector<std::string> copyLocations()
+{
+  std::vector<std::string> locations {"NEW", "MALLOC", "STATIC"};
 #if defined(AXOM_USE_UMPIRE)
-                                      ,
-                                      "HOST"
+  locations.push_back("HOST");
   #if defined(UMPIRE_ENABLE_DEVICE)
-                                      ,
-                                      "DEVICE"
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Device))
+  {
+    locations.push_back("DEVICE");
+  }
   #endif
   #if defined(UMPIRE_ENABLE_UM)
-                                      ,
-                                      "UM"
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Unified))
+  {
+    locations.push_back("UM");
+  }
   #endif
   #if defined(UMPIRE_ENABLE_PINNED)
-                                      ,
-                                      "PINNED"
+  if(axom::utilities::runtimeMemorySpaceAvailable(axom::MemorySpace::Pinned))
+  {
+    locations.push_back("PINNED");
+  }
   #endif
 #endif
-};
+  return locations;
+}
 
 INSTANTIATE_TEST_SUITE_P(core_memory_management,
                          CopyTest,
-                         ::testing::Combine(::testing::ValuesIn(copy_locations),
-                                            ::testing::ValuesIn(copy_locations)));
+                         ::testing::Combine(::testing::ValuesIn(copyLocations()),
+                                            ::testing::ValuesIn(copyLocations())));
 
 //------------------------------------------------------------------------------
 TEST(core_memory_management, basic_alloc_realloc_dealloc)
@@ -470,7 +728,7 @@ TEST(core_memory_management, basic_alloc_realloc_dealloc)
 }
 
 //------------------------------------------------------------------------------
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 TEST(core_memory_management, allocator_id_from_pointer)
 {
   constexpr std::size_t N = 5;
@@ -490,92 +748,68 @@ TEST(core_memory_management, allocator_id_from_pointer)
   EXPECT_EQ(id, axom::MALLOC_ALLOCATOR_ID);
   std::free(buf);
 }
-#endif
 
-//------------------------------------------------------------------------------
-TEST(core_memory_management, interspace_reallocation)
+TEST(core_memory_management, foreign_malloc_to_umpire_reallocate_fails)
 {
-  // Allocator ids to test.
-  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
-#ifdef AXOM_USE_UMPIRE
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
-  #ifdef AXOM_USE_GPU
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
-    // Does it make sense to check Pinned and Constant memory spaces?
-  #endif
-#endif
-
-  // We'll allocate N items, reallocate to K items, reallocate back to N.
-  constexpr std::size_t N = 5;
-  constexpr std::size_t K = 8;
-  constexpr std::size_t maxNK = std::max(N, K);
-  constexpr std::size_t minNK = std::min(N, K);
-
-  // origOnHost and tempOnHost are for initialization and results-checking on host.
-  int* origOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
-  for(std::size_t i = 0; i < maxNK; ++i)
-  {
-    origOnHost[i] = static_cast<int>(100 + i);
-  }
-  int* tempOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
-
-  // Count differences between origOnHost and tempOnHost.
-  auto countDiffs = [=]() {
-    std::size_t diffCount = 0;
-    for(std::size_t j = 0; j < minNK; ++j)
-    {
-      diffCount += tempOnHost[j] != origOnHost[j];
-    }
-    return diffCount;
-  };
-
-  std::size_t diffCount = 0;
-  for(auto srcAllocId : allocIds)
-  {
-    for(auto dstAllocId : allocIds)
-    {
-      std::cout << "Testing allocator ids " << srcAllocId << " and " << dstAllocId << std::endl;
-      // For each combination of srcAllocId and dstAllocId,
-      // allocate src, reallocate to dst, reallocate back to src.
-
-      int* src = axom::allocate<int>(N, srcAllocId);
-      axom::copy(src, origOnHost, N * sizeof(int));
-
-      int* dst = axom::reallocate(src, K, dstAllocId);
-      axom::copy(tempOnHost, dst, N * sizeof(int));
-      diffCount = countDiffs();
-      EXPECT_EQ(diffCount, 0);
-
-      src = axom::reallocate(dst, N, srcAllocId);
-      axom::copy(tempOnHost, src, N * sizeof(int));
-      diffCount = countDiffs();
-      EXPECT_EQ(diffCount, 0);
-
-      axom::deallocate(src);
-    }
-  }
-
-  axom::deallocate(origOnHost);
-  axom::deallocate(tempOnHost);
+  EXPECT_DEATH_IF_SUPPORTED(
+    []() {
+      constexpr std::size_t localN = 5;
+      const int localUmpireHostAllocId =
+        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      int* foreignBuffer = static_cast<int*>(std::malloc(localN * sizeof(int)));
+      axom::reallocate(foreignBuffer, localN + 1, localUmpireHostAllocId);
+    }(),
+    "Cannot reallocate across allocator backends");
 }
+
+TEST(core_memory_management, axom_malloc_to_umpire_reallocate_fails)
+{
+  EXPECT_DEATH_IF_SUPPORTED(
+    []() {
+      constexpr std::size_t localN = 5;
+      const int localUmpireHostAllocId =
+        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      int* buffer = axom::allocate<int>(localN, axom::MALLOC_ALLOCATOR_ID);
+      axom::reallocate(buffer, localN + 1, localUmpireHostAllocId);
+    }(),
+    "Cannot reallocate across allocator backends");
+}
+
+TEST(core_memory_management, umpire_to_axom_malloc_reallocate_fails)
+{
+  EXPECT_DEATH_IF_SUPPORTED(
+    []() {
+      constexpr std::size_t localN = 5;
+      const int localUmpireHostAllocId =
+        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      int* buffer = axom::allocate<int>(localN, localUmpireHostAllocId);
+      axom::reallocate(buffer, localN + 1, axom::MALLOC_ALLOCATOR_ID);
+    }(),
+    "Cannot reallocate across allocator backends");
+}
+#endif
 
 //------------------------------------------------------------------------------
 TEST(core_memory_management, test_fill)
 {
   // Allocator ids to test.
   std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
-#ifdef AXOM_USE_UMPIRE
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+#if defined(AXOM_USE_UMPIRE)
+  appendAllocatorIDIfAvailable(allocIds, axom::MemorySpace::Host);
   #ifdef AXOM_USE_GPU
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
+    #if defined(UMPIRE_ENABLE_DEVICE)
+  appendAllocatorIDIfAvailable(allocIds, axom::MemorySpace::Device);
+    #endif
+    #if defined(UMPIRE_ENABLE_UM)
+  appendAllocatorIDIfAvailable(allocIds, axom::MemorySpace::Unified);
+    #endif
     // Does it make sense to check Pinned and Constant memory spaces?
   #endif
 #endif
 
   constexpr std::size_t N = 500;
   int* hostData = axom::allocate<int>(N, axom::MALLOC_ALLOCATOR_ID);
+  const axom::HostAllocator hostAllocator {axom::MALLOC_ALLOCATOR_ID};
   int iteration = 0;
   for(auto allocId : allocIds)
   {
@@ -593,6 +827,18 @@ TEST(core_memory_management, test_fill)
     for(std::size_t i = 0; i < N; i++)
     {
       EXPECT_EQ(hostData[i], fillValue);
+    }
+
+    const int explicitFillValue = 23456 + iteration;
+    axom::fill(buffer, N, explicitFillValue, hostAllocator);
+
+    // Copy back to host
+    axom::copy(hostData, buffer, N * sizeof(int));
+
+    // Make sure elements have the right fill value.
+    for(std::size_t i = 0; i < N; i++)
+    {
+      EXPECT_EQ(hostData[i], explicitFillValue);
     }
 
     axom::deallocate(buffer);

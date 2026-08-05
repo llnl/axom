@@ -103,6 +103,13 @@ public:
             const std::string& topoName = {},
             const std::string& matsetName = {});
 
+  ShapeMesh(RuntimePolicy runtimePolicy,
+            int allocatorId,
+            HostAllocator hostAllocator,
+            conduit::Node& bpMesh,
+            const std::string& topoName = {},
+            const std::string& matsetName = {});
+
 #ifdef AXOM_USE_SIDRE
   /*!
    * @brief Constructor with computational mesh in a sidre::Group.
@@ -129,6 +136,13 @@ public:
             sidre::Group* bpMesh,
             const std::string& topoName = {},
             const std::string& matsetName = {});
+
+  ShapeMesh(RuntimePolicy runtimePolicy,
+            int allocatorId,
+            HostAllocator hostAllocator,
+            sidre::Group* bpMesh,
+            const std::string& topoName = {},
+            const std::string& matsetName = {});
 #endif
 
   /*!
@@ -140,6 +154,11 @@ public:
    * @brief Allocator id set in constructor.
    */
   int getAllocatorID() const { return m_allocId; }
+
+  /*!
+   * @brief Host allocator set in constructor.
+   */
+  HostAllocator getHostAllocator() const { return m_hostAllocator; }
 
   /*
    * !@brief Return computational mesh as a sidre::Group if it has
@@ -263,6 +282,7 @@ private:
   const RuntimePolicy m_runtimePolicy;
 
   int m_allocId;
+  HostAllocator m_hostAllocator;
 
   //! @brief Mesh topology name.
   const std::string m_topoName;

@@ -10,6 +10,7 @@
 #include "axom/config.hpp"                          // compile time definitions
 #include "axom/core/execution/execution_space.hpp"  // for execution_space traits
 #include "axom/core/execution/for_all.hpp"          // for axom::for_all
+#include "axom/core/memory_management.hpp"
 
 // mint includes
 #include "axom/mint/execution/xargs.hpp"       // for xargs
@@ -42,6 +43,15 @@ inline void for_all_nodes(xargs::index, const Mesh& m, KernelType&& kernel)
   for_all_nodes_impl<ExecPolicy>(xargs::index(), m, std::forward<KernelType>(kernel));
 }
 
+template <typename ExecPolicy, typename KernelType>
+inline void for_all_nodes(xargs::index,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator AXOM_UNUSED_PARAM(hostAllocator))
+{
+  for_all_nodes<ExecPolicy>(xargs::index(), m, std::forward<KernelType>(kernel));
+}
+
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_nodes_impl(xargs::ij, const StructuredMesh& m, KernelType&& kernel)
@@ -71,6 +81,15 @@ inline void for_all_nodes(xargs::ij, const Mesh& m, KernelType&& kernel)
 
   const StructuredMesh& sm = static_cast<const StructuredMesh&>(m);
   for_all_nodes_impl<ExecPolicy>(xargs::ij(), sm, std::forward<KernelType>(kernel));
+}
+
+template <typename ExecPolicy, typename KernelType>
+inline void for_all_nodes(xargs::ij,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator AXOM_UNUSED_PARAM(hostAllocator))
+{
+  for_all_nodes<ExecPolicy>(xargs::ij(), m, std::forward<KernelType>(kernel));
 }
 
 //------------------------------------------------------------------------------
@@ -107,6 +126,15 @@ inline void for_all_nodes(xargs::ijk, const Mesh& m, KernelType&& kernel)
   for_all_nodes_impl<ExecPolicy>(xargs::ijk(), sm, std::forward<KernelType>(kernel));
 }
 
+template <typename ExecPolicy, typename KernelType>
+inline void for_all_nodes(xargs::ijk,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator AXOM_UNUSED_PARAM(hostAllocator))
+{
+  for_all_nodes<ExecPolicy>(xargs::ijk(), m, std::forward<KernelType>(kernel));
+}
+
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_nodes_impl(xargs::x, const UniformMesh& m, KernelType&& kernel)
@@ -127,7 +155,10 @@ inline void for_all_nodes_impl(xargs::x, const UniformMesh& m, KernelType&& kern
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes_impl(xargs::x, const Mesh& m, KernelType&& kernel)
+inline void for_all_nodes_impl(xargs::x,
+                               const Mesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 1, "xargs::x is only valid for 1D meshes");
   SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_UNIFORM_MESH, "Not valid for UniformMesh.");
@@ -141,8 +172,9 @@ inline void for_all_nodes_impl(xargs::x, const Mesh& m, KernelType&& kernel)
   SLIC_ASSERT(x_vals_h.data() != nullptr);
 
   // Move x values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
   for_all_nodes_impl<ExecPolicy>(
@@ -153,7 +185,10 @@ inline void for_all_nodes_impl(xargs::x, const Mesh& m, KernelType&& kernel)
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes(xargs::x, const Mesh& m, KernelType&& kernel)
+inline void for_all_nodes(xargs::x,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 1, "xargs::x is only valid for 1D meshes");
 
@@ -165,13 +200,16 @@ inline void for_all_nodes(xargs::x, const Mesh& m, KernelType&& kernel)
   }
   else
   {
-    for_all_nodes_impl<ExecPolicy>(xargs::x(), m, std::forward<KernelType>(kernel));
+    for_all_nodes_impl<ExecPolicy>(xargs::x(), m, std::forward<KernelType>(kernel), hostAllocator);
   }
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes_impl(xargs::xy, const UniformMesh& m, KernelType&& kernel)
+inline void for_all_nodes_impl(xargs::xy,
+                               const UniformMesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 2, "xargs::xy is only valid for 2D meshes");
   constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
@@ -182,12 +220,14 @@ inline void for_all_nodes_impl(xargs::xy, const UniformMesh& m, KernelType&& ker
   auto spacing_h = axom::ArrayView<const double>(m.getSpacing().begin(), 3);
 
   // Move origin and spacing values onto device
-  axom::Array<double> origin_d =
-    on_device ? axom::Array<double>(origin_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> origin_d = on_device
+    ? axom::Array<double>(origin_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto origin_view = on_device ? origin_d.view() : origin_h;
 
-  axom::Array<double> spacing_d =
-    on_device ? axom::Array<double>(spacing_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> spacing_d = on_device
+    ? axom::Array<double>(spacing_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto spacing_view = on_device ? spacing_d.view() : spacing_h;
 
   for_all_nodes_impl<ExecPolicy>(
@@ -202,7 +242,10 @@ inline void for_all_nodes_impl(xargs::xy, const UniformMesh& m, KernelType&& ker
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes_impl(xargs::xy, const RectilinearMesh& m, KernelType&& kernel)
+inline void for_all_nodes_impl(xargs::xy,
+                               const RectilinearMesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 2, "xargs::xy is only valid for 2D meshes");
 
@@ -219,12 +262,14 @@ inline void for_all_nodes_impl(xargs::xy, const RectilinearMesh& m, KernelType&&
   SLIC_ASSERT(y_vals_h.data() != nullptr);
 
   // Move xy values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
-  axom::Array<double> y_vals_d =
-    on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> y_vals_d = on_device
+    ? axom::Array<double>(y_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
 
   for_all_nodes_impl<ExecPolicy>(
@@ -237,7 +282,10 @@ inline void for_all_nodes_impl(xargs::xy, const RectilinearMesh& m, KernelType&&
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes_impl(xargs::xy, const Mesh& m, KernelType&& kernel)
+inline void for_all_nodes_impl(xargs::xy,
+                               const Mesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 2, "xargs::xy is only valid for 2D meshes");
   SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_UNIFORM_MESH, "Not valid for UniformMesh.");
@@ -255,12 +303,14 @@ inline void for_all_nodes_impl(xargs::xy, const Mesh& m, KernelType&& kernel)
   SLIC_ASSERT(y_vals_h.data() != nullptr);
 
   // Move xy values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
-  axom::Array<double> y_vals_d =
-    on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> y_vals_d = on_device
+    ? axom::Array<double>(y_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
 
   for_all_nodes_impl<ExecPolicy>(
@@ -271,7 +321,10 @@ inline void for_all_nodes_impl(xargs::xy, const Mesh& m, KernelType&& kernel)
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes(xargs::xy, const Mesh& m, KernelType&& kernel)
+inline void for_all_nodes(xargs::xy,
+                          const Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 2, "xargs::xy is only valid for 3D meshes");
 
@@ -279,22 +332,25 @@ inline void for_all_nodes(xargs::xy, const Mesh& m, KernelType&& kernel)
   if(mesh_type == STRUCTURED_RECTILINEAR_MESH)
   {
     const RectilinearMesh& rm = static_cast<const RectilinearMesh&>(m);
-    for_all_nodes_impl<ExecPolicy>(xargs::xy(), rm, std::forward<KernelType>(kernel));
+    for_all_nodes_impl<ExecPolicy>(xargs::xy(), rm, std::forward<KernelType>(kernel), hostAllocator);
   }
   else if(mesh_type == STRUCTURED_UNIFORM_MESH)
   {
     const UniformMesh& um = static_cast<const UniformMesh&>(m);
-    for_all_nodes_impl<ExecPolicy>(xargs::xy(), um, std::forward<KernelType>(kernel));
+    for_all_nodes_impl<ExecPolicy>(xargs::xy(), um, std::forward<KernelType>(kernel), hostAllocator);
   }
   else
   {
-    for_all_nodes_impl<ExecPolicy>(xargs::xy(), m, std::forward<KernelType>(kernel));
+    for_all_nodes_impl<ExecPolicy>(xargs::xy(), m, std::forward<KernelType>(kernel), hostAllocator);
   }
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes_impl(xargs::xyz, const UniformMesh& m, KernelType&& kernel)
+inline void for_all_nodes_impl(xargs::xyz,
+                               const UniformMesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 3, "xargs::xyz is only valid for 3D meshes");
   constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
@@ -305,12 +361,14 @@ inline void for_all_nodes_impl(xargs::xyz, const UniformMesh& m, KernelType&& ke
   auto spacing_h = axom::ArrayView<const double>(m.getSpacing().begin(), 3);
 
   // Move origin and spacing values onto device
-  axom::Array<double> origin_d =
-    on_device ? axom::Array<double>(origin_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> origin_d = on_device
+    ? axom::Array<double>(origin_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto origin_view = on_device ? origin_d.view() : origin_h;
 
-  axom::Array<double> spacing_d =
-    on_device ? axom::Array<double>(spacing_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> spacing_d = on_device
+    ? axom::Array<double>(spacing_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto spacing_view = on_device ? spacing_d.view() : spacing_h;
 
   for_all_nodes_impl<ExecPolicy>(
@@ -326,7 +384,10 @@ inline void for_all_nodes_impl(xargs::xyz, const UniformMesh& m, KernelType&& ke
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes_impl(xargs::xyz, const RectilinearMesh& m, KernelType&& kernel)
+inline void for_all_nodes_impl(xargs::xyz,
+                               const RectilinearMesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 3, "xargs::xyz is only valid for 3D meshes");
   constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
@@ -341,16 +402,19 @@ inline void for_all_nodes_impl(xargs::xyz, const RectilinearMesh& m, KernelType&
                                                 m.getNodeResolution(Z_COORDINATE));
 
   // Move xyz values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
-  axom::Array<double> y_vals_d =
-    on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> y_vals_d = on_device
+    ? axom::Array<double>(y_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
 
-  axom::Array<double> z_vals_d =
-    on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> z_vals_d = on_device
+    ? axom::Array<double>(z_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
 
   for_all_nodes_impl<ExecPolicy>(
@@ -363,7 +427,10 @@ inline void for_all_nodes_impl(xargs::xyz, const RectilinearMesh& m, KernelType&
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes_impl(xargs::xyz, const Mesh& m, KernelType&& kernel)
+inline void for_all_nodes_impl(xargs::xyz,
+                               const Mesh& m,
+                               KernelType&& kernel,
+                               HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 3, "xargs::xyz is only valid for 3D meshes");
   SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_UNIFORM_MESH, "Not valid for UniformMesh.");
@@ -383,16 +450,19 @@ inline void for_all_nodes_impl(xargs::xyz, const Mesh& m, KernelType&& kernel)
   SLIC_ASSERT(z_vals_h.data() != nullptr);
 
   // Move xyz values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
-  axom::Array<double> y_vals_d =
-    on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> y_vals_d = on_device
+    ? axom::Array<double>(y_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
 
-  axom::Array<double> z_vals_d =
-    on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
+  axom::Array<double> z_vals_d = on_device
+    ? axom::Array<double>(z_vals_h, device_allocator, hostAllocator)
+    : axom::Array<double>();
   auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
 #if !defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
   // If we have CUDA but not RAJA then we are doing serial execution and cannot
@@ -413,7 +483,10 @@ inline void for_all_nodes_impl(xargs::xyz, const Mesh& m, KernelType&& kernel)
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_nodes(xargs::xyz, const mint::Mesh& m, KernelType&& kernel)
+inline void for_all_nodes(xargs::xyz,
+                          const mint::Mesh& m,
+                          KernelType&& kernel,
+                          HostAllocator hostAllocator = HostAllocator {})
 {
   SLIC_ERROR_IF(m.getDimension() != 3, "xargs::xyz is only valid for 3D meshes");
 
@@ -421,16 +494,16 @@ inline void for_all_nodes(xargs::xyz, const mint::Mesh& m, KernelType&& kernel)
   if(mesh_type == STRUCTURED_RECTILINEAR_MESH)
   {
     const RectilinearMesh& rm = static_cast<const RectilinearMesh&>(m);
-    for_all_nodes_impl<ExecPolicy>(xargs::xyz(), rm, std::forward<KernelType>(kernel));
+    for_all_nodes_impl<ExecPolicy>(xargs::xyz(), rm, std::forward<KernelType>(kernel), hostAllocator);
   }
   else if(mesh_type == STRUCTURED_UNIFORM_MESH)
   {
     const UniformMesh& um = static_cast<const UniformMesh&>(m);
-    for_all_nodes_impl<ExecPolicy>(xargs::xyz(), um, std::forward<KernelType>(kernel));
+    for_all_nodes_impl<ExecPolicy>(xargs::xyz(), um, std::forward<KernelType>(kernel), hostAllocator);
   }
   else
   {
-    for_all_nodes_impl<ExecPolicy>(xargs::xyz(), m, std::forward<KernelType>(kernel));
+    for_all_nodes_impl<ExecPolicy>(xargs::xyz(), m, std::forward<KernelType>(kernel), hostAllocator);
   }
 }
 

@@ -14,11 +14,6 @@
   #include "RAJA/RAJA.hpp"
 #endif
 
-// Umpire includes
-#ifdef AXOM_USE_UMPIRE
-  #include "umpire/Umpire.hpp"
-#endif
-
 namespace axom
 {
 /*!
@@ -51,36 +46,26 @@ struct execution_space<SEQ_EXEC>
 
   using sync_policy = void;
 
-#ifdef AXOM_USE_UMPIRE
   static constexpr MemorySpace memory_space = MemorySpace::Host;
-#else
-  static constexpr MemorySpace memory_space = MemorySpace::Dynamic;
-#endif
 
   AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
   AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[SEQ_EXEC]"; }
 
-  static int allocatorID() noexcept
-  {
-#ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-    return axom::getDefaultAllocatorID();
-#endif
-  }
+  static int allocatorID() noexcept { return axom::getAllocatorIDFromMemorySpace(memory_space); }
   AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::seq;
   }
   static bool usesMemorySpace(axom::MemorySpace m) noexcept
   {
-    return m == MemorySpace::Dynamic || m == MemorySpace::Malloc
-#ifdef AXOM_USE_UMPIRE
-      || m == MemorySpace::Host || m == MemorySpace::Unified
+#if defined(AXOM_USE_UMPIRE)
+    return m == MemorySpace::Dynamic || m == MemorySpace::Malloc || m == MemorySpace::Host ||
+      (m == MemorySpace::Unified && axom::isMemorySpaceAvailable(MemorySpace::Unified));
+#else
+    return m == MemorySpace::Dynamic || m == MemorySpace::Malloc || m == MemorySpace::Host;
 #endif
-      ;
   }
   static bool usesAllocId(int allocId) noexcept
   {

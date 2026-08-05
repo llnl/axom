@@ -30,10 +30,20 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                      conduit::Node& bpMesh,
                      const std::string& topoName,
                      const std::string& matsetName)
+  : ShapeMesh(runtimePolicy, allocatorId, HostAllocator {}, bpMesh, topoName, matsetName)
+{ }
+
+ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     HostAllocator hostAllocator,
+                     conduit::Node& bpMesh,
+                     const std::string& topoName,
+                     const std::string& matsetName)
   : m_runtimePolicy(runtimePolicy)
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
                 : axom::policyToDefaultAllocatorID(runtimePolicy))
+  , m_hostAllocator(hostAllocator)
   , m_topoName(topoName.empty() && bpMesh["topologies"].number_of_children() > 0
                  ? bpMesh["topologies"].child(0).name()
                  : topoName)
@@ -46,8 +56,6 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
 {
   SLIC_ERROR_IF(m_topoName.empty(),
                 "Topology name was not provided, and no default topology was found.");
-
-  const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // We currently support only unstructured topo.
   const auto& typeNode =
@@ -69,7 +77,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
     // If matsetName was given, but topology data isn't set up yet, set it up.
     if(!matsetNode.has_child("topology"))
     {
-      matsetNode.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(hostAllocId));
+      matsetNode.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(m_hostAllocator.getID()));
       matsetNode.fetch("topology").set_string(m_topoName);
     }
 
@@ -107,10 +115,20 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                      sidre::Group* bpMesh,
                      const std::string& topoName,
                      const std::string& matsetName)
+  : ShapeMesh(runtimePolicy, allocatorId, HostAllocator {}, bpMesh, topoName, matsetName)
+{ }
+
+ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     HostAllocator hostAllocator,
+                     sidre::Group* bpMesh,
+                     const std::string& topoName,
+                     const std::string& matsetName)
   : m_runtimePolicy(runtimePolicy)
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
                 : axom::policyToDefaultAllocatorID(runtimePolicy))
+  , m_hostAllocator(hostAllocator)
   , m_topoName(topoName.empty() && bpMesh->hasGroup("topologies") &&
                    bpMesh->getGroup("topologies")->getNumGroups() > 0
                  ? bpMesh->getGroup("topologies")->getGroup(0)->getName()
@@ -780,8 +798,11 @@ void ShapeMesh::computeCellsAsHexesImpl()
 
   axom::ArrayView<const IndexType, 2> connView = getCellNodeConnectivity();
 
-  m_cellsAsHexes =
-    axom::Array<HexahedronType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_cellsAsHexes = axom::Array<HexahedronType>(ArrayOptions::Uninitialized(),
+                                               m_cellCount,
+                                               m_cellCount,
+                                               m_allocId,
+                                               m_hostAllocator);
   axom::ArrayView<HexahedronType> cellsAsHexesView = m_cellsAsHexes.view();
   SLIC_ASSERT(cellsAsHexesView.data() == m_cellsAsHexes.data());
 
@@ -819,7 +840,8 @@ void ShapeMesh::computeCellsAsTetsImpl()
   m_cellsAsTets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
                                                NUM_TETS_PER_HEX * m_cellCount,
                                                NUM_TETS_PER_HEX * m_cellCount,
-                                               m_allocId);
+                                               m_allocId,
+                                               m_hostAllocator);
   auto cellsAsTetsView = m_cellsAsTets.view();
 
   auto cellsAsHexesView = getCellsAsHexes();
@@ -836,8 +858,11 @@ void ShapeMesh::computeCellsAsTetsImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeHexVolumesImpl()
 {
-  m_hexVolumes =
-    axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_hexVolumes = axom::Array<double>(ArrayOptions::Uninitialized(),
+                                     m_cellCount,
+                                     m_cellCount,
+                                     m_allocId,
+                                     m_hostAllocator);
 
   auto cellsAsHexes = getCellsAsHexes();
 
@@ -851,7 +876,8 @@ template <typename ExecSpace>
 void ShapeMesh::computeTetVolumesImpl()
 {
   axom::IndexType tetCount = m_cellCount * NUM_TETS_PER_HEX;
-  m_tetVolumes = axom::Array<double>(ArrayOptions::Uninitialized(), tetCount, tetCount, m_allocId);
+  m_tetVolumes =
+    axom::Array<double>(ArrayOptions::Uninitialized(), tetCount, tetCount, m_allocId, m_hostAllocator);
 
   auto cellsAsTets = getCellsAsTets();
 
@@ -864,8 +890,11 @@ void ShapeMesh::computeTetVolumesImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeHexBbsImpl()
 {
-  m_hexBbs =
-    axom::Array<BoundingBox3DType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_hexBbs = axom::Array<BoundingBox3DType>(ArrayOptions::Uninitialized(),
+                                            m_cellCount,
+                                            m_cellCount,
+                                            m_allocId,
+                                            m_hostAllocator);
 
   auto cellsAsHexes = getCellsAsHexes();
 
@@ -880,8 +909,11 @@ void ShapeMesh::computeHexBbsImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeCellLengthsImpl()
 {
-  m_cellLengths =
-    axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_cellLengths = axom::Array<double>(ArrayOptions::Uninitialized(),
+                                      m_cellCount,
+                                      m_cellCount,
+                                      m_allocId,
+                                      m_hostAllocator);
 
   auto cellBbs = getCellBoundingBoxes();
 
@@ -894,7 +926,7 @@ void ShapeMesh::computeCellLengthsImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeVertPointsImpl()
 {
-  m_vertPoints3D = axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId);
+  m_vertPoints3D = axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId, m_hostAllocator);
 
   auto& vertCoords = getVertexCoords3D();
   const auto& vX = vertCoords[0];

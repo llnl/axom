@@ -1276,6 +1276,7 @@ int main(int argc, char** argv)
   auto& rm = umpire::ResourceManager::getInstance();
   umpire::Allocator umpireAllocator = rm.getAllocator(umpireResourceName);
 #endif
+  const axom::HostAllocator hostAllocator {axom::execution_space<axom::SEQ_EXEC>::allocatorID()};
 
   // Storage for meshes.
   sidre::DataStore dataStore;
@@ -1377,6 +1378,7 @@ int main(int argc, char** argv)
 #if defined(AXOM_USE_UMPIRE)
   query.setAllocatorID(umpireAllocator.getId());
 #endif
+  query.setHostAllocator(hostAllocator);
   query.setMpiCommunicator(MPI_COMM_WORLD, true);
   query.setVerbosity(params.isVerbose());
   query.setDistanceThreshold(params.distThreshold);

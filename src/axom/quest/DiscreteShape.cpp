@@ -31,8 +31,16 @@ constexpr double DiscreteShape::DEFAULT_VERTEX_WELD_THRESHOLD;
 DiscreteShape::DiscreteShape(const axom::klee::Shape& shape,
                              axom::sidre::Group* parentGroup,
                              const std::string& prefixPath)
+  : DiscreteShape(shape, parentGroup, HostAllocator {}, prefixPath)
+{ }
+
+DiscreteShape::DiscreteShape(const axom::klee::Shape& shape,
+                             axom::sidre::Group* parentGroup,
+                             HostAllocator hostAllocator,
+                             const std::string& prefixPath)
   : m_shape(shape)
   , m_sidreGroup(nullptr)
+  , m_hostAllocator(hostAllocator)
   , m_refinementType(DiscreteShape::RefinementUniformSegments)
   , m_percentError(utilities::clampVal(0.0, MINIMUM_PERCENT_ERROR, MAXIMUM_PERCENT_ERROR))
 {
@@ -269,11 +277,7 @@ void DiscreteShape::createRepresentationOfBlueprintTets()
 
   // Put the in-memory geometry in m_meshRep.
   const axom::sidre::Group* inputGroup = geometry.getBlueprintMesh();
-#ifdef AXOM_USE_UMPIRE
-  int allocID = inputGroup->getDefaultAllocatorID();
-#else
-  int allocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-#endif
+  const int allocID = m_hostAllocator.getID();
 
   std::string modName = inputGroup->getName() + "_modified";
   while(m_sidreGroup->hasGroup(modName))
@@ -558,7 +562,8 @@ void DiscreteShape::createRepresentationOfSOR()
                                             int(polyline.size()),
                                             m_shape.getGeometry().getLevelOfRefinement(),
                                             octs,
-                                            octCount);
+                                            octCount,
+                                            m_hostAllocator);
   AXOM_UNUSED_VAR(good);
   SLIC_ASSERT(good);
 

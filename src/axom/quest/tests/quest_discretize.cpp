@@ -764,6 +764,34 @@ TEST(quest_discretize, segment_test)
 }
 
 //------------------------------------------------------------------------------
+TEST(quest_discretize, segment_test_explicit_host_allocator)
+{
+  constexpr int generations = 2;
+  constexpr int hostAllocID = axom::MALLOC_ALLOCATOR_ID;
+
+  axom::Array<Point2D> polyline(2, 2, hostAllocID);
+  polyline[0] = Point2D {1.0, 1.0};
+  polyline[1] = Point2D {1.8, 0.8};
+
+  axom::Array<OctType> generated;
+  int octcount = 0;
+  axom::quest::discretize<axom::SEQ_EXEC>(polyline,
+                                          2,
+                                          generations,
+                                          generated,
+                                          octcount,
+                                          axom::HostAllocator {hostAllocID});
+
+  axom::Array<OctType> handcut;
+  discretized_segment(polyline[0], polyline[1], handcut);
+
+  EXPECT_EQ(octcount, handcut.size());
+  EXPECT_TRUE(check_generation(handcut, generated, 0, 0, 1));
+  EXPECT_TRUE(check_generation(handcut, generated, 1, 1, 3));
+  EXPECT_TRUE(check_generation(handcut, generated, 2, 4, 6));
+}
+
+//------------------------------------------------------------------------------
 TEST(quest_discretize, multi_segment_test)
 {
   SLIC_INFO("Discretizing sequentially");

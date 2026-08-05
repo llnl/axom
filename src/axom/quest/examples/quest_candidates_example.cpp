@@ -263,6 +263,7 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
 
   // Get ids of necessary allocators
   const int host_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const axom::HostAllocator hostAllocator {host_allocator};
   const int kernel_allocator = on_device
     ? axom::getUmpireResourceAllocatorID(umpire::resource::Device)
     : axom::execution_space<ExecSpace>::allocatorID();
@@ -338,16 +339,19 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
   auto z_vals_h = axom::ArrayView<double>(n_load[0]["coordsets/coords/values/z"].value(), num_nodes);
 
   // Move xyz values onto device
-  axom::Array<double> x_vals_d =
-    on_device ? axom::Array<double>(x_vals_h, kernel_allocator) : axom::Array<double>();
+  axom::Array<double> x_vals_d = on_device
+    ? axom::Array<double>(x_vals_h, kernel_allocator, hostAllocator)
+    : axom::Array<double>();
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
-  axom::Array<double> y_vals_d =
-    on_device ? axom::Array<double>(y_vals_h, kernel_allocator) : axom::Array<double>();
+  axom::Array<double> y_vals_d = on_device
+    ? axom::Array<double>(y_vals_h, kernel_allocator, hostAllocator)
+    : axom::Array<double>();
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
 
-  axom::Array<double> z_vals_d =
-    on_device ? axom::Array<double>(z_vals_h, kernel_allocator) : axom::Array<double>();
+  axom::Array<double> z_vals_d = on_device
+    ? axom::Array<double>(z_vals_h, kernel_allocator, hostAllocator)
+    : axom::Array<double>();
   auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
 
   // Move connectivity information onto device
@@ -373,17 +377,18 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
 
   auto connectivity_h = axom::ArrayView<int>(conn_data, connectivity_size);
 
-  axom::Array<int> connectivity_d =
-    on_device ? axom::Array<int>(connectivity_h, kernel_allocator) : axom::Array<int>();
+  axom::Array<int> connectivity_d = on_device
+    ? axom::Array<int>(connectivity_h, kernel_allocator, hostAllocator)
+    : axom::Array<int>();
   auto connectivity_view = on_device ? connectivity_d.view() : connectivity_h;
 
   // Initialize hex elements and bounding boxes
   const int numCells = connectivity_size / HEX_OFFSET;
 
-  hexMesh.m_hexes = HexArray(numCells, numCells, kernel_allocator);
+  hexMesh.m_hexes = HexArray(numCells, numCells, kernel_allocator, hostAllocator);
   auto m_hexes_v = (hexMesh.m_hexes).view();
 
-  hexMesh.m_hexBoundingBoxes = BBoxArray(numCells, numCells, kernel_allocator);
+  hexMesh.m_hexBoundingBoxes = BBoxArray(numCells, numCells, kernel_allocator, hostAllocator);
   auto m_hexBoundingBoxes_v = (hexMesh.m_hexBoundingBoxes).view();
 
   axom::for_all<ExecSpace>(
@@ -411,8 +416,9 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
     });
 
   // Initialize mesh's bounding box on the host
-  BBoxArray hexBoundingBoxes_h =
-    on_device ? BBoxArray(hexMesh.m_hexBoundingBoxes, host_allocator) : hexMesh.m_hexBoundingBoxes;
+  BBoxArray hexBoundingBoxes_h = on_device
+    ? BBoxArray(hexMesh.m_hexBoundingBoxes, host_allocator, hostAllocator)
+    : hexMesh.m_hexBoundingBoxes;
   for(const auto& hexbb : hexBoundingBoxes_h)
   {
     hexMesh.m_meshBoundingBox.addBox(hexbb);
@@ -476,6 +482,7 @@ std::vector<IndexPair> findCandidatesBVH(const HexMesh& insertMesh, const HexMes
 
   // Get ids of necessary allocators
   const int host_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const axom::HostAllocator hostAllocator {host_allocator};
   const int kernel_allocator = on_device
     ? axom::getUmpireResourceAllocatorID(umpire::resource::Device)
     : axom::execution_space<ExecSpace>::allocatorID();
@@ -493,13 +500,18 @@ std::vector<IndexPair> findCandidatesBVH(const HexMesh& insertMesh, const HexMes
 
   // Search for candidate bounding boxes of hexes to query;
   AXOM_ANNOTATE_BEGIN("query candidates");
-  IndexArray offsets_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator);
-  IndexArray counts_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator);
-  IndexArray candidates_d(0, 0, kernel_allocator);
+  IndexArray offsets_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator, hostAllocator);
+  IndexArray counts_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator, hostAllocator);
+  IndexArray candidates_d(0, 0, kernel_allocator, hostAllocator);
 
   auto offsets_v = offsets_d.view();
   auto counts_v = counts_d.view();
-  bvh.findBoundingBoxes(offsets_v, counts_v, candidates_d, query_bbox_v.size(), query_bbox_v);
+  bvh.findBoundingBoxes(offsets_v,
+                        counts_v,
+                        candidates_d,
+                        query_bbox_v.size(),
+                        query_bbox_v,
+                        hostAllocator);
 
   SLIC_INFO(axom::fmt::format("1: Queried candidate bounding boxes."));
   AXOM_ANNOTATE_END("query candidates");
@@ -508,8 +520,8 @@ std::vector<IndexPair> findCandidatesBVH(const HexMesh& insertMesh, const HexMes
 
   // Initialize candidate pairs on device.
   auto candidates_v = candidates_d.view();
-  IndexArray firstPair_d(candidates_v.size(), candidates_v.size(), kernel_allocator);
-  IndexArray secondPair_d(candidates_v.size(), candidates_v.size(), kernel_allocator);
+  IndexArray firstPair_d(candidates_v.size(), candidates_v.size(), kernel_allocator, hostAllocator);
+  IndexArray secondPair_d(candidates_v.size(), candidates_v.size(), kernel_allocator, hostAllocator);
   auto first_pair_v = firstPair_d.view();
   auto second_pair_v = secondPair_d.view();
 
@@ -532,8 +544,9 @@ std::vector<IndexPair> findCandidatesBVH(const HexMesh& insertMesh, const HexMes
   // copy pairs back to host and into return array
   AXOM_ANNOTATE_BEGIN("copy pairs to host");
 
-  IndexArray candidates_h[2] = {on_device ? IndexArray(firstPair_d, host_allocator) : IndexArray(),
-                                on_device ? IndexArray(secondPair_d, host_allocator) : IndexArray()};
+  IndexArray candidates_h[2] = {
+    on_device ? IndexArray(firstPair_d, host_allocator, hostAllocator) : IndexArray(),
+    on_device ? IndexArray(secondPair_d, host_allocator, hostAllocator) : IndexArray()};
 
   auto candidate1_h_v = on_device ? candidates_h[0].view() : firstPair_d.view();
   auto candidate2_h_v = on_device ? candidates_h[1].view() : secondPair_d.view();
@@ -579,6 +592,7 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
 
   // Get ids of necessary allocators
   const int host_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const axom::HostAllocator hostAllocator {host_allocator};
   const int kernel_allocator = on_device
     ? axom::getUmpireResourceAllocatorID(umpire::resource::Device)
     : axom::execution_space<ExecSpace>::allocatorID();
@@ -608,8 +622,8 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
   AXOM_ANNOTATE_END("initializing implicit grid");
 
   AXOM_ANNOTATE_BEGIN("query candidates");
-  IndexArray offsets_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator);
-  IndexArray counts_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator);
+  IndexArray offsets_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator, hostAllocator);
+  IndexArray counts_d(query_bbox_v.size(), query_bbox_v.size(), kernel_allocator, hostAllocator);
 
   auto offsets_v = offsets_d.view();
   auto counts_v = counts_d.view();
@@ -657,8 +671,14 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
 
   // Initialize candidatePairs to return.
   // Allocate arrays for candidate pairs
-  IndexArray firstPair_d(totalCandidatePairs.get(), totalCandidatePairs.get(), kernel_allocator);
-  IndexArray secondPair_d(totalCandidatePairs.get(), totalCandidatePairs.get(), kernel_allocator);
+  IndexArray firstPair_d(totalCandidatePairs.get(),
+                         totalCandidatePairs.get(),
+                         kernel_allocator,
+                         hostAllocator);
+  IndexArray secondPair_d(totalCandidatePairs.get(),
+                          totalCandidatePairs.get(),
+                          kernel_allocator,
+                          hostAllocator);
   auto first_pair_v = firstPair_d.view();
   auto second_pair_v = secondPair_d.view();
 
@@ -687,8 +707,9 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
   // copy results back to host and into return vector
   AXOM_ANNOTATE_BEGIN("copy pairs to host");
 
-  IndexArray candidates_h[2] = {on_device ? IndexArray(firstPair_d, host_allocator) : IndexArray(),
-                                on_device ? IndexArray(secondPair_d, host_allocator) : IndexArray()};
+  IndexArray candidates_h[2] = {
+    on_device ? IndexArray(firstPair_d, host_allocator, hostAllocator) : IndexArray(),
+    on_device ? IndexArray(secondPair_d, host_allocator, hostAllocator) : IndexArray()};
 
   auto candidate1_h_v = on_device ? candidates_h[0].view() : firstPair_d.view();
   auto candidate2_h_v = on_device ? candidates_h[1].view() : secondPair_d.view();

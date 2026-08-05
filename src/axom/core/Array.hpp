@@ -103,6 +103,32 @@ struct DefaultStoragePolicy
   }
 };
 
+inline HostAllocator hostAllocatorForPrimaryAllocator(int allocator_id)
+{
+  if(axom::isAllocatorCompatibleWithMemorySpace(allocator_id, MemorySpace::Host))
+  {
+    return HostAllocator {allocator_id};
+  }
+
+  // Internal host scratch should not implicitly depend on the process-global
+  // host allocator when the primary allocator is device-only.
+  return HostAllocator {axom::MALLOC_ALLOCATOR_ID};
+}
+
+template <MemorySpace SPACE>
+inline int explicitHostFallbackAllocatorID(HostAllocator host_allocator)
+{
+  if constexpr(SPACE == MemorySpace::Host)
+  {
+    return host_allocator.getID();
+  }
+  else
+  {
+    AXOM_UNUSED_VAR(host_allocator);
+    return axom::detail::getAllocatorID<SPACE>();
+  }
+}
+
 }  // namespace detail
 
 /*!
@@ -221,6 +247,11 @@ public:
         IndexType capacity = 0,
         int allocator_id = axom::detail::getAllocatorID<SPACE>());
 
+  template <IndexType SFINAE_DIM = DIM,
+            MemorySpace SFINAE_SPACE = SPACE,
+            typename std::enable_if<SFINAE_DIM == 1>::type* = nullptr>
+  Array(IndexType num_elements, IndexType capacity, int allocator_id, HostAllocator host_allocator);
+
   /// \overload
   template <IndexType SFINAE_DIM = DIM,
             MemorySpace SFINAE_SPACE = SPACE,
@@ -230,8 +261,21 @@ public:
         IndexType capacity = 0,
         int allocator_id = axom::detail::getAllocatorID<SPACE>());
 
+  template <IndexType SFINAE_DIM = DIM,
+            MemorySpace SFINAE_SPACE = SPACE,
+            typename std::enable_if<SFINAE_DIM == 1>::type* = nullptr>
+  Array(ArrayOptions::Uninitialized,
+        IndexType num_elements,
+        IndexType capacity,
+        int allocator_id,
+        HostAllocator host_allocator);
+
   Array(const axom::StackArray<axom::IndexType, DIM>& shape,
         int allocator_id = axom::detail::getAllocatorID<SPACE>());
+
+  Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+        int allocator_id,
+        HostAllocator host_allocator);
 
   /*!
     \brief Construct Array with row- or column-major data ordering.
@@ -242,6 +286,11 @@ public:
   Array(const axom::StackArray<axom::IndexType, DIM>& shape,
         axom::ArrayStrideOrder rowOrColumn,
         int allocator_id = axom::detail::getAllocatorID<SPACE>());
+
+  Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+        axom::ArrayStrideOrder rowOrColumn,
+        int allocator_id,
+        HostAllocator host_allocator);
 
   /*!
     \brief Construct Array with data ordering specifications.
@@ -257,6 +306,12 @@ public:
   Array(const axom::StackArray<axom::IndexType, DIM>& shape,
         const axom::StackArray<DirType, DIM>& slowestDirs,
         int allocator_id = axom::detail::getAllocatorID<SPACE>());
+
+  template <typename DirType = axom::IndexType>
+  Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+        const axom::StackArray<DirType, DIM>& slowestDirs,
+        int allocator_id,
+        HostAllocator host_allocator);
 
   /*!
    * \brief Generic constructor for an Array of arbitrary dimension
@@ -290,6 +345,9 @@ public:
   template <int UDIM = DIM, typename Enable = typename std::enable_if<UDIM == 1>::type>
   Array(std::initializer_list<T> elems, int allocator_id = axom::detail::getAllocatorID<SPACE>());
 
+  template <int UDIM = DIM, typename Enable = typename std::enable_if<UDIM == 1>::type>
+  Array(std::initializer_list<T> elems, int allocator_id, HostAllocator host_allocator);
+
   /*! 
    * \brief Copy constructor for an Array instance 
    */
@@ -300,7 +358,7 @@ public:
    *
    * \note The moved-from Array is left in a valid-but-unspecified state and may be reused.
    */
-  Array(Array&& other) noexcept;
+  AXOM_HOST_DEVICE Array(Array&& other) noexcept;
 
   /*!
    * \brief Constructor for transferring between memory spaces
@@ -318,9 +376,16 @@ public:
   template <typename OtherArrayType>
   Array(const ArrayBase<T, DIM, OtherArrayType>& other);
 
+  template <typename OtherArrayType>
+  Array(const ArrayBase<T, DIM, OtherArrayType>& other, HostAllocator host_allocator);
+
   /// \overload
   template <typename OtherArrayType>
   Array(const ArrayBase<const T, DIM, OtherArrayType>& other);
+
+  /// \overload
+  template <typename OtherArrayType>
+  Array(const ArrayBase<const T, DIM, OtherArrayType>& other, HostAllocator host_allocator);
 
   /*!
    * \brief Constructor for transferring between memory spaces, with a user-
@@ -335,9 +400,18 @@ public:
   template <typename OtherArrayType>
   Array(const ArrayBase<T, DIM, OtherArrayType>& other, int allocator_id);
 
+  template <typename OtherArrayType>
+  Array(const ArrayBase<T, DIM, OtherArrayType>& other, int allocator_id, HostAllocator host_allocator);
+
   /// \overload
   template <typename OtherArrayType>
   Array(const ArrayBase<const T, DIM, OtherArrayType>& other, int allocator_id);
+
+  /// \overload
+  template <typename OtherArrayType>
+  Array(const ArrayBase<const T, DIM, OtherArrayType>& other,
+        int allocator_id,
+        HostAllocator host_allocator);
 
   /// @}
 
@@ -356,8 +430,9 @@ public:
       this->clear();
       static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>&>(*this) = other;
       m_allocator_id = other.m_allocator_id;
+      m_host_allocator = other.m_host_allocator;
       m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
-      m_arrayOps = other.m_arrayOps;
+      m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
       m_resize_ratio = other.m_resize_ratio;
       setCapacity(other.capacity());
       // Use fill_range to ensure that copy constructors are invoked for each element
@@ -391,8 +466,9 @@ public:
       m_capacity = other.m_capacity;
       m_resize_ratio = other.m_resize_ratio;
       m_allocator_id = other.m_allocator_id;
+      m_host_allocator = other.m_host_allocator;
       m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
-      m_arrayOps = other.m_arrayOps;
+      m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
 
       other.m_data = nullptr;
       other.m_num_elements = 0;
@@ -422,7 +498,7 @@ public:
   /*!
    * Destructor. Frees the associated buffer.
    */
-  ~Array();
+  AXOM_HOST_DEVICE ~Array();
 
   /// \name Array element access operators
   /// @{
@@ -436,6 +512,7 @@ public:
 
   AXOM_HOST_DEVICE inline T* data() { return m_data; }
   AXOM_HOST_DEVICE inline const T* data() const { return m_data; }
+  inline int getHostAllocatorID() const { return m_host_allocator.getID(); }
 
   /// @}
 
@@ -998,12 +1075,14 @@ protected:
    * \param [in] src_stride the inter-element stride between elements of the existing array
    * \param [in] data_space the memory space in which data has been allocated
    * \param [in] user_provided_allocator true if the Array's allocator ID was provided by the user
+   * \param [in] preserve_host_allocator true if the Array's host allocator was explicitly provided
    */
   void initialize_from_other(const T* data,
                              IndexType num_elements,
                              IndexType src_stride,
                              MemorySpace data_space,
-                             bool user_provided_allocator);
+                             bool user_provided_allocator,
+                             bool preserve_host_allocator = false);
 
   /*!
    * \brief Updates the number of elements stored in the data array.
@@ -1067,6 +1146,7 @@ protected:
   IndexType m_capacity = 0;
   double m_resize_ratio = DEFAULT_RESIZE_RATIO;
   int m_allocator_id = INVALID_ALLOCATOR_ID;
+  HostAllocator m_host_allocator {};
   bool m_executeOnGPU = false;
   OpHelper m_arrayOps;
 };
@@ -1083,8 +1163,10 @@ using MCArray = Array<T, 2>;
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 Array<T, DIM, SPACE, StoragePolicy>::Array()
   : m_allocator_id(axom::detail::getAllocatorID<SPACE>())
+  , m_host_allocator(
+      axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
   , m_executeOnGPU(axom::isDeviceAllocator(m_allocator_id))
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 { }
 
 //------------------------------------------------------------------------------
@@ -1093,7 +1175,21 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexTyp
                                            int allocator_id)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape)
   , m_allocator_id(allocator_id)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocator_id))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+                                           int allocator_id,
+                                           HostAllocator host_allocator)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape)
+  , m_allocator_id(allocator_id)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
 }
@@ -1106,7 +1202,25 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexTyp
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape,
                                                            MDMapping<DIM> {shape, rowOrColumn, 1})
   , m_allocator_id(allocator_id)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocator_id))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  assert(rowOrColumn == axom::ArrayStrideOrder::ROW || rowOrColumn == axom::ArrayStrideOrder::COLUMN ||
+         (DIM == 1 && rowOrColumn == axom::ArrayStrideOrder::BOTH));
+  initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+                                           axom::ArrayStrideOrder rowOrColumn,
+                                           int allocator_id,
+                                           HostAllocator host_allocator)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape,
+                                                           MDMapping<DIM> {shape, rowOrColumn, 1})
+  , m_allocator_id(allocator_id)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   assert(rowOrColumn == axom::ArrayStrideOrder::ROW || rowOrColumn == axom::ArrayStrideOrder::COLUMN ||
          (DIM == 1 && rowOrColumn == axom::ArrayStrideOrder::BOTH));
@@ -1121,7 +1235,23 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexTyp
                                            int allocator_id)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape, {shape, slowestDirs, 1})
   , m_allocator_id(allocator_id)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocator_id))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <typename DirType>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+                                           const axom::StackArray<DirType, DIM>& slowestDirs,
+                                           int allocator_id,
+                                           HostAllocator host_allocator)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape, {shape, slowestDirs, 1})
+  , m_allocator_id(allocator_id)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
 }
@@ -1133,7 +1263,9 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(Args... args)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
   , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(
+      axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");
   // Intel hits internal compiler error when casting as part of function call
@@ -1149,7 +1281,9 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized, Args... 
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
   , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(
+      axom::detail::hostAllocatorForPrimaryAllocator(axom::detail::getAllocatorID<SPACE>()))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");
   // Intel hits internal compiler error when casting as part of function call
@@ -1163,19 +1297,44 @@ template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <IndexType SFINAE_DIM, MemorySpace SFINAE_SPACE, typename std::enable_if<SFINAE_DIM == 1>::type*>
 Array<T, DIM, SPACE, StoragePolicy>::Array(IndexType num_elements, IndexType capacity, int allocator_id)
   : m_allocator_id(allocator_id)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocator_id))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
 #ifdef AXOM_DEBUG
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
                  "explicit memory space - using default for space\n";
 #endif
     m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+    m_host_allocator = axom::detail::hostAllocatorForPrimaryAllocator(m_allocator_id);
   }
-  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
+  initialize(num_elements, capacity);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <IndexType SFINAE_DIM, MemorySpace SFINAE_SPACE, typename std::enable_if<SFINAE_DIM == 1>::type*>
+Array<T, DIM, SPACE, StoragePolicy>::Array(IndexType num_elements,
+                                           IndexType capacity,
+                                           int allocator_id,
+                                           HostAllocator host_allocator)
+  : m_allocator_id(allocator_id)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
+  {
+#ifdef AXOM_DEBUG
+    std::cerr << "Incorrect allocator ID was provided for an Array object with "
+                 "explicit memory space - using default for space\n";
+#endif
+    m_allocator_id = axom::detail::explicitHostFallbackAllocatorID<SPACE>(m_host_allocator);
+  }
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
   initialize(num_elements, capacity);
 }
 
@@ -1187,19 +1346,45 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized,
                                            IndexType capacity,
                                            int allocator_id)
   : m_allocator_id(allocator_id)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocator_id))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
 #ifdef AXOM_DEBUG
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
                  "explicit memory space - using default for space\n";
 #endif
     m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+    m_host_allocator = axom::detail::hostAllocatorForPrimaryAllocator(m_allocator_id);
   }
-  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
+  initialize(num_elements, capacity, false);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <IndexType SFINAE_DIM, MemorySpace SFINAE_SPACE, typename std::enable_if<SFINAE_DIM == 1>::type*>
+Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized,
+                                           IndexType num_elements,
+                                           IndexType capacity,
+                                           int allocator_id,
+                                           HostAllocator host_allocator)
+  : m_allocator_id(allocator_id)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
+  {
+#ifdef AXOM_DEBUG
+    std::cerr << "Incorrect allocator ID was provided for an Array object with "
+                 "explicit memory space - using default for space\n";
+#endif
+    m_allocator_id = axom::detail::explicitHostFallbackAllocatorID<SPACE>(m_host_allocator);
+  }
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
   initialize(num_elements, capacity, false);
 }
 
@@ -1208,10 +1393,24 @@ template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <int UDIM, typename Enable>
 Array<T, DIM, SPACE, StoragePolicy>::Array(std::initializer_list<T> elems, int allocator_id)
   : m_allocator_id(allocator_id)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocator_id))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   const IndexType num_elems = static_cast<IndexType>(elems.size());
   initialize_from_other(elems.begin(), num_elems, 1 /* stride */, MemorySpace::Dynamic, true);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <int UDIM, typename Enable>
+Array<T, DIM, SPACE, StoragePolicy>::Array(std::initializer_list<T> elems,
+                                           int allocator_id,
+                                           HostAllocator host_allocator)
+  : m_allocator_id(allocator_id)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  initialize_from_other(elems.begin(), elems.size(), 1 /* stride */, MemorySpace::Dynamic, true, true);
 }
 
 //------------------------------------------------------------------------------
@@ -1220,7 +1419,8 @@ AXOM_HOST_DEVICE Array<T, DIM, SPACE, StoragePolicy>::Array(const Array& other)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       static_cast<const ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>&>(other))
   , m_allocator_id(other.m_allocator_id)
-  , m_arrayOps(other.m_arrayOps)
+  , m_host_allocator(other.m_host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
 #if defined(AXOM_DEVICE_CODE)
   #if defined(AXOM_DEBUG)
@@ -1238,7 +1438,7 @@ AXOM_HOST_DEVICE Array<T, DIM, SPACE, StoragePolicy>::Array(const Array& other)
 #else
   this->setCapacity(other.capacity());
   m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
-  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
   // Use fill_range to ensure that copy constructors are invoked for each
   // element.
   MemorySpace srcSpace = SPACE;
@@ -1253,24 +1453,41 @@ AXOM_HOST_DEVICE Array<T, DIM, SPACE, StoragePolicy>::Array(const Array& other)
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
-Array<T, DIM, SPACE, StoragePolicy>::Array(Array&& other) noexcept
+AXOM_HOST_DEVICE Array<T, DIM, SPACE, StoragePolicy>::Array(Array&& other) noexcept
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>&&>(std::move(other)))
   , m_resize_ratio(0.0)
-  , m_arrayOps(other.m_arrayOps)
+  , m_allocator_id(other.m_allocator_id)
+  , m_host_allocator(other.m_host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
+#if defined(AXOM_DEVICE_CODE)
+  #if defined(AXOM_DEBUG)
+  printf(
+    "axom::Array: cannot move-construct on the device.\n"
+    "This is usually the result of capturing an array by-value in a lambda. "
+    "Use axom::ArrayView for value captures instead.\n");
+  #endif
+  #if defined(__CUDA_ARCH__)
+  asm("trap;");
+  #endif
+  #if defined(__HIP_DEVICE_COMPILE__)
+  abort();
+  #endif
+#else
   m_data = other.m_data;
   m_num_elements = other.m_num_elements;
   m_capacity = other.m_capacity;
   m_resize_ratio = other.m_resize_ratio;
-  m_allocator_id = other.m_allocator_id;
+  m_host_allocator = other.m_host_allocator;
   m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
-  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
 
   other.m_data = nullptr;
   other.m_num_elements = 0;
   other.m_capacity = 0;
   other.m_resize_ratio = DEFAULT_RESIZE_RATIO;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1279,22 +1496,9 @@ template <typename OtherArrayType>
 Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayType>& other)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
   , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
-{
-  initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
-                        static_cast<const OtherArrayType&>(other).size(),
-                        other.minStride(),
-                        axom::detail::getAllocatorSpace(m_allocator_id),
-                        false);
-}
-
-//------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
-template <typename OtherArrayType>
-Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
-  , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(
+      static_cast<const OtherArrayType&>(other).getAllocatorID()))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
                         static_cast<const OtherArrayType&>(other).size(),
@@ -1307,10 +1511,104 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherAr
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename OtherArrayType>
 Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayType>& other,
+                                           HostAllocator host_allocator)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
+  , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
+                        static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
+                        axom::detail::getAllocatorSpace(m_allocator_id),
+                        false,
+                        true);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <typename OtherArrayType>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
+  , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(
+      static_cast<const OtherArrayType&>(other).getAllocatorID()))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
+                        static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
+                        axom::detail::getAllocatorSpace(m_allocator_id),
+                        false);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <typename OtherArrayType>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other,
+                                           HostAllocator host_allocator)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
+  , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
+                        static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
+                        axom::detail::getAllocatorSpace(m_allocator_id),
+                        false,
+                        true);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <typename OtherArrayType>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayType>& other,
                                            int allocatorId)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
   , m_allocator_id(allocatorId)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocatorId))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  int src_allocator = static_cast<const OtherArrayType&>(other).getAllocatorID();
+
+  initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
+                        static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
+                        axom::detail::getAllocatorSpace(src_allocator),
+                        true);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <typename OtherArrayType>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayType>& other,
+                                           int allocatorId,
+                                           HostAllocator host_allocator)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
+  , m_allocator_id(allocatorId)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
+{
+  int src_allocator = static_cast<const OtherArrayType&>(other).getAllocatorID();
+
+  initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
+                        static_cast<const OtherArrayType&>(other).size(),
+                        other.minStride(),
+                        axom::detail::getAllocatorSpace(src_allocator),
+                        true,
+                        true);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <typename OtherArrayType>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other,
+                                           int allocatorId)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
+  , m_allocator_id(allocatorId)
+  , m_host_allocator(axom::detail::hostAllocatorForPrimaryAllocator(allocatorId))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   int src_allocator = static_cast<const OtherArrayType&>(other).getAllocatorID();
 
@@ -1325,10 +1623,12 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayTyp
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename OtherArrayType>
 Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other,
-                                           int allocatorId)
+                                           int allocatorId,
+                                           HostAllocator host_allocator)
   : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
   , m_allocator_id(allocatorId)
-  , m_arrayOps(m_allocator_id, m_executeOnGPU)
+  , m_host_allocator(host_allocator)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU, m_host_allocator)
 {
   int src_allocator = static_cast<const OtherArrayType&>(other).getAllocatorID();
 
@@ -1336,17 +1636,33 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherAr
                         static_cast<const OtherArrayType&>(other).size(),
                         other.minStride(),
                         axom::detail::getAllocatorSpace(src_allocator),
+                        true,
                         true);
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
-Array<T, DIM, SPACE, StoragePolicy>::~Array()
+AXOM_HOST_DEVICE Array<T, DIM, SPACE, StoragePolicy>::~Array()
 {
+#if defined(AXOM_DEVICE_CODE)
+  #if defined(AXOM_DEBUG)
+  printf(
+    "axom::Array: cannot destroy on the device.\n"
+    "This is usually the result of capturing an array by-value in a lambda. "
+    "Use axom::ArrayView for value captures instead.\n");
+  #endif
+  #if defined(__CUDA_ARCH__)
+  asm("trap;");
+  #endif
+  #if defined(__HIP_DEVICE_COMPILE__)
+  abort();
+  #endif
+#else
   clear();
   StoragePolicy::deallocate(m_data);
 
   m_data = nullptr;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -1690,6 +2006,9 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::swap(Array<T, DIM, SPACE, Stora
   axom::utilities::swap(m_capacity, other.m_capacity);
   axom::utilities::swap(m_resize_ratio, other.m_resize_ratio);
   axom::utilities::swap(m_allocator_id, other.m_allocator_id);
+  axom::utilities::swap(m_host_allocator, other.m_host_allocator);
+  axom::utilities::swap(m_executeOnGPU, other.m_executeOnGPU);
+  axom::utilities::swap(m_arrayOps, other.m_arrayOps);
 }
 
 //------------------------------------------------------------------------------
@@ -1710,6 +2029,7 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize(IndexType num_elemen
     capacity = (num_elements > MIN_DEFAULT_CAPACITY) ? num_elements : MIN_DEFAULT_CAPACITY;
   }
   m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
   setCapacity(capacity);
   if(default_construct)
   {
@@ -1730,11 +2050,12 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
   IndexType num_elements,
   IndexType src_stride,
   MemorySpace other_data_space,
-  bool AXOM_DEBUG_PARAM(user_provided_allocator))
+  bool AXOM_DEBUG_PARAM(user_provided_allocator),
+  bool preserve_host_allocator)
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
 #ifdef AXOM_DEBUG
     if(user_provided_allocator)
@@ -1743,10 +2064,18 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
                    "with explicit memory space - using default for space\n";
     }
 #endif
-    m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+    if(preserve_host_allocator)
+    {
+      m_allocator_id = axom::detail::explicitHostFallbackAllocatorID<SPACE>(m_host_allocator);
+    }
+    else
+    {
+      m_allocator_id = axom::detail::getAllocatorID<SPACE>();
+      m_host_allocator = axom::detail::hostAllocatorForPrimaryAllocator(m_allocator_id);
+    }
   }
   m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
-  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU, m_host_allocator};
   this->setCapacity(num_elements);
   // Use strided copy when necessary, otherwise use efficient contiguous copy
   if(src_stride == 1)

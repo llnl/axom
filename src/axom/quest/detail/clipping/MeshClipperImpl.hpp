@@ -111,11 +111,12 @@ public:
   void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                         axom::Array<axom::IndexType>& onIndices) override
   {
+    HostAllocator hostAllocator = getShapeMesh().getHostAllocator();
     if(labels.empty())
     {
       if(onIndices.getAllocatorID() != labels.getAllocatorID())
       {
-        onIndices = axom::Array<IndexType>(0, 0, labels.getAllocatorID());
+        onIndices = axom::Array<IndexType>(0, 0, labels.getAllocatorID(), hostAllocator);
       }
       return;
     };
@@ -137,7 +138,8 @@ public:
     axom::Array<axom::IndexType> tmpLabels(ArrayOptions::Uninitialized(),
                                            1 + labels.size(),
                                            0,
-                                           labels.getAllocatorID());
+                                           labels.getAllocatorID(),
+                                           hostAllocator);
     tmpLabels.fill(0, 1, 0);
     auto tmpLabelsView = tmpLabels.view();
     axom::ReduceSum<ExecSpace, IndexType> onCountReduce {0};
@@ -158,7 +160,8 @@ public:
       onIndices = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
                                                 onCount,
                                                 0,
-                                                labels.getAllocatorID()};
+                                                labels.getAllocatorID(),
+                                                hostAllocator};
     }
 
     auto onIndicesView = onIndices.view();
@@ -223,11 +226,13 @@ public:
   void computeClipVolumes3D(axom::ArrayView<double> ovlap, conduit::Node& statistics) override
   {
     ShapeMesh& shapeMesh = getShapeMesh();
+    HostAllocator hostAllocator = shapeMesh.getHostAllocator();
     const IndexType tetCount = shapeMesh.getCellCount() * ShapeMesh::NUM_TETS_PER_HEX;
     axom::Array<IndexType> tetIndices(ArrayOptions::Uninitialized(),
                                       tetCount,
                                       0,
-                                      shapeMesh.getAllocatorID());
+                                      shapeMesh.getAllocatorID(),
+                                      hostAllocator);
     auto tetIndicesView = tetIndices.view();
     axom::for_all<ExecSpace>(tetCount, AXOM_LAMBDA(IndexType ti) { tetIndicesView[ti] = ti; });
     computeClipVolumes3DTets(tetIndicesView, ovlap, statistics);
@@ -245,12 +250,14 @@ public:
 
   {
     ShapeMesh& shapeMesh = getShapeMesh();
+    HostAllocator hostAllocator = shapeMesh.getHostAllocator();
     const IndexType cellCount = cellIndices.size();
     const IndexType tetCount = cellCount * ShapeMesh::NUM_TETS_PER_HEX;
     axom::Array<IndexType> tetIndices(ArrayOptions::Uninitialized(),
                                       tetCount,
                                       0,
-                                      shapeMesh.getAllocatorID());
+                                      shapeMesh.getAllocatorID(),
+                                      hostAllocator);
     auto tetIndicesView = tetIndices.view();
     axom::for_all<ExecSpace>(
       cellCount,
@@ -283,6 +290,7 @@ public:
     auto meshTets = getShapeMesh().getCellsAsTets();
 
     const int allocId = shapeMesh.getAllocatorID();
+    HostAllocator hostAllocator = shapeMesh.getHostAllocator();
 
     /*
      * Geometry as discrete tets or octs, and their bounding boxes.
@@ -304,7 +312,7 @@ public:
     // containing only those listed in tetIndices.
     // The BVH searches on this array.
     const axom::IndexType tetCount = tetIndices.size();
-    axom::Array<BoundingBoxType> tetBbs(tetCount, tetCount, allocId);
+    axom::Array<BoundingBoxType> tetBbs(tetCount, tetCount, allocId, hostAllocator);
     axom::ArrayView<BoundingBoxType> tetBbsView = tetBbs.view();
     axom::for_all<ExecSpace>(
       tetCount,
@@ -315,8 +323,8 @@ public:
         for(int j = 0; j < 4; ++j) tetBb.addPoint(tet[j]);
       });
 
-    axom::Array<IndexType> counts(tetCount, tetCount, allocId);
-    axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
+    axom::Array<IndexType> counts(tetCount, tetCount, allocId, hostAllocator);
+    axom::Array<IndexType> offsets(tetCount, tetCount, allocId, hostAllocator);
     axom::Array<IndexType> candidates;
     auto countsView = counts.view();
     auto offsetsView = offsets.view();
@@ -379,8 +387,8 @@ public:
      * - candToTetIdId: indicates the meshTets in the collision,
      *   where candToTetIdId[i] corresponds to meshTets[tetIndices[i]].
      */
-    candidates = axom::Array<IndexType>(nCollisions, nCollisions, allocId);
-    axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
+    candidates = axom::Array<IndexType>(nCollisions, nCollisions, allocId, hostAllocator);
+    axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId, hostAllocator);
     auto candidatesView = candidates.view();
     auto candToTetIdIdView = candToTetIdId.view();
 
@@ -498,6 +506,7 @@ public:
     auto& strategy = getStrategy();
     ShapeMesh& shapeMesh = getShapeMesh();
     int allocId = shapeMesh.getAllocatorID();
+    HostAllocator hostAllocator = shapeMesh.getHostAllocator();
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
     const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
@@ -532,7 +541,7 @@ public:
      * Get the bounding boxes for the discrete geometry pieces.
      */
     const axom::IndexType bbCount = useTets ? geomAsTets.size() : geomAsOcts.size();
-    pieceBbs = axom::Array<BoundingBoxType>(bbCount, bbCount, allocId);
+    pieceBbs = axom::Array<BoundingBoxType>(bbCount, bbCount, allocId, hostAllocator);
     axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
 
     if(useTets)

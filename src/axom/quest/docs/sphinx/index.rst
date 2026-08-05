@@ -38,6 +38,16 @@ on a ``mint::Mesh``.
     - :ref:`Isosurface detection<isosurface-detection>`: generate an
       isosurface mesh from a nodal scalar field and an isovalue.
 
+Host Allocator Selection
+------------------------
+
+Quest workflows that allocate host-resident scratch or stage data for device
+execution provide explicit ``axom::HostAllocator`` paths. Prefer these
+overloads in new code when host allocator ownership is available, such as when
+constructing shaping, clipping, point-finding, or candidate-query helpers.
+Existing overloads without a host allocator remain compatibility paths and use
+Axom's current default host allocator.
+
 
 API Documentation
 -----------------
@@ -56,4 +66,3 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    point_in_cell
    all_nearest_neighbors
    isosurface_detection
-

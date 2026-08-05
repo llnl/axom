@@ -11,6 +11,7 @@
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/core/numerics/transforms.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
@@ -333,7 +334,7 @@ void unit_check_poly_clip()
   // In addition, vertices 0 and 3 should be marked as clipped.
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(axom::execution_space<ExecPolicy>::allocatorID());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecPolicy>());
 
   PolyhedronType* out_square = axom::allocate<PolyhedronType>(1);
   unsigned int* out_clipped = axom::allocate<unsigned int>(1);
@@ -431,7 +432,7 @@ void check_hex_tet_clip(double EPS)
   const int current_allocator = axom::getDefaultAllocatorID();
 
   // Set new default to device if available
-  axom::setDefaultAllocator(axom::execution_space<ExecPolicy>::allocatorID());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecPolicy>());
 
   // Allocate memory for shapes
   TetrahedronType* tet = axom::allocate<TetrahedronType>(1);
@@ -510,7 +511,7 @@ void check_oct_tet_clip(double EPS)
   const int current_allocator = axom::getDefaultAllocatorID();
 
   // Set new default to device if available
-  axom::setDefaultAllocator(axom::execution_space<ExecPolicy>::allocatorID());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecPolicy>());
 
   // Allocate memory for shapes
   TetrahedronType* tet = axom::allocate<TetrahedronType>(1);
@@ -586,7 +587,7 @@ void check_tet_tet_clip(double EPS)
   const int current_allocator = axom::getDefaultAllocatorID();
 
   // Set new default to device if available
-  axom::setDefaultAllocator(axom::execution_space<ExecPolicy>::allocatorID());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecPolicy>());
 
   // Allocate memory for shapes
   TetrahedronType* tet1 = axom::allocate<TetrahedronType>(1);

@@ -9,6 +9,7 @@
 #include "axom/config.hpp"                          // compile-time definitions
 #include "axom/core/Macros.hpp"                     // for AXOM_STATIC_ASSERT
 #include "axom/core/execution/execution_space.hpp"  // for execution_space traits
+#include "axom/core/memory_management.hpp"
 
 #include "axom/mint/execution/xargs.hpp"                   // for xargs
 #include "axom/mint/execution/internal/for_all_cells.hpp"  // for_all_cells()
@@ -91,6 +92,11 @@ namespace mint
  *
  * \pre m != nullptr
  *
+ * \note Overloads that accept `HostAllocator` use it for host staging needed
+ *       by coordinate-rich execution signatures. Overloads without
+ *       `HostAllocator` are compatibility paths that use Axom's current
+ *       default host allocator.
+ *
  * \tparam ExecPolicy the execution policy, e.g., serial or parallel
  * \tparam ArgType object indicating the arguments to the kernel
  * \tparam KernelType
@@ -146,6 +152,26 @@ inline void for_all_nodes(const MeshType* m, KernelType&& kernel)
   internal::for_all_nodes_impl<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
+template <typename ExecPolicy, typename ArgType = xargs::index, typename MeshType, typename KernelType>
+inline void for_all_nodes(const MeshType* m, HostAllocator hostAllocator, KernelType&& kernel)
+{
+  // compile-time sanity checks
+  AXOM_STATIC_ASSERT(execution_space<ExecPolicy>::valid());
+  AXOM_STATIC_ASSERT(xargs_traits<ArgType>::valid());
+
+  constexpr bool valid_mesh_type = std::is_base_of<Mesh, MeshType>::value;
+  AXOM_STATIC_ASSERT(valid_mesh_type);
+
+  // run-time sanity checks
+  SLIC_ASSERT(m != nullptr);
+
+  // dispatch
+  internal::for_all_nodes<ExecPolicy>(ArgType(),
+                                      static_cast<const Mesh&>(*m),
+                                      std::forward<KernelType>(kernel),
+                                      hostAllocator);
+}
+
 template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
 inline void for_all_nodes(const Mesh* m, KernelType&& kernel)
 {
@@ -158,6 +184,20 @@ inline void for_all_nodes(const Mesh* m, KernelType&& kernel)
 
   //dispatch
   internal::for_all_nodes<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
+}
+
+template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
+inline void for_all_nodes(const Mesh* m, HostAllocator hostAllocator, KernelType&& kernel)
+{
+  // compile-time sanity checks
+  AXOM_STATIC_ASSERT(execution_space<ExecPolicy>::valid());
+  AXOM_STATIC_ASSERT(xargs_traits<ArgType>::valid());
+
+  // run-time sanity checks
+  SLIC_ASSERT(m != nullptr);
+
+  //dispatch
+  internal::for_all_nodes<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel), hostAllocator);
 }
 
 /// @}
@@ -174,6 +214,11 @@ inline void for_all_nodes(const Mesh* m, KernelType&& kernel)
  * \param [in] kernel user-supplied kernel to execute on each cell.
  *
  * \pre m != nullptr
+ *
+ * \note Overloads that accept `HostAllocator` use it for host staging needed
+ *       by connectivity, coordinate, offset, or adjacency execution
+ *       signatures. Overloads without `HostAllocator` are compatibility paths
+ *       that use Axom's current default host allocator.
  *
  * \tparam ExecPolicy the execution policy, e.g., serial or parallel
  * \tparam ArgType object indicating the arguments to the kernel
@@ -236,6 +281,26 @@ inline void for_all_cells(const MeshType* m, KernelType&& kernel)
   internal::for_all_cells_impl<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
+template <typename ExecPolicy, typename ArgType = xargs::index, typename MeshType, typename KernelType>
+inline void for_all_cells(const MeshType* m, HostAllocator hostAllocator, KernelType&& kernel)
+{
+  // compile-time sanity checks
+  AXOM_STATIC_ASSERT(execution_space<ExecPolicy>::valid());
+  AXOM_STATIC_ASSERT(xargs_traits<ArgType>::valid());
+
+  constexpr bool valid_mesh_type = std::is_base_of<Mesh, MeshType>::value;
+  AXOM_STATIC_ASSERT(valid_mesh_type);
+
+  // run-time sanity checks
+  SLIC_ASSERT(m != nullptr);
+
+  // dispatch
+  internal::for_all_cells<ExecPolicy>(ArgType(),
+                                      static_cast<const Mesh&>(*m),
+                                      std::forward<KernelType>(kernel),
+                                      hostAllocator);
+}
+
 template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
 inline void for_all_cells(const Mesh* m, KernelType&& kernel)
 {
@@ -248,6 +313,20 @@ inline void for_all_cells(const Mesh* m, KernelType&& kernel)
 
   //dispatch
   internal::for_all_cells<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
+}
+
+template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
+inline void for_all_cells(const Mesh* m, HostAllocator hostAllocator, KernelType&& kernel)
+{
+  // compile-time sanity checks
+  AXOM_STATIC_ASSERT(execution_space<ExecPolicy>::valid());
+  AXOM_STATIC_ASSERT(xargs_traits<ArgType>::valid());
+
+  // run-time sanity checks
+  SLIC_ASSERT(m != nullptr);
+
+  //dispatch
+  internal::for_all_cells<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel), hostAllocator);
 }
 
 /// @}
@@ -264,6 +343,11 @@ inline void for_all_cells(const Mesh* m, KernelType&& kernel)
  * \param [in] kernel user-supplied kernel to execute on each face.
  *
  * \pre m != nullptr
+ *
+ * \note Overloads that accept `HostAllocator` use it for host staging needed
+ *       by connectivity, coordinate, offset, or adjacency execution
+ *       signatures. Overloads without `HostAllocator` are compatibility paths
+ *       that use Axom's current default host allocator.
  *
  * \tparam ExecPolicy the execution policy, e.g., serial or parallel
  * \tparam ArgType object indicating the arguments to the kernel
@@ -321,6 +405,26 @@ inline void for_all_faces(const MeshType* m, KernelType&& kernel)
   internal::for_all_faces_impl<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
+template <typename ExecPolicy, typename ArgType = xargs::index, typename MeshType, typename KernelType>
+inline void for_all_faces(const MeshType* m, HostAllocator hostAllocator, KernelType&& kernel)
+{
+  // compile-time sanity checks
+  AXOM_STATIC_ASSERT(execution_space<ExecPolicy>::valid());
+  AXOM_STATIC_ASSERT(xargs_traits<ArgType>::valid());
+
+  constexpr bool valid_mesh_type = std::is_base_of<Mesh, MeshType>::value;
+  AXOM_STATIC_ASSERT(valid_mesh_type);
+
+  // run-time sanity checks
+  SLIC_ASSERT(m != nullptr);
+
+  // dispatch
+  internal::for_all_faces<ExecPolicy>(ArgType(),
+                                      static_cast<const Mesh&>(*m),
+                                      std::forward<KernelType>(kernel),
+                                      hostAllocator);
+}
+
 template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
 inline void for_all_faces(const Mesh* m, KernelType&& kernel)
 {
@@ -333,6 +437,20 @@ inline void for_all_faces(const Mesh* m, KernelType&& kernel)
 
   //dispatch
   internal::for_all_faces<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
+}
+
+template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
+inline void for_all_faces(const Mesh* m, HostAllocator hostAllocator, KernelType&& kernel)
+{
+  // compile-time sanity checks
+  AXOM_STATIC_ASSERT(execution_space<ExecPolicy>::valid());
+  AXOM_STATIC_ASSERT(xargs_traits<ArgType>::valid());
+
+  // run-time sanity checks
+  SLIC_ASSERT(m != nullptr);
+
+  //dispatch
+  internal::for_all_faces<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel), hostAllocator);
 }
 
 /// @}

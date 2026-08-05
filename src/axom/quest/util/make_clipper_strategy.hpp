@@ -11,6 +11,7 @@
 // MeshClipper depends on sidre
 #ifdef AXOM_USE_SIDRE
 
+  #include "axom/core/memory_management.hpp"
   #include "axom/klee/Geometry.hpp"
   #include "axom/quest/MeshClipperStrategy.hpp"
 
@@ -34,11 +35,31 @@ namespace util
  * klee geometry formats.  It issues a warning for unrecognized
  * formats.
  *
+ * \note This compatibility overload uses Axom's current default host allocator
+ *       for any constructor-time host scratch. Prefer the overload that accepts
+ *       `HostAllocator` when host allocator ownership is available.
+ *
  * @return Pointer to new MeshClipperStrategy, or null if the
  * specified geometry is not an axom-provided one.
  */
 std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geometry& kleeGeometry,
                                                            const std::string& name = "");
+
+/*!
+ * @brief Return a new MeshClipperStrategy implementation using an explicit
+ * host allocator for constructor-time host scratch and storage in strategies
+ * that need it.
+ *
+ * @param [in] kleeGeometry Geometry description.
+ * @param [in] name Name of strategy instance.
+ * @param [in] hostAllocator Allocator for host-resident strategy construction.
+ *
+ * @return Pointer to new MeshClipperStrategy, or null if the
+ * specified geometry is not an axom-provided one.
+ */
+std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geometry& kleeGeometry,
+                                                           const std::string& name,
+                                                           HostAllocator hostAllocator);
 
 }  // namespace util
 }  // namespace experimental

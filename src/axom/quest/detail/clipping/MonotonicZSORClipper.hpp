@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "axom/core/memory_management.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
@@ -49,8 +50,14 @@ public:
    *   of octs grows exponentially with level
    *   (@see quest::discretize(const axom::ArrayView<Point2D> &polyline, int pointcount, int levels, axom::Array<OctType> &out, int &octcount)).
    *   In practice, keep this number to 11 or less.
+   *
+   * \note The overload without `HostAllocator` is a compatibility path that
+   *       uses Axom's current default host allocator for constructor scratch.
    */
   MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name = "");
+  MonotonicZSORClipper(const klee::Geometry& kGeom,
+                       const std::string& name,
+                       HostAllocator hostAllocator);
 
   /*!
    * @brief Construct with parameters to override the specifications
@@ -62,6 +69,14 @@ public:
                        const Point3DType& sorOrigin,
                        const Vector3DType& sorDirection,
                        axom::IndexType levelOfRefinement);
+
+  MonotonicZSORClipper(const klee::Geometry& kGeom,
+                       const std::string& name,
+                       axom::ArrayView<const Point2DType> discreteFunction,
+                       const Point3DType& sorOrigin,
+                       const Vector3DType& sorDirection,
+                       axom::IndexType levelOfRefinement,
+                       HostAllocator hostAllocator);
 
   virtual ~MonotonicZSORClipper() = default;
 
@@ -91,6 +106,8 @@ public:
    * @return Indices of switchbacks, plus the first and last indices.
    */
   static axom::Array<axom::IndexType> findZSwitchbacks(axom::ArrayView<const Point2DType> pts);
+  static axom::Array<axom::IndexType> findZSwitchbacks(axom::ArrayView<const Point2DType> pts,
+                                                       HostAllocator hostAllocator);
 
   /*
    * @brief Combine consecutive radial segments of the curve into a
@@ -207,7 +224,8 @@ private:
   axom::Array<Point2DType> subdivideCurve(const Array<Point2DType>& sorCurveIn,
                                           double maxMean,
                                           double maxDz,
-                                          double minDz);
+                                          double minDz,
+                                          HostAllocator hostAllocator);
 
   //!@brief Compute geometry as octs, by policy.
   template <typename ExecSpace>

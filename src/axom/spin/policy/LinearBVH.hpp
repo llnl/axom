@@ -143,8 +143,34 @@ public:
   axom::Array<ValueType> reduce_tree(LeafAction&& leaf_action,
                                      int allocatorID = axom::getDefaultAllocatorID()) const
   {
+    const HostAllocator hostAllocator = axom::detail::hostAllocatorForPrimaryAllocator(allocatorID);
+    return reduce_tree<ExecSpace, ValueType>(std::forward<LeafAction>(leaf_action),
+                                             allocatorID,
+                                             hostAllocator);
+  }
+
+  /*!
+   * \brief Iterate over the tree, invoking the leaf action at each leaf node to
+   *        produce a value and then iterate back up the tree, combining nodes
+   *        using a "+" reduction. Return the Array that contains values for
+   *        all tree nodes.
+   *
+   * \param leaf_action The function to invoke on a leaf node to make its data.
+   * \param allocatorID The allocator to use to allocate primary array data.
+   * \param hostAllocator Allocator to use for host-accessible staging/scratch.
+   *
+   * \return An Array that contains the reduced data for all nodes in the BVH.
+   */
+  template <typename ExecSpace, typename ValueType, typename LeafAction>
+  axom::Array<ValueType> reduce_tree(LeafAction&& leaf_action,
+                                     int allocatorID,
+                                     HostAllocator hostAllocator) const
+  {
     // Make a field over all of the nodes (the return field).
-    axom::Array<ValueType> reducedField(m_inner_nodes.size(), m_inner_nodes.size(), allocatorID);
+    axom::Array<ValueType> reducedField(m_inner_nodes.size(),
+                                        m_inner_nodes.size(),
+                                        allocatorID,
+                                        hostAllocator);
 
     if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
     {
@@ -156,7 +182,10 @@ public:
       // Do it in 2 stages.
 
       // Make a field for just the leaf data. Compute it in parallel.
-      axom::Array<ValueType> leafField(m_leaf_nodes.size(), m_leaf_nodes.size(), allocatorID);
+      axom::Array<ValueType> leafField(m_leaf_nodes.size(),
+                                       m_leaf_nodes.size(),
+                                       allocatorID,
+                                       hostAllocator);
       auto leafFieldView = leafField.view();
       const std::int32_t* leaf_nodes_data = m_leaf_nodes.data();
       axom::for_all<ExecSpace>(m_leaf_nodes.size(), [&](axom::IndexType currentNode) {
@@ -261,7 +290,8 @@ public:
                                             const axom::ArrayView<IndexType> counts,
                                             IndexType numObjs,
                                             PrimitiveIndexable objs,
-                                            int allocatorID) const;
+                                            int allocatorID,
+                                            HostAllocator hostAllocator) const;
 
   void writeVtkFileImpl(const std::string& fileName) const;
 
@@ -390,7 +420,8 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
   const axom::ArrayView<IndexType> counts,
   IndexType numObjs,
   PrimitiveIndexable objs,
-  int allocatorID) const
+  int allocatorID,
+  HostAllocator hostAllocator) const
 
 {
   AXOM_ANNOTATE_SCOPE("LinearBVH::findCandidatesImpl");
@@ -444,7 +475,8 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 
   // STEP 3: allocate memory for all candidates
   AXOM_ANNOTATE_BEGIN("allocate_candidates");
-  auto candidates = axom::Array<IndexType>(total_candidates, total_candidates, allocatorID);
+  auto candidates =
+    axom::Array<IndexType>(total_candidates, total_candidates, allocatorID, hostAllocator);
   AXOM_ANNOTATE_END("allocate_candidates");
   const auto candidates_v = candidates.view();
 
@@ -475,7 +507,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 #else  // CPU-only and no RAJA: do single traversal
   AXOM_UNUSED_VAR(allocatorID);
 
-  axom::Array<IndexType> search_candidates;
+  axom::Array<IndexType> search_candidates(0, 0, hostAllocator.getID(), hostAllocator);
   int current_offset = 0;
 
   // STEP 1: do single-pass traversal with std::vector for candidates
