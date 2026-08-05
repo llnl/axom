@@ -51,7 +51,7 @@ if(AXOM_ENABLE_QUEST)
         quest
         )
 
-    blt_list_append(TO mesh_tester_depends ELEMENTS umpire IF UMPIRE_FOUND)
+    blt_list_append(TO mesh_tester_depends ELEMENTS umpire::umpire IF UMPIRE_FOUND)
     blt_list_append(TO mesh_tester_depends ELEMENTS RAJA IF RAJA_FOUND)
 
     axom_add_executable(
