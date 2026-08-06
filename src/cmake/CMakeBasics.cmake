@@ -142,6 +142,7 @@ blt_append_custom_compiler_flag(FLAGS_VAR AXOM_DISABLE_UNUSED_LOCAL_TYPEDEF
                   DEFAULT " "
                   CLANG   "${clang_unused_local_typedef}"
                   GNU     "-Wno-unused-local-typedefs"
+                  INTELLLVM "-Wno-unused-local-typedef"
                   MSVC    " "
                   XL      "-Wno-unused-local-typedefs"
                   )

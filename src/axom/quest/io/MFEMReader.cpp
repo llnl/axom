@@ -28,12 +28,11 @@
 
 #define AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS 40901
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace internal
 {
+
 /*!
  * \brief Read the MFEM file and build the desired type of geometry from it using a supplied function.
  *        The MFEM files must contain only 1D curves in 2D space.
@@ -219,8 +218,15 @@ int read_mfem(const std::string &fileName,
                             patchId));
         return MFEMReader::READ_FAILED;
       }
+
+      using SkipTag = primal::KnotVector<double>::SkipValidityChecks;
       axom::ArrayView<const double> knots_view(&kv0[0], kv0.Size());
-      const primal::KnotVector<double> kv(knots_view, kv0.GetOrder());
+      const primal::KnotVector<double> kv(knots_view, kv0.GetOrder(), SkipTag {});
+      if(!kv.isValid(true))
+      {
+        SLIC_WARNING(axom::fmt::format("MFEM patch {} has an invalid knot vector: {}", patchId, kv));
+        return MFEMReader::READ_FAILED;
+      }
 
       const auto cp = get_patch_controlpoints(patchId);
       const auto w = get_patch_weights(patchId);
@@ -357,5 +363,4 @@ int MFEMReader::read(CurvedPolygonArray &curvedPolygons, axom::Array<int> &attri
   return ret;
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest
