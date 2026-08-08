@@ -12,14 +12,14 @@
  * This example demonstrates how to use the Quest SamplingShaper to shape
  * a Klee input onto a computational mesh. The program:
  * 1. Creates a structured mesh from Inlet mesh metadata
- * 2. Loads Klee shapes from a YAML file
+ * 2. Loads Klee shapes from a YAML or Lua file
  * 3. Generates volume fraction fields for each material based on the input shapes
  * 4. Outputs the generated mesh to disk
  * 
  * This example supports both serial and MPI execution.
  * 
  * Example run:
- * > [srun -n8] ./quest_sampling_shaper -m mesh_metadata.lua -k shapes.yaml [-v]
+ * > [srun -n8] ./quest_sampling_shaper -m mesh_metadata.lua -k shapes.lua [-v]
  * 
  */
 //-----------------------------------------------------------------------------
@@ -47,7 +47,9 @@
   #error Shaping functionality requires Axom to be configured with Conduit and MFEM
 #endif
 
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <string>
@@ -306,7 +308,8 @@ int main(int argc, char** argv)
   // --------------------------------------------------------------------------
   axom::CLI::App app {"Shaping pipeline using separate Inlet mesh metadata and Klee shapes"};
   std::string inputFilename;  // Mesh metadata Inlet Lua
-  std::string kleeFilename;   // Klee shape set YAML
+  std::string kleeFilename;   // Klee shape set YAML or Lua
+  std::string luaInitializationFilename;
   bool verbose = false;
 
   app.add_option("-m,--mesh_file", inputFilename)
@@ -314,8 +317,11 @@ int main(int argc, char** argv)
     ->required()
     ->check(axom::CLI::ExistingFile);
   app.add_option("-k,--klee_file", kleeFilename)
-    ->description("Klee shape set YAML file")
+    ->description("Klee shape set YAML or Lua file")
     ->required()
+    ->check(axom::CLI::ExistingFile);
+  app.add_option("--lua-init-file", luaInitializationFilename)
+    ->description("Lua chunk that returns initial globals for a Lua shape file")
     ->check(axom::CLI::ExistingFile);
   app.add_flag("-v,--verbose", verbose)->description("Enable verbose (debug) logging");
 
@@ -375,7 +381,21 @@ int main(int argc, char** argv)
   klee::ShapeSet shapeSet;
   try
   {
-    shapeSet = klee::readShapeSet(kleeFilename);
+    klee::LuaInputOptions options;
+    if(!luaInitializationFilename.empty())
+    {
+      std::ifstream stream {luaInitializationFilename};
+      if(!stream)
+      {
+        throw klee::KleeError(
+          {axom::Path {luaInitializationFilename}, "Could not read Lua initialization file"});
+      }
+
+      options.initialization = klee::LuaInitializationChunk {
+        std::string {std::istreambuf_iterator<char> {stream}, std::istreambuf_iterator<char> {}},
+        luaInitializationFilename};
+    }
+    shapeSet = klee::readShapeSet(kleeFilename, options);
   }
   catch(klee::KleeError& error)
   {

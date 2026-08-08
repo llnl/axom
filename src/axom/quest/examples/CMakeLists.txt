@@ -176,6 +176,7 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
         # 2D shaping tests
         set(_nranks 1)
+
         if(C2C_FOUND)
             set(_testname quest_shaping_driver_ex_sampling_circles)
             axom_add_test(
@@ -350,6 +351,47 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
 
         # 3D shaping tests
         set(_nranks 3)
+
+        if(LUA_FOUND)
+            set(_testname quest_shaping_driver_ex_lua_callbacks)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND quest_shaping_driver_ex
+                        -i ${shaping_data_dir}/sphere_callbacks.lua
+                        --method sampling
+                        inline_mesh --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION "Volume of material 'steel' is 519.")
+
+            set(_testname quest_shaping_driver_ex_lua_initialization)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND quest_shaping_driver_ex
+                        -i ${shaping_data_dir}/sphere_callbacks.lua
+                        --lua-init-file ${shaping_data_dir}/sphere_initialization.lua
+                        --method sampling
+                        inline_mesh --min -4.8 -4.8 -4.8 --max 4.8 4.8 4.8
+                                    --resolution 16 16 16 -d 3
+                NUM_MPI_TASKS ${_nranks})
+            # Analytic volume for a sphere with radius 4 is ~268.08
+            # the input surface is discretized and the computational mesh is coarse.
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION "Volume of material 'steel' is 26[56].")
+
+            set(_testname quest_shaping_driver_ex_yaml_rejects_lua_initialization)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND quest_shaping_driver_ex
+                        -i ${shaping_data_dir}/sphere.yaml
+                        --lua-init-file ${shaping_data_dir}/sphere_initialization.lua
+                        --method sampling
+                        inline_mesh --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                WILL_FAIL TRUE)
+        endif()
+
         set(_testname quest_shaping_driver_ex_sampling_sphere)
         axom_add_test(
             NAME ${_testname}

@@ -47,10 +47,12 @@
 
 // C/C++ includes
 #include <algorithm>
+#include <fstream>
+#include <iterator>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -137,6 +139,7 @@ public:
   BlueprintMeshBacking blueprintMeshBacking {BlueprintMeshBacking::Sidre};
 
   std::string shapeFile;
+  std::string luaInitializationFile;
   klee::ShapeSet shapeSet;
 
   ShapingMethod shapingMethod {ShapingMethod::Sampling};
@@ -338,6 +341,10 @@ public:
       ->description("Path to input shape file")
       ->check(axom::CLI::ExistingFile)
       ->required();
+
+    app.add_option("--lua-init-file", luaInitializationFile)
+      ->description("Lua chunk that returns initial globals for a Lua shape file")
+      ->check(axom::CLI::ExistingFile);
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
       ->description("Enable/disable verbose output")
@@ -549,6 +556,27 @@ public:
 
     slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
+
+  klee::LuaInputOptions loadLuaInputOptions() const
+  {
+    klee::LuaInputOptions options;
+    if(luaInitializationFile.empty())
+    {
+      return options;
+    }
+
+    std::ifstream stream {luaInitializationFile};
+    if(!stream)
+    {
+      throw klee::KleeError(
+        {axom::Path {luaInitializationFile}, "Could not read Lua initialization file"});
+    }
+
+    options.initialization = klee::LuaInitializationChunk {
+      std::string {std::istreambuf_iterator<char> {stream}, std::istreambuf_iterator<char> {}},
+      luaInitializationFile};
+    return options;
+  }
 };
 
 /**
@@ -704,7 +732,7 @@ int main(int argc, char** argv)
   try
   {
     AXOM_ANNOTATE_SCOPE("read Klee shape set");
-    params.shapeSet = klee::readShapeSet(params.shapeFile);
+    params.shapeSet = klee::readShapeSet(params.shapeFile, params.loadLuaInputOptions());
 
     slic::flushStreams();
   }

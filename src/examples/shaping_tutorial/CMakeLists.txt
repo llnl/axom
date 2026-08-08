@@ -117,8 +117,30 @@ if(ENABLE_TESTS)
 
     if(AXOM_USE_LUA AND AXOM_USE_MFEM)
       blt_add_test(NAME    lesson_04_quest_sampling_shaper
-                   COMMAND lesson_04_quest_sampling_shaper -m ../lesson_04/circle_input.lua 
-                                                           -k ../lesson_04/circles.yaml -v)                   
+                   COMMAND lesson_04_quest_sampling_shaper -m ../lesson_04/circle_input.lua
+                                                           -k ../lesson_04/circles.yaml -v)
+
+      blt_add_test(NAME    lesson_04_quest_sampling_shaper_lua_callbacks
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ../lesson_04/circle_input.lua
+                           -k ../lesson_04/circles.lua
+                           -v)
+
+      blt_add_test(NAME    lesson_04_quest_sampling_shaper_lua_initialization
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ../lesson_04/circle_input.lua
+                           -k ../lesson_04/circles_initialized.lua
+                           --lua-init-file ../lesson_04/circles_initialization.lua
+                           -v)
+
+      set(_testname
+          lesson_04_quest_sampling_shaper_yaml_rejects_lua_initialization)
+      blt_add_test(NAME    ${_testname}
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ../lesson_04/circle_input.lua
+                           -k ../lesson_04/circles.yaml
+                           --lua-init-file ../lesson_04/circles_initialization.lua)
+      set_tests_properties(${_testname} PROPERTIES WILL_FAIL TRUE)
     endif()
 
 endif()

@@ -256,6 +256,10 @@ operator, fields are evaluated in this order:
   :code:`origin`, :code:`normal`, and :code:`up` (when present)
 * arbitrary slice :code:`origin`, then :code:`normal`, then :code:`up`
 
+Klee does not coordinate Lua evaluation across MPI ranks. If an application
+calls :code:`readShapeSet` on every rank, each rank reads and evaluates the deck
+and initialization chunk independently. 
+
 .. code-block:: lua
 
     local dim = 2

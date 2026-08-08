@@ -208,6 +208,27 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
                                  ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream_initialized.lua
                                  --initialization-file
                                  ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream_initialization.lua)
+
+            if(MFEM_FOUND)
+                set(_lesson_04_dir
+                    "${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_04")
+
+                blt_add_test(NAME    shaping_tutorial_lesson_04_quest_sampling_shaper_yaml
+                             COMMAND shaping_tutorial_lesson_04_quest_sampling_shaper
+                                     -m ${_lesson_04_dir}/circle_input.lua
+                                     -k ${_lesson_04_dir}/circles.yaml)
+
+                blt_add_test(NAME    shaping_tutorial_lesson_04_quest_sampling_shaper_lua_callbacks
+                             COMMAND shaping_tutorial_lesson_04_quest_sampling_shaper
+                                     -m ${_lesson_04_dir}/circle_input.lua
+                                     -k ${_lesson_04_dir}/circles.lua)
+
+                blt_add_test(NAME    shaping_tutorial_lesson_04_quest_sampling_shaper_lua_initialization
+                             COMMAND shaping_tutorial_lesson_04_quest_sampling_shaper
+                                     -m ${_lesson_04_dir}/circle_input.lua
+                                     -k ${_lesson_04_dir}/circles_initialized.lua
+                                     --lua-init-file ${_lesson_04_dir}/circles_initialization.lua)
+            endif()
         endif()
     endif()
     
