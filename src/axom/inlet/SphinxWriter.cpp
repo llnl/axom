@@ -112,7 +112,13 @@ void SphinxWriter::documentContainer(const Container& container)
 
   for(const auto& function_entry : container.getChildFunctions())
   {
-    extractFunctionMetadata(function_entry.second->sidreGroup(), currContainer);
+    const auto* functionGroup = function_entry.second->sidreGroup();
+    const bool isValueAlternative =
+      functionGroup->hasView(detail::FUNCTION_VALUE_ALTERNATIVE_FLAG);
+    if(!isValueAlternative)
+    {
+      extractFunctionMetadata(functionGroup, currContainer);
+    }
   }
 }
 

@@ -9,10 +9,15 @@
 
 #include "axom/inlet/LuaReader.hpp"
 #include "axom/inlet/Inlet.hpp"
+#include "axom/inlet/JSONSchemaWriter.hpp"
+#include "axom/inlet/SphinxWriter.hpp"
 
 #include "gtest/gtest.h"
 
 #include <array>
+#include <cstdio>
+#include <fstream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -24,7 +29,9 @@ using axom::inlet::FunctionType;
 using axom::inlet::Inlet;
 using axom::inlet::InletType;
 using axom::inlet::InputPath;
+using axom::inlet::JSONSchemaWriter;
 using axom::inlet::LuaReader;
+using axom::inlet::SphinxWriter;
 using axom::inlet::VerificationError;
 
 #include "axom/sol.hpp"
@@ -406,6 +413,97 @@ TEST(inlet_function, function_value_alternative_is_valid_in_strict_container)
     EXPECT_EQ(inlet.contains("foo_callback"), useFunction);
     EXPECT_EQ(inlet.contains("foo"), !useFunction);
     EXPECT_TRUE(inlet.getGlobalContainer().exists());
+  }
+}
+
+TEST(inlet_function, function_value_alternative_rejects_duplicate_callback_alternative)
+{
+  auto inlet = createBasicInlet("function scale () return 2.0 end");
+  auto& callback = inlet.addFunctionAsValueAlternative(
+    "scale_callback",
+    FunctionTag::Double,
+    {},
+    "scale");
+  auto& repeatedCallback = inlet.addFunctionAsValueAlternative(
+    "scale_callback",
+    FunctionTag::Double,
+    {},
+    "scale");
+
+  // Like other Inlet schema entries, repeating the same name is idempotent.
+  EXPECT_EQ(&callback, &repeatedCallback);
+
+  axom::slic::ScopedAbortToThrow abortGuard;
+  EXPECT_THROW(inlet.addFunctionAsValueAlternative(
+                 "another_scale_callback",
+                 FunctionTag::Double,
+                 {},
+                 "scale"),
+               axom::slic::SlicAbortException);
+  EXPECT_EQ(inlet.getGlobalContainer().getChildFunctions().size(), 1u);
+}
+
+TEST(inlet_function, function_value_alternative_sidre_and_generated_documentation)
+{
+  const std::string sphinxFile = "inlet_function_value_alternative.rst";
+  const std::string jsonFile = "inlet_function_value_alternative.json";
+  auto inlet = createBasicInlet("scale = 2.0");
+  inlet.addFunctionAsValueAlternative(
+    "scale_callback",
+    FunctionTag::Double,
+    {},
+    "scale");
+  inlet.addDouble("scale", "Scale factor");
+
+  // Sidre marks the internal callback schema group without storing the callable.
+  const auto* callbackGroup = inlet.getGlobalContainer()
+                                .getChildFunctions()
+                                .at("scale_callback")
+                                ->sidreGroup();
+  ASSERT_TRUE(callbackGroup->hasView(axom::inlet::detail::FUNCTION_VALUE_ALTERNATIVE_FLAG));
+  const std::int8_t alternativeFlag =
+    callbackGroup->getView(axom::inlet::detail::FUNCTION_VALUE_ALTERNATIVE_FLAG)->getScalar();
+  EXPECT_EQ(alternativeFlag, 1);
+
+  inlet.write(SphinxWriter(sphinxFile));
+  inlet.write(JSONSchemaWriter(jsonFile));
+
+  const auto readFile = [](const std::string& path) {
+    std::ifstream stream(path);
+    return std::string(std::istreambuf_iterator<char>(stream),
+                       std::istreambuf_iterator<char>());
+  };
+  const std::string sphinx = readFile(sphinxFile);
+  const std::string json = readFile(jsonFile);
+  std::remove(sphinxFile.c_str());
+  std::remove(jsonFile.c_str());
+
+  EXPECT_NE(sphinx.find("scale"), std::string::npos);
+  EXPECT_EQ(sphinx.find("scale_callback"), std::string::npos);
+  EXPECT_NE(json.find("scale"), std::string::npos);
+  EXPECT_EQ(json.find("scale_callback"), std::string::npos);
+}
+
+TEST(inlet_function, function_value_alternative_restart_does_not_create_internal_field)
+{
+  axom::sidre::DataStore datastore;
+  {
+    auto reader = std::make_unique<LuaReader>();
+    reader->parseString("scale = 2.0");
+    Inlet inlet(std::move(reader), datastore.getRoot());
+    inlet.addFunctionAsValueAlternative(FunctionTag::Double, {}, "scale");
+    inlet.addDouble("scale");
+  }
+
+  {
+    auto reader = std::make_unique<LuaReader>();
+    Inlet restart(std::move(reader), datastore.getRoot(), true, true);
+
+    EXPECT_TRUE(restart.contains("scale"));
+    EXPECT_DOUBLE_EQ(restart.get<double>("scale"), 2.0);
+    EXPECT_EQ(restart.getGlobalContainer().getChildFields().size(), 1u);
+    EXPECT_TRUE(restart.getGlobalContainer().getChildFunctions().empty());
+    EXPECT_FALSE(restart.getGlobalContainer().containsFunctionValueAlternative("scale"));
   }
 }
 
