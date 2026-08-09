@@ -170,16 +170,16 @@ int main(int argc, char** argv)
     return axom::klee::readShapeSet(inputFilename, options);
   };
 
-  // Load the klee shape file and extract some information
+  // Load the Klee input file and extract some information
+  axom::klee::ShapeSet shapeSet;
   try
   {
-    auto shapeSet = loadShapeSet();
-    printShapeSetInfo(shapeSet);
+    shapeSet = loadShapeSet();
   }
-  catch(axom::klee::KleeError& error)
+  catch(const axom::klee::KleeError& error)
   {
     std::vector<std::string> errs;
-    for(auto verificationError : error.getErrors())
+    for(const auto& verificationError : error.getErrors())
     {
       errs.push_back(axom::fmt::format(" - '{}': {}",
                                        static_cast<std::string>(verificationError.path),
@@ -187,10 +187,11 @@ int main(int argc, char** argv)
     }
 
     SLIC_WARNING(
-      axom::fmt::format("Error during parsing klee input. Found the following errors:\n{}",
+      axom::fmt::format("Error during parsing Klee input. Found the following errors:\n{}",
                         axom::fmt::join(errs, "\n")));
-    exit(1);
+    return 1;
   }
 
+  printShapeSetInfo(shapeSet);
   return 0;
 }

@@ -464,7 +464,7 @@ The replacement rules are implicit -- each new shape replaces all existing mater
 >              -m ../src/examples/shaping_tutorial/lesson_04/circle_input.lua
 > ```
 
-The Klee shape file can also be Lua. In [`circles.lua`](circles.lua), the scale factors
+The Klee input can also be written in Lua. In [`circles.lua`](circles.lua), the scale factors
 are zero-argument callbacks. Klee evaluates them while reading the deck
 and passes ordinary concrete operators to Quest:
 
@@ -489,7 +489,7 @@ This option is valid only with a Lua Klee deck and using it with YAML produces a
 Klee validation error. In an MPI run, every rank reads the same deck and
 initialization file and evaluates them independently. Consequently, callbacks
 and initialization chunks must be deterministic and should not depend on rank,
-random values, mutable external files, or unsynchronized side effects. 
+random values, mutable external files, or unsynchronized side effects.
 Klee does not currently parse on one rank and broadcast the resulting shape set.
 
 
