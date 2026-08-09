@@ -2117,7 +2117,50 @@ TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbacksAreValidated)
     }
     catch(const KleeError &err)
     {
-      EXPECT_THAT(err.what(), HasSubstr(testCase.field));
+      EXPECT_THAT(err.what(),
+                  HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr("shape 'slice_callback'"));
+      EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+      EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaArbitrarySliceCallbackValidationErrorsIncludeContext)
+{
+  struct ValidationCase
+  {
+    const char *field;
+    const char *sliceFields;
+    const char *expectedMessage;
+  };
+  const std::array<ValidationCase, 2> cases {{
+    {"normal",
+     "origin = {0, 0, 0}, "
+     "normal = function() return {0, 0, 0} end, "
+     "up = {0, 1, 0}",
+     "zero"},
+    {"up",
+     "origin = {0, 0, 0}, "
+     "normal = {1, 0, 0}, "
+     "up = function() return {1, 0, 0} end",
+     "perpendicular"},
+  }};
+
+  for(const auto &testCase : cases)
+  {
+    SCOPED_TRACE(testCase.field);
+    try
+    {
+      readShapeSetFromString(makeLuaSliceCallbackInput(testCase.sliceFields), InputFormat::Lua);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError &err)
+    {
+      EXPECT_THAT(err.what(),
+                  HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr("shape 'slice_callback'"));
+      EXPECT_THAT(err.what(), HasSubstr("operator 1"));
       EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
     }
   }
