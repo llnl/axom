@@ -54,15 +54,15 @@ reader class here:
    :end-before: _inlet_sol_state_end
    :language: C++
 
-Inlet opens four Lua libraries by default: ``base``, ``math``, ``string``, ``package``. 
-All libraries are documented in `Sol's open_library documentation <https://sol2.readthedocs.io/en/v2.20.6/api/state.html?highlight=open_libraries#enumerations>`_. 
+Inlet opens four Lua libraries by default: ``base``, ``math``, ``string``, ``package``.
+All libraries are documented in `Sol's open_library documentation <https://sol2.readthedocs.io/en/v2.20.6/api/state.html?highlight=open_libraries#enumerations>`_.
 
 .. warning::
 
    Lua input is trusted executable code, and is not interpreted in a security sandbox.
    In particular, the ``package`` library can load additional Lua or native modules,
    and Inlet does not impose CPU, memory, recursion, or execution-time limits.
-   Only parse Lua input from trusted sources. Exposing additional libraries 
+   Only parse Lua input from trusted sources. Exposing additional libraries
    or modifying the state through ``solState()`` can grant the input further capabilities
    and can also change values after Inlet has read or verified them.
 
