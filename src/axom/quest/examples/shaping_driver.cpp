@@ -338,12 +338,12 @@ public:
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_option("-i,--shape-file", shapeFile)
-      ->description("Path to input shape file")
+      ->description("Path to Klee input file (YAML or Lua)")
       ->check(axom::CLI::ExistingFile)
       ->required();
 
     app.add_option("--lua-init-file", luaInitializationFile)
-      ->description("Lua chunk that returns initial globals for a Lua shape file")
+      ->description("Lua chunk that returns initial globals for a Lua Klee input file")
       ->check(axom::CLI::ExistingFile);
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
@@ -727,7 +727,7 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_BEGIN("init");
 
   //---------------------------------------------------------------------------
-  // Load the klee shape file and extract some information
+  // Load the Klee input file and extract some information
   //---------------------------------------------------------------------------
   try
   {
@@ -747,7 +747,7 @@ int main(int argc, char** argv)
     }
 
     SLIC_WARNING(
-      axom::fmt::format("Error during parsing klee input. Found the following errors:\n{}",
+      axom::fmt::format("Error during parsing Klee input. Found the following errors:\n{}",
                         axom::fmt::join(errs, "\n")));
 
     finalizeLogger();

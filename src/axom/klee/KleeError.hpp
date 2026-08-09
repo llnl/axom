@@ -16,7 +16,7 @@ namespace axom
 namespace klee
 {
 /**
- * Describes an error that occurred while parsing a Klee file.
+ * Describes an error that occurred while parsing Klee input.
  *
  * Klee throws this exception for user input validation failures so callers
  * can report path-aware feedback from Inlet and Klee semantic checks.

@@ -308,7 +308,7 @@ int main(int argc, char** argv)
   // --------------------------------------------------------------------------
   axom::CLI::App app {"Shaping pipeline using separate Inlet mesh metadata and Klee shapes"};
   std::string inputFilename;  // Mesh metadata Inlet Lua
-  std::string kleeFilename;   // Klee shape set YAML or Lua
+  std::string kleeFilename;   // Klee input file (YAML or Lua)
   std::string luaInitializationFilename;
   bool verbose = false;
 
@@ -317,11 +317,11 @@ int main(int argc, char** argv)
     ->required()
     ->check(axom::CLI::ExistingFile);
   app.add_option("-k,--klee_file", kleeFilename)
-    ->description("Klee shape set YAML or Lua file")
+    ->description("Klee input file (YAML or Lua)")
     ->required()
     ->check(axom::CLI::ExistingFile);
   app.add_option("--lua-init-file", luaInitializationFilename)
-    ->description("Lua chunk that returns initial globals for a Lua shape file")
+    ->description("Lua chunk that returns initial globals for a Lua Klee input file")
     ->check(axom::CLI::ExistingFile);
   app.add_flag("-v,--verbose", verbose)->description("Enable verbose (debug) logging");
 
@@ -406,7 +406,7 @@ int main(int argc, char** argv)
                                        static_cast<std::string>(verificationError.path),
                                        verificationError.message));
     }
-    SLIC_WARNING(axom::fmt::format("Error parsing klee input:\n{}", axom::fmt::join(errs, "\n")));
+    SLIC_WARNING(axom::fmt::format("Error parsing Klee input:\n{}", axom::fmt::join(errs, "\n")));
     return 1;
   }
 

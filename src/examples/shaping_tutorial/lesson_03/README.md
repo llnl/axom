@@ -195,9 +195,9 @@ endsolid Mesh
 </div>
 </details>
 
-#### Basic shape file
+#### Basic Klee input
 
-A minimal shape file includes a ``dimensions`` field and a ``shapes`` list.
+A minimal Klee input includes a ``dimensions`` field and a ``shapes`` list.
 
 The following example has a single shape representing the boundary a tetrahedron.
 The name of the shape -- in this case ``my_tetrahedron`` -- is used internally, and it will get shaped into the ``steel`` material:
@@ -393,7 +393,7 @@ shapes:
 
 ## Let's see some code!
 
-The code example for this lesson loads a Klee file, performs some validation and then prints out details about the geometric setup
+The code example for this lesson loads a Klee input file, performs some validation and then prints out details about the geometric setup.
 
 ### Load and validate the Klee input
 
@@ -403,20 +403,23 @@ try
 {
   shapeSet = axom::klee::readShapeSet(inputFilename);
 }
-catch(axom::klee::KleeError& error)
+catch(const axom::klee::KleeError& error)
 {
   std::vector<std::string> errs;
-  for(auto verificationError : error.getErrors())
+  for(const auto& verificationError : error.getErrors())
   {
     errs.push_back(axom::fmt::format(" - '{}': {}",
-                                      static_cast<std::string>(verificationError.path),
-                                      verificationError.message));
+                                     static_cast<std::string>(verificationError.path),
+                                     verificationError.message));
   }
 
   SLIC_WARNING(
-    axom::fmt::format("Error during parsing klee input. Found the following errors:\n{}",
+    axom::fmt::format("Error during parsing Klee input. Found the following errors:\n{}",
                       axom::fmt::join(errs, "\n")));
+  return 1;
 }
+
+printShapeSetInfo(shapeSet);
 ```
 
 The validator example also accepts an optional `--initialization-file` argument

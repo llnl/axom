@@ -258,7 +258,7 @@ operator, fields are evaluated in this order:
 
 Klee does not coordinate Lua evaluation across MPI ranks. If an application
 calls :code:`readShapeSet` on every rank, each rank reads and evaluates the deck
-and initialization chunk independently. 
+and initialization chunk independently.
 
 .. code-block:: lua
 
@@ -406,10 +406,10 @@ will match that of the (global or per-shape) `dimensions`.
 
 Overlay Rules
 -------------
-Shapes are added to meshes in the order in which they appear in the YAML
-file. By default, each one replaces all materials that occupy the space
-specified by its geometry file. This can be overridden by using the
-:code:`replaces` and :code:`does_not_replace` properties.
+Shapes are added to meshes in the order in which they appear in the input file.
+By default, each one replaces all materials that occupy the space specified by
+its geometry file. This can be overridden by using the :code:`replaces`
+and :code:`does_not_replace` properties.
 
 .. code-block:: yaml
 
@@ -514,7 +514,7 @@ Supported Operators
 The supported operators are listed below. Unless otherwise specified,
 the only difference between the 2D and 3D versions are that whenever points
 or vectors are expected, the points and vectors must be of the dimensionality
-specified by the shape file.
+specified by the Klee input.
 
 Operators take the form of :code:`operator_name: value`, where
 :code:`operator_name` is the name of the operator, and
