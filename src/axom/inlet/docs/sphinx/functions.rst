@@ -119,6 +119,40 @@ alternative associated with ``scale``. Use ``containsFunctionValueAlternative("s
 and ``getFunctionValueAlternative("scale")`` on the containing ``Container`` to
 query and retrieve it without depending on an internal schema name.
 
+Inside a struct collection, use a collection-relative path when each element supplies
+its own value or callback. For example, this Lua input supplies ``bar`` directly
+for one ``foo`` element and computes it with a callback for another:
+
+.. code-block:: Lua
+
+  foo = {
+    [7] = { bar = 2 },
+    [12] = { bar = function() return 3 end }
+  }
+
+The corresponding schema is compiled as part of Inlet's function callback example:
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_nested_callback_alternative_start
+   :end-before: _inlet_nested_callback_alternative_end
+   :language: C++
+   :dedent: 2
+
+After verification, each concrete element contains only the representation that was provided.
+A ``FromInlet`` specialization can normalize both representations to a scalar:
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_function_value_alternative_access_start
+   :end-before: _inlet_function_value_alternative_access_end
+   :language: C++
+
+This example evaluates a supplied callback during conversion. An application that needs
+deferred evaluation can instead call ``get<double()>()`` on the result
+of ``getFunctionValueAlternative("bar")`` and store the returned ``std::function<double()>``.
+
+When Inlet expands the schema, ``relativeToCollectionElement("bar")`` resolves against
+each concrete collection element rather than against the collection container or root.
+
 An overload that takes a schema name first remains available when the callback needs
 an independently addressable schema entry. Both forms accept an ``InputPath`` descriptor
 when exact or collection-relative resolution needs to be explicit.
@@ -155,8 +189,8 @@ it as part of an application's Lua interface.
 Accessing
 ---------
 
-To retrieve a function, both the implicit conversion and ``get<T>`` syntax is supported.  For example,
-a function can be retrieved as follows:
+To retrieve a function, both the implicit conversion and ``get<T>`` syntax is supported.
+For example, a function can be retrieved as follows:
 
 .. literalinclude:: ../../examples/mfem_coefficient.cpp
    :start-after: _inlet_mfem_coef_simple_retrieve_start
@@ -184,3 +218,19 @@ by calling it directly:
 Callbacks copied out of Inlet keep their Lua state alive and remain callable after the Inlet
 object is destroyed. Lua execution errors and invalid callback return values are reported as
 ``std::runtime_error`` at the call site.
+
+The lifetime behavior is also demonstrated by the compiled function callback example:
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_callback_after_destruction_start
+   :end-before: _inlet_callback_after_destruction_end
+   :language: C++
+   :dedent: 2
+
+All callbacks obtained from one ``LuaReader`` retain and share that reader's Lua state.
+Copying a returned ``std::function`` does not clone the state, and mutations to Lua globals
+or captured Lua tables made by one callback are therefore visible to the others.
+Callbacks from the same reader must not be invoked concurrently:
+even apparently read-only calls use the same Lua interpreter state.
+Applications that need concurrent callback evaluation must serialize access to each state
+or create independent ``LuaReader`` instances and parse the input separately for each thread.
