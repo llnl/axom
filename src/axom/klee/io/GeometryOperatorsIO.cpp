@@ -88,6 +88,22 @@ std::string callbackContext(const inlet::Container &container,
     operatorLabel);
 }
 
+[[noreturn]] void throwCallbackAwareValidationError(const inlet::Container &container,
+                                                    char const *fieldName,
+                                                    const std::string &ownerLabel,
+                                                    const Path &fallbackPath,
+                                                    const std::string &message)
+{
+  if(hasCallback(container, fieldName))
+  {
+    throw KleeError(
+      {fieldPath(container, fieldName),
+       axom::fmt::format("{}: {}", callbackContext(container, fieldName, ownerLabel), message)});
+  }
+
+  throw KleeError({fallbackPath, message});
+}
+
 template <typename Result, typename Func>
 Result wrapCallbackErrors(const inlet::Container &container,
                           char const *fieldName,
@@ -412,23 +428,48 @@ OpPtr parseRotate(const SingleOperatorData &data,
  * \param normal a vector normal to the plane
  * \param up a vector which defines the positive Y direction
  * \param startProperties the properties before the slice
- * \param path the path where the slice is specified, for error reporting
+ * \param sliceContainer the Inlet container describing the slice
+ * \param ownerLabel a description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if any value is invalid
  */
 OpPtr makeCheckedSlice(Point3D origin,
                        Vector3D normal,
                        Vector3D up,
-                       const TransformableGeometryProperties& startProperties,
-                       const Path& path)
+                       const TransformableGeometryProperties &startProperties,
+                       const inlet::Container &sliceContainer,
+                       const std::string &ownerLabel)
 {
   if(normal.is_zero())
   {
-    throw KleeError({path, "The 'normal' vector must not be a zero vector"});
+    throwCallbackAwareValidationError(sliceContainer,
+                                      "normal",
+                                      ownerLabel,
+                                      Path {sliceContainer.name()},
+                                      "The 'normal' vector must not be a zero vector");
   }
   if(!utilities::isNearlyEqual(normal.dot(up), 0.))
   {
-    throw KleeError({path, "The 'normal' and 'up' vectors must be perpendicular"});
+    const std::string message = "The 'normal' and 'up' vectors must be perpendicular";
+    if(hasCallback(sliceContainer, "up"))
+    {
+      throwCallbackAwareValidationError(
+        sliceContainer,
+        "up",
+        ownerLabel,
+        Path {sliceContainer.name()},
+        message);
+    }
+    if(hasCallback(sliceContainer, "normal"))
+    {
+      throwCallbackAwareValidationError(
+        sliceContainer,
+        "normal",
+        ownerLabel,
+        Path {sliceContainer.name()},
+        message);
+    }
+    throw KleeError({sliceContainer.name(), message});
   }
   return std::make_shared<SliceOperator>(origin, normal, up, startProperties);
 }
@@ -468,7 +509,11 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
   primal::Point3D givenOrigin = getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel);
   if(givenOrigin[nonZeroIndex] != axisIntercept)
   {
-    throw KleeError({sliceContainer["origin"].name(), "The origin must be on the slice plane"});
+    throwCallbackAwareValidationError(sliceContainer,
+                                      "origin",
+                                      ownerLabel,
+                                      Path {sliceContainer["origin"].name()},
+                                      "The origin must be on the slice plane");
   }
   return givenOrigin;
 }
@@ -495,7 +540,11 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
   bool parallel = cross.is_zero();
   if(!parallel)
   {
-    throw KleeError({sliceContainer["normal"].name(), "Invalid normal"});
+    throwCallbackAwareValidationError(sliceContainer,
+                                      "normal",
+                                      ownerLabel,
+                                      Path {sliceContainer["normal"].name()},
+                                      "Invalid normal");
   }
   return givenNormal;
 }
@@ -525,7 +574,7 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
   auto normal = getPerpendicularSliceNormal(sliceContainer, defaultNormalVec, ownerLabel);
   auto up = getVector(sliceContainer, "up", Dimensions::Three, defaultUp, ownerLabel);
 
-  return makeCheckedSlice(origin, normal, up, startProperties, sliceContainer.name());
+  return makeCheckedSlice(origin, normal, up, startProperties, sliceContainer, ownerLabel);
 }
 
 /**
@@ -580,7 +629,7 @@ OpPtr parseSlice(const SingleOperatorData &data,
   auto origin = getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel);
   auto normal = getVector(sliceContainer, "normal", Dimensions::Three, ownerLabel);
   auto up = getVector(sliceContainer, "up", Dimensions::Three, ownerLabel);
-  return makeCheckedSlice(origin, normal, up, startProperties, sliceContainer.name());
+  return makeCheckedSlice(origin, normal, up, startProperties, sliceContainer, ownerLabel);
 }
 
 /**
