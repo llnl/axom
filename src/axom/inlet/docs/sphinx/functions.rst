@@ -125,6 +125,10 @@ when exact or collection-relative resolution needs to be explicit.
 
 The two schema entries may be added in either order. A function encountered at a normal
 field path remains a type error unless this alternative has been declared.
+The narrow API permits one callback alternative for a public input path in a given container
+and declaring a second callback alternative for that path is an error.
+Since one Lua object cannot simultaneously be a concrete value and a function,
+at most one of the two supported representations can match.
 
 Only the selected representation exists: ``contains`` reports the concrete field when a
 value was supplied, and ``containsFunctionValueAlternative`` reports the callback when a
@@ -136,6 +140,17 @@ The returned function and the concrete field remain independently verifiable sch
 Consequently, ``required()`` and registered verifiers apply to the entry on
 which they are configured. The narrow value-alternative API does not currently provide
 a group-level annotation meaning "either representation is required."
+
+In Sidre, the callback entry retains the same signature metadata as an ordinary Inlet function
+and is tagged as an internal value alternative. The live Lua callable remains in memory.
+Inlet restart reconstructs containers and fields, not functions, so the tag prevents
+the internal callback group from being mistaken for a field.
+A persisted concrete value is reconstructed normally, while a Lua callback is not.
+
+Generated Sphinx and JSON Schema documentation describe the concrete value form.
+The internal callback entry is omitted: its storage name is not an input-file path,
+and JSON inputs cannot provide a Lua function. Document the callback form separately when exposing
+it as part of an application's Lua interface.
 
 Accessing
 ---------

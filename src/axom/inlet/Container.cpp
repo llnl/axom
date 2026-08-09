@@ -53,6 +53,13 @@ Container::Container(const std::string& name,
     {
       if(group.isUsingMap() && group.hasView("InletType"))
       {
+        // Lua callables cannot be reconstructed from Sidre.  In particular,
+        // do not reconstruct their internal schema groups as ordinary Fields.
+        if(group.hasView(detail::FUNCTION_VALUE_ALTERNATIVE_FLAG))
+        {
+          continue;
+        }
+
         const std::string inletType = group.getView("InletType")->getString();
         const std::string childName = utilities::string::appendPrefix(m_name, group.getName());
 
@@ -1099,6 +1106,20 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
     {
       return *iter->second;
     }
+
+    if(isValueAlternative)
+    {
+      const auto existingAlternative = m_functionValueAlternatives.find(inputPath.value);
+      if(existingAlternative != m_functionValueAlternatives.end())
+      {
+        SLIC_ERROR(fmt::format("[Inlet] Input path '{0}' already has a function value "
+                               "alternative in container '{1}'",
+                               inputPath.value,
+                               m_name));
+        return *existingAlternative->second;
+      }
+    }
+
     axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
     SLIC_ERROR_IF(sidreGroup == nullptr,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
@@ -1114,6 +1135,11 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
     }
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
+    if(isValueAlternative)
+    {
+      sidreGroup->createViewScalar(detail::FUNCTION_VALUE_ALTERNATIVE_FLAG,
+                                   static_cast<std::int8_t>(1));
+    }
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
     if(isValueAlternative && func)

@@ -136,6 +136,7 @@ const std::string COLLECTION_GROUP_NAME = "_inlet_collection";
 const std::string COLLECTION_INDICES_NAME = "_inlet_collection_indices";
 const std::string STRUCT_COLLECTION_FLAG = "_inlet_struct_collection";
 const std::string VARIANT_STRUCT_COLLECTION_FLAG = "_inlet_variant_struct_collection";
+const std::string FUNCTION_VALUE_ALTERNATIVE_FLAG = "_inlet_function_value_alternative";
 const std::string REQUIRED_FLAG = "required";
 const std::string STRICT_FLAG = "strict";
 }  // namespace detail
