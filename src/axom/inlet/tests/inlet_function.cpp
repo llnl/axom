@@ -5,19 +5,13 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/slic.hpp"
-#include "axom/sidre.hpp"
 
 #include "axom/inlet/LuaReader.hpp"
 #include "axom/inlet/Inlet.hpp"
-#include "axom/inlet/JSONSchemaWriter.hpp"
-#include "axom/inlet/SphinxWriter.hpp"
 
 #include "gtest/gtest.h"
 
 #include <array>
-#include <cstdio>
-#include <fstream>
-#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -28,9 +22,7 @@ using axom::inlet::FunctionTag;
 using axom::inlet::FunctionType;
 using axom::inlet::Inlet;
 using axom::inlet::InletType;
-using axom::inlet::JSONSchemaWriter;
 using axom::inlet::LuaReader;
-using axom::inlet::SphinxWriter;
 using axom::inlet::VerificationError;
 
 #include "axom/sol.hpp"
@@ -320,22 +312,6 @@ TEST(inlet_function, function_value_alternative_uses_public_value_name)
   }
 }
 
-TEST(inlet_function, required_function_value_alternative_missing)
-{
-  auto inlet = createBasicInlet("");
-  inlet.addDouble("foo");
-  inlet
-    .addFunctionAsValueAlternative("foo", FunctionTag::Double, {})
-    .required();
-
-  std::vector<VerificationError> errors;
-  EXPECT_FALSE(inlet.verify(&errors));
-  EXPECT_FALSE(errors.empty());
-  EXPECT_FALSE(inlet.contains("foo"));
-  EXPECT_FALSE(inlet.getGlobalContainer().containsFunctionValueAlternative("foo"));
-  EXPECT_FALSE(inlet.getGlobalContainer().exists());
-}
-
 TEST(inlet_function, function_value_alternative_rejects_unrelated_wrong_type)
 {
   const auto addSchema = [](Inlet& inlet, bool functionFirst) {
@@ -390,67 +366,19 @@ TEST(inlet_function, function_value_alternative_rejects_duplicate_callback_alter
   axom::slic::ScopedAbortToThrow abortGuard;
   EXPECT_THROW(inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}),
                axom::slic::SlicAbortException);
-  EXPECT_EQ(inlet.getGlobalContainer().getChildFunctions().size(), 1u);
+  EXPECT_TRUE(inlet.getGlobalContainer().getChildFunctions().empty());
 }
 
-TEST(inlet_function, function_value_alternative_sidre_and_generated_documentation)
+TEST(inlet_function, function_value_alternative_rejects_invalid_declaration)
 {
-  const std::string sphinxFile = "inlet_function_value_alternative.rst";
-  const std::string jsonFile = "inlet_function_value_alternative.json";
-  auto inlet = createBasicInlet("scale = 2.0");
-  inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
-  inlet.addDouble("scale", "Scale factor");
+  auto inlet = createBasicInlet("");
+  axom::slic::ScopedAbortToThrow abortGuard;
 
-  // Sidre marks the internal callback schema group without storing the callable.
-  const auto& childFunctions = inlet.getGlobalContainer().getChildFunctions();
-  ASSERT_EQ(childFunctions.size(), 1u);
-  const auto* callbackGroup = childFunctions.begin()->second->sidreGroup();
-  ASSERT_TRUE(callbackGroup->hasView(axom::inlet::detail::FUNCTION_VALUE_ALTERNATIVE_FLAG));
-  const std::string internalName = callbackGroup->getName();
-  const std::int8_t alternativeFlag =
-    callbackGroup->getView(axom::inlet::detail::FUNCTION_VALUE_ALTERNATIVE_FLAG)->getScalar();
-  EXPECT_EQ(alternativeFlag, 1);
-
-  inlet.write(SphinxWriter(sphinxFile));
-  inlet.write(JSONSchemaWriter(jsonFile));
-
-  const auto readFile = [](const std::string& path) {
-    std::ifstream stream(path);
-    return std::string(std::istreambuf_iterator<char>(stream),
-                       std::istreambuf_iterator<char>());
-  };
-  const std::string sphinx = readFile(sphinxFile);
-  const std::string json = readFile(jsonFile);
-  std::remove(sphinxFile.c_str());
-  std::remove(jsonFile.c_str());
-
-  EXPECT_NE(sphinx.find("scale"), std::string::npos);
-  EXPECT_EQ(sphinx.find(internalName), std::string::npos);
-  EXPECT_NE(json.find("scale"), std::string::npos);
-  EXPECT_EQ(json.find(internalName), std::string::npos);
-}
-
-TEST(inlet_function, function_value_alternative_restart_does_not_create_internal_field)
-{
-  axom::sidre::DataStore datastore;
-  {
-    auto reader = std::make_unique<LuaReader>();
-    reader->parseString("scale = 2.0");
-    Inlet inlet(std::move(reader), datastore.getRoot());
-    inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
-    inlet.addDouble("scale");
-  }
-
-  {
-    auto reader = std::make_unique<LuaReader>();
-    Inlet restart(std::move(reader), datastore.getRoot(), true, true);
-
-    EXPECT_TRUE(restart.contains("scale"));
-    EXPECT_DOUBLE_EQ(restart.get<double>("scale"), 2.0);
-    EXPECT_EQ(restart.getGlobalContainer().getChildFields().size(), 1u);
-    EXPECT_TRUE(restart.getGlobalContainer().getChildFunctions().empty());
-    EXPECT_FALSE(restart.getGlobalContainer().containsFunctionValueAlternative("scale"));
-  }
+  EXPECT_THROW(inlet.addFunctionAsValueAlternative("", FunctionTag::Double, {}),
+               axom::slic::SlicAbortException);
+  EXPECT_THROW(inlet.addFunctionAsValueAlternative("value", FunctionTag::Void, {}),
+               axom::slic::SlicAbortException);
+  EXPECT_TRUE(inlet.getGlobalContainer().getFunctionValueAlternativeNames().empty());
 }
 
 TEST(inlet_function, returned_function_keeps_lua_state_alive)

@@ -753,25 +753,19 @@ public:
    * \brief Add a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
-   * The function is stored under an Inlet-managed internal name and read from
-   * the same public value name as the concrete field or collection.
-   * If a function exists there, the concrete schema entry is treated as absent
-   * rather than as having the wrong type. The function and concrete value
-   * may be added in either order.
+   * The function is read from the same public value name as the concrete field
+   * or collection. If a function exists there, the concrete schema entry is
+   * treated as absent rather than as having the wrong type. The function and
+   * concrete value may be added in either order.
    *
    * \param [in] valueName   Public name of the concrete value or collection
    * \param [in] ret_type    The return type of the function
    * \param [in] arg_types   The argument types of the function
-   * \param [in] description Description of the function
-   *
-   * \return Reference to the created Function
    *****************************************************************************
    */
-  Verifiable<Function>& addFunctionAsValueAlternative(
-    const std::string& valueName,
-    FunctionTag ret_type,
-    const std::vector<FunctionTag>& arg_types,
-    const std::string& description = "");
+  void addFunctionAsValueAlternative(const std::string& valueName,
+                                     FunctionTag ret_type,
+                                     const std::vector<FunctionTag>& arg_types);
 
   /*!
    *******************************************************************************
@@ -1074,10 +1068,10 @@ public:
    * \param [in] valueName Public name of the concrete value or collection
    *
    * \return The function alternative declared for \a valueName. The returned
-   * Function is empty when the input did not supply the function representation.
+   * wrapper is empty when the input did not supply the function representation.
    *****************************************************************************
    */
-  Function& getFunctionValueAlternative(const std::string& valueName) const;
+  const FunctionVariant& getFunctionValueAlternative(const std::string& valueName) const;
 
   /*!
    *****************************************************************************
@@ -1329,34 +1323,19 @@ private:
 
   /*!
    *****************************************************************************
-   * \brief Add an internally named function alternative for a public value.
+   * \brief Add a function alternative for a public value.
    *
    * \param [in] valueName        Public name of the concrete value or collection
    * \param [in] ret_type         The return type of the function
    * \param [in] arg_types        The argument types of the function
-   * \param [in] description      Description of the function
    * \param [in] resolvedValuePath Concrete input path when expanding a struct
    * collection; empty when it should be derived from this Container
-   *
-   * \return Reference to the created Function or aggregate Function
    *****************************************************************************
    */
-  Verifiable<Function>& addFunctionValueAlternative(
-    const std::string& valueName,
-    FunctionTag ret_type,
-    const std::vector<FunctionTag>& arg_types,
-    const std::string& description,
-    const std::string& resolvedValuePath);
-
-  /*!
-   *****************************************************************************
-   * \brief Generate an unused internal name for a function value alternative.
-   *
-   * \return An internal name that does not collide with this Container's
-   * Sidre groups
-   *****************************************************************************
-   */
-  std::string nextFunctionValueAlternativeName();
+  void addFunctionValueAlternative(const std::string& valueName,
+                                   FunctionTag ret_type,
+                                   const std::vector<FunctionTag>& arg_types,
+                                   const std::string& resolvedValuePath);
 
   /*!
    *****************************************************************************
@@ -1570,6 +1549,20 @@ private:
   template <typename OutputIt, typename Func>
   bool transformFromNestedElements(OutputIt output, const std::string& name, Func&& func) const;
 
+  /*!
+   *****************************************************************************
+   * \brief Applies a provided function to nested elements of the calling table.
+   *
+   * \param [in] name The name to append to each nested element's input path
+   * \param [in] func Function accepting a Container and its resolved input path
+   *
+   * \return Whether the calling container had any nested elements (or was a
+   * struct collection)
+   *****************************************************************************
+   */
+  template <typename Func>
+  bool forEachNestedElement(const std::string& name, Func&& func) const;
+
   std::string m_name;
   Reader& m_reader;
   // Inlet's Root Sidre Group
@@ -1584,9 +1577,8 @@ private:
   std::unordered_map<std::string, std::unique_ptr<Field>> m_fieldChildren;
   std::unordered_map<std::string, std::unique_ptr<Function>> m_functionChildren;
   std::unordered_set<std::string> m_functionAlternativePaths;
-  std::unordered_map<std::string, Function*> m_functionValueAlternatives;
+  std::unordered_map<std::string, FunctionVariant> m_functionValueAlternatives;
   std::unordered_multimap<std::string, axom::sidre::Group*> m_valueInputPathGroups;
-  std::size_t m_nextFunctionValueAlternativeId {0};
   Verifier m_verifier;
 
   // Used for ownership only - need to take ownership of these so children

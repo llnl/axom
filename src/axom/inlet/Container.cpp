@@ -53,13 +53,6 @@ Container::Container(const std::string& name,
     {
       if(group.isUsingMap() && group.hasView("InletType"))
       {
-        // Lua callables cannot be reconstructed from Sidre.  In particular,
-        // do not reconstruct their internal schema groups as ordinary Fields.
-        if(group.hasView(detail::FUNCTION_VALUE_ALTERNATIVE_FLAG))
-        {
-          continue;
-        }
-
         const std::string inletType = group.getView("InletType")->getString();
         const std::string childName = utilities::string::appendPrefix(m_name, group.getName());
 
@@ -110,16 +103,24 @@ void Container::forEachCollectionElement(Func&& func) const
 template <typename OutputIt, typename Func>
 bool Container::transformFromNestedElements(OutputIt output, const std::string& name, Func&& func) const
 {
+  return forEachNestedElement(name, [&](Container& container, const std::string& path) {
+    *output++ = func(container, path);
+  });
+}
+
+template <typename Func>
+bool Container::forEachNestedElement(const std::string& name, Func&& func) const
+{
   for(Container& container : m_nested_aggregates)
   {
-    *output++ = func(container, {});
+    func(container, {});
   }
 
   if(isStructCollection())
   {
     for(const auto& indexPath : detail::collectionIndicesWithPaths(*this, name))
     {
-      *output++ = func(getContainer(indexPath.first), indexPath.second);
+      func(getContainer(indexPath.first), indexPath.second);
     }
   }
   return isStructCollection() || !m_nested_aggregates.empty();
@@ -992,60 +993,33 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   }
 }
 
-Verifiable<Function>& Container::addFunctionAsValueAlternative(
+void Container::addFunctionAsValueAlternative(
   const std::string& valueName,
   const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const std::string& description)
+  const std::vector<FunctionTag>& arg_types)
 {
   SLIC_ERROR_IF(valueName.empty(),
                 "[Inlet] A function value alternative requires a non-empty value name");
-  return addFunctionValueAlternative(valueName,
-                                     ret_type,
-                                     arg_types,
-                                     description,
-                                     "");
+  SLIC_ERROR_IF(ret_type == FunctionTag::Void,
+                "[Inlet] A function value alternative requires a non-void return type");
+  addFunctionValueAlternative(valueName, ret_type, arg_types, "");
 }
 
-std::string Container::nextFunctionValueAlternativeName()
-{
-  std::string name;
-  std::string fullName;
-  do
-  {
-    name =
-      axom::fmt::format("__inlet_function_value_alternative_{}", m_nextFunctionValueAlternativeId++);
-    fullName = utilities::string::appendPrefix(m_name, name);
-  } while(m_sidreRootGroup->hasGroup(fullName));
-  return name;
-}
-
-Verifiable<Function>& Container::addFunctionValueAlternative(
+void Container::addFunctionValueAlternative(
   const std::string& valueName,
   const FunctionTag ret_type,
   const std::vector<FunctionTag>& arg_types,
-  const std::string& description,
   const std::string& resolvedValuePath)
 {
-  // Expand the public value name across nested collections. The callback's
-  // internal storage name must not participate in input-path resolution.
-  std::vector<std::reference_wrapper<Verifiable<Function>>> funcs;
-
-  const bool is_nested = transformFromNestedElements(
-    std::back_inserter(funcs),
+  // Expand the public value name across nested collections.
+  const bool is_nested = forEachNestedElement(
     valueName,
-    [&valueName, &ret_type, &arg_types, &description](Container& subcontainer,
-                                                     const std::string& path) -> Verifiable<Function>& {
-      return subcontainer.addFunctionValueAlternative(valueName,
-                                                      ret_type,
-                                                      arg_types,
-                                                      description,
-                                                      path);
+    [&valueName, &ret_type, &arg_types](Container& subcontainer, const std::string& path) {
+      subcontainer.addFunctionValueAlternative(valueName, ret_type, arg_types, path);
     });
   if(is_nested)
   {
-    m_aggregate_funcs.emplace_back(std::move(funcs));
-    return m_aggregate_funcs.back();
+    return;
   }
 
   const auto existingAlternative = m_functionValueAlternatives.find(valueName);
@@ -1055,17 +1029,8 @@ Verifiable<Function>& Container::addFunctionValueAlternative(
                            "in container '{1}'",
                            valueName,
                            m_name));
-    return *existingAlternative->second;
+    return;
   }
-
-  const std::string internalName = nextFunctionValueAlternativeName();
-  const std::string fullName = utilities::string::appendPrefix(m_name, internalName);
-  axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
-  SLIC_ERROR_IF(sidreGroup == nullptr,
-                fmt::format("Failed to create Sidre group with name '{0}'", fullName));
-  detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
-  sidreGroup->createViewScalar(detail::FUNCTION_VALUE_ALTERNATIVE_FLAG,
-                               static_cast<std::int8_t>(1));
 
   std::string lookupPath = resolvedValuePath.empty()
     ? utilities::string::appendPrefix(m_name, valueName)
@@ -1078,11 +1043,8 @@ Verifiable<Function>& Container::addFunctionValueAlternative(
   {
     registerFunctionAlternativePath(lookupPath);
   }
-
-  auto& storedFunction =
-    storeFunction(sidreGroup, std::move(func), fullName, internalName);
-  m_functionValueAlternatives[valueName] = &storedFunction;
-  return storedFunction;
+  func.setName(std::move(lookupPath));
+  m_functionValueAlternatives.emplace(valueName, std::move(func));
 }
 
 Proxy Container::operator[](const std::string& name) const
@@ -1415,7 +1377,14 @@ bool Container::exists() const
                                            return static_cast<bool>(*entry.second);
                                          });
 
-  return has_containers || has_fields || has_functions;
+  const bool has_function_alternatives =
+    std::any_of(m_functionValueAlternatives.begin(),
+                m_functionValueAlternatives.end(),
+                [](const decltype(m_functionValueAlternatives)::value_type& entry) {
+                  return static_cast<bool>(entry.second);
+                });
+
+  return has_containers || has_fields || has_functions || has_function_alternatives;
 }
 
 bool Container::isUserProvided() const
@@ -1440,7 +1409,14 @@ bool Container::isUserProvided() const
                                            return static_cast<bool>(*entry.second);
                                          });
 
-  return has_containers || has_fields || has_functions;
+  const bool has_function_alternatives =
+    std::any_of(m_functionValueAlternatives.begin(),
+                m_functionValueAlternatives.end(),
+                [](const decltype(m_functionValueAlternatives)::value_type& entry) {
+                  return static_cast<bool>(entry.second);
+                });
+
+  return has_containers || has_fields || has_functions || has_function_alternatives;
 }
 
 bool Container::isUserProvided(const std::string& name) const
@@ -1482,17 +1458,17 @@ bool Container::containsFunctionValueAlternative(const std::string& valueName) c
 {
   const auto iter = m_functionValueAlternatives.find(valueName);
   return iter != m_functionValueAlternatives.end() &&
-    static_cast<bool>(*iter->second);
+    static_cast<bool>(iter->second);
 }
 
-Function& Container::getFunctionValueAlternative(const std::string& valueName) const
+const FunctionVariant& Container::getFunctionValueAlternative(const std::string& valueName) const
 {
   const auto iter = m_functionValueAlternatives.find(valueName);
   SLIC_ERROR_IF(
     iter == m_functionValueAlternatives.end(),
     axom::fmt::format("[Inlet] Function value alternative not found for value: {0}", valueName));
 
-  return *iter->second;
+  return iter->second;
 }
 
 std::vector<std::string> Container::getFunctionValueAlternativeNames() const
@@ -1500,7 +1476,7 @@ std::vector<std::string> Container::getFunctionValueAlternativeNames() const
   std::vector<std::string> result;
   for(const auto& entry : m_functionValueAlternatives)
   {
-    if(static_cast<bool>(*entry.second))
+    if(static_cast<bool>(entry.second))
     {
       result.push_back(entry.first);
     }

@@ -439,24 +439,15 @@ public:
    * \param [in] valueName   Public name of the concrete value or collection
    * \param [in] ret_type    The return type of the function
    * \param [in] arg_types   The argument types of the function
-   * \param [in] description Description of the function
-   *
-   * \return Reference to the created Function
    *
    * \see Container::addFunctionAsValueAlternative
    *****************************************************************************
    */
-  Verifiable<Function>& addFunctionAsValueAlternative(
-    const std::string& valueName,
-    FunctionTag ret_type,
-    const std::vector<FunctionTag>& arg_types,
-    const std::string& description = "")
+  void addFunctionAsValueAlternative(const std::string& valueName,
+                                     FunctionTag ret_type,
+                                     const std::vector<FunctionTag>& arg_types)
   {
-    return m_globalContainer.addFunctionAsValueAlternative(
-      valueName,
-      ret_type,
-      arg_types,
-      description);
+    m_globalContainer.addFunctionAsValueAlternative(valueName, ret_type, arg_types);
   }
 
   /*!
