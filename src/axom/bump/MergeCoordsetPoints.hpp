@@ -206,9 +206,7 @@ public:
     {
       // There are fewer nodes in the selectedIds so we are able to combine nodes.
       SLIC_INFO_IF(opts.verbose(),
-                   axom::fmt::format("Merged {} nodes into {} nodes.",
-                                     nnodes,
-                                     selectedIds.size()));
+                   axom::fmt::format("Merged {} nodes into {} nodes.", nnodes, selectedIds.size()));
 
       AXOM_ANNOTATE_BEGIN("old2new");
       // Make a map of nodes in the old coordset to nodes in the new coordset. We
