@@ -171,7 +171,7 @@ private:
             m_buckets.data() == other.m_buckets.data());
   }
 
-  IndexType m_numGroups2 {-1};
+  int m_numGroups2 {-1};
   IndexType m_size {0};
   axom::ArrayView<const detail::flat_map::GroupBucket> m_metadata;
 

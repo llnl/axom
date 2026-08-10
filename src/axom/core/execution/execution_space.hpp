@@ -84,12 +84,13 @@ struct execution_space
 
   static constexpr MemorySpace memory_space = MemorySpace::Dynamic;
 
-  static constexpr bool async() noexcept { return false; }
-  static constexpr bool valid() noexcept { return false; }
-  static constexpr bool onDevice() noexcept { return false; }
-  static constexpr char* name() noexcept { return (char*)"[UNDEFINED]"; }
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[UNDEFINED]"; }
+
   static int allocatorID() noexcept { return axom::INVALID_ALLOCATOR_ID; }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::seq;
   }

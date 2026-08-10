@@ -17,6 +17,9 @@ namespace klee
 {
 /**
  * Describes an error that occurred while parsing a Klee file.
+ *
+ * Klee throws this exception for user input validation failures so callers
+ * can report path-aware feedback from Inlet and Klee semantic checks.
  */
 class KleeError : public std::exception
 {

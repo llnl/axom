@@ -325,14 +325,16 @@ We can easily support reading in YAML or LUA inputs with Inlet's built-in `YAMLR
 
 ```cpp
 // Define appropriate reader based on file extension
-if(axom::utilities::string::endsWith(inputFilename, ".yaml") ||
-   axom::utilities::string::endsWith(inputFilename, ".yml"))
+auto extension = axom::utilities::filesystem::getFileExtension(inputFilename);
+axom::utilities::string::toLower(extension);
+
+if(extension == ".yaml" || extension == ".yml")
 {
   reader = std::make_unique<axom::inlet::YAMLReader>();
   SLIC_INFO("Using YAML reader for input file: " + inputFilename);
 }
 #ifdef AXOM_USE_LUA
-else if(axom::utilities::string::endsWith(inputFilename, ".lua"))
+else if(extension == ".lua")
 {
   reader = std::make_unique<axom::inlet::LuaReader>();
   SLIC_INFO("Using Lua reader for input file: " + inputFilename);

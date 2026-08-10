@@ -684,8 +684,8 @@ void Matrix<T>::fillRow(IndexType i, const T& val)
 {
   assert((i >= 0) && (i < m_rows));
 
-  const int N = (m_cols - 1) * m_rows + i + 1;
-  const int p = m_rows;
+  const IndexType N = (m_cols - 1) * m_rows + i + 1;
+  const IndexType p = m_rows;
   for(IndexType j = i; j < N; j += p)
   {
     m_data[j] = val;
@@ -709,7 +709,7 @@ void Matrix<T>::fillColumn(IndexType j, const T& val)
 template <typename T>
 void Matrix<T>::fill(const T& val)
 {
-  const int nitems = m_rows * m_cols;
+  const IndexType nitems = m_rows * m_cols;
   for(IndexType i = 0; i < nitems; ++i)
   {
     m_data[i] = val;
@@ -875,7 +875,7 @@ bool Matrix<T>::isIdentity() const
     {
       for(IndexType j = 0; j < m_cols && ok; ++j)
       {
-        T expected = (i == j) ? 1.0 : 0.0;
+        T expected = (i == j) ? T {1} : T {0};
         ok = (this->operator()(i, j) == expected);
       }  // END for all columns
     }  // END for all rows

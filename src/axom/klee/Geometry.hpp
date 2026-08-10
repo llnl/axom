@@ -264,6 +264,7 @@ public:
    * geometry operators then the identity matrix is returned.
    *
    * \return A 4x4 matrix that represents the geometry transforms.
+   * \throws KleeError if any geometry operator cannot be represented as a matrix
    */
   numerics::Matrix<double> getTransform() const;
 

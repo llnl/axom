@@ -18,6 +18,8 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 
+#include <type_traits>
+
 // CUDA intrinsics: https://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__INTRINSIC__INT.html
 // HIP intrinsics: https://rocm.docs.amd.com/projects/HIP/en/latest/reference/kernel_language.html
 
@@ -264,9 +266,12 @@ template <typename FlagType, typename BitType>
 AXOM_HOST_DEVICE
 constexpr void setBit(FlagType &flags, BitType bit, bool value = true)
 {
+  using UnsignedFlagType = std::make_unsigned_t<FlagType>;
   assert(static_cast<int>(bit) < BitTraits<FlagType>::BITS_PER_WORD << 3);
-  const auto mask = 1 << bit;
-  flags = value ? (flags | mask) : (flags & ~mask);
+  const auto mask = static_cast<UnsignedFlagType>(UnsignedFlagType {1} << bit);
+  flags = static_cast<FlagType>(
+    value ? (static_cast<UnsignedFlagType>(flags) | mask)
+          : (static_cast<UnsignedFlagType>(flags) & ~mask));
 }
 
 /*!

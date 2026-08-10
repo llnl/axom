@@ -110,6 +110,25 @@ TEST(GeometryOperator, getProperties)
   EXPECT_EQ(constructorProps.units, endProperties.units);
 }
 
+TEST(GeometryOperator, names)
+{
+  TransformableGeometryProperties props {Dimensions::Three, LengthUnit::cm};
+
+  CompositeOperator composite {props};
+  Translation translation {{1, 2, 3}, props};
+  Rotation rotation {45, {0, 0, 0}, {0, 0, 1}, props};
+  Scale scale {1, 2, 3, props};
+  UnitConverter converter {LengthUnit::m, props};
+  SliceOperator slice {{0, 0, 0}, {0, 0, 1}, {0, 1, 0}, props};
+
+  EXPECT_EQ("composite", composite.getName());
+  EXPECT_EQ("translate", translation.getName());
+  EXPECT_EQ("rotate", rotation.getName());
+  EXPECT_EQ("scale", scale.getName());
+  EXPECT_EQ("convert_units_to", converter.getName());
+  EXPECT_EQ("slice", slice.getName());
+}
+
 TEST(Translation, basics)
 {
   Vector3D offset {10, 20, 30};

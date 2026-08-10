@@ -273,7 +273,8 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
   AXOM_HOST_DEVICE
   static inline MortonIndexType mortonize(CoordType x, CoordType y)
   {
-    return (Base::expandBits(x) | (Base::expandBits(y) << 1));
+    return (Base::expandBits(static_cast<MortonIndexType>(x)) |
+            (Base::expandBits(static_cast<MortonIndexType>(y)) << 1));
   }
 
   /*!
@@ -284,7 +285,8 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
   AXOM_HOST_DEVICE
   static inline MortonIndexType mortonize(const primal::Point<CoordType, NDIM>& pt)
   {
-    return (Base::expandBits(pt[0]) | (Base::expandBits(pt[1]) << 1));
+    return (Base::expandBits(static_cast<MortonIndexType>(pt[0])) |
+            (Base::expandBits(static_cast<MortonIndexType>(pt[1])) << 1));
   }
 
   /*!
@@ -412,8 +414,9 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
   {
     const MortonIndexType b5 = GetB(5);
 
-    return (Base::expandBits(x & b5) | (Base::expandBits(y & b5) << 1) |
-            (Base::expandBits(z & b5) << 2));
+    return (Base::expandBits(static_cast<MortonIndexType>(x) & b5) |
+            (Base::expandBits(static_cast<MortonIndexType>(y) & b5) << 1) |
+            (Base::expandBits(static_cast<MortonIndexType>(z) & b5) << 2));
   }
 
   /*!
@@ -426,8 +429,9 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
   {
     const MortonIndexType b5 = GetB(5);
 
-    return (Base::expandBits(pt[0] & b5) | (Base::expandBits(pt[1] & b5) << 1) |
-            (Base::expandBits(pt[2] & b5) << 2));
+    return (Base::expandBits(static_cast<MortonIndexType>(pt[0]) & b5) |
+            (Base::expandBits(static_cast<MortonIndexType>(pt[1]) & b5) << 1) |
+            (Base::expandBits(static_cast<MortonIndexType>(pt[2]) & b5) << 2));
   }
 
   /*!
@@ -522,7 +526,10 @@ struct PointHash
    * \param [in] coord The coordinate of the
    * \returns The morton index of the 1D point
    */
-  std::size_t operator()(CoordType& coord) const { return static_cast<std::size_t>(coord); }
+  AXOM_HOST_DEVICE std::size_t operator()(CoordType& coord) const
+  {
+    return static_cast<std::size_t>(coord);
+  }
 
   /*!
    * \brief Mortonizes a 1D point
@@ -531,7 +538,7 @@ struct PointHash
    * \param [in] pt The 1D point
    * \returns The morton index of the point
    */
-  std::size_t operator()(primal::Point<CoordType, 1> const& pt) const
+  AXOM_HOST_DEVICE std::size_t operator()(primal::Point<CoordType, 1> const& pt) const
   {
     return static_cast<std::size_t>(pt[0]);
   }
@@ -542,7 +549,7 @@ struct PointHash
    * \param [in] pt The 2D point
    * \returns The morton index of the point
    */
-  std::size_t operator()(primal::Point<CoordType, 2> const& pt) const
+  AXOM_HOST_DEVICE std::size_t operator()(primal::Point<CoordType, 2> const& pt) const
   {
     return Mortonizer<CoordType, MortonIndex, 2>::mortonize(pt);
   }
@@ -553,7 +560,7 @@ struct PointHash
    * \param [in] pt The 3D point
    * \returns The morton index of the point
    */
-  std::size_t operator()(primal::Point<CoordType, 3> const& pt) const
+  AXOM_HOST_DEVICE std::size_t operator()(primal::Point<CoordType, 3> const& pt) const
   {
     return Mortonizer<CoordType, MortonIndex, 3>::mortonize(pt);
   }
@@ -564,7 +571,7 @@ struct PointHash
    * \param [in] pt The 4D point
    * \returns A morton index of the point
    */
-  std::size_t operator()(primal::Point<CoordType, 4> const& pt) const
+  AXOM_HOST_DEVICE std::size_t operator()(primal::Point<CoordType, 4> const& pt) const
   {
     // Mortonize two morton indices for a 4D morton index
 

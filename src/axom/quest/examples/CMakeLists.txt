@@ -273,13 +273,36 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                     PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57")
             endforeach()
 
+            # Test 2D C2C assembly input on an MFEM mesh
+            set(_testname quest_shaping_driver_ex_heroic_roses_assembly)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                         -i ${shaping_data_dir}/heroic_roses_assembly.yaml
+                         --method sampling
+                         inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
         endif()
+
+        # Test heroic_roses.yaml
+        set(_testname quest_shaping_driver_ex_heroic_roses)
+        axom_add_test(
+            NAME ${_testname}
+            COMMAND  quest_shaping_driver_ex
+                     -i ${shaping_data_dir}/heroic_roses.yaml
+                     --method sampling
+                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+            NUM_MPI_TASKS ${_nranks})
+        set_tests_properties(${_testname} PROPERTIES
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
 
         # Test 2D MFEM mesh (linearize contours)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem)
         axom_add_test(
             NAME ${_testname}
-            COMMAND  quest_shaping_driver_ex 
+            COMMAND  quest_shaping_driver_ex
                      -i ${shaping_data_dir}/heroic_roses_mfem.yaml
                      --method sampling
                      inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
