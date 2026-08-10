@@ -115,10 +115,13 @@ This example evaluates a supplied callback during conversion. An application tha
 deferred evaluation can instead call ``get<double()>()`` on the result
 of ``getFunctionValueAlternative("bar")`` and store the returned ``std::function<double()>``.
 
-The two schema entries may be added in either order. A function encountered at a normal
-field path remains a type error unless this alternative has been declared.
-The narrow API permits one callback alternative for a public value name in a given container
-and declaring a second callback alternative for that name is an error.
+The two schema entries may be added in either order and through any equivalent relative path.
+For example, ``inlet.addDouble("group/value")`` and 
+``group.addFunctionAsValueAlternative("value", ...)`` describe one input path. 
+A function encountered at a normal field path remains a type error 
+unless this alternative has been declared.
+The API permits at most one callback alternative for each canonical input path;
+declaring it again through either Container is an error.
 Since one Lua object cannot simultaneously be a concrete value and a function,
 at most one of the two supported representations can match.
 

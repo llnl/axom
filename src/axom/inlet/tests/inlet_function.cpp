@@ -358,15 +358,105 @@ TEST(inlet_function, function_value_alternative_is_valid_in_strict_container)
   }
 }
 
-TEST(inlet_function, function_value_alternative_rejects_duplicate_callback_alternative)
+TEST(inlet_function, function_value_alternative_is_container_independent)
 {
-  auto inlet = createBasicInlet("function scale () return 2.0 end");
-  inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
+  for(const bool functionOnRoot : {true, false})
+  {
+    for(const bool functionFirst : {true, false})
+    {
+      auto inlet = createBasicInlet("group = { value = function() return 2.0 end }");
+      auto& group = inlet.addStruct("group");
+
+      const auto addFunctionAlternative = [&]() {
+        if(functionOnRoot)
+        {
+          inlet.addFunctionAsValueAlternative("group/value", FunctionTag::Double, {});
+        }
+        else
+        {
+          group.addFunctionAsValueAlternative("value", FunctionTag::Double, {});
+        }
+      };
+
+      const auto addConcreteValue = [&]() {
+        if(functionOnRoot)
+        {
+          group.addDouble("value");
+        }
+        else
+        {
+          inlet.addDouble("group/value");
+        }
+      };
+
+      if(functionFirst)
+      {
+        addFunctionAlternative();
+        addConcreteValue();
+      }
+      else
+      {
+        addConcreteValue();
+        addFunctionAlternative();
+      }
+
+      EXPECT_TRUE(inlet.verify());
+      EXPECT_TRUE(
+        inlet.getGlobalContainer().containsFunctionValueAlternative("group/value"));
+      EXPECT_TRUE(group.containsFunctionValueAlternative("value"));
+      EXPECT_FALSE(inlet.contains("group/value"));
+      EXPECT_TRUE(inlet.isUserProvided("group/value"));
+      EXPECT_TRUE(group.isUserProvided("value"));
+      EXPECT_TRUE(group.exists());
+      EXPECT_DOUBLE_EQ(group.getFunctionValueAlternative("value").call<double>(), 2.0);
+      EXPECT_EQ(group.getFunctionValueAlternativeNames(),
+                std::vector<std::string> {"value"});
+      EXPECT_TRUE(inlet.getGlobalContainer().getFunctionValueAlternativeNames().empty());
+    }
+  }
+}
+
+TEST(inlet_function, function_value_alternative_array_is_container_and_order_independent)
+{
+  for(const bool functionFirst : {true, false})
+  {
+    auto inlet = createBasicInlet(
+      "group = { values = function() return {1.0, 2.0, 3.0} end }");
+    auto& group = inlet.addStruct("group");
+
+    if(functionFirst)
+    {
+      group.addFunctionAsValueAlternative("values", FunctionTag::Vector, {});
+    }
+    inlet.addDoubleArray("group/values");
+    if(!functionFirst)
+    {
+      group.addFunctionAsValueAlternative("values", FunctionTag::Vector, {});
+    }
+
+    EXPECT_TRUE(inlet.verify());
+    EXPECT_FALSE(inlet.contains("group/values"));
+    EXPECT_TRUE(group.containsFunctionValueAlternative("values"));
+    const auto result =
+      group.getFunctionValueAlternative("values").call<FunctionType::Vector>();
+    EXPECT_DOUBLE_EQ(result[0], 1.0);
+    EXPECT_DOUBLE_EQ(result[1], 2.0);
+    EXPECT_DOUBLE_EQ(result[2], 3.0);
+  }
+}
+
+TEST(inlet_function, function_value_alternative_rejects_duplicate_across_containers)
+{
+  auto inlet = createBasicInlet("group = { scale = function() return 2.0 end }");
+  auto& group = inlet.addStruct("group");
+  inlet.addFunctionAsValueAlternative("group/scale", FunctionTag::Double, {});
 
   axom::slic::ScopedAbortToThrow abortGuard;
-  EXPECT_THROW(inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}),
+  EXPECT_THROW(group.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}),
                axom::slic::SlicAbortException);
   EXPECT_TRUE(inlet.getGlobalContainer().getChildFunctions().empty());
+  EXPECT_TRUE(group.getChildFunctions().empty());
+  EXPECT_DOUBLE_EQ(group.getFunctionValueAlternative("scale").call<double>(), 2.0);
 }
 
 TEST(inlet_function, function_value_alternative_rejects_invalid_declaration)
