@@ -45,9 +45,9 @@ bool runNestedCallbackExample()
   auto& foo = inlet.addStructArray("foo");
   foo.addDouble("bar");
   foo.addFunctionAsValueAlternative(
+    "bar",
     inlet::FunctionTag::Double,
-    {},
-    inlet::InputPath::relativeToCollectionElement("bar"));
+    {});
   // _inlet_nested_callback_alternative_end
 
   if(!inlet.verify())
