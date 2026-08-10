@@ -57,6 +57,7 @@ public:
    * @param parent the parent container
    * @param fieldName the name of the field
    * @param description a description of the field
+   * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    * @return the Container for the new item
    */
   static inlet::Container &defineSchema(inlet::Container &parent,
@@ -102,6 +103,7 @@ struct NamedOperatorData
    * Define the schema for a named operator.
    *
    * @param container the container in which to describe a single named operator
+   * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    */
   static void defineSchema(inlet::Container &container, bool enableLuaCallbacks = false);
 };
@@ -134,6 +136,7 @@ struct NamedOperatorMapData
    *
    * @param parent the parent object in which to define the operator map
    * @param name the name of the map
+   * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    */
   static void defineSchema(inlet::Container &parent,
                            const std::string &name,

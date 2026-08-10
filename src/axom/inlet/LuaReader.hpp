@@ -111,20 +111,64 @@ protected:
   std::shared_ptr<axom::sol::state> solState() { return m_lua; }
 
 private:
-  // Expect this to be called for only Inlet-supported types.
+  /*!
+   *****************************************************************************
+   * \brief Read a scalar value of an Inlet-supported type.
+   *
+   * \tparam T Inlet-supported destination type
+   * \param [in] id Input path to read
+   * \param [out] value Receives the converted value on success
+   *
+   * \return Success, NotFound, or WrongType for the resolved Lua object
+   *****************************************************************************
+   */
   template <typename T>
   ReaderResult getValue(const std::string& id, T& value);
 
-  // Expect this to be called for only Inlet-supported types.
+  /*!
+   *****************************************************************************
+   * \brief Read a typed Lua table into an Inlet map.
+   *
+   * \tparam Key Supported map key type
+   * \tparam Val Inlet-supported map value type
+   * \param [in] id Input path to read
+   * \param [out] values Receives matching table entries; cleared before reading
+   * \param [in] type Expected Lua type for each mapped value
+   *
+   * \return The aggregate retrieval status for the table and its entries
+   *****************************************************************************
+   */
   template <typename Key, typename Val>
   ReaderResult getMap(const std::string& id,
                       std::unordered_map<Key, Val>& values,
                       axom::sol::type type);
 
+  /*!
+   *****************************************************************************
+   * \brief Read a Lua table whose values may have different primitive types.
+   *
+   * \tparam Key Supported map key type
+   * \param [in] id Input path to read
+   * \param [out] values Receives supported table entries; cleared before reading
+   *
+   * \return The aggregate retrieval status for the table and its entries
+   *****************************************************************************
+   */
   template <typename Key>
   ReaderResult getVariantMapInternal(const std::string& id,
                                      std::unordered_map<Key, VariantValue>& values);
 
+  /*!
+   *****************************************************************************
+   * \brief Read the keys from a Lua table.
+   *
+   * \tparam T Supported index type
+   * \param [in] id Input path to read
+   * \param [out] indices Receives the table keys; cleared before reading
+   *
+   * \return Success, NotFound, or WrongType for the resolved Lua object
+   *****************************************************************************
+   */
   template <typename T>
   ReaderResult getIndicesInternal(const std::string& id, std::vector<T>& indices);
 
@@ -135,6 +179,7 @@ private:
    * \param [in] id The path to resolve
    *
    * \return The object at \a id, or an invalid object if the path was not found
+   * or an intermediate path component was not a table
    *****************************************************************************
    */
   axom::sol::object getObject(const std::string& id);

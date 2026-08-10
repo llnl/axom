@@ -557,6 +557,12 @@ public:
     slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
 
+  /**
+   * Load the optional Lua initialization file selected on the command line.
+   *
+   * \return Lua input options containing the initialization source and label
+   * \throws klee::KleeError if the initialization file cannot be read
+   */
   klee::LuaInputOptions loadLuaInputOptions() const
   {
     klee::LuaInputOptions options;

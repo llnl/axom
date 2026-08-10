@@ -49,21 +49,50 @@ std::string childName(const inlet::Container& container, const std::string& name
   return result;
 }
 
+/**
+ * Determine whether an operator field was supplied as a callback.
+ *
+ * \param container the operator container
+ * \param fieldName the public operator field name
+ * \return true when \a fieldName has a supplied function alternative
+ */
 bool hasCallback(const inlet::Container &container, char const *fieldName)
 {
   return container.containsFunctionValueAlternative(fieldName);
 }
 
+/**
+ * Determine whether an operator field was supplied directly or as a callback.
+ *
+ * \param container the operator container
+ * \param fieldName the public operator field name
+ * \return true when either supported representation was supplied
+ */
 bool containsFieldOrCallback(const inlet::Container &container, char const *fieldName)
 {
   return container.contains(fieldName) || hasCallback(container, fieldName);
 }
 
+/**
+ * Construct the input path for an operator field.
+ *
+ * \param container the operator container
+ * \param fieldName the public operator field name
+ * \return the full path to \a fieldName
+ */
 Path fieldPath(const inlet::Container &container, char const *fieldName)
 {
   return Path::join({Path {container.name()}, Path {std::string {fieldName}}});
 }
 
+/**
+ * Build the contextual prefix for a callback diagnostic.
+ *
+ * \param container the operator or slice container
+ * \param fieldName the callback field name
+ * \param ownerLabel description of the owning shape or named operator
+ * \return a diagnostic prefix identifying the callback and its owner
+ */
 std::string callbackContext(const inlet::Container &container,
                             char const *fieldName,
                             const std::string &ownerLabel)
@@ -88,6 +117,16 @@ std::string callbackContext(const inlet::Container &container,
     operatorLabel);
 }
 
+/**
+ * Throw a semantic validation error with callback context when applicable.
+ *
+ * \param container the operator or slice container
+ * \param fieldName the field whose value failed validation
+ * \param ownerLabel description of the owning shape or named operator
+ * \param fallbackPath path used when the field was supplied directly
+ * \param message semantic validation message
+ * \throws KleeError unconditionally
+ */
 [[noreturn]] void throwCallbackAwareValidationError(const inlet::Container &container,
                                                     char const *fieldName,
                                                     const std::string &ownerLabel,
@@ -104,6 +143,18 @@ std::string callbackContext(const inlet::Container &container,
   throw KleeError({fallbackPath, message});
 }
 
+/**
+ * Invoke a callback and translate its failures to contextual Klee errors.
+ *
+ * \tparam Result expected callback result type
+ * \tparam Func callback invocation type
+ * \param container the operator or slice container
+ * \param fieldName the callback field name
+ * \param ownerLabel description of the owning shape or named operator
+ * \param func callable that invokes the Inlet callback
+ * \return the callback result
+ * \throws KleeError if callback invocation or result conversion fails
+ */
 template <typename Result, typename Func>
 Result wrapCallbackErrors(const inlet::Container &container,
                           char const *fieldName,
@@ -128,6 +179,15 @@ Result wrapCallbackErrors(const inlet::Container &container,
   }
 }
 
+/**
+ * Read a scalar operator field from its direct or callback representation.
+ *
+ * \param container the operator container
+ * \param fieldName the public operator field name
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved scalar value
+ * \throws KleeError if callback evaluation fails
+ */
 double getScalar(const inlet::Container &container,
                  char const *fieldName,
                  const std::string &ownerLabel)
@@ -141,6 +201,15 @@ double getScalar(const inlet::Container &container,
   return container[fieldName].get<double>();
 }
 
+/**
+ * Read a string operator field from its direct or callback representation.
+ *
+ * \param container the operator container
+ * \param fieldName the public operator field name
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved string value
+ * \throws KleeError if callback evaluation fails
+ */
 std::string getString(const inlet::Container &container,
                       char const *fieldName,
                       const std::string &ownerLabel)
@@ -154,6 +223,12 @@ std::string getString(const inlet::Container &container,
   return container[fieldName].get<std::string>();
 }
 
+/**
+ * Convert an Inlet callback vector to ordinary doubles.
+ *
+ * \param value the callback vector
+ * \return the active components of \a value
+ */
 std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vector &value)
 {
   std::vector<double> result;
@@ -165,6 +240,16 @@ std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vect
   return result;
 }
 
+/**
+ * Read and validate a vector operator field.
+ *
+ * \param container the operator container
+ * \param fieldName the public operator field name
+ * \param expectedDims required vector dimension
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved vector components
+ * \throws KleeError if callback evaluation or dimension validation fails
+ */
 std::vector<double> getDoubleVector(const inlet::Container &container,
                                     char const *fieldName,
                                     Dimensions expectedDims,
@@ -192,6 +277,16 @@ std::vector<double> getDoubleVector(const inlet::Container &container,
   return toDoubleVector(container[fieldName], expectedDims, fieldName);
 }
 
+/**
+ * Read a point- or vector-like operator field.
+ *
+ * \tparam T destination point or vector type
+ * \param parent the operator container
+ * \param fieldName the public operator field name
+ * \param expectedDims required dimension
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved value converted to \a T
+ */
 template <typename T>
 T toArrayLike(const inlet::Container &parent,
               char const *fieldName,
@@ -202,6 +297,17 @@ T toArrayLike(const inlet::Container &parent,
   return T {values.data(), static_cast<int>(expectedDims)};
 }
 
+/**
+ * Read an optional point- or vector-like operator field.
+ *
+ * \tparam T destination point or vector type
+ * \param parent the operator container
+ * \param fieldName the public operator field name
+ * \param expectedDims required dimension
+ * \param defaultValue value returned when the field is absent
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved value, or \a defaultValue when absent
+ */
 template <typename T>
 T toArrayLike(const inlet::Container &parent,
               char const *fieldName,
@@ -216,6 +322,15 @@ T toArrayLike(const inlet::Container &parent,
   return defaultValue;
 }
 
+/**
+ * Read a required point field.
+ *
+ * \param parent the operator container
+ * \param fieldName the public operator field name
+ * \param expectedDims required dimension
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved point
+ */
 Point3D getPoint(const inlet::Container &parent,
                  char const *fieldName,
                  Dimensions expectedDims,
@@ -224,6 +339,16 @@ Point3D getPoint(const inlet::Container &parent,
   return toArrayLike<Point3D>(parent, fieldName, expectedDims, ownerLabel);
 }
 
+/**
+ * Read an optional point field.
+ *
+ * \param parent the operator container
+ * \param fieldName the public operator field name
+ * \param expectedDims required dimension
+ * \param defaultValue value returned when the field is absent
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved point, or \a defaultValue when absent
+ */
 Point3D getPoint(const inlet::Container &parent,
                  char const *fieldName,
                  Dimensions expectedDims,
@@ -233,6 +358,15 @@ Point3D getPoint(const inlet::Container &parent,
   return toArrayLike(parent, fieldName, expectedDims, defaultValue, ownerLabel);
 }
 
+/**
+ * Read a required vector field.
+ *
+ * \param parent the operator container
+ * \param fieldName the public operator field name
+ * \param expectedDims required dimension
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved vector
+ */
 Vector3D getVector(const inlet::Container &parent,
                    char const *fieldName,
                    Dimensions expectedDims,
@@ -241,6 +375,16 @@ Vector3D getVector(const inlet::Container &parent,
   return toArrayLike<Vector3D>(parent, fieldName, expectedDims, ownerLabel);
 }
 
+/**
+ * Read an optional vector field.
+ *
+ * \param parent the operator container
+ * \param fieldName the public operator field name
+ * \param expectedDims required dimension
+ * \param defaultValue value returned when the field is absent
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved vector, or \a defaultValue when absent
+ */
 Vector3D getVector(const inlet::Container &parent,
                    char const *fieldName,
                    Dimensions expectedDims,
@@ -353,8 +497,9 @@ void verifyObjectFields(const inlet::Container& containerToTest,
 /**
  * Parse a "translate" operator.
  *
- * \param opContainer the Container from which to read the operator
+ * \param data the Inlet data from which to read the operator
  * \param startProperties the properties prior to this operator
+ * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the operator fields or vector dimensions are invalid
  */
@@ -372,8 +517,9 @@ OpPtr parseTranslate(const SingleOperatorData &data,
 /**
  * Parse a "rotate" operator.
  *
- * \param opContainer the Container from which to read the operator
+ * \param data the Inlet data from which to read the operator
  * \param startProperties the properties prior to this operator
+ * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the rotation is invalid for the start dimensions or operator fields
  */
@@ -480,6 +626,7 @@ OpPtr makeCheckedSlice(Point3D origin,
  * \param sliceContainer the Container describing the slice
  * \param planeName the name of the plane ("x", "y", or "z")
  * \param defaultNormal the default normal vector
+ * \param ownerLabel description of the owning shape or named operator
  * \return the point to use as the origin
  * \throws KleeError if the specified origin is not on the slice plane
  */
@@ -523,6 +670,7 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
  *
  * \param sliceContainer the Container describing the slice
  * \param defaultNormal the default normal vector
+ * \param ownerLabel description of the owning shape or named operator
  * \return the vector to use as the normal
  * \throws KleeError if the specified normal is not parallel to the slice plane normal
  */
@@ -557,6 +705,7 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
  * \param defaultNormal the default normal vector for the type of plane being parsed
  * \param defaultUp the default up vector for the plane being parsed
  * \param startProperties the properties prior to this operator
+ * \param ownerLabel description of the owning shape or named operator
  * \return the parsed plane
  * \throws KleeError if the slice fields or values are invalid
  */
@@ -580,8 +729,9 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
 /**
  * Parse a "slice" operator.
  *
- * \param opContainer the Container from which to read the operator
+ * \param data the Inlet data from which to read the operator
  * \param startProperties the properties prior to this operator
+ * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the slice fields or values are invalid
  */
@@ -635,8 +785,9 @@ OpPtr parseSlice(const SingleOperatorData &data,
 /**
  * Parse a "scale" operator.
  *
- * \param opContainer the Container from which to read the operator
+ * \param data the Inlet data from which to read the operator
  * \param startProperties the properties prior to this operator
+ * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the scale fields or vector dimensions are invalid
  */
@@ -706,8 +857,9 @@ OpPtr parseScale(const SingleOperatorData &data,
 /**
  * Parse a "convert_units_to" operator.
  *
- * \param opContainer the Container from which to read the operator
+ * \param data the Inlet data from which to read the operator
  * \param startProperties the properties prior to this operator
+ * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the unit string or operator fields are invalid
  */
@@ -743,9 +895,10 @@ OpPtr parseConvertUnits(const SingleOperatorData &data,
 /**
  * Parse an operator specified via the "ref" command.
  *
- * \param opContainer the Container from which to read the operator
+ * \param data the Inlet data from which to read the operator
  * \param startProperties the properties before the "ref" command
  * \param namedOperators a map of named operators from which to get referenced operators
+ * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the reference is missing or the operator fields are invalid
  */
@@ -802,6 +955,7 @@ OpPtr parseRef(const SingleOperatorData &data,
  * \param data the data from which to convert the operator
  * \param startProperties the properties before the operator
  * \param namedOperators a map of named operators from which to get referenced operators
+ * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the operator type or fields are invalid
  */

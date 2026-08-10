@@ -1058,6 +1058,10 @@ public:
    *****************************************************************************
    * \brief Return whether a function value alternative was supplied for the
    * given public value name.
+   *
+   * \param [in] valueName Public name of the concrete value or collection
+   *
+   * \return True when the input supplied a function for \a valueName
    *****************************************************************************
    */
   bool containsFunctionValueAlternative(const std::string& valueName) const;
@@ -1066,6 +1070,11 @@ public:
    *****************************************************************************
    * \brief Retrieve the function value alternative associated with a public
    * value name.
+   *
+   * \param [in] valueName Public name of the concrete value or collection
+   *
+   * \return The function alternative declared for \a valueName. The returned
+   * Function is empty when the input did not supply the function representation.
    *****************************************************************************
    */
   Function& getFunctionValueAlternative(const std::string& valueName) const;
@@ -1073,6 +1082,8 @@ public:
   /*!
    *****************************************************************************
    * \brief Return the public value names of supplied function alternatives.
+   *
+   * \return Public value names whose function representation was supplied
    *****************************************************************************
    */
   std::vector<std::string> getFunctionValueAlternativeNames() const;
@@ -1303,11 +1314,10 @@ private:
    *****************************************************************************
    * \brief Stores an already-read Function in this Container's schema.
    * 
-   * \param [in] The Sidre Group corresponding to the Function that will be added.
-   * \param [in] func The actual callable to store
-   * \param [in] The complete Container sequence for the Container this Function will be added to.
-   * \param [in] The Container sequence for the Container this Function will be added to, 
-   * relative to this Container.
+   * \param [in] sidreGroup The Sidre Group corresponding to the Function
+   * \param [in] func       The callable to store
+   * \param [in] fullName   Complete Container path for the Function
+   * \param [in] name       Function path relative to this Container
    * 
    * \return The child Function matching the target name.
    *****************************************************************************
@@ -1317,6 +1327,20 @@ private:
                           const std::string& fullName,
                           const std::string& name);
 
+  /*!
+   *****************************************************************************
+   * \brief Add an internally named function alternative for a public value.
+   *
+   * \param [in] valueName        Public name of the concrete value or collection
+   * \param [in] ret_type         The return type of the function
+   * \param [in] arg_types        The argument types of the function
+   * \param [in] description      Description of the function
+   * \param [in] resolvedValuePath Concrete input path when expanding a struct
+   * collection; empty when it should be derived from this Container
+   *
+   * \return Reference to the created Function or aggregate Function
+   *****************************************************************************
+   */
   Verifiable<Function>& addFunctionValueAlternative(
     const std::string& valueName,
     FunctionTag ret_type,
@@ -1324,12 +1348,26 @@ private:
     const std::string& description,
     const std::string& resolvedValuePath);
 
+  /*!
+   *****************************************************************************
+   * \brief Generate an unused internal name for a function value alternative.
+   *
+   * \return An internal name that does not collide with this Container's
+   * Sidre groups
+   *****************************************************************************
+   */
   std::string nextFunctionValueAlternativeName();
 
   /*!
    *****************************************************************************
    * \brief Adjust a Reader result when a function satisfies a declared value
    * alternative at the same input path.
+   *
+   * \param [in] inputPath Path read by the concrete schema entry
+   * \param [in] result    Result returned by the Reader
+   *
+   * \return \a result, or ReaderResult::NotFound when a function alternative
+   * satisfies a WrongType result
    *****************************************************************************
    */
   ReaderResult adjustForFunctionAlternative(const std::string& inputPath,
@@ -1338,6 +1376,9 @@ private:
   /*!
    *****************************************************************************
    * \brief Record the Sidre group populated from an input value path.
+   *
+   * \param [in] inputPath Path read by the concrete schema entry
+   * \param [in] group     Sidre group holding that entry's retrieval status
    *****************************************************************************
    */
   void registerValueInputPath(const std::string& inputPath, axom::sidre::Group* group);
@@ -1346,6 +1387,8 @@ private:
    *****************************************************************************
    * \brief Record a successfully read function alternative and update any
    * value schema entry that was added first.
+   *
+   * \param [in] inputPath Path satisfied by the function alternative
    *****************************************************************************
    */
   void registerFunctionAlternativePath(const std::string& inputPath);

@@ -28,7 +28,10 @@ enum class InputFormat
 /// Lua initialization chunk evaluated before deck parsing in an isolated environment.
 struct LuaInitializationChunk
 {
+  /// Lua source to evaluate before the input deck.
   std::string source;
+
+  /// Source label used in diagnostics from this chunk.
   std::string label {"<lua initialization>"};
 };
 
@@ -53,6 +56,7 @@ struct LuaInputOptions
  *
  * \param stream the stream from which to read the ShapeSet
  * \note This overload reads YAML for backward compatibility.
+ * \return the ShapeSet read from the stream
  * \throws KleeError if parsing, schema verification, or semantic validation fails
  */
 ShapeSet readShapeSet(std::istream& stream);
@@ -62,6 +66,7 @@ ShapeSet readShapeSet(std::istream& stream);
  *
  * \param stream the stream from which to read the ShapeSet
  * \param format the input file format to use
+ * \return the ShapeSet read from the stream
  * \throws KleeError if parsing, schema verification, or semantic validation fails,
  *         or if the requested input format is unsupported by this build
  */
@@ -74,6 +79,7 @@ ShapeSet readShapeSet(std::istream& stream, InputFormat format);
  * \param format the input deck format to use
  * \param options optional initial globals and initialization for a Lua input deck
  * \note Non-empty Lua input options are supported only for Lua input decks.
+ * \return the ShapeSet read from the stream
  * \throws KleeError if the input or Lua input options are invalid
  */
 ShapeSet readShapeSet(std::istream &stream,
