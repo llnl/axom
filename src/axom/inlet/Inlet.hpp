@@ -436,6 +436,13 @@ public:
    * \brief Add a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
+   * \param [in] valueName   Public name of the concrete value or collection
+   * \param [in] ret_type    The return type of the function
+   * \param [in] arg_types   The argument types of the function
+   * \param [in] description Description of the function
+   *
+   * \return Reference to the created Function
+   *
    * \see Container::addFunctionAsValueAlternative
    *****************************************************************************
    */
