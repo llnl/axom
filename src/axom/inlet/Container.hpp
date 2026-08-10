@@ -756,12 +756,12 @@ public:
    *
    * The function is read from the same public value name as the concrete field
    * or collection. If a function exists there, the concrete schema entry is
-   * treated as absent rather than as having the wrong type. The function and
-   * concrete value may be added in either order.
+   * treated as absent rather than as having the wrong type. A concrete schema
+   * entry, when used, may be added before or after the function alternative.
    *
    * \param [in] valueName   Path of the concrete value or collection,
    *                         relative to this Container
-   * \param [in] ret_type    The return type of the function
+   * \param [in] ret_type    The return type. Must not be FunctionTag::Void
    * \param [in] arg_types   The argument types of the function
    *****************************************************************************
    */
@@ -990,36 +990,40 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Return whether a Container or Field with the given name is present in 
-   * this Container's subtree.
+   * \brief Return whether a Container, Field, or ordinary Function with the
+   * given name is present in this Container's subtree.
    *
-   * \return Boolean value indicating whether this Container's subtree contains a
-   * Field or Container with the given name.
+   * A function value alternative at \a name is not reported by this method.
+   * Use \a containsFunctionValueAlternative() to query that representation.
+   * An ancestor Container is present when an alternative exists below it.
+   *
+   * \param [in] name Path relative to this Container
+   *
+   * \return Whether the named schema entry is present
    *****************************************************************************
    */
   bool contains(const std::string& name) const;
 
   /*!
    *****************************************************************************
-   * \brief Returns whether this container or any of its subcontainers exist, 
-   * i.e., if they contain a Field or Function that exists
+   * \brief Return whether this Container contains a present Field, ordinary
+   * Function, function value alternative, or subcontainer containing one.
    *****************************************************************************
    */
   bool exists() const;
 
   /*!
    *****************************************************************************
-   * \brief Returns whether this container or any of its subcontainers were
-   * provided in the input file, i.e., if they contain a Field or Function that
-   * was provided in the input file
+   * \brief Return whether this Container contains a user-provided Field,
+   * ordinary Function, function value alternative, or subcontainer containing one.
    *****************************************************************************
    */
   bool isUserProvided() const;
 
   /*!
    *****************************************************************************
-   * \brief  Return whether a Container or Field with the given name were
-   * provided in the input file
+   * \brief Return whether the named Container, Field, ordinary Function,
+   * or function value alternative was provided in the input file.
    *
    * \param [in] name The path relative to the calling Container to search
    *****************************************************************************
@@ -1066,6 +1070,9 @@ public:
    *****************************************************************************
    * \brief Retrieve the function value alternative associated with a public
    * value name.
+   *
+   * Call containsFunctionValueAlternative() first to determine whether the
+   * function representation was supplied.
    *
    * \param [in] valueName Value path relative to this Container
    *
