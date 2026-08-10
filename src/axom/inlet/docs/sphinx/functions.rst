@@ -68,8 +68,7 @@ Functions as value alternatives
 
 Some schemas accept either a concrete value or a function that computes that value.
 Use ``addFunctionAsValueAlternative`` to declare this relationship explicitly.
-Inlet owns the callback's internal storage name and associates it with the concrete
-field's public name:
+The callback and concrete form share one public input name:
 
 .. code-block:: C++
 
@@ -83,7 +82,7 @@ With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``,
 while ``scale = function() return {2.0, 3.0, 4.0} end`` supplies the function
 alternative associated with ``scale``. Use ``containsFunctionValueAlternative("scale")``
 and ``getFunctionValueAlternative("scale")`` on the containing ``Container`` to
-query and retrieve it without depending on an internal schema name.
+query and retrieve it.
 
 Inside a struct collection, Inlet resolves the public value name against each concrete
 element. For example, this Lua input supplies ``bar`` directly for one ``foo`` element
@@ -129,21 +128,14 @@ function was supplied. A value with an unrelated type matches neither representa
 fails verification. The shared public name is recognized by strict containers and is not
 reported as unexpected.
 
-The returned function and the concrete field remain independently verifiable schema entries.
-Consequently, ``required()`` and registered verifiers apply to the entry on
-which they are configured. The narrow value-alternative API does not currently provide
-a group-level annotation meaning "either representation is required."
+The callback alternative is not an independent schema entry: it does not appear in
+``getChildFunctions()``, cannot be marked ``required()``, and is not persisted in Sidre.
+The concrete field's validation rules do not automatically apply to the callback's result.
+Applications should validate any constraints shared by both forms after resolving the
+selected representation.
 
-In Sidre, the callback entry retains the same signature metadata as an ordinary Inlet function
-and is tagged as an internal value alternative. The live Lua callable remains in memory.
-Inlet restart reconstructs containers and fields, not functions, so the tag prevents
-the internal callback group from being mistaken for a field.
-A persisted concrete value is reconstructed normally, while a Lua callback is not.
-
-Generated Sphinx and JSON Schema documentation describe the concrete value form.
-The internal callback entry is omitted: its storage name is not an input-file path,
-and JSON inputs cannot provide a Lua function. Document the callback form separately when exposing
-it as part of an application's Lua interface.
+Generated Sphinx and JSON Schema documentation describe only the concrete value form.
+Document the callback form separately when exposing it as part of an application's Lua interface.
 
 Accessing
 ---------
