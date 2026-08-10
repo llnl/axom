@@ -152,6 +152,7 @@ public:
                axom::Array<axom::IndexType> &old2new) const
   {
     namespace utils = axom::bump::utilities;
+    const axom::bump::Options opts(n_options);
     const int allocatorID = getAllocatorID();
 
     // If the coordset is not explicit then there is nothing to do.
@@ -204,7 +205,10 @@ public:
     if(merged)
     {
       // There are fewer nodes in the selectedIds so we are able to combine nodes.
-      SLIC_INFO(axom::fmt::format("Merged {} nodes into {} nodes.", nnodes, selectedIds.size()));
+      SLIC_INFO_IF(opts.verbose(),
+                   axom::fmt::format("Merged {} nodes into {} nodes.",
+                                     nnodes,
+                                     selectedIds.size()));
 
       AXOM_ANNOTATE_BEGIN("old2new");
       // Make a map of nodes in the old coordset to nodes in the new coordset. We

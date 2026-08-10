@@ -511,7 +511,8 @@ public:
   void cleanMesh(conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                  double AXOM_UNUSED_PARAM(point_tolerance),
                  conduit::Node &AXOM_UNUSED_PARAM(n_topology),
-                 axom::Array<axom::IndexType> &AXOM_UNUSED_PARAM(selectedIds)) const
+                 axom::Array<axom::IndexType> &AXOM_UNUSED_PARAM(selectedIds),
+                 const conduit::Node &AXOM_UNUSED_PARAM(n_options)) const
   { }
 
 private:
@@ -933,7 +934,8 @@ public:
   void cleanMesh(conduit::Node &n_coordset,
                  double point_tolerance,
                  conduit::Node &n_topology,
-                 axom::Array<axom::IndexType> &selectedIds) const
+                 axom::Array<axom::IndexType> &selectedIds,
+                 const conduit::Node &n_options) const
   {
     AXOM_ANNOTATE_SCOPE("cleanMesh");
 
@@ -954,6 +956,10 @@ public:
     axom::bump::MergeCoordsetPoints<ExecSpace, NewCoordsetView> mcp(newCoordsetView);
     conduit::Node n_mcp_options;
     n_mcp_options["tolerance"] = point_tolerance;
+    if(n_options.has_child("verbose"))
+    {
+      n_mcp_options["verbose"].set(n_options["verbose"]);
+    }
     const bool merged = mcp.execute(n_coordset, n_mcp_options, selectedIds, old2new);
     // _bump_utilities_mergecoordsetpoints_end
 
