@@ -744,8 +744,8 @@ public:
   {
     SLIC_ASSERT_MSG(m_bvh, "BVH tree must be initialized before calling 'computeClosestPoints");
 
-    // arbitrary tags for send/recv xferNodes.
-    const int tag = 987342;
+    // arbitrary tags for send/recv xferNodes -- clamp to ensure its less than MPI_TAG_UB
+    const int tag = conduit::relay::mpi::safe_tag(987342, m_mpiComm);
 
     int remainingRecvs = 0;
 
