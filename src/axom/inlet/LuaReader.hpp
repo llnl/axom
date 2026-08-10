@@ -186,27 +186,6 @@ private:
 
   /*!
    *****************************************************************************
-   * \brief Obtains the Lua table reached by successive indexing through the
-   * range of keys described by a pair of iterators
-   * 
-   * \note For a set of keys {key1, key2, key3, ...}, this function
-   * is equivalent to
-   * \code{.cpp}
-   * table = m_lua[key1][key2][key3][...];
-   * \endcode
-   * 
-   * \param [in] begin Iterator to the beginning of the range of keys
-   * \param [in] end Iterator to one-past-the-end of the range
-   * \param [out] t The table to traverse
-   * 
-   * \return Whether the traversal was successful
-   *****************************************************************************
-   */
-  template <typename Iter>
-  bool traverseToTable(Iter begin, Iter end, axom::sol::table& table);
-
-  /*!
-   *****************************************************************************
    * \brief Traverses the Lua state to retrieve a sol function object
    *
    * \param [in]  id    The identifier to the function that will be retrieved

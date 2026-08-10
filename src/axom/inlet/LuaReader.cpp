@@ -315,57 +315,6 @@ ReaderResult LuaReader::getVariantMap(const std::string& id,
   return getVariantMapInternal(id, values);
 }
 
-template <typename Iter>
-bool LuaReader::traverseToTable(Iter begin, Iter end, axom::sol::table& table)
-{
-  // Nothing to traverse
-  if(begin == end)
-  {
-    return true;
-  }
-
-  axom::sol::object object = (*m_lua)[*begin];
-  if(!object.valid() || object.get_type() != axom::sol::type::table)
-  {
-    return false;
-  }
-
-  // Use the first one to index into the global lua state
-  table = object.as<axom::sol::table>();
-  ++begin;
-
-  // Then use the remaining keys to walk down to the requested table
-  for(auto curr = begin; curr != end; ++curr)
-  {
-    auto key = *curr;
-    bool is_int = conduit::utils::string_is_integer(key);
-    axom::sol::object child;
-    if(is_int)
-    {
-      const int key_as_int = conduit::utils::string_to_value<int>(key);
-      if(table[key_as_int].valid())
-      {
-        child = table[key_as_int];
-      }
-    }
-    if(!child.valid() && table[key].valid())
-    {
-      child = table[key];
-    }
-    if(!child.valid())
-    {
-      return false;
-    }
-
-    if(child.get_type() != axom::sol::type::table)
-    {
-      return false;
-    }
-    table = child.as<axom::sol::table>();
-  }
-  return true;
-}
-
 axom::sol::object LuaReader::getObject(const std::string& id)
 {
   const auto tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
@@ -374,28 +323,28 @@ axom::sol::object LuaReader::getObject(const std::string& id)
     return {};
   }
 
-  if(tokens.size() == 1)
+  axom::sol::object object = (*m_lua)[tokens.front()];
+  for(std::size_t i = 1; i < tokens.size(); ++i)
   {
-    return (*m_lua)[tokens.front()];
-  }
-
-  axom::sol::table parent;
-  if(!traverseToTable(tokens.begin(), tokens.end() - 1, parent))
-  {
-    return {};
-  }
-
-  const auto& key = tokens.back();
-  const bool is_int = conduit::utils::string_is_integer(key);
-  if(is_int)
-  {
-    const int key_as_int = conduit::utils::string_to_value<int>(key);
-    if(parent[key_as_int].valid())
+    if(!object.valid() || object.get_type() != axom::sol::type::table)
     {
-      return parent[key_as_int];
+      return {};
     }
+
+    const auto table = object.as<axom::sol::table>();
+    const auto& key = tokens[i];
+    axom::sol::object child;
+    if(conduit::utils::string_is_integer(key))
+    {
+      child = table[conduit::utils::string_to_value<int>(key)];
+    }
+    if(!child.valid())
+    {
+      child = table[key];
+    }
+    object = std::move(child);
   }
-  return parent[key];
+  return object;
 }
 
 ReaderResult LuaReader::getIndices(const std::string& id, std::vector<int>& indices)
@@ -627,21 +576,21 @@ typename std::enable_if<I <= MAX_NUM_ARGS, FunctionVariant>::type bindArgType(
 
 /*!
  *****************************************************************************
- * \brief Performs a type-checked access to a Lua table
+ * \brief Performs a type-checked access to a Lua object
  *
- * \param [in]  proxy The axom::sol::proxy object to retrieve from
+ * \param [in] object The Lua object to retrieve from
  * \param [out] val The value to write to, if it is of the correct type
  *
  * \return ReaderResult::Success if the object was of the correct type,
  * ReaderResult::WrongType otherwise
  *****************************************************************************
  */
-template <typename Proxy, typename Value>
-ReaderResult checkedGet(const Proxy& proxy, Value& val)
+template <typename Value>
+ReaderResult checkedGet(const axom::sol::object& object, Value& val)
 {
-  if(proxy.template is<Value>())
+  if(object.template is<Value>())
   {
-    val = proxy.template as<Value>();
+    val = object.template as<Value>();
     return ReaderResult::Success;
   }
   return ReaderResult::WrongType;
@@ -656,26 +605,19 @@ FunctionVariant LuaReader::getFunction(const std::string& id,
   auto lua_func = getFunctionInternal(id);
   if(lua_func)
   {
-    FunctionVariant function;
     switch(ret_type)
     {
     case FunctionTag::Vector:
-      function =
-        detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func), arg_types, m_lua);
-      break;
+      return detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::Double:
-      function = detail::bindArgType<0u, double>(std::move(lua_func), arg_types, m_lua);
-      break;
+      return detail::bindArgType<0u, double>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::Void:
-      function = detail::bindArgType<0u, void>(std::move(lua_func), arg_types, m_lua);
-      break;
+      return detail::bindArgType<0u, void>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::String:
-      function = detail::bindArgType<0u, std::string>(std::move(lua_func), arg_types, m_lua);
-      break;
+      return detail::bindArgType<0u, std::string>(std::move(lua_func), arg_types, m_lua);
     default:
       SLIC_ERROR("[Inlet] Unexpected function return type");
     }
-    return function;
   }
   return {};  // Return an empty function to indicate that the function was not found
 }
