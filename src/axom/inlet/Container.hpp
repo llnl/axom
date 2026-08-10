@@ -21,7 +21,6 @@
 #include <tuple>
 #include <typeindex>
 #include <unordered_map>
-#include <unordered_set>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -70,6 +69,8 @@ class VariantStructCollection;
 
 namespace detail
 {
+class FunctionValueAlternativeRegistry;
+
 struct VariantStructFactoryBase
 {
   virtual ~VariantStructFactoryBase() = default;
@@ -758,7 +759,8 @@ public:
    * treated as absent rather than as having the wrong type. The function and
    * concrete value may be added in either order.
    *
-   * \param [in] valueName   Public name of the concrete value or collection
+   * \param [in] valueName   Path of the concrete value or collection,
+   *                         relative to this Container
    * \param [in] ret_type    The return type of the function
    * \param [in] arg_types   The argument types of the function
    *****************************************************************************
@@ -1053,7 +1055,7 @@ public:
    * \brief Return whether a function value alternative was supplied for the
    * given public value name.
    *
-   * \param [in] valueName Public name of the concrete value or collection
+   * \param [in] valueName Value path relative to this Container
    *
    * \return True when the input supplied a function for \a valueName
    *****************************************************************************
@@ -1065,7 +1067,7 @@ public:
    * \brief Retrieve the function value alternative associated with a public
    * value name.
    *
-   * \param [in] valueName Public name of the concrete value or collection
+   * \param [in] valueName Value path relative to this Container
    *
    * \return The function alternative declared for \a valueName. The returned
    * wrapper is empty when the input did not supply the function representation.
@@ -1077,7 +1079,7 @@ public:
    *****************************************************************************
    * \brief Return the public value names of supplied function alternatives.
    *
-   * \return Public value names whose function representation was supplied
+   * \return Names of direct child values whose function representation was supplied
    *****************************************************************************
    */
   std::vector<std::string> getFunctionValueAlternativeNames() const;
@@ -1131,6 +1133,29 @@ public:
                                  const std::string& pathOverride = "");
 
 private:
+  /*!
+   *****************************************************************************
+   * \brief Construct a child Container that shares function-alternative state.
+   *****************************************************************************
+   */
+  Container(const std::string& name,
+            const std::string& description,
+            Reader& reader,
+            axom::sidre::Group* sidreRootGroup,
+            std::vector<std::string>& unexpectedNames,
+            std::shared_ptr<detail::FunctionValueAlternativeRegistry> functionAlternatives,
+            bool docEnabled,
+            bool reconstruct);
+
+  /*!
+   *****************************************************************************
+   * \brief Create a child using this Container's shared Inlet state.
+   *****************************************************************************
+   */
+  std::unique_ptr<Container> createChildContainer(const std::string& name,
+                                                  const std::string& description,
+                                                  bool reconstruct = false);
+
   /*!
    *****************************************************************************
    * \brief Add a Container to the input file schema.
@@ -1337,41 +1362,6 @@ private:
                                    const std::vector<FunctionTag>& arg_types,
                                    const std::string& resolvedValuePath);
 
-  /*!
-   *****************************************************************************
-   * \brief Adjust a Reader result when a function satisfies a declared value
-   * alternative at the same input path.
-   *
-   * \param [in] inputPath Path read by the concrete schema entry
-   * \param [in] result    Result returned by the Reader
-   *
-   * \return \a result, or ReaderResult::NotFound when a function alternative
-   * satisfies a WrongType result
-   *****************************************************************************
-   */
-  ReaderResult adjustForFunctionAlternative(const std::string& inputPath,
-                                            ReaderResult result) const;
-
-  /*!
-   *****************************************************************************
-   * \brief Record the Sidre group populated from an input value path.
-   *
-   * \param [in] inputPath Path read by the concrete schema entry
-   * \param [in] group     Sidre group holding that entry's retrieval status
-   *****************************************************************************
-   */
-  void registerValueInputPath(const std::string& inputPath, axom::sidre::Group* group);
-
-  /*!
-   *****************************************************************************
-   * \brief Record a successfully read function alternative and update any
-   * value schema entry that was added first.
-   *
-   * \param [in] inputPath Path satisfied by the function alternative
-   *****************************************************************************
-   */
-  void registerFunctionAlternativePath(const std::string& inputPath);
-
   axom::sidre::View* baseGet(const std::string& name) const;
 
   /*!
@@ -1576,9 +1566,7 @@ private:
   std::unordered_map<std::string, std::unique_ptr<Container>> m_containerChildren;
   std::unordered_map<std::string, std::unique_ptr<Field>> m_fieldChildren;
   std::unordered_map<std::string, std::unique_ptr<Function>> m_functionChildren;
-  std::unordered_set<std::string> m_functionAlternativePaths;
-  std::unordered_map<std::string, FunctionVariant> m_functionValueAlternatives;
-  std::unordered_multimap<std::string, axom::sidre::Group*> m_valueInputPathGroups;
+  std::shared_ptr<detail::FunctionValueAlternativeRegistry> m_functionAlternatives;
   Verifier m_verifier;
 
   // Used for ownership only - need to take ownership of these so children
