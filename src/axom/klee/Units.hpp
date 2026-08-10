@@ -27,8 +27,8 @@ namespace internal
 /*!
  * \brief Parse a unit string, reporting an invalid value at the supplied input path.
  *
- * \param unitsAsString the unit string to parse
- * \param path the input path to report on failure
+ * \param [in] unitsAsString the unit string to parse
+ * \param [in] path the input path to report on failure
  *
  * \return A LengthUnit containing the unit type.
  * \throws KleeError if the unit string is invalid

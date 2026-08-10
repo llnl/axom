@@ -417,6 +417,7 @@ namespace detail
  * \brief Templated function for calling a sol function
  *
  * \param [in] func The sol function of unknown concrete type
+ * \param [in] args Arguments forwarded to the Lua function
  * \tparam Args The argument types of the function
  *
  * \return A checkable version of the function's result
@@ -540,6 +541,7 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
  * corresponding to the function signature
  *
  * \param [in] func The sol object containing the lua function of unknown signature
+ * \param [in] lua_state Shared ownership of the Lua state used by \a func
  * \tparam Ret The return type of the function
  * \tparam Args... The argument types of the function
  *
@@ -569,6 +571,7 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
  *
  * \param [in] func The sol object containing the lua function of unknown signature
  * \param [in] arg_types The vector of argument types
+ * \param [in] lua_state Shared ownership of the Lua state used by \a func
  * 
  * \tparam I The number of arguments processed, or "stack size", used to mitigate
  * infinite compile-time recursion

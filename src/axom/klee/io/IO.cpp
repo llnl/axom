@@ -43,6 +43,11 @@ bool isLuaIdentifier(const std::string &name);
 class KleeLuaReader : public inlet::LuaReader
 {
 public:
+  /**
+   * Return the string keys currently installed in the Lua global environment.
+   *
+   * \return the current top-level Lua global names
+   */
   std::unordered_set<std::string> topLevelGlobalNames()
   {
     std::unordered_set<std::string> names;
@@ -57,12 +62,27 @@ public:
     return names;
   }
 
+  /**
+   * Install a caller-provided primitive as a mutable Lua global.
+   *
+   * \param name the global name
+   * \param value the primitive value to install
+   */
   void setInitialGlobal(const std::string &name, const LuaGlobalValue &value)
   {
     auto lua = solState();
     std::visit([&](const auto &typedValue) { (*lua)[name] = typedValue; }, value);
   }
 
+  /**
+   * Evaluate an initialization chunk and install its exported values as globals.
+   *
+   * \param initialization the source and diagnostic label for the chunk
+   * \param reservedNames built-in Lua globals that exports may not replace
+   * \param existingExternalNames caller-provided globals that exports may not replace
+   * \return the names exported by the chunk
+   * \throws KleeError if evaluation fails or the returned exports are invalid
+   */
   std::unordered_set<std::string> applyInitializationChunk(
     const LuaInitializationChunk &initialization,
     const std::unordered_set<std::string> &reservedNames,
@@ -296,6 +316,7 @@ namespace
  * Define the schema for the "geometry" member of shapes
  *
  * @param geometry the Container representing a "geometry" object.
+ * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
  */
 void defineGeometry(inlet::Container &geometry, bool enableLuaCallbacks)
 {
@@ -326,6 +347,7 @@ void defineGeometry(inlet::Container &geometry, bool enableLuaCallbacks)
  * Define the schema for the list of shapes
  *
  * @param document the Inlet document for which to define the schema
+ * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
  */
 void defineShapeList(inlet::Inlet &document, bool enableLuaCallbacks)
 {
@@ -374,6 +396,7 @@ void defineShapeList(inlet::Inlet &document, bool enableLuaCallbacks)
  * Define the schema for Klee documents.
  *
  * @param document the Inlet document for which to define the schema
+ * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
  */
 void defineKleeSchema(inlet::Inlet &document, bool enableLuaCallbacks)
 {
@@ -390,6 +413,7 @@ void defineKleeSchema(inlet::Inlet &document, bool enableLuaCallbacks)
  * \param data the data read from inlet
  * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
+ * \param shapeName the owning shape name used in callback diagnostics
  * \return the geometry description for the shape
  * \throws KleeError if the converted geometry does not match the expected dimensions
  */
@@ -531,6 +555,12 @@ InputFormat inferInputFormat(const std::string& filePath)
                        extension)});
 }
 
+/**
+ * Determine whether a name is a reserved Lua keyword.
+ *
+ * \param name the candidate name
+ * \return true when \a name is a Lua keyword
+ */
 bool isLuaKeyword(const std::string &name)
 {
   static const std::unordered_set<std::string> keywords {
@@ -542,6 +572,12 @@ bool isLuaKeyword(const std::string &name)
   return keywords.find(name) != keywords.end();
 }
 
+/**
+ * Determine whether a name is an ASCII Lua identifier that is not a keyword.
+ *
+ * \param name the candidate name
+ * \return true when \a name may be used as a Lua identifier
+ */
 bool isLuaIdentifier(const std::string &name)
 {
   if(name.empty())
@@ -568,6 +604,12 @@ bool isLuaIdentifier(const std::string &name)
     !isLuaKeyword(name);
 }
 
+/**
+ * Validate names supplied through LuaInputOptions::initialGlobals.
+ *
+ * \param initialGlobals the caller-provided globals to validate
+ * \throws KleeError if any global name is not a valid Lua identifier
+ */
 void validateInitialGlobals(const LuaInitialGlobals &initialGlobals)
 {
   for(const auto &entry : initialGlobals)
@@ -704,6 +746,13 @@ void parseOrThrow(Parse&& parse,
   }
 }
 
+/**
+ * Append errors for unexpected top-level Lua globals.
+ *
+ * \param doc the verified Inlet document
+ * \param errors receives errors for unexpected globals
+ * \param allowedGlobals caller-provided globals that are permitted in the deck
+ */
 void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
                                   std::vector<inlet::VerificationError> &errors,
                                   const std::unordered_set<std::string> &allowedGlobals)
