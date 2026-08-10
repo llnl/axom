@@ -66,79 +66,45 @@ In Lua, the following operations on the ``Vector`` type are supported (for ``Vec
 Functions as value alternatives
 -------------------------------
 
-Some schemas accept either a concrete value or a function that computes that value.
-Use ``addFunctionAsValueAlternative`` to declare this relationship explicitly.
-The callback and concrete form share one public input name:
-
-.. code-block:: C++
-
-  inlet.addFunctionAsValueAlternative(
-    "scale",
-    axom::inlet::FunctionTag::Vector,
-    {});
-  inlet.addDoubleArray("scale");
-
-With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``,
-while ``scale = function() return {2.0, 3.0, 4.0} end`` supplies the function
-alternative associated with ``scale``. Use ``containsFunctionValueAlternative("scale")``
-and ``getFunctionValueAlternative("scale")`` on the containing ``Container`` to
-query and retrieve it.
-
-Inside a struct collection, Inlet resolves the public value name against each concrete
-element. For example, this Lua input supplies ``bar`` directly for one ``foo`` element
-and computes it with a callback for another:
-
-.. code-block:: Lua
-
-  foo = {
-    [7] = { bar = 2 },
-    [12] = { bar = function() return 3 end }
-  }
-
-The corresponding schema is compiled as part of Inlet's function callback example:
+Some schemas allow an input to be either a concrete value or a function that computes it.
+Declare the concrete entry normally, then associate a function with the same input name:
 
 .. literalinclude:: ../../examples/functions.cpp
-   :start-after: _inlet_nested_callback_alternative_start
-   :end-before: _inlet_nested_callback_alternative_end
+   :start-after: _inlet_function_value_alternative_schema_start
+   :end-before: _inlet_function_value_alternative_schema_end
    :language: C++
    :dedent: 2
 
-After verification, each concrete element contains only the representation that was provided.
-A ``FromInlet`` specialization can normalize both representations to a scalar:
+The declarations may appear in either order and use the same relative and slash-delimited
+paths as other ``Container`` methods. The example accepts either of these Lua inputs:
+
+.. code-block:: Lua
+
+  scale = 2.0
+
+  -- or
+  scale = function() return 3.0 end
+
+After verification, query which representation was supplied before retrieving it:
 
 .. literalinclude:: ../../examples/functions.cpp
    :start-after: _inlet_function_value_alternative_access_start
    :end-before: _inlet_function_value_alternative_access_end
    :language: C++
+   :dedent: 2
 
-This example evaluates a supplied callback during conversion. An application that needs
-deferred evaluation can instead call ``get<double()>()`` on the result
-of ``getFunctionValueAlternative("bar")`` and store the returned ``std::function<double()>``.
+For the shared input name, ``contains`` reports only the concrete representation and
+``containsFunctionValueAlternative`` reports only the function representation.
+Either form counts as user-provided input, and both are recognized by strict Containers. 
+An unrelated input type fails verification.
 
-The two schema entries may be added in either order and through any equivalent relative path.
-For example, ``inlet.addDouble("group/value")`` and 
-``group.addFunctionAsValueAlternative("value", ...)`` describe one input path. 
-A function encountered at a normal field path remains a type error 
-unless this alternative has been declared.
-The API permits at most one callback alternative for each canonical input path;
-declaring it again through either Container is an error.
-Since one Lua object cannot simultaneously be a concrete value and a function,
-at most one of the two supported representations can match.
+A function value alternative is runtime-only: it is not returned by ``getChildFunctions()``,
+cannot be marked required, and is not persisted in Sidre. Validation attached to the concrete
+schema entry does not apply to the function result. Applications that require this input or impose
+constraints on both forms should validate those conditions after resolving the representation.
 
-Only the selected representation exists: ``contains`` reports the concrete field when a
-value was supplied, and ``containsFunctionValueAlternative`` reports the callback when a
-function was supplied. A value with an unrelated type matches neither representation and
-fails verification. The shared public name is recognized by strict containers and is not
-reported as unexpected.
-
-The callback alternative is not an independent schema entry: it does not appear in
-``getChildFunctions()``, cannot be marked ``required()``, and is not persisted in Sidre.
-The concrete field's validation rules do not automatically apply to the callback's result.
-Applications should validate any constraints shared by both forms after resolving the
-selected representation.
-
-Generated Sphinx and JSON Schema documentation describe only the concrete value form.
-Document the callback form separately when exposing it as part of an application's Lua interface.
+Generated Sphinx and JSON Schema documentation show only the concrete entry.
+Application documentation should describe the function form when it is part of the Lua interface.
 
 Accessing
 ---------
@@ -169,22 +135,7 @@ by calling it directly:
   signature defined as part of the schema.  This is because the arguments do not participate in
   overload resolution.
 
-Callbacks copied out of Inlet keep their Lua state alive and remain callable after the Inlet
-object is destroyed. Lua execution errors and invalid callback return values are reported as
-``std::runtime_error`` at the call site.
-
-The lifetime behavior is also demonstrated by the compiled function callback example:
-
-.. literalinclude:: ../../examples/functions.cpp
-   :start-after: _inlet_callback_after_destruction_start
-   :end-before: _inlet_callback_after_destruction_end
-   :language: C++
-   :dedent: 2
-
-All callbacks obtained from one ``LuaReader`` retain and share that reader's Lua state.
-Copying a returned ``std::function`` does not clone the state, and mutations to Lua globals
-or captured Lua tables made by one callback are therefore visible to the others.
-Callbacks from the same reader must not be invoked concurrently:
-even apparently read-only calls use the same Lua interpreter state.
-Applications that need concurrent callback evaluation must serialize access to each state
-or create independent ``LuaReader`` instances and parse the input separately for each thread.
+Callbacks retrieved from Inlet keep their Lua state alive, so they remain callable after the
+Inlet and Reader are destroyed. Callbacks from one ``LuaReader`` share mutable interpreter
+state and must not be invoked concurrently without synchronization. Lua execution errors and
+invalid callback return values throw ``std::runtime_error`` at the call site.

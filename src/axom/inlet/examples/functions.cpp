@@ -7,80 +7,41 @@
 #include "axom/inlet.hpp"
 #include "axom/slic/core/SimpleLogger.hpp"
 
-#include <functional>
-#include <unordered_map>
+#include <memory>
+#include <string>
+#include <utility>
 
 namespace inlet = axom::inlet;
 
-// _inlet_function_value_alternative_access_start
-struct Foo
-{
-  double bar;
-};
-
-template <>
-struct FromInlet<Foo>
-{
-  Foo operator()(const inlet::Container& input)
-  {
-    if(input.containsFunctionValueAlternative("bar"))
-    {
-      return {input.getFunctionValueAlternative("bar").call<double>()};
-    }
-
-    return {input["bar"].get<double>()};
-  }
-};
-// _inlet_function_value_alternative_access_end
-
-bool runNestedCallbackExample()
+double readScale(const std::string& luaInput)
 {
   auto reader = std::make_unique<inlet::LuaReader>();
-  reader->parseString(
-    "foo = { [7] = { bar = 2 }, "
-    "        [12] = { bar = function () return 3 end } }");
-  inlet::Inlet inlet(std::move(reader));
+  reader->parseString(luaInput);
+  inlet::Inlet input(std::move(reader));
 
-  // _inlet_nested_callback_alternative_start
-  auto& foo = inlet.addStructArray("foo");
-  foo.addDouble("bar");
-  foo.addFunctionAsValueAlternative(
-    "bar",
-    inlet::FunctionTag::Double,
-    {});
-  // _inlet_nested_callback_alternative_end
+  // _inlet_function_value_alternative_schema_start
+  input.addDouble("scale");
+  input.addFunctionAsValueAlternative("scale", inlet::FunctionTag::Double, {});
+  // _inlet_function_value_alternative_schema_end
 
-  if(!inlet.verify())
+  if(!input.verify())
   {
-    return false;
+    return 0.0;
   }
 
-  const auto values = inlet["foo"].get<std::unordered_map<int, Foo>>();
-  return values.at(7).bar == 2.0 && values.at(12).bar == 3.0;
-}
-
-bool runCallbackLifetimeExample()
-{
-  // _inlet_callback_after_destruction_start
-  std::function<double(double)> callback;
-  {
-    auto reader = std::make_unique<inlet::LuaReader>();
-    reader->parseString("offset = 3.0; function foo (value) return value + offset end");
-    inlet::Inlet inlet(std::move(reader));
-    inlet.addFunction("foo",
-                      inlet::FunctionTag::Double,
-                      {inlet::FunctionTag::Double});
-    callback = inlet["foo"].get<std::function<double(double)>>();
-  }
-
-  const double result = callback(4.0);
-  // _inlet_callback_after_destruction_end
-  return result == 7.0;
+  // _inlet_function_value_alternative_access_start
+  const auto& root = input.getGlobalContainer();
+  return root.containsFunctionValueAlternative("scale")
+    ? root.getFunctionValueAlternative("scale").call<double>()
+    : input["scale"].get<double>();
+  // _inlet_function_value_alternative_access_end
 }
 
 int main()
 {
   axom::slic::SimpleLogger logger;
 
-  return runNestedCallbackExample() && runCallbackLifetimeExample() ? 0 : 1;
+  const bool concreteWorks = readScale("scale = 2.0") == 2.0;
+  const bool callbackWorks = readScale("scale = function() return 3.0 end") == 3.0;
+  return concreteWorks && callbackWorks ? 0 : 1;
 }
