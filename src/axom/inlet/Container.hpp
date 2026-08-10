@@ -68,44 +68,6 @@ class Container;
 template <typename Variant>
 class VariantStructCollection;
 
-/*!
- *****************************************************************************
- * \brief Controls how an aliased input path is resolved.
- *****************************************************************************
- */
-enum class InputPathMode
-{
-  Exact,
-  RelativeToCollectionElement
-};
-
-/*!
- *****************************************************************************
- * \brief Describes an input path whose resolution semantics must remain
- * explicit when a schema is expanded across a struct collection.
- *****************************************************************************
- */
-struct InputPath
-{
-  InputPath(std::string path, InputPathMode pathMode)
-    : value(std::move(path))
-    , mode(pathMode)
-  { }
-
-  static InputPath exact(std::string path)
-  {
-    return InputPath(std::move(path), InputPathMode::Exact);
-  }
-
-  static InputPath relativeToCollectionElement(std::string path)
-  {
-    return InputPath(std::move(path), InputPathMode::RelativeToCollectionElement);
-  }
-
-  std::string value;
-  InputPathMode mode;
-};
-
 namespace detail
 {
 struct VariantStructFactoryBase
@@ -775,8 +737,7 @@ public:
    * \param [in] arg_types    The argument types of the function
    * \param [in] description  Description of the function
    * \param [in] pathOverride The path within the input file to read from,
-   * if different than the structure of the Sidre datastore. When adding to a
-   * struct collection, this is resolved relative to each concrete element.
+   * if different than the structure of the Sidre datastore
    *
    * \return Reference to the created Function
    *****************************************************************************
@@ -789,85 +750,27 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Get a function from an explicitly resolved input path.
-   *
-   * \param [in] name        Name of the function in the schema
-   * \param [in] ret_type    The return type of the function
-   * \param [in] arg_types   The argument types of the function
-   * \param [in] inputPath   Explicit input path and resolution mode
-   * \param [in] description Description of the function
-   *
-   * \return Reference to the created Function
-   *****************************************************************************
-   */
-  Verifiable<Function>& addFunction(const std::string& name,
-                                    FunctionTag ret_type,
-                                    const std::vector<FunctionTag>& arg_types,
-                                    const InputPath& inputPath,
-                                    const std::string& description = "");
-
-  /*!
-   *****************************************************************************
-   * \brief Get a function that is an alternative representation of a primitive
+   * \brief Add a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
-   * The function is stored in the Inlet schema under \a name, but is read from
-   * \a inputPath. If a function exists there, a primitive field or collection
-   * that reads the same input path is treated as absent rather than as having
-   * the wrong type. The function and concrete value may be added in either order.
+   * The function is stored under an Inlet-managed internal name and read from
+   * the same public value name as the concrete field or collection.
+   * If a function exists there, the concrete schema entry is treated as absent
+   * rather than as having the wrong type. The function and concrete value
+   * may be added in either order.
    *
-   * \param [in] name        Name under which to store the function
+   * \param [in] valueName   Public name of the concrete value or collection
    * \param [in] ret_type    The return type of the function
    * \param [in] arg_types   The argument types of the function
-   * \param [in] inputPath   Path of the function in the input deck
    * \param [in] description Description of the function
    *
    * \return Reference to the created Function
    *****************************************************************************
    */
   Verifiable<Function>& addFunctionAsValueAlternative(
-    const std::string& name,
+    const std::string& valueName,
     FunctionTag ret_type,
     const std::vector<FunctionTag>& arg_types,
-    const std::string& inputPath,
-    const std::string& description = "");
-
-  /*!
-   *********************************************************************************
-   * \brief Get a function value alternative from an explicitly resolved input path.
-   *********************************************************************************
-   */
-  Verifiable<Function>& addFunctionAsValueAlternative(
-    const std::string& name,
-    FunctionTag ret_type,
-    const std::vector<FunctionTag>& arg_types,
-    const InputPath& inputPath,
-    const std::string& description = "");
-
-  /*!
-   *********************************************************************************
-   * \brief Add an automatically named function value alternative.
-   *
-   * The function remains accessible through \a inputPath using
-   * getFunctionValueAlternative(), without exposing its internal storage name.
-   *********************************************************************************
-   */
-  Verifiable<Function>& addFunctionAsValueAlternative(
-    FunctionTag ret_type,
-    const std::vector<FunctionTag>& arg_types,
-    const std::string& inputPath,
-    const std::string& description = "");
-
-  /*!
-   *********************************************************************************
-   * \brief Add an automatically named function value alternative from an
-   * explicitly resolved input path.
-   *********************************************************************************
-   */
-  Verifiable<Function>& addFunctionAsValueAlternative(
-    FunctionTag ret_type,
-    const std::vector<FunctionTag>& arg_types,
-    const InputPath& inputPath,
     const std::string& description = "");
 
   /*!
@@ -1153,23 +1056,23 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Return whether a function value alternative was supplied at the
-   * given input path.
+   * \brief Return whether a function value alternative was supplied for the
+   * given public value name.
    *****************************************************************************
    */
-  bool containsFunctionValueAlternative(const std::string& inputPath) const;
+  bool containsFunctionValueAlternative(const std::string& valueName) const;
 
   /*!
    *****************************************************************************
-   * \brief Retrieve the function value alternative associated with an input
-   * path.
+   * \brief Retrieve the function value alternative associated with a public
+   * value name.
    *****************************************************************************
    */
-  Function& getFunctionValueAlternative(const std::string& inputPath) const;
+  Function& getFunctionValueAlternative(const std::string& valueName) const;
 
   /*!
    *****************************************************************************
-   * \brief Return the input paths of supplied function value alternatives.
+   * \brief Return the public value names of supplied function alternatives.
    *****************************************************************************
    */
   std::vector<std::string> getFunctionValueAlternativeNames() const;
@@ -1414,18 +1317,12 @@ private:
                           const std::string& fullName,
                           const std::string& name);
 
-  /*!
-   *****************************************************************************
-   * \brief Adds a function using an input path that may be relative to each
-   * concrete nested container.
-   *****************************************************************************
-   */
-  Verifiable<Function>& addFunctionWithInputPath(const std::string& name,
-                                                 FunctionTag ret_type,
-                                                 const std::vector<FunctionTag>& arg_types,
-                                                 const std::string& description,
-                                                 const InputPath& inputPath,
-                                                 bool isValueAlternative);
+  Verifiable<Function>& addFunctionValueAlternative(
+    const std::string& valueName,
+    FunctionTag ret_type,
+    const std::vector<FunctionTag>& arg_types,
+    const std::string& description,
+    const std::string& resolvedValuePath);
 
   std::string nextFunctionValueAlternativeName();
 

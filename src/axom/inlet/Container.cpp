@@ -947,145 +947,16 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                                              const std::string& description,
                                              const std::string& pathOverride)
 {
-  const auto pathMode = (isStructCollection() || !m_nested_aggregates.empty())
-    ? InputPathMode::RelativeToCollectionElement
-    : InputPathMode::Exact;
-  return addFunctionWithInputPath(
-    name,
-    ret_type,
-    arg_types,
-    description,
-    InputPath {pathOverride, pathMode},
-    false);
-}
-
-Verifiable<Function>& Container::addFunction(const std::string& name,
-                                             const FunctionTag ret_type,
-                                             const std::vector<FunctionTag>& arg_types,
-                                             const InputPath& inputPath,
-                                             const std::string& description)
-{
-  SLIC_ERROR_IF(inputPath.value.empty(),
-                "[Inlet] An explicit function input path must be non-empty");
-  return addFunctionWithInputPath(
-    name,
-    ret_type,
-    arg_types,
-    description,
-    inputPath,
-    false);
-}
-
-Verifiable<Function>& Container::addFunctionAsValueAlternative(
-  const std::string& name,
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const std::string& inputPath,
-  const std::string& description)
-{
-  SLIC_ERROR_IF(inputPath.empty(),
-                "[Inlet] A function value alternative requires a non-empty input path");
-  const auto pathMode = (isStructCollection() || !m_nested_aggregates.empty())
-    ? InputPathMode::RelativeToCollectionElement
-    : InputPathMode::Exact;
-  return addFunctionWithInputPath(
-    name,
-    ret_type,
-    arg_types,
-    description,
-    InputPath {inputPath, pathMode},
-    true);
-}
-
-Verifiable<Function>& Container::addFunctionAsValueAlternative(
-  const std::string& name,
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const InputPath& inputPath,
-  const std::string& description)
-{
-  SLIC_ERROR_IF(inputPath.value.empty(),
-                "[Inlet] A function value alternative requires a non-empty input path");
-  return addFunctionWithInputPath(
-    name,
-    ret_type,
-    arg_types,
-    description,
-    inputPath,
-    true);
-}
-
-Verifiable<Function>& Container::addFunctionAsValueAlternative(
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const std::string& inputPath,
-  const std::string& description)
-{
-  return addFunctionAsValueAlternative(
-    nextFunctionValueAlternativeName(),
-    ret_type,
-    arg_types,
-    inputPath,
-    description);
-}
-
-Verifiable<Function>& Container::addFunctionAsValueAlternative(
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const InputPath& inputPath,
-  const std::string& description)
-{
-  return addFunctionAsValueAlternative(
-    nextFunctionValueAlternativeName(),
-    ret_type,
-    arg_types,
-    inputPath,
-    description);
-}
-
-std::string Container::nextFunctionValueAlternativeName()
-{
-  std::string name;
-  std::string fullName;
-  do
-  {
-    name =
-      axom::fmt::format("__inlet_function_value_alternative_{}", m_nextFunctionValueAlternativeId++);
-    fullName = utilities::string::appendPrefix(m_name, name);
-  } while(m_sidreRootGroup->hasGroup(fullName));
-  return name;
-}
-
-Verifiable<Function>& Container::addFunctionWithInputPath(
-  const std::string& name,
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const std::string& description,
-  const InputPath& inputPath,
-  const bool isValueAlternative)
-{
-  // If it has indices, we're adding a function to an array
-  // of structs, so we need to iterate over the subcontainers
-  // corresponding to elements of the array
+  // If it has indices, we're adding a function to an array of structs,
+  // so we need to iterate over the subcontainers corresponding to elements of the array
   std::vector<std::reference_wrapper<Verifiable<Function>>> funcs;
 
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(funcs),
     name,
-    [&name, &ret_type, &arg_types, &description, &inputPath, isValueAlternative](
-      Container& subcontainer,
-      const std::string& path) -> Verifiable<Function>& {
-      InputPath nestedInputPath = inputPath;
-      if(nestedInputPath.value.empty())
-      {
-        nestedInputPath = InputPath::exact(path);
-      }
-      return subcontainer.addFunctionWithInputPath(name,
-                                                   ret_type,
-                                                   arg_types,
-                                                   description,
-                                                   nestedInputPath,
-                                                   isValueAlternative);
+    [&name, &ret_type, &arg_types, &description](Container& subcontainer,
+                                                 const std::string& path) -> Verifiable<Function>& {
+      return subcontainer.addFunction(name, ret_type, arg_types, description, path);
     });
   if(is_nested)
   {
@@ -1106,53 +977,112 @@ Verifiable<Function>& Container::addFunctionWithInputPath(
     {
       return *iter->second;
     }
-
-    if(isValueAlternative)
-    {
-      const auto existingAlternative = m_functionValueAlternatives.find(inputPath.value);
-      if(existingAlternative != m_functionValueAlternatives.end())
-      {
-        SLIC_ERROR(fmt::format("[Inlet] Input path '{0}' already has a function value "
-                               "alternative in container '{1}'",
-                               inputPath.value,
-                               m_name));
-        return *existingAlternative->second;
-      }
-    }
-
     axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
     SLIC_ERROR_IF(sidreGroup == nullptr,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
-    std::string lookupPath = inputPath.value;
-    if(lookupPath.empty())
-    {
-      lookupPath = fullName;
-    }
-    else if(inputPath.mode == InputPathMode::RelativeToCollectionElement)
-    {
-      lookupPath = Path::join({Path(m_name), Path(inputPath.value)});
-    }
+    // If a pathOverride is specified, needed when Inlet-internal groups
+    // are part of fullName
+    std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
-    if(isValueAlternative)
-    {
-      sidreGroup->createViewScalar(detail::FUNCTION_VALUE_ALTERNATIVE_FLAG,
-                                   static_cast<std::int8_t>(1));
-    }
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
-    if(isValueAlternative && func)
-    {
-      registerFunctionAlternativePath(lookupPath);
-    }
-    auto& storedFunction = storeFunction(sidreGroup, std::move(func), fullName, name);
-    if(isValueAlternative)
-    {
-      m_functionValueAlternatives[inputPath.value] = &storedFunction;
-    }
-    return storedFunction;
+    return storeFunction(sidreGroup, std::move(func), fullName, name);
   }
+}
+
+Verifiable<Function>& Container::addFunctionAsValueAlternative(
+  const std::string& valueName,
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const std::string& description)
+{
+  SLIC_ERROR_IF(valueName.empty(),
+                "[Inlet] A function value alternative requires a non-empty value name");
+  return addFunctionValueAlternative(valueName,
+                                     ret_type,
+                                     arg_types,
+                                     description,
+                                     "");
+}
+
+std::string Container::nextFunctionValueAlternativeName()
+{
+  std::string name;
+  std::string fullName;
+  do
+  {
+    name =
+      axom::fmt::format("__inlet_function_value_alternative_{}", m_nextFunctionValueAlternativeId++);
+    fullName = utilities::string::appendPrefix(m_name, name);
+  } while(m_sidreRootGroup->hasGroup(fullName));
+  return name;
+}
+
+Verifiable<Function>& Container::addFunctionValueAlternative(
+  const std::string& valueName,
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const std::string& description,
+  const std::string& resolvedValuePath)
+{
+  // Expand the public value name across nested collections. The callback's
+  // internal storage name must not participate in input-path resolution.
+  std::vector<std::reference_wrapper<Verifiable<Function>>> funcs;
+
+  const bool is_nested = transformFromNestedElements(
+    std::back_inserter(funcs),
+    valueName,
+    [&valueName, &ret_type, &arg_types, &description](Container& subcontainer,
+                                                     const std::string& path) -> Verifiable<Function>& {
+      return subcontainer.addFunctionValueAlternative(valueName,
+                                                      ret_type,
+                                                      arg_types,
+                                                      description,
+                                                      path);
+    });
+  if(is_nested)
+  {
+    m_aggregate_funcs.emplace_back(std::move(funcs));
+    return m_aggregate_funcs.back();
+  }
+
+  const auto existingAlternative = m_functionValueAlternatives.find(valueName);
+  if(existingAlternative != m_functionValueAlternatives.end())
+  {
+    SLIC_ERROR(fmt::format("[Inlet] Value '{0}' already has a function alternative "
+                           "in container '{1}'",
+                           valueName,
+                           m_name));
+    return *existingAlternative->second;
+  }
+
+  const std::string internalName = nextFunctionValueAlternativeName();
+  const std::string fullName = utilities::string::appendPrefix(m_name, internalName);
+  axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
+  SLIC_ERROR_IF(sidreGroup == nullptr,
+                fmt::format("Failed to create Sidre group with name '{0}'", fullName));
+  detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
+  sidreGroup->createViewScalar(detail::FUNCTION_VALUE_ALTERNATIVE_FLAG,
+                               static_cast<std::int8_t>(1));
+
+  std::string lookupPath = resolvedValuePath.empty()
+    ? utilities::string::appendPrefix(m_name, valueName)
+    : resolvedValuePath;
+  lookupPath =
+    utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
+  detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
+  auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
+  if(func)
+  {
+    registerFunctionAlternativePath(lookupPath);
+  }
+
+  auto& storedFunction =
+    storeFunction(sidreGroup, std::move(func), fullName, internalName);
+  m_functionValueAlternatives[valueName] = &storedFunction;
+  return storedFunction;
 }
 
 Proxy Container::operator[](const std::string& name) const
@@ -1548,19 +1478,19 @@ const std::unordered_map<std::string, std::unique_ptr<Function>>& Container::get
   return m_functionChildren;
 }
 
-bool Container::containsFunctionValueAlternative(const std::string& inputPath) const
+bool Container::containsFunctionValueAlternative(const std::string& valueName) const
 {
-  const auto iter = m_functionValueAlternatives.find(inputPath);
+  const auto iter = m_functionValueAlternatives.find(valueName);
   return iter != m_functionValueAlternatives.end() &&
     static_cast<bool>(*iter->second);
 }
 
-Function& Container::getFunctionValueAlternative(const std::string& inputPath) const
+Function& Container::getFunctionValueAlternative(const std::string& valueName) const
 {
-  const auto iter = m_functionValueAlternatives.find(inputPath);
+  const auto iter = m_functionValueAlternatives.find(valueName);
   SLIC_ERROR_IF(
     iter == m_functionValueAlternatives.end(),
-    axom::fmt::format("[Inlet] Function value alternative not found for input path: {0}", inputPath));
+    axom::fmt::format("[Inlet] Function value alternative not found for value: {0}", valueName));
 
   return *iter->second;
 }

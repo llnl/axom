@@ -872,9 +872,9 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
     const auto addCallbackAlternative =
       [](inlet::Container &container, const char *fieldName, inlet::FunctionTag returnType) {
         container.addFunctionAsValueAlternative(
+          fieldName,
           returnType,
-          {},
-          fieldName);
+          {});
       };
 
     addCallbackAlternative(opContainer, "translate", inlet::FunctionTag::Vector);

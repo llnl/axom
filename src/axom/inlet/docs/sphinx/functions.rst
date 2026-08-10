@@ -63,54 +63,20 @@ In Lua, the following operations on the ``Vector`` type are supported (for ``Vec
 #. Dimension retrieval: ``d = u.dim``
 #. Component retrieval: ``d = u.x``, ``d = u.y``, ``d = u.z``
 
-Aliased input paths
--------------------
-
-A function's schema name and its path in the input do not need to match.
-Inlet provides an ``InputPath`` descriptor to allow a path to retain the same meaning
-when a schema is expanded across a struct array or dictionary:
-
-.. code-block:: C++
-
-  using axom::inlet::InputPath;
-
-  // Every element reads the same root-level callback.
-  shapes.addFunction(
-    "transform_callback",
-    axom::inlet::FunctionTag::Vector,
-    {axom::inlet::FunctionTag::Vector},
-    InputPath::exact("shared_transform"));
-
-  // Every element reads its own "transform" callback.
-  shapes.addFunction(
-    "transform_callback",
-    axom::inlet::FunctionTag::Vector,
-    {axom::inlet::FunctionTag::Vector},
-    InputPath::relativeToCollectionElement("transform"));
-
-An exact path is used unchanged, regardless of where the function is stored in the schema.
-A collection-relative path is joined to each concrete collection element.
-Outside a collection, it is relative to the current ``Container``.
-
-The ``addFunction(name, returnType, argumentTypes, description, pathOverride)`` overload
-remains available. Its string override retains the rule that
-it is exact outside a struct collection and relative to each element inside one.
-Prefer ``InputPath`` when adding new aliases so this behavior is explicit at the call site.
-
 Functions as value alternatives
 -------------------------------
 
 Some schemas accept either a concrete value or a function that computes that value.
 Use ``addFunctionAsValueAlternative`` to declare this relationship explicitly.
-The recommended overload lets Inlet own the callback's internal storage name and
-associates it with the concrete field's input path:
+Inlet owns the callback's internal storage name and associates it with the concrete
+field's public name:
 
 .. code-block:: C++
 
   inlet.addFunctionAsValueAlternative(
+    "scale",
     axom::inlet::FunctionTag::Vector,
-    {},
-    "scale");
+    {});
   inlet.addDoubleArray("scale");
 
 With this schema, ``scale = {2.0, 3.0, 4.0}`` populates ``scale``,
@@ -119,9 +85,9 @@ alternative associated with ``scale``. Use ``containsFunctionValueAlternative("s
 and ``getFunctionValueAlternative("scale")`` on the containing ``Container`` to
 query and retrieve it without depending on an internal schema name.
 
-Inside a struct collection, use a collection-relative path when each element supplies
-its own value or callback. For example, this Lua input supplies ``bar`` directly
-for one ``foo`` element and computes it with a callback for another:
+Inside a struct collection, Inlet resolves the public value name against each concrete
+element. For example, this Lua input supplies ``bar`` directly for one ``foo`` element
+and computes it with a callback for another:
 
 .. code-block:: Lua
 
@@ -150,24 +116,17 @@ This example evaluates a supplied callback during conversion. An application tha
 deferred evaluation can instead call ``get<double()>()`` on the result
 of ``getFunctionValueAlternative("bar")`` and store the returned ``std::function<double()>``.
 
-When Inlet expands the schema, ``relativeToCollectionElement("bar")`` resolves against
-each concrete collection element rather than against the collection container or root.
-
-An overload that takes a schema name first remains available when the callback needs
-an independently addressable schema entry. Both forms accept an ``InputPath`` descriptor
-when exact or collection-relative resolution needs to be explicit.
-
 The two schema entries may be added in either order. A function encountered at a normal
 field path remains a type error unless this alternative has been declared.
-The narrow API permits one callback alternative for a public input path in a given container
-and declaring a second callback alternative for that path is an error.
+The narrow API permits one callback alternative for a public value name in a given container
+and declaring a second callback alternative for that name is an error.
 Since one Lua object cannot simultaneously be a concrete value and a function,
 at most one of the two supported representations can match.
 
 Only the selected representation exists: ``contains`` reports the concrete field when a
 value was supplied, and ``containsFunctionValueAlternative`` reports the callback when a
 function was supplied. A value with an unrelated type matches neither representation and
-fails verification. The shared input path is recognized by strict containers and is not
+fails verification. The shared public name is recognized by strict containers and is not
 reported as unexpected.
 
 The returned function and the concrete field remain independently verifiable schema entries.
