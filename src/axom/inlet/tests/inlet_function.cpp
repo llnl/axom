@@ -28,7 +28,6 @@ using axom::inlet::FunctionTag;
 using axom::inlet::FunctionType;
 using axom::inlet::Inlet;
 using axom::inlet::InletType;
-using axom::inlet::InputPath;
 using axom::inlet::JSONSchemaWriter;
 using axom::inlet::LuaReader;
 using axom::inlet::SphinxWriter;
@@ -246,19 +245,6 @@ TEST(inlet_function, function_path_override)
   EXPECT_DOUBLE_EQ(callback(3.0), 5.0);
 }
 
-TEST(inlet_function, explicit_exact_function_input_path)
-{
-  auto inlet = createBasicInlet("function public_name (x) return x + 2 end");
-
-  inlet.addFunction("internal_name",
-                    FunctionTag::Double,
-                    {FunctionTag::Double},
-                    InputPath::exact("public_name"));
-
-  auto callback = inlet["internal_name"].get<std::function<double(double)>>();
-  EXPECT_DOUBLE_EQ(callback(3.0), 5.0);
-}
-
 TEST(inlet_function, function_value_alternative_is_schema_order_independent)
 {
   // Both schema entries inspect "foo"; declaration order must not select one.
@@ -267,11 +253,7 @@ TEST(inlet_function, function_value_alternative_is_schema_order_independent)
     {
       inlet.addDouble("foo");
     }
-    inlet.addFunctionAsValueAlternative(
-      "foo_callback",
-      FunctionTag::Double,
-      {},
-      "foo");
+    inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
     if(functionFirst)
     {
       inlet.addDouble("foo");
@@ -285,33 +267,30 @@ TEST(inlet_function, function_value_alternative_is_schema_order_independent)
 
     EXPECT_TRUE(inlet.verify());
     EXPECT_FALSE(inlet.contains("foo"));
-    ASSERT_TRUE(inlet.contains("foo_callback"));
-    EXPECT_DOUBLE_EQ(inlet["foo_callback"].call<double>(), 2.0);
+    auto& container = inlet.getGlobalContainer();
+    ASSERT_TRUE(container.containsFunctionValueAlternative("foo"));
+    EXPECT_DOUBLE_EQ(container.getFunctionValueAlternative("foo").call<double>(), 2.0);
   }
 }
 
 TEST(inlet_function, function_value_alternative_preserves_concrete_value)
 {
   auto inlet = createBasicInlet("foo = 4.0");
-  inlet.addFunctionAsValueAlternative(
-    "foo_callback",
-    FunctionTag::Double,
-    {},
-    "foo");
+  inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
   inlet.addDouble("foo");
 
   EXPECT_TRUE(inlet.verify());
-  EXPECT_FALSE(inlet.contains("foo_callback"));
+  EXPECT_FALSE(inlet.getGlobalContainer().containsFunctionValueAlternative("foo"));
   ASSERT_TRUE(inlet.contains("foo"));
   EXPECT_DOUBLE_EQ(inlet["foo"].get<double>(), 4.0);
 }
 
-TEST(inlet_function, auto_named_function_value_alternative_uses_input_path)
+TEST(inlet_function, function_value_alternative_uses_public_value_name)
 {
   // set and access function in alternative
   {
     auto inlet = createBasicInlet("function foo () return 2.0 end");
-    inlet.addFunctionAsValueAlternative(FunctionTag::Double, {}, "foo");
+    inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
     inlet.addDouble("foo");
 
     EXPECT_TRUE(inlet.verify());
@@ -329,7 +308,7 @@ TEST(inlet_function, auto_named_function_value_alternative_uses_input_path)
   // set and access value in alternative
   {
     auto concreteInlet = createBasicInlet("foo = 4.0");
-    concreteInlet.addFunctionAsValueAlternative(FunctionTag::Double, {}, "foo");
+    concreteInlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
     concreteInlet.addDouble("foo");
 
     EXPECT_TRUE(concreteInlet.verify());
@@ -346,18 +325,14 @@ TEST(inlet_function, required_function_value_alternative_missing)
   auto inlet = createBasicInlet("");
   inlet.addDouble("foo");
   inlet
-    .addFunctionAsValueAlternative(
-      "foo_callback",
-      FunctionTag::Double,
-      {},
-      "foo")
+    .addFunctionAsValueAlternative("foo", FunctionTag::Double, {})
     .required();
 
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   EXPECT_FALSE(errors.empty());
   EXPECT_FALSE(inlet.contains("foo"));
-  EXPECT_FALSE(inlet.contains("foo_callback"));
+  EXPECT_FALSE(inlet.getGlobalContainer().containsFunctionValueAlternative("foo"));
   EXPECT_FALSE(inlet.getGlobalContainer().exists());
 }
 
@@ -368,11 +343,7 @@ TEST(inlet_function, function_value_alternative_rejects_unrelated_wrong_type)
     {
       inlet.addDouble("foo");
     }
-    inlet.addFunctionAsValueAlternative(
-      "foo_callback",
-      FunctionTag::Double,
-      {},
-      "foo");
+    inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
     if(functionFirst)
     {
       inlet.addDouble("foo");
@@ -386,10 +357,9 @@ TEST(inlet_function, function_value_alternative_rejects_unrelated_wrong_type)
 
     EXPECT_FALSE(inlet.verify());
     EXPECT_FALSE(inlet.contains("foo"));
-    EXPECT_FALSE(inlet.contains("foo_callback"));
+    EXPECT_FALSE(inlet.getGlobalContainer().containsFunctionValueAlternative("foo"));
     // The input exists even though neither schema entry accepts its type.
     EXPECT_TRUE(inlet.isUserProvided("foo"));
-    EXPECT_FALSE(inlet.isUserProvided("foo_callback"));
     EXPECT_FALSE(inlet.getGlobalContainer().exists());
   }
 }
@@ -401,16 +371,12 @@ TEST(inlet_function, function_value_alternative_is_valid_in_strict_container)
     auto inlet =
       createBasicInlet(useFunction ? "function foo () return 2.0 end" : "foo = 4.0");
     inlet.getGlobalContainer().strict();
-    inlet.addFunctionAsValueAlternative(
-      "foo_callback",
-      FunctionTag::Double,
-      {},
-      "foo");
+    inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
     inlet.addDouble("foo");
 
     EXPECT_TRUE(inlet.verify());
     EXPECT_TRUE(inlet.unexpectedNames().empty());
-    EXPECT_EQ(inlet.contains("foo_callback"), useFunction);
+    EXPECT_EQ(inlet.getGlobalContainer().containsFunctionValueAlternative("foo"), useFunction);
     EXPECT_EQ(inlet.contains("foo"), !useFunction);
     EXPECT_TRUE(inlet.getGlobalContainer().exists());
   }
@@ -419,26 +385,10 @@ TEST(inlet_function, function_value_alternative_is_valid_in_strict_container)
 TEST(inlet_function, function_value_alternative_rejects_duplicate_callback_alternative)
 {
   auto inlet = createBasicInlet("function scale () return 2.0 end");
-  auto& callback = inlet.addFunctionAsValueAlternative(
-    "scale_callback",
-    FunctionTag::Double,
-    {},
-    "scale");
-  auto& repeatedCallback = inlet.addFunctionAsValueAlternative(
-    "scale_callback",
-    FunctionTag::Double,
-    {},
-    "scale");
-
-  // Like other Inlet schema entries, repeating the same name is idempotent.
-  EXPECT_EQ(&callback, &repeatedCallback);
+  inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
 
   axom::slic::ScopedAbortToThrow abortGuard;
-  EXPECT_THROW(inlet.addFunctionAsValueAlternative(
-                 "another_scale_callback",
-                 FunctionTag::Double,
-                 {},
-                 "scale"),
+  EXPECT_THROW(inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}),
                axom::slic::SlicAbortException);
   EXPECT_EQ(inlet.getGlobalContainer().getChildFunctions().size(), 1u);
 }
@@ -448,19 +398,15 @@ TEST(inlet_function, function_value_alternative_sidre_and_generated_documentatio
   const std::string sphinxFile = "inlet_function_value_alternative.rst";
   const std::string jsonFile = "inlet_function_value_alternative.json";
   auto inlet = createBasicInlet("scale = 2.0");
-  inlet.addFunctionAsValueAlternative(
-    "scale_callback",
-    FunctionTag::Double,
-    {},
-    "scale");
+  inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
   inlet.addDouble("scale", "Scale factor");
 
   // Sidre marks the internal callback schema group without storing the callable.
-  const auto* callbackGroup = inlet.getGlobalContainer()
-                                .getChildFunctions()
-                                .at("scale_callback")
-                                ->sidreGroup();
+  const auto& childFunctions = inlet.getGlobalContainer().getChildFunctions();
+  ASSERT_EQ(childFunctions.size(), 1u);
+  const auto* callbackGroup = childFunctions.begin()->second->sidreGroup();
   ASSERT_TRUE(callbackGroup->hasView(axom::inlet::detail::FUNCTION_VALUE_ALTERNATIVE_FLAG));
+  const std::string internalName = callbackGroup->getName();
   const std::int8_t alternativeFlag =
     callbackGroup->getView(axom::inlet::detail::FUNCTION_VALUE_ALTERNATIVE_FLAG)->getScalar();
   EXPECT_EQ(alternativeFlag, 1);
@@ -479,9 +425,9 @@ TEST(inlet_function, function_value_alternative_sidre_and_generated_documentatio
   std::remove(jsonFile.c_str());
 
   EXPECT_NE(sphinx.find("scale"), std::string::npos);
-  EXPECT_EQ(sphinx.find("scale_callback"), std::string::npos);
+  EXPECT_EQ(sphinx.find(internalName), std::string::npos);
   EXPECT_NE(json.find("scale"), std::string::npos);
-  EXPECT_EQ(json.find("scale_callback"), std::string::npos);
+  EXPECT_EQ(json.find(internalName), std::string::npos);
 }
 
 TEST(inlet_function, function_value_alternative_restart_does_not_create_internal_field)
@@ -491,7 +437,7 @@ TEST(inlet_function, function_value_alternative_restart_does_not_create_internal
     auto reader = std::make_unique<LuaReader>();
     reader->parseString("scale = 2.0");
     Inlet inlet(std::move(reader), datastore.getRoot());
-    inlet.addFunctionAsValueAlternative(FunctionTag::Double, {}, "scale");
+    inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
     inlet.addDouble("scale");
   }
 
@@ -727,23 +673,9 @@ struct FromInlet<Foo>
   }
 };
 
-struct FooDictionary
-{
-  std::unordered_map<std::string, Foo> values;
-};
-
-template <>
-struct FromInlet<FooDictionary>
-{
-  FooDictionary operator()(const axom::inlet::Container& base)
-  {
-    return {base["foo"].get<std::unordered_map<std::string, Foo>>()};
-  }
-};
-
 struct FooWithValueAlternative
 {
-  std::function<double()> bar;
+  double bar;
 };
 
 template <>
@@ -751,7 +683,25 @@ struct FromInlet<FooWithValueAlternative>
 {
   FooWithValueAlternative operator()(const axom::inlet::Container& base)
   {
-    return {base["bar_callback"]};
+    if(base.containsFunctionValueAlternative("bar"))
+    {
+      return {base.getFunctionValueAlternative("bar").call<double>()};
+    }
+    return {base["bar"].get<double>()};
+  }
+};
+
+struct FooWithValueAlternativeDictionary
+{
+  std::unordered_map<std::string, FooWithValueAlternative> values;
+};
+
+template <>
+struct FromInlet<FooWithValueAlternativeDictionary>
+{
+  FooWithValueAlternativeDictionary operator()(const axom::inlet::Container& base)
+  {
+    return {base["foo"].get<std::unordered_map<std::string, FooWithValueAlternative>>()};
   }
 };
 
@@ -803,93 +753,42 @@ TEST(inlet_function, simple_vec3_to_vec3_array_of_struct)
   EXPECT_FLOAT_EQ(second_result[2], 18);
 }
 
-TEST(inlet_function, function_path_override_in_array_of_struct)
-{
-  std::string testString =
-    "foo = { [7] = { bar = true, "
-    "                callback = function (v) return 2*v end }, "
-    "       [12] = { bar = false, "
-    "                 callback = function (v) return 3*v end } "
-    "}";
-  auto inlet = createBasicInlet(testString);
-
-  auto& arr_container = inlet.addStructArray("foo");
-  arr_container.addBool("bar");
-  arr_container.addFunction("baz",
-                            FunctionTag::Vector,
-                            {FunctionTag::Vector},
-                            "",
-                            "callback");
-
-  auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
-  EXPECT_FLOAT_EQ(foos[7].baz({1, 2, 3})[0], 2);
-  EXPECT_FLOAT_EQ(foos[12].baz({1, 2, 3})[0], 3);
-}
-
-TEST(inlet_function, explicit_exact_function_input_path_in_array_of_struct)
+TEST(inlet_function, function_value_alternative_in_array_of_struct)
 {
   auto inlet = createBasicInlet(
-    "shared_callback = function (v) return 4*v end; "
-    "foo = { [7] = { bar = true }, [12] = { bar = false } }");
-
-  auto& arr_container = inlet.addStructArray("foo");
-  arr_container.addBool("bar");
-  arr_container.addFunction("baz",
-                            FunctionTag::Vector,
-                            {FunctionTag::Vector},
-                            InputPath::exact("shared_callback"));
-
-  auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
-  EXPECT_FLOAT_EQ(foos[7].baz({1, 2, 3})[0], 4);
-  EXPECT_FLOAT_EQ(foos[12].baz({1, 2, 3})[0], 4);
-}
-
-TEST(inlet_function, explicit_relative_function_input_path_in_nested_dictionary_of_struct)
-{
-  auto inlet = createBasicInlet(
-    "groups = { "
-    "  [0] = { foo = { first = { bar = true, "
-    "                            callback = function (v) return 2*v end }, "
-    "                  second = { bar = false, "
-    "                             callback = function (v) return 3*v end } } }, "
-    "  [1] = { foo = { third = { bar = true, "
-    "                            callback = function (v) return 4*v end } } } }");
-
-  auto& group_container = inlet.addStructArray("groups");
-  auto& dict_container = group_container.addStructDictionary("foo");
-  dict_container.addBool("bar");
-  // Resolve "callback" from each dictionary value, not the enclosing schema.
-  dict_container.addFunction(
-    "baz",
-    FunctionTag::Vector,
-    {FunctionTag::Vector},
-    InputPath::relativeToCollectionElement("callback"));
-
-  auto groups = inlet["groups"].get<std::unordered_map<int, FooDictionary>>();
-  EXPECT_FLOAT_EQ(groups[0].values["first"].baz({1, 2, 3})[0], 2);
-  EXPECT_FLOAT_EQ(groups[0].values["second"].baz({1, 2, 3})[0], 3);
-  EXPECT_FLOAT_EQ(groups[1].values["third"].baz({1, 2, 3})[0], 4);
-}
-
-TEST(inlet_function, explicit_relative_function_value_alternative_in_array_of_struct)
-{
-  auto inlet = createBasicInlet(
-    "foo = { [7] = { bar = function () return 2 end }, "
+    "foo = { [7] = { bar = 2 }, "
     "        [12] = { bar = function () return 3 end } }");
 
   auto& arr_container = inlet.addStructArray("foo");
   arr_container.addDouble("bar");
-  arr_container.addFunctionAsValueAlternative(
-    "bar_callback",
-    FunctionTag::Double,
-    {},
-    InputPath::relativeToCollectionElement("bar"));
+  arr_container.addFunctionAsValueAlternative("bar", FunctionTag::Double, {});
 
   EXPECT_TRUE(inlet.verify());
   auto foos =
     inlet["foo"].get<std::unordered_map<int, FooWithValueAlternative>>();
-  EXPECT_DOUBLE_EQ(foos[7].bar(), 2.0);
-  EXPECT_DOUBLE_EQ(foos[12].bar(), 3.0);
+  EXPECT_DOUBLE_EQ(foos[7].bar, 2.0);
+  EXPECT_DOUBLE_EQ(foos[12].bar, 3.0);
+}
+
+TEST(inlet_function, function_value_alternative_in_nested_dictionary_of_struct)
+{
+  auto inlet = createBasicInlet(
+    "groups = { "
+    "  [0] = { foo = { first = { bar = 2 }, "
+    "                  second = { bar = function () return 3 end } } }, "
+    "  [1] = { foo = { third = { bar = function () return 4 end } } } }");
+
+  auto& groups = inlet.addStructArray("groups");
+  auto& foos = groups.addStructDictionary("foo");
+  foos.addDouble("bar");
+  foos.addFunctionAsValueAlternative("bar", FunctionTag::Double, {});
+
+  EXPECT_TRUE(inlet.verify());
+  const auto values =
+    inlet["groups"].get<std::unordered_map<int, FooWithValueAlternativeDictionary>>();
+  EXPECT_DOUBLE_EQ(values.at(0).values.at("first").bar, 2.0);
+  EXPECT_DOUBLE_EQ(values.at(0).values.at("second").bar, 3.0);
+  EXPECT_DOUBLE_EQ(values.at(1).values.at("third").bar, 4.0);
 }
 
 TEST(inlet_function, dimension_dependent_result)
@@ -961,25 +860,6 @@ TEST(inlet_function, nested_function_in_struct)
   // Check that the function object contains a valid target
   EXPECT_TRUE(static_cast<bool>(second_func));
   EXPECT_DOUBLE_EQ(second_func(4.0), 7.0);
-}
-
-TEST(inlet_function, explicit_relative_function_input_path_in_nested_struct)
-{
-  std::string testString =
-    "quux = { [0] = { foo = { callback = function (x) return x + 1 end } }, "
-    "         [1] = { foo = { callback = function (x) return x + 3 end } } }";
-  auto inlet = createBasicInlet(testString);
-
-  auto& quux_schema = inlet.addStructArray("quux");
-  auto& foo_schema = quux_schema.addStruct("foo");
-  foo_schema.addFunction("bar",
-                         FunctionTag::Double,
-                         {FunctionTag::Double},
-                         InputPath::relativeToCollectionElement("callback"));
-
-  auto foos = inlet["quux"].get<std::vector<FooWithScalarFunc>>();
-  EXPECT_DOUBLE_EQ(foos[0].bar(4.0), 5.0);
-  EXPECT_DOUBLE_EQ(foos[1].bar(4.0), 7.0);
 }
 
 template <typename Ret, typename... Args>
