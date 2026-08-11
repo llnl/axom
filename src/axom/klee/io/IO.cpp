@@ -269,12 +269,11 @@ struct FromInlet<axom::klee::ShapeData>
 {
   axom::klee::ShapeData operator()(const axom::inlet::Container& base)
   {
-    axom::klee::ShapeData data {base.get<std::string>("name"),
+    return axom::klee::ShapeData {base.get<std::string>("name"),
                                   base.get<std::string>("material"),
                                   base["replaces"].get<std::vector<std::string>>(),
                                   base["does_not_replace"].get<std::vector<std::string>>(),
                                   base.get<axom::klee::GeometryData>("geometry")};
-    return data;
   }
 };
 
