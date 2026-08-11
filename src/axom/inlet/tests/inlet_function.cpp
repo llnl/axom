@@ -8,10 +8,13 @@
 
 #include "axom/inlet/LuaReader.hpp"
 #include "axom/inlet/Inlet.hpp"
+#include "axom/inlet/SphinxWriter.hpp"
 
 #include "gtest/gtest.h"
 
 #include <array>
+#include <fstream>
+#include <iterator>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -203,8 +206,8 @@ TEST(inlet_function, function_value_alternative_selects_supplied_representation)
     scale = 4.0
   )");
 
-  inlet.addString("label");
   inlet.addFunctionAsValueAlternative("label", FunctionTag::String, {});
+  inlet.addString("label");
   inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
   inlet.addDouble("scale");
 
@@ -212,8 +215,7 @@ TEST(inlet_function, function_value_alternative_selects_supplied_representation)
   auto& container = inlet.getGlobalContainer();
   EXPECT_FALSE(inlet.contains("label"));
   ASSERT_TRUE(container.containsFunctionValueAlternative("label"));
-  EXPECT_EQ(container.getFunctionValueAlternative("label").call<std::string>(),
-            "computed");
+  EXPECT_EQ(container.getFunctionValueAlternative("label").call<std::string>(), "computed");
 
   EXPECT_TRUE(inlet.contains("scale"));
   EXPECT_FALSE(container.containsFunctionValueAlternative("scale"));
@@ -222,26 +224,16 @@ TEST(inlet_function, function_value_alternative_selects_supplied_representation)
 
 TEST(inlet_function, function_value_alternative_rejects_unrelated_wrong_type)
 {
-  for(const bool functionFirst : {true, false})
-  {
-    auto inlet = createBasicInlet("foo = 'not a number or function'");
-    if(functionFirst)
-    {
-      inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
-    }
-    inlet.addDouble("foo");
-    if(!functionFirst)
-    {
-      inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
-    }
+  auto inlet = createBasicInlet("foo = 'not a number or function'");
+  inlet.addFunctionAsValueAlternative("foo", FunctionTag::Double, {});
+  inlet.addDouble("foo");
 
-    EXPECT_FALSE(inlet.verify());
-    EXPECT_FALSE(inlet.contains("foo"));
-    EXPECT_FALSE(inlet.getGlobalContainer().containsFunctionValueAlternative("foo"));
-    // The input exists even though neither schema entry accepts its type.
-    EXPECT_TRUE(inlet.isUserProvided("foo"));
-    EXPECT_FALSE(inlet.getGlobalContainer().exists());
-  }
+  EXPECT_FALSE(inlet.verify());
+  EXPECT_FALSE(inlet.contains("foo"));
+  EXPECT_FALSE(inlet.getGlobalContainer().containsFunctionValueAlternative("foo"));
+  // The input exists even though neither schema entry accepts its type.
+  EXPECT_TRUE(inlet.isUserProvided("foo"));
+  EXPECT_FALSE(inlet.getGlobalContainer().exists());
 }
 
 TEST(inlet_function, function_value_alternative_is_container_independent)
@@ -252,7 +244,8 @@ TEST(inlet_function, function_value_alternative_is_container_independent)
     inlet.getGlobalContainer().strict();
     auto& group = inlet.addStruct("group");
 
-    // The two cases cover both Container directions and both declaration orders.
+    // The alternative and the concrete entry may be declared through different
+    // Containers, so long as the alternative comes first.
     if(functionOnRoot)
     {
       inlet.addFunctionAsValueAlternative("group/value", FunctionTag::Double, {});
@@ -260,8 +253,8 @@ TEST(inlet_function, function_value_alternative_is_container_independent)
     }
     else
     {
-      inlet.addDouble("group/value");
       group.addFunctionAsValueAlternative("value", FunctionTag::Double, {});
+      inlet.addDouble("group/value");
     }
 
     EXPECT_TRUE(inlet.verify());
@@ -273,53 +266,107 @@ TEST(inlet_function, function_value_alternative_is_container_independent)
     EXPECT_TRUE(group.isUserProvided("value"));
     EXPECT_TRUE(group.exists());
     EXPECT_DOUBLE_EQ(group.getFunctionValueAlternative("value").call<double>(), 2.0);
-    EXPECT_EQ(group.getFunctionValueAlternativeNames(),
-              std::vector<std::string> {"value"});
+    EXPECT_EQ(group.getFunctionValueAlternativeNames(), std::vector<std::string> {"value"});
     EXPECT_TRUE(inlet.getGlobalContainer().getFunctionValueAlternativeNames().empty());
   }
 }
 
-TEST(inlet_function, function_value_alternative_array_is_container_and_order_independent)
+TEST(inlet_function, function_value_alternative_names_are_sorted)
 {
-  for(const bool functionFirst : {true, false})
+  auto inlet = createBasicInlet(R"(
+    zeta = function() return 1.0 end
+    alpha = function() return 2.0 end
+    plain = 3.0
+  )");
+
+  inlet.addFunctionAsValueAlternative("zeta", FunctionTag::Double, {});
+  inlet.addFunctionAsValueAlternative("alpha", FunctionTag::Double, {});
+  // Declared but not supplied by the input, so it is not reported
+  inlet.addFunctionAsValueAlternative("plain", FunctionTag::Double, {});
+  inlet.addDouble("plain");
+
+  EXPECT_TRUE(inlet.verify());
+  EXPECT_EQ(inlet.getGlobalContainer().getFunctionValueAlternativeNames(),
+            (std::vector<std::string> {"alpha", "zeta"}));
+}
+
+TEST(inlet_function, function_value_alternative_array_is_container_independent)
+{
+  for(const bool functionOnRoot : {true, false})
   {
-    auto inlet = createBasicInlet(
-      "group = { values = function() return {1.0, 2.0, 3.0} end }");
+    auto inlet = createBasicInlet("group = { values = function() return {1.0, 2.0, 3.0} end }");
     auto& group = inlet.addStruct("group");
 
-    if(functionFirst)
+    if(functionOnRoot)
+    {
+      inlet.addFunctionAsValueAlternative("group/values", FunctionTag::Vector, {});
+    }
+    else
     {
       group.addFunctionAsValueAlternative("values", FunctionTag::Vector, {});
     }
     inlet.addDoubleArray("group/values");
-    if(!functionFirst)
-    {
-      group.addFunctionAsValueAlternative("values", FunctionTag::Vector, {});
-    }
 
     EXPECT_TRUE(inlet.verify());
     EXPECT_FALSE(inlet.contains("group/values"));
     EXPECT_TRUE(group.containsFunctionValueAlternative("values"));
-    const auto result =
-      group.getFunctionValueAlternative("values").call<FunctionType::Vector>();
+    const auto result = group.getFunctionValueAlternative("values").call<FunctionType::Vector>();
     EXPECT_DOUBLE_EQ(result[0], 1.0);
     EXPECT_DOUBLE_EQ(result[1], 2.0);
     EXPECT_DOUBLE_EQ(result[2], 3.0);
   }
 }
 
-TEST(inlet_function, function_value_alternative_rejects_duplicate_across_containers)
+TEST(inlet_function, function_value_alternative_declaration_is_idempotent)
 {
+  // Matches addFunction's behavior: redeclaring returns the existing entry
   auto inlet = createBasicInlet("group = { scale = function() return 2.0 end }");
   auto& group = inlet.addStruct("group");
-  inlet.addFunctionAsValueAlternative("group/scale", FunctionTag::Double, {});
 
-  axom::slic::ScopedAbortToThrow abortGuard;
-  EXPECT_THROW(group.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}),
-               axom::slic::SlicAbortException);
+  auto& first = inlet.addFunctionAsValueAlternative("group/scale", FunctionTag::Double, {});
+  auto& second = group.addFunctionAsValueAlternative("scale", FunctionTag::Double, {});
+  EXPECT_EQ(&first, &second);
+
+  EXPECT_EQ(1u, group.getChildFunctions().size());
   EXPECT_TRUE(inlet.getGlobalContainer().getChildFunctions().empty());
-  EXPECT_TRUE(group.getChildFunctions().empty());
   EXPECT_DOUBLE_EQ(group.getFunctionValueAlternative("scale").call<double>(), 2.0);
+}
+
+TEST(inlet_function, function_value_alternative_is_not_documented_under_its_schema_name)
+{
+  // The alternative is stored under an internal schema name,
+  // which must not leak into generated documentation
+  const std::string docFile = "inlet_function_value_alternative_docs.rst";
+  {
+    auto inlet = createBasicInlet("scale = function() return 2.0 end");
+    inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}, "a scale callback");
+    inlet.addDouble("scale", "a scale");
+    EXPECT_TRUE(inlet.verify());
+    // The alternative is a real schema entry, just under an internal name
+    EXPECT_EQ(1u, inlet.getGlobalContainer().getChildFunctions().size());
+    inlet.write(axom::inlet::SphinxWriter(docFile));
+  }
+
+  std::ifstream stream(docFile);
+  ASSERT_TRUE(stream.good());
+  const std::string contents {std::istreambuf_iterator<char> {stream},
+                              std::istreambuf_iterator<char> {}};
+  EXPECT_EQ(std::string::npos, contents.find("_inlet_function_alternative"));
+  EXPECT_NE(std::string::npos, contents.find("scale"));
+}
+
+TEST(inlet_function, function_value_alternative_can_be_required)
+{
+  // The alternative is an ordinary Function, so schema constraints apply to it
+  auto missing = createBasicInlet("scale = 2.0");
+  missing.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}).required();
+  missing.addDouble("scale");
+  EXPECT_FALSE(missing.verify());
+
+  auto supplied = createBasicInlet("scale = function() return 2.0 end");
+  supplied.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}).required();
+  supplied.addDouble("scale");
+  EXPECT_TRUE(supplied.verify());
 }
 
 TEST(inlet_function, function_value_alternative_rejects_invalid_declaration)
@@ -616,37 +663,29 @@ TEST(inlet_function, simple_vec3_to_vec3_array_of_struct)
 
 TEST(inlet_function, function_value_alternative_in_nested_dictionary_of_struct)
 {
-  for(const bool functionFirst : {true, false})
-  {
-    auto inlet = createBasicInlet(R"(
-      groups = {
-        [0] = {
-          foo = {
-            first = {bar = 2},
-            second = {bar = function () return 3 end}
-          }
+  // Both representations appear in the same collection, so the alternative must
+  // be expanded across the collection's elements exactly as the concrete entry is
+  auto inlet = createBasicInlet(R"(
+    groups = {
+      [0] = {
+        foo = {
+          first = {bar = 2},
+          second = {bar = function () return 3 end}
         }
       }
-    )");
-
-    auto& groups = inlet.addStructArray("groups");
-    auto& foos = groups.addStructDictionary("foo");
-    if(functionFirst)
-    {
-      foos.addFunctionAsValueAlternative("bar", FunctionTag::Double, {});
     }
-    foos.addDouble("bar");
-    if(!functionFirst)
-    {
-      foos.addFunctionAsValueAlternative("bar", FunctionTag::Double, {});
-    }
+  )");
 
-    EXPECT_TRUE(inlet.verify());
-    const auto values =
-      inlet["groups"].get<std::unordered_map<int, FooWithValueAlternativeDictionary>>();
-    EXPECT_DOUBLE_EQ(values.at(0).values.at("first").bar, 2.0);
-    EXPECT_DOUBLE_EQ(values.at(0).values.at("second").bar, 3.0);
-  }
+  auto& groups = inlet.addStructArray("groups");
+  auto& foos = groups.addStructDictionary("foo");
+  foos.addFunctionAsValueAlternative("bar", FunctionTag::Double, {});
+  foos.addDouble("bar");
+
+  EXPECT_TRUE(inlet.verify());
+  const auto values =
+    inlet["groups"].get<std::unordered_map<int, FooWithValueAlternativeDictionary>>();
+  EXPECT_DOUBLE_EQ(values.at(0).values.at("first").bar, 2.0);
+  EXPECT_DOUBLE_EQ(values.at(0).values.at("second").bar, 3.0);
 }
 
 TEST(inlet_function, dimension_dependent_result)

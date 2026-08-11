@@ -75,8 +75,9 @@ Declare the concrete entry normally, then associate a function with the same inp
    :language: C++
    :dedent: 2
 
-The declarations may appear in either order and use the same relative and slash-delimited
-paths as other ``Container`` methods. The example accepts either of these Lua inputs:
+Declare the alternative before the concrete entry it applies to. Both use the same relative
+and slash-delimited paths as other ``Container`` methods, and either may be declared through
+a parent or a child ``Container``. The example accepts either of these Lua inputs:
 
 .. code-block:: Lua
 
@@ -95,13 +96,13 @@ After verification, query which representation was supplied before retrieving it
 
 For the shared input name, ``contains`` reports only the concrete representation and
 ``containsFunctionValueAlternative`` reports only the function representation.
-Either form counts as user-provided input, and both are recognized by strict Containers. 
+Either form counts as user-provided input, and both are recognized by strict Containers.
 An unrelated input type fails verification.
 
-A function value alternative is runtime-only: it is not returned by ``getChildFunctions()``,
-cannot be marked required, and is not persisted in Sidre. Validation attached to the concrete
-schema entry does not apply to the function result. Applications that require this input or impose
-constraints on both forms should validate those conditions after resolving the representation.
+An alternative is an ordinary ``Function``, so it is returned by ``addFunctionAsValueAlternative``
+as a ``Verifiable<Function>`` and can carry the usual schema constraints, such as ``required()``.
+Validation attached to the *concrete* schema entry does not apply to the function result,
+so applications that constrain both forms should validate after resolving the representation.
 
 Generated Sphinx and JSON Schema documentation show only the concrete entry.
 Application documentation should describe the function form when it is part of the Lua interface.
