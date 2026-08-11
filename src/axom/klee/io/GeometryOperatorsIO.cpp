@@ -30,10 +30,9 @@ namespace internal
 namespace
 {
 using OpPtr = CompositeOperator::OpPtr;
-using OperatorParser =
-  std::function<OpPtr(const SingleOperatorData &,
-                      const TransformableGeometryProperties &,
-                      const std::string &)>;
+using OperatorParser = std::function<OpPtr(const inlet::Container &,
+                                           const TransformableGeometryProperties &,
+                                           const std::string &)>;
 using internal::toDoubleVector;
 using primal::Point3D;
 using primal::Vector3D;
@@ -497,17 +496,16 @@ void verifyObjectFields(const inlet::Container& containerToTest,
 /**
  * Parse a "translate" operator.
  *
- * \param data the Inlet data from which to read the operator
+ * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the operator fields or vector dimensions are invalid
  */
-OpPtr parseTranslate(const SingleOperatorData &data,
+OpPtr parseTranslate(const inlet::Container &opContainer,
                      const TransformableGeometryProperties &startProperties,
                      const std::string &ownerLabel)
 {
-  const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "translate", FieldSet {}, FieldSet {});
   return std::make_shared<Translation>(
     getVector(opContainer, "translate", startProperties.dimensions, ownerLabel),
@@ -517,17 +515,16 @@ OpPtr parseTranslate(const SingleOperatorData &data,
 /**
  * Parse a "rotate" operator.
  *
- * \param data the Inlet data from which to read the operator
+ * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the rotation is invalid for the start dimensions or operator fields
  */
-OpPtr parseRotate(const SingleOperatorData &data,
+OpPtr parseRotate(const inlet::Container &opContainer,
                   const TransformableGeometryProperties &startProperties,
                   const std::string &ownerLabel)
 {
-  const auto &opContainer = *data.m_container;
   switch(startProperties.dimensions)
   {
   case Dimensions::Two:
@@ -729,17 +726,16 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
 /**
  * Parse a "slice" operator.
  *
- * \param data the Inlet data from which to read the operator
+ * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the slice fields or values are invalid
  */
-OpPtr parseSlice(const SingleOperatorData &data,
+OpPtr parseSlice(const inlet::Container &opContainer,
                  const TransformableGeometryProperties &startProperties,
                  const std::string &ownerLabel)
 {
-  const auto &opContainer = *data.m_container;
   if(startProperties.dimensions != Dimensions::Three)
   {
     throw KleeError({opContainer.name(), "Cannot do a slice from 2D"});
@@ -785,17 +781,16 @@ OpPtr parseSlice(const SingleOperatorData &data,
 /**
  * Parse a "scale" operator.
  *
- * \param data the Inlet data from which to read the operator
+ * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the scale fields or vector dimensions are invalid
  */
-OpPtr parseScale(const SingleOperatorData &data,
+OpPtr parseScale(const inlet::Container &opContainer,
                  const TransformableGeometryProperties &startProperties,
                  const std::string &ownerLabel)
 {
-  const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {"center"});
   auto factors = hasCallback(opContainer, "scale")
     ? wrapCallbackErrors<std::vector<double>>(
@@ -857,17 +852,16 @@ OpPtr parseScale(const SingleOperatorData &data,
 /**
  * Parse a "convert_units_to" operator.
  *
- * \param data the Inlet data from which to read the operator
+ * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the unit string or operator fields are invalid
  */
-OpPtr parseConvertUnits(const SingleOperatorData &data,
+OpPtr parseConvertUnits(const inlet::Container &opContainer,
                         const TransformableGeometryProperties &startProperties,
                         const std::string &ownerLabel)
 {
-  const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "convert_units_to", FieldSet {}, FieldSet {});
   const auto unitName = getString(opContainer, "convert_units_to", ownerLabel);
   const auto path = fieldPath(opContainer, "convert_units_to");
@@ -895,19 +889,18 @@ OpPtr parseConvertUnits(const SingleOperatorData &data,
 /**
  * Parse an operator specified via the "ref" command.
  *
- * \param data the Inlet data from which to read the operator
+ * \param opContainer the Container from which to read the operator
  * \param startProperties the properties before the "ref" command
  * \param namedOperators a map of named operators from which to get referenced operators
  * \param ownerLabel description of the owning shape or named operator
  * \return the created operator
  * \throws KleeError if the reference is missing or the operator fields are invalid
  */
-OpPtr parseRef(const SingleOperatorData &data,
+OpPtr parseRef(const inlet::Container &opContainer,
                const TransformableGeometryProperties &startProperties,
                const NamedOperatorMap &namedOperators,
                const std::string &ownerLabel)
 {
-  const auto &opContainer = *data.m_container;
   verifyObjectFields(opContainer, "ref", FieldSet {}, FieldSet {});
   const auto operatorName = getString(opContainer, "ref", ownerLabel);
   auto opIter = namedOperators.find(operatorName);
@@ -971,10 +964,10 @@ OpPtr convertOperator(SingleOperatorData const& data,
     {"scale", parseScale},
     {"convert_units_to", parseConvertUnits},
     {"ref",
-     [&namedOperators](const SingleOperatorData &opData,
+     [&namedOperators](const inlet::Container &opContainer,
                        const TransformableGeometryProperties &startProperties,
                        const std::string &ownerLabel) {
-       return parseRef(opData, startProperties, namedOperators, ownerLabel);
+       return parseRef(opContainer, startProperties, namedOperators, ownerLabel);
      }},
   };
 
@@ -982,7 +975,7 @@ OpPtr convertOperator(SingleOperatorData const& data,
   {
     if(containsFieldOrCallback(*data.m_container, entry.first.c_str()))
     {
-      return entry.second(data, startProperties, ownerLabel);
+      return entry.second(*data.m_container, startProperties, ownerLabel);
     }
   }
 
