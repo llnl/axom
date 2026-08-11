@@ -85,17 +85,25 @@ Path fieldPath(const inlet::Container &container, char const *fieldName)
 }
 
 /**
- * Build the contextual prefix for a callback diagnostic.
+ * Add callback context to a message when a field was supplied as a callback.
  *
  * \param container the operator or slice container
- * \param fieldName the callback field name
+ * \param fieldName the field the message is about
  * \param ownerLabel description of the owning shape or named operator
- * \return a diagnostic prefix identifying the callback and its owner
+ * \param message the message to report
+ * \return \a message, prefixed with the callback, owner and operator when
+ *         \a fieldName was supplied as a callback, and unchanged otherwise
  */
-std::string callbackContext(const inlet::Container &container,
-                            char const *fieldName,
-                            const std::string &ownerLabel)
+std::string fieldMessage(const inlet::Container &container,
+                         char const *fieldName,
+                         const std::string &ownerLabel,
+                         const std::string &message)
 {
+  if(!hasCallback(container, fieldName))
+  {
+    return message;
+  }
+
   Path path {container.name()};
   std::string operatorIndex = path.baseName();
   if(operatorIndex == "slice")
@@ -105,41 +113,11 @@ std::string callbackContext(const inlet::Container &container,
 
   const auto operatorLabel = operatorIndex.empty() ? std::string {"operator at "} + container.name()
                                                    : std::string {"operator "} + operatorIndex;
-  if(ownerLabel.empty())
-  {
-    return axom::fmt::format("Error evaluating callback for '{}' in {}", fieldName, operatorLabel);
-  }
-  return axom::fmt::format(
-    "Error evaluating callback for '{}' in {} {}",
-    fieldName,
-    ownerLabel,
-    operatorLabel);
-}
-
-/**
- * Throw a semantic validation error with callback context when applicable.
- *
- * \param container the operator or slice container
- * \param fieldName the field whose value failed validation
- * \param ownerLabel description of the owning shape or named operator
- * \param fallbackPath path used when the field was supplied directly
- * \param message semantic validation message
- * \throws KleeError unconditionally
- */
-[[noreturn]] void throwCallbackAwareValidationError(const inlet::Container &container,
-                                                    char const *fieldName,
-                                                    const std::string &ownerLabel,
-                                                    const Path &fallbackPath,
-                                                    const std::string &message)
-{
-  if(hasCallback(container, fieldName))
-  {
-    throw KleeError(
-      {fieldPath(container, fieldName),
-       axom::fmt::format("{}: {}", callbackContext(container, fieldName, ownerLabel), message)});
-  }
-
-  throw KleeError({fallbackPath, message});
+  const auto owner = ownerLabel.empty() ? operatorLabel : ownerLabel + " " + operatorLabel;
+  return axom::fmt::format("Error evaluating callback for '{}' in {}: {}",
+                           fieldName,
+                           owner,
+                           message);
 }
 
 /**
@@ -172,9 +150,8 @@ Result wrapCallbackErrors(const inlet::Container &container,
   }
   catch(const std::exception &ex)
   {
-    throw KleeError(
-      {fieldPath(container, fieldName),
-       axom::fmt::format("{}: {}", callbackContext(container, fieldName, ownerLabel), ex.what())});
+    throw KleeError({fieldPath(container, fieldName),
+                     fieldMessage(container, fieldName, ownerLabel, ex.what())});
   }
 }
 
@@ -264,12 +241,15 @@ std::vector<double> getDoubleVector(const inlet::Container &container,
     auto expectedSize = static_cast<std::size_t>(expectedDims);
     if(actualSize != expectedSize)
     {
-      throw KleeError({fieldPath(container, fieldName),
-                       fmt::format("{}: Wrong size for {}. Expected {}. Got {}.",
-                                   callbackContext(container, fieldName, ownerLabel),
-                                   fieldName,
-                                   expectedSize,
-                                   actualSize)});
+      throw KleeError(
+        {fieldPath(container, fieldName),
+         fieldMessage(container,
+                      fieldName,
+                      ownerLabel,
+                      fmt::format("Wrong size for {}. Expected {}. Got {}.",
+                                  fieldName,
+                                  expectedSize,
+                                  actualSize))});
     }
     return values;
   }
@@ -546,14 +526,11 @@ OpPtr parseRotate(const inlet::Container &opContainer,
     auto axis = getVector(opContainer, "axis", Dimensions::Three, ownerLabel);
     if(axis.is_zero())
     {
-      auto message = std::string {"The 'axis' vector must not be a zero vector"};
-      if(hasCallback(opContainer, "axis"))
-      {
-        message = axom::fmt::format("{}: {}",
-                                    callbackContext(opContainer, "axis", ownerLabel),
-                                    message);
-      }
-      throw KleeError({fieldPath(opContainer, "axis"), message});
+      throw KleeError({fieldPath(opContainer, "axis"),
+                       fieldMessage(opContainer,
+                                    "axis",
+                                    ownerLabel,
+                                    "The 'axis' vector must not be a zero vector")});
     }
     return std::make_shared<Rotation>(angle, center, axis, startProperties);
   }
@@ -585,34 +562,20 @@ OpPtr makeCheckedSlice(Point3D origin,
 {
   if(normal.is_zero())
   {
-    throwCallbackAwareValidationError(sliceContainer,
-                                      "normal",
-                                      ownerLabel,
-                                      Path {sliceContainer.name()},
-                                      "The 'normal' vector must not be a zero vector");
+    throw KleeError(
+      {Path {sliceContainer.name()},
+       fieldMessage(sliceContainer,
+                    "normal",
+                    ownerLabel,
+                    "The 'normal' vector must not be a zero vector")});
   }
   if(!utilities::isNearlyEqual(normal.dot(up), 0.))
   {
+    // Either vector may have come from a callback; report the first one that did
     const std::string message = "The 'normal' and 'up' vectors must be perpendicular";
-    if(hasCallback(sliceContainer, "up"))
-    {
-      throwCallbackAwareValidationError(
-        sliceContainer,
-        "up",
-        ownerLabel,
-        Path {sliceContainer.name()},
-        message);
-    }
-    if(hasCallback(sliceContainer, "normal"))
-    {
-      throwCallbackAwareValidationError(
-        sliceContainer,
-        "normal",
-        ownerLabel,
-        Path {sliceContainer.name()},
-        message);
-    }
-    throw KleeError({sliceContainer.name(), message});
+    char const *reported = hasCallback(sliceContainer, "up") ? "up" : "normal";
+    throw KleeError({Path {sliceContainer.name()},
+                     fieldMessage(sliceContainer, reported, ownerLabel, message)});
   }
   return std::make_shared<SliceOperator>(origin, normal, up, startProperties);
 }
@@ -653,11 +616,11 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
   primal::Point3D givenOrigin = getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel);
   if(givenOrigin[nonZeroIndex] != axisIntercept)
   {
-    throwCallbackAwareValidationError(sliceContainer,
-                                      "origin",
-                                      ownerLabel,
-                                      Path {sliceContainer["origin"].name()},
-                                      "The origin must be on the slice plane");
+    throw KleeError({Path {sliceContainer["origin"].name()},
+                     fieldMessage(sliceContainer,
+                                  "origin",
+                                  ownerLabel,
+                                  "The origin must be on the slice plane")});
   }
   return givenOrigin;
 }
@@ -685,11 +648,9 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
   bool parallel = cross.is_zero();
   if(!parallel)
   {
-    throwCallbackAwareValidationError(sliceContainer,
-                                      "normal",
-                                      ownerLabel,
-                                      Path {sliceContainer["normal"].name()},
-                                      "Invalid normal");
+    throw KleeError(
+      {Path {sliceContainer["normal"].name()},
+       fieldMessage(sliceContainer, "normal", ownerLabel, "Invalid normal")});
   }
   return givenNormal;
 }
@@ -810,11 +771,14 @@ OpPtr parseScale(const inlet::Container &opContainer,
     auto expectedSize = static_cast<std::size_t>(startProperties.dimensions);
     if(actualSize != expectedSize)
     {
-      throw KleeError({fieldPath(opContainer, "scale"),
-                        fmt::format("{}: Wrong size for scale. Expected {}. Got {}.",
-                                    callbackContext(opContainer, "scale", ownerLabel),
-                                    expectedSize,
-                                    actualSize)});
+      throw KleeError(
+        {fieldPath(opContainer, "scale"),
+         fieldMessage(opContainer,
+                      "scale",
+                      ownerLabel,
+                      fmt::format("Wrong size for scale. Expected {}. Got {}.",
+                                  expectedSize,
+                                  actualSize))});
     }
   }
   else if(!isUniform)
@@ -877,11 +841,7 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
       throw;
     }
     throw KleeError(
-      {path,
-       axom::fmt::format(
-         "{}: {}",
-         callbackContext(opContainer, "convert_units_to", ownerLabel),
-         err.what())});
+      {path, fieldMessage(opContainer, "convert_units_to", ownerLabel, err.what())});
   }
   return std::make_shared<UnitConverter>(endUnits, startProperties);
 }
@@ -906,16 +866,9 @@ OpPtr parseRef(const inlet::Container &opContainer,
   auto opIter = namedOperators.find(operatorName);
   if(opIter == namedOperators.end())
   {
-    std::string message = "No operator named '";
-    message += operatorName;
-    message += '\'';
-    if(hasCallback(opContainer, "ref"))
-    {
-      message = axom::fmt::format("{}: {}",
-                                  callbackContext(opContainer, "ref", ownerLabel),
-                                  message);
-    }
-    throw KleeError({fieldPath(opContainer, "ref"), message});
+    const auto message = axom::fmt::format("No operator named '{}'", operatorName);
+    throw KleeError({fieldPath(opContainer, "ref"),
+                     fieldMessage(opContainer, "ref", ownerLabel, message)});
   }
   auto referencedOperator = opIter->second;
   bool startUnitsMatch = startProperties.units == referencedOperator->getStartProperties().units;

@@ -2275,9 +2275,10 @@ TEST(IOTest, readShapeSet_luaCallbackErrorIncludesContext)
   }
   catch(const KleeError& err)
   {
-    EXPECT_THAT(err.what(), HasSubstr("translate"));
-    EXPECT_THAT(err.what(), HasSubstr("bad_shape"));
-    EXPECT_THAT(err.what(), HasSubstr("operator"));
+    // The operator is identified by its Lua table key, which is 1-based
+    EXPECT_THAT(err.what(),
+                HasSubstr("Error evaluating callback for 'translate' in shape 'bad_shape' "
+                          "operator 1"));
     EXPECT_THAT(err.what(), HasSubstr("callback boom"));
   }
 }
