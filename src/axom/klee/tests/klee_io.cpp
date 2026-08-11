@@ -19,6 +19,7 @@
 #include <array>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 
 namespace klee = axom::klee;
 namespace inlet = axom::inlet;
@@ -800,10 +801,9 @@ TEST(IOTest, readShapeSet_luaInitializationIsolatesUnexportedGlobals)
 
 TEST(IOTest, readShapeSet_luaInitializationCannotSetSchemaGlobalsWithoutExporting)
 {
-  for(const std::string& source :
-      {"dimensions = 2; return {}", "_G.dimensions = 2; return {}"})
+  for(std::string_view source : {"dimensions = 2; return {}", "_G.dimensions = 2; return {}"})
   {
-    LuaInitializationChunk initialization {source, "runtime_initialization"};
+    LuaInitializationChunk initialization {std::string {source}, "runtime_initialization"};
     LuaInputOptions options;
     options.initialization = initialization;
     EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, options),
