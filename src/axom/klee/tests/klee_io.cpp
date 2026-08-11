@@ -1322,7 +1322,7 @@ TEST(IOTest, readShapeSet_luaNamedOperatorCallbackIsEvaluatedOnceAndReused)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1, 2, 0}));
 }
 
-TEST(IOTest, readShapeSet_luaCallbacksHaveDeterministicEvaluationOrder)
+TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
 {
   auto shapeSet = readShapeSetFromString(R"(
     local callback_index = 0
@@ -1424,8 +1424,8 @@ TEST(IOTest, readShapeSet_luaCallbacksHaveDeterministicEvaluationOrder)
   )",
                                          InputFormat::Lua);
 
-  // Reaching the last callback proves ordering across top-level collections,
-  // operator lists, and the fields within each multi-field operator.
+  // Reaching the last callback demonstrates that each one ran exactly once.
+  // The specific order is an implementation detail.
   ASSERT_EQ(3u, shapeSet.getShapes().size());
 }
 
