@@ -75,9 +75,11 @@ Declare the concrete entry normally, then associate a function with the same inp
    :language: C++
    :dedent: 2
 
-Declare the alternative before the concrete entry it applies to. Both use the same relative
-and slash-delimited paths as other ``Container`` methods, and either may be declared through
-a parent or a child ``Container``. The example accepts either of these Lua inputs:
+Note that you must declare the alternative before the concrete entry it applies to,
+and declaring it afterwards is an error, since the concrete entry has already been read by then.
+Both use the same relative and slash-delimited paths as other ``Container`` methods, 
+and either may be declared through a parent or a child ``Container``. 
+The following example accepts either of these Lua inputs:
 
 .. code-block:: Lua
 
