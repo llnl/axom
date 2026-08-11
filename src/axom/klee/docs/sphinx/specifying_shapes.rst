@@ -123,54 +123,11 @@ ordinary table values can be generated programmatically:
       }
     }
 
-Caller-provided primitive values can be installed as initial Lua globals before a deck is
-evaluated. This is useful when an application wants one deck to select between 2D and 3D
-geometry, dimensions, or operator values at run time:
-
-.. code-block:: c++
-
-    axom::klee::LuaInputOptions options;
-    options.initialGlobals = {
-      {"dimensions", axom::klee::LuaGlobalValue {2}},
-      {"shape_suffix", axom::klee::LuaGlobalValue {std::string {"2d"}}}
-    };
-    auto shapeSet = axom::klee::readShapeSet("shape.lua", options);
-
-.. code-block:: lua
-
-    local function shape_path()
-      return "part_" .. shape_suffix .. ".stl"
-    end
-
-    shapes = {
-      {
-        name = "part",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = shape_path(),
-          units = "cm",
-          operators = {
-            { translate = (dimensions == 2) and {1.0, 2.0} or {1.0, 2.0, 3.0} }
-          }
-        }
-      }
-    }
-
-Initial globals are Lua-only and may be booleans, integers, doubles, or strings.
-Their names must be non-keyword ASCII Lua identifiers. They are ordinary mutable
-globals—not a read-only context—and are allowed by Klee's unexpected-global check.
-Deck code can reassign or delete them, so applications should treat them as initial
-values rather than controls. Other helper values in the deck should still be
-declared :code:`local`. Initial globals may not replace standard Lua globals such
-as :code:`math` or :code:`package`.
-
-Applications that need richer runtime customization can also provide a Lua
-initialization chunk. Klee evaluates the chunk after installing
-:code:`initialGlobals` and before parsing the deck. The chunk must return a table;
-those table entries are then installed as initial globals while unrelated
-unexpected globals in the deck remain errors. This allows host code to provide
-helper functions, tables, and local closures without recompiling the application:
+An application can supply a Lua initialization chunk that runs before the deck is parsed.
+This lets one deck select between 2D and 3D geometry, dimensions, or operator values
+at run time, and lets host code provide helper functions and closures without recompiling.
+The chunk must return a table; its entries become Lua globals that the deck may use,
+while unrelated globals in the deck remain errors:
 
 .. code-block:: c++
 
@@ -213,24 +170,23 @@ helper functions, tables, and local closures without recompiling the application
       }
     }
 
-Initialization chunks must return a table whose exported keys are non-keyword
-ASCII Lua identifiers. Exported values may be booleans, numbers, strings, tables,
-or functions and retain their original Lua representation. An exported Lua integer,
-for example, is not converted through a C++ floating-point value. Export names may
-not collide with standard Lua globals or :code:`initialGlobals`.
+Exported keys must be non-keyword ASCII Lua identifiers that do not collide with
+standard Lua globals such as :code:`math` or :code:`package`.
+Exported values may be booleans, numbers, strings, tables, or functions,
+and keep their original Lua representation.
 
-Klee evaluates the chunk in an isolated Lua environment. Preloaded Lua
-libraries and caller-provided initial globals remain visible, but global names
-assigned by the chunk do not leak into the input deck unless they are returned
-in the export table. Exported functions retain access to the chunk's private
-environment. Exported globals are mutable: deck code can replace or delete them
-and can mutate exported tables.
+Klee evaluates the chunk in a separate Lua environment, so names that the chunk
+assigns reach the deck only if they are returned in the export table,
+and exported functions keep access to the chunk's private environment.
+Exported names are ordinary mutable globals and can be modified.
 
-The environment isolation is shallow. Inherited objects such as :code:`math` and
-:code:`package` are shared, so mutating a member of an inherited table is visible
-to the deck. Initialization chunks and decks are trusted code: this mechanism is
-not a security sandbox, :code:`package` may load additional code, and Klee imposes
-no CPU, memory, or recursion limits.
+.. note::
+
+   The environment separation is not a sandbox. Inherited objects such as
+   :code:`math` and :code:`package` are shared with the deck, :code:`package` can
+   load additional code, and Klee imposes no CPU, memory, or recursion limits.
+   See :ref:`Inlet's reader documentation <inlet_readers_label>` for the general
+   warning that applies to all Lua input.
 
 Use :code:`local` helper functions and constants for intermediate values so the
 global namespace contains only the Klee schema fields that Inlet should read.

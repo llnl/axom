@@ -11,8 +11,6 @@
 #include <string>
 #include <istream>
 #include <optional>
-#include <unordered_map>
-#include <variant>
 
 namespace axom
 {
@@ -35,18 +33,9 @@ struct LuaInitializationChunk
   std::string label {"<lua initialization>"};
 };
 
-/// Primitive value types that may be set as initial Lua globals.
-using LuaGlobalValue = std::variant<bool, int, double, std::string>;
-
-/// Ordinary mutable globals to install before a Lua input deck is evaluated.
-using LuaInitialGlobals = std::unordered_map<std::string, LuaGlobalValue>;
-
 /// Optional caller-provided initialization for a Lua input deck.
 struct LuaInputOptions
 {
-  /// Primitive values to install as initial mutable Lua globals.
-  LuaInitialGlobals initialGlobals;
-
   /// Isolated chunk whose returned table entries become initial mutable Lua globals.
   std::optional<LuaInitializationChunk> initialization;
 };
@@ -77,8 +66,8 @@ ShapeSet readShapeSet(std::istream& stream, InputFormat format);
  *
  * \param stream the stream from which to read the ShapeSet
  * \param format the input deck format to use
- * \param options optional initial globals and initialization for a Lua input deck
- * \note Non-empty Lua input options are supported only for Lua input decks.
+ * \param options optional initialization for a Lua input deck
+ * \note Lua input options are supported only for Lua input decks.
  * \return the ShapeSet read from the stream
  * \throws KleeError if the input or Lua input options are invalid
  */
@@ -113,9 +102,9 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format);
  * Read a ShapeSet from a specified file with caller-provided Lua inputs.
  *
  * \param filePath the file from which to read the ShapeSet
- * \param options optional initial globals and initialization for a Lua input deck
- * \note The input format is inferred from the file extension. Non-empty Lua
- *       input options are supported only for Lua input decks.
+ * \param options optional initialization for a Lua input deck
+ * \note The input format is inferred from the file extension.
+ *       Lua input options are supported only for Lua input decks.
  * \return the ShapeSet read from the file
  * \throws KleeError if the input or Lua input options are invalid
  */
@@ -127,8 +116,8 @@ ShapeSet readShapeSet(const std::string &filePath, const LuaInputOptions &option
  *
  * \param filePath the file from which to read the ShapeSet
  * \param format the input file format to use, regardless of the file extension
- * \param options optional initial globals and initialization for a Lua input deck
- * \note Non-empty Lua input options are supported only for Lua input decks.
+ * \param options optional initialization for a Lua input deck
+ * \note Lua input options are supported only for Lua input decks.
  * \return the ShapeSet read from the file
  * \throws KleeError if the input or Lua input options are invalid
  */

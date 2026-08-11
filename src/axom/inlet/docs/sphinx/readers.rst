@@ -1,3 +1,5 @@
+.. _inlet_readers_label:
+
 #######
 Readers
 #######
