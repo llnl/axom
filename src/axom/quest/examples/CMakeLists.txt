@@ -389,7 +389,8 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
                         inline_mesh --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
                 NUM_MPI_TASKS ${_nranks})
             set_tests_properties(${_testname} PROPERTIES
-                WILL_FAIL TRUE)
+                PASS_REGULAR_EXPRESSION
+                    "only supported for Lua input decks")
         endif()
 
         set(_testname quest_shaping_driver_ex_sampling_sphere)

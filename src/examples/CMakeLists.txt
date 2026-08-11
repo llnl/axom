@@ -228,6 +228,16 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
                                      -m ${_lesson_04_dir}/circle_input.lua
                                      -k ${_lesson_04_dir}/circles_initialized.lua
                                      --lua-init-file ${_lesson_04_dir}/circles_initialization.lua)
+
+                set(_testname
+                    shaping_tutorial_lesson_04_quest_sampling_shaper_yaml_rejects_lua_initialization)
+                blt_add_test(NAME    ${_testname}
+                             COMMAND shaping_tutorial_lesson_04_quest_sampling_shaper
+                                     -m ${_lesson_04_dir}/circle_input.lua
+                                     -k ${_lesson_04_dir}/circles.yaml
+                                     --lua-init-file ${_lesson_04_dir}/circles_initialization.lua)
+                set_tests_properties(${_testname} PROPERTIES
+                                     PASS_REGULAR_EXPRESSION "only supported for Lua input decks")
             endif()
         endif()
     endif()
