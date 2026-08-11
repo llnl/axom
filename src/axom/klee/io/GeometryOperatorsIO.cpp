@@ -138,17 +138,13 @@ Result wrapCallbackErrors(const inlet::Container &container,
                           const std::string &ownerLabel,
                           Func &&func)
 {
-  // Convert generic Inlet/Lua callback failures into Klee diagnostics at the
-  // boundary where the shape, operator, and field context are all available.
+  // Convert Inlet callback failures into Klee diagnostics at the boundary
+  // where the shape, operator, and field context are all available.
   try
   {
     return func();
   }
-  catch(const KleeError &)
-  {
-    throw;
-  }
-  catch(const std::exception &ex)
+  catch(const inlet::InletError &ex)
   {
     throw KleeError({fieldPath(container, fieldName),
                      fieldMessage(container, fieldName, ownerLabel, ex.what())});

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 #include "axom/sidre.hpp"
@@ -24,6 +25,23 @@ enum class ReaderResult
   NotFound,        // Path does not exist in the input file
   NotHomogeneous,  // Found, but elements of other type exist
   WrongType        // Found, but item at specified path was not of requested type
+};
+
+/*!
+ *****************************************************************************
+ * \brief Exception thrown when evaluating an input function fails
+ *
+ * Inlet reports API and schema misuse -- a bad key, a missing entry, an
+ * ambiguous lookup -- through SLIC, and reports problems with the *contents* of
+ * an input file through verify() and VerificationError. Neither applies to a
+ * failure that happens while *calling* a function read from the input, which
+ * occurs after verification and must be recoverable so the caller can report it
+ * with its own context. Those failures throw this type.
+ *****************************************************************************
+ */
+struct InletError : public std::runtime_error
+{
+  using std::runtime_error::runtime_error;
 };
 
 /*!
@@ -136,8 +154,10 @@ const std::string COLLECTION_GROUP_NAME = "_inlet_collection";
 const std::string COLLECTION_INDICES_NAME = "_inlet_collection_indices";
 const std::string STRUCT_COLLECTION_FLAG = "_inlet_struct_collection";
 const std::string VARIANT_STRUCT_COLLECTION_FLAG = "_inlet_variant_struct_collection";
+const std::string FUNCTION_ALTERNATIVE_SUFFIX = "_inlet_function_alternative";
 const std::string REQUIRED_FLAG = "required";
 const std::string STRICT_FLAG = "strict";
+
 }  // namespace detail
 
 /*!
