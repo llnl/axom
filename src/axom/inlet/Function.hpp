@@ -206,6 +206,8 @@ public:
    * \tparam Args The types of the user-specified arguments, deduced automatically
    * 
    * \return The function's result
+   * \throws InletError if an input function fails during evaluation
+   * or its return value cannot be converted to the declared return type
    *******************************************************************************
    */
   template <typename Ret, typename... Args>
@@ -298,6 +300,20 @@ public:
     return m_func.get<FuncType>();
   }
 
+  /*!
+   *****************************************************************************
+   * \brief Calls the function
+   *
+   * \param [in] args The parameter pack for the function's arguments
+   * \tparam Ret The user-specified return type, needed to fully disambiguate the
+   * function to call
+   * \tparam Args The types of the user-specified arguments, deduced automatically
+   *
+   * \return The function's result
+   * \throws InletError if an input function fails during evaluation
+   * or its return value cannot be converted to the declared return type
+   *****************************************************************************
+   */
   template <typename Ret, typename... Args>
   Ret call(Args&&... args) const
   {

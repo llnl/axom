@@ -138,5 +138,34 @@ by calling it directly:
 
 Callbacks retrieved from Inlet keep their Lua state alive, so they remain callable after the
 Inlet and Reader are destroyed. Callbacks from one ``LuaReader`` share mutable interpreter
-state and must not be invoked concurrently without synchronization. Lua execution errors and
-invalid callback return values throw ``std::runtime_error`` at the call site.
+state and must not be invoked concurrently without synchronization.
+
+Lua execution errors and invalid callback return values throw ``axom::inlet::InletError``
+at the call site. This is the one place Inlet throws; everywhere else it reports through
+SLIC or through ``verify()``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Kind of problem
+     - Reported through
+     - Examples
+   * - API or schema misuse
+     - ``SLIC_ERROR``
+     - an empty or malformed key, a lookup for an entry that was never defined,
+       a name that is ambiguous between a container, field, and function
+   * - Contents of the input file
+     - ``verify()`` and ``VerificationError``
+     - a required entry is missing, a value has the wrong type or fails a
+       registered verifier
+   * - Failure while calling an input function
+     - ``InletError`` (derived from ``std::runtime_error``)
+     - the Lua function raises an error, or returns something that cannot be
+       converted to the declared return type
+
+The distinction is when the failure happens. A callback runs after verification, 
+at the point the application asks for its value, so the failure has to be recoverable: 
+the caller is the only one that knows  which of its own concepts the function belonged to.
+Klee, for example, catches ``InletError`` and re-reports it as a ``KleeError``
+naming the shape, operator, and field.

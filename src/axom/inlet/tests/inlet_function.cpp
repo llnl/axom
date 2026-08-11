@@ -110,7 +110,7 @@ TEST(inlet_function, vector_function_rejects_malformed_table_returns)
     auto inlet = createBasicInlet("function foo () return " + result + " end");
     auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {});
     ASSERT_TRUE(func);
-    EXPECT_THROW(func.call<FunctionType::Vector>(), std::runtime_error);
+    EXPECT_THROW(func.call<FunctionType::Vector>(), axom::inlet::InletError);
   }
 }
 
@@ -123,7 +123,7 @@ TEST(inlet_function, lua_callback_failures_are_catchable)
 
   auto wrongType = inlet.reader().getFunction("wrong_type", FunctionTag::Double, {});
   ASSERT_TRUE(wrongType);
-  EXPECT_THROW(wrongType.call<FunctionType::Double>(), std::runtime_error);
+  EXPECT_THROW(wrongType.call<FunctionType::Double>(), axom::inlet::InletError);
 
   auto runtimeError = inlet.reader().getFunction("runtime_error", FunctionTag::Double, {});
   ASSERT_TRUE(runtimeError);
@@ -133,7 +133,7 @@ TEST(inlet_function, lua_callback_failures_are_catchable)
     runtimeError.call<FunctionType::Double>();
     FAIL() << "Expected the Lua callback to throw";
   }
-  catch(const std::runtime_error& error)
+  catch(const axom::inlet::InletError& error)
   {
     EXPECT_NE(std::string(error.what()).find("callback failed"),
               std::string::npos);
