@@ -211,7 +211,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+umpire"):
         depends_on("umpire")
-        depends_on("umpire@2026.07:", when="@0.15:")
+        depends_on("umpire@2026.07.1:", when="@0.15:")
         depends_on("umpire@2025.12:", when="@0.13:")
         depends_on("umpire@2025.09:", when="@0.12:")
         depends_on("umpire@2025.03", when="@0.11")

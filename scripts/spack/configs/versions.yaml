@@ -39,4 +39,4 @@ packages:
       - spec: "@3.0.1"
   umpire:
     require:
-      - spec: "@2026.07.0"
+      - spec: "@2026.07.1"
