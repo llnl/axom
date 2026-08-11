@@ -1019,51 +1019,49 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
                                                      bool enableLuaCallbacks)
 {
   auto &opContainer = parent.addStructArray(fieldName, description).strict();
-  auto &slice = opContainer.addStruct("slice");
 
-  if(enableLuaCallbacks)
-  {
-    const auto addCallbackAlternative =
-      [](inlet::Container &container, const char *fieldName, inlet::FunctionTag returnType) {
-        container.addFunctionAsValueAlternative(
-          fieldName,
-          returnType,
-          {});
-      };
+  // A callback alternative must be declared before the concrete field it may
+  // stand in for, so each pair is declared together.
+  const auto addCallback = [enableLuaCallbacks](inlet::Container &container,
+                                                const char *name,
+                                                inlet::FunctionTag returnType) {
+    if(enableLuaCallbacks)
+    {
+      container.addFunctionAsValueAlternative(name, returnType, {});
+    }
+  };
 
-    addCallbackAlternative(opContainer, "translate", inlet::FunctionTag::Vector);
-    addCallbackAlternative(opContainer, "rotate", inlet::FunctionTag::Double);
-    addCallbackAlternative(opContainer, "center", inlet::FunctionTag::Vector);
-    addCallbackAlternative(opContainer, "axis", inlet::FunctionTag::Vector);
-    addCallbackAlternative(opContainer, "scale", inlet::FunctionTag::Vector);
-    addCallbackAlternative(opContainer, "convert_units_to", inlet::FunctionTag::String);
-    addCallbackAlternative(opContainer, "ref", inlet::FunctionTag::String);
-
-    addCallbackAlternative(slice, "x", inlet::FunctionTag::Double);
-    addCallbackAlternative(slice, "y", inlet::FunctionTag::Double);
-    addCallbackAlternative(slice, "z", inlet::FunctionTag::Double);
-    addCallbackAlternative(slice, "origin", inlet::FunctionTag::Vector);
-    addCallbackAlternative(slice, "normal", inlet::FunctionTag::Vector);
-    addCallbackAlternative(slice, "up", inlet::FunctionTag::Vector);
-  }
-
+  addCallback(opContainer, "translate", inlet::FunctionTag::Vector);
   opContainer.addDoubleArray("translate");
 
+  addCallback(opContainer, "rotate", inlet::FunctionTag::Double);
   opContainer.addDouble("rotate");
+  addCallback(opContainer, "center", inlet::FunctionTag::Vector);
   opContainer.addDoubleArray("center");
+  addCallback(opContainer, "axis", inlet::FunctionTag::Vector);
   opContainer.addDoubleArray("axis");
 
+  addCallback(opContainer, "scale", inlet::FunctionTag::Vector);
   opContainer.addDoubleArray("scale");
 
+  addCallback(opContainer, "convert_units_to", inlet::FunctionTag::String);
   opContainer.addString("convert_units_to");
 
+  auto &slice = opContainer.addStruct("slice");
+  addCallback(slice, "x", inlet::FunctionTag::Double);
   slice.addDouble("x");
+  addCallback(slice, "y", inlet::FunctionTag::Double);
   slice.addDouble("y");
+  addCallback(slice, "z", inlet::FunctionTag::Double);
   slice.addDouble("z");
+  addCallback(slice, "origin", inlet::FunctionTag::Vector);
   slice.addDoubleArray("origin");
+  addCallback(slice, "normal", inlet::FunctionTag::Vector);
   slice.addDoubleArray("normal");
+  addCallback(slice, "up", inlet::FunctionTag::Vector);
   slice.addDoubleArray("up");
 
+  addCallback(opContainer, "ref", inlet::FunctionTag::String);
   opContainer.addString("ref");
   return opContainer;
 }
