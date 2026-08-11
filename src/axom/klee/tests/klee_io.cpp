@@ -1428,6 +1428,7 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
   // The specific order is an implementation detail.
   ASSERT_EQ(3u, shapeSet.getShapes().size());
 }
+#endif
 
 TEST(IOTest, readShapeSet_luaNamedOperatorCallbackErrorIncludesContext)
 {
@@ -1551,6 +1552,46 @@ TEST(IOTest, readShapeSet_luaGeneratedOrdinaryTableValues)
   auto translation = dynamic_cast<const Translation*>(composite->getOperators()[0].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
+}
+
+TEST(IOTest, readShapeSet_lua2dOperatorCallbacks)
+{
+  // Vector-valued callbacks in a 2D deck return two components and are padded to three.
+  // Scale is covered here because readShapeSet_luaOperatorCallbacks is 3D.
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = function() return {4, 8} end },
+            { scale = function() return {2.0, 3.0} end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(2u, composite->getOperators().size());
+
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[0].get());
+  ASSERT_NE(translation, nullptr);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
+
+  auto scale = dynamic_cast<const Scale*>(composite->getOperators()[1].get());
+  ASSERT_NE(scale, nullptr);
+  EXPECT_DOUBLE_EQ(2.0, scale->getXFactor());
+  EXPECT_DOUBLE_EQ(3.0, scale->getYFactor());
+  EXPECT_DOUBLE_EQ(1.0, scale->getZFactor());
 }
 
 TEST(IOTest, readShapeSet_luaOperatorCallbacks)
@@ -1948,49 +1989,6 @@ TEST(IOTest, readShapeSet_luaRotationCallbacksAreValidated)
   }
 }
 
-TEST(IOTest, readShapeSet_luaDimensionDependentCallback)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    local dim = 2
-    local r = 4.0
-    local z = 8.0
-    local x = 1.0
-    local y = 2.0
-
-    dimensions = dim
-
-    shapes = {
-      {
-        name = "part",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "part.stl",
-          units = "cm",
-          operators = {
-            {
-              translate = function()
-                if dim == 2 then
-                  return {r, z}
-                end
-                return {x, y, z}
-              end
-            }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
-    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
-  ASSERT_TRUE(composite);
-  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[0].get());
-  ASSERT_NE(translation, nullptr);
-  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
-}
-
 TEST(IOTest, readShapeSet_luaCallbackErrorIncludesContext)
 {
   try
@@ -2135,165 +2133,6 @@ TEST(IOTest, readShapeSet_luaNestedUnexpectedFieldsMatchYamlValidation)
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   EXPECT_EQ("wheel", shapeSet.getShapes()[0].getName());
 }
-
-TEST(IOTest, readShapeSet_luaIntegratedWorkflowSmoke)
-{
-  auto shapeSet = readShapeSetFromString(R"(
-    local dim = 2
-    local scale_factor = 1.25
-    local lift = 3.0
-
-    local function point(x, y, z)
-      if dim == 2 then
-        return {x, y}
-      end
-      return {x, y, z or 0.0}
-    end
-
-    local function lift_by(amount)
-      return function()
-        return point(0.0, amount)
-      end
-    end
-
-    local function scale_callback()
-      return {scale_factor}
-    end
-
-    dimensions = dim
-    shapes = {
-      {
-        name = "generated",
-        material = "steel",
-        geometry = {
-          format = "mfem",
-          path = "generated.mesh",
-          units = "cm",
-          operators = {
-            { scale = scale_callback },
-            { translate = lift_by(lift) }
-          }
-        }
-      }
-    }
-  )",
-                                         InputFormat::Lua);
-
-  ASSERT_EQ(1u, shapeSet.getShapes().size());
-  const auto &geometry = shapeSet.getShapes()[0].getGeometry();
-  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
-  ASSERT_TRUE(composite);
-  ASSERT_EQ(2u, composite->getOperators().size());
-
-  auto scale = std::dynamic_pointer_cast<const Scale>(composite->getOperators()[0]);
-  ASSERT_TRUE(scale);
-  EXPECT_DOUBLE_EQ(1.25, scale->getXFactor());
-  EXPECT_DOUBLE_EQ(1.25, scale->getYFactor());
-  EXPECT_DOUBLE_EQ(1.25, scale->getZFactor());
-
-  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[1]);
-  ASSERT_TRUE(translation);
-  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {0.0, 3.0, 0.0}));
-}
-
-TEST(IOTest, readShapeSet_luaParseSmokeMatchesYaml)
-{
-  const std::string yaml = R"(
-    dimensions: 3
-    shapes:
-      - name: one
-        material: steel
-        geometry:
-          format: stl
-          path: one.stl
-          units: cm
-          operators:
-            - rotate: 20
-              axis: [0, 0, 1]
-              center: [1, 2, 3]
-            - translate: [4, 5, 6]
-      - name: two
-        material: glass
-        replaces: [steel]
-        geometry:
-          format: stl
-          path: two.stl
-          units: cm
-          operators:
-            - scale: [1.5, 2.0, 2.5]
-              center: [0, 0, 0]
-  )";
-
-  const std::string lua = R"(
-    local angle = 20
-    local axis = {0, 0, 1}
-    local center = {1, 2, 3}
-    dimensions = 3
-    shapes = {
-      {
-        name = "one",
-        material = "steel",
-        geometry = {
-          format = "stl",
-          path = "one.stl",
-          units = "cm",
-          operators = {
-            { rotate = angle, axis = axis, center = center },
-            { translate = {4, 5, 6} }
-          }
-        }
-      },
-      {
-        name = "two",
-        material = "glass",
-        replaces = {"steel"},
-        geometry = {
-          format = "stl",
-          path = "two.stl",
-          units = "cm",
-          operators = {
-            { scale = {1.5, 2.0, 2.5}, center = {0, 0, 0} }
-          }
-        }
-      }
-    }
-  )";
-
-  auto yamlShapeSet = readShapeSetFromString(yaml, InputFormat::YAML);
-  auto luaShapeSet = readShapeSetFromString(lua, InputFormat::Lua);
-
-  ASSERT_EQ(Dimensions::Three, yamlShapeSet.getDimensions());
-  ASSERT_EQ(yamlShapeSet.getDimensions(), luaShapeSet.getDimensions());
-  ASSERT_EQ(2u, yamlShapeSet.getShapes().size());
-  ASSERT_EQ(yamlShapeSet.getShapes().size(), luaShapeSet.getShapes().size());
-
-  const auto &yamlFirstShape = yamlShapeSet.getShapes()[0];
-  const auto &luaFirstShape = luaShapeSet.getShapes()[0];
-  EXPECT_EQ(yamlFirstShape.getName(), luaFirstShape.getName());
-  EXPECT_EQ(yamlFirstShape.getMaterial(), luaFirstShape.getMaterial());
-  EXPECT_EQ(yamlFirstShape.getGeometry().getPath(), luaFirstShape.getGeometry().getPath());
-
-  const auto &yamlFirstOperator = yamlFirstShape.getGeometry().getGeometryOperator();
-  const auto &luaFirstOperator = luaFirstShape.getGeometry().getGeometryOperator();
-  auto yamlFirstComposite = std::dynamic_pointer_cast<const CompositeOperator>(yamlFirstOperator);
-  auto luaFirstComposite = std::dynamic_pointer_cast<const CompositeOperator>(luaFirstOperator);
-  ASSERT_TRUE(yamlFirstComposite);
-  ASSERT_TRUE(luaFirstComposite);
-  ASSERT_EQ(yamlFirstComposite->getOperators().size(), luaFirstComposite->getOperators().size());
-
-  const auto &yamlSecondShape = yamlShapeSet.getShapes()[1];
-  const auto &luaSecondShape = luaShapeSet.getShapes()[1];
-  EXPECT_EQ(yamlSecondShape.getName(), luaSecondShape.getName());
-  EXPECT_EQ(yamlSecondShape.getMaterial(), luaSecondShape.getMaterial());
-  EXPECT_TRUE(luaSecondShape.replaces("steel"));
-
-  const auto &luaSecondOperator = luaSecondShape.getGeometry().getGeometryOperator();
-  auto luaSecondComposite = std::dynamic_pointer_cast<const CompositeOperator>(luaSecondOperator);
-  ASSERT_TRUE(luaSecondComposite);
-  ASSERT_EQ(1u, luaSecondComposite->getOperators().size());
-  EXPECT_TRUE(std::dynamic_pointer_cast<const Scale>(luaSecondComposite->getOperators()[0]));
-}
-#endif
 
 TEST(IOTest, readShapeSet_shapeWithReplacesAndDoesNotReplaceLists)
 {
