@@ -15,234 +15,6 @@ namespace axom
 {
 namespace inlet
 {
-namespace detail
-{
-/*!
- *****************************************************************************
- * \class FunctionValueAlternativeRegistry
- *
- * \brief Stores function alternatives for values in an Inlet hierarchy.
- *
- * Every Container in an Inlet hierarchy shares one registry. Entries are keyed
- * by canonical input paths and own the declared function alternatives,
- * including empty alternatives used to detect duplicate declarations.
- * The registry also tracks concrete value groups so that declaring a function
- * alternative before or after the corresponding value produces the same result.
- * Registry state is runtime-only and is not persisted in Sidre.
- *****************************************************************************
- */
-class FunctionValueAlternativeRegistry
-{
-public:
-  /*!
-   ***************************************************************************
-   * \brief Adds a function alternative for an input value.
-   *
-   * Empty alternatives are retained so duplicate declarations can be detected.
-   * A valid alternative updates any concrete value group already registered at
-   * the same path.
-   *
-   * \param [in] inputPath The path of the input value.
-   * \param [in] function The function alternative to store.
-   ***************************************************************************
-   */
-  void add(std::string inputPath, FunctionVariant&& function)
-  {
-    inputPath = canonicalPath(inputPath);
-    const auto inserted = m_alternatives.emplace(inputPath, std::move(function));
-    if(!inserted.second)
-    {
-      SLIC_ERROR(fmt::format(
-        "[Inlet] Input path '{0}' already has a function value alternative",
-        inputPath));
-      return;
-    }
-
-    if(inserted.first->second)
-    {
-      markConcreteValueAbsent(inputPath);
-    }
-  }
-
-  /*!
-   ***************************************************************************
-   * \brief Registers the Sidre group for a concrete input value.
-   *
-   * The group is retained so its retrieval status can be adjusted if a function
-   * alternative is declared later.
-   *
-   * \param [in] inputPath The path of the concrete input value.
-   * \param [in] group The Sidre group that stores the value's metadata.
-   ***************************************************************************
-   */
-  void registerConcreteValue(const std::string& inputPath, axom::sidre::Group* group)
-  {
-    m_concreteGroups.emplace(canonicalPath(inputPath), group);
-  }
-
-  /*!
-   ***************************************************************************
-   * \brief Adjusts a concrete value's retrieval result for a function alternative.
-   *
-   * \param [in] inputPath The path of the input value.
-   * \param [in] result The result reported for the concrete value.
-   *
-   * \return \a result, except that WrongType becomes NotFound when a valid
-   * function alternative exists at the same path.
-   ***************************************************************************
-   */
-  ReaderResult adjust(const std::string& inputPath, ReaderResult result) const
-  {
-    return result == ReaderResult::WrongType && contains(inputPath)
-      ? ReaderResult::NotFound
-      : result;
-  }
-
-  /*!
-   ***************************************************************************
-   * \brief Tests whether a supplied function alternative exists at a path.
-   *
-   * \param [in] inputPath The path of the input value.
-   *
-   * \return True when the path has a valid callable, rather than merely an empty
-   * declaration; otherwise false.
-   ***************************************************************************
-   */
-  bool contains(const std::string& inputPath) const
-  {
-    const auto iter = m_alternatives.find(canonicalPath(inputPath));
-    return iter != m_alternatives.end() && static_cast<bool>(iter->second);
-  }
-
-  /*!
-   ***************************************************************************
-   * \brief Gets the function alternative declared at a path.
-   *
-   * \param [in] inputPath The path of the input value.
-   *
-   * \return The stored function wrapper, which may be empty when the alternative
-   * was declared without a callback.
-   *
-   * An error is reported if no alternative was declared at \a inputPath.
-   ***************************************************************************
-   */
-  const FunctionVariant& get(const std::string& inputPath) const
-  {
-    const std::string path = canonicalPath(inputPath);
-    const auto iter = m_alternatives.find(path);
-    SLIC_ERROR_IF(iter == m_alternatives.end(),
-                  fmt::format("[Inlet] Function value alternative not found for value: {0}", path));
-    return iter->second;
-  }
-
-  /*!
-   ***************************************************************************
-   * \brief Finds function alternatives that are direct children of a container.
-   *
-   * \param [in] containerPath The path of the parent container.
-   *
-   * \return The names of direct children that have valid function alternatives.
-   ***************************************************************************
-   */
-  std::vector<std::string> childNames(const std::string& containerPath) const
-  {
-    const std::string parentPath = canonicalPath(containerPath);
-    std::vector<std::string> result;
-    for(const auto& entry : m_alternatives)
-    {
-      const Path path(entry.first);
-      if(static_cast<bool>(entry.second) && path.dirName() == parentPath)
-      {
-        result.push_back(path.baseName());
-      }
-    }
-    return result;
-  }
-
-  /*!
-   ***************************************************************************
-   * \brief Tests for valid function alternatives below a container.
-   *
-   * \param [in] containerPath The path of the container.
-   *
-   * \return True when a descendant has a valid function alternative, else false.
-   * An alternative at the container's own path is excluded so that a
-   * whole-collection callback does not make the concrete collection non-empty.
-   ***************************************************************************
-   */
-  bool containsBelow(const std::string& containerPath) const
-  {
-    const std::string parentPath = canonicalPath(containerPath);
-    const std::string prefix = parentPath.empty() ? "" : parentPath + "/";
-    return std::any_of(
-      m_alternatives.begin(),
-      m_alternatives.end(),
-      [&parentPath, &prefix](const decltype(m_alternatives)::value_type& entry) {
-        if(!static_cast<bool>(entry.second))
-        {
-          return false;
-        }
-        return parentPath.empty() || entry.first.compare(0, prefix.size(), prefix) == 0;
-      });
-  }
-
-  /*!
-   ********************************************************************************
-   * \brief Converts an input path to the registry's canonical representation.
-   *
-   * \param [in] inputPath The path to normalize.
-   *
-   * \return The normalized path with internal collection-group components removed.
-   ********************************************************************************
-   */
-  static std::string canonicalPath(const std::string& inputPath)
-  {
-    std::string result;
-    const Path path(inputPath);
-    for(const auto& part : path.parts())
-    {
-      if(part != COLLECTION_GROUP_NAME)
-      {
-        result = utilities::string::appendPrefix(result, part);
-      }
-    }
-    return result;
-  }
-
-private:
-  /*!
-   ***************************************************************************
-   * \brief Marks concrete values at a path absent when they have the wrong type.
-   *
-   * Only WrongType retrieval statuses are changed; all other statuses are unchanged.
-   *
-   * \param [in] inputPath A canonical input path.
-   ***************************************************************************
-   */
-  void markConcreteValueAbsent(const std::string& inputPath)
-  {
-    const auto groups = m_concreteGroups.equal_range(inputPath);
-    for(auto iter = groups.first; iter != groups.second; ++iter)
-    {
-      auto* group = iter->second;
-      if(group->hasView("retrieval_status"))
-      {
-        auto* statusView = group->getView("retrieval_status");
-        const auto status =
-          static_cast<ReaderResult>(static_cast<int>(statusView->getData()));
-        if(status == ReaderResult::WrongType)
-        {
-          statusView->setScalar(static_cast<int>(ReaderResult::NotFound));
-        }
-      }
-    }
-  }
-
-  std::unordered_map<std::string, FunctionVariant> m_alternatives;
-  std::unordered_multimap<std::string, axom::sidre::Group*> m_concreteGroups;
-};
-}  // namespace detail
-
 Container::Container(const std::string& name,
                      const std::string& description,
                      Reader& reader,
@@ -250,31 +22,11 @@ Container::Container(const std::string& name,
                      std::vector<std::string>& unexpectedNames,
                      bool docEnabled,
                      bool reconstruct)
-  : Container(name,
-              description,
-              reader,
-              sidreRootGroup,
-              unexpectedNames,
-              std::make_shared<detail::FunctionValueAlternativeRegistry>(),
-              docEnabled,
-              reconstruct)
-{ }
-
-Container::Container(
-  const std::string& name,
-  const std::string& description,
-  Reader& reader,
-  axom::sidre::Group* sidreRootGroup,
-  std::vector<std::string>& unexpectedNames,
-  std::shared_ptr<detail::FunctionValueAlternativeRegistry> functionAlternatives,
-  bool docEnabled,
-  bool reconstruct)
   : m_name(name)
   , m_reader(reader)
   , m_sidreRootGroup(sidreRootGroup)
   , m_unexpectedNames(unexpectedNames)
   , m_docEnabled(docEnabled)
-  , m_functionAlternatives(std::move(functionAlternatives))
 {
   SLIC_ASSERT_MSG(m_sidreRootGroup != nullptr, "Inlet's Sidre Datastore class not set");
 
@@ -307,7 +59,13 @@ Container::Container(
         if(inletType == "Container")
         {
           m_containerChildren.emplace(childName,
-                                      createChildContainer(childName, "", true));
+                                      std::make_unique<Container>(childName,
+                                                                  "",
+                                                                  m_reader,
+                                                                  m_sidreRootGroup,
+                                                                  m_unexpectedNames,
+                                                                  m_docEnabled,
+                                                                  true));
         }
         else if(inletType == "Field")
         {
@@ -333,21 +91,6 @@ Container::Container(
   }
 }
 
-std::unique_ptr<Container> Container::createChildContainer(const std::string& name,
-                                                           const std::string& description,
-                                                           bool reconstruct)
-{
-  return std::unique_ptr<Container> {
-    new Container(name,
-                  description,
-                  m_reader,
-                  m_sidreRootGroup,
-                  m_unexpectedNames,
-                  m_functionAlternatives,
-                  m_docEnabled,
-                  reconstruct)};
-}
-
 template <typename Func>
 void Container::forEachCollectionElement(Func&& func) const
 {
@@ -360,24 +103,16 @@ void Container::forEachCollectionElement(Func&& func) const
 template <typename OutputIt, typename Func>
 bool Container::transformFromNestedElements(OutputIt output, const std::string& name, Func&& func) const
 {
-  return forEachNestedElement(name, [&](Container& container, const std::string& path) {
-    *output++ = func(container, path);
-  });
-}
-
-template <typename Func>
-bool Container::forEachNestedElement(const std::string& name, Func&& func) const
-{
   for(Container& container : m_nested_aggregates)
   {
-    func(container, {});
+    *output++ = func(container, {});
   }
 
   if(isStructCollection())
   {
     for(const auto& indexPath : detail::collectionIndicesWithPaths(*this, name))
     {
-      func(getContainer(indexPath.first), indexPath.second);
+      *output++ = func(getContainer(indexPath.first), indexPath.second);
     }
   }
   return isStructCollection() || !m_nested_aggregates.empty();
@@ -397,9 +132,16 @@ Container& Container::addContainer(const std::string& name, const std::string& d
     const std::string currDescr = (pathPart == name) ? description : "";
     if(!currContainer->hasChild<Container>(pathPart))
     {
-      const auto& emplaceResult = currContainer->m_containerChildren.emplace(
-        currContainerName,
-        currContainer->createChildContainer(currContainerName, currDescr));
+      // Will the copy always be elided here with a move ctor
+      // or do we need std::piecewise_construct/std::forward_as_tuple?
+      const auto& emplaceResult =
+        currContainer->m_containerChildren.emplace(currContainerName,
+                                                   std::make_unique<Container>(currContainerName,
+                                                                               currDescr,
+                                                                               m_reader,
+                                                                               m_sidreRootGroup,
+                                                                               m_unexpectedNames,
+                                                                               m_docEnabled));
       // emplace_result is a pair whose first element is an iterator to the inserted element
       currContainer = emplaceResult.first->second.get();
     }
@@ -634,8 +376,11 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
-    m_functionAlternatives->registerConcreteValue(lookupPath, sidreGroup);
-    auto typeId = addPrimitiveHelper(sidreGroup, lookupPath, forArray, val);
+    auto typeId = addPrimitiveHelper(sidreGroup,
+                                     lookupPath,
+                                     forArray,
+                                     val,
+                                     containsFunctionValueAlternative(name));
     return addField(sidreGroup, typeId, fullName, name);
   }
 }
@@ -644,9 +389,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<bool>(axom::sidre::Group* sidreGroup,
                                                             const std::string& lookupPath,
                                                             bool forArray,
-                                                            bool val)
+                                                            bool val,
+                                                            bool hasFunctionAlternative)
 {
-  const auto result = m_functionAlternatives->adjust(lookupPath, m_reader.getBool(lookupPath, val));
+  auto result = m_reader.getBool(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value, so the
+    // concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val ? std::int8_t(1) : std::int8_t(0));
@@ -662,9 +414,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<int>(axom::sidre::Group* sidreGroup,
                                                            const std::string& lookupPath,
                                                            bool forArray,
-                                                           int val)
+                                                           int val,
+                                                           bool hasFunctionAlternative)
 {
-  const auto result = m_functionAlternatives->adjust(lookupPath, m_reader.getInt(lookupPath, val));
+  auto result = m_reader.getInt(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value, so the
+    // concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val);
@@ -680,9 +439,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<double>(axom::sidre::Group* sidreGroup,
                                                               const std::string& lookupPath,
                                                               bool forArray,
-                                                              double val)
+                                                              double val,
+                                                              bool hasFunctionAlternative)
 {
-  const auto result = m_functionAlternatives->adjust(lookupPath, m_reader.getDouble(lookupPath, val));
+  auto result = m_reader.getDouble(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value, so the
+    // concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val);
@@ -698,9 +464,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<std::string>(axom::sidre::Group* sidreGroup,
                                                                    const std::string& lookupPath,
                                                                    bool forArray,
-                                                                   std::string val)
+                                                                   std::string val,
+                                                                   bool hasFunctionAlternative)
 {
-  const auto result = m_functionAlternatives->adjust(lookupPath, m_reader.getString(lookupPath, val));
+  auto result = m_reader.getString(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value,
+    // so the concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewString("value", val);
@@ -1112,10 +885,11 @@ Verifiable<Container>& Container::addPrimitiveArray(const std::string& name,
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
-    m_functionAlternatives->registerConcreteValue(lookupPath, container.sidreGroup());
     std::vector<VariantKey> indices;
-    if(m_functionAlternatives->contains(lookupPath))
+    if(containsFunctionValueAlternative(name))
     {
+      // The input supplied the function representation of this collection,
+      // so the concrete entry is absent rather than of the wrong type.
       markRetrievalStatus(*container.sidreGroup(), ReaderResult::NotFound);
     }
     else if(isDict)
@@ -1161,16 +935,48 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                                              const std::string& description,
                                              const std::string& pathOverride)
 {
+  return addFunctionInternal(name, name, ret_type, arg_types, description, pathOverride);
+}
+
+Verifiable<Function>& Container::addFunctionAsValueAlternative(
+  const std::string& valueName,
+  const FunctionTag ret_type,
+  const std::vector<FunctionTag>& arg_types,
+  const std::string& description)
+{
+  SLIC_ERROR_IF(valueName.empty(),
+                "[Inlet] A function value alternative requires a non-empty value name");
+  SLIC_ERROR_IF(ret_type == FunctionTag::Void,
+                "[Inlet] A function value alternative requires a non-void return type");
+  // The alternative is read from the concrete value's input path but is stored
+  // under a distinct schema name so the two entries do not collide.
+  return addFunctionInternal(detail::functionAlternativeName(valueName),
+                             valueName,
+                             ret_type,
+                             arg_types,
+                             description,
+                             "");
+}
+
+Verifiable<Function>& Container::addFunctionInternal(const std::string& schemaName,
+                                                     const std::string& inputName,
+                                                     const FunctionTag ret_type,
+                                                     const std::vector<FunctionTag>& arg_types,
+                                                     const std::string& description,
+                                                     const std::string& pathOverride)
+{
   // If it has indices, we're adding a function to an array of structs,
   // so we need to iterate over the subcontainers corresponding to elements of the array
   std::vector<std::reference_wrapper<Verifiable<Function>>> funcs;
 
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(funcs),
-    name,
-    [&name, &ret_type, &arg_types, &description](Container& subcontainer,
-                                                 const std::string& path) -> Verifiable<Function>& {
-      return subcontainer.addFunction(name, ret_type, arg_types, description, path);
+    inputName,
+    [&schemaName, &inputName, &ret_type, &arg_types, &description](
+      Container& subcontainer,
+      const std::string& path) -> Verifiable<Function>& {
+      return subcontainer
+        .addFunctionInternal(schemaName, inputName, ret_type, arg_types, description, path);
     });
   if(is_nested)
   {
@@ -1184,7 +990,7 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   else
   {
     // Otherwise actually add a Function
-    std::string fullName = utilities::string::appendPrefix(m_name, name);
+    std::string fullName = utilities::string::appendPrefix(m_name, schemaName);
     // First check if the function already exists
     auto iter = m_functionChildren.find(fullName);
     if(iter != m_functionChildren.end())
@@ -1196,53 +1002,15 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
     // If a pathOverride is specified, needed when Inlet-internal groups
-    // are part of fullName
-    std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
+    // are part of the input path
+    std::string lookupPath =
+      (pathOverride.empty()) ? utilities::string::appendPrefix(m_name, inputName) : pathOverride;
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
-    return storeFunction(sidreGroup, std::move(func), fullName, name);
+    return storeFunction(sidreGroup, std::move(func), fullName, schemaName);
   }
-}
-
-void Container::addFunctionAsValueAlternative(
-  const std::string& valueName,
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types)
-{
-  SLIC_ERROR_IF(valueName.empty(),
-                "[Inlet] A function value alternative requires a non-empty value name");
-  SLIC_ERROR_IF(ret_type == FunctionTag::Void,
-                "[Inlet] A function value alternative requires a non-void return type");
-  addFunctionValueAlternative(valueName, ret_type, arg_types, "");
-}
-
-void Container::addFunctionValueAlternative(
-  const std::string& valueName,
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const std::string& resolvedValuePath)
-{
-  // Expand the public value name across nested collections.
-  const bool is_nested = forEachNestedElement(
-    valueName,
-    [&valueName, &ret_type, &arg_types](Container& subcontainer, const std::string& path) {
-      subcontainer.addFunctionValueAlternative(valueName, ret_type, arg_types, path);
-    });
-  if(is_nested)
-  {
-    return;
-  }
-
-  std::string lookupPath = resolvedValuePath.empty()
-    ? utilities::string::appendPrefix(m_name, valueName)
-    : resolvedValuePath;
-  lookupPath = detail::FunctionValueAlternativeRegistry::canonicalPath(lookupPath);
-  detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
-  auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
-  func.setName(std::string {lookupPath});
-  m_functionAlternatives->add(std::move(lookupPath), std::move(func));
 }
 
 Proxy Container::operator[](const std::string& name) const
@@ -1575,9 +1343,7 @@ bool Container::exists() const
                                            return static_cast<bool>(*entry.second);
                                          });
 
-  const bool has_function_alternatives = m_functionAlternatives->containsBelow(m_name);
-
-  return has_containers || has_fields || has_functions || has_function_alternatives;
+  return has_containers || has_fields || has_functions;
 }
 
 bool Container::isUserProvided() const
@@ -1602,14 +1368,14 @@ bool Container::isUserProvided() const
                                            return static_cast<bool>(*entry.second);
                                          });
 
-  const bool has_function_alternatives = m_functionAlternatives->containsBelow(m_name);
-
-  return has_containers || has_fields || has_functions || has_function_alternatives;
+  return has_containers || has_fields || has_functions;
 }
 
 bool Container::isUserProvided(const std::string& name) const
 {
-  if(m_functionAlternatives->contains(utilities::string::appendPrefix(m_name, name)))
+  // A function value alternative is stored under a different schema name than
+  // the value it applies to, so it is not found by the child lookups below
+  if(containsFunctionValueAlternative(name))
   {
     return true;
   }
@@ -1649,17 +1415,30 @@ const std::unordered_map<std::string, std::unique_ptr<Function>>& Container::get
 
 bool Container::containsFunctionValueAlternative(const std::string& valueName) const
 {
-  return m_functionAlternatives->contains(utilities::string::appendPrefix(m_name, valueName));
+  auto function = getChildInternal<Function>(detail::functionAlternativeName(valueName));
+  return function != nullptr && static_cast<bool>(*function);
 }
 
-const FunctionVariant& Container::getFunctionValueAlternative(const std::string& valueName) const
+const Function& Container::getFunctionValueAlternative(const std::string& valueName) const
 {
-  return m_functionAlternatives->get(utilities::string::appendPrefix(m_name, valueName));
+  return getFunction(detail::functionAlternativeName(valueName));
 }
 
 std::vector<std::string> Container::getFunctionValueAlternativeNames() const
 {
-  return m_functionAlternatives->childNames(m_name);
+  std::vector<std::string> names;
+  for(const auto& entry : m_functionChildren)
+  {
+    const std::string childName = Path(entry.first).baseName();
+    if(detail::isFunctionAlternativeName(childName) && static_cast<bool>(*entry.second))
+    {
+      names.push_back(
+        childName.substr(0, childName.size() - detail::FUNCTION_ALTERNATIVE_SUFFIX.size()));
+    }
+  }
+  // m_functionChildren is unordered, so sort for a reproducible result
+  std::sort(names.begin(), names.end());
+  return names;
 }
 
 }  // namespace inlet

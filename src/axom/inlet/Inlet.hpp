@@ -436,19 +436,23 @@ public:
    * \brief Add a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
-   * \param [in] valueName   Path of the concrete value or collection,
-   *                         relative to the root Container
-   * \param [in] ret_type    The return type. Must not be FunctionTag::Void
-   * \param [in] arg_types   The argument types of the function
+   * \param [in] valueName    Path of the concrete value or collection,
+   *                          relative to the root Container
+   * \param [in] ret_type     The return type. Must not be FunctionTag::Void
+   * \param [in] arg_types    The argument types of the function
+   * \param [in] description  Description of the function
+   *
+   * \return Reference to the created Function
    *
    * \see Container::addFunctionAsValueAlternative
    *****************************************************************************
    */
-  void addFunctionAsValueAlternative(const std::string& valueName,
-                                     FunctionTag ret_type,
-                                     const std::vector<FunctionTag>& arg_types)
+  Verifiable<Function>& addFunctionAsValueAlternative(const std::string& valueName,
+                                                      FunctionTag ret_type,
+                                                      const std::vector<FunctionTag>& arg_types,
+                                                      const std::string& description = "")
   {
-    m_globalContainer.addFunctionAsValueAlternative(valueName, ret_type, arg_types);
+    return m_globalContainer.addFunctionAsValueAlternative(valueName, ret_type, arg_types, description);
   }
 
   /*!

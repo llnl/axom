@@ -4,7 +4,9 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/fmt.hpp"
 #include "axom/inlet.hpp"
+#include "axom/slic.hpp"
 #include "axom/slic/core/SimpleLogger.hpp"
 
 #include <memory>
@@ -20,8 +22,9 @@ double readScale(const std::string& luaInput)
   inlet::Inlet input(std::move(reader));
 
   // _inlet_function_value_alternative_schema_start
-  input.addDouble("scale");
+  // The alternative is declared before the concrete entry it applies to
   input.addFunctionAsValueAlternative("scale", inlet::FunctionTag::Double, {});
+  input.addDouble("scale");
   // _inlet_function_value_alternative_schema_end
 
   if(!input.verify())
@@ -41,7 +44,12 @@ int main()
 {
   axom::slic::SimpleLogger logger;
 
-  const bool concreteWorks = readScale("scale = 2.0") == 2.0;
-  const bool callbackWorks = readScale("scale = function() return 3.0 end") == 3.0;
-  return concreteWorks && callbackWorks ? 0 : 1;
+  const double concrete = readScale("scale = 2.0");
+  const double callback = readScale("scale = function() return 3.0 end");
+
+  SLIC_ERROR_IF(concrete != 2.0,
+                axom::fmt::format("Expected a concrete scale of 2.0, got {0}", concrete));
+  SLIC_ERROR_IF(callback != 3.0,
+                axom::fmt::format("Expected a callback scale of 3.0, got {0}", callback));
+  return 0;
 }

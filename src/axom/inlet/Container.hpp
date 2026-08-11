@@ -69,8 +69,6 @@ class VariantStructCollection;
 
 namespace detail
 {
-class FunctionValueAlternativeRegistry;
-
 struct VariantStructFactoryBase
 {
   virtual ~VariantStructFactoryBase() = default;
@@ -350,6 +348,41 @@ std::vector<std::pair<std::string, std::string>> collectionIndicesWithPaths(cons
  */
 void updateUnexpectedNames(const std::string& accessedName,
                            std::vector<std::string>& unexpectedNames);
+
+/*!
+ *******************************************************************************
+ * \brief Suffix distinguishing a function value alternative's schema entry from
+ * the concrete entry that shares its input path
+ *******************************************************************************
+ */
+const std::string FUNCTION_ALTERNATIVE_SUFFIX = "_inlet_function_alternative";
+
+/*!
+ *******************************************************************************
+ * \brief Returns the schema name of the function alternative for a value
+ *
+ * \param [in] valueName The name of the concrete value or collection
+ *
+ * \note The alternative is read from \a valueName but stored under a distinct
+ * schema name so that it does not collide with the concrete entry
+ *******************************************************************************
+ */
+inline std::string functionAlternativeName(const std::string& valueName)
+{
+  return valueName + FUNCTION_ALTERNATIVE_SUFFIX;
+}
+
+/*!
+ *******************************************************************************
+ * \brief Returns whether a schema name belongs to a function value alternative
+ *
+ * \param [in] schemaName The name of a schema entry
+ *******************************************************************************
+ */
+inline bool isFunctionAlternativeName(const std::string& schemaName)
+{
+  return axom::utilities::string::endsWith(schemaName, FUNCTION_ALTERNATIVE_SUFFIX);
+}
 
 }  // namespace detail
 
@@ -756,18 +789,24 @@ public:
    *
    * The function is read from the same public value name as the concrete field
    * or collection. If a function exists there, the concrete schema entry is
-   * treated as absent rather than as having the wrong type. A concrete schema
-   * entry, when used, may be added before or after the function alternative.
+   * treated as absent rather than as having the wrong type.
    *
-   * \param [in] valueName   Path of the concrete value or collection,
-   *                         relative to this Container
-   * \param [in] ret_type    The return type. Must not be FunctionTag::Void
-   * \param [in] arg_types   The argument types of the function
+   * \param [in] valueName    Path of the concrete value or collection,
+   *                          relative to this Container
+   * \param [in] ret_type     The return type. Must not be FunctionTag::Void
+   * \param [in] arg_types    The argument types of the function
+   * \param [in] description  Description of the function
+   *
+   * \return Reference to the created Function
+   *
+   * \note The alternative must be declared before the concrete schema entry it applies to,
+   * so that the concrete entry can be suppressed when the input supplies a function.
    *****************************************************************************
    */
-  void addFunctionAsValueAlternative(const std::string& valueName,
-                                     FunctionTag ret_type,
-                                     const std::vector<FunctionTag>& arg_types);
+  Verifiable<Function>& addFunctionAsValueAlternative(const std::string& valueName,
+                                                      FunctionTag ret_type,
+                                                      const std::vector<FunctionTag>& arg_types,
+                                                      const std::string& description = "");
 
   /*!
    *******************************************************************************
@@ -1076,17 +1115,17 @@ public:
    *
    * \param [in] valueName Value path relative to this Container
    *
-   * \return The function alternative declared for \a valueName. The returned
-   * wrapper is empty when the input did not supply the function representation.
+   * \return The Function declared as the alternative for \a valueName
    *****************************************************************************
    */
-  const FunctionVariant& getFunctionValueAlternative(const std::string& valueName) const;
+  const Function& getFunctionValueAlternative(const std::string& valueName) const;
 
   /*!
    *****************************************************************************
    * \brief Return the public value names of supplied function alternatives.
    *
-   * \return Names of direct child values whose function representation was supplied
+   * \return Sorted names of direct child values whose function representation
+   * was supplied
    *****************************************************************************
    */
   std::vector<std::string> getFunctionValueAlternativeNames() const;
@@ -1140,29 +1179,6 @@ public:
                                  const std::string& pathOverride = "");
 
 private:
-  /*!
-   *****************************************************************************
-   * \brief Construct a child Container that shares function-alternative state.
-   *****************************************************************************
-   */
-  Container(const std::string& name,
-            const std::string& description,
-            Reader& reader,
-            axom::sidre::Group* sidreRootGroup,
-            std::vector<std::string>& unexpectedNames,
-            std::shared_ptr<detail::FunctionValueAlternativeRegistry> functionAlternatives,
-            bool docEnabled,
-            bool reconstruct);
-
-  /*!
-   *****************************************************************************
-   * \brief Create a child using this Container's shared Inlet state.
-   *****************************************************************************
-   */
-  std::unique_ptr<Container> createChildContainer(const std::string& name,
-                                                  const std::string& description,
-                                                  bool reconstruct = false);
-
   /*!
    *****************************************************************************
    * \brief Add a Container to the input file schema.
@@ -1279,6 +1295,9 @@ private:
    * the input file
    * \param [in] val A provided value, will be overwritten if found at specified
    * path in input file
+   * \param [in] hasFunctionAlternative Whether a function value alternative was
+   * supplied at \a lookupPath, in which case a wrong-type read is reported as
+   * absent instead
    *
    * \return Type ID for the inserted view
    *****************************************************************************
@@ -1288,7 +1307,8 @@ private:
   axom::sidre::DataTypeId addPrimitiveHelper(axom::sidre::Group* sidreGroup,
                                              const std::string& lookupPath,
                                              bool forArray,
-                                             T val);
+                                             T val,
+                                             bool hasFunctionAlternative);
 
   /*!
    *****************************************************************************
@@ -1355,19 +1375,30 @@ private:
 
   /*!
    *****************************************************************************
-   * \brief Add a function alternative for a public value.
+   * \brief Adds a Function whose schema name may differ from the input path it
+   * is read from.
    *
-   * \param [in] valueName        Public name of the concrete value or collection
-   * \param [in] ret_type         The return type of the function
-   * \param [in] arg_types        The argument types of the function
-   * \param [in] resolvedValuePath Concrete input path when expanding a struct
-   * collection; empty when it should be derived from this Container
+   * This backs both addFunction(), where the two names are identical, and
+   * addFunctionAsValueAlternative(), where the function is read from a concrete
+   * value's input path but stored under a distinct schema name.
+   *
+   * \param [in] schemaName   The name of the Function within this Container
+   * \param [in] inputName    The name to read from in the input file
+   * \param [in] ret_type     The return type of the function
+   * \param [in] arg_types    The argument types of the function
+   * \param [in] description  Description of the function
+   * \param [in] pathOverride The path within the input file to read from, if
+   * different than the structure of the Sidre datastore
+   *
+   * \return Reference to the created Function
    *****************************************************************************
    */
-  void addFunctionValueAlternative(const std::string& valueName,
-                                   FunctionTag ret_type,
-                                   const std::vector<FunctionTag>& arg_types,
-                                   const std::string& resolvedValuePath);
+  Verifiable<Function>& addFunctionInternal(const std::string& schemaName,
+                                            const std::string& inputName,
+                                            FunctionTag ret_type,
+                                            const std::vector<FunctionTag>& arg_types,
+                                            const std::string& description,
+                                            const std::string& pathOverride);
 
   axom::sidre::View* baseGet(const std::string& name) const;
 
@@ -1546,20 +1577,6 @@ private:
   template <typename OutputIt, typename Func>
   bool transformFromNestedElements(OutputIt output, const std::string& name, Func&& func) const;
 
-  /*!
-   *****************************************************************************
-   * \brief Applies a provided function to nested elements of the calling table.
-   *
-   * \param [in] name The name to append to each nested element's input path
-   * \param [in] func Function accepting a Container and its resolved input path
-   *
-   * \return Whether the calling container had any nested elements (or was a
-   * struct collection)
-   *****************************************************************************
-   */
-  template <typename Func>
-  bool forEachNestedElement(const std::string& name, Func&& func) const;
-
   std::string m_name;
   Reader& m_reader;
   // Inlet's Root Sidre Group
@@ -1573,7 +1590,6 @@ private:
   std::unordered_map<std::string, std::unique_ptr<Container>> m_containerChildren;
   std::unordered_map<std::string, std::unique_ptr<Field>> m_fieldChildren;
   std::unordered_map<std::string, std::unique_ptr<Function>> m_functionChildren;
-  std::shared_ptr<detail::FunctionValueAlternativeRegistry> m_functionAlternatives;
   Verifier m_verifier;
 
   // Used for ownership only - need to take ownership of these so children
