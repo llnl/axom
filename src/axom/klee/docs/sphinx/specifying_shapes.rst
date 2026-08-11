@@ -188,6 +188,10 @@ Exported names are ordinary mutable globals and can be modified.
    See :ref:`Inlet's reader documentation <inlet_readers_label>` for the general
    warning that applies to all Lua input.
 
+   Klee does not coordinate Lua evaluation across MPI ranks. If an application
+   calls :code:`readShapeSet` on every rank, each rank reads and evaluates the
+   deck and the initialization chunk independently, so both must be deterministic.
+
 Use :code:`local` helper functions and constants for intermediate values so the
 global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example
@@ -195,26 +199,14 @@ For Lua input, a one-value scale is written as a one-entry table, for example
 
 Selected operator fields may also be written as zero-argument Lua callbacks.
 Klee evaluates each callback exactly once while reading the deck; the resulting
-shape still contains ordinary affine or slice operators, not runtime Lua
-functions. Callbacks should be pure functions of local deck variables.
-Callbacks in a named operator are evaluated when that named operator is
-constructed. Each :code:`ref` reuses the resulting concrete operator rather
-than evaluating its callbacks again for the referring shape.
+shape contains ordinary affine or slice operators, not runtime Lua functions.
 
-Callback evaluation order is deterministic. Klee processes
-:code:`named_operators` before :code:`shapes`, entries in each list in source
-order, and each geometry's operators in source order. Within a multi-field
-operator, fields are evaluated in this order:
-
-* :code:`rotate`, then :code:`center`, then :code:`axis` (when present)
-* :code:`scale`, then :code:`center` (when present)
-* perpendicular slice :code:`x`, :code:`y`, or :code:`z`, then
-  :code:`origin`, :code:`normal`, and :code:`up` (when present)
-* arbitrary slice :code:`origin`, then :code:`normal`, then :code:`up`
-
-Klee does not coordinate Lua evaluation across MPI ranks. If an application
-calls :code:`readShapeSet` on every rank, each rank reads and evaluates the deck
-and initialization chunk independently.
+Write callbacks as pure functions of local deck variables. Klee does not define
+the order in which it evaluates the callbacks within an operator, so a callback
+must not depend on another having run. 
+Klee constructs :code:`named_operators` before :code:`shapes`:
+a :code:`ref` reuses the concrete operator built for that named operator
+rather than evaluating its callbacks again.
 
 .. code-block:: lua
 
