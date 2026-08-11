@@ -779,9 +779,9 @@ public:
    * \brief Add a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
-   * The function is read from the same public value name as the concrete field
-   * or collection. If a function exists there, the concrete schema entry is
-   * treated as absent rather than as having the wrong type.
+   * The function is read from the same public value name as the concrete field or collection.
+   * If a function exists there, the concrete schema entry is treated as absent
+   * rather than as having the wrong type.
    *
    * \param [in] valueName    Path of the concrete value or collection,
    *                          relative to this Container
@@ -793,6 +793,7 @@ public:
    *
    * \note The alternative must be declared before the concrete schema entry it applies to,
    * so that the concrete entry can be suppressed when the input supplies a function.
+   * Declaring it afterwards is an error.
    *****************************************************************************
    */
   Verifiable<Function>& addFunctionAsValueAlternative(const std::string& valueName,
