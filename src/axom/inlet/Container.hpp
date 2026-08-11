@@ -351,14 +351,6 @@ void updateUnexpectedNames(const std::string& accessedName,
 
 /*!
  *******************************************************************************
- * \brief Suffix distinguishing a function value alternative's schema entry from
- * the concrete entry that shares its input path
- *******************************************************************************
- */
-const std::string FUNCTION_ALTERNATIVE_SUFFIX = "_inlet_function_alternative";
-
-/*!
- *******************************************************************************
  * \brief Returns the schema name of the function alternative for a value
  *
  * \param [in] valueName The name of the concrete value or collection
@@ -369,7 +361,7 @@ const std::string FUNCTION_ALTERNATIVE_SUFFIX = "_inlet_function_alternative";
  */
 inline std::string functionAlternativeName(const std::string& valueName)
 {
-  return valueName + FUNCTION_ALTERNATIVE_SUFFIX;
+  return valueName + detail::FUNCTION_ALTERNATIVE_SUFFIX;
 }
 
 /*!
@@ -381,7 +373,7 @@ inline std::string functionAlternativeName(const std::string& valueName)
  */
 inline bool isFunctionAlternativeName(const std::string& schemaName)
 {
-  return axom::utilities::string::endsWith(schemaName, FUNCTION_ALTERNATIVE_SUFFIX);
+  return axom::utilities::string::endsWith(schemaName, detail::FUNCTION_ALTERNATIVE_SUFFIX);
 }
 
 }  // namespace detail

@@ -226,6 +226,8 @@ public:
    * \tparam Args The types of the user-specified arguments, deduced automatically
    * 
    * \return The function's result
+   * \throws InletError if an input function fails during evaluation
+   * or its return value cannot be converted to the declared return type
    *******************************************************************************
    */
   template <typename Ret, typename... Args>
