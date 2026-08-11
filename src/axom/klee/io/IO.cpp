@@ -63,30 +63,16 @@ public:
   }
 
   /**
-   * Install a caller-provided primitive as a mutable Lua global.
-   *
-   * \param name the global name
-   * \param value the primitive value to install
-   */
-  void setInitialGlobal(const std::string &name, const LuaGlobalValue &value)
-  {
-    auto lua = solState();
-    std::visit([&](const auto &typedValue) { (*lua)[name] = typedValue; }, value);
-  }
-
-  /**
    * Evaluate an initialization chunk and install its exported values as globals.
    *
    * \param initialization the source and diagnostic label for the chunk
    * \param reservedNames built-in Lua globals that exports may not replace
-   * \param existingExternalNames caller-provided globals that exports may not replace
    * \return the names exported by the chunk
    * \throws KleeError if evaluation fails or the returned exports are invalid
    */
   std::unordered_set<std::string> applyInitializationChunk(
     const LuaInitializationChunk &initialization,
-    const std::unordered_set<std::string> &reservedNames,
-    const std::unordered_set<std::string> &existingExternalNames)
+    const std::unordered_set<std::string> &reservedNames)
   {
     auto lua = solState();
     const std::string chunkName =
@@ -184,15 +170,6 @@ public:
                "Exported Lua global name '{}' conflicts with an existing Lua global.",
                name))});
         }
-        if(existingExternalNames.find(name) != existingExternalNames.end())
-        {
-          throw KleeError(
-            {exportPath(name),
-             chunkMessage(axom::fmt::format(
-               "Exported Lua global name '{}' duplicates an initial Lua global.",
-               name))});
-        }
-
         switch(entry.second.get_type())
         {
         case axom::sol::type::boolean:
@@ -604,32 +581,10 @@ bool isLuaIdentifier(const std::string &name)
 }
 
 /**
- * Validate names supplied through LuaInputOptions::initialGlobals.
- *
- * \param initialGlobals the caller-provided globals to validate
- * \throws KleeError if any global name is not a valid Lua identifier
- */
-void validateInitialGlobals(const LuaInitialGlobals &initialGlobals)
-{
-  for(const auto &entry : initialGlobals)
-  {
-    if(!isLuaIdentifier(entry.first))
-    {
-      const auto reason = isLuaKeyword(entry.first)
-        ? "Reserved Lua keywords cannot be used as initial global names."
-        : "Initial global names must be Lua identifiers.";
-      throw KleeError(
-        {Path {entry.first.empty() ? "<empty>" : entry.first},
-         axom::fmt::format("Invalid initial Lua global name '{}'. {}", entry.first, reason)});
-    }
-  }
-}
-
-/**
  * Create an Inlet reader for a Klee input format.
  *
  * \param format the input file format to read
- * \param options optional globals and initialization for Lua input evaluation
+ * \param options optional initialization for Lua input evaluation
  * \param allowedGlobals receives external names permitted in the input
  * \return a reader for \a format
  * \throws KleeError if \a format is unsupported, Lua support was not enabled,
@@ -640,13 +595,10 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format,
                                             std::unordered_set<std::string> &allowedGlobals)
 {
   allowedGlobals.clear();
-  if(format != InputFormat::Lua &&
-     (!options.initialGlobals.empty() || options.initialization))
+  if(format != InputFormat::Lua && options.initialization)
   {
     throw KleeError({Path {"<unknown path>"},
-                     options.initialization
-                       ? "Klee Lua initialization is only supported for Lua input decks."
-                       : "Klee initial Lua globals are only supported for Lua input decks."});
+                     "Klee Lua initialization is only supported for Lua input decks."});
   }
 
   switch(format)
@@ -657,31 +609,13 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format,
 #ifdef AXOM_USE_LUA
   {
     auto reader = std::make_unique<KleeLuaReader>();
-    const auto reservedGlobals = reader->topLevelGlobalNames();
-    validateInitialGlobals(options.initialGlobals);
-    // External inputs are ordinary Lua globals installed before deck parsing.
-    // allowedGlobals only prevents Klee's unexpected-global check from rejecting
-    // those names; it does not make them read-only inside the deck.
-    for(const auto &entry : options.initialGlobals)
-    {
-      if(reservedGlobals.find(entry.first) != reservedGlobals.end())
-      {
-        throw KleeError(
-          {Path {entry.first},
-           axom::fmt::format("Initial Lua global name '{}' conflicts with an existing Lua global.",
-                             entry.first)});
-      }
-      reader->setInitialGlobal(entry.first, entry.second);
-      allowedGlobals.insert(entry.first);
-    }
     if(options.initialization)
     {
-      auto exportedNames =
-        reader->applyInitializationChunk(
-          *options.initialization,
-          reservedGlobals,
-          allowedGlobals);
-      allowedGlobals.insert(exportedNames.begin(), exportedNames.end());
+      // Exported values are ordinary Lua globals installed before deck parsing.
+      // allowedGlobals only prevents Klee's unexpected-global check from rejecting
+      // those names; it does not make them read-only inside the deck.
+      allowedGlobals = reader->applyInitializationChunk(*options.initialization,
+                                                        reader->topLevelGlobalNames());
     }
     return reader;
   }
