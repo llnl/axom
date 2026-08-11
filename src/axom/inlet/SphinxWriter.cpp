@@ -112,6 +112,12 @@ void SphinxWriter::documentContainer(const Container& container)
 
   for(const auto& function_entry : container.getChildFunctions())
   {
+    // A function value alternative is documented through the concrete entry
+    // that shares its input path, not under its internal schema name
+    if(detail::isFunctionAlternativeName(Path(function_entry.first).baseName()))
+    {
+      continue;
+    }
     extractFunctionMetadata(function_entry.second->sidreGroup(), currContainer);
   }
 }
