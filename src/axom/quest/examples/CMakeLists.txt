@@ -284,7 +284,6 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 NUM_MPI_TASKS ${_nranks})
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
-        endif()
 
         # Test heroic_roses.yaml
         set(_testname quest_shaping_driver_ex_heroic_roses)
@@ -297,6 +296,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+        endif()
 
         # Test 2D MFEM mesh (linearize contours)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem)
