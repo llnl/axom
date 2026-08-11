@@ -30,6 +30,7 @@ if(NOT AXOM_FOUND)
   #----------------------------------------------------------------------------
 
   # Language features
+  set(AXOM_CXX_STANDARD       "@CMAKE_CXX_STANDARD@")
   set(AXOM_ENABLE_FORTRAN     "@ENABLE_FORTRAN@")
   set(AXOM_USE_CUDA           "@AXOM_USE_CUDA@")
   set(AXOM_USE_HIP            "@AXOM_USE_HIP@")

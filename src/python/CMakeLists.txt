@@ -52,6 +52,19 @@ endif()
 find_package(axom CONFIG REQUIRED)
 find_package(nanobind CONFIG REQUIRED)   # supplied via build-system.requires
 
+# Compile the bindings with the C++ standard of the Axom install.
+if(NOT AXOM_CXX_STANDARD)
+    set(AXOM_CXX_STANDARD 20)
+endif()
+
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD ${AXOM_CXX_STANDARD})
+elseif(CMAKE_CXX_STANDARD LESS AXOM_CXX_STANDARD)
+    message(FATAL_ERROR
+            "CMAKE_CXX_STANDARD is C++${CMAKE_CXX_STANDARD}, "
+            "but the Axom install at '${axom_DIR}' was built with C++${AXOM_CXX_STANDARD}.")
+endif()
+
 set(_axom_py_conduit_cmake_dir "${Conduit_DIR}")
 if(NOT _axom_py_conduit_cmake_dir AND AXOM_CONDUIT_DIR)
     set(_axom_py_conduit_cmake_dir "${AXOM_CONDUIT_DIR}/lib/cmake/conduit")

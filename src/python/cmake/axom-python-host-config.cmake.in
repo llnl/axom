@@ -32,6 +32,11 @@ set(CONDUIT_DIR "@AXOM_CONDUIT_DIR@" CACHE PATH "Conduit install prefix")
 # since axom-config.cmake records it as an absolute path.
 set(CONDUIT_PYTHON_MODULE_DIR "@_axom_py_conduit_python_module_dir@" CACHE PATH "Conduit Python module directory")
 
+# Axom's headers, and the third-party headers they include, require this standard.
+# BLT_CXX_STD is what BLT-based projects read; CMAKE_CXX_STANDARD covers the rest.
+set(BLT_CXX_STD "c++@CMAKE_CXX_STANDARD@" CACHE STRING "C++ standard used for the Axom Python wheel")
+set(CMAKE_CXX_STANDARD "@CMAKE_CXX_STANDARD@" CACHE STRING "C++ standard used for the Axom Python wheel")
+
 set(ENABLE_MPI "@AXOM_USE_MPI@" CACHE BOOL "Enable MPI to match the Axom Python wheel")
 set(AXOM_ENABLE_MPI "@AXOM_USE_MPI@" CACHE BOOL "Whether this Axom Python wheel was built against MPI-enabled Axom")
 
