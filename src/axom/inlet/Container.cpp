@@ -948,6 +948,13 @@ Verifiable<Function>& Container::addFunctionAsValueAlternative(
                 "[Inlet] A function value alternative requires a non-empty value name");
   SLIC_ERROR_IF(ret_type == FunctionTag::Void,
                 "[Inlet] A function value alternative requires a non-void return type");
+  // Declaring the concrete entry first would already have marked it as being of
+  // the wrong type, which surfaces later as a confusing verification failure
+  // blaming the input rather than the schema. Reject it here instead.
+  SLIC_ERROR_IF(
+    getChildInternal<Field>(valueName) != nullptr || getChildInternal<Container>(valueName) != nullptr,
+    fmt::format("[Inlet] The function value alternative for '{0}' must be declared before '{0}'",
+                valueName));
   // The alternative is read from the concrete value's input path but is stored
   // under a distinct schema name so the two entries do not collide.
   return addFunctionInternal(detail::functionAlternativeName(valueName),

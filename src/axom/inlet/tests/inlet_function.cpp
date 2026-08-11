@@ -381,6 +381,30 @@ TEST(inlet_function, function_value_alternative_rejects_invalid_declaration)
   EXPECT_TRUE(inlet.getGlobalContainer().getFunctionValueAlternativeNames().empty());
 }
 
+TEST(inlet_function, function_value_alternative_rejects_declaration_after_the_value)
+{
+  // Declaring the concrete entry first cannot work: it has already been read and
+  // marked as being of the wrong type. Without this check the schema author sees
+  // a verification failure blaming the input instead of the schema.
+  axom::slic::ScopedAbortToThrow abortGuard;
+
+  auto scalar = createBasicInlet("scale = function() return 2.0 end");
+  scalar.addDouble("scale");
+  EXPECT_THROW(scalar.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}),
+               axom::slic::SlicAbortException);
+
+  auto collection = createBasicInlet("values = function() return {1.0, 2.0} end");
+  collection.addDoubleArray("values");
+  EXPECT_THROW(collection.addFunctionAsValueAlternative("values", FunctionTag::Vector, {}),
+               axom::slic::SlicAbortException);
+
+  // Declaring through a parent Container is rejected the same way
+  auto nested = createBasicInlet("group = { value = function() return 2.0 end }");
+  nested.addStruct("group").addDouble("value");
+  EXPECT_THROW(nested.addFunctionAsValueAlternative("group/value", FunctionTag::Double, {}),
+               axom::slic::SlicAbortException);
+}
+
 TEST(inlet_function, returned_function_keeps_lua_state_alive)
 {
   // An extracted callback must retain its Lua state after Inlet is destroyed.
