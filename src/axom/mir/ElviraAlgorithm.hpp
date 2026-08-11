@@ -905,7 +905,7 @@ protected:
     // Clean up the mesh in 3D so it has merged coordinates and merged faces.
     // This step does nothing in 2D at present.
     axom::Array<axom::IndexType> selectedIds;
-    build.cleanMesh(n_newCoordset, point_tolerance, n_newTopo, selectedIds, n_options);
+    build.cleanMesh(n_newCoordset, n_options, point_tolerance, n_newTopo, selectedIds);
 
     //--------------------------------------------------------------------------
 #if defined(AXOM_ELVIRA_DEBUG)

@@ -509,10 +509,10 @@ public:
    * \brief Clean the mesh (no-op for 2D)
    */
   void cleanMesh(conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
+                 const conduit::Node &AXOM_UNUSED_PARAM(n_options),
                  double AXOM_UNUSED_PARAM(point_tolerance),
                  conduit::Node &AXOM_UNUSED_PARAM(n_topology),
-                 axom::Array<axom::IndexType> &AXOM_UNUSED_PARAM(selectedIds),
-                 const conduit::Node &AXOM_UNUSED_PARAM(n_options)) const
+                 axom::Array<axom::IndexType> &AXOM_UNUSED_PARAM(selectedIds)) const
   { }
 
 private:
@@ -925,6 +925,7 @@ public:
    * \brief Clean the mesh, merging coordinates and faces.
    *
    * \param n_coordset The coordset to clean up.
+   * \param n_options A node that may contain options.
    * \param point_tolerance The point tolerance used to merge points.
    * \param n_topology The topology to clean up.
    * \param[out] selectedIds An array that indicates the points that were selected during coordset point merging.
@@ -932,10 +933,10 @@ public:
    * \note This method invalidates the views in m_view by causing some of their backing arrays to be replaced.
    */
   void cleanMesh(conduit::Node &n_coordset,
+                 const conduit::Node &n_options,
                  double point_tolerance,
                  conduit::Node &n_topology,
-                 axom::Array<axom::IndexType> &selectedIds,
-                 const conduit::Node &n_options) const
+                 axom::Array<axom::IndexType> &selectedIds) const
   {
     AXOM_ANNOTATE_SCOPE("cleanMesh");
 
