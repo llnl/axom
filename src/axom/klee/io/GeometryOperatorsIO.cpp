@@ -426,10 +426,9 @@ std::unordered_set<std::string> getChildNames(const inlet::Container& container)
  *
  * \endcode
  *
- * In the above, "translate", "rotate", "center", and "axis" are all valid
- * entries, but not in arbitrary combinations. You can't specify both
- * "translate" and "axis", for example, or "translate" and "rotate" within
- * the same entry.
+ * In the above, "translate", "rotate", "center", and "axis" are all valid entries,
+ * but not in arbitrary combinations. You can't specify both "translate" and "axis",
+ * for example, or "translate" and "rotate" within the same entry.
  *
  * This function can be used to handle cases like the above.
  *
@@ -469,7 +468,7 @@ void verifyObjectFields(const inlet::Container& containerToTest,
     }
 
     throw KleeError({containerToTest.name(),
-                     axom::fmt::format("Unexpected parameter '{}' for operator '{}'", name, child)});
+                     axom::fmt::format("Unexpected parameter '{}' for operator '{}'", child, name)});
   }
 }
 

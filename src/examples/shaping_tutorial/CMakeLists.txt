@@ -140,7 +140,8 @@ if(ENABLE_TESTS)
                            -m ../lesson_04/circle_input.lua
                            -k ../lesson_04/circles.yaml
                            --lua-init-file ../lesson_04/circles_initialization.lua)
-      set_tests_properties(${_testname} PROPERTIES WILL_FAIL TRUE)
+      set_tests_properties(${_testname} PROPERTIES
+                           PASS_REGULAR_EXPRESSION "only supported for Lua input decks")
     endif()
 
 endif()
