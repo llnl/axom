@@ -203,7 +203,7 @@ shape contains ordinary affine or slice operators, not runtime Lua functions.
 
 Write callbacks as pure functions of local deck variables. Klee does not define
 the order in which it evaluates the callbacks within an operator, so a callback
-must not depend on another having run. 
+must not depend on another having run.
 Klee constructs :code:`named_operators` before :code:`shapes`:
 a :code:`ref` reuses the concrete operator built for that named operator
 rather than evaluating its callbacks again.
