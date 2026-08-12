@@ -1037,22 +1037,21 @@ public:
       auto query_pos = cp_pos.view();
       auto query_min_dist = cp_dist.view();
 
-      /// Create an ArrayView in ExecSpace that is compatible with queryPts
-      PointArray execPoints(queryPts, m_allocatorID);
-      auto query_pts = execPoints.view();
-      const double sqDistThreshold = m_sqDistanceThreshold;
-
-      if(m_dynamicDistanceFiltering && hasObjectPoints)
+      if(hasObjectPoints)
       {
-        axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
-
+        /// Create an ArrayView in ExecSpace that is compatible with queryPts
+        PointArray execPoints(queryPts, m_allocatorID);
+        auto query_pts = execPoints.view();
+        const double sqDistThreshold = m_sqDistanceThreshold;
         auto it = m_bvh->getTraverser();
         const int rank = m_rank;
         auto ptCoordsView = m_objectPtCoords.view();
         auto ptDomainIdsView = m_objectPtDomainIds.view();
 
+        if(m_dynamicDistanceFiltering)
         {
           AXOM_ANNOTATE_SCOPE("ComputeClosestPointsDynamic");
+          axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
           axom::for_all<ExecSpace>(
             qPtCount,
             AXOM_LAMBDA(std::int32_t idx) mutable {
@@ -1104,19 +1103,10 @@ public:
 
               maxSqDistance.max(curr_min.rank >= 0 ? curr_min.sqDist : sqDistThreshold);
             });
+
+          currentMaxSqDistance = maxSqDistance.get();
         }
-
-        currentMaxSqDistance = maxSqDistance.get();
-      }
-      else if(hasObjectPoints)
-      {
-        // Get a device-useable iterator
-        auto it = m_bvh->getTraverser();
-        const int rank = m_rank;
-
-        auto ptCoordsView = m_objectPtCoords.view();
-        auto ptDomainIdsView = m_objectPtDomainIds.view();
-
+        else
         {
           AXOM_ANNOTATE_SCOPE("ComputeClosestPoints");
           axom::for_all<ExecSpace>(
