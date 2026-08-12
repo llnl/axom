@@ -898,6 +898,9 @@ private:
     return sqDist <= m_sqDistanceThreshold;
   }
 
+  /*!
+   * \brief Send a minimal message indicating this rank has no query data for the destination rank.
+   */
   void send_skip_token(int dest, int tag, std::list<conduit::relay::mpi::Request>& isendRequests) const
   {
     conduit::Node skipToken;
@@ -908,11 +911,12 @@ private:
     relay::mpi::isend_using_schema(skipToken, dest, tag, m_mpiComm, &req);
   }
 
-  /**
-    Determine the next rank (in ring order) with an object partition
-    close to the query points in xferNode.  The intent is to send
-    xferNode there next.
-  */
+  /*!
+   * \brief Determine the next object rank in ring order to receive the transfer node.
+   *
+   * Sends skip tokens to statically eligible ranks that dynamic distance
+   * filtering can prove will not improve the current closest point results.
+   */
   int next_recipient(const conduit::Node& xferNode,
                      double currentMaxSqDistance,
                      int tag,
