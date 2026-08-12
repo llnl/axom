@@ -76,6 +76,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
 
 ### Fixed
+- MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
