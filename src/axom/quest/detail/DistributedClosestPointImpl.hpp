@@ -1040,17 +1040,10 @@ public:
       /// Create an ArrayView in ExecSpace that is compatible with queryPts
       PointArray execPoints(queryPts, m_allocatorID);
       auto query_pts = execPoints.view();
+      const double sqDistThreshold = m_sqDistanceThreshold;
 
       if(m_dynamicDistanceFiltering && hasObjectPoints)
       {
-        axom::Array<double> sqDistThresh_host(1,
-                                              1,
-                                              axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-        sqDistThresh_host[0] = m_sqDistanceThreshold;
-        axom::Array<double> sqDistThresh_device =
-          axom::Array<double>(sqDistThresh_host, m_allocatorID);
-        auto sqDistThresh_device_view = sqDistThresh_device.view();
-
         axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
 
         auto it = m_bvh->getTraverser();
@@ -1091,7 +1084,7 @@ public:
 
               auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
                 auto sqDist = squared_distance(p, bb);
-                return sqDist <= curr_min.sqDist && sqDist <= sqDistThresh_device_view[0];
+                return sqDist <= curr_min.sqDist && sqDist <= sqDistThreshold;
               };
 
               it.traverse_tree(qpt, checkMinDist, traversePredicate);
@@ -1109,7 +1102,7 @@ public:
                 }
               }
 
-              maxSqDistance.max(curr_min.rank >= 0 ? curr_min.sqDist : sqDistThresh_device_view[0]);
+              maxSqDistance.max(curr_min.rank >= 0 ? curr_min.sqDist : sqDistThreshold);
             });
         }
 
@@ -1120,14 +1113,6 @@ public:
         // Get a device-useable iterator
         auto it = m_bvh->getTraverser();
         const int rank = m_rank;
-
-        axom::Array<double> sqDistThresh_host(1,
-                                              1,
-                                              axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-        sqDistThresh_host[0] = m_sqDistanceThreshold;
-        axom::Array<double> sqDistThresh_device =
-          axom::Array<double>(sqDistThresh_host, m_allocatorID);
-        auto sqDistThresh_device_view = sqDistThresh_device.view();
 
         auto ptCoordsView = m_objectPtCoords.view();
         auto ptDomainIdsView = m_objectPtDomainIds.view();
@@ -1166,7 +1151,7 @@ public:
 
               auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
                 auto sqDist = squared_distance(p, bb);
-                return sqDist <= curr_min.sqDist && sqDist <= sqDistThresh_device_view[0];
+                return sqDist <= curr_min.sqDist && sqDist <= sqDistThreshold;
               };
 
               // Traverse the tree, searching for the point with minimum distance.
