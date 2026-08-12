@@ -28,6 +28,8 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include <functional>
+#include <optional>
 
 #ifndef AXOM_USE_MPI
   #error This file requires Axom to be configured with MPI
@@ -778,7 +780,7 @@ public:
         if(r != m_rank)
         {
           const auto& otherQueryBb = allQueryBbs[r];
-          if(statically_eligible(otherQueryBb, myObjectBb))
+          if(is_statically_eligible(otherQueryBb, myObjectBb))
           {
             ++remainingRecvs;
           }
@@ -872,9 +874,16 @@ public:
   }
 
 private:
-  bool statically_eligible(const BoxType& queryBb,
-                           const BoxType& objectBb,
-                           double* sqDistance = nullptr) const
+  /*!
+   * \brief Check whether static rank bounding boxes are close enough to search.
+   *
+   * \param [out] sqDistance Optional reference to receive the squared distance
+   * between the boxes.
+   */
+  bool is_statically_eligible(
+    const BoxType& queryBb,
+    const BoxType& objectBb,
+    std::optional<std::reference_wrapper<double>> sqDistance = std::nullopt) const
   {
     if(!queryBb.isValid() || !objectBb.isValid())
     {
@@ -882,9 +891,9 @@ private:
     }
 
     const double sqDist = primal::squared_distance(queryBb, objectBb);
-    if(sqDistance != nullptr)
+    if(sqDistance)
     {
-      *sqDistance = sqDist;
+      sqDistance->get() = sqDist;
     }
     return sqDist <= m_sqDistanceThreshold;
   }
@@ -921,7 +930,9 @@ private:
         return maybeNextRecip;
       }
       if(double sqDistance = 0.0;
-         statically_eligible(bb, m_objectPartitionBbs[maybeNextRecip], &sqDistance))
+         is_statically_eligible(bb,
+                                m_objectPartitionBbs[maybeNextRecip],
+                                sqDistance))
       {
         if(sqDistance <= currentMaxSqDistance)
         {
