@@ -338,14 +338,14 @@ void signed_distance_set_execution_space(SignedDistExec exec_space)
   SLIC_ERROR_IF(signed_distance_initialized(),
                 "signed distance query already initialized; setting option has no effect!");
 
-#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+#if !defined(AXOM_USE_OPENMP) && !defined(AXOM_USE_RAJA)
   if(exec_space == SignedDistExec::OpenMP)
   {
     SLIC_ERROR("Signed distance query not compiled with OpenMP support");
   }
 #endif
 
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA)
+#if !defined(AXOM_USE_GPU) && !defined(AXOM_USE_RAJA)
   if(exec_space == SignedDistExec::GPU)
   {
     SLIC_ERROR("Signed distance query not compiled with GPU support");

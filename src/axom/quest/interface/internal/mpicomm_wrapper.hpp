@@ -21,6 +21,8 @@
 #ifdef AXOM_USE_MPI
   #include <mpi.h>
 #else
+  #ifndef MPI_VERSION
 using MPI_Comm = int;
 constexpr int MPI_COMM_SELF = -1;
+  #endif
 #endif
