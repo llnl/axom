@@ -80,7 +80,7 @@ spack:
           flags:
             cflags: -fPIC
             cxxflags: -fPIC
-            fflags: -fPIC
+            fflags: -fPIC --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr
           environment: {}
           extra_rpaths: []
       - spec: llvm-amdgpu@6.4.3
@@ -93,7 +93,7 @@ spack:
           flags:
             cflags: -fPIC
             cxxflags: -fPIC
-            fflags: -fPIC
+            fflags: -fPIC --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr
           environment: {}
           extra_rpaths: []
     cce:
@@ -108,7 +108,7 @@ spack:
           flags:
             cflags: -fPIC
             cxxflags: -fPIC
-            fflags: -fPIC
+            fflags: -fPIC --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr
           environment: {}
           extra_rpaths: []
 
