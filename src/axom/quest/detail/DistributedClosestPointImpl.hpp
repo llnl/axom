@@ -251,6 +251,7 @@ public:
     , m_rank(-1)
     , m_nranks(-1)
     , m_sqDistanceThreshold(axom::numeric_limits<double>::max())
+    , m_dynamicDistanceFiltering(true)
   { }
 
   virtual ~DistributedClosestPointImpl() { }
@@ -300,6 +301,11 @@ public:
     SLIC_ERROR_IF(sqThreshold < 0.0, "Squared distance-threshold must be non-negative.");
     m_sqDistanceThreshold = sqThreshold;
   }
+
+  /*!
+   @brief Enables dynamic filtering of object ranks using current closest distances.
+  */
+  void setDynamicDistanceFiltering(bool on) { m_dynamicDistanceFiltering = on; }
 
   /*!
     @brief Set which output data fields to generate.
@@ -528,6 +534,7 @@ protected:
   int m_nranks;
 
   double m_sqDistanceThreshold;
+  bool m_dynamicDistanceFiltering;
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
@@ -747,6 +754,7 @@ public:
     constexpr int tag = 9873;
 
     int remainingRecvs = 0;
+    int fullXferRecvs = 0;
 
     std::list<conduit::relay::mpi::Request> isendRequests;
 
@@ -762,7 +770,7 @@ public:
       BoxArray allQueryBbs;
       gatherBoundingBoxes(myQueryBb, allQueryBbs);
 
-      computeLocalClosestPoints(xferNode);
+      double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
       const auto& myObjectBb = m_objectPartitionBbs[m_rank];
       for(int r = 0; r < m_nranks; ++r)
@@ -770,8 +778,7 @@ public:
         if(r != m_rank)
         {
           const auto& otherQueryBb = allQueryBbs[r];
-          double sqDistance = axom::primal::squared_distance(otherQueryBb, myObjectBb);
-          if(sqDistance <= m_sqDistanceThreshold)
+          if(statically_eligible(otherQueryBb, myObjectBb))
           {
             ++remainingRecvs;
           }
@@ -783,7 +790,7 @@ public:
         partition, if any.  Increase remainingRecvs, because this data
         will come back.
       */
-      int firstRecipForMyQuery = next_recipient(xferNode);
+      int firstRecipForMyQuery = next_recipient(xferNode, currentMaxSqDistance, tag, isendRequests);
       if(m_nranks == 1)
       {
         SLIC_ASSERT(firstRecipForMyQuery == -1);
@@ -803,27 +810,46 @@ public:
       }
     }
 
+    const int totalExpectedRecvs = remainingRecvs;
     while(remainingRecvs > 0)
     {
-      SLIC_INFO_IF(m_isVerbose,
-                   fmt::format("=======  {} receives remaining =======", remainingRecvs));
+      if(m_isVerbose)
+      {
+        if(m_dynamicDistanceFiltering)
+        {
+          const int skipTokenRecvs = totalExpectedRecvs - remainingRecvs - fullXferRecvs;
+          SLIC_INFO(fmt::format("=======  receives: remaining={}, full={}, skip={} =======",
+                                remainingRecvs,
+                                fullXferRecvs,
+                                skipTokenRecvs));
+        }
+        else
+        {
+          SLIC_INFO(fmt::format("=======  {} receives remaining =======", remainingRecvs));
+        }
+      }
 
       // Receive the next xferNode
       conduit::Node recvXferNode;
       conduit::relay::mpi::recv_using_schema(recvXferNode, MPI_ANY_SOURCE, tag, m_mpiComm);
 
-      const int homeRank = recvXferNode.fetch_existing("homeRank").as_int();
       --remainingRecvs;
+      const int homeRank = recvXferNode.fetch_existing("homeRank").as_int();
+      if(homeRank < 0)
+      {
+        continue;
+      }
 
+      ++fullXferRecvs;
       if(homeRank == m_rank)
       {
         node_copy_xfer_to_query(recvXferNode, queryMesh, topologyName);
       }
       else
       {
-        computeLocalClosestPoints(recvXferNode);
+        double currentMaxSqDistance = computeLocalClosestPoints(recvXferNode);
 
-        int nextRecipient = next_recipient(recvXferNode);
+        int nextRecipient = next_recipient(recvXferNode, currentMaxSqDistance, tag, isendRequests);
         SLIC_ASSERT(nextRecipient != -1);
         isendRequests.emplace_back(conduit::relay::mpi::Request());
         auto& isendRequest = isendRequests.back();
@@ -846,16 +872,47 @@ public:
   }
 
 private:
+  bool statically_eligible(const BoxType& queryBb,
+                           const BoxType& objectBb,
+                           double* sqDistance = nullptr) const
+  {
+    if(!queryBb.isValid() || !objectBb.isValid())
+    {
+      return false;
+    }
+
+    const double sqDist = primal::squared_distance(queryBb, objectBb);
+    if(sqDistance != nullptr)
+    {
+      *sqDistance = sqDist;
+    }
+    return sqDist <= m_sqDistanceThreshold;
+  }
+
+  void send_skip_token(int dest, int tag, std::list<conduit::relay::mpi::Request>& isendRequests) const
+  {
+    conduit::Node skipToken;
+    skipToken["homeRank"] = -1;
+
+    isendRequests.emplace_back(conduit::relay::mpi::Request());
+    auto& req = isendRequests.back();
+    relay::mpi::isend_using_schema(skipToken, dest, tag, m_mpiComm, &req);
+  }
+
   /**
     Determine the next rank (in ring order) with an object partition
     close to the query points in xferNode.  The intent is to send
     xferNode there next.
   */
-  int next_recipient(const conduit::Node& xferNode) const
+  int next_recipient(const conduit::Node& xferNode,
+                     double currentMaxSqDistance,
+                     int tag,
+                     std::list<conduit::relay::mpi::Request>& isendRequests) const
   {
     int homeRank = xferNode.fetch_existing("homeRank").value();
     BoxType bb;
     get_bounding_box_from_conduit_node(bb, xferNode.fetch_existing("aabb"));
+
     for(int i = 1; i < m_nranks; ++i)
     {
       int maybeNextRecip = (m_rank + i) % m_nranks;
@@ -863,10 +920,14 @@ private:
       {
         return maybeNextRecip;
       }
-      double sqDistance = primal::squared_distance(bb, m_objectPartitionBbs[maybeNextRecip]);
-      if(sqDistance <= m_sqDistanceThreshold)
+      if(double sqDistance = 0.0;
+         statically_eligible(bb, m_objectPartitionBbs[maybeNextRecip], &sqDistance))
       {
-        return maybeNextRecip;
+        if(sqDistance <= currentMaxSqDistance)
+        {
+          return maybeNextRecip;
+        }
+        send_skip_token(maybeNextRecip, tag, isendRequests);
       }
     }
     return -1;
@@ -897,7 +958,7 @@ public:
     return (result == spin::BVH_BUILD_OK);
   }
 
-  void computeLocalClosestPoints(conduit::Node& xferNode) const
+  double computeLocalClosestPoints(conduit::Node& xferNode) const
   {
     using axom::primal::squared_distance;
 
@@ -907,8 +968,11 @@ public:
     const bool is_first = xferNode.has_path("is_first");
     if(!hasObjectPoints && !is_first)
     {
-      return;
+      return m_sqDistanceThreshold;
     }
+
+    double currentMaxSqDistance = -1.0;
+
     conduit::Node& xferDoms = xferNode["xferDoms"];
     for(conduit::Node& xferDom : xferDoms.children())
     {
@@ -977,7 +1041,81 @@ public:
       PointArray execPoints(queryPts, m_allocatorID);
       auto query_pts = execPoints.view();
 
-      if(hasObjectPoints)
+      if(m_dynamicDistanceFiltering && hasObjectPoints)
+      {
+        axom::Array<double> sqDistThresh_host(1,
+                                              1,
+                                              axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+        sqDistThresh_host[0] = m_sqDistanceThreshold;
+        axom::Array<double> sqDistThresh_device =
+          axom::Array<double>(sqDistThresh_host, m_allocatorID);
+        auto sqDistThresh_device_view = sqDistThresh_device.view();
+
+        axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
+
+        auto it = m_bvh->getTraverser();
+        const int rank = m_rank;
+        auto ptCoordsView = m_objectPtCoords.view();
+        auto ptDomainIdsView = m_objectPtDomainIds.view();
+
+        {
+          AXOM_ANNOTATE_SCOPE("ComputeClosestPointsDynamic");
+          axom::for_all<ExecSpace>(
+            qPtCount,
+            AXOM_LAMBDA(std::int32_t idx) mutable {
+              PointType qpt = query_pts[idx];
+
+              MinCandidate curr_min {};
+              if(query_ranks[idx] >= 0)
+              {
+                curr_min.sqDist = squared_distance(qpt, query_pos[idx]);
+                curr_min.pointIdx = query_inds[idx];
+                curr_min.domainIdx = query_doms[idx];
+                curr_min.rank = query_ranks[idx];
+              }
+
+              auto checkMinDist = [&](std::int32_t current_node, const std::int32_t* leaf_nodes) {
+                const int candidate_point_idx = leaf_nodes[current_node];
+                const int candidate_domain_idx = ptDomainIdsView[candidate_point_idx];
+                const PointType candidate_pt = ptCoordsView[candidate_point_idx];
+                const double sq_dist = squared_distance(qpt, candidate_pt);
+
+                if(sq_dist < curr_min.sqDist)
+                {
+                  curr_min.sqDist = sq_dist;
+                  curr_min.pointIdx = candidate_point_idx;
+                  curr_min.domainIdx = candidate_domain_idx;
+                  curr_min.rank = rank;
+                }
+              };
+
+              auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
+                auto sqDist = squared_distance(p, bb);
+                return sqDist <= curr_min.sqDist && sqDist <= sqDistThresh_device_view[0];
+              };
+
+              it.traverse_tree(qpt, checkMinDist, traversePredicate);
+
+              if(curr_min.rank == rank)
+              {
+                query_inds[idx] = curr_min.pointIdx;
+                query_doms[idx] = curr_min.domainIdx;
+                query_ranks[idx] = curr_min.rank;
+                query_pos[idx] = ptCoordsView[curr_min.pointIdx];
+
+                if(has_cp_distance)
+                {
+                  query_min_dist[idx] = sqrt(curr_min.sqDist);
+                }
+              }
+
+              maxSqDistance.max(curr_min.rank >= 0 ? curr_min.sqDist : sqDistThresh_device_view[0]);
+            });
+        }
+
+        currentMaxSqDistance = maxSqDistance.get();
+      }
+      else if(hasObjectPoints)
       {
         // Get a device-useable iterator
         auto it = m_bvh->getTraverser();
@@ -1071,6 +1209,9 @@ public:
     {
       xferNode.remove_child("is_first");
     }
+
+    return m_dynamicDistanceFiltering && currentMaxSqDistance >= 0.0 ? currentMaxSqDistance
+                                                                     : m_sqDistanceThreshold;
   }
 
 private:
