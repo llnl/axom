@@ -41,7 +41,7 @@ set(CMAKE_C_FLAGS "-fPIC" CACHE STRING "")
 
 set(CMAKE_CXX_FLAGS "-fPIC" CACHE STRING "")
 
-set(CMAKE_Fortran_FLAGS "-fPIC -ef" CACHE STRING "")
+set(CMAKE_Fortran_FLAGS "-fPIC -ef --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr" CACHE STRING "")
 
 set(ENABLE_FORTRAN ON CACHE BOOL "")
 
@@ -91,8 +91,6 @@ set(ENABLE_HIP ON CACHE BOOL "")
 set(ROCM_ROOT_DIR "/opt/rocm-7.2.1" CACHE PATH "")
 
 set(BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE "unwind;ompstub" CACHE STRING "")
-
-set(BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE "/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12;/opt/rh/gcc-toolset-12/root/usr/lib64" CACHE STRING "")
 
 set(CMAKE_EXE_LINKER_FLAGS "-lxpmem -L/opt/cray/pe/mpich/9.1.0/gtl/lib -Wl,-rpath,/opt/cray/pe/mpich/9.1.0/gtl/lib -lmpi_gtl_hsa -L/opt/rocm-7.2.1/lib/llvm/lib -Wl,-rpath,/opt/rocm-7.2.1/lib/llvm/lib -L/opt/rocm-7.2.1/lib -Wl,-rpath,/opt/rocm-7.2.1/lib -lpgmath -L/opt/cray/pe/cce/21.0.0/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/21.0.0/cce/x86_64/lib-lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr " CACHE STRING "")
 

@@ -41,7 +41,7 @@ set(CMAKE_C_FLAGS "-fPIC" CACHE STRING "")
 
 set(CMAKE_CXX_FLAGS "-fPIC" CACHE STRING "")
 
-set(CMAKE_Fortran_FLAGS "-fPIC -Mfreeform" CACHE STRING "")
+set(CMAKE_Fortran_FLAGS "-fPIC -Mfreeform --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr" CACHE STRING "")
 
 set(ENABLE_FORTRAN ON CACHE BOOL "")
 
@@ -89,8 +89,6 @@ set(ENABLE_HIP ON CACHE BOOL "")
 set(ROCM_ROOT_DIR "/opt/rocm-6.4.3" CACHE PATH "")
 
 set(BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE "ompstub" CACHE STRING "")
-
-set(BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE "/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12;/opt/rh/gcc-toolset-12/root/usr/lib64" CACHE STRING "")
 
 set(CMAKE_EXE_LINKER_FLAGS "-lxpmem -L/opt/cray/pe/mpich/8.1.29/gtl/lib -Wl,-rpath,/opt/cray/pe/mpich/8.1.29/gtl/lib -lmpi_gtl_hsa -L/opt/rocm-6.4.3/lib/llvm/lib -Wl,-rpath,/opt/rocm-6.4.3/lib/llvm/lib -L/opt/rocm-6.4.3/lib -Wl,-rpath,/opt/rocm-6.4.3/lib -lpgmath -Wl,--disable-new-dtags -lflang -lflangrti -lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr " CACHE STRING "")
 
