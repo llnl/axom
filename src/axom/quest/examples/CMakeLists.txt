@@ -408,8 +408,6 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                   set(_center 0.7 0.9 0.5)
                 endif()
 
-                # Default dynamic distance filtering is tested across the full
-                # enabled policy/mesh matrix.
                 set(_test "quest_distributed_closest_point_run_${_ndim}D_${_pol}_${_mesh}")
                 axom_add_test(
                     NAME    ${_test}
@@ -423,15 +421,16 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                                 --dist-threshold .3
                                 --no-random-spacing
                                 --check-results
+                                --dynamic-distance-filtering
                                 --policy ${_pol}
                                 --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}
                                 --distance-file dcp_closest_point_2d_${_pol}_${_mesh}
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
 
-                # Cover the no-dynamic-filtering fallback path with one 2D and
-                # one 3D seq case without duplicating the full test matrix.
                 if(_pol STREQUAL "seq" AND (_mesh STREQUAL "mdmesh.2x1" OR _mesh STREQUAL "mdmesh.2x2x1"))
+                    # Keep fallback coverage for the non-dynamic filtering path
+                    # with one 2D and one 3D seq case.
                     set(_static_test "${_test}_no_dynamic_distance_filtering")
                     axom_add_test(
                         NAME    ${_static_test}
