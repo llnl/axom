@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_MAPPED_RELATION_SET_H_
-#define SLAM_MAPPED_RELATION_SET_H_
+#pragma once
 
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/BivariateSet.hpp"
@@ -336,5 +335,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_MAPPED_RELATION_SET_H_

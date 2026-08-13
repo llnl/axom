@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file PrimitiveSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using primal geometric primitives
  */
-
-#ifndef AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
-#define AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -334,5 +333,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_

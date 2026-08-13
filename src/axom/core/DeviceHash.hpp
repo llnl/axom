@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_DeviceHash_Hpp
-#define Axom_Core_DeviceHash_Hpp
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -125,5 +124,3 @@ struct DeviceHash : public detail::DeviceHashHelper<T>
 };
 
 }  // namespace axom
-
-#endif

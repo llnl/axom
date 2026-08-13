@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file OrderedSet.hpp
  *
@@ -12,9 +14,6 @@
  *  repeated an arbitrary number of times (e.g. for indirection sets)
  *
  */
-
-#ifndef SLAM_ORDERED_SET_H_
-#define SLAM_ORDERED_SET_H_
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -531,5 +530,3 @@ bool OrderedSet<PosType, ElemType, SizePolicy, OffsetPolicy, StridePolicy, Indir
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_ORDERED_SET_H_

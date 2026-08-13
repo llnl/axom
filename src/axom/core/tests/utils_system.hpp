@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "gtest/gtest.h"
 
 #include "axom/core/utilities/System.hpp"
@@ -25,4 +27,10 @@ TEST(utils_system, getHostName)
   std::string host_name = axom::utilities::getHostName();
   std::cout << "host name = " << host_name << std::endl;
   EXPECT_TRUE(host_name != "");
+}
+
+TEST(utils_system, getEnvironmentVariable)
+{
+  EXPECT_EQ(axom::utilities::getEnvironmentVariable("AXOM_ENV_VAR_THAT_SHOULD_NOT_EXIST"), "");
+  EXPECT_NE(axom::utilities::getEnvironmentVariable("PATH"), "");
 }

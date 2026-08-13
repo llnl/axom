@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_TOPOLOGY_MAPPER_HPP_
-#define AXOM_BUMP_TOPOLOGY_MAPPER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -878,5 +877,3 @@ public:
 }  // namespace axom
 
 #undef AXOM_TM_ASSERT_OR_RETURN
-
-#endif

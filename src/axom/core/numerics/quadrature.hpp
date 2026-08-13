@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_NUMERICS_QUADRATURE_HPP_
-#define AXOM_NUMERICS_QUADRATURE_HPP_
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/memory_management.hpp"
@@ -42,11 +41,11 @@ public:
 
   //! \brief Accessor for quadrature nodes
   AXOM_HOST_DEVICE
-  double node(size_t idx) const { return m_nodes[idx]; };
+  double node(size_t idx) const { return m_nodes[static_cast<axom::IndexType>(idx)]; };
 
   //! \brief Accessor for quadrature weights
   AXOM_HOST_DEVICE
-  double weight(size_t idx) const { return m_weights[idx]; };
+  double weight(size_t idx) const { return m_weights[static_cast<axom::IndexType>(idx)]; };
 
   //! \brief Accessor for the size of the quadrature rule
   AXOM_HOST_DEVICE
@@ -99,5 +98,3 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAl
 
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif  // AXOM_NUMERICS_QUADRATURE_HPP_

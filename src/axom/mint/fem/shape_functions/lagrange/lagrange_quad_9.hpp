@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_QUAD9_HPP_
-#define MINT_QUAD9_HPP_
+#pragma once
 
 // Mint includes
 #include "axom/mint/mesh/CellTypes.hpp"
@@ -194,5 +193,3 @@ public:
 
 } /* namespace mint */
 }  // namespace axom
-
-#endif /* MINT_QUAD_9_HPP_ */

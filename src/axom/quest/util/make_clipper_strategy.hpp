@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MAKE_CLIPPER_STRATEGY_HPP
-#define AXOM_MAKE_CLIPPER_STRATEGY_HPP
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -47,4 +46,3 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
 }  // namespace axom
 
 #endif  // AXOM_USE_SIDRE
-#endif  // AXOM_MAKE_CLIPPER_STRATEGY_HPP

@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file NURBSCurve.hpp
  *
  * \brief A NURBS curve primitive
  */
-
-#ifndef AXOM_PRIMAL_NURBSCURVE_HPP_
-#define AXOM_PRIMAL_NURBSCURVE_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -24,6 +23,7 @@
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
+#include "axom/primal/operators/curvature.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/primal/operators/is_convex.hpp"
 
@@ -122,7 +122,7 @@ public:
     * 
     * \pre npts > degree, degree >= -1
     */
-  NURBSCurve(int npts, int degree) : m_knotvec(KnotVectorType(npts, degree))
+  NURBSCurve(axom::IndexType npts, int degree) : m_knotvec(KnotVectorType(npts, degree))
   {
     SLIC_ASSERT(npts > degree);
     SLIC_ASSERT(degree >= -1);
@@ -221,7 +221,7 @@ public:
    * 
    * \pre Requires valid pointers, npts > degree, degree >= 0
    */
-  NURBSCurve(const PointType* pts, int npts, int degree)
+  NURBSCurve(const PointType* pts, axom::IndexType npts, int degree)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const double>(nullptr, 0),
                  KnotVectorType(npts, degree))
@@ -237,7 +237,7 @@ public:
    * 
    * \pre Requires valid pointers, npts > degree, npts == nwts, and degree >= 0
    */
-  NURBSCurve(const PointType* pts, const T* weights, int npts, int degree)
+  NURBSCurve(const PointType* pts, const T* weights, axom::IndexType npts, int degree)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const T>(weights, npts),
                  KnotVectorType(npts, degree))
@@ -253,10 +253,10 @@ public:
    * 
    * \pre Requires valid pointers, a valid knot vector and npts > degree
    */
-  NURBSCurve(const PointType* pts, int npts, const T* knots, int nkts)
+  NURBSCurve(const PointType* pts, axom::IndexType npts, const T* knots, int nkts)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const T>(nullptr, 0),
-                 KnotVectorType(knots, nkts, nkts - npts - 1))
+                 KnotVectorType(knots, nkts, static_cast<int>(nkts - npts - 1)))
   { }
 
   /*!
@@ -270,10 +270,10 @@ public:
    * 
    * \pre Requires valid pointers, a valid knot vector, npts > degree, npts == nwts, wts > 0
    */
-  NURBSCurve(const PointType* pts, const T* weights, int npts, const T* knots, int nkts)
+  NURBSCurve(const PointType* pts, const T* weights, axom::IndexType npts, const T* knots, int nkts)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
                  axom::ArrayView<const T>(weights, npts),
-                 KnotVectorType(knots, nkts, nkts - npts - 1))
+                 KnotVectorType(knots, nkts, static_cast<int>(nkts - npts - 1)))
   { }
 
   /*!
@@ -312,7 +312,7 @@ public:
   NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots)
     : NURBSCurve(pts.view(),
                  axom::ArrayView<const T>(nullptr, 0),
-                 KnotVectorType(knots, knots.size() - pts.size() - 1))
+                 KnotVectorType(knots, static_cast<int>(knots.size() - pts.size() - 1)))
   { }
 
   /*!
@@ -327,7 +327,9 @@ public:
   NURBSCurve(const axom::Array<PointType>& pts,
              const axom::Array<T>& weights,
              const axom::Array<T>& knots)
-    : NURBSCurve(pts.view(), weights.view(), KnotVectorType(knots, knots.size() - pts.size() - 1))
+    : NURBSCurve(pts.view(),
+                 weights.view(),
+                 KnotVectorType(knots, static_cast<int>(knots.size() - pts.size() - 1)))
   { }
 
   /*!
@@ -390,30 +392,31 @@ public:
       std::swap(theta_0, theta_1);
     }
 
-    SLIC_ASSERT(theta_1 - theta_0 <= 2.0 * M_PI);
+    SLIC_ASSERT(static_cast<T>(theta_1 - theta_0) <= static_cast<T>(2.0 * M_PI));
 
-    T pi23 = 2.0 * M_PI / 3.0;
-    int n_segments = std::ceil((theta_1 - theta_0) / pi23);
+    const T pi23 = static_cast<T>(2.0 * M_PI / 3.0);
+    const int n_segments = static_cast<int>(std::ceil((theta_1 - theta_0) / pi23));
 
     NURBSCurve arc_curve(1 + 2 * n_segments, 2);
     arc_curve.makeRational();
 
     // Define the first control point
-    arc_curve[0] = PointType({std::cos(theta_0), std::sin(theta_0)});
-    arc_curve.setWeight(0, 1.0);
+    arc_curve[0] = PointType({static_cast<T>(std::cos(theta_0)), static_cast<T>(std::sin(theta_0))});
+    arc_curve.setWeight(0, T {1});
 
     // Need to split up the curve if it spans more than 120 degrees, possibly twice
     for(int idx = 0; idx < n_segments; ++idx)
     {
-      T theta_start = theta_0 + pi23 * idx;
-      T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
+      const T theta_start = theta_0 + pi23 * static_cast<T>(idx);
+      const T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
 
-      arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
+      arc_curve[1 + 2 * idx + 1] =
+        PointType({static_cast<T>(std::cos(theta_end)), static_cast<T>(std::sin(theta_end))});
 
-      T weight_num = std::sin(theta_end - theta_start);
-      T weight_denom = 2.0 * std::sin((theta_end - theta_start) / 2.0);
+      const T weight_num = static_cast<T>(std::sin(theta_end - theta_start));
+      const T weight_denom = T {2.0} * static_cast<T>(std::sin((theta_end - theta_start) / T {2.0}));
       arc_curve.setWeight(1 + 2 * idx + 0, weight_num / weight_denom);
-      arc_curve.setWeight(1 + 2 * idx + 1, 1.0);
+      arc_curve.setWeight(1 + 2 * idx + 1, T {1});
 
       arc_curve[1 + 2 * idx + 0] =
         PointType({(arc_curve[1 + 2 * idx + 1][1] - arc_curve[1 + 2 * idx - 1][1]) / weight_num,
@@ -429,8 +432,8 @@ public:
 
     for(int i = 0; i < n_segments - 1; ++i)
     {
-      arc_curve.setKnot(3 + 2 * i + 0, static_cast<T>(i + 1) / n_segments);
-      arc_curve.setKnot(3 + 2 * i + 1, static_cast<T>(i + 1) / n_segments);
+      arc_curve.setKnot(3 + 2 * i + 0, static_cast<T>(i + 1) / static_cast<T>(n_segments));
+      arc_curve.setKnot(3 + 2 * i + 1, static_cast<T>(i + 1) / static_cast<T>(n_segments));
     }
 
     if(is_cw)
@@ -474,7 +477,7 @@ public:
    * 
    * \warning This method will replace existing knot vector with a uniform one.
    */
-  void setParameters(int npts, int degree)
+  void setParameters(axom::IndexType npts, int degree)
   {
     SLIC_ASSERT(npts > degree);
     SLIC_ASSERT(degree >= 0);
@@ -514,7 +517,7 @@ public:
   int getOrder() const { return static_cast<int>(m_knotvec.getDegree() + 1); }
 
   /// \brief Returns the number of control points in the NURBS Curve
-  int getNumControlPoints() const { return static_cast<int>(m_controlPoints.size()); }
+  axom::IndexType getNumControlPoints() const { return m_controlPoints.size(); }
 
   /*!
    * \brief Set the number control points
@@ -525,7 +528,7 @@ public:
    *  i.e. does not perform degree elevation/reduction. 
    *  Will replace existing knot vector with a uniform one.
    */
-  void setNumControlPoints(int npts)
+  void setNumControlPoints(axom::IndexType npts)
   {
     const int deg = m_knotvec.getDegree();
     SLIC_ASSERT(npts > deg);
@@ -612,7 +615,7 @@ public:
    * 
    * \return A reference to the control point at index \a idx
    */
-  PointType& operator[](int idx) { return m_controlPoints[idx]; }
+  PointType& operator[](axom::IndexType idx) { return m_controlPoints[idx]; }
 
   /*!
    * \brief Retrieve the control point at index \a idx
@@ -621,7 +624,7 @@ public:
    * 
    * \return A const reference to the control point at index \a idx
    */
-  const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
+  const PointType& operator[](axom::IndexType idx) const { return m_controlPoints[idx]; }
 
   const PointType& getInitPoint() const { return m_controlPoints[0]; }
   const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
@@ -640,7 +643,7 @@ public:
    * 
    * \return The weight at index \a idx
    */
-  const T& getWeight(int idx) const
+  const T& getWeight(axom::IndexType idx) const
   {
     SLIC_ASSERT(isRational());
     return m_weights[idx];
@@ -654,7 +657,7 @@ public:
    * 
    * \pre Requires that the curve be rational, and the weight be rational
    */
-  void setWeight(int idx, T weight)
+  void setWeight(axom::IndexType idx, T weight)
   {
     SLIC_ASSERT(isRational());
     SLIC_ASSERT(weight > 0);
@@ -696,18 +699,18 @@ public:
    */
   bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
   {
-    const int npts = getNumControlPoints();
+    const axom::IndexType npts = getNumControlPoints();
     if(npts <= 2)
     {
       return true;
     }
 
-    const int end_idx = npts - 1;
+    const axom::IndexType end_idx = npts - 1;
     if(useStrictLinear)
     {
-      for(int p = 1; p < end_idx; ++p)
+      for(axom::IndexType p = 1; p < end_idx; ++p)
       {
-        if(const double t = p / static_cast<T>(end_idx);
+        if(const double t = static_cast<double>(p) / static_cast<double>(end_idx);
            squared_distance(m_controlPoints[p],
                             PointType::lerp(m_controlPoints[0], m_controlPoints[end_idx], t)) > tol)
         {
@@ -718,7 +721,7 @@ public:
     else
     {
       const SegmentType seg(m_controlPoints[0], m_controlPoints[end_idx]);
-      for(int p = 1; p < end_idx; ++p)
+      for(axom::IndexType p = 1; p < end_idx; ++p)
       {
         if(squared_distance(m_controlPoints[p], seg) > tol)
         {
@@ -738,7 +741,7 @@ public:
   /// \brief Returns the number of knots in the NURBS Curve
   axom::IndexType getNumKnots() const { return m_knotvec.getNumKnots(); }
 
-  auto getNumKnotSpans() const { return m_knotvec.getNumKnotSpans(); }
+  axom::IndexType getNumKnotSpans() const { return m_knotvec.getNumKnotSpans(); }
 
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize() { m_knotvec.normalize(); }
@@ -806,16 +809,16 @@ public:
   /// \brief Reverses the order of the NURBS curve's control points and weights
   void reverseOrientation()
   {
-    const int npts = getNumControlPoints();
-    const int npts_mid = (npts + 1) / 2;
-    for(int i = 0; i < npts_mid; ++i)
+    const axom::IndexType npts = getNumControlPoints();
+    const axom::IndexType npts_mid = (npts + 1) / 2;
+    for(axom::IndexType i = 0; i < npts_mid; ++i)
     {
       axom::utilities::swap(m_controlPoints[i], m_controlPoints[npts - i - 1]);
     }
 
     if(isRational())
     {
-      for(int i = 0; i < npts_mid; ++i)
+      for(axom::IndexType i = 0; i < npts_mid; ++i)
       {
         axom::utilities::swap(m_weights[i], m_weights[npts - i - 1]);
       }
@@ -852,7 +855,7 @@ public:
 
     const bool isRational = this->isRational();
 
-    const int n = getNumControlPoints() - 1;
+    const axom::IndexType n = getNumControlPoints() - 1;
     const int p = m_knotvec.getDegree();
 
     // Find the span and multiplicity of the knot
@@ -1144,14 +1147,14 @@ public:
       for(int j = 0; j <= p; j++)
       {
         auto offset = span - p + j;
-        const double weight = isCurveRational ? m_weights[offset] : 1.0;
+        const T weight = isCurveRational ? m_weights[offset] : T {1};
 
         // Compute the weighted point.
         for(int i = 0; i < NDIMS; ++i)
         {
-          Pw[i] += N_evals[k][j] * weight * m_controlPoints[offset][i];
+          Pw[i] += static_cast<T>(N_evals[k][j]) * weight * m_controlPoints[offset][i];
         }
-        Pw[NDIMS] += N_evals[k][j] * weight;
+        Pw[NDIMS] += static_cast<T>(N_evals[k][j]) * weight;
       }
 
       Awders[k] = Pw;
@@ -1195,7 +1198,7 @@ public:
 
       for(int i = 1; i < k; i++)
       {
-        auto bin = axom::utilities::binomialCoefficient(k, i);
+        const T bin = static_cast<T>(axom::utilities::binomialCoefficient(k, i));
         for(int j = 0; j < NDIMS; ++j)
         {
           v[j] = v[j] - bin * Awders[i][NDIMS] * ders[k - i - 1][j];
@@ -1328,8 +1331,8 @@ public:
   {
     bool isCurveRational = this->isRational();
     int p = getDegree();
-    int n = getNumControlPoints() - 1;
-    int ks = m_knotvec.getNumKnotSpans();
+    const axom::IndexType n = getNumControlPoints() - 1;
+    const axom::IndexType ks = m_knotvec.getNumKnotSpans();
 
     axom::Array<BezierCurve<T, NDIMS>> beziers(ks);
     for(auto& bezier : beziers)
@@ -1344,7 +1347,7 @@ public:
     // Handle this special case
     if(p == 0)
     {
-      for(int i = 0; i < getNumControlPoints(); ++i)
+      for(axom::IndexType i = 0; i < getNumControlPoints(); ++i)
       {
         beziers[i][0] = m_controlPoints[i];
 
@@ -1359,11 +1362,11 @@ public:
 
     axom::Array<T> alphas(p - 1);
 
-    int m = n + p + 1;
-    int a = p;
-    int b = p + 1;
+    const axom::IndexType m = n + p + 1;
+    axom::IndexType a = p;
+    axom::IndexType b = p + 1;
 
-    int nb = 0;
+    axom::IndexType nb = 0;
 
     for(int i = 0; i <= p; ++i)
     {
@@ -1376,13 +1379,13 @@ public:
 
     while(b < m)
     {
-      int i = b;
+      const axom::IndexType i = b;
       while(b < m && m_knotvec[b] == m_knotvec[b + 1])
       {
         b++;
       }
 
-      int mult = b - i + 1;
+      const int mult = static_cast<int>(b - i + 1);
 
       if(mult < p)
       {
@@ -1450,6 +1453,41 @@ public:
 
   ///@}
 
+  ///@{
+  /// \name Functions dealing with curvature
+
+  /*! 
+   * \brief Evaluates the curvature at parameter value \a t.
+   *  
+   * \param t The parameter value. 
+   * 
+   * \return The curvature value at t. 
+   */
+  double curvature(T t) const
+  {
+    PointType eval;
+    VectorType Dt, DtDt;
+    evaluateSecondDerivative(t, eval, Dt, DtDt);
+    return axom::primal::curvature(Dt, DtDt);
+  }
+
+  /*!
+   * \brief Evaluates the first curvature derivative at parameter \a t
+   *
+   * \param t The parameter value.
+   *
+   * \return The first curvature derivative with respect to the curve parameter.
+   */
+  double curvatureDerivative(T t) const
+  {
+    PointType eval;
+    axom::Array<VectorType> curveDers;
+    // Evaluate 1st, 2nd, and 3rd curve derivatives at t.
+    evaluateDerivatives(t, 3, eval, curveDers);
+    return axom::primal::curvatureDerivative(curveDers[0], curveDers[1], curveDers[2]);
+  }
+  ///@}
+
   /*!
    * \brief Equality operator for NURBS Curves
    * 
@@ -1485,13 +1523,13 @@ public:
    */
   std::ostream& print(std::ostream& os) const
   {
-    int npts = getNumControlPoints();
-    int nkts = m_knotvec.getNumKnots();
+    const axom::IndexType npts = getNumControlPoints();
+    const axom::IndexType nkts = m_knotvec.getNumKnots();
 
     int deg = m_knotvec.getDegree();
 
     os << "{ degree " << deg << " NURBS Curve ";
-    for(int p = 0; p < npts; ++p)
+    for(axom::IndexType p = 0; p < npts; ++p)
     {
       os << m_controlPoints[p] << (p < npts - 1 ? "," : "");
     }
@@ -1499,14 +1537,14 @@ public:
     if(isRational())
     {
       os << ", weights [";
-      for(int p = 0; p < npts; ++p)
+      for(axom::IndexType p = 0; p < npts; ++p)
       {
         os << m_weights[p] << (p < npts - 1 ? ", " : "]");
       }
     }
 
     os << ", knots [";
-    for(int i = 0; i < nkts; ++i)
+    for(axom::IndexType i = 0; i < nkts; ++i)
     {
       os << m_knotvec[i] << (i < nkts - 1 ? ", " : "]");
     }
@@ -1538,5 +1576,3 @@ std::ostream& operator<<(std::ostream& os, const NURBSCurve<T, NDIMS>& nCurve)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::NURBSCurve<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_NURBSCURVE_HPP_

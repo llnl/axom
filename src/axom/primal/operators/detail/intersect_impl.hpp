@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file intersect_impl.hpp
  *
  * This file provides helper functions for testing whether
  * geometric primitives intersect
  */
-
-#ifndef AXOM_PRIMAL_INTERSECT_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_IMPL_HPP_
 
 #include "axom/core/Macros.hpp"
 #include "axom/core/numerics/Determinants.hpp"
@@ -791,9 +790,9 @@ inline bool oneZeroOthersMatch(double x, double y, double z, double EPS)
 AXOM_HOST_DEVICE
 inline int countZeros(double x, double y, double z, double EPS)
 {
-  return (int)axom::utilities::isNearlyEqual(x, 0.0, EPS) +
-    (int)axom::utilities::isNearlyEqual(y, 0.0, EPS) +
-    (int)axom::utilities::isNearlyEqual(z, 0.0, EPS);
+  return static_cast<int>(axom::utilities::isNearlyEqual(x, 0.0, EPS)) +
+    static_cast<int>(axom::utilities::isNearlyEqual(y, 0.0, EPS)) +
+    static_cast<int>(axom::utilities::isNearlyEqual(z, 0.0, EPS));
 }
 
 /*! @} */
@@ -2200,5 +2199,3 @@ bool select_candidates(const CandidateArrayType& tc,
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_IMPL_HPP_

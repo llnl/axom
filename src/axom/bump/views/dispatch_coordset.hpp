@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_COORDSET_HPP_
-#define AXOM_BUMP_DISPATCH_COORDSET_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
@@ -348,5 +347,3 @@ void dispatch_coordset(const conduit::Node &coordset, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

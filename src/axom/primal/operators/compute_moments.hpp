@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_COMPUTE_MOMENTS_HPP_
-#define AXOM_PRIMAL_COMPUTE_MOMENTS_HPP_
+#pragma once
 
 /*!
  * \file compute_moments.hpp
@@ -154,5 +153,3 @@ primal::Point<T, 2> centroid(const primal::CurvedPolygon<BezierCurve<T, 2>>& pol
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_COMPUTE_MOMENTS_HPP_

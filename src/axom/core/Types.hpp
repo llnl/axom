@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *  \file Types.hpp
  *
  *  \brief Exposes some common types used by axom components.
  */
-
-#ifndef AXOM_TYPES_HPP_
-#define AXOM_TYPES_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
@@ -34,7 +33,8 @@ using float64 = double;
   by using CMake -DAXOM_DEPRECATED_TYPES=<WARN|ERROR|ALLOW>
   Eventually, these types will be removed.
 */
-#if AXOM_DEPRECATED_TYPES_N == 1 || AXOM_DEPRECATED_TYPES_N == 2
+#if defined(AXOM_DEPRECATED_TYPES_N) && \
+  (AXOM_DEPRECATED_TYPES_N == 1 || AXOM_DEPRECATED_TYPES_N == 2)
   #if AXOM_DEPRECATED_TYPES_N == 1
     #if defined(_MSC_VER)
       #pragma message( \
@@ -207,10 +207,8 @@ struct mpi_traits<std::uint64_t>
 };
   #endif  // AXOM_NO_INT64_T
 
-  /// @}
+/// @}
 
 #endif  // AXOM_USE_MPI
 
 }  // end namespace axom
-
-#endif  // AXOM_TYPES_HPP_

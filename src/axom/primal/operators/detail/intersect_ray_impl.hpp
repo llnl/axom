@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_INTERSECT_RAY_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_RAY_IMPL_HPP_
+#pragma once
 
 // core includes
 #include "axom/core/numerics/floating_point_limits.hpp"
@@ -409,5 +408,3 @@ AXOM_HOST_DEVICE inline bool intersect_line(const primal::Line<T, DIM>& L,
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_RAY_IMPL_HPP_

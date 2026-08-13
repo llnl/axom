@@ -319,7 +319,7 @@ void append_node_structs(MeshCoordinates* mesh_coords, IndexType n_nodes)
 
   for(IndexType i = 0; i < n_nodes; ++i)
   {
-    for(IndexType dim = 0; dim < ndims; ++dim)
+    for(int dim = 0; dim < ndims; ++dim)
     {
       coords[ndims * i + dim] = getCoordValue(ndims, i + cur_n_nodes, dim);
     }
@@ -344,7 +344,7 @@ void append_node_arrays(MeshCoordinates* mesh_coords, IndexType n_nodes)
   IndexType cur_n_nodes = mesh_coords->numNodes();
   double* coords = new double[ndims * n_nodes];
 
-  for(IndexType dim = 0; dim < ndims; ++dim)
+  for(int dim = 0; dim < ndims; ++dim)
   {
     for(IndexType i = 0; i < n_nodes; ++i)
     {
@@ -462,7 +462,7 @@ void insert_structs(MeshCoordinates* mesh_coords, IndexType n_nodes, IndexType p
 
   for(IndexType i = 0; i < n_nodes; ++i)
   {
-    for(IndexType dim = 0; dim < ndims; ++dim)
+    for(int dim = 0; dim < ndims; ++dim)
     {
       coords[ndims * i + dim] = getCoordValue(ndims, final_pos + i, dim);
     }
@@ -490,7 +490,7 @@ void insert_arrays(MeshCoordinates* mesh_coords, IndexType n_nodes, IndexType po
   IndexType cur_n_nodes = mesh_coords->numNodes();
   double* coords = new double[ndims * n_nodes];
 
-  for(IndexType dim = 0; dim < ndims; ++dim)
+  for(int dim = 0; dim < ndims; ++dim)
   {
     for(IndexType i = 0; i < n_nodes; ++i)
     {
@@ -602,7 +602,7 @@ void check_set_and_get(MeshCoordinates* mc)
   constexpr double TEST_VALUE = 7;
   constexpr IndexType targetIdx = 3;
 
-  const int nnodes = mc->numNodes();
+  const IndexType nnodes = mc->numNodes();
   const int ndims = mc->dimension();
 
   ASSERT_TRUE(targetIdx < nnodes);
@@ -749,8 +749,8 @@ void deleteAndDuplicateExternal(MeshCoordinates*& mesh_coords)
 {
   ASSERT_TRUE(mesh_coords->isExternal());
   const int ndims = mesh_coords->dimension();
-  const int n_nodes = mesh_coords->numNodes();
-  const int capacity = mesh_coords->capacity();
+  const IndexType n_nodes = mesh_coords->numNodes();
+  const IndexType capacity = mesh_coords->capacity();
   double* x = mesh_coords->getCoordinateArray(X_COORDINATE);
   double* y = nullptr;
   double* z = nullptr;
@@ -795,8 +795,8 @@ void deleteAndDuplicateSidre(MeshCoordinates*& mesh_coords)
   ASSERT_TRUE(mesh_coords->isInSidre());
 
   const int ndims = mesh_coords->dimension();
-  const int n_nodes = mesh_coords->numNodes();
-  const int capacity = mesh_coords->capacity();
+  const IndexType n_nodes = mesh_coords->numNodes();
+  const IndexType capacity = mesh_coords->capacity();
 
   sidre::Group* group = mesh_coords->getSidreGroup();
 
@@ -1236,7 +1236,8 @@ TEST(mint_mesh_coordinates, sidre_push_constructor)
       EXPECT_EQ(mesh_coords.numNodes(), SMALL_NUM_NODES);
       EXPECT_TRUE(mesh_coords.numNodes() <= mesh_coords.capacity());
 
-      IndexType capacity = SMALL_NUM_NODES * mesh_coords.getResizeRatio() + 0.5;
+      IndexType capacity =
+        static_cast<IndexType>(SMALL_NUM_NODES * mesh_coords.getResizeRatio() + 0.5);
       if(capacity < MCArray<IndexType>::MIN_DEFAULT_CAPACITY)
       {
         capacity = MCArray<IndexType>::MIN_DEFAULT_CAPACITY;

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // Axom includes
 #include "axom/config.hpp"                         /* for compile time defs */
 #include "axom/core/Macros.hpp"                    /* for axom macros */

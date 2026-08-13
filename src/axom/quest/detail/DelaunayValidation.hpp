@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayValidation.hpp
  *
@@ -21,9 +23,6 @@
  * - Determinant evaluation helpers with context-aware tolerances
  * - Boundary coordinate tolerance computation
  */
-
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
 
 namespace axom
 {
@@ -317,8 +316,10 @@ inline bool Delaunay<DIM>::isValid(bool verboseOutput) const
 
   const IndexType totalVertices = m_mesh.vertices().size();
   const IndexType totalElements = m_mesh.elements().size();
-  const IndexType res = axom::utilities::ceil(0.33 * std::pow(totalVertices, 1. / DIM));
-  UniformGridType grid(m_bounding_box, NumericArray<int, DIM>(res).data());
+  const IndexType res =
+    static_cast<IndexType>(axom::utilities::ceil(0.33 * std::pow(totalVertices, 1. / DIM)));
+  const int gridRes = static_cast<int>(res);
+  UniformGridType grid(m_bounding_box, NumericArray<int, DIM>(gridRes).data());
 
   axom::Array<typename ElementType::SphereType> circumspheres(totalElements);
 
@@ -348,7 +349,7 @@ inline bool Delaunay<DIM>::isValid(bool verboseOutput) const
     using GridCell = typename ImplicitGridType::GridCell;
 
     const auto resCell = GridCell(res);
-    ImplicitGridType implicitGrid(m_bounding_box, &resCell, totalElements);
+    ImplicitGridType implicitGrid(m_bounding_box, &resCell, static_cast<int>(totalElements));
     for(auto element_idx : m_mesh.elements().positions())
     {
       if(m_mesh.isValidElement(element_idx))
@@ -383,7 +384,7 @@ inline bool Delaunay<DIM>::isValid(bool verboseOutput) const
       }
     }
 
-    const int kUpper = (DIM == 2) ? 1 : res;
+    const int kUpper = (DIM == 2) ? 1 : gridRes;
     const IndexType stride[3] = {1, res, (DIM == 2) ? 0 : res * res};
     for(IndexType k = 0; k < kUpper; ++k)
     {
@@ -393,7 +394,7 @@ inline bool Delaunay<DIM>::isValid(bool verboseOutput) const
         {
           const IndexType vals[3] = {i, j, k};
           const GridCell cell(vals);
-          const auto idx = dot_product(cell.data(), stride, DIM);
+          const int idx = static_cast<int>(dot_product(cell.data(), stride, DIM));
           const auto binValues = implicitGrid.getCandidatesAsArray(cell);
           grid.getBinContents(idx).insert(0, binValues.size(), binValues.data());
         }
@@ -948,5 +949,3 @@ inline void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

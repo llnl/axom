@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_UTILITIES_PRIMAL_ADAPTOR_HPP_
-#define AXOM_BUMP_UTILITIES_PRIMAL_ADAPTOR_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -483,5 +482,3 @@ struct PrimalAdaptor
 
 }  // namespace bump
 }  // namespace axom
-
-#endif

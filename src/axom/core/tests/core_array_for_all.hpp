@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // Axom includes
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -47,10 +49,10 @@ public:
   using HostTArray = axom::Array<T, 1, host_memory>;
   template <typename T>
   using DynamicTArray = axom::Array<T, 1, axom::MemorySpace::Dynamic>;
-  using HostArray = axom::Array<int, 1, host_memory>;
-  using DynamicArray = axom::Array<int, 1, axom::MemorySpace::Dynamic>;
-  using KernelArray = axom::Array<int, 1, exec_space_memory>;
-  using KernelArrayView = axom::ArrayView<int, 1, exec_space_memory>;
+  using HostArray = axom::Array<axom::IndexType, 1, host_memory>;
+  using DynamicArray = axom::Array<axom::IndexType, 1, axom::MemorySpace::Dynamic>;
+  using KernelArray = axom::Array<axom::IndexType, 1, exec_space_memory>;
+  using KernelArrayView = axom::ArrayView<axom::IndexType, 1, exec_space_memory>;
 
   static int getKernelAllocatorID() { return axom::detail::getAllocatorID<exec_space_memory>(); }
 };
@@ -117,27 +119,27 @@ AXOM_CUDA_TEST(core_array_for_all, capture_test)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, explicit_ArrayView)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using KernelArray = typename TestFixture::KernelArray;
-  using KernelArrayView = typename TestFixture::KernelArrayView;
-  using HostArray = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using KernelArrayType = typename TestFixture::KernelArray;
+  using KernelArrayViewType = typename TestFixture::KernelArrayView;
+  using HostArrayType = typename TestFixture::HostArray;
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr int N = 374;
-  KernelArray arr(N);
+  KernelArrayType arr(N);
 
   // Modify array using lambda and ArrayView
-  KernelArrayView arr_view(arr);
-  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  KernelArrayViewType arr_view(arr);
+  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Check array contents on host
-  HostArray localArr = arr;
+  HostArrayType localArr = arr;
   for(int i = 0; i < N; ++i)
   {
     EXPECT_EQ(localArr[i], N - i);
@@ -147,27 +149,27 @@ AXOM_TYPED_TEST(core_array_for_all, explicit_ArrayView)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using KernelArray = typename TestFixture::KernelArray;
-  using HostArray = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using KernelArrayType = typename TestFixture::KernelArray;
+  using HostArrayType = typename TestFixture::HostArray;
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr int N = 374;
-  KernelArray arr(N);
+  KernelArrayType arr(N);
 
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
   EXPECT_FALSE(arr_view.empty());
-  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Check array contents on host
-  HostArray localArr = arr;
+  HostArrayType localArr = arr;
   for(int i = 0; i < N; ++i)
   {
     EXPECT_EQ(localArr[i], N - i);
@@ -182,65 +184,65 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using KernelArray = typename TestFixture::KernelArray;
-  using HostArray = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using KernelArrayType = typename TestFixture::KernelArray;
+  using HostArrayType = typename TestFixture::HostArray;
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr int N = 374;
-  KernelArray arr(N);
+  KernelArrayType arr(N);
 
   // Populate an array on the host...
-  HostArray source(N);
+  HostArrayType source(N);
   for(int i = 0; i < N; ++i)
   {
     source[i] = i;
   }
 
   // Then copy it over to the device
-  KernelArray kernelSource = source;
+  KernelArrayType kernelSource = source;
   auto kernelSourceView = kernelSource.view();
   EXPECT_FALSE(kernelSourceView.empty());
 
   // First, modify array using lambda and KernelArray::ArrayView operator[] const
   auto arrData = arr.data();
-  axom::for_all<ExecSpace>(
+  axom::for_all<ExecSpaceType>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) { arrData[idx] = N - kernelSourceView[idx]; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Check array contents on host
-  HostArray localArr = arr;
+  HostArrayType localArr = arr;
   for(int i = 0; i < N; ++i)
   {
     EXPECT_EQ(localArr[i], N - i);
   }
 
   // Then modify array using lambda and KernelArray::ConstArrayView operator[] const
-  KernelArray arrConst(N);
+  KernelArrayType arrConst(N);
   auto arrConstData = arrConst.data();
 
-  const KernelArray& kernelSourceCref = kernelSource;
+  const KernelArrayType& kernelSourceCref = kernelSource;
   auto kernelSourceConstView = kernelSourceCref.view();
   EXPECT_FALSE(kernelSourceConstView.empty());
 
-  axom::for_all<ExecSpace>(
+  axom::for_all<ExecSpaceType>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) { arrConstData[idx] = N - kernelSourceConstView[idx]; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Check array contents on host
-  HostArray localArrConst = arrConst;
+  HostArrayType localArrConst = arrConst;
   for(int i = 0; i < N; ++i)
   {
     EXPECT_EQ(localArr[i], N - i);
@@ -255,20 +257,20 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray = typename TestFixture::DynamicArray;
-  using HostArray = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::DynamicArray;
+  using HostArrayType = typename TestFixture::HostArray;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
 
   // Test that array has been initialized to default values (0 for int)
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     for(int i = 0; i < N; ++i)
     {
       int default_value {0};
@@ -278,17 +280,17 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array)
 
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
-  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Check array contents on host
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     for(int i = 0; i < N; ++i)
     {
       EXPECT_EQ(localArr[i], N - i);
@@ -299,23 +301,25 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_insert)
 {
-  using DynamicArray = typename TestFixture::DynamicArray;
-  using HostArray = typename TestFixture::HostArray;
-  using ExecSpace = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::DynamicArray;
+  using HostArrayType = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpaceType>(
+    N,
+    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   const axom::IndexType N_insert = 10;
@@ -327,7 +331,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_insert)
   EXPECT_EQ(arr.size(), N + N_insert);
   {
     // Check elements
-    HostArray host_arr = arr;
+    HostArrayType host_arr = arr;
     for(axom::IndexType i = 0; i < N; i++)
     {
       EXPECT_EQ(host_arr[i], i - 5 * i + 7);
@@ -346,7 +350,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_insert)
   EXPECT_EQ(arr.size(), N + N_insert * 2);
   {
     // Check elements
-    HostArray host_arr = arr;
+    HostArrayType host_arr = arr;
     for(axom::IndexType i = 0; i < N; i++)
     {
       EXPECT_EQ(host_arr[i + N_insert], i - 5 * i + 7);
@@ -363,28 +367,30 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_insert)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_insert)
 {
-  using DynamicArray = typename TestFixture::DynamicArray;
-  using HostArray = typename TestFixture::HostArray;
-  using ExecSpace = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::DynamicArray;
+  using HostArrayType = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpaceType>(
+    N,
+    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Create a host range to set
   const axom::IndexType N_range = 100;
-  HostArray range_vals(N_range);
+  HostArrayType range_vals(N_range);
 
   for(axom::IndexType i = 0; i < N_range; i++)
   {
@@ -395,7 +401,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_insert)
   EXPECT_EQ(arr.size(), N + N_range);
   {
     // Check elements
-    HostArray host_arr = arr;
+    HostArrayType host_arr = arr;
     for(axom::IndexType i = 0; i < N; i++)
     {
       EXPECT_EQ(host_arr[i], i - 5 * i + 7);
@@ -411,7 +417,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_insert)
   EXPECT_EQ(arr.size(), N + N_range * 2);
   {
     // Check elements
-    HostArray host_arr = arr;
+    HostArrayType host_arr = arr;
     for(axom::IndexType i = 0; i < N; i++)
     {
       EXPECT_EQ(host_arr[i + N_range], i - 5 * i + 7);
@@ -428,28 +434,30 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_insert)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_set)
 {
-  using DynamicArray = typename TestFixture::DynamicArray;
-  using HostArray = typename TestFixture::HostArray;
-  using ExecSpace = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::DynamicArray;
+  using HostArrayType = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpaceType>(
+    N,
+    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Create a host range to set
   const axom::IndexType N_range = 100;
-  HostArray range_vals(N_range);
+  HostArrayType range_vals(N_range);
 
   for(axom::IndexType i = 0; i < N_range; i++)
   {
@@ -460,7 +468,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_set)
   EXPECT_EQ(arr.size(), N);
   {
     // Check elements
-    HostArray host_arr = arr;
+    HostArrayType host_arr = arr;
     for(axom::IndexType i = N_range; i < N; i++)
     {
       EXPECT_EQ(host_arr[i], i - 5 * i + 7);
@@ -475,19 +483,19 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_set)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_initializer_list)
 {
-  using DynamicArray = typename TestFixture::DynamicArray;
-  using HostArray = typename TestFixture::HostArray;
+  using DynamicArrayType = typename TestFixture::DynamicArray;
+  using HostArrayType = typename TestFixture::HostArray;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   // Construct array with an initializer list
   {
-    DynamicArray arr({1, 2, 3, 4, 5}, kernelAllocID);
+    DynamicArrayType arr({1, 2, 3, 4, 5}, kernelAllocID);
     EXPECT_EQ(arr.size(), 5);
     EXPECT_EQ(arr.capacity(), 5);
     EXPECT_EQ(arr.getAllocatorID(), kernelAllocID);
 
-    HostArray arr_host = arr;
+    HostArrayType arr_host = arr;
     for(axom::IndexType i = 0; i < 5; i++)
     {
       EXPECT_EQ(arr_host[i], i + 1);
@@ -497,7 +505,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_initializer_list)
   // Assign an initializer list to an array
   {
     constexpr axom::IndexType N = 10;
-    DynamicArray arr(N, N, kernelAllocID);
+    DynamicArrayType arr(N, N, kernelAllocID);
     arr.fill(6);
 
     EXPECT_EQ(arr.size(), 10);
@@ -507,7 +515,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_initializer_list)
     EXPECT_EQ(arr.size(), 5);
     EXPECT_EQ(arr.capacity(), 10);
     EXPECT_EQ(arr.getAllocatorID(), kernelAllocID);
-    HostArray arr_host = arr;
+    HostArrayType arr_host = arr;
     for(axom::IndexType i = 0; i < 5; i++)
     {
       EXPECT_EQ(arr_host[i], i + 1);
@@ -518,23 +526,23 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_initializer_list)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
 {
-  using DynamicArray = typename TestFixture::DynamicArray;
-  using HostArray = typename TestFixture::HostArray;
-  using ExecSpace = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::DynamicArray;
+  using HostArrayType = typename TestFixture::HostArray;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 10;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx; });
+  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Call resize without a default value. New elements in array should be set
@@ -543,7 +551,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
   EXPECT_EQ(arr.size(), 2 * N);
 
   {
-    HostArray arr_host = arr;
+    HostArrayType arr_host = arr;
     for(int i = 0; i < N; i++)
     {
       EXPECT_EQ(arr_host[i], i);
@@ -560,7 +568,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
   EXPECT_EQ(arr.size(), 3 * N);
 
   {
-    HostArray arr_host = arr;
+    HostArrayType arr_host = arr;
     for(int i = 0; i < N; i++)
     {
       EXPECT_EQ(arr_host[i], i);
@@ -580,7 +588,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
   EXPECT_EQ(arr.size(), N + 5);
 
   {
-    HostArray arr_host = arr;
+    HostArrayType arr_host = arr;
     for(int i = 0; i < N; i++)
     {
       EXPECT_EQ(arr_host[i], i);
@@ -595,10 +603,10 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
 {
-  using DynamicArray = typename TestFixture::DynamicArray;
-  using HostArray = typename TestFixture::HostArray;
-  using ArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
-  using HostArrayOfArrays = typename TestFixture::template HostTArray<DynamicArray>;
+  using DynamicArrayType = typename TestFixture::DynamicArray;
+  using HostArrayType = typename TestFixture::HostArray;
+  using ArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArrayType>;
+  using HostArrayOfArrays = typename TestFixture::template HostTArray<DynamicArrayType>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
@@ -606,10 +614,10 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
   ArrayOfArrays arr_2d(0, N, kernelAllocID);
 
   // Insert some arrays
-  arr_2d.push_back(DynamicArray({1, 2, 3}, kernelAllocID));
-  arr_2d.push_back(DynamicArray({2, 3, 4}, kernelAllocID));
-  arr_2d.push_back(DynamicArray({3, 4, 5}, kernelAllocID));
-  arr_2d.push_back(DynamicArray({4, 5, 6}, kernelAllocID));
+  arr_2d.push_back(DynamicArrayType({1, 2, 3}, kernelAllocID));
+  arr_2d.push_back(DynamicArrayType({2, 3, 4}, kernelAllocID));
+  arr_2d.push_back(DynamicArrayType({3, 4, 5}, kernelAllocID));
+  arr_2d.push_back(DynamicArrayType({4, 5, 6}, kernelAllocID));
 
   EXPECT_EQ(arr_2d.size(), 4);
   // Check values on host
@@ -617,7 +625,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
     HostArrayOfArrays arr_2d_host = arr_2d;
     for(int i = 0; i < arr_2d_host.size(); i++)
     {
-      HostArray subarr_host = arr_2d_host[i];
+      HostArrayType subarr_host = arr_2d_host[i];
       EXPECT_EQ(subarr_host.size(), 3);
       for(int j = 0; j < subarr_host.size(); j++)
       {
@@ -629,8 +637,8 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
   // Insert a few subarrays
   // A move operation will be triggered to allocate a slot for the new
   // element
-  arr_2d.insert(arr_2d.begin(), DynamicArray({0, 1, 2}));
-  arr_2d.insert(arr_2d.begin() + 3, DynamicArray({2, 3, 4}));
+  arr_2d.insert(arr_2d.begin(), DynamicArrayType({0, 1, 2}));
+  arr_2d.insert(arr_2d.begin() + 3, DynamicArrayType({2, 3, 4}));
   EXPECT_EQ(arr_2d.size(), 6);
 
   // Check values on host
@@ -638,7 +646,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
     HostArrayOfArrays arr_2d_host = arr_2d;
     for(int i = 0; i < arr_2d_host.size(); i++)
     {
-      HostArray subarr_host = arr_2d_host[i];
+      HostArrayType subarr_host = arr_2d_host[i];
       EXPECT_EQ(subarr_host.size(), 3);
       int offset = (i >= 3) ? -1 : 0;
       for(int j = 0; j < subarr_host.size(); j++)
@@ -658,7 +666,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
     HostArrayOfArrays arr_2d_host = arr_2d;
     for(int i = 0; i < arr_2d_host.size(); i++)
     {
-      HostArray subarr_host = arr_2d_host[i];
+      HostArrayType subarr_host = arr_2d_host[i];
       EXPECT_EQ(subarr_host.size(), 3);
       for(int j = 0; j < subarr_host.size(); j++)
       {
@@ -680,20 +688,20 @@ struct NonTrivialDefaultCtor
 
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_default_ctor_obj)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialDefaultCtor>;
-  using HostArray = typename TestFixture::template HostTArray<NonTrivialDefaultCtor>;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::template DynamicTArray<NonTrivialDefaultCtor>;
+  using HostArrayType = typename TestFixture::template HostTArray<NonTrivialDefaultCtor>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
 
   // Check array contents on host
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     for(int i = 0; i < N; ++i)
     {
       EXPECT_EQ(localArr[i].m_val, MAGIC_DEFAULT_CTOR);
@@ -703,14 +711,14 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_default_ctor_obj)
   const int MAGIC_PREFILL = 111;
   // Fill with placeholder value
   auto arr_view = arr.view();
-  axom::for_all<ExecSpace>(
+  axom::for_all<ExecSpaceType>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx].m_val = MAGIC_PREFILL; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Fill with instance of copy-constructed type
@@ -718,7 +726,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_default_ctor_obj)
 
   // Check array contents on host
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     for(int i = 0; i < N; ++i)
     {
       EXPECT_EQ(localArr[i].m_val, MAGIC_DEFAULT_CTOR);
@@ -731,7 +739,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_default_ctor_obj)
 
   // Check array contents on host
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     for(int i = 0; i < N2; ++i)
     {
       EXPECT_EQ(localArr[i].m_val, MAGIC_DEFAULT_CTOR);
@@ -749,41 +757,41 @@ struct NonTrivialCtor
 
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_ctor_obj)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCtor>;
-  using HostArray = typename TestFixture::template HostTArray<NonTrivialCtor>;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::template DynamicTArray<NonTrivialCtor>;
+  using HostArrayType = typename TestFixture::template HostTArray<NonTrivialCtor>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
 
   const int MAGIC_PREFILL = 111;
   const int MAGIC_FILL = 555;
   // Fill with placeholder value
   auto arr_view = arr.view();
-  axom::for_all<ExecSpace>(
+  axom::for_all<ExecSpaceType>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx].m_val = MAGIC_PREFILL; });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Fill with instance of copy-constructed type
   arr.fill(NonTrivialCtor {MAGIC_FILL});
 
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   // Check array contents on host
-  HostArray localArr(arr, hostAllocID);
+  HostArrayType localArr(arr, hostAllocID);
   for(int i = 0; i < N; ++i)
   {
     EXPECT_EQ(localArr[i].m_val, MAGIC_FILL);
@@ -811,8 +819,8 @@ int NonTrivialDtor::dtor_calls {0};
 
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 {
-  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialDtor>;
-  using HostArray = typename TestFixture::template HostTArray<NonTrivialDtor>;
+  using DynamicArrayType = typename TestFixture::template DynamicTArray<NonTrivialDtor>;
+  using HostArrayType = typename TestFixture::template HostTArray<NonTrivialDtor>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -820,7 +828,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
   NonTrivialDtor::dtor_calls = 0;
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
 
   // Initialization should not invoke the destructor
   EXPECT_EQ(NonTrivialDtor::dtor_calls, 0);
@@ -835,7 +843,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 
   // Check array contents on host
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     // Non-destructed elements should be in original state
     for(int i = 0; i < N - 100; i++)
     {
@@ -861,7 +869,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 
   // All elements should be in the destructed state
   {
-    HostArray localArr(arr, hostAllocID);
+    HostArrayType localArr(arr, hostAllocID);
     for(int i = 0; i < N; ++i)
     {
       EXPECT_EQ(localArr[i].m_val, NonTrivialDtor::MAGIC_DTOR);
@@ -889,8 +897,8 @@ struct NonTrivialCopyCtor
 
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
   using IntArray = typename TestFixture::DynamicArray;
   using IntHostArray = typename TestFixture::HostArray;
 
@@ -898,7 +906,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Helper function to check all values in the array for consistency
-  auto check_array_values = [=](const DynamicArray& arr, int expected) -> bool {
+  auto check_array_values = [=](const DynamicArrayType& arr, int expected) -> bool {
     IntHostArray values_host;
     if(arr.getAllocatorID() == kernelAllocID)
     {
@@ -906,14 +914,14 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
       IntArray values(arr.size(), arr.size(), kernelAllocID);
       const auto values_v = values.view();
       const auto arr_v = arr.view();
-      axom::for_all<ExecSpace>(
+      axom::for_all<ExecSpaceType>(
         arr.size(),
         AXOM_LAMBDA(axom::IndexType i) { values_v[i] = arr_v[i].m_val; });
 
       // handles synchronization, if necessary
-      if(axom::execution_space<ExecSpace>::async())
+      if(axom::execution_space<ExecSpaceType>::async())
       {
-        axom::synchronize<ExecSpace>();
+        axom::synchronize<ExecSpaceType>();
       }
       values_host = IntHostArray(values, hostAllocID);
     }
@@ -937,89 +945,89 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr axom::IndexType N = 374;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
 
   // Check some cases where the copy constructor shouldn't be invoked
   {
     // Create an array of N items using default MemorySpace for ExecSpace
-    constexpr axom::IndexType N = 374;
-    DynamicArray arr(N, N, kernelAllocID);
+    constexpr axom::IndexType innerN = 374;
+    DynamicArrayType innerArr(innerN, innerN, kernelAllocID);
 
     // Array default-construction should not invoke copy constructor
-    EXPECT_TRUE(check_array_values(arr, 1));
+    EXPECT_TRUE(check_array_values(innerArr, 1));
 
     // Array resize should not invoke copy constructor
-    arr.resize(2 * N);
-    EXPECT_TRUE(check_array_values(arr, 1));
+    innerArr.resize(2 * innerN);
+    EXPECT_TRUE(check_array_values(innerArr, 1));
 
     // Array move-construction should not invoke copy constructor
-    DynamicArray arr2(std::move(arr));
+    DynamicArrayType arr2(std::move(innerArr));
     EXPECT_TRUE(check_array_values(arr2, 1));
 
     // Array move-assignment should not invoke copy constructor
-    DynamicArray arr3 = std::move(arr2);
+    DynamicArrayType arr3 = std::move(arr2);
     EXPECT_TRUE(check_array_values(arr3, 1));
   }
 
   // Check some cases where the copy constructor should be invoked
   {
     // Create an array of N items using default MemorySpace for ExecSpace
-    constexpr axom::IndexType N = 374;
-    DynamicArray arr(N, N, kernelAllocID);
+    constexpr axom::IndexType innerN = 374;
+    DynamicArrayType innerArr(innerN, innerN, kernelAllocID);
 
     // Array copy-construction should invoke each element's copy constructor
-    DynamicArray arr2(arr);
+    DynamicArrayType arr2(innerArr);
     EXPECT_TRUE(check_array_values(arr2, MAGIC_COPY_CTOR));
 
     // Array copy-assignment should invoke each element's copy constructor
-    DynamicArray arr3 = arr;
+    DynamicArrayType arr3 = innerArr;
     EXPECT_TRUE(check_array_values(arr3, MAGIC_COPY_CTOR));
 
     // Transfers between memory spaces should invoke each element's copy constructor
-    DynamicArray arr4(arr, hostAllocID);
+    DynamicArrayType arr4(innerArr, hostAllocID);
     EXPECT_TRUE(check_array_values(arr4, MAGIC_COPY_CTOR));
 
     // Fill with instance of copy-constructed type - each element should be
     // copy-constructed from the argument
-    arr.fill(NonTrivialCopyCtor {});
-    EXPECT_TRUE(check_array_values(arr, MAGIC_COPY_CTOR));
+    innerArr.fill(NonTrivialCopyCtor {});
+    EXPECT_TRUE(check_array_values(innerArr, MAGIC_COPY_CTOR));
 
     // Second fill should be idempotent - i.e. isn't affected by the data
     // already present in the array
-    arr.fill(NonTrivialCopyCtor {});
-    EXPECT_TRUE(check_array_values(arr, MAGIC_COPY_CTOR));
+    innerArr.fill(NonTrivialCopyCtor {});
+    EXPECT_TRUE(check_array_values(innerArr, MAGIC_COPY_CTOR));
 
     // Array resize with a specified value should invoke the copy constructor
     // on the argument.
-    arr.clear();
-    arr.resize(N, NonTrivialCopyCtor {});
-    EXPECT_TRUE(check_array_values(arr, MAGIC_COPY_CTOR));
+    innerArr.clear();
+    innerArr.resize(innerN, NonTrivialCopyCtor {});
+    EXPECT_TRUE(check_array_values(innerArr, MAGIC_COPY_CTOR));
   }
 }
 
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_emplace)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
   using IntArray = typename TestFixture::DynamicArray;
   using HostIntArray = typename TestFixture::HostArray;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   // Helper function to copy device values to a host array
-  auto convert_to_host_array = [=](const DynamicArray& arr) -> HostIntArray {
+  auto convert_to_host_array = [=](const DynamicArrayType& arr) -> HostIntArray {
     IntArray arr_ints(arr.size(), arr.size(), kernelAllocID);
     const auto arr_v = arr.view();
     const auto arr_ints_v = arr_ints.view();
-    axom::for_all<ExecSpace>(
+    axom::for_all<ExecSpaceType>(
       arr.size(),
       AXOM_LAMBDA(axom::IndexType i) { arr_ints_v[i] = arr_v[i].m_val; });
 
     // handles synchronization, if necessary
-    if(axom::execution_space<ExecSpace>::async())
+    if(axom::execution_space<ExecSpaceType>::async())
     {
-      axom::synchronize<ExecSpace>();
+      axom::synchronize<ExecSpaceType>();
     }
 
     return arr_ints;
@@ -1027,7 +1035,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_emplace)
 
   // Create an array of N items using default MemorySpace for ExecSpace
   constexpr axom::IndexType N = 10;
-  DynamicArray arr(N, N, kernelAllocID);
+  DynamicArrayType arr(N, N, kernelAllocID);
 
   // Check default-constructed array contents on host
   {
@@ -1116,9 +1124,9 @@ struct DeviceInsert
 
 AXOM_TYPED_TEST(core_array_for_all, device_insert)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray = typename TestFixture::template DynamicTArray<DeviceInsert>;
-  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using DynamicArrayType = typename TestFixture::template DynamicTArray<DeviceInsert>;
+  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArrayType>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int umAllocID = kernelAllocID;
@@ -1132,13 +1140,13 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   constexpr axom::IndexType N = 374;
 
   DynamicArrayOfArrays arr_container(1, 1, umAllocID);
-  arr_container[0] = DynamicArray(0, N, kernelAllocID);
+  arr_container[0] = DynamicArrayType(0, N, kernelAllocID);
   const auto arr_v = arr_container.view();
 
   EXPECT_EQ(arr_container[0].size(), 0);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
-  axom::for_all<ExecSpace>(
+  axom::for_all<ExecSpaceType>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) {
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && !defined(AXOM_DEVICE_CODE)
@@ -1146,29 +1154,29 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
       {
   #pragma omp critical
         {
-          arr_v[0].emplace_back_device(3 * idx + 5);
+          arr_v[0].emplace_back_device(static_cast<int>(3 * idx + 5));
         }
       }
       else
       {
-        arr_v[0].emplace_back_device(3 * idx + 5);
+        arr_v[0].emplace_back_device(static_cast<int>(3 * idx + 5));
       }
 #else
-      arr_v[0].emplace_back_device(3 * idx + 5);
+      arr_v[0].emplace_back_device(static_cast<int>(3 * idx + 5));
 #endif
     });
 
   // handles synchronization, if necessary
-  if(axom::execution_space<ExecSpace>::async())
+  if(axom::execution_space<ExecSpaceType>::async())
   {
-    axom::synchronize<ExecSpace>();
+    axom::synchronize<ExecSpaceType>();
   }
 
   EXPECT_EQ(arr_container[0].size(), N);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
   // Copy array to host.
-  DynamicArray arr_host(arr_container[0], hostAllocID);
+  DynamicArrayType arr_host(arr_container[0], hostAllocID);
 
   // Device-side inserts may occur in any order.
   // Sort them before we check the inserted values.
@@ -1179,7 +1187,7 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   for(int i = 0; i < N; i++)
   {
     EXPECT_EQ(arr_host[i].m_value, 3 * i + 5);
-    if(axom::execution_space<ExecSpace>::onDevice())
+    if(axom::execution_space<ExecSpaceType>::onDevice())
     {
       EXPECT_EQ(arr_host[i].m_host_or_device, INSERT_ON_DEVICE);
     }
@@ -1193,7 +1201,7 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, unified_mem_preference)
 {
-  using KernelArray = typename TestFixture::KernelArray;
+  using KernelArrayType = typename TestFixture::KernelArray;
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
   if(TestFixture::exec_space_memory != axom::MemorySpace::Unified &&
@@ -1218,14 +1226,14 @@ AXOM_TYPED_TEST(core_array_for_all, unified_mem_preference)
 
   for(bool devicePref : {false, true})
   {
-    KernelArray arr;
+    KernelArrayType arr;
     arr.setDevicePreference(devicePref);
 
     // Check that we can do a few miscellaneous array operations.
     // At the moment, we can't really test that they're actually being
     // performed on the host or the device, so just check that nothing breaks.
     arr.resize(N);
-    KernelArray arr_copy(arr);
+    KernelArrayType arr_copy(arr);
     arr.push_back(1);
     arr.insert(arr.begin(), -1);
     arr.clear();

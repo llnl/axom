@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_MATERIAL_HPP_
-#define AXOM_BUMP_DISPATCH_MATERIAL_HPP_
+#pragma once
 
 #include "axom/bump/views/MaterialView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
@@ -362,5 +361,3 @@ bool dispatch_material(const conduit::Node &matset, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

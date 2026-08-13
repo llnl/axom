@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_ALL_NEAREST_NEIGHBORS_DETAIL_HPP_
-#define AXOM_QUEST_ALL_NEAREST_NEIGHBORS_DETAIL_HPP_
+#pragma once
 
 namespace axom
 {
@@ -26,5 +25,3 @@ inline double squared_distance(double x1, double y1, double z1, double x2, doubl
 }  // end namespace detail
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_ALL_NEAREST_NEIGHBORS_DETAIL_HPP_

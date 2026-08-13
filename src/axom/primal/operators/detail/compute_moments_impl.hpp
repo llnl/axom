@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_COMPUTE_MOMENTS_IMPL_HPP_
-#define AXOM_PRIMAL_COMPUTE_MOMENTS_IMPL_HPP_
+#pragma once
 
 /*!
  * \file compute_moments_impl.hpp
@@ -196,5 +195,3 @@ private:
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_COMPUTE_MOMENTS_IMPL_HPP_

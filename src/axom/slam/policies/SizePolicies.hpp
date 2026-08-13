@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SizePolicies.hpp
  *
@@ -23,9 +25,6 @@
  *  are provided by the unified RuntimeValue/CompileTimeValue core in ValuePolicies.hpp.
  *  The scalar policies below add only the named `size()` accessor, `empty()`, and the DEFAULT_VALUE member.
  */
-
-#ifndef SLAM_POLICIES_SIZE_H_
-#define SLAM_POLICIES_SIZE_H_
 
 #include "axom/core/Macros.hpp"
 #include "axom/slic.hpp"
@@ -138,5 +137,3 @@ const IntType ZeroSize<IntType>::DEFAULT_VALUE = IntType {};
 /// \}
 
 }  // end namespace axom::slam::policies
-
-#endif  // SLAM_POLICIES_SIZE_H_

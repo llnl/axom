@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number.hpp
  *
  * \brief Consists of methods to compute the generalized winding number (GWN) 
  *        for points with respect to various geometric objects.
  */
-
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_HPP_
 
 // Axom includes
 #include "axom/core.hpp"
@@ -296,7 +295,7 @@ double winding_number(const Point<T, 2>& query,
   bool isOnThisCurve = false;
   isOnCurve = false;
 
-  for(int n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
+  for(axom::IndexType n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
   {
     gwn +=
       detail::bezier_winding_number_memoized(query, nurbs_cache, n, 0, 0, isOnThisCurve, edge_tol, EPS);
@@ -402,7 +401,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
 
     for(auto& the_cache : nurbs_cache_arr)
     {
-      for(int k = 0; k < the_cache.getNumKnotSpans(); ++k)
+      for(axom::IndexType k = 0; k < the_cache.getNumKnotSpans(); ++k)
       {
         ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
                                                              the_cache,
@@ -745,7 +744,7 @@ int winding_number(const Point<T, 3>& q,
     }
   }
 
-  return std::lround(wn);
+  return static_cast<int>(std::lround(wn));
 }
 
 /*!
@@ -936,5 +935,3 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_H_

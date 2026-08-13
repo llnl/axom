@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_IMPLICIT_GRID__HPP_
-#define AXOM_SPIN_IMPLICIT_GRID__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -281,7 +280,7 @@ public:
     for_all<ExecSpace>(
       nelems,
       AXOM_LAMBDA(axom::IndexType ibox) {
-        IndexType elemIdx = startIdx + ibox;
+        const IndexType elemIdx = startIdx + static_cast<IndexType>(ibox);
 
         SpatialBoundingBox scaledBox = bboxes[ibox];
         // Note: We slightly inflate the bbox of the objects.
@@ -299,9 +298,9 @@ public:
 
           const IndexType word = elemIdx / BitsetType::BitsPerWord;
 
-          for(int j = lower; j <= upper; ++j)
+          for(IndexType j = lower; j <= upper; ++j)
           {
-            binData[idim][j].atomicSet(elemIdx);
+            binData[idim][j].atomicSet(static_cast<typename BitsetType::Index>(elemIdx));
             axom::atomicMin<ExecSpace>(&minBlkBins[idim][j], word);
             axom::atomicMax<ExecSpace>(&maxBlkBins[idim][j], word);
           }
@@ -428,10 +427,10 @@ public:
 
     BitsetType candidateBits = getCandidates(query);
     candidatesVec.reserve(candidateBits.count());
-    for(IndexType eltIdx = candidateBits.find_first(); eltIdx != BitsetType::npos;
+    for(BitsetType::Index eltIdx = candidateBits.find_first(); eltIdx != BitsetType::npos;
         eltIdx = candidateBits.find_next(eltIdx))
     {
-      candidatesVec.push_back(eltIdx);
+      candidatesVec.push_back(static_cast<IndexType>(eltIdx));
     }
 
     return candidatesVec;
@@ -754,7 +753,7 @@ private:
     {
       IndexType minWordDim = m_minBlkBin[idim][lowerRange[idim]],
                 maxWordDim = m_maxBlkBin[idim][upperRange[idim]];
-      for(int ibin = lowerRange[idim] + 1; ibin <= upperRange[idim]; ibin++)
+      for(IndexType ibin = lowerRange[idim] + 1; ibin <= upperRange[idim]; ibin++)
       {
         // Take the union of candidate bins within a dimension
         minWordDim = axom::utilities::min(m_minBlkBin[idim][ibin], minWordDim);
@@ -896,7 +895,7 @@ ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::countCandidates(const Sp
   // is it possible to lazy-evaluate whole-bitset operations?
   IndexType minWord, maxWord;
   getWordBounds(cellIdx, minWord, maxWord);
-  for(int iword = minWord; iword <= maxWord; iword++)
+  for(IndexType iword = minWord; iword <= maxWord; iword++)
   {
     BitsetType::Word currWord = ~(BitsetType::Word {0});
     for(int idim = 0; idim < NDIMS; idim++)
@@ -942,14 +941,14 @@ AXOM_HOST_DEVICE IndexType ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObjec
   // is it possible to lazy-evaluate whole-bitset operations?
   IndexType minWord, maxWord;
   getWordBounds(lowerRange, upperRange, minWord, maxWord);
-  for(int iword = minWord; iword <= maxWord; iword++)
+  for(IndexType iword = minWord; iword <= maxWord; iword++)
   {
     BitsetType::Word currWord = ~(BitsetType::Word {0});
     for(int idim = 0; idim < NDIMS; idim++)
     {
       // Compute candidates across all bins for current word
       BitsetType::Word dimWord {0};
-      for(int ibin = lowerRange[idim]; ibin <= upperRange[idim]; ibin++)
+      for(IndexType ibin = lowerRange[idim]; ibin <= upperRange[idim]; ibin++)
       {
         dimWord |= m_binData[idim][ibin].data()[iword];
       }
@@ -997,7 +996,7 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
   const int nbits = m_binData[0][0].size();
   IndexType minWord, maxWord;
   getWordBounds(cellIdx, minWord, maxWord);
-  for(int iword = minWord; iword <= maxWord; iword++)
+  for(IndexType iword = minWord; iword <= maxWord; iword++)
   {
     BitsetType::Word currWord = ~(BitsetType::Word {0});
     for(int idim = 0; idim < NDIMS; idim++)
@@ -1009,7 +1008,8 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
       continue;
     }
     // currWord now contains the resulting candidacy information for our given point
-    const int numBits = axom::utilities::min(bitsPerWord, nbits - (iword * bitsPerWord));
+    const int numBits =
+      axom::utilities::min(bitsPerWord, static_cast<int>(nbits - (iword * bitsPerWord)));
     int currBit = axom::utilities::countr_zero(currWord);
     while(currBit < numBits)
     {
@@ -1057,14 +1057,14 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
   const int nbits = m_binData[0][0].size();
   IndexType minWord, maxWord;
   getWordBounds(lowerRange, upperRange, minWord, maxWord);
-  for(int iword = minWord; iword <= maxWord; iword++)
+  for(IndexType iword = minWord; iword <= maxWord; iword++)
   {
     BitsetType::Word currWord = ~(BitsetType::Word {0});
     for(int idim = 0; idim < NDIMS; idim++)
     {
       // Compute candidates across all bins for current word
       BitsetType::Word dimWord {0};
-      for(int ibin = lowerRange[idim]; ibin <= upperRange[idim]; ibin++)
+      for(IndexType ibin = lowerRange[idim]; ibin <= upperRange[idim]; ibin++)
       {
         dimWord |= m_binData[idim][ibin].data()[iword];
       }
@@ -1076,7 +1076,8 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
       continue;
     }
     // currWord now contains the resulting candidacy information for our given point
-    const int numBits = axom::utilities::min(bitsPerWord, nbits - (iword * bitsPerWord));
+    const int numBits =
+      axom::utilities::min(bitsPerWord, static_cast<int>(nbits - (iword * bitsPerWord)));
     int currBit = axom::utilities::countr_zero(currWord);
     while(currBit < numBits)
     {
@@ -1094,5 +1095,3 @@ AXOM_HOST_DEVICE void ImplicitGrid<NDIMS, ExecSpace, IndexType>::QueryObject::vi
 
 }  // namespace spin
 }  // namespace axom
-
-#endif  // AXOM_SPIN_IMPLICIT_GRID__HPP_

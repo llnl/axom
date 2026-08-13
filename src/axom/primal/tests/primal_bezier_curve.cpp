@@ -14,7 +14,10 @@
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/BezierCurve.hpp"
+#include "axom/primal/operators/curvature.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
+
+#include <cmath>
 
 namespace primal = axom::primal;
 
@@ -396,6 +399,122 @@ TEST(primal_beziercurve_, batch_derivatives)
       EXPECT_NEAR(curve.dt(t)[i], batch2_dt[i], 1e-15);
       EXPECT_NEAR(curve.dtdt(t)[i], batch2_dtdt[i], 1e-15);
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziercurve, curvature)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+
+  PointType controlPoints[3] = {PointType {0.0, 0.0}, PointType {0.5, 0.5}, PointType {1.0, 0.0}};
+  BezierCurveType curve(controlPoints, 2);
+
+  for(const CoordType t : {0.25, 0.5, 0.75})
+  {
+    const CoordType denom = 1. + (2. * t - 1.) * (2. * t - 1.);
+    const CoordType expectedCurvature = -2. / std::pow(denom, 1.5);
+    const CoordType expectedCurvatureDerivative = 12. * (2. * t - 1.) / std::pow(denom, 2.5);
+
+    EXPECT_NEAR(curve.curvature(t), expectedCurvature, 1e-14);
+    EXPECT_NEAR(curve.curvatureDerivative(t), expectedCurvatureDerivative, 1e-14);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_curvature_operator, curvature_derivative_2d)
+{
+  using VectorType = primal::Vector<double, 2>;
+
+  const VectorType D1 {1.0, 1.0};
+  const VectorType D2 {0.0, 2.0};
+  const VectorType D3 {0.0, 0.0};
+
+  EXPECT_NEAR(primal::curvatureDerivative(D1, D2, D3), -3.0 / std::sqrt(2.0), 1e-14);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_curvature_operator, curvature_derivative_3d)
+{
+  using VectorType = primal::Vector<double, 3>;
+
+  const VectorType D1 {1.0, 1.0, 0.0};
+  const VectorType D2 {0.0, -2.0, 0.0};
+  const VectorType D3 {0.0, 0.0, 0.0};
+
+  EXPECT_NEAR(primal::curvatureDerivative(D1, D2, D3), 3.0 / std::sqrt(2.0), 1e-14);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_curvature_operator, curvature_derivative_3d_wavy_curve)
+{
+  using CoordType = double;
+  using VectorType = primal::Vector<CoordType, 3>;
+
+  constexpr CoordType radius = 1.0;
+  constexpr CoordType amplitude = 0.5;
+  constexpr CoordType frequency = 20.0;
+
+  auto D1 = [=](CoordType theta) {
+    return VectorType {-radius * std::sin(theta),
+                       radius * std::cos(theta),
+                       -amplitude * frequency * std::sin(frequency * theta)};
+  };
+
+  auto D2 = [=](CoordType theta) {
+    return VectorType {-radius * std::cos(theta),
+                       -radius * std::sin(theta),
+                       -amplitude * frequency * frequency * std::cos(frequency * theta)};
+  };
+
+  auto D3 = [=](CoordType theta) {
+    return VectorType {radius * std::sin(theta),
+                       -radius * std::cos(theta),
+                       amplitude * frequency * frequency * frequency * std::sin(frequency * theta)};
+  };
+
+  auto curvatureFromTheta = [&](CoordType theta) {
+    const auto d1 = D1(theta);
+    const auto d2 = D2(theta);
+    return VectorType::cross_product(d1, d2).norm() / std::pow(d1.norm(), 3.0);
+  };
+
+  constexpr CoordType h = 1.e-7;
+  for(const CoordType theta : {0.13, 0.41, 0.77, 1.19})
+  {
+    const auto d1 = D1(theta);
+    const auto d2 = D2(theta);
+    const auto d3 = D3(theta);
+
+    const CoordType curvatureExpected = curvatureFromTheta(theta);
+    const CoordType curvatureDerivativeExpected =
+      (curvatureFromTheta(theta + h) - curvatureFromTheta(theta - h)) / (2.0 * h);
+
+    EXPECT_NEAR(primal::curvature(d1, d2), curvatureExpected, 1e-12);
+    EXPECT_NEAR(primal::curvatureDerivative(d1, d2, d3), curvatureDerivativeExpected, 1e-5);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziercurve, curvature_reverse_orientation)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+
+  PointType controlPoints[3] = {PointType {0.0, 0.0}, PointType {0.5, 0.5}, PointType {1.0, 0.0}};
+  BezierCurveType curve(controlPoints, 2);
+  BezierCurveType reversed(curve);
+  reversed.reverseOrientation();
+
+  for(const CoordType t : {0.0, 0.25, 0.5, 0.75, 1.0})
+  {
+    EXPECT_NEAR(curve.curvature(t), -reversed.curvature(1.0 - t), 1e-14);
+    EXPECT_NEAR(curve.curvatureDerivative(t), reversed.curvatureDerivative(1.0 - t), 1e-14);
   }
 }
 

@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number_3d_memoization.hpp
  *
  * \brief Consists of data structures that accelerate GWN queries through "memoization," i.e.
  *  dynamically caching and reusing patch surface evaluations and tangents at quadrature points.
  */
-
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -193,7 +192,7 @@ public:
     //  since the expanded portions are never visible
     m_oBox = m_alteredPatch.orientedBoundingBox();
     m_bBox.clear();
-    for(int n = 0; n < split_patches.size(); ++n)
+    for(axom::IndexType n = 0; n < split_patches.size(); ++n)
     {
       if(split_patches[n].getNumTrimmingCurves() == 0)
       {
@@ -236,8 +235,8 @@ public:
   //!
   //! By limiting access to these functions, we ensure memoized information is always accurate
   decltype(auto) getControlPoints() const { return m_alteredPatch.getControlPoints(); }
-  int getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
-  int getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
+  axom::IndexType getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
+  axom::IndexType getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
   decltype(auto) getWeights() const { return m_alteredPatch.getWeights(); }
   decltype(auto) getKnots_u() const { return m_alteredPatch.getKnots_u(); }
   decltype(auto) getKnots_v() const { return m_alteredPatch.getKnots_v(); }
@@ -246,7 +245,7 @@ public:
   double getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
   double getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
   decltype(auto) getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
-  int getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
+  axom::IndexType getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
   decltype(auto) getParameterSpaceDiagonal() const { return m_pboxDiag; }
   //@}
 
@@ -269,10 +268,10 @@ public:
     constexpr double k_dir_eps = 1e-3;
 
     // Generate a random direction with simple hashes
-    unsigned int seed1 =
-      std::hash<T> {}(m_bBox.getMin()[0] + m_bBox.getMin()[1] + m_bBox.getMin()[2]);
-    unsigned int seed2 =
-      std::hash<T> {}(m_bBox.getMax()[0] + m_bBox.getMax()[1] + m_bBox.getMax()[2]);
+    unsigned int seed1 = static_cast<unsigned int>(
+      std::hash<T> {}(m_bBox.getMin()[0] + m_bBox.getMin()[1] + m_bBox.getMin()[2]));
+    unsigned int seed2 = static_cast<unsigned int>(
+      std::hash<T> {}(m_bBox.getMax()[0] + m_bBox.getMax()[1] + m_bBox.getMax()[2]));
 
     double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed1);
     double u = axom::utilities::random_real(-1.0, 1.0, seed2);
@@ -296,7 +295,7 @@ public:
   //@}
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
-  TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
+  TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(axom::IndexType curveIndex,
                                                                  int quadNPts,
                                                                  int refinementLevel,
                                                                  int refinementIndex) const
@@ -368,7 +367,7 @@ public:
     //  need to use precomputed values
     if(!mustComputeNormal)
     {
-      for(int n = 0; n < precomputed_normals.size(); ++n)
+      for(axom::IndexType n = 0; n < precomputed_normals.size(); ++n)
       {
         m_nurbs_caches[n].setNormal(precomputed_normals[n], precomputed_surface_areas[n]);
       }
@@ -494,5 +493,3 @@ struct nurbs_cache_3d_traits<axom::OMP_EXEC>
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *
  * \file Utilities.hpp
@@ -11,9 +13,6 @@
  * \brief Header file containing utility functions.
  *
  */
-
-#ifndef AXOM_UTILITIES_HPP_
-#define AXOM_UTILITIES_HPP_
 
 #include "axom/config.hpp"  // for compile-time definitions
 #include "axom/core/Types.hpp"
@@ -495,7 +494,8 @@ AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
 {
   std::int32_t index = -1;
   std::int32_t left = 0;
-  std::int32_t right = cont.size() - 1;
+  const std::int32_t cont_size = static_cast<std::int32_t>(cont.size());
+  std::int32_t right = cont_size - 1;
   while(left <= right)
   {
     std::int32_t m = (left + right) / 2;
@@ -569,5 +569,3 @@ inline std::uint64_t hash_bytes(const std::uint8_t* data, std::uint32_t length)
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_UTILITIES_HPP_

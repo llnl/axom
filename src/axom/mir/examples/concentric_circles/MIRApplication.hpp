@@ -3,8 +3,9 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_EXAMPLES_MIR_APPLICATION_HPP
-#define AXOM_MIR_EXAMPLES_MIR_APPLICATION_HPP
+
+#pragma once
+
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 
@@ -83,5 +84,3 @@ protected:
   std::string annotationMode;
   std::string protocol;
 };
-
-#endif

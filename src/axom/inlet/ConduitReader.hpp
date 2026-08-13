@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file ConduitReader.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of the ConduitReader.
  *******************************************************************************
  */
-
-#ifndef INLET_CONDUITREADER_HPP
-#define INLET_CONDUITREADER_HPP
 
 #include "axom/inlet/Reader.hpp"
 
@@ -129,5 +128,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif
