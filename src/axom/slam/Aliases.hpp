@@ -47,8 +47,7 @@
  *  indirection refers to a buffer whose lifetime is managed elsewhere and must outlive the Slam object.
  */
 
-#ifndef SLAM_ALIASES_H_
-#define SLAM_ALIASES_H_
+#pragma once
 
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/IndirectionSet.hpp"
@@ -60,9 +59,7 @@
 #include "axom/slam/policies/IndirectionPolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /*!
  * \brief A set whose \a ElemType elements are read from an \c axom::Array.
@@ -182,7 +179,4 @@ using RuntimeConstantRelationView =
                  FromSet,
                  ToSet>;
 
-}  // namespace slam
-}  // namespace axom
-
-#endif  // SLAM_ALIASES_H_
+}  // namespace axom::slam

@@ -22,9 +22,7 @@
 
 #include "axom/slam/OrderedSet.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \brief Alias template for an OrderedSet with indirection over a C array.
@@ -99,5 +97,4 @@ using ArrayViewIndirectionSet = OrderedSet<PosType,
                                            policies::StrideOne<PosType>,
                                            policies::ArrayViewIndirection<PosType, ElemType>>;
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

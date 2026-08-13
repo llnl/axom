@@ -20,9 +20,7 @@
 
 #include <optional>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class DynamicSet
@@ -485,5 +483,4 @@ private:
 template <typename P, typename E, typename S>
 constexpr typename DynamicSet<P, E, S>::ElementType DynamicSet<P, E, S>::INVALID_ENTRY;
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

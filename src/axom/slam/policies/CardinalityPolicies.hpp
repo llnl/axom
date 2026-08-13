@@ -55,11 +55,7 @@
 #include "axom/slam/OrderedSet.hpp"  // Note: Not a circular dependency since
 // CardinalityPolicies are for relations
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /*!
  * \class ConstantCardinality
@@ -333,7 +329,4 @@ struct MappedVariableCardinality
   BeginsSet m_begins;
 };
 
-}  // end namespace policies
-
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam::policies

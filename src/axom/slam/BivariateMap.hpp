@@ -24,9 +24,7 @@
 #include <cassert>
 #include <typeinfo>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class BivariateMap
@@ -748,5 +746,4 @@ private:
   typename BivariateSetType::IteratorType m_bsetIterator;
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

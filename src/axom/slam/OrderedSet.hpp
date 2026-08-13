@@ -37,9 +37,7 @@
 #include <vector>
 #include <iterator>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class OrderedSet
@@ -497,5 +495,4 @@ bool OrderedSet<PosType, ElemType, SizePolicy, OffsetPolicy, StridePolicy, Indir
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

@@ -32,11 +32,7 @@
  * \see BivariateSetInterfacePolicies.hpp
  */
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /**
  * \class VirtualInterface
@@ -54,6 +50,4 @@ struct VirtualInterface
 struct ConcreteInterface
 { };
 
-}  // namespace policies
-}  // namespace slam
-}  // namespace axom
+}  // namespace axom::slam::policies

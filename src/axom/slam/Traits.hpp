@@ -25,8 +25,7 @@
  * \c is_set_like_v excludes bivariate sets explicitly.
  */
 
-#ifndef SLAM_TRAITS_H_
-#define SLAM_TRAITS_H_
+#pragma once
 
 #include <type_traits>
 #include <utility>
@@ -251,5 +250,3 @@ template <typename T>
 inline constexpr bool is_handle_like_v = std::is_trivially_copyable_v<T>;
 
 }  // namespace axom::slam
-
-#endif  // SLAM_TRAITS_H_

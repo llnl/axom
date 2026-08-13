@@ -15,9 +15,7 @@
 #include "axom/slam/OrderedSet.hpp"
 #include "axom/slam/Traits.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class GenericRangeSet
@@ -112,5 +110,4 @@ using RangeSet = GenericRangeSet<P, E>;
 static_assert(is_ordered_set_like_v<RangeSet<>>, "RangeSet models the ordered-set contract");
 static_assert(is_set_like_v<PositionSet<>>, "PositionSet models the set contract");
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

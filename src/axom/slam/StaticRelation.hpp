@@ -25,9 +25,7 @@
 #include "axom/slam/OrderedSet.hpp"
 #include "axom/slam/Relation.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 template <typename PosType,   // = slam::DefaultPositionType,
           typename ElemType,  // = slam::DefaultElementType,
@@ -350,5 +348,4 @@ bool StaticRelation<PosType,
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

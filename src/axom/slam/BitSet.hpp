@@ -21,9 +21,7 @@
 
 #include <vector>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 // Forward declare the BitSet class and some operator functions
 
@@ -413,5 +411,4 @@ private:
   int m_numBits;
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

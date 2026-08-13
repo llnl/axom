@@ -32,9 +32,7 @@
 #include "axom/slam/policies/PolicyTraits.hpp"
 #include "axom/slam/policies/MapInterfacePolicies.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 // This class is missing some simplifying copy constructors
 // -- or at least ways of interacting with the data store
@@ -858,5 +856,4 @@ void Map<T, S, IndPol, StrPol, IfacePol>::print() const
   std::cout << sstr.str() << std::endl;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam
