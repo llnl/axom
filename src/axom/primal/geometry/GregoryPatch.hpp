@@ -70,19 +70,136 @@ public:
                          "A Gregory Patch must be defined using an arithmetic type");
 
 public:
+  ///@{
+  /**
+   * @name Constructors for GregoryPatch
+   *
+   * The constructors allow initialization from:
+   * - the 20 Gregory patch control points,
+   * - a polynomial bicubic Bezier patch,
+   * - C-style arrays, Axom StackArrays, or Axom ArrayViews,
+   * - four corner positions with associated corner normal vectors.
+   *
+   * The 20-point control net is stored as:
+   * - indices 0-3: corners,
+   * - indices 4-11: two boundary control points for each edge,
+   * - indices 12-19: two Gregory tangent points for each edge.
+   *
+   * Boundary edge \a e is directed from corner \a e to corner `(e+1)%4`.
+   */
+
+  /*!
+   * \brief Default constructor for a Gregory patch
+   *
+   * The fixed-size control net is default-initialized.
+   */
   GregoryPatch() = default;
 
+  /*!
+   * \brief Constructor from an ArrayView over the control points
+   *
+   * \param [in] controlPoints ArrayView of the 20 Gregory patch control points
+   * \pre \a controlPoints must contain exactly `NPTS` points
+   */
   explicit GregoryPatch(ArrayView<const PointType> controlPoints)
   {
     SLIC_ASSERT(controlPoints.size() == NPTS);
+    SLIC_ASSERT(controlPoints.data() != nullptr);
     for(int i = 0; i < NPTS; ++i)
     {
       m_controlPoints[i] = controlPoints[i];
     }
   }
 
-  // Constructor from corner nodes and corner vectors.
-  //  Currently not configured to handle any connectivity between patches
+  /*!
+   * \brief Constructor from a non-const ArrayView over the control points
+   *
+   * \param [in] controlPoints ArrayView of the 20 Gregory patch control points
+   * \pre \a controlPoints must contain exactly `NPTS` points
+   */
+  explicit GregoryPatch(ArrayView<PointType> controlPoints)
+    : GregoryPatch(ArrayView<const PointType>(controlPoints.data(), controlPoints.size()))
+  { }
+
+  /*!
+   * \brief Constructor from a C-style array of control points
+   *
+   * \param [in] pts A C-style array of 20 Gregory patch control points
+   * \pre \a pts must be non-null and contain at least `NPTS` points
+   */
+  explicit GregoryPatch(const PointType* pts) : GregoryPatch(ArrayView<const PointType>(pts, NPTS))
+  { }
+
+  /*!
+   * \brief Constructor from a C-style array of control points
+   *
+   * \param [in] pts A C-style array of 20 Gregory patch control points
+   * \pre \a pts must be non-null and contain at least `NPTS` points
+   */
+  explicit GregoryPatch(PointType* pts) : GregoryPatch(ArrayView<const PointType>(pts, NPTS)) { }
+
+  /*!
+   * \brief Constructor from an Axom StackArray of control points
+   *
+   * \param [in] pts StackArray containing the 20 Gregory patch control points
+   */
+  explicit GregoryPatch(const CoordsVec& pts)
+    : GregoryPatch(ArrayView<const PointType>(pts.data(), pts.size()))
+  { }
+
+  /*!
+   * \brief Constructor from a polynomial bicubic Bezier patch
+   *
+   * \param [in] bPatch A polynomial Bezier patch of order (3, 3)
+   *
+   * This creates a Gregory patch that exactly reproduces the input bicubic Bezier patch.
+   * The Gregory tangent pairs are duplicated from the four Bezier interior control points,
+   * causing the parameter-dependent Gregory blends to collapse to fixed Bezier points.
+   *
+   * \pre \a bPatch must have order (3, 3)
+   * \pre \a bPatch must be polynomial, not rational
+   */
+  explicit GregoryPatch(const BezierPatch<T, 3>& bPatch)
+  {
+    SLIC_ASSERT(bPatch.getOrder_u() == 3);
+    SLIC_ASSERT(bPatch.getOrder_v() == 3);
+    SLIC_ASSERT(!bPatch.isRational());
+
+    getCorner(0) = bPatch(0, 0);
+    getCorner(1) = bPatch(3, 0);
+    getCorner(2) = bPatch(3, 3);
+    getCorner(3) = bPatch(0, 3);
+
+    getBoundaryPoint(0, 1) = bPatch(1, 0);
+    getBoundaryPoint(0, 2) = bPatch(2, 0);
+    getBoundaryPoint(1, 1) = bPatch(3, 1);
+    getBoundaryPoint(1, 2) = bPatch(3, 2);
+    getBoundaryPoint(2, 1) = bPatch(2, 3);
+    getBoundaryPoint(2, 2) = bPatch(1, 3);
+    getBoundaryPoint(3, 1) = bPatch(0, 2);
+    getBoundaryPoint(3, 2) = bPatch(0, 1);
+
+    getTangent(0, 0) = bPatch(1, 1);
+    getTangent(0, 1) = bPatch(2, 1);
+    getTangent(1, 0) = bPatch(2, 1);
+    getTangent(1, 1) = bPatch(2, 2);
+    getTangent(2, 0) = bPatch(2, 2);
+    getTangent(2, 1) = bPatch(1, 2);
+    getTangent(3, 0) = bPatch(1, 2);
+    getTangent(3, 1) = bPatch(1, 1);
+  }
+
+  /*!
+   * \brief Constructor from corner nodes and corner normal vectors
+   *
+   * \param [in] nodePositions ArrayView of the four corner positions
+   * \param [in] nodeVectors ArrayView of the four corner normal vectors
+   *
+   * Deterministically compute cubic boundary control points and Gregory tangent points
+   * using local corner information.
+   *
+   * \pre \a nodePositions and \a nodeVectors must each contain exactly 4 entries
+   */
   GregoryPatch(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)
   {
     // Store the position and orthogonal unit vector at each corner
@@ -110,8 +227,6 @@ public:
       c2[i] = (dx - dx.dot(v[ip1]) * v[ip1]) / 3;
       a3[i] = VectorType::cross_product(v[ip1], dx).unitVector();
 
-      // Other stuff for adjusted normals
-
       // Use Chiyokura algorithm to define the interior control points
       const PointType x1(getCorner(i).array() + c0[i].array());
       const PointType x2(getCorner(ip1).array() - c2[i].array());
@@ -136,30 +251,85 @@ public:
     }
   }
 
+  ///@}
+
+  /// \brief Returns the \a i-th corner point, oriented ccw
   PointType& getCorner(int i) { return m_controlPoints[i]; }
+
+  /// \brief Returns the \a i-th corner point, oriented ccw
   const PointType& getCorner(int i) const { return m_controlPoints[i]; }
 
+  /*!
+   * \brief Returns a Gregory tangent point for an edge
+   *
+   * \param [in] e Edge index, oriented ccw
+   * \param [in] t Tangent point index (either 0 or 1)
+   */
   PointType& getTangent(int e, int t) { return m_controlPoints[12 + 2 * e + t]; }
+
+  /*!
+   * \brief Returns a Gregory tangent point for an edge
+   *
+   * \param [in] e Edge index, oriented ccw
+   * \param [in] t Tangent point index (either 0 or 1)
+   */
   const PointType& getTangent(int e, int t) const { return m_controlPoints[12 + 2 * e + t]; }
 
+  /*!
+   * \brief Returns the two Gregory tangent points adjacent to a corner
+   *
+   * \param [in] i Corner index, oriented ccw
+   * \param [out] v0 Tangent point from the preceding edge
+   * \param [out] v1 Tangent point from the following edge
+   */
   void getTangentsByCorner(int i, PointType& v0, PointType& v1) const
   {
     v0 = getTangent((i + 3) % 4, 1);
     v1 = getTangent(i, 0);
   }
 
+  /*!
+   * \brief Returns a control point on a boundary edge
+   *
+   * \param [in] e Edge index in `[0, 3]`
+   * \param [in] k Boundary point index in `[0, 3]`
+   *
+   * Values `k=0` and `k=3` are the edge's corner points; values `k=1` and `k=2`
+   * are the cubic boundary control points.
+   */
   PointType& getBoundaryPoint(int e, int k) { return m_controlPoints[s_edge_index_map[e][k]]; }
+
+  /*!
+   * \brief Returns a control point on a boundary edge
+   *
+   * \param [in] e Edge index in `[0, 3]`
+   * \param [in] k Boundary point index in `[0, 3]`
+   *
+   * Values `k=0` and `k=3` are the edge's corner points; values `k=1` and `k=2`
+   * are the cubic boundary control points.
+   */
   const PointType& getBoundaryPoint(int e, int k) const
   {
     return m_controlPoints[s_edge_index_map[e][k]];
   }
 
-  // Evaluate the patch by constructing the equivalent Bezier patch with interior control nodes
-  //  defined in terms of the tangent vectors and the evaluation parameters
-  //
-  // A cubic Gregory patch can be evaluated by using the 8 internal, blending nodes to construct
-  //  a set of control points which, when used with the Gregory patch edge nodes, produces
-  //  a polynomial bicubic Bezier patch that is equivalent at the requested parameters
+  /*!
+   * \brief Returns a reference to the patch's control points
+   */
+  CoordsVec& getControlPoints() { return m_controlPoints; }
+
+  /// \brief Returns a reference to the patch's control points
+  const CoordsVec& getControlPoints() const { return m_controlPoints; }
+
+  /*!
+   * \brief Evaluates the Gregory patch at the given parameter values
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   *
+   * A cubic Gregory patch is evaluated by constructing the equivalent bicubic Bezier patch
+   * whose interior control points are blended from the Gregory tangent points at (\a u, \a v).
+   */
   PointType evaluate(T u, T v) const
   {
     const auto intermediate = setup_intermediate_bezier(u, v, 0);
@@ -182,8 +352,8 @@ public:
 
     // Chain rule correction due to (u,v)-dependent interior control points
     axom::StaticArray<T, 4> Bu, dBu, Bv, dBv;
-    evaluateCubicBernstein(u, Bu, dBu);
-    evaluateCubicBernstein(v, Bv, dBv);
+    evaluate_cubic_bernstein(u, Bu, dBu);
+    evaluate_cubic_bernstein(v, Bv, dBv);
 
     const T w11 = Bu[1] * Bv[1];
     const T w21 = Bu[2] * Bv[1];
@@ -222,8 +392,8 @@ public:
 
     // Chain rule correction due to (u,v)-dependent interior control points
     axom::StaticArray<T, 4> Bu, dBu, Bv, dBv;
-    evaluateCubicBernstein(u, Bu, dBu);
-    evaluateCubicBernstein(v, Bv, dBv);
+    evaluate_cubic_bernstein(u, Bu, dBu);
+    evaluate_cubic_bernstein(v, Bv, dBv);
 
     const T w11 = Bu[1] * Bv[1];
     const T w21 = Bu[2] * Bv[1];
@@ -267,6 +437,12 @@ public:
        w12 * intermediate.Q_uv[0][1] + w22 * intermediate.Q_uv[1][1]);
   }
 
+  /*!
+   * \brief Evaluates the first derivative in the u direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType du(T u, T v) const
   {
     PointType eval;
@@ -275,6 +451,12 @@ public:
     return Du;
   }
 
+  /*!
+   * \brief Evaluates the first derivative in the v direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dv(T u, T v) const
   {
     PointType eval;
@@ -283,6 +465,12 @@ public:
     return Dv;
   }
 
+  /*!
+   * \brief Evaluates the second derivative in the u direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dudu(T u, T v) const
   {
     PointType eval;
@@ -291,6 +479,12 @@ public:
     return DuDu;
   }
 
+  /*!
+   * \brief Evaluates the second derivative in the v direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dvdv(T u, T v) const
   {
     PointType eval;
@@ -299,6 +493,12 @@ public:
     return DvDv;
   }
 
+  /*!
+   * \brief Evaluates the mixed second derivative
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dudv(T u, T v) const
   {
     PointType eval;
@@ -319,6 +519,12 @@ public:
     return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
+  /*!
+   * \brief Simple formatted print of a Gregory Patch instance
+   *
+   * \param os The output stream to write to
+   * \return A reference to the modified ostream
+   */
   void print(std::ostream& os) const
   {
     os << "GregoryPatch(";
@@ -334,9 +540,20 @@ public:
   }
 
 private:
+  /*!
+   * \brief Stores the temporary Bezier patch and blended interior point derivatives
+   *
+   * The Gregory patch evaluation converts the control net to a bicubic Bezier patch at
+   * a specific parameter value. The four interior Bezier points, `Q`, depend on the
+   * evaluation parameters, so derivative evaluation also requires their first and second
+   * derivatives.
+   */
   struct IntermediateBlendingDerivatives
   {
+    /// \brief Equivalent bicubic Bezier patch for the requested parameter value
     BezierPatch<T, 3> bpatch;
+
+    /// \brief Blended interior Bezier control points and derivatives
     PointType Q[2][2];
     VectorType Q_u[2][2];
     VectorType Q_v[2][2];
@@ -345,10 +562,19 @@ private:
     VectorType Q_uv[2][2];
   };
 
+  /*!
+   * \brief Constructs the equivalent Bezier patch and parameter-dependent interior data
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   * \param [in] derivative_order Highest derivative order to compute, in `[0, 2]`
+   *
+   * The returned bicubic Bezier patch has the Gregory boundary control points copied
+   * directly and the four interior control points blended from the Gregory tangent points.
+   */
   IntermediateBlendingDerivatives setup_intermediate_bezier(T u, T v, int derivative_order) const
   {
     IntermediateBlendingDerivatives out;
-
     out.bpatch = get_bezier_boundary();
 
     const T um = T(1) - u;
@@ -426,11 +652,17 @@ private:
       }
     }
 
-    setBezierInterior(out.bpatch, out.Q);
+    set_bezier_interior(out.bpatch, out.Q);
     return out;
   }
 
-  static void setBezierInterior(BezierPatch<T, 3>& bpatch, const PointType Q[2][2])
+  /*!
+   * \brief Assigns the four interior control points of a bicubic Bezier patch
+   *
+   * \param [in,out] bpatch The bicubic Bezier patch to update
+   * \param [in] Q The four interior control points, indexed by interior u and v position
+   */
+  static void set_bezier_interior(BezierPatch<T, 3>& bpatch, const PointType Q[2][2])
   {
     bpatch(1, 1) = Q[0][0];
     bpatch(2, 1) = Q[1][0];
@@ -438,8 +670,12 @@ private:
     bpatch(2, 2) = Q[1][1];
   }
 
-  // Copies over the boundary points to a BezierPatch object,
-  //  leaving the 4 interior control points uninitialized
+  /*!
+   * \brief Copies the Gregory boundary into a bicubic Bezier patch
+   *
+   * The returned patch has its 12 exterior control points initialized from the Gregory
+   * patch boundary. The four interior control points are intentionally left uninitialized.
+   */
   BezierPatch<T, 3> get_bezier_boundary() const
   {
     BezierPatch<T, 3> bpatch(3, 3);
@@ -463,7 +699,14 @@ private:
     return bpatch;
   }
 
-  static void evaluateCubicBernstein(T t, axom::StaticArray<T, 4>& B, axom::StaticArray<T, 4>& dB)
+  /*!
+   * \brief Evaluates cubic Bernstein basis functions and their first derivatives
+   *
+   * \param [in] t Parameter value
+   * \param [out] B Cubic Bernstein basis values at \a t
+   * \param [out] dB First derivative values of the cubic Bernstein basis at \a t
+   */
+  static void evaluate_cubic_bernstein(T t, axom::StaticArray<T, 4>& B, axom::StaticArray<T, 4>& dB)
   {
     const T tm = T(1) - t;
     const T tm2 = tm * tm;
@@ -482,7 +725,12 @@ private:
 
   CoordsVec m_controlPoints;
 
-  // Map of boundary curve control points into internal storage
+  /*!
+   * \brief Maps boundary curve control point indices to control net storage indices
+   *
+   * The first index selects a directed edge. The second index selects one of the four
+   * cubic boundary control points on that edge.
+   */
   static constexpr int s_edge_index_map[4][4] = {{/*V0*/ 0, /*E01*/ 4, /*E02*/ 5, /*V1*/ 1},
                                                  {/*V1*/ 1, /*E11*/ 6, /*E12*/ 7, /*V2*/ 2},
                                                  {/*V2*/ 2, /*E21*/ 8, /*E22*/ 9, /*V3*/ 3},
