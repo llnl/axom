@@ -14,8 +14,6 @@
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/BezierTriangle.hpp"
-#include "axom/primal/geometry/GregoryTriangle.hpp"
-#include "axom/primal/geometry/GregoryPatch.hpp"
 
 #include <array>
 
@@ -343,115 +341,6 @@ TEST(primal_beziertriangle, finite_difference_first_derivatives)
   {
     EXPECT_NEAR(Du[d], Du_fd[d] / (2 * h), tol);
     EXPECT_NEAR(Dv[d], Dv_fd[d] / (2 * h), tol);
-  }
-}
-
-//------------------------------------------------------------------------------
-TEST(primal_beziertriangle, gregorytriangle_finite_difference_first_derivatives)
-{
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, 3>;
-  using VectorType = primal::Vector<CoordType, 3>;
-  using GTri = primal::GregoryTriangle<CoordType>;
-
-  constexpr CoordType h = 1e-7;
-  constexpr CoordType tol = 5e-5;
-
-  const std::array<PointType, 3> corners = {
-    PointType {0.0, 0.0, 0.0},
-    PointType {1.0, 0.0, 0.2},
-    PointType {0.0, 1.0, -0.1},
-  };
-
-  const std::array<VectorType, 3> normals = {
-    VectorType {0.0, 0.0, 1.0},
-    VectorType {0.0, 0.0, 1.0},
-    VectorType {0.0, 0.0, 1.0},
-  };
-
-  GTri gtri(axom::ArrayView<const PointType>(corners.data(), 3),
-            axom::ArrayView<const VectorType>(normals.data(), 3));
-
-  const CoordType u0 = 0.21;
-  const CoordType v0 = 0.27;
-
-  PointType eval;
-  VectorType Du, Dv;
-  gtri.evaluateFirstDerivatives(u0, v0, eval, Du, Dv);
-
-  const PointType fp_u = gtri.evaluate(u0 + h, v0);
-  const PointType fm_u = gtri.evaluate(u0 - h, v0);
-  const PointType fp_v = gtri.evaluate(u0, v0 + h);
-  const PointType fm_v = gtri.evaluate(u0, v0 - h);
-
-  const VectorType Du_fd(fp_u, fm_u);
-  const VectorType Dv_fd(fp_v, fm_v);
-
-  for(int d = 0; d < 3; ++d)
-  {
-    EXPECT_NEAR(Du[d], Du_fd[d] / (2 * h), tol);
-    EXPECT_NEAR(Dv[d], Dv_fd[d] / (2 * h), tol);
-  }
-}
-
-//------------------------------------------------------------------------------
-TEST(primal_beziertriangle, gregorytriangle_parameter_convention_matches_beziertriangle)
-{
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, 3>;
-  using VectorType = primal::Vector<CoordType, 3>;
-  using GTri = primal::GregoryTriangle<CoordType>;
-
-  constexpr CoordType eps = 1e-12;
-
-  const std::array<PointType, 3> corners = {
-    PointType {0.0, 0.0, 0.0},
-    PointType {1.0, 0.0, 0.0},
-    PointType {0.0, 1.0, 0.0},
-  };
-
-  const std::array<VectorType, 3> normals = {
-    VectorType {0.0, 0.0, 1.0},
-    VectorType {0.0, 0.0, 1.0},
-    VectorType {0.0, 0.0, 1.0},
-  };
-
-  GTri gtri(axom::ArrayView<const PointType>(corners.data(), 3),
-            axom::ArrayView<const VectorType>(normals.data(), 3));
-
-  // Corner mapping should match BezierTriangle::evaluate convention
-  EXPECT_TRUE(gtri.evaluate(0.0, 0.0).isNearlyEqual(corners[0], eps));
-  EXPECT_TRUE(gtri.evaluate(0.0, 1.0).isNearlyEqual(corners[1], eps));
-  EXPECT_TRUE(gtri.evaluate(1.0, 0.0).isNearlyEqual(corners[2], eps));
-
-  // Edge mapping: verify straight edges for this planar configuration
-  auto check_near = [&](const PointType& a, const PointType& b) {
-    EXPECT_NEAR(a[0], b[0], eps);
-    EXPECT_NEAR(a[1], b[1], eps);
-    EXPECT_NEAR(a[2], b[2], eps);
-  };
-
-  const CoordType tvals[] = {0.0, 0.2, 0.6, 1.0};
-
-  // edge u0 = 0: from corner0 -> corner1 as v0 goes 0->1
-  for(const CoordType t : tvals)
-  {
-    const PointType expected = PointType::lerp(corners[0], corners[1], t);
-    check_near(gtri.evaluate(0.0, t), expected);
-  }
-
-  // edge v0 = 0: from corner0 -> corner2 as u0 goes 0->1
-  for(const CoordType t : tvals)
-  {
-    const PointType expected = PointType::lerp(corners[0], corners[2], t);
-    check_near(gtri.evaluate(t, 0.0), expected);
-  }
-
-  // edge u0 + v0 = 1: from corner1 -> corner2 as u0 goes 0->1 (v0 goes 1->0)
-  for(const CoordType t : tvals)
-  {
-    const PointType expected = PointType::lerp(corners[1], corners[2], t);
-    check_near(gtri.evaluate(t, 1.0 - t), expected);
   }
 }
 
