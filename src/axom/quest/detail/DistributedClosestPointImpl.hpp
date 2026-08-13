@@ -938,6 +938,10 @@ private:
                                 m_objectPartitionBbs[maybeNextRecip],
                                 sqDistance))
       {
+        /// Use the next recipient if that rank may be able to update one of the
+        /// points in the query, otherwise skip that rank. An update is possible
+        /// if the minimum distance between the bounding boxes is less than
+        /// the current distance of any of the query points.
         if(sqDistance <= currentMaxSqDistance)
         {
           return maybeNextRecip;
