@@ -1063,8 +1063,12 @@ public:
         auto ptCoordsView = m_objectPtCoords.view();
         auto ptDomainIdsView = m_objectPtDomainIds.view();
 
+        /// Update the query by finding the closest points in the local mesh
         if(m_dynamicDistanceFiltering)
         {
+          /// Dynamic filtering does the same distance calculation as static but
+          /// additionally calculates the furthest distance of any query point
+          /// after the local update
           AXOM_ANNOTATE_SCOPE("ComputeClosestPointsDynamic");
           axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
           axom::for_all<ExecSpace>(
