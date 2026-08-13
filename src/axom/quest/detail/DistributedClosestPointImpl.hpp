@@ -253,7 +253,6 @@ public:
     , m_rank(-1)
     , m_nranks(-1)
     , m_sqDistanceThreshold(axom::numeric_limits<double>::max())
-    , m_dynamicDistanceFiltering(true)
   { }
 
   virtual ~DistributedClosestPointImpl() { }
@@ -536,7 +535,8 @@ protected:
   int m_nranks;
 
   double m_sqDistanceThreshold;
-  bool m_dynamicDistanceFiltering;
+
+  bool m_dynamicDistanceFiltering = true;
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
