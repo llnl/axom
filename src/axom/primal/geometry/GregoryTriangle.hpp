@@ -80,10 +80,51 @@ public:
   explicit GregoryTriangle(ArrayView<const PointType> controlPoints)
   {
     SLIC_ASSERT(controlPoints.size() == NPTS);
+    SLIC_ASSERT(controlPoints.data() != nullptr);
     for(int i = 0; i < NPTS; ++i)
     {
       m_controlPoints[i] = controlPoints[i];
     }
+  }
+
+  explicit GregoryTriangle(ArrayView<PointType> controlPoints)
+    : GregoryTriangle(ArrayView<const PointType>(controlPoints.data(), controlPoints.size()))
+  { }
+
+  explicit GregoryTriangle(const PointType* pts) : GregoryTriangle(ArrayView<const PointType>(pts, NPTS))
+  { }
+
+  explicit GregoryTriangle(PointType* pts) : GregoryTriangle(ArrayView<const PointType>(pts, NPTS)) { }
+
+  explicit GregoryTriangle(const CoordsVec& pts)
+    : GregoryTriangle(ArrayView<const PointType>(pts.data(), pts.size()))
+  { }
+
+  explicit GregoryTriangle(const BezierTriangle<T, 3>& bTri)
+  {
+    SLIC_ASSERT(bTri.getOrder() == 4);
+    SLIC_ASSERT(!bTri.isRational());
+
+    getCorner(0) = bTri(0, 0);
+    getCorner(1) = bTri(0, 4);
+    getCorner(2) = bTri(4, 0);
+
+    getBoundaryPoint(0, 1) = bTri(1, 3);
+    getBoundaryPoint(0, 2) = bTri(2, 2);
+    getBoundaryPoint(0, 3) = bTri(3, 1);
+    getBoundaryPoint(1, 1) = bTri(3, 0);
+    getBoundaryPoint(1, 2) = bTri(2, 0);
+    getBoundaryPoint(1, 3) = bTri(1, 0);
+    getBoundaryPoint(2, 1) = bTri(0, 1);
+    getBoundaryPoint(2, 2) = bTri(0, 2);
+    getBoundaryPoint(2, 3) = bTri(0, 3);
+
+    getTangent(0, 0) = bTri(1, 2);
+    getTangent(0, 1) = bTri(2, 1);
+    getTangent(1, 0) = bTri(2, 1);
+    getTangent(1, 1) = bTri(1, 1);
+    getTangent(2, 0) = bTri(1, 1);
+    getTangent(2, 1) = bTri(1, 2);
   }
 
   GregoryTriangle(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)
@@ -200,6 +241,9 @@ public:
   {
     return m_controlPoints[s_edge_index_map[e][k]];
   }
+
+  CoordsVec& getControlPoints() { return m_controlPoints; }
+  const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
   // Evaluate the triangle by constructing the equivalent Bezier triangle with interior control nodes
   //  defined in terms of the tangent vectors and the evaluation parameters
