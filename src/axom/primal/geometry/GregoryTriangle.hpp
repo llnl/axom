@@ -103,17 +103,18 @@ public:
     axom::StackArray<axom::StackArray<VectorType, 3>, 3> cubic_deriv_cp;
     for(int k = 0; k < 3; ++k)  // Loop over edges
     {
-      const int kp1 = (k + 1) % 3;
-      const VectorType dx(nodePositions[k], nodePositions[kp1]);
+      const int start = (k + 1) % 3;
+      const int end = (k + 2) % 3;
+      const VectorType dx(nodePositions[start], nodePositions[end]);
 
-      const VectorType c0 = (dx - dx.dot(v[k]) * v[k]) / 3.0;
-      const VectorType c2 = (dx - dx.dot(v[kp1]) * v[kp1]) / 3.0;
+      const VectorType c0 = (dx - dx.dot(v[start]) * v[start]) / 3.0;
+      const VectorType c2 = (dx - dx.dot(v[end]) * v[end]) / 3.0;
 
       // Define the cubic Bezier which represents the boundary of the curve
-      BezierType cubic(axom::Array {nodePositions[k],
-                                    PointType {nodePositions[k].array() + c0.array()},
-                                    PointType {nodePositions[kp1].array() - c2.array()},
-                                    nodePositions[kp1]},
+      BezierType cubic(axom::Array {nodePositions[start],
+                                    PointType {nodePositions[start].array() + c0.array()},
+                                    PointType {nodePositions[end].array() - c2.array()},
+                                    nodePositions[end]},
                        3);
 
       // Store the control points of the derivative of this cubic for later
@@ -130,28 +131,30 @@ public:
       // getBoundaryPoint(i, 4) will be set for the next edge
     }
 
-    // Define the interior control nodse at each vertex
+    // Define the interior control nodes at each vertex
     for(int k = 0; k < 3; ++k)
     {
-      const int km1 = (k + 2) % 3;
-      const int kp1 = (k + 1) % 3;
+      const int start = (k + 1) % 3;
+      const int end = (k + 2) % 3;
+      const int prev_edge = (k + 2) % 3;
+      const int next_edge = (k + 1) % 3;
 
       // Get control points at and around the edge's starting vertex
-      const auto& p0 = getBoundaryPoint(km1, 3);  // Vertex - 1
-      const auto& q0 = getBoundaryPoint(k, 0);    // Vertex
-      const auto& q1 = getBoundaryPoint(k, 1);    // Vertex + 1
+      const auto& p0 = getBoundaryPoint(prev_edge, 3);  // Previous edge
+      const auto& q0 = getBoundaryPoint(k, 0);          // Edge start
+      const auto& q1 = getBoundaryPoint(k, 1);          // Current edge
       const auto deriv0 = 0.5 * VectorType(p0, q0) + 0.5 * VectorType(p0, q1);
 
       // Get control points at and around the edge's ending vertex
-      const auto& q3 = getBoundaryPoint(k, 3);    // Vertex - 1
-      const auto& q4 = getBoundaryPoint(k, 4);    // Vertex
-      const auto& p3 = getBoundaryPoint(kp1, 1);  // Vertex + 1
+      const auto& q3 = getBoundaryPoint(k, 3);          // Current edge
+      const auto& q4 = getBoundaryPoint(k, 4);          // Edge end
+      const auto& p3 = getBoundaryPoint(next_edge, 1);  // Next edge
       const auto deriv1 = 0.5 * VectorType(p3, q3) + 0.5 * VectorType(p3, q4);
 
       // Compute a boundary cross derivative that varies across the edge
-      const VectorType dx(getCorner(k), getCorner(kp1));
-      const VectorType a0 = VectorType::cross_product(nodeVectors[k], dx).unitVector();
-      const VectorType a3 = VectorType::cross_product(nodeVectors[kp1], dx).unitVector();
+      const VectorType dx(getCorner(start), getCorner(end));
+      const VectorType a0 = VectorType::cross_product(nodeVectors[start], dx).unitVector();
+      const VectorType a3 = VectorType::cross_product(nodeVectors[end], dx).unitVector();
 
       // Elevate the linear cross derivative a(t) = (1-t)a0 + t*a3 to quadratic
       const axom::StackArray<VectorType, 3> aHat = {a0, 0.5 * (a0 + a3), a3};
@@ -188,8 +191,8 @@ public:
 
   void getTangentsByCorner(int i, PointType& v0, PointType& v1) const
   {
-    v0 = getTangent((i + 2) % 3, 1);
-    v1 = getTangent(i, 0);
+    v0 = getTangent((i + 1) % 3, 1);
+    v1 = getTangent((i + 2) % 3, 0);
   }
 
   PointType& getBoundaryPoint(int e, int k) { return m_controlPoints[s_edge_index_map[e][k]]; }
@@ -207,13 +210,13 @@ public:
   }
 
   /*!
-   * \brief Evaluates all first derivatives of the Gregory patch at (\a u, \a v)
+   * \brief Evaluates all first derivatives of the Gregory triangle at (\a u0, \a v0)
    *
-   * \param [in] u Parameter value at which to evaluate on the first axis
-   * \param [in] v Parameter value at which to evaluate on the second axis
-   * \param [out] eval The point value of the Gregory patch at (u, v)
-   * \param [out] Du The vector value of S_u(u, v)
-   * \param [out] Dv The vector value of S_v(u, v)
+   * \param [in] u0 Parameter value at which to evaluate on the first axis
+   * \param [in] v0 Parameter value at which to evaluate on the second axis
+   * \param [out] eval The point value of the Gregory triangle at (u0, v0)
+   * \param [out] Du The vector value of S_u(u0, v0)
+   * \param [out] Dv The vector value of S_v(u0, v0)
   */
   void evaluateFirstDerivatives(T u0, T v0, PointType& eval, VectorType& Du, VectorType& Dv) const
   {
@@ -221,33 +224,72 @@ public:
     intermediate.btri.evaluateFirstDerivatives(u0, v0, eval, Du, Dv);
 
     // Chain rule correction due to (u0,v0)-dependent interior control points.
-    // For a quartic Bezier triangle, the basis weight of control point (i,j)
-    // is:  4!/(i! j! k!) * u^i v^j w^k  with k = 4-i-j and barycentric weights
-    // (lambda0, lambda1, lambda2) = (1-u0-v0, v0, u0) corresponding to vertices
-    // (0,0), (0,order), (order,0), respectively.
-    const T u = u0;
+    // This follows BezierTriangle's barycentric convention:
+    //   {u, v, w} = {1 - u0 - v0, v0, u0}
+    const T u = T(1) - u0 - v0;
     const T v = v0;
-    const T w = T(1) - u0 - v0;
+    const T w = u0;
 
-    const T w11 = T(12) * u * v * w * w;  // (i,j)=(1,1), k=2
-    const T w21 = T(12) * u * u * v * w;  // (i,j)=(2,1), k=1
-    const T w12 = T(12) * u * v * v * w;  // (i,j)=(1,2), k=1
+    axom::StaticArray<T, 3> B, B_u0, B_v0;
+    evaluate_quartic_interior_basis(u, v, w, B, B_u0, B_v0);
 
-    Du += w11 * intermediate.Q_u[0] + w21 * intermediate.Q_u[1] + w12 * intermediate.Q_u[2];
-    Dv += w11 * intermediate.Q_v[0] + w21 * intermediate.Q_v[1] + w12 * intermediate.Q_v[2];
+    Du += B[0] * intermediate.Q_u[0] + B[1] * intermediate.Q_u[1] + B[2] * intermediate.Q_u[2];
+    Dv += B[0] * intermediate.Q_v[0] + B[1] * intermediate.Q_v[1] + B[2] * intermediate.Q_v[2];
   }
 
-  // Not yet completed
-  // void evaluateSecondDerivatives(T u,
-  //                                T v,
-  //                                PointType& eval,
-  //                                VectorType& Du,
-  //                                VectorType& Dv,
-  //                                VectorType& DuDu,
-  //                                VectorType& DvDv,
-  //                                VectorType& DuDv) const
-  // {
-  // }
+  /*!
+   * \brief Evaluates all second derivatives of the Gregory triangle at (\a u0, \a v0)
+   *
+   * \param [in] u0 Parameter value at which to evaluate on the first axis
+   * \param [in] v0 Parameter value at which to evaluate on the second axis
+   * \param [out] eval The point value of the Gregory triangle at (u0, v0)
+   * \param [out] Du The vector value of S_u(u0, v0)
+   * \param [out] Dv The vector value of S_v(u0, v0)
+   * \param [out] DuDu The vector value of S_uu(u0, v0)
+   * \param [out] DvDv The vector value of S_vv(u0, v0)
+   * \param [out] DuDv The vector value of S_uv(u0, v0) == S_vu(u0, v0)
+   */
+  void evaluateSecondDerivatives(T u0,
+                                 T v0,
+                                 PointType& eval,
+                                 VectorType& Du,
+                                 VectorType& Dv,
+                                 VectorType& DuDu,
+                                 VectorType& DvDv,
+                                 VectorType& DuDv) const
+  {
+    const auto intermediate = setup_intermediate_bezier(u0, v0, 2);
+    intermediate.btri.evaluateSecondDerivatives(u0, v0, eval, Du, Dv, DuDu, DvDv, DuDv);
+
+    const T u = T(1) - u0 - v0;
+    const T v = v0;
+    const T w = u0;
+
+    axom::StaticArray<T, 3> B, B_u0, B_v0;
+    evaluate_quartic_interior_basis(u, v, w, B, B_u0, B_v0);
+
+    // First derivative corrections
+    Du += B[0] * intermediate.Q_u[0] + B[1] * intermediate.Q_u[1] + B[2] * intermediate.Q_u[2];
+    Dv += B[0] * intermediate.Q_v[0] + B[1] * intermediate.Q_v[1] + B[2] * intermediate.Q_v[2];
+
+    // Second derivative corrections
+    DuDu += T(2) *
+        (B_u0[0] * intermediate.Q_u[0] + B_u0[1] * intermediate.Q_u[1] +
+         B_u0[2] * intermediate.Q_u[2]) +
+      (B[0] * intermediate.Q_uu[0] + B[1] * intermediate.Q_uu[1] + B[2] * intermediate.Q_uu[2]);
+
+    DvDv += T(2) *
+        (B_v0[0] * intermediate.Q_v[0] + B_v0[1] * intermediate.Q_v[1] +
+         B_v0[2] * intermediate.Q_v[2]) +
+      (B[0] * intermediate.Q_vv[0] + B[1] * intermediate.Q_vv[1] + B[2] * intermediate.Q_vv[2]);
+
+    DuDv +=
+      (B_u0[0] * intermediate.Q_v[0] + B_u0[1] * intermediate.Q_v[1] +
+       B_u0[2] * intermediate.Q_v[2]) +
+      (B_v0[0] * intermediate.Q_u[0] + B_v0[1] * intermediate.Q_u[1] +
+       B_v0[2] * intermediate.Q_u[2]) +
+      (B[0] * intermediate.Q_uv[0] + B[1] * intermediate.Q_uv[1] + B[2] * intermediate.Q_uv[2]);
+  }
 
   VectorType du(T u, T v) const
   {
@@ -265,30 +307,29 @@ public:
     return Dv;
   }
 
-  // Not yet finished
-  // VectorType dudu(T u, T v) const
-  // {
-  //   PointType eval;
-  //   VectorType Du, Dv, DuDu, DvDv, DuDv;
-  //   evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
-  //   return DuDu;
-  // }
+  VectorType dudu(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv, DuDu, DvDv, DuDv;
+    evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
+    return DuDu;
+  }
 
-  // VectorType dvdv(T u, T v) const
-  // {
-  //   PointType eval;
-  //   VectorType Du, Dv, DuDu, DvDv, DuDv;
-  //   evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
-  //   return DvDv;
-  // }
+  VectorType dvdv(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv, DuDu, DvDv, DuDv;
+    evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
+    return DvDv;
+  }
 
-  // VectorType dudv(T u, T v) const
-  // {
-  //   PointType eval;
-  //   VectorType Du, Dv, DuDu, DvDv, DuDv;
-  //   evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
-  //   return DuDv;
-  // }
+  VectorType dudv(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv, DuDu, DvDv, DuDv;
+    evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
+    return DuDv;
+  }
 
   /// \brief Returns an axis-aligned bounding box containing the patch
   BoundingBoxType boundingBox() const
@@ -323,6 +364,9 @@ private:
     PointType Q[3];
     VectorType Q_u[3];
     VectorType Q_v[3];
+    VectorType Q_uu[3];
+    VectorType Q_vv[3];
+    VectorType Q_uv[3];
   };
 
   IntermediateBlendingDerivatives setup_intermediate_bezier(T u0, T v0, int derivative_order) const
@@ -331,28 +375,28 @@ private:
     out.btri = get_bezier_boundary();
 
     // Parameter convention matches BezierTriangle::evaluate():
-    // barycentric weights (lambda0, lambda1, lambda2) are (1-u0-v0, v0, u0)
-    const T u = u0;
+    // barycentric coordinates {u, v, w} are {1-u0-v0, v0, u0}
+    const T u = T(1) - u0 - v0;
     const T v = v0;
-    const T w = T(1) - u0 - v0;
+    const T w = u0;
 
-    auto blend = [&](const PointType& A,
-                     const PointType& B,
-                     T wa,
-                     T wb,
-                     T wa_u0,
-                     T wb_u0,
-                     T wa_v0,
-                     T wb_v0,
+    // clang-format off
+    auto blend = [&](const PointType& A, const PointType& B, // Internal Gregory points
+                     T wa, T wb,                             // Barycentric coordinates for eval
+                     T wa_u0, T wb_u0, T wa_v0, T wb_v0,     // Derivatives of Barycentric coords
                      PointType& Q,
-                     VectorType& Q_u0,
-                     VectorType& Q_v0) {
+                     VectorType& Q_u0, VectorType& Q_v0,
+                     VectorType& Q_u0u0, VectorType& Q_v0v0, VectorType& Q_u0v0) {
+      // clang-format on
       const T denom = wa + wb;
       if(axom::utilities::isNearlyEqual(denom, T(0)))
       {
         Q = A;
         Q_u0 = VectorType(T(0));
         Q_v0 = VectorType(T(0));
+        Q_u0u0 = VectorType(T(0));
+        Q_v0v0 = VectorType(T(0));
+        Q_u0v0 = VectorType(T(0));
         return;
       }
 
@@ -372,104 +416,134 @@ private:
         Q_u0 = VectorType(T(0));
         Q_v0 = VectorType(T(0));
       }
+
+      if(derivative_order >= 2)
+      {
+        const T denom_u0 = wa_u0 + wb_u0;
+        const T denom_v0 = wa_v0 + wb_v0;
+        Q_u0u0 = (-T(2) * denom_u0 / denom) * Q_u0;
+        Q_v0v0 = (-T(2) * denom_v0 / denom) * Q_v0;
+        Q_u0v0 = (-(denom_u0 * Q_v0 + denom_v0 * Q_u0)) / denom;
+      }
+      else
+      {
+        Q_u0u0 = VectorType(T(0));
+        Q_v0v0 = VectorType(T(0));
+        Q_u0v0 = VectorType(T(0));
+      }
     };
 
-    // These are the three (u0,v0)-dependent interior control points for the
-    // equivalent quartic Bezier triangle. Each is a blend of the two Gregory
-    // points adjacent to the corresponding vertex.
-    //
-    // By convention, edge k connects vertex k -> vertex (k+1)%3.
-    //  - getTangent(k,0) is the Gregory point near the starting vertex k
-    //  - getTangent(k,1) is the Gregory point near the ending   vertex (k+1)%3
-    //
-    // Control net slots:
-    //  Q[0] -> btri(1,1)
-    //  Q[1] -> btri(2,1)
-    //  Q[2] -> btri(1,2)
-    blend(getTangent(2, 1),
-          getTangent(0, 0),
-          u,
-          v,
-          T(1),
-          T(0),
-          T(0),
-          T(1),
+    // Get the three (u0, v0)-dependent interior control points for the equivalent
+    //  quartic Bezier triangle. Each is blended from the two Gregory points adjacent
+    //  to the corresponding vertex,
+
+    // clang-format off
+    blend(getTangent(1, 1), getTangent(2, 0),
+          w, v,
+          T(1), T(0), T(0), T(1),
           out.Q[0],
-          out.Q_u[0],
-          out.Q_v[0]);
+          out.Q_u[0], out.Q_v[0],
+          out.Q_uu[0], out.Q_vv[0], out.Q_uv[0]);
 
-    blend(getTangent(1, 1),
-          getTangent(2, 0),
-          v,
-          w,
-          T(0),
-          T(-1),
-          T(1),
-          T(-1),
+    blend(getTangent(0, 1), getTangent(1, 0),
+          v, u,
+          T(0), T(-1), T(1), T(-1),
           out.Q[1],
-          out.Q_u[1],
-          out.Q_v[1]);
+          out.Q_u[1], out.Q_v[1],
+          out.Q_uu[1], out.Q_vv[1], out.Q_uv[1]);
 
-    blend(getTangent(0, 1),
-          getTangent(1, 0),
-          w,
-          u,
-          T(-1),
-          T(1),
-          T(-1),
-          T(0),
+    blend(getTangent(2, 1), getTangent(0, 0),
+          u, w,
+          T(-1), T(1), T(-1), T(0),
           out.Q[2],
-          out.Q_u[2],
-          out.Q_v[2]);
+          out.Q_u[2], out.Q_v[2],
+          out.Q_uu[2], out.Q_vv[2], out.Q_uv[2]);
+    // clang-format on
 
-    setBezierInterior(out.btri, out.Q);
+    set_bezier_interior(out.btri, out.Q);
     return out;
   }
 
-  static void setBezierInterior(BezierTriangle<T, 3>& btri, const PointType Q[3])
+  /*!
+   * \brief Assigns the three interior control points of a biquartic Bezier triangle
+   *
+   * \param [in,out] btri The biquartic Bezier triangle to update
+   * \param [in] Q The 3 interior control points
+   */
+  static void set_bezier_interior(BezierTriangle<T, 3>& btri, const PointType Q[3])
   {
     btri(1, 1) = Q[0];
     btri(2, 1) = Q[1];
     btri(1, 2) = Q[2];
   }
 
-  // Copies over the boundary points to a BezierPatch object,
-  //  leaving the 4 interior control points uninitialized
+  /*!
+   * \brief Evaluates triangular Bernstein basis functions and their first derivatives
+   *
+   * \param [in] u First standard barycentric coordinate, equal to `1-u0-v0`
+   * \param [in] v Second standard barycentric coordinate, equal to `v0`
+   * \param [in] w Third standard barycentric coordinate, equal to `u0`
+   * \param [out] B Basis values for the three interior control points
+   * \param [out] B_u0 First derivatives of \a B with respect to `u0`
+   * \param [out] B_v0 First derivatives of \a B with respect to `v0`
+   */
+  static void evaluate_quartic_interior_basis(T u,
+                                              T v,
+                                              T w,
+                                              axom::StaticArray<T, 3>& B,
+                                              axom::StaticArray<T, 3>& B_u0,
+                                              axom::StaticArray<T, 3>& B_v0)
+  {
+    B[0] = T(12) * w * v * u * u;  // (i,j)=(1,1), k=2
+    B[1] = T(12) * w * w * v * u;  // (i,j)=(2,1), k=1
+    B[2] = T(12) * w * v * v * u;  // (i,j)=(1,2), k=1
+
+    B_u0[0] = T(12) * v * u * (u - T(2) * w);
+    B_u0[1] = T(12) * w * v * (T(2) * u - w);
+    B_u0[2] = T(12) * v * v * (u - w);
+
+    B_v0[0] = T(12) * w * u * (u - T(2) * v);
+    B_v0[1] = T(12) * w * w * (u - v);
+    B_v0[2] = T(12) * w * v * (T(2) * u - v);
+  }
+
+  // Copies over the boundary points to a BezierTriangle object,
+  //  leaving the 3 interior control points uninitialized
   BezierTriangle<T, 3> get_bezier_boundary() const
   {
     BezierTriangle<T, 3> btri(4);
 
     // Edge 0
-    btri(0, 0) = getBoundaryPoint(0, 0);
-    btri(0, 1) = getBoundaryPoint(0, 1);
-    btri(0, 2) = getBoundaryPoint(0, 2);
-    btri(0, 3) = getBoundaryPoint(0, 3);
-    btri(0, 4) = getBoundaryPoint(0, 4);
+    btri(0, 4) = getBoundaryPoint(0, 0);
+    btri(1, 3) = getBoundaryPoint(0, 1);
+    btri(2, 2) = getBoundaryPoint(0, 2);
+    btri(3, 1) = getBoundaryPoint(0, 3);
+    btri(4, 0) = getBoundaryPoint(0, 4);
 
     // Edge 1
-    // btri(0, 4) = getBoundaryPOint(1, 0);
-    btri(1, 3) = getBoundaryPoint(1, 1);
-    btri(2, 2) = getBoundaryPoint(1, 2);
-    btri(3, 1) = getBoundaryPoint(1, 3);
-    btri(4, 0) = getBoundaryPoint(1, 4);
+    // btri(4, 0) = getBoundaryPoint(1, 0);
+    btri(3, 0) = getBoundaryPoint(1, 1);
+    btri(2, 0) = getBoundaryPoint(1, 2);
+    btri(1, 0) = getBoundaryPoint(1, 3);
+    btri(0, 0) = getBoundaryPoint(1, 4);
 
     // Edge 2
-    // btri(4, 0) = getBoundaryPoint(2, 0);
-    btri(3, 0) = getBoundaryPoint(2, 1);
-    btri(2, 0) = getBoundaryPoint(2, 2);
-    btri(1, 0) = getBoundaryPoint(2, 3);
-    // btri(0, 0) = getBoundaryPoint(2, 4);
+    // btri(0, 0) = getBoundaryPoint(2, 0);
+    btri(0, 1) = getBoundaryPoint(2, 1);
+    btri(0, 2) = getBoundaryPoint(2, 2);
+    btri(0, 3) = getBoundaryPoint(2, 3);
+    // btri(0, 4) = getBoundaryPoint(2, 4);
 
     return btri;
   }
 
   CoordsVec m_controlPoints;
 
-  // Map of boundary curve control points into internal storage
+  // Map of BezierTriangle-style boundary curve control points into internal storage
   static constexpr int s_edge_index_map[3][5] = {
-    {/*V0*/ 0, /*E01*/ 3, /*E02*/ 4, /*E03*/ 5, /*V1*/ 1},
-    {/*V0*/ 1, /*E01*/ 6, /*E02*/ 7, /*E03*/ 8, /*V1*/ 2},
-    {/*V0*/ 2, /*E01*/ 9, /*E02*/ 10, /*E03*/ 11, /*V1*/ 0}};
+    {/*V1*/ 1, /*E01*/ 6, /*E02*/ 7, /*E03*/ 8, /*V2*/ 2},
+    {/*V2*/ 2, /*E11*/ 9, /*E12*/ 10, /*E13*/ 11, /*V0*/ 0},
+    {/*V0*/ 0, /*E21*/ 3, /*E22*/ 4, /*E23*/ 5, /*V1*/ 1}};
 };
 
 //------------------------------------------------------------------------------
