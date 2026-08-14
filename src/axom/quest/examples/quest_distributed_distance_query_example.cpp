@@ -41,6 +41,14 @@
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <cstdio>
+#include <fstream>
+#include <atomic>
+#include <chrono>
+#include <thread>
+#if defined(__GLIBC__)
+  #include <malloc.h>  // mallinfo2 / mallinfo / malloc_trim
+#endif
 
 namespace quest = axom::quest;
 namespace slic = axom::slic;
@@ -69,6 +77,11 @@ public:
   std::string objectFile {"object_mesh"};
 
   std::string objectMeshFile;
+
+  // Memory instrumentation (all off by default).
+  bool trackMemory {false};     // report RSS / malloc / umpire at phase boundaries
+  bool trimAfterQuery {false};  // malloc_trim(0) after the query, then re-report
+  int sampleMemoryMs {0};       // if > 0, background-sample peak RSS during the query
 
   double circleRadius {1.0};
   std::vector<double> circleCenter {0.0, 0.0};
@@ -139,6 +152,26 @@ public:
         "Path to a conduit blueprint point mesh root file. "
         " When provided, we use this instead of an analytically generated object mesh.")
       ->check(axom::CLI::ExistingFile);
+
+    app.add_flag("--track-memory", trackMemory)
+      ->description(
+        "Report RSS, glibc malloc live/arena bytes (and Umpire high-water when available) "
+        "before/after BVH build and before/after the closest-point query, reduced across ranks.")
+      ->capture_default_str();
+
+    app.add_flag("--trim-after-query", trimAfterQuery)
+      ->description(
+        "After the query, call malloc_trim(0) and report memory again. "
+        "If RSS drops here (while malloc-live was already back at baseline), "
+        "the memory was arena retention, not a leak.  Implies --track-memory.")
+      ->capture_default_str();
+
+    app.add_option("--sample-memory-ms", sampleMemoryMs)
+      ->description(
+        "If > 0, run a background thread sampling RSS at this interval (ms) "
+        "during the query and report the peak.  Useful for observing in-flight "
+        "send-buffer accumulation.  Implies --track-memory.")
+      ->capture_default_str();
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
       ->description("Enable/disable verbose output")
@@ -1206,6 +1239,270 @@ void make_coords_interleaved(conduit::Node& coordValues)
   }
 }
 
+//-----------------------------------------------------------------------------
+// Optional memory instrumentation
+//
+// Purpose: distinguish a genuine leak (memory still referenced after the call)
+// from arena retention (memory freed at the allocator but not returned to the OS).
+// RSS shows what the process actually holds; glibc "malloc live" shows what is still allocated;
+// "malloc arena" shows free memory kept in the arena.
+//   * RSS after call ~= baseline                -> transient, no problem
+//   * RSS high, malloc-live ~= baseline         -> arena retention (malloc_trim should reclaim it)
+//   * malloc-live high after call               -> genuine leak
+// Everything here is Linux/glibc-specific and degrades to "n/a" elsewhere.
+// All of it is opt-in (--track-memory) and off by default.
+//-----------------------------------------------------------------------------
+
+/// Read current (VmRSS) and peak (VmHWM) resident set size in bytes; -1 if n/a.
+inline void readProcRss(long long& rssBytes, long long& peakRssBytes)
+{
+  rssBytes = -1;
+  peakRssBytes = -1;
+#if defined(__linux__)
+  std::ifstream status("/proc/self/status");
+  std::string line;
+  while(std::getline(status, line))
+  {
+    long long kb = 0;
+    if(std::sscanf(line.c_str(), "VmRSS: %lld kB", &kb) == 1)
+    {
+      rssBytes = kb * 1024;
+    }
+    else if(std::sscanf(line.c_str(), "VmHWM: %lld kB", &kb) == 1)
+    {
+      peakRssBytes = kb * 1024;
+    }
+  }
+#endif
+}
+
+/// Reset the kernel's peak-RSS high-water mark (VmHWM) to the current RSS, so a
+/// later VmHWM read reflects the peak of just the intervening phase.
+/// Best-effort: requires Linux clear_refs type 5 (kernel >= 4.0).
+inline void resetPeakRss()
+{
+#if defined(__linux__)
+  std::ofstream clear("/proc/self/clear_refs");
+  if(clear)
+  {
+    clear << "5\n";
+  }
+#endif
+}
+
+/// Human-readable byte count.
+inline std::string humanBytes(long long b)
+{
+  if(b < 0)
+  {
+    return "n/a";
+  }
+  const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+  double v = static_cast<double>(b);
+  int i = 0;
+  while(v >= 1024.0 && i < 4)
+  {
+    v /= 1024.0;
+    ++i;
+  }
+  return axom::fmt::format("{:.2f} {}", v, units[i]);
+}
+
+/// MPI-reduce a per-rank byte count to its max (with the rank achieving it) and
+/// its sum across ranks.  A negative local value means "unavailable".
+inline void reduceBytes(long long local, long long& maxVal, int& maxRank, long long& sumVal)
+{
+  struct
+  {
+    long val;
+    int rank;
+  } in {static_cast<long>(local), my_rank}, out {0, 0};
+  MPI_Allreduce(&in, &out, 1, MPI_LONG_INT, MPI_MAXLOC, MPI_COMM_WORLD);
+  maxVal = out.val;
+  maxRank = out.rank;
+  MPI_Allreduce(&local, &sumVal, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+}
+
+/*!
+ * \brief Opt-in per-run memory probe for the closest-point query.
+ *
+ * Reports RSS, peak RSS, glibc live/arena bytes (and Umpire high-water when built with Umpire),
+ * reduced across ranks (total and hottest rank).  Also offers a background sampler to capture
+ * the peak RSS *during* a phase (useful for observing in-flight send-buffer accumulation),
+ * and a resetPeak() to make VmHWM phase-local.
+ */
+class MemoryProbe
+{
+public:
+  MemoryProbe(bool enabled, int sampleMs, int umpireAllocatorId = -1)
+    : m_enabled(enabled)
+    , m_sampleMs(sampleMs)
+    , m_umpireAllocatorId(umpireAllocatorId)
+  { }
+
+  bool enabled() const { return m_enabled; }
+
+  /// Reset VmHWM so the next report()'s peak reflects only the next phase.
+  void resetPeak()
+  {
+    if(m_enabled)
+    {
+      resetPeakRss();
+    }
+  }
+
+  /// Start a background thread sampling RSS every sampleMs; no-op if disabled or sampleMs <= 0
+  /// Records the peak RSS seen until stopSampler().
+  void startSampler()
+  {
+    if(!m_enabled || m_sampleMs <= 0)
+    {
+      return;
+    }
+    m_samplerPeak = 0;
+    m_stopSampler.store(false, std::memory_order_relaxed);
+    m_samplerThread = std::thread([this]() {
+      while(!m_stopSampler.load(std::memory_order_relaxed))
+      {
+        long long rss = -1, peak = -1;
+        readProcRss(rss, peak);
+        if(rss > m_samplerPeak)
+        {
+          m_samplerPeak = rss;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(m_sampleMs));
+      }
+    });
+  }
+
+  /// Stop the sampler and report the peak RSS during the sampled phase.
+  void stopSampler(const std::string& label)
+  {
+    if(!m_enabled || m_sampleMs <= 0)
+    {
+      return;
+    }
+    m_stopSampler.store(true, std::memory_order_relaxed);
+    if(m_samplerThread.joinable())
+    {
+      m_samplerThread.join();
+    }
+    long long rss = -1, peak = -1;  // final read to catch the tail
+    readProcRss(rss, peak);
+    if(rss > m_samplerPeak)
+    {
+      m_samplerPeak = rss;
+    }
+
+    long long maxVal, sumVal;
+    int maxRank;
+    reduceBytes(m_samplerPeak, maxVal, maxRank, sumVal);
+    if(my_rank == 0)
+    {
+      SLIC_INFO(axom::fmt::format(
+        "[mem] {}: peak RSS during phase (sampled @ {} ms): max/rank={} (rank {}), total={}",
+        label,
+        m_sampleMs,
+        humanBytes(maxVal),
+        maxRank,
+        humanBytes(sumVal)));
+    }
+  }
+
+  /// Take a snapshot on every rank, reduce it, and print an aggregate (rank 0).
+  void report(const std::string& label)
+  {
+    if(!m_enabled)
+    {
+      return;
+    }
+
+    long long rss = -1, peakRss = -1;
+    readProcRss(rss, peakRss);
+
+    long long mallocLive = -1, mallocArena = -1;
+#if defined(__GLIBC__)
+  #if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 33)
+    struct mallinfo2 mi = mallinfo2();  // size_t fields: safe above 2 GiB
+    mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
+    mallocArena = static_cast<long long>(mi.arena);
+  #else
+    struct mallinfo mi = mallinfo();  // NOTE: int fields saturate above ~2 GiB
+    mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
+    mallocArena = static_cast<long long>(mi.arena);
+  #endif
+#endif
+
+    long long umpireCur = -1, umpireHwm = -1;
+#if defined(AXOM_USE_UMPIRE)
+    if(m_umpireAllocatorId >= 0)
+    {
+      auto& rm = umpire::ResourceManager::getInstance();
+      umpire::Allocator alloc = rm.getAllocator(m_umpireAllocatorId);
+      umpireCur = static_cast<long long>(alloc.getCurrentSize());
+      umpireHwm = static_cast<long long>(alloc.getHighWatermark());
+    }
+#endif
+
+    long long rssMax, rssSum, peakMax, peakSum, liveMax, liveSum, arenaMax, arenaSum;
+    long long umpCurMax, umpCurSum, umpHwmMax, umpHwmSum;
+    int rssMaxRank, peakMaxRank, liveMaxRank, arenaMaxRank, umpCurMaxRank, umpHwmMaxRank;
+    reduceBytes(rss, rssMax, rssMaxRank, rssSum);
+    reduceBytes(peakRss, peakMax, peakMaxRank, peakSum);
+    reduceBytes(mallocLive, liveMax, liveMaxRank, liveSum);
+    reduceBytes(mallocArena, arenaMax, arenaMaxRank, arenaSum);
+    reduceBytes(umpireCur, umpCurMax, umpCurMaxRank, umpCurSum);
+    reduceBytes(umpireHwm, umpHwmMax, umpHwmMaxRank, umpHwmSum);
+
+    if(my_rank == 0)
+    {
+      std::string msg = axom::fmt::format(
+        "[mem] {}  (total over {} ranks | max on one rank)\n"
+        "         RSS           : {:>11} | {:>11} (rank {})\n"
+        "         RSS peak      : {:>11} | {:>11} (rank {})\n"
+        "         malloc live   : {:>11} | {:>11} (rank {})\n"
+        "         malloc arena  : {:>11} | {:>11} (rank {})",
+        label,
+        num_ranks,
+        humanBytes(rssSum),
+        humanBytes(rssMax),
+        rssMaxRank,
+        humanBytes(peakSum),
+        humanBytes(peakMax),
+        peakMaxRank,
+        humanBytes(liveSum),
+        humanBytes(liveMax),
+        liveMaxRank,
+        humanBytes(arenaSum),
+        humanBytes(arenaMax),
+        arenaMaxRank);
+#if defined(AXOM_USE_UMPIRE)
+      if(umpHwmMax >= 0)
+      {
+        msg += axom::fmt::format(
+          "\n         umpire current: {:>11} | {:>11} (rank {})"
+          "\n         umpire hi-water: {:>10} | {:>11} (rank {})",
+          humanBytes(umpCurSum),
+          humanBytes(umpCurMax),
+          umpCurMaxRank,
+          humanBytes(umpHwmSum),
+          humanBytes(umpHwmMax),
+          umpHwmMaxRank);
+      }
+#endif
+      SLIC_INFO(msg);
+    }
+  }
+
+private:
+  bool m_enabled {false};
+  int m_sampleMs {0};
+  int m_umpireAllocatorId {-1};
+  std::atomic<bool> m_stopSampler {false};
+  std::thread m_samplerThread;
+  long long m_samplerPeak {0};
+};
+
 /// Utility function to initialize the logger
 void initializeLogger()
 {
@@ -1416,6 +1713,15 @@ int main(int argc, char** argv)
   query.setObjectMesh(objectMeshNode.number_of_children() == 1 ? objectMeshNode[0] : objectMeshNode,
                       objectMeshWrapper.getTopologyName());
 
+  // Optional memory instrumentation around the index build and the query.
+  int memUmpireId = -1;
+#if defined(AXOM_USE_UMPIRE)
+  memUmpireId = umpireAllocator.getId();
+#endif
+  const bool trackMem = params.trackMemory || params.trimAfterQuery || params.sampleMemoryMs > 0;
+  MemoryProbe memProbe(trackMem, params.sampleMemoryMs, memUmpireId);
+  memProbe.report("baseline (meshes read, before BVH)");
+
   // Build the spatial index over the object on each rank
   SLIC_INFO(init_str);
   slic::flushStreams();
@@ -1423,14 +1729,35 @@ int main(int argc, char** argv)
   query.generateBVHTree();
   initTimer.stop();
 
+  memProbe.report("after generateBVHTree (object index built)");
+
   // Run the distributed closest point query over the nodes of the computational mesh
   // To test support for single-domain format, use single-domain when possible.
   slic::flushStreams();
+  memProbe.resetPeak();  // make the post-query VmHWM reflect only the query phase
+  memProbe.startSampler();
   queryTimer.start();
   query.computeClosestPoints(
     queryMeshNode.number_of_children() == 1 ? queryMeshNode[0] : queryMeshNode,
     queryMeshWrapper.getTopologyName());
   queryTimer.stop();
+  memProbe.stopSampler("computeClosestPoints");
+
+  memProbe.report("after computeClosestPoints");
+
+  // Optionally return free arena memory to the OS and re-measure.
+  // If RSS drops here while "malloc live" was already back at baseline,
+  // the retained memory was glibc arena, not a leak.
+  // (This is a diagnostic; the library-side fix would trim inside computeClosestPoints after releasing transfer buffers.)
+  if(params.trimAfterQuery)
+  {
+#if defined(__GLIBC__)
+    ::malloc_trim(0);
+    memProbe.report("after malloc_trim(0)");
+#else
+    SLIC_WARNING("--trim-after-query requested but malloc_trim is glibc-only; skipping.");
+#endif
+  }
 
   auto getDoubleMinMax = [](double inVal, double& minVal, double& maxVal, double& sumVal) {
     MPI_Allreduce(&inVal, &minVal, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
