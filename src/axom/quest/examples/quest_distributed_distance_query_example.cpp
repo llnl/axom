@@ -36,6 +36,7 @@
 #include "mpi.h"
 
 // C/C++ includes
+#include <algorithm>
 #include <string>
 #include <memory>
 #include <vector>
@@ -45,6 +46,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <variant>
 #if defined(__GLIBC__)
   #include <malloc.h>  // mallinfo2 / mallinfo / malloc_trim
 #endif
@@ -63,6 +65,17 @@ int my_rank = -1, num_ranks = -1;
 // converts the input string into an 80 character string
 // padded on both sides with '=' symbols
 std::string banner(const std::string& str) { return axom::fmt::format("{:=^80}", str); }
+
+void broadcastString(std::string& value, int root, MPI_Comm comm)
+{
+  int length = static_cast<int>(value.size());
+  MPI_Bcast(&length, 1, MPI_INT, root, comm);
+  value.resize(length);
+  if(length > 0)
+  {
+    MPI_Bcast(value.data(), length, MPI_CHAR, root, comm);
+  }
+}
 
 /// Struct to parse and store the input parameters
 struct Input
@@ -274,6 +287,9 @@ public:
   }
 
   int dimension() const { return m_dimension; }
+  bool hasVerification() const { return m_hasVerification; }
+  const conduit::Node& verification() const { return m_verification; }
+  const std::string& description() const { return m_description; }
 
   /*!
     @brief Read a blueprint mesh and store it internally in m_group.
@@ -296,6 +312,40 @@ public:
       conduit::blueprint::mesh::to_multi_domain(singleDomainMesh, mdMesh);
     }
     conduit::index_t domCount = conduit::blueprint::mesh::number_of_domains(mdMesh);
+
+    m_hasVerification = false;
+    m_verification.reset();
+    m_description.clear();
+    for(conduit::index_t d = 0; d < domCount; ++d)
+    {
+      const conduit::Node& domain = mdMesh.child(d);
+      if(m_description.empty() && domain.has_path("state/description"))
+      {
+        m_description = domain.fetch_existing("state/description").as_string();
+      }
+      if(!m_hasVerification && domain.has_path("state/verification"))
+      {
+        m_verification.update(domain.fetch_existing("state/verification"));
+        m_hasVerification = true;
+      }
+    }
+
+    int verificationRank = m_hasVerification ? m_rank : m_nranks;
+    MPI_Allreduce(MPI_IN_PLACE, &verificationRank, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    if(verificationRank < m_nranks)
+    {
+      std::string description = m_rank == verificationRank ? m_description : std::string {};
+      std::string verificationYaml =
+        m_rank == verificationRank ? m_verification.to_yaml() : std::string {};
+
+      broadcastString(description, verificationRank, MPI_COMM_WORLD);
+      broadcastString(verificationYaml, verificationRank, MPI_COMM_WORLD);
+
+      m_description = description;
+      m_verification.reset();
+      m_verification.parse(verificationYaml, "yaml");
+      m_hasVerification = true;
+    }
 
     if(domCount > 0)
     {
@@ -708,8 +758,11 @@ private:
 private:
   //!@brief Whether stride/offsets are given for blueprint mesh coordinates data.
   bool m_coordsAreStrided = false;
+  bool m_hasVerification = false;
   std::string m_topologyName;
   std::string m_coordsetName;
+  std::string m_description;
+  conduit::Node m_verification;
   /// Parent group for the entire mesh
   sidre::Group* m_group;
 
@@ -742,6 +795,9 @@ public:
 
   std::string getTopologyName() const { return m_objectMesh.getTopologyName(); }
   std::string getCoordsetName() const { return m_objectMesh.getCoordsetName(); }
+  bool hasVerification() const { return m_objectMesh.hasVerification(); }
+  const conduit::Node& verification() const { return m_objectMesh.verification(); }
+  const std::string& description() const { return m_objectMesh.description(); }
 
 private:
   BlueprintParticleMesh m_objectMesh;
@@ -917,6 +973,345 @@ void computeDistancesAndDirections(BlueprintParticleMesh& queryMesh,
       directions[ptIdx] = PointType(has_cp ? (cp - qPt).array() : nowhere.array());
     }
   }
+}
+
+std::vector<double> conduitVector(const conduit::Node& node)
+{
+  conduit::Node tmp;
+  const conduit::Node* src = &node;
+  if(!node.dtype().is_float64())
+  {
+    node.to_float64_array(tmp);
+    src = &tmp;
+  }
+
+  conduit::float64_array values = src->as_float64_array();
+  std::vector<double> result(values.number_of_elements());
+  for(conduit::index_t i = 0; i < values.number_of_elements(); ++i)
+  {
+    result[i] = values[i];
+  }
+  return result;
+}
+
+double conduitDouble(const conduit::Node& node, const std::string& path, double defaultValue)
+{
+  return node.has_path(path) ? node.fetch_existing(path).to_double() : defaultValue;
+}
+
+template <int DIM>
+primal::Point<double, DIM> pointFromVector(const std::vector<double>& values)
+{
+  primal::Point<double, DIM> result(0.0);
+  for(int d = 0; d < DIM && d < static_cast<int>(values.size()); ++d)
+  {
+    result[d] = values[d];
+  }
+  return result;
+}
+
+template <int DIM>
+primal::Vector<double, DIM> vectorFromVector(const std::vector<double>& values)
+{
+  primal::Vector<double, DIM> result(0.0);
+  for(int d = 0; d < DIM && d < static_cast<int>(values.size()); ++d)
+  {
+    result[d] = values[d];
+  }
+  return result;
+}
+
+template <int DIM>
+struct AnalyticTorus
+{
+  using PointType = primal::Point<double, DIM>;
+
+  PointType center;
+  double majorRadius {0.0};
+  double minorRadius {0.0};
+
+  double computeSignedDistance(const PointType& pt) const
+  {
+    if constexpr(DIM == 2)
+    {
+      const double radialDistance = std::sqrt(primal::squared_distance(pt, center));
+      return std::fabs(radialDistance - majorRadius) - minorRadius;
+    }
+    else
+    {
+      primal::Point<double, 2> pt_xy({pt[0], pt[1]});
+      primal::Point<double, 2> center_xy({center[0], center[1]});
+      const double radialDistance =
+        std::sqrt(primal::squared_distance(pt_xy, center_xy)) - majorRadius;
+      const double axialDistance = pt[2] - center[2];
+      return std::sqrt(radialDistance * radialDistance + axialDistance * axialDistance) - minorRadius;
+    }
+  }
+};
+
+template <int DIM>
+using AnalyticPrimitive =
+  std::variant<std::monostate, primal::Sphere<double, DIM>, primal::Plane<double, DIM>, AnalyticTorus<DIM>>;
+
+template <int DIM>
+bool hasPrimitive(const AnalyticPrimitive<DIM>& primitive)
+{
+  return !std::holds_alternative<std::monostate>(primitive);
+}
+
+template <int DIM>
+bool supportsDistanceEnvelope(const AnalyticPrimitive<DIM>& primitive)
+{
+  return hasPrimitive(primitive) && !std::holds_alternative<primal::Plane<double, DIM>>(primitive);
+}
+
+template <int DIM>
+double signedDistance(const std::monostate&, const primal::Point<double, DIM>&)
+{
+  return axom::numeric_limits<double>::max();
+}
+
+template <int DIM>
+double signedDistance(const primal::Sphere<double, DIM>& sphere, const primal::Point<double, DIM>& pt)
+{
+  return sphere.computeSignedDistance(pt);
+}
+
+template <int DIM>
+double signedDistance(const primal::Plane<double, DIM>& plane, const primal::Point<double, DIM>& pt)
+{
+  return plane.signedDistance(pt);
+}
+
+template <int DIM>
+double signedDistance(const AnalyticTorus<DIM>& torus, const primal::Point<double, DIM>& pt)
+{
+  return torus.computeSignedDistance(pt);
+}
+
+template <int DIM>
+double analyticDistance(const AnalyticPrimitive<DIM>& primitive, const primal::Point<double, DIM>& pt)
+{
+  return std::visit([&](const auto& shape) { return std::fabs(signedDistance<DIM>(shape, pt)); },
+                    primitive);
+}
+
+struct AnalyticVerification
+{
+  std::string shapeName;
+  std::string description;
+  int dimension {-1};
+  std::vector<double> center;
+  std::vector<double> normal;
+  double radius {0.0};
+  double majorRadius {0.0};
+  double minorRadius {0.0};
+  double innerRadius {0.0};
+  double outerRadius {0.0};
+  double surfaceTolerance {1.0e-8};
+  double distanceTolerance {0.0};
+
+  template <int DIM>
+  AnalyticPrimitive<DIM> makePrimitive() const
+  {
+    if(dimension != DIM)
+    {
+      return std::monostate {};
+    }
+
+    const auto c = pointFromVector<DIM>(center);
+    if((shapeName == "circle" || shapeName == "sphere") && radius > 0.0)
+    {
+      return primal::Sphere<double, DIM>(c, radius);
+    }
+
+    if(shapeName == "plane")
+    {
+      const auto n = vectorFromVector<DIM>(normal);
+      return n.is_zero() ? AnalyticPrimitive<DIM> {std::monostate {}}
+                         : AnalyticPrimitive<DIM> {primal::Plane<double, DIM>(n, c)};
+    }
+
+    if constexpr(DIM == 2)
+    {
+      if(shapeName == "annulus" && outerRadius > innerRadius && innerRadius > 0.0)
+      {
+        return AnalyticTorus<DIM> {c,
+                                   0.5 * (innerRadius + outerRadius),
+                                   0.5 * (outerRadius - innerRadius)};
+      }
+    }
+    else if constexpr(DIM == 3)
+    {
+      if(shapeName == "torus" && majorRadius > 0.0 && minorRadius > 0.0)
+      {
+        return AnalyticTorus<DIM> {c, majorRadius, minorRadius};
+      }
+    }
+
+    return std::monostate {};
+  }
+
+  static AnalyticVerification fromNode(const conduit::Node& node, const std::string& description)
+  {
+    AnalyticVerification result;
+    result.description = description;
+    if(!node.has_path("shape"))
+    {
+      return result;
+    }
+
+    result.shapeName = node.fetch_existing("shape").as_string();
+    result.dimension = node.has_path("dimension") ? node.fetch_existing("dimension").to_int32() : -1;
+    if(node.has_path("center"))
+    {
+      result.center = conduitVector(node.fetch_existing("center"));
+    }
+    if(node.has_path("normal"))
+    {
+      result.normal = conduitVector(node.fetch_existing("normal"));
+    }
+    result.radius = conduitDouble(node, "radius", result.radius);
+    result.majorRadius = conduitDouble(node, "major_radius", result.majorRadius);
+    result.minorRadius = conduitDouble(node, "minor_radius", result.minorRadius);
+    result.innerRadius = conduitDouble(node, "inner_radius", result.innerRadius);
+    result.outerRadius = conduitDouble(node, "outer_radius", result.outerRadius);
+    result.surfaceTolerance = conduitDouble(node, "surface_tolerance", result.surfaceTolerance);
+    result.distanceTolerance = conduitDouble(node, "distance_tolerance", result.distanceTolerance);
+    return result;
+  }
+};
+
+template <int DIM>
+int verifyAnalyticClosestPoints(BlueprintParticleMesh& queryMesh,
+                                const AnalyticVerification& verification,
+                                double distThreshold)
+{
+  SLIC_ASSERT(queryMesh.dimension() == DIM);
+
+  using PointType = primal::Point<double, DIM>;
+  using IndexSet = slam::PositionSet<>;
+
+  const AnalyticPrimitive<DIM> primitive = verification.makePrimitive<DIM>();
+  if(!hasPrimitive(primitive))
+  {
+    SLIC_WARNING(
+      axom::fmt::format("Skipping unsupported analytic verification '{}'", verification.shapeName));
+    return 0;
+  }
+  const bool checkDistanceEnvelope = supportsDistanceEnvelope(primitive);
+
+  queryMesh.registerNodalScalarField<axom::IndexType>("verification_error");
+
+  int localErrCount = 0;
+  int localLogCount = 0;
+  constexpr int MAX_LOCAL_LOGS = 8;
+  const double distTol = std::max(verification.distanceTolerance, 1.0e-10);
+  const double surfaceTol = std::max(verification.surfaceTolerance, 1.0e-10);
+
+  auto logError = [&](const std::string& message) {
+    if(localLogCount < MAX_LOCAL_LOGS)
+    {
+      SLIC_INFO(message);
+    }
+    ++localLogCount;
+  };
+
+  for(axom::IndexType di = 0; di < queryMesh.domain_count(); ++di)
+  {
+    auto cpCoords = queryMesh.getNodalVectorField<PointType>("cp_coords", di);
+    auto cpIndices = queryMesh.getNodalScalarField<axom::IndexType>("cp_index", di);
+    auto errorFlag = queryMesh.getNodalScalarField<axom::IndexType>("verification_error", di);
+    axom::Array<double, 2> qPts = queryMesh.getVertexPositions(di);
+
+    for(auto ptIdx : IndexSet(queryMesh.numPoints(di)))
+    {
+      const PointType qPt(&qPts[ptIdx][0]);
+      const double analyticDist = analyticDistance(primitive, qPt);
+      const bool hasCp = cpIndices[ptIdx] >= 0;
+      bool err = false;
+
+      if(hasCp)
+      {
+        const PointType& cp = cpCoords[ptIdx];
+        const double cpDist = std::sqrt(primal::squared_distance(qPt, cp));
+        const double surfaceResidual = analyticDistance(primitive, cp);
+        const double eps = 1.0e-10 * (1.0 + std::max(cpDist, analyticDist));
+
+        if(surfaceResidual > surfaceTol)
+        {
+          err = true;
+          logError(axom::fmt::format(
+            "***Error: Closest point {} on domain {} has analytic residual {} for '{}'.",
+            cp,
+            di,
+            surfaceResidual,
+            verification.shapeName));
+        }
+
+        if(cpDist + eps < analyticDist)
+        {
+          err = true;
+          logError(axom::fmt::format(
+            "***Error: Discrete closest distance {} is below analytic distance {} at {}.",
+            cpDist,
+            analyticDist,
+            qPt));
+        }
+
+        if(checkDistanceEnvelope)
+        {
+          if(cpDist > analyticDist + distTol + eps)
+          {
+            err = true;
+            logError(axom::fmt::format(
+              "***Error: Discrete closest distance {} exceeds analytic distance {} "
+              "plus sampling tolerance {} at {}.",
+              cpDist,
+              analyticDist,
+              distTol,
+              qPt));
+          }
+
+          if(analyticDist > distThreshold + distTol + eps)
+          {
+            err = true;
+            logError(
+              axom::fmt::format("***Error: Query point {} is analytically outside threshold by {} "
+                                "but has closest point {}.",
+                                qPt,
+                                analyticDist - distThreshold,
+                                cp));
+          }
+        }
+      }
+      else if(checkDistanceEnvelope && analyticDist < distThreshold - distTol)
+      {
+        err = true;
+        logError(
+          axom::fmt::format("***Error: Query point {} is analytically inside threshold by {} "
+                            "but lacks a closest point.",
+                            qPt,
+                            distThreshold - analyticDist));
+      }
+
+      errorFlag[ptIdx] = err ? 1 : 0;
+      localErrCount += err ? 1 : 0;
+    }
+  }
+
+  int globalErrCount = 0;
+  MPI_Allreduce(&localErrCount, &globalErrCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  int globalLogCount = 0;
+  MPI_Allreduce(&localLogCount, &globalLogCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  SLIC_INFO(
+    axom::fmt::format("Analytic verification for '{}' found {} errors "
+                      "({} detailed messages{}).",
+                      verification.shapeName,
+                      globalErrCount,
+                      globalLogCount,
+                      globalLogCount > MAX_LOCAL_LOGS * num_ranks ? " shown partly" : ""));
+  return globalErrCount;
 }
 
 void make_coords_contiguous(conduit::Node& coordValues)
@@ -1319,6 +1714,20 @@ int main(int argc, char** argv)
   ObjectMeshWrapper objectMeshWrapper(dataStore.getRoot()->createGroup("object_mesh", true),
                                       params.objectMeshFile);
 
+  AnalyticVerification analyticVerification;
+  const bool hasAnalyticVerification = objectMeshWrapper.hasVerification();
+  if(hasAnalyticVerification)
+  {
+    analyticVerification = AnalyticVerification::fromNode(objectMeshWrapper.verification(),
+                                                          objectMeshWrapper.description());
+    if(my_rank == 0)
+    {
+      SLIC_INFO(axom::fmt::format("Loaded analytic verification metadata for '{}': {}",
+                                  analyticVerification.shapeName,
+                                  objectMeshWrapper.description()));
+    }
+  }
+
   if(params.isVerbose())
   {
     objectMeshWrapper.getParticleMesh().printMeshSizeStats("Object mesh");
@@ -1455,6 +1864,23 @@ int main(int argc, char** argv)
                                      "direction");
   }
 
+  int globalVerificationErrors = 0;
+  if(hasAnalyticVerification)
+  {
+    if(spatialDim == 2)
+    {
+      globalVerificationErrors = verifyAnalyticClosestPoints<2>(queryMeshWrapper.getParticleMesh(),
+                                                                analyticVerification,
+                                                                params.distThreshold);
+    }
+    else if(spatialDim == 3)
+    {
+      globalVerificationErrors = verifyAnalyticClosestPoints<3>(queryMeshWrapper.getParticleMesh(),
+                                                                analyticVerification,
+                                                                params.distThreshold);
+    }
+  }
+
   // queryMeshNode.print();
   queryMeshNode.reset();
 
@@ -1465,5 +1891,5 @@ int main(int argc, char** argv)
   finalizeLogger();
   MPI_Finalize();
 
-  return 0;
+  return globalVerificationErrors == 0 ? 0 : 1;
 }
