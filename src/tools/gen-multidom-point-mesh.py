@@ -8,6 +8,18 @@
 #   <bp_root>/<domainName>            (multidomain output)
 #    |-- state
 #    |   `-- domain_id                == <global domain id>
+#    |   `-- description              (analytic/input description string; stored in state
+#    |                                  so Blueprint relay preserves it)
+#    |   `-- verification             (optional analytic verification metadata; stored in state)
+#    |        |-- shape               == "circle", "sphere", "torus", "plane", or "annulus"
+#    |        |-- dimension           == 2 or 3
+#    |        |-- center              (float64, dimension)
+#    |        |-- normal              (float64, dimension; plane only)
+#    |        |-- radius              (circle/sphere)
+#    |        |-- {major,minor}_radius (torus)
+#    |        |-- {inner,outer}_radius (annulus)
+#    |        |-- surface_tolerance   (float64 residual tolerance for shape membership)
+#    |        `-- distance_tolerance  (float64 sampling slack for DCP checks)
 #    |-- topologies
 #    |   `-- <topologyName>
 #    |        |-- coordset            == <coordsetName>
@@ -30,6 +42,42 @@
 #             |-- topology            == <topologyName>
 #             |-- association         == "vertex"
 #             `-- values              (int64, point_count)
+#
+# Usage examples:
+#   # 2D circle object mesh split over N MPI ranks, with some empty domains:
+#   srun -n N build-axom/bin/run_python_with_axom.sh \\
+#     src/tools/gen-multidom-point-mesh.py circle --point-count 64 --domains 4 \\
+#     --center 0.7,0.9 --radius 0.9 --output dcp_object_circle
+#
+#   # 3D sphere object mesh split over N MPI ranks using latitude/longitude samples:
+#   srun -n N build-axom/bin/run_python_with_axom.sh \\
+#     src/tools/gen-multidom-point-mesh.py sphere --long-point-count 60 \\
+#     --lat-point-count 30 --center 0.7,0.9,0.5 --radius 0.9 \\
+#     --domains 6 --output dcp_object_sphere
+#
+#   # 3D torus object mesh:
+#   build-axom/bin/run_python_with_axom.sh \\
+#     src/tools/gen-multidom-point-mesh.py torus --point-count 1024 \\
+#     --center 0,0,0 --major-radius 0.75 --minor-radius 0.2 \\
+#     --domains 4 --output dcp_object_torus
+#
+#   # 3D codimension-1 plane object mesh:
+#   build-axom/bin/run_python_with_axom.sh \\
+#     src/tools/gen-multidom-point-mesh.py plane --dimension 3 --grid-size 32,32 \\
+#     --center 0,0,0 --normal 0,0,1 --extent 2,2 --domains 4 \\
+#     --output dcp_object_plane
+#
+#   # 2D structured quad query mesh; DCP queries are evaluated over the vertices:
+#   build-axom/bin/run_python_with_axom.sh \\
+#     src/tools/gen-multidom-point-mesh.py grid --grid-size 100,100 \\
+#     --min 0,0 --max 2,2 --domain-counts 2,1 --grid-topology structured \\
+#     --output dcp_query_structured_quads
+#
+#   # 3D unstructured hex query mesh:
+#   build-axom/bin/run_python_with_axom.sh \\
+#     src/tools/gen-multidom-point-mesh.py grid --grid-size 20,20,15 \\
+#     --min 0,0,0 --max 2,2,2 --domain-counts 2,2,1 \\
+#     --grid-topology unstructured --output dcp_query_unstructured_hexes
 
 # This script requires a conduit installation configured with python3 and hdf5.
 # Make sure PYTHONPATH includes /path/to/conduit/install/python-modules,
@@ -153,6 +201,9 @@ def add_common_options(parser):
     bp.add_argument('--id-field',
                     action='store_true',
                     help='Add a vertex-associated int64 global_id field')
+    bp.add_argument('--no-verification',
+                    action='store_true',
+                    help='Omit analytic verification metadata')
     bp.add_argument('--protocol', default='hdf5', help='Conduit relay protocol for save_mesh')
     bp.add_argument('-o', '--output', default='mdmesh', help='Output file base name')
     bp.add_argument('-v', '--verbose', action='store_true', help='Print additional info')
@@ -246,6 +297,42 @@ def parse_args():
     torus.add_argument('--major-radius', type=float, default=1.0, help='Torus major radius')
     torus.add_argument('--minor-radius', type=float, default=0.25, help='Torus minor radius')
 
+    annulus = subparsers.add_parser('annulus',
+                                    formatter_class=ArgumentDefaultsHelpFormatter,
+                                    help='2D analytic annulus boundary point mesh')
+    add_common_options(annulus)
+    add_point_topology_options(annulus)
+    annulus.add_argument('-n',
+                         '--point-count',
+                         type=positive_int,
+                         default=1024,
+                         help='Total number of points on the inner and outer circles')
+    annulus.add_argument('--center', type=f_c, help='Center coordinates; scalar or 2 values')
+    annulus.add_argument('--inner-radius', type=float, default=0.5, help='Inner radius')
+    annulus.add_argument('--outer-radius', type=float, default=1.0, help='Outer radius')
+    annulus.add_argument('--random-spacing',
+                         action='store_true',
+                         help='Use random angular spacing instead of uniform spacing')
+    annulus.add_argument('--seed', type=int, default=0, help='Random seed for random spacing')
+
+    plane = subparsers.add_parser('plane',
+                                  formatter_class=ArgumentDefaultsHelpFormatter,
+                                  help='2D line or 3D plane point mesh')
+    add_common_options(plane)
+    add_point_topology_options(plane)
+    plane.add_argument('-d', '--dimension', type=int, choices=(2, 3), help='Spatial dimension')
+    plane.add_argument('-n',
+                       '--point-count',
+                       type=positive_int,
+                       default=1024,
+                       help='Target point count when --grid-size is omitted')
+    plane.add_argument('--grid-size',
+                       type=i_c,
+                       help='Point count along the line, or two counts on the plane')
+    plane.add_argument('--center', type=f_c, help='Plane center; scalar or per dimension')
+    plane.add_argument('--normal', type=f_c, help='Plane normal; scalar or per dimension')
+    plane.add_argument('--extent', type=f_c, help='Line length in 2D, or two side lengths in 3D')
+
     grid = subparsers.add_parser('grid',
                                  formatter_class=ArgumentDefaultsHelpFormatter,
                                  help='Regular grid mesh over --min/--max')
@@ -308,13 +395,17 @@ def parse_args():
 
 def infer_dimension(opts):
     '''Infer and validate the spatial dimension.'''
-    fixed_dims = {'circle': 2, 'sphere': 3, 'torus': 3}
+    fixed_dims = {'circle': 2, 'sphere': 3, 'torus': 3, 'annulus': 2}
     if opts.shape in fixed_dims:
         return fixed_dims[opts.shape]
 
     dim = opts.dimension
     inferred = []
-    for name in ('grid_size', 'lower', 'upper', 'center', 'stddev', 'domain_counts'):
+    names = ('grid_size', 'lower', 'upper', 'center', 'stddev', 'domain_counts')
+    if opts.shape == 'plane':
+        # Plane grid_size/extent are intrinsic coordinates, not spatial dimension.
+        names = ('center', 'normal', 'domain_counts')
+    for name in names:
         values = getattr(opts, name, None)
         if values is not None:
             inferred.append(len(values))
@@ -338,12 +429,31 @@ def infer_dimension(opts):
 def vector_option(values, dim, default, name):
     '''Return a dimension-sized numpy vector from an optional scalar/list argument.'''
     if values is None:
+        if hasattr(default, '__len__'):
+            default = np.array(default, dtype=float)
+            if len(default) != dim:
+                raise RuntimeError(f'default for {name} must have {dim} values')
+            return default
         return np.full(dim, default, dtype=float)
     if len(values) == 1:
         return np.full(dim, values[0], dtype=float)
     if len(values) != dim:
         raise RuntimeError(f'{name} must have one value or {dim} values')
     return np.array(values, dtype=float)
+
+
+def normalized(vec, name):
+    '''Return a normalized copy of a vector.'''
+    norm = np.linalg.norm(vec)
+    if norm <= 0.0:
+        raise RuntimeError(f'{name} must be nonzero')
+    return vec / norm
+
+
+def default_normal(dim):
+    normal = np.zeros(dim, dtype=float)
+    normal[-1] = 1.0
+    return normal
 
 
 def domain_counts_from_options(opts, dim, mpi_size):
@@ -509,6 +619,81 @@ def generate_torus(point_count, center, major_radius, minor_radius):
     return points
 
 
+def generate_annulus(point_count, center, inner_radius, outer_radius, random_spacing, seed):
+    if point_count < 2:
+        raise RuntimeError('annulus requires at least two points')
+
+    inner_count = point_count // 2
+    outer_count = point_count - inner_count
+    rng = np.random.default_rng(seed)
+
+    def ring_points(count, radius):
+        if random_spacing:
+            theta = np.sort(rng.uniform(0.0, 2.0 * math.pi, count))
+        else:
+            theta = np.linspace(0.0, 2.0 * math.pi, count, endpoint=False)
+        ring = np.empty((count, 2), dtype=np.float64)
+        ring[:, 0] = center[0] + radius * np.cos(theta)
+        ring[:, 1] = center[1] + radius * np.sin(theta)
+        return ring
+
+    return np.vstack((ring_points(inner_count,
+                                  inner_radius), ring_points(outer_count, outer_radius)))
+
+
+def plane_basis(normal):
+    '''Return one tangent in 2D or two orthonormal tangents in 3D.'''
+    if len(normal) == 2:
+        return (np.array([-normal[1], normal[0]], dtype=np.float64), )
+
+    ref = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+    if abs(np.dot(ref, normal)) > 0.9:
+        ref = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+    tangent0 = normalized(np.cross(normal, ref), '--normal')
+    tangent1 = normalized(np.cross(normal, tangent0), '--normal')
+    return tangent0, tangent1
+
+
+def plane_grid_counts(opts, dim):
+    if opts.grid_size is not None:
+        counts = np.array(opts.grid_size, dtype=int)
+        expected = 1 if dim == 2 else 2
+        if len(counts) != expected:
+            raise RuntimeError(f'--grid-size for a {dim}D plane must have {expected} value(s)')
+        if np.any(counts < 1):
+            raise RuntimeError('plane grid sizes must be positive')
+        return counts
+
+    if dim == 2:
+        return np.array([opts.point_count], dtype=int)
+
+    base = max(1, int(round(math.sqrt(opts.point_count))))
+    counts = np.array([base, base], dtype=int)
+    while int(np.prod(counts)) < opts.point_count:
+        counts[np.argmin(counts)] += 1
+    return counts
+
+
+def generate_plane(opts, dim, center, normal):
+    counts = plane_grid_counts(opts, dim)
+    extent = vector_option(getattr(opts, 'extent', None), len(counts), 2.0, '--extent')
+    if np.any(extent <= 0.0):
+        raise RuntimeError('--extent values must be positive')
+
+    basis = plane_basis(normal)
+    if dim == 2:
+        t = np.linspace(-0.5 * extent[0], 0.5 * extent[0], counts[0])
+        return center + np.outer(t, basis[0])
+
+    axes = [np.linspace(-0.5 * extent[d], 0.5 * extent[d], counts[d]) for d in range(2)]
+    coords = np.meshgrid(*axes, indexing='ij')
+    weights = np.column_stack([coord.ravel(order='F') for coord in coords])
+    points = np.empty((weights.shape[0], 3), dtype=np.float64)
+    for i, weight in enumerate(weights):
+        points[i] = center + weight[0] * basis[0] + weight[1] * basis[1]
+    return points
+
+
 def generate_gaussian(point_count, center, stddev, seed):
     rng = np.random.default_rng(seed)
     return rng.normal(loc=center, scale=stddev, size=(point_count, len(center)))
@@ -555,7 +740,7 @@ def generate_grid_domains(grid_counts, lower, upper, domain_counts):
     return chunks
 
 
-def generated_domains(opts, dim, lower, upper, center, stddev, domain_counts):
+def generated_domains(opts, dim, lower, upper, center, normal, stddev, domain_counts):
     '''Return generated domain chunk dictionaries.'''
     if opts.shape == 'grid':
         grid_counts = grid_counts_from_options(opts, dim)
@@ -580,6 +765,11 @@ def generated_domains(opts, dim, lower, upper, center, stddev, domain_counts):
         points = generate_sphere(opts, center, opts.radius)
     elif opts.shape == 'torus':
         points = generate_torus(opts.point_count, center, opts.major_radius, opts.minor_radius)
+    elif opts.shape == 'annulus':
+        points = generate_annulus(opts.point_count, center, opts.inner_radius, opts.outer_radius,
+                                  opts.random_spacing, opts.seed)
+    elif opts.shape == 'plane':
+        points = generate_plane(opts, dim, center, normal)
     elif opts.shape == 'gaussian':
         points = generate_gaussian(opts.point_count, center, stddev, opts.seed)
     elif opts.shape == 'uniform':
@@ -636,13 +826,141 @@ def grid_connectivity(counts):
     return np.array(conn, dtype=np.int32), 'hex'
 
 
-def fill_domain(dom, opts, chunk):
+def format_vector(values):
+    return '(' + ', '.join(f'{value:g}' for value in values) + ')'
+
+
+def shape_description(opts, dim, lower, upper, center, normal, stddev):
+    if opts.shape == 'circle':
+        return f'2D circle centered at {format_vector(center)} with radius {opts.radius:g}'
+    if opts.shape == 'sphere':
+        return f'3D sphere centered at {format_vector(center)} with radius {opts.radius:g}'
+    if opts.shape == 'torus':
+        return (f'3D torus centered at {format_vector(center)} with major radius '
+                f'{opts.major_radius:g} and minor radius {opts.minor_radius:g}')
+    if opts.shape == 'annulus':
+        return (f'2D annulus centered at {format_vector(center)} with inner radius '
+                f'{opts.inner_radius:g} and outer radius {opts.outer_radius:g}')
+    if opts.shape == 'plane':
+        return f'{dim}D codimension-1 plane centered at {format_vector(center)}'
+    if opts.shape == 'grid':
+        return f'{dim}D regular grid over [{format_vector(lower)}, {format_vector(upper)}]'
+    if opts.shape == 'gaussian':
+        return (f'{dim}D Gaussian point cloud centered at {format_vector(center)} with stddev '
+                f'{format_vector(stddev)}')
+    if opts.shape == 'uniform':
+        return f'{dim}D uniform random point cloud over [{format_vector(lower)}, {format_vector(upper)}]'
+    return f'{dim}D {opts.shape} point mesh'
+
+
+def circle_spacing(radius, point_count):
+    return 2.0 * math.pi * radius / max(point_count, 1)
+
+
+def sphere_spacing(opts, radius):
+    if opts.long_point_count is not None or opts.lat_point_count is not None:
+        long_count = opts.long_point_count if opts.long_point_count is not None else opts.point_count
+        lat_count = opts.lat_point_count if opts.lat_point_count is not None else 1
+        long_spacing = 2.0 * math.pi * radius / max(long_count, 1)
+        lat_spacing = 0.0
+        if lat_count > 1:
+            lat_spacing = radius * math.radians(opts.lat_range[1] -
+                                                opts.lat_range[0]) / (lat_count - 1)
+        return math.sqrt(long_spacing * long_spacing + lat_spacing * lat_spacing)
+
+    return radius * math.sqrt(4.0 * math.pi / max(opts.point_count, 1))
+
+
+def torus_spacing(major_radius, minor_radius, point_count):
+    area = 4.0 * math.pi * math.pi * major_radius * minor_radius
+    return 2.0 * math.sqrt(area / max(point_count, 1))
+
+
+def annulus_spacing(opts):
+    inner_count = max(opts.point_count // 2, 1)
+    outer_count = max(opts.point_count - inner_count, 1)
+    return max(circle_spacing(opts.inner_radius, inner_count),
+               circle_spacing(opts.outer_radius, outer_count))
+
+
+def plane_spacing(opts, dim):
+    counts = plane_grid_counts(opts, dim)
+    extent = vector_option(getattr(opts, 'extent', None), len(counts), 2.0, '--extent')
+    spacing = []
+    for d, count in enumerate(counts):
+        spacing.append(extent[d] / max(count - 1, 1))
+    return max(spacing)
+
+
+def verification_metadata(opts, dim, center, normal):
+    if opts.no_verification:
+        return None
+
+    metadata = {'shape': opts.shape, 'dimension': dim, 'surface_tolerance': 1.0e-8}
+    if opts.shape == 'circle':
+        metadata.update({
+            'center': center,
+            'radius': opts.radius,
+            'distance_tolerance': circle_spacing(opts.radius, opts.point_count),
+        })
+    elif opts.shape == 'sphere':
+        metadata.update({
+            'center': center,
+            'radius': opts.radius,
+            'distance_tolerance': sphere_spacing(opts, opts.radius),
+        })
+    elif opts.shape == 'torus':
+        metadata.update({
+            'center':
+            center,
+            'major_radius':
+            opts.major_radius,
+            'minor_radius':
+            opts.minor_radius,
+            'distance_tolerance':
+            torus_spacing(opts.major_radius, opts.minor_radius, opts.point_count),
+        })
+    elif opts.shape == 'annulus':
+        metadata.update({
+            'center': center,
+            'inner_radius': opts.inner_radius,
+            'outer_radius': opts.outer_radius,
+            'distance_tolerance': annulus_spacing(opts),
+        })
+    elif opts.shape == 'plane':
+        metadata.update({
+            'center': center,
+            'normal': normal,
+            'distance_tolerance': plane_spacing(opts, dim),
+        })
+    else:
+        return None
+
+    return metadata
+
+
+def add_metadata(dom, metadata):
+    dom['state/description'] = metadata['description']
+    verification = metadata['verification']
+    if verification is None:
+        return
+
+    ver_node = dom['state/verification']
+    for key, value in verification.items():
+        if isinstance(value, np.ndarray):
+            ver_node[key].set(np.ascontiguousarray(value, dtype=np.float64))
+        else:
+            ver_node[key] = value
+
+
+def fill_domain(dom, opts, chunk, metadata):
     '''Fill one blueprint domain with mesh data.'''
     points = chunk['points']
     point_count = points.shape[0]
     dim = points.shape[1]
 
     dom['state/domain_id'] = int(chunk['domain_id'])
+    add_metadata(dom, metadata)
     dom[f'coordsets/{opts.coordset_name}/type'] = 'explicit'
     for d in range(dim):
         values_path = f'coordsets/{opts.coordset_name}/values/{AXES[d]}'
@@ -685,14 +1003,14 @@ def fill_domain(dom, opts, chunk):
                       dtype=np.int64))
 
 
-def create_domain(md_mesh, opts, chunk):
+def create_domain(md_mesh, opts, chunk, metadata):
     '''Append one domain to the multidomain mesh.'''
     if opts.use_list:
         dom = md_mesh.append()
     else:
         dom = md_mesh[domain_name(chunk['domain_index'])]
 
-    fill_domain(dom, opts, chunk)
+    fill_domain(dom, opts, chunk, metadata)
 
 
 def local_chunks_for_rank(chunks, rank, size, single_domain):
@@ -735,6 +1053,9 @@ def main():
     lower = vector_option(getattr(opts, 'lower', None), dim, -1.0, '--min')
     upper = vector_option(getattr(opts, 'upper', None), dim, 1.0, '--max')
     center = vector_option(getattr(opts, 'center', None), dim, 0.0, '--center')
+    normal = vector_option(getattr(opts, 'normal', None), dim, default_normal(dim), '--normal')
+    if opts.shape == 'plane':
+        normal = normalized(normal, '--normal')
     stddev = vector_option(getattr(opts, 'stddev', None), dim, 1.0, '--stddev')
     domain_counts = domain_counts_from_options(opts, dim, mpi['size'])
 
@@ -744,19 +1065,27 @@ def main():
         raise RuntimeError('--radius must be positive')
     if hasattr(opts, 'major_radius') and (opts.major_radius <= 0.0 or opts.minor_radius <= 0.0):
         raise RuntimeError('--major-radius and --minor-radius must be positive')
+    if hasattr(opts, 'inner_radius') and (opts.inner_radius <= 0.0
+                                          or opts.outer_radius <= opts.inner_radius):
+        raise RuntimeError('--outer-radius must be greater than positive --inner-radius')
     if np.any(stddev <= 0.0):
         raise RuntimeError('--stddev values must be positive')
 
-    chunks = generated_domains(opts, dim, lower, upper, center, stddev, domain_counts)
+    metadata = {
+        'description': shape_description(opts, dim, lower, upper, center, normal, stddev),
+        'verification': verification_metadata(opts, dim, center, normal),
+    }
+
+    chunks = generated_domains(opts, dim, lower, upper, center, normal, stddev, domain_counts)
     local_chunks = local_chunks_for_rank(chunks, mpi['rank'], mpi['size'], opts.single_domain)
 
     mesh = conduit.Node()
     if opts.single_domain:
         if local_chunks:
-            fill_domain(mesh, opts, local_chunks[0])
+            fill_domain(mesh, opts, local_chunks[0], metadata)
     else:
         for chunk in local_chunks:
-            create_domain(mesh, opts, chunk)
+            create_domain(mesh, opts, chunk, metadata)
 
     if opts.verbose:
         print(f'rank {mpi["rank"]} mesh:')
