@@ -38,6 +38,7 @@
 // C/C++ includes
 #include <string>
 #include <map>
+#include <memory>
 #include <vector>
 #include <cmath>
 
@@ -66,6 +67,8 @@ public:
   std::string meshFile;
   std::string distanceFile {"cp_coords"};
   std::string objectFile {"object_mesh"};
+
+  std::string objectMeshFile;
 
   double circleRadius {1.0};
   std::vector<double> circleCenter {0.0, 0.0};
@@ -130,6 +133,12 @@ public:
     app.add_option("-o,--object-file", objectFile)
       ->description("Name of output file containing object mesh.")
       ->capture_default_str();
+
+    app.add_option("--object-mesh-file", objectMeshFile)
+      ->description(
+        "Path to a conduit blueprint point mesh root file. "
+        " When provided, we use this instead of an analytically generated object mesh.")
+      ->check(axom::CLI::ExistingFile);
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
       ->description("Enable/disable verbose output")
@@ -721,6 +730,16 @@ public:
     SLIC_ASSERT(group != nullptr);
   }
 
+  //!@brief Construct by reading a blueprint object mesh from disk.
+  //! Uses the topology/coordset names found in the file, exactly like the
+  //! query mesh reader.  (The empty-topology BlueprintParticleMesh ctor lets
+  //! read_blueprint_mesh pick the file's actual topology.)
+  ObjectMeshWrapper(sidre::Group* group, const std::string& meshFilename) : m_objectMesh(group)
+  {
+    SLIC_ASSERT(group != nullptr);
+    m_objectMesh.read_blueprint_mesh(meshFilename);
+  }
+
   BlueprintParticleMesh& getParticleMesh() { return m_objectMesh; }
 
   /// Get a pointer to the root group for this mesh
@@ -1303,15 +1322,33 @@ int main(int argc, char** argv)
   slic::flushStreams();
 
   const size_t spatialDim = queryMeshWrapper.getParticleMesh().dimension();
-  SLIC_ASSERT(params.circleCenter.size() == spatialDim);
+
+  const bool readObjectFromFile = !params.objectMeshFile.empty();
+
+  // The analytic circle/sphere generator needs a center whose dimension matches the query mesh.
+  // only enforce that when we are actually generating.
+  SLIC_ASSERT(readObjectFromFile || params.circleCenter.size() == spatialDim);
 
   //---------------------------------------------------------------------------
-  // Generate object mesh
+  // Object (second) mesh: read from file, or generate analytically
   //---------------------------------------------------------------------------
 
-  ObjectMeshWrapper objectMeshWrapper(dataStore.getRoot()->createGroup("object_mesh", true));
+  std::unique_ptr<ObjectMeshWrapper> objectMeshWrapperPtr;
+  if(readObjectFromFile)
+  {
+    objectMeshWrapperPtr =
+      std::make_unique<ObjectMeshWrapper>(dataStore.getRoot()->createGroup("object_mesh", true),
+                                          params.objectMeshFile);
+  }
+  else
+  {
+    objectMeshWrapperPtr =
+      std::make_unique<ObjectMeshWrapper>(dataStore.getRoot()->createGroup("object_mesh", true));
+  }
+  ObjectMeshWrapper& objectMeshWrapper = *objectMeshWrapperPtr;
   objectMeshWrapper.setVerbosity(params.isVerbose());
 
+  if(!readObjectFromFile)
   {
     SLIC_ASSERT(params.objDomainCountRange[1] >= params.objDomainCountRange[0]);
     const unsigned int omin = params.objDomainCountRange[0];
@@ -1336,7 +1373,11 @@ int main(int argc, char** argv)
   }
   slic::flushStreams();
 
-  objectMeshWrapper.saveMesh(params.objectFile);
+  // Only re-save the generated object; a file-read object is already on disk.
+  if(!readObjectFromFile)
+  {
+    objectMeshWrapper.saveMesh(params.objectFile);
+  }
   slic::flushStreams();
 
   //---------------------------------------------------------------------------
@@ -1359,25 +1400,6 @@ int main(int argc, char** argv)
   // Put sidre data into Conduit Node.
   conduit::Node queryMeshNode;
   queryMeshWrapper.getBlueprintGroup()->createNativeLayout(queryMeshNode);
-
-  // To test with contiguous and interleaved coordinate storage,
-  // make half them contiguous.
-  for(int di = 0; di < objectMeshNode.number_of_children(); ++di)
-  {
-    auto& dom = objectMeshNode.child(di);
-    if((my_rank + di) % 2 == 1)
-    {
-      make_coords_contiguous(dom.fetch_existing("coordsets/coords/values"));
-    }
-  }
-  for(int di = 0; di < queryMeshNode.number_of_children(); ++di)
-  {
-    auto& dom = queryMeshNode.child(di);
-    if((my_rank + di) % 2 == 1)
-    {
-      make_coords_contiguous(dom.fetch_existing("coordsets/coords/values"));
-    }
-  }
 
   // Create distributed closest point query object and set some parameters
   quest::DistributedClosestPoint query;
