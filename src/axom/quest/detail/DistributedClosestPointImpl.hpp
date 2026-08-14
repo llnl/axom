@@ -880,10 +880,9 @@ private:
    * \param [out] sqDistance Optional reference to receive the squared distance
    * between the boxes.
    */
-  bool is_statically_eligible(
-    const BoxType& queryBb,
-    const BoxType& objectBb,
-    std::optional<std::reference_wrapper<double>> sqDistance = std::nullopt) const
+  bool is_statically_eligible(const BoxType& queryBb,
+                              const BoxType& objectBb,
+                              std::optional<std::reference_wrapper<double>> sqDistance = std::nullopt) const
   {
     if(!queryBb.isValid() || !objectBb.isValid())
     {
@@ -934,9 +933,7 @@ private:
         return maybeNextRecip;
       }
       if(double sqDistance = 0.0;
-         is_statically_eligible(bb,
-                                m_objectPartitionBbs[maybeNextRecip],
-                                sqDistance))
+         is_statically_eligible(bb, m_objectPartitionBbs[maybeNextRecip], sqDistance))
       {
         /// Use the next recipient if that rank may be able to update one of the
         /// points in the query, otherwise skip that rank. An update is possible
