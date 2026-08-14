@@ -314,24 +314,25 @@ public:
 
     if(domCount > 0)
     {
-      m_coordsAreStrided =
-        mdMesh[0].fetch_existing("topologies/mesh/elements/dims").has_child("strides");
-      if(m_coordsAreStrided)
-      {
-        SLIC_WARNING(
-          axom::fmt::format("Mesh '{}' is strided.  Stride support is under development.",
-                            meshFilename));
-      }
-    }
-
-    if(domCount > 0)
-    {
       if(m_topologyName.empty())
       {
         // No topology given.  Pick the first one.
         m_topologyName = mdMesh[0].fetch_existing("topologies")[0].name();
       }
       auto topologyPath = axom::fmt::format("topologies/{}", m_topologyName);
+
+      // Detect strided structured coordinates.
+      // Structured topologies have elements/dims, but points and unstructured topology don't.
+      // Guard the probe use the resolved topology name rather than a hardcoded "mesh" topology.
+      const std::string dimsPath = topologyPath + "/elements/dims";
+      m_coordsAreStrided =
+        mdMesh[0].has_path(dimsPath) && mdMesh[0].fetch_existing(dimsPath).has_child("strides");
+      if(m_coordsAreStrided)
+      {
+        SLIC_WARNING(
+          axom::fmt::format("Mesh '{}' is strided.  Stride support is under development.",
+                            meshFilename));
+      }
 
       m_coordsetName = mdMesh[0].fetch_existing(topologyPath + "/coordset").as_string();
       const conduit::Node coordsetNode =
