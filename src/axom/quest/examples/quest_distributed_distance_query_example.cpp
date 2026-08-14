@@ -292,7 +292,8 @@ public:
   /// Gets the parent group for the blueprint fields
   sidre::Group* fields_group(axom::IndexType groupIdx) const
   {
-    return domain_group(groupIdx)->getGroup("fields");
+    auto* domain = domain_group(groupIdx);
+    return domain->hasGroup("fields") ? domain->getGroup("fields") : domain->createGroup("fields");
   }
 
   const std::string& getTopologyName() const { return m_topologyName; }
@@ -342,7 +343,13 @@ public:
 
     conduit::Node mdMesh;
     conduit::relay::mpi::io::blueprint::load_mesh(meshFilename, mdMesh, MPI_COMM_WORLD);
-    assert(conduit::blueprint::mesh::is_multi_domain(mdMesh));
+    if(!conduit::blueprint::mesh::is_multi_domain(mdMesh) && mdMesh.number_of_children() > 0)
+    {
+      conduit::Node singleDomainMesh;
+      singleDomainMesh.update(mdMesh);
+      mdMesh.reset();
+      conduit::blueprint::mesh::to_multi_domain(singleDomainMesh, mdMesh);
+    }
     conduit::index_t domCount = conduit::blueprint::mesh::number_of_domains(mdMesh);
 
     if(domCount > 0)
@@ -597,13 +604,13 @@ public:
   {
     auto* domain = m_group->getGroup(domainIdx);
     auto* fields = domain->getGroup("fields");
-    auto has = fields->hasGroup(fieldName);
-    return has;
+    return fields != nullptr && fields->hasGroup(fieldName);
   }
 
   bool hasVectorField(const std::string& fieldName, int domainIdx = 0) const
   {
-    return m_group->getGroup(domainIdx)->getGroup("fields")->hasGroup(fieldName);
+    auto* fields = m_group->getGroup(domainIdx)->getGroup("fields");
+    return fields != nullptr && fields->hasGroup(fieldName);
   }
 
   template <typename T>
@@ -617,7 +624,7 @@ public:
 
     auto* domain = m_group->getGroup(domainIdx);
     auto* fields = domain->getGroup("fields");
-    auto* field = fields->getGroup(fieldName);
+    auto* field = fields != nullptr ? fields->getGroup(fieldName) : nullptr;
     T* data = field ? static_cast<T*>(field->getView("values")->getVoidPtr()) : nullptr;
 
     return field ? axom::ArrayView<T>(data, numPoints(domainIdx)) : axom::ArrayView<T>();
@@ -638,11 +645,11 @@ public:
     // need to modify this implementation accordingly.
     T* data = nullptr;
     axom::IndexType npts = 0;
-    bool has = m_group->getGroup(domainIdx)->getGroup("fields")->hasGroup(fieldName);
+    auto* fields = m_group->getGroup(domainIdx)->getGroup("fields");
+    bool has = fields != nullptr && fields->hasGroup(fieldName);
     if(has)
     {
-      auto xView =
-        m_group->getGroup(domainIdx)->getGroup("fields")->getGroup(fieldName)->getView("values/x");
+      auto xView = fields->getGroup(fieldName)->getView("values/x");
       data = static_cast<T*>(xView->getVoidPtr());
       npts = xView->getNumElements();
     }
@@ -677,8 +684,8 @@ public:
   sidre::Group* getDomain(axom::IndexType domain) { return m_group->getGroup(domain); }
   sidre::Group* getFields(axom::IndexType domainIdx)
   {
-    auto* fields = m_group->getGroup(domainIdx)->getGroup("fields");
-    return fields;
+    auto* domain = m_group->getGroup(domainIdx);
+    return domain->hasGroup("fields") ? domain->getGroup("fields") : domain->createGroup("fields");
   }
 
   /// Checks whether the blueprint is valid and prints diagnostics
@@ -856,7 +863,8 @@ public:
       sidre::Group& domGroup = *dstDomains->getGroup(d);
       const conduit::Node& domNode = isMultidomain ? node.child(d) : node;
 
-      sidre::Group& dstFieldsGroup = *domGroup.getGroup("fields");
+      sidre::Group& dstFieldsGroup =
+        *(domGroup.hasGroup("fields") ? domGroup.getGroup("fields") : domGroup.createGroup("fields"));
       const conduit::Node& srcFieldsNode = domNode.fetch_existing("fields");
       {
         if(!m_queryMesh.hasScalarField("cp_rank"))
