@@ -17,9 +17,13 @@ arrays. E.g. if the array had 6 entries [1.01, 2.02, 3.03, 4.04, 5.05, 6.06]
 and the user passed in ``--strip 3``, the array would be converted to
 [6, 3, nan, 1.01, 2.02, 3.03].
 
-The strip option is intended as a temporary solution to truncating
-a dataset to allow easier debugging. In the future, the conversion and
-truncation/display functionality may be separated into distinct utilities.
+For Blueprint meshes, ``--strip`` applies to numeric array leaves with more than
+one element and leaves scalar/string metadata intact.
+A ``state/Note`` node is added to each output domain to record that the mesh was stripped.
+
+The resulting stripped output is intended for debugging, not for use as a valid mesh.
+In the future, the conversion and truncation/display functionality may be
+separated into distinct utilities.
 """
 
 from __future__ import annotations
@@ -246,11 +250,61 @@ def blueprint_domain_count(mesh) -> int:
     return mesh.number_of_children()
 
 
+def strip_note(data_kind: str, max_size: int) -> str:
+    return (f"This {data_kind} was created by axom's 'convert_sidre_protocol' utility "
+            f"with option '--strip {max_size}'. To simplify debugging, the bulk "
+            f"data in this {data_kind} has been truncated to have at most {max_size} "
+            "original values per array. Three values have been prepended to each array: "
+            "the size of the original array, the number of retained elements and a zero/Nan.")
+
+
+def add_blueprint_strip_note(mesh, note: str) -> None:
+    if mesh.has_path("coordsets") and mesh.has_path("topologies"):
+        mesh["state/Note"] = note
+        return
+
+    for child_idx in range(mesh.number_of_children()):
+        domain = mesh.child(child_idx)
+        if domain.has_path("coordsets") and domain.has_path("topologies"):
+            domain["state/Note"] = note
+
+
+def truncate_conduit_numeric_array(node, max_size: int, verbose: bool) -> int:
+    dtype = node.dtype()
+    original_size = dtype.number_of_elements()
+    if not dtype.is_number() or original_size <= 1:
+        return 0
+
+    retained_size = min(max_size, original_size)
+    values = np.asarray(node.value()).reshape(-1)
+    retained = values[:retained_size].copy()
+
+    new_values = np.empty(retained_size + 3, dtype=values.dtype)
+    np.copyto(new_values[:2], np.asarray([original_size, retained_size]), casting="unsafe")
+    new_values[2] = math.nan if np.issubdtype(new_values.dtype, np.floating) else 0
+    if retained_size > 0:
+        np.copyto(new_values[3:], retained, casting="unsafe")
+
+    if verbose:
+        print(f"Truncating node {node.path()} from {original_size} to {retained_size}")
+
+    node.reset()
+    node.set(new_values)
+    return 1
+
+
+def truncate_conduit_bulk_data(node, max_size: int, verbose: bool) -> int:
+    if node.number_of_children() == 0:
+        return truncate_conduit_numeric_array(node, max_size, verbose)
+
+    truncated_count = 0
+    for child_idx in range(node.number_of_children()):
+        truncated_count += truncate_conduit_bulk_data(node.child(child_idx), max_size, verbose)
+    return truncated_count
+
+
 def convert_blueprint_mesh(args: argparse.Namespace, MPI: object | None, comm_size: int,
                            rank: int) -> int:
-    if args.strip is not None:
-        raise RuntimeError("--strip is only supported for Sidre datastore conversion")
-
     import conduit
     import conduit.blueprint
     import conduit.relay.io.blueprint
@@ -265,9 +319,7 @@ def convert_blueprint_mesh(args: argparse.Namespace, MPI: object | None, comm_si
 
         comm = MPI.COMM_WORLD.py2f()
         if rank == 0:
-            print(
-                f"Loading Blueprint mesh from {input_path} on {comm_size} MPI rank(s)",
-            )
+            print(f"Loading Blueprint mesh from {input_path} on {comm_size} MPI rank(s)", )
         conduit.relay.mpi.io.blueprint.load_mesh(mesh, str(input_path), comm)
 
         info = conduit.Node()
@@ -279,11 +331,19 @@ def convert_blueprint_mesh(args: argparse.Namespace, MPI: object | None, comm_si
         if not valid:
             raise RuntimeError(f"Input Blueprint mesh failed verification:\n{info.to_yaml()}")
 
+        if args.strip is not None:
+            if rank == 0:
+                print(f"Truncating numeric Blueprint arrays to at most {args.strip} elements.")
+            local_truncated = truncate_conduit_bulk_data(mesh, args.strip, args.verbose)
+            total_truncated = MPI.COMM_WORLD.allreduce(local_truncated)
+            if rank == 0:
+                print(f"Truncated {total_truncated} numeric Blueprint array(s).")
+            add_blueprint_strip_note(mesh, strip_note("Blueprint mesh", args.strip))
+
         if rank == 0:
             print(
                 f"Writing out Blueprint mesh in '{protocol}' protocol to file(s) "
-                f"with base name {args.output}",
-            )
+                f"with base name {args.output}", )
         conduit.relay.mpi.io.blueprint.save_mesh(mesh, args.output, comm, protocol)
     else:
         print(f"Loading Blueprint mesh from {input_path}")
@@ -296,10 +356,15 @@ def convert_blueprint_mesh(args: argparse.Namespace, MPI: object | None, comm_si
         if not valid:
             raise RuntimeError(f"Input Blueprint mesh failed verification:\n{info.to_yaml()}")
 
+        if args.strip is not None:
+            print(f"Truncating numeric Blueprint arrays to at most {args.strip} elements.")
+            truncated_count = truncate_conduit_bulk_data(mesh, args.strip, args.verbose)
+            print(f"Truncated {truncated_count} numeric Blueprint array(s).")
+            add_blueprint_strip_note(mesh, strip_note("Blueprint mesh", args.strip))
+
         print(
             f"Writing out Blueprint mesh in '{protocol}' protocol to file(s) "
-            f"with base name {args.output}",
-        )
+            f"with base name {args.output}", )
         conduit.relay.io.blueprint.save_mesh(mesh, args.output, protocol)
 
     return 0
@@ -352,13 +417,7 @@ def convert_sidre_datastore(args: argparse.Namespace, comm_size: int) -> int:
     if args.strip is not None:
         print(f"Truncating views to at most {args.strip} elements.")
         truncate_bulk_data(root, args.strip, args.verbose)
-        note = ("This datastore was created by axom's 'convert_sidre_protocol' utility "
-                f"with option '--strip {args.strip}'. To simplify debugging, the bulk "
-                f"data in this datastore has been truncated to have at most {args.strip} "
-                "original values per array. Three values have been prepended to each "
-                "array: the size of the original array, the number of retained elements "
-                "and a zero/Nan.")
-        root.createViewString("Note", note)
+        root.createViewString("Note", strip_note("datastore", args.strip))
 
     print(
         f"Writing out datastore in '{args.protocol}' protocol to file(s) with base name {args.output}",
@@ -370,6 +429,8 @@ def convert_sidre_datastore(args: argparse.Namespace, comm_size: int) -> int:
 
 def main() -> int:
     args = parse_args()
+    if args.strip is not None and args.strip < 0:
+        raise RuntimeError("--strip must be nonnegative")
 
     MPI, initialized_mpi, comm_size, rank = initialize_mpi()
     try:
