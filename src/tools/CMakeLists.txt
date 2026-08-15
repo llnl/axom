@@ -275,11 +275,12 @@ if(NANOBIND_FOUND)
                       --input-type blueprint
                       --output csp_blueprint_output
                       --protocol json
+                      --strip 4
               NUM_MPI_TASKS 2
             )
 
             set_tests_properties(${_testname} PROPERTIES
-                PASS_REGULAR_EXPRESSION  "Writing out Blueprint mesh")
+                PASS_REGULAR_EXPRESSION  "Truncated [0-9]+ numeric Blueprint array")
         else()
             axom_add_python_test(
               NAME ${_testname}
