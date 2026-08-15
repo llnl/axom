@@ -378,80 +378,27 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
             FOLDER      axom/quest/examples
             )
 
-    if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_PYTHON_TESTS)
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
         set(_nranks 3)
-        set(_dcp_mesh_generator ${PROJECT_SOURCE_DIR}/tools/gen-multidom-point-mesh.py)
-
-        set(_dcp_object_mesh ${CMAKE_CURRENT_BINARY_DIR}/dcp_object_circle_empty_domains)
-        set(_dcp_gen_object_test quest_distributed_closest_point_gen_object_circle_empty_domains)
-        axom_add_python_test(
-            NAME    ${_dcp_gen_object_test}
-            COMMAND ${Python_EXECUTABLE}
-                    ${_dcp_mesh_generator}
-                    circle
-                    --point-count 4
-                    --center 0.7,0.9
-                    --radius 0.9
-                    --domains 6
-                    --output ${_dcp_object_mesh}
-            NUM_MPI_TASKS ${_nranks})
-
-        set(_dcp_object_mesh_3d ${CMAKE_CURRENT_BINARY_DIR}/dcp_object_sphere)
-        set(_dcp_gen_object_test_3d quest_distributed_closest_point_gen_object_sphere)
-        axom_add_python_test(
-            NAME    ${_dcp_gen_object_test_3d}
-            COMMAND ${Python_EXECUTABLE}
-                    ${_dcp_mesh_generator}
-                    sphere
-                    --long-point-count 12
-                    --lat-point-count 6
-                    --center 0.7,0.9,0.5
-                    --radius 0.9
-                    --domains 6
-                    --output ${_dcp_object_mesh_3d}
-            NUM_MPI_TASKS ${_nranks})
 
         # Run the distributed closest point example on N ranks for each enabled policy.
-        # Query meshes are generated here instead of checked into the data repository.
-        set(_query_meshes structured_quads unstructured_quads structured_hexes unstructured_hexes)
-        foreach(_mesh ${_query_meshes})
-            set(_query_mesh ${CMAKE_CURRENT_BINARY_DIR}/dcp_query_${_mesh})
-            set(_gen_query_test quest_distributed_closest_point_gen_query_${_mesh})
-            if(_mesh MATCHES "quads$")
-                set(_dim 2)
-                set(_grid_size 30,30)
-                set(_min 0,0)
-                set(_max 2,2)
-                set(_domain_counts 2,1)
-                set(_object_mesh ${_dcp_object_mesh})
-                set(_object_test ${_dcp_gen_object_test})
-            else()
-                set(_dim 3)
-                set(_grid_size 8,8,6)
-                set(_min 0,0,0)
-                set(_max 2,2,2)
-                set(_domain_counts 2,2,1)
-                set(_object_mesh ${_dcp_object_mesh_3d})
-                set(_object_test ${_dcp_gen_object_test_3d})
-            endif()
-            if(_mesh MATCHES "^structured")
-                set(_grid_topology structured)
-            else()
-                set(_grid_topology unstructured)
-            endif()
+        # Query meshes match the original DCP example. Object meshes were
+        # generated with src/tools/gen-multidom-point-mesh.py.
+        set(_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")
+        foreach(_mesh ${_meshes})
+            string(REGEX MATCH "\\.[0-9]+(x[0-9]+)+$" _sizes "${_mesh}")
+            string(REGEX MATCHALL "[0-9]+" _sizes ${_sizes})
+            list(LENGTH _sizes _ndim)
 
-            axom_add_python_test(
-                NAME    ${_gen_query_test}
-                COMMAND ${Python_EXECUTABLE}
-                        ${_dcp_mesh_generator}
-                        grid
-                        --grid-size ${_grid_size}
-                        --min ${_min}
-                        --max ${_max}
-                        --domain-counts ${_domain_counts}
-                        --grid-topology ${_grid_topology}
-                        --output ${_query_mesh}
-                NUM_MPI_TASKS ${_nranks})
+            if(_ndim EQUAL 2)
+                set(_dim 2)
+                set(_shape circle)
+                set(_object_mesh ${quest_data_dir}/dcp_object_circle.root)
+            elseif(_ndim EQUAL 3)
+                set(_dim 3)
+                set(_shape sphere)
+                set(_object_mesh ${quest_data_dir}/dcp_object_sphere.root)
+            endif()
 
             foreach(_pol ${AXOM_EXECUTION_POLICIES})
                 # sets the number of threads for the omp policy; leave empty for non-omp policies
@@ -464,8 +411,8 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                 axom_add_test(
                     NAME    ${_test}
                     COMMAND quest_distributed_distance_query_ex
-                                --mesh-file ${_query_mesh}.root
-                                --object-mesh-file ${_object_mesh}.root
+                                --mesh-file ${quest_data_dir}/${_mesh}.root
+                                --object-mesh-file ${_object_mesh}
                                 --dist-threshold .3
                                 --dynamic-distance-filtering
                                 --policy ${_pol}
@@ -473,18 +420,19 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
                 set_tests_properties(${_test}
-                    PROPERTIES DEPENDS "${_object_test};${_gen_query_test}")
+                    PROPERTIES
+                    PASS_REGULAR_EXPRESSION "Analytic verification for '${_shape}' found 0 errors")
 
                 if(_pol STREQUAL "seq" AND
-                   (_mesh STREQUAL "structured_quads" OR _mesh STREQUAL "structured_hexes"))
+                   (_mesh STREQUAL "mdmesh.2x1" OR _mesh STREQUAL "mdmesh.2x2x1"))
                     # Keep fallback coverage for the non-dynamic filtering path
                     # with one 2D and one 3D seq case.
                     set(_static_test "${_test}_no_dynamic_distance_filtering")
                     axom_add_test(
                         NAME    ${_static_test}
                         COMMAND quest_distributed_distance_query_ex
-                                    --mesh-file ${_query_mesh}.root
-                                    --object-mesh-file ${_object_mesh}.root
+                                    --mesh-file ${quest_data_dir}/${_mesh}.root
+                                    --object-mesh-file ${_object_mesh}
                                     --dist-threshold .3
                                     --no-dynamic-distance-filtering
                                     --policy ${_pol}
@@ -492,28 +440,45 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                         NUM_MPI_TASKS ${_nranks}
                         NUM_OMP_THREADS ${_num_threads})
                     set_tests_properties(${_static_test}
-                        PROPERTIES DEPENDS "${_object_test};${_gen_query_test}")
+                        PROPERTIES
+                        PASS_REGULAR_EXPRESSION "Analytic verification for '${_shape}' found 0 errors")
                 endif()
             endforeach()
         endforeach()
 
-        unset(_dcp_gen_object_test)
-        unset(_dcp_gen_object_test_3d)
-        unset(_dcp_mesh_generator)
-        unset(_dcp_object_mesh)
-        unset(_dcp_object_mesh_3d)
+        foreach(_pol ${AXOM_EXECUTION_POLICIES})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_pol STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
+            set(_test "quest_distributed_closest_point_run_2D_${_pol}_single_domain_object")
+            axom_add_test(
+                NAME    ${_test}
+                COMMAND quest_distributed_distance_query_ex
+                            --mesh-file ${quest_data_dir}/mdmesh.2x1.root
+                            --object-mesh-file ${quest_data_dir}/dcp_object_circle_single_domain.root
+                            --dist-threshold .3
+                            --policy ${_pol}
+                            --distance-file dcp_closest_point_2d_${_pol}_single_domain_object
+                NUM_MPI_TASKS ${_nranks}
+                NUM_OMP_THREADS ${_num_threads})
+            set_tests_properties(${_test}
+                PROPERTIES
+                PASS_REGULAR_EXPRESSION "Analytic verification for 'circle' found 0 errors")
+        endforeach()
+
         unset(_dim)
-        unset(_domain_counts)
-        unset(_gen_query_test)
-        unset(_grid_size)
-        unset(_grid_topology)
-        unset(_max)
-        unset(_min)
+        unset(_mesh)
+        unset(_meshes)
+        unset(_ndim)
+        unset(_num_threads)
         unset(_object_mesh)
-        unset(_object_test)
-        unset(_query_mesh)
-        unset(_query_meshes)
+        unset(_pol)
         unset(_nranks)
+        unset(_shape)
+        unset(_sizes)
         unset(_test)
         unset(_static_test)
     endif()

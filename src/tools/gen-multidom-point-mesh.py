@@ -10,6 +10,7 @@
 #    |   `-- domain_id                == <global domain id>
 #    |   `-- description              (analytic/input description string; stored in state
 #    |                                  so Blueprint relay preserves it)
+#    |   `-- command_line             (sanitized command line used to generate this mesh)
 #    |   `-- verification             (optional analytic verification metadata; stored in state)
 #    |        |-- shape               == "circle", "sphere", "torus", "plane", or "annulus"
 #    |        |-- dimension           == 2 or 3
@@ -87,6 +88,7 @@
 import itertools
 import math
 import os
+import shlex
 import sys
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, ArgumentTypeError
 
@@ -939,8 +941,14 @@ def verification_metadata(opts, dim, center, normal):
     return metadata
 
 
+def sanitized_command_line():
+    '''Return the generator command line with the script path reduced to its basename.'''
+    return shlex.join([os.path.basename(sys.argv[0])] + sys.argv[1:])
+
+
 def add_metadata(dom, metadata):
     dom['state/description'] = metadata['description']
+    dom['state/command_line'] = metadata['command_line']
     verification = metadata['verification']
     if verification is None:
         return
@@ -1073,6 +1081,7 @@ def main():
 
     metadata = {
         'description': shape_description(opts, dim, lower, upper, center, normal, stddev),
+        'command_line': sanitized_command_line(),
         'verification': verification_metadata(opts, dim, center, normal),
     }
 
