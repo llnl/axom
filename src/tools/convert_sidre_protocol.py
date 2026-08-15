@@ -4,11 +4,12 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 """
-Convert a Sidre datastore from the sidre_hdf5 protocol to another protocol.
+Convert a Sidre datastore or Conduit Blueprint mesh to another protocol.
 
-Users must supply a path to a sidre_hdf5 rootfile and base name for
-the output datastores. Optional command line arguments include
-a ``--protocol`` option (the default is ``json``)
+Users must supply a path to an input rootfile and base name for the output.
+Sidre datastore conversion remains the default. Use ``--input-type blueprint``
+to convert Conduit Blueprint meshes, including HDF5 Blueprint root files.
+Optional command line arguments include a ``--protocol`` option (the default is ``json``)
 and a ``--strip`` option to truncate the array data to at most N elements.
 The strip option also prepends each array with its original size, the new
 size and a filler entry of 0 for integer arrays or nan for floating point
@@ -31,7 +32,7 @@ from pathlib import Path
 import numpy as np
 import axom.sidre as sidre
 
-VALID_PROTOCOLS = (
+SIDRE_PROTOCOLS = (
     "json",
     "sidre_hdf5",
     "sidre_conduit_json",
@@ -41,20 +42,37 @@ VALID_PROTOCOLS = (
     "conduit_json",
 )
 
+BLUEPRINT_PROTOCOLS = (
+    "hdf5",
+    "json",
+    "yaml",
+    "conduit_bin",
+    "conduit_hdf5",
+    "conduit_json",
+)
+
+VALID_PROTOCOLS = tuple(dict.fromkeys(SIDRE_PROTOCOLS + BLUEPRINT_PROTOCOLS))
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Sidre protocol converter")
+    parser = argparse.ArgumentParser(description="Sidre/Blueprint protocol converter")
     parser.add_argument(
         "-i",
         "--input",
         required=True,
-        help="Filename of input sidre-hdf5 datastore",
+        help="Filename of input sidre-hdf5 datastore or Blueprint mesh root file",
     )
     parser.add_argument(
         "-o",
         "--output",
         required=True,
-        help="Filename of output datastore (without extension)",
+        help="Filename of output datastore/mesh (without extension)",
+    )
+    parser.add_argument(
+        "--input-type",
+        choices=("sidre", "blueprint"),
+        default="sidre",
+        help="Type of input file to convert",
     )
     parser.add_argument(
         "-p",
@@ -77,6 +95,25 @@ def parse_args() -> argparse.Namespace:
         help="Sets output to verbose",
     )
     return parser.parse_args()
+
+
+def initialize_mpi() -> tuple[object | None, bool, int, int]:
+    if not sidre.AXOM_ENABLE_MPI:
+        return None, False, 1, 0
+
+    try:
+        from mpi4py import MPI
+    except ImportError as exc:
+        raise RuntimeError(
+            "convert_sidre_protocol.py requires mpi4py when Axom is built with MPI support",
+        ) from exc
+
+    initialized_mpi = False
+    if not MPI.Is_initialized():
+        MPI.Init()
+        initialized_mpi = True
+
+    return MPI, initialized_mpi, MPI.COMM_WORLD.Get_size(), MPI.COMM_WORLD.Get_rank()
 
 
 #
@@ -191,25 +228,86 @@ def truncate_bulk_data(group: sidre.Group, max_size: int, verbose: bool) -> None
         truncate_bulk_data(child, max_size, verbose)
 
 
-def main() -> int:
-    args = parse_args()
+def blueprint_protocol(protocol: str) -> str:
+    if protocol == "conduit_hdf5":
+        return "hdf5"
+    if protocol in BLUEPRINT_PROTOCOLS:
+        return protocol
 
+    valid = ", ".join(BLUEPRINT_PROTOCOLS)
+    raise RuntimeError(
+        f"Protocol '{protocol}' is not valid for Blueprint mesh output. "
+        f"Use one of: {valid}", )
+
+
+def blueprint_domain_count(mesh) -> int:
+    if mesh.has_path("coordsets") and mesh.has_path("topologies"):
+        return 1
+    return mesh.number_of_children()
+
+
+def convert_blueprint_mesh(args: argparse.Namespace, MPI: object | None, comm_size: int,
+                           rank: int) -> int:
+    if args.strip is not None:
+        raise RuntimeError("--strip is only supported for Sidre datastore conversion")
+
+    import conduit
+    import conduit.blueprint
+    import conduit.relay.io.blueprint
+
+    input_path = Path(args.input)
+    protocol = blueprint_protocol(args.protocol)
+    mesh = conduit.Node()
+
+    if MPI is not None and comm_size > 1:
+        import conduit.blueprint.mpi.mesh
+        import conduit.relay.mpi.io.blueprint
+
+        comm = MPI.COMM_WORLD.py2f()
+        if rank == 0:
+            print(
+                f"Loading Blueprint mesh from {input_path} on {comm_size} MPI rank(s)",
+            )
+        conduit.relay.mpi.io.blueprint.load_mesh(mesh, str(input_path), comm)
+
+        info = conduit.Node()
+        valid = conduit.blueprint.mpi.mesh.verify(mesh, info, comm)
+        local_domains = blueprint_domain_count(mesh)
+        total_domains = MPI.COMM_WORLD.allreduce(local_domains)
+        if rank == 0:
+            print(f"Input Blueprint mesh layout: {total_domains} domain(s)")
+        if not valid:
+            raise RuntimeError(f"Input Blueprint mesh failed verification:\n{info.to_yaml()}")
+
+        if rank == 0:
+            print(
+                f"Writing out Blueprint mesh in '{protocol}' protocol to file(s) "
+                f"with base name {args.output}",
+            )
+        conduit.relay.mpi.io.blueprint.save_mesh(mesh, args.output, comm, protocol)
+    else:
+        print(f"Loading Blueprint mesh from {input_path}")
+        conduit.relay.io.blueprint.load_mesh(mesh, str(input_path))
+
+        info = conduit.Node()
+        valid = conduit.blueprint.mesh.verify(mesh, info)
+        domains = blueprint_domain_count(mesh)
+        print(f"Input Blueprint mesh layout: {domains} domain(s)")
+        if not valid:
+            raise RuntimeError(f"Input Blueprint mesh failed verification:\n{info.to_yaml()}")
+
+        print(
+            f"Writing out Blueprint mesh in '{protocol}' protocol to file(s) "
+            f"with base name {args.output}",
+        )
+        conduit.relay.io.blueprint.save_mesh(mesh, args.output, protocol)
+
+    return 0
+
+
+def convert_sidre_datastore(args: argparse.Namespace, comm_size: int) -> int:
     if not sidre.AXOM_ENABLE_MPI:
         raise RuntimeError("sidre.IOManager bindings require an MPI-enabled Axom build")
-
-    try:
-        from mpi4py import MPI
-    except ImportError as exc:
-        raise RuntimeError(
-            "convert_sidre_protocol.py requires mpi4py when Axom is built with MPI support",
-        ) from exc
-
-    initialized_mpi = False
-    if not MPI.Is_initialized():
-        MPI.Init()
-        initialized_mpi = True
-
-    comm_size = MPI.COMM_WORLD.Get_size()
 
     input_path = Path(args.input)
     manager = sidre.IOManager()
@@ -267,10 +365,20 @@ def main() -> int:
     )
     manager.write(root, num_files, args.output, args.protocol)
 
-    if initialized_mpi and not MPI.Is_finalized():
-        MPI.Finalize()
-
     return 0
+
+
+def main() -> int:
+    args = parse_args()
+
+    MPI, initialized_mpi, comm_size, rank = initialize_mpi()
+    try:
+        if args.input_type == "blueprint":
+            return convert_blueprint_mesh(args, MPI, comm_size, rank)
+        return convert_sidre_datastore(args, comm_size)
+    finally:
+        if MPI is not None and initialized_mpi and not MPI.Is_finalized():
+            MPI.Finalize()
 
 
 if __name__ == "__main__":
