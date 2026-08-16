@@ -41,7 +41,9 @@
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <cinttypes>
 #include <cstdio>
+#include <cstdint>
 #include <fstream>
 #include <atomic>
 #include <chrono>
@@ -54,28 +56,47 @@
 namespace
 {
 
-constexpr long long INVALID_BYTES = -1;
+using ByteCount = std::int64_t;
+
+constexpr ByteCount INVALID_BYTES = -1;
+constexpr ByteCount BYTES_PER_KIB = 1024;
+
+template <typename T>
+T allReduce(T localValue, MPI_Op op, MPI_Comm comm)
+{
+  T result {};
+  MPI_Allreduce(&localValue, &result, 1, axom::mpi_traits<T>::type, op, comm);
+  return result;
+}
+
+template <typename T>
+void allReduceMinMaxSum(T localValue, T& minValue, T& maxValue, T& sumValue, MPI_Comm comm)
+{
+  minValue = allReduce(localValue, MPI_MIN, comm);
+  maxValue = allReduce(localValue, MPI_MAX, comm);
+  sumValue = allReduce(localValue, MPI_SUM, comm);
+}
 
 struct ProcRss
 {
-  long long current {INVALID_BYTES};
-  long long peak {INVALID_BYTES};
+  ByteCount current {INVALID_BYTES};
+  ByteCount peak {INVALID_BYTES};
 };
 
 struct ReducedBytes
 {
-  long long maxValue {INVALID_BYTES};
-  long long sumValue {INVALID_BYTES};
+  ByteCount maxValue {INVALID_BYTES};
+  ByteCount sumValue {INVALID_BYTES};
   int maxRank {-1};
 };
 
 struct MemorySnapshot
 {
   ProcRss rss;
-  long long mallocLive {INVALID_BYTES};
-  long long mallocArena {INVALID_BYTES};
-  long long umpireCurrent {INVALID_BYTES};
-  long long umpireHighWatermark {INVALID_BYTES};
+  ByteCount mallocLive {INVALID_BYTES};
+  ByteCount mallocArena {INVALID_BYTES};
+  ByteCount umpireCurrent {INVALID_BYTES};
+  ByteCount umpireHighWatermark {INVALID_BYTES};
 };
 
 /// Read current (VmRSS) and peak (VmHWM) resident set size in bytes.
@@ -87,14 +108,14 @@ ProcRss readProcRss()
   std::string line;
   while(std::getline(status, line))
   {
-    long long kb = 0;
-    if(std::sscanf(line.c_str(), "VmRSS: %lld kB", &kb) == 1)
+    ByteCount kb = 0;
+    if(std::sscanf(line.c_str(), "VmRSS: %" SCNd64 " kB", &kb) == 1)
     {
-      result.current = kb * 1024;
+      result.current = kb * BYTES_PER_KIB;
     }
-    else if(std::sscanf(line.c_str(), "VmHWM: %lld kB", &kb) == 1)
+    else if(std::sscanf(line.c_str(), "VmHWM: %" SCNd64 " kB", &kb) == 1)
     {
-      result.peak = kb * 1024;
+      result.peak = kb * BYTES_PER_KIB;
     }
 
     if(result.current >= 0 && result.peak >= 0)
@@ -118,7 +139,7 @@ void resetPeakRss()
 #endif
 }
 
-std::string humanBytes(long long bytes)
+std::string humanBytes(ByteCount bytes)
 {
   if(bytes < 0)
   {
@@ -138,22 +159,21 @@ std::string humanBytes(long long bytes)
 }
 
 /// Reduce a per-rank byte count to the communicator total and hottest rank.
-ReducedBytes reduceBytes(long long localValue, MPI_Comm comm, int rank, int commSize)
+ReducedBytes reduceBytes(ByteCount localValue, MPI_Comm comm, int rank, int commSize)
 {
   const bool hasLocalValue = localValue >= 0;
-  long long localMax = hasLocalValue ? localValue : INVALID_BYTES;
-  long long localSum = hasLocalValue ? localValue : 0;
+  ByteCount localMax = hasLocalValue ? localValue : INVALID_BYTES;
+  ByteCount localSum = hasLocalValue ? localValue : 0;
   int localCount = hasLocalValue ? 1 : 0;
 
   ReducedBytes result;
-  MPI_Allreduce(&localMax, &result.maxValue, 1, MPI_LONG_LONG, MPI_MAX, comm);
+  result.maxValue = allReduce(localMax, MPI_MAX, comm);
 
   int candidateRank = (hasLocalValue && localValue == result.maxValue) ? rank : commSize;
-  MPI_Allreduce(&candidateRank, &result.maxRank, 1, MPI_INT, MPI_MIN, comm);
+  result.maxRank = allReduce(candidateRank, MPI_MIN, comm);
 
-  int validCount = 0;
-  MPI_Allreduce(&localCount, &validCount, 1, MPI_INT, MPI_SUM, comm);
-  MPI_Allreduce(&localSum, &result.sumValue, 1, MPI_LONG_LONG, MPI_SUM, comm);
+  const int validCount = allReduce(localCount, MPI_SUM, comm);
+  result.sumValue = allReduce(localSum, MPI_SUM, comm);
 
   if(validCount == 0)
   {
@@ -175,12 +195,12 @@ MemorySnapshot takeMemorySnapshot(int umpireAllocatorId)
 #if defined(__GLIBC__)
   #if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 33)
   struct mallinfo2 mi = mallinfo2();  // size_t fields: safe above 2 GiB
-  snapshot.mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
-  snapshot.mallocArena = static_cast<long long>(mi.arena);
+  snapshot.mallocLive = static_cast<ByteCount>(mi.uordblks) + static_cast<ByteCount>(mi.hblkhd);
+  snapshot.mallocArena = static_cast<ByteCount>(mi.arena);
   #else
   struct mallinfo mi = mallinfo();  // NOTE: int fields saturate above ~2 GiB
-  snapshot.mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
-  snapshot.mallocArena = static_cast<long long>(mi.arena);
+  snapshot.mallocLive = static_cast<ByteCount>(mi.uordblks) + static_cast<ByteCount>(mi.hblkhd);
+  snapshot.mallocArena = static_cast<ByteCount>(mi.arena);
   #endif
 #endif
 
@@ -189,8 +209,8 @@ MemorySnapshot takeMemorySnapshot(int umpireAllocatorId)
   {
     auto& rm = umpire::ResourceManager::getInstance();
     umpire::Allocator alloc = rm.getAllocator(umpireAllocatorId);
-    snapshot.umpireCurrent = static_cast<long long>(alloc.getCurrentSize());
-    snapshot.umpireHighWatermark = static_cast<long long>(alloc.getHighWatermark());
+    snapshot.umpireCurrent = static_cast<ByteCount>(alloc.getCurrentSize());
+    snapshot.umpireHighWatermark = static_cast<ByteCount>(alloc.getHighWatermark());
   }
 #else
   AXOM_UNUSED_VAR(umpireAllocatorId);
@@ -347,7 +367,7 @@ private:
     }
   }
 
-  void recordSamplerValue(long long bytes)
+  void recordSamplerValue(ByteCount bytes)
   {
     if(bytes > m_samplerPeak)
     {
@@ -363,7 +383,7 @@ private:
   int m_umpireAllocatorId {-1};
   std::atomic<bool> m_stopSampler {false};
   std::thread m_samplerThread;
-  long long m_samplerPeak {INVALID_BYTES};
+  ByteCount m_samplerPeak {INVALID_BYTES};
 };
 
 }  // namespace
@@ -649,7 +669,7 @@ public:
     }
 
     int verificationRank = m_hasVerification ? m_rank : m_nranks;
-    MPI_Allreduce(MPI_IN_PLACE, &verificationRank, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    verificationRank = allReduce(verificationRank, MPI_MIN, MPI_COMM_WORLD);
     if(verificationRank < m_nranks)
     {
       std::string description = m_rank == verificationRank ? m_description : std::string {};
@@ -693,7 +713,7 @@ public:
       m_dimension = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
 
-    MPI_Allreduce(MPI_IN_PLACE, &m_dimension, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    m_dimension = allReduce(m_dimension, MPI_MAX, MPI_COMM_WORLD);
     SLIC_ASSERT(m_dimension > 0);
 
     if(domCount > 0)
@@ -823,16 +843,10 @@ public:
                                 numPoints(),
                                 domain_count()));
 
-    auto getIntMinMax = [](int inVal, int& minVal, int& maxVal, int& sumVal) {
-      MPI_Allreduce(&inVal, &minVal, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &maxVal, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &sumVal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    };
-
     // Output some global mesh size stats
     {
       int mn, mx, sum;
-      getIntMinMax(numPoints(), mn, mx, sum);
+      allReduceMinMaxSum(numPoints(), mn, mx, sum, MPI_COMM_WORLD);
       SLIC_INFO(axom::fmt::format("{} has {{min:{}, max:{}, sum:{}, avg:{}}} points",
                                   meshLabel,
                                   mn,
@@ -842,7 +856,7 @@ public:
     }
     {
       int mn, mx, sum;
-      getIntMinMax(domain_count(), mn, mx, sum);
+      allReduceMinMaxSum(static_cast<int>(domain_count()), mn, mx, sum, MPI_COMM_WORLD);
       SLIC_INFO(axom::fmt::format("{} has {{min:{}, max:{}, sum:{}, avg:{}}} domains",
                                   meshLabel,
                                   mn,
@@ -1618,10 +1632,8 @@ int verifyAnalyticClosestPoints(BlueprintParticleMesh& queryMesh,
     }
   }
 
-  int globalErrCount = 0;
-  MPI_Allreduce(&localErrCount, &globalErrCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  int globalLogCount = 0;
-  MPI_Allreduce(&localLogCount, &globalLogCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  int globalErrCount = allReduce(localErrCount, MPI_SUM, MPI_COMM_WORLD);
+  int globalLogCount = allReduce(localLogCount, MPI_SUM, MPI_COMM_WORLD);
   SLIC_INFO(
     axom::fmt::format("Analytic verification for '{}' found {} errors "
                       "({} detailed messages{}).",
@@ -1792,8 +1804,8 @@ int main(int argc, char** argv)
   // Initialize spatial index for object points, and run query
   //---------------------------------------------------------------------------
 
-  int globalObjectPointCount = objectMeshWrapper.getParticleMesh().numPoints();
-  MPI_Allreduce(MPI_IN_PLACE, &globalObjectPointCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  int globalObjectPointCount =
+    allReduce(objectMeshWrapper.getParticleMesh().numPoints(), MPI_SUM, MPI_COMM_WORLD);
 
   auto init_str =
     banner(axom::fmt::format("Initializing BVH tree over {} object points", globalObjectPointCount));
@@ -1874,19 +1886,13 @@ int main(int argc, char** argv)
     }
   }
 
-  auto getDoubleMinMax = [](double inVal, double& minVal, double& maxVal, double& sumVal) {
-    MPI_Allreduce(&inVal, &minVal, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &maxVal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &sumVal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  };
-
   // Output some timing stats
   {
     double minInit, maxInit, sumInit;
-    getDoubleMinMax(initTimer.elapsedTimeInSec(), minInit, maxInit, sumInit);
+    allReduceMinMaxSum(initTimer.elapsedTimeInSec(), minInit, maxInit, sumInit, MPI_COMM_WORLD);
 
     double minQuery, maxQuery, sumQuery;
-    getDoubleMinMax(queryTimer.elapsedTimeInSec(), minQuery, maxQuery, sumQuery);
+    allReduceMinMaxSum(queryTimer.elapsedTimeInSec(), minQuery, maxQuery, sumQuery, MPI_COMM_WORLD);
 
     SLIC_INFO(
       axom::fmt::format("Initialization with policy {} took {{avg:{}, min:{}, max:{}}} seconds",
