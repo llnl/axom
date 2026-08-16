@@ -51,6 +51,323 @@
   #include <malloc.h>  // mallinfo2 / mallinfo / malloc_trim
 #endif
 
+namespace
+{
+
+constexpr long long INVALID_BYTES = -1;
+
+struct ProcRss
+{
+  long long current {INVALID_BYTES};
+  long long peak {INVALID_BYTES};
+};
+
+struct ReducedBytes
+{
+  long long maxValue {INVALID_BYTES};
+  long long sumValue {INVALID_BYTES};
+  int maxRank {-1};
+};
+
+struct MemorySnapshot
+{
+  ProcRss rss;
+  long long mallocLive {INVALID_BYTES};
+  long long mallocArena {INVALID_BYTES};
+  long long umpireCurrent {INVALID_BYTES};
+  long long umpireHighWatermark {INVALID_BYTES};
+};
+
+/// Read current (VmRSS) and peak (VmHWM) resident set size in bytes.
+ProcRss readProcRss()
+{
+  ProcRss result;
+#if defined(__linux__)
+  std::ifstream status("/proc/self/status");
+  std::string line;
+  while(std::getline(status, line))
+  {
+    long long kb = 0;
+    if(std::sscanf(line.c_str(), "VmRSS: %lld kB", &kb) == 1)
+    {
+      result.current = kb * 1024;
+    }
+    else if(std::sscanf(line.c_str(), "VmHWM: %lld kB", &kb) == 1)
+    {
+      result.peak = kb * 1024;
+    }
+
+    if(result.current >= 0 && result.peak >= 0)
+    {
+      break;
+    }
+  }
+#endif
+  return result;
+}
+
+/// Reset VmHWM so the next RSS-peak read reflects only the following phase.
+void resetPeakRss()
+{
+#if defined(__linux__)
+  std::ofstream clear("/proc/self/clear_refs");
+  if(clear)
+  {
+    clear << "5\n";
+  }
+#endif
+}
+
+std::string humanBytes(long long bytes)
+{
+  if(bytes < 0)
+  {
+    return "n/a";
+  }
+
+  const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+  double value = static_cast<double>(bytes);
+  int unitIdx = 0;
+  while(value >= 1024.0 && unitIdx < 4)
+  {
+    value /= 1024.0;
+    ++unitIdx;
+  }
+
+  return axom::fmt::format("{:.2f} {}", value, units[unitIdx]);
+}
+
+/// Reduce a per-rank byte count to the communicator total and hottest rank.
+ReducedBytes reduceBytes(long long localValue, MPI_Comm comm, int rank, int commSize)
+{
+  const bool hasLocalValue = localValue >= 0;
+  long long localMax = hasLocalValue ? localValue : INVALID_BYTES;
+  long long localSum = hasLocalValue ? localValue : 0;
+  int localCount = hasLocalValue ? 1 : 0;
+
+  ReducedBytes result;
+  MPI_Allreduce(&localMax, &result.maxValue, 1, MPI_LONG_LONG, MPI_MAX, comm);
+
+  int candidateRank = (hasLocalValue && localValue == result.maxValue) ? rank : commSize;
+  MPI_Allreduce(&candidateRank, &result.maxRank, 1, MPI_INT, MPI_MIN, comm);
+
+  int validCount = 0;
+  MPI_Allreduce(&localCount, &validCount, 1, MPI_INT, MPI_SUM, comm);
+  MPI_Allreduce(&localSum, &result.sumValue, 1, MPI_LONG_LONG, MPI_SUM, comm);
+
+  if(validCount == 0)
+  {
+    result = ReducedBytes {};
+  }
+  else if(validCount != commSize)
+  {
+    result.sumValue = INVALID_BYTES;
+  }
+
+  return result;
+}
+
+MemorySnapshot takeMemorySnapshot(int umpireAllocatorId)
+{
+  MemorySnapshot snapshot;
+  snapshot.rss = readProcRss();
+
+#if defined(__GLIBC__)
+  #if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 33)
+  struct mallinfo2 mi = mallinfo2();  // size_t fields: safe above 2 GiB
+  snapshot.mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
+  snapshot.mallocArena = static_cast<long long>(mi.arena);
+  #else
+  struct mallinfo mi = mallinfo();  // NOTE: int fields saturate above ~2 GiB
+  snapshot.mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
+  snapshot.mallocArena = static_cast<long long>(mi.arena);
+  #endif
+#endif
+
+#if defined(AXOM_USE_UMPIRE)
+  if(umpireAllocatorId >= 0)
+  {
+    auto& rm = umpire::ResourceManager::getInstance();
+    umpire::Allocator alloc = rm.getAllocator(umpireAllocatorId);
+    snapshot.umpireCurrent = static_cast<long long>(alloc.getCurrentSize());
+    snapshot.umpireHighWatermark = static_cast<long long>(alloc.getHighWatermark());
+  }
+#else
+  AXOM_UNUSED_VAR(umpireAllocatorId);
+#endif
+
+  return snapshot;
+}
+
+bool trimMallocArena()
+{
+#if defined(__GLIBC__)
+  ::malloc_trim(0);
+  return true;
+#else
+  return false;
+#endif
+}
+
+/*!
+ * \brief Opt-in per-run memory probe for the closest-point query.
+ *
+ * Reports RSS, peak RSS, glibc live/arena bytes, and Umpire current/high-water bytes when available.
+ * Values are reduced across the given communicator as a total and a hottest-rank maximum.
+ * The optional sampler captures transient RSS spikes during the query phase.
+ */
+class MemoryProbe
+{
+public:
+  MemoryProbe(bool enabled, int sampleMs, MPI_Comm comm, int umpireAllocatorId = -1)
+    : m_enabled(enabled)
+    , m_sampleMs(sampleMs)
+    , m_comm(comm)
+    , m_umpireAllocatorId(umpireAllocatorId)
+  {
+    MPI_Comm_rank(m_comm, &m_rank);
+    MPI_Comm_size(m_comm, &m_commSize);
+  }
+
+  ~MemoryProbe() { stopSamplerThread(); }
+
+  void resetPeak()
+  {
+    if(m_enabled)
+    {
+      resetPeakRss();
+    }
+  }
+
+  void startSampler()
+  {
+    if(!m_enabled || m_sampleMs <= 0 || m_samplerThread.joinable())
+    {
+      return;
+    }
+
+    m_samplerPeak = INVALID_BYTES;
+    m_stopSampler.store(false, std::memory_order_relaxed);
+    m_samplerThread = std::thread([this]() {
+      while(!m_stopSampler.load(std::memory_order_relaxed))
+      {
+        recordSamplerValue(readProcRss().current);
+        std::this_thread::sleep_for(std::chrono::milliseconds(m_sampleMs));
+      }
+    });
+  }
+
+  void stopSampler(const std::string& label)
+  {
+    if(!m_enabled || m_sampleMs <= 0 || !m_samplerThread.joinable())
+    {
+      return;
+    }
+
+    stopSamplerThread();
+    recordSamplerValue(readProcRss().current);
+
+    const ReducedBytes sampled = reduceBytes(m_samplerPeak, m_comm, m_rank, m_commSize);
+    if(m_rank == 0)
+    {
+      SLIC_INFO(axom::fmt::format(
+        "[mem] {}: peak RSS during phase (sampled @ {} ms): max/rank={} (rank {}), total={}",
+        label,
+        m_sampleMs,
+        humanBytes(sampled.maxValue),
+        sampled.maxRank,
+        humanBytes(sampled.sumValue)));
+    }
+  }
+
+  void report(const std::string& label)
+  {
+    if(!m_enabled)
+    {
+      return;
+    }
+
+    const MemorySnapshot snapshot = takeMemorySnapshot(m_umpireAllocatorId);
+    const ReducedBytes rss = reduceBytes(snapshot.rss.current, m_comm, m_rank, m_commSize);
+    const ReducedBytes peakRss = reduceBytes(snapshot.rss.peak, m_comm, m_rank, m_commSize);
+    const ReducedBytes mallocLive = reduceBytes(snapshot.mallocLive, m_comm, m_rank, m_commSize);
+    const ReducedBytes mallocArena = reduceBytes(snapshot.mallocArena, m_comm, m_rank, m_commSize);
+    const ReducedBytes umpireCurrent =
+      reduceBytes(snapshot.umpireCurrent, m_comm, m_rank, m_commSize);
+    const ReducedBytes umpireHighWatermark =
+      reduceBytes(snapshot.umpireHighWatermark, m_comm, m_rank, m_commSize);
+
+    if(m_rank == 0)
+    {
+      std::string msg = axom::fmt::format(
+        "[mem] {}  (total over {} ranks | max on one rank)\n"
+        "         RSS           : {:>11} | {:>11} (rank {})\n"
+        "         RSS peak      : {:>11} | {:>11} (rank {})\n"
+        "         malloc live   : {:>11} | {:>11} (rank {})\n"
+        "         malloc arena  : {:>11} | {:>11} (rank {})",
+        label,
+        m_commSize,
+        humanBytes(rss.sumValue),
+        humanBytes(rss.maxValue),
+        rss.maxRank,
+        humanBytes(peakRss.sumValue),
+        humanBytes(peakRss.maxValue),
+        peakRss.maxRank,
+        humanBytes(mallocLive.sumValue),
+        humanBytes(mallocLive.maxValue),
+        mallocLive.maxRank,
+        humanBytes(mallocArena.sumValue),
+        humanBytes(mallocArena.maxValue),
+        mallocArena.maxRank);
+#if defined(AXOM_USE_UMPIRE)
+      if(umpireHighWatermark.maxValue >= 0)
+      {
+        msg += axom::fmt::format(
+          "\n         umpire current: {:>11} | {:>11} (rank {})"
+          "\n         umpire hi-water: {:>10} | {:>11} (rank {})",
+          humanBytes(umpireCurrent.sumValue),
+          humanBytes(umpireCurrent.maxValue),
+          umpireCurrent.maxRank,
+          humanBytes(umpireHighWatermark.sumValue),
+          humanBytes(umpireHighWatermark.maxValue),
+          umpireHighWatermark.maxRank);
+      }
+#endif
+      SLIC_INFO(msg);
+    }
+  }
+
+private:
+  void stopSamplerThread()
+  {
+    if(m_samplerThread.joinable())
+    {
+      m_stopSampler.store(true, std::memory_order_relaxed);
+      m_samplerThread.join();
+    }
+  }
+
+  void recordSamplerValue(long long bytes)
+  {
+    if(bytes > m_samplerPeak)
+    {
+      m_samplerPeak = bytes;
+    }
+  }
+
+  bool m_enabled {false};
+  int m_sampleMs {0};
+  MPI_Comm m_comm {MPI_COMM_NULL};
+  int m_rank {-1};
+  int m_commSize {-1};
+  int m_umpireAllocatorId {-1};
+  std::atomic<bool> m_stopSampler {false};
+  std::thread m_samplerThread;
+  long long m_samplerPeak {INVALID_BYTES};
+};
+
+}  // namespace
+
 namespace quest = axom::quest;
 namespace slic = axom::slic;
 namespace sidre = axom::sidre;
@@ -161,6 +478,7 @@ public:
         "If > 0, run a background thread sampling RSS at this interval (ms) "
         "during the query and report the peak.  Useful for observing in-flight "
         "send-buffer accumulation.  Implies --track-memory.")
+      ->check(axom::CLI::NonNegativeNumber)
       ->capture_default_str();
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
@@ -1334,270 +1652,6 @@ void make_coords_interleaved(conduit::Node& coordValues)
   }
 }
 
-//-----------------------------------------------------------------------------
-// Optional memory instrumentation
-//
-// Purpose: distinguish a genuine leak (memory still referenced after the call)
-// from arena retention (memory freed at the allocator but not returned to the OS).
-// RSS shows what the process actually holds; glibc "malloc live" shows what is still allocated;
-// "malloc arena" shows free memory kept in the arena.
-//   * RSS after call ~= baseline                -> transient, no problem
-//   * RSS high, malloc-live ~= baseline         -> arena retention (malloc_trim should reclaim it)
-//   * malloc-live high after call               -> genuine leak
-// Everything here is Linux/glibc-specific and degrades to "n/a" elsewhere.
-// All of it is opt-in (--track-memory) and off by default.
-//-----------------------------------------------------------------------------
-
-/// Read current (VmRSS) and peak (VmHWM) resident set size in bytes; -1 if n/a.
-inline void readProcRss(long long& rssBytes, long long& peakRssBytes)
-{
-  rssBytes = -1;
-  peakRssBytes = -1;
-#if defined(__linux__)
-  std::ifstream status("/proc/self/status");
-  std::string line;
-  while(std::getline(status, line))
-  {
-    long long kb = 0;
-    if(std::sscanf(line.c_str(), "VmRSS: %lld kB", &kb) == 1)
-    {
-      rssBytes = kb * 1024;
-    }
-    else if(std::sscanf(line.c_str(), "VmHWM: %lld kB", &kb) == 1)
-    {
-      peakRssBytes = kb * 1024;
-    }
-  }
-#endif
-}
-
-/// Reset the kernel's peak-RSS high-water mark (VmHWM) to the current RSS, so a
-/// later VmHWM read reflects the peak of just the intervening phase.
-/// Best-effort: requires Linux clear_refs type 5 (kernel >= 4.0).
-inline void resetPeakRss()
-{
-#if defined(__linux__)
-  std::ofstream clear("/proc/self/clear_refs");
-  if(clear)
-  {
-    clear << "5\n";
-  }
-#endif
-}
-
-/// Human-readable byte count.
-inline std::string humanBytes(long long b)
-{
-  if(b < 0)
-  {
-    return "n/a";
-  }
-  const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
-  double v = static_cast<double>(b);
-  int i = 0;
-  while(v >= 1024.0 && i < 4)
-  {
-    v /= 1024.0;
-    ++i;
-  }
-  return axom::fmt::format("{:.2f} {}", v, units[i]);
-}
-
-/// MPI-reduce a per-rank byte count to its max (with the rank achieving it) and
-/// its sum across ranks.  A negative local value means "unavailable".
-inline void reduceBytes(long long local, long long& maxVal, int& maxRank, long long& sumVal)
-{
-  struct
-  {
-    long val;
-    int rank;
-  } in {static_cast<long>(local), my_rank}, out {0, 0};
-  MPI_Allreduce(&in, &out, 1, MPI_LONG_INT, MPI_MAXLOC, MPI_COMM_WORLD);
-  maxVal = out.val;
-  maxRank = out.rank;
-  MPI_Allreduce(&local, &sumVal, 1, MPI_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
-}
-
-/*!
- * \brief Opt-in per-run memory probe for the closest-point query.
- *
- * Reports RSS, peak RSS, glibc live/arena bytes (and Umpire high-water when built with Umpire),
- * reduced across ranks (total and hottest rank).  Also offers a background sampler to capture
- * the peak RSS *during* a phase (useful for observing in-flight send-buffer accumulation),
- * and a resetPeak() to make VmHWM phase-local.
- */
-class MemoryProbe
-{
-public:
-  MemoryProbe(bool enabled, int sampleMs, int umpireAllocatorId = -1)
-    : m_enabled(enabled)
-    , m_sampleMs(sampleMs)
-    , m_umpireAllocatorId(umpireAllocatorId)
-  { }
-
-  bool enabled() const { return m_enabled; }
-
-  /// Reset VmHWM so the next report()'s peak reflects only the next phase.
-  void resetPeak()
-  {
-    if(m_enabled)
-    {
-      resetPeakRss();
-    }
-  }
-
-  /// Start a background thread sampling RSS every sampleMs; no-op if disabled or sampleMs <= 0
-  /// Records the peak RSS seen until stopSampler().
-  void startSampler()
-  {
-    if(!m_enabled || m_sampleMs <= 0)
-    {
-      return;
-    }
-    m_samplerPeak = 0;
-    m_stopSampler.store(false, std::memory_order_relaxed);
-    m_samplerThread = std::thread([this]() {
-      while(!m_stopSampler.load(std::memory_order_relaxed))
-      {
-        long long rss = -1, peak = -1;
-        readProcRss(rss, peak);
-        if(rss > m_samplerPeak)
-        {
-          m_samplerPeak = rss;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(m_sampleMs));
-      }
-    });
-  }
-
-  /// Stop the sampler and report the peak RSS during the sampled phase.
-  void stopSampler(const std::string& label)
-  {
-    if(!m_enabled || m_sampleMs <= 0)
-    {
-      return;
-    }
-    m_stopSampler.store(true, std::memory_order_relaxed);
-    if(m_samplerThread.joinable())
-    {
-      m_samplerThread.join();
-    }
-    long long rss = -1, peak = -1;  // final read to catch the tail
-    readProcRss(rss, peak);
-    if(rss > m_samplerPeak)
-    {
-      m_samplerPeak = rss;
-    }
-
-    long long maxVal, sumVal;
-    int maxRank;
-    reduceBytes(m_samplerPeak, maxVal, maxRank, sumVal);
-    if(my_rank == 0)
-    {
-      SLIC_INFO(axom::fmt::format(
-        "[mem] {}: peak RSS during phase (sampled @ {} ms): max/rank={} (rank {}), total={}",
-        label,
-        m_sampleMs,
-        humanBytes(maxVal),
-        maxRank,
-        humanBytes(sumVal)));
-    }
-  }
-
-  /// Take a snapshot on every rank, reduce it, and print an aggregate (rank 0).
-  void report(const std::string& label)
-  {
-    if(!m_enabled)
-    {
-      return;
-    }
-
-    long long rss = -1, peakRss = -1;
-    readProcRss(rss, peakRss);
-
-    long long mallocLive = -1, mallocArena = -1;
-#if defined(__GLIBC__)
-  #if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 33)
-    struct mallinfo2 mi = mallinfo2();  // size_t fields: safe above 2 GiB
-    mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
-    mallocArena = static_cast<long long>(mi.arena);
-  #else
-    struct mallinfo mi = mallinfo();  // NOTE: int fields saturate above ~2 GiB
-    mallocLive = static_cast<long long>(mi.uordblks) + static_cast<long long>(mi.hblkhd);
-    mallocArena = static_cast<long long>(mi.arena);
-  #endif
-#endif
-
-    long long umpireCur = -1, umpireHwm = -1;
-#if defined(AXOM_USE_UMPIRE)
-    if(m_umpireAllocatorId >= 0)
-    {
-      auto& rm = umpire::ResourceManager::getInstance();
-      umpire::Allocator alloc = rm.getAllocator(m_umpireAllocatorId);
-      umpireCur = static_cast<long long>(alloc.getCurrentSize());
-      umpireHwm = static_cast<long long>(alloc.getHighWatermark());
-    }
-#endif
-
-    long long rssMax, rssSum, peakMax, peakSum, liveMax, liveSum, arenaMax, arenaSum;
-    long long umpCurMax, umpCurSum, umpHwmMax, umpHwmSum;
-    int rssMaxRank, peakMaxRank, liveMaxRank, arenaMaxRank, umpCurMaxRank, umpHwmMaxRank;
-    reduceBytes(rss, rssMax, rssMaxRank, rssSum);
-    reduceBytes(peakRss, peakMax, peakMaxRank, peakSum);
-    reduceBytes(mallocLive, liveMax, liveMaxRank, liveSum);
-    reduceBytes(mallocArena, arenaMax, arenaMaxRank, arenaSum);
-    reduceBytes(umpireCur, umpCurMax, umpCurMaxRank, umpCurSum);
-    reduceBytes(umpireHwm, umpHwmMax, umpHwmMaxRank, umpHwmSum);
-
-    if(my_rank == 0)
-    {
-      std::string msg = axom::fmt::format(
-        "[mem] {}  (total over {} ranks | max on one rank)\n"
-        "         RSS           : {:>11} | {:>11} (rank {})\n"
-        "         RSS peak      : {:>11} | {:>11} (rank {})\n"
-        "         malloc live   : {:>11} | {:>11} (rank {})\n"
-        "         malloc arena  : {:>11} | {:>11} (rank {})",
-        label,
-        num_ranks,
-        humanBytes(rssSum),
-        humanBytes(rssMax),
-        rssMaxRank,
-        humanBytes(peakSum),
-        humanBytes(peakMax),
-        peakMaxRank,
-        humanBytes(liveSum),
-        humanBytes(liveMax),
-        liveMaxRank,
-        humanBytes(arenaSum),
-        humanBytes(arenaMax),
-        arenaMaxRank);
-#if defined(AXOM_USE_UMPIRE)
-      if(umpHwmMax >= 0)
-      {
-        msg += axom::fmt::format(
-          "\n         umpire current: {:>11} | {:>11} (rank {})"
-          "\n         umpire hi-water: {:>10} | {:>11} (rank {})",
-          humanBytes(umpCurSum),
-          humanBytes(umpCurMax),
-          umpCurMaxRank,
-          humanBytes(umpHwmSum),
-          humanBytes(umpHwmMax),
-          umpHwmMaxRank);
-      }
-#endif
-      SLIC_INFO(msg);
-    }
-  }
-
-private:
-  bool m_enabled {false};
-  int m_sampleMs {0};
-  int m_umpireAllocatorId {-1};
-  std::atomic<bool> m_stopSampler {false};
-  std::thread m_samplerThread;
-  long long m_samplerPeak {0};
-};
-
 /// Utility function to initialize the logger
 void initializeLogger()
 {
@@ -1778,7 +1832,7 @@ int main(int argc, char** argv)
   memUmpireId = umpireAllocator.getId();
 #endif
   const bool trackMem = params.trackMemory || params.trimAfterQuery || params.sampleMemoryMs > 0;
-  MemoryProbe memProbe(trackMem, params.sampleMemoryMs, memUmpireId);
+  MemoryProbe memProbe(trackMem, params.sampleMemoryMs, MPI_COMM_WORLD, memUmpireId);
   memProbe.report("baseline (meshes read, before BVH)");
 
   // Build the spatial index over the object on each rank
@@ -1810,12 +1864,14 @@ int main(int argc, char** argv)
   // (This is a diagnostic; the library-side fix would trim inside computeClosestPoints after releasing transfer buffers.)
   if(params.trimAfterQuery)
   {
-#if defined(__GLIBC__)
-    ::malloc_trim(0);
-    memProbe.report("after malloc_trim(0)");
-#else
-    SLIC_WARNING("--trim-after-query requested but malloc_trim is glibc-only; skipping.");
-#endif
+    if(trimMallocArena())
+    {
+      memProbe.report("after malloc_trim(0)");
+    }
+    else
+    {
+      SLIC_WARNING("--trim-after-query requested but malloc_trim is glibc-only; skipping.");
+    }
   }
 
   auto getDoubleMinMax = [](double inVal, double& minVal, double& maxVal, double& sumVal) {
