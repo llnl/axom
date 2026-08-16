@@ -469,6 +469,25 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                 PASS_REGULAR_EXPRESSION "Analytic verification for 'circle' found 0 errors")
         endforeach()
 
+        if("seq" IN_LIST AXOM_EXECUTION_POLICIES)
+            set(_test "quest_distributed_closest_point_memory_instrumentation")
+            axom_add_test(
+                NAME    ${_test}
+                COMMAND quest_distributed_distance_query_ex
+                            --mesh-file ${quest_data_dir}/mdmesh.2x1.root
+                            --object-mesh-file ${quest_data_dir}/dcp_object_circle.root
+                            --dist-threshold .3
+                            --policy seq
+                            --track-memory
+                            --trim-after-query
+                            --sample-memory-ms 1
+                            --distance-file dcp_closest_point_2d_seq_memory_instrumentation
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_test}
+                PROPERTIES
+                PASS_REGULAR_EXPRESSION "peak RSS during phase")
+        endif()
+
         unset(_dim)
         unset(_mesh)
         unset(_meshes)
