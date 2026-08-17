@@ -83,7 +83,7 @@ def parse_args() -> argparse.Namespace:
         "--protocol",
         default="json",
         choices=VALID_PROTOCOLS,
-        help="Desired protocol for output datastore",
+        help="Desired output protocol; valid protocols depend on --input-type",
     )
     parser.add_argument(
         "-s",
@@ -244,6 +244,16 @@ def blueprint_protocol(protocol: str) -> str:
         f"Use one of: {valid}", )
 
 
+def sidre_protocol(protocol: str) -> str:
+    if protocol in SIDRE_PROTOCOLS:
+        return protocol
+
+    valid = ", ".join(SIDRE_PROTOCOLS)
+    raise RuntimeError(
+        f"Protocol '{protocol}' is not valid for Sidre datastore output. "
+        f"Use one of: {valid}", )
+
+
 def blueprint_domain_count(mesh) -> int:
     if mesh.has_path("coordsets") and mesh.has_path("topologies"):
         return 1
@@ -374,6 +384,7 @@ def convert_sidre_datastore(args: argparse.Namespace, comm_size: int) -> int:
     if not sidre.AXOM_ENABLE_MPI:
         raise RuntimeError("sidre.IOManager bindings require an MPI-enabled Axom build")
 
+    protocol = sidre_protocol(args.protocol)
     input_path = Path(args.input)
     manager = sidre.IOManager()
     datastore = sidre.DataStore()
@@ -420,9 +431,8 @@ def convert_sidre_datastore(args: argparse.Namespace, comm_size: int) -> int:
         root.createViewString("Note", strip_note("datastore", args.strip))
 
     print(
-        f"Writing out datastore in '{args.protocol}' protocol to file(s) with base name {args.output}",
-    )
-    manager.write(root, num_files, args.output, args.protocol)
+        f"Writing out datastore in '{protocol}' protocol to file(s) with base name {args.output}", )
+    manager.write(root, num_files, args.output, protocol)
 
     return 0
 
