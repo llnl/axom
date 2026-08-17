@@ -222,9 +222,9 @@ public:
 
       const VectorType dx(getCorner(i), getCorner(ip1));
 
-      c0[i] = (dx - dx.dot(v[i]) * v[i]) / 3;
+      c0[i] = (dx - dx.dot(v[i]) * v[i]) / 3.0;
       a0[i] = VectorType::cross_product(v[i], dx).unitVector();
-      c2[i] = (dx - dx.dot(v[ip1]) * v[ip1]) / 3;
+      c2[i] = (dx - dx.dot(v[ip1]) * v[ip1]) / 3.0;
       a3[i] = VectorType::cross_product(v[ip1], dx).unitVector();
 
       // Use Chiyokura algorithm to define the interior control points
