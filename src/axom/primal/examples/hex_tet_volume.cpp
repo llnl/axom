@@ -166,10 +166,11 @@ void check_intersection_volumes(const Input& params)
 
   // Generate tetrahedra from unit sphere with center (0,0,0)
   int const TET_RESOLUTION = params.tetResolution;
+  const int tetSubdivisionCount = static_cast<int>(std::pow(2.0, TET_RESOLUTION));
   int tet_index = 0;
-  int const NUM_TETS = 4 * std::pow(2, TET_RESOLUTION);
+  int const NUM_TETS = 4 * tetSubdivisionCount;
   axom::Array<TetrahedronType> tets_h(NUM_TETS, NUM_TETS, host_allocator);
-  double step_size = 1.0 / std::pow(2, TET_RESOLUTION);
+  double step_size = 1.0 / tetSubdivisionCount;
 
   SLIC_INFO(axom::fmt::format(
     "{:-^80}",
@@ -181,7 +182,7 @@ void check_intersection_volumes(const Input& params)
     "{: ^80}",
     axom::fmt::format("Tetrahedra are encapsulated by the unit sphere at the origin")));
 
-  for(int i = 0; i < std::pow(2, TET_RESOLUTION); i++)
+  for(int i = 0; i < tetSubdivisionCount; i++)
   {
     for(int j = 0; j <= 1; j++)
     {

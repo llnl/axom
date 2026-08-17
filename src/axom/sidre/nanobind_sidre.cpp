@@ -7,14 +7,18 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/stl/optional.h>
 #include <nanobind/ndarray.h>
 #include <nanobind/make_iterator.h>
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/slic/interface/slic.hpp"
+
 #include "core/SidreTypes.hpp"
 #include "core/Buffer.hpp"
 #include "core/View.hpp"
@@ -275,46 +279,128 @@ conduit::Node& nbObjectToNode(nb::object& o)
  * the ndarray is garbage collected.
  *
  * To keep Sidre's C++ semantics unchanged while making the Python API safe,
- * we maintain a binding-only registry that maps a C++ View* to a copied
- * nanobind::ndarray wrapper. Copying nb::ndarray increments the underlying
- * ndarray owner's refcount via nanobind's internal handle, so the NumPy storage
- * remains alive as long as the View exists.
+ * we maintain a binding-only registry of "pins": copies of the nanobind ndarray
+ * wrapper. Copying nb::ndarray increments the underlying ndarray owner's
+ * refcount via nanobind's internal handle, so the NumPy storage stays alive for
+ * as long as the pin exists. A pin therefore ties the external array's lifetime
+ * to the *C++ View's* lifetime, not to any transient Python proxy: the array
+ * survives even if the Python View object that set it is discarded, as long as
+ * the View still lives in its DataStore (see the lifetime tests).
  *
- * Pins are released when the external pointer is cleared (e.g. View.clear(),
- * setExternalData(None)) and when views/groups are destroyed via the bound Group::destroy* APIs.
+ * **Per-DataStore scoping.** The registry is keyed by owning DataStore* and,
+ * within each DataStore, by View*. This is what makes raw-pointer keys safe:
  *
- * **Registry Lifetime:** The registry persists for the process lifetime and may accumulate
- * entries for destroyed Views if those Views are destroyed by the C++ DataStore destructor
- * rather than through the Python-wrapped destroy methods. This is acceptable because:
- * (1) Dangling View* keys are never dereferenced (we only erase, never lookup by pointer)
- * (2) The memory overhead is small (one map entry per external View ever created)
- * (3) In typical Python usage, Views with external data are explicitly destroyed via
- *     destroyView()/destroyGroup(), which properly releases pins.
+ *  - When a DataStore's Python object is collected, nanobind destroys the C++
+ *    DataStore (the user always holds a DataStore through Python, so the two
+ *    lifetimes coincide). We install a weak reference on the DataStore at the
+ *    first pin whose callback erases that DataStore's entire sub-map. Pins are
+ *    thus released no later than DataStore destruction -- the registry never
+ *    grows without bound, even for Views torn down by the C++ DataStore
+ *    destructor rather than an explicit destroyView()/destroyGroup().
+ *  - A View* is only meaningful within its owning DataStore, and that
+ *    DataStore's sub-map is wiped when the DataStore dies. A View* address
+ *    reused by a *different* DataStore therefore cannot collide with a stale
+ *    pin, and a reused DataStore* address starts from a fresh (empty) sub-map.
+ *  - We never look up a pin by a View* that might be stale: copyView/copyGroup
+ *    only search for the source pin while the source View is live, then re-pin
+ *    the destination from that live ndarray value.
+ *
+ * Pins are also released eagerly when the external pointer is cleared
+ * (View.clear(), setExternalData(None)) and when views/groups are destroyed via
+ * the bound destroy* APIs, so memory is reclaimed promptly in the common case
+ * rather than waiting for DataStore destruction.
+ *
+ * \note Thread safety: all access goes through the GIL (see the module
+ *  docstring). If the bindings ever release the GIL, this registry needs a mutex.
+ *
+ * \note Pin scoping assumes a pinned View stays within the DataStore it belonged
+ *  to when it was pinned. Sidre reparenting (moveView/moveGroup) stays within a
+ *  single DataStore, so a View's owning DataStore is stable for its lifetime and
+ *  the DataStore* key never goes stale under a supported operation.
+ *  If Sidre ever gained cross-DataStore migration of a live View, that View's pin
+ *  would remain under its original DataStore (and be released when that DataStore is collected),
+ *  so this invariant would need revisiting.
  */
-std::unordered_map<View*, nb::ndarray<>>& externalDataOwnerRegistry()
+struct DataStoreExternalPins
 {
-  // Intentionally heap-allocated so Python-owned references are not destroyed
-  // after interpreter finalization during static shutdown.
-  static auto* registry = new std::unordered_map<View*, nb::ndarray<>>();
+  std::unordered_map<View*, nb::ndarray<>> pins;
+  // Holds the weak reference whose callback clears this sub-map; keeping it here
+  // keeps the callback armed for the lifetime of the entries.
+  nb::object datastore_weakref;
+};
+
+std::unordered_map<DataStore*, DataStoreExternalPins>& externalDataOwnerRegistry()
+{
+  // Intentionally heap-allocated so any Python-owned references it still holds
+  // are not destroyed after interpreter finalization during static shutdown.
+  static auto* registry = new std::unordered_map<DataStore*, DataStoreExternalPins>();
   return *registry;
 }
 
-template <typename... Args>
-void pinExternalDataOwner(View* view, const nb::ndarray<Args...>& owner)
+//! Return the owning DataStore of a View, or nullptr if it has none yet.
+DataStore* owningDataStore(View* view)
 {
-  if(view != nullptr)
+  if(view == nullptr)
   {
-    // Note: Map assignment automatically releases the previous ndarray wrapper if present.
-    // When nb::ndarray<> is destroyed, nanobind decrements the underlying Python object's refcount
-    externalDataOwnerRegistry()[view] = nb::ndarray<>(owner);
+    return nullptr;
   }
+  Group* group = view->getOwningGroup();
+  return (group != nullptr) ? group->getDataStore() : nullptr;
+}
+
+//! Erase all pins recorded for \a ds (called when the DataStore is collected).
+void releaseDataStoreExternalPins(DataStore* ds) { externalDataOwnerRegistry().erase(ds); }
+
+/*!
+ * \brief Record \a owner as the pin for \a view, scoped to its DataStore.
+ *
+ * On the first pin into a given DataStore, installs a weak reference on the
+ * DataStore's Python object so the sub-map is cleared when the DataStore is
+ * destroyed. Re-assigning a View*'s pin releases the previous ndarray wrapper.
+ */
+void pinExternalDataOwner(View* view, const nb::ndarray<>& owner)
+{
+  DataStore* ds = owningDataStore(view);
+  // Enforce the precondition in debug builds;
+  // release builds fall through to the null-safe early return below.
+  SLIC_ASSERT_MSG(view == nullptr || ds != nullptr,
+                  "pinExternalDataOwner: a non-null View is expected to have an owning DataStore");
+  if(view == nullptr || ds == nullptr)
+  {
+    return;
+  }
+
+  DataStoreExternalPins& entry = externalDataOwnerRegistry()[ds];
+  if(!entry.datastore_weakref.is_valid())
+  {
+    // Retrieve the DataStore's existing Python wrapper and attach a weakref
+    // whose callback clears this DataStore's pins. nb::find returns a null
+    // object if no wrapper exists; in that (unexpected) case we simply skip the
+    // weakref -- the eager release paths still apply, and the worst case is the
+    // pre-existing process-lifetime retention.
+    nb::object ds_obj = nb::find(*ds);
+    if(ds_obj.is_valid() && !ds_obj.is_none())
+    {
+      entry.datastore_weakref =
+        nb::weakref(ds_obj, nb::cpp_function([ds](nb::handle) { releaseDataStoreExternalPins(ds); }));
+    }
+  }
+
+  // Map assignment releases the previous ndarray wrapper if one was present.
+  entry.pins[view] = nb::ndarray<>(owner);
 }
 
 void releaseExternalDataOwner(View* view)
 {
-  if(view != nullptr)
+  DataStore* ds = owningDataStore(view);
+  if(view == nullptr || ds == nullptr)
   {
-    externalDataOwnerRegistry().erase(view);
+    return;
+  }
+  auto it = externalDataOwnerRegistry().find(ds);
+  if(it != externalDataOwnerRegistry().end())
+  {
+    it->second.pins.erase(view);
   }
 }
 
@@ -345,14 +431,17 @@ void releaseExternalDataOwnersOfViews(Group& group)
 }
 
 /*!
- * \brief Copy external data pin from source View to destination View.
+ * \brief Copy the external-data pin from a source View to a destination View.
  *
- * When copyView() creates a shallow copy that shares external data, the new View
- * needs its own pin to prevent the numpy array from being garbage collected.
- * This function looks up the source View's pin and copies it to the destination.
+ * copyView() makes a shallow copy that shares the external pointer, so the
+ * destination needs its own pin to keep the NumPy array alive independently of
+ * the source. The source View is live for the duration of the copy (the caller
+ * holds it), so looking up its pin within its own DataStore's sub-map is safe;
+ * we then pin the destination from that live ndarray value. We never search the
+ * registry by a View* that could be stale.
  *
- * \param src_view Source View (must have an external data pin)
- * \param dst_view Destination View (will receive a copy of the pin)
+ * \param src_view Source View (live; expected to hold an external data pin)
+ * \param dst_view Destination View (receives a copy of the pin)
  */
 void copyExternalDataOwner(const View* src_view, View* dst_view)
 {
@@ -361,12 +450,25 @@ void copyExternalDataOwner(const View* src_view, View* dst_view)
     return;
   }
 
-  auto& registry = externalDataOwnerRegistry();
-  auto it = registry.find(const_cast<View*>(src_view));
-  if(it != registry.end())
+  DataStore* src_ds = owningDataStore(const_cast<View*>(src_view));
+  if(src_ds == nullptr)
   {
-    // Copy the ndarray handle to the new View, incrementing its refcount
-    registry[dst_view] = it->second;
+    return;
+  }
+
+  auto& registry = externalDataOwnerRegistry();
+  auto ds_it = registry.find(src_ds);
+  if(ds_it == registry.end())
+  {
+    return;
+  }
+
+  auto pin_it = ds_it->second.pins.find(const_cast<View*>(src_view));
+  if(pin_it != ds_it->second.pins.end())
+  {
+    // Re-pin the destination from the source's live ndarray value (scoped to
+    // the destination's own DataStore by pinExternalDataOwner).
+    pinExternalDataOwner(dst_view, pin_it->second);
   }
 }
 
@@ -463,9 +565,9 @@ MPI_Comm mpiCommFromObject(nb::object comm)
  * duplicate or free it. That borrowed-communicator contract works for C++
  * callers, but it is unsafe for mpi4py objects: py2f() exposes the object's
  * current communicator handle, and Python code may later drop or explicitly
- * Free() that object while pysidre.IOManager is still alive.
+ * Free() that object while axom.sidre.IOManager is still alive.
  *
- * PyIOManager keeps the public Python class name as pysidre.IOManager while
+ * PyIOManager keeps the public Python class name as axom.sidre.IOManager while
  * giving the binding its own lifetime boundary. It duplicates the input
  * communicator, constructs sidre::IOManager with that duplicate, destroys the
  * IOManager first, and then frees the duplicate when MPI is still active.
@@ -476,7 +578,8 @@ public:
   PyIOManager(MPI_Comm comm, bool use_scr)
   {
     int err = MPI_Comm_dup(comm, &m_comm);
-    SLIC_ERROR_IF(err != MPI_SUCCESS, "Failed to duplicate MPI communicator for pysidre.IOManager");
+    SLIC_ERROR_IF(err != MPI_SUCCESS,
+                  "Failed to duplicate MPI communicator for axom.sidre.IOManager");
     m_manager = std::make_unique<IOManager>(m_comm, use_scr);
   }
 
@@ -511,7 +614,9 @@ private:
 };
 #endif
 
-NB_MODULE(pysidre, m_sidre)
+// The extension installs as ``axom/sidre/_sidre.<tag>.so`` and is re-exported
+// by the ``axom.sidre`` package (see src/python/src/axom/sidre/__init__.py).
+NB_MODULE(_sidre, m_sidre)
 {
   m_sidre.doc() = R"pbdoc(
     A python extension for Axom's Sidre component.
@@ -529,10 +634,16 @@ NB_MODULE(pysidre, m_sidre)
     **External Data Lifetime:**
     Views can reference external numpy arrays via setExternalData() or createView().
     The binding automatically pins these arrays to prevent garbage collection while
-    the View exists. Pins are released when:
-    - View.clear() is called
-    - The View is destroyed via destroyView() or destroyViewAndData()
+    the View exists, so an array stays valid even if the Python View object that set
+    it is discarded (as long as the View still lives in its DataStore). Pins are
+    scoped per-DataStore and are released when:
+    - View.clear() or setExternalData(None) is called
+    - The View is destroyed via destroyView() / destroyViewAndData()
     - The owning Group hierarchy is destroyed via destroyGroup*() methods
+    - The owning DataStore is destroyed (a weak reference on the DataStore clears
+      its remaining pins, so the registry never grows without bound -- even for
+      Views torn down by the C++ DataStore destructor rather than an explicit
+      destroy* call)
 
     **Reallocation Hazards:**
     Arrays obtained via getDataArray() are zero-copy views into Sidre storage.
@@ -604,7 +715,10 @@ NB_MODULE(pysidre, m_sidre)
   bindIterator<ViewIterator>(m_sidre, "ViewIterator");
 
   // Bindings for the DataStore class
-  nb::class_<DataStore>(m_sidre, "DataStore")
+  // DataStore is weak-referenceable so the external-data registry can attach a
+  // weakref callback that releases that DataStore's pins when it is destroyed
+  // (see externalDataOwnerRegistry).
+  nb::class_<DataStore>(m_sidre, "DataStore", nb::is_weak_referenceable())
     .def(nb::init<>())
     .def("getRoot",
          nb::overload_cast<>(&DataStore::getRoot),
@@ -750,7 +864,13 @@ NB_MODULE(pysidre, m_sidre)
     .def("getIndex", &Buffer::getIndex, "Return the unique index of this Buffer object.")
     .def("getNumViews", &Buffer::getNumViews, "Return number of Views this Buffer is attached to.")
     // .def("getVoidPtr", &Buffer::getVoidPtr, "Return void-pointer to data held by Buffer.")
-    .def("getDataArray", &bufferToNumpyArray, "Return the data held by the Buffer as a numpy array.")
+    .def("getDataArray",
+         &bufferToNumpyArray,
+         "Return the data held by the Buffer as a numpy array.\n\n"
+         "The array is a zero-copy view into the Buffer's storage "
+         "and keeps the Buffer (and its DataStore) alive while referenced. "
+         "Buffer.reallocate() can move the storage, leaving a previously returned array "
+         "pointing at freed memory; re-acquire the array after any reallocation.")
     .def("getTypeID", &Buffer::getTypeID, "Return type of data owned by this Buffer object.")
     .def("getNumElements",
          &Buffer::getNumElements,
@@ -796,6 +916,10 @@ NB_MODULE(pysidre, m_sidre)
     .def("getPathName",
          &View::getPathName,
          "Return the full path of the View object, including its name.")
+    .def("checksum",
+         &View::checksum,
+         "Return a checksum for the View's name, metadata, and data.",
+         nb::arg("includeAttributes") = true)
     .def("getOwningGroup",
          nb::overload_cast<>(&View::getOwningGroup),
          nb::rv_policy::reference_internal,
@@ -933,26 +1057,23 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def(
       "setExternalData",
-      [](View& self, nb::object external_ptr) {
-        if(external_ptr.is_none())
+      [](View& self, std::optional<nb::ndarray<>> external_ptr) {
+        // A single undescribed-data overload covering both None
+        // (clear the external pointer and release any pin) and a numpy array (set + pin).
+        // Using std::optional<ndarray> lets nanobind reject a non-array argument
+        // with a clean "incompatible function arguments" error
+        // rather than throwing mid-body from an explicit cast.
+        if(!external_ptr.has_value())
         {
           View* result = self.setExternalDataPtr(nullptr);
           releaseExternalDataOwner(&self);
           return result;
         }
-        nb::ndarray<> owner = nb::cast<nb::ndarray<>>(external_ptr);
-        return setExternalDataAndPinOwner(self, owner);
+        return setExternalDataAndPinOwner(self, *external_ptr);
       },
       nb::rv_policy::reference,
-      "Set the View to hold undescribed external data (numpy array).",
+      "Set the View to hold undescribed external data, or clear it when passed None.",
       nb::arg("external_ptr").none())
-    .def(
-      "setExternalData",
-      [](View& self, const nb::ndarray<>& external_ptr) {
-        return setExternalDataAndPinOwner(self, external_ptr);
-      },
-      nb::rv_policy::reference,
-      "Set the View to hold undescribed external data (numpy array).")
     .def(
       "setExternalData",
       [](View& self, TypeID type, IndexType num_elems, const nb::ndarray<>& external_ptr) {
@@ -976,16 +1097,25 @@ NB_MODULE(pysidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
-    .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
+    .def("getDataArray",
+         &viewToNumpyArray,
+         "Return the data held by the View as a numpy array.\n\n"
+         "The array is a zero-copy view into the View's storage "
+         "and keeps the View (and its DataStore) alive while referenced. "
+         "View.reallocate() (or reallocating the underlying Buffer) can move the storage, "
+         "leaving a previously returned array pointing at freed memory; "
+         "re-acquire the array after any reallocation.")
 
-    .def("getDataInt",
-         &View::getData<int>,
-         nb::rv_policy::reference,
-         "Return the scalar data held by the View as an python int type.")
-    .def("getDataFloat",
-         &View::getData<double>,
-         nb::rv_policy::reference,
-         "Return the data held by the View as a python float type (C++ double).")
+    .def(
+      "getDataInt",
+      [](View& self) { return self.getData<int>(); },
+      nb::rv_policy::reference,
+      "Return the scalar data held by the View as an python int type.")
+    .def(
+      "getDataFloat",
+      [](View& self) { return self.getData<double>(); },
+      nb::rv_policy::reference,
+      "Return the data held by the View as a python float type (C++ double).")
     .def("print",
          nb::overload_cast<>(&View::print, nb::const_),
          "Print JSON description of the View.")
@@ -1162,6 +1292,19 @@ NB_MODULE(pysidre, m_sidre)
     .def("getName", &Group::getName, "Return const reference to name of Group object.")
     .def("getPath", &Group::getPath, "Return path of Group object, not including its name.")
     .def("getPathName", &Group::getPathName, "Return full path of Group object, including its name.")
+    .def("checksum",
+         nb::overload_cast<bool>(&Group::checksum, nb::const_),
+         "Return a checksum for the Group's name, child structure, and descendant view data.",
+         nb::arg("includeAttributes") = true)
+    .def(
+      "checksum",
+      [](const Group& self, nb::object& o, bool includeAttributes) {
+        conduit::Node& cpp_node = nbObjectToNode(o);
+        self.checksum(cpp_node, includeAttributes);
+      },
+      "Populate a Conduit node with checksum metadata for this Group hierarchy.",
+      nb::arg("n_checksum"),
+      nb::arg("includeAttributes") = true)
     .def("getParent",
          nb::overload_cast<>(&Group::getParent, nb::const_),
          nb::rv_policy::reference_internal,

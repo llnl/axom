@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_EXECUTION_ARGS_HPP_
-#define MINT_EXECUTION_ARGS_HPP_
+#pragma once
 
 /*!
  * \file
@@ -204,5 +203,3 @@ struct xargs_traits<xargs::cellids>
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_EXEC_ARGS_HPP_ */

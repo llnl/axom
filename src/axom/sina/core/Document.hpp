@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_DOCUMENT_HPP
-#define SINA_DOCUMENT_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -326,12 +325,17 @@ Document loadDocument(std::string const &path,
  *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
  * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
  *                       ex: a code is appending values to every timeseries every N cycles.
+ * \param overwriteCurves Indicates that curves should be overwritten instead of appended to. Useful for cases
+ *                        where a data source must pass the full curve each time. Note: the type of the data
+ *                        can't change on overwrite, don't use ints for floats etc.
+ * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
 conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
                                    const Document &newData,
                                    const int mergeProtocol = 1,
-                                   const bool skipValidation = false);
+                                   const bool skipValidation = false,
+                                   const bool overwriteCurves = false);
 
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
@@ -358,13 +362,17 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
  *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
  * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
  *                       ex: a code is appending values to every timeseries every N cycles.
+ * \param overwriteCurves Indicates that curves should be overwritten instead of appended to. Useful for cases
+ *                        where a data source must pass the full curve each time. Note: the type of the data
+ *                        can't change on overwrite, don't use ints for floats etc.
  * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success!
  */
 conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
                                    Document const &newData,
                                    const int mergeProtocol = 1,
-                                   const bool skipValidation = false);
+                                   const bool skipValidation = false,
+                                   const bool overwriteCurves = false);
 
 /**
  * @brief Append a Document to an existing file with automatic format detection
@@ -376,12 +384,16 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
  * \param filepath Path to the existing file
  * \param mergeProtocol How to handle conflicts (1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
  * \param outputProtocol Optional format override (default: AUTO_DETECT)
+ * \param overwriteCurves Indicates that curves should be overwritten instead of appended to. Useful for cases
+ *                        where a data source must pass the full curve each time. Note: the type of the data
+ *                        can't change on overwrite, don't use ints for floats etc.
  * \throws std::runtime_error If the file cannot be opened or the format is unsupported
  */
 void appendDocument(const Document &document,
                     const std::string &filepath,
                     int mergeProtocol = 1,
-                    Protocol Protocol = Protocol::AUTO_DETECT);
+                    Protocol Protocol = Protocol::AUTO_DETECT,
+                    const bool overwriteCurves = false);
 
 /**
  * \brief Check a node against some file handle and return a Conduit node populated with any errors that
@@ -407,5 +419,3 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_DOCUMENT_HPP

@@ -93,7 +93,7 @@ static void appendPoints(LinearizeCurves::SegmentMesh* mesh, SegmentArray& S, do
 {
   // Check for simple vertex welding opportunities at endpoints of newly interpolated points
   {
-    int numNodes = mesh->getNumberOfNodes();
+    const axom::IndexType numNodes = mesh->getNumberOfNodes();
     if(numNodes > 0)  // this is not the first Piece
     {
       PointType meshPt;
@@ -105,7 +105,7 @@ static void appendPoints(LinearizeCurves::SegmentMesh* mesh, SegmentArray& S, do
       }
 
       // Fix end point if necessary; check against 0th vertex in mesh
-      const int endIdx = S.size() - 1;
+      const axom::IndexType endIdx = S.size() - 1;
       mesh->getNode(0, meshPt.data());
       if(primal::squared_distance(S[endIdx].point, meshPt) < EPS_SQ)
       {
@@ -114,7 +114,7 @@ static void appendPoints(LinearizeCurves::SegmentMesh* mesh, SegmentArray& S, do
     }
     else  // This is the first, and possibly only span, check its endpoint, fix if necessary
     {
-      int endIdx = S.size() - 1;
+      const axom::IndexType endIdx = S.size() - 1;
       if(primal::squared_distance(S[0].point, S[endIdx].point) < EPS_SQ)
       {
         S[endIdx].point = S[0].point;
@@ -124,19 +124,19 @@ static void appendPoints(LinearizeCurves::SegmentMesh* mesh, SegmentArray& S, do
 
   // Add the new points and segments to the mesh, respecting welding checks from previous block
   {
-    const int startNode = mesh->getNumberOfNodes();
-    const int numNewNodes = S.size();
+    const axom::IndexType startNode = mesh->getNumberOfNodes();
+    const axom::IndexType numNewNodes = S.size();
     mesh->reserveNodes(startNode + numNewNodes);
 
-    for(int i = 0; i < numNewNodes; ++i)
+    for(axom::IndexType i = 0; i < numNewNodes; ++i)
     {
       mesh->appendNode(S[i].point[0], S[i].point[1]);
     }
 
-    const int startCell = mesh->getNumberOfCells();
-    const int numNewSegments = S.size() - 1;
+    const axom::IndexType startCell = mesh->getNumberOfCells();
+    const axom::IndexType numNewSegments = S.size() - 1;
     mesh->reserveCells(startCell + numNewSegments);
-    for(int i = 0; i < numNewSegments; ++i)
+    for(axom::IndexType i = 0; i < numNewSegments; ++i)
     {
       IndexType seg[2] = {startNode + i, startNode + i + 1};
       mesh->appendCell(seg, mint::SEGMENT);
@@ -181,9 +181,9 @@ TIME 1 1 double
 
   // Write points
   // clang-format off
-  const int npts = S.size();
+  const axom::IndexType npts = S.size();
   axom::fmt::format_to(std::back_inserter(out), "POINTS {} float\n", npts);
-  for(int i = 0; i < npts; i += 3)
+  for(axom::IndexType i = 0; i < npts; i += 3)
   {
     axom::fmt::format_to(std::back_inserter(out),"{}{}{}\n",
       fmt::format("{:.16f} {:.16f} 0.", S[i].point[0], S[i].point[1]),
@@ -194,9 +194,9 @@ TIME 1 1 double
   // clang-format on
 
   // Write ncells
-  int nspans = npts - 1;
+  const axom::IndexType nspans = npts - 1;
   axom::fmt::format_to(std::back_inserter(out), "LINES {} {}\n", nspans, 3 * nspans);
-  for(int ispan = 0; ispan < nspans; ispan++)
+  for(axom::IndexType ispan = 0; ispan < nspans; ispan++)
   {
     axom::fmt::format_to(std::back_inserter(out), "2 {} {}\n", ispan, ispan + 1);
   }
@@ -240,7 +240,7 @@ void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curve
 
       // Check for simple vertex welding opportunities at endpoints of newly interpolated points
       {
-        const int numNodes = mesh->getNumberOfNodes();
+        const axom::IndexType numNodes = mesh->getNumberOfNodes();
         if(numNodes > 0)  // this is not the first Piece
         {
           PointType meshPt;
@@ -271,19 +271,19 @@ void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curve
 
       // Add the new points and segments to the mesh, respecting welding checks from previous block
       {
-        const auto startNode = mesh->getNumberOfNodes();
-        const auto numNewNodes = pts.size();
+        const axom::IndexType startNode = mesh->getNumberOfNodes();
+        const axom::IndexType numNewNodes = pts.size();
         mesh->reserveNodes(startNode + numNewNodes);
 
-        for(int i = 0; i < numNewNodes; ++i)
+        for(axom::IndexType i = 0; i < numNewNodes; ++i)
         {
           mesh->appendNode(pts[i][0], pts[i][1]);
         }
 
-        const auto startCell = mesh->getNumberOfCells();
-        const auto numNewSegments = pts.size() - 1;
+        const axom::IndexType startCell = mesh->getNumberOfCells();
+        const axom::IndexType numNewSegments = pts.size() - 1;
         mesh->reserveCells(startCell + numNewSegments);
-        for(int i = 0; i < numNewSegments; ++i)
+        for(axom::IndexType i = 0; i < numNewSegments; ++i)
         {
           IndexType seg[2] = {startNode + i, startNode + i + 1};
           mesh->appendCell(seg, mint::SEGMENT);

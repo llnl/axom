@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_RECORD_HPP
-#define SINA_RECORD_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -267,5 +266,3 @@ RecordLoader createRecordLoaderWithAllKnownTypes();
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_RECORD_HPP

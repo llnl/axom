@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_STACKARRAY_HPP_
-#define AXOM_STACKARRAY_HPP_
+#pragma once
 
 #include "axom/config.hpp"       // for compile-time defines
 #include "axom/core/Macros.hpp"  // for axom macros
@@ -166,5 +165,3 @@ std::ostream& operator<<(std::ostream& os, const StackArray<T, N>& obj)
 }
 
 } /* namespace axom */
-
-#endif /* AXOM_STACKARRAY_HPP_ */

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_LINEAR_BVH_VTKIO_HPP_
-#define AXOM_SPIN_LINEAR_BVH_VTKIO_HPP_
+#pragma once
 
 #include "axom/primal/geometry/BoundingBox.hpp"
 
@@ -209,5 +208,3 @@ void write_recursive(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inne
 } /* namespace internal */
 } /* namespace spin */
 } /* namespace axom */
-
-#endif /* AXOM_SPIN_LINEAR_BVH_VTKIO_HPP_ */

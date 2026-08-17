@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_CELLTYPES_HPP_
-#define MINT_CELLTYPES_HPP_
+#pragma once
 
 #include "axom/mint/config.hpp"
 
@@ -345,5 +344,3 @@ inline constexpr const CellInfo& getCellInfo(CellType type)
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_CellTypes_HPP_ */

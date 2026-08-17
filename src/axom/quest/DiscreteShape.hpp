@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_DISCRETE_SHAPE_HPP
-#define AXOM_QUEST_DISCRETE_SHAPE_HPP
+#pragma once
 
 #include <string>
 #include <vector>
@@ -191,5 +190,3 @@ public:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

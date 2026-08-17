@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DynamicConstantRelation.hpp
  *
@@ -14,9 +16,6 @@
  *
  * This relation is dynamic; the related entities can change at runtime.
  */
-
-#ifndef SLAM_DYNAMIC_CONSTANT_RELATION_HPP_
-#define SLAM_DYNAMIC_CONSTANT_RELATION_HPP_
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
@@ -572,5 +571,3 @@ bool DynamicConstantRelation<PosType, ElemType, CardinalityPolicy>::isValid(bool
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_CONSTANT_RELATION_HPP_

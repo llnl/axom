@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_HELPERS_HPP_
-#define QUEST_HELPERS_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -307,5 +306,3 @@ void logger_finalize(bool mustFinalize);
 } /* end namespace internal */
 } /* end namespace quest    */
 } /* end namespace axom     */
-
-#endif /* QUEST_HELPERS_HPP_ */

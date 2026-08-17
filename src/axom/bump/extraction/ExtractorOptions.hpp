@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_EXTRACTOR_OPTIONS_HPP_
-#define AXOM_BUMP_EXTRACTOR_OPTIONS_HPP_
+
+#pragma once
 
 #include "axom/bump/Options.hpp"
 
@@ -105,5 +105,3 @@ protected:
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

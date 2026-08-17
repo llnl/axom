@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FINITEELEMENT_HPP_
-#define MINT_FINITEELEMENT_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"  // for disable copy/assignment macros
 #include "axom/core/Types.hpp"   // for nullptr definition
@@ -559,5 +558,3 @@ void bind_basis(FiniteElement& fe)
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_FINITEELEMENT_HPP_ */

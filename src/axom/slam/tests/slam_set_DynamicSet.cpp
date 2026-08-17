@@ -93,7 +93,7 @@ TEST(slam_set_dynamicset, out_of_bounds_at)
   // NOTE: AXOM_DEBUG is disabled in release mode,
   // so this test will only fail in debug mode
 
-  EXPECT_DEATH_IF_SUPPORTED(s.at(MAX_SET_SIZE), "");
+  EXPECT_DEATH_IF_SUPPORTED((void)s.at(MAX_SET_SIZE), "");
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif
@@ -242,6 +242,21 @@ TEST(slam_set_dynamicset, find_index)
   {
     EXPECT_EQ(s.findIndex(i), i);
   }
+}
+
+TEST(slam_set_dynamicset, findIndexOptional)
+{
+  SetType s(MAX_SET_SIZE);
+
+  for(SetPosition i = 0; i < MAX_SET_SIZE; i++)
+  {
+    auto opt = s.findIndexOptional(i);
+    ASSERT_TRUE(opt.has_value());
+    EXPECT_EQ(*opt, i);
+  }
+
+  auto miss = s.findIndexOptional(MAX_SET_SIZE + 1);
+  EXPECT_FALSE(miss.has_value());
 }
 
 TEST(slam_set_dynamicset, iterator)

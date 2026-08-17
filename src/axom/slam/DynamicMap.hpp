@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_DYNAMIC_MAP_HPP_
-#define SLAM_DYNAMIC_MAP_HPP_
+#pragma once
 
 #include <vector>
 #include <sstream>
@@ -25,8 +24,7 @@ namespace slam
  * \class DynamicMap
  * \brief A slam map class that supports adding and removing entries.
  *
- * \detail An entry in the map is considered valid if
- * its corresponding set's entry is valid
+ * \detail An entry in the map is considered valid if its corresponding set's entry is valid
  */
 template <typename SetType, typename DataType>
 class DynamicMap
@@ -112,8 +110,7 @@ public:
   /**
    * \brief Return the number of valid entries
    *
-   * An entry at a given index is considered valid if corresponding
-   * set element is valid.
+   * An entry at a given index is considered valid if corresponding set element is valid.
    */
   SetPosition numberOfValidEntries() const
   {
@@ -131,7 +128,7 @@ public:
   }
 
   /** \brief Predicate to check if this DynamicMap instance is valid */
-  bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
   /// @}
 
@@ -251,5 +248,3 @@ bool DynamicMap<SetType, DataType>::isValid(bool verboseOutput) const
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_MAP_HPP_

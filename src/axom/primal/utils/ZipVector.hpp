@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_ZIP_VECTOR_HPP_
-#define AXOM_PRIMAL_ZIP_VECTOR_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/StackArray.hpp"
@@ -73,5 +72,3 @@ private:
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_ZIP_VECTOR_HPP_

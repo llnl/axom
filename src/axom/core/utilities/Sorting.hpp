@@ -4,8 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_UTILITIES_SORTING_HPP
-#define AXOM_CORE_UTILITIES_SORTING_HPP
+#pragma once
+
 #include <axom/core/utilities/Utilities.hpp>
 #include <axom/core/NumericLimits.hpp>
 
@@ -490,5 +490,3 @@ struct Sorting<T, 4>
 
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif

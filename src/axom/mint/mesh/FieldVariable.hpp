@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FIELDVARIABLE_HPP_
-#define MINT_FIELDVARIABLE_HPP_
+#pragma once
 
 #include "axom/mint/mesh/Field.hpp"
 
@@ -396,5 +395,3 @@ FieldVariable<T>::FieldVariable(const std::string& name,
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* FIELDVARIABLE_HPP_ */

@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_CLIP_FIELD_HPP_
-#define AXOM_BUMP_CLIP_FIELD_HPP_
+
+#pragma once
 
 #include "axom/bump/extraction/TableBasedExtractor.hpp"
 #include "axom/bump/extraction/ClipTableManager.hpp"
@@ -36,5 +36,3 @@ using ClipField =
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

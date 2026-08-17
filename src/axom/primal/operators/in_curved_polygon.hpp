@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file in_curved_polygon.hpp
  *
@@ -12,9 +14,6 @@
  *
  * Uses an adaptive winding number calculation
  */
-
-#ifndef AXOM_PRIMAL_IN_CURVED_POLYGON_HPP_
-#define AXOM_PRIMAL_IN_CURVED_POLYGON_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
@@ -61,5 +60,3 @@ bool in_curved_polygon(const Point<T, 2>& query,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_IN_CURVED_POLYGON_H_

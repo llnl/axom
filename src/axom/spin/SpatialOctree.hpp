@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_SPATIAL_OCTREE__HPP_
-#define AXOM_SPIN_SPATIAL_OCTREE__HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -53,7 +52,8 @@ public:
   {
     // Cache the extents of a grid cell at each level of resolution
     const SpaceVector bbRange = m_boundingBox.range();
-    for(int lev = 0; lev < this->m_levels.size(); ++lev)
+    const int num_levels = this->maxLeafLevel();
+    for(int lev = 0; lev < num_levels; ++lev)
     {
       m_deltaLevelMap[lev] = bbRange / static_cast<double>(CoordType(1) << lev);
 
@@ -123,13 +123,13 @@ public:
       "SpatialOctree::findLeafNode -- Did not find " << pt << " in bounding box " << m_boundingBox);
 
     // Perform binary search on levels to find the leaf block containing the point
-    CoordType minLev = 0;
-    CoordType maxLev = this->maxLeafLevel();
-    CoordType lev = (startingLevel == -1) ? maxLev >> 1 : startingLevel;
+    int minLev = 0;
+    int maxLev = this->maxLeafLevel();
+    int lev = (startingLevel == -1) ? maxLev >> 1 : startingLevel;
 
     while(minLev <= maxLev)
     {
-      GridPt gridPt = findGridCellAtLevel(pt, static_cast<int>(lev));
+      GridPt gridPt = findGridCellAtLevel(pt, lev);
       switch(this->blockStatus(gridPt, lev))
       {
       case BlockNotInTree:
@@ -196,5 +196,3 @@ protected:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_SPATIAL_OCTREE__HPP_

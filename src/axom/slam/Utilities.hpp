@@ -4,56 +4,28 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file
  * \brief A few utility functions used by the SLAM component.
  */
-#ifndef SLAM_UTILITIES_H_
-#define SLAM_UTILITIES_H_
-
 #include "axom/core.hpp"
 #include "axom/fmt.hpp"
 
-#include <string>
 #include <iostream>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 using DefaultPositionType = axom::IndexType;
 using DefaultElementType = axom::IndexType;
 
-class NotImplementedException
-{ };
-
 namespace util
 {
-/** \brief A helper class to print the name of a few types */
-template <typename T>
-struct TypeToString
-{
-  static std::string to_string() { return "<unspecialized>"; }
-};
-
-/** \brief A helper class to print the name of integers as 'int' */
-template <>
-struct TypeToString<int>
-{
-  static std::string to_string() { return "int"; }
-};
-
-/** \brief A helper class to print the name of doubles as 'double' */
-template <>
-struct TypeToString<double>
-{
-  static std::string to_string() { return "double"; }
-};
-
 /**
  * \brief A simple 3D point class similar to primal's point class,
  * with some basic Point/Vector functionalities
- * 
+ *
  * \note This is needed for internal testing in slam (which does not depend on primal)
  */
 template <typename DataType = double>
@@ -160,12 +132,9 @@ T distance(const Point3<T>& pt1, const Point3<T>& pt2)
 }
 
 }  // end namespace util
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam
 
 /// Overload to format an axom::slam::util::Point3 using fmt
 template <typename DataType>
 struct axom::fmt::formatter<axom::slam::util::Point3<DataType>> : ostream_formatter
 { };
-
-#endif  //  SLAM_UTILITIES_H_

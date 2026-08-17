@@ -5,16 +5,8 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 """Lifetime-soundness regression tests for the sidre python bindings.
 
-Each test obtains a sidre-owned object (child proxy, ancestor proxy, harvested
-iterator element, or zero-copy numpy array), drops every Python owner, forces a
-garbage collection, and then *uses* the object. Before the lifetime audit these
-patterns dereferenced freed memory and segfaulted; with reference_internal on
-owner-chain accessors, keep_alive on iterator elements, and self-as-owner on
-returned arrays, the keep_alive graph keeps the backing DataStore alive and the
-accesses are safe.
-
-These tests therefore only "pass" against the audited bindings; against the
-prior bindings they crash the interpreter (the failure mode the audit fixes).
+Each test obtains a sidre-owned object (child or ancestor proxy, iterator, zero-copy numpy array),
+drops every Python owner, forces a garbage collection, and then uses the object.
 """
 
 import gc
@@ -23,7 +15,7 @@ import weakref
 import numpy as np
 import pytest
 
-import pysidre
+import axom.sidre as sidre
 
 
 def _force_gc():
@@ -36,7 +28,7 @@ def _force_gc():
 # Child proxies must pin their owner chain (parent -> owned child)
 # ---------------------------------------------------------------------------
 def test_root_outlives_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     del ds
     _force_gc()
@@ -47,7 +39,7 @@ def test_root_outlives_datastore():
 
 
 def test_child_group_outlives_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     grp = ds.getRoot().createGroup("a/b/c")
     del ds
     _force_gc()
@@ -57,8 +49,8 @@ def test_child_group_outlives_datastore():
 
 
 def test_view_outlives_datastore():
-    ds = pysidre.DataStore()
-    view = ds.getRoot().createViewAndAllocate("field", pysidre.TypeID.INT_ID, 4)
+    ds = sidre.DataStore()
+    view = ds.getRoot().createViewAndAllocate("field", sidre.TypeID.INT_ID, 4)
     del ds
     _force_gc()
     assert view.getNumElements() == 4
@@ -66,8 +58,8 @@ def test_view_outlives_datastore():
 
 
 def test_buffer_outlives_datastore():
-    ds = pysidre.DataStore()
-    buff = ds.createBuffer(pysidre.TypeID.INT_ID, 8)
+    ds = sidre.DataStore()
+    buff = ds.createBuffer(sidre.TypeID.INT_ID, 8)
     buff.allocate()
     del ds
     _force_gc()
@@ -78,7 +70,7 @@ def test_buffer_outlives_datastore():
 # Ancestor proxies (child -> ancestor) must pin the object they were minted from
 # ---------------------------------------------------------------------------
 def test_owning_group_outlives_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     view = ds.getRoot().createView("v")
     owner = view.getOwningGroup()
     del ds
@@ -88,7 +80,7 @@ def test_owning_group_outlives_datastore():
 
 
 def test_get_datastore_back_reference():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     grp = ds.getRoot().createGroup("child")
     back = grp.getDataStore()
     del ds
@@ -99,8 +91,8 @@ def test_get_datastore_back_reference():
 
 
 def test_view_buffer_back_reference():
-    ds = pysidre.DataStore()
-    view = ds.getRoot().createViewAndAllocate("field", pysidre.TypeID.INT_ID, 4)
+    ds = sidre.DataStore()
+    view = ds.getRoot().createViewAndAllocate("field", sidre.TypeID.INT_ID, 4)
     buff = view.getBuffer()
     del ds
     del view
@@ -112,7 +104,7 @@ def test_view_buffer_back_reference():
 # Iterator elements harvested into a list must outlive the collection + store
 # ---------------------------------------------------------------------------
 def test_harvested_views_outlive_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     for i in range(4):
         root.createView(f"v{i}")
@@ -125,7 +117,7 @@ def test_harvested_views_outlive_datastore():
 
 
 def test_harvested_groups_outlive_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     for i in range(3):
         root.createGroup(f"g{i}")
@@ -138,9 +130,9 @@ def test_harvested_groups_outlive_datastore():
 
 
 def test_harvested_buffers_outlive_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     for _ in range(3):
-        ds.createBuffer(pysidre.TypeID.INT_ID, 2).allocate()
+        ds.createBuffer(sidre.TypeID.INT_ID, 2).allocate()
     harvested = list(ds.buffers())
     del ds
     _force_gc()
@@ -148,7 +140,7 @@ def test_harvested_buffers_outlive_datastore():
 
 
 def test_harvested_attributes_outlive_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     ds.createAttributeString("a0", "x")
     ds.createAttributeScalar("a1", 42)
     harvested = list(ds.attributes())
@@ -161,7 +153,7 @@ def test_harvested_attributes_outlive_datastore():
 # Iterator adaptors must outlive the owning Group/DataStore
 # ---------------------------------------------------------------------------
 def test_views_adaptor_outlives_group_and_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     for i in range(3):
         root.createView(f"v{i}")
@@ -173,7 +165,7 @@ def test_views_adaptor_outlives_group_and_datastore():
 
 
 def test_groups_adaptor_outlives_group_and_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     for i in range(3):
         root.createGroup(f"g{i}")
@@ -185,9 +177,9 @@ def test_groups_adaptor_outlives_group_and_datastore():
 
 
 def test_buffers_adaptor_outlives_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     for _ in range(3):
-        ds.createBuffer(pysidre.TypeID.INT_ID, 2).allocate()
+        ds.createBuffer(sidre.TypeID.INT_ID, 2).allocate()
     adaptor = ds.buffers()
     del ds
     _force_gc()
@@ -195,7 +187,7 @@ def test_buffers_adaptor_outlives_datastore():
 
 
 def test_attributes_adaptor_outlives_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     ds.createAttributeString("a0", "x")
     ds.createAttributeScalar("a1", 42)
     adaptor = ds.attributes()
@@ -208,7 +200,7 @@ def test_attributes_adaptor_outlives_datastore():
 # Lookup accessors should return proxies that pin their owner chain
 # ---------------------------------------------------------------------------
 def test_get_view_outlives_group_and_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     root.createView("v")
     view = root.getView("v")
@@ -219,7 +211,7 @@ def test_get_view_outlives_group_and_datastore():
 
 
 def test_get_group_outlives_group_and_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     root.createGroup("g")
     grp = root.getGroup("g")
@@ -230,8 +222,8 @@ def test_get_group_outlives_group_and_datastore():
 
 
 def test_get_buffer_outlives_datastore():
-    ds = pysidre.DataStore()
-    ds.createBuffer(pysidre.TypeID.INT_ID, 7).allocate()
+    ds = sidre.DataStore()
+    ds.createBuffer(sidre.TypeID.INT_ID, 7).allocate()
     buff = ds.getBuffer(0)
     del ds
     _force_gc()
@@ -239,7 +231,7 @@ def test_get_buffer_outlives_datastore():
 
 
 def test_get_attribute_outlives_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     ds.createAttributeString("a0", "x")
     attr = ds.getAttribute("a0")
     del ds
@@ -248,7 +240,7 @@ def test_get_attribute_outlives_datastore():
 
 
 def test_parent_group_outlives_datastore():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     child = ds.getRoot().createGroup("a/b")
     parent = child.getParent()
     del ds
@@ -259,7 +251,7 @@ def test_parent_group_outlives_datastore():
 
 
 def test_moved_group_outlives_owner_chain():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     src = root.createGroup("src")
     dst = root.createGroup("dst")
@@ -283,8 +275,8 @@ def test_moved_group_outlives_owner_chain():
 # Zero-copy numpy arrays must pin their backing View / Buffer (and DataStore)
 # ---------------------------------------------------------------------------
 def test_view_array_outlives_datastore():
-    ds = pysidre.DataStore()
-    view = ds.getRoot().createViewAndAllocate("field", pysidre.TypeID.INT_ID, 4)
+    ds = sidre.DataStore()
+    view = ds.getRoot().createViewAndAllocate("field", sidre.TypeID.INT_ID, 4)
     arr = view.getDataArray()
     arr[:] = [10, 20, 30, 40]
     del ds
@@ -297,8 +289,8 @@ def test_view_array_outlives_datastore():
 
 
 def test_buffer_array_outlives_datastore():
-    ds = pysidre.DataStore()
-    buff = ds.createBuffer(pysidre.TypeID.INT_ID, 4)
+    ds = sidre.DataStore()
+    buff = ds.createBuffer(sidre.TypeID.INT_ID, 4)
     buff.allocate()
     arr = buff.getDataArray()
     arr[:] = [1, 2, 3, 4]
@@ -311,8 +303,8 @@ def test_buffer_array_outlives_datastore():
 def test_view_array_survives_owner_chain_collection():
     # Keep only the array; let the entire DataStore/Group/View chain be dropped.
     def make_array():
-        ds = pysidre.DataStore()
-        view = ds.getRoot().createViewAndAllocate("field", pysidre.TypeID.FLOAT64_ID, 5)
+        ds = sidre.DataStore()
+        view = ds.getRoot().createViewAndAllocate("field", sidre.TypeID.FLOAT64_ID, 5)
         a = view.getDataArray()
         a[:] = np.arange(5, dtype=np.float64)
         return a
@@ -326,13 +318,13 @@ def test_view_array_survives_owner_chain_collection():
 # External numpy storage borrowed by Sidre must stay alive with the C++ View
 # ---------------------------------------------------------------------------
 def test_create_view_external_array_owner_survives_discarded_proxy():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     def create_external_view():
         external = np.arange(6, dtype=np.int64)
         ref = weakref.ref(external)
-        root.createView("external", external).apply(pysidre.TypeID.INT64_ID, 6)
+        root.createView("external", external).apply(sidre.TypeID.INT64_ID, 6)
         return ref
 
     ref = create_external_view()
@@ -342,14 +334,14 @@ def test_create_view_external_array_owner_survives_discarded_proxy():
 
 
 def test_create_view_with_shape_external_array_owner_survives_discarded_proxy():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     shape = np.array([2, 3])
 
     def create_external_view():
         external = np.arange(6, dtype=np.int64)
         ref = weakref.ref(external)
-        root.createViewWithShape("shaped", pysidre.TypeID.INT64_ID, 2, shape, external)
+        root.createViewWithShape("shaped", sidre.TypeID.INT64_ID, 2, shape, external)
         return ref
 
     ref = create_external_view()
@@ -359,14 +351,14 @@ def test_create_view_with_shape_external_array_owner_survives_discarded_proxy():
 
 
 def test_set_external_data_array_owner_survives_discarded_proxy():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     def set_external_data():
         view = root.createView("external")
         external = np.arange(6, dtype=np.int64)
         ref = weakref.ref(external)
-        view.setExternalData(pysidre.TypeID.INT64_ID, 6, external)
+        view.setExternalData(sidre.TypeID.INT64_ID, 6, external)
         return ref
 
     ref = set_external_data()
@@ -376,7 +368,7 @@ def test_set_external_data_array_owner_survives_discarded_proxy():
 
 
 def test_set_external_data_with_shape_array_owner_survives_discarded_proxy():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     shape = np.array([2, 3])
 
@@ -384,7 +376,7 @@ def test_set_external_data_with_shape_array_owner_survives_discarded_proxy():
         view = root.createView("shaped")
         external = np.arange(6, dtype=np.int64)
         ref = weakref.ref(external)
-        view.setExternalData(pysidre.TypeID.INT64_ID, 2, shape, external)
+        view.setExternalData(sidre.TypeID.INT64_ID, 2, shape, external)
         return ref
 
     ref = set_external_data()
@@ -394,11 +386,11 @@ def test_set_external_data_with_shape_array_owner_survives_discarded_proxy():
 
 
 def test_clear_releases_external_array_owner():
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     view = ds.getRoot().createView("external")
     external = np.arange(6, dtype=np.int64)
     ref = weakref.ref(external)
-    view.setExternalData(pysidre.TypeID.INT64_ID, 6, external)
+    view.setExternalData(sidre.TypeID.INT64_ID, 6, external)
     del external
     _force_gc()
     assert ref() is not None
@@ -408,9 +400,61 @@ def test_clear_releases_external_array_owner():
     assert ref() is None
 
 
+def test_set_external_data_none_clears_and_releases_pin():
+    """setExternalData(None) clears the external pointer and releases the pin."""
+    ds = sidre.DataStore()
+    view = ds.getRoot().createView("external")
+
+    external = np.arange(6, dtype=np.int64)
+    ref = weakref.ref(external)
+    view.setExternalData(external)
+
+    del external
+    _force_gc()
+    assert ref() is not None
+    assert view.isExternal()
+
+    view.setExternalData(None)
+    _force_gc()
+    assert not view.isExternal()
+    assert ref() is None
+
+
+def test_set_external_data_undescribed_array_pins():
+    """The single-argument setExternalData(array) overload pins the array."""
+    ds = sidre.DataStore()
+    view = ds.getRoot().createView("external")
+
+    def assign():
+        external = np.arange(6, dtype=np.int64)
+        ref = weakref.ref(external)
+        view.setExternalData(external)  # undescribed, single-arg overload
+        return ref
+
+    ref = assign()
+    _force_gc()
+    assert ref() is not None
+    assert view.isExternal()
+
+
+def test_set_external_data_rejects_non_array_argument():
+    """A non-array, non-None argument is rejected with a clean TypeError.
+
+    The single-argument overload takes Optional[ndarray]; nanobind reports
+    'incompatible function arguments' rather than throwing from an internal
+    cast, so callers get the standard overload-resolution diagnostic.
+    """
+    ds = sidre.DataStore()
+    view = ds.getRoot().createView("external")
+    with pytest.raises(TypeError):
+        view.setExternalData("not an array")
+    with pytest.raises(TypeError):
+        view.setExternalData(12345)
+
+
 def test_copy_view_with_external_data_preserves_pin():
     """copyView on an external View should copy the pin to prevent premature collection."""
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     src_group = root.createGroup("src")
     dst_group = root.createGroup("dst")
@@ -419,7 +463,7 @@ def test_copy_view_with_external_data_preserves_pin():
     external = np.arange(10, dtype=np.int64)
     ref = weakref.ref(external)
     src_view = src_group.createView("original", external)
-    src_view.apply(pysidre.TypeID.INT64_ID, 10)
+    src_view.apply(sidre.TypeID.INT64_ID, 10)
     del external
     _force_gc()
     assert ref() is not None  # Pin keeps it alive
@@ -443,7 +487,7 @@ def test_copy_view_with_external_data_preserves_pin():
 
 def test_copy_group_with_external_data_preserves_pins():
     """copyGroup should recursively copy pins for all external Views in hierarchy."""
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     src = root.createGroup("source")
 
@@ -453,9 +497,9 @@ def test_copy_group_with_external_data_preserves_pins():
     ref1 = weakref.ref(external1)
     ref2 = weakref.ref(external2)
 
-    src.createView("view1", external1).apply(pysidre.TypeID.INT32_ID, 5)
+    src.createView("view1", external1).apply(sidre.TypeID.INT32_ID, 5)
     child = src.createGroup("child")
-    child.createView("view2", external2).apply(pysidre.TypeID.INT64_ID, 8)
+    child.createView("view2", external2).apply(sidre.TypeID.INT64_ID, 8)
 
     del external1
     del external2
@@ -490,7 +534,7 @@ def test_copy_group_with_external_data_preserves_pins():
 
 def test_move_view_with_external_data_preserves_pin():
     """moveView should preserve the pin since the View* pointer doesn't change."""
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
     src = root.createGroup("src")
     dst = root.createGroup("dst")
@@ -499,7 +543,7 @@ def test_move_view_with_external_data_preserves_pin():
     external = np.arange(12, dtype=np.int64)
     ref = weakref.ref(external)
     view = src.createView("moveable", external)
-    view.apply(pysidre.TypeID.INT64_ID, 12)
+    view.apply(sidre.TypeID.INT64_ID, 12)
     del external
     _force_gc()
     assert ref() is not None  # Pin keeps it alive
@@ -526,13 +570,13 @@ def test_move_view_with_external_data_preserves_pin():
 
 def test_destroy_view_by_index_releases_external_pin():
     """destroyView(IndexType) should release the external data pin."""
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     external = np.arange(7, dtype=np.int32)
     ref = weakref.ref(external)
     view = root.createView("indexed", external)
-    view.apply(pysidre.TypeID.INT32_ID, 7)
+    view.apply(sidre.TypeID.INT32_ID, 7)
     view_idx = view.getIndex()
     del external
     del view
@@ -547,16 +591,16 @@ def test_destroy_view_by_index_releases_external_pin():
 
 def test_pin_overwrite_warning():
     """Setting external data twice on the same View correctly replaces the pin."""
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     view = ds.getRoot().createView("test")
 
     # First external data
     external1 = np.arange(5, dtype=np.int32)
-    view.setExternalData(pysidre.TypeID.INT32_ID, 5, external1)
+    view.setExternalData(sidre.TypeID.INT32_ID, 5, external1)
 
     # Second external data on same view - old pin released, new pin created
     external2 = np.arange(10, dtype=np.int64)
-    view.setExternalData(pysidre.TypeID.INT64_ID, 10, external2)
+    view.setExternalData(sidre.TypeID.INT64_ID, 10, external2)
 
     # The second pin should be active; first pin was automatically released
     np.testing.assert_array_equal(view.getDataArray(), external2)
@@ -564,7 +608,7 @@ def test_pin_overwrite_warning():
 
 def test_registry_cleanup_on_explicit_destroy():
     """Pins are released when Views are explicitly destroyed, preventing registry bloat."""
-    ds = pysidre.DataStore()
+    ds = sidre.DataStore()
     root = ds.getRoot()
 
     weak_refs = []
@@ -572,7 +616,7 @@ def test_registry_cleanup_on_explicit_destroy():
         external = np.arange(10, dtype=np.int32)
         weak_refs.append(weakref.ref(external))
         view = root.createView(f"view_{i}")
-        view.setExternalData(pysidre.TypeID.INT32_ID, 10, external)
+        view.setExternalData(sidre.TypeID.INT32_ID, 10, external)
         del external  # Pin keeps it alive
         del view  # Don't hold view reference
 
@@ -588,6 +632,103 @@ def test_registry_cleanup_on_explicit_destroy():
         f"Only {collected_count}/{len(weak_refs)} arrays collected after explicit destroy"
 
 
+def test_external_pins_released_when_datastore_destroyed():
+    """Pins are released when the DataStore is destroyed without explicit destroy*().
+
+    This is the implicit counterpart to test_registry_cleanup_on_explicit_destroy:
+    the Views are torn down by the DataStore destructor (the C++ path), not by a
+    bound destroyView()/destroyGroup(). A weak reference on the DataStore must
+    still clear its pins, so the external arrays are collected and the registry
+    does not accumulate dangling entries.
+    """
+    weak_refs = []
+
+    def build_and_drop():
+        ds = sidre.DataStore()
+        root = ds.getRoot()
+        for i in range(5):
+            external = np.arange(10, dtype=np.int32)
+            weak_refs.append(weakref.ref(external))
+            # Mix createView(external) and setExternalData() entry points.
+            if i % 2 == 0:
+                root.createView(f"view_{i}", external).apply(sidre.TypeID.INT32_ID, 10)
+            else:
+                root.createView(f"view_{i}").setExternalData(sidre.TypeID.INT32_ID, 10, external)
+        # Pins keep the arrays alive while ds is alive...
+        gc.collect()
+        assert all(ref() is not None for ref in weak_refs)
+        # ...and ds goes out of scope here without any explicit destroy call.
+
+    build_and_drop()
+    _force_gc()
+
+    collected = sum(1 for ref in weak_refs if ref() is None)
+    assert collected == len(weak_refs), \
+        f"Only {collected}/{len(weak_refs)} external arrays collected after DataStore destruction"
+
+
+def test_external_pins_released_for_nested_groups_on_datastore_destruction():
+    """DataStore destruction releases pins for Views nested in child Groups too."""
+    weak_refs = []
+
+    def build_and_drop():
+        ds = sidre.DataStore()
+        root = ds.getRoot()
+        grp = root.createGroup("a/b/c")
+        for i in range(3):
+            external = np.arange(8, dtype=np.int64)
+            weak_refs.append(weakref.ref(external))
+            grp.createView(f"deep_{i}", external).apply(sidre.TypeID.INT64_ID, 8)
+        gc.collect()
+        assert all(ref() is not None for ref in weak_refs)
+
+    build_and_drop()
+    _force_gc()
+
+    assert all(ref() is None for ref in weak_refs), \
+        "Nested-Group external arrays were not released on DataStore destruction"
+
+
+def test_external_pins_isolated_between_datastores():
+    """A View* address reused across DataStores must not cross-associate pins.
+
+    Each DataStore owns a private pin scope. Destroying one DataStore releases
+    only its own pins; a concurrently live DataStore is unaffected, even though
+    the allocator may hand out overlapping View* addresses across them.
+    """
+    keep_alive = []
+    surviving_refs = []
+
+    # Build and drop several DataStores in sequence, encouraging View* reuse.
+    for _ in range(4):
+        ds = sidre.DataStore()
+        a = np.arange(6, dtype=np.int64)
+        r = weakref.ref(a)
+        ds.getRoot().createView("v", a).apply(sidre.TypeID.INT64_ID, 6)
+        del a, ds
+        _force_gc()
+        # Each dropped DataStore must release its own array.
+        assert r() is None
+
+    # A long-lived DataStore created afterwards (possibly at a reused address)
+    # must hold its own pin independently.
+    survivor = sidre.DataStore()
+    b = np.arange(6, dtype=np.int64)
+    surviving_refs.append(weakref.ref(b))
+    survivor.getRoot().createView("v", b).apply(sidre.TypeID.INT64_ID, 6)
+    keep_alive.append(survivor)
+    del b
+    _force_gc()
+    assert surviving_refs[0]() is not None, \
+        "Survivor DataStore's pin was wrongly released (cross-datastore misattribution)"
+
+    # Cleanup releases the survivor's pin.
+    del survivor
+    keep_alive.clear()
+    _force_gc()
+    assert surviving_refs[0]() is None
+
+
 def test_multiple_concurrent_datastores():
     """Multiple active DataStores with external data should not interfere with each other."""
     # Create multiple DataStores simultaneously
@@ -596,7 +737,7 @@ def test_multiple_concurrent_datastores():
     arrays = []
 
     for ds_idx in range(3):
-        ds = pysidre.DataStore()
+        ds = sidre.DataStore()
         root = ds.getRoot()
         datastores.append(ds)
 
@@ -607,7 +748,7 @@ def test_multiple_concurrent_datastores():
             external = np.arange(view_idx * 10, (view_idx + 1) * 10, dtype=np.int32)
             ds_arrays.append(external)
             view = root.createView(f"view_{view_idx}")
-            view.setExternalData(pysidre.TypeID.INT32_ID, 10, external)
+            view.setExternalData(sidre.TypeID.INT32_ID, 10, external)
             ds_views.append(view)
 
         views.append(ds_views)
@@ -650,11 +791,11 @@ def test_multiple_concurrent_datastores():
                 err_msg=f"After DS0 destroy: {ds_label} view{view_idx} data mismatch")
 
     # Create a new DataStore and verify it doesn't conflict
-    ds_new = pysidre.DataStore()
+    ds_new = sidre.DataStore()
     root_new = ds_new.getRoot()
     external_new = np.arange(100, 110, dtype=np.int32)
     view_new = root_new.createView("new_view")
-    view_new.setExternalData(pysidre.TypeID.INT32_ID, 10, external_new)
+    view_new.setExternalData(sidre.TypeID.INT32_ID, 10, external_new)
 
     # Verify new DataStore works
     np.testing.assert_array_equal(view_new.getDataArray(), external_new)
@@ -674,8 +815,8 @@ def test_multiple_concurrent_datastores():
 
 def test_concurrent_datastores_with_copy_move():
     """Copy/move operations should work correctly with multiple concurrent DataStores."""
-    ds1 = pysidre.DataStore()
-    ds2 = pysidre.DataStore()
+    ds1 = sidre.DataStore()
+    ds2 = sidre.DataStore()
 
     root1 = ds1.getRoot()
     root2 = ds2.getRoot()
@@ -683,7 +824,7 @@ def test_concurrent_datastores_with_copy_move():
     # Create view with external data in DS1
     external1 = np.arange(10, dtype=np.int32)
     view1 = root1.createView("src")
-    view1.setExternalData(pysidre.TypeID.INT32_ID, 10, external1)
+    view1.setExternalData(sidre.TypeID.INT32_ID, 10, external1)
 
     # Copy view to a group in DS1
     grp1 = root1.createGroup("grp1")
@@ -693,7 +834,7 @@ def test_concurrent_datastores_with_copy_move():
     # Create view with different external data in DS2
     external2 = np.arange(20, 30, dtype=np.int64)
     view2 = root2.createView("other")
-    view2.setExternalData(pysidre.TypeID.INT64_ID, 10, external2)
+    view2.setExternalData(sidre.TypeID.INT64_ID, 10, external2)
 
     # Verify both DataStores maintain correct data
     np.testing.assert_array_equal(view1.getDataArray(), external1)
@@ -711,8 +852,8 @@ def test_concurrent_datastores_with_copy_move():
 
 def test_concurrent_datastores_registry_isolation():
     """Registry should correctly isolate pins between different DataStores."""
-    ds1 = pysidre.DataStore()
-    ds2 = pysidre.DataStore()
+    ds1 = sidre.DataStore()
+    ds2 = sidre.DataStore()
 
     external1 = np.arange(5, dtype=np.int32)
     external2 = np.arange(5, dtype=np.int64)
@@ -722,10 +863,10 @@ def test_concurrent_datastores_registry_isolation():
 
     # Both DataStores use external data
     view1 = ds1.getRoot().createView("v1")
-    view1.setExternalData(pysidre.TypeID.INT32_ID, 5, external1)
+    view1.setExternalData(sidre.TypeID.INT32_ID, 5, external1)
 
     view2 = ds2.getRoot().createView("v2")
-    view2.setExternalData(pysidre.TypeID.INT64_ID, 5, external2)
+    view2.setExternalData(sidre.TypeID.INT64_ID, 5, external2)
 
     del external1, external2  # Only pins keep them alive
     _force_gc()

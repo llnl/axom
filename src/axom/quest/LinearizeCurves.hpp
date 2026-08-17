@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_LINEARIZE_CURVES_HPP_
-#define QUEST_LINEARIZE_CURVES_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -91,5 +90,3 @@ protected:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif

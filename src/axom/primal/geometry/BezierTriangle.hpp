@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file BezierTriangle.hpp
  *
  * \brief A BezierTriangle primitive
  */
-
-#ifndef AXOM_PRIMAL_BEZIERTRIANGLE_HPP_
-#define AXOM_PRIMAL_BEZIERTRIANGLE_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -141,7 +140,7 @@ public:
   {
     SLIC_ASSERT(ord >= -1);
 
-    const int SZ = (m_ord >= 0) ? triSize(m_ord) : 0;
+    const axom::IndexType SZ = triSize(m_ord);
     SLIC_ASSERT(controlPoints.size() >= weights.size());
 
     // note: always allocate space for control points
@@ -316,7 +315,7 @@ public:
 
     m_ord = ord;
 
-    const int SZ = (m_ord >= 0) ? triSize(m_ord) : 0;
+    const axom::IndexType SZ = triSize(m_ord);
     m_controlPoints.resize(SZ);
     if(isRational())
     {
@@ -387,7 +386,7 @@ public:
     case 0:
       for(int k = 0; k <= m_ord; ++k)
       {
-        const int idx = triIndex(m_ord, k, m_ord - k);
+        const axom::IndexType idx = triIndex(m_ord, k, m_ord - k);
         pts[k] = m_controlPoints[idx];
         if(isRational())
         {
@@ -398,7 +397,7 @@ public:
     case 1:
       for(int k = 0; k <= m_ord; ++k)
       {
-        const int idx = triIndex(m_ord, m_ord - k, 0);
+        const axom::IndexType idx = triIndex(m_ord, m_ord - k, 0);
         pts[k] = m_controlPoints[idx];
         if(isRational())
         {
@@ -409,7 +408,7 @@ public:
     case 2:
       for(int k = 0; k <= m_ord; ++k)
       {
-        const int idx = triIndex(m_ord, 0, k);
+        const axom::IndexType idx = triIndex(m_ord, 0, k);
         pts[k] = m_controlPoints[idx];
         if(isRational())
         {
@@ -528,24 +527,24 @@ public:
         for(int j0 = 0; j0 <= p - i0; ++j0)
         {
           const int k0 = p - i0 - j0;
-          const int idx = triIndex(p, i0, j0);
+          const axom::IndexType idx = triIndex(p, i0, j0);
 
           // Increase Va, then Vb, then Vc.
           // The order is arbitrary, since the blossom is symmetric.
           if(k0 > 0)
           {
-            const int predIdx = triIndex(p - 1, i0, j0);
+            const axom::IndexType predIdx = triIndex(p - 1, i0, j0);
             reduce_once(prevNets[predIdx], currNets[idx], degPrev, Qa);
           }
           else if(j0 > 0)
           {
-            const int predIdx = triIndex(p - 1, i0, j0 - 1);
+            const axom::IndexType predIdx = triIndex(p - 1, i0, j0 - 1);
             reduce_once(prevNets[predIdx], currNets[idx], degPrev, Qb);
           }
           else
           {
             SLIC_ASSERT(i0 > 0);
-            const int predIdx = triIndex(p - 1, i0 - 1, j0);
+            const axom::IndexType predIdx = triIndex(p - 1, i0 - 1, j0);
             reduce_once(prevNets[predIdx], currNets[idx], degPrev, Qc);
           }
         }
@@ -562,7 +561,7 @@ public:
     {
       for(int j = 0; j <= n - i; ++j)
       {
-        const int idx = triIndex(n, i, j);
+        const axom::IndexType idx = triIndex(n, i, j);
         out.m_controlPoints[idx] = prevNets[idx][0];
       }
     }
@@ -882,7 +881,7 @@ public:
 
       // For rational triangles, these accessors generate homogeneous control points
       auto get_hom_point = [&](int i, int j) -> HomogeneousPoint {
-        const int idx = triIndex(n, i, j);
+        const axom::IndexType idx = triIndex(n, i, j);
 
         HomogeneousPoint hp;
         hp[NDIMS] = m_weights[idx];
@@ -893,7 +892,7 @@ public:
         return hp;
       };
       auto set_hom_point = [&](BezierTriangle& out, int i, int j, const HomogeneousPoint& hp) {
-        const int idx = triIndex(n, i, j);
+        const axom::IndexType idx = triIndex(n, i, j);
 
         const T w = hp[NDIMS];
         SLIC_ASSERT(w > T(0));
@@ -974,14 +973,14 @@ public:
    *
    * \pre \a i and \a j are in range and \a i+\a j <= getOrder()
    */
-  PointType& operator()(int i, int j)
+  PointType& operator()(axom::IndexType i, axom::IndexType j)
   {
     SLIC_ASSERT(isValidIndex(m_ord, i, j));
     return m_controlPoints[triIndex(m_ord, i, j)];
   }
 
   /// \brief Access a control point in the triangular control net
-  const PointType& operator()(int i, int j) const
+  const PointType& operator()(axom::IndexType i, axom::IndexType j) const
   {
     SLIC_ASSERT(isValidIndex(m_ord, i, j));
     return m_controlPoints[triIndex(m_ord, i, j)];
@@ -994,7 +993,7 @@ public:
    * \param [in] j Second control net index
    * \pre Requires that the triangle be rational
    */
-  const T& getWeight(int i, int j) const
+  const T& getWeight(axom::IndexType i, axom::IndexType j) const
   {
     SLIC_ASSERT(isRational());
     SLIC_ASSERT(isValidIndex(m_ord, i, j));
@@ -1010,7 +1009,7 @@ public:
    * \pre Requires that the triangle be rational
    * \pre Requires that the weight be positive
    */
-  void setWeight(int i, int j, T weight)
+  void setWeight(axom::IndexType i, axom::IndexType j, T weight)
   {
     SLIC_ASSERT(isRational());
     SLIC_ASSERT(weight > T {0});
@@ -1043,13 +1042,13 @@ public:
     {
       PointType ptval;
 
-      const int npts = m_controlPoints.size();
+      const axom::IndexType npts = m_controlPoints.size();
       axom::Array<T> dCarray(npts);
 
       // Run de Casteljau algorithm on each dimension
       for(int N = 0; N < NDIMS; ++N)
       {
-        for(int n = 0; n < npts; ++n)
+        for(axom::IndexType n = 0; n < npts; ++n)
         {
           dCarray[n] = m_controlPoints[n][N];
         }
@@ -1127,13 +1126,13 @@ public:
 
     if(!isRational())
     {
-      const int npts = m_controlPoints.size();
+      const axom::IndexType npts = m_controlPoints.size();
       axom::Array<T> dCarray(npts);
 
       // Run de Casteljau algorithm on each dimension
       for(int N = 0; N < NDIMS; ++N)
       {
-        for(int n = 0; n < npts; ++n)
+        for(axom::IndexType n = 0; n < npts; ++n)
         {
           dCarray[n] = m_controlPoints[n][N];
         }
@@ -1222,7 +1221,7 @@ public:
         return;
       }
 
-      const int npts = m_controlPoints.size();
+      const axom::IndexType npts = m_controlPoints.size();
       axom::Array<T> dCarray(npts);
 
       const T n_ord = static_cast<T>(m_ord);
@@ -1230,7 +1229,7 @@ public:
 
       for(int N = 0; N < NDIMS; ++N)
       {
-        for(int n = 0; n < npts; ++n)
+        for(axom::IndexType n = 0; n < npts; ++n)
         {
           dCarray[n] = m_controlPoints[n][N];
         }
@@ -1350,7 +1349,7 @@ public:
 
     if(!isRational())
     {
-      const int npts = m_controlPoints.size();
+      const axom::IndexType npts = m_controlPoints.size();
       axom::Array<T> dCarray(npts);
 
       const T n_ord = static_cast<T>(m_ord);
@@ -1358,7 +1357,7 @@ public:
 
       for(int N = 0; N < NDIMS; ++N)
       {
-        for(int n = 0; n < npts; ++n)
+        for(axom::IndexType n = 0; n < npts; ++n)
         {
           dCarray[n] = m_controlPoints[n][N];
         }
@@ -1531,7 +1530,10 @@ public:
    *
    * \param [in] ord Triangle order
    */
-  static constexpr int triSize(int ord) { return (ord >= 0) ? ((ord + 1) * (ord + 2) / 2) : 0; }
+  static constexpr axom::IndexType triSize(int ord)
+  {
+    return (ord >= 0) ? static_cast<axom::IndexType>((ord + 1) * (ord + 2) / 2) : 0;
+  }
 
   /*!
    * \brief Maps triangular indices \a (i,j) to the linear storage index
@@ -1542,13 +1544,13 @@ public:
    *
    * \pre ord >= 0, i >= 0, j >= 0, and i+j <= ord
    */
-  static constexpr size_t triIndex(int ord, int i, int j)
+  static constexpr axom::IndexType triIndex(int ord, axom::IndexType i, axom::IndexType j)
   {
-    return static_cast<size_t>(i * (2 * ord + 3 - i) / 2 + j);
+    return i * (2 * ord + 3 - i) / 2 + j;
   }
 
   /// \brief Check if a given index is valid in the triangular array
-  static constexpr bool isValidIndex(int ord, int i, int j)
+  static constexpr bool isValidIndex(int ord, axom::IndexType i, axom::IndexType j)
   {
     return (i >= 0) && (j >= 0) && (i + j <= ord);
   }
@@ -1624,16 +1626,16 @@ private:
                           BezierTriangle& t3) const
   {
     const int n = m_ord;
-    const int triN = triSize(n);
+    const axom::IndexType triN = triSize(n);
     constexpr int evalDims = EvalPointType::dimension();
 
-    axom::Array<int> offsets(n + 2);
+    axom::Array<axom::IndexType> offsets(n + 2);
     offsets[0] = 0;
     for(int p = 0; p <= n; ++p)
     {
       offsets[p + 1] = offsets[p] + triSize(p);
     }
-    const int tetN = offsets[n + 1];
+    const axom::IndexType tetN = offsets[n + 1];
 
     // tetSize: Number of (n1,n2,n3) triples with n1+n2+n3 <= m_ord.
     SLIC_ASSERT(tetN == (n + 1) * (n + 2) * (n + 3) / 6);
@@ -1649,20 +1651,20 @@ private:
       tet[s].resize(triN);
     }
 
-    auto tetIdx = [&](int p, int n1, int n2) -> int {
+    auto tetIdx = [&](int p, int n1, int n2) -> axom::IndexType {
       SLIC_ASSERT(p >= 0 && p <= n);
       SLIC_ASSERT(n1 >= 0 && n1 <= p);
       SLIC_ASSERT(n2 >= 0 && n2 <= p - n1);
       return offsets[p] + triIndex(p, n1, n2);
     };
-    auto getTetPt = [&](int state, int i, int j) -> const EvalPointType& {
-      return tet[static_cast<std::size_t>(state)][triIndex(n, i, j)];
+    auto getTetPt = [&](axom::IndexType state, int i, int j) -> const EvalPointType& {
+      return tet[state][triIndex(n, i, j)];
     };
-    auto setTetPt = [&](int state, int i, int j, const EvalPointType& value) {
-      tet[static_cast<std::size_t>(state)][triIndex(n, i, j)] = value;
+    auto setTetPt = [&](axom::IndexType state, int i, int j, const EvalPointType& value) {
+      tet[state][triIndex(n, i, j)] = value;
     };
 
-    const int base = tetIdx(0, 0, 0);
+    const axom::IndexType base = tetIdx(0, 0, 0);
     for(int i = 0; i <= n; ++i)
     {
       for(int j = 0; j <= n - i; ++j)
@@ -1679,10 +1681,11 @@ private:
         for(int n2 = 0; n2 <= p - n1; ++n2)
         {
           const int n3 = p - n1 - n2;
-          const int curr = tetIdx(p, n1, n2);
+          const axom::IndexType curr = tetIdx(p, n1, n2);
 
           // Pick the predecessor state and the second point used in the midpoint average.
-          int prev = -1, di = 0, dj = 0;
+          axom::IndexType prev = -1;
+          int di = 0, dj = 0;
           if(n1 > 0)
           {
             prev = tetIdx(p - 1, n1 - 1, n2);
@@ -1742,7 +1745,7 @@ private:
       for(int m = 0; m <= n - j; ++m)
       {
         const int p = j + m;
-        const int state = tetIdx(p, 0, j);
+        const axom::IndexType state = tetIdx(p, 0, j);
         set_eval_point(t0, m, j, getTetPt(state, i, j));
       }
     }
@@ -1755,7 +1758,7 @@ private:
       for(int m = 0; m <= j; ++m)
       {
         const int p = i + m;
-        const int state = tetIdx(p, i, m);
+        const axom::IndexType state = tetIdx(p, i, m);
         set_eval_point(t1, m, i, getTetPt(state, i, j));
       }
     }
@@ -1769,7 +1772,7 @@ private:
       for(int m = 0; m <= i; ++m)
       {
         const int p = m + k;
-        const int state = tetIdx(p, m, 0);
+        const axom::IndexType state = tetIdx(p, m, 0);
         set_eval_point(t2, m, k, getTetPt(state, i, j));
       }
     }
@@ -1780,7 +1783,7 @@ private:
     {
       for(int j = 0; j <= n - i; ++j)
       {
-        const int state = offsets[n] + triIndex(n, j, i);
+        const axom::IndexType state = offsets[n] + triIndex(n, j, i);
         set_eval_point(t3, i, j, getTetPt(state, j, i));
       }
     }
@@ -1801,7 +1804,7 @@ private:
     {
       for(int j = 0; j <= ord - i; ++j)
       {
-        const int idx = triIndex(ord, i, j);
+        const axom::IndexType idx = triIndex(ord, i, j);
         const T w = weights.m_controlPoints[idx][0];
 
         SLIC_ASSERT(w > T(0));
@@ -1826,7 +1829,7 @@ private:
     {
       for(int j = 0; j <= m_ord - i; ++j)
       {
-        const int idx = triIndex(m_ord, i, j);
+        const axom::IndexType idx = triIndex(m_ord, i, j);
         const T w = m_weights[idx];
         weights.m_controlPoints[idx][0] = w;
 
@@ -1857,5 +1860,3 @@ std::ostream& operator<<(std::ostream& os, const BezierTriangle<T, NDIMS>& bTri)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_BEZIERTRIANGLE_HPP_

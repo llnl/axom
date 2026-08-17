@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayInsertionHelper.hpp
  *
@@ -17,9 +19,6 @@
  *
  * The helper is reused across insertions to avoid repeated allocations.
  */
-
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_INSERTION_HELPER_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_INSERTION_HELPER_HPP_
 
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
@@ -177,7 +176,7 @@ public:
 
         const auto bdry = m_mesh.boundaryVertices(element_idx);
 
-        typename IAMeshType::ModularVertexIndex mod_idx(n_idx);
+        typename IAMeshType::ModularVertexIndex mod_idx(static_cast<int>(n_idx));
         BoundaryFacet facet;
         for(int i = 0; i < VERTS_PER_FACET; i++)
         {
@@ -336,5 +335,3 @@ private:
 }  // namespace detail
 }  // namespace quest
 }  // namespace axom
-
-#endif

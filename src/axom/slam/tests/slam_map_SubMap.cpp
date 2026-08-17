@@ -61,9 +61,7 @@ struct MapForTest
     , s(OrderedSetType::SetBuilder().size(size).data(&set_data))
     , m(&s)
   {
-    SLIC_INFO("Initializing set of size " << s.size() << " and '"
-                                          << slam::util::TypeToString<T>::to_string()
-                                          << "' map on the set ");
+    SLIC_INFO("Initializing set of size " << s.size() << " and map on the set ");
 
     for(auto i : s.positions())
     {

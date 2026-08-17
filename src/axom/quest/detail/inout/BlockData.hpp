@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BlockData.hpp
  *
  * \brief Defines helper classes for data associated with InOutOctree blocks.
  */
-
-#ifndef AXOM_QUEST_INOUT_OCTREE_BLOCKDATA__HPP_
-#define AXOM_QUEST_INOUT_OCTREE_BLOCKDATA__HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -422,5 +421,3 @@ struct axom::fmt::formatter<axom::quest::InOutBlockData> : ostream_formatter
 template <>
 struct axom::fmt::formatter<axom::quest::DynamicGrayBlockData> : ostream_formatter
 { };
-
-#endif  // AXOM_QUEST_INOUT_OCTREE_BLOCKDATA__HPP_

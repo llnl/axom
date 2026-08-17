@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_SHAPEFUNCTION_HPP_
-#define MINT_SHAPEFUNCTION_HPP_
+#pragma once
 
 namespace axom
 {
@@ -124,5 +123,3 @@ public:
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_SHAPEFUNCTION_HPP_ */

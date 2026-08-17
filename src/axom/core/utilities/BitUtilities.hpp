@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *
  * \file BitUtilities.hpp
@@ -12,12 +14,11 @@
  *
  */
 
-#ifndef AXOM_BIT_UTILITIES_HPP
-#define AXOM_BIT_UTILITIES_HPP
-
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
+
+#include <type_traits>
 
 // CUDA intrinsics: https://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__INTRINSIC__INT.html
 // HIP intrinsics: https://rocm.docs.amd.com/projects/HIP/en/latest/reference/kernel_language.html
@@ -25,7 +26,7 @@
 // Check for and setup defines for platform-specific intrinsics
 // Note: `__GNUC__` is defined for the gnu, clang and intel compilers
 #if defined(AXOM_USE_CUDA)
-  // Intrinsics included implicitly
+// Intrinsics included implicitly
 
 #elif defined(AXOM_USE_HIP)
   #include <hip/hip_runtime.h>
@@ -265,9 +266,12 @@ template <typename FlagType, typename BitType>
 AXOM_HOST_DEVICE
 constexpr void setBit(FlagType &flags, BitType bit, bool value = true)
 {
+  using UnsignedFlagType = std::make_unsigned_t<FlagType>;
   assert(static_cast<int>(bit) < BitTraits<FlagType>::BITS_PER_WORD << 3);
-  const auto mask = 1 << bit;
-  flags = value ? (flags | mask) : (flags & ~mask);
+  const auto mask = static_cast<UnsignedFlagType>(UnsignedFlagType {1} << bit);
+  flags = static_cast<FlagType>(
+    value ? (static_cast<UnsignedFlagType>(flags) | mask)
+          : (static_cast<UnsignedFlagType>(flags) & ~mask));
 }
 
 /*!
@@ -296,5 +300,3 @@ constexpr void setBitOn(FlagType &flags, BitType bit)
 #undef _AXOM_CORE_USE_INTRINSICS_MSVC
 #undef _AXOM_CORE_USE_INTRINSICS_GCC
 #undef _AXOM_CORE_USE_INTRINSICS_PPC
-
-#endif  // AXOM_BIT_UTILITIES_HPP

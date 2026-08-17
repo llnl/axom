@@ -21,6 +21,7 @@ set(gtest_sidre_tests
    sidre_external.cpp
    sidre_group.cpp
    sidre_opaque.cpp
+   sidre_checksum.cpp
    sidre_view.cpp
    sidre_native_layout.cpp
    sidre_attribute.cpp
@@ -57,6 +58,7 @@ set(python_sidre_tests
    sidre_external_Py.py
    sidre_attribute_Py.py
    sidre_lifetime_Py.py
+   sidre_import_Py.py
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)

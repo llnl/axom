@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_SLICE_IMPL_HPP_
-#define AXOM_PRIMAL_SLICE_IMPL_HPP_
+#pragma once
 
 namespace axom
 {
@@ -50,6 +49,7 @@ AXOM_HOST_DEVICE void add_unique_vertex(PolygonType& poly,
  *
  * \return The polygon obtained from slicing a tetrahedron with a plane.
  */
+AXOM_SUPPRESS_HD_WARN
 template <typename T, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
 AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(
   const primal::Tetrahedron<T, 3>& tet,
@@ -134,4 +134,3 @@ AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(
 }  // namespace detail
 }  // namespace primal
 }  // namespace axom
-#endif

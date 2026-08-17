@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_ZIP_INDEXABLE_HPP_
-#define AXOM_PRIMAL_ZIP_INDEXABLE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -55,5 +54,3 @@ public:
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_ZIP_INDEXABLE_HPP

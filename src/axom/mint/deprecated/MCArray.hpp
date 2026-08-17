@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_DEPRECATED_MCARRAY_HPP_
-#define AXOM_DEPRECATED_MCARRAY_HPP_
+#pragma once
 
 #include "axom/config.hpp"                    // for compile-time defines
 #include "axom/core/Macros.hpp"               // for axom macros
@@ -747,5 +746,3 @@ inline void MCArray<T>::dynamicRealloc(IndexType new_num_tuples)
 } /* namespace deprecated */
 
 } /* namespace axom */
-
-#endif /* AXOM_DEPRECATED_MCARRAY_HPP_ */

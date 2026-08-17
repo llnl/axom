@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_JSONUTIL_HPP
-#define SINA_JSONUTIL_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -121,5 +120,3 @@ void addStringsToNode(conduit::Node &parent,
 
 }  // end namespace sina
 }  // end namespace axom
-
-#endif  //SINA_JSONUTIL_HPP

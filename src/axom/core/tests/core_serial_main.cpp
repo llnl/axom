@@ -14,6 +14,8 @@
 #include "core_array_mapping.hpp"
 #include "core_utilities.hpp"
 #include "core_bit_utilities.hpp"
+#include "core_checksum.hpp"
+#include "core_constexpr_assert.hpp"
 #include "core_device_hash.hpp"
 #include "core_execution_for_all.hpp"
 #include "core_execution_scans.hpp"
@@ -26,6 +28,7 @@
 #include "core_Path.hpp"
 #include "core_stack_array.hpp"
 #include "core_static_array.hpp"
+#include "core_units.hpp"
 
 #ifndef AXOM_USE_MPI
   #include "core_types.hpp"

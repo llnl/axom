@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_FOR_ALL_HPP_
-#define AXOM_CORE_EXECUTION_FOR_ALL_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -306,5 +305,3 @@ inline void for_all(const StackArray<IndexType, 3> &shape, KernelType &&kernel) 
 /// @}
 
 }  // namespace axom
-
-#endif  // AXOM_CORE_EXECUTION_FOR_ALL_HPP_

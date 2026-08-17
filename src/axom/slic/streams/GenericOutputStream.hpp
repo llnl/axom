@@ -4,13 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file GenericOutputStream.hpp
  *
  */
-
-#ifndef GENERICOUTPUTSTREAM_HPP_
-#define GENERICOUTPUTSTREAM_HPP_
 
 #include "axom/slic/core/LogStream.hpp"
 
@@ -135,5 +134,3 @@ private:
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* GENERICOUTPUTSTREAM_HPP_ */
