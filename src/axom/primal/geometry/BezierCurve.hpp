@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file BezierCurve.hpp
  *
  * \brief A BezierCurve primitive
  */
-
-#ifndef AXOM_PRIMAL_BEZIERCURVE_HPP_
-#define AXOM_PRIMAL_BEZIERCURVE_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -22,6 +21,7 @@
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
+#include "axom/primal/operators/curvature.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
 #include <vector>
@@ -904,6 +904,161 @@ public:
     }
   }
 
+  /*!
+   * \brief Computes the 0th, 1st, 2nd, and 3rd derivatives of a Bezier curve
+   *
+   * \param [in] t Parameter value at which to compute derivatives
+   * \param [out] eval The value of the curve at \a t
+   * \param [out] Dt The first derivative at \a t
+   * \param [out] DtDt The second derivative at \a t
+   * \param [out] DtDtDt The third derivative at \a t
+   */
+  void evaluateThirdDerivative(T t,
+                               PointType& eval,
+                               VectorType& Dt,
+                               VectorType& DtDt,
+                               VectorType& DtDtDt) const
+  {
+    using axom::utilities::lerp;
+
+    const int ord = getOrder();
+    std::vector<T> dCarray(ord + 1);
+
+    if(!isRational())
+    {
+      for(int i = 0; i < NDIMS; ++i)
+      {
+        for(int p = 0; p <= ord; ++p)
+        {
+          dCarray[p] = m_controlPoints[p][i];
+        }
+
+        for(int p = 1; p <= ord - 3; ++p)
+        {
+          const int end = ord - p;
+          for(int k = 0; k <= end; ++k)
+          {
+            dCarray[k] = lerp(dCarray[k], dCarray[k + 1], t);
+          }
+        }
+
+        if(ord == 0)
+        {
+          eval[i] = dCarray[0];
+          Dt[i] = 0.0;
+          DtDt[i] = 0.0;
+          DtDtDt[i] = 0.0;
+        }
+        else if(ord == 1)
+        {
+          eval[i] = (1 - t) * dCarray[0] + t * dCarray[1];
+          Dt[i] = ord * (dCarray[1] - dCarray[0]);
+          DtDt[i] = 0.0;
+          DtDtDt[i] = 0.0;
+        }
+        else if(ord == 2)
+        {
+          eval[i] =
+            (1 - t) * (1 - t) * dCarray[0] + 2 * (1 - t) * t * dCarray[1] + t * t * dCarray[2];
+          Dt[i] = ord * ((1 - t) * (dCarray[1] - dCarray[0]) + t * (dCarray[2] - dCarray[1]));
+          DtDt[i] = ord * (ord - 1) * (dCarray[2] - 2 * dCarray[1] + dCarray[0]);
+          DtDtDt[i] = 0.0;
+        }
+        else
+        {
+          const T omt = 1 - t;
+          eval[i] = omt * omt * omt * dCarray[0] + 3 * omt * omt * t * dCarray[1] +
+            3 * omt * t * t * dCarray[2] + t * t * t * dCarray[3];
+          Dt[i] = ord *
+            (omt * omt * (dCarray[1] - dCarray[0]) + 2 * omt * t * (dCarray[2] - dCarray[1]) +
+             t * t * (dCarray[3] - dCarray[2]));
+          DtDt[i] = ord * (ord - 1) *
+            (omt * (dCarray[2] - 2 * dCarray[1] + dCarray[0]) +
+             t * (dCarray[3] - 2 * dCarray[2] + dCarray[1]));
+          DtDtDt[i] = ord * (ord - 1) * (ord - 2) *
+            (dCarray[3] - 3 * dCarray[2] + 3 * dCarray[1] - dCarray[0]);
+        }
+      }
+    }
+    else
+    {
+      BezierCurve<T, NDIMS> projective(ord);
+      BezierCurve<T, 1> weights(ord);
+
+      for(int p = 0; p <= ord; ++p)
+      {
+        weights[p][0] = m_weights[p];
+
+        for(int i = 0; i < NDIMS; ++i)
+        {
+          projective[p][i] = m_controlPoints[p][i] * m_weights[p];
+        }
+      }
+
+      Point<T, NDIMS> P;
+      Vector<T, NDIMS> P_t, P_tt, P_ttt;
+
+      Point<T, 1> W;
+      Vector<T, 1> W_t, W_tt, W_ttt;
+
+      projective.evaluateThirdDerivative(t, P, P_t, P_tt, P_ttt);
+      weights.evaluateThirdDerivative(t, W, W_t, W_tt, W_ttt);
+
+      for(int i = 0; i < NDIMS; ++i)
+      {
+        eval[i] = P[i] / W[0];
+        Dt[i] = (P_t[i] - eval[i] * W_t[0]) / W[0];
+        DtDt[i] = (P_tt[i] - 2 * Dt[i] * W_t[0] - eval[i] * W_tt[0]) / W[0];
+        DtDtDt[i] =
+          (P_ttt[i] - 3 * DtDt[i] * W_t[0] - 3 * Dt[i] * W_tt[0] - eval[i] * W_ttt[0]) / W[0];
+      }
+    }
+  }
+
+  /*!
+   * \brief Computes the third derivative of a Bezier curve at parameter value \a t
+   *
+   * \param [in] t Parameter value at which to compute the third derivative
+   * \return The third derivative vector of the Bezier curve at \a t
+   */
+  VectorType d3td3(T t) const
+  {
+    PointType eval;
+    VectorType Dt, DtDt, DtDtDt;
+    evaluateThirdDerivative(t, eval, Dt, DtDt, DtDtDt);
+    return DtDtDt;
+  }
+
+  /*!
+   * \brief Evaluates the curvature at parameter \a t
+   *
+   * \param [in] t The parameter value
+   *
+   * \return The curvature value at \a t
+   */
+  double curvature(T t) const
+  {
+    PointType eval;
+    VectorType Dt, DtDt;
+    evaluateSecondDerivative(t, eval, Dt, DtDt);
+    return axom::primal::curvature(Dt, DtDt);
+  }
+
+  /*!
+   * \brief Evaluates the first curvature derivative at parameter \a t
+   *
+   * \param [in] t The parameter value
+   *
+   * \return The first curvature derivative with respect to the curve parameter
+   */
+  double curvatureDerivative(T t) const
+  {
+    PointType eval;
+    VectorType Dt, DtDt, DtDtDt;
+    evaluateThirdDerivative(t, eval, Dt, DtDt, DtDtDt);
+    return axom::primal::curvatureDerivative(Dt, DtDt, DtDtDt);
+  }
+
   ///@}
 
   ///@{
@@ -1069,5 +1224,3 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::BezierCurve<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_BEZIERCURVE_HPP_

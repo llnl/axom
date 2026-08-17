@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_ERROR_HPP_
-#define AXOM_KLEE_ERROR_HPP_
+#pragma once
 
 #include "axom/inlet/inlet_utils.hpp"
 
@@ -18,6 +17,9 @@ namespace klee
 {
 /**
  * Describes an error that occurred while parsing a Klee file.
+ *
+ * Klee throws this exception for user input validation failures so callers
+ * can report path-aware feedback from Inlet and Klee semantic checks.
  */
 class KleeError : public std::exception
 {
@@ -54,5 +56,3 @@ private:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_ERROR_HPP_

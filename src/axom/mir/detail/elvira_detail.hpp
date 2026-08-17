@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_ELVIRA_ALGORITHM_DETAIL_HPP_
-#define AXOM_MIR_ELVIRA_ALGORITHM_DETAIL_HPP_
+
+#pragma once
 
 // Most includes happen in the ElviraAlgorithm.hpp header file that includes this file.
 
@@ -43,31 +43,13 @@ public:
    * \brief Get whether the plane equation fields should appear in the output.
    * \return True if plane equation fields should appear, false otherwise.
    */
-  bool plane() const { return flagValue("plane"); }
+  bool plane() const { return flagValue("plane", false); }
 
   /**
    * \brief Get whether the output should be a point mesh.
    * \return True if the output should be a point mesh, false otherwise.
    */
-  bool pointmesh() const { return flagValue("pointmesh"); }
-
-protected:
-  /**
-   * \brief Get whether the flag is set in the options.
-   *
-   * \param key The name of the key that contains the flag.
-   *
-   * \return True if key is present and set to non-zero, false otherwise.
-   */
-  bool flagValue(const std::string &key) const
-  {
-    bool retval = false;
-    if(options().has_path(key))
-    {
-      retval = options().fetch_existing(key).to_int() != 0;
-    }
-    return retval;
-  }
+  bool pointmesh() const { return flagValue("pointmesh", false); }
 };
 
 namespace detail
@@ -527,6 +509,7 @@ public:
    * \brief Clean the mesh (no-op for 2D)
    */
   void cleanMesh(conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
+                 const conduit::Node &AXOM_UNUSED_PARAM(n_options),
                  double AXOM_UNUSED_PARAM(point_tolerance),
                  conduit::Node &AXOM_UNUSED_PARAM(n_topology),
                  axom::Array<axom::IndexType> &AXOM_UNUSED_PARAM(selectedIds)) const
@@ -942,6 +925,7 @@ public:
    * \brief Clean the mesh, merging coordinates and faces.
    *
    * \param n_coordset The coordset to clean up.
+   * \param n_options A node that may contain options.
    * \param point_tolerance The point tolerance used to merge points.
    * \param n_topology The topology to clean up.
    * \param[out] selectedIds An array that indicates the points that were selected during coordset point merging.
@@ -949,6 +933,7 @@ public:
    * \note This method invalidates the views in m_view by causing some of their backing arrays to be replaced.
    */
   void cleanMesh(conduit::Node &n_coordset,
+                 const conduit::Node &n_options,
                  double point_tolerance,
                  conduit::Node &n_topology,
                  axom::Array<axom::IndexType> &selectedIds) const
@@ -972,6 +957,10 @@ public:
     axom::bump::MergeCoordsetPoints<ExecSpace, NewCoordsetView> mcp(newCoordsetView);
     conduit::Node n_mcp_options;
     n_mcp_options["tolerance"] = point_tolerance;
+    if(n_options.has_child("verbose"))
+    {
+      n_mcp_options["verbose"].set(n_options["verbose"]);
+    }
     const bool merged = mcp.execute(n_coordset, n_mcp_options, selectedIds, old2new);
     // _bump_utilities_mergecoordsetpoints_end
 
@@ -1105,5 +1094,3 @@ struct MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
 }  // end namespace detail
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_QUADRILATERAL_HPP_
-#define AXOM_PRIMAL_QUADRILATERAL_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -238,5 +237,3 @@ std::ostream& operator<<(std::ostream& os, const Quadrilateral<T, NDIMS>& quad)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Quadrilateral<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_QUADRILATERAL_HPP_

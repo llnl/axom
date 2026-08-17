@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_LAGRANGE_PYRA_5_HPP_
-#define MINT_LAGRANGE_PYRA_5_HPP_
+#pragma once
 
 // Mint includes
 #include "axom/mint/mesh/CellTypes.hpp"
@@ -153,5 +152,3 @@ public:
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_LAGRANGE_PYRA_5_HPP_ */

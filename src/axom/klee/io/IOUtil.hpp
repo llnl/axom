@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_IO_UTIL_HPP_
-#define AXOM_KLEE_IO_UTIL_HPP_
+
+#pragma once
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
@@ -36,6 +36,7 @@ namespace internal
  * @param expectedDims the expected dimensionality of the array
  * @param fieldName the name of the field (used for error reporting)
  * @return the field as a std::vector<double>
+ * @throws KleeError if the field does not have \a expectedDims entries
  */
 std::vector<double> toDoubleVector(inlet::Proxy const &field,
                                    Dimensions expectedDims,
@@ -49,6 +50,7 @@ std::vector<double> toDoubleVector(inlet::Proxy const &field,
  * @param fieldName the name of the field
  * @param expectedDims the expected dimensionality of the point
  * @return the field as a primal::Point3D
+ * @throws KleeError if the field does not have \a expectedDims entries
  */
 primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, Dimensions expectedDims);
 
@@ -61,6 +63,7 @@ primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, D
  * @param expectedDims the expected dimensionality of the point
  * @param defaultValue the default value of the field if it is not present
  * @return the field as a primal::Point3D
+ * @throws KleeError if the field is present and does not have \a expectedDims entries
  */
 primal::Point3D toPoint(inlet::Container const &parent,
                         char const *fieldName,
@@ -75,6 +78,7 @@ primal::Point3D toPoint(inlet::Container const &parent,
  * @param fieldName the name of the field
  * @param expectedDims the expected dimensionality of the vector
  * @return the field as a primal::Vector3D
+ * @throws KleeError if the field does not have \a expectedDims entries
  */
 primal::Vector3D toVector(inlet::Container const &parent,
                           char const *fieldName,
@@ -90,6 +94,7 @@ primal::Vector3D toVector(inlet::Container const &parent,
  * @param expectedDims the expected dimensionality of the vector
  * @param defaultValue the default value of the field if it is not present
  * @return the field as a primal::Vector3D
+ * @throws KleeError if the field is present and does not have \a expectedDims entries
  */
 primal::Vector3D toVector(inlet::Container const &parent,
                           char const *fieldName,
@@ -162,5 +167,3 @@ Dimensions toDimensions(const inlet::Proxy &dimProxy);
 }  // namespace internal
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_IO_UTIL_HPP_

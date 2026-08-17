@@ -154,11 +154,11 @@ if(NANOBIND_FOUND)
         axom_configure_file ("${example_source}"
                              "${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}" COPYONLY)
 
-        # Use convenience script to run python examples
+        # Run python examples directly under the interpreter (no wrapper).
         if(AXOM_ENABLE_PYTHON_TESTS)
-            axom_add_test (
+            axom_add_python_test(
                 NAME    ${exe_name}
-                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh ${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}
+                COMMAND ${Python_EXECUTABLE} ${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}
             )
         endif()
     endforeach()

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_DYNAMIC_MAP_HPP_
-#define SLAM_DYNAMIC_MAP_HPP_
+#pragma once
 
 #include <vector>
 #include <sstream>
@@ -249,5 +248,3 @@ bool DynamicMap<SetType, DataType>::isValid(bool verboseOutput) const
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_MAP_HPP_

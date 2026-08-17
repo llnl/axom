@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file MPIUtility.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the definitions of MPI utility functions.
  *******************************************************************************
  */
-
-#ifndef MPIUTILITY_HPP
-#define MPIUTILITY_HPP
 
 #include "mpi.h"
 
@@ -47,6 +46,25 @@ const char* mpiBlockingReceiveIfMessagesExist(MPI_Comm comm);
 
 /*!
  *****************************************************************************
+ * \brief Starts a non-blocking send to the given rank.
+ *
+ * The caller owns the returned MPI_Request and must keep
+ * packedMessagesToBeSent valid until the request completes.
+ *
+ * \param [in] comm The MPI Communicator.
+ * \param [in] destinationRank Where the Message classes is being sent.
+ * \param [in,out] packedMessagesToBeSent All of the Message classes to be sent
+ *  packed together.
+ *
+ * \return Request associated with the non-blocking send.
+ *****************************************************************************
+ */
+MPI_Request mpiNonBlockingSendMessagesWithRequest(MPI_Comm comm,
+                                                  int destinationRank,
+                                                  const char* packedMessagesToBeSent);
+
+/*!
+ *****************************************************************************
  * \brief Sends all Message sent to the given rank.
  *
  * Clears and deletes all Message classes when done.
@@ -63,5 +81,3 @@ void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* 
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

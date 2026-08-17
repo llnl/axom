@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  ******************************************************************************
  * \file Timer.hpp
@@ -12,9 +14,6 @@
  *
  ******************************************************************************
  */
-
-#ifndef TIMER_HPP_
-#define TIMER_HPP_
 
 #include "axom/config.hpp"
 
@@ -176,5 +175,3 @@ private:
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // TIMER_HPP_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_TEST_UTILITIES_HPP_
-#define QUEST_TEST_UTILITIES_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -471,5 +470,3 @@ mint::Mesh* make_circle_mesh_2d(double radius, int num_segments)
 }  // end namespace utilities
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // QUEST_TEST_UTILITIES_HPP_

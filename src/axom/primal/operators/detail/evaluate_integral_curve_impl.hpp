@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_curve_impl.hpp
  *
@@ -12,9 +14,6 @@
  * \note This header intentionally avoids including surface/volume (patch)
  * dependencies to prevent circular include chains (e.g. with NURBSPatch).
  */
-
-#ifndef PRIMAL_EVAL_INTEGRAL_CURVE_IMPL_HPP_
-#define PRIMAL_EVAL_INTEGRAL_CURVE_IMPL_HPP_
 
 // Axom includes
 #include "axom/core.hpp"
@@ -117,7 +116,7 @@ inline LambdaRetType evaluate_line_integral_component(const NURBSCurveGWNCache<T
                                                       const int npts)
 {
   LambdaRetType total_integral = LambdaRetType {};
-  for(int i = 0; i < nc.getNumKnotSpans(); ++i)
+  for(axom::IndexType i = 0; i < nc.getNumKnotSpans(); ++i)
   {
     const auto& this_bezier_data = nc.getSubdivisionData(i, 0, 0);
     total_integral += detail::evaluate_line_integral_component(this_bezier_data.getCurve(),
@@ -174,7 +173,7 @@ inline T evaluate_vector_line_integral_component(const NURBSCurveGWNCache<T>& nc
                                                  const int npts)
 {
   T total_integral = T {};
-  for(int i = 0; i < nc.getNumKnotSpans(); ++i)
+  for(axom::IndexType i = 0; i < nc.getNumKnotSpans(); ++i)
   {
     const auto& this_bezier_data = nc.getSubdivisionData(i, 0, 0);
     total_integral +=
@@ -251,7 +250,7 @@ inline RetType evaluate_area_integral_component(const NURBSCurveGWNCache<T>& nc,
                                                 const int npts_P)
 {
   RetType total_integral = RetType {};
-  for(int i = 0; i < nc.getNumKnotSpans(); ++i)
+  for(axom::IndexType i = 0; i < nc.getNumKnotSpans(); ++i)
   {
     const auto& this_bezier_data = nc.getSubdivisionData(i, 0, 0);
     total_integral += detail::evaluate_area_integral_component(this_bezier_data.getCurve(),
@@ -278,7 +277,7 @@ inline typename CurveType::NumericType curve_array_lower_bound_y(const axom::Arr
   T lower_bound_y = carray[0][0][1];
   for(int i = 0; i < carray.size(); ++i)
   {
-    for(int j = 0; j < carray[i].getNumControlPoints(); ++j)
+    for(axom::IndexType j = 0; j < carray[i].getNumControlPoints(); ++j)
     {
       lower_bound_y = axom::utilities::min(lower_bound_y, carray[i][j][1]);
     }
@@ -292,5 +291,3 @@ inline typename CurveType::NumericType curve_array_lower_bound_y(const axom::Arr
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif

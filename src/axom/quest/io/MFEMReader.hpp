@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_MFEMREADER_HPP_
-#define QUEST_MFEMREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -99,5 +98,3 @@ protected:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

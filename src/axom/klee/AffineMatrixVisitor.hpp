@@ -3,8 +3,9 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_AFFINE_MATRIX_VISITOR_HPP_
-#define AXOM_KLEE_AFFINE_MATRIX_VISITOR_HPP_
+
+#pragma once
+
 #include "axom/klee/GeometryOperators.hpp"
 
 namespace axom::klee
@@ -38,5 +39,3 @@ private:
 };
 
 }  // end namespace axom::klee
-
-#endif

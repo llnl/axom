@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_CURVILINEARMESH_HPP_
-#define MINT_CURVILINEARMESH_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/mint/mesh/StructuredMesh.hpp"
@@ -206,7 +205,7 @@ public:
     : CurvilinearMesh(group, "", "", Ni, Nj, Nk)
   { }
 
-    /// @}
+  /// @}
 
 /// @}
 #endif
@@ -287,5 +286,3 @@ private:
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_CURVILINEARMESH_HPP_ */

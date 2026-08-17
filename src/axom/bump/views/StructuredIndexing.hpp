@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_STRUCTURED_INDEXING_HPP_
-#define AXOM_BUMP_STRUCTURED_INDEXING_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -317,5 +316,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

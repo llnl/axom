@@ -33,7 +33,6 @@ const std::string g_color_blue("blue");
 
 const std::string g_name_animal("animal");
 const std::string g_animal_none("human");
-const std::string g_animal_cat("cat");
 const std::string g_animal_dog("dog");
 
 const std::string g_namea("a");
@@ -552,6 +551,14 @@ TEST(sidre_attribute, overloads)
   EXPECT_EQ(g_dump_yes, view->getAttributeScalar<int>(attr_dump));
   EXPECT_EQ(g_dump_yes, view->getAttributeScalar<int>(idump));
   EXPECT_EQ(g_dump_yes, view->getAttributeScalar<int>(g_name_dump));
+
+  // The templated getAttributeScalar<T>() must also be callable on a const View
+  {
+    const View& constView = *view;
+    EXPECT_EQ(g_dump_yes, constView.getAttributeScalar<int>(attr_dump));
+    EXPECT_EQ(g_dump_yes, constView.getAttributeScalar<int>(idump));
+    EXPECT_EQ(g_dump_yes, constView.getAttributeScalar<int>(g_name_dump));
+  }
 
   const Node& node1 = view->getAttributeNodeRef(attr_dump);
   EXPECT_EQ(g_dump_yes, node1.as_int());

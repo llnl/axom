@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Function.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of Inlet's Function class.
  *******************************************************************************
  */
-
-#ifndef INLET_FUNCTION_HPP
-#define INLET_FUNCTION_HPP
 
 #include <memory>
 #include <functional>
@@ -349,5 +348,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif  // INLET_FUNCTION_HPP

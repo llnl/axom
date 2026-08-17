@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAYITERATORBASE_HPP_
-#define AXOM_ARRAYITERATORBASE_HPP_
+#pragma once
 
 #include "axom/core/IteratorBase.hpp"  // for Iterator
 
@@ -64,5 +63,3 @@ protected:
 /// @}
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAYITERATORBASE_HPP_ */

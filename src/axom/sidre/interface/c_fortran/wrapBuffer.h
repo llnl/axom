@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPBUFFER_H
+#define WRAPBUFFER_H
+
 /**
  * \file wrapBuffer.h
  * \brief Shroud generated wrapper for Buffer class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPBUFFER_H
-#define WRAPBUFFER_H
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"

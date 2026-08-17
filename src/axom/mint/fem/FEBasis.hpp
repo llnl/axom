@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FEM_BASIS_HPP_
-#define MINT_FEM_BASIS_HPP_
+#pragma once
 
 // Mint includes
 #include "axom/mint/mesh/CellTypes.hpp"
@@ -61,5 +60,3 @@ REGISTER_LAGRANGE_BASIS(mint::HEX27);
 
 // undef internal macros
 #undef REGISTER_LAGRANGE_BASIS
-
-#endif /* MINT_FEM_BASIS_HPP_ */

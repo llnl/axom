@@ -189,7 +189,6 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   detail/clipping/SphereClipper.cpp
                                   detail/clipping/MonotonicZSORClipper.cpp
                                   detail/clipping/SORClipper.cpp
-                                  detail/clipping/MeshClipperImpl.hpp
                                   util/make_clipper_strategy.cpp)
 
         # MeshClipperImpl uses RAJA algorithms directly.

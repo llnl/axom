@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file JSONReader.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of the JSONReader.
  *******************************************************************************
  */
-
-#ifndef INLET_JSONREADER_HPP
-#define INLET_JSONREADER_HPP
 
 #include "axom/inlet/ConduitReader.hpp"
 
@@ -40,5 +39,3 @@ public:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Mint_ArrayWrapper_HPP
-#define Axom_Mint_ArrayWrapper_HPP
+#pragma once
 
 #include "axom/core/Array.hpp"  // to inherit
 #include "axom/core/Types.hpp"
@@ -278,5 +277,3 @@ private:
 }  // namespace detail
 }  // namespace mint
 }  // namespace axom
-
-#endif

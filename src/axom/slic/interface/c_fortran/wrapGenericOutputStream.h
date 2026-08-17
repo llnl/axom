@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPGENERICOUTPUTSTREAM_H
+#define WRAPGENERICOUTPUTSTREAM_H
+
 /**
  * \file wrapGenericOutputStream.h
  * \brief Shroud generated wrapper for GenericOutputStream class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPGENERICOUTPUTSTREAM_H
-#define WRAPGENERICOUTPUTSTREAM_H
 
 #include "typesSLIC.h"
 

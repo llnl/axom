@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_TOPOLOGY_HPP_
-#define AXOM_BUMP_DISPATCH_TOPOLOGY_HPP_
+#pragma once
 
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/dispatch_uniform_topology.hpp"
@@ -52,5 +51,3 @@ void dispatch_topology(const conduit::Node &topo, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

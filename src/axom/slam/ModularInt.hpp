@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file ModularInt.hpp
  *
@@ -13,9 +15,6 @@
  * We allow the max number to be set during compile time or at runtime
  *
  */
-
-#ifndef SLAM_MODULAR_INT_H_
-#define SLAM_MODULAR_INT_H_
 
 #include "axom/slic/interface/slic.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
@@ -206,7 +205,7 @@ private:
     // (e.g. ModulusPolicy?) if we see a significant difference between
     //  the branching and branchless implementations
 
-#if MODINT_BRANCHLESS
+#if defined(MODINT_BRANCHLESS) && MODINT_BRANCHLESS
     // This solution avoids branching (at the expense of a second mod
     // operation),
     // but appears to be slower on some platforms (chaos)
@@ -288,5 +287,3 @@ constexpr ModularInt<SizePolicy> operator*(const int n, const ModularInt<SizePol
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  //  SLAM_MODULAR_INT_H_

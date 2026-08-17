@@ -3,8 +3,7 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_UTILITIES_CHECKSUM_HPP_
-#define AXOM_UTILITIES_CHECKSUM_HPP_
+#pragma once
 
 #include <cmath>
 
@@ -84,5 +83,3 @@ inline CheckSum checksum(axom::ArrayView<T> view, const ScaleFactor scaleFactor 
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_UTILITIES_CHECKSUM_HPP_

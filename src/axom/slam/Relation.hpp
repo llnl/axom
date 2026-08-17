@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Relation.hpp
  *
  * \brief Basic API for a topological relation between two sets
  *
  */
-
-#ifndef SLAM_RELATION_HPP_
-#define SLAM_RELATION_HPP_
 
 #include <vector>
 
@@ -86,5 +85,3 @@ NullSet<PosType, ElemType> Relation<PosType, ElemType>::s_nullSet;
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_RELATION_HPP_

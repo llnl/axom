@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file intersect_bezier_impl.hpp
  *
  * This file provides helper functions for testing the intersection
  * of Bezier curves with other Bezier curves and other geometric objects
  */
-
-#ifndef AXOM_PRIMAL_INTERSECT_BEZIER_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_BEZIER_IMPL_HPP_
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
@@ -358,8 +357,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
 
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
-    bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
-    if(foundIntersection && (!isHalfOpen || s0 < 1.0 - EPS))
+    const bool segmentIntersects = detail::intersect_ray(r, seg, r0, s0, EPS);
+    if(segmentIntersects && (!isHalfOpen || s0 < 1.0 - EPS))
     {
       rp.push_back(r0);
       cp.push_back(c_offset + c_scale * s0);
@@ -603,5 +602,3 @@ bool intersect_nurbscurves(const NURBSCurve<T, 2> &n1,
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_BEZIER_IMPL_HPP_

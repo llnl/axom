@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FIELD_HPP_
-#define MINT_FIELD_HPP_
+#pragma once
 
 // axom includes
 #include "axom/core/Macros.hpp"  // for axom Macros
@@ -275,5 +274,3 @@ inline const T* Field::getDataPtr(const Field* field)
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* FIELD_HPP_ */

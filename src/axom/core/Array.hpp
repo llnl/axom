@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAY_HPP_
-#define AXOM_ARRAY_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/MDMapping.hpp"
@@ -77,9 +76,9 @@ struct DefaultStoragePolicy
    */
   template <typename Func>
   T* reallocate(T* old_data,
-                int AXOM_UNUSED_PARAM(old_capacity),
+                IndexType AXOM_UNUSED_PARAM(old_capacity),
                 int allocator_id,
-                int new_capacity,
+                IndexType new_capacity,
                 Func&& nontrivial_move)
   {
     // Create a new block of memory, and move the elements over.
@@ -413,7 +412,8 @@ public:
   Array& operator=(std::initializer_list<T> elems)
   {
     clear();
-    insert(0, elems.size(), elems.begin());
+    const IndexType num_elems = static_cast<IndexType>(elems.size());
+    insert(0, num_elems, elems.begin());
     return *this;
   }
 
@@ -1210,7 +1210,8 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(std::initializer_list<T> elems, int a
   : m_allocator_id(allocator_id)
   , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  initialize_from_other(elems.begin(), elems.size(), 1 /* stride */, MemorySpace::Dynamic, true);
+  const IndexType num_elems = static_cast<IndexType>(elems.size());
+  initialize_from_other(elems.begin(), num_elems, 1 /* stride */, MemorySpace::Dynamic, true);
 }
 
 //------------------------------------------------------------------------------
@@ -1406,9 +1407,10 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::assign(InputIt first, InputIt l
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 inline void Array<T, DIM, SPACE, StoragePolicy>::assign(std::initializer_list<T> elems)
 {
-  resize(elems.size());
-  m_arrayOps.destroy(m_data, 0, elems.size());
-  m_arrayOps.fill_range(m_data, 0, elems.size(), elems.begin(), MemorySpace::Dynamic);
+  const IndexType num_elems = static_cast<IndexType>(elems.size());
+  resize(num_elems);
+  m_arrayOps.destroy(m_data, 0, num_elems);
+  m_arrayOps.fill_range(m_data, 0, num_elems, elems.begin(), MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
@@ -1842,9 +1844,9 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::setCapacity(IndexType new_capac
     updateNumElements(new_capacity);
   }
   T* new_data =
-    StoragePolicy::reallocate(m_data, m_num_elements, m_allocator_id, new_capacity, [this](T* new_data) {
+    StoragePolicy::reallocate(m_data, m_num_elements, m_allocator_id, new_capacity, [this](T* ptr) {
       // Call helper method to move underlying elements if T is non-trivial.
-      m_arrayOps.realloc_move(new_data, static_cast<IndexType>(this->m_num_elements), this->m_data);
+      m_arrayOps.realloc_move(ptr, static_cast<IndexType>(this->m_num_elements), this->m_data);
     });
 
   if(new_data)
@@ -1867,8 +1869,9 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::dynamicRealloc(IndexType new_nu
 
   // Using resize strategy from LLVM libc++ (vector::__recommend()):
   //   new_capacity = max(capacity() * resize_ratio, new_num_elements)
-  IndexType new_capacity =
-    axom::utilities::max<IndexType>(this->capacity() * m_resize_ratio + 0.5, new_num_elements);
+  IndexType new_capacity = axom::utilities::max<IndexType>(
+    static_cast<IndexType>(static_cast<double>(this->capacity()) * m_resize_ratio + 0.5),
+    new_num_elements);
   const IndexType block_size = this->blockSize();
   const IndexType remainder = new_capacity % block_size;
   if(remainder != 0)
@@ -1891,5 +1894,3 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::dynamicRealloc(IndexType new_nu
 }
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAY_HPP_ */

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_MESH_TESTER_DETAIL_HPP_
-#define AXOM_QUEST_MESH_TESTER_DETAIL_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -470,5 +469,3 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
 }  // namespace axom
 
 #undef MESH_TESTER_MUTABLE_LAMBDA
-
-#endif  // AXOM_QUEST_MESH_TESTER_DETAIL_HPP_

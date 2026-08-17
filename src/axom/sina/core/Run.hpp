@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_RUN_HPP
-#define SINA_RUN_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -104,5 +103,3 @@ void addRunLoader(RecordLoader &loader);
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_RUN_HPP

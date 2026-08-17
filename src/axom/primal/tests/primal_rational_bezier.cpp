@@ -18,6 +18,8 @@
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 
+#include <cmath>
+
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
@@ -197,6 +199,26 @@ TEST(primal_rationalbezier, second_derivative)
       EXPECT_NEAR(calc_mid[i], exp_vals[ord][1][i], 1e-14);
       EXPECT_NEAR(calc_end[i], exp_vals[ord][2][i], 1e-14);
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_rationalbezier, curvature)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+
+  const CoordType weight = 1.0 / std::sqrt(2.0);
+  PointType controlPoints[3] = {PointType {1.0, 0.0}, PointType {1.0, 1.0}, PointType {0.0, 1.0}};
+  CoordType weights[3] = {1.0, weight, 1.0};
+  BezierCurveType curve(controlPoints, weights, 2);
+
+  for(const CoordType t : {0.0, 0.25, 0.5, 0.75, 1.0})
+  {
+    EXPECT_NEAR(curve.curvature(t), 1.0, 1e-12);
+    EXPECT_NEAR(curve.curvatureDerivative(t), 0.0, 1e-10);
   }
 }
 
