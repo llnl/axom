@@ -132,8 +132,11 @@ def get_mpi_context():
         import conduit.relay.mpi
         import conduit.relay.mpi.io
         import conduit.relay.mpi.io.blueprint
-    except ModuleNotFoundError:
-        return {'enabled': False, 'comm': None, 'rank': 0, 'size': 1}
+    except ModuleNotFoundError as exc:
+        raise RuntimeError('MPI launch detected, but mpi4py and Conduit MPI relay Python modules '
+                           'are not available. Run this generator serially, or use Axom\'s '
+                           'run_python_with_axom.sh from an MPI-enabled build with Conduit MPI '
+                           'Python support.') from exc
 
     comm = MPI.COMM_WORLD.py2f()
     return {
