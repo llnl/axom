@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DynamicSet.hpp
  *
  * \brief Contains a DynamicSet class, whose size can change dynamically
  * at runtime
  */
-
-#ifndef SLAM_DYNAMIC_SET_H_
-#define SLAM_DYNAMIC_SET_H_
 
 #include "axom/config.hpp"
 #include "axom/core/IteratorBase.hpp"
@@ -488,5 +487,3 @@ constexpr typename DynamicSet<P, E, S>::ElementType DynamicSet<P, E, S>::INVALID
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_SET_H_

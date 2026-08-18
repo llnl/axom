@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_UTILITIES_VARIABLE_SHAPE_HPP_
-#define AXOM_BUMP_UTILITIES_VARIABLE_SHAPE_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -156,5 +155,3 @@ std::ostream &operator<<(std::ostream &os, const VariableShape<T, NDIMS, N> &obj
 
 }  // namespace bump
 }  // namespace axom
-
-#endif

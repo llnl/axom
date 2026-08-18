@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DelaunayImpl.hpp
  *
@@ -18,9 +20,6 @@
  * - Mesh compaction (removes deleted element slots)
  * - VTK export for visualization
  */
-
-#ifndef AXOM_QUEST_DETAIL_DELAUNAY_IMPL_HPP_
-#define AXOM_QUEST_DETAIL_DELAUNAY_IMPL_HPP_
 
 namespace axom
 {
@@ -430,5 +429,3 @@ inline void Delaunay<DIM>::generateInitialMesh(std::vector<DataType>& points,
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

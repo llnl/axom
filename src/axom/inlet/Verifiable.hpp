@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Verifiable.hpp
@@ -11,9 +13,6 @@
  * \brief This file defines an interface for things that are verifiable
  *******************************************************************************
  */
-
-#ifndef INLET_VERIFIABLE_HPP
-#define INLET_VERIFIABLE_HPP
 
 #include <functional>
 
@@ -181,5 +180,3 @@ private:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif  // INLET_VERIFIABLE_HPP

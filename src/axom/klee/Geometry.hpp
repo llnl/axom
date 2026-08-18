@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRY_HPP_
-#define AXOM_KLEE_GEOMETRY_HPP_
+#pragma once
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
@@ -265,6 +264,7 @@ public:
    * geometry operators then the identity matrix is returned.
    *
    * \return A 4x4 matrix that represents the geometry transforms.
+   * \throws KleeError if any geometry operator cannot be represented as a matrix
    */
   numerics::Matrix<double> getTransform() const;
 
@@ -386,5 +386,3 @@ private:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_GEOMETRY_HPP_

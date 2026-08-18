@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Field.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of Inlet's Field and AggregateField classes.
  *******************************************************************************
  */
-
-#ifndef INLET_FIELD_HPP
-#define INLET_FIELD_HPP
 
 #include "axom/sidre.hpp"
 #include "axom/inlet/VariantKey.hpp"
@@ -333,5 +332,3 @@ private:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

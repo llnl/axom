@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_TESTS_CORE_CONSTEXPR_ASSERT_HPP_
-#define AXOM_CORE_TESTS_CORE_CONSTEXPR_ASSERT_HPP_
+#pragma once
 
 #include "gtest/gtest.h"
 
@@ -41,5 +40,3 @@ TEST(core_constexpr_assert, runtime_false_death)
   EXPECT_DEATH_IF_SUPPORTED([]() { AXOM_CONSTEXPR_ASSERT(false); }(), ".*");
 }
 #endif
-
-#endif  // AXOM_CORE_TESTS_CORE_CONSTEXPR_ASSERT_HPP_

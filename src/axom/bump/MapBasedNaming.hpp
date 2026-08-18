@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_MAP_BASED_NAMING_HPP_
-#define AXOM_BUMP_MAP_BASED_NAMING_HPP_
+#pragma once
 
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/core.hpp"
@@ -120,5 +119,3 @@ public:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

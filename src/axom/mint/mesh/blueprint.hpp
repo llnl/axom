@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_MESH_BLUEPRINT_HPP_
-#define MINT_MESH_BLUEPRINT_HPP_
+#pragma once
 
 // mint includes
 #include "axom/mint/config.hpp"          // for compile-time definitions
@@ -301,5 +300,3 @@ void setUniformMeshProperties(int dim,
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_MESH_BLUEPRINT_HPP_ */

@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BivariateMap.hpp
  *
  * \brief Contains the BivariateMap class, a map for a BivariateSet
  *
  */
-
-#ifndef SLAM_BIVARIATE_MAP_HPP_
-#define SLAM_BIVARIATE_MAP_HPP_
 
 #include "axom/slam/Map.hpp"
 #include "axom/slam/Relation.hpp"
@@ -745,5 +744,3 @@ private:
 
 }  // end namespace slam
 }  // end namespace axom
-
-#endif  // SLAM_BIVARIATE_MAP_HPP_

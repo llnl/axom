@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef COMMON_FILE_UTILITIES_H_
-#define COMMON_FILE_UTILITIES_H_
+#pragma once
 
 #include <string>
 #include <fstream>
@@ -57,6 +56,20 @@ bool pathExists(const std::string& fileName);
 std::string joinPath(const std::string& fileDir,
                      const std::string& fileName,
                      const std::string& separator = "/");
+
+/*!
+ * \brief Gets the extension from the final component of a filesystem path.
+ *
+ * \param [in] path an absolute or relative filesystem path
+ *
+ * \return the extension, including its leading period, or an empty string when
+ * the path has no extension
+ *
+ * The returned extension preserves its original case. Dots in directory names
+ * are ignored. An initial dot in the filename is not treated as an extension
+ * separator, so ".gitignore" has no extension.
+ */
+std::string getFileExtension(const std::string& path);
 
 /*!
  * \brief Make directories for a given path string
@@ -248,5 +261,3 @@ private:
 }  // end namespace filesystem
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif  //  COMMON_FILE_UTILITIES_H_

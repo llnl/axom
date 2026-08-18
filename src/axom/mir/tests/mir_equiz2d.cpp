@@ -109,6 +109,7 @@ void braid2d_mat_test(const std::string &type,
       using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
       conduit::Node options;
+      options["verbose"] = 1;
       options["matset"] = "mat";
       if(cleanMats)
       {
@@ -318,6 +319,7 @@ public:
     using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
+    options["verbose"] = 1;
     options["matset"] = "target2_matset";
     options["matsetName"] = "mir_matset";
     m.execute(n_dev, options, n_mir);

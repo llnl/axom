@@ -105,7 +105,7 @@ TEST(primal_beziertriangle, array_constructors)
   {
     for(int j = 0; j <= ord - i; ++j)
     {
-      const int idx = BezierTriangleType::triIndex(ord, i, j);
+      const axom::IndexType idx = BezierTriangleType::triIndex(ord, i, j);
       controlPoints[idx] = PointType {static_cast<CoordType>(i),
                                       static_cast<CoordType>(j),
                                       static_cast<CoordType>(i + 2 * j)};
@@ -123,7 +123,7 @@ TEST(primal_beziertriangle, array_constructors)
     {
       for(int j = 0; j <= ord - i; ++j)
       {
-        const int idx = BezierTriangleType::triIndex(ord, i, j);
+        const axom::IndexType idx = BezierTriangleType::triIndex(ord, i, j);
         EXPECT_EQ(tri(i, j), controlPoints[idx]);
         if(expect_rational)
         {
@@ -404,7 +404,7 @@ TEST(primal_beziertriangle, edges)
   {
     for(int j = 0; j <= ord - i; ++j)
     {
-      const int idx = BTri::triIndex(ord, i, j);
+      const axom::IndexType idx = BTri::triIndex(ord, i, j);
       const auto ii = static_cast<CoordType>(i);
       const auto jj = static_cast<CoordType>(j);
       poly(i, j) = PointType {ii, jj, 100. * ii + jj};

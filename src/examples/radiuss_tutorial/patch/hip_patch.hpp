@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_RADIUSS_TUTORIAL_HIP_PATCH
-#define AXOM_RADIUSS_TUTORIAL_HIP_PATCH
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -31,5 +30,3 @@ constexpr unsigned int
 }  // namespace rocprim
 
 #endif
-
-#endif  // AXOM_RADIUSS_TUTORIAL_HIP_PATCH

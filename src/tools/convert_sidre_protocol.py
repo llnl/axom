@@ -29,7 +29,7 @@ import math
 from pathlib import Path
 
 import numpy as np
-import pysidre
+import axom.sidre as sidre
 
 VALID_PROTOCOLS = (
     "json",
@@ -88,7 +88,7 @@ def parse_args() -> argparse.Namespace:
 #
 # Also initializes the data in each allocated array to zeros.
 #
-def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verbose: bool) -> None:
+def allocate_external_data(group: sidre.Group, holders: list[np.ndarray], verbose: bool) -> None:
     # for each view
     for view in group.views():
         if view.isExternal():
@@ -117,7 +117,7 @@ def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verb
 # several views in the original dataset pointing to the same memory.
 #
 def modify_final_values(
-    view: pysidre.View,
+    view: sidre.View,
     original_size: int,
     retained_size: int | None = None,
 ) -> None:
@@ -165,7 +165,7 @@ def modify_final_values(
 # This will be followed by at most the first max_size elements of the
 # original array.
 #
-def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> None:
+def truncate_bulk_data(group: sidre.Group, max_size: int, verbose: bool) -> None:
     # for each view
     for view in group.views():
         is_array = view.hasBuffer() or view.isExternal()
@@ -194,8 +194,8 @@ def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> No
 def main() -> int:
     args = parse_args()
 
-    if not pysidre.AXOM_ENABLE_MPI:
-        raise RuntimeError("pysidre.IOManager bindings require an MPI-enabled Axom build")
+    if not sidre.AXOM_ENABLE_MPI:
+        raise RuntimeError("sidre.IOManager bindings require an MPI-enabled Axom build")
 
     try:
         from mpi4py import MPI
@@ -212,8 +212,8 @@ def main() -> int:
     comm_size = MPI.COMM_WORLD.Get_size()
 
     input_path = Path(args.input)
-    manager = pysidre.IOManager()
-    datastore = pysidre.DataStore()
+    manager = sidre.IOManager()
+    datastore = sidre.DataStore()
     root = datastore.getRoot()
 
     num_files = manager.getNumFilesFromRoot(str(input_path))

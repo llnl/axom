@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_C2CREADER_HPP_
-#define QUEST_C2CREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -40,6 +39,12 @@ public:
   using CurveArray = axom::Array<NURBSCurve>;
   using CurveArrayView = axom::ArrayView<NURBSCurve>;
 
+  enum class ResultType
+  {
+    Success,
+    Failure
+  };
+
 public:
   C2CReader() = default;
 
@@ -53,6 +58,9 @@ public:
 
   /// Clears data associated with this reader
   void clear();
+
+  /// Returns true if the file has a recognized c2c extension.
+  static bool hasValidExtension(const std::string &filename);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -72,7 +80,35 @@ public:
   CurveArrayView getCurvesView() { return m_nurbsData.view(); }
 
 protected:
-  int readContour();
+  /*!
+   * \brief Internal helper for reading files.
+   *
+   * \param filename The name of the file to read.
+   * \param[inout] inputCurves The array of curves to append.
+   *
+   * \return Success on success, Failure otherwise.
+   */
+  ResultType readInternal(const std::string &filename, CurveArray &inputCurves);
+
+  /*!
+   * \brief Internal helper for reading a contour file.
+   *
+   * \param filename The name of the file to read.
+   * \param[inout] inputCurves The array of curves to append.
+   *
+   * \return Success on success, Failure otherwise.
+   */
+  ResultType readContour(const std::string &filename, CurveArray &inputCurves);
+
+  /*!
+   * \brief Internal helper for reading an assembly file.
+   *
+   * \param filename The name of the file to read.
+   * \param[inout] inputCurves The array of curves to append.
+   *
+   * \return Success on success, Failure otherwise.
+   */
+  ResultType readAssembly(const std::string &filename, CurveArray &inputCurves);
 
 protected:
   std::string m_fileName;
@@ -82,5 +118,3 @@ protected:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_C2CREADER_HPP_

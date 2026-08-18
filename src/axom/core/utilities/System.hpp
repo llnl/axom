@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef CORE_SYSTEM_UTILITIES_H_
-#define CORE_SYSTEM_UTILITIES_H_
+#pragma once
 
 #include <string>
 #include <locale>
@@ -35,7 +34,14 @@ std::string getUserName();
  */
 std::locale locale(const std::string& name = "en_US.UTF-8");
 
+/**
+ * @brief Returns the value of an environment variable.
+ *
+ * @param name The environment variable name.
+ *
+ * @return The environment variable value, or an empty string if it is unset.
+ */
+std::string getEnvironmentVariable(const std::string& name);
+
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif  //  CORE_SYSTEM_UTILITIES_H_

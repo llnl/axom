@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_SRC_UTILS_VTK_UTILS_HPP
-#define MINT_SRC_UTILS_VTK_UTILS_HPP
+#pragma once
 
 #include <string>  // for std::string
 
@@ -42,5 +41,3 @@ int write_vtk(mint::FiniteElement& fe, const std::string& file_path);
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_SRC_UTILS_VTK_UTILS_HPP */

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_STEPREADER_HPP_
-#define QUEST_STEPREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/mint.hpp"
@@ -136,5 +135,3 @@ protected:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

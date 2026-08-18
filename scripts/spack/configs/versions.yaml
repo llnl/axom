@@ -5,37 +5,42 @@
 packages:
   adiak:
     require: 
-      - spec: "@0.4.0"
+      - spec: "@0.5.0"
   # Newer commit than 2.14.0 that fixes rocprofiler dependency
   caliper:
     require:
       - spec: "@git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c=master"
-  # v2025.12
+  # main - 5/7/26 - Set by: https://github.com/spack/spack-packages/blob/1928a2383d6e0d536cfa2b0e7bc6bee8a70315d4/repos/spack_repo/builtin/packages/raja/package.py#L292-L293
   camp:
     require:
-      - spec: "@git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325=main"
+      - spec: "@git.e75ab64c029aa27c80593715cb2a3ccad7453c8c=main"
   conduit:
     require:
-      - spec: "@0.9.5"
+      - spec: "@0.9.7"
   hypre:
     require:
-      - spec: "@2.27.0"
+      - spec: "@3.1.0"
+  # master - 7/21/26
   mfem:
     require:
-      - spec: "@4.9"
+      - spec: "@git.c8ef9676e83c93a9037dbdf3bf0f2d741321e632=master"
   opencascade:
     require:
-      - spec: "@7.8.1"
+      - spec: "@7.9.1"
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-  # v2025.12.1
+  py-nanobind:
+    require:
+      - spec: "@2.12.0"
+  # develop - 7/7/26
   raja:
     require:
-      - spec: "@git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2=develop"
+      - spec: "@git.6e4fe62d810711a0af9020d4e94c6c41c9a6117b=develop"
   scr:
     require:
       - spec: "@3.0.1"
+  # develop - 6/15/26
   umpire:
     require:
-      - spec: "@2025.12.0"
+      - spec: "@git.f544027ef118133f1ecbc26e64c04ea77c3eb5ae=develop"

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "gtest/gtest.h"
 #include <fstream>
 #include <exception>
@@ -81,6 +83,31 @@ TEST(utils_fileUtilities, joinPath)
     EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/def/", "ghi"));
     EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/def", "/ghi"));
     EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/def/", "/ghi"));
+  }
+}
+
+TEST(utils_fileUtilities, getFileExtension)
+{
+  const std::pair<const char*, const char*> testCases[] = {
+    {"", ""},
+    {"file", ""},
+    {"file.txt", ".txt"},
+    {"file.tar.gz", ".gz"},
+    {"file.", "."},
+    {".gitignore", ""},
+    {".config.json", ".json"},
+    {".", ""},
+    {"..", ""},
+    {"directory/", ""},
+    {"directory.with.dot/file", ""},
+    {"directory.with.dot/file.yaml", ".yaml"},
+    {R"(directory.with.dot\file)", ""},
+    {R"(directory.with.dot\file.lua)", ".lua"},
+    {R"(C:\directory\FILE.YML)", ".YML"}};
+
+  for(const auto& [path, expected_ext] : testCases)
+  {
+    EXPECT_EQ(expected_ext, fs::getFileExtension(path)) << path;
   }
 }
 

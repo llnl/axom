@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_NUMERICS_POLY_SOLVE_HPP_
-#define AXOM_NUMERICS_POLY_SOLVE_HPP_
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -256,5 +255,3 @@ int solve_cubic(const double* coeff, double* roots, int& numRoots);
 
 }  // namespace numerics
 }  // namespace axom
-
-#endif  // AXOM_NUMERICS_POLY_SOLVE_HPP_

@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file multimat.hpp
  *
  * \brief Contains the MultiMat library header and its template implementation
  *
  */
-#ifndef MULTIMAT_H_
-#define MULTIMAT_H_
-
 #include "axom/slam.hpp"
 
 #include <vector>
@@ -1279,5 +1278,3 @@ std::ostream& operator<<(std::ostream& os, DataTypeSupported type);
 }  //end namespace axom
 
 #include "axom/multimat/mmfield.hpp"
-
-#endif

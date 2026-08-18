@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file MIRMesh.hpp
  * 
  * \brief Contains the specification for the MIRMesh class.
  * 
  */
-
-#ifndef __MIR_MESH_H__
-#define __MIR_MESH_H__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -228,4 +227,3 @@ public:
 //--------------------------------------------------------------------------------
 }  // namespace mir
 }  // namespace axom
-#endif

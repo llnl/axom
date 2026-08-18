@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPDATASTORE_H
+#define WRAPDATASTORE_H
+
 /**
  * \file wrapDataStore.h
  * \brief Shroud generated wrapper for DataStore class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPDATASTORE_H
-#define WRAPDATASTORE_H
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"

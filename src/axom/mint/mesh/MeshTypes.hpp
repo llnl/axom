@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_MESHTYPES_HPP_
-#define MINT_MESHTYPES_HPP_
+#pragma once
 
 namespace axom
 {
@@ -31,4 +30,3 @@ enum MeshTypes
 
 } /* namespace mint */
 } /* namespace axom */
-#endif /* MINT_MESHTYPE_HPP_ */

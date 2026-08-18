@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_Detail_FlatTable_Hpp
-#define Axom_Core_Detail_FlatTable_Hpp
+#pragma once
 
 #include <climits>
 
@@ -331,12 +330,12 @@ static_assert(std::is_standard_layout<GroupBucket>::value,
 template <typename HashType, typename ProbePolicy = QuadraticProbing>
 struct SequentialLookupPolicy : ProbePolicy
 {
-  constexpr static int NO_MATCH = -1;
+  constexpr static IndexType NO_MATCH = -1;
 
   struct GroupProbeInit
   {
     HashType group_mask;
-    HashType curr_group;
+    IndexType curr_group;
   };
 
   AXOM_FORCE_INLINE AXOM_HOST_DEVICE static GroupProbeInit initGroupProbe(HashType hash,
@@ -344,7 +343,7 @@ struct SequentialLookupPolicy : ProbePolicy
   {
     const int bitshift_right = (CHAR_BIT * sizeof(HashType)) - ngroups_pow_2;
     const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
-    const HashType curr_group = (hash >> bitshift_right) & group_mask;
+    const IndexType curr_group = static_cast<IndexType>((hash >> bitshift_right) & group_mask);
     return {group_mask, curr_group};
   }
 
@@ -361,14 +360,14 @@ struct SequentialLookupPolicy : ProbePolicy
     // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
     const auto init = initGroupProbe(hash, ngroups_pow_2);
     const HashType group_mask = init.group_mask;
-    HashType curr_group = init.curr_group;
-    int empty_group = NO_MATCH;
-    int empty_bucket = NO_MATCH;
+    IndexType curr_group = init.curr_group;
+    IndexType empty_group = NO_MATCH;
+    IndexType empty_bucket = NO_MATCH;
 
     std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
     for(int iteration = 0; iteration < metadata.size(); iteration++)
     {
-      int tentative_empty_bucket = metadata[curr_group].getEmptyBucket();
+      IndexType tentative_empty_bucket = metadata[curr_group].getEmptyBucket();
       if(tentative_empty_bucket != GroupBucket::InvalidSlot && empty_group == NO_MATCH)
       {
         empty_group = curr_group;
@@ -387,7 +386,7 @@ struct SequentialLookupPolicy : ProbePolicy
         metadata[curr_group].setOverflow(hash_8);
       }
       // The group count is a power of two,  so we can use a bitmask (instead of a modulo)
-      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
+      curr_group = static_cast<IndexType>((curr_group + this->getNext(iteration)) & group_mask);
     }
     if(empty_group != NO_MATCH)
     {
@@ -420,9 +419,9 @@ struct SequentialLookupPolicy : ProbePolicy
   {
     const auto init = initGroupProbe(hash, ngroups_pow_2);
     const HashType group_mask = init.group_mask;
-    HashType curr_group = init.curr_group;
-    int empty_group = NO_MATCH;
-    int empty_bucket = NO_MATCH;
+    IndexType curr_group = init.curr_group;
+    IndexType empty_group = NO_MATCH;
+    IndexType empty_bucket = NO_MATCH;
 
     std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
     bool may_exist = true;
@@ -445,7 +444,7 @@ struct SequentialLookupPolicy : ProbePolicy
 
       if(empty_group == NO_MATCH)
       {
-        int tentative_empty_bucket = metadata[curr_group].getEmptyBucket();
+        IndexType tentative_empty_bucket = metadata[curr_group].getEmptyBucket();
         if(tentative_empty_bucket != GroupBucket::InvalidSlot)
         {
           empty_group = curr_group;
@@ -470,7 +469,7 @@ struct SequentialLookupPolicy : ProbePolicy
         metadata[curr_group].setOverflow(hash_8);
       }
       // The group count is a power of two, so we can use a bitmask (instead of a modulo)
-      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
+      curr_group = static_cast<IndexType>((curr_group + this->getNext(iteration)) & group_mask);
     }
     if(empty_group != NO_MATCH)
     {
@@ -498,7 +497,7 @@ struct SequentialLookupPolicy : ProbePolicy
     // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
     const auto init = initGroupProbe(hash, ngroups_pow_2);
     const HashType group_mask = init.group_mask;
-    HashType curr_group = init.curr_group;
+    IndexType curr_group = init.curr_group;
 
     std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
     bool keep_going = true;
@@ -520,38 +519,39 @@ struct SequentialLookupPolicy : ProbePolicy
         break;
       }
       // Probe the next bucket. Note that the group count is a power of 2 so we can use a bit mask
-      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
+      curr_group = static_cast<IndexType>((curr_group + this->getNext(iteration)) & group_mask);
     }
   }
 
   void setBucketHash(ArrayView<GroupBucket> metadata, IndexType bucket, HashType hash)
   {
-    int group_index = bucket / GroupBucket::Size;
-    int slot_index = bucket % GroupBucket::Size;
+    IndexType group_index = bucket / GroupBucket::Size;
+    int slot_index = static_cast<int>(bucket % GroupBucket::Size);
 
-    metadata[group_index].setBucket(slot_index, hash);
+    metadata[group_index].setBucket(slot_index, static_cast<std::uint8_t>(hash));
   }
 
   bool clearBucket(ArrayView<GroupBucket> metadata, IndexType bucket, HashType hash)
   {
-    int group_index = bucket / GroupBucket::Size;
-    int slot_index = bucket % GroupBucket::Size;
+    IndexType group_index = bucket / GroupBucket::Size;
+    int slot_index = static_cast<int>(bucket % GroupBucket::Size);
 
     metadata[group_index].clearBucket(slot_index);
 
     // Return if the overflow bit is set on the bucket. That indicates whether
     // we are deleting an element in the middle of a probing sequence.
-    return metadata[group_index].getMaybeOverflowed(hash);
+    return metadata[group_index].getMaybeOverflowed(static_cast<std::uint8_t>(hash));
   }
 
-  AXOM_HOST_DEVICE IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
+  AXOM_HOST_DEVICE IndexType nextValidIndex(ArrayView<const GroupBucket> metadata,
+                                            IndexType last_bucket) const
   {
     if(last_bucket >= metadata.size() * GroupBucket::Size - 1)
     {
       return last_bucket;
     }
-    int group_index = last_bucket / GroupBucket::Size;
-    int slot_index = last_bucket % GroupBucket::Size;
+    IndexType group_index = last_bucket / GroupBucket::Size;
+    int slot_index = static_cast<int>(last_bucket % GroupBucket::Size);
 
     do
     {
@@ -582,5 +582,3 @@ struct alignas(T) TypeErasedStorage
 }  // namespace axom
 
 #undef _AXOM_CORE_HAVE_SSE2
-
-#endif  // Axom_Core_Detail_FlatTable_Hpp

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_RELATIONSHIP_HPP
-#define SINA_RELATIONSHIP_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -137,5 +136,3 @@ private:
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_RELATIONSHIP_HPP

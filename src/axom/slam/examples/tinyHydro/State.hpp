@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // State class that holds all the material data.  In the
 // multi-material world, this will mostly be a vector of Part structs
 // that hold the data, plus a few functions to do mesh sums and

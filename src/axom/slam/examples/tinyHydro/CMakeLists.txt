@@ -33,7 +33,7 @@ set(slam_tiny_hydro_lib_depends_on slam fmt)
 axom_add_library(
     NAME        slam_tinyHydro_ex
     SOURCES     ${tinyHydro_lib_sources}
-                ${tinyHydro_lib_headers}
+    HEADERS     ${tinyHydro_lib_headers}
     DEPENDS_ON  ${slam_tiny_hydro_lib_depends_on}
     FOLDER      axom/slam/examples 
     OBJECT      TRUE )

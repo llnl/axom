@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_UNIFORMGRID_HPP_
-#define AXOM_SPIN_UNIFORMGRID_HPP_
+#pragma once
 
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/execution/for_all.hpp"
@@ -872,5 +871,3 @@ UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getClampedGridCell(
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_UNIFORMGRID_HPP_

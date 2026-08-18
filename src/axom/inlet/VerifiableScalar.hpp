@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file VerifiableScalar.hpp
@@ -11,9 +13,6 @@
  * \brief This file defines an interface for scalars that are verifiable
  *******************************************************************************
  */
-
-#ifndef INLET_VERIFIABLE_SCALAR_HPP
-#define INLET_VERIFIABLE_SCALAR_HPP
 
 #include <memory>
 #include <functional>
@@ -282,5 +281,3 @@ public:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif  // INLET_VERIFIABLE_SCALAR_HPP

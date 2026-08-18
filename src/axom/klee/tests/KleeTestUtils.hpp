@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_TESTUTILS_HPP_
-#define AXOM_KLEE_TESTUTILS_HPP_
+#pragma once
 
 #include "axom/klee/GeometryOperators.hpp"
 
@@ -35,6 +34,7 @@ class MockOperator : public GeometryOperator
 {
 public:
   using GeometryOperator::GeometryOperator;
+  MOCK_METHOD(std::string, getName, (), (const));
   MOCK_METHOD(TransformableGeometryProperties, getEndProperties, (), (const));
   MOCK_METHOD(void, accept, (GeometryOperatorVisitor &), (const));
   TransformableGeometryProperties getBaseEndProperties() const
@@ -46,5 +46,3 @@ public:
 }  // namespace test
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_TESTUTILS_HPP_

@@ -4,13 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file OctreeBase.hpp
  * \brief Defines templated OctreeBase class and its inner class BlockIndex
  */
-
-#ifndef AXOM_SPIN_OCTREE_BASE__HPP_
-#define AXOM_SPIN_OCTREE_BASE__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -479,10 +478,10 @@ public:
   }
 
   /// \brief The max level for leaf blocks of the octree
-  int maxLeafLevel() const { return m_levels.size(); }
+  int maxLeafLevel() const { return static_cast<int>(m_levels.size()); }
 
   /// \brief The max level for internal blocks of the octree
-  int maxInternalLevel() const { return m_levels.size() - 1; }
+  int maxInternalLevel() const { return static_cast<int>(m_levels.size()) - 1; }
 
 public:
   ///@{
@@ -914,5 +913,3 @@ protected:
 
 }  // end namespace spin
 }  // end namespace axom
-
-#endif  // AXOM_SPIN_OCTREE_BASE__HPP_

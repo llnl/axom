@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SIDRE_ARRAY_HPP_
-#define SIDRE_ARRAY_HPP_
+#pragma once
 
 #include "axom/core/utilities/Utilities.hpp"  // for memory allocation functions
 #include "axom/core/Array.hpp"                // to inherit
@@ -116,9 +115,9 @@ struct SidreStoragePolicy
    */
   template <typename Func>
   T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
-                int AXOM_UNUSED_PARAM(old_capacity),
+                IndexType AXOM_UNUSED_PARAM(old_capacity),
                 int AXOM_UNUSED_PARAM(allocator_id),
-                int new_capacity,
+                IndexType new_capacity,
                 Func&& AXOM_UNUSED_PARAM(nontrivial_move))
   {
     if(m_view->isEmpty())
@@ -569,5 +568,3 @@ inline axom::IndexType Array<T, DIM>::getViewShape(int dim) const
 
 } /* namespace sidre */
 } /* namespace axom */
-
-#endif /* SIDRE_ARRAY_HPP_ */
