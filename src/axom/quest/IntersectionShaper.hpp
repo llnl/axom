@@ -28,7 +28,6 @@
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/Shaper.hpp"
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 
 #include "axom/fmt.hpp"
