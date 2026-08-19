@@ -20,9 +20,7 @@
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/core/Macros.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class ModularInt
@@ -285,5 +283,4 @@ constexpr ModularInt<SizePolicy> operator*(const int n, const ModularInt<SizePol
   return tmp;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

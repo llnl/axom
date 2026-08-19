@@ -103,11 +103,7 @@
 #include <optional>
 #include <vector>
 
-namespace axom
-{
-namespace slam
-{
-namespace detail
+namespace axom::slam::detail
 {
 
 /**
@@ -461,6 +457,4 @@ thread_local std::vector<typename FacetPairingMap<TDIM, IndexType>::Entry>
 template <int TDIM, typename IndexType>
 thread_local unsigned int FacetPairingMap<TDIM, IndexType>::s_generation = 0;
 
-}  // namespace detail
-}  // namespace slam
-}  // namespace axom
+}  // namespace axom::slam::detail

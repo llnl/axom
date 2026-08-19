@@ -10,7 +10,7 @@
 Core concepts
 =============
 
-Describe Slam concepts, what they mean, how they are used, etc.
+This section describes Slam's concepts: what they mean and how they are used.
 
 .. figure:: figs/set_relation_map.png
    :figwidth: 400px
@@ -25,9 +25,12 @@ Describe Slam concepts, what they mean, how they are used, etc.
 Set
 ===
 
-* Taxonomy of set types (OrderedSet, IndirectionSet, Subset, static vs. dynamic)
-* Simple API (including semantics of operator[] and iterators )
-* Example to show how we iterate through a set
+Sets model mesh entities such as vertices, zones, materials or refinement levels.
+Ordered sets associate each entity with a position so Slam code can iterate
+and index efficiently.
+
+Use ``RangeSet`` for contiguous ranges. Use ``ArraySet`` or ``ArrayViewSet``
+when set elements are stored in Axom buffers.
 
 .. Future
    Discuss different indexing schemes for ProductSets
@@ -38,16 +41,21 @@ Set
 Relation
 ========
 
-* Relational operator (from element of Set A to set of elements in Set B)
-* Taxonomy:
-    * Cardinality: Fixed vs Variable number of elements per relation
-    * Mutability: Static vs. Dynamic relation
-    * Storage: Implicit vs. Explicit (e.g. product set)
-* Simple API (including semantics of operator[] )
-* Three ways to iterate through a relations
-    * Double subscript
-    * Separate subscripts
-    * Iterators
+A relation connects elements from a `from-set` to those of a `to-set`
+and can be used to encode mesh incidence and adjacency relations, such 
+as those from cells to vertices, from vertices to cells, from zones to materials
+or from elements to neighboring elements.
+
+Slam classifies relations along a few independent axes:
+
+* cardinality: constant per from-set entity or variable per from-set entity
+* mutability: static after construction or dynamically editable
+* storage: implicit, such as a product set, or explicit, such as index buffers
+
+Use ``ConstantRelation`` / ``ConstantRelationView`` for static fixed-cardinality
+relations and ``VariableRelation`` / ``VariableRelationView`` for static
+CSR-shaped relations. Use ``DynamicConstantRelation`` or
+``DynamicVariableRelation`` when the connectivity needs to be edited.
 
 
 .. _map-concept-label:
@@ -55,5 +63,17 @@ Relation
 Map
 ===
 
-* Data associated with all members of a set
-* Simple API (including semantics of operator[] )
+Maps attach values to the members of a set. In mesh terms, a map is the Slam
+abstraction for scalar, vector or tensor data associated with vertices, cells,
+materials or other entity sets.
+
+A ``Map`` stores its values in an ``axom::Array`` by default, allocating and freeing
+that buffer as part of the map's lifetime. To point a map at a buffer whose lifetime is
+managed elsewhere, e.g. storage owned by an application, or data to be captured in a device kernel,
+construct it with an ``axom::ArrayView`` indirection instead.
+``BivariateMap`` attaches values to a bivariate set, such as a product set or relation set,
+with the same choice of storage.
+
+See :ref:`aliases-label` for how the map storage default interacts with
+those of other Slam containers, and for the relation aliases.
+
