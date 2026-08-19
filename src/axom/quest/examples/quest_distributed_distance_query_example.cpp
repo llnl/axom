@@ -12,7 +12,6 @@
 // Axom includes
 #include "axom/config.hpp"
 #include "axom/core.hpp"
-#include "axom/core/NumericLimits.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
@@ -56,9 +55,16 @@
 namespace
 {
 
+#if defined(AXOM_NO_INT64_T)
+using ByteCount = std::uint32_t;
+constexpr ByteCount INVALID_BYTES = axom::numeric_limits<ByteCount>::max();
+  #define AXOM_DCP_SCN_BYTE_COUNT SCNu32
+#else
 using ByteCount = std::int64_t;
-
 constexpr ByteCount INVALID_BYTES = -1;
+  #define AXOM_DCP_SCN_BYTE_COUNT SCNd64
+#endif
+
 constexpr ByteCount BYTES_PER_KIB = 1024;
 
 template <typename T>
@@ -109,16 +115,16 @@ ProcRss readProcRss()
   while(std::getline(status, line))
   {
     ByteCount kb = 0;
-    if(std::sscanf(line.c_str(), "VmRSS: %" SCNd64 " kB", &kb) == 1)
+    if(std::sscanf(line.c_str(), "VmRSS: %" AXOM_DCP_SCN_BYTE_COUNT " kB", &kb) == 1)
     {
       result.current = kb * BYTES_PER_KIB;
     }
-    else if(std::sscanf(line.c_str(), "VmHWM: %" SCNd64 " kB", &kb) == 1)
+    else if(std::sscanf(line.c_str(), "VmHWM: %" AXOM_DCP_SCN_BYTE_COUNT " kB", &kb) == 1)
     {
       result.peak = kb * BYTES_PER_KIB;
     }
 
-    if(result.current >= 0 && result.peak >= 0)
+    if(result.current != INVALID_BYTES && result.peak != INVALID_BYTES)
     {
       break;
     }
@@ -141,7 +147,7 @@ void resetPeakRss()
 
 std::string humanBytes(ByteCount bytes)
 {
-  if(bytes < 0)
+  if(bytes == INVALID_BYTES)
   {
     return "n/a";
   }
@@ -161,8 +167,8 @@ std::string humanBytes(ByteCount bytes)
 /// Reduce a per-rank byte count to the communicator total and hottest rank.
 ReducedBytes reduceBytes(ByteCount localValue, MPI_Comm comm, int rank, int commSize)
 {
-  const bool hasLocalValue = localValue >= 0;
-  ByteCount localMax = hasLocalValue ? localValue : INVALID_BYTES;
+  const bool hasLocalValue = localValue != INVALID_BYTES;
+  ByteCount localMax = hasLocalValue ? localValue : 0;
   ByteCount localSum = hasLocalValue ? localValue : 0;
   int localCount = hasLocalValue ? 1 : 0;
 
@@ -369,7 +375,7 @@ private:
 
   void recordSamplerValue(ByteCount bytes)
   {
-    if(bytes > m_samplerPeak)
+    if(bytes != INVALID_BYTES && (m_samplerPeak == INVALID_BYTES || bytes > m_samplerPeak))
     {
       m_samplerPeak = bytes;
     }
@@ -387,6 +393,8 @@ private:
 };
 
 }  // namespace
+
+#undef AXOM_DCP_SCN_BYTE_COUNT
 
 namespace quest = axom::quest;
 namespace slic = axom::slic;
