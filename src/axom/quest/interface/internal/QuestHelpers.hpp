@@ -60,6 +60,9 @@ using CommHandle = MPI_Comm;
 
 /// \brief Returns a handle for the calling rank alone (\a MPI_COMM_SELF)
 inline CommHandle commSelf() { return MPI_COMM_SELF; }
+
+/// \brief Returns a handle for all ranks (\a MPI_COMM_WORLD)
+inline CommHandle commWorld() { return MPI_COMM_WORLD; }
 #else
 enum class CommHandle : int
 {
@@ -68,6 +71,9 @@ enum class CommHandle : int
 
 /// \brief Returns a handle for the calling rank alone
 inline CommHandle commSelf() { return CommHandle::Serial; }
+
+/// \brief Returns a handle for all ranks
+inline CommHandle commWorld() { return CommHandle::Serial; }
 #endif
 
 static_assert(!std::is_convertible<CommHandle, int>::value || std::is_same<CommHandle, int>::value,
@@ -155,8 +161,11 @@ int read_stl_mesh_shared(const std::string& file,
  *
  * \note This method currently expects the surface mesh to be given in STL format.
  *
- * \note The caller is responsible for properly de-allocating the mesh object
- *  that is returned by this function.
+ * \note In an MPI build the file is read on rank 0 of \a comm and broadcast to the other ranks,
+ *  so a caller that has a real communicator should pass it rather than \a commSelf().
+ *  Passing \a commSelf() makes every rank open and read the file independently.
+ *
+ * \note The caller is responsible for de-allocating the mesh object returned by this function.
  *
  * \return status set to zero on success, or to a non-zero value otherwise.
  *
@@ -171,7 +180,7 @@ int read_stl_mesh_shared(const std::string& file,
  * \see STLReader
  * \see PSTLReader
  */
-int read_stl_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm = commSelf());
+int read_stl_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm);
 
 #ifdef AXOM_USE_C2C
 /*!
@@ -191,6 +200,9 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm = com
  *
  * \note The caller is responsible for properly de-allocating the mesh object
  *  that is returned by this function
+ *
+ * \note In an MPI build the file is read on rank 0 of \a comm and broadcast to the other ranks,
+ *  so a caller that has a real communicator should pass it rather than \a commSelf().
  *
  * \return status set to zero on success, or to a non-zero value otherwise
  *
@@ -215,7 +227,7 @@ int read_c2c_mesh(const std::string& file,
                   double percentError,
                   mint::Mesh*& m,
                   double& revolvedVolume,
-                  CommHandle comm = commSelf());
+                  CommHandle comm);
 
 #endif  // AXOM_USE_C2C
 
@@ -268,8 +280,10 @@ int read_mfem_mesh(const std::string& file,
  * \param [out] m user-supplied pointer to point to the mesh object.
  * \param [in] comm the communicator to read over; ignored when Axom is configured without MPI.
  *
- * \note The caller is responsible for properly de-allocating the mesh object
- *  that is returned by this function.
+ * \note The caller is responsible for de-allocating the mesh object returned by this function.
+ *
+ * \note In an MPI build the file is read on rank 0 of \a comm and broadcast to the other ranks,
+ *  so a caller that has a real communicator should pass it rather than \a commSelf().
  *
  * \return zero on success, or a non-zero value otherwise.
  *
@@ -284,7 +298,7 @@ int read_mfem_mesh(const std::string& file,
  * \see ProEReader
  * \see PProEReader
  */
-int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm = commSelf());
+int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm);
 
 /// @}
 
@@ -331,7 +345,7 @@ void compute_mesh_bounds(const mint::Mesh* mesh, double* lo, double* hi);
  *
  *  \see logger_finalize
  */
-void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, CommHandle comm = commSelf());
+void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, CommHandle comm);
 
 /*!
  * \brief Finalizes the Slic logger (if needed)
