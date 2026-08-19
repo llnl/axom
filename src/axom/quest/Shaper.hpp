@@ -37,9 +37,7 @@
   #include <mpi.h>
 #endif
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /**
  * Abstract base class for shaping material volume fractions
@@ -274,5 +272,4 @@ protected:
 #endif
 };
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest

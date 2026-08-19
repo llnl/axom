@@ -38,9 +38,7 @@
 
 #include <functional>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 /// \brief Concrete class for sample based shaping
@@ -1185,5 +1183,4 @@ private:
   std::string m_inoutOctreeVtkOutputDirectory;
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest
