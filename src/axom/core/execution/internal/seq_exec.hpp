@@ -14,11 +14,6 @@
   #include "RAJA/RAJA.hpp"
 #endif
 
-// Umpire includes
-#ifdef AXOM_USE_UMPIRE
-  #include "umpire/Umpire.hpp"
-#endif
-
 namespace axom
 {
 /*!
@@ -64,11 +59,7 @@ struct execution_space<SEQ_EXEC>
 
   static int allocatorID() noexcept
   {
-#ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-    return axom::getDefaultAllocatorID();
-#endif
+    return axom::getDefaultHostAllocatorID();
   }
   AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {

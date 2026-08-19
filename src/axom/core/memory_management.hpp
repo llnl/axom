@@ -189,6 +189,20 @@ inline int getDefaultAllocatorID()
 }
 
 /*!
+ * \brief Returns the ID of the default host allocator.
+ *
+ * \return ID of the default host allocator.
+ */
+inline int getDefaultHostAllocatorID()
+{
+#ifdef AXOM_USE_UMPIRE
+  return getUmpireResourceAllocatorID(umpire::resource::Host);
+#else
+  return getDefaultAllocatorID();
+#endif
+}
+
+/*!
  * \brief Get the allocator id from which data has been allocated.
  * \return Allocator id.  If Umpire doesn't have an allocator for the
  * pointer, or if Axom wasn't configured with Umpire, assume the
