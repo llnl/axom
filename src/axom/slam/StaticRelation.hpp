@@ -10,8 +10,7 @@
  * \file StaticRelation.hpp
  *
  * \brief API for a topological relation between two sets where the
- *        relation does not change after it is initialized
- *
+ *        relation does not change after it is initialized.
  */
 
 #include "axom/config.hpp"
@@ -26,9 +25,7 @@
 #include "axom/slam/OrderedSet.hpp"
 #include "axom/slam/Relation.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 template <typename PosType,   // = slam::DefaultPositionType,
           typename ElemType,  // = slam::DefaultElementType,
@@ -57,12 +54,16 @@ public:
                                              policies::StrideOne<SetPosition>,
                                              IndicesIndirectionPolicy>::ConcreteSet;
 
+  // The stored indices set uses the concrete (non-virtual) interface so that a
+  // relation built on a view indirection is trivially copyable / device-capturable.
   using IndicesSet = OrderedSet<SetPosition,
                                 SetElement,
                                 policies::RuntimeSize<SetPosition>,
                                 policies::ZeroOffset<SetPosition>,
                                 policies::StrideOne<SetPosition>,
-                                IndicesIndirectionPolicy>;
+                                IndicesIndirectionPolicy,
+                                policies::NoSubset,
+                                policies::ConcreteInterface>;
 
   using IndirectionBufferType = typename IndicesIndirectionPolicy::IndirectionBufferType;
   using IndirectionRefType = typename IndicesIndirectionPolicy::IndirectionRefType;
@@ -347,5 +348,4 @@ bool StaticRelation<PosType,
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

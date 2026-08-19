@@ -24,9 +24,7 @@
 #include <cassert>
 #include <typeinfo>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class BivariateMap
@@ -43,6 +41,12 @@ namespace slam
  * component in each element is indexed separately, and ElementFlatIndex,
  * an index that disregards the individual components. Hence, to access
  * each component, one would need to provide a component index as well.
+ *
+ * \note When \a IndPol is not specified, \c BivariateMap stores its values in an
+ *       \c axom::Array via \c policies::ArrayIndirection, and manages that buffer itself.
+ *       This replaced the earlier \c policies::STLVectorIndirection default.
+ *       To refer to a buffer managed elsewhere, use \c policies::ArrayViewIndirection.
+ *       For \c std::vector backing, specify \c policies::STLVectorIndirection explicitly.
  *
  * Example:
  * For a 2 x 2 sparse matrix with 3 components below:
@@ -80,7 +84,7 @@ namespace slam
 
 template <typename T,
           typename BSet = BivariateSet<>,
-          typename IndPol = policies::STLVectorIndirection<typename BSet::PositionType, T>,
+          typename IndPol = policies::ArrayIndirection<typename BSet::PositionType, T>,
           typename StrPol = policies::StrideOne<typename BSet::PositionType>,
           typename IfacePol = policies::ConcreteInterface>
 class BivariateMap : public policies::MapInterface<IfacePol, typename BSet::PositionType>,
@@ -742,5 +746,4 @@ private:
   typename BivariateSetType::IteratorType m_bsetIterator;
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

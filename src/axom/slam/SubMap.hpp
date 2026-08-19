@@ -23,9 +23,7 @@
 #include <type_traits>
 #include <sstream>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class SubMap
@@ -487,5 +485,4 @@ private:
   MapRangeIterator m_mapIter;
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

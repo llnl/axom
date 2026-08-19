@@ -10,14 +10,12 @@
  * \file RangeSet.hpp
  *
  * \brief Basic API for an ordered set of entities in a simulation
- *
  */
 
 #include "axom/slam/OrderedSet.hpp"
+#include "axom/slam/Traits.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class GenericRangeSet
@@ -108,5 +106,8 @@ using PositionSet = GenericRangeSet<P, E, policies::ZeroOffset<P>>;
 template <typename P = slam::DefaultPositionType, typename E = slam::DefaultElementType>
 using RangeSet = GenericRangeSet<P, E>;
 
-}  // end namespace slam
-}  // end namespace axom
+// Check that RangeSet and PositionSet are set-like
+static_assert(is_ordered_set_like_v<RangeSet<>>, "RangeSet models the ordered-set contract");
+static_assert(is_set_like_v<PositionSet<>>, "PositionSet models the set contract");
+
+}  // end namespace axom::slam
