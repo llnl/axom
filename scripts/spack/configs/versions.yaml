@@ -14,14 +14,14 @@ packages:
       - spec: "@2026.07.1"
   conduit:
     require:
-      - spec: "@0.9.7"
+      - spec: "@0.9.8"
   hypre:
     require:
       - spec: "@3.1.0"
-  # master - 7/21/26
+  # 4.10
   mfem:
     require:
-      - spec: "@git.c8ef9676e83c93a9037dbdf3bf0f2d741321e632=master"
+      - spec: "@git.d964264cdb9a13e94a201b6c236c7721e0c8765f=develop"
   opencascade:
     require:
       - spec: "@7.9.1"
