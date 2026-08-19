@@ -11,6 +11,7 @@
 
 #include "axom/slam/Utilities.hpp"
 #include "axom/slam/Set.hpp"
+#include "axom/slam/Aliases.hpp"
 #include "axom/slam/Map.hpp"
 #include "axom/slam/MapBuilders.hpp"
 
@@ -35,10 +36,18 @@ namespace axom::slam
  *       lookup tables use transparent comparison (std::less<>) so callers may
  *       query with a std::string_view without constructing a temporary std::string.
  *
- * \note FieldRegistry supports two field storage modes under a single field keyspace:
- *       - owning fields stored as `slam::Map`
- *       - view-backed fields stored as `slam::Map` over `axom::ArrayView`
- *         (useful when generating SLAM objects from externally-owned C arrays)
+ * \note FieldRegistry supports two field storage modes under a single set of field keys:
+ *       - fields that manage their own buffer, stored as a `slam::Map` with the
+ *         default `axom::Array` indirection
+ *       - fields that refer to an externally-managed buffer, stored as a `slam::Map`
+ *         with an `axom::ArrayView` indirection
+ *         (useful when generating Slam objects from externally-managed arrays)
+ *
+ * \note The registry-managed fields and buffers (the first mode above, and \ref FieldRegistry::BufferType)
+ *       now hold an `axom::Array` rather than a `std::vector`.
+ *       Prefer `auto`, `FieldRegistry::BufferType`, and `FieldRegistry::MapType` at registry boundaries.
+ *       When an `axom::ArrayView` is the right interface, call `buffer.view()`;
+ *       to register a buffer managed elsewhere, use `addFieldView()` or `addBufferView()`.
  */
 template <typename SetType, typename TheDataType>
 class FieldRegistry
@@ -53,17 +62,23 @@ public:
   /// \brief Key type used for registry entries.
   using KeyType = std::string;
 
-  /// \brief Owning field type (`slam::Map`) stored by this registry.
+  /*!
+   * \brief Field type stored by this registry, a `slam::Map` from \a SetType to \a DataType.
+   *
+   * Uses Slam's default indirection (`axom::Array`), so registry-managed
+   * fields hold their own buffer.  See \ref FieldRegistry::BufferType.
+   */
   using MapType = slam::Map<DataType, SetType>;
 
-  /// \brief Owning buffer type used by `MapType`.
+  /// \brief Buffer type backing `MapType` (uses the default Map buffer type: `axom::Array<DataType>`)
   using BufferType = typename MapType::OrderedMap;
 
   /*!
    * \brief View-backed field type stored by this registry.
    *
    * This is the return type of `slam::make_map(set, axom::ArrayView<DataType>{...})`
-   * and uses `policies::ArrayViewIndirection`.
+   * and uses the canonical non-owning `policies::ArrayViewIndirection` policy.
+   * The view's backing storage must outlive the registered field.
    */
   using ViewMapType = decltype(slam::make_map(std::declval<const SetType*>(),
                                               std::declval<axom::ArrayView<DataType>>()));
