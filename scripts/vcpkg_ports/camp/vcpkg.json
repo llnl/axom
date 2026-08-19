@@ -1,7 +1,6 @@
 {
   "name": "camp",
-  "$comment":"TODO: We're planning to update to release 2026.0?.* when it is available",
-  "version-string": "main-commit-e75ab64c029aa27c80593715cb2a3ccad7453c8c",
+  "version-string": "2026.07.1",
   "homepage": "https://github.com/llnl/camp",
   "description": "Compiler agnostic metaprogramming library",
   "dependencies": [
