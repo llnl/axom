@@ -130,6 +130,15 @@ void DistributedClosestPoint::setDistanceThreshold(double threshold)
   m_sqDistanceThreshold = threshold * threshold;
 }
 
+void DistributedClosestPoint::setDynamicDistanceFiltering(bool on)
+{
+  m_dynamicDistanceFiltering = on;
+  if(m_impl)
+  {
+    m_impl->setDynamicDistanceFiltering(m_dynamicDistanceFiltering);
+  }
+}
+
 void DistributedClosestPoint::setOutput(const std::string& field, bool on)
 {
   // clang-format off
@@ -211,6 +220,7 @@ void DistributedClosestPoint::computeClosestPoints(conduit::Node& query_node,
   SLIC_ASSERT(this->isValidBlueprint(query_node));
 
   m_impl->setSquaredDistanceThreshold(m_sqDistanceThreshold);
+  m_impl->setDynamicDistanceFiltering(m_dynamicDistanceFiltering);
   m_impl->setMpiCommunicator(m_mpiComm);
   m_impl->setOutputSwitches(m_outputRank,
                             m_outputIndex,

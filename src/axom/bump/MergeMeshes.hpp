@@ -23,6 +23,7 @@
 #include <conduit/conduit.hpp>
 
 #include <string>
+#include <type_traits>
 
 namespace axom
 {
@@ -1769,8 +1770,9 @@ private:
         auto *This = this;
         disp.dispatchMatset(n_matset, [&](auto matsetView) {
           // Figure out the types to use for storing the data.
-          using IType = typename decltype(matsetView)::IndexType;
-          using FType = typename decltype(matsetView)::FloatType;
+          using MatsetViewType = std::remove_reference_t<decltype(matsetView)>;
+          using IType = typename MatsetViewType::IndexType;
+          using FType = typename MatsetViewType::FloatType;
           mi.itype = utils::cpp2conduit<IType>::id;
           mi.ftype = utils::cpp2conduit<FType>::id;
 
@@ -2037,7 +2039,8 @@ private:
                         axom::IndexType nzones,
                         axom::IndexType zOffset) const
   {
-    using MatID = typename decltype(matsetView)::IndexType;
+    using MatsetViewType = std::remove_reference_t<decltype(matsetView)>;
+    using MatID = typename MatsetViewType::IndexType;
 
     // Make some maps for renumbering material numbers.
     const auto localMaterialMap = axom::bump::views::materials(n_matset);

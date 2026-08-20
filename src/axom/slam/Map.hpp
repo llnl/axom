@@ -32,9 +32,7 @@
 #include "axom/slam/policies/PolicyTraits.hpp"
 #include "axom/slam/policies/MapInterfacePolicies.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 // This class is missing some simplifying copy constructors
 // -- or at least ways of interacting with the data store
@@ -61,11 +59,16 @@ namespace slam
  *          ( `map(i,j)` ), or via the square bracket operator
  *          (i.e. `map[k]`, where `k = i * stride() + j` ).
  *
+ * \note When \a IndPol is not specified, \c Map stores its values in an \c axom::Array
+ *       via \c policies::ArrayIndirection, and manages that buffer itself.
+ *       This replaced the earlier \c policies::STLVectorIndirection default.
+ *       To refer to a buffer managed elsewhere, use \c policies::ArrayViewIndirection.
+ *       For \c std::vector backing, specify \c policies::STLVectorIndirection explicitly.
  */
 
 template <typename T,
           typename S = Set<>,
-          typename IndPol = policies::STLVectorIndirection<typename S::PositionType, T>,
+          typename IndPol = policies::ArrayIndirection<typename S::PositionType, T>,
           typename StrPol = policies::StrideOne<typename S::PositionType>,
           typename IfacePol = policies::ConcreteInterface>
 class Map : public StrPol, public policies::MapInterface<IfacePol, typename S::PositionType>
@@ -167,13 +170,15 @@ public:
   }
 
   /**
-   * \brief Constructor for Map using a Set pointer and externally-owned data.
+   * \brief Constructor for Map from a Set pointer and an existing buffer.
    *
-   * This overload is intended for non-owning indirection policies such as
-   * `policies::ArrayViewIndirection`, but also works for owning buffers.
+   * Primarily for indirection policies that refer to a buffer managed elsewhere,
+   * such as `policies::ArrayViewIndirection`, It also accepts a buffer to move in
+   * for policies that hold their buffer by value.
    *
    * \param theSet pointer to the map's set (must outlive the map)
-   * \param data externally-owned (or moved-in) storage for the map's values
+   * \param data the map's value buffer -- viewed (and thus required to outlive the
+   *  map) for a view indirection, or moved in for an owning indirection
    * \param shape (Optional) number of values mapped per set element (stride)
    */
   Map(const SetType* theSet, OrderedMap data, ElementShape shape = StridePolicyType::DefaultSize())
@@ -384,8 +389,7 @@ public:
    * \brief Returns the shape of the component values associated with each element.
    *
    *  For one-dimensional strides, equivalent to stride(); otherwise, returns
-   *  an N-dimensional array with the number of values in each sub-component
-   *  index.
+   *  an N-dimensional array with the number of values in each sub-component index.
    */
   AXOM_HOST_DEVICE ElementShape shape() const { return StridePolicyType::shape(); }
 
@@ -512,7 +516,7 @@ public:
     SetPosition flatIndex() const { return this->m_pos; }
 
   protected:
-    /** Implementation of advance() as required by IteratorBase */
+    /// Implementation of advance() as required by IteratorBase
     AXOM_HOST_DEVICE void advance(PositionType n) { m_pos += n; }
 
   private:
@@ -852,5 +856,4 @@ void Map<T, S, IndPol, StrPol, IfacePol>::print() const
   std::cout << sstr.str() << std::endl;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

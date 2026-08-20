@@ -15,6 +15,10 @@ else()
     cmake_minimum_required(VERSION 3.14)
 endif()
 
+# Default unset third-party CMP0074 handling to NEW so imported packages honor
+# <PackageName>_ROOT hints without emitting developer warnings.
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW CACHE STRING "")
+
 project(axom LANGUAGES C CXX)
 
 if (ENABLE_FORTRAN)
