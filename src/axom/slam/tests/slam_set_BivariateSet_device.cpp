@@ -61,6 +61,13 @@ public:
   // The device-usable (non-virtual) set instantiations.
   using ConcreteSetType = typename slam::RangeSet<SetPosition, SetElement>::ConcreteSet;
   using ProductSetType = typename slam::ProductSet<ConcreteSetType, ConcreteSetType>::ConcreteSet;
+
+  // This translation unit is compiled by each enabled backend.
+  // Keep these representative concept instantiations beside the device-captured types.
+  static_assert(slam::SetLike<ConcreteSetType>);
+  static_assert(slam::BivariateSetLike<ProductSetType>);
+  static_assert(slam::DeviceCapturable<ConcreteSetType>);
+  static_assert(slam::DeviceCapturable<ProductSetType>);
 };
 
 using MyTypes = ::testing::Types<
