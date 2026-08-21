@@ -36,6 +36,7 @@
 
 #pragma once
 
+#include "axom/slam/Concepts.hpp"
 #include "axom/slam/StaticRelation.hpp"
 #include "axom/slam/policies/CardinalityPolicies.hpp"
 #include "axom/slam/policies/IndirectionPolicies.hpp"
@@ -49,6 +50,14 @@ namespace axom::slam
 {
 namespace detail
 {
+template <typename FromSet, typename ToSet, typename ElemType>
+concept RelationIndexBufferTypes = SetLike<FromSet> && SetLike<ToSet> &&
+  SetPositionSame<ToSet, ElemType>;
+
+template <typename FromSet, typename ToSet, typename PosType, typename ElemType>
+concept VariableRelationBufferTypes = RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  SetPositionSame<FromSet, PosType>;
+
 /// Number of from-set elements (null-safe). Reads only the set's size scalar.
 template <typename FromSet>
 inline axom::IndexType relation_from_size(const FromSet* fromSet)
@@ -111,6 +120,10 @@ inline void check_constant_relation_size(const FromSet* fromSet,
 }  // namespace detail
 
 /// \name Relation construction helpers
+/// \brief Construct relations whose begins offsets use the from-set position type
+/// and whose indices use the to-set position type. Runtime sizes and strides
+/// must model PositionLike and be convertible to the from-set position type.
+/// Compile-time strides must be positive.
 /// \{
 
 /*!
@@ -131,8 +144,9 @@ inline void check_constant_relation_size(const FromSet* fromSet,
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet* fromSet,
                             ToSet* toSet,
                             std::vector<PosType>& begins,
@@ -161,8 +175,9 @@ auto make_variable_relation(FromSet* fromSet,
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet& fromSet,
                             ToSet& toSet,
                             std::vector<PosType>& begins,
@@ -183,8 +198,9 @@ auto make_variable_relation(FromSet& fromSet,
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet* fromSet,
                             ToSet* toSet,
                             PosType* begins,
@@ -208,13 +224,12 @@ auto make_variable_relation(FromSet* fromSet,
       .indices(typename Builder::IndicesSetBuilder().size(indicesSize).data(indices, indicesSize)));
 }
 
-/*!
- * \brief Reference overload for make_variable_relation (C-array-backed).
- */
+/// \brief Reference overload for make_variable_relation (C-array-backed).
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet& fromSet,
                             ToSet& toSet,
                             PosType* begins,
@@ -235,8 +250,9 @@ auto make_variable_relation(FromSet& fromSet,
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet* fromSet,
                             ToSet* toSet,
                             axom::ArrayView<PosType> begins,
@@ -260,13 +276,12 @@ auto make_variable_relation(FromSet* fromSet,
         typename Builder::IndicesSetBuilder().size(static_cast<PosType>(indices.size())).data(indices)));
 }
 
-/*!
- * \brief Reference overload for make_variable_relation (ArrayView-backed).
- */
+/// \brief Reference overload for make_variable_relation (ArrayView-backed).
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet& fromSet,
                             ToSet& toSet,
                             axom::ArrayView<PosType> begins,
@@ -285,8 +300,9 @@ auto make_variable_relation(FromSet& fromSet,
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet* fromSet,
                             ToSet* toSet,
                             axom::Array<PosType>& begins,
@@ -310,13 +326,12 @@ auto make_variable_relation(FromSet* fromSet,
         typename Builder::IndicesSetBuilder().size(static_cast<PosType>(indices.size())).data(&indices)));
 }
 
-/*!
- * \brief Reference overload for make_variable_relation (axom::Array-backed).
- */
+/// \brief Reference overload for make_variable_relation (axom::Array-backed).
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename PosType,
+          typename ElemType>
+  requires detail::VariableRelationBufferTypes<FromSet, ToSet, PosType, ElemType>
 auto make_variable_relation(FromSet& fromSet,
                             ToSet& toSet,
                             axom::Array<PosType>& begins,
@@ -335,17 +350,26 @@ auto make_variable_relation(FromSet& fromSet,
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
-auto make_constant_relation(FromSet* fromSet, ToSet* toSet, PosType stride, std::vector<ElemType>& indices)
+          typename StrideType,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType>
+auto make_constant_relation(FromSet* fromSet,
+                            ToSet* toSet,
+                            StrideType stride,
+                            std::vector<ElemType>& indices)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::STLVectorIndirection<PosType, ElemType>;
   using CTy = policies::ConstantCardinality<PosType, policies::RuntimeStride<PosType>>;
   using RelationType = StaticRelation<PosType, ElemType, CTy, IndicesIndirection, FromSet, ToSet>;
   using Builder = typename RelationType::RelationBuilder;
 
-  auto begins_builder = typename Builder::BeginsSetBuilder().stride(stride);
-  detail::check_constant_relation_size(fromSet, stride, static_cast<axom::IndexType>(indices.size()));
+  const auto canonicalStride = static_cast<PosType>(stride);
+  auto begins_builder = typename Builder::BeginsSetBuilder().stride(canonicalStride);
+  detail::check_constant_relation_size(fromSet,
+                                       canonicalStride,
+                                       static_cast<axom::IndexType>(indices.size()));
   return RelationType(Builder()
                         .fromSet(fromSet)
                         .toSet(toSet)
@@ -355,81 +379,98 @@ auto make_constant_relation(FromSet* fromSet, ToSet* toSet, PosType stride, std:
                                    .data(&indices)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation (std::vector-backed).
- */
+/// \brief Reference overload for make_constant_relation (std::vector-backed).
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
-auto make_constant_relation(FromSet& fromSet, ToSet& toSet, PosType stride, std::vector<ElemType>& indices)
+          typename StrideType,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType>
+auto make_constant_relation(FromSet& fromSet,
+                            ToSet& toSet,
+                            StrideType stride,
+                            std::vector<ElemType>& indices)
 {
   return make_constant_relation(&fromSet, &toSet, stride, indices);
 }
 
-/*!
- * \brief Make a static, constant-cardinality relation with a runtime stride, backed by C array indices.
- */
+/// \brief Make a static, constant-cardinality relation with a runtime stride, backed by C array indices.
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename StrideType,
+          typename ElemType,
+          typename SizeType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType> &&
+  detail::SetPositionConvertible<FromSet, SizeType>
 auto make_constant_relation(FromSet* fromSet,
                             ToSet* toSet,
-                            PosType stride,
+                            StrideType stride,
                             ElemType* indices,
-                            PosType indicesSize)
+                            SizeType indicesSize)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::CArrayIndirection<PosType, ElemType>;
   using CTy = policies::ConstantCardinality<PosType, policies::RuntimeStride<PosType>>;
   using RelationType = StaticRelation<PosType, ElemType, CTy, IndicesIndirection, FromSet, ToSet>;
   using Builder = typename RelationType::RelationBuilder;
 
-  auto begins_builder = typename Builder::BeginsSetBuilder().stride(stride);
-  detail::check_constant_relation_size(fromSet, stride, static_cast<axom::IndexType>(indicesSize));
+  const auto canonicalStride = static_cast<PosType>(stride);
+  const auto canonicalSize = static_cast<PosType>(indicesSize);
+  auto begins_builder = typename Builder::BeginsSetBuilder().stride(canonicalStride);
+  detail::check_constant_relation_size(fromSet,
+                                       canonicalStride,
+                                       static_cast<axom::IndexType>(canonicalSize));
   return RelationType(
     Builder()
       .fromSet(fromSet)
       .toSet(toSet)
       .begins(begins_builder)
-      .indices(typename Builder::IndicesSetBuilder().size(indicesSize).data(indices, indicesSize)));
+      .indices(
+        typename Builder::IndicesSetBuilder().size(canonicalSize).data(indices, canonicalSize)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation (C-array-backed).
- */
+/// \brief Reference overload for make_constant_relation (C-array-backed).
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename StrideType,
+          typename ElemType,
+          typename SizeType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType> &&
+  detail::SetPositionConvertible<FromSet, SizeType>
 auto make_constant_relation(FromSet& fromSet,
                             ToSet& toSet,
-                            PosType stride,
+                            StrideType stride,
                             ElemType* indices,
-                            PosType indicesSize)
+                            SizeType indicesSize)
 {
   return make_constant_relation(&fromSet, &toSet, stride, indices, indicesSize);
 }
 
-/*!
- * \brief Make a static, constant-cardinality relation with a runtime stride, backed by ArrayView indices.
- */
+/// \brief Make a static, constant-cardinality relation with a runtime stride, backed by ArrayView indices.
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename StrideType,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType>
 auto make_constant_relation(FromSet* fromSet,
                             ToSet* toSet,
-                            PosType stride,
+                            StrideType stride,
                             axom::ArrayView<ElemType> indices)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::ArrayViewIndirection<PosType, ElemType>;
   using CTy = policies::ConstantCardinality<PosType, policies::RuntimeStride<PosType>>;
   using RelationType = StaticRelation<PosType, ElemType, CTy, IndicesIndirection, FromSet, ToSet>;
   using Builder = typename RelationType::RelationBuilder;
 
-  auto begins_builder = typename Builder::BeginsSetBuilder().stride(stride);
-  detail::check_constant_relation_size(fromSet, stride, static_cast<axom::IndexType>(indices.size()));
+  const auto canonicalStride = static_cast<PosType>(stride);
+  auto begins_builder = typename Builder::BeginsSetBuilder().stride(canonicalStride);
+  detail::check_constant_relation_size(fromSet,
+                                       canonicalStride,
+                                       static_cast<axom::IndexType>(indices.size()));
   return RelationType(
     Builder()
       .fromSet(fromSet)
@@ -439,37 +480,44 @@ auto make_constant_relation(FromSet* fromSet,
         typename Builder::IndicesSetBuilder().size(static_cast<PosType>(indices.size())).data(indices)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation (ArrayView-backed).
- */
+/// \brief Reference overload for make_constant_relation (ArrayView-backed).
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename StrideType,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType>
 auto make_constant_relation(FromSet& fromSet,
                             ToSet& toSet,
-                            PosType stride,
+                            StrideType stride,
                             axom::ArrayView<ElemType> indices)
 {
   return make_constant_relation(&fromSet, &toSet, stride, indices);
 }
 
-/*!
- * \brief Make a static, constant-cardinality relation with a runtime stride, backed by axom::Array indices.
- */
+/// \brief Make a static, constant-cardinality relation with a runtime stride, backed by axom::Array indices.
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
-auto make_constant_relation(FromSet* fromSet, ToSet* toSet, PosType stride, axom::Array<ElemType>& indices)
+          typename StrideType,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType>
+auto make_constant_relation(FromSet* fromSet,
+                            ToSet* toSet,
+                            StrideType stride,
+                            axom::Array<ElemType>& indices)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::ArrayIndirection<PosType, ElemType>;
   using CTy = policies::ConstantCardinality<PosType, policies::RuntimeStride<PosType>>;
   using RelationType = StaticRelation<PosType, ElemType, CTy, IndicesIndirection, FromSet, ToSet>;
   using Builder = typename RelationType::RelationBuilder;
 
-  auto begins_builder = typename Builder::BeginsSetBuilder().stride(stride);
-  detail::check_constant_relation_size(fromSet, stride, static_cast<axom::IndexType>(indices.size()));
+  const auto canonicalStride = static_cast<PosType>(stride);
+  auto begins_builder = typename Builder::BeginsSetBuilder().stride(canonicalStride);
+  detail::check_constant_relation_size(fromSet,
+                                       canonicalStride,
+                                       static_cast<axom::IndexType>(indices.size()));
   return RelationType(Builder()
                         .fromSet(fromSet)
                         .toSet(toSet)
@@ -479,14 +527,17 @@ auto make_constant_relation(FromSet* fromSet, ToSet* toSet, PosType stride, axom
                                    .data(&indices)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation (axom::Array-backed).
- */
+/// \brief Reference overload for make_constant_relation (axom::Array-backed).
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
-auto make_constant_relation(FromSet& fromSet, ToSet& toSet, PosType stride, axom::Array<ElemType>& indices)
+          typename StrideType,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::SetPositionConvertible<FromSet, StrideType>
+auto make_constant_relation(FromSet& fromSet,
+                            ToSet& toSet,
+                            StrideType stride,
+                            axom::Array<ElemType>& indices)
 {
   return make_constant_relation(&fromSet, &toSet, stride, indices);
 }
@@ -499,46 +550,64 @@ auto make_constant_relation(FromSet& fromSet, ToSet& toSet, PosType stride, axom
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
-auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, ElemType* indices, PosType indicesSize)
+          typename ExplicitPosType = void,
+          typename ElemType,
+          typename SizeType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType> &&
+  detail::SetPositionConvertible<FromSet, SizeType>
+auto make_constant_relation_ct(FromSet* fromSet,
+                               ToSet* toSet,
+                               ElemType* indices,
+                               SizeType indicesSize)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::CArrayIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
   using RelationType = StaticRelation<PosType, ElemType, CTy, IndicesIndirection, FromSet, ToSet>;
   using Builder = typename RelationType::RelationBuilder;
 
+  const auto canonicalSize = static_cast<PosType>(indicesSize);
   detail::check_constant_relation_size(fromSet,
                                        static_cast<PosType>(STRIDE),
-                                       static_cast<axom::IndexType>(indicesSize));
+                                       static_cast<axom::IndexType>(canonicalSize));
   return RelationType(Builder().fromSet(fromSet).toSet(toSet).indices(
-    typename Builder::IndicesSetBuilder().size(indicesSize).data(indices, indicesSize)));
+    typename Builder::IndicesSetBuilder().size(canonicalSize).data(indices, canonicalSize)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation_ct (C-array-backed).
- */
+/// \brief Reference overload for make_constant_relation_ct (C-array-backed).
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
-auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, ElemType* indices, PosType indicesSize)
+          typename ExplicitPosType = void,
+          typename ElemType,
+          typename SizeType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType> &&
+  detail::SetPositionConvertible<FromSet, SizeType>
+auto make_constant_relation_ct(FromSet& fromSet,
+                               ToSet& toSet,
+                               ElemType* indices,
+                               SizeType indicesSize)
 {
   return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices, indicesSize);
 }
 
-/*!
- * \brief Make a static, constant-cardinality relation with a compile-time stride, backed by std::vector indices.
- */
+/// \brief Make a static, constant-cardinality relation with a compile-time stride, backed by std::vector indices.
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename ExplicitPosType = void,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, std::vector<ElemType>& indices)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::STLVectorIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
@@ -552,29 +621,32 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, std::vector<ElemT
     typename Builder::IndicesSetBuilder().size(static_cast<PosType>(indices.size())).data(&indices)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation_ct (std::vector-backed).
- */
+/// \brief Reference overload for make_constant_relation_ct (std::vector-backed).
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename ExplicitPosType = void,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, std::vector<ElemType>& indices)
 {
   return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices);
 }
 
-/*!
- * \brief Make a static, constant-cardinality relation with a compile-time stride, backed by ArrayView indices.
- */
+/// \brief Make a static, constant-cardinality relation with a compile-time stride, backed by ArrayView indices.
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename ExplicitPosType = void,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::ArrayView<ElemType> indices)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::ArrayViewIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
@@ -588,29 +660,32 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::ArrayView<E
     typename Builder::IndicesSetBuilder().size(static_cast<PosType>(indices.size())).data(indices)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation_ct (ArrayView-backed).
- */
+/// \brief Reference overload for make_constant_relation_ct (ArrayView-backed).
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename ExplicitPosType = void,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, axom::ArrayView<ElemType> indices)
 {
   return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices);
 }
 
-/*!
- * \brief Make a static, constant-cardinality relation with a compile-time stride, backed by axom::Array indices.
- */
+/// \brief Make a static, constant-cardinality relation with a compile-time stride, backed by axom::Array indices.
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename ExplicitPosType = void,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::Array<ElemType>& indices)
 {
+  using PosType = typename FromSet::PositionType;
   using IndicesIndirection = policies::ArrayIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
@@ -624,14 +699,15 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::Array<ElemT
     typename Builder::IndicesSetBuilder().size(static_cast<PosType>(indices.size())).data(&indices)));
 }
 
-/*!
- * \brief Reference overload for make_constant_relation_ct (axom::Array-backed).
- */
+/// \brief Reference overload for make_constant_relation_ct (axom::Array-backed).
 template <int STRIDE,
           typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename ToSet::PositionType>
+          typename ExplicitPosType = void,
+          typename ElemType>
+  requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
+  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
+  detail::OptionalSetPositionSame<FromSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, axom::Array<ElemType>& indices)
 {
   return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices);

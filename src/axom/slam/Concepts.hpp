@@ -73,6 +73,20 @@ using policy_default_t = std::remove_cv_t<decltype(model_t<T>::DEFAULT_VALUE)>;
 }  // namespace detail
 
 /*!
+ * \brief Opt-in customization for a non-integral SLAM position type.
+ *
+ * A specialized type is still responsible for providing the arithmetic
+ * and ordering required by the SLAM APIs in which it is used.
+ */
+template <typename T>
+inline constexpr bool enable_position_like = false;
+
+/// \brief A built-in integral or explicitly opted-in SLAM position type.
+template <typename T>
+concept PositionLike = std::integral<detail::model_t<T>> ||
+  enable_position_like<detail::model_t<T>>;
+
+/*!
  * \brief A univariate set with position-based size and element access.
  *
  * Bivariate sets are excluded because their positions describe pairs from two
@@ -86,6 +100,26 @@ concept SetLike = detail::HasSetAssociatedTypes<T> &&
     { set.empty() } -> std::convertible_to<bool>;
     { set.at(pos) } -> std::convertible_to<typename detail::model_t<T>::ElementType>;
   };
+
+namespace detail
+{
+// Shared glue for constrained construction helpers. 
+template <typename Set, typename Value>
+concept SetPositionConvertible = SetLike<Set> && PositionLike<Value> &&
+  std::convertible_to<model_t<Value>, typename model_t<Set>::PositionType>;
+
+template <typename Set, typename Position>
+concept SetPositionSame = SetLike<Set> &&
+  std::same_as<model_t<Position>, typename model_t<Set>::PositionType>;
+
+template <typename Set, typename Position>
+concept OptionalSetPositionSame = SetLike<Set> &&
+  (std::same_as<model_t<Position>, void> || SetPositionSame<Set, Position>);
+
+template <int Stride, typename Set>
+concept PositiveStaticStrideFor = SetLike<Set> && (Stride > 0) &&
+  std::constructible_from<typename model_t<Set>::PositionType, int>;
+}  // namespace detail
 
 /*!
  * \brief A SetLike type with const iteration over its elements.
@@ -251,20 +285,6 @@ concept IndirectionPolicyFor = IndirectionPolicy<T> &&
     { constPolicy.indirection(pos) } ->
       std::convertible_to<typename detail::model_t<T>::ConstIndirectionResult>;
   };
-
-/*!
- * \brief Opt-in customization for a non-integral SLAM position type.
- *
- * A specialized type is still responsible for providing the arithmetic and
- * ordering required by the SLAM APIs in which it is used.
- */
-template <typename T>
-inline constexpr bool enable_position_like = false;
-
-/// \brief A built-in integral or explicitly opted-in SLAM position type.
-template <typename T>
-concept PositionLike = std::integral<detail::model_t<T>> ||
-  enable_position_like<detail::model_t<T>>;
 
 /// \brief A non-reference type that can be copied byte-for-byte into device code.
 template <typename T>

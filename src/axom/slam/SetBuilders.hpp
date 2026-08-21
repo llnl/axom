@@ -35,8 +35,8 @@
  *  the form `typename OrderedSet<P,...>::SetBuilder` is a non-deduced context
  *  (the template arguments appear only as a nested-name-specifier),
  *  so `OrderedSet s(builder)` can never deduce. Deduction only works from a
- *  directly-named argument type such as `axom::ArrayView<T>`. These free
- *  functions are therefore the portable way to get stack-deducing construction in C++17.
+ *  directly-named argument type such as `axom::ArrayView<T>`.
+ *  These free functions are the portable way to get stack-deducing construction.
  */
 
 #pragma once
@@ -45,6 +45,7 @@
 #include "axom/core/Types.hpp"
 
 #include "axom/slam/Utilities.hpp"
+#include "axom/slam/Concepts.hpp"
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/IndirectionSet.hpp"
 
@@ -54,9 +55,10 @@
 namespace axom::slam
 {
 /// \name Set construction helpers
-/// \brief Construct a SLAM set while deducing its policy stack from the buffer
-///  or range. \a PosType defaults to slam's default position type and may be
-///  supplied explicitly as the leading template argument.
+/// \brief Construct a SLAM set while deducing its policy stack from the buffer or range.
+///  \a PosType defaults to slam's default position type and may be supplied explicitly
+///  as the leading template argument. Position and size arguments must model PositionLike.
+///  Compatible values are to the selected \a PosType before constructing the set.
 /// \{
 
 /*!
@@ -64,10 +66,15 @@ namespace axom::slam
  * \param size the number of elements
  * \return a RangeSet<PosType, ElemType>
  */
-template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType>
-RangeSet<PosType, ElemType> make_range_set(axom::type_identity_t<PosType> size)
+template <typename PosType = DefaultPositionType,
+          typename ElemType = DefaultElementType,
+          typename SizeType>
+  requires PositionLike<PosType> && PositionLike<SizeType> &&
+  std::convertible_to<SizeType, PosType> &&
+  std::constructible_from<ElemType, PosType>
+RangeSet<PosType, ElemType> make_range_set(SizeType size)
 {
-  return RangeSet<PosType, ElemType>(size);
+  return RangeSet<PosType, ElemType>(static_cast<PosType>(size));
 }
 
 /*!
@@ -76,11 +83,16 @@ RangeSet<PosType, ElemType> make_range_set(axom::type_identity_t<PosType> size)
  * \param upper one past the last element of the range
  * \return a RangeSet<PosType, ElemType>
  */
-template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType>
-RangeSet<PosType, ElemType> make_range_set(axom::type_identity_t<PosType> lower,
-                                           axom::type_identity_t<PosType> upper)
+template <typename PosType = DefaultPositionType,
+          typename ElemType = DefaultElementType,
+          typename LowerType,
+          typename UpperType>
+  requires PositionLike<PosType> && PositionLike<LowerType> && PositionLike<UpperType> &&
+  std::convertible_to<LowerType, PosType> && std::convertible_to<UpperType, PosType> &&
+  std::constructible_from<ElemType, PosType>
+RangeSet<PosType, ElemType> make_range_set(LowerType lower, UpperType upper)
 {
-  return RangeSet<PosType, ElemType>(lower, upper);
+  return RangeSet<PosType, ElemType>(static_cast<PosType>(lower), static_cast<PosType>(upper));
 }
 
 /*!
@@ -93,6 +105,7 @@ RangeSet<PosType, ElemType> make_range_set(axom::type_identity_t<PosType> lower,
  * \return an ArrayViewIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T>
+  requires PositionLike<PosType> && std::constructible_from<PosType, axom::IndexType>
 ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::ArrayView<T> view)
 {
   using SetType = ArrayViewIndirectionSet<PosType, T>;
@@ -110,6 +123,7 @@ ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::ArrayView<T> view
  * \return a VectorIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T>
+  requires PositionLike<PosType> && std::constructible_from<PosType, std::size_t>
 VectorIndirectionSet<PosType, T> make_indirection_set(std::vector<T>& vec)
 {
   using SetType = VectorIndirectionSet<PosType, T>;
@@ -134,6 +148,7 @@ VectorIndirectionSet<PosType, T> make_indirection_set(std::vector<T>& vec)
  * \return an ArrayViewIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+  requires PositionLike<PosType> && std::constructible_from<PosType, axom::IndexType>
 ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPACE, StoragePolicy>& arr)
 {
   using SetType = ArrayViewIndirectionSet<PosType, T>;
@@ -154,11 +169,13 @@ ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPA
  * \param size the number of elements
  * \return a CArrayIndirectionSet<PosType, T>
  */
-template <typename PosType = DefaultPositionType, typename T>
-CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, axom::type_identity_t<PosType> size)
+template <typename PosType = DefaultPositionType, typename T, typename SizeType>
+  requires PositionLike<PosType> && PositionLike<SizeType> &&
+  std::convertible_to<SizeType, PosType>
+CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, SizeType size)
 {
   using SetType = CArrayIndirectionSet<PosType, T>;
-  return SetType(typename SetType::SetBuilder().size(size).data(data));
+  return SetType(typename SetType::SetBuilder().size(static_cast<PosType>(size)).data(data));
 }
 
 /// \}

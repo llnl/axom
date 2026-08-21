@@ -21,6 +21,8 @@
 #include "axom/slam/policies/IndirectionPolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 
+#include <concepts>
+#include <cstdint>
 #include <type_traits>
 #include <vector>
 
@@ -28,6 +30,155 @@ namespace
 {
 namespace slam = axom::slam;
 using Pos = slam::DefaultPositionType;
+
+struct TypedefOnlySet
+{
+  using PositionType = Pos;
+  using ElementType = Pos;
+};
+
+struct NonPositionElement
+{ };
+
+struct NotPositionConvertible
+{ };
+
+using WideSet = slam::RangeSet<std::int64_t, std::int64_t>;
+using NarrowSet = slam::RangeSet<std::int32_t, std::int32_t>;
+
+template <typename Position, typename Element, typename Size>
+concept CanMakeRangeSet = requires(Size size) {
+  slam::make_range_set<Position, Element>(size);
+};
+
+template <typename Position, typename T>
+concept CanMakeViewSet = requires(axom::ArrayView<T> view) {
+  slam::make_indirection_set<Position>(view);
+};
+
+template <typename Position, typename T, typename Size>
+concept CanMakeRawSet = requires(T* data, Size size) {
+  slam::make_indirection_set<Position>(data, size);
+};
+
+template <typename Set, typename T>
+concept CanMakeUnitMap = requires(const Set* set, axom::ArrayView<T> data) {
+  slam::make_map(set, data);
+};
+
+template <typename Set, typename T, typename ExplicitPosition>
+concept CanMakeExplicitUnitMap = requires(const Set* set, axom::ArrayView<T> data) {
+  slam::make_map<Set, T, ExplicitPosition>(set, data);
+};
+
+template <typename Set, typename Stride, typename T>
+concept CanMakeRuntimeMap = requires(const Set* set, Stride stride, axom::ArrayView<T> data) {
+  slam::make_map(set, stride, data);
+};
+
+template <int Stride, typename Set, typename T>
+concept CanMakeStaticMap = requires(const Set* set, axom::ArrayView<T> data) {
+  slam::make_map_ct<Stride>(set, data);
+};
+
+template <int Stride, typename Set, typename T, typename ExplicitPosition>
+concept CanMakeExplicitStaticMap = requires(const Set* set, axom::ArrayView<T> data) {
+  slam::make_map_ct<Stride, Set, T, ExplicitPosition>(set, data);
+};
+
+template <typename FromSet, typename ToSet, typename BeginPosition, typename IndexPosition>
+concept CanMakeVariableRelation =
+  requires(FromSet* fromSet,
+           ToSet* toSet,
+           std::vector<BeginPosition>& begins,
+           std::vector<IndexPosition>& indices) {
+    slam::make_variable_relation(fromSet, toSet, begins, indices);
+  };
+
+template <typename FromSet, typename ToSet, typename BeginPosition, typename IndexPosition>
+concept CanMakeVariableRelationRef =
+  requires(FromSet& fromSet,
+           ToSet& toSet,
+           std::vector<BeginPosition>& begins,
+           std::vector<IndexPosition>& indices) {
+    slam::make_variable_relation(fromSet, toSet, begins, indices);
+  };
+
+template <typename FromSet, typename ToSet, typename Stride, typename IndexPosition>
+concept CanMakeRuntimeRelation =
+  requires(FromSet* fromSet,
+           ToSet* toSet,
+           Stride stride,
+           std::vector<IndexPosition>& indices) {
+    slam::make_constant_relation(fromSet, toSet, stride, indices);
+  };
+
+template <int Stride, typename FromSet, typename ToSet, typename IndexPosition>
+concept CanMakeStaticRelation =
+  requires(FromSet* fromSet, ToSet* toSet, std::vector<IndexPosition>& indices) {
+    slam::make_constant_relation_ct<Stride>(fromSet, toSet, indices);
+  };
+
+template <int Stride,
+          typename FromSet,
+          typename ToSet,
+          typename ExplicitPosition,
+          typename IndexPosition>
+concept CanMakeExplicitStaticRelation =
+  requires(FromSet* fromSet, ToSet* toSet, std::vector<IndexPosition>& indices) {
+    slam::make_constant_relation_ct<Stride,
+                                    FromSet,
+                                    ToSet,
+                                    ExplicitPosition,
+                                    IndexPosition>(fromSet, toSet, indices);
+  };
+
+static_assert(CanMakeRangeSet<Pos, Pos, int>);
+static_assert(!CanMakeRangeSet<Pos, Pos, double>);
+static_assert(!CanMakeRangeSet<double, double, double>);
+static_assert(!CanMakeRangeSet<Pos, NonPositionElement, int>);
+
+static_assert(CanMakeViewSet<Pos, double>);
+static_assert(!CanMakeViewSet<double, double>);
+static_assert(CanMakeRawSet<Pos, double, int>);
+static_assert(!CanMakeRawSet<Pos, double, double>);
+
+static_assert(CanMakeUnitMap<WideSet, double>);
+static_assert(!CanMakeUnitMap<TypedefOnlySet, double>);
+static_assert(CanMakeExplicitUnitMap<WideSet, double, std::int64_t>);
+static_assert(!CanMakeExplicitUnitMap<WideSet, double, std::int32_t>);
+static_assert(CanMakeRuntimeMap<WideSet, int, double>);
+static_assert(!CanMakeRuntimeMap<WideSet, double, double>);
+static_assert(!CanMakeRuntimeMap<WideSet, NotPositionConvertible, double>);
+static_assert(CanMakeStaticMap<2, WideSet, double>);
+static_assert(!CanMakeStaticMap<0, WideSet, double>);
+static_assert(!CanMakeStaticMap<-1, WideSet, double>);
+static_assert(CanMakeExplicitStaticMap<2, WideSet, double, std::int64_t>);
+static_assert(!CanMakeExplicitStaticMap<2, WideSet, double, std::int32_t>);
+
+static_assert(
+  CanMakeVariableRelation<WideSet, NarrowSet, std::int64_t, std::int32_t>);
+static_assert(
+  CanMakeVariableRelationRef<WideSet, NarrowSet, std::int64_t, std::int32_t>);
+static_assert(
+  !CanMakeVariableRelation<WideSet, NarrowSet, std::int32_t, std::int32_t>);
+static_assert(
+  !CanMakeVariableRelation<WideSet, NarrowSet, std::int64_t, std::int64_t>);
+static_assert(
+  !CanMakeVariableRelation<TypedefOnlySet, NarrowSet, Pos, std::int32_t>);
+
+static_assert(CanMakeRuntimeRelation<WideSet, NarrowSet, int, std::int32_t>);
+static_assert(!CanMakeRuntimeRelation<WideSet, NarrowSet, double, std::int32_t>);
+static_assert(
+  !CanMakeRuntimeRelation<WideSet, NarrowSet, NotPositionConvertible, std::int32_t>);
+static_assert(!CanMakeRuntimeRelation<WideSet, NarrowSet, int, std::int64_t>);
+static_assert(CanMakeStaticRelation<2, WideSet, NarrowSet, std::int32_t>);
+static_assert(!CanMakeStaticRelation<0, WideSet, NarrowSet, std::int32_t>);
+static_assert(!CanMakeStaticRelation<2, WideSet, NarrowSet, std::int64_t>);
+static_assert(
+  CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int64_t, std::int32_t>);
+static_assert(
+  !CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int32_t, std::int32_t>);
 }  // anonymous namespace
 
 TEST(slam_make_helpers, make_range_set_size)
@@ -309,7 +460,12 @@ TEST(slam_make_helpers, make_constant_relation_runtime_stride)
   //from { 0 -> {1,2}; 1 -> {3,4}; from 2 -> {0,2} }
   std::vector<Pos> indices {1, 2, 3, 4, 0, 2};
 
-  auto rel = slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices);
+  // An ordinary integer stride is canonicalized to the from-set position type.
+  auto rel = slam::make_constant_relation(&fromSet, &toSet, 2, indices);
+
+  static_assert(std::same_as<typename decltype(rel)::SetPosition, Pos>);
+  static_assert(
+    std::same_as<typename decltype(rel)::CardinalityPolicy::BeginsStridePolicy::IndexType, Pos>);
 
   EXPECT_TRUE(rel.isValid());
   EXPECT_EQ(rel.size(0), 2);
@@ -483,7 +639,13 @@ TEST(slam_make_helpers, make_map_runtime_stride_array_view)
   // 2 elements, each with stride/numComp 3 => 6 backing values, laid out element-major:
   //   element 0 -> {1, 2, 3}, element 1 -> {4, 5, 6}
   axom::Array<double> data {1., 2., 3., 4., 5., 6.};
-  auto m = slam::make_map(&set, Pos {3}, data.view());
+  // An ordinary integer stride is canonicalized to the set's position type.
+  auto m = slam::make_map(&set, 3, data.view());
+
+  using MapType = decltype(m);
+  static_assert(std::same_as<typename MapType::SetPosition, Pos>);
+  static_assert(std::same_as<typename MapType::StridePolicyType::IndexType, Pos>);
+  static_assert(std::same_as<typename MapType::IndirectionPolicy::PositionType, Pos>);
 
   EXPECT_TRUE(m.isValid());
   EXPECT_EQ(m.size(), 2);
