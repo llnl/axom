@@ -91,6 +91,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   (a `slam::Map` with the default `axom::Array` indirection) rather than `std::vector`.
   Code that previously registered `std::vector`-backed buffers should use
   `FieldRegistry::MapType`, `FieldRegistry::BufferType`, `auto`, or `buffer.view()`, as appropriate.
+- Python: Raised the minimum supported versions for Python bindings to Python 3.9 and nanobind 2.10.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
