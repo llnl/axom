@@ -76,16 +76,16 @@ struct ConcreteBivariateSet
 
 private:
   template <typename SetType>
-  typename std::enable_if<std::is_abstract<SetType>::value, PositionType>::type getSize(
-    const SetType* s) const
+  PositionType getSize(const SetType* s) const
+    requires(std::is_abstract_v<SetType>)
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
     return s->size();
   }
 
   template <typename SetType>
-  AXOM_HOST_DEVICE typename std::enable_if<!std::is_abstract<SetType>::value, PositionType>::type
-  getSize(const SetType* s) const
+  AXOM_HOST_DEVICE PositionType getSize(const SetType* s) const
+    requires(!std::is_abstract_v<SetType>)
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
     return static_cast<SetType>(*s).size();

@@ -243,6 +243,9 @@ static_assert(std::constructible_from<AbstractSetMap, const VirtualRangeSet*>,
 
 using AbstractBivariateSet = slam::BivariateSet<ConcreteRangeSet, ConcreteRangeSet>;
 using VirtualProductSet = slam::ProductSet<ConcreteRangeSet, ConcreteRangeSet>;
+using AbstractEndpointVirtualProductSet = slam::ProductSet<AbstractSet, AbstractSet>;
+using AbstractEndpointConcreteProductSet =
+  typename AbstractEndpointVirtualProductSet::ConcreteSet;
 using ConcreteOwnedBivariateMap = slam::BivariateMap<SetElem, ConcreteProductSet>;
 using AbstractSetBivariateMap = slam::BivariateMap<SetElem, AbstractBivariateSet>;
 using ConcreteRelationSet =
@@ -265,6 +268,21 @@ static_assert(
 static_assert(
   std::constructible_from<AbstractSetBivariateMap, const VirtualProductSet*>,
   "an abstract-set BivariateMap retains polymorphic pointer construction");
+
+template <typename BivariateSetType>
+concept HasBivariateSizeAccess = requires(const BivariateSetType& bset) {
+  { bset.firstSetSize() } -> std::same_as<typename BivariateSetType::PositionType>;
+  { bset.secondSetSize() } -> std::same_as<typename BivariateSetType::PositionType>;
+};
+
+static_assert(HasBivariateSizeAccess<AbstractEndpointVirtualProductSet>,
+              "the virtual interface supports abstract endpoint size dispatch");
+static_assert(HasBivariateSizeAccess<VirtualProductSet>,
+              "the virtual interface supports concrete endpoint size dispatch");
+static_assert(HasBivariateSizeAccess<AbstractEndpointConcreteProductSet>,
+              "the concrete interface supports host-side abstract endpoint size dispatch");
+static_assert(HasBivariateSizeAccess<ConcreteProductSet>,
+              "the concrete interface supports host/device concrete endpoint size dispatch");
 
 template <typename MapType, typename ReturnSet>
 concept CanGetBivariateSet = requires(const MapType& map) {

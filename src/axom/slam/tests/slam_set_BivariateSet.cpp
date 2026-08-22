@@ -387,6 +387,23 @@ TYPED_TEST(BivariateSetTester, sizes)
 
 //-----------------------------------------------------------------------------
 
+TEST(slam_set_bivariate_set, concrete_interface_abstract_endpoint_sizes)
+{
+  using AbstractSetType = slam::Set<>;
+  using ProductSetType =
+    typename slam::ProductSet<AbstractSetType, AbstractSetType>::ConcreteSet;
+
+  slam::RangeSet<> firstSet(SET_SIZE_1);
+  slam::RangeSet<> secondSet(SET_SIZE_2);
+  ProductSetType productSet(&firstSet, &secondSet);
+
+  EXPECT_EQ(productSet.firstSetSize(), SET_SIZE_1);
+  EXPECT_EQ(productSet.secondSetSize(), SET_SIZE_2);
+  EXPECT_EQ(productSet.size(), SET_SIZE_1 * SET_SIZE_2);
+}
+
+//-----------------------------------------------------------------------------
+
 // Tests BivariateSet::getFirstSet(), getSecondSet(), getElements(idx)
 // and the ability to operate and iterate on the resulting sets
 template <typename S1, typename S2, typename DerivedSetType>
