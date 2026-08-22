@@ -20,6 +20,7 @@
 
 #include "axom/slam/ModularInt.hpp"
 #include "axom/slam/Traits.hpp"
+#include "axom/slam/DynamicSet.hpp"
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/ProductSet.hpp"
 #include "axom/slam/RelationSet.hpp"
@@ -284,6 +285,52 @@ static_assert(
                              ConcreteRelationSet,
                              ViewVariableRelation>,
   "relation-set reconstruction selects the relation-backed overload");
+
+//------------------------------------------------------------------------------
+// DynamicSet iterator access contracts: the mutable iterator exposes mutable
+// dereference, pointer, and subscript operations only on a mutable iterator object.
+// The const iterator exposes the corresponding const operations on both mutable
+// and const iterator objects.
+//------------------------------------------------------------------------------
+using DynamicSetType = slam::DynamicSet<SetPos, SetElem>;
+using DynamicSetIterator = DynamicSetType::iterator;
+using DynamicSetConstIterator = DynamicSetType::const_iterator;
+
+template <typename Iterator, typename Position>
+concept MutableIteratorAccess = requires(Iterator& iter, Position pos) {
+  { *iter } -> std::same_as<SetElem&>;
+  { iter.operator->() } -> std::same_as<SetElem*>;
+  { iter[pos] } -> std::same_as<SetElem&>;
+};
+
+template <typename Iterator, typename Position>
+concept ConstIteratorAccess = requires(const Iterator& iter, Position pos) {
+  { *iter } -> std::same_as<const SetElem&>;
+  { iter.operator->() } -> std::same_as<const SetElem*>;
+  { iter[pos] } -> std::same_as<const SetElem&>;
+};
+
+template <typename Iterator>
+concept ConstObjectDereferenceable = requires(const Iterator& iter) { *iter; };
+
+template <typename Iterator>
+concept ConstObjectArrowAccessible = requires(const Iterator& iter) { iter.operator->(); };
+
+template <typename Iterator, typename Position>
+concept ConstObjectSubscriptable = requires(const Iterator& iter, Position pos) { iter[pos]; };
+
+static_assert(MutableIteratorAccess<DynamicSetIterator, SetPos>,
+              "a mutable DynamicSet iterator provides mutable element access");
+static_assert(!ConstObjectDereferenceable<DynamicSetIterator>,
+              "a const-qualified mutable DynamicSet iterator cannot be dereferenced");
+static_assert(!ConstObjectArrowAccessible<DynamicSetIterator>,
+              "a const-qualified mutable DynamicSet iterator has no arrow operator");
+static_assert(!ConstObjectSubscriptable<DynamicSetIterator, SetPos>,
+              "a const-qualified mutable DynamicSet iterator has no subscript operator");
+static_assert(!MutableIteratorAccess<DynamicSetConstIterator, SetPos>,
+              "a DynamicSet const_iterator never provides mutable element access");
+static_assert(ConstIteratorAccess<DynamicSetConstIterator, SetPos>,
+              "a const-qualified DynamicSet const_iterator provides const element access");
 
 static_assert(std::is_trivially_copyable_v<ViewInd>,
               "ArrayViewIndirection holds a view by value and must be trivially copyable");

@@ -156,48 +156,48 @@ public:
     /// \}
 
     /// \name Member and pointer operators
-    /// \note We use the \a enable_if construct to implement both
-    /// const and non-const iterators in the same implementation.
+    /// \note Constraints select the mutable or const-qualified operations
+    ///       for the corresponding iterator specialization.
     /// \{
 
     /// Indirection operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, reference>::type operator*()
+    reference operator*()
+      requires(!Const)
     {
       return (*m_dynamicSet)[m_pos];
     }
 
     /// Indirection operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, reference>::type operator*() const
+    reference operator*() const
+      requires(Const)
     {
       return (*m_dynamicSet)[m_pos];
     }
 
     /// Structure dereference operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, pointer>::type operator->()
+    pointer operator->()
+      requires(!Const)
     {
       return &((*m_dynamicSet)[m_pos]);
     }
 
     /// Structure dereference operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, pointer>::type operator->() const
+    pointer operator->() const
+      requires(Const)
     {
       return &((*m_dynamicSet)[m_pos]);
     }
 
     /// Subscript operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, reference>::type operator[](PositionType n)
+    reference operator[](PositionType n)
+      requires(!Const)
     {
       return *(*this + n);
     }
 
     /// Subscript operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, reference>::type operator[](PositionType n) const
+    reference operator[](PositionType n) const
+      requires(Const)
     {
       return *(*this + n);
     }
