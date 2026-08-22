@@ -22,6 +22,7 @@
 #include "axom/slam/Traits.hpp"
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/ProductSet.hpp"
+#include "axom/slam/RelationSet.hpp"
 #include "axom/slam/StaticRelation.hpp"
 #include "axom/slam/BivariateMap.hpp"
 #include "axom/slam/Map.hpp"
@@ -36,6 +37,7 @@
 #include "axom/slam/policies/CardinalityPolicies.hpp"
 #include "axom/slam/policies/IndirectionPolicies.hpp"
 
+#include <concepts>
 #include <iterator>
 #include <optional>
 #include <utility>
@@ -208,6 +210,80 @@ using ViewConstantRelation =
                        ViewInd,
                        ConcreteRangeSet,
                        ConcreteRangeSet>;
+
+//------------------------------------------------------------------------------
+// Map construction contracts: concrete maps can own an exact set value.
+// Abstract-set maps retain only the pointer construction path. A derived set
+// must use that pointer path rather than being sliced into a value container.
+//------------------------------------------------------------------------------
+using VirtualRangeSet = slam::RangeSet<SetPos, SetElem>;
+using AbstractSet = slam::Set<SetPos, SetElem>;
+using ConcreteOwnedMap = slam::Map<SetElem, ConcreteRangeSet>;
+using AbstractSetMap = slam::Map<SetElem, AbstractSet>;
+
+struct DerivedConcreteRangeSet : ConcreteRangeSet
+{
+  using ConcreteRangeSet::ConcreteRangeSet;
+};
+
+static_assert(std::constructible_from<ConcreteOwnedMap, const ConcreteRangeSet&>,
+              "a concrete Map stores its exact set type by value");
+static_assert(
+  std::constructible_from<ConcreteOwnedMap,
+                          const ConcreteRangeSet&,
+                          typename ConcreteOwnedMap::OrderedMap>,
+  "the existing-buffer constructor accepts the exact concrete set type");
+static_assert(!std::constructible_from<ConcreteOwnedMap, const DerivedConcreteRangeSet&>,
+              "a derived set is not sliced into a Map's value container");
+static_assert(!std::constructible_from<AbstractSetMap, const VirtualRangeSet&>,
+              "an abstract-set Map cannot store a set by value");
+static_assert(std::constructible_from<AbstractSetMap, const VirtualRangeSet*>,
+              "an abstract-set Map retains polymorphic pointer construction");
+
+using AbstractBivariateSet = slam::BivariateSet<ConcreteRangeSet, ConcreteRangeSet>;
+using VirtualProductSet = slam::ProductSet<ConcreteRangeSet, ConcreteRangeSet>;
+using ConcreteOwnedBivariateMap = slam::BivariateMap<SetElem, ConcreteProductSet>;
+using AbstractSetBivariateMap = slam::BivariateMap<SetElem, AbstractBivariateSet>;
+using ConcreteRelationSet =
+  typename slam::RelationSet<ViewVariableRelation>::ConcreteSet;
+
+static_assert(
+  std::constructible_from<ConcreteOwnedBivariateMap, const ConcreteProductSet&>,
+  "a concrete BivariateMap stores its exact bivariate set type by value");
+static_assert(
+  std::constructible_from<ConcreteOwnedBivariateMap,
+                          const ConcreteProductSet&,
+                          typename ConcreteOwnedBivariateMap::MapType::OrderedMap>,
+  "the existing-buffer constructor accepts the exact concrete bivariate set type");
+static_assert(
+  !std::constructible_from<ConcreteOwnedBivariateMap, const ConcreteRelationSet&>,
+  "a different concrete bivariate set is not accepted by the value constructor");
+static_assert(
+  !std::constructible_from<AbstractSetBivariateMap, const VirtualProductSet&>,
+  "an abstract-set BivariateMap cannot store a bivariate set by value");
+static_assert(
+  std::constructible_from<AbstractSetBivariateMap, const VirtualProductSet*>,
+  "an abstract-set BivariateMap retains polymorphic pointer construction");
+
+template <typename MapType, typename ReturnSet>
+concept CanGetBivariateSet = requires(const MapType& map) {
+  { map.template getBivariateSet<ReturnSet>() } -> std::same_as<ReturnSet>;
+};
+
+template <typename MapType, typename ReturnSet, typename RelationType>
+concept CanGetRelationBivariateSet = requires(const MapType& map) {
+  { map.template getBivariateSet<ReturnSet, RelationType>() } -> std::same_as<ReturnSet>;
+};
+
+static_assert(CanGetBivariateSet<ConcreteOwnedBivariateMap, ConcreteProductSet>,
+              "product-set reconstruction selects the non-relation overload");
+static_assert(!CanGetBivariateSet<ConcreteOwnedBivariateMap, ConcreteRelationSet>,
+              "relation-set reconstruction requires its relation type");
+static_assert(
+  CanGetRelationBivariateSet<ConcreteOwnedBivariateMap,
+                             ConcreteRelationSet,
+                             ViewVariableRelation>,
+  "relation-set reconstruction selects the relation-backed overload");
 
 static_assert(std::is_trivially_copyable_v<ViewInd>,
               "ArrayViewIndirection holds a view by value and must be trivially copyable");

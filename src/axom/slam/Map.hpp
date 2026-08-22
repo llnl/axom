@@ -10,12 +10,12 @@
  * \file Map.hpp
  *
  * \brief Basic API for a map from each element of a set to some domain
- *
  */
 
-#include <vector>
-#include <sstream>
+#include <concepts>
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -190,10 +190,10 @@ public:
   }
 
   /// \overload
-  template <typename USet,
-            typename TSet = SetType,
-            typename Enable = typename std::enable_if<!std::is_abstract<TSet>::value &&
-                                                      std::is_base_of<TSet, USet>::value>::type>
+  /// \note This value-storing overload accepts only the exact, non-abstract SetType.
+  ///       Use the pointer overload for polymorphic sets.
+  template <typename USet>
+    requires(!std::is_abstract_v<SetType> && std::same_as<SetType, USet>)
   Map(const USet& theSet,
       DataType defaultValue = DataType(),
       ElementShape shape = StridePolicyType::DefaultSize(),
@@ -201,10 +201,6 @@ public:
     : StridePolicyType(shape)
     , m_set(theSet)
   {
-    static_assert(std::is_same<SetType, USet>::value,
-                  "Argument set is of a more-derived type than the Map's set "
-                  "type. This may lead to object slicing. Use Map's pointer "
-                  "constructor instead to store polymorphic sets.");
     m_data = IndirectionPolicy::create(size() * numComp(), defaultValue, allocatorID);
   }
 
@@ -213,24 +209,19 @@ public:
    *
    * \param theSet  A reference to the map's set
    * \param data    Pointer to the externally-owned data
-   * \param shape   (Optional) The number of DataType that each element in the set 
+   * \param shape   (Optional) The number of DataType that each element in the set
    *                will be mapped to. When using a \a RuntimeStridePolicy, the default is 1.
    * \note  When using a compile time StridePolicy, \a stride must be equal to \a stride(), when provided.
+   * \note This value-storing overload accepts only the exact, non-abstract SetType.
+   *       Use the pointer overload for polymorphic sets.
    */
-  template <typename USet,
-            typename TSet = SetType,
-            typename Enable = typename std::enable_if<!std::is_abstract<TSet>::value &&
-                                                      std::is_base_of<TSet, USet>::value>::type>
+  template <typename USet>
+    requires(!std::is_abstract_v<SetType> && std::same_as<SetType, USet>)
   Map(const USet& theSet, OrderedMap data, ElementShape shape = StridePolicyType::DefaultSize())
     : StridePolicyType(shape)
     , m_set(theSet)
     , m_data(std::move(data))
   {
-    static_assert(std::is_same<SetType, USet>::value,
-                  "Argument set is of a more-derived type than the Map's set "
-                  "type. This may lead to object slicing. Use Map's pointer "
-                  "constructor instead to store polymorphic sets.");
-
     checkBackingSize(std::integral_constant<bool, IndirectionPolicy::IsMutableBuffer> {});
   }
 
@@ -250,9 +241,7 @@ public:
     }
   }
 
-  /**
-   * \brief Returns a pointer to the map's underlying set
-   */
+  /// \brief Returns a pointer to the map's underlying set
   const SetType* set() const { return m_set.get(); }
 
   /// \name Map individual access functions

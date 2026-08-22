@@ -10,7 +10,6 @@
  * \file BivariateMap.hpp
  *
  * \brief Contains the BivariateMap class, a map for a BivariateSet
- *
  */
 
 #include "axom/slam/Map.hpp"
@@ -22,6 +21,7 @@
 #include "axom/slam/policies/PolicyTraits.hpp"
 
 #include <cassert>
+#include <concepts>
 #include <typeinfo>
 
 namespace axom::slam
@@ -196,9 +196,11 @@ public:
   { }
 
   /// \overload
-  template <typename UBSet,
-            typename Enable = typename std::enable_if<!std::is_abstract<BivariateSetType>::value &&
-                                                      std::is_base_of<BivariateSetType, UBSet>::value>::type>
+  /// \note This value-storing overload accepts only the exact, non-abstract BivariateSetType.
+  ///       Use the pointer overload for polymorphic sets.
+  template <typename UBSet>
+    requires(!std::is_abstract_v<BivariateSetType> &&
+             std::same_as<BivariateSetType, UBSet>)
   BivariateMap(const UBSet& bSet,
                DataType defaultValue = DataType(),
                ElementShape shape = StridePolicyType::DefaultSize(),
@@ -206,12 +208,7 @@ public:
     : StridePolicyType(shape)
     , m_bset(bSet)
     , m_map(SetType(bSet->size()), defaultValue, shape, allocatorID)
-  {
-    static_assert(std::is_same<BivariateSetType, UBSet>::value,
-                  "Argument set is of a more-derived type than the Map's set "
-                  "type. This may lead to object slicing. Use Map's pointer "
-                  "constructor instead to store polymorphic sets.");
-  }
+  { }
 
   /**
    * \brief Constructor for BivariateMap using a BivariateSet passed by-value
@@ -243,28 +240,24 @@ public:
    *                set will be mapped to. When using a \a RuntimeStridePolicy, the default is 1.
    * \note  When using a compile time StridePolicy, \a stride must be equal to
    *        \a stride(), when provided.
+   * \note This value-storing overload accepts only the exact, non-abstract BivariateSetType.
+   *       Use the pointer overload for polymorphic sets.
    */
-  template <typename UBSet,
-            typename TBSet = BivariateSetType,
-            typename Enable = typename std::enable_if<!std::is_abstract<TBSet>::value &&
-                                                      std::is_base_of<TBSet, UBSet>::value>::type>
+  template <typename UBSet>
+    requires(!std::is_abstract_v<BivariateSetType> &&
+             std::same_as<BivariateSetType, UBSet>)
   BivariateMap(const UBSet& bSet,
                typename MapType::OrderedMap data,
                ElementShape shape = StridePolicyType::DefaultSize())
     : StridePolicyType(shape)
     , m_bset(bSet)
     , m_map(SetType(bSet.size()), data, shape)
-  {
-    static_assert(std::is_same<BivariateSetType, UBSet>::value,
-                  "Argument set is of a more-derived type than the Map's set "
-                  "type. This may lead to object slicing. Use Map's pointer "
-                  "constructor instead to store polymorphic sets.");
-  }
+  { }
 
   // (KW) Problem -- does not work with RelationSet
   template <typename BivariateSetRetType, typename RelType = void>
-  typename std::enable_if<!traits::has_relation_ptr<BivariateSetRetType>::value, BivariateSetRetType>::type
-  getBivariateSet() const
+    requires(!traits::has_relation_ptr<BivariateSetRetType>::value)
+  BivariateSetRetType getBivariateSet() const
   {
     using OuterSet = const typename BivariateSetRetType::FirstSetType;
     using InnerSet = const typename BivariateSetRetType::SecondSetType;
@@ -275,8 +268,8 @@ public:
   }
 
   template <typename BivariateSetRetType, typename RelType>
-  typename std::enable_if<traits::has_relation_ptr<BivariateSetRetType>::value, BivariateSetRetType>::type
-  getBivariateSet() const
+    requires traits::has_relation_ptr<BivariateSetRetType>::value
+  BivariateSetRetType getBivariateSet() const
   {
     auto* rel = dynamic_cast<const RelType*>(m_bset)->getRelation();
     SLIC_ASSERT(rel != nullptr);
