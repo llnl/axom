@@ -58,7 +58,7 @@ namespace axom::slam
 /// \brief Construct a SLAM set while deducing its policy stack from the buffer or range.
 ///  \a PosType defaults to slam's default position type and may be supplied explicitly
 ///  as the leading template argument. Position and size arguments must model PositionLike.
-///  Compatible values are to the selected \a PosType before constructing the set.
+///  Compatible values are converted to the selected \a PosType before constructing the set.
 /// \{
 
 /*!

@@ -319,7 +319,10 @@ public:
                          typename OrderedSet::IndirectionPolicyType::ConstIndirectionResult,
                          typename OrderedSet::IndirectionPolicyType::IndirectionResult>;
 
-    using pointer = maybe_const_t<Const, T>*;
+    using pointer = std::conditional_t<
+      std::is_lvalue_reference_v<reference>,
+      std::add_pointer_t<std::remove_reference_t<reference>>,
+      void>;
 
     using IterBase = IteratorBase<OrderedSetIterator<T, Const>, PositionType>;
 
@@ -351,7 +354,11 @@ public:
     reference operator*() const { return m_orderedSet.IndirectionType::indirection(m_pos); }
 
     /// Structure dereference operator
-    pointer operator->() const { return &(m_orderedSet.IndirectionType::indirection(m_pos)); }
+    pointer operator->() const
+      requires(std::is_lvalue_reference_v<reference>)
+    {
+      return &operator*();
+    }
 
     /// Subscript operator
     reference operator[](PositionType n) const { return *(*this + n); }

@@ -665,10 +665,9 @@ public:
   using MapIterator = typename MapType::template MapRangeIterator<Const>;
 
   // The underlying MapRangeIterator returns its cached view
-  // ... by reference from dereference 
-  // ... and by value from subscript.
+  // by-reference from dereference and by-value from subscript.
   using iterator_concept = std::bidirectional_iterator_tag;
-  using iterator_category = std::random_access_iterator_tag;
+  using iterator_category = std::bidirectional_iterator_tag;
   using value_type = typename MapIterator::value_type;
   using reference = typename MapIterator::reference;
   using pointer = typename MapIterator::pointer;
@@ -710,8 +709,8 @@ public:
     return value(comp_idx...);
   }
 
-  /// \brief Returns the first component value after n increments.
-  DataRefType operator[](PositionType n) const { return *(this->operator+(n)); }
+  /// \brief Returns the map view after advancing by \a n set positions.
+  AXOM_HOST_DEVICE value_type operator[](PositionType n) const { return *(*this + n); }
 
   /**
    * \brief Return the value at the iterator's position for a given component

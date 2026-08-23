@@ -17,14 +17,8 @@
 
 #include "axom/slam/Concepts.hpp"
 
-#include <type_traits>
-
 namespace axom::slam
 {
-/// Utility for a class or member template that serves const and non-const forms.
-template <bool Const, typename T>
-using maybe_const_t = std::conditional_t<Const, const T, T>;
-
 /// \brief Compatibility wrapper for BivariateSetLike.
 template <typename T>
 inline constexpr bool is_bivariate_set_like_v = BivariateSetLike<T>;

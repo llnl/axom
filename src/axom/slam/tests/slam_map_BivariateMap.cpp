@@ -411,6 +411,20 @@ void constructAndTestBivariateMapIterator(int stride)
   SLIC_INFO("Checking the elements with BivariateMap range iterator.");
   {
     auto iter = m.set_begin();
+    auto nextView = iter[1];
+    EXPECT_EQ(nextView.size(), stride);
+    for(auto i = 0; i < stride; ++i)
+    {
+      EXPECT_EQ(nextView[i], getVal<DataType>(0, 1, i));
+    }
+
+    auto constNextView = constMap.set_begin()[1];
+    EXPECT_EQ(constNextView.size(), stride);
+    for(auto i = 0; i < stride; ++i)
+    {
+      EXPECT_EQ(constNextView[i], getVal<DataType>(0, 1, i));
+    }
+
     for(auto idx1 = 0; idx1 < m.firstSetSize(); ++idx1)
     {
       for(auto idx2 = 0; idx2 < m.secondSetSize(); ++idx2)

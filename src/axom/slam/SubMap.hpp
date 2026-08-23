@@ -414,10 +414,10 @@ private:
                                               typename SuperMapType::range_iterator>;
 
 public:
-  // Dereference returns a reference to a cached ArrayView, 
+  // Dereference returns a reference to a cached ArrayView,
   // while subscript returns a value to avoid dangling from a temporary iterator.
   using iterator_concept = std::bidirectional_iterator_tag;
-  using iterator_category = typename MapRangeIterator::iterator_category;
+  using iterator_category = std::bidirectional_iterator_tag;
   using value_type = typename MapRangeIterator::value_type;
   using reference = typename MapRangeIterator::reference;
   using pointer = typename MapRangeIterator::pointer;
@@ -461,7 +461,7 @@ public:
     return m_mapIter.value(comp_idx...);
   }
 
-  value_type operator[](PositionType n) const { return *(*this + n); }
+  AXOM_HOST_DEVICE value_type operator[](PositionType n) const { return *(*this + n); }
 
   /// \brief Returns the set element mapped by this iterator.
   SetElement index() const { return m_submap.index(this->m_pos); }

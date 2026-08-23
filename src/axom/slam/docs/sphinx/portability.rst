@@ -40,6 +40,21 @@ and are therefore unconditionally kernel-safe.
        view types; throwing accessors on host-device paths.
      - nowhere (existing instances are migration targets)
 
+C++20 ranges integration
+------------------------
+
+Host code that relies on Slam's standard-ranges customizations must include the
+host-only header explicitly:
+
+.. code-block:: cpp
+
+   #include "axom/slam/Ranges.hpp"
+
+This header marks the standard ``RangeSet`` policy configuration as a borrowed
+range because its iterators own the complete range state. It is installed with
+Slam but excluded from the unified ``axom/slam.hpp`` header so device-facing
+translation units do not acquire a dependency on ``<ranges>``.
+
 Device ``std::optional``
 ------------------------
 

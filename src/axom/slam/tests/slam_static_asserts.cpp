@@ -7,13 +7,11 @@
 /**
  * \file slam_static_asserts.cpp
  *
- * \brief Compile-time conformance harness for slam's constexpr arithmetic
+ * \brief Compile-time and focused runtime checks for Slam's C++20 contracts
  *
- * The tests in this file exercise the compile time set/value asserts
- * for sizes, offsets, strides, modular wraparound, and policy composition, so the checks cost
- * nothing at run time and run on every backend on every build. 
- * 
- * Many of the checks in this file are static_asserts. If the file compiles, its invariants hold.
+ * The compile-time checks cover policies, sets, construction helpers, iterator
+ * and range conformance, and compatibility aliases. Focused runtime checks
+ * exercise standard ranges algorithms and temporary RangeSet iterator lifetime.
  */
 
 #include "gtest/gtest.h"
@@ -372,6 +370,14 @@ using RangeSetType = slam::RangeSet<>;
 using RangeIter = RangeSetType::iterator;
 using RangeConstIter = RangeSetType::const_iterator;
 
+template <typename Iterator>
+concept HasMemberArrow = requires(const Iterator& iter) { iter.operator->(); };
+
+template <typename Iterator>
+concept HasBidirectionalTags =
+  std::same_as<typename Iterator::iterator_concept, std::bidirectional_iterator_tag> &&
+  std::same_as<typename Iterator::iterator_category, std::bidirectional_iterator_tag>;
+
 static_assert(std::random_access_iterator<RangeIter>);
 static_assert(std::random_access_iterator<RangeConstIter>);
 static_assert(std::ranges::random_access_range<RangeSetType>);
@@ -388,6 +394,19 @@ static_assert(std::is_integral_v<std::iterator_traits<RangeIter>::difference_typ
               "a random-access difference_type is a signed integral");
 static_assert(!std::is_void_v<std::iterator_traits<RangeConstIter>::value_type>,
               "iterator_traits exposes a value_type");
+static_assert(!HasMemberArrow<RangeIter>);
+static_assert(!HasMemberArrow<RangeConstIter>);
+static_assert(std::same_as<typename std::iterator_traits<RangeIter>::pointer, void>);
+static_assert(std::same_as<typename std::iterator_traits<RangeConstIter>::pointer, void>);
+
+using ArrayViewSet = slam::ArrayViewIndirectionSet<SetPos, SetElem>;
+static_assert(HasMemberArrow<typename ArrayViewSet::iterator>);
+static_assert(HasMemberArrow<typename ArrayViewSet::const_iterator>);
+static_assert(std::same_as<typename std::iterator_traits<typename ArrayViewSet::iterator>::pointer,
+                           SetElem*>);
+static_assert(
+  std::same_as<typename std::iterator_traits<typename ArrayViewSet::const_iterator>::pointer,
+               SetElem*>);
 
 static_assert(std::random_access_iterator<DynamicSetIterator>);
 static_assert(std::random_access_iterator<DynamicSetConstIterator>);
@@ -409,6 +428,8 @@ static_assert(std::random_access_iterator<MapIterator>);
 static_assert(std::random_access_iterator<MapConstIterator>);
 static_assert(std::bidirectional_iterator<MapRangeIterator>);
 static_assert(std::bidirectional_iterator<MapConstRangeIterator>);
+static_assert(HasBidirectionalTags<MapRangeIterator>);
+static_assert(HasBidirectionalTags<MapConstRangeIterator>);
 static_assert(!std::random_access_iterator<MapRangeIterator>);
 static_assert(!std::random_access_iterator<MapConstRangeIterator>);
 static_assert(std::ranges::random_access_range<ViewMap>);
@@ -431,6 +452,8 @@ static_assert(std::random_access_iterator<BivariateMapIterator>);
 static_assert(std::random_access_iterator<BivariateMapConstIterator>);
 static_assert(std::bidirectional_iterator<BivariateMapRangeIterator>);
 static_assert(std::bidirectional_iterator<BivariateMapConstRangeIterator>);
+static_assert(HasBidirectionalTags<BivariateMapRangeIterator>);
+static_assert(HasBidirectionalTags<BivariateMapConstRangeIterator>);
 static_assert(!std::random_access_iterator<BivariateMapRangeIterator>);
 static_assert(!std::random_access_iterator<BivariateMapConstRangeIterator>);
 static_assert(std::ranges::random_access_range<ViewBivariateMap>);
@@ -442,6 +465,8 @@ static_assert(std::random_access_iterator<typename ViewSubMap::iterator>);
 static_assert(std::random_access_iterator<typename ViewConstSubMap::iterator>);
 static_assert(std::bidirectional_iterator<typename ViewSubMap::range_iterator>);
 static_assert(std::bidirectional_iterator<typename ViewConstSubMap::range_iterator>);
+static_assert(HasBidirectionalTags<typename ViewSubMap::range_iterator>);
+static_assert(HasBidirectionalTags<typename ViewConstSubMap::range_iterator>);
 static_assert(!std::random_access_iterator<typename ViewSubMap::range_iterator>);
 static_assert(!std::random_access_iterator<typename ViewConstSubMap::range_iterator>);
 static_assert(std::ranges::random_access_range<ViewSubMap>);
@@ -465,11 +490,6 @@ using TemporaryRangeFindResult =
   decltype(std::ranges::find(std::declval<RangeSetType>(), SetElem {}));
 static_assert(std::same_as<TemporaryRangeFindResult, RangeIter>,
               "a borrowed temporary RangeSet returns its iterator, not ranges::dangling");
-
-// maybe_const_t adds const exactly when requested.
-static_assert(std::is_same_v<slam::maybe_const_t<true, int>, const int>,
-              "maybe_const_t<true, T> is const T");
-static_assert(std::is_same_v<slam::maybe_const_t<false, int>, int>, "maybe_const_t<false, T> is T");
 
 //------------------------------------------------------------------------------
 // Checks alias layer (Aliases.hpp): each alias instantiates with Slam's

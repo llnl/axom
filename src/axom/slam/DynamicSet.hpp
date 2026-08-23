@@ -157,8 +157,8 @@ public:
     /// \}
 
     /// \name Member and pointer operators
-    /// \note A single const-qualified implementation serves both iterator specializations. 
-    ///       A const iterator object is still dereferenceable -- element mutability 
+    /// \note A single const-qualified implementation serves both iterator specializations.
+    ///       A const iterator object is still dereferenceable -- element mutability
     ///       is determined by the specialization's reference and pointer types.
     /// \{
 

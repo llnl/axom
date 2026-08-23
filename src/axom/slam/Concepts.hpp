@@ -18,7 +18,6 @@
 
 #include <concepts>
 #include <type_traits>
-#include <utility>
 
 namespace axom::slam
 {
@@ -95,6 +94,7 @@ concept PositionLike = std::integral<detail::model_t<T>> ||
 template <typename T>
 concept SetLike = detail::HasSetAssociatedTypes<T> &&
   !detail::HasBivariateSetAssociatedTypes<T> &&
+  PositionLike<typename detail::model_t<T>::PositionType> &&
   requires(const detail::model_t<T>& set, typename detail::model_t<T>::PositionType pos) {
     { set.size() } -> std::same_as<typename detail::model_t<T>::PositionType>;
     { set.empty() } -> std::convertible_to<bool>;
@@ -103,7 +103,7 @@ concept SetLike = detail::HasSetAssociatedTypes<T> &&
 
 namespace detail
 {
-// Shared glue for constrained construction helpers. 
+// Shared glue for constrained construction helpers.
 template <typename Set, typename Value>
 concept SetPositionConvertible = SetLike<Set> && PositionLike<Value> &&
   std::convertible_to<model_t<Value>, typename model_t<Set>::PositionType>;
@@ -138,6 +138,7 @@ concept OrderedSetLike = SetLike<T> && requires(const detail::model_t<T>& set) {
 template <typename T>
 concept BivariateSetLike = detail::HasSetAssociatedTypes<T> &&
   detail::HasBivariateSetAssociatedTypes<T> &&
+  PositionLike<typename detail::model_t<T>::PositionType> &&
   SetLike<typename detail::model_t<T>::FirstSetType> &&
   SetLike<typename detail::model_t<T>::SecondSetType> &&
   requires(const detail::model_t<T>& set, typename detail::model_t<T>::PositionType pos) {

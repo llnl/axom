@@ -542,32 +542,38 @@ public:
     using DataType = std::remove_reference_t<DataRefType>;
 
     using PositionType = SetPosition;
-    using StrideIndexType = typename StridePolicyType::IndexType;
     constexpr static int Dims = StridePolicyType::NumDims;
 
     // Dereference returns a reference to a cached ArrayView, while subscript
     // returns a value to avoid dangling from a temporary iterator.
     using iterator_concept = std::bidirectional_iterator_tag;
-    using iterator_category = std::random_access_iterator_tag;
+    using iterator_category = std::bidirectional_iterator_tag;
     using value_type = axom::ArrayView<DataType, Dims>;
     using reference = const value_type&;
     using pointer = const value_type*;
     using difference_type = SetPosition;
 
   private:
-    AXOM_HOST_DEVICE static StackArray<axom::IndexType, Dims + 1> fetchDims(StrideIndexType shape)
+    AXOM_HOST_DEVICE static value_type makeRange(MapConstPtr map, PositionType pos)
     {
-      return {0, shape};
-    }
-    AXOM_HOST_DEVICE static StackArray<axom::IndexType, Dims + 1> fetchDims(
-      const StackArray<StrideIndexType, Dims> shape)
-    {
-      StackArray<axom::IndexType, Dims + 1> dims;
-      for(int idim = 0; idim < Dims; idim++)
+      auto* data = map->data_ptr();
+      if(data != nullptr)
       {
-        dims[idim + 1] = shape[idim];
+        data += pos * map->stride();
       }
-      return dims;
+      if constexpr(Dims == 1)
+      {
+        return value_type(data, static_cast<axom::IndexType>(map->shape()));
+      }
+      else
+      {
+        StackArray<axom::IndexType, Dims> shape;
+        for(int dim = 0; dim < Dims; ++dim)
+        {
+          shape[dim] = map->shape()[dim];
+        }
+        return value_type(data, shape);
+      }
     }
 
   public:
@@ -576,12 +582,8 @@ public:
     AXOM_HOST_DEVICE MapRangeIterator(MapConstPtr oMap, PositionType pos)
       : IterBase(pos)
       , m_map(oMap)
-    {
-      StackArray<axom::IndexType, Dims + 1> dataDims = fetchDims(oMap->shape());
-      dataDims[0] = m_map->size();
-      m_mapData = axom::ArrayView<DataType, Dims + 1>(m_map->data_ptr(), dataDims);
-      m_currRange = m_mapData[pos];
-    }
+      , m_currRange(makeRange(oMap, pos))
+    { }
 
     /// \brief Returns the current iterator value.
     AXOM_HOST_DEVICE reference operator*() const { return m_currRange; }
@@ -620,7 +622,7 @@ public:
                     "all be integral types.");
       return m_currRange(comp_idx...);
     }
-    value_type operator[](PositionType n) const { return *(*this + n); }
+    AXOM_HOST_DEVICE value_type operator[](PositionType n) const { return *(*this + n); }
 
     /// \brief Returns the set element mapped by this iterator.
     SetElement index() const { return m_map->index(this->m_pos); }
@@ -636,12 +638,11 @@ public:
     AXOM_HOST_DEVICE void advance(PositionType n)
     {
       this->m_pos += n;
-      m_currRange = m_mapData[this->m_pos];
+      m_currRange = makeRange(m_map, this->m_pos);
     }
 
   private:
     MapConstPtr m_map {nullptr};
-    axom::ArrayView<DataType, Dims + 1> m_mapData;
     value_type m_currRange;
   };
 

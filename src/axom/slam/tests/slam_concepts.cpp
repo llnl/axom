@@ -73,6 +73,16 @@ struct MutableAccessOnlySet
   Element at(Position);
 };
 
+struct FloatingPositionSet
+{
+  using PositionType = double;
+  using ElementType = Element;
+
+  double size() const;
+  bool empty() const;
+  Element at(double) const;
+};
+
 struct TypedefOnlyBivariateSet
 {
   using PositionType = Position;
@@ -194,6 +204,7 @@ static_assert(!slam::SetLike<Product>);
 static_assert(!slam::SetLike<TypedefOnlySet>);
 static_assert(!slam::SetLike<WrongSizeSet>);
 static_assert(!slam::SetLike<MutableAccessOnlySet>);
+static_assert(!slam::SetLike<FloatingPositionSet>);
 static_assert(!slam::BivariateSetLike<TypedefOnlyBivariateSet>);
 static_assert(!slam::SetLike<int>);
 
@@ -255,7 +266,7 @@ static_assert(slam::DeviceCapturable<TrivialCapture>);
 static_assert(!slam::DeviceCapturable<NonTrivialCapture>);
 static_assert(!slam::DeviceCapturable<TrivialCapture&>);
 
-// Phase 2 trait spellings remain exact Boolean wrappers around the concepts.
+// Compatibility trait spellings remain exact Boolean wrappers around the concepts.
 static_assert(slam::is_set_like_v<Range> == slam::SetLike<Range>);
 static_assert(slam::is_bivariate_set_like_v<Product> == slam::BivariateSetLike<Product>);
 static_assert(slam::is_relation_like_v<VariableRelation> == slam::RelationLike<VariableRelation>);
