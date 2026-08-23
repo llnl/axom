@@ -186,11 +186,20 @@ concept RelationLike = detail::HasRelationAssociatedTypes<T> &&
 
 namespace detail
 {
+template <typename Value, typename Data>
+concept MapValueFor =
+  std::same_as<std::remove_cvref_t<Value>, std::remove_cvref_t<Data>>;
+
 template <typename T>
 concept CommonMapModel = HasMapAssociatedTypes<T> &&
-  requires(const model_t<T>& map, typename model_t<T>::SetPosition pos) {
-    { map.size() } -> std::same_as<typename model_t<T>::SetPosition>;
-    { map[pos] } -> std::convertible_to<typename model_t<T>::ConstValueType>;
+  MapValueFor<typename model_t<T>::ValueType, typename model_t<T>::DataType> &&
+  MapValueFor<typename model_t<T>::ConstValueType, typename model_t<T>::DataType> &&
+  requires(model_t<T>& map,
+           const model_t<T>& constMap,
+           typename model_t<T>::SetPosition pos) {
+    { constMap.size() } -> std::same_as<typename model_t<T>::SetPosition>;
+    { map[pos] } -> std::same_as<typename model_t<T>::ValueType>;
+    { constMap[pos] } -> std::same_as<typename model_t<T>::ConstValueType>;
   };
 }  // namespace detail
 

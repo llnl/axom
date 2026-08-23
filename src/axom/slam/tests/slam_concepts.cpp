@@ -16,6 +16,7 @@
 #include "axom/slam/BivariateMap.hpp"
 #include "axom/slam/Concepts.hpp"
 #include "axom/slam/DynamicConstantRelation.hpp"
+#include "axom/slam/DynamicMap.hpp"
 #include "axom/slam/DynamicVariableRelation.hpp"
 #include "axom/slam/Map.hpp"
 #include "axom/slam/ProductSet.hpp"
@@ -42,6 +43,10 @@ using Product = typename slam::ProductSet<ConcreteRange, ConcreteRange>::Concret
 using ViewIndirection = policies::ArrayViewIndirection<Position, double>;
 using UnaryMap = slam::Map<double, ConcreteRange, ViewIndirection>;
 using BinaryMap = slam::BivariateMap<double, Product, ViewIndirection>;
+using DynamicSet = slam::DynamicSet<Position, Element>;
+using DynamicMap = slam::DynamicMap<DynamicSet, double>;
+using WrongDataIndirection = policies::ArrayViewIndirection<Position, int>;
+using MismatchedPolicyMap = slam::Map<double, ConcreteRange, WrongDataIndirection>;
 using VariableRelation = slam::VariableRelationView<ConcreteRange, ConcreteRange>;
 using DynamicVariableRelation =
   slam::DynamicVariableRelation<ConcreteRange, ConcreteRange>;
@@ -184,6 +189,36 @@ struct WrongPositionMap
   const SetType* set() const;
 };
 
+struct WrongValueTypeMap
+{
+  using DataType = double;
+  using SetType = ConcreteRange;
+  using SetPosition = Position;
+  using SetElement = Element;
+  using ValueType = int&;
+  using ConstValueType = const int&;
+
+  SetPosition size() const;
+  ValueType operator[](SetPosition);
+  ConstValueType operator[](SetPosition) const;
+  const SetType* set() const;
+};
+
+struct WrongMutableAccessMap
+{
+  using DataType = double;
+  using SetType = ConcreteRange;
+  using SetPosition = Position;
+  using SetElement = Element;
+  using ValueType = double&;
+  using ConstValueType = const double&;
+
+  SetPosition size() const;
+  ConstValueType operator[](SetPosition);
+  ConstValueType operator[](SetPosition) const;
+  const SetType* set() const;
+};
+
 struct TypedefOnlyValuePolicy
 {
   struct TagType;
@@ -267,12 +302,19 @@ static_assert(slam::BivariateMapLike<BinaryMap>);
 static_assert(slam::MapLike<UnaryMap>);
 static_assert(slam::MapLike<const UnaryMap&>);
 static_assert(slam::MapLike<BinaryMap>);
+static_assert(slam::UnivariateMapLike<DynamicMap>);
+static_assert(slam::MapLike<DynamicMap>);
+static_assert(slam::MapLike<const DynamicMap&>);
 static_assert(slam::MapOver<UnaryMap, ConcreteRange>);
 static_assert(slam::MapOver<BinaryMap, Product>);
+static_assert(slam::MapOver<DynamicMap, DynamicSet>);
 static_assert(!slam::MapOver<BinaryMap, typename BinaryMap::SetType>);
 static_assert(!slam::MapLike<TypedefOnlyMap>);
 static_assert(!slam::MapLike<WrongDomainMap>);
 static_assert(!slam::MapLike<WrongPositionMap>);
+static_assert(!slam::MapLike<WrongValueTypeMap>);
+static_assert(!slam::MapLike<WrongMutableAccessMap>);
+static_assert(!slam::MapLike<MismatchedPolicyMap>);
 static_assert(!slam::MapLike<int>);
 static_assert(!slam::MapOver<int, ConcreteRange>);
 

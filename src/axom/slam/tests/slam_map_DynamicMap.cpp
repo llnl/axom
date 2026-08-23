@@ -11,11 +11,15 @@
  */
 
 #include <iterator>
+#include <type_traits>
+#include <utility>
+
 #include "gtest/gtest.h"
 
-#include "axom/slam/Utilities.hpp"
-#include "axom/slam/DynamicSet.hpp"
+#include "axom/slam/Concepts.hpp"
 #include "axom/slam/DynamicMap.hpp"
+#include "axom/slam/DynamicSet.hpp"
+#include "axom/slam/Utilities.hpp"
 
 #include "axom/slic.hpp"
 
@@ -31,6 +35,13 @@ constexpr SetPosition MAX_SET_SIZE = 10;
 
 using IntMap = slam::DynamicMap<SetType, int>;
 using RealMap = slam::DynamicMap<SetType, double>;
+
+static_assert(slam::MapLike<IntMap>);
+static_assert(slam::MapLike<RealMap>);
+static_assert(slam::MapOver<IntMap, SetType>);
+static_assert(std::is_same_v<decltype(std::declval<IntMap&>()[SetPosition {}]), int&>);
+static_assert(
+  std::is_same_v<decltype(std::declval<const IntMap&>()[SetPosition {}]), const int&>);
 
 }  // end anonymous namespace
 
@@ -74,6 +85,9 @@ TEST(slam_map, construct_from_set_real)
   const double UPDATE_VAL = 5.5;
   m[2] = UPDATE_VAL;
   EXPECT_EQ(UPDATE_VAL, m[2]);
+
+  const RealMap& constMap = m;
+  EXPECT_EQ(UPDATE_VAL, constMap[2]);
 }
 
 // Check that resizing the map to a smaller size

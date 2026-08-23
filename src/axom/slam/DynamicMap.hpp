@@ -24,12 +24,17 @@ namespace axom::slam
  *
  * \detail An entry in the map is considered valid if its corresponding set's entry is valid
  */
-template <typename SetType, typename DataType>
+template <typename SetT, typename DataT>
 class DynamicMap
 {
 public:
+  using SetType = SetT;
+  using DataType = DataT;
+
   using SetPosition = typename SetType::PositionType;
   using SetElement = typename SetType::ElementType;
+  using ValueType = DataType&;
+  using ConstValueType = const DataType&;
 
   using OrderedMap = std::vector<DataType>;
 
@@ -103,7 +108,7 @@ public:
   /// @{
 
   /** \brief Returns the size of map's set */
-  SetPosition size() const { return m_data.size(); }
+  SetPosition size() const { return static_cast<SetPosition>(m_data.size()); }
 
   /**
    * \brief Return the number of valid entries
@@ -192,8 +197,8 @@ private:
   OrderedMap m_data;
 };
 
-template <typename SetType, typename DataType>
-bool DynamicMap<SetType, DataType>::isValid(bool verboseOutput) const
+template <typename SetT, typename DataT>
+bool DynamicMap<SetT, DataT>::isValid(bool verboseOutput) const
 {
   bool bValid = true;
 
