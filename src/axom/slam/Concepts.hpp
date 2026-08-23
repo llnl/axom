@@ -260,7 +260,12 @@ concept SizePolicy = requires(const detail::model_t<T>& policy) {
   { policy.isValid(false) } -> std::convertible_to<bool>;
 };
 
-/// \brief A one- or multi-dimensional map/set stride policy.
+/*!
+ * \brief The common capability shared by scalar and multi-dimensional stride policies.
+ *
+ * Use OrderedSetStridePolicyFor or MapStridePolicyFor when checking whether a stride
+ * can actually be substituted into one of those owners.
+ */
 template <typename T>
 concept StridePolicy = requires(const detail::model_t<T>& policy) {
   typename detail::model_t<T>::IndexType;
@@ -272,6 +277,38 @@ concept StridePolicy = requires(const detail::model_t<T>& policy) {
   { policy.shape() } -> std::same_as<typename detail::model_t<T>::ShapeType>;
 };
 
+/*!
+ * \brief A scalar stride policy usable by OrderedSet with Position.
+ *
+ * OrderedSet constructs its stride from a position and validates it as a scalar value policy.
+ * Multi-dimensional map strides do not satisfy this refinement.
+ */
+template <typename T, typename Position>
+concept OrderedSetStridePolicyFor =
+  StridePolicy<T> && ValuePolicy<T> && PositionLike<Position> &&
+  std::same_as<typename detail::model_t<T>::IndexType, detail::model_t<Position>> &&
+  std::same_as<typename detail::model_t<T>::IntType, detail::model_t<Position>> &&
+  std::same_as<typename detail::model_t<T>::ShapeType, detail::model_t<Position>> &&
+  (detail::model_t<T>::NumDims == 1) &&
+  std::constructible_from<detail::model_t<T>, detail::model_t<Position>> &&
+  requires {
+    detail::model_t<T>::DEFAULT_VALUE;
+    requires std::same_as<detail::policy_default_t<T>, detail::model_t<Position>>;
+  };
+
+/// \brief A scalar or multi-dimensional stride policy usable by Map with Position.
+template <typename T, typename Position>
+concept MapStridePolicyFor = StridePolicy<T> && PositionLike<Position> &&
+  PositionLike<typename detail::model_t<T>::IndexType> &&
+  std::convertible_to<typename detail::model_t<T>::IndexType,
+                      detail::model_t<Position>> &&
+  (detail::model_t<T>::NumDims > 0) &&
+  std::constructible_from<detail::model_t<T>, typename detail::model_t<T>::ShapeType> &&
+  ((detail::model_t<T>::NumDims == 1) ||
+   requires(const detail::model_t<T>& policy) {
+     { policy.strides() } -> std::same_as<typename detail::model_t<T>::ShapeType>;
+   });
+
 /// \brief A scalar value policy that reports an offset.
 template <typename T>
 concept OffsetPolicy = ValuePolicy<T> && requires(const detail::model_t<T>& policy) {
@@ -280,10 +317,12 @@ concept OffsetPolicy = ValuePolicy<T> && requires(const detail::model_t<T>& poli
 };
 
 /*!
- * \brief A storage/indirection policy independent of a particular position type.
+ * \brief The common storage/indirection-policy capability.
  *
  * Use IndirectionPolicyFor when the calling position type is available and the
  * indirection operation itself should also be checked.
+ * Use OrderedSetIndirectionPolicyFor or MapIndirectionPolicyFor
+ * when checking substitutability into those owners.
  */
 template <typename T>
 concept IndirectionPolicy = detail::HasIndirectionAssociatedTypes<T> &&
@@ -302,6 +341,76 @@ concept IndirectionPolicyFor = IndirectionPolicy<T> &&
       std::convertible_to<typename detail::model_t<T>::IndirectionResult>;
     { constPolicy.indirection(pos) } ->
       std::convertible_to<typename detail::model_t<T>::ConstIndirectionResult>;
+  };
+
+namespace detail
+{
+template <typename T>
+concept HasTypedIndirectionAssociatedTypes = requires {
+  typename model_t<T>::PositionType;
+  typename model_t<T>::ElementType;
+};
+
+template <typename T>
+concept HasMapIndirectionAssociatedTypes = requires {
+  typename model_t<T>::IndirectionRefType;
+  typename model_t<T>::IndirectionConstRefType;
+  typename model_t<T>::ResultPtr;
+  typename model_t<T>::ConstResultPtr;
+  model_t<T>::IsMutableBuffer;
+  std::integral_constant<bool, model_t<T>::IsMutableBuffer> {};
+};
+}  // namespace detail
+
+/// \brief An indirection policy usable by OrderedSet over Position and Element.
+template <typename T, typename Position, typename Element>
+concept OrderedSetIndirectionPolicyFor =
+  IndirectionPolicyFor<T, Position> && PositionLike<Position> &&
+  detail::HasTypedIndirectionAssociatedTypes<T> &&
+  std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
+  std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Element>> &&
+  std::same_as<std::remove_cvref_t<typename detail::model_t<T>::IndirectionResult>,
+               detail::model_t<Element>> &&
+  std::same_as<std::remove_cvref_t<typename detail::model_t<T>::ConstIndirectionResult>,
+               detail::model_t<Element>> &&
+  std::default_initializable<detail::model_t<T>> &&
+  std::constructible_from<detail::model_t<T>,
+                          typename detail::model_t<T>::IndirectionPtrType> &&
+  requires(const detail::model_t<T>& policy,
+           detail::model_t<Position> size,
+           detail::model_t<Position> offset,
+           detail::model_t<Position> stride) {
+    { policy.isValid(size, offset, stride, false) } -> std::convertible_to<bool>;
+  };
+
+/// \brief An indirection policy providing Map's buffer and static access API.
+template <typename T, typename Position, typename Data>
+concept MapIndirectionPolicyFor =
+  IndirectionPolicy<T> && PositionLike<Position> &&
+  detail::HasTypedIndirectionAssociatedTypes<T> &&
+  detail::HasMapIndirectionAssociatedTypes<T> &&
+  std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
+  std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Data>> &&
+  detail::MapValueFor<typename detail::model_t<T>::IndirectionResult, Data> &&
+  detail::MapValueFor<typename detail::model_t<T>::ConstIndirectionResult, Data> &&
+  requires(typename detail::model_t<T>::IndirectionBufferType& buffer,
+           const typename detail::model_t<T>::IndirectionBufferType& constBuffer,
+           detail::model_t<Position> pos) {
+    { detail::model_t<T>::getIndirection(buffer, pos) } ->
+      std::same_as<typename detail::model_t<T>::ResultPtr>;
+    { detail::model_t<T>::getConstIndirection(constBuffer, pos) } ->
+      std::same_as<typename detail::model_t<T>::ConstResultPtr>;
+  };
+
+/// \brief A MapIndirectionPolicyFor that can allocate and initialize its buffer.
+template <typename T, typename Position, typename Data>
+concept AllocatingMapIndirectionPolicyFor =
+  MapIndirectionPolicyFor<T, Position, Data> &&
+  requires(detail::model_t<Position> size,
+           const detail::model_t<Data>& value,
+           int allocatorId) {
+    { detail::model_t<T>::create(size, value, allocatorId) } ->
+      std::same_as<typename detail::model_t<T>::IndirectionBufferType>;
   };
 
 /// \brief A non-reference type that can be copied byte-for-byte into device code.

@@ -70,6 +70,7 @@ template <typename BasePolicy>
 struct IndexedIndirection : public BasePolicy
 {
   using PositionType = typename BasePolicy::PosType;
+  using ElementType = typename BasePolicy::ElemType;
 
   using typename BasePolicy::ConstIndirectionResult;
   using typename BasePolicy::IndirectionResult;
@@ -251,9 +252,11 @@ bool IndexedIndirection<BasePolicy>::isValid(PositionType size,
 /**
  * \brief A policy class for sets with no indirection
  */
-template <typename PositionType, typename ElementType>
+template <typename PositionT, typename ElementT>
 struct NoIndirection
 {
+  using PositionType = PositionT;
+  using ElementType = ElementT;
   using IndirectionResult = ElementType;
   using ConstIndirectionResult = const ElementType;
   using IndirectionBufferType = struct

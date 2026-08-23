@@ -73,6 +73,13 @@ public:
   using IndirectionPolicyType = IndirectionPolicy;
   using SubsettingPolicyType = SubsettingPolicy;
 
+  static_assert(OrderedSetStridePolicyFor<StridePolicyType, PositionType>,
+                "OrderedSet requires a scalar stride policy over its position type");
+  static_assert(OrderedSetIndirectionPolicyFor<IndirectionPolicyType,
+                                               PositionType,
+                                               ElementType>,
+                "OrderedSet requires set indirection over its position and element types");
+
   using ModularIntType = ModularInt<SizePolicy>;
 
   using PositionSet = OrderedSet<PositionType>;
@@ -93,8 +100,7 @@ public:
   OrderedSet(PositionType size = SizePolicyType::DEFAULT_VALUE,
              PositionType offset = OffsetPolicyType::DEFAULT_VALUE,
              PositionType stride = StridePolicyType::DEFAULT_VALUE
-             // Note: constructor does not yet take an
-             // indirection type pointer...
+             // Note: constructor does not yet take an indirection type pointer...
              // const Set* parentSet = &s_nullSet
              )
     : SizePolicyType(size)

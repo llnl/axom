@@ -107,6 +107,11 @@ public:
 
   using ValueType = typename IndirectionPolicy::IndirectionResult;
   using ConstValueType = typename IndirectionPolicy::ConstIndirectionResult;
+
+  static_assert(MapStridePolicyFor<StridePolicyType, SetPosition>,
+                "BivariateMap requires a scalar or multi-dimensional stride over its position type");
+  static_assert(MapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>,
+                "BivariateMap requires map indirection over its position and data types");
   using PointerType = std::remove_reference_t<ValueType>*;
   using ConstPointerType = std::remove_reference_t<ConstValueType>*;
 
@@ -190,6 +195,7 @@ public:
                DataType defaultValue = DataType(),
                ElementShape shape = StridePolicyType::DefaultSize(),
                int allocatorID = axom::getDefaultAllocatorID())
+    requires AllocatingMapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>
     : StridePolicyType(shape)
     , m_bset(bSet)
     , m_map(SetType(bSet->size()), defaultValue, shape, allocatorID)
@@ -200,7 +206,8 @@ public:
   ///       Use the pointer overload for polymorphic sets.
   template <typename UBSet>
     requires(!std::is_abstract_v<BivariateSetType> &&
-             std::same_as<BivariateSetType, UBSet>)
+             std::same_as<BivariateSetType, UBSet> &&
+             AllocatingMapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>)
   BivariateMap(const UBSet& bSet,
                DataType defaultValue = DataType(),
                ElementShape shape = StridePolicyType::DefaultSize(),

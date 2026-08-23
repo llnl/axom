@@ -21,6 +21,7 @@
 #include "axom/slic.hpp"
 
 #include "axom/slam/MapBase.hpp"
+#include "axom/slam/Concepts.hpp"
 #include "axom/slam/Set.hpp"
 #include "axom/slam/NullSet.hpp"
 
@@ -89,6 +90,11 @@ public:
 
   using ValueType = typename IndirectionPolicy::IndirectionResult;
   using ConstValueType = typename IndirectionPolicy::ConstIndirectionResult;
+
+  static_assert(MapStridePolicyFor<StridePolicyType, SetPosition>,
+                "Map requires a scalar or multi-dimensional stride over its position type");
+  static_assert(MapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>,
+                "Map requires map indirection over its position and data types");
 
   class MapBuilder;
 
@@ -163,6 +169,7 @@ public:
       DataType defaultValue = DataType(),
       ElementShape shape = StridePolicyType::DefaultSize(),
       int allocatorID = axom::getDefaultAllocatorID())
+    requires AllocatingMapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>
     : StridePolicyType(shape)
     , m_set(theSet)
   {
@@ -193,7 +200,8 @@ public:
   /// \note This value-storing overload accepts only the exact, non-abstract SetType.
   ///       Use the pointer overload for polymorphic sets.
   template <typename USet>
-    requires(!std::is_abstract_v<SetType> && std::same_as<SetType, USet>)
+    requires(!std::is_abstract_v<SetType> && std::same_as<SetType, USet> &&
+             AllocatingMapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>)
   Map(const USet& theSet,
       DataType defaultValue = DataType(),
       ElementShape shape = StridePolicyType::DefaultSize(),
@@ -225,10 +233,9 @@ public:
     checkBackingSize(std::integral_constant<bool, IndirectionPolicy::IsMutableBuffer> {});
   }
 
-  /**
-   * \brief Constructor for Map using a MapBuilder
-   */
+  /// \brief Constructor for Map using a MapBuilder
   Map(const MapBuilder& builder)
+    requires AllocatingMapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>
     : Map(builder.m_set, builder.m_defaultValue, builder.m_stride.stride())
   {
     //copy the data if exists

@@ -46,7 +46,6 @@ using BinaryMap = slam::BivariateMap<double, Product, ViewIndirection>;
 using DynamicSet = slam::DynamicSet<Position, Element>;
 using DynamicMap = slam::DynamicMap<DynamicSet, double>;
 using WrongDataIndirection = policies::ArrayViewIndirection<Position, int>;
-using MismatchedPolicyMap = slam::Map<double, ConcreteRange, WrongDataIndirection>;
 using VariableRelation = slam::VariableRelationView<ConcreteRange, ConcreteRange>;
 using DynamicVariableRelation =
   slam::DynamicVariableRelation<ConcreteRange, ConcreteRange>;
@@ -253,6 +252,7 @@ struct NonTrivialCapture
 {
   NonTrivialCapture(const NonTrivialCapture&) { }
 };
+
 }  // namespace slam_concept_test
 
 template <>
@@ -314,7 +314,6 @@ static_assert(!slam::MapLike<WrongDomainMap>);
 static_assert(!slam::MapLike<WrongPositionMap>);
 static_assert(!slam::MapLike<WrongValueTypeMap>);
 static_assert(!slam::MapLike<WrongMutableAccessMap>);
-static_assert(!slam::MapLike<MismatchedPolicyMap>);
 static_assert(!slam::MapLike<int>);
 static_assert(!slam::MapOver<int, ConcreteRange>);
 
@@ -325,6 +324,8 @@ using ScalarStride = policies::CompileTimeStride<int, 3>;
 using MatrixStride = policies::MultiDimStride<int, 2>;
 using Offset = policies::CompileTimeOffset<int, 4>;
 using NoIndirection = policies::NoIndirection<Position, Element>;
+using OwningIndirection = policies::ArrayIndirection<Position, double>;
+using OwningMap = slam::Map<double, ConcreteRange, OwningIndirection>;
 
 static_assert(slam::ValuePolicy<Size>);
 static_assert(slam::SizePolicy<Size>);
@@ -332,6 +333,14 @@ static_assert(slam::SizePolicy<EmptySize>);
 static_assert(!slam::ValuePolicy<EmptySize>);
 static_assert(slam::StridePolicy<ScalarStride>);
 static_assert(slam::StridePolicy<MatrixStride>);
+static_assert(slam::OrderedSetStridePolicyFor<ScalarStride, int>);
+static_assert(!slam::OrderedSetStridePolicyFor<MatrixStride, int>);
+static_assert(slam::MapStridePolicyFor<ScalarStride, int>);
+static_assert(slam::MapStridePolicyFor<MatrixStride, int>);
+// Maps support a stride index that converts to their (possibly wider) position type
+// OrderedSet's scalar value policy must use that exact position type.
+static_assert(slam::MapStridePolicyFor<ScalarStride, Position>);
+static_assert(!slam::OrderedSetStridePolicyFor<ScalarStride, Position>);
 static_assert(slam::OffsetPolicy<Offset>);
 static_assert(!slam::ValuePolicy<TypedefOnlyValuePolicy>);
 static_assert(!slam::ValuePolicy<WrongValuePolicy>);
@@ -340,8 +349,21 @@ static_assert(!slam::StridePolicy<int>);
 static_assert(!slam::OffsetPolicy<int>);
 static_assert(slam::IndirectionPolicy<ViewIndirection>);
 static_assert(slam::IndirectionPolicyFor<ViewIndirection, Position>);
+static_assert(slam::OrderedSetIndirectionPolicyFor<ViewIndirection, Position, double>);
+static_assert(slam::MapIndirectionPolicyFor<ViewIndirection, Position, double>);
+static_assert(!slam::AllocatingMapIndirectionPolicyFor<ViewIndirection, Position, double>);
 static_assert(slam::IndirectionPolicy<NoIndirection>);
 static_assert(slam::IndirectionPolicyFor<NoIndirection, Position>);
+static_assert(slam::OrderedSetIndirectionPolicyFor<NoIndirection, Position, Element>);
+static_assert(!slam::MapIndirectionPolicyFor<NoIndirection, Position, Element>);
+static_assert(slam::MapIndirectionPolicyFor<OwningIndirection, Position, double>);
+static_assert(slam::AllocatingMapIndirectionPolicyFor<OwningIndirection, Position, double>);
+static_assert(std::default_initializable<OwningMap>);
+static_assert(!std::default_initializable<UnaryMap>);
+static_assert(std::constructible_from<UnaryMap,
+                                      const ConcreteRange*,
+                                      typename UnaryMap::OrderedMap>);
+static_assert(!slam::MapIndirectionPolicyFor<WrongDataIndirection, Position, double>);
 static_assert(!slam::IndirectionPolicy<TypedefOnlyIndirection>);
 static_assert(!slam::IndirectionPolicy<int>);
 
