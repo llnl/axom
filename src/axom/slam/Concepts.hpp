@@ -156,13 +156,21 @@ concept BivariateSetLike = detail::HasSetAssociatedTypes<T> &&
       std::same_as<typename detail::model_t<T>::PositionType>;
   };
 
-/// \brief A relation that exposes its two sets and a const iterable row for a position in the from-set.
+/*!
+ * \brief A relation that exposes its two sets and a const iterable row for a
+ * position in the from-set.
+ *
+ * A relation row contains positions in the to-set. Thus, SetPosition is the
+ * from-set position type and SetElement is the to-set position type.
+ */
 template <typename T>
 concept RelationLike = detail::HasRelationAssociatedTypes<T> &&
   SetLike<typename detail::model_t<T>::FromSetType> &&
   SetLike<typename detail::model_t<T>::ToSetType> &&
   std::same_as<typename detail::model_t<T>::SetPosition,
                typename detail::model_t<T>::FromSetType::PositionType> &&
+  std::same_as<typename detail::model_t<T>::SetElement,
+               typename detail::model_t<T>::ToSetType::PositionType> &&
   requires(const detail::model_t<T>& relation,
            typename detail::model_t<T>::SetPosition fromPosition) {
     { relation.fromSet() } ->

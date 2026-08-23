@@ -45,12 +45,20 @@ using BinaryMap = slam::BivariateMap<double, Product, ViewIndirection>;
 using VariableRelation = slam::VariableRelationView<ConcreteRange, ConcreteRange>;
 using DynamicVariableRelation =
   slam::DynamicVariableRelation<ConcreteRange, ConcreteRange>;
+using NarrowRange = slam::RangeSet<std::int32_t, std::int32_t>;
+using WideRange = slam::RangeSet<std::int64_t, std::int64_t>;
+using HeterogeneousVariableRelation =
+  slam::VariableRelationView<WideRange, NarrowRange>;
+using HeterogeneousDynamicVariableRelation =
+  slam::DynamicVariableRelation<NarrowRange, WideRange>;
 using DynamicConstantCardinality =
   policies::ConstantCardinality<Position,
                                 policies::CompileTimeStride<Position, 3>>;
 using DynamicConstantRelation = slam::DynamicConstantRelation<Position,
                                                               Element,
                                                               DynamicConstantCardinality>;
+using DistinctElementDynamicConstantRelation =
+  slam::DynamicConstantRelation<Position, std::int64_t, DynamicConstantCardinality>;
 
 struct StrongPosition
 {
@@ -122,6 +130,20 @@ struct WrongSetPositionRelation
   int operator[](SetPosition) const;
   int* begin(SetPosition) const;
   int* end(SetPosition) const;
+};
+
+struct WrongSetElementRelation
+{
+  using FromSetType = ConcreteRange;
+  using ToSetType = WideRange;
+  using SetPosition = typename FromSetType::PositionType;
+  using SetElement = short;
+
+  const FromSetType* fromSet() const;
+  const ToSetType* toSet() const;
+  int operator[](SetPosition) const;
+  SetElement* begin(SetPosition) const;
+  SetElement* end(SetPosition) const;
 };
 
 struct TypedefOnlyMap
@@ -221,12 +243,20 @@ static_assert(!slam::SetLike<int>);
 
 // Relations
 static_assert(slam::RelationLike<VariableRelation>);
+static_assert(slam::RelationLike<HeterogeneousVariableRelation>);
 static_assert(slam::RelationLike<DynamicVariableRelation>);
+static_assert(slam::RelationLike<HeterogeneousDynamicVariableRelation>);
+static_assert(std::same_as<typename HeterogeneousDynamicVariableRelation::SetPosition,
+                           typename NarrowRange::PositionType>);
+static_assert(std::same_as<typename HeterogeneousDynamicVariableRelation::SetElement,
+                           typename WideRange::PositionType>);
 static_assert(slam::RelationLike<DynamicConstantRelation>);
+static_assert(slam::RelationLike<DistinctElementDynamicConstantRelation>);
 static_assert(slam::RelationLike<const DynamicConstantRelation&>);
 static_assert(slam::is_relation_like_v<DynamicConstantRelation>);
 static_assert(!slam::RelationLike<TypedefOnlyRelation>);
 static_assert(!slam::RelationLike<WrongSetPositionRelation>);
+static_assert(!slam::RelationLike<WrongSetElementRelation>);
 
 // Maps
 // BivariateMap::SetType is its flat backing set.

@@ -31,16 +31,17 @@ namespace axom::slam
 {
 template <typename FirstSetType = slam::Set<>, typename SecondSetType = slam::Set<>>
 class DynamicVariableRelation
-  : public Relation<typename FirstSetType::PositionType, typename FirstSetType::ElementType>
+  : public Relation<typename FirstSetType::PositionType, typename SecondSetType::PositionType>
 {
 public:
   using FromSetType = FirstSetType;
   using ToSetType = SecondSetType;
 
   using SetPosition = typename FirstSetType::PositionType;
-  using SetElement = typename FirstSetType::ElementType;
+  using ToSetPosition = typename SecondSetType::PositionType;
+  using SetElement = ToSetPosition;
 
-  using RelationVec = std::vector<SetPosition>;
+  using RelationVec = std::vector<SetElement>;
   using RelationVecIterator = typename RelationVec::iterator;
   using RelationVecIteratorPair = std::pair<RelationVecIterator, RelationVecIterator>;
   using RelationVecConstIterator = typename RelationVec::const_iterator;
@@ -93,7 +94,7 @@ public:
   SetPosition size(SetPosition fromSetIndex) const
   {
     verifyPosition(fromSetIndex);
-    return fromSetRelationsVec(fromSetIndex).size();
+    return static_cast<SetPosition>(fromSetRelationsVec(fromSetIndex).size());
   }
 
   SetPosition totalSize() const
@@ -101,7 +102,7 @@ public:
     SetPosition sz = 0;
     for(auto& vec : m_relationsVec)
     {
-      sz += vec.size();
+      sz += static_cast<SetPosition>(vec.size());
     }
     return sz;
   }
@@ -114,12 +115,12 @@ public:
   ToSetType* toSet() { return m_toSet; }
   const ToSetType* toSet() const { return m_toSet; }
 
-  SetPosition fromSetSize() const { return m_relationsVec.size(); }
+  SetPosition fromSetSize() const { return static_cast<SetPosition>(m_relationsVec.size()); }
 
   bool isValid(bool verboseOutput = false) const;
 
 public:  // Modifying functions
-  void insert(SetPosition fromSetIndex, SetPosition toSetIndex)
+  void insert(SetPosition fromSetIndex, SetElement toSetIndex)
   {
     verifyPosition(fromSetIndex);
     m_relationsVec[fromSetIndex].push_back(toSetIndex);
@@ -293,7 +294,7 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(bool verboseO
       {
         SetPosition idx = fromIdx;
         sstr2 << "\n\t" << m_fromSet->at(fromIdx) << " (" << size(idx) << "):\t";
-        std::copy(begin(idx), end(idx), std::ostream_iterator<SetPosition>(sstr2, " "));
+        std::copy(begin(idx), end(idx), std::ostream_iterator<SetElement>(sstr2, " "));
         overallCount += size(idx);
       }
       sstr2 << "\n\n\tOverall size of relation" << overallCount << std::endl;

@@ -12,6 +12,9 @@
 
 #include <iostream>
 #include <iterator>
+#include <cstdint>
+#include <limits>
+#include <type_traits>
 
 #include "gtest/gtest.h"
 
@@ -200,6 +203,33 @@ TEST(slam_relation_dynamic_variable, iterate_relation)
       }
     }
   }
+}
+
+TEST(slam_relation_dynamic_variable, heterogeneous_endpoint_position_types)
+{
+  using FromSet = slam::RangeSet<std::int32_t, std::int32_t>;
+  using ToSet = slam::RangeSet<std::int64_t, std::int64_t>;
+  using Relation = slam::DynamicVariableRelation<FromSet, ToSet>;
+
+  static_assert(std::is_same_v<typename Relation::SetPosition,
+                               typename FromSet::PositionType>);
+  static_assert(std::is_same_v<typename Relation::SetElement,
+                               typename ToSet::PositionType>);
+  static_assert(std::is_same_v<typename Relation::RelationVec::value_type,
+                               typename ToSet::PositionType>);
+
+  constexpr auto largeToPosition =
+    static_cast<typename ToSet::PositionType>(std::numeric_limits<std::int32_t>::max()) + 7;
+  FromSet fromSet(2);
+  ToSet toSet(largeToPosition + 1);
+  Relation relation(&fromSet, &toSet);
+
+  relation.insert(0, largeToPosition);
+  relation.insert(1, 3);
+
+  ASSERT_TRUE(relation.isValid(true));
+  ASSERT_EQ(relation[0].size(), 1u);
+  EXPECT_EQ(relation[0][0], largeToPosition);
 }
 
 //----------------------------------------------------------------------

@@ -65,11 +65,11 @@ public:
   };
 
   using SetPosition = PosType;
-  using SetElement = ElemType;
-  using RelationVec = std::vector<SetPosition>;
-
   using FromSetType = DynamicSet<PosType, ElemType>;
   using ToSetType = DynamicSet<PosType, ElemType>;
+  using ToSetPosition = typename ToSetType::PositionType;
+  using SetElement = ToSetPosition;
+  using RelationVec = std::vector<SetElement>;
 
   using BeginsSizePolicy = typename CardinalityPolicy::RelationalOperatorSizeType;
 
@@ -297,8 +297,8 @@ public:
   SetPosition numberOfValidEntries() const
   {
     SetPosition nvalid = 0;
-    const int N = size();
-    for(int i = 0; i < N; ++i)
+    const SetPosition N = size();
+    for(SetPosition i = 0; i < N; ++i)
     {
       nvalid += isValidEntry(i);
     }

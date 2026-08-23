@@ -30,7 +30,8 @@ public:
   using SetPosition = typename Set<PosType, ElemType>::PositionType;
   using SetElement = typename Set<PosType, ElemType>::ElementType;
 
-  using RelationVec = std::vector<SetPosition>;
+  // A relation row is indexed by a position in the from-set and stores positions in the to-set
+  using RelationVec = std::vector<SetElement>;
   using RelationVecIterator = typename RelationVec::iterator;
   using RelationVecIteratorPair = std::pair<RelationVecIterator, RelationVecIterator>;
   using RelationVecConstIterator = typename RelationVec::const_iterator;
