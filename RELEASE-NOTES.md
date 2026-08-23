@@ -61,6 +61,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Adds support for lua-based input decks for shaping
 - Slam: Adds convenience aliases in `axom/slam/Aliases.hpp` for the most common set and relation configurations, 
   including `ArraySet`, `ArrayViewSet`, `VariableRelation`, `ConstantRelation` and their `View` forms.
+- Slam: Adds C++20 concepts for sets, relations, maps, and policies.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -105,6 +106,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Status-returning reader/writer operations in `C2CReader`, `MFEMReader`, `ProEReader`,
   `STEPReader`, `STLReader`, `STLWriter`, and their parallel variants are now marked `[[nodiscard]]`.
   Callers that previously ignored returned status values must check them to avoid compiler diagnostics.
+- Slam: Relations and bivariate sets now support distinct position types for their constituent sets.
+- Slam: The cached range iterators of `Map`, `BivariateMap` and `SubMap` now declare `bidirectional_iterator_tag`
+  rather than `random_access_iterator_tag`, since their subscript operator returns a value rather than a reference.
+- Slam: Bivariate set `ElementType` and `at()` results are now coordinate pairs containing positions
+  in the first and second endpoint sets. Relations similarly distinguish `FromPositionType`,
+  `ToPositionType`, and `FlatPositionType`. `DynamicVariableRelation` no longer derives from
+  the homogeneous legacy `Relation` interface.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
