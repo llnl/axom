@@ -342,9 +342,12 @@ public:
   using BaseType = IteratorBase<BivariateSetIterator<BivariateSetType>, IndexType>;
   using difference_type = IndexType;
   using value_type = std::pair<IndexType, IndexType>;
-  using reference = value_type&;
-  using pointer = value_type*;
+  using reference = value_type;
+  using pointer = void;
+  using iterator_concept = std::forward_iterator_tag;
   using iterator_category = std::forward_iterator_tag;
+
+  BivariateSetIterator() = default;
 
   AXOM_HOST_DEVICE BivariateSetIterator(const BivariateSetType* bset, IndexType flatPos = 0)
     : BaseType(flatPos)
@@ -370,7 +373,7 @@ protected:
   AXOM_HOST_DEVICE void advance(IndexType n) { this->m_pos += n; }
 
 private:
-  const BivariateSetType* m_bset;
+  const BivariateSetType* m_bset {nullptr};
 };
 
 /**

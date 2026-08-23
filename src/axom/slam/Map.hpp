@@ -475,10 +475,11 @@ public:
     using DataRefType = std::conditional_t<Const, ConstValueType, ValueType>;
     using DataType = std::remove_reference_t<DataRefType>;
 
+    using iterator_concept = std::random_access_iterator_tag;
     using iterator_category = std::random_access_iterator_tag;
-    using value_type = DataType;
+    using value_type = std::remove_cv_t<DataType>;
     using reference = DataRefType;
-    using pointer = value_type*;
+    using pointer = std::add_pointer_t<std::remove_reference_t<reference>>;
     using difference_type = SetPosition;
 
     using IterBase = IteratorBase<MapIterator, SetPosition>;
@@ -488,12 +489,17 @@ public:
     using IterBase::m_pos;
 
   public:
+    MapIterator() = default;
+
     MapIterator(PositionType pos, MapConstPtr oMap) : IterBase(pos), m_map(oMap) { }
 
     /// \brief Returns the current iterator value.
     AXOM_HOST_DEVICE reference operator*() const { return (*m_map)[m_pos]; }
 
-    AXOM_HOST_DEVICE pointer operator->() const { return &(*this); }
+    AXOM_HOST_DEVICE pointer operator->() const { return &this->operator*(); }
+
+    /// \brief Returns the map value after advancing by \a n flat positions.
+    AXOM_HOST_DEVICE reference operator[](PositionType n) const { return *(*this + n); }
 
     /// \brief Returns the set element mapped by this iterator.
     SetElement index() const { return m_map->index(this->m_pos / m_map->numComp()); }
@@ -509,7 +515,7 @@ public:
     AXOM_HOST_DEVICE void advance(PositionType n) { m_pos += n; }
 
   private:
-    MapConstPtr m_map;
+    MapConstPtr m_map {nullptr};
   };
 
   /**
@@ -539,7 +545,9 @@ public:
     using StrideIndexType = typename StridePolicyType::IndexType;
     constexpr static int Dims = StridePolicyType::NumDims;
 
-    // Type traits to satisfy LegacyRandomAccessIterator concept
+    // Dereference returns a reference to a cached ArrayView, while subscript
+    // returns a value to avoid dangling from a temporary iterator.
+    using iterator_concept = std::bidirectional_iterator_tag;
     using iterator_category = std::random_access_iterator_tag;
     using value_type = axom::ArrayView<DataType, Dims>;
     using reference = const value_type&;
@@ -563,6 +571,8 @@ public:
     }
 
   public:
+    MapRangeIterator() = default;
+
     AXOM_HOST_DEVICE MapRangeIterator(MapConstPtr oMap, PositionType pos)
       : IterBase(pos)
       , m_map(oMap)
@@ -630,7 +640,7 @@ public:
     }
 
   private:
-    MapConstPtr m_map;
+    MapConstPtr m_map {nullptr};
     axom::ArrayView<DataType, Dims + 1> m_mapData;
     value_type m_currRange;
   };
@@ -641,7 +651,11 @@ public:  // Functions related to iteration
   const_iterator begin() const { return const_iterator(0, this); }
   const_iterator end() const { return const_iterator(size() * StridePolicyType::stride(), this); }
 
-  RangeAdapter<iterator> range() const { return RangeAdapter<iterator> {begin(), end()}; }
+  RangeAdapter<iterator> range() { return RangeAdapter<iterator> {begin(), end()}; }
+  RangeAdapter<const_iterator> range() const
+  {
+    return RangeAdapter<const_iterator> {begin(), end()};
+  }
 
   AXOM_HOST_DEVICE range_iterator set_begin() { return range_iterator(this, 0); }
   AXOM_HOST_DEVICE range_iterator set_end() { return range_iterator(this, size()); }
@@ -653,6 +667,10 @@ public:  // Functions related to iteration
   RangeAdapter<range_iterator> set_elements()
   {
     return RangeAdapter<range_iterator> {set_begin(), set_end()};
+  }
+  RangeAdapter<const_range_iterator> set_elements() const
+  {
+    return RangeAdapter<const_range_iterator> {set_begin(), set_end()};
   }
 
 public:

@@ -359,6 +359,12 @@ void constructAndTestBivariateMapIterator(int stride)
     }
   }
 
+  auto flatIter = m.begin();
+  EXPECT_EQ(flatIter.operator->(), m.findValue(0, 0, 0));
+  const MapType& constMap = m;
+  EXPECT_EQ(constMap.begin().operator->(), m.findValue(0, 0, 0));
+  EXPECT_EQ(*constMap(0).begin().operator->(), getVal<DataType>(0, 0, 0));
+
   SLIC_INFO("Checking the elements with SubMap flat iterator.");
   for(auto idx1 = 0; idx1 < m.firstSetSize(); ++idx1)
   {

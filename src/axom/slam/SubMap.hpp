@@ -345,16 +345,19 @@ class SubMap<SuperMapType, SubsetType, InterfacePolicy>::Iterator
   : public IteratorBase<Iterator, SetPosition>
 {
 public:
+  using iterator_concept = std::random_access_iterator_tag;
   using iterator_category = std::random_access_iterator_tag;
   using value_type = DataType;
   using reference = DataRefType;
-  using pointer = DataType*;
+  using pointer = std::add_pointer_t<std::remove_reference_t<reference>>;
   using difference_type = SetPosition;
 
   using IterBase = IteratorBase<Iterator, SetPosition>;
   using IterBase::m_pos;
   using iter = Iterator;
   using PositionType = SetPosition;
+
+  Iterator() = default;
 
   AXOM_HOST_DEVICE Iterator(PositionType pos, const SubMap& sMap)
     : IterBase(pos)
@@ -363,7 +366,7 @@ public:
   /// \brief Returns the current iterator value.
   AXOM_HOST_DEVICE DataRefType operator*() const { return m_submap[m_pos]; }
 
-  pointer operator->() const { return &(*this); }
+  AXOM_HOST_DEVICE pointer operator->() const { return &this->operator*(); }
 
   /** \brief Returns the first component value after n increments.  */
   DataRefType operator[](PositionType n) const { return *(*this + n); }
@@ -411,12 +414,16 @@ private:
                                               typename SuperMapType::range_iterator>;
 
 public:
-  // Type traits to satisfy LegacyRandomAccessIterator concept
+  // Dereference returns a reference to a cached ArrayView, 
+  // while subscript returns a value to avoid dangling from a temporary iterator.
+  using iterator_concept = std::bidirectional_iterator_tag;
   using iterator_category = typename MapRangeIterator::iterator_category;
   using value_type = typename MapRangeIterator::value_type;
   using reference = typename MapRangeIterator::reference;
   using pointer = typename MapRangeIterator::pointer;
   using difference_type = SetPosition;
+
+  RangeIterator() = default;
 
   AXOM_HOST_DEVICE PositionType getParentPosition(PositionType subset_pos)
   {

@@ -136,6 +136,7 @@ public:
   class DynamicSetIterator : public IteratorBase<DynamicSetIterator<T, Const>, PositionType>
   {
   public:
+    using iterator_concept = std::random_access_iterator_tag;
     using iterator_category = std::random_access_iterator_tag;
     using value_type = T;
     using difference_type = PositionType;
@@ -156,48 +157,25 @@ public:
     /// \}
 
     /// \name Member and pointer operators
-    /// \note Constraints select the mutable or const-qualified operations
-    ///       for the corresponding iterator specialization.
+    /// \note A single const-qualified implementation serves both iterator specializations. 
+    ///       A const iterator object is still dereferenceable -- element mutability 
+    ///       is determined by the specialization's reference and pointer types.
     /// \{
 
-    /// Indirection operator for non-const iterator
-    reference operator*()
-      requires(!Const)
-    {
-      return (*m_dynamicSet)[m_pos];
-    }
-
-    /// Indirection operator for const iterator
+    /// Indirection operator
     reference operator*() const
-      requires(Const)
     {
       return (*m_dynamicSet)[m_pos];
     }
 
-    /// Structure dereference operator for non-const iterator
-    pointer operator->()
-      requires(!Const)
-    {
-      return &((*m_dynamicSet)[m_pos]);
-    }
-
-    /// Structure dereference operator for const iterator
+    /// Structure dereference operator
     pointer operator->() const
-      requires(Const)
     {
       return &((*m_dynamicSet)[m_pos]);
     }
 
-    /// Subscript operator for non-const iterator
-    reference operator[](PositionType n)
-      requires(!Const)
-    {
-      return *(*this + n);
-    }
-
-    /// Subscript operator for const iterator
+    /// Subscript operator
     reference operator[](PositionType n) const
-      requires(Const)
     {
       return *(*this + n);
     }

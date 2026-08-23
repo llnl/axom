@@ -579,22 +579,25 @@ class BivariateMap<T, BSet, IndPol, StrPol, IfacePol>::FlatIterator
 {
 private:
   using IterBase = IteratorBase<FlatIterator<Const>, SetPosition>;
-  using iterator_category = std::random_access_iterator_tag;
-  using value_type = DataType;
-  using reference = DataType&;
-  using pointer = DataType*;
-  using difference_type = SetPosition;
-
   using iter = FlatIterator;
 
 public:
   using DataRefType = std::conditional_t<Const, const DataType&, DataType&>;
   using BivariateMapPtr = std::conditional_t<Const, const BivariateMap*, BivariateMap*>;
 
+  using iterator_concept = std::random_access_iterator_tag;
+  using iterator_category = std::random_access_iterator_tag;
+  using value_type = DataType;
+  using reference = DataRefType;
+  using pointer = std::add_pointer_t<std::remove_reference_t<reference>>;
+  using difference_type = SetPosition;
+
   using PositionType = SetPosition;
   static constexpr PositionType INVALID_POS = -2;
 
 public:
+  FlatIterator() = default;
+
   /// \brief Construct a new BivariateMap Iterator given an ElementFlatIndex
   AXOM_HOST_DEVICE FlatIterator(BivariateMapPtr sMap, PositionType pos)
     : IterBase(pos)
@@ -609,7 +612,10 @@ public:
     return m_map->flatValue(m_bsetIterator.flatIndex(), compIndex());
   }
 
-  AXOM_HOST_DEVICE pointer operator->() const { return &(*this); }
+  AXOM_HOST_DEVICE pointer operator->() const { return &this->operator*(); }
+
+  /// \brief Returns the map value after advancing by \a n flat positions.
+  AXOM_HOST_DEVICE reference operator[](PositionType n) const { return *(*this + n); }
 
   /// \brief return the current iterator's first index into the BivariateSet
   PositionType firstIndex() const { return m_bsetIterator.firstIndex(); }
@@ -636,7 +642,7 @@ protected:
   }
 
 private:
-  BivariateMapPtr m_map;
+  BivariateMapPtr m_map {nullptr};
   typename BivariateSetType::IteratorType m_bsetIterator;
 };
 
@@ -658,6 +664,10 @@ public:
 
   using MapIterator = typename MapType::template MapRangeIterator<Const>;
 
+  // The underlying MapRangeIterator returns its cached view
+  // ... by reference from dereference 
+  // ... and by value from subscript.
+  using iterator_concept = std::bidirectional_iterator_tag;
   using iterator_category = std::random_access_iterator_tag;
   using value_type = typename MapIterator::value_type;
   using reference = typename MapIterator::reference;
@@ -672,6 +682,8 @@ public:
   static constexpr PositionType INVALID_POS = -2;
 
 public:
+  RangeIterator() = default;
+
   /// \brief Construct a new BivariateMap Iterator given an ElementFlatIndex
   AXOM_HOST_DEVICE RangeIterator(BivariateMapPtr sMap, PositionType pos)
     : IterBase(pos)
@@ -734,7 +746,7 @@ protected:
   }
 
 private:
-  BivariateMapPtr m_map;
+  BivariateMapPtr m_map {nullptr};
   typename MapType::template MapRangeIterator<Const> m_mapIterator;
   typename BivariateSetType::IteratorType m_bsetIterator;
 };

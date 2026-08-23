@@ -309,6 +309,7 @@ public:
   class OrderedSetIterator : public IteratorBase<OrderedSetIterator<T, Const>, PositionType>
   {
   public:
+    using iterator_concept = std::random_access_iterator_tag;
     using iterator_category = std::random_access_iterator_tag;
     using value_type = T;
     using difference_type = PositionType;

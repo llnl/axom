@@ -167,6 +167,12 @@ TEST(slam_map, make_map_array_view_storage)
   EXPECT_TRUE(m.isValid());
   EXPECT_EQ(m.size(), s.size());
   EXPECT_EQ(m.stride(), 1);
+
+  auto iter = m.begin();
+  EXPECT_EQ(iter.operator->(), data);
+  const auto& constMap = m;
+  EXPECT_EQ(constMap.begin().operator->(), data);
+
   for(SetPosition i = 0; i < MAX_SET_SIZE; ++i)
   {
     EXPECT_DOUBLE_EQ(m(i), data[i]);

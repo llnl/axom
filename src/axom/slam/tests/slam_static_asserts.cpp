@@ -21,7 +21,7 @@
 #include "axom/slam/ModularInt.hpp"
 #include "axom/slam/Traits.hpp"
 #include "axom/slam/DynamicSet.hpp"
-#include "axom/slam/RangeSet.hpp"
+#include "axom/slam/Ranges.hpp"
 #include "axom/slam/ProductSet.hpp"
 #include "axom/slam/RelationSet.hpp"
 #include "axom/slam/StaticRelation.hpp"
@@ -38,9 +38,12 @@
 #include "axom/slam/policies/CardinalityPolicies.hpp"
 #include "axom/slam/policies/IndirectionPolicies.hpp"
 
+#include <algorithm>
+#include <array>
 #include <concepts>
 #include <iterator>
 #include <optional>
+#include <ranges>
 #include <utility>
 
 namespace
@@ -305,10 +308,9 @@ static_assert(
   "relation-set reconstruction selects the relation-backed overload");
 
 //------------------------------------------------------------------------------
-// DynamicSet iterator access contracts: the mutable iterator exposes mutable
-// dereference, pointer, and subscript operations only on a mutable iterator object.
-// The const iterator exposes the corresponding const operations on both mutable
-// and const iterator objects.
+// DynamicSet iterator access contracts: both iterator specializations are
+// const-dereferenceable as required by the standard iterator concepts.
+// Element mutability is carried by the specialization's reference and pointer types.
 //------------------------------------------------------------------------------
 using DynamicSetType = slam::DynamicSet<SetPos, SetElem>;
 using DynamicSetIterator = DynamicSetType::iterator;
@@ -328,23 +330,17 @@ concept ConstIteratorAccess = requires(const Iterator& iter, Position pos) {
   { iter[pos] } -> std::same_as<const SetElem&>;
 };
 
-template <typename Iterator>
-concept ConstObjectDereferenceable = requires(const Iterator& iter) { *iter; };
-
-template <typename Iterator>
-concept ConstObjectArrowAccessible = requires(const Iterator& iter) { iter.operator->(); };
-
 template <typename Iterator, typename Position>
-concept ConstObjectSubscriptable = requires(const Iterator& iter, Position pos) { iter[pos]; };
+concept ConstObjectMutableIteratorAccess = requires(const Iterator& iter, Position pos) {
+  { *iter } -> std::same_as<SetElem&>;
+  { iter.operator->() } -> std::same_as<SetElem*>;
+  { iter[pos] } -> std::same_as<SetElem&>;
+};
 
 static_assert(MutableIteratorAccess<DynamicSetIterator, SetPos>,
               "a mutable DynamicSet iterator provides mutable element access");
-static_assert(!ConstObjectDereferenceable<DynamicSetIterator>,
-              "a const-qualified mutable DynamicSet iterator cannot be dereferenced");
-static_assert(!ConstObjectArrowAccessible<DynamicSetIterator>,
-              "a const-qualified mutable DynamicSet iterator has no arrow operator");
-static_assert(!ConstObjectSubscriptable<DynamicSetIterator, SetPos>,
-              "a const-qualified mutable DynamicSet iterator has no subscript operator");
+static_assert(ConstObjectMutableIteratorAccess<DynamicSetIterator, SetPos>,
+              "a const-qualified mutable iterator remains mutable-element accessible");
 static_assert(!MutableIteratorAccess<DynamicSetConstIterator, SetPos>,
               "a DynamicSet const_iterator never provides mutable element access");
 static_assert(ConstIteratorAccess<DynamicSetConstIterator, SetPos>,
@@ -369,28 +365,106 @@ static_assert(!std::is_trivially_copyable_v<slam::RangeSet<>>,
               "the virtual-interface set is not device-capturable by design");
 
 //------------------------------------------------------------------------------
-// OrderedSetIterator models C++17 RandomAccessIterator
-// std::iterator_traits is complete for both the mutable and const iterator
-// and reports the random-access category. The single const-qualified
-// accessor path also makes the iterator const-dereferenceable.
+// C++20 iterator/range contracts. These assert the strongest truthful concept
+// for representative mutable, const, flat, row, and relation iterators.
 //------------------------------------------------------------------------------
-using RangeIter = slam::RangeSet<>::iterator;
-using RangeConstIter = slam::RangeSet<>::const_iterator;
+using RangeSetType = slam::RangeSet<>;
+using RangeIter = RangeSetType::iterator;
+using RangeConstIter = RangeSetType::const_iterator;
 
+static_assert(std::random_access_iterator<RangeIter>);
+static_assert(std::random_access_iterator<RangeConstIter>);
+static_assert(std::ranges::random_access_range<RangeSetType>);
+static_assert(std::ranges::random_access_range<const RangeSetType>);
+static_assert(std::ranges::common_range<RangeSetType>);
+static_assert(std::ranges::sized_range<RangeSetType>);
+static_assert(std::ranges::borrowed_range<RangeSetType>);
+static_assert(std::ranges::borrowed_range<const RangeSetType>);
 static_assert(
-  std::is_same_v<std::iterator_traits<RangeIter>::iterator_category, std::random_access_iterator_tag>,
-  "the mutable ordered-set iterator is random-access");
-static_assert(std::is_same_v<std::iterator_traits<RangeConstIter>::iterator_category,
-                             std::random_access_iterator_tag>,
-              "the const ordered-set iterator is random-access");
-static_assert(
-  std::is_same_v<std::iterator_traits<RangeIter>::difference_type, slam::RangeSet<>::PositionType>,
+  std::is_same_v<std::iterator_traits<RangeIter>::difference_type, RangeSetType::PositionType>,
   "iterator difference_type is the set's position type");
 static_assert(std::is_integral_v<std::iterator_traits<RangeIter>::difference_type> &&
                 std::is_signed_v<std::iterator_traits<RangeIter>::difference_type>,
               "a random-access difference_type is a signed integral");
 static_assert(!std::is_void_v<std::iterator_traits<RangeConstIter>::value_type>,
               "iterator_traits exposes a value_type");
+
+static_assert(std::random_access_iterator<DynamicSetIterator>);
+static_assert(std::random_access_iterator<DynamicSetConstIterator>);
+static_assert(std::ranges::random_access_range<DynamicSetType>);
+static_assert(std::ranges::random_access_range<const DynamicSetType>);
+static_assert(!std::ranges::borrowed_range<DynamicSetType>,
+              "DynamicSet iterators retain a pointer to their originating set");
+
+using MapIterator = ViewMap::iterator;
+using MapConstIterator = ViewMap::const_iterator;
+using MapRangeIterator = ViewMap::range_iterator;
+using MapConstRangeIterator = ViewMap::const_range_iterator;
+using MapFlatRange = decltype(std::declval<ViewMap&>().range());
+using MapConstFlatRange = decltype(std::declval<const ViewMap&>().range());
+using MapElementRange = decltype(std::declval<ViewMap&>().set_elements());
+using MapConstElementRange = decltype(std::declval<const ViewMap&>().set_elements());
+
+static_assert(std::random_access_iterator<MapIterator>);
+static_assert(std::random_access_iterator<MapConstIterator>);
+static_assert(std::bidirectional_iterator<MapRangeIterator>);
+static_assert(std::bidirectional_iterator<MapConstRangeIterator>);
+static_assert(!std::random_access_iterator<MapRangeIterator>);
+static_assert(!std::random_access_iterator<MapConstRangeIterator>);
+static_assert(std::ranges::random_access_range<ViewMap>);
+static_assert(std::ranges::random_access_range<const ViewMap>);
+static_assert(std::ranges::random_access_range<MapFlatRange>);
+static_assert(std::ranges::random_access_range<MapConstFlatRange>);
+static_assert(std::ranges::bidirectional_range<MapElementRange>);
+static_assert(std::ranges::bidirectional_range<MapConstElementRange>);
+static_assert(!std::ranges::borrowed_range<ViewMap>,
+              "Map iterators retain a pointer to their originating map");
+
+using BivariateMapIterator = ViewBivariateMap::iterator;
+using BivariateMapConstIterator = ViewBivariateMap::const_iterator;
+using BivariateMapRangeIterator = ViewBivariateMap::range_iterator;
+using BivariateMapConstRangeIterator = ViewBivariateMap::const_range_iterator;
+using ViewSubMap = ViewBivariateMap::SubMapType;
+using ViewConstSubMap = ViewBivariateMap::ConstSubMapType;
+
+static_assert(std::random_access_iterator<BivariateMapIterator>);
+static_assert(std::random_access_iterator<BivariateMapConstIterator>);
+static_assert(std::bidirectional_iterator<BivariateMapRangeIterator>);
+static_assert(std::bidirectional_iterator<BivariateMapConstRangeIterator>);
+static_assert(!std::random_access_iterator<BivariateMapRangeIterator>);
+static_assert(!std::random_access_iterator<BivariateMapConstRangeIterator>);
+static_assert(std::ranges::random_access_range<ViewBivariateMap>);
+static_assert(std::ranges::random_access_range<const ViewBivariateMap>);
+static_assert(!std::ranges::borrowed_range<ViewBivariateMap>,
+              "BivariateMap iterators retain a pointer to their originating map");
+
+static_assert(std::random_access_iterator<typename ViewSubMap::iterator>);
+static_assert(std::random_access_iterator<typename ViewConstSubMap::iterator>);
+static_assert(std::bidirectional_iterator<typename ViewSubMap::range_iterator>);
+static_assert(std::bidirectional_iterator<typename ViewConstSubMap::range_iterator>);
+static_assert(!std::random_access_iterator<typename ViewSubMap::range_iterator>);
+static_assert(!std::random_access_iterator<typename ViewConstSubMap::range_iterator>);
+static_assert(std::ranges::random_access_range<ViewSubMap>);
+static_assert(std::ranges::random_access_range<ViewConstSubMap>);
+
+using ProductSetIterator = ConcreteProductSet::IteratorType;
+using RelationRow = ViewVariableRelation::RelationSubset;
+
+static_assert(std::forward_iterator<ProductSetIterator>);
+static_assert(!std::bidirectional_iterator<ProductSetIterator>);
+static_assert(std::ranges::forward_range<ConcreteProductSet>);
+static_assert(!std::ranges::bidirectional_range<ConcreteProductSet>);
+static_assert(!std::ranges::borrowed_range<ConcreteProductSet>,
+              "BivariateSet iterators retain a pointer to their originating set");
+static_assert(std::random_access_iterator<typename RelationRow::iterator>);
+static_assert(std::random_access_iterator<typename RelationRow::const_iterator>);
+static_assert(std::ranges::random_access_range<RelationRow>);
+static_assert(std::ranges::random_access_range<const RelationRow>);
+
+using TemporaryRangeFindResult =
+  decltype(std::ranges::find(std::declval<RangeSetType>(), SetElem {}));
+static_assert(std::same_as<TemporaryRangeFindResult, RangeIter>,
+              "a borrowed temporary RangeSet returns its iterator, not ranges::dangling");
 
 // maybe_const_t adds const exactly when requested.
 static_assert(std::is_same_v<slam::maybe_const_t<true, int>, const int>,
@@ -551,4 +625,16 @@ TEST(slam_static_asserts, compile_time_value_holds)
 
   constexpr int idx = flatIndex(Off3().offset(), Stride4().stride(), 2);
   EXPECT_EQ(idx, 11);
+}
+
+TEST(slam_static_asserts, cxx20_range_algorithm_and_borrowed_lifetime)
+{
+  RangeSetType range(3, 8);
+  const std::array<SetElem, 5> expected {{3, 4, 5, 6, 7}};
+  EXPECT_TRUE(std::ranges::equal(range, expected));
+
+  // The temporary is destroyed when find() returns. Its iterator remains valid
+  // because RangeSet iterators own the complete concrete range state.
+  auto found = std::ranges::find(RangeSetType(3, 8), SetElem {6});
+  EXPECT_EQ(*found, 6);
 }

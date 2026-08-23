@@ -105,6 +105,9 @@ bool constructAndTestSubMap()
     SubMapType ssm(&m, ss);
     EXPECT_TRUE(ssm.isValid(true));
 
+    auto flatIter = ssm.begin();
+    EXPECT_EQ(flatIter.operator->(), &ssm[0]);
+
     SLIC_INFO("Checking the elements.");
     for(auto idx = 0; idx < ssm.size(); ++idx)
     {

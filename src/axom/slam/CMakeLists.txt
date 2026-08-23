@@ -80,6 +80,12 @@ set(slam_headers
     mesh_struct/detail/FacetPairingMap.hpp
     )
 
+# Host-only headers are installed with SLAM but excluded from the
+# generated axom/slam.hpp header used by device-facing translation units.
+set(slam_host_headers
+    Ranges.hpp
+    )
+
 set(slam_sources
     # SRM Set sources
     BitSet.cpp
@@ -97,7 +103,7 @@ set(slam_sources
 axom_add_library(
     NAME        slam
     SOURCES     ${slam_sources}
-    HEADERS     ${slam_headers}
+    HEADERS     ${slam_headers} ${slam_host_headers}
     DEPENDS_ON  slic
     FOLDER      axom/slam )
 
@@ -105,7 +111,7 @@ axom_write_unified_header(NAME    slam
                           HEADERS ${slam_headers} )
 
 axom_install_component(NAME    slam
-                       HEADERS ${slam_headers} )
+                       HEADERS ${slam_headers} ${slam_host_headers} )
 
 #------------------------------------------------------------------------------
 # Add tests, benchmarks and examples
