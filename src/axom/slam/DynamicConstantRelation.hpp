@@ -111,6 +111,24 @@ public:
   };
 
 public:
+  /// \name DynamicConstantRelation set accessors
+  /// @{
+
+  /// \brief Returns a pointer to the relation's from-set.
+  FromSetType* fromSet() { return m_fromSet; }
+
+  /// \overload
+  const FromSetType* fromSet() const { return m_fromSet; }
+
+  /// \brief Returns a pointer to the relation's to-set.
+  ToSetType* toSet() { return m_toSet; }
+
+  /// \overload
+  const ToSetType* toSet() const { return m_toSet; }
+
+  /// @}
+
+public:
   /// \name DynamicConstantRelation iterator interface
   /// @{
 

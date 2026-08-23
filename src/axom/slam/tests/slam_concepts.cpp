@@ -15,10 +15,13 @@
 #include "axom/slam/Aliases.hpp"
 #include "axom/slam/BivariateMap.hpp"
 #include "axom/slam/Concepts.hpp"
+#include "axom/slam/DynamicConstantRelation.hpp"
+#include "axom/slam/DynamicVariableRelation.hpp"
 #include "axom/slam/Map.hpp"
 #include "axom/slam/ProductSet.hpp"
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/Traits.hpp"
+#include "axom/slam/policies/CardinalityPolicies.hpp"
 #include "axom/slam/policies/IndirectionPolicies.hpp"
 #include "axom/slam/policies/OffsetPolicies.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
@@ -40,6 +43,14 @@ using ViewIndirection = policies::ArrayViewIndirection<Position, double>;
 using UnaryMap = slam::Map<double, ConcreteRange, ViewIndirection>;
 using BinaryMap = slam::BivariateMap<double, Product, ViewIndirection>;
 using VariableRelation = slam::VariableRelationView<ConcreteRange, ConcreteRange>;
+using DynamicVariableRelation =
+  slam::DynamicVariableRelation<ConcreteRange, ConcreteRange>;
+using DynamicConstantCardinality =
+  policies::ConstantCardinality<Position,
+                                policies::CompileTimeStride<Position, 3>>;
+using DynamicConstantRelation = slam::DynamicConstantRelation<Position,
+                                                              Element,
+                                                              DynamicConstantCardinality>;
 
 struct StrongPosition
 {
@@ -210,6 +221,10 @@ static_assert(!slam::SetLike<int>);
 
 // Relations
 static_assert(slam::RelationLike<VariableRelation>);
+static_assert(slam::RelationLike<DynamicVariableRelation>);
+static_assert(slam::RelationLike<DynamicConstantRelation>);
+static_assert(slam::RelationLike<const DynamicConstantRelation&>);
+static_assert(slam::is_relation_like_v<DynamicConstantRelation>);
 static_assert(!slam::RelationLike<TypedefOnlyRelation>);
 static_assert(!slam::RelationLike<WrongSetPositionRelation>);
 

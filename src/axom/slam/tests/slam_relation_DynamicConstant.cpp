@@ -80,6 +80,20 @@ TEST(slam_relation_dynamic_constant, construct_empty)
   EXPECT_FALSE(emptyRel.isValid());
 }
 
+TEST(slam_relation_dynamic_constant, set_accessors)
+{
+  slam::DynamicSet<PositionType, ElementType> fromSet(FROMSET_SIZE);
+  slam::DynamicSet<PositionType, ElementType> toSet(TOSET_SIZE);
+  RelationType rel(&fromSet, &toSet);
+
+  EXPECT_EQ(rel.fromSet(), &fromSet);
+  EXPECT_EQ(rel.toSet(), &toSet);
+
+  const RelationType& constRel = rel;
+  EXPECT_EQ(constRel.fromSet(), &fromSet);
+  EXPECT_EQ(constRel.toSet(), &toSet);
+}
+
 TEST(slam_relation_dynamic_constant, assignment)
 {
   SLIC_INFO("Testing assignment of values to relation");
