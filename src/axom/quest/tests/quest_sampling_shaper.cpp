@@ -2668,6 +2668,9 @@ TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
   ASSERT_NE(qspace, nullptr);
   const int initialNumPoints = qspace->GetElementIntRule(0).GetNPoints();
 
+  // Once the "positions" quadrature function has been generated, subsequent
+  // calls are intentionally no-ops, even if a different quadrature type is
+  // requested.
   quest::shaping::generateSamplingPositions(mfemState,
                                             axom::ArrayView<int> {sampleRes, 2},
                                             axom::numerics::QuadratureType::ClosedUniform);
