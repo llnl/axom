@@ -533,6 +533,12 @@ static_assert(slam::BivariateMapLike<HeterogeneousBinaryMap>);
 static_assert(slam::BivariateMapLike<MinimalBivariateMap>);
 static_assert(std::same_as<typename HeterogeneousBinaryMap::FirstPositionType, std::int32_t>);
 static_assert(std::same_as<typename HeterogeneousBinaryMap::SecondPositionType, std::int64_t>);
+static_assert(std::same_as<decltype(HeterogeneousBinaryMap::iterator {}.firstIndex()), std::int32_t>);
+static_assert(std::same_as<decltype(HeterogeneousBinaryMap::iterator {}.secondIndex()), std::int64_t>);
+static_assert(
+  std::same_as<decltype(HeterogeneousBinaryMap::range_iterator {}.firstIndex()), std::int32_t>);
+static_assert(
+  std::same_as<decltype(HeterogeneousBinaryMap::range_iterator {}.secondIndex()), std::int64_t>);
 static_assert(
   std::same_as<typename HeterogeneousBinaryMap::SetElement, std::pair<std::int32_t, std::int64_t>>);
 static_assert(slam::MapLike<UnaryMap>);

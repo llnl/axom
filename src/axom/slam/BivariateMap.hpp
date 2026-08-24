@@ -647,10 +647,10 @@ public:
   AXOM_HOST_DEVICE reference operator[](PositionType n) const { return *(*this + n); }
 
   /// \brief return the current iterator's first index into the BivariateSet
-  PositionType firstIndex() const { return m_bsetIterator.firstIndex(); }
+  FirstPositionType firstIndex() const { return m_bsetIterator.firstIndex(); }
 
   /// \brief return the current iterator's second index (DenseIndex) into the BivariateSet
-  PositionType secondIndex() const { return m_bsetIterator.secondIndex(); }
+  SecondPositionType secondIndex() const { return m_bsetIterator.secondIndex(); }
 
   /// \brief return the current iterator's component index
   PositionType compIndex() const { return this->m_pos % numComp(); }
@@ -749,10 +749,10 @@ public:
   }
 
   /// \brief return the current iterator's first index into the BivariateSet
-  PositionType firstIndex() const { return m_bsetIterator.firstIndex(); }
+  FirstPositionType firstIndex() const { return m_bsetIterator.firstIndex(); }
 
   /// \brief return the current iterator's second index (DenseIndex) into the BivariateSet
-  PositionType secondIndex() const { return m_bsetIterator.secondIndex(); }
+  SecondPositionType secondIndex() const { return m_bsetIterator.secondIndex(); }
 
   /// \brief Return the current iterator's flat bivariate index.
   AXOM_HOST_DEVICE PositionType flatIndex() const { return m_mapIterator.flatIndex(); }
