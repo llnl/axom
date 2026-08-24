@@ -152,8 +152,7 @@ void write_root(const primal::BoundingBox<FloatType, 3>& root,
 
 //------------------------------------------------------------------------------
 template <typename FloatType, int NDIMS>
-void write_recursive(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inner_nodes,
-                     ArrayView<const std::int32_t> inner_node_children,
+void write_recursive(ArrayView<const BVH2Node<FloatType, NDIMS>> inner_nodes,
                      std::int32_t current_node,
                      std::int32_t level,
                      std::int32_t& numPoints,
@@ -163,12 +162,12 @@ void write_recursive(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inne
                      std::ostringstream& levels)
 {
   // STEP 0: get the flat BVH bounding boxes
-  primal::BoundingBox<FloatType, NDIMS> l_box = inner_nodes[current_node + 0];
-  primal::BoundingBox<FloatType, NDIMS> r_box = inner_nodes[current_node + 1];
+  primal::BoundingBox<FloatType, NDIMS> l_box = inner_nodes[current_node].left;
+  primal::BoundingBox<FloatType, NDIMS> r_box = inner_nodes[current_node].right;
 
   // STEP 1: extract children information
-  std::int32_t l_child = inner_node_children[current_node + 0];
-  std::int32_t r_child = inner_node_children[current_node + 1];
+  std::int32_t l_child = inner_nodes[current_node].left_child;
+  std::int32_t r_child = inner_nodes[current_node].right_child;
 
   write_box<FloatType, NDIMS>(l_box, numPoints, numBins, nodes, cells);
   levels << level << std::endl;
@@ -179,7 +178,6 @@ void write_recursive(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inne
   if(l_child > -1)
   {
     write_recursive<FloatType, NDIMS>(inner_nodes,
-                                      inner_node_children,
                                       l_child,
                                       level + 1,
                                       numPoints,
@@ -193,7 +191,6 @@ void write_recursive(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inne
   if(r_child > -1)
   {
     write_recursive<FloatType, NDIMS>(inner_nodes,
-                                      inner_node_children,
                                       r_child,
                                       level + 1,
                                       numPoints,
