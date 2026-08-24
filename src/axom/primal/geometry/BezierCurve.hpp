@@ -441,8 +441,8 @@ public:
         for(int i = 1; i <= n; ++i)
         {
           const T alpha = static_cast<T>(i) / static_cast<T>(np1);
-          newPts[i] =
-            PointType(alpha * m_controlPoints[i - 1].array() + (T(1) - alpha) * m_controlPoints[i].array());
+          newPts[i] = PointType(alpha * m_controlPoints[i - 1].array() +
+                                (T(1) - alpha) * m_controlPoints[i].array());
         }
 
         m_controlPoints = newPts;
