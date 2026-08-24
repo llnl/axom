@@ -4,8 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_DELAUNAY_H_
-#define QUEST_DELAUNAY_H_
+#pragma once
+
+/**
+ * \file Delaunay.hpp
+ *
+ * \brief Declares the public `quest::Delaunay` incremental 2D/3D triangulation API.
+ */
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -14,33 +19,65 @@
 #include "axom/mint.hpp"
 #include "axom/spin.hpp"
 
+#include "detail/DelaunayElementFinder.hpp"
+#include "detail/DelaunayInsertionHelper.hpp"
+
 #include "axom/fmt.hpp"
 
-#include <list>
-#include <vector>
-#include <set>
-#include <cstdlib>
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
+#include <limits>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#if defined(_MSC_VER)
+  #define AXOM_QUEST_DELAUNAY_FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+  #define AXOM_QUEST_DELAUNAY_FORCE_INLINE inline __attribute__((always_inline))
+#else
+  #define AXOM_QUEST_DELAUNAY_FORCE_INLINE inline
+#endif
 
 namespace axom
 {
 namespace quest
 {
+
 /**
- * \brief A class for incremental generation of a 2D or 3D Delaunay triangulation
- *
- * Construct a Delaunay triangulation incrementally by inserting points one by one.
- * A bounding box of the points needs to be defined first via \a initializeBoundary(...)
- */
+   * \brief A class for incremental generation of a 2D or 3D Delaunay triangulation
+   *
+   * Construct a Delaunay triangulation incrementally by inserting points one by one.
+   * The public API lives in this header while the larger insertion, point-location,
+   * and validation routines are split into companion `detail/` headers.
+   *
+   * A bounding box of the points needs to be defined first via \a initializeBoundary(...).
+   * The algorithm uses the Bowyer-Watson incremental insertion approach with robust
+   * geometric predicates for handling degenerate cases including regular grids and
+   * co-spherical point configurations.
+   *
+   * \note This class is not thread-safe. Multiple concurrent insertions are not supported.
+   *
+   * \tparam DIM The spatial dimension (2 for triangulation, 3 for tetrahedralization)
+   */
 template <int DIM = 2>
 class Delaunay
 {
 public:
   AXOM_STATIC_ASSERT_MSG(DIM == 2 || DIM == 3, "The template parameter DIM can only be 2 or 3. ");
 
+  /// Tolerance for barycentric coordinate comparisons (distinguishes interior from boundary)
+  /// Value chosen to handle typical floating-point error accumulation in coordinate computation
+  static constexpr double BARY_EPS = 1e-12;
+
   using DataType = double;
 
   using PointType = primal::Point<DataType, DIM>;
+  using VectorType = primal::Vector<DataType, DIM>;
   using ElementType =
     typename std::conditional<DIM == 2, primal::Triangle<DataType, 2>, primal::Tetrahedron<DataType, 3>>::type;
   using BaryCoordType = primal::Point<DataType, DIM + 1>;
@@ -53,116 +90,315 @@ public:
   using IndexPairType = std::pair<IndexType, IndexType>;
 
   static constexpr int VERT_PER_ELEMENT = DIM + 1;
+  static constexpr int VERTS_PER_FACET = VERT_PER_ELEMENT - 1;
   static constexpr IndexType INVALID_INDEX = -1;
+
+  /// Controls the level of validation performed during point insertion
+  enum class InsertionValidationMode
+  {
+    /// No additional insertion-time validation beyond existing asserts (production mode).
+    None,
+    /// Checks only insertion-local seed/cavity/ball invariants.
+    Local,
+    /// Checks local cavity/ball invariants and that the resulting IA mesh is conforming.
+    /// Intended for debugging and unit tests.
+    ConformingMesh,
+    /// Additionally runs a global empty-circumsphere check after each insertion (very expensive).
+    /// Use only for deep debugging; unsuitable for large meshes.
+    Full
+  };
+
+  /// Result status from point location queries
+  enum class PointLocationStatus
+  {
+    Found,    ///< Query point was successfully located inside an element
+    Outside,  ///< Query point lies outside the triangulation boundary
+    Failed    ///< Location failed (internal error or degenerate case)
+  };
+
+  /// Combined result from point location including element index and status
+  struct PointLocationResult
+  {
+    IndexType element_idx {INVALID_INDEX};  ///< Index of containing element (or INVALID_INDEX)
+    PointLocationStatus status {PointLocationStatus::Failed};  ///< Status of the location query
+  };
+
+  /// Statistics about point insertion operations (cavity size during Bowyer-Watson insertion)
+  struct InsertionStats
+  {
+    std::uint64_t insertions {0};     ///< Total number of points inserted
+    std::uint64_t total_removed {0};  ///< Cumulative elements removed across all insertions
+    std::uint64_t max_removed {0};    ///< Maximum elements removed in a single insertion
+
+    /// Average number of elements removed per insertion (cavity size)
+    double mean_removed() const
+    {
+      return insertions > 0 ? static_cast<double>(total_removed) / static_cast<double>(insertions)
+                            : 0.0;
+    }
+  };
+
+  /// Statistics about point location query performance
+  struct PointLocationStats
+  {
+    std::uint64_t walk_calls {0};    ///< Number of walk attempts
+    std::uint64_t walk_found {0};    ///< Walks that successfully found containing element
+    std::uint64_t walk_outside {0};  ///< Walks that terminated outside boundary
+    std::uint64_t walk_failed {0};  ///< Walks that failed (should be rare with robust implementation)
+    std::uint64_t total_walk_steps {0};  ///< Cumulative simplex-to-simplex steps across all walks
+    std::uint64_t max_walk_steps {0};    ///< Maximum steps in a single walk
+
+    /// Average number of simplex traversals per walk
+    double mean_walk_steps() const
+    {
+      return walk_calls > 0 ? static_cast<double>(total_walk_steps) / static_cast<double>(walk_calls)
+                            : 0.0;
+    }
+  };
+
+  /// Precomputed circumsphere center and squared radius for in-sphere tests
+  struct CircumsphereEval
+  {
+    PointType center {};    ///< Circumsphere center point
+    double radius_sq {0.};  ///< Squared radius (avoids sqrt in distance comparisons)
+
+    CircumsphereEval() = default;
+
+    /// Construct from origin point and offset vector to center
+    CircumsphereEval(const PointType& origin, const VectorType& center_offset)
+      : center(origin + center_offset)
+      , radius_sq(center_offset.squared_norm())
+    { }
+  };
+
+  /// Orientation determinant evaluation with tolerance for robust geometric tests
+  struct OrientationEval
+  {
+    double det {0.};  ///< Raw determinant value
+    double tol {0.};  ///< Context-aware tolerance for this determinant
+    int orientation {
+      primal::ON_BOUNDARY};  ///< Classified orientation (ON_NEGATIVE_SIDE/ON_BOUNDARY/ON_POSITIVE_SIDE)
+  };
 
 private:
   using ModularFaceIndex =
     slam::ModularInt<slam::policies::CompileTimeSize<IndexType, VERT_PER_ELEMENT>>;
 
-private:
-  struct ElementFinder;
+  using FacetKey = typename IAMeshType::FacetKey;
+  using FacetRecord = typename IAMeshType::FacetRecord;
+
+  using ElementFinder =
+    detail::DelaunayElementFinder<DIM, PointType, IAMeshType, BoundingBox, IndexType>;
+  using InsertionHelper =
+    detail::DelaunayInsertionHelper<DIM, PointType, BaryCoordType, IndexType, IndexArray, IAMeshType>;
+
+  /**
+   * Number of adjacency layers to search around visited simplices when a directed walk fails.
+   * If a walk cycles or reaches its step budget, we probe this many layers of neighbors
+   * before giving up. Value of 2 balances coverage vs. cost for typical meshes.
+   */
+  static constexpr int WALK_NEIGHBORHOOD_LAYERS = 2;
+
+  /**
+   * \brief Lightweight LIFO pool of invalid simplex slots that can be reused
+   * during cavity retriangulation before growing the mesh element array.
+   */
+  struct RecycledElementPool
+  {
+    void reserve(IndexType count) { m_slots.reserve(count); }
+
+    void clear() { m_slots.clear(); }
+
+    void release(IndexType element_idx) { m_slots.push_back(element_idx); }
+
+    bool empty() const { return m_slots.empty(); }
+
+    IndexType size() const { return m_slots.size(); }
+
+    IndexType capacity() const { return m_slots.capacity(); }
+
+    IndexType acquire()
+    {
+      SLIC_ASSERT(!m_slots.empty());
+      const IndexType element_idx = m_slots.back();
+      m_slots.resize(m_slots.size() - 1);
+      return element_idx;
+    }
+
+  private:
+    axom::Array<IndexType> m_slots;
+  };
 
   IAMeshType m_mesh;
   BoundingBox m_bounding_box;
   bool m_has_boundary;
-  int m_num_removed_elements_since_last_compact;
+  InsertionValidationMode m_insertion_validation_mode;
+  RecycledElementPool m_deleted_elements;
 
   ElementFinder m_element_finder;
+  IndexType m_next_regrid_vertex_count {0};
+  mutable slam::BitSet m_walk_visited;
+  std::uint64_t m_total_removed_elements {0};
+  std::uint64_t m_max_removed_elements {0};
+  std::uint64_t m_num_insertions {0};
+  bool m_collect_location_stats {false};
+  mutable std::uint64_t m_num_walk_calls {0};
+  mutable std::uint64_t m_num_walk_found {0};
+  mutable std::uint64_t m_num_walk_outside {0};
+  mutable std::uint64_t m_num_walk_failed {0};
+  mutable std::uint64_t m_total_walk_steps {0};
+  mutable std::uint64_t m_max_walk_steps {0};
+
+  // Scratch buffers used by point location to avoid per-call heap allocations.
+  // Delaunay is not thread-safe, so these are safe to reuse between calls.
+  mutable std::vector<IndexType> m_candidate_elements_scratch;
+  mutable std::vector<IndexType> m_walked_elements_scratch;
+  mutable std::vector<IndexType> m_walk_local_elements_scratch;
+  mutable std::vector<IndexType> m_initial_vertices_scratch;
+  std::unique_ptr<InsertionHelper> m_insertion_helper;
 
 public:
   /**
    * \brief Default constructor
    * \note User must call initializeBoundary(BoundingBox) before adding points.
    */
-  Delaunay() : m_has_boundary(false), m_num_removed_elements_since_last_compact(0) { }
+  Delaunay() : m_has_boundary(false), m_insertion_validation_mode(InsertionValidationMode::None) { }
+
+  Delaunay(const Delaunay&) = delete;
+  Delaunay& operator=(const Delaunay&) = delete;
+
+  Delaunay(Delaunay&& other) : Delaunay() { *this = std::move(other); }
+  Delaunay& operator=(Delaunay&& other);
+
+  /**
+   * \brief Returns statistics about insertion operations
+   * \return InsertionStats containing cavity size metrics
+   */
+  InsertionStats getInsertionStats() const
+  {
+    return {m_num_insertions, m_total_removed_elements, m_max_removed_elements};
+  }
+
+  /**
+   * \brief Enable or disable collection of point location statistics
+   * \param enabled If true, track walk performance metrics (adds minimal overhead)
+   * \note Stats collection is disabled by default
+   */
+  void setCollectPointLocationStats(bool enabled) { m_collect_location_stats = enabled; }
+
+  /**
+   * \brief Returns statistics about point location query performance
+   * \return PointLocationStats containing walk performance metrics
+   * \note Returns zeros if setCollectPointLocationStats(true) was not called
+   */
+  PointLocationStats getPointLocationStats() const
+  {
+    return {m_num_walk_calls,
+            m_num_walk_found,
+            m_num_walk_outside,
+            m_num_walk_failed,
+            m_total_walk_steps,
+            m_max_walk_steps};
+  }
+
+  /**
+   * \brief Controls the amount of validation performed around each point insertion
+   *
+   * \note This is intended for debugging. `InsertionValidationMode::Full` is a diagnostic mode
+   * and should not be enabled in performance-sensitive runs.
+   */
+  void setInsertionValidationMode(InsertionValidationMode mode)
+  {
+    m_insertion_validation_mode = mode;
+  }
+
+  /// \brief Returns the current insertion validation mode
+  InsertionValidationMode getInsertionValidationMode() const { return m_insertion_validation_mode; }
 
   /**
    * \brief Defines the boundary of the triangulation.
-   * \details subsequent points added to the triangulation must not be outside of this boundary.
+   * \details Subsequent points added to the triangulation must lie within this boundary.
+   *          Creates an initial bounding box triangulation (2 triangles in 2D, 6 tetrahedra in 3D).
+   * \param bb The bounding box that will contain all inserted points
+   * \pre Must be called before any points are inserted
    */
-  void initializeBoundary(const BoundingBox& bb)
-  {
-    std::vector<DataType> points;
-    IndexArray elem;
-
-    generateInitialMesh(points, elem, bb);
-
-    m_mesh = IAMeshType(points, elem);
-    m_element_finder.recomputeGrid(m_mesh, bb);
-
-    m_bounding_box = bb;
-    m_has_boundary = true;
-  }
+  void initializeBoundary(const BoundingBox& bb);
 
   /**
-   * \brief Adds a new point and locally re-triangulates the mesh to ensure that it stays Delaunay
+   * \brief Reserve storage for an expected number of inserted points.
    *
-   * This function will traverse the mesh to find the element that contains
-   * this point, creates the Delaunay cavity, which takes out all the elements
-   * that contains the point in its sphere, and fill it with a Delaunay ball.
-   *
-   * \pre The current mesh must already be Delaunay.
+   * Uses a dimension-specific heuristic for the total simplex count so large
+   * bulk-builds can avoid repeated mesh-container reallocations.
+   * 
+   * \param num_points Expected number of points to be inserted
+   * \note Based on Euler characteristic: 2D expects ~2n triangles for n points,
+   *       3D expects ~6n tetrahedra. Heuristics account for bounding box and over-tessellation.
    */
-  void insertPoint(const PointType& new_pt)
+  void reserveForPointCount(IndexType num_points)
   {
-    //Make sure initializeBoundary(...) is called first
-    SLIC_ASSERT_MSG(m_has_boundary, "Error: Need a predefined boundary box prior to adding points.");
-
-    //Make sure the new point is inside the boundary box
-    SLIC_ASSERT_MSG(m_bounding_box.contains(new_pt),
-                    "Error: new point is outside of the boundary box.");
-
-    // Find the mesh element containing the insertion point
-    IndexType element_i = findContainingElement(new_pt);
-
-    if(element_i == INVALID_INDEX)
+    if(!m_has_boundary || num_points <= 0)
     {
-      SLIC_WARNING(
-        fmt::format("Could not insert point {} into Delaunay triangulation: "
-                    "Element containing that point was not found",
-                    new_pt));
       return;
     }
 
-    // Run the insertion operation by finding invalidated elements around the point (the "cavity")
-    // and replacing them with new valid elements (the Delaunay "ball")
-    InsertionHelper insertionHelper(m_mesh);
-    insertionHelper.findCavityElements(new_pt, element_i);
-    insertionHelper.createCavity();
-    IndexType new_pt_i = m_mesh.addVertex(new_pt);
-    insertionHelper.delaunayBall(new_pt_i);
+    const IndexType expected_vertices = m_mesh.vertices().size() + num_points;
 
-    m_element_finder.updateBin(new_pt, new_pt_i);
-    m_num_removed_elements_since_last_compact += insertionHelper.numRemovedElements();
+    // Heuristic element count: 2D triangle count ≈ 2n (Euler), 3D tet count ≈ 6n (Euler).
+    // Use conservative estimates (3.0 and 9.0) to account for boundary and over-tessellation.
+    constexpr double ELEMENTS_PER_POINT = DIM == 2 ? 3.0 : 9.0;
+    const IndexType expected_elements = m_mesh.elements().size() +
+      static_cast<IndexType>(std::ceil(ELEMENTS_PER_POINT * static_cast<double>(num_points)));
 
-    // Compact the mesh if there are too many removed elements
-    if(shouldCompactMesh())
+    m_mesh.reserveVertices(expected_vertices);
+    m_mesh.reserveElements(expected_elements);
+    if(m_walk_visited.size() < static_cast<int>(expected_elements))
     {
-      this->compactMesh();
+      m_walk_visited = slam::BitSet(static_cast<int>(expected_elements));
+    }
+    if(static_cast<IndexType>(m_deleted_elements.capacity()) < expected_elements / 8)
+    {
+      m_deleted_elements.reserve(expected_elements / 8);
     }
   }
 
-  template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 2, ElementType>::type getElement(int element_index) const
+  /**
+   * \brief Adds a new point and locally re-triangulates the mesh to ensure it remains Delaunay
+   *
+   * Uses the Bowyer-Watson incremental insertion algorithm:
+   * 1. Locate the element containing the new point via directed walk
+   * 2. Expand a cavity of all elements whose circumspheres contain the new point
+   * 3. Retriangulate the cavity by connecting the new point to the cavity boundary
+   *
+   * \param new_pt The point to insert
+   * \pre initializeBoundary() must have been called
+   * \pre new_pt must lie within the bounding box
+   * \pre The current mesh must be a valid Delaunay triangulation
+   * \post The mesh remains a valid Delaunay triangulation
+   * \note If insertion fails (rare), a warning is logged and the mesh is unchanged
+   */
+  void insertPoint(const PointType& new_pt);
+
+  /**
+   * \brief Retrieves the geometric element (triangle or tetrahedron) at the given index
+   * \param element_index The index of the element to retrieve
+   * \return Triangle (2D) or Tetrahedron (3D) with vertex coordinates
+   */
+  ElementType getElement(int element_index) const
   {
     const auto verts = m_mesh.boundaryVertices(element_index);
-    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-
-    return ElementType(p0, p1, p2);
-  }
-
-  template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 3, ElementType>::type getElement(int element_index) const
-  {
-    const auto verts = m_mesh.boundaryVertices(element_index);
-    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-
-    return ElementType(p0, p1, p2, p3);
+    if constexpr(DIM == 2)
+    {
+      return ElementType(m_mesh.getVertexPosition(verts[0]),
+                         m_mesh.getVertexPosition(verts[1]),
+                         m_mesh.getVertexPosition(verts[2]));
+    }
+    else
+    {
+      return ElementType(m_mesh.getVertexPosition(verts[0]),
+                         m_mesh.getVertexPosition(verts[1]),
+                         m_mesh.getVertexPosition(verts[2]),
+                         m_mesh.getVertexPosition(verts[3]));
+    }
   }
 
   /**
@@ -171,710 +407,329 @@ public:
   void printMesh() { m_mesh.print_all(); }
 
   /**
-   * \brief Write the m_mesh to a legacy VTK file
+   * \brief Write the mesh to a legacy VTK file for visualization
    *
-   * \param filename The name of the file to write to,
+   * \param filename The name of the file to write to
    * \note The suffix ".vtk" will be appended to the provided filename
-   * \details This function uses mint to write the m_mesh to VTK format.
+   * \note This method compacts the mesh before export to eliminate deleted elements
    */
-  void writeToVTKFile(const std::string& filename)
-  {
-    const auto CELL_TYPE = DIM == 2 ? mint::TRIANGLE : mint::TET;
-    mint::UnstructuredMesh<mint::SINGLE_SHAPE> mint_mesh(DIM, CELL_TYPE);
-
-    this->compactMesh();
-
-    for(auto v : m_mesh.vertices().positions())
-    {
-      mint_mesh.appendNodes(m_mesh.getVertexPosition(v).data(), 1);
-    }
-
-    for(auto e : m_mesh.elements().positions())
-    {
-      mint_mesh.appendCell(&(m_mesh.boundaryVertices(e)[0]), CELL_TYPE);
-    }
-
-    mint::write_vtk(&mint_mesh, filename);
-  }
+  void writeToVTKFile(const std::string& filename);
 
   /**
-   * \brief Removes the vertices that defines the boundary of the mesh,
-   * and the elements attached to them.
+   * \brief Removes the bounding box vertices and all attached elements
    *
-   * \details After this function is called, no more points can be added to the m_mesh.
+   * The initial bounding box (created by initializeBoundary) consists of 2^DIM vertices
+   * that define a rectangular boundary. This method removes those vertices and all
+   * simplices incident to them, leaving only the Delaunay triangulation of the inserted points.
+   *
+   * \post No more points can be inserted after calling this method
+   * \post The mesh is compacted (deleted element slots are removed)
    */
-  void removeBoundary()
-  {
-    if(m_has_boundary)
-    {
-      //remove the boundary box, which will be the first 4 points for triangles, first 8 for tetrahedron
-      const int num_boundary_pts = 1 << DIM;
+  void removeBoundary();
 
-      //Collect a list of elements to remove first, because
-      //the list may be incomplete if generated during the removal.
-      IndexArray elements_to_remove;
-      for(int v = 0; v < num_boundary_pts; ++v)
-      {
-        IndexArray elems = m_mesh.vertexStar(v);
-        elements_to_remove.insert(elements_to_remove.end(), elems.begin(), elems.end());
-      }
-      for(auto e : elements_to_remove)
-      {
-        if(m_mesh.isValidElement(e))
-        {
-          m_mesh.removeElement(e);
-        }
-      }
-
-      for(int v = 0; v < num_boundary_pts; ++v)
-      {
-        m_mesh.removeVertex(v);
-      }
-
-      this->compactMesh();
-      m_has_boundary = false;
-    }
-  }
-
-  /// \brief Get the IA mesh data pointer
+  /// \brief Get the underlying IA mesh data structure
+  /// \return Pointer to the IAMesh (for advanced users or ScatteredInterpolation)
   const IAMeshType* getMeshData() const { return &m_mesh; }
 
   /**
-   * \brief Checks that the underlying mesh is a valid Delaunay triangulation of the point set
+   * \brief Checks that the mesh satisfies the Delaunay empty-circumsphere property
    *
-   * A Delaunay triangulation is valid when none of the vertices are inside the circumspheres 
-   * of any of the elements of the mesh
+   * A Delaunay triangulation is valid when no vertex lies strictly inside the
+   * circumsphere of any simplex. This method checks all vertex-simplex pairs.
+   *
+   * \param verboseOutput If true, prints detailed diagnostic information
+   * \return true if the Delaunay property holds, false otherwise
+   * \note This is an O(n·m) check where n = vertices, m = elements. Use for validation.
    */
-  bool isValid(bool verboseOutput = false) const
-  {
-    // Implementation note: We use an UniformGrid spatial index to find the candidate elements
-    // whose circumsphere might contain the vertices of the mesh
-    // To build this faster, we bootstrap the UniformGrid with an ImplicitGrid
-
-    using ImplicitGridType = spin::ImplicitGrid<DIM, axom::SEQ_EXEC, IndexType>;
-    using UniformGridType = spin::UniformGrid<IndexType, DIM>;
-    using NumericArrayType = NumericArray<DataType, DIM>;
-    using axom::numerics::dot_product;
-
-    bool valid = true;
-
-    std::vector<std::pair<IndexType, IndexType>> invalidEntries;
-
-    const IndexType totalVertices = m_mesh.vertices().size();
-    const IndexType totalElements = m_mesh.elements().size();
-    const IndexType res = axom::utilities::ceil(0.33 * std::pow(totalVertices, 1. / DIM));
-    UniformGridType grid(m_bounding_box, NumericArray<int, DIM>(res).data());
-
-    // An array to cache the circumspheres associated with each element
-    axom::Array<typename ElementType::SphereType> circumspheres(totalElements);
-
-    // bootstrap the uniform grid using an implicit grid
-    {
-      using GridCell = typename ImplicitGridType::GridCell;
-
-      // Add (bounding boxes of) element circumspheres to temporary implicit grid
-      const auto resCell = GridCell(res);
-      ImplicitGridType implicitGrid(m_bounding_box, &resCell, totalElements);
-      for(auto element_idx : m_mesh.elements().positions())
-      {
-        if(m_mesh.isValidElement(element_idx))
-        {
-          circumspheres[element_idx] = this->getElement(element_idx).circumsphere();
-          const auto& sphere = circumspheres[element_idx];
-          const auto& center = sphere.getCenter().array();
-          const auto offset = NumericArrayType(sphere.getRadius());
-
-          BoundingBox bb;
-          bb.addPoint(PointType(center - offset));
-          bb.addPoint(PointType(center + offset));
-
-          implicitGrid.insert(bb, element_idx);  // insert valid entries into grid
-        }
-      }
-
-      // copy candidates from implicit grid directly into uniform grid
-      const int kUpper = (DIM == 2) ? 0 : res;
-      const IndexType stride[3] = {1, res, (DIM == 2) ? 0 : res * res};
-      for(IndexType k = 0; k < kUpper; ++k)
-      {
-        for(IndexType j = 0; j < res; ++j)
-        {
-          for(IndexType i = 0; i < res; ++i)
-          {
-            const IndexType vals[3] = {i, j, k};
-            const GridCell cell(vals);
-            const auto idx = dot_product(cell.data(), stride, DIM);
-            const auto binValues = implicitGrid.getCandidatesAsArray(cell);
-            grid.getBinContents(idx).insert(0, binValues.size(), binValues.data());
-          }
-        }
-      }
-    }
-
-    // for each vertex -- check in_sphere condition for candidate element
-    for(auto vertex_idx : m_mesh.vertices().positions())
-    {
-      // skip if vertex at this index is not valid
-      if(!m_mesh.isValidVertex(vertex_idx))
-      {
-        continue;
-      }
-
-      const auto& vertex = m_mesh.getVertexPosition(vertex_idx);
-      for(const auto element_idx : grid.getBinContents(grid.getBinIndex(vertex)))
-      {
-        // no need to check for invalid elements -- only valid elements were added to grid
-
-        // skip if this is a vertex of the element
-        if(slam::is_subset(vertex_idx, m_mesh.boundaryVertices(element_idx)))
-        {
-          continue;
-        }
-
-        // check insphere condition
-        if(circumspheres[element_idx].getOrientation(vertex) == primal::ON_NEGATIVE_SIDE)
-        {
-          valid = false;
-
-          if(verboseOutput)
-          {
-            invalidEntries.push_back(std::make_pair(vertex_idx, element_idx));
-          }
-        }
-      }
-    }
-
-    if(verboseOutput)
-    {
-      if(valid)
-      {
-        SLIC_INFO("Delaunay complex was valid");
-      }
-      else
-      {
-        fmt::memory_buffer out;
-        for(const auto& pr : invalidEntries)
-        {
-          const auto vertex_idx = pr.first;
-          const auto element_idx = pr.second;
-          const auto& pos = m_mesh.getVertexPosition(vertex_idx);
-          const auto element = this->getElement(element_idx);
-          const auto circumsphere = element.circumsphere();
-          fmt::format_to(std::back_inserter(out),
-                         "\n\tVertex {} @ {}"
-                         "\n\tElement {}: {} w/ circumsphere: {}"
-                         "\n\tDistance to circumcenter: {}",
-                         vertex_idx,
-                         pos,
-                         element_idx,
-                         element,
-                         circumsphere,
-                         circumsphere.computeSignedDistance(pos));
-        }
-
-        SLIC_INFO(
-          fmt::format("Delaunay complex was NOT valid. There were {} "
-                      "vertices in the circumsphere of an element. {}",
-                      invalidEntries.size(),
-                      fmt::to_string(out)));
-      }
-    }
-
-    return valid;
-  }
-
-  /// \brief Find the index of the element that contains the query point, or the element closest to the point.
-  IndexType findContainingElement(const PointType& query_pt, bool warnOnInvalid = true) const
-  {
-    if(m_mesh.isEmpty())
-    {
-      SLIC_ERROR_IF(warnOnInvalid,
-                    "Attempting to insert point into empty Delaunay triangulation."
-                    "Delaunay::initializeBoundary() needs to be called first");
-      return INVALID_INDEX;
-    }
-    if(!m_bounding_box.contains(query_pt))
-    {
-      SLIC_WARNING_IF(warnOnInvalid,
-                      "Attempting to locate element at location outside valid domain");
-      return INVALID_INDEX;
-    }
-
-    // Find a starting element using ElementFinder helper class
-    IndexType element_i = INVALID_INDEX;
-    {
-      const auto vertex_i = m_element_finder.getNearbyVertex(query_pt);
-      if(m_mesh.isValidVertex(vertex_i))
-      {
-        element_i = m_mesh.coboundaryElement(vertex_i);
-      }
-
-      // Fallback -- start from last valid element that was inserted
-      if(!m_mesh.isValidElement(element_i))
-      {
-        element_i = m_mesh.getValidElementIndex();
-      }
-
-      SLIC_ASSERT(m_mesh.isValidElement(element_i));
-    }
-
-    while(1)
-    {
-      const BaryCoordType bary_coord = getBaryCoords(element_i, query_pt);
-
-      //Find the index of the most negative barycentric coord
-      //Use modular index since it could wrap around to 0
-      ModularFaceIndex modular_idx(bary_coord.array().argMin());
-
-      if(bary_coord[modular_idx] >= 0)  // inside if smallest bary coord positive
-      {
-        return element_i;
-      }
-
-      // else, move to that neighbor
-      element_i = m_mesh.adjacentElements(element_i)[modular_idx + 1];
-
-      // Either there is a hole in the m_mesh, or the point is outside of the m_mesh.
-      // Logically, this should never happen.
-      if(!m_mesh.isValidElement(element_i))
-      {
-        SLIC_WARNING_IF(warnOnInvalid,
-                        fmt::format("Entered invalid element in "
-                                    "Delaunay::findContainingElement(). Underlying mesh {} valid",
-                                    m_mesh.isValid() ? "is" : "is not"));
-        return INVALID_INDEX;
-      }
-    }
-  }
+  bool isValid(bool verboseOutput = false) const;
 
   /**
-   * \brief helper function to retrieve the barycentric coordinate of the query point in the element
+   * \brief Checks mesh conformity, orientation, and boundary consistency
+   *
+   * Verifies three properties:
+   * 1. Topological conformity (manifold facets, reciprocal adjacencies) via IAMesh::isConforming()
+   * 2. All simplices are positively oriented (positive signed volume/area)
+   * 3. If boundary exists, all boundary facets lie on the bounding box faces
+   *
+   * \param verboseOutput If true, prints detailed diagnostic information
+   * \return true if all checks pass, false otherwise
+   */
+  bool isConforming(bool verboseOutput = false) const;
+
+  /**
+   * \brief Returns true if an element is active and can participate in point-location queries
+   *
+   * \param element_idx The element index to check
+   * \return true if element is valid (not a deleted/recycled slot)
+   * \note During insertion, all active elements have valid vertices. After removeBoundary(),
+   *       the mesh is compacted so all element indices are valid.
+   */
+  bool isSearchableElement(IndexType element_idx) const;
+
+  /**
+   * \brief Locate the element containing a query point using directed walk
+   *
+   * \param query_pt The point to locate
+   * \param warnOnInvalid If true, log a warning if location fails
+   * \return Element index containing the point, or INVALID_INDEX if not found
+   * \note Uses grid-seeded directed walk for O(n^(1/DIM)) expected performance
+   */
+  IndexType findContainingElement(const PointType& query_pt, bool warnOnInvalid = true) const;
+
+  /**
+   * \brief Compute barycentric coordinates of a query point within an element
+   *
+   * \param element_idx The element containing (or near) the query point
+   * \param q_pt The query point
+   * \return Barycentric coordinates (DIM+1 values that sum to 1)
+   * \note If the point is inside, all coordinates are non-negative (within tolerance)
    */
   BaryCoordType getBaryCoords(IndexType element_idx, const PointType& q_pt) const;
 
-private:
-  /// \brief Predicate for when to compact internal mesh data structures after removing elements
-  bool shouldCompactMesh() const
+  /**
+   * \brief Returns initial seed elements for cavity expansion based on point location
+   *
+   * If the query point lies on a face/edge of the containing element (indicated by a
+   * barycentric coordinate near zero), the neighbor across that face is also included
+   * as a seed. This ensures the cavity expansion starts from all elements that might
+   * contain the point in their circumsphere.
+   *
+   * \param element_idx The element containing (or nearest to) the query point
+   * \param bary_coord Barycentric coordinates of the query point in that element
+   * \return Array of seed element indices (at least 1, possibly more if point is on boundary feature)
+   */
+  IndexArray getSeedElements(IndexType element_idx, const BaryCoordType& bary_coord) const
   {
-    // Note: This auto-compacting feature is hard coded.
-    // It may be good to let user have control of this option in the future.
-    return m_num_removed_elements_since_last_compact > 512 &&
-      (m_num_removed_elements_since_last_compact > .2 * m_mesh.elements().size());
-  }
+    IndexArray seed_elements;
+    seed_elements.push_back(element_idx);
+    constexpr IndexType invalid_element = IAMeshType::INVALID_ELEMENT_INDEX;
 
-  /// \brief Compacts the underlying mesh
-  void compactMesh()
-  {
-    m_mesh.compact();
-    m_num_removed_elements_since_last_compact = 0;
-    m_element_finder.recomputeGrid(m_mesh, m_bounding_box);
+    // If query point lies on a facet (bary coord approximately 0), include the neighbor across that facet
+    for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+    {
+      if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS)
+      {
+        const IndexType nbr = m_mesh.adjacentElements(element_idx)[ModularFaceIndex(i) + 1];
+        if(nbr != invalid_element)
+        {
+          SLIC_ASSERT(m_mesh.isValidElement(nbr));
+          seed_elements.push_back(nbr);
+        }
+      }
+    }
+
+    return seed_elements;
   }
 
   /**
+   * \brief Classify a value as positive, negative, or zero within tolerance
+   * 
+   * \param value The value to classify
+   * \param tolerance The tolerance for considering the value as zero
+   * \return +1 if value > tolerance, -1 if value < -tolerance, 0 otherwise
+   */
+  static int signWithTolerance(double value, double tolerance)
+  {
+    return value > tolerance ? 1 : (value < -tolerance ? -1 : 0);
+  }
+
+  /**
+   * \brief Builds the circumsphere (center and squared radius) of a mesh element.
+   * 
+   * \param mesh The triangulation containing the element
+   * \param element_idx The element whose circumsphere is computed
+   * \return The precomputed circumsphere for repeated in-sphere distance tests
+   */
+  static CircumsphereEval evaluateCircumsphereOnMesh(const IAMeshType& mesh, IndexType element_idx);
+
+  /**
+   * \brief Scale-aware tolerance for comparing a squared distance against a
+   *  circumsphere's squared radius, used to classify on-sphere cases robustly.
+   * 
+   * \param sphere The circumsphere being tested against
+   * \param x The query point
+   * \param distance_sq The squared distance from \a x to the sphere center
+   * \return The tolerance (in squared-distance units) for the on-sphere band
+   */
+  static double sphereSquaredDistanceTolerance(const CircumsphereEval& sphere,
+                                               const PointType& x,
+                                               double distance_sq);
+
+  /**
+   * \brief Classifies the query point against an element's circumsphere via the
+   *  in-sphere determinant: ON_POSITIVE_SIDE (outside), ON_NEGATIVE_SIDE (inside),
+   *  or ON_BOUNDARY (on the sphere, within tolerance).
+   * 
+   * \param mesh The triangulation containing the element
+   * \param q The query point
+   * \param element_idx The element whose circumsphere is tested
+   */
+  static int inSphereOrientationOnMesh(const IAMeshType& mesh,
+                                       const PointType& q,
+                                       IndexType element_idx);
+
+  /**
+   * \brief Returns the raw (unclassified) in-sphere determinant of \a q against
+   *  the circumsphere of \a element_idx. The sign indicates inside/outside.
+   *  The caller applies its own tolerance (see inSphereOrientationOnMesh()).
+   * 
+   * \param mesh The triangulation containing the element
+   * \param q The query point
+   * \param element_idx The element whose circumsphere is tested
+   */
+  static double inSphereDeterminantOnMesh(const IAMeshType& mesh,
+                                          const PointType& q,
+                                          IndexType element_idx);
+
+  /**
+   * \brief Returns a human-readable name for a primal::OrientationResult value
+   *  (for diagnostics and warning messages).
+   * 
+   * \param result An orientation result code (ON_POSITIVE_SIDE/ON_BOUNDARY/ON_NEGATIVE_SIDE)
+   */
+  static const char* orientationResultName(int result);
+
+  /**
+   *  \brief Convenience predicate: true if \a q is inside element \a element_idx's
+   *  circumsphere (and, when \a includeBoundary is set, on it within tolerance).
+   * 
+   * \param mesh The triangulation containing the element
+   * \param q The query point
+   * \param element_idx The element whose circumsphere is tested
+   * \param includeBoundary If true, on-sphere points count as contained
+   */
+  static bool isPointInSphereOnMesh(const IAMeshType& mesh,
+                                    const PointType& q,
+                                    IndexType element_idx,
+                                    bool includeBoundary);
+
+  /**
+   * \brief Classifies an orientation determinant against a tolerance into a
+   *  primal::OrientationResult (ON_POSITIVE_SIDE/ON_BOUNDARY/ON_NEGATIVE_SIDE).
+   * 
+   * \param det The raw orientation determinant
+   * \param tol The scale-aware tolerance for the ON_BOUNDARY band
+   */
+  static int classifyOrientationDeterminant(double det, double tol);
+
+  /**
+   * \brief Computes the signed orientation determinant of an element together
+   *  with its scale-aware tolerance and classification.
+   * 
+   * \param element_idx The element to evaluate
+   * \return An OrientationEval bundling the determinant, tolerance, and class
+   */
+  OrientationEval evaluateElementOrientationDeterminant(IndexType element_idx) const;
+
+private:
+  template <typename FacetSubsetType>
+  static FacetKey makeSortedFaceKey(const FacetSubsetType& facet);
+
+  static std::string facetKeyString(const FacetKey& facet_key);
+
+  double getBoundaryCoordinateTolerance() const;
+
+  bool isFacetOnBoundingBox(const FacetKey& facet_key) const;
+
+  double getElementSignedMeasure(IndexType element_idx) const;
+
+  double getElementMeasureTolerance() const;
+
+  /**
+   * \brief Validates the point-location result and cavity seed selection before building the cavity
+   *
+   * This is a light-weight check meant to catch point-location failures early:
+   * - the reported containing element must be searchable and contain the point
+   * - the seed set must include that element (and may include face-adjacent neighbors)
+   */
+  void validateInsertionSeed(IndexType element_idx,
+                             const PointType& query_pt,
+                             const BaryCoordType& bary_coord,
+                             const IndexArray& seed_elements) const;
+
+  /**
+   * \brief Validates that the cavity boundary facets match the faces between cavity and non-cavity elements
+   *
+   * The `InsertionHelper` collects a boundary facet for every cavity face that borders either:
+   * - an element outside the cavity, or
+   * - the temporary bounding-box boundary (invalid neighbor).
+   */
+  void validateCavityBoundary(const InsertionHelper& insertion_helper) const;
+
+  /**
+   * \brief Validates that the inserted ball covers the cavity boundary and is internally stitched
+   *
+   * Each inserted simplex must contain `new_pt_i`. Boundary facets must appear
+   * exactly once among the inserted elements and point to the recorded outside
+   * neighbor. Internal facets must be paired with reciprocal adjacency.
+   */
+  void validateInsertedBall(IndexType new_pt_i, const InsertionHelper& insertion_helper) const;
+
+  /**
+   * \brief Validates that the global mesh invariants still hold after insertion
+   *
+   * `ConformingMesh` checks IA validity and topological conformity, plus
+   * Delaunay's geometry-specific checks (positive simplex orientation and
+   * bounding-box boundary consistency while the fake boundary exists).
+   * `Full` additionally runs the global Delaunay empty-circumsphere validation.
+   */
+  void validateInsertionResult() const;
+
+  /// \brief Predicate for when to compact internal mesh data structures after removing elements
+  bool shouldCompactMesh() const;
+
+  /// \brief Compacts the underlying mesh
+  void compactMesh();
+
+  BaryCoordType getRawBarycentricDeterminants(IndexType element_idx, const PointType& query_pt) const;
+
+  double rawBarycentricDeterminantTolerance(IndexType element_idx, const PointType& query_pt) const;
+
+  bool isPointInsideForLocation(IndexType element_idx,
+                                const PointType& query_pt,
+                                const BaryCoordType& bary_coord,
+                                ModularFaceIndex* exit_face = nullptr) const;
+
+  PointLocationResult walkToContainingElement(
+    const PointType& query_pt,
+    IndexType start_element,
+    std::vector<IndexType>* visited_elements_out = nullptr) const;
+
+  void appendCandidateElement(std::vector<IndexType>& candidate_elements, IndexType vertex_i) const;
+
+  void appendCandidateElementsFromVertices(std::vector<IndexType>& candidate_elements,
+                                           const std::vector<IndexType>& candidate_vertices) const;
+
+  void getInitialCandidateElements(const PointType& query_pt,
+                                   std::vector<IndexType>& candidate_elements) const;
+
+  PointLocationResult walkCandidateElements(const PointType& query_pt,
+                                            const std::vector<IndexType>& candidate_elements,
+                                            std::size_t start_idx = 0,
+                                            std::vector<IndexType>* walked_elements = nullptr) const;
+
+  /// \brief Scan a small adjacency region around a failed directed walk before falling back to a full scan
+  IndexType findContainingElementFromNeighbors(const PointType& query_pt,
+                                               const std::vector<IndexType>& seed_elements) const;
+
+  /**
    * \brief Helper function to fill the array with the initial mesh.
+   * 
    * \details create a rectangle for 2D, cube for 3D, and fill the array with the mesh data.
    */
   void generateInitialMesh(std::vector<DataType>& points,
                            std::vector<IndexType>& elem,
                            const BoundingBox& bb);
-
-private:
-  /// Helper struct to find the first element near a point to be inserted
-  struct ElementFinder
-  {
-    using NumericArrayType = NumericArray<IndexType, DIM>;
-    using LatticeType = spin::RectangularLattice<DIM, double, IndexType>;
-
-    explicit ElementFinder() = default;
-
-    /**
-     * \brief Resizes the grid and reinserts vertices
-     *
-     * Resizes using a heuristic based on the number of vertices in the mesh.
-     */
-    void recomputeGrid(const IAMeshType& mesh, const BoundingBox& bb)
-    {
-      const auto& verts = mesh.vertices();
-
-      // Use heuristic for resolution in each dimension to minimize storage
-      // Use 2*square root of nth root (n==DIM)
-      // e.g. for 1,000,000 verts in 2D, sqrt root is 1000, leading to ~ 60^2 grid w/ ~250 verts per bin
-      // e.g. for 1,000,000 verts in 3D, cube root is 100, leading to a 20^3 grid w/ ~125 verts per bin
-      const double res_root = std::pow(verts.size(), 1.0 / DIM);
-      const IndexType res = axom::utilities::max(2, 2 * static_cast<int>(std::sqrt(res_root)));
-
-      auto expandedBB = BoundingBox(bb).scale(1.05);
-
-      // regenerate lattice
-      m_lattice = spin::rectangular_lattice_from_bounding_box(expandedBB, NumericArrayType(res));
-
-      // resize m_bins
-      resizeArray<DIM>(res);
-      m_bins.fill(INVALID_INDEX);
-
-      // insert vertices into lattice
-      for(auto idx : verts.positions())
-      {
-        if(!mesh.isValidVertex(idx))
-        {
-          continue;
-        }
-
-        const auto& pos = mesh.getVertexPosition(idx);
-        const auto cell = m_lattice.gridCell(pos);
-        flatIndex(cell) = idx;
-      }
-    }
-
-    /**
-     * \brief Returns the index of the vertex in the bin containing point \a pt
-     *
-     * \param pt The position in space of the vertex that we're checking
-     * \note Some bins might not point to a vertex, so users should check
-     * that the returned index is a valid vertex, e.g. using \a mesh.isValidVertex(vertex_id)
-     */
-    inline IndexType getNearbyVertex(const PointType& pt) const
-    {
-      const auto cell = m_lattice.gridCell(pt);
-      return flatIndex(cell);
-    }
-
-    /// \brief Updates the cached value of the bin containing point \a pt to \a vertex_id
-    inline void updateBin(const PointType& pt, IndexType vertex_id)
-    {
-      const auto cell = m_lattice.gridCell(pt);
-      flatIndex(cell) = vertex_id;
-    }
-
-  private:
-    /// Returns a reference to the index in the array for the ND point with grid index \a cell
-    inline IndexType& flatIndex(const typename LatticeType::GridCell& cell)
-    {
-      const IndexType idx = numerics::dot_product(cell.data(), m_bins.strides().begin(), DIM);
-      return m_bins.flatIndex(idx);
-    }
-
-    inline const IndexType& flatIndex(const typename LatticeType::GridCell& cell) const
-    {
-      const IndexType idx = numerics::dot_product(cell.data(), m_bins.strides().begin(), DIM);
-      return m_bins.flatIndex(idx);
-    }
-
-    /// Dimension-specific helper for resizing the ND array in 2D
-    template <int TDIM>
-    typename std::enable_if<TDIM == 2, void>::type resizeArray(IndexType res)
-    {
-      m_bins.resize(res, res);
-    }
-
-    /// Dimension-specific helper for resizing the ND array in 3D
-    template <int TDIM>
-    typename std::enable_if<TDIM == 3, void>::type resizeArray(IndexType res)
-    {
-      m_bins.resize(res, res, res);
-    }
-
-  private:
-    axom::Array<IndexType, DIM> m_bins;
-    LatticeType m_lattice;
-  };
-
-  /// Helper struct to locally insert a new point into a Delaunay complex while keeping the mesh Delaunay
-  struct InsertionHelper
-  {
-  public:
-    InsertionHelper(IAMeshType& mesh)
-      : m_mesh(mesh)
-      , facet_set(0)
-      , fv_rel(&facet_set, &m_mesh.vertices())
-      , fc_rel(&facet_set, &m_mesh.elements())
-      , cavity_elems(0)
-      , inserted_elems(0)
-    { }
-
-    /**
-   * \brief Find the Delaunay cavity: the elements whose circumspheres contain the query point
-   *
-   * \details This function starts from an element \a element_i and searches through
-   * neighboring elements for a list of element indices whose circumspheres contains the query point.
-   * It also finds the faces on the boundaries of the cavity to help with filling the cavity
-   * in the \a delaunayBall function.  
-   *
-   * \param query_pt the query point
-   * \param element_i the element to start the search at
-   */
-    void findCavityElements(const PointType& query_pt, IndexType element_i)
-    {
-      constexpr int reserveSize = (DIM == 2) ? 16 : 64;
-
-      IndexArray stack;
-      stack.reserve(reserveSize);
-
-      // add first element (if valid and point is in its circumsphere)
-      if(m_mesh.isValidElement(element_i) && isPointInSphere(query_pt, element_i))
-      {
-        m_checked_element_set.insert(element_i);
-        cavity_elems.insert(element_i);
-        stack.push_back(element_i);
-      }
-
-      while(!stack.empty())
-      {
-        IndexType element_idx = stack.back();
-        stack.pop_back();
-
-        // Invariant: this element is valid, was checked and is in the cavity
-        // Each neighbor is either in the cavity or the shared face is on the cavity boundary
-        const auto neighbors = m_mesh.adjacentElements(element_idx);
-        for(auto n_idx : neighbors.positions())
-        {
-          const IndexType nbr = neighbors[n_idx];
-
-          // invalid neighbor means face is on domain boundary, and thus on cavity boundary
-          if(m_mesh.isValidElement(nbr))
-          {
-            // neighbor is valid; check circumsphere (if necesary), and add to cavity as appropriate
-            if(m_checked_element_set.insert(nbr).second)
-            {
-              if(isPointInSphere(query_pt, nbr))
-              {
-                cavity_elems.insert(nbr);
-                stack.push_back(nbr);
-                continue;  // face is internal to cavity, nothing left to do for this face
-              }
-            }
-            // check if neighbor is already in the cavity
-            else if(cavity_elems.findIndex(nbr) != ElementSet::INVALID_ENTRY)
-            {
-              continue;  // both elem and neighbor along face are in cavity
-            }
-          }
-
-          // if we got here, the face is on the boundary of the Delaunay cavity
-          // add it to facet sets and associated relations
-          {
-            auto fIdx = facet_set.insert();
-            fv_rel.updateSizes();
-            fc_rel.updateSizes();
-
-            const auto bdry = m_mesh.boundaryVertices(element_idx);
-
-            auto faceVerts = fv_rel[fIdx];
-            typename IAMeshType::ModularVertexIndex mod_idx(n_idx);
-            for(int i = 0; i < VERTS_PER_FACET; i++)
-            {
-              faceVerts[i] = bdry[mod_idx++];
-            }
-            //For tetrahedron, if the element face is odd, reverse vertex order
-            if(DIM == 3 && n_idx % 2 == 1)
-            {
-              axom::utilities::swap(faceVerts[1], faceVerts[2]);
-            }
-
-            fc_rel.insert(fIdx, nbr);
-          }
-        }
-      }
-
-      SLIC_ASSERT_MSG(!cavity_elems.empty(), "Error: New point is not contained in the mesh");
-      SLIC_ASSERT(!facet_set.empty());
-    }
-
-    /**
-    * \brief Remove the elements in the Delaunay cavity
-    */
-    void createCavity()
-    {
-      for(auto elem : cavity_elems)
-      {
-        m_mesh.removeElement(elem);
-      }
-    }
-
-    /// \brief Fill in the Delaunay cavity with new elements containing the insertion point
-    void delaunayBall(IndexType new_pt_i)
-    {
-      const int numFaces = facet_set.size();
-
-      IndexType vlist[VERT_PER_ELEMENT] {};
-      IndexType neighbors[VERT_PER_ELEMENT] {};
-      for(int i = 0; i < numFaces; ++i)
-      {
-        // Create a new element from the face and the inserted point
-        for(int d = 0; d < VERTS_PER_FACET; ++d)
-        {
-          vlist[d] = fv_rel[i][d];
-        }
-        vlist[VERTS_PER_FACET] = new_pt_i;
-
-        // set all neighbors to nID; they'll be fixed in the fixVertexNeighborhood function below
-        const auto nID = fc_rel[i][0];
-        for(int d = 0; d < VERTS_PER_FACET; ++d)
-        {
-          neighbors[d] = nID;
-        }
-
-        IndexType new_el = m_mesh.addElement(vlist, neighbors);
-        inserted_elems.insert(new_el);
-      }
-
-      // Fix neighborhood around the new point
-      m_mesh.fixVertexNeighborhood(new_pt_i, inserted_elems.data());
-    }
-
-    /// \brief Returns the number of elements removed during this insertion
-    int numRemovedElements() const { return cavity_elems.size(); }
-
-    /// \brief Helper function returns true if the query point is in the sphere formed by the element vertices
-    bool isPointInSphere(const PointType& query_pt, IndexType element_idx) const;
-
-  public:
-    // we create a surface mesh
-    // sets: vertex, facet
-    using PositionType = typename IAMeshType::PositionType;
-    using ElementType = typename IAMeshType::ElementType;
-
-    using ElementSet = typename IAMeshType::ElementSet;
-    using VertexSet = typename IAMeshType::VertexSet;
-    using FacetSet = slam::DynamicSet<PositionType, ElementType>;
-
-    // relations: facet->vertex, facet->cell
-    static constexpr int VERTS_PER_FACET = IAMeshType::VERTS_PER_ELEM - 1;
-    using FacetBoundaryRelation =
-      typename IAMeshType::template IADynamicConstantRelation<VERTS_PER_FACET>;
-    using FacetCoboundaryRelation = typename IAMeshType::template IADynamicConstantRelation<1>;
-
-  public:
-    IAMeshType& m_mesh;
-
-    FacetSet facet_set;
-    FacetBoundaryRelation fv_rel;
-    FacetCoboundaryRelation fc_rel;
-
-    ElementSet cavity_elems;
-    ElementSet inserted_elems;
-
-    std::set<IndexType> m_checked_element_set;
-  };
 };
 
 template <int DIM>
 constexpr typename Delaunay<DIM>::IndexType Delaunay<DIM>::INVALID_INDEX;
 
-//--------------------------------------------------------------------------------
-// Below are 2D and 3D specializations for methods in the Delaunay class
-//--------------------------------------------------------------------------------
+}  // namespace quest
+}  // namespace axom
 
-// 2D specialization for generateInitialMesh(...)
-template <>
-inline void Delaunay<2>::generateInitialMesh(std::vector<DataType>& points,
-                                             std::vector<IndexType>& elem,
-                                             const BoundingBox& bb)
-{
-  //Set up the initial IA mesh of 2 triangles forming a rectangle
+#include "detail/DelaunayPointLocation.hpp"
+#include "detail/DelaunayValidation.hpp"
+#include "detail/DelaunayImpl.hpp"
 
-  const PointType& mins = bb.getMin();
-  const PointType& maxs = bb.getMax();
-
-  // clang-format off
-  std::vector<DataType> pt { mins[0], mins[1], 
-                             mins[0], maxs[1], 
-                             maxs[0], mins[1], 
-                             maxs[0], maxs[1] };
-
-  std::vector<IndexType> el { 0, 2, 1, 
-                              3, 1, 2 };
-  // clang-format on
-
-  points.swap(pt);
-  elem.swap(el);
-}
-
-// 3D specialization for generateInitialMesh(...)
-template <>
-inline void Delaunay<3>::generateInitialMesh(std::vector<DataType>& points,
-                                             std::vector<IndexType>& elem,
-                                             const BoundingBox& bb)
-{
-  //Set up the initial IA mesh of 6 tetrahedrons forming a cube
-  const PointType& mins = bb.getMin();
-  const PointType& maxs = bb.getMax();
-
-  // clang-format off
-  std::vector<DataType> pt { mins[0], mins[1], mins[2], 
-                             mins[0], mins[1], maxs[2], 
-                             mins[0], maxs[1], mins[2], 
-                             mins[0], maxs[1], maxs[2],
-                             maxs[0], mins[1], mins[2], 
-                             maxs[0], mins[1], maxs[2], 
-                             maxs[0], maxs[1], mins[2], 
-                             maxs[0], maxs[1], maxs[2] };
-
-  std::vector<IndexType> el { 3, 2, 4, 0, 
-                              3, 4, 1, 0, 
-                              3, 2, 6, 4,
-                              3, 6, 7, 4, 
-                              3, 5, 1, 4, 
-                              3, 7, 5, 4 };
-  // clang-format on
-
-  points.swap(pt);
-  elem.swap(el);
-}
-
-// 2D specialization for getBaryCoords(...)
-template <>
-inline Delaunay<2>::BaryCoordType Delaunay<2>::getBaryCoords(IndexType element_idx,
-                                                             const PointType& query_pt) const
-{
-  const auto verts = m_mesh.boundaryVertices(element_idx);
-  const ElementType tri(m_mesh.getVertexPosition(verts[0]),
-                        m_mesh.getVertexPosition(verts[1]),
-                        m_mesh.getVertexPosition(verts[2]));
-
-  return tri.physToBarycentric(query_pt);
-}
-
-// 3D specialization for getBaryCoords(...)
-template <>
-inline Delaunay<3>::BaryCoordType Delaunay<3>::getBaryCoords(IndexType element_idx,
-                                                             const PointType& query_pt) const
-{
-  const auto verts = m_mesh.boundaryVertices(element_idx);
-  const ElementType tet(m_mesh.getVertexPosition(verts[0]),
-                        m_mesh.getVertexPosition(verts[1]),
-                        m_mesh.getVertexPosition(verts[2]),
-                        m_mesh.getVertexPosition(verts[3]));
-
-  return tet.physToBarycentric(query_pt);
-}
-
-// 2D specialization for isPointInSphere(...)
-template <>
-inline bool Delaunay<2>::InsertionHelper::isPointInSphere(const PointType& query_pt,
-                                                          IndexType element_idx) const
-{
-  const auto verts = m_mesh.boundaryVertices(element_idx);
-  const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-  const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-  const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-  return primal::in_sphere(query_pt, p0, p1, p2, 0.);
-}
-
-// 3D specialization for isPointInSphere(...)
-template <>
-inline bool Delaunay<3>::InsertionHelper::isPointInSphere(const PointType& query_pt,
-                                                          IndexType element_idx) const
-{
-  const auto verts = m_mesh.boundaryVertices(element_idx);
-  const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-  const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-  const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-  const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-  return primal::in_sphere(query_pt, p0, p1, p2, p3, 0.);
-}
-
-}  // end namespace quest
-}  // end namespace axom
-
-#endif  //  QUEST_DELAUNAY_H_
+#undef AXOM_QUEST_DELAUNAY_FORCE_INLINE

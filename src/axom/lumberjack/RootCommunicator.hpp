@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file RootCommunicator.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of the RootCommunicator.
  *******************************************************************************
  */
-
-#ifndef ROOTCOMMUNICATOR_HPP
-#define ROOTCOMMUNICATOR_HPP
 
 #include <string>
 
@@ -156,5 +155,3 @@ private:
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

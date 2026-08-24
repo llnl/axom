@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Container.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of Inlet's Container class.
  *******************************************************************************
  */
-
-#ifndef INLET_CONTAINER_HPP
-#define INLET_CONTAINER_HPP
 
 #include <memory>
 #include <string>
@@ -827,9 +826,9 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_inlet_array<T>::value &&
-                            !detail::is_inlet_dict<T>::value && !detail::is_std_vector<T>::value &&
-                            !detail::is_variant_value<T>::value && !detail::is_std_variant<T>::value,
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value &&
+                            !detail::is_inlet_array<T>::value && !detail::is_inlet_dict<T>::value &&
+                            !detail::is_std_vector<T>::value && !detail::is_variant_value<T>::value,
                           T>::type
   get(const std::string& name = "") const
   {
@@ -1589,7 +1588,12 @@ const detail::VariantStructFactory<Variant>& Container::variantStructFactory() c
 {
   const auto factory_iter = m_variant_struct_factories.find(std::type_index(typeid(Variant)));
   SLIC_ERROR_IF(factory_iter == m_variant_struct_factories.end(),
-                "[Inlet] Variant struct collection schema has not been registered");
+                fmt::format("[Inlet] Collection '{0}' was read as a variant struct collection, "
+                            "but no variant schema was registered. Define it with "
+                            "addVariantStructArray() or addVariantStructDictionary(), then "
+                            "register each alternative with addAlternative() before calling "
+                            "get<...>().",
+                            m_name));
 
   auto* factory = dynamic_cast<detail::VariantStructFactory<Variant>*>(factory_iter->second.get());
   SLIC_ERROR_IF(factory == nullptr, "[Inlet] Variant struct factory type mismatch");
@@ -1598,5 +1602,3 @@ const detail::VariantStructFactory<Variant>& Container::variantStructFactory() c
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

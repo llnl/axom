@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_surface_impl.hpp
  *
  * \brief Implementation helpers for surface/volume integral evaluation.
  */
-
-#ifndef PRIMAL_EVAL_INTEGRAL_SURFACE_IMPL_HPP_
-#define PRIMAL_EVAL_INTEGRAL_SURFACE_IMPL_HPP_
 
 // Axom includes
 #include "axom/core.hpp"
@@ -212,5 +211,3 @@ inline LambdaRetType evaluate_volume_integral_component(const primal::NURBSPatch
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif

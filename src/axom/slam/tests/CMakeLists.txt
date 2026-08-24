@@ -22,6 +22,7 @@ set(gtest_slam_tests
     slam_set_DynamicSet.cpp
     slam_set_Iterator.cpp
     slam_set_BivariateSet.cpp    
+    slam_set_BivariateSet_device.cpp
 
     # test relations
     slam_relation_StaticVariable.cpp
@@ -39,10 +40,14 @@ set(gtest_slam_tests
     slam_AccessingRelationDataInMap.cpp
 
     # aux tests
+    slam_FieldRegistry.cpp
+    slam_make_helpers.cpp
     slam_ModularInt.cpp
+    slam_static_asserts.cpp
     
     #mesh structure test
     slam_IA.cpp
+    slam_detail_FacetPairingMap.cpp
     )
 
 

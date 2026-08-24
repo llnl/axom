@@ -25,12 +25,15 @@ axom_component_requires(NAME       SLAM
 #------------------------------------------------------------------------------
 set(slam_headers
     # Utility files
-    Utilities.hpp
+    Aliases.hpp
     FieldRegistry.hpp
     ModularInt.hpp
+    Traits.hpp
+    Utilities.hpp
 
     #SRM policies
     policies/CardinalityPolicies.hpp
+    policies/ValuePolicies.hpp
     policies/SizePolicies.hpp
     policies/OffsetPolicies.hpp
     policies/StridePolicies.hpp
@@ -50,6 +53,7 @@ set(slam_headers
     ProductSet.hpp
     DynamicSet.hpp
     Set.hpp
+    SetBuilders.hpp
     BivariateSet.hpp
     BitSet.hpp
     RelationSet.hpp
@@ -57,11 +61,13 @@ set(slam_headers
     # SRM Relation headers
     Relation.hpp
     StaticRelation.hpp
+    RelationBuilders.hpp
     DynamicVariableRelation.hpp
     DynamicConstantRelation.hpp
 
     # SRM Map headers
     Map.hpp
+    MapBuilders.hpp
     MapBase.hpp
     BivariateMap.hpp
     SubMap.hpp
@@ -70,12 +76,12 @@ set(slam_headers
     # Topological mesh headers
     mesh_struct/IA.hpp
     mesh_struct/IA_impl.hpp
+    mesh_struct/detail/FacetPairingMap.hpp
     )
 
 set(slam_sources
     # SRM Set sources
     BitSet.cpp
-    OrderedSet.cpp
 
     # SRM Relation sources
 

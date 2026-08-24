@@ -33,25 +33,6 @@ namespace axom
 namespace quest
 {
 
-#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-namespace
-{
-bool mpiIsActive()
-{
-  int initialized = 0;
-  MPI_Initialized(&initialized);
-  if(!initialized)
-  {
-    return false;
-  }
-
-  int finalized = 0;
-  MPI_Finalized(&finalized);
-  return finalized == 0;
-}
-}  // namespace
-#endif
-
 // These were needed for linking - but why? They are constexpr.
 constexpr int Shaper::DEFAULT_SAMPLES_PER_KNOT_SPAN;
 constexpr double Shaper::MINIMUM_PERCENT_ERROR;
@@ -371,10 +352,6 @@ void Shaper::saveResults(bool AXOM_UNUSED_PARAM(extra))
 int Shaper::getRank() const
 {
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-  if(!mpiIsActive())
-  {
-    return 0;
-  }
   int rank = -1;
   MPI_Comm_rank(m_comm, &rank);
   return rank;
@@ -385,10 +362,6 @@ int Shaper::getRank() const
 double Shaper::allReduceSum(double val) const
 {
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-  if(!mpiIsActive())
-  {
-    return val;
-  }
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_SUM, m_comm);
   return global;
@@ -400,10 +373,6 @@ double Shaper::allReduceSum(double val) const
 double Shaper::allReduceMin(double val) const
 {
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-  if(!mpiIsActive())
-  {
-    return val;
-  }
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MIN, m_comm);
   return global;
@@ -415,10 +384,6 @@ double Shaper::allReduceMin(double val) const
 double Shaper::allReduceMax(double val) const
 {
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-  if(!mpiIsActive())
-  {
-    return val;
-  }
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MAX, m_comm);
   return global;

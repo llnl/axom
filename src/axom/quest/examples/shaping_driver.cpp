@@ -47,6 +47,7 @@
 
 // C/C++ includes
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 #include <memory>
@@ -157,11 +158,14 @@ public:
 
 private:
   bool m_verboseOutput {false};
+  bool m_dumpOctreeVtk {false};
 
 public:
   bool isVerbose() const { return m_verboseOutput; }
   bool usesInlineMFEMMesh() const { return inlineMeshKind == InlineMeshKind::MFEM; }
   bool usesInlineBlueprintMesh() const { return inlineMeshKind == InlineMeshKind::Blueprint; }
+
+  bool dumpOctreeVtk() const { return m_dumpOctreeVtk; }
 
   /// Generate an mfem Cartesian mesh, scaled to the bounding box range
 #if defined(AXOM_USE_MFEM)
@@ -498,20 +502,17 @@ public:
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
 
-      std::map<std::string, axom::numerics::QuadratureType> quadTypeMap {
-        {"default", axom::numerics::QuadratureType::Invalid},
-        {"gausslegendre", axom::numerics::QuadratureType::GaussLegendre},
-        {"gausslobatto", axom::numerics::QuadratureType::GaussLobatto},
-        {"openuniform", axom::numerics::QuadratureType::OpenUniform},
-        {"closeduniform", axom::numerics::QuadratureType::ClosedUniform},
-        {"openhalfuniform", axom::numerics::QuadratureType::OpenHalfUniform},
-        {"closedgl", axom::numerics::QuadratureType::ClosedGL}};
+      const auto& quadTypeMap = axom::numerics::stringToQuadratureType();
       sampling_options->add_option("-q,--quadrature-type", quadratureType)
         ->description(
           "Quadrature type. \n"
           "Selects the type of quadrature that determines point placement within elements.")
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(quadTypeMap, axom::CLI::ignore_case));
+
+      sampling_options->add_flag("--dump-octree-vtk", m_dumpOctreeVtk)
+        ->description("Writes InOutOctree visualization VTK files when using inout sampling")
+        ->capture_default_str();
     }
 
     // parameters that only apply to the intersection method
@@ -915,6 +916,8 @@ int main(int argc, char** argv)
     samplingShaper->setQuadratureType(params.quadratureType);
     samplingShaper->setVolumeFractionOrder(params.outputOrder);
     samplingShaper->setSamplingMethod(params.samplingMethod);
+    samplingShaper->setInOutOctreeVtkOutputEnabled(params.dumpOctreeVtk());
+    samplingShaper->setInOutOctreeVtkOutputDirectory("vis");
 
     // register point projectors
     meshDim = -1;

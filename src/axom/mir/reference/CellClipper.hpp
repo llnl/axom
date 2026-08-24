@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file CellClipper.hpp
  * 
  * \brief Contains the specification for the CellClipper class.
  * 
  */
-
-#ifndef __CELL_CLIPPER_H
-#define __CELL_CLIPPER_H
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -113,5 +112,3 @@ private:
 
 }  // namespace mir
 }  // namespace axom
-
-#endif

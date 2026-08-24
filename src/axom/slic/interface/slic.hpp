@@ -4,12 +4,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file slic.hpp
  */
-
-#ifndef SLIC_HPP_
-#define SLIC_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
@@ -546,5 +545,3 @@ void printContainer(std::ostream& os, const std::string& name, const ContainerTy
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* SLIC_HPP_ */

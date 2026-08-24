@@ -28,6 +28,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
 - Quest: Adds OMP supported, fast and accurate GWN method for NURBS curves and trimmed NURBS surfaces.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
+- Bump: The `MergeMeshes` class was enhanced so it supports material-dependent/mixed Blueprint fields that are "element-associated". These fields contain per-material values for the materials in a zone.
+- Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view and a material-dependent or mixed field view.
 - Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
   anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
   a new ``setQuadratureType`` method that accepts an enum value from ``mfem::Quadrature1D``. The number of samples in
@@ -44,20 +46,60 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
+- Primal: Adds `curvature()` and `curvatureDerivative()` methods to `BezierCurve` and `NURBSCurve`.
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
+- Sidre: Added `axom::sidre::View::checksum()` and `axom::sidre::Group::checksum()` methods that return checksum values. A `Group::checksum(conduit::Node&)` overload emits diffable checksum metadata for group/view subtrees.
+- Core: Adds `AXOM_CONSTEXPR_ASSERT` macro for assertions that are usable within `constexpr` contexts
+- Slam: Adds `make_*_set`, `make_*_relation` and `make_map` helper functions for building sets, relations and maps
+- Primal: Adds `primal::Sphere::contains(const Point&, bool includeBoundary = true)` to efficiently test whether
+  a point lies within a sphere. Use `getOrientation()` when a tolerance-aware boundary classification is needed.
+- Python: Adds the `AXOM_PYTHON_MODULE_INSTALL_PREFIX` CMake variable to control where Axom installs its Python
+  package(s), relative to the install prefix.
+- Quest: The C2CReader was enhanced to provide assembly support.
+- Core: Adds `utilities::filesystem::getFileExtension(str)`
+- Klee: Adds support for lua-based input decks for shaping
+- Slam: Adds convenience aliases in `axom/slam/Aliases.hpp` for the most common set and relation configurations, 
+  including `ArraySet`, `ArrayViewSet`, `VariableRelation`, `ConstantRelation` and their `View` forms.
 
 ### Removed
+- Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
 
 ### Deprecated
 - Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
+- CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
+- Core: Moved length unit parsing and conversion helpers into `axom::utilities`.
+- Core/Primal: Updated several array, NURBS count/accessor, and mapping stride/capacity interfaces to use `axom::IndexType` consistently, and tightened several `FlatMap`/`MortonIndex` conversions to reduce MSVC narrowing warnings.
+- Quest: Updated `C2CReader` to use `axom::utilities::LengthUnit` at its public length-unit interface.
+- Quest: Updated `STEPReader` to use centralized length unit parsing and conversion logic.
 - Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 - Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
+- Changed to `#pragma once` instead of unique header guard defines
+- Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
+  Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
+- Uberenv's spack updated to v1.2.2
+- Updates blt submodule to [BLT version 0.7.2](https://github.com/LLNL/blt/releases/tag/v0.7.2)
+- Updates to [camp version 2026.07.1](https://github.com/LLNL/camp/releases/tag/v2026.07.1)
+- Updates to [RAJA version 2026.07.0](https://github.com/LLNL/RAJA/releases/tag/v2026.07.0)
+- Updates to [Umpire version 2026.07.1](https://github.com/LLNL/Umpire/releases/tag/v2026.07.1)
+- Updates to [Caliper version 2.15.0](https://github.com/LLNL/Caliper/releases/tag/v2.15.0)
+- Updates to [Conduit version 0.9.7](https://github.com/LLNL/conduit/releases/tag/v0.9.7)
+- Slam: `slam::Map`, `slam::BivariateMap` and `policies::VariableCardinality` now default to
+  `policies::ArrayIndirection` instead of `policies::STLVectorIndirection`.
+   Code that previously used the default `std::vector`-backed Maps will need to either
+   add a template for the `policies::STLVectorIndirection` or update to `policies::ArrayIndirection`.
+- Slam: `FieldRegistry` fields and buffers that it manages now use `axom::Array`
+  (a `slam::Map` with the default `axom::Array` indirection) rather than `std::vector`.
+  Code that previously registered `std::vector`-backed buffers should use
+  `FieldRegistry::MapType`, `FieldRegistry::BufferType`, `auto`, or `buffer.view()`, as appropriate.
 
 ### Fixed
+- MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
+- Slam: View-backed static relations are now trivially copyable and safe to capture by
+  value into device kernels.
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
 - Quest: Sampling-based MFEM shaping now falls back to chunked local mass assembly/solve for large
@@ -66,8 +108,18 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
 - Core: ArrayView assigments/copies now copy the stride
 - Core: Array construction from strided ArrayView now correctly copies the strided elements
+- Core: A moved-from Array is valid, e.g. it can be pushed to
 - Core: Improved `axom::FlatMap` insertion performance by fusing duplicate-key lookup with empty-slot probing.
 - Core: Updated DeviceHash to use 64-bit hash results and improved coverage for integer and floating-point hashing.
+- Core: Avoids a first-use race in `axom::copy()` when multiple OpenMP threads concurrently trigger Umpire fallback host-copy initialization.
+- Python: Improves lifetime handling for python wrapped sidre entities, including support for external views into numpy arrays.
+- Sidre: Vector-valued MFEM `QuadratureFunction` fields exported through `MFEMSidreDataCollection` now use Blueprint mcarray component storage under `values`, instead of a single scalar array.
+- Primal: Fixes `primal::Sphere<T,2>::getVolume()`, which was previously hard-coded for volume of 3D sphere
+- Sidre: Adds a `const` overload of the templated `axom::sidre::View::getData<T>()`,
+and marked the templated `axom::sidre::View::getAttributeScalar<T>()` overloads `const`
+so they can be called on a `const View`. Also added  `const` overloads for `axom::sidre::Buffer::getData()`
+and `axom::sidre::Buffer::getVoidPtr()` so they can be called on a `const Buffer`.
+- Quest: Fixes `InOutOctree::within()` for query points that lie on (or very near) the surface, in both 2D (segment meshes) and 3D (triangle meshes).
 
 ## [Version 0.14.0] - Release date 2026-03-31
 

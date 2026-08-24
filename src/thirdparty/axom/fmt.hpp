@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
  
-#ifndef AXOM_FMT_H_
-#define AXOM_FMT_H_
+#pragma once
 
 // Axom's config.hpp sets up fmt defines
 #include "axom/config.hpp"
@@ -25,6 +24,4 @@
 #include "axom/fmt/ranges.h"
 #include "axom/fmt/std.h"
 #include "axom/fmt/xchar.h"
-
-#endif // AXOM_FMT_H_
 

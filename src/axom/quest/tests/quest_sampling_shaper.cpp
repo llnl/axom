@@ -32,11 +32,11 @@
 #endif
 
 #include <cmath>
+#include <map>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <utility>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -234,15 +234,6 @@ struct PlaneProjector23
     return Point3D {x, y, z};
   }
 };
-
-const std::pair<const char*, axom::numerics::QuadratureType> supported_quadrature_types[] = {
-  {"default", axom::numerics::QuadratureType::Invalid},
-  {"gausslegendre", axom::numerics::QuadratureType::GaussLegendre},
-  {"gausslobatto", axom::numerics::QuadratureType::GaussLobatto},
-  {"openuniform", axom::numerics::QuadratureType::OpenUniform},
-  {"closeduniform", axom::numerics::QuadratureType::ClosedUniform},
-  {"openhalfuniform", axom::numerics::QuadratureType::OpenHalfUniform},
-  {"closedgl", axom::numerics::QuadratureType::ClosedGL}};
 
 }  // namespace
 
@@ -861,6 +852,44 @@ shapes:
   {
     this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
   }
+}
+
+TEST_F(SamplingShaperTest2D, basic_circle_assembly_transform)
+{
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: circle_assembly
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+    operators:
+      - scale: .5
+)";
+
+  const std::string circle_material = "circleMat";
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile assembly_file(testname, ".assembly");
+  assembly_file.write(axom::fmt::format("pieces = contour(path='{}')", contour_file.getPath()));
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), circle_material, assembly_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+  this->runShaping();
+
+  constexpr double expected_volume = M_PI / 4.;
+  this->checkExpectedVolumeFractions(circle_material, expected_volume, 2e-2);
 }
 
 TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
@@ -2425,7 +2454,7 @@ piece = line(end=start)
 
   int sampleRes[3] = {3, 5};
 
-  for(const auto& quadrature : supported_quadrature_types)
+  for(const auto& quadrature : axom::numerics::stringToQuadratureType())
   {
     this->validateShapeFile(shape_file.getPath());
     this->initializeShaping(shape_file.getPath());
@@ -2639,6 +2668,9 @@ TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
   ASSERT_NE(qspace, nullptr);
   const int initialNumPoints = qspace->GetElementIntRule(0).GetNPoints();
 
+  // Once the "positions" quadrature function has been generated, subsequent
+  // calls are intentionally no-ops, even if a different quadrature type is
+  // requested.
   quest::shaping::generateSamplingPositions(mfemState,
                                             axom::ArrayView<int> {sampleRes, 2},
                                             axom::numerics::QuadratureType::ClosedUniform);
@@ -2667,6 +2699,37 @@ shapes:
 
   fs::TempFile shape_file(testname, ".yaml");
   shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.contour"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
+}
+
+TEST_F(SamplingShaperTest2D, loadShape_missing_c2c_assembly_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant c2c assembly; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: missing_c2c_assembly
+  material: mat
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.assembly"));
 
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_TESTS_INTERSECTION_SHAPER_UTILS_HPP
-#define QUEST_TESTS_INTERSECTION_SHAPER_UTILS_HPP
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -539,5 +538,3 @@ public:
   std::string m_policy;
   int m_caseNumber;
 };
-
-#endif

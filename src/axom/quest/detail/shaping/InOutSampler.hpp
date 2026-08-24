@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using the InOutOctree
  */
-
-#ifndef AXOM_QUEST_INOUT_SAMPLER__HPP_
-#define AXOM_QUEST_INOUT_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -85,12 +84,20 @@ public:
     SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
   }
 
-  void initSpatialIndex(double vertexWeldThreshold)
+  void initSpatialIndex(double vertexWeldThreshold,
+                        bool shouldOutputVtk = false,
+                        const std::string& vtkOutputDirectory = "")
   {
     AXOM_ANNOTATE_SCOPE("generate InOutOctree");
     // Create octree over mesh's bounding box
     m_octree = new InOutOctreeType(m_bbox, m_surfaceMesh);
     m_octree->setVertexWeldThreshold(vertexWeldThreshold);
+    m_octree->setVtkOutputEnabled(shouldOutputVtk);
+    if(shouldOutputVtk)
+    {
+      m_octree->setVtkOutputDirectory(vtkOutputDirectory);
+      m_octree->setVtkOutputPrefix(axom::fmt::format("{}_", m_shapeName));
+    }
     m_octree->generateIndex();
   }
 
@@ -215,5 +222,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_SAMPLER__HPP_

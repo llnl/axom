@@ -21,6 +21,11 @@ axom_component_requires(NAME       QUEST
 set( quest_headers
 
     Delaunay.hpp
+    detail/DelaunayElementFinder.hpp
+    detail/DelaunayImpl.hpp
+    detail/DelaunayInsertionHelper.hpp
+    detail/DelaunayPointLocation.hpp
+    detail/DelaunayValidation.hpp
     LinearizeCurves.hpp
     SignedDistance.hpp
 
@@ -198,7 +203,6 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   detail/clipping/SphereClipper.cpp
                                   detail/clipping/MonotonicZSORClipper.cpp
                                   detail/clipping/SORClipper.cpp
-                                  detail/clipping/MeshClipperImpl.hpp
                                   util/make_clipper_strategy.cpp)
 
         # MeshClipperImpl uses RAJA algorithms directly.
@@ -282,6 +286,10 @@ axom_install_component(NAME    quest
 #------------------------------------------------------------------------------
 if (AXOM_ENABLE_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+if (ENABLE_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif()
 
 if (AXOM_ENABLE_TESTS)

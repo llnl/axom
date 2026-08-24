@@ -4,17 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_BivarSetIfacePolicies_HPP
-#define SLAM_BivarSetIfacePolicies_HPP
+#pragma once
 
 #include "axom/slam/BivariateSet.hpp"
 #include "axom/slam/policies/InterfacePolicies.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 namespace detail
 {
@@ -139,8 +134,4 @@ template <typename InterfacePolicy, typename FromSet, typename ToSet>
 using BivariateSetInterface =
   typename detail::BSetInterfaceSelector<InterfacePolicy, FromSet, ToSet>::Type;
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_BivarSetIfacePolicies_HPP
+}  // end namespace axom::slam::policies

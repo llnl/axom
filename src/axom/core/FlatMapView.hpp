@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_FlatMap_View_HPP
-#define Axom_Core_FlatMap_View_HPP
+#pragma once
 
 #include "axom/core/FlatMap.hpp"
 
@@ -172,7 +171,7 @@ private:
             m_buckets.data() == other.m_buckets.data());
   }
 
-  IndexType m_numGroups2 {-1};
+  int m_numGroups2 {-1};
   IndexType m_size {0};
   axom::ArrayView<const detail::flat_map::GroupBucket> m_metadata;
 
@@ -292,5 +291,3 @@ auto FlatMap<KeyType, ValueType, Hash>::view() const -> ConstView
 }
 
 }  // namespace axom
-
-#endif

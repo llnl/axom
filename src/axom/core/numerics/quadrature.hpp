@@ -4,11 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_NUMERICS_QUADRATURE_HPP_
-#define AXOM_NUMERICS_QUADRATURE_HPP_
+#pragma once
 
 #include "axom/core/Array.hpp"
 #include "axom/core/memory_management.hpp"
+
+#include <map>
+#include <string>
 
 /*!
  * \file quadrature.hpp
@@ -42,6 +44,14 @@ enum class QuadratureType : int
 bool is_valid_quadrature_type(int quadratureType);
 
 /*!
+ * \brief Returns the recognized string names for `QuadratureType` values.
+ *
+ * The `"default"` entry maps to `QuadratureType::Invalid`, which selects the
+ * current default rule in quadrature rule factories.
+ */
+const std::map<std::string, QuadratureType>& stringToQuadratureType();
+
+/*!
  * \class QuadratureRule
  *
  * \brief Stores fixed views to arrays of 1D quadrature points and weights
@@ -67,11 +77,11 @@ public:
 
   //! \brief Accessor for quadrature nodes
   AXOM_HOST_DEVICE
-  double node(size_t idx) const { return m_nodes[idx]; };
+  double node(size_t idx) const { return m_nodes[static_cast<axom::IndexType>(idx)]; };
 
   //! \brief Accessor for quadrature weights
   AXOM_HOST_DEVICE
-  double weight(size_t idx) const { return m_weights[idx]; };
+  double weight(size_t idx) const { return m_weights[static_cast<axom::IndexType>(idx)]; };
 
   //! \brief Accessor for the size of the quadrature rule
   AXOM_HOST_DEVICE
@@ -93,7 +103,8 @@ private:
  * \param [in] npts The number of points in the rule
  * \param [out] nodes The array of 1D nodes
  * \param [out] weights The array of weights
- * 
+ * \param allocatorID The allocator to use for allocating memory.
+ *
  * A Gauss-Legendre rule with \a npts points can exactly integrate
  *  polynomials of order 2 * npts - 1
  *
@@ -111,6 +122,7 @@ void compute_gauss_legendre_data(int npts,
  * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 
  *
  * \param [in] npts The number of points in the rule
+ * \param allocatorID The allocator to use for allocating memory.
  * 
  * A Gauss-Legendre rule with \a npts points can exactly integrate
  *  polynomials of order 2 * npts - 1
@@ -124,6 +136,7 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAl
 
 /*!
  * \brief Computes a 1D quadrature rule of Gauss-Lobatto points.
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * \param [in] npts The number of points in the rule
  * \param [out] nodes The array of 1D nodes
@@ -142,6 +155,7 @@ void compute_gauss_lobatto_data(int npts,
  * Gauss-Lobatto points.
  *
  * \param [in] npts The number of points in the rule
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s
  *         of stored nodes and weights
@@ -153,6 +167,7 @@ QuadratureRule get_gauss_lobatto(int npts, int allocatorID = axom::getDefaultAll
  *
  * \param [in] quadratureType The quadrature family to construct.
  * \param [in] npts The number of quadrature points in the rule.
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * \note `QuadratureType::Invalid` selects Axom's default rule, which is
  *       currently Gauss-Legendre.
@@ -162,11 +177,24 @@ QuadratureRule get_quadrature_rule(QuadratureType quadratureType,
                                    int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
+ * \brief Returns the highest polynomial degree integrated exactly by a 1D
+ *        quadrature family with `npts` points.
+ *
+ * \param [in] quadratureType The quadrature family to query.
+ * \param [in] npts The number of quadrature points in the rule.
+ *
+ * \note `QuadratureType::Invalid` follows Axom's default rule, which is
+ *       currently Gauss-Legendre.
+ */
+int get_exact_degree(QuadratureType quadratureType, int npts);
+
+/*!
  * \brief Computes a 1D quadrature rule of open uniform Newton-Cotes points.
  *
  * \param [in] npts The number of points in the rule
  * \param [out] nodes The array of 1D nodes
  * \param [out] weights The array of weights
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * The points are placed at `x_i = (i + 1) / (npts + 1)` for `i = 0, ..., npts - 1`.
  * This matches MFEM's `QuadratureFunctions1D::OpenUniform`.
@@ -183,6 +211,7 @@ void compute_open_uniform_data(int npts,
  * Newton-Cotes points.
  *
  * \param [in] npts The number of points in the rule
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s
  *         of stored nodes and weights
@@ -195,6 +224,7 @@ QuadratureRule get_open_uniform(int npts, int allocatorID = axom::getDefaultAllo
  * \param [in] npts The number of points in the rule
  * \param [out] nodes The array of 1D nodes
  * \param [out] weights The array of weights
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * For `npts > 1`, the points are placed at `x_i = i / (npts - 1)` for
  * `i = 0, ..., npts - 1`. For `npts == 1`, the rule is the midpoint rule at
@@ -212,6 +242,7 @@ void compute_closed_uniform_data(int npts,
  * uniform Newton-Cotes points.
  *
  * \param [in] npts The number of points in the rule
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s
  *         of stored nodes and weights
@@ -225,6 +256,7 @@ QuadratureRule get_closed_uniform(int npts, int allocatorID = axom::getDefaultAl
  * \param [in] npts The number of points in the rule
  * \param [out] nodes The array of 1D nodes
  * \param [out] weights The array of weights
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * The points are placed at `x_i = (2 * i + 1) / (2 * npts)` for
  * `i = 0, ..., npts - 1`, matching MFEM's `OpenHalfUniform`.
@@ -241,6 +273,7 @@ void compute_open_half_uniform_data(int npts,
  * uniform Newton-Cotes points.
  *
  * \param [in] npts The number of points in the rule
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s
  *         of stored nodes and weights
@@ -253,6 +286,7 @@ QuadratureRule get_open_half_uniform(int npts, int allocatorID = axom::getDefaul
  * \param [in] npts The number of points in the rule
  * \param [out] nodes The array of 1D nodes
  * \param [out] weights The array of weights
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * For `npts > 2`, the rule uses the interval endpoints together with the
  * midpoints between adjacent `(npts - 1)`-point Gauss-Legendre nodes,
@@ -270,6 +304,7 @@ void compute_closed_gl_data(int npts,
  * Gauss-Legendre points.
  *
  * \param [in] npts The number of points in the rule
+ * \param allocatorID The allocator to use for allocating memory.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s
  *         of stored nodes and weights
@@ -278,5 +313,3 @@ QuadratureRule get_closed_gl(int npts, int allocatorID = axom::getDefaultAllocat
 
 } /* end namespace numerics */
 } /* end namespace axom */
-
-#endif  // AXOM_NUMERICS_QUADRATURE_HPP_

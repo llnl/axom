@@ -53,16 +53,16 @@ if (UMPIRE_DIR)
     axom_assert_is_directory(DIR_VARIABLE UMPIRE_DIR)
     find_dependency(umpire REQUIRED PATHS "${UMPIRE_DIR}" NO_SYSTEM_ENVIRONMENT_PATH)
     axom_assert_find_succeeded(PROJECT_NAME Umpire
-                               TARGET       umpire
+                               TARGET       umpire::umpire
                                DIR_VARIABLE UMPIRE_DIR)
     set(UMPIRE_FOUND TRUE)
 
-    blt_convert_to_system_includes(TARGET umpire)
+    blt_convert_to_system_includes(TARGET umpire::umpire)
 
     # Check whether the Umpire defines symbols for shared memory
     blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
                             VERBOSE_OUTPUT OFF
-                            DEPENDS_ON umpire
+                            DEPENDS_ON umpire::umpire
                             SOURCE_STRING [=[
         #include <umpire/config.hpp>
         #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
@@ -331,8 +331,8 @@ if(EXISTS ${Python_EXECUTABLE})
         )
     endif()
 
-    # Check if the python environment contains the runtime dependencies for Axom's python
-    # conduit (Node interop) and numpy (ndarray returns). 
+    # Check if the python environment contains the runtime dependencies
+    # for Axom's python conduit (Node interop) and numpy (ndarray returns). 
     # nanobind is statically linked at build time and is located separately above.
     execute_process(
       COMMAND "${CMAKE_COMMAND}" -E env
@@ -342,7 +342,7 @@ if(EXISTS ${Python_EXECUTABLE})
       ERROR_QUIET
     )
 
-    # Check if the python environment contains the pytest test harness,
+    # Check if the python environment contains the pytest test harness
     execute_process(
       COMMAND "${CMAKE_COMMAND}" -E env
               "${Python_EXECUTABLE}" -c "import pytest"
@@ -359,6 +359,32 @@ if(EXISTS ${Python_EXECUTABLE})
       OUTPUT_QUIET
       ERROR_QUIET
     )
+endif()
+
+if(AXOM_ENABLE_PYTHON_TESTS
+   AND (NOT PY_PYTEST_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND PY_PYTEST_DIR
+   AND PY_PLUGGY_DIR
+   AND PY_INICONFIG_DIR)
+    set(_axom_pytest_pythonpath
+        "${PY_PYTEST_DIR}"
+        "${PY_PLUGGY_DIR}"
+        "${PY_INICONFIG_DIR}")
+    foreach(_var PY_PACKAGING_DIR PY_PYGMENTS_DIR)
+        blt_list_append(TO _axom_pytest_pythonpath ELEMENTS "${${_var}}" IF ${_var})
+    endforeach()
+    list(JOIN _axom_pytest_pythonpath ":" _axom_pytest_pythonpath_joined)
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "PYTHONPATH=${_axom_pytest_pythonpath_joined}"
+              "${Python_EXECUTABLE}" -c "import pytest"
+      RESULT_VARIABLE PY_PYTEST_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+    unset(_axom_pytest_pythonpath)
+    unset(_axom_pytest_pythonpath_joined)
 endif()
 
 # If the python environment does not contain the required runtime modules,
@@ -380,9 +406,9 @@ if(AXOM_ENABLE_PYTHON_TESTS
    AND nanobind_ROOT
    AND (NOT PY_PYTEST_DIR OR NOT PY_PLUGGY_DIR OR NOT PY_INICONFIG_DIR))
     message(FATAL_ERROR
-      "Running Axom's python tests requires pytest (and its dependencies pluggy and iniconfig)."
+      "Running Axom's python tests requires pytest and its import-time dependencies."
       "\nThe library installation paths can be specified with CMake variables: "
-      "PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR."
+      "PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR, PY_PACKAGING_DIR, PY_PYGMENTS_DIR."
       "\nAlternatively, configure with AXOM_ENABLE_PYTHON_TESTS=OFF.")
 endif()
 
@@ -400,15 +426,14 @@ if(AXOM_ENABLE_MPI
       "PY_MPI4PY_DIR")
 endif()
 
-# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
+# nanobind extensions have hit "cannot allocate memory in static TLS block" 
+# when the module is loaded into an interpreter alongside CUDA runtime initialization. 
 # Also disable when sanitizers are enabled, requires environment variable manipulation:
 # https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
 if(nanobind_ROOT
    AND NOT AXOM_ENABLE_CUDA
    AND NOT AXOM_ENABLE_ASAN
-   AND NOT AXOM_ENABLE_UBSAN
-   AND ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
-        OR  ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9" AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+   AND NOT AXOM_ENABLE_UBSAN)
 
     axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
     find_package(nanobind CONFIG REQUIRED)

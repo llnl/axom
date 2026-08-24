@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file evaluate_integral_curve.hpp
  *
@@ -22,9 +24,6 @@
  * Regions Bounded by Rational Parametric Curves" by D. Gunderman et al.
  * https://doi.org/10.1016/j.cad.2020.102944
  */
-
-#ifndef PRIMAL_EVAL_INTEGRAL_CURVE_HPP_
-#define PRIMAL_EVAL_INTEGRAL_CURVE_HPP_
 
 // Axom includes
 #include "axom/core.hpp"
@@ -287,7 +286,7 @@ LambdaRetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpo
   auto lower_bound_y = cpoly[0][0][1];
   for(int i = 0; i < cpoly.numEdges(); ++i)
   {
-    for(int j = 0; j < cpoly[i].getNumControlPoints(); ++j)
+    for(axom::IndexType j = 0; j < cpoly[i].getNumControlPoints(); ++j)
     {
       lower_bound_y = axom::utilities::min(lower_bound_y, cpoly[i][j][1]);
     }
@@ -363,5 +362,3 @@ LambdaRetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 
 }  // namespace primal
 }  // end namespace axom
-
-#endif

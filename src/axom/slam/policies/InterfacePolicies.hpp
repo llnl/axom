@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_InterfacePolicies_HPP
-#define SLAM_InterfacePolicies_HPP
+#pragma once
 
 /**
  * \file InterfacePolicies.hpp
@@ -33,11 +32,7 @@
  * \see BivariateSetInterfacePolicies.hpp
  */
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /**
  * \class VirtualInterface
@@ -48,15 +43,11 @@ struct VirtualInterface
 { };
 
 /**
- * \class VirtualInterface
+ * \class ConcreteInterface
  *
  * \brief Policy to use a concrete, CRTP-based interface with a given Slam type.
  */
 struct ConcreteInterface
 { };
 
-}  // namespace policies
-}  // namespace slam
-}  // namespace axom
-
-#endif  // SLAM_InterfacePolicies_HPP
+}  // namespace axom::slam::policies

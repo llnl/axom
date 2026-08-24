@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_CONDUIT_ARRAY_VIEW_HPP_
-#define AXOM_BUMP_CONDUIT_ARRAY_VIEW_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -76,5 +75,3 @@ inline axom::ArrayView<T> make_conduit_array_view(const conduit::Node &n)
 }  // namespace utilities
 }  // namespace bump
 }  // namespace axom
-
-#endif

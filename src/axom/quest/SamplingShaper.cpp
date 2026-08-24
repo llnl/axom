@@ -302,7 +302,9 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
       else if constexpr(is_inoutsampler_v<typename T::element_type>)
       {
         sampler->computeBounds();
-        sampler->initSpatialIndex(this->m_vertexWeldThreshold);
+        sampler->initSpatialIndex(this->m_vertexWeldThreshold,
+                                  m_inoutOctreeVtkOutputEnabled,
+                                  m_inoutOctreeVtkOutputDirectory);
       }
       else if constexpr(is_primitivesampler_v<typename T::element_type>)
       {

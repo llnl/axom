@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
@@ -27,7 +29,8 @@ axom::IndexType calc_new_capacity(axom::Array<T>& v, axom::IndexType increase)
   axom::IndexType new_num_elements = v.size() + increase;
   if(new_num_elements > v.capacity())
   {
-    axom::IndexType capacity_expanded = v.capacity() * v.getResizeRatio() + 0.5;
+    const auto capacity_expanded =
+      static_cast<axom::IndexType>(static_cast<double>(v.capacity()) * v.getResizeRatio() + 0.5);
     return axom::utilities::max<axom::IndexType>(capacity_expanded, new_num_elements);
   }
 
@@ -65,9 +68,9 @@ void check_storage(axom::Array<T>& v)
   const T* data_ptr = v.data();
 
   /* Push back up to half the capacity. */
-  for(T i = 0; i < capacity / 2; ++i)
+  for(axom::IndexType i = 0; i < capacity / 2; ++i)
   {
-    v.push_back(i);
+    v.push_back(static_cast<T>(i));
   }
 
   /* Check the array metadata. */
@@ -77,9 +80,9 @@ void check_storage(axom::Array<T>& v)
   EXPECT_EQ(v.data(), data_ptr);
 
   /* Push back up to the full capacity. */
-  for(T i = capacity / 2; i < capacity; ++i)
+  for(axom::IndexType i = capacity / 2; i < capacity; ++i)
   {
-    v.push_back(i);
+    v.push_back(static_cast<T>(i));
   }
 
   /* Check the array metadata. */
@@ -98,7 +101,7 @@ void check_storage(axom::Array<T>& v)
   /* Set the array data to new values using the [] operator. */
   for(axom::IndexType i = 0; i < capacity; ++i)
   {
-    v[i] = i - 5 * i + 7;
+    v[i] = static_cast<T>(i - 5 * i + 7);
   }
 
   /* Check the array data using the [] operator and the raw pointer. */
@@ -198,7 +201,7 @@ void check_set(axom::Array<T>& v)
   T* buffer = axom::allocate<T>(buffer_size);
   for(axom::IndexType i = 0; i < buffer_size; ++i)
   {
-    buffer[i] = i;
+    buffer[i] = static_cast<T>(i);
   }
 
   /* Set all the values in the array to zero. */
@@ -228,7 +231,7 @@ void check_set(axom::Array<T>& v)
   /* Reset the values in buffer to the next sequential values. */
   for(axom::IndexType i = 0; i < buffer_size; ++i)
   {
-    buffer[i] = i + buffer_size;
+    buffer[i] = static_cast<T>(i + buffer_size);
   }
 
   /* Set the second half of the elements in the array to the new sequential values in buffer. */
@@ -329,7 +332,7 @@ void check_resize(axom::Array<T>& v)
   /* Push back a new element, should resize. */
   axom::IndexType old_capacity = capacity;
   capacity = calc_new_capacity(v, 1);
-  v.push_back(size - 5 * size + 7);
+  v.push_back(static_cast<T>(size - 5 * size + 7));
   size++;
 
   /* Check that it resized properly */
@@ -350,7 +353,7 @@ void check_resize(axom::Array<T>& v)
   for(axom::IndexType i = 0; i < n_elements; ++i)
   {
     axom::IndexType i_real = i + size;
-    values[i] = i_real - 5 * i_real + 7;
+    values[i] = static_cast<T>(i_real - 5 * i_real + 7);
   }
 
   /* Push back the new elements. */
@@ -401,7 +404,7 @@ void check_resize(axom::Array<T>& v)
   /* Push back a new element, should resize. */
   old_capacity = capacity;
   capacity = calc_new_capacity(v, 1);
-  v.push_back(size - 5 * size + 7);
+  v.push_back(static_cast<T>(size - 5 * size + 7));
   size++;
 
   /* Check the new size and capacity. */
@@ -419,7 +422,7 @@ void check_resize(axom::Array<T>& v)
   T* data_ptr = v.data();
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    data_ptr[i] = i;
+    data_ptr[i] = static_cast<T>(i);
   }
 
   /* Push back a bunch of elements to fill in up to the capacity. Resize should
@@ -427,7 +430,7 @@ void check_resize(axom::Array<T>& v)
   old_capacity = capacity;
   for(axom::IndexType i = size; i < old_capacity; ++i)
   {
-    v.push_back(i);
+    v.push_back(static_cast<T>(i));
     size++;
     EXPECT_EQ(v.capacity(), old_capacity);
     EXPECT_EQ(v.size(), size);
@@ -438,7 +441,7 @@ void check_resize(axom::Array<T>& v)
 
   /* Push back a final element that should trigger a resize. */
   capacity = calc_new_capacity(v, old_capacity - size + 1);
-  v.push_back(size);
+  v.push_back(static_cast<T>(size));
   size++;
 
   /* Check the new capacity and size. */
@@ -518,13 +521,13 @@ void check_insert(axom::Array<T>& v)
   /* Set the existing data in v */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    v[i] = i - 5 * i + 7;
+    v[i] = static_cast<T>(i - 5 * i + 7);
   }
 
   /* Insert a new element, should resize. */
   axom::IndexType old_capacity = capacity;
   capacity = calc_new_capacity(v, 1);
-  v.insert(v.size(), 1, size - 5 * size + 7);
+  v.insert(v.size(), 1, static_cast<T>(size - 5 * size + 7));
   size++;
 
   /* Check that it resized properly */
@@ -542,7 +545,7 @@ void check_insert(axom::Array<T>& v)
   for(axom::IndexType i = 0; i < n_elements; ++i)
   {
     axom::IndexType i_real = i + size;
-    values[i] = i_real - 5 * i_real + 7;
+    values[i] = static_cast<T>(i_real - 5 * i_real + 7);
   }
 
   capacity = calc_new_capacity(v, n_elements);
@@ -565,14 +568,14 @@ void check_insert(axom::Array<T>& v)
   T* data_ptr = v.data();
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    data_ptr[i] = i + n_insert_front;
+    data_ptr[i] = static_cast<T>(i + n_insert_front);
   }
 
   /* Insert into the front of the array. */
   for(axom::IndexType i = n_insert_front - 1; i >= 0; i--)
   {
     capacity = calc_new_capacity(v, 1);
-    v.insert(0, 1, i);
+    v.insert(0, 1, static_cast<T>(i));
     size++;
   }
 
@@ -605,13 +608,13 @@ void check_insert_iterator(axom::Array<T>& v)
   /* Set the existing data in v */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    v[i] = i - 5 * i + 7;
+    v[i] = static_cast<T>(i - 5 * i + 7);
   }
 
   /* Insert a new element, should resize. */
   axom::IndexType old_capacity = capacity;
   capacity = calc_new_capacity(v, 1);
-  auto ret = v.insert(v.end(), 1, size - 5 * size + 7);
+  auto ret = v.insert(v.end(), 1, static_cast<T>(size - 5 * size + 7));
   size++;
 
   /* Check that it resized properly */
@@ -630,7 +633,7 @@ void check_insert_iterator(axom::Array<T>& v)
   for(axom::IndexType i = 0; i < n_elements; ++i)
   {
     axom::IndexType i_real = i + size;
-    values[i] = i_real - 5 * i_real + 7;
+    values[i] = static_cast<T>(i_real - 5 * i_real + 7);
   }
 
   capacity = calc_new_capacity(v, n_elements);
@@ -655,14 +658,14 @@ void check_insert_iterator(axom::Array<T>& v)
   T* data_ptr = v.data();
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    data_ptr[i] = i + n_insert_front;
+    data_ptr[i] = static_cast<T>(i + n_insert_front);
   }
 
   /* Insert into the front of the Array. */
   for(axom::IndexType i = n_insert_front - 1; i >= 0; i--)
   {
     capacity = calc_new_capacity(v, 1);
-    auto ret3 = v.insert(v.begin(), 1, i);
+    auto ret3 = v.insert(v.begin(), 1, static_cast<T>(i));
     EXPECT_EQ(ret3, v.begin());
     EXPECT_EQ(i, v.front());
     size++;
@@ -697,7 +700,7 @@ void check_emplace(axom::Array<T>& v)
   /* Set the existing data in v */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    v[i] = i - 5 * i + 7;
+    v[i] = static_cast<T>(i - 5 * i + 7);
   }
 
   /* Emplace a new element, should resize. */
@@ -740,7 +743,7 @@ void check_emplace(axom::Array<T>& v)
   T* data_ptr = v.data();
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    data_ptr[i] = i + n_insert_front;
+    data_ptr[i] = static_cast<T>(i + n_insert_front);
   }
 
   /* Emplace into the front of the Array. */
@@ -833,7 +836,7 @@ void check_external_view(axom::ArrayView<T>& v)
   /* Set the elements in the array. */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    v[i] = i;
+    v[i] = static_cast<T>(i);
   }
 
   /* Check the elements using the raw pointer. */
@@ -845,7 +848,7 @@ void check_external_view(axom::ArrayView<T>& v)
   /* Set the elements using the raw pointer. */
   for(axom::IndexType i = 0; i < size; ++i)
   {
-    data_ptr[i] = i * i;
+    data_ptr[i] = static_cast<T>(i * i);
   }
 
   /* Check the elements using the () operator. */
@@ -1557,6 +1560,11 @@ TEST(core_array, check_move_copy)
     EXPECT_EQ(v_int_copy_assign.data(), nullptr);
     EXPECT_EQ(v_int_copy_ctor.data(), nullptr);
 
+    /* Moved-from arrays are valid and should be reusable */
+    v_int_copy_assign.push_back(MAGIC_INT);
+    EXPECT_EQ(v_int_copy_assign.size(), 1);
+    EXPECT_EQ(v_int_copy_assign[0], MAGIC_INT);
+
     /* Check copy and move semantics for array of doubles */
     axom::Array<double> v_double(size, capacity);
     v_double.fill(MAGIC_DOUBLE);
@@ -1574,6 +1582,11 @@ TEST(core_array, check_move_copy)
     EXPECT_EQ(v_double, v_double_move_ctor);
     EXPECT_EQ(v_double_copy_assign.data(), nullptr);
     EXPECT_EQ(v_double_copy_ctor.data(), nullptr);
+
+    /* Moved-from arrays are valid and should be reusable */
+    v_double_copy_assign.push_back(MAGIC_DOUBLE);
+    EXPECT_EQ(v_double_copy_assign.size(), 1);
+    EXPECT_EQ(v_double_copy_assign[0], MAGIC_DOUBLE);
   }
 }
 

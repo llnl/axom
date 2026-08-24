@@ -453,7 +453,6 @@ dimension
 2
 
 controlpoints
-# points (0,0), (0.5,0), (1,0) with weights (1,2,1) in homogeneous form (x*w, y*w, w)
 0 0 1
 1 0 2
 1 0 1

@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file Shaper.hpp
  *
  * \brief Helper class for shaping queries
  */
-
-#ifndef AXOM_QUEST_SHAPER__HPP_
-#define AXOM_QUEST_SHAPER__HPP_
 
 #include "axom/config.hpp"
 #ifndef AXOM_USE_KLEE
@@ -99,7 +98,7 @@ public:
   /// Refinement type.
   using RefinementType = DiscreteShape::RefinementType;
 
-  //! @brief Verify the input mesh is okay for this backend to work with.
+  //! @brief Verify the input mesh is okay for this class to work with.
   bool verifyInputMesh(std::string& whyBad) const;
 
   ///@{
@@ -324,5 +323,3 @@ protected:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_SHAPER__HPP_

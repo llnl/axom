@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_BVH_TRAVERSE_HPP_
-#define AXOM_SPIN_BVH_TRAVERSE_HPP_
+#pragma once
 
 #include "axom/config.hpp"       // compile-time definitions
 #include "axom/core/Macros.hpp"  // for AXOM_HOST_DEVICE
@@ -202,5 +201,3 @@ AXOM_HOST_DEVICE inline void bvh_traverse(
 } /* namespace internal */
 } /* namespace spin */
 } /* namespace axom */
-
-#endif /* AXOM_SPIN_BVH_TRAVERSE_HPP_ */

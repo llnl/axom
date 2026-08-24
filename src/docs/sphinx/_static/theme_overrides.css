@@ -8,16 +8,40 @@
    }
 
    .wy-table-responsive {
-      overflow: visible !important;
+      overflow-x: auto !important;
+      overflow-y: visible !important;
    }
 }
 
-/* Expand the main content column width, adjusting the content wrapper to account for the sidebar */
+/* Expand the main content column width with the browser window. */
 @media screen and (min-width: 767px) {
    .wy-nav-content {
-      max-width: 940px;
-      width: 940px;
+      max-width: none;
+      width: auto;
    }
+}
+
+/* Keep wide rendered elements inside the content column. */
+.rst-content div[class^="highlight"],
+.rst-content pre,
+.rst-content table.docutils,
+.rst-content table.field-list,
+.rst-content dl.field-list {
+   max-width: 100%;
+}
+
+.rst-content div[class^="highlight"],
+.rst-content pre,
+.wy-table-responsive {
+   overflow-x: auto;
+}
+
+.rst-content dl.field-list dt {
+   white-space: normal;
+}
+
+.rst-content table.field-list th.field-name {
+   white-space: normal;
 }
 
 a img.logo {

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file NullSet.hpp
  *
@@ -11,15 +13,10 @@
  *
  */
 
-#ifndef SLAM_NULL_SET_H_
-#define SLAM_NULL_SET_H_
-
 #include "axom/slic.hpp"
 #include "axom/slam/Set.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class NullSet
@@ -89,7 +86,4 @@ inline bool operator!=(NullSet const&, NullSet const&)
 }
 #endif
 
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  //  SLAM_NULL_SET_H_
+}  // end namespace axom::slam

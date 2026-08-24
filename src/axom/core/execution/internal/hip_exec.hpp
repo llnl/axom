@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_HIP_EXEC_HPP_
-#define AXOM_HIP_EXEC_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
@@ -56,15 +55,16 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
 
   static constexpr MemorySpace memory_space = MemorySpace::Device;
 
-  static constexpr bool async() noexcept { return false; }
-  static constexpr bool valid() noexcept { return true; }
-  static constexpr bool onDevice() noexcept { return true; }
-  static constexpr char* name() noexcept { return (char*)"[HIP_EXEC]"; }
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[HIP_EXEC]"; }
+
   static int allocatorID() noexcept
   {
     return axom::getUmpireResourceAllocatorID(umpire::resource::Device);
   }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::hip;
   }
@@ -97,15 +97,15 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, ASYNC>>
 
   static constexpr MemorySpace memory_space = MemorySpace::Device;
 
-  static constexpr bool async() noexcept { return true; }
-  static constexpr bool valid() noexcept { return true; }
-  static constexpr bool onDevice() noexcept { return true; }
-  static constexpr char* name() noexcept { return (char*)"[HIP_EXEC] (async)"; }
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[HIP_EXEC] (async)"; }
   static int allocatorID() noexcept
   {
     return axom::getUmpireResourceAllocatorID(umpire::resource::Device);
   }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::hip;
   }
@@ -121,5 +121,3 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, ASYNC>>
   }
 };
 }  // namespace axom
-
-#endif  // AXOM_HIP_EXEC_HPP_

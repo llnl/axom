@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file StridePolicies.hpp
  *
@@ -12,27 +14,28 @@
  * Stride policies are meant to represent the fixed distance between consecutive
  * elements of an OrderedSet
  * A valid stride policy must support the following interface:
- *   * [required]
- *   * DEFAULT_VALUE is a public static const IntType
- *   * IS_COMPILE_TIME is a public static const bool
- *   * stride() : IntType  -- returns the stride
- *   * isValid() : bool -- indicates whether the Stride policy of the set is valid
- *   * [optional]
- *   * operator(): IntType -- alternate accessor for the stride value
+ *   [required]
+ *    - DEFAULT_VALUE is a public static const IntType
+ *    - IS_COMPILE_TIME is a public static const bool
+ *    - stride() : IntType  -- returns the stride
+ *    - isValid() : bool -- indicates whether the Stride policy of the set is valid
+ *   [optional]
+ *    - operator(): IntType -- alternate accessor for the stride value
  *
  * \note All non-zero stride values are valid.
+ *
+ * \note The single-stride Runtime/CompileTime storage, constructors and validity checking
+ *  are provided by the unified RuntimeValue/CompileTimeValue core in ValuePolicies.hpp.
+ *  The scalar policies below add only the stride-specific surface (named `stride()`/`shape()` accessors, 
+ *  the dimensional typedefs, DEFAULT_VALUE/IS_COMPILE_TIME).
+ *  MultiDimStride is a separate, inherently multi-dimensional policy and is unaffected.
  */
 
-#ifndef SLAM_POLICIES_STRIDE_H_
-#define SLAM_POLICIES_STRIDE_H_
-
 #include "axom/core/Macros.hpp"
+#include "axom/core/StackArray.hpp"
+#include "axom/slam/policies/ValuePolicies.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /**
  * \name OrderedSet_Stride_Policies
@@ -46,49 +49,47 @@ namespace policies
  * When using this class, the stride can be set at runtime.
  */
 template <typename IntType>
-struct RuntimeStride
+struct RuntimeStride : RuntimeValue<StrideTag<IntType>>
 {
+private:
+  using BaseType = RuntimeValue<StrideTag<IntType>>;
+
 public:
-  static const IntType DEFAULT_VALUE = IntType(1);
+  static const IntType DEFAULT_VALUE;
   static const bool IS_COMPILE_TIME = false;
   constexpr static int NumDims = 1;
 
   using IndexType = IntType;
   using ShapeType = IntType;
 
-  static constexpr IntType DefaultSize() { return DEFAULT_VALUE; }
+  static constexpr IntType DefaultSize() { return StrideTag<IntType>::defaultValue(); }
 
-  AXOM_HOST_DEVICE RuntimeStride(IntType stride = DEFAULT_VALUE) : m_stride(stride) { }
+  using BaseType::BaseType;
 
   /// \brief Returns the stride between consecutive elements.
-  AXOM_HOST_DEVICE inline IntType stride() const { return m_stride; }
+  AXOM_HOST_DEVICE constexpr IntType stride() const { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType& stride() { return this->value(); }
+
   /*!
    * \brief Returns the shape of the inner data for a given stride.
    *  This only has meaning when used with Map-based types.
    */
-  AXOM_HOST_DEVICE inline IntType shape() const { return m_stride; }
-  AXOM_HOST_DEVICE inline IntType& stride() { return m_stride; }
+  AXOM_HOST_DEVICE constexpr IntType shape() const { return this->value(); }
 
-  void setStride(IntType str) { m_stride = str; }
-
-  inline IntType operator()() const { return stride(); }
-  inline IntType& operator()() { return stride(); }
-
-  /** All non-zero strides are valid     */
-  inline bool isValid(bool) const { return (m_stride != 0); }
-
-  //inline bool hasStride() const       { return m_stride != IntType(); }
-
-private:
-  IntType m_stride;
+  void setStride(IntType str) { this->m_value = str; }
 };
 
-/**
- * \brief A policy class for a compile-time known stride
- */
+template <typename IntType>
+const IntType RuntimeStride<IntType>::DEFAULT_VALUE = StrideTag<IntType>::defaultValue();
+
+/// \brief A policy class for a compile-time known stride
 template <typename IntType, IntType INT_VAL>
-struct CompileTimeStride
+struct CompileTimeStride : CompileTimeValue<INT_VAL, StrideTag<IntType>>
 {
+private:
+  using BaseType = CompileTimeValue<INT_VAL, StrideTag<IntType>>;
+
+public:
   static const IntType DEFAULT_VALUE = INT_VAL;
   static const bool IS_COMPILE_TIME = true;
   constexpr static int NumDims = 1;
@@ -98,11 +99,10 @@ struct CompileTimeStride
 
   static constexpr IntType DefaultSize() { return DEFAULT_VALUE; }
 
-  AXOM_HOST_DEVICE CompileTimeStride(IntType val = DEFAULT_VALUE) { setStride(val); }
+  using BaseType::BaseType;
 
-  AXOM_HOST_DEVICE inline IntType stride() const { return INT_VAL; }
-  AXOM_HOST_DEVICE inline IntType shape() const { return INT_VAL; }
-  inline IntType operator()() const { return stride(); }
+  AXOM_HOST_DEVICE constexpr IntType stride() const { return INT_VAL; }
+  AXOM_HOST_DEVICE constexpr IntType shape() const { return INT_VAL; }
 
   AXOM_HOST_DEVICE void setStride(IntType AXOM_DEBUG_PARAM(val))
   {
@@ -111,21 +111,13 @@ struct CompileTimeStride
                       << " with value (" << val << " ) that differs from the template"
                       << " parameter of " << INT_VAL << ".");
   }
-
-  /** All non-zero strides are valid     */
-  inline bool isValid(bool) const { return (INT_VAL != 0); }
 };
 
-/**
- * \brief A policy class for a set with stride one (i.e. the default stride)
- */
+/// \brief A policy class for a set with stride one (i.e. the default stride)
 template <typename IntType>
 using StrideOne = CompileTimeStride<IntType, 1>;
 
-/**
- * \brief A policy class for a set with multi-dimensional stride. Assumed
- *  layout is row-major.
- */
+/// \brief A policy class for a set with multi-dimensional stride. Assumed layout is row-major.
 template <typename IntType, int Dims>
 struct MultiDimStride
 {
@@ -173,8 +165,4 @@ private:
 
 /// \}
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_POLICIES_STRIDE_H_
+}  // end namespace axom::slam::policies

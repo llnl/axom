@@ -15,6 +15,10 @@ else()
     cmake_minimum_required(VERSION 3.14)
 endif()
 
+# Default unset third-party CMP0074 handling to NEW so imported packages honor
+# <PackageName>_ROOT hints without emitting developer warnings.
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW CACHE STRING "")
+
 project(axom LANGUAGES C CXX)
 
 if (ENABLE_FORTRAN)
@@ -46,7 +50,7 @@ if ("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
     # Set some default BLT options before loading BLT only if not included in
     # another project
     if (NOT BLT_CXX_STD)
-        set(BLT_CXX_STD "c++17" CACHE STRING "")
+        set(BLT_CXX_STD "c++20" CACHE STRING "")
     endif()
 
     # These are not used in Axom, turn them off

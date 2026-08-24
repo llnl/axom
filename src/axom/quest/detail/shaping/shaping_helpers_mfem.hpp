@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SHAPING_HELPERS_MFEM__HPP_
-#define AXOM_QUEST_SHAPING_HELPERS_MFEM__HPP_
+#pragma once
 
 #include "shaping_helpers.hpp"
 
@@ -67,7 +66,11 @@ struct MFEMState
 
   void deleteShapeFunction(const std::string& AXOM_UNUSED_PARAM(name))
   {
-    // TODO: remove the function from m_inoutShapeQFuncs if it exists.
+    // NOTE: The current shaping behavior stores individual per-shape quadrature functions
+    //       in m_inoutShapeQFuncs and the existing behavior does not clear them out.
+    //       This takes memory so this method exists to have the shaper clear the named
+    //       function when no longer needed. We would just remove the \a name function from
+    //       m_inoutShapeQFuncs if it exists.
   }
 
   mfem::QuadratureFunction* getMaterialFunction(const std::string& name)
@@ -230,6 +233,13 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
                                        axom::numerics::QuadratureType quadratureType,
                                        axom::runtime_policy::Policy execPolicy);
 
+/*!
+ * \brief Creates a new GridFunction based on \a inout and registers it with the \a dc DataCollection.
+ *
+ * \param dc The DataCollection that will contain the new GridFunction.
+ * \param inout The quadrature data that contains the inout values for each element.
+ * \param name The name to use when registering the new GridFunction.
+ */
 void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     mfem::QuadratureFunction* inout,
                                     const std::string& name);
@@ -455,5 +465,3 @@ void FCT_correct(const double* M,
 }  // end namespace axom
 
 #endif  // defined(AXOM_USE_MFEM)
-
-#endif  // AXOM_QUEST_SHAPING_HELPERS_MFEM__HPP_

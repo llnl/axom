@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
-#define AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -120,5 +120,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

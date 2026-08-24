@@ -21,7 +21,6 @@ set(gtest_klee_tests
     klee_io_util.cpp
     klee_shape.cpp
     klee_shape_set.cpp
-    klee_units.cpp
    )
 
 axom_add_library(
@@ -44,4 +43,3 @@ foreach(test ${gtest_klee_tests})
     axom_add_test(NAME ${test_name}
                   COMMAND ${test_name}_test )
 endforeach()
-

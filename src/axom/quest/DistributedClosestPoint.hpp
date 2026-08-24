@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_DISTRIBUTED_CLOSEST_POINT_H_
-#define QUEST_DISTRIBUTED_CLOSEST_POINT_H_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
@@ -104,6 +103,14 @@ public:
    */
   void setDistanceThreshold(double threshold);
 
+  /**
+   * \brief Enables dynamic filtering of object ranks based on current closest distances.
+   *
+   * When enabled, transferred query batches skip object ranks whose partition
+   * bounding box cannot improve any current result. Enabled by default.
+   */
+  void setDynamicDistanceFiltering(bool on);
+
   /*!
     @brief Set what fields to output.
 
@@ -199,6 +206,7 @@ private:
   int m_dimension {-1};
   bool m_isVerbose {false};
   double m_sqDistanceThreshold;
+  bool m_dynamicDistanceFiltering {true};
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
@@ -212,5 +220,3 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  //  QUEST_DISTRIBUTED_CLOSEST_POINT_H_

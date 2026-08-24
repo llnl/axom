@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutOctreeStats.hpp
  *
  * \brief Defines helper class to generate statistics about an InOutOctree.
  */
-
-#ifndef AXOM_QUEST_INOUT_OCTREE_STATS__HPP_
-#define AXOM_QUEST_INOUT_OCTREE_STATS__HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -43,10 +42,12 @@ public:
   using OctreeBaseType = typename InOutOctreeType::OctreeBaseType;
   using OctreeLevels = typename OctreeBaseType::OctreeLevels;
   using BlockIndex = typename OctreeBaseType::BlockIndex;
+  using MeshVertexSet = typename MeshWrapper<DIM>::MeshVertexSet;
+  using MeshElementSet = typename MeshWrapper<DIM>::MeshElementSet;
 
-  using LeafCountMap = slam::Map<int>;
-  using CellCountMap = slam::Map<int>;
-  using CardinalityVCMap = slam::Map<int>;
+  using LeafCountMap = slam::Map<int, OctreeLevels>;
+  using CellCountMap = slam::Map<int, MeshElementSet>;
+  using CardinalityVCMap = slam::Map<int, MeshVertexSet>;
 
   using LogHistogram = std::map<int, int>;
   using MinMaxRange = primal::BoundingBox<double, 1>;
@@ -336,5 +337,3 @@ private:
 }  // namespace detail
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_OCTREE_STATS__HPP_

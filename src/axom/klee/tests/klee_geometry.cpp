@@ -5,8 +5,11 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/klee/Geometry.hpp"
+#include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/tests/KleeMatchers.hpp"
 #include "axom/klee/tests/KleeTestUtils.hpp"
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include <memory>
@@ -15,6 +18,7 @@ namespace axom
 {
 namespace klee
 {
+using test::AlmostEqMatrix;
 using test::MockOperator;
 using ::testing::Return;
 
@@ -51,6 +55,18 @@ TEST(GeometryTest, emptyPath)
   Geometry geometry {startProperties, "none", "", nullptr};
 
   EXPECT_FALSE(geometry.hasGeometry());
+}
+
+TEST(GeometryTest, getTransform_sliceOperator)
+{
+  TransformableGeometryProperties startProperties {Dimensions::Three, LengthUnit::cm};
+  auto slice = std::make_shared<SliceOperator>(primal::Point3D {10, 20, 30},
+                                               primal::Vector3D {1, 4, 8},
+                                               primal::Vector3D {-4, 1, 0},
+                                               startProperties);
+  Geometry geometry {startProperties, "test format", "test path", slice};
+
+  EXPECT_THAT(geometry.getTransform(), AlmostEqMatrix(slice->toMatrix()));
 }
 
 }  // namespace klee

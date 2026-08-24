@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DynamicSet.hpp
  *
@@ -11,17 +13,14 @@
  * at runtime
  */
 
-#ifndef SLAM_DYNAMIC_SET_H_
-#define SLAM_DYNAMIC_SET_H_
-
 #include "axom/config.hpp"
 #include "axom/core/IteratorBase.hpp"
 #include "axom/slam/OrderedSet.hpp"
 #include "axom/slam/RangeSet.hpp"
 
-namespace axom
-{
-namespace slam
+#include <optional>
+
+namespace axom::slam
 {
 /**
  * \class DynamicSet
@@ -250,7 +249,7 @@ public:
    *
    * \pre pos must be between 0 and size()
    */
-  ElementType at(PositionType pos) const { return operator[](pos); };
+  [[nodiscard]] ElementType at(PositionType pos) const { return operator[](pos); };
 
   /**
    * \brief Access the element at position \a pos
@@ -300,6 +299,20 @@ public:
     return INVALID_ENTRY;
   };
 
+  /*!
+   * \brief Given a value, find the index of the first entry containing it.
+   *
+   * \return An engaged `std::optional` with the index of the first element with
+   *         value \a e, or an empty `std::optional` if none can be found.
+   * \note This is an O(n) operation in the size of the set.
+   */
+  [[nodiscard]] std::optional<IndexType> findIndexOptional(ElementType e) const
+  {
+    const IndexType idx = findIndex(e);
+    const IndexType invalid = static_cast<IndexType>(INVALID_ENTRY);
+    return idx != invalid ? std::optional<IndexType>(idx) : std::optional<IndexType> {};
+  }
+
   /**
    * \brief Checks whether an element exists within the DynamicSet
    *
@@ -328,14 +341,13 @@ public:
   /**
    * \brief Returns the number of possible elements in the set
    *
-   * \note Not all elements are necessarily valid since some elements
-   * could have been deleted
+   * \note Not all elements are necessarily valid since some elements could have been deleted
    * \sa numberOfValidEntries(), isValidEntry()
    */
   AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicy::size(); };
 
   /// \brief Uses \a SizePolicy::empty() to determine if the set is empty
-  AXOM_HOST_DEVICE bool empty() const { return SizePolicy::empty(); };
+  [[nodiscard]] AXOM_HOST_DEVICE bool empty() const { return SizePolicy::empty(); };
 
   /// \brief Returns a positionset over the set elements
   PositionSet<PositionType> positions() const { return PositionSet<PositionType>(size()); }
@@ -346,7 +358,7 @@ public:
    * \details This is an O(n) operation, because the class makes no assumption
    * that data was not changed by the user
    */
-  PositionType numberOfValidEntries() const
+  [[nodiscard]] PositionType numberOfValidEntries() const
   {
     PositionType nvalid = 0;
 
@@ -373,9 +385,9 @@ public:
    * The entry is valid when 0 <= i < size() and the value at index
    * \a i is not marked as \a INVALID_ENTRY
    */
-  inline bool isValidEntry(IndexType i) const
+  [[nodiscard]] inline bool isValidEntry(IndexType i) const
   {
-    return i >= 0 && i < size() && m_data[i] != INVALID_ENTRY;
+    return i >= 0 && i < SizePolicy::size() && m_data[i] != INVALID_ENTRY;
   };
 
   /**
@@ -384,7 +396,7 @@ public:
    * A DynamicSet is valid if each of its policies claim it to be valid.
    * This includes its \a SizePolicy, \a OffsetPolicy and \a StridePolicy
    */
-  bool isValid(bool verboseOutput = false) const
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const
   {
     bool bValid = SizePolicy::isValid(verboseOutput);
     return bValid;
@@ -396,10 +408,11 @@ public:
   /// \name Functions that modify the set cardinality
   /// @{
 
-  /**
-   * \brief Insert an entry at the end of the set with value = ( size()-1 )
-   */
+  /// \brief Insert an entry at the end of the set with value = ( size()-1 )
   IndexType insert() { return insert(size()); }
+
+  /// \brief Reserves storage for at least \a sz entries.
+  void reserve(PositionType sz) { m_data.reserve(sz); }
 
   /**
    * \brief Insert an entry at the end of the set with the given value.
@@ -408,7 +421,7 @@ public:
   IndexType insert(ElementType val)
   {
     m_data.push_back(val);
-    SizePolicy::m_sz = m_data.size();
+    SizePolicy::size() = m_data.size();
     return size() - 1;
   };
 
@@ -430,7 +443,7 @@ public:
    */
   void reset(PositionType sz)
   {
-    SizePolicy::m_sz = sz;
+    SizePolicy::size() = sz;
     fill_array_default(sz);
   }
 
@@ -470,7 +483,4 @@ private:
 template <typename P, typename E, typename S>
 constexpr typename DynamicSet<P, E, S>::ElementType DynamicSet<P, E, S>::INVALID_ENTRY;
 
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_SET_H_
+}  // end namespace axom::slam

@@ -296,8 +296,8 @@ TEST(slam_range_set, out_of_range)
 #ifdef AXOM_DEBUG
   // NOTE: AXOM_DEBUG is disabled in release mode,
   // so this test will only fail in debug mode
-  EXPECT_DEATH_IF_SUPPORTED(s.at(upperIndex), "");
-  EXPECT_DEATH_IF_SUPPORTED(s.at(MAX_SIZE), "");
+  EXPECT_DEATH_IF_SUPPORTED((void)s.at(upperIndex), "");
+  EXPECT_DEATH_IF_SUPPORTED((void)s.at(MAX_SIZE), "");
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif

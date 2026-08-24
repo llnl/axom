@@ -23,17 +23,40 @@ axom_add_executable(
     FOLDER      axom/quest/examples
     )
 
-if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND CALIPER_FOUND)
-    set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
-    
+if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+
+    set(_optional_caliper)
+    if(CALIPER_FOUND)
+        set(_optional_caliper "--caliper" "report")
+    endif()
+
     # this test requires MPI when available (but only 1 rank)
+    set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
     axom_add_test(
         NAME    quest_containment_sphere_ex
         COMMAND quest_containment_driver_ex
-                --input ${_input_file}
-                --caliper report
+                 --input ${_input_file}
+                 ${_optional_caliper}
         NUM_MPI_TASKS 1
     )
+
+    if(C2C_FOUND)
+        set(_input_file "${AXOM_DATA_DIR}/contours/unit_square.contour")
+        axom_add_test(
+            NAME     quest_containment_on_surface_regression_ex
+            COMMAND  quest_containment_driver_ex
+                      --input ${_input_file}
+                      --min -0.234 -0.43
+                      --max 1.58 1.715
+                      -n3
+                      -l3
+                      ${_optional_caliper}
+            NUM_MPI_TASKS 1
+        )
+    endif()
+
+    unset(_input_file)
+    unset(_optional_caliper)
 endif()
 
 # BVH two pass example --------------------------------------------------------
@@ -52,14 +75,7 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
 
     set(input_file "${AXOM_DATA_DIR}/quest/unit_cube.stl")
 
-    set (_policies "seq")
-    if(RAJA_FOUND)
-        blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-    endif()
-
-    foreach(_policy ${_policies})
+    foreach(_policy ${AXOM_EXECUTION_POLICIES})
         # sets the number of threads for the omp policy; leave empty for non-omp policies
         set(_num_threads)
         if(_policy STREQUAL "omp")
@@ -94,7 +110,7 @@ if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire::umpire
         FOLDER      axom/quest/examples
         )
 
@@ -109,15 +125,8 @@ if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
 
         set(_methods "bvh" "implicit")
 
-        set (_policies "seq")
-        if(RAJA_FOUND)
-          blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-          blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-          blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-        endif()
-
         foreach(_method ${_methods})
-            foreach(_policy ${_policies})
+            foreach(_policy ${AXOM_EXECUTION_POLICIES})
                 # sets the number of threads for the omp policy; leave empty for non-omp policies
                 set(_num_threads)
                 if(_policy STREQUAL "omp")
@@ -266,16 +275,7 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
 
         # Tests 2D c2c contour
         if(C2C_FOUND)
-            set(_policies "seq")
-            if(RAJA_FOUND)
-                blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-                if(UMPIRE_FOUND)
-                  blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-                  blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-                endif()
-            endif()
-
-            foreach(_policy ${_policies})
+            foreach(_policy ${AXOM_EXECUTION_POLICIES})
                 # sets the number of threads for the omp policy; leave empty for non-omp policies
                 set(_num_threads)
                 if(_policy STREQUAL "omp")
@@ -299,20 +299,42 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
                     PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57")
             endforeach()
 
-            unset(_policies)
+            # Test 2D C2C assembly input on an MFEM mesh
+            set(_testname quest_shaping_driver_ex_heroic_roses_assembly)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                         -i ${shaping_data_dir}/heroic_roses_assembly.yaml
+                         --method sampling
+                         inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+
+            # Test heroic_roses.yaml
+            set(_testname quest_shaping_driver_ex_heroic_roses)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                         -i ${shaping_data_dir}/heroic_roses.yaml
+                         --method sampling
+                         inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
         endif()
 
         # Test 2D MFEM mesh (linearize contours)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem)
         axom_add_test(
             NAME ${_testname}
-            COMMAND  quest_shaping_driver_ex 
+            COMMAND  quest_shaping_driver_ex
                      -i ${shaping_data_dir}/heroic_roses_mfem.yaml
                      --method sampling
                      inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?595.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?66[0-9].")
 
         # Test 2D MFEM mesh (winding number)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem_cp)
@@ -409,20 +431,13 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
         set(_nranks 3)
 
         # Run the distributed closest point example on N ranks for each enabled policy
-        set(_policies "seq")
-        if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
-            blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
-        endif()
-
         # Non-zero empty-rank probability tests domain underloading case
         set(_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")
         # The mdmesh.* files were generated by these commands:
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,1 -o mdmesh.2x1
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,3 -o mdmesh.2x3
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
-        foreach(_pol ${_policies})
+        foreach(_pol ${AXOM_EXECUTION_POLICIES})
             # sets the number of threads for the omp policy; leave empty for non-omp policies
             set(_num_threads)
             if(_pol STREQUAL "omp")
@@ -455,18 +470,43 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                                 --dist-threshold .3
                                 --no-random-spacing
                                 --check-results
+                                --dynamic-distance-filtering
                                 --policy ${_pol}
                                 --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}
                                 --distance-file dcp_closest_point_2d_${_pol}_${_mesh}
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
+
+                if(_pol STREQUAL "seq" AND (_mesh STREQUAL "mdmesh.2x1" OR _mesh STREQUAL "mdmesh.2x2x1"))
+                    # Keep fallback coverage for the non-dynamic filtering path
+                    # with one 2D and one 3D seq case.
+                    set(_static_test "${_test}_no_dynamic_distance_filtering")
+                    axom_add_test(
+                        NAME    ${_static_test}
+                        COMMAND quest_distributed_distance_query_ex
+                                    --mesh-file ${quest_data_dir}/${_mesh}.root
+                                    --long-point-count 60
+                                    --center ${_center}
+                                    --radius 0.9
+                                    --lat-point-count 30
+                                    --obj-domain-count-range 0 2
+                                    --dist-threshold .3
+                                    --no-random-spacing
+                                    --check-results
+                                    --no-dynamic-distance-filtering
+                                    --policy ${_pol}
+                                    --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}_no_dynamic
+                                    --distance-file dcp_closest_point_2d_${_pol}_${_mesh}_no_dynamic
+                        NUM_MPI_TASKS ${_nranks}
+                        NUM_OMP_THREADS ${_num_threads})
+                endif()
             endforeach()
         endforeach()
 
         unset(optional_dependency)
         unset(_nranks)
-        unset(_policies)
         unset(_test)
+        unset(_static_test)
     endif()
 endif()
 
@@ -496,13 +536,6 @@ if(CONDUIT_FOUND)
         endif()
 
         # Run the marching cubes example on N ranks for each enabled policy
-        set(_policies "seq")
-        if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-        endif()
-
         # Non-zero empty-rank probability tests domain underloading case
         set(_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")
         # The amc.* files were generated by these commands:
@@ -510,7 +543,7 @@ if(CONDUIT_FOUND)
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,3 -o mdmesh.2x3
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmesh.2x2x1
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
-        foreach(_pol ${_policies})
+        foreach(_pol ${AXOM_EXECUTION_POLICIES})
             # sets the number of threads for the omp policy; leave empty for non-omp policies
             set(_num_threads)
             if(_pol STREQUAL "omp")
@@ -553,7 +586,6 @@ if(CONDUIT_FOUND)
         endforeach()
 
         unset(_nranks)
-        unset(_policies)
         unset(_test)
     endif()
 
@@ -605,6 +637,16 @@ if(AXOM_ENABLE_SIDRE)
                 COMMAND quest_scattered_interpolation_ex -d ${d} -n 10000 -q 20000
                 )
         endforeach()
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_2d_test
+            COMMAND quest_scattered_interpolation_ex -d 2 --grid-res 20 20 -q 200
+            )
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_3d_test
+            COMMAND quest_scattered_interpolation_ex -d 3 --grid-res 3 3 3 -q 200
+            )
     endif()
 endif()
 

@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPVIEW_H
+#define WRAPVIEW_H
+
 /**
  * \file wrapView.h
  * \brief Shroud generated wrapper for View class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPVIEW_H
-#define WRAPVIEW_H
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"

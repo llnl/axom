@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_STLWRITER_HPP_
-#define QUEST_STLWRITER_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -110,5 +109,3 @@ int write_stl(const mint::Mesh* mesh, const std::string& filename, bool binary =
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_STLWRITER_HPP_

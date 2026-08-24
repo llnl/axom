@@ -20,13 +20,13 @@
  */
 
 #include "axom/core.hpp"
+#include "axom/fmt.hpp"
 #include "axom/slic.hpp"
 
 // _quadmesh_example_import_header_start
 #include "axom/slam.hpp"
 // _quadmesh_example_import_header_end
 
-#include <sstream>
 #include <cmath>
 #include <fstream>
 
@@ -60,7 +60,7 @@ struct Point2
   Point2& operator/=(double val)
   {
     m_x /= val;
-    m_y += val;
+    m_y /= val;
     return *this;
   }
 
@@ -93,35 +93,33 @@ struct SimpleQuadMesh
   // _quadmesh_example_set_typedefs_end
 
   // _quadmesh_example_common_typedefs_start
-  using ArrayIndir = slam::policies::CArrayIndirection<PosType, ElemType>;
+  // Slam objects index into buffers of positions.
+  // We store that connectivity data in axom::Array, Slam's canonical buffer type.
+  using IndexBuffer = axom::Array<PosType>;
   // _quadmesh_example_common_typedefs_end
 
   /// Type aliases for relations
   // _quadmesh_example_bdry_relation_typedefs_start
-  // Type aliases for element-to-vertex boundary relation
+  // Element-to-vertex boundary relation: each quad has exactly four vertices,
+  // so the cardinality is a compile-time constant via ConstantRelation.
   enum
   {
     VertsPerElem = 4
   };
-  using CTStride = slam::policies::CompileTimeStride<PosType, VertsPerElem>;
-  using ConstCard = slam::policies::ConstantCardinality<PosType, CTStride>;
-  using ElemToVertRelation =
-    slam::StaticRelation<PosType, ElemType, ConstCard, ArrayIndir, ElemSet, VertSet>;
+  using ElemToVertRelation = slam::ConstantRelation<ElemSet, VertSet, VertsPerElem>;
   // _quadmesh_example_bdry_relation_typedefs_end
 
   // _quadmesh_example_cobdry_relation_typedefs_start
-  // Type aliases for vertex-to-element coboundary relation
-  using VarCard = slam::policies::VariableCardinality<PosType, ArrayIndir>;
-  using VertToElemRelation =
-    slam::StaticRelation<PosType, ElemType, VarCard, ArrayIndir, VertSet, ElemSet>;
+  // Vertex-to-element coboundary relation: the number of incident elements
+  // varies per vertex, so we use VariableRelation.
+  using VertToElemRelation = slam::VariableRelation<VertSet, ElemSet>;
   // _quadmesh_example_cobdry_relation_typedefs_end
 
   /// Type alias for position map
   // _quadmesh_example_maps_typedefs_start
-  using BaseSet = slam::Set<PosType, ElemType>;
-  using ScalarMap = slam::Map<Point2, BaseSet>;
-  using PointMap = slam::Map<Point2, BaseSet>;
-  using VertPositions = PointMap;
+  // A Map attaches a value to each element of a set. With no indirection policy
+  // specified, a Map stores its values in an axom::Array it manages itself.
+  using VertPositions = slam::Map<Point2, VertSet>;
   // _quadmesh_example_maps_typedefs_end
 
   SimpleQuadMesh()
@@ -176,23 +174,14 @@ struct SimpleQuadMesh
     {
       // _quadmesh_example_construct_bdry_relation_start
       // construct boundary relation from elements to vertices
-      using RelationBuilder = ElemToVertRelation::RelationBuilder;
-      bdry = RelationBuilder().fromSet(&elems).toSet(&verts).indices(
-        RelationBuilder::IndicesSetBuilder().size(static_cast<int>(evInds.size())).data(evInds.data()));
+      bdry = slam::make_constant_relation_ct<VertsPerElem>(&elems, &verts, evInds);
       // _quadmesh_example_construct_bdry_relation_end
     }
 
     {
       // _quadmesh_example_construct_cobdry_relation_start
       // construct coboundary relation from vertices to elements
-      using RelationBuilder = VertToElemRelation::RelationBuilder;
-      cobdry = RelationBuilder()
-                 .fromSet(&verts)
-                 .toSet(&elems)
-                 .begins(RelationBuilder::BeginsSetBuilder().size(verts.size()).data(veBegins.data()))
-                 .indices(RelationBuilder::IndicesSetBuilder()
-                            .size(static_cast<int>(veInds.size()))
-                            .data(veInds.data()));
+      cobdry = slam::make_variable_relation(&verts, &elems, veBegins, veInds);
       // _quadmesh_example_construct_cobdry_relation_end
     }
 
@@ -242,8 +231,9 @@ struct SimpleQuadMesh
   void computeDistances()
   {
     // _quadmesh_example_vert_distances_start
-    // Create a Map of scalars over the vertices
-    ScalarMap distances(&verts);
+    // Create a Map of scalars over the vertices. As with the position map,
+    // this owns its values in an axom::Array (the default indirection).
+    slam::Map<double, VertSet> distances(&verts);
 
     for(int i = 0; i < distances.size(); ++i)  // <-- Map::size()
     {
@@ -268,8 +258,7 @@ struct SimpleQuadMesh
   {
     // _quadmesh_example_elem_centroids_start
     // Create a Map of Point2 over the mesh elements
-    using ElemCentroidMap = PointMap;
-    ElemCentroidMap centroid = ElemCentroidMap(&elems);
+    slam::Map<Point2, ElemSet> centroid(&elems);
 
     // for each element...
     for(int eID = 0; eID < elems.size(); ++eID)  // <-- Set::size()
@@ -299,56 +288,63 @@ struct SimpleQuadMesh
   void outputVTKMesh()
   {
     // _quadmesh_example_output_vtk_start
-    std::ofstream meshfile;
-    meshfile.open("quadMesh.vtk");
-    std::ostream_iterator<PosType> out_it(meshfile, " ");
+    std::ofstream meshfile {"quadMesh.vtk"};
 
     // write header
-    meshfile << "# vtk DataFile Version 3.0\n"
-             << "vtk output\n"
-             << "ASCII\n"
-             << "DATASET UNSTRUCTURED_GRID\n\n"
-             << "POINTS " << verts.size() << " double\n";
+    axom::fmt::print(meshfile,
+                     "# vtk DataFile Version 3.0\n"
+                     "vtk output\n"
+                     "ASCII\n"
+                     "DATASET UNSTRUCTURED_GRID\n\n"
+                     "POINTS {} double\n",
+                     verts.size());
 
     // write positions
     for(auto pos : position)  // <-- Uses range-based for on position map
     {
-      meshfile << pos[0] << " " << pos[1] << " 0\n";
+      axom::fmt::print(meshfile, "{} {} 0\n", pos[0], pos[1]);
     }
 
     // write elem-to-vert boundary relation
-    meshfile << "\nCELLS " << elems.size() << " " << 5 * elems.size();
+    axom::fmt::print(meshfile, "\nCELLS {} {}", elems.size(), 5 * elems.size());
     for(auto e : elems)  // <-- uses range-based for on element set
     {
-      meshfile << "\n4 ";
-      std::copy(bdry.begin(e),  // <-- uses relation's iterators
-                bdry.end(e),
-                out_it);
+      axom::fmt::print(meshfile, "\n4 ");
+      for(auto v : bdry[e])  // <-- uses relation's per-element set
+      {
+        axom::fmt::print(meshfile, "{} ", v);
+      }
     }
 
     // write element types ( 9 == VKT_QUAD )
-    meshfile << "\n\nCELL_TYPES " << elems.size() << "\n";
+    axom::fmt::print(meshfile, "\n\nCELL_TYPES {}\n", elems.size());
     for(int i = 0; i < elems.size(); ++i)
     {
-      meshfile << "9 ";
+      axom::fmt::print(meshfile, "9 ");
     }
 
     // write element ids
-    meshfile << "\n\nCELL_DATA " << elems.size() << "\nSCALARS cellIds int 1"
-             << "\nLOOKUP_TABLE default \n";
+    axom::fmt::print(meshfile,
+                     "\n\nCELL_DATA {}\n"
+                     "SCALARS cellIds int 1\n"
+                     "LOOKUP_TABLE default \n",
+                     elems.size());
     for(int i = 0; i < elems.size(); ++i)
     {
-      meshfile << elems[i] << " ";  // <-- uses size() and operator[] on set
+      axom::fmt::print(meshfile, "{} ", elems[i]);  // <-- uses size() and operator[] on set
     }
 
     // write vertex ids
-    meshfile << "\n\nPOINT_DATA " << verts.size() << "\nSCALARS vertIds int 1"
-             << "\nLOOKUP_TABLE default \n";
+    axom::fmt::print(meshfile,
+                     "\n\nPOINT_DATA {}\n"
+                     "SCALARS vertIds int 1\n"
+                     "LOOKUP_TABLE default \n",
+                     verts.size());
     for(int i = 0; i < verts.size(); ++i)
     {
-      meshfile << verts[i] << " ";
+      axom::fmt::print(meshfile, "{} ", verts[i]);
     }
-    meshfile << "\n";
+    axom::fmt::print(meshfile, "\n");
     // _quadmesh_example_output_vtk_end
   }
 
@@ -367,10 +363,10 @@ private:
   VertPositions position;  // vertex position
   // _quadmesh_example_map_variables_end
 
-  // support data for mesh connectivity
-  std::vector<PosType> evInds;
-  std::vector<PosType> veInds;
-  std::vector<PosType> veBegins;
+  // support data for mesh connectivity, stored in axom::Array buffers
+  IndexBuffer evInds;
+  IndexBuffer veInds;
+  IndexBuffer veBegins;
 };
 
 void quadMeshExample()

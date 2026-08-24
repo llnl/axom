@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRACT_ZONES_HPP
-#define AXOM_BUMP_EXTRACT_ZONES_HPP
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -41,7 +40,6 @@ public:
    *
    * \param topoView The input topology view.
    * \param coordsetView The input coordset view.
-   * \param matsetView The input matset view.
    */
   ExtractZones(const TopologyView &topoView, const CoordsetView &coordsetView)
     : m_topologyView(topoView)
@@ -864,5 +862,3 @@ protected:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

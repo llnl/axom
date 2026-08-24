@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SHAPING_HELPERS_BLUEPRINT__HPP_
-#define AXOM_QUEST_SHAPING_HELPERS_BLUEPRINT__HPP_
+#pragma once
 
 #include "shaping_helpers.hpp"
 
@@ -504,5 +503,3 @@ void sampleInOutField(const std::string& shapeName,
 }  // end namespace axom
 
 #endif  // defined(AXOM_USE_CONDUIT)
-
-#endif  // AXOM_QUEST_SHAPING_HELPERS_BLUEPRINT__HPP_

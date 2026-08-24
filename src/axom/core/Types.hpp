@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *  \file Types.hpp
  *
  *  \brief Exposes some common types used by axom components.
  */
-
-#ifndef AXOM_TYPES_HPP_
-#define AXOM_TYPES_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
@@ -34,7 +33,8 @@ using float64 = double;
   by using CMake -DAXOM_DEPRECATED_TYPES=<WARN|ERROR|ALLOW>
   Eventually, these types will be removed.
 */
-#if AXOM_DEPRECATED_TYPES_N == 1 || AXOM_DEPRECATED_TYPES_N == 2
+#if defined(AXOM_DEPRECATED_TYPES_N) && \
+  (AXOM_DEPRECATED_TYPES_N == 1 || AXOM_DEPRECATED_TYPES_N == 2)
   #if AXOM_DEPRECATED_TYPES_N == 1
     #if defined(_MSC_VER)
       #pragma message( \
@@ -67,6 +67,24 @@ using IndexType = std::int32_t;
 #endif
 
 static constexpr IndexType InvalidIndex = -1;
+
+/*!
+ * \brief Maps a type to itself in a non-deduced context.
+ *
+ * This is an Axom-local equivalent of C++20's std::type_identity for C++17.
+ * Its primary use is to suppress template argument deduction for a function parameter.
+ * A parameter declared as type_identity_t<T> does not participate in deducing T, 
+ * so T is taken from the explicit template argument or from another parameter,
+ * and the argument here is implicitly converted.
+ */
+template <typename T>
+struct type_identity
+{
+  using type = T;
+};
+
+template <typename T>
+using type_identity_t = typename type_identity<T>::type;
 
 #ifdef AXOM_USE_MPI
 
@@ -189,10 +207,8 @@ struct mpi_traits<std::uint64_t>
 };
   #endif  // AXOM_NO_INT64_T
 
-  /// @}
+/// @}
 
 #endif  // AXOM_USE_MPI
 
 }  // end namespace axom
-
-#endif  // AXOM_TYPES_HPP_

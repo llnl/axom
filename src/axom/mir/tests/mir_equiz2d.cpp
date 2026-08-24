@@ -69,7 +69,13 @@ void braid2d_mat_test(const std::string &type,
     const std::string domainName = axom::fmt::format("domain_{:07}", dom);
     conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
     axom::blueprint::testing::data::braid(type, dims, hostDomain);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostDomain);
+    const bool makeMixedField = false;  // for now
+    axom::blueprint::testing::data::make_matset(mattype,
+                                                "mesh",
+                                                zoneDims,
+                                                cleanMats,
+                                                makeMixedField,
+                                                hostDomain);
     TestApp.saveVisualization(name + "_orig", hostDomain);
   }
 
@@ -103,6 +109,7 @@ void braid2d_mat_test(const std::string &type,
       using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
       conduit::Node options;
+      options["verbose"] = 1;
       options["matset"] = "mat";
       if(cleanMats)
       {
@@ -312,6 +319,7 @@ public:
     using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
+    options["verbose"] = 1;
     options["matset"] = "target2_matset";
     options["matsetName"] = "mir_matset";
     m.execute(n_dev, options, n_mir);

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_UNSTRUCTUREDMESH_HPP_
-#define MINT_UNSTRUCTUREDMESH_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/Macros.hpp"
@@ -21,14 +20,14 @@
 #include "axom/mint/mesh/internal/MeshHelpers.hpp"
 
 // Slam includes
+#include "axom/slam/Aliases.hpp"
 #include "axom/slam/RangeSet.hpp"
-#include "axom/slam/StaticRelation.hpp"
 
 // Slic includes
 #include "axom/slic/interface/slic.hpp"
 
 // C/C++ includes
-#include <cstring>  // for std::memcpy
+#include <cstring>
 
 namespace axom
 {
@@ -55,26 +54,10 @@ struct topology_traits<SINGLE_SHAPE>
   using NodeSet = slam::PositionSet<IdxType, IdxType>;
   using FaceSet = slam::PositionSet<IdxType, IdxType>;
 
-  using ViewIndirection = slam::policies::ArrayViewIndirection<IdxType, IdxType>;
-
-  using ZNStride = slam::policies::RuntimeStride<IdxType>;
-  using ZNCardinality = slam::policies::ConstantCardinality<IdxType, ZNStride>;
-  using ZoneNodeRelation =
-    slam::StaticRelation<IdxType, IdxType, ZNCardinality, ViewIndirection, ZoneSet, NodeSet>;
-
-  using ZFStride = slam::policies::RuntimeStride<IdxType>;
-  using ZFCardinality = slam::policies::ConstantCardinality<IdxType, ZFStride>;
-  using ZoneFaceRelation =
-    slam::StaticRelation<IdxType, IdxType, ZFCardinality, ViewIndirection, ZoneSet, FaceSet>;
-
-  using FZStride = slam::policies::CompileTimeStride<IdxType, 2>;
-  using FZCardinality = slam::policies::ConstantCardinality<IdxType, FZStride>;
-  using FaceZoneRelation =
-    slam::StaticRelation<IdxType, IdxType, FZCardinality, ViewIndirection, FaceSet, ZoneSet>;
-
-  using FNCardinality = slam::policies::VariableCardinality<IdxType, ViewIndirection>;
-  using FaceNodeRelation =
-    slam::StaticRelation<IdxType, IdxType, FNCardinality, ViewIndirection, FaceSet, NodeSet>;
+  using ZoneNodeRelation = slam::RuntimeConstantRelationView<ZoneSet, NodeSet>;
+  using ZoneFaceRelation = slam::RuntimeConstantRelationView<ZoneSet, FaceSet>;
+  using FaceZoneRelation = slam::ConstantRelationView<FaceSet, ZoneSet, 2>;
+  using FaceNodeRelation = slam::VariableRelationView<FaceSet, NodeSet>;
 };
 
 template <>
@@ -88,24 +71,10 @@ struct topology_traits<MIXED_SHAPE>
   using NodeSet = slam::PositionSet<IdxType, IdxType>;
   using FaceSet = slam::PositionSet<IdxType, IdxType>;
 
-  using ViewIndirection = slam::policies::ArrayViewIndirection<IdxType, IdxType>;
-
-  using ZNCardinality = slam::policies::VariableCardinality<IdxType, ViewIndirection>;
-  using ZoneNodeRelation =
-    slam::StaticRelation<IdxType, IdxType, ZNCardinality, ViewIndirection, ZoneSet, NodeSet>;
-
-  using ZFCardinality = slam::policies::VariableCardinality<IdxType, ViewIndirection>;
-  using ZoneFaceRelation =
-    slam::StaticRelation<IdxType, IdxType, ZFCardinality, ViewIndirection, ZoneSet, FaceSet>;
-
-  using FZStride = slam::policies::CompileTimeStride<IdxType, 2>;
-  using FZCardinality = slam::policies::ConstantCardinality<IdxType, FZStride>;
-  using FaceZoneRelation =
-    slam::StaticRelation<IdxType, IdxType, FZCardinality, ViewIndirection, FaceSet, ZoneSet>;
-
-  using FNCardinality = slam::policies::VariableCardinality<IdxType, ViewIndirection>;
-  using FaceNodeRelation =
-    slam::StaticRelation<IdxType, IdxType, FNCardinality, ViewIndirection, FaceSet, NodeSet>;
+  using ZoneNodeRelation = slam::VariableRelationView<ZoneSet, NodeSet>;
+  using ZoneFaceRelation = slam::VariableRelationView<ZoneSet, FaceSet>;
+  using FaceZoneRelation = slam::ConstantRelationView<FaceSet, ZoneSet, 2>;
+  using FaceNodeRelation = slam::VariableRelationView<FaceSet, NodeSet>;
 };
 
 /*!
@@ -608,7 +577,7 @@ public:
     : UnstructuredMesh(ndims, group, "", "", node_capacity, cell_capacity, connectivity_capacity)
   { }
 
-    /// @}
+  /// @}
 
 #endif /* AXOM_MINT_USE_SIDRE */
 
@@ -1913,5 +1882,3 @@ inline void UnstructuredMesh<MIXED_SHAPE>::updateFaceRelations(IndexType numFace
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_UNSTRUCTUREDMESH_HPP_ */

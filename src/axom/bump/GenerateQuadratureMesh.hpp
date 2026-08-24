@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_GENERATE_QUADRATURE_MESH_HPP_
-#define AXOM_BUMP_GENERATE_QUADRATURE_MESH_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -292,5 +291,3 @@ private:
 
 }  // namespace bump
 }  // namespace axom
-
-#endif

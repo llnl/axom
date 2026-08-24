@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file SubMap.hpp
  *
  * \brief Contains SubMap, which is a subset of a Map
  *
  */
-
-#ifndef SLAM_SUBMAP_HPP_
-#define SLAM_SUBMAP_HPP_
 
 #include "axom/slic.hpp"
 
@@ -24,25 +23,20 @@
 #include <type_traits>
 #include <sstream>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class SubMap
  * \brief The SubMap class provides an API to easily traverse a subset of a Map.
  *
  * A SubMap is defined by a subset of the indices into a Map, which we refer to
- * as its SuperMap (of type SuperMapType). The indices are expressed as
- * ElementFlatIndex.\n
+ * as its SuperMap (of type SuperMapType). The indices are expressed as ElementFlatIndex.\n
  * Please see BivariateMap for an explanation of the various indexing schemes.
  *
- * SubMap is used by BivariateMap to return a set of values mapped to each item
- * in its first set.
+ * SubMap is used by BivariateMap to return a set of values mapped to each item in its first set.
  *
  * \tparam SuperMapType the type of SuperMap
- * \tparam SetType defines the indices int the super map.
- *         SetType cannot be abstract.
+ * \tparam SetType defines the indices int the super map. It cannot be abstract.
  *
  * \warning SubMap constructor can take a const Map pointer or a non-const Map
  *        pointer. A non-const value access function in SubMap will fail if the
@@ -131,8 +125,7 @@ public:
   }
 
   /**
-   * \brief Access the value associated with the given position in the subset
-   *        and the component index.
+   * \brief Access the value associated with the given position in the subset and the component index.
    *
    * \pre `0 <= idx < size()`
    * \pre `0 <= comp < numComp()`
@@ -151,8 +144,7 @@ public:
   }
 
   /**
-   * \brief Access the value associated with the given position in the subset
-   *        and the component index.
+   * \brief Access the value associated with the given position in the subset and the component index.
    *
    * \pre `0 <= idx < size()`
    * \pre `0 <= comp < numComp()`
@@ -163,9 +155,7 @@ public:
     return operator()(idx, comp...);
   }
 
-  /**
-   * \brief Return the set element in the SuperMap at the given subset index
-   */
+  /// \brief Return the set element in the SuperMap at the given subset index
   AXOM_SUPPRESS_HD_WARN
   AXOM_HOST_DEVICE IndexType index(IndexType idx) const
   {
@@ -186,7 +176,7 @@ public:
 
   /// @}
 
-  bool isValid(bool VerboseOutput = false) const;
+  [[nodiscard]] bool isValid(bool VerboseOutput = false) const;
 
 private:  //function inherit from StridePolicy that should not be accessible
   void setStride(IndexType)
@@ -260,9 +250,7 @@ private:  //helper functions
 #endif
   }
 
-  /*!
-   * \brief Computes the flat indexing offset for a given component.
-   */
+  /// \brief Computes the flat indexing offset for a given component.
   AXOM_HOST_DEVICE inline SetPosition componentOffset() const { return SetPosition {}; }
   template <typename ComponentIndex>
   AXOM_HOST_DEVICE inline SetPosition componentOffset(ComponentIndex componentIndex) const
@@ -471,10 +459,7 @@ public:
   /// \brief Returns the set element mapped by this iterator.
   SetElement index() const { return m_submap.index(this->m_pos); }
 
-  /*!
-   * \brief Returns the flat index in the original map pointed to by this
-   *  iterator.
-   */
+  /// \brief Returns the flat index in the original map pointed to by thisiterator.
   SetPosition flatIndex() const { return m_mapIter.flatIndex(); }
 
   /// \brief Returns the index into the submap pointed to by this iterator.
@@ -500,7 +485,4 @@ private:
   MapRangeIterator m_mapIter;
 };
 
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_SUBMAP_HPP_
+}  // end namespace axom::slam

@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-/**
+#pragma once
+
+/*!
  * \file shaping_helpers.hpp
  *
  * \brief Common shaping helper utilities and backend-specific helper facade
  */
-
-#ifndef AXOM_QUEST_SHAPING_HELPERS__HPP_
-#define AXOM_QUEST_SHAPING_HELPERS__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -31,7 +30,7 @@ namespace axom
 template <typename Signature, size_t MaxSize = 16>
 class function;
 
-/**
+/*!
  * \brief Basic implementation of a host/device compatible analogue to std::function
  *
  * \tparam R The return type of the callable object
@@ -49,12 +48,24 @@ private:
 public:
   AXOM_HOST_DEVICE function() : invoke(nullptr) { }
 
+  /*!
+   * \brief Constructs a function object from a callable object
+   *
+   * \tparam Callable The type of the callable object
+   * \param callable The callable object to store and invoke
+   *
+   * This constructor stores the callable object in the internal storage
+   * and sets up the invoke function pointer to call the stored object.
+   * The callable object must be trivially copyable and its size must not
+   * exceed the maximum storage size.
+   */
   template <typename Callable>
   AXOM_HOST_DEVICE function(Callable callable)
   {
     static_assert(sizeof(Callable) <= MaxSize, "Callable object too large!");
     static_assert(std::is_trivially_copyable<Callable>::value,
                   "Callable must be trivially copyable!");
+    //SLIC_WARNING("sizeof(Callable): " << sizeof(Callable));
 
     invoke = [](const void* storage, Args... args) -> R {
       return (*reinterpret_cast<const Callable*>(storage))(std::forward<Args>(args)...);
@@ -62,6 +73,15 @@ public:
     new(&storage) Callable(std::move(callable));
   }
 
+  /*!
+   * \brief invoke the stored callable object
+   *
+   * \param args The arguments to be forwarded to the callable object
+   *
+   * \return The result of invoking the callable object with the provided arguments.
+   *         If the callable object is not set (i.e., `invoke` is null), a default-constructed
+   *         value of type R is returned.
+   */
   AXOM_HOST_DEVICE R operator()(Args... args) const
   {
     if(!invoke)
@@ -71,6 +91,11 @@ public:
     return invoke(&storage, std::forward<Args>(args)...);
   }
 
+  /*!
+   * \brief Explicit conversion operator to check the validity of the object
+   *
+   * \return True if `invoke` is not null, false otherwise
+   */
   AXOM_HOST_DEVICE explicit operator bool() const { return invoke != nullptr; }
 
 private:
@@ -116,6 +141,8 @@ using seq_exec = axom::SEQ_EXEC;
 namespace shaping
 {
 
+/// Alias to function pointer that projects a \a FromDim dimensional input point to
+/// a \a ToDim dimensional query point when sampling the InOut field
 template <int FromDim, int ToDim>
 using PointProjector =
   axom::function<primal::Point<double, ToDim>(const primal::Point<double, FromDim>&)>;
@@ -216,6 +243,16 @@ std::string materialNameFromMaterialInOutFieldName(const std::string& fieldName)
  */
 std::string materialNameFromVolumeFractionFieldName(const std::string& fieldName);
 
+/*!
+ * \brief Checks that input sample resolution array view is appropriate for the
+ *        mesh dimension and quadrature type.
+ *
+ * \tparam MeshState A type that contains mesh state.
+ *
+ * \param meshState The mesh state
+ * \param sampleResolution An array view that contains the sample resolutions in each dimension.
+ * \param quadratureType The quadrature type.
+ */
 template <typename MeshState>
 void checkSampleResolution(const MeshState& meshState,
                            axom::ArrayView<int> sampleResolution,
@@ -237,5 +274,3 @@ void checkSampleResolution(const MeshState& meshState,
 #if defined(AXOM_USE_CONDUIT)
   #include "shaping_helpers_blueprint.hpp"
 #endif
-
-#endif  // AXOM_QUEST_SHAPING_HELPERS__HPP_

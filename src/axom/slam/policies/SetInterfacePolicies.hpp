@@ -4,19 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_SetIfacePolicies_HPP
-#define SLAM_SetIfacePolicies_HPP
+#pragma once
 
 #include <type_traits>
 
 #include "axom/slam/Set.hpp"
 #include "axom/slam/policies/InterfacePolicies.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 namespace detail
 {
@@ -57,8 +52,4 @@ struct SetInterfaceSelector<VirtualInterface, PosType, ElemType>
 template <typename InterfacePolicy, typename PosType, typename ElemType>
 using SetInterface = typename detail::SetInterfaceSelector<InterfacePolicy, PosType, ElemType>::Type;
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_SetIfacePolicies_HPP
+}  // end namespace axom::slam::policies

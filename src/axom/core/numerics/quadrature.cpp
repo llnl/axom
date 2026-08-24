@@ -16,7 +16,9 @@
 #include <cmath>
 #include <cassert>
 #include <cstdint>
+#include <map>
 #include <mutex>
+#include <string>
 
 namespace axom
 {
@@ -38,6 +40,21 @@ bool is_valid_quadrature_type(int quadratureType)
   default:
     return false;
   }
+}
+
+const std::map<std::string, QuadratureType>& stringToQuadratureType()
+{
+  static const std::map<std::string, QuadratureType> quadrature_types {
+    {"default", QuadratureType::Invalid},
+    {"invalid", QuadratureType::Invalid},
+    {"gausslegendre", QuadratureType::GaussLegendre},
+    {"gausslobatto", QuadratureType::GaussLobatto},
+    {"openuniform", QuadratureType::OpenUniform},
+    {"closeduniform", QuadratureType::ClosedUniform},
+    {"openhalfuniform", QuadratureType::OpenHalfUniform},
+    {"closedgl", QuadratureType::ClosedGL}};
+
+  return quadrature_types;
 }
 
 void compute_gauss_legendre_data(int npts,
@@ -91,6 +108,26 @@ RuleStorage& get_cached_rule_storage(int npts,
   return it->second;
 }
 
+/*!
+ * \brief Computes quadrature weights for an interpolatory rule on `[0, 1]`
+ *        from its nodes.
+ *
+ * \param [in] nodes The interpolation nodes that define the Lagrange basis
+ * \param [out] weights The quadrature weights corresponding to `nodes`
+ * \param [in] allocatorID The allocator used for temporary storage and the
+ *             output `weights` array
+ *
+ * The returned weights are `w_j = integral_0^1 L_j(x) dx`, where `L_j` is the
+ * `j`th Lagrange basis polynomial. This makes the rule exact for polynomials
+ * up to degree `npts - 1`, and the weights sum to one because the Lagrange
+ * basis forms a partition of unity. Weight positivity is not guaranteed for
+ * arbitrary nodes.
+ *
+ * Several quadrature families define only their nodes directly; once the nodes
+ * are known, their interpolatory weights can all be computed this way. The
+ * temporary Gauss-Legendre rule is used only as an exact integration rule for
+ * the degree `npts - 1` basis polynomials.
+ */
 void compute_interpolatory_weights(const axom::Array<double>& nodes,
                                    axom::Array<double>& weights,
                                    int allocatorID)
@@ -479,6 +516,30 @@ QuadratureRule get_quadrature_rule(QuadratureType quadratureType, int npts, int 
 
   assert("Unhandled Axom quadrature type." && false);
   return get_gauss_legendre(npts, allocatorID);
+}
+
+int get_exact_degree(QuadratureType quadratureType, int npts)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+  assert("Invalid Axom quadrature type." &&
+         is_valid_quadrature_type(static_cast<int>(quadratureType)));
+
+  switch(quadratureType)
+  {
+  case QuadratureType::Invalid:
+  case QuadratureType::GaussLegendre:
+    return 2 * npts - 1;
+  case QuadratureType::GaussLobatto:
+    return npts == 1 ? 1 : 2 * npts - 3;
+  case QuadratureType::OpenUniform:
+  case QuadratureType::ClosedUniform:
+  case QuadratureType::OpenHalfUniform:
+  case QuadratureType::ClosedGL:
+    return npts - 1 + npts % 2;
+  }
+
+  assert("Unhandled Axom quadrature type." && false);
+  return 2 * npts - 1;
 }
 
 QuadratureRule get_open_uniform(int npts, int allocatorID)

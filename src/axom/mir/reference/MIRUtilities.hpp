@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file MIRUtilities.hpp
  * 
@@ -11,9 +13,6 @@
  *        within Axom's MIR component.
  * 
  */
-
-#ifndef __MIR_UTILITIES_HPP__
-#define __MIR_UTILITIES_HPP__
 
 #include "axom/mir/reference/ZooClippingTables.hpp"
 
@@ -655,5 +654,3 @@ inline mir::Shape determineElementShapeType(const Shape parentShapeType, const i
 }  // namespace utilities
 }  // namespace mir
 }  // namespace axom
-
-#endif

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_UTILITIES_HPP_
-#define AXOM_BUMP_UTILITIES_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -112,5 +111,3 @@ struct ComputeShapeAmount<3>
 }  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
-
-#endif
