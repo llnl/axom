@@ -73,7 +73,8 @@ void check_patch_control_points(const GregoryPatchType& patch, const PatchCoords
   }
 }
 
-void check_triangle_control_points(const GregoryTriangleType& triangle, const TriangleCoordsVec& expected)
+void check_triangle_control_points(const GregoryTriangleType& triangle,
+                                   const TriangleCoordsVec& expected)
 {
   for(int i = 0; i < GregoryTriangleType::NPTS; ++i)
   {
