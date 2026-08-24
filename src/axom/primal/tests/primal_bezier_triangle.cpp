@@ -281,9 +281,9 @@ TEST(primal_beziertriangle, parameter_convention_matches_barycentric)
   constexpr CoordType eps = 1e-14;
 
   BTri tri(1);
-  const PointType pA {1.0, 2.0, 3.0};     // (i,j) = (0,0)
-  const PointType pB {4.0, -1.0, 0.5};    // (i,j) = (0,1)
-  const PointType pC {-2.0, 0.25, 7.0};   // (i,j) = (1,0)
+  const PointType pA {1.0, 2.0, 3.0};    // (i,j) = (0,0)
+  const PointType pB {4.0, -1.0, 0.5};   // (i,j) = (0,1)
+  const PointType pC {-2.0, 0.25, 7.0};  // (i,j) = (1,0)
 
   tri(0, 0) = pA;
   tri(0, 1) = pB;
