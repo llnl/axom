@@ -118,6 +118,18 @@ TEST(core_execution_space, check_invalid)
   check_invalid<InvalidSpace>();
 }
 
+//------------------------------------------------------------------------------
+TEST(core_execution_space, check_default_host_allocator)
+{
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
+  EXPECT_EQ(axom::MemorySpace::Malloc, axom::execution_space<axom::SEQ_EXEC>::memory_space);
+
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+  EXPECT_EQ(axom::MemorySpace::Malloc, axom::execution_space<axom::OMP_EXEC>::memory_space);
+#endif
+}
+
 //==============================================================================
 // The following tests require RAJA and UMPIRE
 //==============================================================================
@@ -130,7 +142,7 @@ TEST(core_execution_space, check_seq_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::MALLOC_ALLOCATOR_ID;
   check_execution_mappings<axom::SEQ_EXEC,
   #if RAJA_VERSION_MAJOR > 2022
                            RAJA::seq_exec,
@@ -153,7 +165,7 @@ TEST(core_execution_space, check_omp_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::MALLOC_ALLOCATOR_ID;
   check_execution_mappings<axom::OMP_EXEC,
                            RAJA::omp_parallel_for_exec,
                            RAJA::omp_reduce,

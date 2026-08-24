@@ -32,7 +32,7 @@
  *    with OpenMp, i.e., RAJA_ENABLE_OPENMP must be defined in the generated
  *    RAJA/config.hpp.
  *
- *    The default memory allocator when using this execution space is HOST.
+ *    The default memory allocator when using this execution space is malloc.
  *
  *    When using this execution space, the data must reside on CPU/host memory.
  *

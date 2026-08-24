@@ -2594,7 +2594,7 @@ void check_plane_bb_intersect()
   umpire::Allocator allocator =
     (axom::execution_space<ExecSpace>::onDevice()
        ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(axom::execution_space<ExecSpace>::allocatorID()));
+       : rm.getAllocator(umpire::resource::Host));
 
   // Set new default to device
   axom::setDefaultAllocator(allocator.getId());
@@ -2675,7 +2675,7 @@ void check_plane_seg_intersect()
   umpire::Allocator allocator =
     (axom::execution_space<ExecSpace>::onDevice()
        ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(axom::execution_space<ExecSpace>::allocatorID()));
+       : rm.getAllocator(umpire::resource::Host));
 
   // Set new default to device
   axom::setDefaultAllocator(allocator.getId());
@@ -2764,7 +2764,7 @@ void check_segment_segment_intersect_policy()
   umpire::Allocator allocator =
     (axom::execution_space<ExecSpace>::onDevice()
        ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(axom::execution_space<ExecSpace>::allocatorID()));
+       : rm.getAllocator(umpire::resource::Host));
 
   axom::setDefaultAllocator(allocator.getId());
 

@@ -162,11 +162,11 @@ int allocatorIdFromPolicy(axom::runtime_policy::Policy policy)
   AXOM_UNUSED_VAR(policy);
 #if defined(AXOM_USE_UMPIRE)
   int allocatorID = policy == axom::runtime_policy::Policy::seq
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Host>()
+    ? axom::getDefaultHostAllocatorID()
     :
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     policy == axom::runtime_policy::Policy::omp
-    ? axom::detail::getAllocatorID<axom::MemorySpace::Host>()
+    ? axom::getDefaultHostAllocatorID()
     :
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
@@ -204,12 +204,20 @@ public:
   {
     m_allocatorId = allocatorIdFromPolicy(params.runtimePolicy);
 #ifdef AXOM_USE_UMPIRE
-    umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-    umpire::Allocator allocator = rm.getAllocator(m_allocatorId);
-    std::cout << axom::fmt::format("Allocator id: {}, Umpire memory space {}",
-                                   m_allocatorId,
-                                   allocator.getName())
-              << std::endl;
+    if(m_allocatorId == axom::MALLOC_ALLOCATOR_ID)
+    {
+      std::cout << axom::fmt::format("Allocator id: {}, malloc memory space", m_allocatorId)
+                << std::endl;
+    }
+    else
+    {
+      umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+      umpire::Allocator allocator = rm.getAllocator(m_allocatorId);
+      std::cout << axom::fmt::format("Allocator id: {}, Umpire memory space {}",
+                                     m_allocatorId,
+                                     allocator.getName())
+                << std::endl;
+    }
 #else
     std::cout << axom::fmt::format("Allocator id: {}, default memory space", m_allocatorId)
               << std::endl;

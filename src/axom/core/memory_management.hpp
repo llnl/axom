@@ -158,14 +158,23 @@ inline void setDefaultAllocator(umpire::resource::MemoryResourceType resource_ty
 
 /*!
  * \brief Sets the default memory allocator to use.
- * \param [in] allocId the Umpire allocator id
+ * \param [in] allocId the Axom allocator id
  * 
+ * \note When Axom is compiled with Umpire and \a allocId is
+ *       axom::MALLOC_ALLOCATOR_ID, this function sets Umpire's default
+ *       allocator to its Host resource.
  * \note This function has no effect when Axom is not compiled with Umpire.
  */
 inline void setDefaultAllocator(int allocId)
 {
 #ifdef AXOM_USE_UMPIRE
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  if(allocId == MALLOC_ALLOCATOR_ID)
+  {
+    rm.setDefaultAllocator(rm.getAllocator(umpire::resource::Host));
+    return;
+  }
+
   umpire::Allocator allocator = rm.getAllocator(allocId);
   rm.setDefaultAllocator(allocator);
 #else
@@ -191,15 +200,15 @@ inline int getDefaultAllocatorID()
 /*!
  * \brief Returns the ID of the default host allocator.
  *
+ * \note This is distinct from the current default allocator returned by
+ *       axom::getDefaultAllocatorID(), which tracks Umpire's default allocator
+ *       when Axom is configured with Umpire.
+ *
  * \return ID of the default host allocator.
  */
 inline int getDefaultHostAllocatorID()
 {
-#ifdef AXOM_USE_UMPIRE
-  return getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-  return getDefaultAllocatorID();
-#endif
+  return MALLOC_ALLOCATOR_ID;
 }
 
 /*!
@@ -562,12 +571,12 @@ inline void fill(void* dst, std::size_t n, const T& value) noexcept
 
       // Device memory: fill on host, then copy to device
       const auto num_bytes = n * sizeof(T);
-      T* src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
+      T* src = allocate<T>(n, axom::getDefaultHostAllocatorID());
       for(std::size_t i = 0; i < n; ++i)
       {
         src[i] = value;
       }
-      rm.copy(dst, src, num_bytes);
+      axom::copy(dst, src, num_bytes);
       deallocate<T>(src);
     }
   }
