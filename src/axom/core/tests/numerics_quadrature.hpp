@@ -153,7 +153,8 @@ void check_polynomial_exactness(RuleGetter&& getRule, ExactDegreeGetter&& getExa
 
     for(int j = 0; j <= exactDegree; ++j)
     {
-      // Use deterministic seeds that vary by rule size and coefficient index.
+      // Seed by rule size and coefficient index so each polynomial is
+      // deterministic, while different npts values get distinct coefficients.
       coeffs[j] = axom::utilities::random_real(-1.0, 1.0, 1000 * npts + j);
     }
 

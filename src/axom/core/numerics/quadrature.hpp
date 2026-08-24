@@ -9,6 +9,9 @@
 #include "axom/core/Array.hpp"
 #include "axom/core/memory_management.hpp"
 
+#include <map>
+#include <string>
+
 /*!
  * \file quadrature.hpp
  * The functions declared in this header file find the nodes and weights of 
@@ -39,6 +42,14 @@ enum class QuadratureType : int
  *        `QuadratureType` enumerator.
  */
 bool is_valid_quadrature_type(int quadratureType);
+
+/*!
+ * \brief Returns the recognized string names for `QuadratureType` values.
+ *
+ * The `"default"` entry maps to `QuadratureType::Invalid`, which selects the
+ * current default rule in quadrature rule factories.
+ */
+const std::map<std::string, QuadratureType>& stringToQuadratureType();
 
 /*!
  * \class QuadratureRule

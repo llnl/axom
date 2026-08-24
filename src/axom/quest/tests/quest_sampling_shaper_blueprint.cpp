@@ -92,12 +92,7 @@ TEST(SamplingShaperBlueprintTest, sidre_blueprint_quadrature_persists)
 
 TEST(SamplingShaperBlueprintTest, sidre_blueprint_accepts_all_axom_quadratures)
 {
-  const axom::numerics::QuadratureType quadratures[] = {
-    axom::numerics::QuadratureType::GaussLobatto,
-    axom::numerics::QuadratureType::OpenHalfUniform,
-    axom::numerics::QuadratureType::ClosedGL};
-
-  for(const auto quadrature : quadratures)
+  for(const auto& quadrature : axom::numerics::stringToQuadratureType())
   {
     sidre::DataStore dataStore;
     auto* meshGroup = dataStore.getRoot()->createGroup("mesh");
@@ -126,7 +121,7 @@ TEST(SamplingShaperBlueprintTest, sidre_blueprint_accepts_all_axom_quadratures)
                                  meshGroup,
                                  "mesh");
     shaper.setSamplingResolution(3);
-    shaper.setQuadratureType(quadrature);
+    shaper.setQuadratureType(quadrature.second);
 
     auto* bpState = shaper.getBlueprintState();
     ASSERT_NE(bpState, nullptr);

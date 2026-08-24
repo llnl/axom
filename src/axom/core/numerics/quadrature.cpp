@@ -16,7 +16,9 @@
 #include <cmath>
 #include <cassert>
 #include <cstdint>
+#include <map>
 #include <mutex>
+#include <string>
 
 namespace axom
 {
@@ -38,6 +40,21 @@ bool is_valid_quadrature_type(int quadratureType)
   default:
     return false;
   }
+}
+
+const std::map<std::string, QuadratureType>& stringToQuadratureType()
+{
+  static const std::map<std::string, QuadratureType> quadrature_types {
+    {"default", QuadratureType::Invalid},
+    {"invalid", QuadratureType::Invalid},
+    {"gausslegendre", QuadratureType::GaussLegendre},
+    {"gausslobatto", QuadratureType::GaussLobatto},
+    {"openuniform", QuadratureType::OpenUniform},
+    {"closeduniform", QuadratureType::ClosedUniform},
+    {"openhalfuniform", QuadratureType::OpenHalfUniform},
+    {"closedgl", QuadratureType::ClosedGL}};
+
+  return quadrature_types;
 }
 
 void compute_gauss_legendre_data(int npts,

@@ -32,11 +32,11 @@
 #endif
 
 #include <cmath>
+#include <map>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <utility>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -234,15 +234,6 @@ struct PlaneProjector23
     return Point3D {x, y, z};
   }
 };
-
-const std::pair<const char*, axom::numerics::QuadratureType> supported_quadrature_types[] = {
-  {"default", axom::numerics::QuadratureType::Invalid},
-  {"gausslegendre", axom::numerics::QuadratureType::GaussLegendre},
-  {"gausslobatto", axom::numerics::QuadratureType::GaussLobatto},
-  {"openuniform", axom::numerics::QuadratureType::OpenUniform},
-  {"closeduniform", axom::numerics::QuadratureType::ClosedUniform},
-  {"openhalfuniform", axom::numerics::QuadratureType::OpenHalfUniform},
-  {"closedgl", axom::numerics::QuadratureType::ClosedGL}};
 
 }  // namespace
 
@@ -2463,7 +2454,7 @@ piece = line(end=start)
 
   int sampleRes[3] = {3, 5};
 
-  for(const auto& quadrature : supported_quadrature_types)
+  for(const auto& quadrature : axom::numerics::stringToQuadratureType())
   {
     this->validateShapeFile(shape_file.getPath());
     this->initializeShaping(shape_file.getPath());

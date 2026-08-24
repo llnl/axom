@@ -47,6 +47,7 @@
 
 // C/C++ includes
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 #include <memory>
@@ -501,14 +502,7 @@ public:
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
 
-      std::map<std::string, axom::numerics::QuadratureType> quadTypeMap {
-        {"default", axom::numerics::QuadratureType::Invalid},
-        {"gausslegendre", axom::numerics::QuadratureType::GaussLegendre},
-        {"gausslobatto", axom::numerics::QuadratureType::GaussLobatto},
-        {"openuniform", axom::numerics::QuadratureType::OpenUniform},
-        {"closeduniform", axom::numerics::QuadratureType::ClosedUniform},
-        {"openhalfuniform", axom::numerics::QuadratureType::OpenHalfUniform},
-        {"closedgl", axom::numerics::QuadratureType::ClosedGL}};
+      const auto& quadTypeMap = axom::numerics::stringToQuadratureType();
       sampling_options->add_option("-q,--quadrature-type", quadratureType)
         ->description(
           "Quadrature type. \n"
