@@ -334,8 +334,8 @@ TEST(primal_beziertriangle, finite_difference_first_derivatives)
   const PointType fp_v = tri.evaluate(u0, v0 + h);
   const PointType fm_v = tri.evaluate(u0, v0 - h);
 
-  const VectorType Du_fd(fp_u, fm_u);
-  const VectorType Dv_fd(fp_v, fm_v);
+  const VectorType Du_fd(fm_u, fp_u);
+  const VectorType Dv_fd(fm_v, fp_v);
 
   for(int d = 0; d < 3; ++d)
   {
