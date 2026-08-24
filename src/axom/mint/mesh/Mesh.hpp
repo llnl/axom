@@ -857,14 +857,19 @@ inline bool Mesh::hasSidreGroup() const
 //------------------------------------------------------------------------------
 inline const FieldData* Mesh::getFieldData(int association) const
 {
-  SLIC_ERROR_IF(association < 0 || association >= NUM_FIELD_ASSOCIATIONS,
-                "invalid field association [" << association << "]");
-  SLIC_ERROR_IF(m_mesh_fields[association] == nullptr,
+  if(association < 0 || association >= NUM_FIELD_ASSOCIATIONS)
+  {
+    SLIC_ERROR("invalid field association [" << association << "]");
+    return nullptr;
+  }
+
+  const FieldData* field_data = m_mesh_fields[association];
+  SLIC_ERROR_IF(field_data == nullptr,
                 "null field data object w/association [" << association << "]");
   SLIC_ERROR_IF(m_type == PARTICLE_MESH && association != NODE_CENTERED,
                 "a particle mesh may only store node-centered fields");
 
-  return m_mesh_fields[association];
+  return field_data;
 }
 
 //------------------------------------------------------------------------------

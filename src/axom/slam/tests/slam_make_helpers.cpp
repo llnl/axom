@@ -255,7 +255,6 @@ TEST(slam_make_helpers, make_constant_relation_rejects_undersized_indices)
 
   // A stride-2 constant relation over a size-3 from-set needs 6 indices but we supply 4 here.
   Pos indices[4] = {0, 1, 2, 3};
-
   EXPECT_DEATH_IF_SUPPORTED(slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices, Pos {4}),
                             "");
 #else
