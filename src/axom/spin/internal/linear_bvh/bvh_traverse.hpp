@@ -10,6 +10,7 @@
 #include "axom/core/Macros.hpp"  // for AXOM_HOST_DEVICE
 #include "axom/core/Types.hpp"   // for axom types
 #include "axom/slic.hpp"         // for SLIC macros
+#include "axom/spin/internal/linear_bvh/BVHNode.hpp"
 
 #include <type_traits>  // For template magic
 #include <utility>
@@ -106,16 +107,15 @@ inline bool leaf_node(const std::int32_t& nodeIdx) { return (nodeIdx < 0); }
  *
  */
 template <int NDIMS, typename FloatType, typename PrimitiveType, typename InBinCheck, typename LeafAction, typename TraversePref>
-AXOM_HOST_DEVICE inline void bvh_traverse(
-  axom::ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inner_nodes,
-  axom::ArrayView<const std::int32_t> inner_node_children,
-  axom::ArrayView<const std::int32_t> leaf_nodes,
-  const PrimitiveType& p,
-  InBinCheck&& B,
-  LeafAction&& A,
-  TraversePref&& Comp)
+AXOM_HOST_DEVICE inline void bvh_traverse(axom::ArrayView<const BVH2Node<FloatType, NDIMS>> inner_nodes,
+                                          axom::ArrayView<const std::int32_t> leaf_nodes,
+                                          const PrimitiveType& p,
+                                          InBinCheck&& B,
+                                          LeafAction&& A,
+                                          TraversePref&& Comp)
 {
   using BBoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using BVHNode = BVH2Node<FloatType, NDIMS>;
 
   // setup stack
   constexpr std::int32_t STACK_SIZE = 64;
@@ -132,14 +132,16 @@ AXOM_HOST_DEVICE inline void bvh_traverse(
     // Traverse until we hit a leaf node or the barrier.
     while(!leaf_node(current_node))
     {
-      BBoxType left_bin = inner_nodes[current_node + 0];
-      BBoxType right_bin = inner_nodes[current_node + 1];
+      BVHNode curr_node;
+      curr_node = inner_nodes[current_node];
+      BBoxType left_bin = curr_node.left;
+      BBoxType right_bin = curr_node.right;
       const bool in_left =
         left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, current_node + 0) : false;
       const bool in_right =
         right_bin.isValid() ? invoke_InBinCheck(B, p, right_bin, current_node + 1) : false;
-      std::int32_t l_child = inner_node_children[current_node + 0];
-      std::int32_t r_child = inner_node_children[current_node + 1];
+      std::int32_t l_child = curr_node.left_child;
+      std::int32_t r_child = curr_node.right_child;
       bool swap = Comp(left_bin, right_bin, p);
 
       if(!in_left && !in_right)
