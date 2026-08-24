@@ -91,10 +91,12 @@ public:
     : GregoryTriangle(ArrayView<const PointType>(controlPoints.data(), controlPoints.size()))
   { }
 
-  explicit GregoryTriangle(const PointType* pts) : GregoryTriangle(ArrayView<const PointType>(pts, NPTS))
+  explicit GregoryTriangle(const PointType* pts)
+    : GregoryTriangle(ArrayView<const PointType>(pts, NPTS))
   { }
 
-  explicit GregoryTriangle(PointType* pts) : GregoryTriangle(ArrayView<const PointType>(pts, NPTS)) { }
+  explicit GregoryTriangle(PointType* pts) : GregoryTriangle(ArrayView<const PointType>(pts, NPTS))
+  { }
 
   explicit GregoryTriangle(const CoordsVec& pts)
     : GregoryTriangle(ArrayView<const PointType>(pts.data(), pts.size()))
@@ -327,11 +329,9 @@ public:
          B_v0[2] * intermediate.Q_v[2]) +
       (B[0] * intermediate.Q_vv[0] + B[1] * intermediate.Q_vv[1] + B[2] * intermediate.Q_vv[2]);
 
-    DuDv +=
-      (B_u0[0] * intermediate.Q_v[0] + B_u0[1] * intermediate.Q_v[1] +
-       B_u0[2] * intermediate.Q_v[2]) +
-      (B_v0[0] * intermediate.Q_u[0] + B_v0[1] * intermediate.Q_u[1] +
-       B_v0[2] * intermediate.Q_u[2]) +
+    DuDv += (B_u0[0] * intermediate.Q_v[0] + B_u0[1] * intermediate.Q_v[1] +
+             B_u0[2] * intermediate.Q_v[2]) +
+      (B_v0[0] * intermediate.Q_u[0] + B_v0[1] * intermediate.Q_u[1] + B_v0[2] * intermediate.Q_u[2]) +
       (B[0] * intermediate.Q_uv[0] + B[1] * intermediate.Q_uv[1] + B[2] * intermediate.Q_uv[2]);
   }
 
