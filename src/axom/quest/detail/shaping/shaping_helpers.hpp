@@ -141,6 +141,8 @@ using seq_exec = axom::SEQ_EXEC;
 namespace shaping
 {
 
+/// Alias to function pointer that projects a \a FromDim dimensional input point to
+/// a \a ToDim dimensional query point when sampling the InOut field
 template <int FromDim, int ToDim>
 using PointProjector =
   axom::function<primal::Point<double, ToDim>(const primal::Point<double, FromDim>&)>;
