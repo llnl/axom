@@ -79,6 +79,8 @@ public:
 
   double distThreshold {axom::numeric_limits<double>::max()};
 
+  bool dynamicDistanceFiltering {true};
+
   bool checkResults {false};
 
   bool randomSpacing {true};
@@ -164,6 +166,12 @@ public:
     app.add_option("-d,--dist-threshold", distThreshold)
       ->check(axom::CLI::NonNegativeNumber)
       ->description("Distance threshold to search")
+      ->capture_default_str();
+
+    app
+      .add_flag("--dynamic-distance-filtering,!--no-dynamic-distance-filtering",
+                dynamicDistanceFiltering)
+      ->description("Enable/disable dynamic distance filtering")
       ->capture_default_str();
 
     app.add_option("-p, --policy", policy)
@@ -1380,6 +1388,7 @@ int main(int argc, char** argv)
   query.setMpiCommunicator(MPI_COMM_WORLD, true);
   query.setVerbosity(params.isVerbose());
   query.setDistanceThreshold(params.distThreshold);
+  query.setDynamicDistanceFiltering(params.dynamicDistanceFiltering);
   // To test support for single-domain format, use single-domain when possible.
   query.setObjectMesh(objectMeshNode.number_of_children() == 1 ? objectMeshNode[0] : objectMeshNode,
                       objectMeshWrapper.getTopologyName());

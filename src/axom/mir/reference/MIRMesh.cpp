@@ -221,46 +221,6 @@ void MIRMesh::constructMeshVolumeFractionsVertex(const std::vector<std::vector<a
 
 //--------------------------------------------------------------------------------
 
-void MIRMesh::constructVertexPositionMap(const std::vector<Point2>& data)
-{
-  // construct the position map on the vertices
-  m_vertexPositions = PointMap(&m_verts);
-
-  for(int vID = 0; vID < m_verts.size(); ++vID) m_vertexPositions[vID] = data[vID];
-
-  SLIC_ASSERT_MSG(m_vertexPositions.isValid(), "Position map is not valid.");
-}
-
-//--------------------------------------------------------------------------------
-
-void MIRMesh::constructElementParentMap(const std::vector<int>& elementParents)
-{
-  // Initialize the map for the elements' parent IDs
-  m_elementParentIDs = IntMap(&m_elems);
-
-  // Copy the data for the elements
-  for(int eID = 0; eID < m_elems.size(); ++eID) m_elementParentIDs[eID] = elementParents[eID];
-
-  SLIC_ASSERT_MSG(m_elementParentIDs.isValid(), "Element parent map is not valid.");
-}
-
-//--------------------------------------------------------------------------------
-
-void MIRMesh::constructElementDominantMaterialMap(const std::vector<int>& dominantMaterials)
-{
-  // Initialize the map for the elements' dominant colors
-  m_elementDominantMaterials = IntMap(&m_elems);
-
-  // Copy the dat for the elements
-  for(int eID = 0; eID < m_elems.size(); ++eID)
-    m_elementDominantMaterials[eID] = dominantMaterials[eID];
-
-  SLIC_ASSERT_MSG(m_elementDominantMaterials.isValid(),
-                  "Element dominant materials map is not valid.");
-}
-
-//--------------------------------------------------------------------------------
-
 void MIRMesh::constructElementShapeTypesMap(const std::vector<mir::Shape>& shapeTypes)
 {
   // Initialize the map for the elements' dominant colors

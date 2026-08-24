@@ -59,6 +59,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: The C2CReader was enhanced to provide assembly support.
 - Core: Adds `utilities::filesystem::getFileExtension(str)`
 - Klee: Adds support for lua-based input decks for shaping
+- Slam: Adds convenience aliases in `axom/slam/Aliases.hpp` for the most common set and relation configurations, 
+  including `ArraySet`, `ArrayViewSet`, `VariableRelation`, `ConstantRelation` and their `View` forms.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -78,8 +80,26 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Changed to `#pragma once` instead of unique header guard defines
 - Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
   Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
+- Uberenv's spack updated to v1.2.2
+- Updates blt submodule to [BLT version 0.7.2](https://github.com/LLNL/blt/releases/tag/v0.7.2)
+- Updates to [camp version 2026.07.1](https://github.com/LLNL/camp/releases/tag/v2026.07.1)
+- Updates to [RAJA version 2026.07.0](https://github.com/LLNL/RAJA/releases/tag/v2026.07.0)
+- Updates to [Umpire version 2026.07.1](https://github.com/LLNL/Umpire/releases/tag/v2026.07.1)
+- Updates to [Caliper version 2.15.0](https://github.com/LLNL/Caliper/releases/tag/v2.15.0)
+- Updates to [Conduit version 0.9.7](https://github.com/LLNL/conduit/releases/tag/v0.9.7)
+- Slam: `slam::Map`, `slam::BivariateMap` and `policies::VariableCardinality` now default to
+  `policies::ArrayIndirection` instead of `policies::STLVectorIndirection`.
+   Code that previously used the default `std::vector`-backed Maps will need to either
+   add a template for the `policies::STLVectorIndirection` or update to `policies::ArrayIndirection`.
+- Slam: `FieldRegistry` fields and buffers that it manages now use `axom::Array`
+  (a `slam::Map` with the default `axom::Array` indirection) rather than `std::vector`.
+  Code that previously registered `std::vector`-backed buffers should use
+  `FieldRegistry::MapType`, `FieldRegistry::BufferType`, `auto`, or `buffer.view()`, as appropriate.
 
 ### Fixed
+- MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
+- Slam: View-backed static relations are now trivially copyable and safe to capture by
+  value into device kernels.
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness

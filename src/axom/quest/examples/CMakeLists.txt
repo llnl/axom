@@ -110,7 +110,7 @@ if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire::umpire
         FOLDER      axom/quest/examples
         )
 
@@ -310,19 +310,19 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
                 NUM_MPI_TASKS ${_nranks})
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
-        endif()
 
-        # Test heroic_roses.yaml
-        set(_testname quest_shaping_driver_ex_heroic_roses)
-        axom_add_test(
-            NAME ${_testname}
-            COMMAND  quest_shaping_driver_ex
-                     -i ${shaping_data_dir}/heroic_roses.yaml
-                     --method sampling
-                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
-            NUM_MPI_TASKS ${_nranks})
-        set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+            # Test heroic_roses.yaml
+            set(_testname quest_shaping_driver_ex_heroic_roses)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                         -i ${shaping_data_dir}/heroic_roses.yaml
+                         --method sampling
+                         inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+        endif()
 
         # Test 2D MFEM mesh (linearize contours)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem)
@@ -470,17 +470,43 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                                 --dist-threshold .3
                                 --no-random-spacing
                                 --check-results
+                                --dynamic-distance-filtering
                                 --policy ${_pol}
                                 --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}
                                 --distance-file dcp_closest_point_2d_${_pol}_${_mesh}
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
+
+                if(_pol STREQUAL "seq" AND (_mesh STREQUAL "mdmesh.2x1" OR _mesh STREQUAL "mdmesh.2x2x1"))
+                    # Keep fallback coverage for the non-dynamic filtering path
+                    # with one 2D and one 3D seq case.
+                    set(_static_test "${_test}_no_dynamic_distance_filtering")
+                    axom_add_test(
+                        NAME    ${_static_test}
+                        COMMAND quest_distributed_distance_query_ex
+                                    --mesh-file ${quest_data_dir}/${_mesh}.root
+                                    --long-point-count 60
+                                    --center ${_center}
+                                    --radius 0.9
+                                    --lat-point-count 30
+                                    --obj-domain-count-range 0 2
+                                    --dist-threshold .3
+                                    --no-random-spacing
+                                    --check-results
+                                    --no-dynamic-distance-filtering
+                                    --policy ${_pol}
+                                    --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}_no_dynamic
+                                    --distance-file dcp_closest_point_2d_${_pol}_${_mesh}_no_dynamic
+                        NUM_MPI_TASKS ${_nranks}
+                        NUM_OMP_THREADS ${_num_threads})
+                endif()
             endforeach()
         endforeach()
 
         unset(optional_dependency)
         unset(_nranks)
         unset(_test)
+        unset(_static_test)
     endif()
 endif()
 

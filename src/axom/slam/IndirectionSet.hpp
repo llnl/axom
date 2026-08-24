@@ -9,7 +9,12 @@
 /**
  * \file IndirectionSet.hpp
  *
- * \brief Defines some alias templates for OrderedSets with indirection
+ * \brief Defines alias templates for OrderedSets with indirection.
+ *
+ * Use \c ArrayIndirectionSet for a set indexed through an \c axom::Array it manages,
+ * and \c ArrayViewIndirectionSet for a set indexed through an \c axom::ArrayView of a buffer managed elsewhere. 
+ * \c CArrayIndirectionSet and \c VectorIndirectionSet index raw-pointer and \c std::vector storage,
+ * for interoperation and as reference examples for custom indirection policies.
  */
 
 #include <cstddef>
@@ -17,12 +22,13 @@
 
 #include "axom/slam/OrderedSet.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
- * \brief Alias template for an OrderedSet with indirection over a C array
+ * \brief Alias template for an OrderedSet with indirection over a C array.
+ *
+ * \note Indexes a raw pointer, for interoperation with C-style array storage.
+ *  For an \c axom::ArrayView of a buffer managed elsewhere, use \c ArrayViewIndirectionSet.
  *
  * \tparam PosType The position type for indexing into the set
  * \tparam ElemType The type for the set's elements
@@ -37,7 +43,10 @@ using CArrayIndirectionSet = OrderedSet<PosType,
                                         policies::CArrayIndirection<PosType, ElemType>>;
 
 /**
- * \brief Alias template for an OrderedSet with indirection over an stl vector
+ * \brief Alias template for an OrderedSet with indirection over a std::vector.
+ *
+ * \note Indexes a (host-only) \c std::vector, for interoperation with existing \c std::vector storage. 
+ *  For \c axom::Array / \c axom::ArrayView storage, use \c ArrayIndirectionSet or \c ArrayViewIndirectionSet.
  *
  * \tparam PosType The position type for indexing into the set
  * \tparam ElemType The type for the set's elements
@@ -52,7 +61,10 @@ using VectorIndirectionSet = OrderedSet<PosType,
                                         policies::STLVectorIndirection<PosType, ElemType>>;
 
 /**
- * \brief Alias template for an OrderedSet with indirection over an axom::Array
+ * \brief Alias template for an OrderedSet with indirection over an axom::Array.
+ *
+ * This is the canonical Axom alias for binding a set to an \c axom::Array buffer.
+ * The array object is managed outside the set and must outlive it.
  *
  * \tparam PosType The position type for indexing into the set
  * \tparam ElemType The type for the set's elements
@@ -67,7 +79,11 @@ using ArrayIndirectionSet = OrderedSet<PosType,
                                        policies::ArrayIndirection<PosType, ElemType>>;
 
 /**
- * \brief Alias template for an OrderedSet with indirection over an axom::ArrayView
+ * \brief Alias template for an OrderedSet with indirection over an axom::ArrayView.
+ *
+ * A set indexed through an \c axom::ArrayView of a buffer managed elsewhere.
+ * The backing allocation must outlive the set. Because \c axom::ArrayView is
+ * trivially copyable, it can be captured by value into device kernels.
  *
  * \tparam PosType The position type for indexing into the set
  * \tparam ElemType The type for the set's elements
@@ -81,5 +97,4 @@ using ArrayViewIndirectionSet = OrderedSet<PosType,
                                            policies::StrideOne<PosType>,
                                            policies::ArrayViewIndirection<PosType, ElemType>>;
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam
