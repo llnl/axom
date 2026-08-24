@@ -73,6 +73,10 @@ public:
   using IndirectionPolicyType = IndirectionPolicy;
   using SubsettingPolicyType = SubsettingPolicy;
 
+  static_assert(SetSizePolicyFor<SizePolicyType, PositionType>,
+                "OrderedSet requires a size policy over its position type");
+  static_assert(OrderedSetOffsetPolicyFor<OffsetPolicyType, PositionType>,
+                "OrderedSet requires an offset policy over its position type");
   static_assert(OrderedSetStridePolicyFor<StridePolicyType, PositionType>,
                 "OrderedSet requires a scalar stride policy over its position type");
   static_assert(OrderedSetIndirectionPolicyFor<IndirectionPolicyType,

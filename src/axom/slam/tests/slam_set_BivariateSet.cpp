@@ -18,6 +18,7 @@
 #include "axom/slam.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <sstream>
 #include <iostream>
@@ -667,6 +668,36 @@ TEST(slam_bivariate_set, product_set_preserves_heterogeneous_coordinate_types)
   EXPECT_EQ(coordinate.first, FirstPosition {1});
   EXPECT_EQ(coordinate.second, SecondPosition {2});
   EXPECT_EQ(product.findElementFlatIndex(FirstPosition {1}, SecondPosition {2}), 5);
+}
+
+TEST(slam_bivariate_set, heterogeneous_coordinates_preserve_indices_above_int32)
+{
+  using FirstPosition = std::int32_t;
+  using SecondPosition = std::int64_t;
+  using FirstSet = slam::RangeSet<FirstPosition, double>;
+  using SecondSet = slam::RangeSet<SecondPosition, float>;
+  using Product = typename slam::ProductSet<FirstSet, SecondSet>::ConcreteSet;
+
+  constexpr SecondPosition largeSecondPosition =
+    static_cast<SecondPosition>(std::numeric_limits<FirstPosition>::max()) + 7;
+  FirstSet firstSet(1);
+  SecondSet secondSet(largeSecondPosition + 1);
+
+  // RangeSet and ProductSet represent this coordinate without allocating one
+  // entry per position.
+  Product product(&firstSet, &secondSet);
+  EXPECT_EQ(product.flatToSecondIndex(largeSecondPosition), largeSecondPosition);
+  EXPECT_EQ(product.at(largeSecondPosition),
+            std::make_pair(FirstPosition {0}, largeSecondPosition));
+
+  std::vector<SecondPosition> begins {0, 1};
+  std::vector<SecondPosition> indices {largeSecondPosition};
+  auto relation = slam::make_variable_relation(firstSet, secondSet, begins, indices);
+  using RelationSet = typename slam::RelationSet<decltype(relation)>::ConcreteSet;
+  RelationSet connectivity(&relation);
+
+  EXPECT_EQ(connectivity.flatToSecondIndex(0), largeSecondPosition);
+  EXPECT_EQ(connectivity.at(0), std::make_pair(FirstPosition {0}, largeSecondPosition));
 }
 
 TEST(slam_bivariate_set, relation_set_projects_distinct_typed_handles)

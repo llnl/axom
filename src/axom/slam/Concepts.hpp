@@ -114,9 +114,25 @@ template <typename Set, typename Position>
 concept OptionalSetPositionSame =
   SetLike<Set> && (std::same_as<model_t<Position>, void> || SetPositionSame<Set, Position>);
 
+template <int Stride, typename Position>
+consteval bool positiveStaticStrideRepresentable()
+{
+  using PositionType = model_t<Position>;
+  if constexpr(std::integral<PositionType>)
+  {
+    return std::in_range<PositionType>(Stride);
+  }
+  else
+  {
+    // Opted-in position types state their own construction contract.
+    return std::constructible_from<PositionType, int>;
+  }
+}
+
 template <int Stride, typename Set>
 concept PositiveStaticStrideFor =
-  SetLike<Set> && (Stride > 0) && std::constructible_from<typename model_t<Set>::PositionType, int>;
+  SetLike<Set> && (Stride > 0) &&
+  positiveStaticStrideRepresentable<Stride, typename model_t<Set>::PositionType>();
 }  // namespace detail
 
 /*!
@@ -274,6 +290,12 @@ concept SizePolicy = requires(const detail::model_t<T>& policy) {
   { policy.isValid(false) } -> std::convertible_to<bool>;
 };
 
+/// \brief A SizePolicy usable by a set whose position type is Position.
+template <typename T, typename Position>
+concept SetSizePolicyFor = SizePolicy<T> && PositionLike<Position> &&
+  std::same_as<detail::policy_default_t<T>, detail::model_t<Position>> &&
+  std::constructible_from<detail::model_t<T>, detail::model_t<Position>>;
+
 /*!
  * \brief The common capability shared by scalar and multi-dimensional stride policies.
  *
@@ -327,6 +349,13 @@ concept OffsetPolicy = ValuePolicy<T> && requires(const detail::model_t<T>& poli
   { policy.offset() } -> std::same_as<typename detail::model_t<T>::IntType>;
 };
 
+/// \brief An OffsetPolicy usable by an OrderedSet whose position type is Position.
+template <typename T, typename Position>
+concept OrderedSetOffsetPolicyFor = OffsetPolicy<T> && PositionLike<Position> &&
+  std::same_as<typename detail::model_t<T>::IntType, detail::model_t<Position>> &&
+  std::same_as<detail::policy_default_t<T>, detail::model_t<Position>> &&
+  std::constructible_from<detail::model_t<T>, detail::model_t<Position>>;
+
 /*!
  * \brief The common storage/indirection-policy capability.
  *
@@ -373,6 +402,16 @@ concept HasMapIndirectionAssociatedTypes = requires {
   model_t<T>::IsMutableBuffer;
   std::integral_constant<bool, model_t<T>::IsMutableBuffer> {};
 };
+
+template <typename T, typename Position>
+concept MapBufferFor = HasMapIndirectionAssociatedTypes<T> &&
+  requires(const typename model_t<T>::IndirectionBufferType& buffer) {
+    { buffer.size() } -> std::convertible_to<model_t<Position>>;
+    { buffer.empty() } -> std::convertible_to<bool>;
+  } && (!model_t<T>::IsMutableBuffer ||
+        requires(typename model_t<T>::IndirectionBufferType& buffer, model_t<Position> size) {
+          buffer.resize(size);
+        });
 }  // namespace detail
 
 /// \brief An indirection policy usable by OrderedSet over Position and Element.
@@ -398,6 +437,7 @@ concept OrderedSetIndirectionPolicyFor = IndirectionPolicyFor<T, Position> &&
 template <typename T, typename Position, typename Data>
 concept MapIndirectionPolicyFor = IndirectionPolicy<T> && PositionLike<Position> &&
   detail::HasTypedIndirectionAssociatedTypes<T> && detail::HasMapIndirectionAssociatedTypes<T> &&
+  detail::MapBufferFor<T, Position> &&
   std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
   std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Data>> &&
   detail::MapValueFor<typename detail::model_t<T>::IndirectionResult, Data> &&

@@ -46,6 +46,16 @@ struct NotPositionConvertible
 using WideSet = slam::RangeSet<std::int64_t, std::int64_t>;
 using NarrowSet = slam::RangeSet<std::int32_t, std::int32_t>;
 
+struct BytePositionSet
+{
+  using PositionType = std::uint8_t;
+  using ElementType = std::uint8_t;
+
+  constexpr PositionType size() const { return 0; }
+  constexpr bool empty() const { return true; }
+  constexpr ElementType at(PositionType) const { return 0; }
+};
+
 template <typename Position, typename Element, typename Size>
 concept CanMakeRangeSet = requires(Size size) { slam::make_range_set<Position, Element>(size); };
 
@@ -136,6 +146,9 @@ static_assert(!CanMakeRuntimeMap<WideSet, NotPositionConvertible, double>);
 static_assert(CanMakeStaticMap<2, WideSet, double>);
 static_assert(!CanMakeStaticMap<0, WideSet, double>);
 static_assert(!CanMakeStaticMap<-1, WideSet, double>);
+static_assert(CanMakeStaticMap<255, BytePositionSet, double>);
+static_assert(!CanMakeStaticMap<256, BytePositionSet, double>);
+static_assert(!CanMakeStaticMap<257, BytePositionSet, double>);
 static_assert(CanMakeExplicitStaticMap<2, WideSet, double, std::int64_t>);
 static_assert(!CanMakeExplicitStaticMap<2, WideSet, double, std::int32_t>);
 
@@ -154,6 +167,9 @@ static_assert(!CanMakeRuntimeRelation<WideSet, NarrowSet, int, std::int64_t>);
 static_assert(CanMakeStaticRelation<2, WideSet, NarrowSet, std::int32_t>);
 static_assert(!CanMakeStaticRelation<0, WideSet, NarrowSet, std::int32_t>);
 static_assert(!CanMakeStaticRelation<2, WideSet, NarrowSet, std::int64_t>);
+static_assert(CanMakeStaticRelation<255, BytePositionSet, NarrowSet, std::int32_t>);
+static_assert(!CanMakeStaticRelation<256, BytePositionSet, NarrowSet, std::int32_t>);
+static_assert(!CanMakeStaticRelation<257, BytePositionSet, NarrowSet, std::int32_t>);
 static_assert(CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int64_t, std::int32_t>);
 static_assert(!CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int32_t, std::int32_t>);
 }  // anonymous namespace

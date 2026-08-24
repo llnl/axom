@@ -56,6 +56,7 @@ public:
 
   using DataType = typename SuperMapType::DataType;
 
+  using SetType = SubsetType;
   using SetPosition = typename SubsetType::PositionType;
   using SetElement = typename SubsetType::ElementType;
   using SuperSetElement = typename SuperMapType::SetElement;
@@ -79,11 +80,12 @@ public:
   using const_range_iterator = RangeIterator;
   using range_iterator = RangeIterator;
 
-  using ValueType = typename IndirectionPolicyType::IndirectionResult;
-  using ConstValueType = typename IndirectionPolicyType::ConstIndirectionResult;
-
   using DataRefType =
-    std::conditional_t<std::is_const<SuperMapType>::value, ConstValueType, ValueType>;
+    std::conditional_t<std::is_const<SuperMapType>::value,
+                       typename IndirectionPolicyType::ConstIndirectionResult,
+                       typename IndirectionPolicyType::IndirectionResult>;
+  using ValueType = DataRefType;
+  using ConstValueType = DataRefType;
 
 public:
   /** Default Constructor */
@@ -169,10 +171,13 @@ public:
   /// @{
   ///
 
-  /** \brief returns the size of the SubMap  */
-  AXOM_HOST_DEVICE axom::IndexType size() const { return m_subsetIdx.size(); }
+  /// \brief returns the subset that forms this SubMap's domain
+  AXOM_HOST_DEVICE const SetType* set() const { return &m_subsetIdx; }
 
-  /** \brief returns the number of components (aka. stride) of the SubMap  */
+  /// \brief returns the size of the SubMap
+  AXOM_HOST_DEVICE SetPosition size() const { return m_subsetIdx.size(); }
+
+  /// \brief returns the number of components (aka. stride) of the SubMap
   AXOM_HOST_DEVICE IndexType numComp() const { return StridePolicyType::stride(); }
 
   /// @}
@@ -187,12 +192,10 @@ private:  //function inherit from StridePolicy that should not be accessible
 
 private:  //helper functions
   friend class RangeIterator;
-  /**
-   * \brief Get the ElementFlatIndex into the SuperMap given the subset's index.
-   */
+  /// \brief Get the ElementFlatIndex into the SuperMap given the subset's index.
   AXOM_HOST_DEVICE IndexType getMapElemFlatIndex(IndexType idx) const { return m_subsetIdx[idx]; }
 
-  /*
+  /**
    * \brief Get the ComponentFlatIndex into the SuperMap given the subset's
    * ComponentFlatIndex. This is used only with bracket [] access
    */
@@ -203,13 +206,13 @@ private:  //helper functions
     return getMapElemFlatIndex(idx / comp) * comp + s;
   }
 
-  /** Checks the ComponentFlatIndex is valid */
+  /// Checks the ComponentFlatIndex is valid
   void verifyPosition(SetPosition idx) const { verifyPositionImpl(idx); }
 
-  /** Checks the ElementFlatIndex and the component index is valid */
+  /// Checks the ElementFlatIndex and the component index is valid
   void verifyPosition(SetPosition idx, SetPosition comp) const { verifyPositionImpl(idx, comp); }
 
-  /** Checks the ComponentFlatIndex is valid */
+  /// Checks the ComponentFlatIndex is valid
   void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx)) const
   {
     SLIC_ASSERT_MSG(idx >= 0 && idx < m_subsetIdx.size() * numComp(),
@@ -217,7 +220,7 @@ private:  //helper functions
                                                    << m_subsetIdx.size() * numComp());
   }
 
-  /** Checks the ElementFlatIndex and the component index is valid */
+  /// Checks the ElementFlatIndex and the component index is valid
   template <typename ComponentIndex>
   void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx), ComponentIndex AXOM_DEBUG_PARAM(comp)) const
   {
@@ -227,7 +230,7 @@ private:  //helper functions
                       << m_subsetIdx.size() << " with " << numComp() << " component");
   }
 
-  /** Checks the ElementFlatIndex and the component index is valid */
+  /// Checks the ElementFlatIndex and the component index is valid
   template <typename... ComponentIndex>
   void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx),
                           ComponentIndex... AXOM_DEBUG_PARAM(comp)) const
