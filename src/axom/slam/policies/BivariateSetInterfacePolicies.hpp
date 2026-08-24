@@ -9,6 +9,8 @@
 #include "axom/slam/BivariateSet.hpp"
 #include "axom/slam/policies/InterfacePolicies.hpp"
 
+#include <utility>
+
 namespace axom::slam::policies
 {
 namespace detail
@@ -18,21 +20,26 @@ namespace detail
  *
  *  This is effectively slam::BivariateSet without the virtual functions.
  */
-template <typename Set1 = slam::Set<>, typename Set2 = slam::Set<>>
+template <typename Set1 = slam::Set<>,
+          typename Set2 = slam::Set<>,
+          typename Position = ::axom::slam::detail::default_flat_position_t<typename Set1::PositionType,
+                                                                            typename Set2::PositionType>>
 struct ConcreteBivariateSet
 {
   using FirstSetType = Set1;
   using SecondSetType = Set2;
 
-  using PositionType = typename FirstSetType::PositionType;
-  using ElementType = typename FirstSetType::ElementType;
+  using FirstPositionType = typename FirstSetType::PositionType;
+  using SecondPositionType = typename SecondSetType::PositionType;
+  using PositionType = Position;
+  using ElementType = std::pair<FirstPositionType, SecondPositionType>;
 
   using SubsetType = void;
-  using RangeSetType = typename RangeSet<PositionType, ElementType>::ConcreteSet;
+  using RangeSetType = typename RangeSet<PositionType, PositionType>::ConcreteSet;
 
   static constexpr PositionType INVALID_POS = PositionType(-1);
 
-  /**
+  /*!
    * \brief Constructor taking pointers to the two sets that defines the range
    *        of the indices of the BivariateSet.
    *
@@ -45,20 +52,20 @@ struct ConcreteBivariateSet
     , m_set2(set2)
   { }
 
-  /** \brief Size of the first set.   */
-  AXOM_HOST_DEVICE inline PositionType firstSetSize() const
+  /// \brief Size of the first set.
+  AXOM_HOST_DEVICE inline FirstPositionType firstSetSize() const
   {
     return getSize<FirstSetType>(m_set1);
   }
-  /** \brief Size of the second set.   */
-  AXOM_HOST_DEVICE inline PositionType secondSetSize() const
+  /// \brief Size of the second set.
+  AXOM_HOST_DEVICE inline SecondPositionType secondSetSize() const
   {
     return getSize<SecondSetType>(m_set2);
   }
 
-  /** \brief Returns pointer to the first set.   */
+  /// \brief Returns pointer to the first set.
   const FirstSetType* getFirstSet() const { return m_set1; }
-  /** \brief Returns pointer to the second set.   */
+  /// \brief Returns pointer to the second set.
   const SecondSetType* getSecondSet() const { return m_set2; }
 
   bool isValid(bool verboseOutput = false) const
@@ -76,7 +83,7 @@ struct ConcreteBivariateSet
 
 private:
   template <typename SetType>
-  PositionType getSize(const SetType* s) const
+  typename SetType::PositionType getSize(const SetType* s) const
     requires(std::is_abstract_v<SetType>)
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
@@ -84,7 +91,7 @@ private:
   }
 
   template <typename SetType>
-  AXOM_HOST_DEVICE PositionType getSize(const SetType* s) const
+  AXOM_HOST_DEVICE typename SetType::PositionType getSize(const SetType* s) const
     requires(!std::is_abstract_v<SetType>)
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
@@ -102,36 +109,40 @@ protected:
  *
  *  This class helps select a virtual or non-virtual interface depending on
  *  the interface type:
- *  * In the ConcreteInterface case, the base class ConcreteBivariateSet
+ *  - In the ConcreteInterface case, the base class ConcreteBivariateSet
  *    is used to avoid virtual function calls in the derived instance.
- *  * In the VirtualInterface case, the base class is BivariateSet, which
+ *  - In the VirtualInterface case, the base class is BivariateSet, which
  *    contains a common virtual interface between Relation/ProductSets.
  *
  * \tparam InterfacePolicy the interface type to select (virtual or concrete)
  *
  * \see InterfacePolicies.hpp
  */
-template <typename InterfacePolicy, typename Set1, typename Set2>
+template <typename InterfacePolicy, typename Set1, typename Set2, typename Position>
 struct BSetInterfaceSelector;
 
-template <typename InterfacePolicy, typename Set1, typename Set2>
+template <typename InterfacePolicy, typename Set1, typename Set2, typename Position>
 struct BSetInterfaceSelector
 {
   static_assert(std::is_same<InterfacePolicy, ConcreteInterface>::value,
                 "InterfacePolicy must be one of policies::ConcreteInterface or "
                 "policies::VirtualInterface.");
-  using Type = ConcreteBivariateSet<Set1, Set2>;
+  using Type = ConcreteBivariateSet<Set1, Set2, Position>;
 };
 
-template <typename Set1, typename Set2>
-struct BSetInterfaceSelector<VirtualInterface, Set1, Set2>
+template <typename Set1, typename Set2, typename Position>
+struct BSetInterfaceSelector<VirtualInterface, Set1, Set2, Position>
 {
-  using Type = BivariateSet<Set1, Set2>;
+  using Type = BivariateSet<Set1, Set2, Position>;
 };
 }  // namespace detail
 
-template <typename InterfacePolicy, typename FromSet, typename ToSet>
+template <typename InterfacePolicy,
+          typename FromSet,
+          typename ToSet,
+          typename Position = ::axom::slam::detail::
+            default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>>
 using BivariateSetInterface =
-  typename detail::BSetInterfaceSelector<InterfacePolicy, FromSet, ToSet>::Type;
+  typename detail::BSetInterfaceSelector<InterfacePolicy, FromSet, ToSet, Position>::Type;
 
 }  // end namespace axom::slam::policies

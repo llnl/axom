@@ -64,11 +64,14 @@ public:
     INVALID_INDEX = ~0  ///< value to mark indices of deleted elements
   };
 
-  using SetPosition = PosType;
   using FromSetType = DynamicSet<PosType, ElemType>;
   using ToSetType = DynamicSet<PosType, ElemType>;
-  using ToSetPosition = typename ToSetType::PositionType;
-  using SetElement = ToSetPosition;
+  using FromPositionType = typename FromSetType::PositionType;
+  using ToPositionType = typename ToSetType::PositionType;
+
+  using SetPosition = FromPositionType;
+  using ToSetPosition = ToPositionType;
+  using SetElement = ToPositionType;
   using RelationVec = std::vector<SetElement>;
 
   using BeginsSizePolicy = typename CardinalityPolicy::RelationalOperatorSizeType;
@@ -89,18 +92,13 @@ public:
   using RelationConstIteratorPair = typename RelationSubset::const_iterator_pair;
 
 public:
-  /**
-   * \brief Default constructor with empty set for toSet and fromSet
-   */
+  /// \brief Default constructor with empty set for toSet and fromSet
   DynamicConstantRelation()
     : m_fromSet(policies::EmptySetTraits<FromSetType>::emptySet())
     , m_toSet(policies::EmptySetTraits<ToSetType>::emptySet())
   { }
 
-  /**
-   * \brief Construct a DynamicConstantRelation from the given \a fromSet
-   * to \a toSet
-   */
+  /// \brief Construct a DynamicConstantRelation from the given \a fromSet to \a toSet
   DynamicConstantRelation(FromSetType* fromSet, ToSetType* toSet)
     : CardinalityPolicy(policies::EmptySetTraits<FromSetType>::isEmpty(fromSet) ? 0 : fromSet->size())
     , m_fromSet(fromSet)

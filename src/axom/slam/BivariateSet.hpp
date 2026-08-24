@@ -8,7 +8,6 @@
  * \file BivariateSet.hpp
  *
  * \brief Contains the class BivariateSet and NullBivariateSet
- *
  */
 
 #pragma once
@@ -24,6 +23,7 @@
 #include <cassert>
 #include <optional>
 #include <type_traits>
+#include <utility>
 
 namespace axom::slam
 {
@@ -33,13 +33,13 @@ struct BivariateSetIterator;
 /**
  * \class BivariateSet
  *
- * \brief Abstract class that models a set whose elements are indexed by two
- *        indices. Each element in a BivariateSet is equivalent to an ordered
- *        pair containing a row and column index, similar to indexing in a matrix.
+ * \brief Abstract class that models a set whose elements are indexed by two indices.
+ *        Each element in a BivariateSet is equivalent to an ordered pair
+ *        containing a row and column index, similar to indexing in a matrix.
  *
- * \detail BivariateSet models a subset of the Cartesian product of its two
- *         sets. Elements of a BivariateSet can be represented as an ordered
- *         pair of indices into the two sets.
+ * \details BivariateSet models a subset of the Cartesian product of its two sets.
+ *          Elements of a BivariateSet can be represented as an ordered pair of indices
+ *          into the two sets.
  *
  *  For BivariateSets that do not model the entire Cartesian product, indices
  *  can be relative to the element positions in the original sets (in which
@@ -76,25 +76,35 @@ struct BivariateSetIterator;
  *
  */
 
-template <typename Set1 = slam::Set<>, typename Set2 = slam::Set<>>
+template <typename Set1 = slam::Set<>,
+          typename Set2 = slam::Set<>,
+          typename Position =
+            detail::default_flat_position_t<typename Set1::PositionType, typename Set2::PositionType>>
 class BivariateSet
 {
 public:
   using FirstSetType = Set1;
   using SecondSetType = Set2;
 
-  using PositionType = typename FirstSetType::PositionType;
-  using ElementType = typename FirstSetType::ElementType;
+  using FirstPositionType = typename FirstSetType::PositionType;
+  using SecondPositionType = typename SecondSetType::PositionType;
+
+  // PositionType indexes the flattened bivariate set.
+  // Its elements are the corresponding pair of positions in the endpoint sets.
+  using PositionType = Position;
+  using ElementType = std::pair<FirstPositionType, SecondPositionType>;
   using NullSetType = NullSet<PositionType, ElementType>;
 
+  // A row is indexed by a row-local position and stores positions in the second endpoint set.
   using SubsetType = OrderedSet<PositionType,
-                                ElementType,
+                                SecondPositionType,
                                 policies::RuntimeSize<PositionType>,
                                 policies::RuntimeOffset<PositionType>,
                                 policies::StrideOne<PositionType>,
-                                policies::ArrayViewIndirection<PositionType, ElementType>>;
+                                policies::ArrayViewIndirection<PositionType, SecondPositionType>>;
 
-  using RangeSetType = RangeSet<PositionType, ElementType>;
+  // elementRangeSet() describes flat storage positions, not endpoint values.
+  using RangeSetType = RangeSet<PositionType, PositionType>;
   using IteratorType = BivariateSetIterator<BivariateSet>;
 
 public:
@@ -135,9 +145,9 @@ public:
    *          element is missing from the set.
    * \pre   0 <= pos1 < set1.size() && 0 <= pos2 < set2.size()
    */
-  virtual PositionType findElementIndex(PositionType pos1, PositionType pos2) const = 0;
+  virtual PositionType findElementIndex(FirstPositionType pos1, SecondPositionType pos2) const = 0;
 
-  /*!
+  /**
    * \brief Finds the SparseIndex of the element given its DenseIndex.
    *
    * \return An engaged `std::optional` containing the SparseIndex if the element exists,
@@ -146,8 +156,8 @@ public:
    * \note This is a convenience wrapper around `findElementIndex(...)` that avoids
    *       sentinel checks against `INVALID_POS`.
    */
-  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(PositionType pos1,
-                                                                     PositionType pos2) const
+  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(FirstPositionType pos1,
+                                                                     SecondPositionType pos2) const
   {
     const auto idx = findElementIndex(pos1, pos2);
     return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
@@ -162,10 +172,10 @@ public:
    * \return  The element's FlatIndex
    * \pre   0 <= pos1 < set1.size() && 0 <= pos2 < set2.size()
    */
-  AXOM_HOST_DEVICE virtual PositionType findElementFlatIndex(PositionType pos1,
-                                                             PositionType pos2) const = 0;
+  AXOM_HOST_DEVICE virtual PositionType findElementFlatIndex(FirstPositionType pos1,
+                                                             SecondPositionType pos2) const = 0;
 
-  /*!
+  /**
    * \brief Finds the FlatIndex of the element given its DenseIndex.
    *
    * \return An engaged `std::optional` containing the FlatIndex if the element exists,
@@ -175,8 +185,8 @@ public:
    *       sentinel checks against `INVALID_POS`.
    */
   [[nodiscard]] AXOM_HOST_DEVICE std::optional<PositionType> findElementFlatIndexOptional(
-    PositionType pos1,
-    PositionType pos2) const
+    FirstPositionType pos1,
+    SecondPositionType pos2) const
   {
     const auto idx = findElementFlatIndex(pos1, pos2);
     return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
@@ -191,7 +201,7 @@ public:
    * \return  The found element's FlatIndex.
    * \pre   0 <= pos1 < set1.size()
    */
-  virtual PositionType findElementFlatIndex(PositionType pos1) const = 0;
+  virtual PositionType findElementFlatIndex(FirstPositionType pos1) const = 0;
 
   /*!
    * \brief Finds the FlatIndex of the first existing element in a row.
@@ -202,7 +212,7 @@ public:
    * \note This is a convenience wrapper around `findElementFlatIndex(pos1)` that avoids
    *       sentinel checks against `INVALID_POS`.
    */
-  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(FirstPositionType pos1) const
   {
     const auto idx = findElementFlatIndex(pos1);
     return idx != INVALID_POS ? std::optional<PositionType>(idx) : std::optional<PositionType> {};
@@ -216,7 +226,7 @@ public:
    *
    * \return pos1  The from-set index.
    */
-  AXOM_HOST_DEVICE virtual PositionType flatToFirstIndex(PositionType flatIndex) const = 0;
+  AXOM_HOST_DEVICE virtual FirstPositionType flatToFirstIndex(PositionType flatIndex) const = 0;
 
   /**
    * \brief Given the flat index, return the associated to-set index in the
@@ -226,7 +236,7 @@ public:
    *
    * \return pos2  The to-set index.
    */
-  AXOM_HOST_DEVICE virtual PositionType flatToSecondIndex(PositionType flatIndex) const = 0;
+  AXOM_HOST_DEVICE virtual SecondPositionType flatToSecondIndex(PositionType flatIndex) const = 0;
 
   /**
    * \brief Finds the range of indices of valid elements in the second set,
@@ -235,7 +245,7 @@ public:
    *
    * \return A range set of the positions in the second set
    */
-  AXOM_HOST_DEVICE virtual RangeSetType elementRangeSet(PositionType pos1) const = 0;
+  AXOM_HOST_DEVICE virtual RangeSetType elementRangeSet(FirstPositionType pos1) const = 0;
 
   /// \brief The number of non-zero entries in the BivariateSet.
   [[nodiscard]] AXOM_HOST_DEVICE virtual PositionType size() const = 0;
@@ -245,28 +255,28 @@ public:
    *
    * \pre  0 <= pos1 < set1.size()
    */
-  virtual PositionType size(PositionType pos1) const = 0;  //size of a row
+  virtual PositionType size(FirstPositionType pos1) const = 0;  //size of a row
 
-  /** \brief Size of the first set.   */
-  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType firstSetSize() const
+  /// \brief Size of the first set.
+  [[nodiscard]] AXOM_HOST_DEVICE inline FirstPositionType firstSetSize() const
   {
     return getSize<FirstSetType>(m_set1);
   }
 
-  /** \brief Size of the second set.   */
+  /// \brief Size of the second set.
   AXOM_SUPPRESS_HD_WARN
-  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType secondSetSize() const
+  [[nodiscard]] AXOM_HOST_DEVICE inline SecondPositionType secondSetSize() const
   {
     return getSize<SecondSetType>(m_set2);
   }
 
-  /** \brief Returns pointer to the first set.   */
+  /// \brief Returns pointer to the first set.
   const FirstSetType* getFirstSet() const { return m_set1; }
 
-  /** \brief Returns pointer to the second set.   */
+  /// \brief Returns pointer to the second set.
   const SecondSetType* getSecondSet() const { return m_set2; }
 
-  /** \brief Returns the element at the given FlatIndex \a pos */
+  /// \brief Returns the element at the given FlatIndex \a pos
   [[nodiscard]] AXOM_HOST_DEVICE virtual ElementType at(PositionType pos) const = 0;
 
   /**
@@ -276,7 +286,7 @@ public:
    * \return  An OrderedSet containing the elements
    * \pre  0 <= pos1 < set1.size()
    */
-  virtual SubsetType getElements(PositionType s1) const = 0;
+  virtual SubsetType getElements(FirstPositionType s1) const = 0;
 
   /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
@@ -287,11 +297,11 @@ public:
   [[nodiscard]] virtual bool isValid(bool verboseOutput = false) const;
 
 private:
-  virtual void verifyPosition(PositionType s1, PositionType s2) const = 0;
+  virtual void verifyPosition(FirstPositionType s1, SecondPositionType s2) const = 0;
 
   AXOM_SUPPRESS_HD_WARN
   template <typename SetType>
-  AXOM_HOST_DEVICE PositionType getSize(const SetType* s) const
+  AXOM_HOST_DEVICE typename SetType::PositionType getSize(const SetType* s) const
     requires(std::is_abstract_v<SetType>)
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
@@ -299,7 +309,7 @@ private:
   }
 
   template <typename SetType>
-  AXOM_HOST_DEVICE PositionType getSize(const SetType* s) const
+  AXOM_HOST_DEVICE typename SetType::PositionType getSize(const SetType* s) const
     requires(!std::is_abstract_v<SetType>)
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
@@ -311,11 +321,11 @@ protected:
   const SecondSetType* m_set2;
 };
 
-template <typename Set1, typename Set2>
-const typename BivariateSet<Set1, Set2>::NullSetType BivariateSet<Set1, Set2>::s_nullSet;
+template <typename Set1, typename Set2, typename Position>
+const typename BivariateSet<Set1, Set2, Position>::NullSetType BivariateSet<Set1, Set2, Position>::s_nullSet;
 
-template <typename Set1, typename Set2>
-bool BivariateSet<Set1, Set2>::isValid(bool verboseOutput) const
+template <typename Set1, typename Set2, typename Position>
+bool BivariateSet<Set1, Set2, Position>::isValid(bool verboseOutput) const
 {
   if(m_set1 == nullptr || m_set2 == nullptr)
   {
@@ -328,7 +338,7 @@ bool BivariateSet<Set1, Set2>::isValid(bool verboseOutput) const
   return m_set1->isValid(verboseOutput) && m_set2->isValid(verboseOutput);
 }
 
-/*!
+/**
  * \class BivariateSetIterator
  *
  * \brief Implements a forward iterator concept on a BivariateSet type.
@@ -339,9 +349,11 @@ struct BivariateSetIterator
 {
 public:
   using IndexType = typename BivariateSetType::PositionType;
+  using FirstPositionType = typename BivariateSetType::FirstPositionType;
+  using SecondPositionType = typename BivariateSetType::SecondPositionType;
   using BaseType = IteratorBase<BivariateSetIterator<BivariateSetType>, IndexType>;
   using difference_type = IndexType;
-  using value_type = std::pair<IndexType, IndexType>;
+  using value_type = typename BivariateSetType::ElementType;
   using reference = value_type;
   using pointer = void;
   using iterator_concept = std::forward_iterator_tag;
@@ -354,17 +366,17 @@ public:
     , m_bset(bset)
   { }
 
-  std::pair<IndexType, IndexType> operator*() const
+  value_type operator*() const
   {
     // Going from flat index to second index is always free for a StaticRelation.
     return {firstIndex(), secondIndex()};
   }
 
   /// \brief Return the first set index pointed to by this iterator.
-  IndexType firstIndex() const { return m_bset->flatToFirstIndex(flatIndex()); }
+  FirstPositionType firstIndex() const { return m_bset->flatToFirstIndex(flatIndex()); }
 
   /// \brief Return the second set index pointed to by this iterator.
-  IndexType secondIndex() const { return m_bset->flatToSecondIndex(flatIndex()); }
+  SecondPositionType secondIndex() const { return m_bset->flatToSecondIndex(flatIndex()); }
 
   /// \brief Return the flat iteration index of this iterator.
   AXOM_HOST_DEVICE IndexType flatIndex() const { return this->m_pos; }
@@ -381,13 +393,18 @@ private:
  *
  * \brief A Null BivariateSet class. Same as the NullSet for Set class.
  */
-template <typename SetType1 = slam::Set<>, typename SetType2 = slam::Set<>>
-class NullBivariateSet : public BivariateSet<SetType1, SetType2>
+template <typename SetType1 = slam::Set<>,
+          typename SetType2 = slam::Set<>,
+          typename Position = detail::default_flat_position_t<typename SetType1::PositionType,
+                                                              typename SetType2::PositionType>>
+class NullBivariateSet : public BivariateSet<SetType1, SetType2, Position>
 {
 public:
   using FirstSetType = SetType1;
   using SecondSetType = SetType2;
-  using BSet = BivariateSet<FirstSetType, SecondSetType>;
+  using BSet = BivariateSet<FirstSetType, SecondSetType, Position>;
+  using FirstPositionType = typename BSet::FirstPositionType;
+  using SecondPositionType = typename BSet::SecondPositionType;
   using PositionType = typename BSet::PositionType;
   using ElementType = typename BSet::ElementType;
   using SubsetType = typename BSet::SubsetType;
@@ -396,55 +413,56 @@ public:
 public:
   NullBivariateSet() = default;
 
-  PositionType findElementIndex(PositionType pos1, PositionType pos2 = 0) const override
+  PositionType findElementIndex(FirstPositionType pos1, SecondPositionType pos2 = 0) const override
   {
     verifyPosition(pos1, pos2);
     return PositionType();
   }
 
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE PositionType findElementFlatIndex(PositionType s1, PositionType s2) const override
+  AXOM_HOST_DEVICE PositionType findElementFlatIndex(FirstPositionType s1,
+                                                     SecondPositionType s2) const override
   {
     verifyPosition(s1, s2);
     return PositionType();
   }
 
-  PositionType findElementFlatIndex(PositionType s1) const override
+  PositionType findElementFlatIndex(FirstPositionType s1) const override
   {
     return findElementFlatIndex(s1, 0);
   }
 
-  AXOM_HOST_DEVICE PositionType flatToFirstIndex(PositionType) const override
+  AXOM_HOST_DEVICE FirstPositionType flatToFirstIndex(PositionType) const override
   {
-    return PositionType();
+    return FirstPositionType();
   }
 
-  AXOM_HOST_DEVICE PositionType flatToSecondIndex(PositionType) const override
+  AXOM_HOST_DEVICE SecondPositionType flatToSecondIndex(PositionType) const override
   {
-    return PositionType();
+    return SecondPositionType();
   }
 
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE RangeSetType elementRangeSet(PositionType) const override
+  AXOM_HOST_DEVICE RangeSetType elementRangeSet(FirstPositionType) const override
   {
     return RangeSetType();
   }
 
-  AXOM_HOST_DEVICE ElementType at(PositionType) const override { return PositionType(); }
+  AXOM_HOST_DEVICE ElementType at(PositionType) const override { return ElementType {}; }
 
   AXOM_HOST_DEVICE PositionType size() const override { return PositionType(); }
 
-  PositionType size(PositionType) const override { return PositionType(); }
+  PositionType size(FirstPositionType) const override { return PositionType(); }
 
-  SubsetType getElements(PositionType) const override
+  SubsetType getElements(FirstPositionType) const override
   {
     using OrderedSetBuilder = typename SubsetType::SetBuilder;
     return OrderedSetBuilder();
   }
 
 private:
-  void verifyPosition(PositionType AXOM_DEBUG_PARAM(pos1),
-                      PositionType AXOM_DEBUG_PARAM(pos2)) const override
+  void verifyPosition(FirstPositionType AXOM_DEBUG_PARAM(pos1),
+                      SecondPositionType AXOM_DEBUG_PARAM(pos2)) const override
   {
     SLIC_ASSERT_MSG(false,
                     "Subscripting on NullSet is never valid."

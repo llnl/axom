@@ -36,19 +36,24 @@ namespace axom::slam
  */
 template <typename SetType1 = slam::Set<>,
           typename SetType2 = slam::Set<>,
-          typename InterfaceType = policies::VirtualInterface>
-class ProductSet final : public policies::BivariateSetInterface<InterfaceType, SetType1, SetType2>
+          typename InterfaceType = policies::VirtualInterface,
+          typename FlatPosition = detail::default_flat_position_t<typename SetType1::PositionType,
+                                                                  typename SetType2::PositionType>>
+class ProductSet final
+  : public policies::BivariateSetInterface<InterfaceType, SetType1, SetType2, FlatPosition>
 {
 private:
-  using BaseType = policies::BivariateSetInterface<InterfaceType, SetType1, SetType2>;
+  using BaseType = policies::BivariateSetInterface<InterfaceType, SetType1, SetType2, FlatPosition>;
 
 public:
   using RangeSetType = typename BaseType::RangeSetType;
   using FirstSetType = SetType1;
   using SecondSetType = SetType2;
+  using FirstPositionType = typename BaseType::FirstPositionType;
+  using SecondPositionType = typename BaseType::SecondPositionType;
   using PositionType = typename BaseType::PositionType;
   using ElementType = typename BaseType::ElementType;
-  using ProductSetType = ProductSet<SetType1, SetType2>;
+  using ProductSetType = ProductSet<SetType1, SetType2, InterfaceType, FlatPosition>;
 
   using IteratorType = BivariateSetIterator<ProductSet>;
 
@@ -57,7 +62,7 @@ private:
   struct RowSet
   {
     using Type = SetType;
-    RowSet(PositionType secondSetSize) : m_data(secondSetSize)
+    RowSet(SecondPositionType secondSetSize) : m_data(static_cast<axom::IndexType>(secondSetSize))
     {
       //fill in the row data now for getElements(i) function,
       //since every row is the same, a call to getElements() returns the same set.
@@ -66,12 +71,15 @@ private:
       //         goes from 0 to secondSetSize()
       // This requires a change to the return type of BivariateSet::getElements()
       std::iota(m_data.begin(), m_data.end(), 0);
-      m_set = typename SetType::SetBuilder().size(secondSetSize).offset(0).data(m_data.view());
+      m_set = typename SetType::SetBuilder()
+                .size(static_cast<PositionType>(secondSetSize))
+                .offset(0)
+                .data(m_data.view());
     }
 
-    Type get(PositionType) const { return m_set; }
+    Type get(SecondPositionType) const { return m_set; }
 
-    axom::Array<PositionType> m_data;
+    axom::Array<SecondPositionType> m_data;
     SetType m_set;
   };
 
@@ -81,16 +89,19 @@ private:
   template <typename Dummy>
   struct RowSet<Dummy, void>
   {
-    using Type = PositionSet<PositionType, ElementType>;
+    using Type = PositionSet<PositionType, SecondPositionType>;
 
-    RowSet(PositionType) { }
+    RowSet(SecondPositionType) { }
 
-    Type get(PositionType secondSetSize) const { return Type(secondSetSize); }
+    Type get(SecondPositionType secondSetSize) const
+    {
+      return Type(static_cast<PositionType>(secondSetSize));
+    }
   };
 
 public:
-  using ConcreteSet = ProductSet<SetType1, SetType2, policies::ConcreteInterface>;
-  using VirtualSet = ProductSet<SetType1, SetType2, policies::VirtualInterface>;
+  using ConcreteSet = ProductSet<SetType1, SetType2, policies::ConcreteInterface, FlatPosition>;
+  using VirtualSet = ProductSet<SetType1, SetType2, policies::VirtualInterface, FlatPosition>;
 
   using OtherSet =
     std::conditional_t<std::is_same<InterfaceType, policies::VirtualInterface>::value, ConcreteSet, VirtualSet>;
@@ -103,7 +114,7 @@ public:
 public:
   using SubsetType = typename RowSet<void, typename BaseType::SubsetType>::Type;
 
-  /** \brief Default constructor */
+  /// \brief Default constructor
   ProductSet() : m_rowSet(0) { }
 
   /**
@@ -128,10 +139,10 @@ public:
    *
    * \return  The element's SparseIndex, which is the same as pos2
    */
-  PositionType findElementIndex(PositionType pos1, PositionType pos2) const
+  PositionType findElementIndex(FirstPositionType pos1, SecondPositionType pos2) const
   {
     verifyPositionImpl(pos1, pos2);
-    return pos2;
+    return static_cast<PositionType>(pos2);
   }
 
   /*!
@@ -139,8 +150,8 @@ public:
    *
    * \return An engaged `std::optional` with the SparseIndex if valid, else empty.
    */
-  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(PositionType pos1,
-                                                                     PositionType pos2) const
+  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(FirstPositionType pos1,
+                                                                     SecondPositionType pos2) const
   {
     const auto idx = findElementIndex(pos1, pos2);
     return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
@@ -157,13 +168,15 @@ public:
    *
    * \return  The element's FlatIndex.
    */
-  AXOM_HOST_DEVICE PositionType findElementFlatIndex(PositionType pos1, PositionType pos2) const
+  AXOM_HOST_DEVICE PositionType findElementFlatIndex(FirstPositionType pos1,
+                                                     SecondPositionType pos2) const
   {
 #ifndef AXOM_DEVICE_CODE
     verifyPositionImpl(pos1, pos2);
 #endif
-    PositionType size2 = this->secondSetSize();
-    PositionType pos = size2 * pos1 + pos2;
+    const PositionType size2 = static_cast<PositionType>(this->secondSetSize());
+    const PositionType pos =
+      size2 * static_cast<PositionType>(pos1) + static_cast<PositionType>(pos2);
 
     return pos;
   }
@@ -174,8 +187,8 @@ public:
    * \return An engaged `std::optional` with the FlatIndex if valid, else empty.
    */
   [[nodiscard]] AXOM_HOST_DEVICE std::optional<PositionType> findElementFlatIndexOptional(
-    PositionType pos1,
-    PositionType pos2) const
+    FirstPositionType pos1,
+    SecondPositionType pos2) const
   {
     const auto idx = findElementFlatIndex(pos1, pos2);
     return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
@@ -188,7 +201,7 @@ public:
    *
    * \param pos1  The first set position that specifies the row.
    */
-  PositionType findElementFlatIndex(PositionType pos1) const
+  PositionType findElementFlatIndex(FirstPositionType pos1) const
   {
     SLIC_ASSERT_MSG(pos1 >= 0 && pos1 < this->firstSetSize(),
                     "SLAM::ProductSet -- requested out-of-range first-set position "
@@ -207,7 +220,7 @@ public:
    *
    * \return An engaged `std::optional` with the FlatIndex if valid, else empty.
    */
-  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(FirstPositionType pos1) const
   {
     const auto idx = findElementFlatIndex(pos1);
     return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
@@ -221,13 +234,14 @@ public:
    *
    * \return pos2  The to-set index.
    */
-  AXOM_HOST_DEVICE PositionType flatToSecondIndex(PositionType flatIndex) const
+  AXOM_HOST_DEVICE SecondPositionType flatToSecondIndex(PositionType flatIndex) const
   {
-    if(flatIndex < 0 || flatIndex > size())
+    if(flatIndex < 0 || flatIndex >= size())
     {
       SLIC_ASSERT("Flat index out of bounds of the relation set.");
     }
-    return flatIndex % this->secondSetSize();
+    return static_cast<SecondPositionType>(flatIndex %
+                                           static_cast<PositionType>(this->secondSetSize()));
   }
 
   /**
@@ -237,13 +251,14 @@ public:
    *
    * \return pos1  The from-set index.
    */
-  AXOM_HOST_DEVICE PositionType flatToFirstIndex(PositionType flatIndex) const
+  AXOM_HOST_DEVICE FirstPositionType flatToFirstIndex(PositionType flatIndex) const
   {
-    if(flatIndex < 0 || flatIndex > size())
+    if(flatIndex < 0 || flatIndex >= size())
     {
       SLIC_ASSERT("Flat index out of bounds of the relation set.");
     }
-    return flatIndex / this->secondSetSize();
+    return static_cast<FirstPositionType>(flatIndex /
+                                          static_cast<PositionType>(this->secondSetSize()));
   }
 
   /**
@@ -254,7 +269,7 @@ public:
    *
    * \return  An OrderedSet of the elements in the row.
    */
-  SubsetType getElements(PositionType AXOM_DEBUG_PARAM(pos1)) const
+  SubsetType getElements(FirstPositionType AXOM_DEBUG_PARAM(pos1)) const
   {
     SLIC_ASSERT(pos1 >= 0 && pos1 < this->firstSetSize());
 
@@ -263,15 +278,19 @@ public:
 
   [[nodiscard]] AXOM_HOST_DEVICE ElementType at(PositionType pos) const
   {
-    return pos % this->secondSetSize();
+    return {flatToFirstIndex(pos), flatToSecondIndex(pos)};
   }
 
   AXOM_HOST_DEVICE PositionType size() const
   {
-    return this->firstSetSize() * this->secondSetSize();
+    return static_cast<PositionType>(this->firstSetSize()) *
+      static_cast<PositionType>(this->secondSetSize());
   }
 
-  PositionType size(PositionType) const { return this->secondSetSize(); }
+  PositionType size(FirstPositionType) const
+  {
+    return static_cast<PositionType>(this->secondSetSize());
+  }
 
   /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
@@ -279,16 +298,16 @@ public:
   /// \brief Return an iterator to one past the last pair of set elements in the relation.
   IteratorType end() const { return IteratorType(this, size()); }
 
-  AXOM_HOST_DEVICE RangeSetType elementRangeSet(PositionType pos1) const
+  AXOM_HOST_DEVICE RangeSetType elementRangeSet(FirstPositionType pos1) const
   {
-    const auto sz = this->secondSetSize();
-    return typename RangeSetType::SetBuilder().size(sz).offset(sz * pos1);
+    const auto sz = static_cast<PositionType>(this->secondSetSize());
+    return typename RangeSetType::SetBuilder().size(sz).offset(sz * static_cast<PositionType>(pos1));
   }
 
-  [[nodiscard]] bool isValidIndex(PositionType s1, PositionType s2) const
+  [[nodiscard]] bool isValidIndex(FirstPositionType s1, SecondPositionType s2) const
   {
-    PositionType size1 = this->firstSetSize();
-    PositionType size2 = this->secondSetSize();
+    FirstPositionType size1 = this->firstSetSize();
+    SecondPositionType size2 = this->secondSetSize();
     return s1 >= 0 && s1 < size1 && s2 >= 0 && s2 < size2;
   }
 
@@ -313,14 +332,14 @@ private:
   }
 
   /// \brief verify the SparseIndex (which is the same as its DenseIndex) is within the valid range.
-  void verifyPosition(PositionType pos1, PositionType pos2) const
+  void verifyPosition(FirstPositionType pos1, SecondPositionType pos2) const
   {
     verifyPositionImpl(pos1, pos2);
   }
 
   /// \brief verify the SparseIndex (which is the same as its DenseIndex) is within the valid range.
-  inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos1),
-                                 PositionType AXOM_DEBUG_PARAM(pos2)) const
+  inline void verifyPositionImpl(FirstPositionType AXOM_DEBUG_PARAM(pos1),
+                                 SecondPositionType AXOM_DEBUG_PARAM(pos2)) const
   {
     SLIC_ASSERT_MSG(isValidIndex(pos1, pos2),
                     "SLAM::ProductSet -- requested out-of-range element at position ("

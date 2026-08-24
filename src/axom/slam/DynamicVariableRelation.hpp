@@ -21,7 +21,7 @@
 #include "axom/slam/policies/PolicyTraits.hpp"
 
 #include "axom/slam/Set.hpp"
-#include "axom/slam/Relation.hpp"
+#include "axom/slam/Utilities.hpp"
 
 #include <vector>
 #include <sstream>
@@ -31,15 +31,18 @@ namespace axom::slam
 {
 template <typename FirstSetType = slam::Set<>, typename SecondSetType = slam::Set<>>
 class DynamicVariableRelation
-  : public Relation<typename FirstSetType::PositionType, typename SecondSetType::PositionType>
 {
 public:
   using FromSetType = FirstSetType;
   using ToSetType = SecondSetType;
 
-  using SetPosition = typename FirstSetType::PositionType;
-  using ToSetPosition = typename SecondSetType::PositionType;
-  using SetElement = ToSetPosition;
+  using FromPositionType = typename FromSetType::PositionType;
+  using ToPositionType = typename ToSetType::PositionType;
+  using FlatPositionType = detail::default_flat_position_t<FromPositionType, ToPositionType>;
+
+  using SetPosition = FromPositionType;
+  using ToSetPosition = ToPositionType;
+  using SetElement = ToPositionType;
 
   using RelationVec = std::vector<SetElement>;
   using RelationVecIterator = typename RelationVec::iterator;
@@ -91,18 +94,18 @@ public:
     return m_relationsVec[fromSetIndex];
   }
 
-  SetPosition size(SetPosition fromSetIndex) const
+  FlatPositionType size(SetPosition fromSetIndex) const
   {
     verifyPosition(fromSetIndex);
-    return static_cast<SetPosition>(fromSetRelationsVec(fromSetIndex).size());
+    return static_cast<FlatPositionType>(fromSetRelationsVec(fromSetIndex).size());
   }
 
-  SetPosition totalSize() const
+  FlatPositionType totalSize() const
   {
-    SetPosition sz = 0;
+    FlatPositionType sz = 0;
     for(auto& vec : m_relationsVec)
     {
-      sz += static_cast<SetPosition>(vec.size());
+      sz += static_cast<FlatPositionType>(vec.size());
     }
     return sz;
   }
@@ -115,7 +118,12 @@ public:
   ToSetType* toSet() { return m_toSet; }
   const ToSetType* toSet() const { return m_toSet; }
 
-  SetPosition fromSetSize() const { return static_cast<SetPosition>(m_relationsVec.size()); }
+  FromPositionType fromSetSize() const
+  {
+    return static_cast<FromPositionType>(m_relationsVec.size());
+  }
+
+  ToPositionType toSetSize() const { return m_toSet->size(); }
 
   bool isValid(bool verboseOutput = false) const;
 
@@ -287,7 +295,7 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(bool verboseO
     }
     else
     {
-      SetPosition overallCount = 0;
+      FlatPositionType overallCount = 0;
       sstr2 << "\n** relations vec elements:";
 
       for(SetPosition fromIdx = 0; fromIdx < m_fromSet->size(); ++fromIdx)

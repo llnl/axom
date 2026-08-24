@@ -17,9 +17,11 @@
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 
+#include <cstdint>
 #include <type_traits>
 #include <sstream>
 #include <iostream>
+#include <vector>
 
 namespace slam = axom::slam;
 namespace policies = axom::slam::policies;
@@ -57,6 +59,15 @@ using IndirSetType =
 // Note: Also returns true when a is zero to avoid division by zero
 bool modCheck(int a, int b) { return (a == 0) || (b % a == 0); }
 
+struct ZoneTag;
+struct NodeTag;
+
+template <typename EntityTag, typename IdType>
+struct TypedHandle
+{
+  IdType id {};
+};
+
 }  // end anonymous namespace
 
 // Test fixture for testing slam's BivariateSet class
@@ -74,11 +85,15 @@ public:
 
   using PositionType = typename BSet::PositionType;
   using ElementType = typename BSet::ElementType;
+  using FirstElementType = typename FirstSetType::ElementType;
+  using SecondElementType = typename SecondSetType::ElementType;
+  using SecondPositionType = typename SecondSetType::PositionType;
 
-  using Vec = std::vector<PositionType>;
+  using FirstElementVec = std::vector<FirstElementType>;
+  using SecondElementVec = std::vector<SecondElementType>;
   using PositionArray = axom::Array<PositionType>;
-  using ElementArray = axom::Array<ElementType>;
-  using RelationType = ::RelType<PositionType, ElementType, FirstSetType, SecondSetType>;
+  using RelationElementArray = axom::Array<SecondPositionType>;
+  using RelationType = ::RelType<PositionType, SecondPositionType, FirstSetType, SecondSetType>;
 
   using PSet1 = ::PositionSetType<FirstSetType>;
   using PSet2 = ::PositionSetType<SecondSetType>;
@@ -290,11 +305,11 @@ protected:
   ISet1* m_iset1;
   ISet2* m_iset2;
 
-  Vec setIndices1;
-  Vec setIndices2;
+  FirstElementVec setIndices1;
+  SecondElementVec setIndices2;
 
   PositionArray relationBegins;
-  ElementArray relationIndices;
+  RelationElementArray relationIndices;
   RelationType modRelation;
 };
 
@@ -390,8 +405,7 @@ TYPED_TEST(BivariateSetTester, sizes)
 TEST(slam_set_bivariate_set, concrete_interface_abstract_endpoint_sizes)
 {
   using AbstractSetType = slam::Set<>;
-  using ProductSetType =
-    typename slam::ProductSet<AbstractSetType, AbstractSetType>::ConcreteSet;
+  using ProductSetType = typename slam::ProductSet<AbstractSetType, AbstractSetType>::ConcreteSet;
 
   slam::RangeSet<> firstSet(SET_SIZE_1);
   slam::RangeSet<> secondSet(SET_SIZE_2);
@@ -611,6 +625,116 @@ TEST(slam_bivariate_set, product_set_empty_second_set_has_no_first_flat_index)
   const slam::BivariateSet<SetType, SetType>* baseSet = &productSet;
   EXPECT_EQ(baseSet->findElementFlatIndex(0), ProductSetType::INVALID_POS);
   EXPECT_FALSE(baseSet->findElementFlatIndexOptional(0).has_value());
+}
+
+TEST(slam_bivariate_set, product_set_elements_are_coordinate_pairs)
+{
+  using PositionType = std::int32_t;
+  using FirstSetType = slam::RangeSet<PositionType, double>;
+  using SecondSetType = slam::RangeSet<PositionType, float>;
+  using ProductSetType = slam::ProductSet<FirstSetType, SecondSetType>;
+
+  static_assert(
+    std::is_same_v<typename ProductSetType::ElementType, std::pair<PositionType, PositionType>>);
+
+  FirstSetType firstSet(2);
+  SecondSetType secondSet(3);
+  ProductSetType productSet(&firstSet, &secondSet);
+
+  ASSERT_TRUE(productSet.isValid(true));
+  EXPECT_EQ(productSet.size(), 6);
+  EXPECT_EQ(productSet.at(5), std::make_pair(PositionType {1}, PositionType {2}));
+  EXPECT_EQ(productSet.flatToSecondIndex(5), PositionType {2});
+}
+
+TEST(slam_bivariate_set, product_set_preserves_heterogeneous_coordinate_types)
+{
+  using FirstPosition = std::int32_t;
+  using SecondPosition = std::int64_t;
+  using FirstSet = slam::RangeSet<FirstPosition, double>;
+  using SecondSet = slam::RangeSet<SecondPosition, float>;
+  using Product = slam::ProductSet<FirstSet, SecondSet>;
+
+  static_assert(std::is_same_v<typename Product::FirstPositionType, FirstPosition>);
+  static_assert(std::is_same_v<typename Product::SecondPositionType, SecondPosition>);
+  static_assert(std::is_same_v<typename Product::PositionType, SecondPosition>);
+
+  FirstSet firstSet(2);
+  SecondSet secondSet(3);
+  Product product(&firstSet, &secondSet);
+
+  const auto coordinate = product.at(5);
+  EXPECT_EQ(coordinate.first, FirstPosition {1});
+  EXPECT_EQ(coordinate.second, SecondPosition {2});
+  EXPECT_EQ(product.findElementFlatIndex(FirstPosition {1}, SecondPosition {2}), 5);
+}
+
+TEST(slam_bivariate_set, relation_set_projects_distinct_typed_handles)
+{
+  using ZonePosition = std::int32_t;
+  using NodePosition = std::int64_t;
+  using FlatPosition = std::common_type_t<ZonePosition, NodePosition>;
+  using ZoneHandle = TypedHandle<ZoneTag, ZonePosition>;
+  using NodeHandle = TypedHandle<NodeTag, NodePosition>;
+  using ZoneSet = slam::VectorIndirectionSet<ZonePosition, ZoneHandle>;
+  using NodeSet = slam::VectorIndirectionSet<NodePosition, NodeHandle>;
+
+  static_assert(!std::is_same_v<ZoneHandle, NodeHandle>);
+
+  std::vector<ZoneHandle> zoneHandles {{100}, {200}};
+  std::vector<NodeHandle> nodeHandles {{10}, {20}, {30}, {40}};
+  ZoneSet zones = slam::make_indirection_set<ZonePosition>(zoneHandles);
+  NodeSet nodes = slam::make_indirection_set<NodePosition>(nodeHandles);
+
+  std::vector<FlatPosition> begins {0, 3, 6};
+  std::vector<NodePosition> nodePositions {0, 1, 2, 1, 2, 3};
+  auto relation = slam::make_variable_relation(zones, nodes, begins, nodePositions);
+  using Relation = decltype(relation);
+
+  static_assert(slam::RelationLike<Relation>);
+  static_assert(std::is_same_v<typename Relation::FromPositionType, ZonePosition>);
+  static_assert(std::is_same_v<typename Relation::ToPositionType, NodePosition>);
+  static_assert(std::is_same_v<typename Relation::FlatPositionType, FlatPosition>);
+  static_assert(std::is_same_v<typename Relation::FromSetType::ElementType, ZoneHandle>);
+  static_assert(std::is_same_v<typename Relation::ToSetType::ElementType, NodeHandle>);
+
+  using ConnectivitySet = typename slam::RelationSet<Relation>::ConcreteSet;
+  ConnectivitySet connectivity(&relation);
+  static_assert(slam::BivariateSetLike<ConnectivitySet>);
+  static_assert(
+    std::is_same_v<typename ConnectivitySet::ElementType, std::pair<ZonePosition, NodePosition>>);
+
+  using WeightMap = slam::BivariateMap<double, ConnectivitySet>;
+  static_assert(slam::BivariateMapLike<WeightMap>);
+  static_assert(slam::MapOver<WeightMap, ConnectivitySet>);
+  WeightMap weights(connectivity, 0.0);
+
+  NodePosition processedNodeIds = 0;
+  for(ZonePosition zonePos = 0; zonePos < zones.size(); ++zonePos)
+  {
+    const auto row = relation[zonePos];
+    for(FlatPosition local = 0; local < row.size(); ++local)
+    {
+      const NodePosition nodePos = row[local];
+      const FlatPosition flat = connectivity.findElementFlatIndex(zonePos, nodePos);
+      weights.flatValue(flat) = static_cast<double>(zones[zonePos].id + nodes[nodePos].id);
+      processedNodeIds += nodes[nodePos].id;
+    }
+  }
+
+  ASSERT_TRUE(relation.isValid(true));
+  ASSERT_TRUE(connectivity.isValid(true));
+  EXPECT_EQ(processedNodeIds, NodePosition {150});
+  const auto* weight = weights.findValue(ZonePosition {1}, NodePosition {2});
+  ASSERT_NE(weight, nullptr);
+  EXPECT_DOUBLE_EQ(*weight, 230.0);
+
+  const auto coordinate = connectivity.at(FlatPosition {4});
+  EXPECT_EQ(zones[coordinate.first].id, ZonePosition {200});
+  EXPECT_EQ(nodes[coordinate.second].id, NodePosition {30});
+
+  const auto rowMap = weights(ZonePosition {1});
+  EXPECT_EQ(rowMap.index(1), std::make_pair(ZonePosition {1}, NodePosition {2}));
 }
 
 TYPED_TEST(BivariateSetTester, optional_find_returns_empty_for_missing_relation_entries)

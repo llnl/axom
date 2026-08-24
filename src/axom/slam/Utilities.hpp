@@ -14,11 +14,19 @@
 #include "axom/fmt.hpp"
 
 #include <iostream>
+#include <type_traits>
 
 namespace axom::slam
 {
 using DefaultPositionType = axom::IndexType;
 using DefaultElementType = axom::IndexType;
+
+namespace detail
+{
+/// \brief Default index type for flattened data spanning two position spaces.
+template <typename FirstPosition, typename SecondPosition>
+using default_flat_position_t = std::common_type_t<FirstPosition, SecondPosition>;
+}  // namespace detail
 
 namespace util
 {

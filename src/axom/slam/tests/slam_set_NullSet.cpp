@@ -17,6 +17,17 @@
 #include "axom/slam/Set.hpp"
 #include "axom/slam/NullSet.hpp"
 
+#include <cstdint>
+#include <type_traits>
+
+namespace
+{
+struct NonPositionElement
+{
+  int value {};
+};
+}  // namespace
+
 TEST(slam_set_nullset, construct)
 {
   axom::slam::NullSet<> ns;
@@ -33,6 +44,16 @@ TEST(slam_set_nullset, construct)
 
   // A Slam NullSet is not a subset of another set
   EXPECT_FALSE(ns.isSubset());
+}
+
+TEST(slam_set_nullset, supports_element_types_distinct_from_position)
+{
+  using NullSet = axom::slam::NullSet<std::int32_t, NonPositionElement>;
+  NullSet nullSet;
+
+  static_assert(std::is_same_v<typename NullSet::PositionType, std::int32_t>);
+  static_assert(std::is_same_v<typename NullSet::ElementType, NonPositionElement>);
+  EXPECT_TRUE(nullSet.empty());
 }
 
 TEST(slam_set_nullset, subscript_fails)

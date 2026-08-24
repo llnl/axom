@@ -36,31 +36,42 @@ template <typename PosType,   // = slam::DefaultPositionType,
 class StaticRelation : public /*Relation,*/ RelationCardinalityPolicy
 {
 public:
-  using SetPosition = PosType;
-  using SetElement = ElemType;
-
   using FromSetType = TheFromSet;
   using ToSetType = TheToSet;
+
+  using FromPositionType = typename FromSetType::PositionType;
+  using ToPositionType = typename ToSetType::PositionType;
+  using FlatPositionType = PosType;
+
+  // Legacy relation aliases. A row is selected by a from-set position and its
+  // entries are positions in the to-set.
+  using SetPosition = FromPositionType;
+  using SetElement = ToPositionType;
+
+  static_assert(std::is_same_v<ElemType, ToPositionType>,
+                "StaticRelation entries must use ToSet::PositionType");
+  static_assert(std::is_constructible_v<FlatPositionType, FromPositionType>,
+                "StaticRelation flat positions must represent FromSet positions");
 
   using CardinalityPolicy = RelationCardinalityPolicy;
   using BeginsSizePolicy = typename CardinalityPolicy::RelationalOperatorSizeType;
 
   using IndicesIndirectionPolicy = RelationIndicesIndirectionPolicy;
 
-  using RelationSubset = typename OrderedSet<SetPosition,
+  using RelationSubset = typename OrderedSet<FlatPositionType,
                                              SetElement,
                                              BeginsSizePolicy,
-                                             policies::RuntimeOffset<SetPosition>,
-                                             policies::StrideOne<SetPosition>,
+                                             policies::RuntimeOffset<FlatPositionType>,
+                                             policies::StrideOne<FlatPositionType>,
                                              IndicesIndirectionPolicy>::ConcreteSet;
 
   // The stored indices set uses the concrete (non-virtual) interface so that a
   // relation built on a view indirection is trivially copyable / device-capturable.
-  using IndicesSet = OrderedSet<SetPosition,
+  using IndicesSet = OrderedSet<FlatPositionType,
                                 SetElement,
-                                policies::RuntimeSize<SetPosition>,
-                                policies::ZeroOffset<SetPosition>,
-                                policies::StrideOne<SetPosition>,
+                                policies::RuntimeSize<FlatPositionType>,
+                                policies::ZeroOffset<FlatPositionType>,
+                                policies::StrideOne<FlatPositionType>,
                                 IndicesIndirectionPolicy,
                                 policies::NoSubset,
                                 policies::ConcreteInterface>;
@@ -148,7 +159,7 @@ public:
   };
 
 public:
-  AXOM_HOST_DEVICE const RelationSubset operator[](SetPosition fromSetInd) const
+  AXOM_HOST_DEVICE const RelationSubset operator[](FromPositionType fromSetInd) const
   {
 #ifndef AXOM_HOST_DEVICE
     SLIC_ASSERT(m_relationIndices.isValid(true));
@@ -156,12 +167,12 @@ public:
 
     using SetBuilder = typename RelationSubset::SetBuilder;
     return SetBuilder()
-      .size(CardinalityPolicy::size(fromSetInd))
-      .offset(CardinalityPolicy::offset(fromSetInd))
+      .size(CardinalityPolicy::size(static_cast<FlatPositionType>(fromSetInd)))
+      .offset(CardinalityPolicy::offset(static_cast<FlatPositionType>(fromSetInd)))
       .data(m_relationIndices.ptr());
   }
 
-  AXOM_HOST_DEVICE RelationSubset operator[](SetPosition fromSetInd)
+  AXOM_HOST_DEVICE RelationSubset operator[](FromPositionType fromSetInd)
   {
 #ifndef AXOM_HOST_DEVICE
     SLIC_ASSERT(m_relationIndices.isValid(true));
@@ -169,24 +180,27 @@ public:
 
     using SetBuilder = typename RelationSubset::SetBuilder;
     return SetBuilder()
-      .size(CardinalityPolicy::size(fromSetInd))
-      .offset(CardinalityPolicy::offset(fromSetInd))
+      .size(CardinalityPolicy::size(static_cast<FlatPositionType>(fromSetInd)))
+      .offset(CardinalityPolicy::offset(static_cast<FlatPositionType>(fromSetInd)))
       .data(m_relationIndices.ptr());
   }
 
   [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
-  RelationIterator begin(SetPosition fromSetInd) { return (*this)[fromSetInd].begin(); }
+  RelationIterator begin(FromPositionType fromSetInd) { return (*this)[fromSetInd].begin(); }
 
-  RelationConstIterator begin(SetPosition fromSetInd) const { return (*this)[fromSetInd].begin(); }
+  RelationConstIterator begin(FromPositionType fromSetInd) const
+  {
+    return (*this)[fromSetInd].begin();
+  }
 
-  RelationIterator end(SetPosition fromSetInd) { return (*this)[fromSetInd].end(); }
+  RelationIterator end(FromPositionType fromSetInd) { return (*this)[fromSetInd].end(); }
 
-  RelationConstIterator end(SetPosition fromSetInd) const { return (*this)[fromSetInd].end(); }
+  RelationConstIterator end(FromPositionType fromSetInd) const { return (*this)[fromSetInd].end(); }
 
-  RelationIteratorPair range(SetPosition fromSetInd) { return (*this)[fromSetInd].range(); }
+  RelationIteratorPair range(FromPositionType fromSetInd) { return (*this)[fromSetInd].range(); }
 
-  RelationConstIteratorPair range(SetPosition fromSetInd) const
+  RelationConstIteratorPair range(FromPositionType fromSetInd) const
   {
     return (*this)[fromSetInd].range();
   }
@@ -199,11 +213,11 @@ public:
   ToSetType* toSet() { return m_toSet; }
   const ToSetType* toSet() const { return m_toSet; }
 
-  SetPosition fromSetSize() { return m_fromSet->size(); }
+  FromPositionType fromSetSize() const { return m_fromSet->size(); }
 
-  SetPosition toSetSize() { return m_toSet->size(); }
+  ToPositionType toSetSize() const { return m_toSet->size(); }
 
-  void bindIndices(SetPosition size, IndirectionPtrType data)
+  void bindIndices(FlatPositionType size, IndirectionPtrType data)
   {
     m_relationIndices = typename IndicesSet::SetBuilder().size(size).data(data);
   }
@@ -303,15 +317,16 @@ bool StaticRelation<PosType,
     {
       // Check that all begins offsets are in the right range
       // Specifically, they must be in the index space of m_relationIndices
-      for(SetPosition pos = 0; pos < m_fromSet->size(); ++pos)
+      for(FromPositionType pos = 0; pos < m_fromSet->size(); ++pos)
       {
-        SetPosition off = this->offset(pos);
+        const FlatPositionType flatPos = static_cast<FlatPositionType>(pos);
+        FlatPositionType off = this->offset(flatPos);
         if(!m_relationIndices.isValidIndex(off) && off != m_relationIndices.size())
         {
           if(verboseOutput)
           {
             errSstr << "\n\t* Begin offset for index " << pos << " was out of range."
-                    << "\n\t-- value: " << this->offset(pos) << " needs to be within range [0,"
+                    << "\n\t-- value: " << this->offset(flatPos) << " needs to be within range [0,"
                     << m_relationIndices.size() << "]";
           }
           relationdataIsValid = false;
@@ -321,7 +336,7 @@ bool StaticRelation<PosType,
 
     // Check that all relation indices are in range for m_toSet
     auto toSetSize = m_toSet->size();
-    for(SetPosition pos = 0; pos < m_relationIndices.size(); ++pos)
+    for(FlatPositionType pos = 0; pos < m_relationIndices.size(); ++pos)
     {
       auto el = m_relationIndices[pos];
       if(el < 0 || el >= toSetSize)

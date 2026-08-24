@@ -132,11 +132,13 @@ void constructAndTestCartesianMap(int stride)
     SubMapType sm = m(idx1);
     for(auto idx2 = 0; idx2 < sm.size(); ++idx2)
     {
+      const auto coordinate = sm.index(idx2);
+      EXPECT_EQ(idx1, coordinate.first);
+      EXPECT_EQ(idx2, coordinate.second);
       for(auto i = 0; i < stride; i++)
       {
         T v = sm.value(idx2, i);
         EXPECT_EQ(v, getVal<T>(idx1, idx2, i));
-        EXPECT_EQ(sm.index(idx2), idx2);
       }
     }
   }
@@ -279,11 +281,13 @@ void constructAndTestRelationSetMap(int stride)
     SubMapType sm = m(idx1);
     for(auto idx2 = 0; idx2 < sm.size(); ++idx2)
     {
-      ASSERT_EQ(relsubset[idx2], sm.index(idx2));
+      const auto coordinate = sm.index(idx2);
+      EXPECT_EQ(idx1, coordinate.first);
+      EXPECT_EQ(relsubset[idx2], coordinate.second);
       for(auto i = 0; i < stride; i++)
       {
         T v = sm.value(idx2, i);
-        EXPECT_EQ(v, getVal<T>(idx1, sm.index(idx2), i));
+        EXPECT_EQ(v, getVal<T>(coordinate.first, coordinate.second, i));
       }
     }
   }
@@ -1066,7 +1070,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
           {
             for(int k = 0; k < shape[2]; k++)
             {
-              int idx2 = submap.index(slot);
+              int idx2 = submap.index(slot).second;
               int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
               submap(slot, i, j, k) = getVal<double>(idx1, idx2, flatCompIdx);
             }
@@ -1082,7 +1086,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
     int slot = 0;
     for(int idx2 = 0; idx2 < m.secondSetSize(); idx2++)
     {
-      bool inRelation = submap.size() > slot && submap.index(slot) == idx2;
+      bool inRelation = submap.size() > slot && submap.index(slot).second == idx2;
       for(int i = 0; i < shape[0]; i++)
       {
         for(int j = 0; j < shape[1]; j++)

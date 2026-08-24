@@ -9,15 +9,15 @@
  *
  * \brief C++20 concepts for SLAM containers, policies, and index properties.
  *
- * The concepts in this header describe public operations and relationships
- * between associated types. They intentionally do not require concrete SLAM
- * implementations or include the standard ranges library.
+ * The concepts in this header describe public operations and relationships between associated types.
+ * They do not require concrete SLAM implementations or include the standard ranges library.
  */
 
 #pragma once
 
 #include <concepts>
 #include <type_traits>
+#include <utility>
 
 namespace axom::slam
 {
@@ -42,19 +42,19 @@ template <typename T>
 concept HasRelationAssociatedTypes = requires {
   typename model_t<T>::FromSetType;
   typename model_t<T>::ToSetType;
-  typename model_t<T>::SetPosition;
-  typename model_t<T>::SetElement;
 };
 
 template <typename T>
 concept HasMapAssociatedTypes = requires {
   typename model_t<T>::DataType;
-  typename model_t<T>::SetType;
   typename model_t<T>::SetPosition;
   typename model_t<T>::SetElement;
   typename model_t<T>::ValueType;
   typename model_t<T>::ConstValueType;
 };
+
+template <typename T>
+concept HasUnivariateMapAssociatedTypes = requires { typename model_t<T>::SetType; };
 
 template <typename T>
 concept HasBivariateMapAssociatedTypes = requires { typename model_t<T>::BivariateSetType; };
@@ -82,19 +82,17 @@ inline constexpr bool enable_position_like = false;
 
 /// \brief A built-in integral or explicitly opted-in SLAM position type.
 template <typename T>
-concept PositionLike = std::integral<detail::model_t<T>> ||
-  enable_position_like<detail::model_t<T>>;
+concept PositionLike = std::integral<detail::model_t<T>> || enable_position_like<detail::model_t<T>>;
 
 /*!
  * \brief A univariate set with position-based size and element access.
  *
- * Bivariate sets are excluded because their positions describe pairs from two
- * different sets and have a distinct access contract.
+ * A type with additional structure can also model SetLike when it provides
+ * this complete flattened-set surface. Classification is expression-based.
  */
 template <typename T>
-concept SetLike = detail::HasSetAssociatedTypes<T> &&
-  !detail::HasBivariateSetAssociatedTypes<T> &&
-  PositionLike<typename detail::model_t<T>::PositionType> &&
+concept SetLike =
+  detail::HasSetAssociatedTypes<T> && PositionLike<typename detail::model_t<T>::PositionType> &&
   requires(const detail::model_t<T>& set, typename detail::model_t<T>::PositionType pos) {
     { set.size() } -> std::same_as<typename detail::model_t<T>::PositionType>;
     { set.empty() } -> std::convertible_to<bool>;
@@ -109,16 +107,16 @@ concept SetPositionConvertible = SetLike<Set> && PositionLike<Value> &&
   std::convertible_to<model_t<Value>, typename model_t<Set>::PositionType>;
 
 template <typename Set, typename Position>
-concept SetPositionSame = SetLike<Set> &&
-  std::same_as<model_t<Position>, typename model_t<Set>::PositionType>;
+concept SetPositionSame =
+  SetLike<Set> && std::same_as<model_t<Position>, typename model_t<Set>::PositionType>;
 
 template <typename Set, typename Position>
-concept OptionalSetPositionSame = SetLike<Set> &&
-  (std::same_as<model_t<Position>, void> || SetPositionSame<Set, Position>);
+concept OptionalSetPositionSame =
+  SetLike<Set> && (std::same_as<model_t<Position>, void> || SetPositionSame<Set, Position>);
 
 template <int Stride, typename Set>
-concept PositiveStaticStrideFor = SetLike<Set> && (Stride > 0) &&
-  std::constructible_from<typename model_t<Set>::PositionType, int>;
+concept PositiveStaticStrideFor =
+  SetLike<Set> && (Stride > 0) && std::constructible_from<typename model_t<Set>::PositionType, int>;
 }  // namespace detail
 
 /*!
@@ -134,69 +132,91 @@ concept OrderedSetLike = SetLike<T> && requires(const detail::model_t<T>& set) {
   { *set.begin() } -> std::convertible_to<typename detail::model_t<T>::ElementType>;
 };
 
-/// \brief A set whose elements are indexed by positions from two component sets.
+/*!
+ * \brief A set whose elements are indexed by positions from two component sets.
+ *
+ * PositionType indexes the flattened sequence. ElementType is a coordinate
+ * whose `first` and `second` members have the exact endpoint position types.
+ * Row-local positions are inferred from row operations rather than imposed as
+ * another required associated type.
+ */
 template <typename T>
-concept BivariateSetLike = detail::HasSetAssociatedTypes<T> &&
-  detail::HasBivariateSetAssociatedTypes<T> &&
+concept BivariateSetLike =
+  detail::HasSetAssociatedTypes<T> && detail::HasBivariateSetAssociatedTypes<T> &&
   PositionLike<typename detail::model_t<T>::PositionType> &&
   SetLike<typename detail::model_t<T>::FirstSetType> &&
   SetLike<typename detail::model_t<T>::SecondSetType> &&
-  requires(const detail::model_t<T>& set, typename detail::model_t<T>::PositionType pos) {
+  requires(typename detail::model_t<T>::ElementType coordinate) {
+    requires std::same_as<std::remove_cvref_t<decltype(coordinate.first)>,
+                          typename detail::model_t<T>::FirstSetType::PositionType>;
+    requires std::same_as<std::remove_cvref_t<decltype(coordinate.second)>,
+                          typename detail::model_t<T>::SecondSetType::PositionType>;
+  } &&
+  requires(const detail::model_t<T>& set,
+           typename detail::model_t<T>::PositionType flatPosition,
+           typename detail::model_t<T>::FirstSetType::PositionType firstPosition,
+           typename detail::model_t<T>::SecondSetType::PositionType secondPosition) {
     { set.size() } -> std::same_as<typename detail::model_t<T>::PositionType>;
-    { set.at(pos) } -> std::convertible_to<typename detail::model_t<T>::ElementType>;
-    { set.getFirstSet() } ->
-      std::same_as<const typename detail::model_t<T>::FirstSetType*>;
-    { set.getSecondSet() } ->
-      std::same_as<const typename detail::model_t<T>::SecondSetType*>;
-    { set.findElementFlatIndex(pos, pos) } ->
-      std::same_as<typename detail::model_t<T>::PositionType>;
-    { set.flatToFirstIndex(pos) } ->
-      std::same_as<typename detail::model_t<T>::PositionType>;
-    { set.flatToSecondIndex(pos) } ->
-      std::same_as<typename detail::model_t<T>::PositionType>;
+    { set.at(flatPosition) } -> std::convertible_to<typename detail::model_t<T>::ElementType>;
+    { set.getFirstSet() } -> std::same_as<const typename detail::model_t<T>::FirstSetType*>;
+    { set.getSecondSet() } -> std::same_as<const typename detail::model_t<T>::SecondSetType*>;
+    { set.getElements(firstPosition).size() } -> PositionLike;
+    set.getElements(firstPosition).begin();
+    {
+      set.getElements(firstPosition).end()
+    } -> std::same_as<decltype(set.getElements(firstPosition).begin())>;
+    {
+      *set.getElements(firstPosition).begin()
+    } -> std::convertible_to<typename detail::model_t<T>::SecondSetType::PositionType>;
+    {
+      set.findElementIndex(firstPosition, secondPosition)
+    } -> std::same_as<decltype(set.getElements(firstPosition).size())>;
+    {
+      set.findElementFlatIndex(firstPosition, secondPosition)
+    } -> std::same_as<typename detail::model_t<T>::PositionType>;
+    {
+      set.flatToFirstIndex(flatPosition)
+    } -> std::same_as<typename detail::model_t<T>::FirstSetType::PositionType>;
+    {
+      set.flatToSecondIndex(flatPosition)
+    } -> std::same_as<typename detail::model_t<T>::SecondSetType::PositionType>;
   };
 
 /*!
  * \brief A relation that exposes its two sets and a const iterable row for a
  * position in the from-set.
  *
- * A relation row contains positions in the to-set. Thus, SetPosition is the
- * from-set position type and SetElement is the to-set position type.
+ * A relation row is selected by the FromSetType's PositionType and contains
+ * positions in the ToSetType. Endpoint elements are obtained by projecting
+ * those positions through the endpoint sets. A flattened representation is an
+ * implementation capability, not a requirement of the relation abstraction.
  */
 template <typename T>
-concept RelationLike = detail::HasRelationAssociatedTypes<T> &&
-  SetLike<typename detail::model_t<T>::FromSetType> &&
+concept RelationLike =
+  detail::HasRelationAssociatedTypes<T> && SetLike<typename detail::model_t<T>::FromSetType> &&
   SetLike<typename detail::model_t<T>::ToSetType> &&
-  std::same_as<typename detail::model_t<T>::SetPosition,
-               typename detail::model_t<T>::FromSetType::PositionType> &&
-  std::same_as<typename detail::model_t<T>::SetElement,
-               typename detail::model_t<T>::ToSetType::PositionType> &&
   requires(const detail::model_t<T>& relation,
-           typename detail::model_t<T>::SetPosition fromPosition) {
-    { relation.fromSet() } ->
-      std::same_as<const typename detail::model_t<T>::FromSetType*>;
-    { relation.toSet() } ->
-      std::same_as<const typename detail::model_t<T>::ToSetType*>;
-    relation[fromPosition];
-    relation.begin(fromPosition);
-    { relation.end(fromPosition) } -> std::same_as<decltype(relation.begin(fromPosition))>;
-    { *relation.begin(fromPosition) } ->
-      std::convertible_to<typename detail::model_t<T>::SetElement>;
+           typename detail::model_t<T>::FromSetType::PositionType fromPosition) {
+    { relation.fromSet() } -> std::same_as<const typename detail::model_t<T>::FromSetType*>;
+    { relation.toSet() } -> std::same_as<const typename detail::model_t<T>::ToSetType*>;
+    { relation[fromPosition].size() } -> PositionLike;
+    relation[fromPosition].begin();
+    { relation[fromPosition].end() } -> std::same_as<decltype(relation[fromPosition].begin())>;
+    {
+      *relation[fromPosition].begin()
+    } -> std::convertible_to<typename detail::model_t<T>::ToSetType::PositionType>;
   };
 
 namespace detail
 {
 template <typename Value, typename Data>
-concept MapValueFor =
-  std::same_as<std::remove_cvref_t<Value>, std::remove_cvref_t<Data>>;
+concept MapValueFor = std::same_as<std::remove_cvref_t<Value>, std::remove_cvref_t<Data>>;
 
 template <typename T>
 concept CommonMapModel = HasMapAssociatedTypes<T> &&
   MapValueFor<typename model_t<T>::ValueType, typename model_t<T>::DataType> &&
   MapValueFor<typename model_t<T>::ConstValueType, typename model_t<T>::DataType> &&
-  requires(model_t<T>& map,
-           const model_t<T>& constMap,
-           typename model_t<T>::SetPosition pos) {
+  requires(model_t<T>& map, const model_t<T>& constMap, typename model_t<T>::SetPosition pos) {
     { constMap.size() } -> std::same_as<typename model_t<T>::SetPosition>;
     { map[pos] } -> std::same_as<typename model_t<T>::ValueType>;
     { constMap[pos] } -> std::same_as<typename model_t<T>::ConstValueType>;
@@ -206,28 +226,23 @@ concept CommonMapModel = HasMapAssociatedTypes<T> &&
 /// \brief A map whose domain is a univariate SetType.
 template <typename T>
 concept UnivariateMapLike = detail::CommonMapModel<T> &&
-  !detail::HasBivariateMapAssociatedTypes<T> &&
-  SetLike<typename detail::model_t<T>::SetType> &&
-  std::same_as<typename detail::model_t<T>::SetPosition,
-               typename detail::model_t<T>::SetType::PositionType> &&
-  std::same_as<typename detail::model_t<T>::SetElement,
-               typename detail::model_t<T>::SetType::ElementType> &&
+  detail::HasUnivariateMapAssociatedTypes<T> && SetLike<typename detail::model_t<T>::SetType> &&
+  std::same_as<typename detail::model_t<T>::SetPosition, typename detail::model_t<T>::SetType::PositionType> &&
+  std::same_as<typename detail::model_t<T>::SetElement, typename detail::model_t<T>::SetType::ElementType> &&
   requires(const detail::model_t<T>& map) {
     { map.set() } -> std::same_as<const typename detail::model_t<T>::SetType*>;
   };
 
 /// \brief A map whose domain is a BivariateSetType.
 template <typename T>
-concept BivariateMapLike = detail::CommonMapModel<T> &&
-  detail::HasBivariateMapAssociatedTypes<T> &&
+concept BivariateMapLike = detail::CommonMapModel<T> && detail::HasBivariateMapAssociatedTypes<T> &&
   BivariateSetLike<typename detail::model_t<T>::BivariateSetType> &&
   std::same_as<typename detail::model_t<T>::SetPosition,
                typename detail::model_t<T>::BivariateSetType::PositionType> &&
   std::same_as<typename detail::model_t<T>::SetElement,
                typename detail::model_t<T>::BivariateSetType::ElementType> &&
   requires(const detail::model_t<T>& map) {
-    { map.set() } ->
-      std::same_as<const typename detail::model_t<T>::BivariateSetType*>;
+    { map.set() } -> std::same_as<const typename detail::model_t<T>::BivariateSetType*>;
   };
 
 /// \brief A univariate or bivariate SLAM map.
@@ -237,8 +252,7 @@ concept MapLike = UnivariateMapLike<T> || BivariateMapLike<T>;
 /// \brief A map whose semantic domain is exactly S.
 template <typename M, typename S>
 concept MapOver =
-  (UnivariateMapLike<M> &&
-   std::same_as<typename detail::model_t<M>::SetType, detail::model_t<S>>) ||
+  (UnivariateMapLike<M> && std::same_as<typename detail::model_t<M>::SetType, detail::model_t<S>>) ||
   (BivariateMapLike<M> &&
    std::same_as<typename detail::model_t<M>::BivariateSetType, detail::model_t<S>>);
 
@@ -271,8 +285,7 @@ concept StridePolicy = requires(const detail::model_t<T>& policy) {
   typename detail::model_t<T>::IndexType;
   typename detail::model_t<T>::ShapeType;
   detail::model_t<T>::NumDims;
-  { detail::model_t<T>::DefaultSize() } ->
-    std::same_as<typename detail::model_t<T>::ShapeType>;
+  { detail::model_t<T>::DefaultSize() } -> std::same_as<typename detail::model_t<T>::ShapeType>;
   { policy.stride() } -> std::same_as<typename detail::model_t<T>::IndexType>;
   { policy.shape() } -> std::same_as<typename detail::model_t<T>::ShapeType>;
 };
@@ -284,14 +297,12 @@ concept StridePolicy = requires(const detail::model_t<T>& policy) {
  * Multi-dimensional map strides do not satisfy this refinement.
  */
 template <typename T, typename Position>
-concept OrderedSetStridePolicyFor =
-  StridePolicy<T> && ValuePolicy<T> && PositionLike<Position> &&
+concept OrderedSetStridePolicyFor = StridePolicy<T> && ValuePolicy<T> && PositionLike<Position> &&
   std::same_as<typename detail::model_t<T>::IndexType, detail::model_t<Position>> &&
   std::same_as<typename detail::model_t<T>::IntType, detail::model_t<Position>> &&
   std::same_as<typename detail::model_t<T>::ShapeType, detail::model_t<Position>> &&
   (detail::model_t<T>::NumDims == 1) &&
-  std::constructible_from<detail::model_t<T>, detail::model_t<Position>> &&
-  requires {
+  std::constructible_from<detail::model_t<T>, detail::model_t<Position>> && requires {
     detail::model_t<T>::DEFAULT_VALUE;
     requires std::same_as<detail::policy_default_t<T>, detail::model_t<Position>>;
   };
@@ -300,14 +311,14 @@ concept OrderedSetStridePolicyFor =
 template <typename T, typename Position>
 concept MapStridePolicyFor = StridePolicy<T> && PositionLike<Position> &&
   PositionLike<typename detail::model_t<T>::IndexType> &&
-  std::convertible_to<typename detail::model_t<T>::IndexType,
-                      detail::model_t<Position>> &&
+  std::convertible_to<typename detail::model_t<T>::IndexType, detail::model_t<Position>> &&
   (detail::model_t<T>::NumDims > 0) &&
   std::constructible_from<detail::model_t<T>, typename detail::model_t<T>::ShapeType> &&
-  ((detail::model_t<T>::NumDims == 1) ||
-   requires(const detail::model_t<T>& policy) {
-     { policy.strides() } -> std::same_as<typename detail::model_t<T>::ShapeType>;
-   });
+  ((detail::model_t<T>::NumDims == 1) || requires(const detail::model_t<T>& policy) {
+                               {
+                                 policy.strides()
+                               } -> std::same_as<typename detail::model_t<T>::ShapeType>;
+                             });
 
 /// \brief A scalar value policy that reports an offset.
 template <typename T>
@@ -325,8 +336,8 @@ concept OffsetPolicy = ValuePolicy<T> && requires(const detail::model_t<T>& poli
  * when checking substitutability into those owners.
  */
 template <typename T>
-concept IndirectionPolicy = detail::HasIndirectionAssociatedTypes<T> &&
-  requires(const detail::model_t<T>& policy) {
+concept IndirectionPolicy =
+  detail::HasIndirectionAssociatedTypes<T> && requires(const detail::model_t<T>& policy) {
     detail::model_t<T>::DeviceAccessible;
     { policy.hasIndirection() } -> std::convertible_to<bool>;
   };
@@ -337,10 +348,12 @@ concept IndirectionPolicyFor = IndirectionPolicy<T> &&
   requires(detail::model_t<T>& policy,
            const detail::model_t<T>& constPolicy,
            detail::model_t<Position> pos) {
-    { policy.indirection(pos) } ->
-      std::convertible_to<typename detail::model_t<T>::IndirectionResult>;
-    { constPolicy.indirection(pos) } ->
-      std::convertible_to<typename detail::model_t<T>::ConstIndirectionResult>;
+    {
+      policy.indirection(pos)
+    } -> std::convertible_to<typename detail::model_t<T>::IndirectionResult>;
+    {
+      constPolicy.indirection(pos)
+    } -> std::convertible_to<typename detail::model_t<T>::ConstIndirectionResult>;
   };
 
 namespace detail
@@ -364,9 +377,8 @@ concept HasMapIndirectionAssociatedTypes = requires {
 
 /// \brief An indirection policy usable by OrderedSet over Position and Element.
 template <typename T, typename Position, typename Element>
-concept OrderedSetIndirectionPolicyFor =
-  IndirectionPolicyFor<T, Position> && PositionLike<Position> &&
-  detail::HasTypedIndirectionAssociatedTypes<T> &&
+concept OrderedSetIndirectionPolicyFor = IndirectionPolicyFor<T, Position> &&
+  PositionLike<Position> && detail::HasTypedIndirectionAssociatedTypes<T> &&
   std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
   std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Element>> &&
   std::same_as<std::remove_cvref_t<typename detail::model_t<T>::IndirectionResult>,
@@ -374,8 +386,7 @@ concept OrderedSetIndirectionPolicyFor =
   std::same_as<std::remove_cvref_t<typename detail::model_t<T>::ConstIndirectionResult>,
                detail::model_t<Element>> &&
   std::default_initializable<detail::model_t<T>> &&
-  std::constructible_from<detail::model_t<T>,
-                          typename detail::model_t<T>::IndirectionPtrType> &&
+  std::constructible_from<detail::model_t<T>, typename detail::model_t<T>::IndirectionPtrType> &&
   requires(const detail::model_t<T>& policy,
            detail::model_t<Position> size,
            detail::model_t<Position> offset,
@@ -385,10 +396,8 @@ concept OrderedSetIndirectionPolicyFor =
 
 /// \brief An indirection policy providing Map's buffer and static access API.
 template <typename T, typename Position, typename Data>
-concept MapIndirectionPolicyFor =
-  IndirectionPolicy<T> && PositionLike<Position> &&
-  detail::HasTypedIndirectionAssociatedTypes<T> &&
-  detail::HasMapIndirectionAssociatedTypes<T> &&
+concept MapIndirectionPolicyFor = IndirectionPolicy<T> && PositionLike<Position> &&
+  detail::HasTypedIndirectionAssociatedTypes<T> && detail::HasMapIndirectionAssociatedTypes<T> &&
   std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
   std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Data>> &&
   detail::MapValueFor<typename detail::model_t<T>::IndirectionResult, Data> &&
@@ -396,26 +405,26 @@ concept MapIndirectionPolicyFor =
   requires(typename detail::model_t<T>::IndirectionBufferType& buffer,
            const typename detail::model_t<T>::IndirectionBufferType& constBuffer,
            detail::model_t<Position> pos) {
-    { detail::model_t<T>::getIndirection(buffer, pos) } ->
-      std::same_as<typename detail::model_t<T>::ResultPtr>;
-    { detail::model_t<T>::getConstIndirection(constBuffer, pos) } ->
-      std::same_as<typename detail::model_t<T>::ConstResultPtr>;
+    {
+      detail::model_t<T>::getIndirection(buffer, pos)
+    } -> std::same_as<typename detail::model_t<T>::ResultPtr>;
+    {
+      detail::model_t<T>::getConstIndirection(constBuffer, pos)
+    } -> std::same_as<typename detail::model_t<T>::ConstResultPtr>;
   };
 
 /// \brief A MapIndirectionPolicyFor that can allocate and initialize its buffer.
 template <typename T, typename Position, typename Data>
-concept AllocatingMapIndirectionPolicyFor =
-  MapIndirectionPolicyFor<T, Position, Data> &&
-  requires(detail::model_t<Position> size,
-           const detail::model_t<Data>& value,
-           int allocatorId) {
-    { detail::model_t<T>::create(size, value, allocatorId) } ->
-      std::same_as<typename detail::model_t<T>::IndirectionBufferType>;
+concept AllocatingMapIndirectionPolicyFor = MapIndirectionPolicyFor<T, Position, Data> &&
+  requires(detail::model_t<Position> size, const detail::model_t<Data>& value, int allocatorId) {
+    {
+      detail::model_t<T>::create(size, value, allocatorId)
+    } -> std::same_as<typename detail::model_t<T>::IndirectionBufferType>;
   };
 
 /// \brief A non-reference type that can be copied byte-for-byte into device code.
 template <typename T>
-concept DeviceCapturable = !std::is_reference_v<T> &&
-  std::is_trivially_copyable_v<std::remove_cv_t<T>>;
+concept DeviceCapturable =
+  !std::is_reference_v<T> && std::is_trivially_copyable_v<std::remove_cv_t<T>>;
 
 }  // namespace axom::slam

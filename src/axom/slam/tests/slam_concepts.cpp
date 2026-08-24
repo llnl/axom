@@ -21,6 +21,7 @@
 #include "axom/slam/Map.hpp"
 #include "axom/slam/ProductSet.hpp"
 #include "axom/slam/RangeSet.hpp"
+#include "axom/slam/RelationSet.hpp"
 #include "axom/slam/Traits.hpp"
 #include "axom/slam/policies/CardinalityPolicies.hpp"
 #include "axom/slam/policies/IndirectionPolicies.hpp"
@@ -28,6 +29,7 @@
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 
+#include <cstddef>
 #include <cstdint>
 
 namespace slam_concept_test
@@ -47,26 +49,104 @@ using DynamicSet = slam::DynamicSet<Position, Element>;
 using DynamicMap = slam::DynamicMap<DynamicSet, double>;
 using WrongDataIndirection = policies::ArrayViewIndirection<Position, int>;
 using VariableRelation = slam::VariableRelationView<ConcreteRange, ConcreteRange>;
-using DynamicVariableRelation =
-  slam::DynamicVariableRelation<ConcreteRange, ConcreteRange>;
+using DynamicVariableRelation = slam::DynamicVariableRelation<ConcreteRange, ConcreteRange>;
 using NarrowRange = slam::RangeSet<std::int32_t, std::int32_t>;
 using WideRange = slam::RangeSet<std::int64_t, std::int64_t>;
-using HeterogeneousVariableRelation =
-  slam::VariableRelationView<WideRange, NarrowRange>;
-using HeterogeneousDynamicVariableRelation =
-  slam::DynamicVariableRelation<NarrowRange, WideRange>;
+using FirstHandleRange = slam::RangeSet<std::int32_t, double>;
+using SecondHandleRange = slam::RangeSet<std::int32_t, float>;
+using DistinctHandleProduct =
+  typename slam::ProductSet<FirstHandleRange, SecondHandleRange>::ConcreteSet;
+using HeterogeneousProduct = typename slam::ProductSet<NarrowRange, WideRange>::ConcreteSet;
+using HeterogeneousNullBivariateSet = slam::NullBivariateSet<NarrowRange, WideRange>;
+using HeterogeneousMapIndirection = policies::ArrayViewIndirection<std::int64_t, double>;
+using HeterogeneousBinaryMap =
+  slam::BivariateMap<double, HeterogeneousProduct, HeterogeneousMapIndirection>;
+using HeterogeneousVariableRelation = slam::VariableRelationView<WideRange, NarrowRange>;
+using HeterogeneousDynamicVariableRelation = slam::DynamicVariableRelation<NarrowRange, WideRange>;
 using DynamicConstantCardinality =
-  policies::ConstantCardinality<Position,
-                                policies::CompileTimeStride<Position, 3>>;
-using DynamicConstantRelation = slam::DynamicConstantRelation<Position,
-                                                              Element,
-                                                              DynamicConstantCardinality>;
+  policies::ConstantCardinality<Position, policies::CompileTimeStride<Position, 3>>;
+using DynamicConstantRelation =
+  slam::DynamicConstantRelation<Position, Element, DynamicConstantCardinality>;
 using DistinctElementDynamicConstantRelation =
   slam::DynamicConstantRelation<Position, std::int64_t, DynamicConstantCardinality>;
+
+template <typename FirstSet, typename SecondSet>
+concept CanFormProductSet = requires { sizeof(slam::ProductSet<FirstSet, SecondSet>); };
+
+template <typename RelationType>
+concept CanFormRelationSet = requires {
+  typename std::type_identity_t<
+    slam::RelationSet<RelationType, typename RelationType::FromSetType, typename RelationType::ToSetType>>;
+};
 
 struct StrongPosition
 {
   std::int64_t value;
+};
+
+struct ExplicitFirstPosition
+{
+  explicit ExplicitFirstPosition(std::int32_t value = 0) : value(value) { }
+  std::int32_t value;
+};
+
+struct ExplicitSecondPosition
+{
+  explicit ExplicitSecondPosition(std::int64_t value = 0) : value(value) { }
+  std::int64_t value;
+};
+
+struct ExplicitFlatPosition
+{
+  explicit ExplicitFlatPosition(std::int64_t value = 0) : value(value) { }
+  explicit ExplicitFlatPosition(ExplicitFirstPosition position) : value(position.value) { }
+  explicit ExplicitFlatPosition(ExplicitSecondPosition position) : value(position.value) { }
+  std::int64_t value;
+};
+
+struct ExplicitRowPosition
+{
+  explicit ExplicitRowPosition(std::int32_t value = 0) : value(value) { }
+  std::int32_t value;
+};
+
+template <typename PositionType_, typename ElementType_>
+struct MinimalSet
+{
+  using PositionType = PositionType_;
+  using ElementType = ElementType_;
+
+  PositionType size() const;
+  bool empty() const;
+  ElementType at(PositionType) const;
+};
+
+using ExplicitFirstSet = MinimalSet<ExplicitFirstPosition, double>;
+using ExplicitSecondSet = MinimalSet<ExplicitSecondPosition, float>;
+
+struct ExplicitPositionRow
+{
+  ExplicitRowPosition size() const;
+  const ExplicitSecondPosition* begin() const;
+  const ExplicitSecondPosition* end() const;
+};
+
+struct ExplicitPositionBivariateSet
+{
+  using FirstSetType = ExplicitFirstSet;
+  using SecondSetType = ExplicitSecondSet;
+  using PositionType = ExplicitFlatPosition;
+  using ElementType = std::pair<ExplicitFirstPosition, ExplicitSecondPosition>;
+
+  PositionType size() const;
+  ElementType at(PositionType) const;
+  const FirstSetType* getFirstSet() const;
+  const SecondSetType* getSecondSet() const;
+  ExplicitPositionRow getElements(ExplicitFirstPosition) const;
+  ExplicitRowPosition findElementIndex(ExplicitFirstPosition, ExplicitSecondPosition) const;
+  PositionType findElementFlatIndex(ExplicitFirstPosition, ExplicitSecondPosition) const;
+  ExplicitFirstPosition flatToFirstIndex(PositionType) const;
+  ExplicitSecondPosition flatToSecondIndex(PositionType) const;
 };
 
 // Associated types alone must not satisfy a semantic concept.
@@ -108,46 +188,141 @@ struct FloatingPositionSet
 
 struct TypedefOnlyBivariateSet
 {
-  using PositionType = Position;
-  using ElementType = Element;
   using FirstSetType = ConcreteRange;
   using SecondSetType = ConcreteRange;
+  using PositionType = Position;
+  using ElementType =
+    std::pair<typename FirstSetType::PositionType, typename SecondSetType::PositionType>;
+};
+
+// A valid model needs no aliases that duplicate endpoint or set types.
+struct MinimalCoordinate
+{
+  NarrowRange::PositionType first;
+  WideRange::PositionType second;
+};
+
+struct MinimalBivariateSet
+{
+  using FirstSetType = NarrowRange;
+  using SecondSetType = WideRange;
+  using PositionType = std::int64_t;
+  using ElementType = MinimalCoordinate;
+
+  PositionType size() const;
+  ElementType at(PositionType) const;
+  const FirstSetType* getFirstSet() const;
+  const SecondSetType* getSecondSet() const;
+  SecondSetType getElements(FirstSetType::PositionType) const;
+  PositionType findElementIndex(FirstSetType::PositionType, SecondSetType::PositionType) const;
+  PositionType findElementFlatIndex(FirstSetType::PositionType, SecondSetType::PositionType) const;
+  FirstSetType::PositionType flatToFirstIndex(PositionType) const;
+  SecondSetType::PositionType flatToSecondIndex(PositionType) const;
+};
+
+struct HeterogeneousPositionBivariateSet
+{
+  using PositionType = typename NarrowRange::PositionType;
+  using ElementType = typename WideRange::PositionType;
+  using FirstSetType = NarrowRange;
+  using SecondSetType = WideRange;
+
+  PositionType size() const;
+  ElementType at(PositionType) const;
+  const FirstSetType* getFirstSet() const;
+  const SecondSetType* getSecondSet() const;
+  PositionType findElementFlatIndex(PositionType, PositionType) const;
+  PositionType flatToFirstIndex(PositionType) const;
+  PositionType flatToSecondIndex(PositionType) const;
+};
+
+struct WrongElementBivariateSet
+{
+  using FirstSetType = NarrowRange;
+  using SecondSetType = NarrowRange;
+  using FirstPositionType = typename FirstSetType::PositionType;
+  using SecondPositionType = typename SecondSetType::PositionType;
+  using PositionType = std::int32_t;
+  using ElementType = double;
+
+  PositionType size() const;
+  PositionType size(FirstPositionType) const;
+  ElementType at(PositionType) const;
+  const FirstSetType* getFirstSet() const;
+  const SecondSetType* getSecondSet() const;
+  FirstPositionType firstSetSize() const;
+  SecondPositionType secondSetSize() const;
+  SecondSetType getElements(FirstPositionType) const;
+  PositionType findElementIndex(FirstPositionType, SecondPositionType) const;
+  PositionType findElementFlatIndex(FirstPositionType, SecondPositionType) const;
+  FirstPositionType flatToFirstIndex(PositionType) const;
+  SecondPositionType flatToSecondIndex(PositionType) const;
+};
+
+struct WrongCoordinateBivariateSet
+{
+  using FirstSetType = NarrowRange;
+  using SecondSetType = WideRange;
+  using FirstPositionType = typename FirstSetType::PositionType;
+  using SecondPositionType = typename SecondSetType::PositionType;
+  using PositionType = std::int64_t;
+  using ElementType = std::pair<SecondPositionType, SecondPositionType>;
+
+  PositionType size() const;
+  PositionType size(FirstPositionType) const;
+  ElementType at(PositionType) const;
+  const FirstSetType* getFirstSet() const;
+  const SecondSetType* getSecondSet() const;
+  FirstPositionType firstSetSize() const;
+  SecondPositionType secondSetSize() const;
+  SecondSetType getElements(FirstPositionType) const;
+  PositionType findElementIndex(FirstPositionType, SecondPositionType) const;
+  PositionType findElementFlatIndex(FirstPositionType, SecondPositionType) const;
+  FirstPositionType flatToFirstIndex(PositionType) const;
+  SecondPositionType flatToSecondIndex(PositionType) const;
 };
 
 struct TypedefOnlyRelation
 {
   using FromSetType = ConcreteRange;
   using ToSetType = ConcreteRange;
-  using SetPosition = Position;
-  using SetElement = Element;
 };
 
-struct WrongSetPositionRelation
+struct MinimalRelationRow
 {
-  using FromSetType = ConcreteRange;
-  using ToSetType = ConcreteRange;
-  using SetPosition = short;
-  using SetElement = Element;
+  std::size_t size() const;
+  WideRange::PositionType* begin() const;
+  WideRange::PositionType* end() const;
+};
+
+struct MinimalRelation
+{
+  using FromSetType = NarrowRange;
+  using ToSetType = WideRange;
 
   const FromSetType* fromSet() const;
   const ToSetType* toSet() const;
-  int operator[](SetPosition) const;
-  int* begin(SetPosition) const;
-  int* end(SetPosition) const;
+  MinimalRelationRow operator[](FromSetType::PositionType) const;
 };
 
-struct WrongSetElementRelation
+struct NotAPosition
+{ };
+
+struct WrongRelationRow
+{
+  std::size_t size() const;
+  NotAPosition* begin() const;
+  NotAPosition* end() const;
+};
+
+struct WrongRelationEntry
 {
   using FromSetType = ConcreteRange;
   using ToSetType = WideRange;
-  using SetPosition = typename FromSetType::PositionType;
-  using SetElement = short;
 
   const FromSetType* fromSet() const;
   const ToSetType* toSet() const;
-  int operator[](SetPosition) const;
-  SetElement* begin(SetPosition) const;
-  SetElement* end(SetPosition) const;
+  WrongRelationRow operator[](FromSetType::PositionType) const;
 };
 
 struct TypedefOnlyMap
@@ -158,6 +333,21 @@ struct TypedefOnlyMap
   using SetElement = Element;
   using ValueType = double&;
   using ConstValueType = const double&;
+};
+
+struct MinimalBivariateMap
+{
+  using DataType = double;
+  using BivariateSetType = MinimalBivariateSet;
+  using SetPosition = BivariateSetType::PositionType;
+  using SetElement = BivariateSetType::ElementType;
+  using ValueType = double&;
+  using ConstValueType = const double&;
+
+  SetPosition size() const;
+  ValueType operator[](SetPosition);
+  ConstValueType operator[](SetPosition) const;
+  const BivariateSetType* set() const;
 };
 
 struct WrongDomainMap
@@ -256,8 +446,23 @@ struct NonTrivialCapture
 }  // namespace slam_concept_test
 
 template <>
-inline constexpr bool
-  axom::slam::enable_position_like<slam_concept_test::StrongPosition> = true;
+inline constexpr bool axom::slam::enable_position_like<slam_concept_test::StrongPosition> = true;
+
+template <>
+inline constexpr bool axom::slam::enable_position_like<slam_concept_test::ExplicitFirstPosition> =
+  true;
+
+template <>
+inline constexpr bool axom::slam::enable_position_like<slam_concept_test::ExplicitSecondPosition> =
+  true;
+
+template <>
+inline constexpr bool axom::slam::enable_position_like<slam_concept_test::ExplicitFlatPosition> =
+  true;
+
+template <>
+inline constexpr bool axom::slam::enable_position_like<slam_concept_test::ExplicitRowPosition> =
+  true;
 
 namespace slam_concept_test
 {
@@ -268,12 +473,35 @@ static_assert(slam::SetLike<const Range&>);
 static_assert(slam::OrderedSetLike<Range>);
 static_assert(!slam::BivariateSetLike<Range>);
 static_assert(slam::BivariateSetLike<Product>);
+static_assert(std::same_as<typename Product::ElementType, std::pair<Position, Position>>);
+static_assert(slam::BivariateSetLike<DistinctHandleProduct>);
+static_assert(
+  std::same_as<typename DistinctHandleProduct::ElementType, std::pair<std::int32_t, std::int32_t>>);
+static_assert(slam::BivariateSetLike<HeterogeneousProduct>);
+static_assert(slam::BivariateSetLike<HeterogeneousNullBivariateSet>);
+static_assert(slam::BivariateSetLike<MinimalBivariateSet>);
+static_assert(
+  !std::same_as<typename MinimalBivariateSet::ElementType, std::pair<std::int32_t, std::int64_t>>);
+static_assert(slam::BivariateSetLike<ExplicitPositionBivariateSet>);
+static_assert(!std::convertible_to<ExplicitFirstPosition, ExplicitFlatPosition>);
+static_assert(!std::convertible_to<ExplicitSecondPosition, ExplicitFlatPosition>);
+static_assert(!std::convertible_to<ExplicitRowPosition, ExplicitFlatPosition>);
+static_assert(std::same_as<typename HeterogeneousProduct::FirstPositionType, std::int32_t>);
+static_assert(std::same_as<typename HeterogeneousProduct::SecondPositionType, std::int64_t>);
+static_assert(std::same_as<typename HeterogeneousProduct::PositionType, std::int64_t>);
+static_assert(
+  std::same_as<typename HeterogeneousProduct::ElementType, std::pair<std::int32_t, std::int64_t>>);
 static_assert(!slam::SetLike<Product>);
 static_assert(!slam::SetLike<TypedefOnlySet>);
 static_assert(!slam::SetLike<WrongSizeSet>);
 static_assert(!slam::SetLike<MutableAccessOnlySet>);
 static_assert(!slam::SetLike<FloatingPositionSet>);
 static_assert(!slam::BivariateSetLike<TypedefOnlyBivariateSet>);
+static_assert(!slam::BivariateSetLike<HeterogeneousPositionBivariateSet>);
+static_assert(!slam::BivariateSetLike<WrongElementBivariateSet>);
+static_assert(!slam::BivariateSetLike<WrongCoordinateBivariateSet>);
+static_assert(CanFormProductSet<NarrowRange, NarrowRange>);
+static_assert(CanFormProductSet<NarrowRange, WideRange>);
 static_assert(!slam::SetLike<int>);
 
 // Relations
@@ -285,13 +513,15 @@ static_assert(std::same_as<typename HeterogeneousDynamicVariableRelation::SetPos
                            typename NarrowRange::PositionType>);
 static_assert(std::same_as<typename HeterogeneousDynamicVariableRelation::SetElement,
                            typename WideRange::PositionType>);
+static_assert(CanFormRelationSet<VariableRelation>);
+static_assert(CanFormRelationSet<HeterogeneousVariableRelation>);
 static_assert(slam::RelationLike<DynamicConstantRelation>);
 static_assert(slam::RelationLike<DistinctElementDynamicConstantRelation>);
 static_assert(slam::RelationLike<const DynamicConstantRelation&>);
 static_assert(slam::is_relation_like_v<DynamicConstantRelation>);
+static_assert(slam::RelationLike<MinimalRelation>);
 static_assert(!slam::RelationLike<TypedefOnlyRelation>);
-static_assert(!slam::RelationLike<WrongSetPositionRelation>);
-static_assert(!slam::RelationLike<WrongSetElementRelation>);
+static_assert(!slam::RelationLike<WrongRelationEntry>);
 
 // Maps
 // BivariateMap::SetType is its flat backing set.
@@ -299,6 +529,12 @@ static_assert(!slam::RelationLike<WrongSetElementRelation>);
 static_assert(slam::UnivariateMapLike<UnaryMap>);
 static_assert(!slam::BivariateMapLike<UnaryMap>);
 static_assert(slam::BivariateMapLike<BinaryMap>);
+static_assert(slam::BivariateMapLike<HeterogeneousBinaryMap>);
+static_assert(slam::BivariateMapLike<MinimalBivariateMap>);
+static_assert(std::same_as<typename HeterogeneousBinaryMap::FirstPositionType, std::int32_t>);
+static_assert(std::same_as<typename HeterogeneousBinaryMap::SecondPositionType, std::int64_t>);
+static_assert(
+  std::same_as<typename HeterogeneousBinaryMap::SetElement, std::pair<std::int32_t, std::int64_t>>);
 static_assert(slam::MapLike<UnaryMap>);
 static_assert(slam::MapLike<const UnaryMap&>);
 static_assert(slam::MapLike<BinaryMap>);
@@ -360,9 +596,7 @@ static_assert(slam::MapIndirectionPolicyFor<OwningIndirection, Position, double>
 static_assert(slam::AllocatingMapIndirectionPolicyFor<OwningIndirection, Position, double>);
 static_assert(std::default_initializable<OwningMap>);
 static_assert(!std::default_initializable<UnaryMap>);
-static_assert(std::constructible_from<UnaryMap,
-                                      const ConcreteRange*,
-                                      typename UnaryMap::OrderedMap>);
+static_assert(std::constructible_from<UnaryMap, const ConcreteRange*, typename UnaryMap::OrderedMap>);
 static_assert(!slam::MapIndirectionPolicyFor<WrongDataIndirection, Position, double>);
 static_assert(!slam::IndirectionPolicy<TypedefOnlyIndirection>);
 static_assert(!slam::IndirectionPolicy<int>);

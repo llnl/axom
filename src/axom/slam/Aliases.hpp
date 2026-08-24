@@ -87,7 +87,8 @@ using ArrayViewSet = ArrayViewIndirectionSet<PosType, ElemType>;
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
+          typename PosType =
+            detail::default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>,
           typename ElemType = typename ToSet::PositionType>
 using VariableRelation =
   StaticRelation<PosType,
@@ -103,7 +104,8 @@ using VariableRelation =
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
+          typename PosType =
+            detail::default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>,
           typename ElemType = typename ToSet::PositionType>
 using VariableRelationView =
   StaticRelation<PosType,
@@ -120,7 +122,8 @@ using VariableRelationView =
 template <typename FromSet,
           typename ToSet,
           int N,
-          typename PosType = typename FromSet::PositionType,
+          typename PosType =
+            detail::default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>,
           typename ElemType = typename ToSet::PositionType>
 using ConstantRelation =
   StaticRelation<PosType,
@@ -137,7 +140,8 @@ using ConstantRelation =
 template <typename FromSet,
           typename ToSet,
           int N,
-          typename PosType = typename FromSet::PositionType,
+          typename PosType =
+            detail::default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>,
           typename ElemType = typename ToSet::PositionType>
 using ConstantRelationView =
   StaticRelation<PosType,
@@ -153,7 +157,8 @@ using ConstantRelationView =
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
+          typename PosType =
+            detail::default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>,
           typename ElemType = typename ToSet::PositionType>
 using RuntimeConstantRelation =
   StaticRelation<PosType,
@@ -169,7 +174,8 @@ using RuntimeConstantRelation =
  */
 template <typename FromSet,
           typename ToSet,
-          typename PosType = typename FromSet::PositionType,
+          typename PosType =
+            detail::default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>,
           typename ElemType = typename ToSet::PositionType>
 using RuntimeConstantRelationView =
   StaticRelation<PosType,

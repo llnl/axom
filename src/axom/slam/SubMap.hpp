@@ -58,6 +58,7 @@ public:
 
   using SetPosition = typename SubsetType::PositionType;
   using SetElement = typename SubsetType::ElementType;
+  using SuperSetElement = typename SuperMapType::SetElement;
 
   using StridePolicyType = typename SuperMapType::StridePolicyType;
   using IndirectionPolicyType = typename SuperMapType::IndirectionPolicy;
@@ -157,9 +158,9 @@ public:
 
   /// \brief Return the set element in the SuperMap at the given subset index
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE IndexType index(IndexType idx) const
+  AXOM_HOST_DEVICE SuperSetElement index(IndexType idx) const
   {
-    return m_indicesHaveIndirection ? m_superMap->set()->at(m_subsetIdx[idx]) : idx;
+    return m_superMap->set()->at(m_subsetIdx[idx]);
   }
 
   /// @}
@@ -372,7 +373,7 @@ public:
   DataRefType operator[](PositionType n) const { return *(*this + n); }
 
   /** \brief Returns the Set element at the iterator's position */
-  IndexType index() const { return m_submap.index(m_pos / m_submap.numComp()); }
+  SuperSetElement index() const { return m_submap.index(m_pos / m_submap.numComp()); }
 
   /// \brief Returns the component index pointed to by this iterator.
   PositionType compIndex() const { return m_pos % m_submap.numComp(); }
@@ -464,7 +465,7 @@ public:
   AXOM_HOST_DEVICE value_type operator[](PositionType n) const { return *(*this + n); }
 
   /// \brief Returns the set element mapped by this iterator.
-  SetElement index() const { return m_submap.index(this->m_pos); }
+  SuperSetElement index() const { return m_submap.index(this->m_pos); }
 
   /// \brief Returns the flat index in the original map pointed to by thisiterator.
   SetPosition flatIndex() const { return m_mapIter.flatIndex(); }

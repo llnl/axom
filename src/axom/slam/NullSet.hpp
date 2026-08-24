@@ -39,7 +39,7 @@ public:
   inline ElementType at(PositionType pos) const
   {
     verifyPosition(pos);
-    return PositionType();
+    return ElementType();
   }
 
   inline ElementType operator[](PositionType pos) const { return at(pos); }
