@@ -100,9 +100,16 @@ RuleStorage& get_cached_rule_storage(int npts,
  * \param [in] allocatorID The allocator used for temporary storage and the
  *             output `weights` array
  *
- * The returned weights integrate the Lagrange basis associated with `nodes`
- * by evaluating those basis polynomials with a Gauss-Legendre rule that is
- * exact for degree `npts - 1`.
+ * The returned weights are `w_j = integral_0^1 L_j(x) dx`, where `L_j` is the
+ * `j`th Lagrange basis polynomial. This makes the rule exact for polynomials
+ * up to degree `npts - 1`, and the weights sum to one because the Lagrange
+ * basis forms a partition of unity. Weight positivity is not guaranteed for
+ * arbitrary nodes.
+ *
+ * Several quadrature families define only their nodes directly; once the nodes
+ * are known, their interpolatory weights can all be computed this way. The
+ * temporary Gauss-Legendre rule is used only as an exact integration rule for
+ * the degree `npts - 1` basis polynomials.
  */
 void compute_interpolatory_weights(const axom::Array<double>& nodes,
                                    axom::Array<double>& weights,
