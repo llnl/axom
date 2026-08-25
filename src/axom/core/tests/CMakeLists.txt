@@ -18,6 +18,7 @@
 set(core_serial_tests
     core_about.hpp
     core_array.hpp
+    core_array_iterator.hpp
     core_array_mapping.hpp
     core_array_for_all.hpp
     core_utilities.hpp
