@@ -210,24 +210,39 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
                                  ${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_03/ice_cream_initialization.lua)
 
             if(MFEM_FOUND)
-                set(_lesson_04_dir
-                    "${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_04")
+                set(_lesson_04_dir "${CMAKE_CURRENT_SOURCE_DIR}/shaping_tutorial/lesson_04")
 
-                blt_add_test(NAME    shaping_tutorial_lesson_04_quest_sampling_shaper_yaml
+                set(_lesson_04_yaml_test shaping_tutorial_lesson_04_quest_sampling_shaper_yaml)
+                set(_lesson_04_lua_callbacks_test shaping_tutorial_lesson_04_quest_sampling_shaper_lua_callbacks)
+                set(_lesson_04_lua_initialization_test shaping_tutorial_lesson_04_quest_sampling_shaper_lua_initialization)
+                foreach(_testname
+                        ${_lesson_04_yaml_test}
+                        ${_lesson_04_lua_callbacks_test}
+                        ${_lesson_04_lua_initialization_test})
+                    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${_testname}")
+                endforeach()
+
+                blt_add_test(NAME    ${_lesson_04_yaml_test}
                              COMMAND shaping_tutorial_lesson_04_quest_sampling_shaper
                                      -m ${_lesson_04_dir}/circle_input.lua
-                                     -k ${_lesson_04_dir}/circles.yaml)
+                                     -k ${_lesson_04_dir}/circles.yaml
+                             WORKING_DIRECTORY
+                                     ${CMAKE_CURRENT_BINARY_DIR}/${_lesson_04_yaml_test})
 
-                blt_add_test(NAME    shaping_tutorial_lesson_04_quest_sampling_shaper_lua_callbacks
+                blt_add_test(NAME    ${_lesson_04_lua_callbacks_test}
                              COMMAND shaping_tutorial_lesson_04_quest_sampling_shaper
                                      -m ${_lesson_04_dir}/circle_input.lua
-                                     -k ${_lesson_04_dir}/circles.lua)
+                                     -k ${_lesson_04_dir}/circles.lua
+                             WORKING_DIRECTORY
+                                     ${CMAKE_CURRENT_BINARY_DIR}/${_lesson_04_lua_callbacks_test})
 
-                blt_add_test(NAME    shaping_tutorial_lesson_04_quest_sampling_shaper_lua_initialization
+                blt_add_test(NAME    ${_lesson_04_lua_initialization_test}
                              COMMAND shaping_tutorial_lesson_04_quest_sampling_shaper
                                      -m ${_lesson_04_dir}/circle_input.lua
                                      -k ${_lesson_04_dir}/circles_initialized.lua
-                                     --lua-init-file ${_lesson_04_dir}/circles_initialization.lua)
+                                     --lua-init-file ${_lesson_04_dir}/circles_initialization.lua
+                             WORKING_DIRECTORY
+                                     ${CMAKE_CURRENT_BINARY_DIR}/${_lesson_04_lua_initialization_test})
 
                 set(_testname
                     shaping_tutorial_lesson_04_quest_sampling_shaper_yaml_rejects_lua_initialization)
