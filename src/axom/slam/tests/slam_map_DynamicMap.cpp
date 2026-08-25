@@ -40,8 +40,7 @@ static_assert(slam::MapLike<IntMap>);
 static_assert(slam::MapLike<RealMap>);
 static_assert(slam::MapOver<IntMap, SetType>);
 static_assert(std::is_same_v<decltype(std::declval<IntMap&>()[SetPosition {}]), int&>);
-static_assert(
-  std::is_same_v<decltype(std::declval<const IntMap&>()[SetPosition {}]), const int&>);
+static_assert(std::is_same_v<decltype(std::declval<const IntMap&>()[SetPosition {}]), const int&>);
 
 }  // end anonymous namespace
 

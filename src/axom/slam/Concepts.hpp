@@ -130,8 +130,7 @@ consteval bool positiveStaticStrideRepresentable()
 }
 
 template <int Stride, typename Set>
-concept PositiveStaticStrideFor =
-  SetLike<Set> && (Stride > 0) &&
+concept PositiveStaticStrideFor = SetLike<Set> && (Stride > 0) &&
   positiveStaticStrideRepresentable<Stride, typename model_t<Set>::PositionType>();
 }  // namespace detail
 
@@ -408,10 +407,11 @@ concept MapBufferFor = HasMapIndirectionAssociatedTypes<T> &&
   requires(const typename model_t<T>::IndirectionBufferType& buffer) {
     { buffer.size() } -> std::convertible_to<model_t<Position>>;
     { buffer.empty() } -> std::convertible_to<bool>;
-  } && (!model_t<T>::IsMutableBuffer ||
-        requires(typename model_t<T>::IndirectionBufferType& buffer, model_t<Position> size) {
-          buffer.resize(size);
-        });
+  } &&
+  (!model_t<T>::IsMutableBuffer ||
+   requires(typename model_t<T>::IndirectionBufferType& buffer, model_t<Position> size) {
+     buffer.resize(size);
+   });
 }  // namespace detail
 
 /// \brief An indirection policy usable by OrderedSet over Position and Element.
@@ -435,9 +435,9 @@ concept OrderedSetIndirectionPolicyFor = IndirectionPolicyFor<T, Position> &&
 
 /// \brief An indirection policy providing Map's buffer and static access API.
 template <typename T, typename Position, typename Data>
-concept MapIndirectionPolicyFor = IndirectionPolicy<T> && PositionLike<Position> &&
-  detail::HasTypedIndirectionAssociatedTypes<T> && detail::HasMapIndirectionAssociatedTypes<T> &&
-  detail::MapBufferFor<T, Position> &&
+concept MapIndirectionPolicyFor =
+  IndirectionPolicy<T> && PositionLike<Position> && detail::HasTypedIndirectionAssociatedTypes<T> &&
+  detail::HasMapIndirectionAssociatedTypes<T> && detail::MapBufferFor<T, Position> &&
   std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
   std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Data>> &&
   detail::MapValueFor<typename detail::model_t<T>::IndirectionResult, Data> &&

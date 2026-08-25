@@ -687,8 +687,7 @@ TEST(slam_bivariate_set, heterogeneous_coordinates_preserve_indices_above_int32)
   // entry per position.
   Product product(&firstSet, &secondSet);
   EXPECT_EQ(product.flatToSecondIndex(largeSecondPosition), largeSecondPosition);
-  EXPECT_EQ(product.at(largeSecondPosition),
-            std::make_pair(FirstPosition {0}, largeSecondPosition));
+  EXPECT_EQ(product.at(largeSecondPosition), std::make_pair(FirstPosition {0}, largeSecondPosition));
 
   std::vector<SecondPosition> begins {0, 1};
   std::vector<SecondPosition> indices {largeSecondPosition};

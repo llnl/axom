@@ -66,12 +66,9 @@ namespace axom::slam
  * \param size the number of elements
  * \return a RangeSet<PosType, ElemType>
  */
-template <typename PosType = DefaultPositionType,
-          typename ElemType = DefaultElementType,
-          typename SizeType>
+template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType, typename SizeType>
   requires PositionLike<PosType> && PositionLike<SizeType> &&
-  std::convertible_to<SizeType, PosType> &&
-  std::constructible_from<ElemType, PosType>
+  std::convertible_to<SizeType, PosType> && std::constructible_from<ElemType, PosType>
 RangeSet<PosType, ElemType> make_range_set(SizeType size)
 {
   return RangeSet<PosType, ElemType>(static_cast<PosType>(size));
@@ -170,8 +167,7 @@ ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPA
  * \return a CArrayIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T, typename SizeType>
-  requires PositionLike<PosType> && PositionLike<SizeType> &&
-  std::convertible_to<SizeType, PosType>
+  requires PositionLike<PosType> && PositionLike<SizeType> && std::convertible_to<SizeType, PosType>
 CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, SizeType size)
 {
   using SetType = CArrayIndirectionSet<PosType, T>;

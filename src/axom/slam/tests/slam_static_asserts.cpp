@@ -231,9 +231,7 @@ struct DerivedConcreteRangeSet : ConcreteRangeSet
 static_assert(std::constructible_from<ConcreteOwnedMap, const ConcreteRangeSet&>,
               "a concrete Map stores its exact set type by value");
 static_assert(
-  std::constructible_from<ConcreteOwnedMap,
-                          const ConcreteRangeSet&,
-                          typename ConcreteOwnedMap::OrderedMap>,
+  std::constructible_from<ConcreteOwnedMap, const ConcreteRangeSet&, typename ConcreteOwnedMap::OrderedMap>,
   "the existing-buffer constructor accepts the exact concrete set type");
 static_assert(!std::constructible_from<ConcreteOwnedMap, const DerivedConcreteRangeSet&>,
               "a derived set is not sliced into a Map's value container");
@@ -245,30 +243,23 @@ static_assert(std::constructible_from<AbstractSetMap, const VirtualRangeSet*>,
 using AbstractBivariateSet = slam::BivariateSet<ConcreteRangeSet, ConcreteRangeSet>;
 using VirtualProductSet = slam::ProductSet<ConcreteRangeSet, ConcreteRangeSet>;
 using AbstractEndpointVirtualProductSet = slam::ProductSet<AbstractSet, AbstractSet>;
-using AbstractEndpointConcreteProductSet =
-  typename AbstractEndpointVirtualProductSet::ConcreteSet;
+using AbstractEndpointConcreteProductSet = typename AbstractEndpointVirtualProductSet::ConcreteSet;
 using ConcreteOwnedBivariateMap = slam::BivariateMap<SetElem, ConcreteProductSet>;
 using AbstractSetBivariateMap = slam::BivariateMap<SetElem, AbstractBivariateSet>;
-using ConcreteRelationSet =
-  typename slam::RelationSet<ViewVariableRelation>::ConcreteSet;
+using ConcreteRelationSet = typename slam::RelationSet<ViewVariableRelation>::ConcreteSet;
 
-static_assert(
-  std::constructible_from<ConcreteOwnedBivariateMap, const ConcreteProductSet&>,
-  "a concrete BivariateMap stores its exact bivariate set type by value");
-static_assert(
-  std::constructible_from<ConcreteOwnedBivariateMap,
-                          const ConcreteProductSet&,
-                          typename ConcreteOwnedBivariateMap::MapType::OrderedMap>,
-  "the existing-buffer constructor accepts the exact concrete bivariate set type");
-static_assert(
-  !std::constructible_from<ConcreteOwnedBivariateMap, const ConcreteRelationSet&>,
-  "a different concrete bivariate set is not accepted by the value constructor");
-static_assert(
-  !std::constructible_from<AbstractSetBivariateMap, const VirtualProductSet&>,
-  "an abstract-set BivariateMap cannot store a bivariate set by value");
-static_assert(
-  std::constructible_from<AbstractSetBivariateMap, const VirtualProductSet*>,
-  "an abstract-set BivariateMap retains polymorphic pointer construction");
+static_assert(std::constructible_from<ConcreteOwnedBivariateMap, const ConcreteProductSet&>,
+              "a concrete BivariateMap stores its exact bivariate set type by value");
+static_assert(std::constructible_from<ConcreteOwnedBivariateMap,
+                                      const ConcreteProductSet&,
+                                      typename ConcreteOwnedBivariateMap::MapType::OrderedMap>,
+              "the existing-buffer constructor accepts the exact concrete bivariate set type");
+static_assert(!std::constructible_from<ConcreteOwnedBivariateMap, const ConcreteRelationSet&>,
+              "a different concrete bivariate set is not accepted by the value constructor");
+static_assert(!std::constructible_from<AbstractSetBivariateMap, const VirtualProductSet&>,
+              "an abstract-set BivariateMap cannot store a bivariate set by value");
+static_assert(std::constructible_from<AbstractSetBivariateMap, const VirtualProductSet*>,
+              "an abstract-set BivariateMap retains polymorphic pointer construction");
 
 template <typename BivariateSetType>
 concept HasBivariateSizeAccess = requires(const BivariateSetType& bset) {
@@ -300,9 +291,7 @@ static_assert(CanGetBivariateSet<ConcreteOwnedBivariateMap, ConcreteProductSet>,
 static_assert(!CanGetBivariateSet<ConcreteOwnedBivariateMap, ConcreteRelationSet>,
               "relation-set reconstruction requires its relation type");
 static_assert(
-  CanGetRelationBivariateSet<ConcreteOwnedBivariateMap,
-                             ConcreteRelationSet,
-                             ViewVariableRelation>,
+  CanGetRelationBivariateSet<ConcreteOwnedBivariateMap, ConcreteRelationSet, ViewVariableRelation>,
   "relation-set reconstruction selects the relation-backed overload");
 
 //------------------------------------------------------------------------------
@@ -402,11 +391,10 @@ static_assert(std::same_as<typename std::iterator_traits<RangeConstIter>::pointe
 using ArrayViewSet = slam::ArrayViewIndirectionSet<SetPos, SetElem>;
 static_assert(HasMemberArrow<typename ArrayViewSet::iterator>);
 static_assert(HasMemberArrow<typename ArrayViewSet::const_iterator>);
-static_assert(std::same_as<typename std::iterator_traits<typename ArrayViewSet::iterator>::pointer,
-                           SetElem*>);
 static_assert(
-  std::same_as<typename std::iterator_traits<typename ArrayViewSet::const_iterator>::pointer,
-               SetElem*>);
+  std::same_as<typename std::iterator_traits<typename ArrayViewSet::iterator>::pointer, SetElem*>);
+static_assert(
+  std::same_as<typename std::iterator_traits<typename ArrayViewSet::const_iterator>::pointer, SetElem*>);
 
 static_assert(std::random_access_iterator<DynamicSetIterator>);
 static_assert(std::random_access_iterator<DynamicSetConstIterator>);

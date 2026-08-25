@@ -79,9 +79,7 @@ public:
                 "OrderedSet requires an offset policy over its position type");
   static_assert(OrderedSetStridePolicyFor<StridePolicyType, PositionType>,
                 "OrderedSet requires a scalar stride policy over its position type");
-  static_assert(OrderedSetIndirectionPolicyFor<IndirectionPolicyType,
-                                               PositionType,
-                                               ElementType>,
+  static_assert(OrderedSetIndirectionPolicyFor<IndirectionPolicyType, PositionType, ElementType>,
                 "OrderedSet requires set indirection over its position and element types");
 
   using ModularIntType = ModularInt<SizePolicy>;
@@ -329,10 +327,9 @@ public:
                          typename OrderedSet::IndirectionPolicyType::ConstIndirectionResult,
                          typename OrderedSet::IndirectionPolicyType::IndirectionResult>;
 
-    using pointer = std::conditional_t<
-      std::is_lvalue_reference_v<reference>,
-      std::add_pointer_t<std::remove_reference_t<reference>>,
-      void>;
+    using pointer = std::conditional_t<std::is_lvalue_reference_v<reference>,
+                                       std::add_pointer_t<std::remove_reference_t<reference>>,
+                                       void>;
 
     using IterBase = IteratorBase<OrderedSetIterator<T, Const>, PositionType>;
 

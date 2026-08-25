@@ -80,10 +80,9 @@ public:
   using const_range_iterator = RangeIterator;
   using range_iterator = RangeIterator;
 
-  using DataRefType =
-    std::conditional_t<std::is_const<SuperMapType>::value,
-                       typename IndirectionPolicyType::ConstIndirectionResult,
-                       typename IndirectionPolicyType::IndirectionResult>;
+  using DataRefType = std::conditional_t<std::is_const<SuperMapType>::value,
+                                         typename IndirectionPolicyType::ConstIndirectionResult,
+                                         typename IndirectionPolicyType::IndirectionResult>;
   using ValueType = DataRefType;
   using ConstValueType = DataRefType;
 

@@ -166,22 +166,13 @@ public:
     /// \{
 
     /// Indirection operator
-    reference operator*() const
-    {
-      return (*m_dynamicSet)[m_pos];
-    }
+    reference operator*() const { return (*m_dynamicSet)[m_pos]; }
 
     /// Structure dereference operator
-    pointer operator->() const
-    {
-      return &((*m_dynamicSet)[m_pos]);
-    }
+    pointer operator->() const { return &((*m_dynamicSet)[m_pos]); }
 
     /// Subscript operator
-    reference operator[](PositionType n) const
-    {
-      return *(*this + n);
-    }
+    reference operator[](PositionType n) const { return *(*this + n); }
 
     /// \}
 

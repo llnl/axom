@@ -211,12 +211,10 @@ TEST(slam_relation_dynamic_variable, heterogeneous_endpoint_position_types)
   using ToSet = slam::RangeSet<std::int64_t, std::int64_t>;
   using Relation = slam::DynamicVariableRelation<FromSet, ToSet>;
 
-  static_assert(std::is_same_v<typename Relation::SetPosition,
-                               typename FromSet::PositionType>);
-  static_assert(std::is_same_v<typename Relation::SetElement,
-                               typename ToSet::PositionType>);
-  static_assert(std::is_same_v<typename Relation::RelationVec::value_type,
-                               typename ToSet::PositionType>);
+  static_assert(std::is_same_v<typename Relation::SetPosition, typename FromSet::PositionType>);
+  static_assert(std::is_same_v<typename Relation::SetElement, typename ToSet::PositionType>);
+  static_assert(
+    std::is_same_v<typename Relation::RelationVec::value_type, typename ToSet::PositionType>);
 
   constexpr auto largeToPosition =
     static_cast<typename ToSet::PositionType>(std::numeric_limits<std::int32_t>::max()) + 7;
