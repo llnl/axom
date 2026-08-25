@@ -53,6 +53,8 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
   using atomic_policy = RAJA::hip_atomic;
   using sync_policy = RAJA::hip_synchronize;
 
+  static constexpr int BlockSize = BLOCK_SIZE;
+
   static constexpr MemorySpace memory_space = MemorySpace::Device;
 
   AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
@@ -94,6 +96,8 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, ASYNC>>
   using reduce_policy = RAJA::hip_reduce;
   using atomic_policy = RAJA::hip_atomic;
   using sync_policy = RAJA::hip_synchronize;
+
+  static constexpr int BlockSize = BLOCK_SIZE;
 
   static constexpr MemorySpace memory_space = MemorySpace::Device;
 
