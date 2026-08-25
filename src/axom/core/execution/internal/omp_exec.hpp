@@ -41,6 +41,8 @@ struct execution_space<OMP_EXEC>
   using atomic_policy = RAJA::omp_atomic;
   using sync_policy = RAJA::omp_synchronize;
 
+  static constexpr int BlockSize = 1;
+
 #ifdef AXOM_USE_UMPIRE
   static constexpr MemorySpace memory_space = MemorySpace::Host;
 #else
