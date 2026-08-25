@@ -208,7 +208,11 @@ inline int getDefaultAllocatorID()
  */
 inline int getDefaultHostAllocatorID()
 {
+#if defined(AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST)
+  return getUmpireResourceAllocatorID(umpire::resource::Host);
+#else
   return MALLOC_ALLOCATOR_ID;
+#endif
 }
 
 /*!

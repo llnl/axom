@@ -46,7 +46,11 @@ struct execution_space<SEQ_EXEC>
 
   using sync_policy = void;
 
+#ifdef AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST
+  static constexpr MemorySpace memory_space = MemorySpace::Host;
+#else
   static constexpr MemorySpace memory_space = MemorySpace::Malloc;
+#endif
 
   AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
