@@ -243,9 +243,12 @@ inline int isend_using_schema(conduit::Node& node,
 */
 class DistributedClosestPointImpl
 {
+protected:
+
 public:
   DistributedClosestPointImpl(int allocatorID, bool isVerbose)
     : m_allocatorID(allocatorID)
+    , m_mpiAllocatorID(MALLOC_ALLOCATOR_ID)
     , m_isVerbose(isVerbose)
     , m_mpiComm(MPI_COMM_NULL)
     , m_rank(-1)
@@ -265,6 +268,13 @@ public:
     SLIC_ASSERT(allocatorID != axom::INVALID_ALLOCATOR_ID);
     // TODO: If appropriate, how to check for compatibility with runtime policy?
     m_allocatorID = allocatorID;
+  }
+
+  void setMpiAllocatorID(int mpiAllocatorID)
+  {
+    SLIC_ASSERT(mpiAllocatorID != axom::INVALID_ALLOCATOR_ID);
+    // TODO: If appropriate, how to check for compatibility with runtime policy?
+    m_mpiAllocatorID = mpiAllocatorID;
   }
 
   /*!
@@ -327,59 +337,64 @@ public:
    * computation and communication.
    * queryNode must be a blueprint multidomain mesh.
    */
+  template <typename TransferNode>
   void node_copy_query_to_xfer(conduit::Node& queryNode,
-                               conduit::Node& xferNode,
+                               TransferNode& xferNode,
                                const std::string& topologyName) const
   {
-    xferNode["homeRank"] = m_rank;
-    xferNode["is_first"] = 1;
-
     const bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(queryNode);
     const auto domainCount = conduit::blueprint::mesh::number_of_domains(queryNode);
-    conduit::Node& xferDoms = xferNode["xferDoms"];
+    xferNode.metadata.homeRank = m_rank;
+    xferNode.metadata.isFirst = true;
+    xferNode.metadata.dims = getDimension();
+    xferNode.metadata.numPoints = 0;
     for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
     {
       auto& queryDom = isMultidomain ? queryNode.child(domainNum) : queryNode;
-
       const std::string coordsetName =
         queryDom.fetch_existing(axom::fmt::format("topologies/{}/coordset", topologyName)).as_string();
-      const std::string& domName = queryDom.name();
-      conduit::Node& xferDom = xferDoms[domName];
       conduit::Node& queryCoords = queryDom.fetch_existing(fmt::format("coordsets/{}", coordsetName));
       conduit::Node& queryCoordsValues = queryCoords.fetch_existing("values");
-
       const int dim = internal::extractDimension(queryCoordsValues);
       const int qPtCount = internal::extractSize(queryCoordsValues);
-      xferDom["qPtCount"] = qPtCount;
-      xferDom["dim"] = dim;
+      SLIC_ASSERT(dim == xferNode.metadata.dims);
+      xferNode.metadata.numPoints += qPtCount;
+    }
 
-      copy_components_to_interleaved(queryCoordsValues, xferDom["coords"]);
+    xferNode.Allocate(xferNode.metadata.numPoints, m_mpiAllocatorID);
 
-      constexpr bool isInt32 = std::is_same<axom::IndexType, std::int32_t>::value;
-      auto dtype = isInt32 ? conduit::DataType::int32() : conduit::DataType::int64();
-      dtype.set_number_of_elements(qPtCount);
-      xferDom["cp_index"].set_dtype(dtype);
-      xferDom["cp_rank"].set_dtype(dtype);
-      xferDom["cp_domain_index"].set_dtype(dtype);
-      xferDom["debug/cp_distance"].set_dtype(conduit::DataType::float64(qPtCount));
-      xferDom["cp_coords"].set_dtype(conduit::DataType::float64(dim * qPtCount));
+    axom::IndexType pointOffset = 0;
+    for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
+    {
+      auto& queryDom = isMultidomain ? queryNode.child(domainNum) : queryNode;
+      const std::string coordsetName =
+        queryDom.fetch_existing(axom::fmt::format("topologies/{}/coordset", topologyName)).as_string();
+      conduit::Node& values =
+        queryDom.fetch_existing(fmt::format("coordsets/{}/values", coordsetName));
+      const int qPtCount = internal::extractSize(values);
+      copy_components_to_interleaved(values, xferNode, pointOffset);
+      pointOffset += qPtCount;
     }
   }
 
   /// Copy xferNode back to query mesh partition.
-  void node_copy_xfer_to_query(conduit::Node& xferNode,
+  template <typename TransferNode>
+  void node_copy_xfer_to_query(TransferNode& xferNode,
                                conduit::Node& queryNode,
                                const std::string& topologyName) const
   {
     const bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(queryNode);
     const auto domainCount = conduit::blueprint::mesh::number_of_domains(queryNode);
-    conduit::Node& xferDoms = xferNode.fetch_existing("xferDoms");
-    SLIC_ASSERT(xferDoms.number_of_children() == domainCount);
+    axom::IndexType pointOffset = 0;
     for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
     {
       auto& queryDom = isMultidomain ? queryNode.child(domainNum) : queryNode;
-      conduit::Node& xferDom = xferDoms.child(domainNum);
-      conduit::Node& fields = queryDom.fetch("fields");
+      conduit::Node& fields = queryDom.fetch_existing("fields");
+      const std::string coordsetName =
+        queryDom.fetch_existing(axom::fmt::format("topologies/{}/coordset", topologyName)).as_string();
+      const conduit::Node& values =
+        queryDom.fetch_existing(fmt::format("coordsets/{}/values", coordsetName));
+      const axom::IndexType qPtCount = internal::extractSize(values);
 
       conduit::Node genericHeaders;
       genericHeaders["association"] = "vertex";
@@ -387,34 +402,30 @@ public:
 
       if(m_outputRank)
       {
-        auto& src = xferDom.fetch_existing("cp_rank");
         auto& dst = fields["cp_rank"];
         dst.set_node(genericHeaders);
-        dst["values"].move(src);
+        dst["values"].set(xferNode.cp_rank.data() + pointOffset, qPtCount);
       }
 
       if(m_outputIndex)
       {
-        auto& src = xferDom.fetch_existing("cp_index");
         auto& dst = fields["cp_index"];
         dst.set_node(genericHeaders);
-        dst["values"].move(src);
+        dst["values"].set(xferNode.cp_index.data() + pointOffset, qPtCount);
       }
 
       if(m_outputDomainIndex)
       {
-        auto& src = xferDom.fetch_existing("cp_domain_index");
         auto& dst = fields["cp_domain_index"];
         dst.set_node(genericHeaders);
-        dst["values"].move(src);
+        dst["values"].set(xferNode.cp_domain_index.data() + pointOffset, qPtCount);
       }
 
       if(m_outputDistance)
       {
-        auto& src = xferDom.fetch_existing("debug/cp_distance");
         auto& dst = fields["cp_distance"];
         dst.set_node(genericHeaders);
-        dst["values"].move(src);
+        dst["values"].set(xferNode.cp_distance.data() + pointOffset, qPtCount);
       }
 
       if(m_outputCoords)
@@ -422,37 +433,45 @@ public:
         auto& dst = fields["cp_coords"];
         dst.set_node(genericHeaders);
         auto& dstValues = dst["values"];
-        copy_interleaved_to_components(xferDom.fetch_existing("cp_coords"), dstValues);
+        conduit::Node src;
+        src.set_external(xferNode.cp_coords.data() + pointOffset * xferNode.metadata.dims,
+                         qPtCount * xferNode.metadata.dims);
+        copy_interleaved_to_components(src, dstValues);
       }
+      pointOffset += qPtCount;
     }
   }
 
   /*
     Special copy from coordinates (in a format that's not
-    necessarily interleaved) to a 1D array of interleaved values).
-    If coordinates are already interleaved, copy pointer.
+    necessarily interleaved) to a TransferNode's interleaved point buffer.
   */
-  void copy_components_to_interleaved(conduit::Node& components, conduit::Node& interleaved) const
+  template <typename TransferNode>
+  void copy_components_to_interleaved(conduit::Node& components,
+                                      TransferNode& xferNode,
+                                      axom::IndexType pointOffset) const
   {
     const int dim = getDimension();
     const int qPtCount = internal::extractSize(components);
-    bool interleavedSrc = conduit::blueprint::mcarray::is_interleaved(components);
+    SLIC_ASSERT(dim == xferNode.metadata.dims);
+
+    auto* dst = reinterpret_cast<double*>(xferNode.points.data() + pointOffset);
+    const bool interleavedSrc = conduit::blueprint::mcarray::is_interleaved(components);
     if(interleavedSrc)
     {
-      interleaved.set_external(internal::getPointer<double>(components.child(0)), dim * qPtCount);
+      axom::copy(dst,
+                 internal::getPointer<double>(components.child(0)),
+                 dim * qPtCount * sizeof(double));
     }
     else
     {
-      // Copy from component-wise src to 1D-interleaved dst.
-      interleaved.reset();
-      interleaved.set_dtype(conduit::DataType::float64(dim * qPtCount));
+      // Copy from component-wise source to the interleaved destination.
       for(int d = 0; d < dim; ++d)
       {
         auto src = components.child(d).as_float64_array();
-        double* dst = interleaved.as_float64_ptr() + d;
         for(int i = 0; i < qPtCount; ++i)
         {
-          dst[i * dim] = src[i];
+          dst[i * dim + d] = src[i];
         }
       }
     }
@@ -526,6 +545,7 @@ public:
 
 protected:
   int m_allocatorID;
+  int m_mpiAllocatorID;
   bool m_isVerbose;
 
   MPI_Comm m_mpiComm;
@@ -553,6 +573,7 @@ protected:
     /// MPI rank of closest element
     int rank {-1};
   };
+
 };
 
 /*!
@@ -579,6 +600,62 @@ public:
   using BoxArray = axom::Array<BoxType>;
   using BVHTreeType = spin::BVH<DIM, ExecSpace>;
 
+private:
+  struct TransferNode
+  {
+    struct Metadata
+    {
+      int homeRank {-1};
+      int dims {0};
+      int numPoints {0};
+      bool isFirst {true};
+      BoxType aabb;
+    } metadata;
+
+    axom::ArrayView<PointType> points;
+    axom::ArrayView<double> cp_coords;
+    axom::ArrayView<double> cp_distance;
+    axom::ArrayView<IndexType> cp_index;
+    axom::ArrayView<IndexType> cp_rank;
+    axom::ArrayView<IndexType> cp_domain_index;
+
+    axom::Array<std::uint8_t> buffer;
+
+    void Allocate(IndexType numPoints, int allocatorID)
+    {
+      constexpr IndexType PerNodeSize = sizeof(Metadata);
+      constexpr IndexType PerPointSize =
+        sizeof(PointType) + 2 * sizeof(double) + 3 * sizeof(IndexType);
+
+      const IndexType total_size = PerNodeSize + PerPointSize * numPoints;
+      buffer = axom::Array<std::uint8_t>(total_size, total_size, allocatorID);
+
+      auto* data = buffer.data() + PerNodeSize;
+      points = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
+      data += sizeof(PointType) * numPoints;
+
+      cp_coords = axom::ArrayView<double>(reinterpret_cast<double*>(data), DIM * numPoints);
+      data += sizeof(double) * DIM * numPoints;
+
+      cp_distance = axom::ArrayView<double>(reinterpret_cast<double*>(data), numPoints);
+      data += sizeof(double) * numPoints;
+
+      cp_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+      data += sizeof(IndexType) * numPoints;
+
+      cp_rank = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+      data += sizeof(IndexType) * numPoints;
+
+      cp_domain_index =
+        axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+    }
+
+    TransferNode() = default;
+    TransferNode(const TransferNode&) = delete;
+    TransferNode& operator= (const TransferNode&) = delete;
+  };
+
+public:
   /*!
     @brief Constructor
 
@@ -717,21 +794,13 @@ public:
   }
 
   /// Compute bounding box for local part of a mesh.
-  BoxType computeMeshBoundingBox(conduit::Node& xferNode) const
+  BoxType computeMeshBoundingBox(const TransferNode& xferNode) const
   {
     BoxType rval;
-
-    conduit::Node& xferDoms = xferNode.fetch_existing("xferDoms");
-    for(conduit::Node& xferDom : xferDoms.children())
+    SLIC_ASSERT(xferNode.metadata.dims == DIM);
+    for(const auto& p : xferNode.points)
     {
-      const int qPtCount = xferDom.fetch_existing("qPtCount").value();
-
-      /// Extract fields from the input node as ArrayViews
-      auto queryPts = ArrayView_from_Node<PointType>(xferDom.fetch_existing("coords"), qPtCount);
-      for(const auto& p : queryPts)
-      {
-        rval.addPoint(p);
-      }
+      rval.addPoint(p);
     }
 
     return rval;
@@ -761,12 +830,11 @@ public:
     {
       // create conduit Node containing data that has to xfer between ranks.
       // The node will be mostly empty if there are no domains on this rank
-      conduit::Node xferNode;
+      TransferNode xferNode;
       node_copy_query_to_xfer(queryMesh, xferNode, topologyName);
-      xferNode["homeRank"] = m_rank;
 
       BoxType myQueryBb = computeMeshBoundingBox(xferNode);
-      put_bounding_box_to_conduit_node(myQueryBb, xferNode.fetch("aabb"));
+      xferNode.metadata.aabb = myQueryBb;
       BoxArray allQueryBbs;
       gatherBoundingBoxes(myQueryBb, allQueryBbs);
 
@@ -805,7 +873,9 @@ public:
       {
         isendRequests.emplace_back(conduit::relay::mpi::Request());
         auto& req = isendRequests.back();
-        relay::mpi::isend_using_schema(xferNode, firstRecipForMyQuery, tag, m_mpiComm, &req);
+        conduit::Node sendNode;
+        transfer_node_to_conduit(xferNode, sendNode);
+        relay::mpi::isend_using_schema(sendNode, firstRecipForMyQuery, tag, m_mpiComm, &req);
         ++remainingRecvs;
       }
     }
@@ -834,26 +904,30 @@ public:
       conduit::relay::mpi::recv_using_schema(recvXferNode, MPI_ANY_SOURCE, tag, m_mpiComm);
 
       --remainingRecvs;
-      const int homeRank = recvXferNode.fetch_existing("homeRank").as_int();
+      const int homeRank = recvXferNode.fetch_existing("home_rank").as_int();
       if(homeRank < 0)
       {
         continue;
       }
 
+      TransferNode xferNode;
+      transfer_node_from_conduit(recvXferNode, xferNode);
       ++fullXferRecvs;
       if(homeRank == m_rank)
       {
-        node_copy_xfer_to_query(recvXferNode, queryMesh, topologyName);
+        node_copy_xfer_to_query(xferNode, queryMesh, topologyName);
       }
       else
       {
-        double currentMaxSqDistance = computeLocalClosestPoints(recvXferNode);
+        double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
-        int nextRecipient = next_recipient(recvXferNode, currentMaxSqDistance, tag, isendRequests);
+        int nextRecipient = next_recipient(xferNode, currentMaxSqDistance, tag, isendRequests);
         SLIC_ASSERT(nextRecipient != -1);
         isendRequests.emplace_back(conduit::relay::mpi::Request());
         auto& isendRequest = isendRequests.back();
-        relay::mpi::isend_using_schema(recvXferNode, nextRecipient, tag, m_mpiComm, &isendRequest);
+        conduit::Node sendNode;
+        transfer_node_to_conduit(xferNode, sendNode);
+        relay::mpi::isend_using_schema(sendNode, nextRecipient, tag, m_mpiComm, &isendRequest);
 
         // Check non-blocking sends to free memory.
         check_send_requests(isendRequests, false);
@@ -871,7 +945,59 @@ public:
     slic::flushStreams();
   }
 
-private:
+  void transfer_node_to_conduit(const TransferNode& xferNode, conduit::Node& node) const
+  {
+    node["home_rank"].set(xferNode.metadata.homeRank);
+    node["is_first"].set(static_cast<int>(xferNode.metadata.isFirst));
+    node["dims"].set(xferNode.metadata.dims);
+    node["num_points"].set(xferNode.metadata.numPoints);
+    node["interleaved_points"].set(reinterpret_cast<const double*>(xferNode.points.data()),
+                                    xferNode.points.size() * DIM);
+    node["cp_coords"].set(xferNode.cp_coords.data(), xferNode.cp_coords.size());
+    node["cp_distance"].set(xferNode.cp_distance.data(), xferNode.cp_distance.size());
+    node["cp_index"].set(xferNode.cp_index.data(), xferNode.cp_index.size());
+    node["cp_rank"].set(xferNode.cp_rank.data(), xferNode.cp_rank.size());
+    node["cp_domain_index"].set(xferNode.cp_domain_index.data(), xferNode.cp_domain_index.size());
+    node["aabb/min"].set(xferNode.metadata.aabb.getMin().data(), DIM);
+    node["aabb/max"].set(xferNode.metadata.aabb.getMax().data(), DIM);
+  }
+
+  void transfer_node_from_conduit(conduit::Node& node, TransferNode& xferNode) const
+  {
+    xferNode.metadata.homeRank = node.fetch_existing("home_rank").as_int();
+    xferNode.metadata.isFirst = node.fetch_existing("is_first").as_int() != 0;
+    xferNode.metadata.dims = node.fetch_existing("dims").as_int();
+    xferNode.metadata.numPoints = node.fetch_existing("num_points").as_int();
+    xferNode.Allocate(xferNode.metadata.numPoints, m_mpiAllocatorID);
+
+    auto copy_field = [](auto* destination, auto* source, IndexType count) {
+      axom::copy(destination, source, count * sizeof(*destination));
+    };
+    copy_field(reinterpret_cast<double*>(xferNode.points.data()),
+               internal::getPointer<double>(node.fetch_existing("interleaved_points")),
+               xferNode.points.size() * DIM);
+    copy_field(xferNode.cp_coords.data(),
+               internal::getPointer<double>(node.fetch_existing("cp_coords")),
+               xferNode.cp_coords.size());
+    copy_field(xferNode.cp_distance.data(),
+               internal::getPointer<double>(node.fetch_existing("cp_distance")),
+               xferNode.cp_distance.size());
+    copy_field(xferNode.cp_index.data(),
+               internal::getPointer<IndexType>(node.fetch_existing("cp_index")),
+               xferNode.cp_index.size());
+    copy_field(xferNode.cp_rank.data(),
+               internal::getPointer<IndexType>(node.fetch_existing("cp_rank")),
+               xferNode.cp_rank.size());
+    copy_field(xferNode.cp_domain_index.data(),
+               internal::getPointer<IndexType>(node.fetch_existing("cp_domain_index")),
+               xferNode.cp_domain_index.size());
+
+    auto& min = node.fetch_existing("aabb/min");
+    auto& max = node.fetch_existing("aabb/max");
+    xferNode.metadata.aabb =
+      BoxType(PointType(internal::getPointer<double>(min)), PointType(internal::getPointer<double>(max)), false);
+  }
+
   /*!
    * \brief Check whether static rank bounding boxes are close enough to search.
    *
@@ -901,7 +1027,7 @@ private:
   void send_skip_token(int dest, int tag, std::list<conduit::relay::mpi::Request>& isendRequests) const
   {
     conduit::Node skipToken;
-    skipToken["homeRank"] = -1;
+    skipToken["home_rank"] = -1;
 
     isendRequests.emplace_back(conduit::relay::mpi::Request());
     auto& req = isendRequests.back();
@@ -914,14 +1040,13 @@ private:
    * Sends skip tokens to statically eligible ranks that dynamic distance
    * filtering can prove will not improve the current closest point results.
    */
-  int next_recipient(const conduit::Node& xferNode,
+  int next_recipient(const TransferNode& xferNode,
                      double currentMaxSqDistance,
                      int tag,
                      std::list<conduit::relay::mpi::Request>& isendRequests) const
   {
-    int homeRank = xferNode.fetch_existing("homeRank").value();
-    BoxType bb;
-    get_bounding_box_from_conduit_node(bb, xferNode.fetch_existing("aabb"));
+    int homeRank = xferNode.metadata.homeRank;
+    const BoxType& bb = xferNode.metadata.aabb;
 
     for(int i = 1; i < m_nranks; ++i)
     {
@@ -972,14 +1097,14 @@ public:
     return (result == spin::BVH_BUILD_OK);
   }
 
-  double computeLocalClosestPoints(conduit::Node& xferNode) const
+  double computeLocalClosestPoints(TransferNode& xferNode) const
   {
     using axom::primal::squared_distance;
 
     // Note: There is some additional computation the first time this function
     // is called for a query node, even if the local object mesh is empty
     const bool hasObjectPoints = m_objectPtCoords.size() > 0;
-    const bool is_first = xferNode.has_path("is_first");
+    const bool is_first = xferNode.metadata.isFirst;
     if(!hasObjectPoints && !is_first)
     {
       return m_sqDistanceThreshold;
@@ -987,27 +1112,22 @@ public:
 
     double currentMaxSqDistance = -1.0;
 
-    conduit::Node& xferDoms = xferNode["xferDoms"];
-    for(conduit::Node& xferDom : xferDoms.children())
-    {
       // --- Set up arrays and views in the execution space
       // Arrays are initialized in that execution space the first time
       // they are processed and are copied in during subsequent
       // processing
 
       // Check dimension and extract the number of points
-      SLIC_ASSERT(xferDom.fetch_existing("dim").as_int() == DIM);
-      const int qPtCount = xferDom.fetch_existing("qPtCount").value();
+      SLIC_ASSERT(xferNode.metadata.dims == DIM);
+      const int qPtCount = xferNode.metadata.numPoints;
 
       /// Extract fields from the input node as ArrayViews
-      auto queryPts = ArrayView_from_Node<PointType>(xferDom.fetch_existing("coords"), qPtCount);
-      auto cpIndexes =
-        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_index"), qPtCount);
-      auto cpDomainIndexes =
-        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_domain_index"), qPtCount);
-      auto cpRanks =
-        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_rank"), qPtCount);
-      auto cpCoords = ArrayView_from_Node<PointType>(xferDom.fetch_existing("cp_coords"), qPtCount);
+      auto queryPts = xferNode.points;
+      auto cpIndexes = xferNode.cp_index;
+      auto cpDomainIndexes = xferNode.cp_domain_index;
+      auto cpRanks = xferNode.cp_rank;
+      auto cpCoords = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(xferNode.cp_coords.data()),
+                                                  qPtCount);
 
       /// Create ArrayViews in ExecSpace that are compatible with fields
       // This deep-copies host memory in xferDom to device memory.
@@ -1025,10 +1145,8 @@ public:
                              : axom::Array<PointType>(cpCoords, m_allocatorID);
 
       // DEBUG
-      const bool has_cp_distance = xferDom.has_path("debug/cp_distance");
-      auto minDist = has_cp_distance
-        ? ArrayView_from_Node<double>(xferDom.fetch_existing("debug/cp_distance"), qPtCount)
-        : ArrayView<double>();
+      const bool has_cp_distance = true;
+      auto minDist = xferNode.cp_distance;
 
       auto cp_dist = has_cp_distance
         ? (is_first ? axom::Array<double>(qPtCount, qPtCount, m_allocatorID)
@@ -1195,12 +1313,10 @@ public:
       {
         axom::copy(minDist.data(), query_min_dist.data(), minDist.size() * sizeof(double));
       }
-    }
-
     // Data has now been initialized
     if(is_first)
     {
-      xferNode.remove_child("is_first");
+      xferNode.metadata.isFirst = false;
     }
 
     return m_dynamicDistanceFiltering && currentMaxSqDistance >= 0.0 ? currentMaxSqDistance
