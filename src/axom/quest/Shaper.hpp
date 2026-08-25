@@ -38,12 +38,11 @@
 #if defined(AXOM_USE_CONDUIT)
   #include "conduit_node.hpp"
 #endif
+#if defined(AXOM_USE_MPI)
+  #include <mpi.h>
+#endif
 
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
-
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /**
  * Abstract base class for shaping material volume fractions
@@ -318,8 +317,9 @@ protected:
   double m_vertexWeldThreshold {DEFAULT_VERTEX_WELD_THRESHOLD};
   bool m_verboseOutput {false};
 
+#if defined(AXOM_USE_MPI)
   MPI_Comm m_comm {MPI_COMM_SELF};
+#endif
 };
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest

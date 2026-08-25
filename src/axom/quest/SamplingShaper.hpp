@@ -25,7 +25,6 @@
 #endif
 
 #include "axom/quest/Shaper.hpp"
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/detail/shaping/InOutSampler.hpp"
@@ -42,9 +41,7 @@
 #include <functional>
 #include <numeric>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /// \brief Concrete class for sample based shaping on MFEM or Blueprint meshes.
 class SamplingShaper : public Shaper
@@ -766,5 +763,4 @@ private:
   std::string m_inoutOctreeVtkOutputDirectory;
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest
