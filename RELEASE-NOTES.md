@@ -95,6 +95,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   internal `quest::internal::read_*_mesh()`/`logger_init()` helpers are now declared only when Axom is
   configured with MPI. Serial code that passed the placeholder `MPI_COMM_SELF` explicitly should drop the argument.
 - We can now configure Axom without MPI when some of its dependencies were configured with MPI.
+- Axom's host execution-space default allocator is now a configure-time policy. The default policy is malloc, regardless
+  whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
+  `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
+  allocator-ID arguments.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
