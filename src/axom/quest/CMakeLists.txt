@@ -63,7 +63,6 @@ set( quest_headers
     FastApproximateGWN.hpp
 
     ## quest interface
-    interface/internal/mpicomm_wrapper.hpp
     interface/internal/QuestHelpers.hpp
     interface/inout.hpp
     interface/signed_distance.hpp

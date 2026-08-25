@@ -87,7 +87,7 @@ TEST(utils_config, mfem_configuration)
             << std::endl;
   #endif  // MFEM_VERSION
 
-  // Verify that this copy of mfem is configured appropriately with respect to MPI
+  // Report the MPI configuration of Axom and MFEM. These settings need not match.
   {
     bool axomHasMPI = false;
   #ifdef AXOM_USE_MPI
@@ -100,12 +100,6 @@ TEST(utils_config, mfem_configuration)
     mfemHasMPI = true;
   #endif
     std::cout << "mfem is built " << (mfemHasMPI ? "with" : "without") << " MPI" << std::endl;
-
-    if(!axomHasMPI)
-    {
-      EXPECT_FALSE(mfemHasMPI) << "Axom expects mfem to be built without MPI "
-                                  "when it is not built with MPI";
-    }
   }
 
   // Verify that this copy of mfem is configured without Sidre

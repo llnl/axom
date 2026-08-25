@@ -192,6 +192,11 @@ else()
     message(STATUS "MFEM support is OFF")
 endif()
 
+# MFEM's exported target does not always propagate its MPI dependency.
+if(TARGET mfem AND MFEM_USE_MPI)
+    blt_patch_target(NAME mfem DEPENDS_ON mpi)
+endif()
+
 # caliper-enabled mfem in device configs have extra dependencies which are not properly exported
 if(TARGET mfem)
     # check if mfem depends on caliper

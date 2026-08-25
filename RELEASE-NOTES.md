@@ -91,6 +91,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   (a `slam::Map` with the default `axom::Array` indirection) rather than `std::vector`.
   Code that previously registered `std::vector`-backed buffers should use
   `FieldRegistry::MapType`, `FieldRegistry::BufferType`, `auto`, or `buffer.view()`, as appropriate.
+- Quest: The communicator-taking overloads of `quest::inout_init()`, `quest::signed_distance_init()` and the
+  internal `quest::internal::read_*_mesh()`/`logger_init()` helpers are now declared only when Axom is
+  configured with MPI. Serial code that passed the placeholder `MPI_COMM_SELF` explicitly should drop the argument.
+- We can now configure Axom without MPI when some of its dependencies were configured with MPI.
 - Python: Raised the minimum supported versions for Python bindings to Python 3.9 and nanobind 2.10.
 
 ### Fixed

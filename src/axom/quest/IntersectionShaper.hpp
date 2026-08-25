@@ -28,7 +28,6 @@
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/Shaper.hpp"
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 
 #include "axom/fmt.hpp"
@@ -45,9 +44,7 @@
   #include "conduit_blueprint_mcarray.hpp"
 #endif
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
@@ -3023,5 +3020,4 @@ private:
   std::vector<std::string> m_vf_material_names;
 };
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest

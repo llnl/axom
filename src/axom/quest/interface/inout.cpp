@@ -14,9 +14,7 @@
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 #include "axom/quest/InOutOctree.hpp"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace internal
 {
@@ -85,14 +83,14 @@ struct InOutHelper
    *
    * \sa inout_init
    */
-  int initialize(const std::string& file, MPI_Comm comm)
+  int initialize(const std::string& file, internal::CommHandle comm = internal::commSelf())
   {
     mint::Mesh* tmpMeshPtr = nullptr;
     m_params.m_dimension = getDimension();
 
     // load the mesh
     int rc = QUEST_INOUT_FAILED;
-#ifdef AXOM_USE_C2C
+#if defined(AXOM_USE_C2C)
     double revolvedVolume = 0.;
     const bool uniform = true;
     const double percentError = 0.;  // unused
@@ -100,7 +98,7 @@ struct InOutHelper
     switch(DIM)
     {
     case 2:
-#ifdef AXOM_USE_C2C
+#if defined(AXOM_USE_C2C)
       rc = internal::read_c2c_mesh(file,
                                    uniform,
                                    numerics::Matrix<double>::identity(4),
@@ -140,7 +138,7 @@ struct InOutHelper
    *
    * \sa inout_init
    */
-  int initialize(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm)
+  int initialize(std::shared_ptr<mint::Mesh>& mesh, internal::CommHandle comm = internal::commSelf())
   {
     // initialize logger, if necessary
     internal::logger_init(m_state.m_logger_is_initialized,
@@ -264,7 +262,7 @@ struct InOutHelper
   {
     if(z == nullptr)
     {
-#ifdef AXOM_USE_OPENMP
+#if defined(AXOM_USE_OPENMP)
   #pragma omp parallel for schedule(static)
 #endif
       for(int i = 0; i < npoints; ++i)
@@ -275,7 +273,7 @@ struct InOutHelper
     }
     else
     {
-#ifdef AXOM_USE_OPENMP
+#if defined(AXOM_USE_OPENMP)
   #pragma omp parallel for schedule(static)
 #endif
       for(int i = 0; i < npoints; ++i)
@@ -317,7 +315,10 @@ bool inout_initialized()
   return (dim == 2) ? s_inoutHelper2D.isInitialized() : s_inoutHelper3D.isInitialized();
 }
 
-int inout_init(const std::string& file, MPI_Comm comm)
+namespace
+{
+/// Shared implementation of the quest::inout_init() overloads
+int inout_init_impl(const std::string& file, internal::CommHandle comm)
 {
   const int dim = inout_get_dimension();
   int rc = QUEST_INOUT_FAILED;
@@ -354,7 +355,8 @@ int inout_init(const std::string& file, MPI_Comm comm)
   return rc;
 }
 
-int inout_init(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm)
+/// Shared implementation of the quest::inout_init() overloads
+int inout_init_impl(std::shared_ptr<mint::Mesh>& mesh, internal::CommHandle comm)
 {
   const int dim = inout_get_dimension();
   int rc = QUEST_INOUT_FAILED;
@@ -391,6 +393,24 @@ int inout_init(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm)
 
   return rc;
 }
+
+}  // end anonymous namespace
+
+int inout_init(const std::string& file) { return inout_init_impl(file, internal::commSelf()); }
+
+int inout_init(std::shared_ptr<mint::Mesh>& mesh)
+{
+  return inout_init_impl(mesh, internal::commSelf());
+}
+
+#if defined(AXOM_USE_MPI)
+int inout_init(const std::string& file, MPI_Comm comm) { return inout_init_impl(file, comm); }
+
+int inout_init(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm)
+{
+  return inout_init_impl(mesh, comm);
+}
+#endif
 
 int inout_finalize()
 {
@@ -666,5 +686,4 @@ int inout_set_segments_per_knot_span(int segmentsPerKnotSpan)
   return QUEST_INOUT_SUCCESS;
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest
