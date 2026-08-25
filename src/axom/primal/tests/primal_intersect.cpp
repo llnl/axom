@@ -2592,9 +2592,8 @@ void check_plane_bb_intersect()
 
   // Determine new allocator (for CUDA or HIP policy, set to device)
   umpire::Allocator allocator =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(umpire::resource::Host));
+    (axom::execution_space<ExecSpace>::onDevice() ? rm.getAllocator(umpire::resource::Device)
+                                                  : rm.getAllocator(umpire::resource::Host));
 
   // Set new default to device
   axom::setDefaultAllocator(allocator.getId());
@@ -2673,9 +2672,8 @@ void check_plane_seg_intersect()
 
   // Determine new allocator (for CUDA or HIP policy, set to device)
   umpire::Allocator allocator =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(umpire::resource::Host));
+    (axom::execution_space<ExecSpace>::onDevice() ? rm.getAllocator(umpire::resource::Device)
+                                                  : rm.getAllocator(umpire::resource::Host));
 
   // Set new default to device
   axom::setDefaultAllocator(allocator.getId());
@@ -2762,9 +2760,8 @@ void check_segment_segment_intersect_policy()
   const int current_allocator = axom::getDefaultAllocatorID();
 
   umpire::Allocator allocator =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? rm.getAllocator(umpire::resource::Device)
-       : rm.getAllocator(umpire::resource::Host));
+    (axom::execution_space<ExecSpace>::onDevice() ? rm.getAllocator(umpire::resource::Device)
+                                                  : rm.getAllocator(umpire::resource::Host));
 
   axom::setDefaultAllocator(allocator.getId());
 
