@@ -128,7 +128,6 @@ TEST(core_execution_space, check_default_host_allocator)
   expected_host_memory_space = axom::MemorySpace::Host;
 #endif
 
-  EXPECT_EQ(expected_host_allocator, axom::getDefaultHostAllocatorID());
   EXPECT_EQ(expected_host_memory_space, axom::execution_space<axom::SEQ_EXEC>::memory_space);
   EXPECT_EQ(expected_host_allocator, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
 
@@ -155,7 +154,7 @@ TEST(core_execution_space, check_seq_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getDefaultHostAllocatorID();
+  int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   check_execution_mappings<axom::SEQ_EXEC,
   #if RAJA_VERSION_MAJOR > 2022
                            RAJA::seq_exec,
@@ -178,7 +177,7 @@ TEST(core_execution_space, check_omp_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getDefaultHostAllocatorID();
+  int allocator_id = axom::execution_space<axom::OMP_EXEC>::allocatorID();
   check_execution_mappings<axom::OMP_EXEC,
                            RAJA::omp_parallel_for_exec,
                            RAJA::omp_reduce,

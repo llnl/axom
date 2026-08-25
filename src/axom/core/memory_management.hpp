@@ -197,6 +197,8 @@ inline int getDefaultAllocatorID()
 #endif
 }
 
+namespace detail
+{
 /*!
  * \brief Returns the ID of the default host allocator.
  *
@@ -214,6 +216,7 @@ inline int getDefaultHostAllocatorID()
   return MALLOC_ALLOCATOR_ID;
 #endif
 }
+}  // namespace detail
 
 /*!
  * \brief Get the allocator id from which data has been allocated.
@@ -575,7 +578,7 @@ inline void fill(void* dst, std::size_t n, const T& value) noexcept
 
       // Device memory: fill on host, then copy to device
       const auto num_bytes = n * sizeof(T);
-      T* src = allocate<T>(n, axom::getDefaultHostAllocatorID());
+      T* src = allocate<T>(n, axom::detail::getDefaultHostAllocatorID());
       for(std::size_t i = 0; i < n; ++i)
       {
         src[i] = value;

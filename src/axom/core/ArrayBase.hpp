@@ -911,7 +911,7 @@ struct DeviceStagingBuffer
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     if(m_deviceStage)
     {
-      int allocator_id = axom::getDefaultHostAllocatorID();
+      int allocator_id = axom::detail::getDefaultHostAllocatorID();
       m_staging_buf = axom::allocate<T>(nelems, allocator_id);
       if(read_from_data)
       {

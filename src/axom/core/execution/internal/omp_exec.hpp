@@ -49,7 +49,7 @@ struct execution_space<OMP_EXEC>
 
   static int allocatorID() noexcept
   {
-    return axom::getDefaultHostAllocatorID();
+    return axom::detail::getDefaultHostAllocatorID();
   }
   AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
