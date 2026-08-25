@@ -808,7 +808,7 @@ void average_density_mat_dom_mm_submap(MultiMat& mm)
       auto Volfrac_row = Volfrac(m);
       for(int j = 0; j < Volfrac_row.size(); ++j)
       {
-        Density_average[Densityfrac_row.index(j)] += Densityfrac_row(j) * Volfrac_row(j);
+        Density_average[Densityfrac_row.index(j).second] += Densityfrac_row(j) * Volfrac_row(j);
       }
     }
     for(int ic = 0; ic < ncells; ++ic)
@@ -924,7 +924,7 @@ void average_density_mat_dom_mm_iter(MultiMat& mm)
       auto Density_iterend = Densityfrac.end(m);
       while(Density_iter != Density_iterend)
       {
-        Density_average[Density_iter.index()] += *Density_iter * *Volfrac_iter;
+        Density_average[Density_iter.index().second] += *Density_iter * *Volfrac_iter;
         ++Density_iter;
         ++Volfrac_iter;
       }
@@ -1242,7 +1242,7 @@ void calculate_pressure_cell_dom_mm_submap(MultiMat& mm)
       const auto cellMats = Volfrac_row.size();
       for(int j = 0; j < cellMats; ++j)
       {
-        const int m = Volfrac_row.index(j);
+        const int m = Volfrac_row.index(j).second;
         const auto vf = Volfrac_row(j);
 
         //Pressurefrac_row(m)
@@ -1299,7 +1299,7 @@ void calculate_pressure_cell_dom_full_mm_iter(MultiMat& mm)
       auto VolfracIterEnd = Volfrac.end(ic);
       for(; VolfracIter != VolfracIterEnd; ++VolfracIter, ++DensityfracIter, ++TempfracIter)
       {
-        int m = VolfracIter.index();
+        int m = VolfracIter.index().second;
         if(*VolfracIter > 0.)
         {
           Pressurefrac[ic * nmats + m] =
@@ -1590,7 +1590,7 @@ void calculate_pressure_mat_dom_mm_submap(MultiMat& mm)
       const int matCells = Volfrac_row.size();
       for(int j = 0; j < matCells; ++j)
       {
-        const int ic = Volfrac_row.index(j);
+        const int ic = Volfrac_row.index(j).second;
         const auto vf = Volfrac_row(j);
 
         Pressurefrac_row(ic) = (vf > 0) ? (mprop * Densityfrac_row(j) * Tempfrac_row(j)) / vf : 0;
@@ -1644,7 +1644,7 @@ void calculate_pressure_mat_dom_full_mm_iter(MultiMat& mm)
       auto VolfracIterEnd = Volfrac.end(m);
       for(; VolfracIter != VolfracIterEnd; ++VolfracIter, ++DensityfracIter, ++TempfracIter)
       {
-        int ic = VolfracIter.index();
+        int ic = VolfracIter.index().second;
         if(*VolfracIter > 0.)
         {
           Pressurefrac[m * ncells + ic] =
@@ -2148,7 +2148,7 @@ void average_density_over_nbr_cell_dom_full_mm_iter(MultiMat& mm, Robey_data& da
       auto VolfracIterEnd = Volfrac.end(ic);
       for(; VolfracIter != VolfracIterEnd; ++VolfracIter)
       {
-        int m = VolfracIter.index();
+        int m = VolfracIter.index().second;
         if(*VolfracIter > 0.0)  //this check is not needed in sparse layout.
         {
           int nnm = 0;  // number of nbrs with this material
@@ -2238,7 +2238,7 @@ void average_density_over_nbr_cell_dom_compact_mm_submap(MultiMat& mm, Robey_dat
       auto AvgMatDensity_row = MatDensity_average(ic);
       for(int k = 0; k < Densityfrac_row.size(); ++k)
       {
-        const int m = Densityfrac_row.index(k);
+        const int m = Densityfrac_row.index(k).second;
 
         double den = 0.;
         int nnm = 0;  // number of nbrs with this material
@@ -2437,7 +2437,7 @@ void average_density_over_nbr_cell_dom_compact_mm_iter(MultiMat& mm, Robey_data&
       auto DensityfracIterEnd = Densityfrac.end(ic);
       for(; DensityfracIter != DensityfracIterEnd; ++DensityfracIter)
       {
-        int m = DensityfracIter.index();
+        int m = DensityfracIter.index().second;
 
         int nnm = 0;  // number of nbrs with this material
         for(int n = 0; n < nn; ++n)
@@ -2447,7 +2447,7 @@ void average_density_over_nbr_cell_dom_compact_mm_iter(MultiMat& mm, Robey_data&
           auto DensityfracIterJcEnd = Densityfrac.end(jc);
           for(; DensityfracIterJc != DensityfracIterJcEnd; ++DensityfracIterJc)
           {
-            if(DensityfracIterJc.index() == m)
+            if(DensityfracIterJc.index().second == m)
             {
               MatDensity_average[ic * nmats + m] += *DensityfracIterJc / dsqr[n];
               ++nnm;
@@ -2878,7 +2878,7 @@ void average_density_over_nbr_mat_dom_full_mm_iter(MultiMat& mm, Robey_data& dat
       auto VolfracIterBegin = Volfrac.begin(m);
       for(; VolfracIter != VolfracIterEnd; ++VolfracIter)
       {
-        int ic = VolfracIter.index();
+        int ic = VolfracIter.index().second;
         if(*VolfracIter > 0.0)
         {
           double xc[2];
@@ -2984,7 +2984,7 @@ void average_density_over_nbr_mat_dom_compact_mm_submap(MultiMat& mm, Robey_data
 
       for(int k = 0; k < Densityfrac_row.size(); ++k)
       {
-        int ci = Densityfrac_row.index(k);
+        int ci = Densityfrac_row.index(k).second;
 
         double xc[2] = {cen(ci, 0), cen(ci, 1)};
 
@@ -3165,7 +3165,7 @@ void average_density_over_nbr_mat_dom_compact_mm_iter(MultiMat& mm, Robey_data& 
       auto DensityfracIterEnd = Densityfrac.end(m);
       for(; DensityfracIter != DensityfracIterEnd; ++DensityfracIter)
       {
-        int ci = DensityfracIter.index();
+        int ci = DensityfracIter.index().second;
 
         double xc[2];
         xc[0] = cen[ci * 2];

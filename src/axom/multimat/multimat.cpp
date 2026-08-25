@@ -1846,7 +1846,7 @@ bool MultiMat::isValid(bool verboseOutput) const
           }
           else
           {
-            volfrac_sum[submap.index(j)] += submap.value(j);
+            volfrac_sum[submap.index(j).second] += submap.value(j);
           }
         }
       }

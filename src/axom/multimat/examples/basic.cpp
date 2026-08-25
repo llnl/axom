@@ -237,7 +237,7 @@ void multimat_to_blueprint(axom::multimat::MultiMat& mm, conduit::Node& mesh)
       double value = vf_for_cell(i);
       if(value > 0.)
       {
-        material_ids.push_back(vf_for_cell.index(i));
+        material_ids.push_back(vf_for_cell.index(i).second);
         volume_fractions.push_back(vf_for_cell(i));
         indices.push_back(idx++);
         size++;

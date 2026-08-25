@@ -67,7 +67,7 @@ public:
 
   DataLayout getDataLayout() { return DataLayout::CELL_DOM; }
   int cellId() { return this->getOuterIndex(); }
-  int matId(int i) { return this->index(i); }
+  int matId(int i) { return this->index(i).second; }
 };
 
 // specialization for Mat Dom
@@ -82,7 +82,7 @@ public:
 
   DataLayout getDataLayout() { return DataLayout::MAT_DOM; }
   int matId() { return this->getOuterIndex(); }
-  int cellId(int i) { return this->index(i); }
+  int cellId(int i) { return this->index(i).second; }
 };
 
 }  //end namespace multimat

@@ -171,8 +171,8 @@ void various_traversal_methods(int nmats, int ncells, int ncomp, bool use_sparse
       SLIC_ASSERT(rel_set.size() == submap.size());
       for(int k = 0; k < submap.size(); k++)
       {
-        int idx = submap.index(k);  //mat id
-        int idx2 = rel_set[k];      //another way to get mat id
+        int idx = submap.index(k).second;  //mat id
+        int idx2 = rel_set[k];             //another way to get mat id
         SLIC_ASSERT(idx == idx2);
         AXOM_UNUSED_VAR(idx);
         AXOM_UNUSED_VAR(idx2);

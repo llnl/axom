@@ -439,7 +439,7 @@ concept MapIndirectionPolicyFor =
   IndirectionPolicy<T> && PositionLike<Position> && detail::HasTypedIndirectionAssociatedTypes<T> &&
   detail::HasMapIndirectionAssociatedTypes<T> && detail::MapBufferFor<T, Position> &&
   std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
-  std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Data>> &&
+  std::same_as<typename detail::model_t<T>::ElementType, std::remove_reference_t<Data>> &&
   detail::MapValueFor<typename detail::model_t<T>::IndirectionResult, Data> &&
   detail::MapValueFor<typename detail::model_t<T>::ConstIndirectionResult, Data> &&
   requires(typename detail::model_t<T>::IndirectionBufferType& buffer,
