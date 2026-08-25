@@ -1105,7 +1105,7 @@ public:
               return sqDist <= curr_min.sqDist && sqDist <= sqDistThreshold;
             };
 
-            it.traverse_tree(qpt, checkMinDist, traversePredicate);
+            it.template traverseTreeShared<ExecSpace>(qpt, checkMinDist, traversePredicate);
 
             if(curr_min.rank == rank)
             {
@@ -1163,7 +1163,7 @@ public:
             };
 
             // Traverse the tree, searching for the point with minimum distance.
-            it.traverse_tree(qpt, checkMinDist, traversePredicate);
+            it.template traverseTreeShared<ExecSpace>(qpt, checkMinDist, traversePredicate);
 
             // If modified, update the fields that changed
             if(curr_min.rank == rank)
