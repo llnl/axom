@@ -76,6 +76,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Changed to `#pragma once` instead of unique header guard defines
 - Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
   Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
+- Uberenv's spack updated to v1.2.2
+- Updates blt submodule to [BLT version 0.7.2](https://github.com/LLNL/blt/releases/tag/v0.7.2)
+- Updates to [camp version 2026.07.1](https://github.com/LLNL/camp/releases/tag/v2026.07.1)
+- Updates to [RAJA version 2026.07.0](https://github.com/LLNL/RAJA/releases/tag/v2026.07.0)
+- Updates to [Umpire version 2026.07.1](https://github.com/LLNL/Umpire/releases/tag/v2026.07.1)
+- Updates to [Caliper version 2.15.0](https://github.com/LLNL/Caliper/releases/tag/v2.15.0)
+- Updates to [Conduit version 0.9.7](https://github.com/LLNL/conduit/releases/tag/v0.9.7)
 - Slam: `slam::Map`, `slam::BivariateMap` and `policies::VariableCardinality` now default to
   `policies::ArrayIndirection` instead of `policies::STLVectorIndirection`.
    Code that previously used the default `std::vector`-backed Maps will need to either
@@ -84,6 +91,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   (a `slam::Map` with the default `axom::Array` indirection) rather than `std::vector`.
   Code that previously registered `std::vector`-backed buffers should use
   `FieldRegistry::MapType`, `FieldRegistry::BufferType`, `auto`, or `buffer.view()`, as appropriate.
+- Quest: The communicator-taking overloads of `quest::inout_init()`, `quest::signed_distance_init()` and the
+  internal `quest::internal::read_*_mesh()`/`logger_init()` helpers are now declared only when Axom is
+  configured with MPI. Serial code that passed the placeholder `MPI_COMM_SELF` explicitly should drop the argument.
+- We can now configure Axom without MPI when some of its dependencies were configured with MPI.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.

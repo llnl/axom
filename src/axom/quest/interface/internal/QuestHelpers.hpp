@@ -11,9 +11,12 @@
 #include "axom/primal.hpp"
 #include "axom/slic.hpp"
 #include "axom/mint/mesh/Mesh.hpp"
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
 #include "axom/quest/io/STLReader.hpp"
 #include "axom/quest/io/ProEReader.hpp"
+
+#if defined(AXOM_USE_MPI)
+  #include <mpi.h>
+#endif
 
 #if defined(AXOM_USE_MFEM)
   #include <mfem.hpp>
@@ -22,20 +25,62 @@
 // C/C++ includes
 #include <cstddef>
 #include <string>
+#include <type_traits>
 
 /*!
  * \file QuestHelpers.hpp
  *
  * \brief Helper methods that can be used across the different Quest queries.
  */
-namespace axom
-{
-namespace quest
-{
-namespace internal
+namespace axom::quest::internal
 {
 constexpr int READ_FAILED = -1;
 constexpr int READ_SUCCESS = 0;
+
+/// \name Communicator handle
+/// @{
+
+/*!
+ * \brief Handle for the MPI communicator threaded through Quest's internal mesh readers and logger setup.
+ *
+ * When Axom is configured with MPI this is an alias for \a MPI_Comm.
+ * Otherwise it is a distinct enum type to allow internal helpers keep a single signature.
+ *
+ * \note Deliberately avoids using `MPI_Comm` since a dependency can pull \<mpi.h\>
+ *  into a translation unit even when Axom is configured without MPI.
+ *
+ * \note The serial type is an `enum class` so that nothing converts to it implicitly
+ *
+ * \note This type is internal to Quest. The user-facing entry points take a real
+ *  \a MPI_Comm, and their communicator-taking overloads are declared only when
+ *  Axom is configured with MPI, so passing a communicator to a serial build is a compile error.
+ */
+#if defined(AXOM_USE_MPI)
+using CommHandle = MPI_Comm;
+
+/// \brief Returns a handle for the calling rank alone (\a MPI_COMM_SELF)
+inline CommHandle commSelf() { return MPI_COMM_SELF; }
+
+/// \brief Returns a handle for all ranks (\a MPI_COMM_WORLD)
+inline CommHandle commWorld() { return MPI_COMM_WORLD; }
+#else
+enum class CommHandle : int
+{
+  Serial = -1
+};
+
+/// \brief Returns a handle for the calling rank alone
+inline CommHandle commSelf() { return CommHandle::Serial; }
+
+/// \brief Returns a handle for all ranks
+inline CommHandle commWorld() { return CommHandle::Serial; }
+#endif
+
+static_assert(!std::is_convertible<CommHandle, int>::value || std::is_same<CommHandle, int>::value,
+              "CommHandle must not be implicitly convertible to int "
+              "unless it is the MPI implementation's own MPI_Comm typedef");
+
+/// @}
 
 /*!
  * \brief Simple RAII-based utility class to update the slic logging level within a scope
@@ -69,7 +114,8 @@ private:
 /// \name Mesh I/O methods
 /// @{
 
-#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+// Note: AXOM_USE_UMPIRE_SHARED_MEMORY is only defined when Axom is configured with MPI
+#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
 
 /*!
  * \brief Reads in the surface mesh from the specified file into a shared
@@ -111,12 +157,15 @@ int read_stl_mesh_shared(const std::string& file,
  *
  * \param [in] file the file consisting of the surface
  * \param [out] m user-supplied pointer to point to the mesh object.
- * \param [in] comm the MPI communicator, only applicable when MPI is available.
+ * \param [in] comm the communicator to read over; ignored when Axom is configured without MPI.
  *
  * \note This method currently expects the surface mesh to be given in STL format.
  *
- * \note The caller is responsible for properly de-allocating the mesh object
- *  that is returned by this function.
+ * \note In an MPI build the file is read on rank 0 of \a comm and broadcast to the other ranks,
+ *  so a caller that has a real communicator should pass it rather than \a commSelf().
+ *  Passing \a commSelf() makes every rank open and read the file independently.
+ *
+ * \note The caller is responsible for de-allocating the mesh object returned by this function.
  *
  * \return status set to zero on success, or to a non-zero value otherwise.
  *
@@ -131,7 +180,7 @@ int read_stl_mesh_shared(const std::string& file,
  * \see STLReader
  * \see PSTLReader
  */
-int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_COMM_SELF);
+int read_stl_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm);
 
 #ifdef AXOM_USE_C2C
 /*!
@@ -147,10 +196,13 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_C
  * \param [out] m user-supplied pointer to point to the mesh object
  * \param [out] revolvedVolume An approximation of the revolved volume of the contour
  *                             or 0 if it could not be computed.
- * \param [in] comm the MPI communicator, only applicable when MPI is available
+ * \param [in] comm the communicator to read over; ignored when Axom is configured without MPI.
  *
  * \note The caller is responsible for properly de-allocating the mesh object
  *  that is returned by this function
+ *
+ * \note In an MPI build the file is read on rank 0 of \a comm and broadcast to the other ranks,
+ *  so a caller that has a real communicator should pass it rather than \a commSelf().
  *
  * \return status set to zero on success, or to a non-zero value otherwise
  *
@@ -175,7 +227,7 @@ int read_c2c_mesh(const std::string& file,
                   double percentError,
                   mint::Mesh*& m,
                   double& revolvedVolume,
-                  MPI_Comm comm = MPI_COMM_SELF);
+                  CommHandle comm);
 
 #endif  // AXOM_USE_C2C
 
@@ -226,10 +278,12 @@ int read_mfem_mesh(const std::string& file,
  *
  * \param [in] file the file consisting of the Pro/E mesh
  * \param [out] m user-supplied pointer to point to the mesh object.
- * \param [in] comm the MPI communicator, only applicable when MPI is available.
+ * \param [in] comm the communicator to read over; ignored when Axom is configured without MPI.
  *
- * \note The caller is responsible for properly de-allocating the mesh object
- *  that is returned by this function.
+ * \note The caller is responsible for de-allocating the mesh object returned by this function.
+ *
+ * \note In an MPI build the file is read on rank 0 of \a comm and broadcast to the other ranks,
+ *  so a caller that has a real communicator should pass it rather than \a commSelf().
  *
  * \return zero on success, or a non-zero value otherwise.
  *
@@ -244,7 +298,7 @@ int read_mfem_mesh(const std::string& file,
  * \see ProEReader
  * \see PProEReader
  */
-int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_COMM_SELF);
+int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm);
 
 /// @}
 
@@ -277,7 +331,8 @@ void compute_mesh_bounds(const mint::Mesh* mesh, double* lo, double* hi);
  * \param [out] mustFinalize inidicates if the caller would be responsible
  *  for finalizing the Slic logger.
  * \param [in] verbose flag to control the verbosity
- * \param [in] comm the MPI communicator (applicable when compiled with MPI)
+ * \param [in] comm the communicator used for the rank-aware log stream;
+ *  ignored when Axom is configured without MPI.
  *
  * \note If Slic is not already initialized, this method will initialize the
  *  Slic Logging environment and set the `isInitialized` flag to true.
@@ -290,7 +345,7 @@ void compute_mesh_bounds(const mint::Mesh* mesh, double* lo, double* hi);
  *
  *  \see logger_finalize
  */
-void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, MPI_Comm comm);
+void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, CommHandle comm);
 
 /*!
  * \brief Finalizes the Slic logger (if needed)
@@ -303,6 +358,4 @@ void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, MPI_Comm
 void logger_finalize(bool mustFinalize);
 /// @}
 
-} /* end namespace internal */
-} /* end namespace quest    */
-} /* end namespace axom     */
+}  // end namespace axom::quest::internal

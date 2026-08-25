@@ -12,7 +12,7 @@
 #------------------------------------------------------------------------------
 if ( UMPIRE_FOUND )
 
-  set( umpire_smoke_dependencies umpire gtest )
+  set( umpire_smoke_dependencies umpire::umpire gtest )
 
   blt_list_append( TO umpire_smoke_dependencies ELEMENTS mpi IF AXOM_ENABLE_MPI)
 
@@ -34,7 +34,7 @@ if ( RAJA_FOUND )
 
   set( raja_smoke_dependencies RAJA gtest )
 
-  blt_list_append( TO raja_smoke_dependencies ELEMENTS umpire IF UMPIRE_FOUND)
+  blt_list_append( TO raja_smoke_dependencies ELEMENTS umpire::umpire IF UMPIRE_FOUND)
   blt_list_append( TO raja_smoke_dependencies ELEMENTS mpi    IF AXOM_ENABLE_MPI)
 
   axom_add_executable(NAME raja_smoke_test
