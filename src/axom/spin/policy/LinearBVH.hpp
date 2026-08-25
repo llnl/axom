@@ -82,25 +82,6 @@ public:
     , m_leaf_nodes(leaf_nodes)
   { }
 
-  template <typename LeafAction, typename Predicate>
-  AXOM_HOST_DEVICE void traverse_tree(const PointType& p,
-                                      LeafAction&& leaf_action,
-                                      Predicate&& predicate) const
-  {
-    auto traversePref = [](const BoxType& l, const BoxType& r, const PointType& p) {
-      double sqDistL = primal::squared_distance(p, l.getCentroid());
-      // If the right bbox is not valid, return max. Otherwise, the invalid right
-      // bbox might actually win when we should ignore it.
-      double sqDistR = r.isValid() ? primal::squared_distance(p, r.getCentroid())
-                                   : axom::numerics::floating_point_limits<double>::max();
-      return sqDistL > sqDistR;
-    };
-
-    lbvh::BVHStack stack;
-
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, traversePref);
-  }
-
   /*
    * Functors \a leaf_action and \a predicate should access only memory compatible
    * with the execution space.  For example, GPU execution should access
@@ -111,14 +92,31 @@ public:
                                       LeafAction&& leaf_action,
                                       Predicate&& predicate) const
   {
-    auto noTraversePref = [](const BoxType& l, const BoxType& r, const Primitive& p) {
-      AXOM_UNUSED_VAR(l);
-      AXOM_UNUSED_VAR(r);
-      AXOM_UNUSED_VAR(p);
-      return false;
+    auto traversePref = [](const BoxType& l, const BoxType& r, const Primitive& p) {
+      return LinearBVHTraverser::traverseClosestFirst(l, r, p);
     };
 
     lbvh::BVHStack stack;
+
+    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, traversePref);
+  }
+
+  template <typename ExecSpace, typename Primitive, typename LeafAction, typename Predicate>
+  AXOM_HOST_DEVICE void traverseTreeShared(const Primitive& p,
+                                           LeafAction&& leaf_action,
+                                           Predicate&& predicate) const
+  {
+    auto noTraversePref = [](const BoxType& l, const BoxType& r, const Primitive& p) {
+      return LinearBVHTraverser::traverseClosestFirst(l, r, p);
+    };
+
+    constexpr int BlockSize = axom::execution_space<ExecSpace>::BlockSize;
+
+#ifdef AXOM_DEVICE_CODE
+    lbvh::SharedBVHStack<BlockSize> stack;
+#else
+    lbvh::BVHStack stack;
+#endif
 
     lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, noTraversePref);
   }
@@ -175,6 +173,26 @@ public:
   }
 
 private:
+  template <typename PrimitiveType>
+  AXOM_HOST_DEVICE static bool traverseClosestFirst(const BoxType& l,
+                                                    const BoxType& r,
+                                                    const PrimitiveType& p)
+  {
+    if constexpr(std::is_same_v<PrimitiveType, PointType>)
+    {
+      double sqDistL = primal::squared_distance(p, l.getCentroid());
+      // If the right bbox is not valid, return max. Otherwise, the invalid right
+      // bbox might actually win when we should ignore it.
+      double sqDistR = r.isValid() ? primal::squared_distance(p, r.getCentroid())
+                                   : axom::numerics::floating_point_limits<double>::max();
+      return sqDistL > sqDistR;
+    }
+    else
+    {
+      return false;
+    }
+  }
+
   /*!
    * \brief This is a helper method used in reduce_tree.
    *
