@@ -117,6 +117,7 @@ and marked the templated `axom::sidre::View::getAttributeScalar<T>()` overloads 
 so they can be called on a `const View`. Also added  `const` overloads for `axom::sidre::Buffer::getData()`
 and `axom::sidre::Buffer::getVoidPtr()` so they can be called on a `const Buffer`.
 - Quest: Fixes `InOutOctree::within()` for query points that lie on (or very near) the surface, in both 2D (segment meshes) and 3D (triangle meshes).
+- Core: Adds missing subscript operator to ArrayIteratorBase to satisfy random access contract.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
