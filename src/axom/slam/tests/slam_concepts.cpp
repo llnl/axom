@@ -655,6 +655,11 @@ static_assert(!slam::OffsetPolicy<int>);
 static_assert(slam::IndirectionPolicy<ViewIndirection>);
 static_assert(slam::IndirectionPolicyFor<ViewIndirection, Position>);
 static_assert(slam::OrderedSetIndirectionPolicyFor<ViewIndirection, Position, double>);
+// The set and map indirection concepts agree on cv-qualification:
+// the policy's ElementType must match the container's element/data type exactly.
+static_assert(slam::OrderedSetIndirectionPolicyFor<ConstViewIndirection, Position, const double>);
+static_assert(!slam::OrderedSetIndirectionPolicyFor<ViewIndirection, Position, const double>);
+static_assert(!slam::OrderedSetIndirectionPolicyFor<ConstViewIndirection, Position, double>);
 static_assert(slam::MapIndirectionPolicyFor<ViewIndirection, Position, double>);
 static_assert(slam::MapIndirectionPolicyFor<ConstViewIndirection, Position, const double>);
 static_assert(!slam::MapIndirectionPolicyFor<ViewIndirection, Position, const double>);

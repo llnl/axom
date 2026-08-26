@@ -418,7 +418,7 @@ template <typename T, typename Position, typename Element>
 concept OrderedSetIndirectionPolicyFor = IndirectionPolicyFor<T, Position> &&
   PositionLike<Position> && detail::HasTypedIndirectionAssociatedTypes<T> &&
   std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
-  std::same_as<typename detail::model_t<T>::ElementType, detail::model_t<Element>> &&
+  std::same_as<typename detail::model_t<T>::ElementType, std::remove_reference_t<Element>> &&
   std::same_as<std::remove_cvref_t<typename detail::model_t<T>::IndirectionResult>,
                detail::model_t<Element>> &&
   std::same_as<std::remove_cvref_t<typename detail::model_t<T>::ConstIndirectionResult>,
