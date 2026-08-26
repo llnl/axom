@@ -25,7 +25,7 @@ namespace sina
 //
 // NOTE: Since this isn't in an unnamed namespace, we need a forward
 // declaration to satisfy strict compiler warnings.
-bool operator==(Curve const &lhs, Curve const &rhs);
+bool operator==(Curve const& lhs, Curve const& rhs);
 
 /**
  * Compare two curves for equality. All fields must be equal, including the
@@ -36,7 +36,7 @@ bool operator==(Curve const &lhs, Curve const &rhs);
  * @param rhs the right-hand-side operand
  * @return whether the curves are equal
  */
-bool operator==(Curve const &lhs, Curve const &rhs)
+bool operator==(Curve const& lhs, Curve const& rhs)
 {
   bool r = lhs.getName() == rhs.getName() && lhs.getUnits() == rhs.getUnits() &&
     lhs.getTags() == rhs.getTags() && lhs.getValues() == rhs.getValues();

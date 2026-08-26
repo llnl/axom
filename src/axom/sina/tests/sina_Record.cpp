@@ -60,7 +60,7 @@ TEST(Record, create_typeMissing)
     Record record {originalNode};
     FAIL() << "Should have failed due to missing type";
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_TYPE_KEY));
   }
@@ -83,7 +83,7 @@ TEST(Record, add_curve_set_existing_key)
   cs1.addDependentCurve(Curve {"original", {1, 2, 3}});
   record.add(cs1);
 
-  auto &csAfterFirstInsert = record.getCurveSets();
+  auto& csAfterFirstInsert = record.getCurveSets();
   ASSERT_THAT(csAfterFirstInsert, Contains(Key("cs1")));
   EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(), Contains(Key("original")));
 
@@ -91,7 +91,7 @@ TEST(Record, add_curve_set_existing_key)
   cs2.addDependentCurve(Curve {"new", {1, 2, 3}});
   record.add(cs2);
 
-  auto &csAfterSecondInsert = record.getCurveSets();
+  auto& csAfterSecondInsert = record.getCurveSets();
   ASSERT_THAT(csAfterSecondInsert, Contains(Key("cs1")));
   EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Not(Contains(Key("original"))));
   EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Contains(Key("new")));
@@ -135,9 +135,9 @@ TEST(Record, add_child_record_as_library_data)
   Record parentRecord {ID {"parent id", IDType::Local}, "test_record_parent"};
   Record childRecord {ID {"child id", IDType::Local}, "test_record_child"};
   parentRecord.addRecordAsLibraryData(childRecord, "child");
-  auto &parentLibData = parentRecord.getLibraryData();
+  auto& parentLibData = parentRecord.getLibraryData();
   ASSERT_THAT(parentLibData, Contains(Key("child")));
-  auto &childLibContents = parentLibData.at("child")->getData();
+  auto& childLibContents = parentLibData.at("child")->getData();
   ASSERT_THAT(childLibContents, Contains(Key(LIBRARY_DATA_ID_DATUM)));
   EXPECT_EQ("child id", childLibContents.at(LIBRARY_DATA_ID_DATUM).getValue());
   ASSERT_THAT(childLibContents, Contains(Key(LIBRARY_DATA_TYPE_DATUM)));
@@ -150,7 +150,7 @@ TEST(Record, add_child_record_as_library_data_with_data)
   Record childRecord {ID {"child id", IDType::Local}, "test_record_child"};
   childRecord.add("key1", Datum {"val1"});
   parentRecord.addRecordAsLibraryData(childRecord, "child");
-  auto &childLibContents = parentRecord.getLibraryData().at("child")->getData();
+  auto& childLibContents = parentRecord.getLibraryData().at("child")->getData();
   ASSERT_THAT(childLibContents, Contains(Key("key1")));
   EXPECT_EQ("val1", childLibContents.at("key1").getValue());
 }
@@ -274,7 +274,7 @@ TEST(Record, create_globalId_withContent)
   originalNode[EXPECTED_LIBRARY_DATA_KEY][libName] = libNode;
 
   Record record {originalNode};
-  auto &data = record.getData();
+  auto& data = record.getData();
   ASSERT_EQ(2u, data.size());
   EXPECT_EQ("value 1", data.at(name1).getValue());
   EXPECT_THAT(2.22, DoubleEq(data.at(name2).getScalar()));
@@ -282,7 +282,7 @@ TEST(Record, create_globalId_withContent)
   EXPECT_EQ("tag1", data.at(name2).getTags()[0]);
   EXPECT_EQ("tag2", data.at(name2).getTags()[1]);
 
-  auto &libdata = record.getLibraryData();
+  auto& libdata = record.getLibraryData();
   EXPECT_THAT(libdata, Contains(Key(libName)));
   EXPECT_EQ("value 3", libdata.at(libName)->getData().at(name3).getValue());
 }
@@ -301,7 +301,7 @@ TEST(Record, create_globalId_files)
   originalNode[EXPECTED_FILES_KEY].add_child(uri2);
   originalNode[EXPECTED_FILES_KEY].add_child(uri3);
   Record record {originalNode};
-  auto &files = record.getFiles();
+  auto& files = record.getFiles();
   ASSERT_EQ(3u, files.size());
   EXPECT_EQ(1, files.count(File {uri1}));
   EXPECT_EQ(1, files.count(File {uri2}));
@@ -325,7 +325,7 @@ TEST(Record, create_fromNode_curveSets)
         }
     })");
   Record record {recordAsNode};
-  auto &curveSets = record.getCurveSets();
+  auto& curveSets = record.getCurveSets();
   ASSERT_THAT(curveSets, Contains(Key("cs1")));
 }
 
@@ -340,7 +340,7 @@ TEST(Record, create_fromNode_userDefined)
   originalNode[EXPECTED_USER_DEFINED_KEY]["k3"] = k3_vals;
 
   Record record {originalNode};
-  auto const &userDefined = record.getUserDefinedContent();
+  auto const& userDefined = record.getUserDefinedContent();
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
@@ -353,7 +353,7 @@ TEST(Record, getUserDefined_initialConst)
 {
   ID id {"the id", IDType::Local};
   Record const record {id, "my type"};
-  conduit::Node const &userDefined = record.getUserDefinedContent();
+  conduit::Node const& userDefined = record.getUserDefinedContent();
   EXPECT_TRUE(userDefined.dtype().is_empty());
 }
 
@@ -361,7 +361,7 @@ TEST(Record, getUserDefined_initialNonConst)
 {
   ID id {"the id", IDType::Local};
   Record record {id, "my type"};
-  conduit::Node &initialUserDefined = record.getUserDefinedContent();
+  conduit::Node& initialUserDefined = record.getUserDefinedContent();
   EXPECT_TRUE(initialUserDefined.dtype().is_empty());
   initialUserDefined["foo"] = 123;
   EXPECT_EQ(123, record.getUserDefinedContent()["foo"].as_int());
@@ -473,7 +473,7 @@ TEST(Record, toNode_files)
   record.add(File {uri2});
   auto asNode = record.toNode();
   ASSERT_EQ(2u, asNode[EXPECTED_FILES_KEY].number_of_children());
-  auto &child_with_slashes = asNode[EXPECTED_FILES_KEY].child(uri1);
+  auto& child_with_slashes = asNode[EXPECTED_FILES_KEY].child(uri1);
   EXPECT_EQ("mt1", child_with_slashes["mimetype"].as_string());
   EXPECT_TRUE(asNode[EXPECTED_FILES_KEY][uri2]["mimetype"].dtype().is_empty());
 }
@@ -656,7 +656,7 @@ TEST(RecordLoader, load_missingLoader)
   EXPECT_NE(loaded.get(), nullptr);
   if(loaded)
   {
-    auto &loadedRef = *loaded;
+    auto& loadedRef = *loaded;
     EXPECT_EQ(typeid(Record), typeid(loadedRef)) << "Type was " << typeid(loadedRef).name();
   }
 }
@@ -667,12 +667,12 @@ TEST(RecordLoader, load_loaderPresent)
   EXPECT_FALSE(loader.canLoad("TestInt"));
   EXPECT_FALSE(loader.canLoad("TestString"));
 
-  loader.addTypeLoader("TestInt", [](conduit::Node const &value) {
+  loader.addTypeLoader("TestInt", [](conduit::Node const& value) {
     return std::make_unique<TestRecord<int>>(value);
   });
   EXPECT_TRUE(loader.canLoad("TestInt"));
 
-  loader.addTypeLoader("TestString", [](conduit::Node const &value) {
+  loader.addTypeLoader("TestString", [](conduit::Node const& value) {
     return std::make_unique<TestRecord<std::string>>(value);
   });
   EXPECT_TRUE(loader.canLoad("TestString"));
@@ -682,7 +682,7 @@ TEST(RecordLoader, load_loaderPresent)
   asNode[EXPECTED_TYPE_KEY] = "TestString";
   asNode[TEST_RECORD_VALUE_KEY] = "The value";
   auto loaded = loader.load(asNode);
-  auto testObjPointer = dynamic_cast<TestRecord<std::string> *>(loaded.get());
+  auto testObjPointer = dynamic_cast<TestRecord<std::string>*>(loaded.get());
   ASSERT_NE(nullptr, testObjPointer);
   EXPECT_EQ("The value", testObjPointer->getValue());
   EXPECT_EQ("TestString", testObjPointer->getType());

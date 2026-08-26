@@ -17,7 +17,7 @@ namespace klee
 {
 void ShapeSet::setShapes(std::vector<Shape> shapes) { m_shapes = std::move(shapes); }
 
-void ShapeSet::setPath(const std::string &path) { m_path = path; }
+void ShapeSet::setPath(const std::string& path) { m_path = path; }
 
 void ShapeSet::setDimensions(Dimensions dimensions)
 {

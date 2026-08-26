@@ -59,7 +59,7 @@ TEST(Run, create_fromNode_missingApplication)
     axom::sina::Run run {originNode};
     FAIL() << "Application should be missing, but is " << run.getApplication();
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_APPLICATION_KEY));
   }
@@ -92,7 +92,7 @@ TEST(Run, addRunLoader)
   addRunLoader(loader);
 
   auto record = loader.load(originNode);
-  auto run = dynamic_cast<axom::sina::Run *>(record.get());
+  auto run = dynamic_cast<axom::sina::Run*>(record.get());
   ASSERT_NE(nullptr, run);
   EXPECT_EQ("run", run->getType());
   EXPECT_EQ("the id", run->getId().getId());

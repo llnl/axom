@@ -28,18 +28,18 @@
 #endif
 
 //------------------------------------------------------------------------------
-std::string pjoin(const std::string &str) { return str; }
+std::string pjoin(const std::string& str) { return str; }
 
-std::string pjoin(const char *str) { return std::string(str); }
+std::string pjoin(const char* str) { return std::string(str); }
 
 template <typename... Args>
-std::string pjoin(const std::string &str, Args... args)
+std::string pjoin(const std::string& str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(str, pjoin(args...));
 }
 
 template <typename... Args>
-std::string pjoin(const char *str, Args... args)
+std::string pjoin(const char* str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
@@ -179,7 +179,7 @@ void check_mfem_mesh_evaluation()
   // Get bounding box of the shape
   // Extract the curves and compute their bounding boxes along the way
   axom::primal::BoundingBox<double, 2> shape_bbox;
-  for(const auto &cur : curves)
+  for(const auto& cur : curves)
   {
     shape_bbox.addBox(cur.boundingBox());
   }
@@ -239,13 +239,13 @@ void check_mfem_mesh_evaluation()
   gwn_polyline_fast.query(dc[5], tol);
 
   // Compare the in-out values between all fields
-  const auto *query_mesh = dc[0].GetMesh();
+  const auto* query_mesh = dc[0].GetMesh();
   const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
 
-  auto &inout_direct = *dc[0].GetField("inout");
+  auto& inout_direct = *dc[0].GetField("inout");
   for(int N = 1; N < num_queries; ++N)
   {
-    auto &inout_other = *dc[N].GetField("inout");
+    auto& inout_other = *dc[N].GetField("inout");
 
     for(int i = 0; i < num_query_points; ++i)
     {
@@ -339,13 +339,13 @@ void check_step_file_evaluation()
   gwn_triangles_fast.query(dc[3], tol);
 
   // Compare the in-out values between all fields
-  const auto *query_mesh = dc[0].GetMesh();
+  const auto* query_mesh = dc[0].GetMesh();
   const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
 
-  auto &inout_direct = *dc[0].GetField("inout");
+  auto& inout_direct = *dc[0].GetField("inout");
   for(int N = 1; N < num_queries; ++N)
   {
-    auto &inout_other = *dc[N].GetField("inout");
+    auto& inout_other = *dc[N].GetField("inout");
 
     for(int i = 0; i < num_query_points; ++i)
     {
@@ -371,7 +371,7 @@ TEST(quest_gwn_methods, step_file_evaluation_omp) { check_step_file_evaluation<a
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
 

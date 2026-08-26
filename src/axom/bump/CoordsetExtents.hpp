@@ -43,8 +43,8 @@ struct ComputeCoordsetExtents
     axom::for_all<ExecSpace>(
       CoordsetView::dimension(),
       AXOM_LAMBDA(axom::IndexType dim) {
-        double &minValue = extentsView[2 * dim];
-        double &maxValue = extentsView[2 * dim + 1];
+        double& minValue = extentsView[2 * dim];
+        double& maxValue = extentsView[2 * dim + 1];
         minValue = axom::numeric_limits<double>::max();
         maxValue = -axom::numeric_limits<double>::max();
       });
@@ -55,8 +55,8 @@ struct ComputeCoordsetExtents
         const auto pt = coordsetView[index];
         for(int d = 0; d < CoordsetView::dimension(); d++)
         {
-          double *minValue = extentsView.data() + 2 * d;
-          double *maxValue = minValue + 1;
+          double* minValue = extentsView.data() + 2 * d;
+          double* maxValue = minValue + 1;
           const auto value = static_cast<double>(pt[d]);
           axom::atomicMin<ExecSpace>(minValue, value);
           axom::atomicMax<ExecSpace>(maxValue, value);
@@ -150,7 +150,7 @@ public:
    *
    * \param coordsetView The coordset view that wraps the coordset to be examined.
    */
-  CoordsetExtents(const CoordsetView &coordsetView)
+  CoordsetExtents(const CoordsetView& coordsetView)
     : m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }

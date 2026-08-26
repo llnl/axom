@@ -77,23 +77,23 @@ struct execution_name<hip_exec>
 #endif
 
 //------------------------------------------------------------------------------
-std::string pjoin(const std::string &str) { return str; }
+std::string pjoin(const std::string& str) { return str; }
 
-std::string pjoin(const char *str) { return std::string(str); }
+std::string pjoin(const char* str) { return std::string(str); }
 
 template <typename... Args>
-std::string pjoin(const std::string &str, Args... args)
+std::string pjoin(const std::string& str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(str, pjoin(args...));
 }
 
 template <typename... Args>
-std::string pjoin(const char *str, Args... args)
+std::string pjoin(const char* str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
 
-void psplit(const std::string &filepath, std::string &path, std::string &filename)
+void psplit(const std::string& filepath, std::string& path, std::string& filename)
 {
   axom::Path p(filepath);
   path = p.dirName();
@@ -102,11 +102,11 @@ void psplit(const std::string &filepath, std::string &path, std::string &filenam
 
 std::string dataDirectory() { return AXOM_DATA_DIR; }
 
-std::string testData(const std::string &filename) { return pjoin(dataDirectory(), filename); }
+std::string testData(const std::string& filename) { return pjoin(dataDirectory(), filename); }
 
 std::string baselineDirectory();
 
-std::string yamlRoot(const std::string &filepath)
+std::string yamlRoot(const std::string& filepath)
 {
   std::string retval, path, filename;
   psplit(filepath, path, filename);
@@ -122,7 +122,7 @@ std::string yamlRoot(const std::string &filepath)
   return retval;
 }
 
-void printNode(const conduit::Node &n)
+void printNode(const conduit::Node& n)
 {
   conduit::Node options;
   options["num_children_threshold"] = 10000;
@@ -157,11 +157,11 @@ struct compareValue<double>
 };
 
 template <typename T>
-bool compareArray(const conduit::Node &n1,
-                  const conduit::Node &AXOM_UNUSED_PARAM(n2),
-                  const conduit::DataAccessor<T> &a1,
-                  const conduit::DataAccessor<T> &a2,
-                  conduit::Node &info,
+bool compareArray(const conduit::Node& n1,
+                  const conduit::Node& AXOM_UNUSED_PARAM(n2),
+                  const conduit::DataAccessor<T>& a1,
+                  const conduit::DataAccessor<T>& a2,
+                  conduit::Node& info,
                   T tolerance = T {0})
 {
   bool same = true;
@@ -207,11 +207,11 @@ bool compareArray(const conduit::Node &n1,
 }
 
 template <typename T>
-bool compareScalar(const conduit::Node &n1,
-                   const conduit::Node &AXOM_UNUSED_PARAM(n2),
-                   const T &v1,
-                   const T &v2,
-                   conduit::Node &info,
+bool compareScalar(const conduit::Node& n1,
+                   const conduit::Node& AXOM_UNUSED_PARAM(n2),
+                   const T& v1,
+                   const T& v2,
+                   conduit::Node& info,
                    T tolerance = T {})
 {
   bool same = compareValue<T>::compare(v1, v2, tolerance);
@@ -222,7 +222,7 @@ bool compareScalar(const conduit::Node &n1,
   return same;
 }
 
-bool compareNode(const conduit::Node &n1, const conduit::Node &n2, double tolerance, conduit::Node &info)
+bool compareNode(const conduit::Node& n1, const conduit::Node& n2, double tolerance, conduit::Node& info)
 {
   bool same = false;
   // String
@@ -380,10 +380,10 @@ bool compareNode(const conduit::Node &n1, const conduit::Node &n2, double tolera
   return same;
 }
 
-bool compareConduit(const conduit::Node &n1,
-                    const conduit::Node &n2,
+bool compareConduit(const conduit::Node& n1,
+                    const conduit::Node& n2,
                     double tolerance,
-                    conduit::Node &info)
+                    conduit::Node& info)
 {
   bool same = true;
   // See if n1, n2 are objects - but not both.
@@ -403,8 +403,8 @@ bool compareConduit(const conduit::Node &n1,
     // Both are objects. Recurse.
     for(int i = 0; i < n1.number_of_children(); i++)
     {
-      const auto &n1c = n1.child(i);
-      const auto &n2c = n2.fetch_existing(n1c.name());
+      const auto& n1c = n1.child(i);
+      const auto& n2c = n2.fetch_existing(n1c.name());
       same &= compareConduit(n1c, n2c, tolerance, info);
     }
   }
@@ -416,7 +416,7 @@ bool compareConduit(const conduit::Node &n1,
   return same;
 }
 
-void saveBaseline(const std::string &filename, const conduit::Node &n)
+void saveBaseline(const std::string& filename, const conduit::Node& n)
 {
   std::string file_with_ext(filename + ".yaml");
   try
@@ -439,11 +439,11 @@ void saveBaseline(const std::string &filename, const conduit::Node &n)
   }
 }
 
-void saveBaseline(const std::vector<std::string> &baselinePaths,
-                  const std::string &baselineName,
-                  const conduit::Node &n)
+void saveBaseline(const std::vector<std::string>& baselinePaths,
+                  const std::string& baselineName,
+                  const conduit::Node& n)
 {
-  for(const auto &path : baselinePaths)
+  for(const auto& path : baselinePaths)
   {
     axom::utilities::filesystem::makeDirsForPath(path);
     std::string filename(pjoin(path, baselineName));
@@ -462,7 +462,7 @@ void saveBaseline(const std::vector<std::string> &baselinePaths,
  *
  * \return True on success; False otherwise.
  */
-bool convert_yaml_json(const std::string &yaml_filename, const std::string &json_filename)
+bool convert_yaml_json(const std::string& yaml_filename, const std::string& json_filename)
 {
   const std::string script_path = "convert_yaml_json.py";
 
@@ -526,7 +526,7 @@ if __name__ == "__main__":
 }
 #endif
 
-bool loadBaseline(const std::string &filename, const std::string &protocol, conduit::Node &n)
+bool loadBaseline(const std::string& filename, const std::string& protocol, conduit::Node& n)
 {
   bool loaded = false;
   std::string file_with_ext(filename + "." + protocol);
@@ -542,7 +542,7 @@ bool loadBaseline(const std::string &filename, const std::string &protocol, cond
         conduit::relay::io::load(file_with_ext, protocol, n);
         loaded = true;
       }
-      catch(conduit::Error &e)
+      catch(conduit::Error& e)
       {
         if(attempt == MAX_ATTEMPTS - 1)
         {
@@ -573,7 +573,7 @@ bool loadBaseline(const std::string &filename, const std::string &protocol, cond
   return loaded;
 }
 
-bool loadBaseline(const std::string &filename, conduit::Node &n)
+bool loadBaseline(const std::string& filename, conduit::Node& n)
 {
   bool loaded = false;
 #if defined(_WIN32)
@@ -583,7 +583,7 @@ bool loadBaseline(const std::string &filename, conduit::Node &n)
   {
     loaded = loadBaseline(filename, "yaml", n);
   }
-  catch(conduit::Error &e)
+  catch(conduit::Error& e)
   {
     SLIC_INFO(axom::fmt::format("Could not load {}! {}", filename, e.message()));
   }
@@ -623,15 +623,15 @@ std::vector<std::string> baselinePaths()
   return paths;
 }
 
-bool compareBaseline(const std::vector<std::string> &baselinePaths,
-                     const std::string &baselineName,
-                     const conduit::Node &current,
-                     conduit::Node &info,
+bool compareBaseline(const std::vector<std::string>& baselinePaths,
+                     const std::string& baselineName,
+                     const conduit::Node& current,
+                     conduit::Node& info,
                      double tolerance = 1.5e-6)
 {
   bool success = false;
   int count = 0;
-  for(const auto &path : baselinePaths)
+  for(const auto& path : baselinePaths)
   {
     try
     {
@@ -656,7 +656,7 @@ bool compareBaseline(const std::vector<std::string> &baselinePaths,
         break;
       }
     }
-    catch(conduit::Error &e)
+    catch(conduit::Error& e)
     {
       SLIC_INFO(axom::fmt::format("Could not load {} from {}! {}", baselineName, path, e.message()));
     }
@@ -674,7 +674,7 @@ bool compareBaseline(const std::vector<std::string> &baselinePaths,
 
 //------------------------------------------------------------------------------
 template <typename Container1, typename Container2>
-bool compare_views(const Container1 &a, const Container2 &b)
+bool compare_views(const Container1& a, const Container2& b)
 {
   bool eq = a.size() == b.size();
   for(axom::IndexType i = 0; i < a.size() && eq; i++)
@@ -727,7 +727,7 @@ public:
   /*!
    * \brief Parse the command line and run the tests.
    */
-  int execute(int argc, char *argv[])
+  int execute(int argc, char* argv[])
   {
     int result = 0;
 
@@ -768,12 +768,12 @@ public:
       // Run all the tests.
       result = RUN_ALL_TESTS();
     }
-    catch(axom::CLI::CallForHelp &e)
+    catch(axom::CLI::CallForHelp& e)
     {
       std::cout << m_app.help() << std::endl;
       result = 0;
     }
-    catch(axom::CLI::ParseError &e)
+    catch(axom::CLI::ParseError& e)
     {
       // Handle other parsing errors
       std::cerr << e.what() << std::endl;
@@ -788,7 +788,7 @@ public:
    * \param name The root filename to use.
    * \param hostMesh A Blueprint mesh.
    */
-  void saveVisualization(const std::string &name, const conduit::Node &hostMesh)
+  void saveVisualization(const std::string& name, const conduit::Node& hostMesh)
   {
     if(m_visualize)
     {
@@ -810,7 +810,7 @@ public:
    * \return true on success; false if the test did not pass.
    */
   template <typename ExecSpace = axom::SEQ_EXEC>
-  bool test(const std::string &name, const conduit::Node &currentMesh, double tolerance = 2.6e-6)
+  bool test(const std::string& name, const conduit::Node& currentMesh, double tolerance = 2.6e-6)
   {
     AXOM_ANNOTATE_SCOPE("test");
     bool retval = true;
@@ -865,7 +865,7 @@ protected:
    *
    * \return true if the test should be rebaselined; false otherwise.
    */
-  bool rebaseline(const std::string &name)
+  bool rebaseline(const std::string& name)
   {
     bool retval = false;
     if(m_rebaseline.size() == 1 && m_rebaseline[0] == "none")
@@ -887,7 +887,7 @@ protected:
   }
 
   /// Conduit error handler that blocks (helpful for getting a stack in a debugger)
-  static void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
+  static void conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
   {
     std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
     // This is on purpose.

@@ -38,7 +38,7 @@ struct MinMax
    *
    * \return A pair containing the min,max values in the node.
    */
-  static std::pair<ReturnType, ReturnType> execute(const conduit::Node &n)
+  static std::pair<ReturnType, ReturnType> execute(const conduit::Node& n)
   {
     SLIC_ASSERT(n.dtype().number_of_elements() > 0);
     std::pair<ReturnType, ReturnType> retval;

@@ -33,7 +33,7 @@ public:
    * \param[inout] n_coordset The coordset to convert.
    * \param allocator_id The allocator id to use when allocating new coordinate memory.
    */
-  static void execute(conduit::Node &n_coordset,
+  static void execute(conduit::Node& n_coordset,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     const std::string cstype = n_coordset["type"].as_string();
@@ -76,19 +76,19 @@ private:
    * \param allocator_id The allocator id to use when allocating new coordinate memory.
    */
   template <typename CoordsetView>
-  static void convert(CoordsetView coordsetView, conduit::Node &n_dest_coordset, int allocator_id)
+  static void convert(CoordsetView coordsetView, conduit::Node& n_dest_coordset, int allocator_id)
   {
     const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
 
     // Make new coordinate arrays
-    const char *names[] = {"x", "y", "z"};
+    const char* names[] = {"x", "y", "z"};
     using value_type = typename CoordsetView::value_type;
     namespace utils = axom::bump::utilities;
     axom::ArrayView<value_type> comps[3];
-    conduit::Node &n_values = n_dest_coordset["values"];
+    conduit::Node& n_values = n_dest_coordset["values"];
     for(int c = 0; c < coordsetView.dimension(); c++)
     {
-      conduit::Node &n_comp = n_values[names[c]];
+      conduit::Node& n_comp = n_values[names[c]];
       n_comp.set_allocator(conduitAllocatorId);
       n_comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, coordsetView.size()));
       comps[c] = utils::make_array_view<value_type>(n_comp);

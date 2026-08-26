@@ -56,7 +56,7 @@ TEST(bump_views, shape2conduitName)
 
 //------------------------------------------------------------------------------
 template <typename ShapeType, typename VariableShapeType>
-void compareShapes(const ShapeType &shape1, const VariableShapeType &shape2)
+void compareShapes(const ShapeType& shape1, const VariableShapeType& shape2)
 {
   using ConnType = typename ShapeType::ConnectivityType;
 
@@ -436,7 +436,7 @@ struct test_structured_topology_view_rectilinear
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
         const auto zone = topoView.zone(zoneIndex);
         axom::IndexType m = -1;
-        for(const auto &id : zone.getIds())
+        for(const auto& id : zone.getIds())
         {
           m = axom::utilities::max(static_cast<axom::IndexType>(id), m);
         }
@@ -457,7 +457,7 @@ struct test_structured_topology_view_rectilinear
     }
   }
 
-  static void create(conduit::Node &mesh)
+  static void create(conduit::Node& mesh)
   {
     std::vector<int> dims {4, 4};
     axom::blueprint::testing::data::braid("rectilinear", dims, mesh);
@@ -499,7 +499,7 @@ struct test_strided_structured
     axom::bump::views::dispatch_explicit_coordset(hostMesh["coordsets/coords"], [&](auto coordsetView) {
       axom::bump::views::dispatch_structured_topology<axom::bump::views::select_dimensions(2)>(
         hostMesh["topologies/mesh"],
-        [&](const std::string &AXOM_UNUSED_PARAM(shape), auto topoView) {
+        [&](const std::string& AXOM_UNUSED_PARAM(shape), auto topoView) {
           execute(coordsetView, topoView);
         });
     });
@@ -589,7 +589,7 @@ struct test_braid2d_mat
   struct NoMixedFields
   { };
 
-  static void test(const std::string &type, const std::string &mattype, const std::string &name)
+  static void test(const std::string& type, const std::string& mattype, const std::string& name)
   {
     namespace utils = axom::bump::utilities;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -915,7 +915,7 @@ TEST(bump_views, matset_material_dominant_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);
