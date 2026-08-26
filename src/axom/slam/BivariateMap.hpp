@@ -695,6 +695,8 @@ public:
 
   // The underlying MapRangeIterator returns its cached view
   // by-reference from dereference and by-value from subscript.
+  // \warning Inherits MapRangeIterator's multipass and dangling caveats;
+  //  see the warning on Map::MapRangeIterator.
   using iterator_concept = std::bidirectional_iterator_tag;
   using iterator_category = std::bidirectional_iterator_tag;
   using value_type = typename MapIterator::value_type;

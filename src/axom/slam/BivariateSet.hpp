@@ -74,6 +74,18 @@ struct BivariateSetIterator;
  *   `[idx = 2] = c`\n
  *   `[idx = 3] = d`\n
  *
+ * \note Positions and elements live in different spaces here:
+ *       \a PositionType indexes the flattened bivariate set
+ *       while \a ElementType is the ordered pair of positions in the two sets.
+ *       So `at(flatIndex)` returns a `std::pair(firstPosition, secondPosition)`,
+ *       rather than a value from either of the sets.
+ *       To recover an element, project each half through its set: `firstSet[coord.first]`.
+ *
+ * \note The three position types are independent.
+ *       \a FirstPositionType and \a SecondPositionType come from each of the sets,
+ *       while the flat \a PositionType defaults to a type able to represent both.
+ *       A set pair with 32-bit zones and 64-bit nodes therefore keeps each position at its
+ *       own width while flattening into the wider one.
  */
 
 template <typename Set1 = slam::Set<>,

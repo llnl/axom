@@ -422,6 +422,8 @@ private:
 public:
   // Dereference returns a reference to a cached ArrayView,
   // while subscript returns a value to avoid dangling from a temporary iterator.
+  // \warning Inherits MapRangeIterator's multipass and dangling caveats;
+  //  see the warning on Map::MapRangeIterator.
   using iterator_concept = std::bidirectional_iterator_tag;
   using iterator_category = std::bidirectional_iterator_tag;
   using value_type = typename MapRangeIterator::value_type;

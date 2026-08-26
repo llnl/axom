@@ -553,6 +553,14 @@ public:
 
     // Dereference returns a reference to a cached ArrayView, while subscript
     // returns a value to avoid dangling from a temporary iterator.
+    //
+    // \warning Two consequences of that cached reference:
+    //  (1) `*it` binds to a member of `it`, so equal iterators yield references to different objects.
+    //      That satisfies std::bidirectional_iterator syntactically but violates the multipass guarantee in
+    //      [forward.iterators]/6, which algorithms are entitled to rely on.
+    //  (2) `const auto& v = *map.set_begin();` dangles, because the iterator temporary owns the referent;
+    //      bind by value, or keep the iterator alive.
+    //  Returning `value_type` by value from `operator*` would fix both and restore random access, at the cost of `operator->`.
     using iterator_concept = std::bidirectional_iterator_tag;
     using iterator_category = std::bidirectional_iterator_tag;
     using value_type = axom::ArrayView<DataType, Dims>;
