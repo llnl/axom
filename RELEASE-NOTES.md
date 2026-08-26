@@ -95,6 +95,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   (a `slam::Map` with the default `axom::Array` indirection) rather than `std::vector`.
   Code that previously registered `std::vector`-backed buffers should use
   `FieldRegistry::MapType`, `FieldRegistry::BufferType`, `auto`, or `buffer.view()`, as appropriate.
+- Quest: The communicator-taking overloads of `quest::inout_init()`, `quest::signed_distance_init()` and the
+  internal `quest::internal::read_*_mesh()`/`logger_init()` helpers are now declared only when Axom is
+  configured with MPI. Serial code that passed the placeholder `MPI_COMM_SELF` explicitly should drop the argument.
+- We can now configure Axom without MPI when some of its dependencies were configured with MPI.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
@@ -120,6 +124,7 @@ and marked the templated `axom::sidre::View::getAttributeScalar<T>()` overloads 
 so they can be called on a `const View`. Also added  `const` overloads for `axom::sidre::Buffer::getData()`
 and `axom::sidre::Buffer::getVoidPtr()` so they can be called on a `const Buffer`.
 - Quest: Fixes `InOutOctree::within()` for query points that lie on (or very near) the surface, in both 2D (segment meshes) and 3D (triangle meshes).
+- Core: Adds missing subscript operator to ArrayIteratorBase to satisfy random access contract.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
