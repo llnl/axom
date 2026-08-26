@@ -26,8 +26,9 @@ Requirements, Dependencies, and Supported Compilers
 Basic requirements:
 ~~~~~~~~~~~~~~~~~~~
 
-  * C++ compiler with C++17 support at a minimum
-  * CMake with a minimum required version of 3.14 for CPU-only and CUDA builds,
+  * C++ compiler with C++20 support at a minimum
+  * CMake with a minimum required version of 3.14 for CPU-only builds,
+    a minimum version of 3.18 when building with CUDA support,
     and a minimum version of 3.21 when building with HIP support
   * Fortran Compiler (optional)
   * Python 3.8 at a minimum for python bindings (optional)
@@ -240,10 +241,11 @@ For more information, see `BLT host-config documentation <https://llnl-blt.readt
 C++20 and CUDA
 ~~~~~~~~~~~~~~~
 
-C++20 support in Axom is enabled by setting the ``BLT_CXX_STD`` variable in a
-host-config file to ``c++20``. If you get a configuration error indicating that
+Axom requires ``C++20``, and CUDA sources are compiled against the same standard.
+CMake first supported ``CUDA_STANDARD 20`` for an actual compiler in version 3.18,
+so CUDA-enabled builds require CMake 3.18 or newer. Axom's build system checks this
+and emits a fatal error otherwise. If you get a configuration error indicating that
 CUDA does not support C++20, the solution is to use a more recent CMake version.
-Consult CMake's release notes to find a version that supports C++20 and CUDA.
 
 Python helper script
 ~~~~~~~~~~~~~~~~~~~~
@@ -455,8 +457,8 @@ options to be provided, which are summarized in the following table.
 +------------------------------+------------------------------------------+
 
 .. note :: To configure the version of the C++ standard, you can supply one of the
-           following values for **BLT_CXX_STD**:  'c++17' or 'c++20'.
-           Axom requires at least 'c++17', the  default value.
+           following values for **BLT_CXX_STD**:  'c++20' or newer.
+           Axom requires at least 'c++20', the default value.
 
 
 Tools and features primarily intended for developers
