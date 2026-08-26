@@ -388,7 +388,18 @@ static_assert(!HasMemberArrow<RangeConstIter>);
 static_assert(std::same_as<typename std::iterator_traits<RangeIter>::pointer, void>);
 static_assert(std::same_as<typename std::iterator_traits<RangeConstIter>::pointer, void>);
 
+// Borrowed-range coverage follows the storage property rather than a specific type alias:
+// any no-indirection, non-subsetted range set qualifies, regardless of its offset policy.
+// PositionSet differs from RangeSet only in using ZeroOffset.
+using PositionSetType = slam::PositionSet<SetPos, SetElem>;
+static_assert(std::ranges::borrowed_range<PositionSetType>);
+static_assert(std::ranges::borrowed_range<const PositionSetType>);
+
 using ArrayViewSet = slam::ArrayViewIndirectionSet<SetPos, SetElem>;
+// The negative control for the above: an indirection-backed set's iterator
+// dereferences through a buffer the iterator does not own.
+static_assert(!std::ranges::borrowed_range<ArrayViewSet>,
+              "an indirection-backed set is not a borrowed range");
 static_assert(HasMemberArrow<typename ArrayViewSet::iterator>);
 static_assert(HasMemberArrow<typename ArrayViewSet::const_iterator>);
 static_assert(
