@@ -216,10 +216,11 @@ public:
   AXOM_SUPPRESS_HD_WARN
   AXOM_HOST_DEVICE SecondPositionType flatToSecondIndex(PositionType flatIndex) const
   {
-    if(flatIndex < 0 || flatIndex >= size())
-    {
-      SLIC_ASSERT("Flat index out of bounds of the relation set.");
-    }
+#ifndef AXOM_DEVICE_CODE
+    SLIC_ASSERT_MSG(flatIndex >= 0 && flatIndex < size(),
+                    "SLAM::RelationSet -- requested out-of-range flat index "
+                      << flatIndex << "; set has " << size() << " elements.");
+#endif
     return m_relation->relationData()[flatIndex];
   }
 
@@ -232,10 +233,11 @@ public:
    */
   AXOM_HOST_DEVICE FirstPositionType flatToFirstIndex(PositionType flatIndex) const
   {
-    if(flatIndex < 0 || flatIndex >= size())
-    {
-      SLIC_ASSERT("Flat index out of bounds of the relation set.");
-    }
+#ifndef AXOM_DEVICE_CODE
+    SLIC_ASSERT_MSG(flatIndex >= 0 && flatIndex < size(),
+                    "SLAM::RelationSet -- requested out-of-range flat index "
+                      << flatIndex << "; set has " << size() << " elements.");
+#endif
     return static_cast<FirstPositionType>(m_relation->firstIndex(flatIndex));
   }
 
