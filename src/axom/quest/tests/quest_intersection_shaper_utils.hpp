@@ -142,7 +142,8 @@ void saveVisIt(const std::string &path, const std::string &filename, sidre::MFEM
   vdc.SetFormat(mfem::DataCollection::SERIAL_FORMAT);
   for(auto it : dc.GetFieldMap())
   {
-    if(it.first.find("vol_frac_") != std::string::npos)
+    if(quest::shaping::isVolumeFractionFieldName(it.first) ||
+       quest::shaping::isShapeVolumeFractionFieldName(it.first))
     {
       vdc.RegisterField(it.first, it.second);
     }
@@ -160,7 +161,8 @@ void loadVisIt(mfem::VisItDataCollection &vdc, sidre::MFEMSidreDataCollection &d
   dc.SetMesh(vdc.GetMesh());
   for(auto it : vdc.GetFieldMap())
   {
-    if(it.first.find("vol_frac_") != std::string::npos)
+    if(quest::shaping::isVolumeFractionFieldName(it.first) ||
+       quest::shaping::isShapeVolumeFractionFieldName(it.first))
     {
       dc.RegisterField(it.first, it.second);
     }
@@ -172,8 +174,9 @@ void dcToConduit(sidre::MFEMSidreDataCollection &dc, conduit::Node &n)
 {
   for(auto it : dc.GetFieldMap())
   {
-    // Just compare vol_frac_ grid functions.
-    if(it.first.find("vol_frac_") != std::string::npos)
+    // Just compare material and per-shape volume-fraction grid functions.
+    if(quest::shaping::isVolumeFractionFieldName(it.first) ||
+       quest::shaping::isShapeVolumeFractionFieldName(it.first))
     {
       n[it.first].set(it.second->GetData(), it.second->Size());
     }

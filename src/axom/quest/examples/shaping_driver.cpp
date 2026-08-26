@@ -12,6 +12,9 @@
 // Axom includes
 #include "axom/config.hpp"
 #include "axom/core.hpp"
+#ifdef AXOM_USE_BUMP
+  #include "axom/bump.hpp"
+#endif
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
@@ -22,8 +25,8 @@
 #include "axom/CLI11.hpp"
 
 // NOTE: The shaping driver requires Axom to be configured with conduit or mfem.
-#if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
-  #error Shaping functionality requires Axom to be configured with Conduit or MFEM
+#if !defined(AXOM_USE_MFEM) && !(defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP))
+  #error Shaping functionality requires Axom to be configured with MFEM or Conduit+Bump
 #endif
 
 #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
@@ -34,7 +37,9 @@
   #endif
 #endif
 
-#include "mfem.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
+#endif
 
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
@@ -42,6 +47,7 @@
 
 // C/C++ includes
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 #include <memory>
@@ -60,6 +66,25 @@ namespace
 using Point2D = primal::Point<double, 2>;
 using Point3D = primal::Point<double, 3>;
 
+enum class InlineMeshKind : int
+{
+  None,
+  MFEM,
+  Blueprint
+};
+
+enum class BlueprintTopologyType : int
+{
+  Structured,
+  Unstructured
+};
+
+enum class BlueprintMeshBacking : int
+{
+  Sidre,
+  Conduit
+};
+
 struct AxisymmetricProjector32
 {
   AXOM_HOST_DEVICE Point2D operator()(Point3D pt) const
@@ -76,6 +101,14 @@ struct Projector23
   AXOM_HOST_DEVICE Point3D operator()(Point2D pt) const { return Point3D {pt[0], pt[1], 0.}; }
 };
 }  // namespace
+
+//------------------------------------------------------------------------------
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+void printSummaryBlueprint(axom::quest::SamplingShaper*);
+#endif
+#if defined(AXOM_USE_MFEM)
+void printSummaryMFEM(axom::quest::Shaper*);
+#endif
 
 //------------------------------------------------------------------------------
 
@@ -99,6 +132,9 @@ public:
   std::vector<double> boxMaxs;
   std::vector<int> boxResolution;
   int boxDim {-1};
+  InlineMeshKind inlineMeshKind {InlineMeshKind::None};
+  BlueprintTopologyType blueprintTopologyType {BlueprintTopologyType::Structured};
+  BlueprintMeshBacking blueprintMeshBacking {BlueprintMeshBacking::Sidre};
 
   std::string shapeFile;
   klee::ShapeSet shapeSet;
@@ -108,7 +144,7 @@ public:
   RuntimePolicy policy {RuntimePolicy::seq};
   std::vector<int> samplingResolution {5, 5, 5};
   // We set quadratureType to Invalid to select the default method.
-  int quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
+  axom::numerics::QuadratureType quadratureType {axom::numerics::QuadratureType::Invalid};
   int outputOrder {2};
   int samplesPerKnotSpan {25};
   int refinementLevel {7};
@@ -126,10 +162,13 @@ private:
 
 public:
   bool isVerbose() const { return m_verboseOutput; }
+  bool usesInlineMFEMMesh() const { return inlineMeshKind == InlineMeshKind::MFEM; }
+  bool usesInlineBlueprintMesh() const { return inlineMeshKind == InlineMeshKind::Blueprint; }
 
   bool dumpOctreeVtk() const { return m_dumpOctreeVtk; }
 
   /// Generate an mfem Cartesian mesh, scaled to the bounding box range
+#if defined(AXOM_USE_MFEM)
   mfem::Mesh* createBoxMesh()
   {
     mfem::Mesh* mesh = nullptr;
@@ -168,7 +207,7 @@ public:
     }
 
     // Handle conversion to parallel mfem mesh
-#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
     {
       int* partitioning = nullptr;
       int part_method = 0;
@@ -177,16 +216,97 @@ public:
       delete mesh;
       mesh = pmesh;
     }
-#endif
+  #endif
 
     return mesh;
   }
+#endif
 
+#if defined(AXOM_USE_CONDUIT)
+  /// Generate a Blueprint Cartesian mesh, scaled to the bounding box range
+  std::unique_ptr<sidre::DataStore> createBlueprintBoxMesh()
+  {
+    auto ds = std::make_unique<sidre::DataStore>();
+    auto* meshGrp = ds->getRoot()->createGroup("mesh");
+    meshGrp->setDefaultArrayAllocator(axom::policyToDefaultAllocatorID(policy));
+
+    switch(boxDim)
+    {
+    case 2:
+    {
+      using BBox2D = primal::BoundingBox<double, 2>;
+      using Pt2D = primal::Point<double, 2>;
+      auto res = axom::NumericArray<int, 2>(boxResolution.data());
+      auto bbox = BBox2D(Pt2D(boxMins.data()), Pt2D(boxMaxs.data()));
+
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Creating inline Blueprint box mesh of resolution {} and "
+                          "bounding box {}",
+                          res,
+                          bbox));
+
+      if(blueprintTopologyType == BlueprintTopologyType::Structured)
+      {
+        quest::util::make_structured_blueprint_box_mesh_2d(meshGrp, bbox, res, "mesh", "coords", policy);
+      }
+      else
+      {
+        quest::util::make_unstructured_blueprint_box_mesh_2d(meshGrp, bbox, res, "mesh", "coords", policy);
+      }
+    }
+    break;
+    case 3:
+    {
+      using BBox3D = primal::BoundingBox<double, 3>;
+      using Pt3D = primal::Point<double, 3>;
+      auto res = axom::NumericArray<int, 3>(boxResolution.data());
+      auto bbox = BBox3D(Pt3D(boxMins.data()), Pt3D(boxMaxs.data()));
+
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Creating inline Blueprint box mesh of resolution {} and "
+                          "bounding box {}",
+                          res,
+                          bbox));
+
+      if(blueprintTopologyType == BlueprintTopologyType::Structured)
+      {
+        quest::util::make_structured_blueprint_box_mesh_3d(meshGrp, bbox, res, "mesh", "coords", policy);
+      }
+      else
+      {
+        quest::util::make_unstructured_blueprint_box_mesh_3d(meshGrp, bbox, res, "mesh", "coords", policy);
+      }
+    }
+    break;
+    default:
+      SLIC_ERROR_ROOT("Only 2D and 3D meshes are currently supported.");
+      break;
+    }
+
+    return ds;
+  }
+#endif
+
+  int numberOfBoxMeshElements() const
+  {
+    switch(boxDim)
+    {
+    case 3:
+      return boxResolution[0] * boxResolution[1] * boxResolution[2];
+      break;
+    case 2:
+      return boxResolution[0] * boxResolution[1];
+      break;
+    }
+    return 0;
+  }
+
+#if defined(AXOM_USE_MFEM)
   std::unique_ptr<sidre::MFEMSidreDataCollection> loadComputationalMesh()
   {
     constexpr bool dc_owns_data = true;
-    mfem::Mesh* mesh = meshFile.empty() ? createBoxMesh() : nullptr;
-    std::string name = meshFile.empty() ? "mesh" : getDCMeshName();
+    mfem::Mesh* mesh = usesInlineMFEMMesh() ? createBoxMesh() : nullptr;
+    std::string name = usesInlineMFEMMesh() ? "mesh" : getDCMeshName();
 
     auto dc = std::unique_ptr<sidre::MFEMSidreDataCollection>(
       new sidre::MFEMSidreDataCollection(name, mesh, dc_owns_data));
@@ -199,6 +319,7 @@ public:
 
     return dc;
   }
+#endif
 
   std::string getDCMeshName() const
   {
@@ -267,15 +388,17 @@ public:
 
     // use either an input mesh file or a simple inline Cartesian mesh
     {
-      auto* mesh_file = app.add_option("-m,--mesh-file", meshFile)
-                          ->description(
-                            "Path to computational mesh. \n"
-                            "Alternatively, use the `inline_mesh` subcommand.")
-                          ->check(axom::CLI::ExistingFile);
+      auto* mesh_file =
+        app.add_option("-m,--mesh-file", meshFile)
+          ->description(
+            "Path to computational mesh. \n"
+            "Alternatively, use the `inline_mesh` or `inline_mesh_blueprint` subcommands.")
+          ->check(axom::CLI::ExistingFile);
 
       auto* inline_mesh_subcommand = app.add_subcommand("inline_mesh")
                                        ->description("Options for setting up a simple inline mesh")
                                        ->fallthrough();
+      inline_mesh_subcommand->callback([this]() { inlineMeshKind = InlineMeshKind::MFEM; });
 
       inline_mesh_subcommand->add_option("--min", boxMins)
         ->description("Min bounds for box mesh (x,y[,z])")
@@ -286,7 +409,7 @@ public:
         ->expected(2, 3)
         ->required();
 
-      inline_mesh_subcommand->add_option("--res, --resolution", boxResolution)
+      inline_mesh_subcommand->add_option("--res,--resolution", boxResolution)
         ->description("Resolution of the box mesh (i,j[,k])")
         ->expected(2, 3)
         ->required();
@@ -296,9 +419,57 @@ public:
                                 ->check(axom::CLI::PositiveNumber)
                                 ->required();
 
+#if defined(AXOM_USE_CONDUIT)
+      std::map<std::string, BlueprintTopologyType> blueprintTopoMap {
+        {"structured", BlueprintTopologyType::Structured},
+        {"unstructured", BlueprintTopologyType::Unstructured}};
+      std::map<std::string, BlueprintMeshBacking> blueprintBackingMap {
+        {"sidre", BlueprintMeshBacking::Sidre},
+        {"conduit", BlueprintMeshBacking::Conduit}};
+
+      auto* inline_mesh_blueprint_subcommand =
+        app.add_subcommand("inline_mesh_blueprint")
+          ->description("Options for setting up a simple inline Blueprint mesh")
+          ->fallthrough();
+      inline_mesh_blueprint_subcommand->callback(
+        [this]() { inlineMeshKind = InlineMeshKind::Blueprint; });
+
+      inline_mesh_blueprint_subcommand->add_option("--min", boxMins)
+        ->description("Min bounds for box mesh (x,y[,z])")
+        ->expected(2, 3)
+        ->required();
+      inline_mesh_blueprint_subcommand->add_option("--max", boxMaxs)
+        ->description("Max bounds for box mesh (x,y[,z])")
+        ->expected(2, 3)
+        ->required();
+      inline_mesh_blueprint_subcommand->add_option("--res,--resolution", boxResolution)
+        ->description("Resolution of the box mesh (i,j[,k])")
+        ->expected(2, 3)
+        ->required();
+      auto* inline_mesh_blueprint_dim =
+        inline_mesh_blueprint_subcommand->add_option("-d,--dimension", boxDim)
+          ->description("Dimension of the box mesh")
+          ->check(axom::CLI::PositiveNumber)
+          ->required();
+      inline_mesh_blueprint_subcommand->add_option("--topology", blueprintTopologyType)
+        ->description("Blueprint topology type for the inline mesh")
+        ->capture_default_str()
+        ->transform(axom::CLI::CheckedTransformer(blueprintTopoMap, axom::CLI::ignore_case));
+      inline_mesh_blueprint_subcommand->add_option("--backing", blueprintMeshBacking)
+        ->description("Inline Blueprint mesh backing used to construct the shaper")
+        ->capture_default_str()
+        ->transform(axom::CLI::CheckedTransformer(blueprintBackingMap, axom::CLI::ignore_case));
+#endif
+
       // we want either the mesh_file or an inline mesh
       mesh_file->excludes(inline_mesh_dim);
       inline_mesh_dim->excludes(mesh_file);
+#if defined(AXOM_USE_CONDUIT)
+      mesh_file->excludes(inline_mesh_blueprint_dim);
+      inline_mesh_blueprint_dim->excludes(mesh_file);
+      inline_mesh_blueprint_subcommand->excludes(mesh_file);
+      inline_mesh_blueprint_subcommand->excludes(inline_mesh_subcommand);
+#endif
     }
 
     app.add_option("--background-material", backgroundMaterial)
@@ -331,14 +502,7 @@ public:
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
 
-      std::map<std::string, int> quadTypeMap {
-        {"default", mfem::Quadrature1D::Invalid},
-        {"gausslegendre", mfem::Quadrature1D::GaussLegendre},
-        {"gausslobatto", mfem::Quadrature1D::GaussLobatto},
-        {"openuniform", mfem::Quadrature1D::OpenUniform},
-        {"closeduniform", mfem::Quadrature1D::ClosedUniform},
-        {"openhalfuniform", mfem::Quadrature1D::OpenHalfUniform},
-        {"closedgl", mfem::Quadrature1D::ClosedGL}};
+      const auto& quadTypeMap = axom::numerics::stringToQuadratureType();
       sampling_options->add_option("-q,--quadrature-type", quadratureType)
         ->description(
           "Quadrature type. \n"
@@ -392,19 +556,20 @@ public:
  *
  * \note In MPI-based configurations, this is a collective call, but only prints on rank 0
  */
+#if defined(AXOM_USE_MFEM)
 void printMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
 {
   namespace primal = axom::primal;
 
   int myRank = 0;
-#ifdef AXOM_USE_MPI
+  #ifdef AXOM_USE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
-#endif
+  #endif
 
   int numElements = mesh->GetNE();
 
   mfem::Vector mins, maxs;
-#ifdef MFEM_USE_MPI
+  #ifdef MFEM_USE_MPI
   auto* pmesh = dynamic_cast<mfem::ParMesh*>(mesh);
   if(pmesh != nullptr)
   {
@@ -413,7 +578,7 @@ void printMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
     myRank = pmesh->GetMyRank();
   }
   else
-#endif
+  #endif
   {
     mesh->GetBoundingBox(mins, maxs);
   }
@@ -445,6 +610,7 @@ void printMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
 
   slic::flushStreams();
 }
+#endif
 
 /// \brief Utility function to initialize the logger
 void initializeLogger()
@@ -494,41 +660,6 @@ void finalizeLogger()
 }
 
 //------------------------------------------------------------------------------
-/// Write the quadrature points as a Blueprint mesh.
-void save_quadrature_points(mfem::QuadratureFunction* positions)
-{
-#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-  const int dim = positions->GetSpace()->GetMesh()->Dimension();
-
-  conduit::Node n_mesh;
-  mfem::real_t* X = const_cast<mfem::real_t*>(positions->GetData());
-  const int npts = positions->Size() / positions->GetVDim();
-  const conduit::index_t stride = dim * sizeof(mfem::real_t);
-  n_mesh["coordsets/coords/type"] = "explicit";
-  n_mesh["coordsets/coords/values/x"].set_external(X, npts, 0, stride);
-  n_mesh["coordsets/coords/values/y"].set_external(X, npts, sizeof(mfem::real_t), stride);
-  if(dim > 2)
-  {
-    n_mesh["coordsets/coords/values/z"].set_external(X, npts, 2 * sizeof(mfem::real_t), stride);
-  }
-  n_mesh["topologies/points/type"] = "unstructured";
-  n_mesh["topologies/points/coordset"] = "coords";
-  n_mesh["topologies/points/elements/shape"] = "point";
-  std::vector<int> tmp(npts);
-  std::iota(tmp.begin(), tmp.end(), 0);
-  n_mesh["topologies/points/elements/connectivity"].set(tmp);
-  n_mesh["topologies/points/elements/offset"].set(tmp);
-  std::fill(tmp.begin(), tmp.end(), 1);
-  n_mesh["topologies/points/elements/sizes"].set(tmp);
-
-  #ifdef CONDUIT_RELAY_MPI_ENABLED
-  conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5", MPI_COMM_WORLD);
-  #else
-  conduit::relay::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5");
-  #endif
-#endif
-}
-
 //------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
@@ -599,24 +730,54 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Load the computational mesh
   //---------------------------------------------------------------------------
-  auto originalMeshDC = params.loadComputationalMesh();
+#if defined(AXOM_USE_CONDUIT)
+  std::unique_ptr<sidre::DataStore> originalBlueprintMeshDS;
+  sidre::Group* originalBlueprintMeshGroup = nullptr;
+  conduit::Node originalBlueprintMeshNode;
+#endif
+#if defined(AXOM_USE_MFEM)
+  std::unique_ptr<sidre::MFEMSidreDataCollection> originalMeshDC;
+#endif
 
   //---------------------------------------------------------------------------
   // Set up DataCollection for shaping
   //---------------------------------------------------------------------------
+#if defined(AXOM_USE_MFEM)
   mfem::Mesh* shapingMesh = nullptr;
   constexpr bool dc_owns_data = true;
   sidre::MFEMSidreDataCollection shapingDC("shaping", shapingMesh, dc_owns_data);
+#endif
+  if(params.usesInlineBlueprintMesh())
   {
+#if defined(AXOM_USE_CONDUIT)
+    originalBlueprintMeshDS = params.createBlueprintBoxMesh();
+    originalBlueprintMeshGroup = originalBlueprintMeshDS->getRoot()->getGroup("mesh");
+    SLIC_ASSERT(originalBlueprintMeshGroup != nullptr);
+    if(params.blueprintMeshBacking == BlueprintMeshBacking::Conduit)
+    {
+      originalBlueprintMeshGroup->createNativeLayout(originalBlueprintMeshNode);
+    }
+#else
+    SLIC_ERROR_ROOT("inline_mesh_blueprint requires Axom to be configured with Conduit.");
+#endif
+  }
+  else
+  {
+#if defined(AXOM_USE_MFEM)
+    originalMeshDC = params.loadComputationalMesh();
     shapingDC.SetMeshNodesName("positions");
 
     auto* pmesh = dynamic_cast<mfem::ParMesh*>(originalMeshDC->GetMesh());
     shapingMesh =
       (pmesh != nullptr) ? new mfem::ParMesh(*pmesh) : new mfem::Mesh(*originalMeshDC->GetMesh());
     shapingDC.SetMesh(shapingMesh);
+    printMeshInfo(shapingMesh, "After loading");
+#else
+    SLIC_ERROR_ROOT(
+      "MFEM-backed meshes in shaping_driver require Axom to be configured with MFEM.");
+#endif
   }
   AXOM_ANNOTATE_END("load mesh");
-  printMeshInfo(shapingDC.GetMesh(), "After loading");
 
   //---------------------------------------------------------------------------
   // Initialize the shaping query object
@@ -626,16 +787,78 @@ int main(int argc, char** argv)
   switch(params.shapingMethod)
   {
   case ShapingMethod::Sampling:
-    shaper = new quest::SamplingShaper(params.policy,
-                                       axom::policyToDefaultAllocatorID(params.policy),
-                                       params.shapeSet,
-                                       &shapingDC);
-    break;
-  case ShapingMethod::Intersection:
-    shaper = new quest::IntersectionShaper(params.policy,
+    if(params.usesInlineBlueprintMesh())
+    {
+      // NOTE: The SamplingShaper requires Conduit + Bump for Blueprint support.
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+      if(params.blueprintMeshBacking == BlueprintMeshBacking::Conduit)
+      {
+        shaper = new quest::SamplingShaper(params.policy,
                                            axom::policyToDefaultAllocatorID(params.policy),
                                            params.shapeSet,
-                                           &shapingDC);
+                                           originalBlueprintMeshNode,
+                                           "mesh");
+      }
+      else
+      {
+        shaper = new quest::SamplingShaper(params.policy,
+                                           axom::policyToDefaultAllocatorID(params.policy),
+                                           params.shapeSet,
+                                           originalBlueprintMeshGroup,
+                                           "mesh");
+      }
+#else
+      SLIC_ERROR_ROOT(
+        "Using inline_mesh_blueprint with SamplingShaper requires Axom to be configured with "
+        "Conduit+Bump.");
+#endif
+    }
+    else
+    {
+#if defined(AXOM_USE_MFEM)
+      shaper = new quest::SamplingShaper(params.policy,
+                                         axom::policyToDefaultAllocatorID(params.policy),
+                                         params.shapeSet,
+                                         &shapingDC);
+#endif
+    }
+    break;
+  case ShapingMethod::Intersection:
+    if(params.usesInlineBlueprintMesh())
+    {
+      // NOTE: The IntersectionShaper requires Conduit for Blueprint support.
+#if defined(AXOM_USE_CONDUIT)
+      if(params.blueprintMeshBacking == BlueprintMeshBacking::Conduit)
+      {
+        shaper = new quest::IntersectionShaper(params.policy,
+                                               axom::policyToDefaultAllocatorID(params.policy),
+                                               params.shapeSet,
+                                               originalBlueprintMeshNode,
+                                               "mesh");
+      }
+      else
+      {
+        shaper = new quest::IntersectionShaper(params.policy,
+                                               axom::policyToDefaultAllocatorID(params.policy),
+                                               params.shapeSet,
+                                               originalBlueprintMeshGroup,
+                                               "mesh");
+      }
+#else
+      SLIC_ERROR_ROOT(
+        "Using inline_mesh_blueprint with IntersectionShaper requires Axom to be configured with "
+        "Conduit.");
+#endif
+    }
+    else
+    {
+#if defined(AXOM_USE_MFEM)
+      shaper = new quest::IntersectionShaper(params.policy,
+                                             axom::policyToDefaultAllocatorID(params.policy),
+                                             params.shapeSet,
+                                             &shapingDC);
+#endif
+    }
     break;
   }
   SLIC_ASSERT_MSG(shaper != nullptr, "Invalid shaping method selected!");
@@ -652,7 +875,12 @@ int main(int argc, char** argv)
 
   // Associate any fields that begin with "vol_frac" with "material" so when
   // the data collection is written, a matset will be created.
-  shaper->getDC()->AssociateMaterialSet("vol_frac", "material");
+#if defined(AXOM_USE_MFEM)
+  if(shaper->getDC() != nullptr)
+  {
+    shaper->getDC()->AssociateMaterialSet("vol_frac", "material");
+  }
+#endif
 
   // Set specific parameters for a SamplingShaper, if appropriate
   if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
@@ -669,7 +897,19 @@ int main(int argc, char** argv)
         res[i] = params.samplingResolution[i];
       }
     }
-    axom::ArrayView<int> sampleRes(res, shaper->getDC()->GetMesh()->Dimension());
+    int meshDim = -1;
+#if defined(AXOM_USE_MFEM)
+    if(shaper->getDC() != nullptr)
+    {
+      meshDim = shaper->getDC()->GetMesh()->Dimension();
+    }
+#endif
+    if(meshDim < 0 && params.usesInlineBlueprintMesh())
+    {
+      meshDim = params.boxDim;
+    }
+    SLIC_ERROR_IF(meshDim < 0, "Unable to determine mesh dimension for sampling setup.");
+    axom::ArrayView<int> sampleRes(res, meshDim);
 
     samplingShaper->setSamplingType(params.vfSampling);
     samplingShaper->setSamplingResolution(sampleRes);
@@ -680,11 +920,24 @@ int main(int argc, char** argv)
     samplingShaper->setInOutOctreeVtkOutputDirectory("vis");
 
     // register point projectors
-    if(shapingDC.GetMesh()->Dimension() == 3)
+    meshDim = -1;
+#if defined(AXOM_USE_MFEM)
+    if(shaper->getDC() != nullptr)
+    {
+      meshDim = shaper->getDC()->GetMesh()->Dimension();
+    }
+    else
+#endif
+      if(params.usesInlineBlueprintMesh())
+    {
+      meshDim = params.boxDim;
+    }
+
+    if(meshDim == 3)
     {
       samplingShaper->setPointProjector32(AxisymmetricProjector32 {});
     }
-    else if(shapingDC.GetMesh()->Dimension() == 2)
+    else if(meshDim == 2)
     {
       samplingShaper->setPointProjector23(Projector23 {});
     }
@@ -707,35 +960,65 @@ int main(int argc, char** argv)
   if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
   {
     AXOM_ANNOTATE_SCOPE("import initial volume fractions");
-    std::map<std::string, mfem::GridFunction*> initial_grid_functions;
-
-    // Generate a background material (w/ volume fractions set to 1) if user provided a name
-    if(!params.backgroundMaterial.empty())
+    if(params.usesInlineBlueprintMesh())
     {
-      auto material = params.backgroundMaterial;
-      auto name = axom::fmt::format("vol_frac_{}", material);
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
 
-      const int order = params.outputOrder;
-      const int dim = shapingMesh->Dimension();
-      const auto basis = mfem::BasisType::Positive;
+      // Generate a background material (w/ volume fractions set to 1) if user provided a name
+      if(!params.backgroundMaterial.empty())
+      {
+        auto material = params.backgroundMaterial;
+        auto name = quest::shaping::volumeFractionFieldName(material);
 
-      auto* coll = new mfem::L2_FECollection(order, dim, basis);
-      auto* fes = new mfem::FiniteElementSpace(shapingDC.GetMesh(), coll);
-      const int sz = fes->GetVSize();
+        const auto num_elements = params.numberOfBoxMeshElements();
+        auto values = shaper->getBlueprintState()->createField(name, "mesh", num_elements);
+        for(axom::IndexType i = 0; i < num_elements; i++)
+        {
+          values[i] = 1.;
+        }
+        conduit::Node& n_field = shaper->getBlueprintState()->getField(name);
+        std::map<std::string, conduit::Node*> initial_grid_functions;
+        initial_grid_functions[material] = &n_field;
 
-      auto* view = shapingDC.AllocNamedBuffer(name, sz);
-      auto* volFrac = new mfem::GridFunction(fes, view->getArray());
-      volFrac->MakeOwner(coll);
-
-      (*volFrac) = 1.;
-
-      shapingDC.RegisterField(name, volFrac);
-
-      initial_grid_functions[material] = shapingDC.GetField(name);
+        // Project provided volume fraction grid functions as quadrature point data
+        samplingShaper->importInitialVolumeFractions(initial_grid_functions);
+      }
+#endif
     }
+    else
+    {
+#if defined(AXOM_USE_MFEM)
+      std::map<std::string, mfem::GridFunction*> initial_grid_functions;
 
-    // Project provided volume fraction grid functions as quadrature point data
-    samplingShaper->importInitialVolumeFractions(initial_grid_functions);
+      // Generate a background material (w/ volume fractions set to 1) if user provided a name
+      if(!params.backgroundMaterial.empty())
+      {
+        auto material = params.backgroundMaterial;
+        auto name = quest::shaping::volumeFractionFieldName(material);
+
+        const int order = params.outputOrder;
+        const int dim = shapingMesh->Dimension();
+        const auto basis = mfem::BasisType::Positive;
+
+        auto* coll = new mfem::L2_FECollection(order, dim, basis);
+        auto* fes = new mfem::FiniteElementSpace(shapingDC.GetMesh(), coll);
+        const int sz = fes->GetVSize();
+
+        auto* view = shapingDC.AllocNamedBuffer(name, sz);
+        auto* volFrac = new mfem::GridFunction(fes, view->getArray());
+        volFrac->MakeOwner(coll);
+
+        (*volFrac) = 1.;
+
+        shapingDC.RegisterField(name, volFrac);
+
+        initial_grid_functions[material] = shapingDC.GetField(name);
+      }
+
+      // Project provided volume fraction grid functions as quadrature point data
+      samplingShaper->importInitialVolumeFractions(initial_grid_functions);
+#endif
+    }
   }
   AXOM_ANNOTATE_END("setup shaping problem");
   AXOM_ANNOTATE_END("init");
@@ -793,32 +1076,27 @@ int main(int argc, char** argv)
   SLIC_INFO(axom::fmt::format("{:=^80}", "Generating volume fraction fields for materials"));
 
   shaper->adjustVolumeFractions();
+  AXOM_ANNOTATE_END("adjust");
 
   //---------------------------------------------------------------------------
   // Compute and print volumes of each material's volume fraction
   //---------------------------------------------------------------------------
   using axom::utilities::string::startsWith;
-  for(auto& kv : shaper->getDC()->GetFieldMap())
+  if(params.usesInlineBlueprintMesh())
   {
-    if(startsWith(kv.first, "vol_frac_"))
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+    if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
     {
-      const auto mat_name = kv.first.substr(9);
-      auto* gf = kv.second;
-
-      mfem::ConstantCoefficient one(1.0);
-      mfem::LinearForm vol_form(gf->FESpace());
-      vol_form.AddDomainIntegrator(new mfem::DomainLFIntegrator(one));
-      vol_form.Assemble();
-
-      const double volume = shaper->allReduceSum(*gf * vol_form);
-
-      SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                  "Volume of material '{}' is {:.6Lf}",
-                                  mat_name,
-                                  volume));
+      printSummaryBlueprint(samplingShaper);
     }
+#endif
   }
-  AXOM_ANNOTATE_END("adjust");
+#if defined(AXOM_USE_MFEM)
+  else if(shaper->getDC() != nullptr)
+  {
+    printSummaryMFEM(shaper);
+  }
+#endif
 
   //---------------------------------------------------------------------------
   // Save meshes and fields
@@ -832,22 +1110,10 @@ int main(int argc, char** argv)
     }
   }
 
-#ifdef MFEM_USE_MPI
   {
     AXOM_ANNOTATE_SCOPE("save shaping results");
-    shaper->getDC()->Save();
-
-    // Save quadrature sample point positions as a Blueprint mesh in verbose mode.
-    if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
-    {
-      mfem::QuadratureFunction* positions = samplingShaper->getShapeQFunction("positions");
-      if(positions && params.isVerbose())
-      {
-        save_quadrature_points(positions);
-      }
-    }
+    shaper->saveResults(params.isVerbose());
   }
-#endif
 
   delete shaper;
 
@@ -863,3 +1129,124 @@ int main(int argc, char** argv)
 
   return 0;
 }
+
+void printVolume(const std::string mat_name, double volume)
+{
+  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                              "Volume of material '{}' is {:.6Lf}",
+                              mat_name,
+                              volume));
+}
+
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+/*!
+ * \brief Print the summary information for Blueprint meshes.
+ *
+ * \param shaper The shaper that was in use for shaping.
+ *
+ * \note At present, only compute volumes for the SamplingShaper.
+ */
+void printSummaryBlueprint(axom::quest::SamplingShaper* shaper)
+{
+  AXOM_ANNOTATE_SCOPE("printSummaryBlueprint");
+  using ExecSpace = axom::SEQ_EXEC;
+
+  // Make sure there is a fields node. If there isn't then we do not need to do any work.
+  auto* bpState = shaper->getBlueprintState();
+  conduit::Node& n_mesh = bpState->getBlueprintMeshNode();
+  if(!n_mesh.has_path("fields"))
+  {
+    return;
+  }
+
+  const conduit::Node& n_topo = bpState->getBlueprintTopologyNode();
+  conduit::Node& n_fields = n_mesh.fetch_existing("fields");
+
+  // Compute the measure field.
+  namespace views = axom::bump::views;
+  const conduit::Node* n_coordset =
+    conduit::blueprint::mesh::utils::find_reference_node(n_topo, "coordset");
+  SLIC_ERROR_IF(n_coordset == nullptr, "Coordset could not be found.");
+  views::dispatch_coordset(*n_coordset, [&](auto coordsetView) {
+    using CoordsetView = decltype(coordsetView);
+
+    // Only compute over quads or hexes, depending on the dimension.
+    constexpr int selected_dimensions = views::select_dimensions(CoordsetView::dimension());
+    constexpr int selected_shapes =
+      (CoordsetView::dimension() == 2) ? (1 << views::Quad_ShapeID) : (1 << views::Hex_ShapeID);
+    views::dispatch_topology<selected_dimensions, selected_shapes>(
+      n_topo,
+      [&](const std::string& AXOM_UNUSED_PARAM(shape), auto topologyView) {
+        using TopologyView = decltype(topologyView);
+        using ShapeAdaptor = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
+
+        ShapeAdaptor adaptor(topologyView, coordsetView);
+        axom::bump::ComputeMeasure<ExecSpace, ShapeAdaptor> m(adaptor);
+        m.execute("mesh", n_fields["measure"]);
+      });
+  });
+
+  // Get the measure field.
+  if(!n_fields.has_path("measure"))
+  {
+    SLIC_INFO(axom::fmt::format("Could not find measure field."));
+    return;
+  }
+  const auto measure =
+    axom::bump::utilities::make_array_view<double>(n_fields.fetch_existing("measure/values"));
+
+  // Compute the volumes for all material volume-fraction fields.
+  for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
+  {
+    conduit::Node& n_field = n_fields[i];
+    const std::string name = n_field.name();
+    if(quest::shaping::isVolumeFractionFieldName(name))
+    {
+      const auto mat_name = quest::shaping::materialNameFromVolumeFractionFieldName(name);
+      const auto values =
+        axom::bump::utilities::make_array_view<double>(n_field.fetch_existing("values"));
+
+      SLIC_ERROR_IF(values.size() != measure.size(), "Incompatible sizes");
+      const auto n = values.size();
+      double sum = 0.;
+      for(axom::IndexType j = 0; j < n; j++)
+      {
+        sum += values[j] * measure[j];
+      }
+      const double volume = shaper->allReduceSum(sum);
+
+      printVolume(mat_name, volume);
+    }
+  }
+}
+#endif
+
+#if defined(AXOM_USE_MFEM)
+/*!
+ * \brief Print the summary information for MFEM meshes.
+ *
+ * \param shaper The shaper that was in use for shaping.
+ */
+void printSummaryMFEM(axom::quest::Shaper* shaper)
+{
+  AXOM_ANNOTATE_SCOPE("printSummaryMFEM");
+
+  for(auto& kv : shaper->getDC()->GetFieldMap())
+  {
+    if(quest::shaping::isVolumeFractionFieldName(kv.first))
+    {
+      const auto mat_name = quest::shaping::materialNameFromVolumeFractionFieldName(kv.first);
+      auto* gf = kv.second;
+
+      mfem::ConstantCoefficient one(1.0);
+      mfem::LinearForm vol_form(gf->FESpace());
+      vol_form.AddDomainIntegrator(new mfem::DomainLFIntegrator(one));
+      vol_form.Assemble();
+
+      const double volume = shaper->allReduceSum(*gf * vol_form);
+
+      printVolume(mat_name, volume);
+    }
+  }
+}
+#endif

@@ -39,6 +39,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Quest: Enhanced `SamplingShaper` so it can operate on Blueprint quad/hex meshes. Pass `inline_mesh_blueprint` to the
+  `quest_shaping_driver_ex` example program instead of `input_mesh` when a Blueprint mesh is desired.
+- Quest: `quest_shaping_driver_ex` now lets `inline_mesh_blueprint` runs choose the Blueprint backing
+  store with `--backing sidre|conduit`, which enables the program to operate on either Sidre or Conduit meshes.
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
