@@ -12,6 +12,7 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/config.hpp"
 #include "axom/slam/Aliases.hpp"
 #include "axom/slam/BivariateMap.hpp"
 #include "axom/slam/Concepts.hpp"
@@ -31,6 +32,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 namespace slam_concept_test
 {
@@ -638,8 +640,15 @@ static_assert(slam::MapStridePolicyFor<ScalarStride, int>);
 static_assert(slam::MapStridePolicyFor<MatrixStride, int>);
 // Maps support a stride index that converts to their (possibly wider) position type
 // OrderedSet's scalar value policy must use that exact position type.
-static_assert(slam::MapStridePolicyFor<ScalarStride, Position>);
-static_assert(!slam::OrderedSetStridePolicyFor<ScalarStride, Position>);
+#if !defined(AXOM_NO_INT64_T)
+// Use explicit types for wide/narrow pairs so they do not depend on AXOM_USE_64BIT_INDEXTYPE.
+using WidePosition = std::int64_t;
+using NarrowStride = policies::CompileTimeStride<std::int32_t, 3>;
+static_assert(!std::is_same_v<NarrowStride::IndexType, WidePosition>,
+              "the wide and narrow types must actually differ for this to test anything");
+static_assert(slam::MapStridePolicyFor<NarrowStride, WidePosition>);
+static_assert(!slam::OrderedSetStridePolicyFor<NarrowStride, WidePosition>);
+#endif
 static_assert(slam::OffsetPolicy<Offset>);
 static_assert(slam::OrderedSetOffsetPolicyFor<RuntimeOffset, int>);
 static_assert(slam::OrderedSetOffsetPolicyFor<Offset, int>);
