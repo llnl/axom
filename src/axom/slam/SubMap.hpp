@@ -30,17 +30,17 @@ namespace axom::slam
  * \brief The SubMap class provides an API to easily traverse a subset of a Map.
  *
  * A SubMap is defined by a subset of the indices into a Map, which we refer to
- * as its SuperMap (of type SuperMapType). The indices are expressed as ElementFlatIndex.\n
- * Please see BivariateMap for an explanation of the various indexing schemes.
+ * as its SuperMap (of type SuperMapType). The indices are expressed as ElementFlatIndex.
+ * See BivariateMap for an explanation of the various indexing schemes.
  *
  * SubMap is used by BivariateMap to return a set of values mapped to each item in its first set.
  *
  * \tparam SuperMapType the type of SuperMap
  * \tparam SetType defines the indices int the super map. It cannot be abstract.
  *
- * \warning SubMap constructor can take a const Map pointer or a non-const Map
- *        pointer. A non-const value access function in SubMap will fail if the
- *        Submap is constructed using a const Map pointer.
+ * \warning SubMap constructor can take a const Map pointer or a non-const Map pointer.
+ *        A non-const value access function in SubMap will fail
+ *        if the SubMap is constructed using a const Map pointer.
  *
  * \see Map, BivariateMap
  */
@@ -87,22 +87,26 @@ public:
   using ConstValueType = DataRefType;
 
 public:
-  /** Default Constructor */
-  SubMap() : m_superMap(nullptr), m_indicesHaveIndirection(true) { }
+  /// Default Constructor
+  SubMap() : m_superMap(nullptr) { }
 
   /**
    * \brief Constructor for SubMap given the ElementFlatIndex into the SuperMap
    *
    * \param supermap The map that this SubMap is a subset of.
    * \param subset_idxset a Set of ElementFlatIndex into the SuperMap
+   * \param indicesHaveIndirection Unused; retained for source compatibility.
+   *
+   * \note \a indicesHaveIndirection no longer selects between projecting a
+   *       subset index through the SuperMap's set and returning it unchanged.
+   *       index() now always projects. \see index()
    */
   AXOM_HOST_DEVICE SubMap(SuperMapType* supermap,
                           SubsetType subset_idxset,
-                          bool indicesHaveIndirection = true)
+                          bool AXOM_UNUSED_PARAM(indicesHaveIndirection) = true)
     : StridePolicyType(*supermap)
     , m_superMap(supermap)
     , m_subsetIdx(subset_idxset)
-    , m_indicesHaveIndirection(indicesHaveIndirection)
   { }
 
   /// \name SubMap individual access functions
@@ -286,7 +290,6 @@ public:  // Functions related to iteration
 protected:  //Member variables
   SuperMapType* m_superMap;
   SubsetType m_subsetIdx;
-  bool m_indicesHaveIndirection;
 
 };  //end SubMap
 
@@ -371,10 +374,10 @@ public:
 
   AXOM_HOST_DEVICE pointer operator->() const { return &this->operator*(); }
 
-  /** \brief Returns the first component value after n increments.  */
+  /// \brief Returns the first component value after n increments.
   DataRefType operator[](PositionType n) const { return *(*this + n); }
 
-  /** \brief Returns the Set element at the iterator's position */
+  /// \brief Returns the Set element at the iterator's position
   SuperSetElement index() const { return m_submap.index(m_pos / m_submap.numComp()); }
 
   /// \brief Returns the component index pointed to by this iterator.
@@ -383,11 +386,11 @@ public:
   /// \brief Returns the flat index pointed to by this iterator.
   SetPosition flatIndex() const { return this->m_pos; }
 
-  /** \brief Returns the number of component per element in the SubMap. */
+  /// \brief Returns the number of component per element in the SubMap.
   PositionType numComp() const { return m_submap.numComp(); }
 
 protected:
-  /* Implementation of advance() as required by IteratorBase */
+  /// Implementation of advance() as required by IteratorBase
   AXOM_HOST_DEVICE void advance(PositionType pos) { m_pos += pos; }
 
 private:
@@ -475,11 +478,11 @@ public:
   /// \brief Returns the index into the submap pointed to by this iterator.
   SetPosition submapIndex() const { return this->m_pos; }
 
-  /** \brief Returns the number of components per element in the Map. */
+  /// \brief Returns the number of components per element in the Map.
   PositionType numComp() const { return m_mapIter.numComp(); }
 
 protected:
-  /** Implementation of advance() as required by IteratorBase */
+  /// Implementation of advance() as required by IteratorBase
   AXOM_HOST_DEVICE void advance(PositionType n)
   {
     PositionType currIndex = m_mapIter.flatIndex();
