@@ -69,6 +69,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
 
 ### Changed
+- Axom now requires `C++20` (or newer) and will default to that if not specified via `BLT_CXX_STD`.
+  Configuring with `BLT_CXX_STD` set to `c++17` or lower is now a configuration error.
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 - CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
 - Core: Moved length unit parsing and conversion helpers into `axom::utilities`.
