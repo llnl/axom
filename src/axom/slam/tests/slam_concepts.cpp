@@ -223,6 +223,27 @@ struct MinimalBivariateSet
   SecondSetType::PositionType flatToSecondIndex(PositionType) const;
 };
 
+// Check that a bivariate set is distinguished from a univariate set
+// even when is has the SetLike API (empty() is the only SetLike member BivariateSetLike lacks.)
+struct BivariateSetWithEmpty
+{
+  using FirstSetType = NarrowRange;
+  using SecondSetType = WideRange;
+  using PositionType = std::int64_t;
+  using ElementType = MinimalCoordinate;
+
+  PositionType size() const;
+  bool empty() const;
+  ElementType at(PositionType) const;
+  const FirstSetType* getFirstSet() const;
+  const SecondSetType* getSecondSet() const;
+  SecondSetType getElements(FirstSetType::PositionType) const;
+  PositionType findElementIndex(FirstSetType::PositionType, SecondSetType::PositionType) const;
+  PositionType findElementFlatIndex(FirstSetType::PositionType, SecondSetType::PositionType) const;
+  FirstSetType::PositionType flatToFirstIndex(PositionType) const;
+  SecondSetType::PositionType flatToSecondIndex(PositionType) const;
+};
+
 struct HeterogeneousPositionBivariateSet
 {
   using PositionType = typename NarrowRange::PositionType;
@@ -495,6 +516,11 @@ static_assert(std::same_as<typename HeterogeneousProduct::PositionType, std::int
 static_assert(
   std::same_as<typename HeterogeneousProduct::ElementType, std::pair<std::int32_t, std::int64_t>>);
 static_assert(!slam::SetLike<Product>);
+// SetLike and BivariateSetLike are disjoint by construction
+static_assert(slam::BivariateSetLike<BivariateSetWithEmpty>);
+static_assert(!slam::SetLike<BivariateSetWithEmpty>);
+static_assert(!slam::SetLike<MinimalBivariateSet>);
+static_assert(!slam::BivariateSetLike<ConcreteRange>);
 static_assert(!slam::SetLike<TypedefOnlySet>);
 static_assert(!slam::SetLike<WrongSizeSet>);
 static_assert(!slam::SetLike<MutableAccessOnlySet>);

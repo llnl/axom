@@ -87,12 +87,11 @@ concept PositionLike = std::integral<detail::model_t<T>> || enable_position_like
 /*!
  * \brief A univariate set with position-based size and element access.
  *
- * A type with additional structure can also model SetLike when it provides
- * this complete flattened-set surface. Classification is expression-based.
+ * \note SetLike and BivariateSetLike are intentionally disjoint.
  */
 template <typename T>
-concept SetLike =
-  detail::HasSetAssociatedTypes<T> && PositionLike<typename detail::model_t<T>::PositionType> &&
+concept SetLike = detail::HasSetAssociatedTypes<T> && !detail::HasBivariateSetAssociatedTypes<T> &&
+  PositionLike<typename detail::model_t<T>::PositionType> &&
   requires(const detail::model_t<T>& set, typename detail::model_t<T>::PositionType pos) {
     { set.size() } -> std::same_as<typename detail::model_t<T>::PositionType>;
     { set.empty() } -> std::convertible_to<bool>;
