@@ -39,6 +39,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Quest: Enhanced `SamplingShaper` so it can operate on Blueprint quad/hex meshes. Pass `inline_mesh_blueprint` to the
+  `quest_shaping_driver_ex` example program instead of `input_mesh` when a Blueprint mesh is desired.
+- Quest: `quest_shaping_driver_ex` now lets `inline_mesh_blueprint` runs choose the Blueprint backing
+  store with `--backing sidre|conduit`, which enables the program to operate on either Sidre or Conduit meshes.
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
@@ -65,6 +69,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
 
 ### Changed
+- Axom now requires `C++20` (or newer) and will default to that if not specified via `BLT_CXX_STD`.
+  Configuring with `BLT_CXX_STD` set to `c++17` or lower is now a configuration error.
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 - CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
 - Core: Moved length unit parsing and conversion helpers into `axom::utilities`.
@@ -118,6 +124,7 @@ and marked the templated `axom::sidre::View::getAttributeScalar<T>()` overloads 
 so they can be called on a `const View`. Also added  `const` overloads for `axom::sidre::Buffer::getData()`
 and `axom::sidre::Buffer::getVoidPtr()` so they can be called on a `const Buffer`.
 - Quest: Fixes `InOutOctree::within()` for query points that lie on (or very near) the surface, in both 2D (segment meshes) and 3D (triangle meshes).
+- Core: Adds missing subscript operator to ArrayIteratorBase to satisfy random access contract.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 

@@ -107,6 +107,7 @@
 #cmakedefine AXOM_USE_LUMBERJACK
 #cmakedefine AXOM_USE_MINT
 #cmakedefine AXOM_USE_MIR
+#cmakedefine AXOM_USE_MULTIMAT
 #cmakedefine AXOM_USE_PRIMAL
 #cmakedefine AXOM_USE_QUEST
 #cmakedefine AXOM_USE_SIDRE
