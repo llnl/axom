@@ -3,7 +3,7 @@
 
 BasedOnStyle: Google
 Language: Cpp
-Standard: c++17
+Standard: c++20
 LineEnding: LF
 
 AccessModifierOffset: -2
