@@ -66,6 +66,7 @@ endforeach()
 string(TOUPPER "${AXOM_DEFAULT_HOST_ALLOCATOR}" _axom_default_host_allocator_upper)
 if(_axom_default_host_allocator_upper STREQUAL "MALLOC")
     set(AXOM_DEFAULT_HOST_ALLOCATOR "MALLOC" CACHE STRING "Default host allocator: MALLOC or UMPIRE_HOST" FORCE)
+    unset(AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST)
 elseif(_axom_default_host_allocator_upper STREQUAL "UMPIRE_HOST")
     if(NOT AXOM_USE_UMPIRE)
         message(FATAL_ERROR
