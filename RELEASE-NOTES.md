@@ -100,7 +100,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   configured with MPI. Serial code that passed the placeholder `MPI_COMM_SELF` explicitly should drop the argument.
 - We can now configure Axom without MPI when some of its dependencies were configured with MPI.
 - Axom's host execution-space default allocator is now a configure-time policy. The default policy is malloc, regardless
-  whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
+  of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
   `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
   allocator-ID arguments.
 
