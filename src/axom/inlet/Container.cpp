@@ -376,11 +376,8 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
-    auto typeId = addPrimitiveHelper(sidreGroup,
-                                     lookupPath,
-                                     forArray,
-                                     val,
-                                     containsFunctionValueAlternative(name));
+    auto typeId =
+      addPrimitiveHelper(sidreGroup, lookupPath, forArray, val, containsFunctionValueAlternative(name));
     return addField(sidreGroup, typeId, fullName, name);
   }
 }
@@ -938,11 +935,10 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   return addFunctionInternal(name, name, ret_type, arg_types, description, pathOverride);
 }
 
-Verifiable<Function>& Container::addFunctionAsValueAlternative(
-  const std::string& valueName,
-  const FunctionTag ret_type,
-  const std::vector<FunctionTag>& arg_types,
-  const std::string& description)
+Verifiable<Function>& Container::addFunctionAsValueAlternative(const std::string& valueName,
+                                                               const FunctionTag ret_type,
+                                                               const std::vector<FunctionTag>& arg_types,
+                                                               const std::string& description)
 {
   SLIC_ERROR_IF(valueName.empty(),
                 "[Inlet] A function value alternative requires a non-empty value name");
