@@ -28,7 +28,7 @@ using NamedOperatorMap = std::unordered_map<std::string, std::shared_ptr<const G
 /// The data for a single operator.
 struct SingleOperatorData
 {
-  const inlet::Container *m_container;
+  const inlet::Container* m_container;
 };
 
 /// The data for the "operator" component of "geometry" objects.
@@ -60,9 +60,9 @@ public:
    * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    * @return the Container for the new item
    */
-  static inlet::Container &defineSchema(inlet::Container &parent,
-                                        const std::string &fieldName,
-                                        const std::string &description,
+  static inlet::Container& defineSchema(inlet::Container& parent,
+                                        const std::string& fieldName,
+                                        const std::string& description,
                                         bool enableLuaCallbacks = false);
 
   /**
@@ -74,9 +74,9 @@ public:
    * @return the (possibly null) operator
    * @throws KleeError if the operator data is invalid for the given properties
    */
-  std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties &startProperties,
-                                                 const NamedOperatorMap &namedOperators,
-                                                 const std::string &ownerLabel) const;
+  std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties& startProperties,
+                                                 const NamedOperatorMap& namedOperators,
+                                                 const std::string& ownerLabel) const;
 
   /**
    * Get the path of this operator in the source document
@@ -105,7 +105,7 @@ struct NamedOperatorData
    * @param container the container in which to describe a single named operator
    * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    */
-  static void defineSchema(inlet::Container &container, bool enableLuaCallbacks = false);
+  static void defineSchema(inlet::Container& container, bool enableLuaCallbacks = false);
 };
 
 /// Data for all a collection of named operators
@@ -138,8 +138,8 @@ struct NamedOperatorMapData
    * @param name the name of the map
    * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    */
-  static void defineSchema(inlet::Container &parent,
-                           const std::string &name,
+  static void defineSchema(inlet::Container& parent,
+                           const std::string& name,
                            bool enableLuaCallbacks = false);
 
 private:

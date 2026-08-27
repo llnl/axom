@@ -346,7 +346,7 @@ TEST(GeometryOperatorsIO, readRotation_3D_zeroAxis)
     )");
     FAIL() << "Should have rejected a zero rotation axis";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("axis"));
     EXPECT_THAT(err.what(), HasSubstr("zero"));
@@ -378,7 +378,7 @@ TEST(GeometryOperatorsIO, readOperator_unexpectedParameterNamesBothFields)
         )");
     FAIL() << "Should not have parsed";
   }
-  catch(const KleeError &ex)
+  catch(const KleeError& ex)
   {
     // The unexpected parameter is "axis" and the operator is "translate"
     EXPECT_THAT(ex.what(), HasSubstr("Unexpected parameter 'axis' for operator 'translate'"));
@@ -420,8 +420,8 @@ TEST(GeometryOperatorsIO, readScale_singleValue_withCenter)
     EXPECT_DOUBLE_EQ(1.2, scale.getXFactor());
     EXPECT_DOUBLE_EQ(1.2, scale.getYFactor());
     EXPECT_DOUBLE_EQ(1.2, scale.getZFactor());
-    const Point3D expectedCenter = dims == Dimensions::Two ? Point3D {10, 20, 0}
-                                                           : Point3D {10, 20, 30};
+    const Point3D expectedCenter =
+      dims == Dimensions::Two ? Point3D {10, 20, 0} : Point3D {10, 20, 30};
     EXPECT_THAT(scale.getCenter(), AlmostEqPoint(expectedCenter));
   }
 }

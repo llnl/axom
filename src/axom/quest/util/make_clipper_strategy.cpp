@@ -69,11 +69,11 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
   #if defined(AXOM_USE_BUMP)
     strategy.reset(new TetMeshClipper(kleeGeometry, name));
   #else
-    SLIC_WARNING(axom::fmt::format(
-      "klee::Geometry format '{}' requires Axom to be configured with bump "
-      "but this build does not have it, so shape '{}' cannot be clipped.",
-      format,
-      name));
+    SLIC_WARNING(
+      axom::fmt::format("klee::Geometry format '{}' requires Axom to be configured with bump "
+                        "but this build does not have it, so shape '{}' cannot be clipped.",
+                        format,
+                        name));
   #endif
   }
   else
