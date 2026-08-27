@@ -719,8 +719,8 @@ public:
 
           const bool withinThreshold = patchProcessor.compareToSurface(origSurface, 25);
           SLIC_WARNING_ROOT_IF(!withinThreshold,
-                               axom::fmt::format("[Patch {}] Patch geometry was not "
-                                                 "within threshold after clamping.",
+                               axom::fmt::format("[Patch {}] Patch geometry was not within "
+                                                 "threshold after clamping.\n Patch data: {}.",
                                                  patchIndex,
                                                  patches[patchIndex]));
         }
