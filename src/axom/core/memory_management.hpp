@@ -157,7 +157,7 @@ inline void setDefaultAllocator(umpire::resource::MemoryResourceType resource_ty
 #endif
 
 /*!
- * \brief Sets the default memory allocator to use.
+ * \brief Sets the default memory allocator for the Umpire ResourceManager. 
  * \param [in] allocId the Axom allocator id
  * 
  * \note When Axom is compiled with Umpire and \a allocId is
