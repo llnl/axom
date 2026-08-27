@@ -45,13 +45,13 @@ public:
    * \brief Returns the number of nodes of the surface mesh.
    * \return numNodes the number of nodes.
    */
-  [[nodiscard]] int getNumNodes() const { return static_cast<int>(m_num_nodes); }
+  int getNumNodes() const { return static_cast<int>(m_num_nodes); }
 
   /*!
    * \brief Returns the number of faces of the surface mesh.
    * \return numFaces the number of faces.
    */
-  [[nodiscard]] int getNumFaces() const { return static_cast<int>(m_num_faces); }
+  int getNumFaces() const { return static_cast<int>(m_num_faces); }
 
   /// \brief Clears all internal data-structures
   void clear();
@@ -82,7 +82,7 @@ private:
    *
    * \return True, if the file is ascii encoded, False if it is binary
    */
-  [[nodiscard]] bool isAsciiFormat() const;
+  bool isAsciiFormat() const;
 
   /*!
    * \brief Reads an ascii-encoded STL file into memory

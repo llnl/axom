@@ -59,13 +59,13 @@ public:
    */
   [[nodiscard]] virtual int read(bool validate);
 
-  [[nodiscard]] std::string getFileUnits() const;
+  std::string getFileUnits() const;
 
-  [[nodiscard]] PatchArray& getPatchArray() { return m_patches; }
-  [[nodiscard]] const PatchArray& getPatchArray() const { return m_patches; }
+  PatchArray& getPatchArray() { return m_patches; }
+  const PatchArray& getPatchArray() const { return m_patches; }
 
   /// Get the number of patches in the read file
-  [[nodiscard]] int numPatches() const { return m_patches.size(); }
+  int numPatches() const { return m_patches.size(); }
 
   /*!
    * \brief Returns a 0-based patch id per entry in \a getPatchArray()
@@ -73,7 +73,7 @@ public:
    * This id corresponds to the face index in the input STEP file enumeration.
    * If consumers skip patches, these ids will be non-contiguous.
    */
-  [[nodiscard]] axom::ArrayView<const int> getPatchIds() const { return m_patchIds.view(); }
+  axom::ArrayView<const int> getPatchIds() const { return m_patchIds.view(); }
 
   /*!
    * \brief Returns the 0-based wire index for each extracted trimming curve
@@ -81,20 +81,19 @@ public:
    * The i-th entry corresponds to `getPatchArray()[patchArrayIndex].getTrimmingCurves()[i]`
    * and stores the 0-based wire index from the input face enumeration.
    */
-  [[nodiscard]] axom::ArrayView<const int> getTrimmingCurveWireIds(int patchArrayIndex) const;
+  axom::ArrayView<const int> getTrimmingCurveWireIds(int patchArrayIndex) const;
 
   /// \brief Returns whether the input STEP surface was originally periodic in u for this patch
-  [[nodiscard]] bool patchWasOriginallyPeriodic_u(int patchArrayIndex) const;
+  bool patchWasOriginallyPeriodic_u(int patchArrayIndex) const;
 
   /// \brief Returns whether the input STEP surface was originally periodic in v for this patch
-  [[nodiscard]] bool patchWasOriginallyPeriodic_v(int patchArrayIndex) const;
+  bool patchWasOriginallyPeriodic_v(int patchArrayIndex) const;
 
   /// Returns some information about the loaded BRep
-  [[nodiscard]] std::string getBRepStats() const;
+  std::string getBRepStats() const;
 
   /// Returns an AABB for the loaded BRep as evaluated by OpenCascade
-  [[nodiscard]] axom::primal::BoundingBox<double, 3> getBRepBoundingBox(
-    bool useTriangulation = false) const;
+  axom::primal::BoundingBox<double, 3> getBRepBoundingBox(bool useTriangulation = false) const;
 
   /*!
    * \brief Generates a triangulated representation of the STEP file as a Mint unstructured triangle mesh.
@@ -119,7 +118,7 @@ public:
 
 protected:
   // open cascade does not appear to offer a direct way to get the number of patches
-  [[nodiscard]] int numPatchesInFile() const;
+  int numPatchesInFile() const;
 
 protected:
   std::string m_fileName;

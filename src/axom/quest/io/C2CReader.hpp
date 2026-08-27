@@ -59,7 +59,7 @@ public:
   void clear();
 
   /// Returns true if the file has a recognized c2c extension.
-  [[nodiscard]] static bool hasValidExtension(const std::string& filename);
+  static bool hasValidExtension(const std::string& filename);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -76,8 +76,8 @@ public:
    * 
    * \return A view that contains the curves.
    */
-  [[nodiscard]] CurveArrayView getCurvesView() { return m_nurbsData.view(); }
-  [[nodiscard]] ConstCurveArrayView getCurvesView() const { return m_nurbsData.view(); }
+  CurveArrayView getCurvesView() { return m_nurbsData.view(); }
+  ConstCurveArrayView getCurvesView() const { return m_nurbsData.view(); }
 
 protected:
   /*!

@@ -80,14 +80,14 @@ protected:
    *
    * \return The number of triangles.
    */
-  [[nodiscard]] IndexType getNumberOfTriangles() const;
+  IndexType getNumberOfTriangles() const;
 
   /*!
    * \brief Determines whether the input mesh is topologically 2D.
    *
    * \return True if the mesh is topologically 2D, false otherwise.
    */
-  [[nodiscard]] bool isTopologically2D() const;
+  bool isTopologically2D() const;
 
   const mint::Mesh* m_mesh {nullptr};
   std::string m_fileName {"output.stl"};

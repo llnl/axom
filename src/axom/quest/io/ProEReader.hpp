@@ -85,13 +85,13 @@ public:
    * \brief Returns the number of nodes of the mesh.
    * \return numNodes the number of nodes.
    */
-  [[nodiscard]] int getNumNodes() const { return static_cast<int>(m_num_nodes); }
+  int getNumNodes() const { return static_cast<int>(m_num_nodes); }
 
   /*!
    * \brief Returns the number of tetrahedra of the mesh
    * \return numTets the number of tetrahedra.
    */
-  [[nodiscard]] int getNumTets() const { return static_cast<int>(m_num_tets); }
+  int getNumTets() const { return static_cast<int>(m_num_tets); }
 
   /*!
    * \brief Clears all internal data-structures
