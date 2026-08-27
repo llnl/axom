@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file CardinalityPolicies.hpp
  *
@@ -41,9 +43,6 @@
  *
  */
 
-#ifndef SLAM_POLICIES_CARDINALITY_H_
-#define SLAM_POLICIES_CARDINALITY_H_
-
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 
@@ -56,11 +55,7 @@
 #include "axom/slam/OrderedSet.hpp"  // Note: Not a circular dependency since
 // CardinalityPolicies are for relations
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /*!
  * \class ConstantCardinality
@@ -78,9 +73,16 @@ struct ConstantCardinality
   using BeginsStridePolicy = StridePolicy;
   using BeginsIndirectionPolicy = NoIndirection<ElementType, ElementType>;
 
-  // runtime size (fromSet.size()), striding from template parameter, no offset
-  using BeginsSet =
-    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy>;
+  // runtime size (fromSet.size()), striding from template parameter, no offset.
+  // Uses the concrete interface to stay trivially copyable / device-capturable.
+  using BeginsSet = OrderedSet<ElementType,
+                               ElementType,
+                               BeginsSizePolicy,
+                               BeginsOffsetPolicy,
+                               BeginsStridePolicy,
+                               BeginsIndirectionPolicy,
+                               NoSubset,
+                               ConcreteInterface>;
 
   // The cardinality of each relational operator is determined by the
   // StridePolicy of the relation
@@ -138,10 +140,13 @@ struct ConstantCardinality
  *  first set maps to an arbitrary number of elements in the second set.
  *
  * \tparam ElementType the index data type
- * \tparam IndirectionPolicy the policy to use for storing offsets and indices
+ * \tparam IndirectionPolicy the policy to use for storing offsets and indices.
+ *  Defaults to \c ArrayIndirection (backed by an \c axom::Array), matching the
+ *  default indirection of \c slam::Map and \c MappedVariableCardinality.
+ *  Use \c ArrayViewIndirection for a buffer managed elsewhere (device-capturable),
+ *  or \c STLVectorIndirection for interoperation with existing \c std::vector storage.
  */
-template <typename ElementType = int,
-          typename IndirectionPolicy = STLVectorIndirection<ElementType, ElementType>>
+template <typename ElementType = int, typename IndirectionPolicy = ArrayIndirection<ElementType, ElementType>>
 struct VariableCardinality
 {
   using BeginsSizePolicy = RuntimeSize<ElementType>;
@@ -149,9 +154,16 @@ struct VariableCardinality
   using BeginsStridePolicy = StrideOne<ElementType>;
   using BeginsIndirectionPolicy = IndirectionPolicy;
 
-  // runtime size (fromSet.size()), striding from template parameter, no offset
-  using BeginsSet =
-    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy, IndirectionPolicy>;
+  // runtime size (fromSet.size()), striding from template parameter, no offset.
+  // Uses the concrete interface to stay trivially copyable / device-capturable.
+  using BeginsSet = OrderedSet<ElementType,
+                               ElementType,
+                               BeginsSizePolicy,
+                               BeginsOffsetPolicy,
+                               BeginsStridePolicy,
+                               IndirectionPolicy,
+                               NoSubset,
+                               ConcreteInterface>;
 
   // The cardinality of each relational operator is determined by the
   // StridePolicy of the relation
@@ -233,9 +245,16 @@ struct MappedVariableCardinality
   using BeginsStridePolicy = StrideOne<ElementType>;
   using BeginsIndirectionPolicy = IndirectionPolicy;
 
-  // runtime size (fromSet.size()), striding from template parameter, no offset
-  using IndexSet =
-    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy, IndirectionPolicy>;
+  // runtime size (fromSet.size()), striding from template parameter, no offset.
+  // Use concrete interface to remain trivially copyable.
+  using IndexSet = OrderedSet<ElementType,
+                              ElementType,
+                              BeginsSizePolicy,
+                              BeginsOffsetPolicy,
+                              BeginsStridePolicy,
+                              IndirectionPolicy,
+                              NoSubset,
+                              ConcreteInterface>;
   using BeginsSet = IndexSet;
 
   // The cardinality of each relational operator is determined by the
@@ -310,9 +329,4 @@ struct MappedVariableCardinality
   BeginsSet m_begins;
 };
 
-}  // end namespace policies
-
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_POLICIES_CARDINALITY_H_
+}  // end namespace axom::slam::policies

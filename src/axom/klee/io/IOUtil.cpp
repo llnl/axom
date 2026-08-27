@@ -15,9 +15,9 @@ namespace klee
 {
 namespace internal
 {
-std::vector<double> toDoubleVector(inlet::Proxy const &field,
+std::vector<double> toDoubleVector(inlet::Proxy const& field,
                                    Dimensions expectedDims,
-                                   char const *fieldName)
+                                   char const* fieldName)
 {
   auto expectedSize = static_cast<std::size_t>(expectedDims);
   auto values = field.get<std::vector<double>>();
@@ -32,17 +32,17 @@ std::vector<double> toDoubleVector(inlet::Proxy const &field,
 }
 
 template <typename T>
-T toArrayLike(inlet::Proxy const &parent, char const *fieldName, Dimensions expectedDims)
+T toArrayLike(inlet::Proxy const& parent, char const* fieldName, Dimensions expectedDims)
 {
   auto values = toDoubleVector(parent[fieldName], expectedDims, fieldName);
   return T {values.data(), static_cast<int>(expectedDims)};
 }
 
 template <typename T>
-T toArrayLike(inlet::Proxy const &parent,
-              char const *fieldName,
+T toArrayLike(inlet::Proxy const& parent,
+              char const* fieldName,
               Dimensions expectedDims,
-              const T &defaultValue)
+              const T& defaultValue)
 {
   if(parent.contains(fieldName))
   {
@@ -51,33 +51,33 @@ T toArrayLike(inlet::Proxy const &parent,
   return defaultValue;
 }
 
-primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, Dimensions expectedDims)
+primal::Point3D toPoint(inlet::Container const& parent, char const* fieldName, Dimensions expectedDims)
 {
   return toArrayLike<primal::Point3D>(parent, fieldName, expectedDims);
 }
 
-primal::Point3D toPoint(inlet::Container const &parent,
-                        char const *fieldName,
+primal::Point3D toPoint(inlet::Container const& parent,
+                        char const* fieldName,
                         Dimensions expectedDims,
-                        const primal::Point3D &defaultValue)
+                        const primal::Point3D& defaultValue)
 {
   return toArrayLike(parent, fieldName, expectedDims, defaultValue);
 }
 
-primal::Vector3D toVector(inlet::Container const &parent, char const *fieldName, Dimensions expectedDims)
+primal::Vector3D toVector(inlet::Container const& parent, char const* fieldName, Dimensions expectedDims)
 {
   return toArrayLike<primal::Vector3D>(parent, fieldName, expectedDims);
 }
 
-primal::Vector3D toVector(inlet::Container const &parent,
-                          char const *fieldName,
+primal::Vector3D toVector(inlet::Container const& parent,
+                          char const* fieldName,
                           Dimensions expectedDims,
-                          const primal::Vector3D &defaultValue)
+                          const primal::Vector3D& defaultValue)
 {
   return toArrayLike(parent, fieldName, expectedDims, defaultValue);
 }
 
-std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container &container)
+std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container& container)
 {
   bool hasStartUnits = container.contains("start_units");
   bool hasEndUnits = container.contains("end_units");
@@ -87,7 +87,7 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Cont
     {
       throw KleeError({container.name(), "Can't specify 'units' with 'start_units' or 'end_units'"});
     }
-    auto units = parseLengthUnits(container["units"]);
+    auto units = internal::parseLengthUnits(container["units"]);
     return std::make_tuple(units, units);
   }
   else if(hasStartUnits || hasEndUnits)
@@ -96,14 +96,14 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Cont
     {
       throw KleeError({container.name(), "Must specify both 'start_units' and 'end_units'"});
     }
-    auto startUnits = parseLengthUnits(container["start_units"]);
-    auto endUnits = parseLengthUnits(container["end_units"]);
+    auto startUnits = internal::parseLengthUnits(container["start_units"]);
+    auto endUnits = internal::parseLengthUnits(container["end_units"]);
     return std::make_tuple(startUnits, endUnits);
   }
   return std::make_tuple(LengthUnit::unspecified, LengthUnit::unspecified);
 }
 
-std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container &container)
+std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container& container)
 {
   auto units = getOptionalStartAndEndUnits(container);
   if(std::get<0>(units) == LengthUnit::unspecified)
@@ -113,10 +113,10 @@ std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container &c
   return units;
 }
 
-void defineUnitsSchema(inlet::Container &container,
-                       const char *unitsDescription,
-                       const char *startUnitsDescription,
-                       const char *endUnitsDescription)
+void defineUnitsSchema(inlet::Container& container,
+                       const char* unitsDescription,
+                       const char* startUnitsDescription,
+                       const char* endUnitsDescription)
 {
   container.addString("start_units", startUnitsDescription);
   container.addString("end_units", endUnitsDescription);
@@ -127,14 +127,14 @@ void defineUnitsSchema(inlet::Container &container,
   // figuring out which fields to use.
 }
 
-inlet::VerifiableScalar &defineDimensionsField(inlet::Container &parent,
-                                               const char *name,
-                                               const char *description)
+inlet::VerifiableScalar& defineDimensionsField(inlet::Container& parent,
+                                               const char* name,
+                                               const char* description)
 {
   return parent.addInt(name, description).range(2, 3);
 }
 
-Dimensions toDimensions(const inlet::Proxy &dimProxy)
+Dimensions toDimensions(const inlet::Proxy& dimProxy)
 {
   return static_cast<Dimensions>(dimProxy.get<int>());
 }

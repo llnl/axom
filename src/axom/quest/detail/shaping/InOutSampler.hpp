@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using the InOutOctree
  */
-
-#ifndef AXOM_QUEST_INOUT_SAMPLER__HPP_
-#define AXOM_QUEST_INOUT_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -24,7 +23,9 @@
 
 #include "axom/fmt.hpp"
 
-#include "mfem.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
+#endif
 
 namespace axom
 {
@@ -32,9 +33,6 @@ namespace quest
 {
 namespace shaping
 {
-using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
-using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
-
 template <int NDIMS>
 class InOutSampler
 {
@@ -86,15 +84,24 @@ public:
     SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
   }
 
-  void initSpatialIndex(double vertexWeldThreshold)
+  void initSpatialIndex(double vertexWeldThreshold,
+                        bool shouldOutputVtk = false,
+                        const std::string& vtkOutputDirectory = "")
   {
     AXOM_ANNOTATE_SCOPE("generate InOutOctree");
     // Create octree over mesh's bounding box
     m_octree = new InOutOctreeType(m_bbox, m_surfaceMesh);
     m_octree->setVertexWeldThreshold(vertexWeldThreshold);
+    m_octree->setVtkOutputEnabled(shouldOutputVtk);
+    if(shouldOutputVtk)
+    {
+      m_octree->setVtkOutputDirectory(vtkOutputDirectory);
+      m_octree->setVtkOutputPrefix(axom::fmt::format("{}_", m_shapeName));
+    }
     m_octree->generateIndex();
   }
 
+#if defined(AXOM_USE_MFEM)
   /*!
    * \brief Samples the inout field over the indexed geometry, possibly using a
    * callback function to project the input points (from the computational mesh)
@@ -114,23 +121,14 @@ public:
    * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
-                                                        shaping::QFunctionCollection& inoutQFuncs,
-                                                        axom::ArrayView<int> sampleRes,
-                                                        int quadratureType,
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::MFEMState& mfemState,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using PointType = primal::Point<double, DIM>;
 
     const InOutOctreeType* octree = m_octree;
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
-    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
-                                              dc,
-                                              inoutQFuncs,
-                                              sampleRes,
-                                              quadratureType,
-                                              checkInside,
-                                              projector);
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, mfemState, checkInside, projector);
   }
 
   /*!
@@ -138,10 +136,7 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
-                                                        shaping::QFunctionCollection&,
-                                                        axom::ArrayView<int> AXOM_UNUSED_PARAM(sampleRes),
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::MFEMState&,
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -155,7 +150,7 @@ public:
    */
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* dc,
+    shaping::MFEMState& mfemState,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -163,7 +158,7 @@ public:
     const InOutOctreeType* octree = m_octree;
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
-                                                            dc,
+                                                            mfemState,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -175,7 +170,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+    shaping::MFEMState& AXOM_UNUSED_PARAM(mfemState),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
@@ -183,6 +178,35 @@ public:
                   "Do not call this function -- it only exists to appease the compiler!"
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
+#endif
+
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+  template <int FromDim, int ToDim = DIM>
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::BlueprintState& bpState,
+                                                        PointProjector<FromDim, ToDim> projector = {})
+  {
+    using PointType = primal::Point<double, DIM>;
+
+    const InOutOctreeType* octree = m_octree;
+    auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, bpState, checkInside, projector);
+  }
+
+  template <int FromDim, int ToDim>
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::BlueprintState&,
+                                                        PointProjector<FromDim, ToDim>)
+  {
+    static_assert(ToDim != DIM,
+                  "Do not call this function -- it only exists to appease the compiler!"
+                  "Projector's return dimension (ToDim), must match class dimension (DIM)");
+  }
+
+  template <int FromDim, int ToDim = DIM>
+  void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                                      int AXOM_UNUSED_PARAM(outputOrder),
+                                      PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
+  { }
+#endif
 
 private:
   DISABLE_COPY_AND_ASSIGNMENT(InOutSampler);
@@ -198,5 +222,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_SAMPLER__HPP_

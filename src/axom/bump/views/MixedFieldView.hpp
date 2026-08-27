@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_MIXED_FIELD_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_MIXED_FIELD_VIEW_HPP_
+#pragma once
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/StaticArray.hpp"
@@ -48,7 +47,7 @@ struct MixedFieldTraits<UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS>, Fie
    *
    * \return The field value at the provided index.
    */
-  AXOM_HOST_DEVICE FieldT value(const IteratorIndex &index) const
+  AXOM_HOST_DEVICE FieldT value(const IteratorIndex& index) const
   {
     SLIC_ASSERT(axom::utilities::inBounds_0_N(index.m_localIndex, m_values.size()));
     return m_values[index.m_localIndex];
@@ -81,7 +80,7 @@ struct MixedFieldTraits<ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS
    *
    * \return The field value at the provided index.
    */
-  AXOM_HOST_DEVICE FieldT value(const IteratorIndex &index) const
+  AXOM_HOST_DEVICE FieldT value(const IteratorIndex& index) const
   {
     SLIC_ASSERT(axom::utilities::inBounds_0_N(index.m_bufferIndex, m_values.size()));
     SLIC_ASSERT(
@@ -116,7 +115,7 @@ struct MixedFieldTraits<MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIAL
    *
    * \return The field value at the provided index.
    */
-  AXOM_HOST_DEVICE FieldT value(const IteratorIndex &index) const
+  AXOM_HOST_DEVICE FieldT value(const IteratorIndex& index) const
   {
     SLIC_ASSERT(axom::utilities::inBounds_0_N(index.m_bufferIndex, m_values.size()));
     SLIC_ASSERT(
@@ -137,14 +136,14 @@ class MixedFieldView
 public:
   using Traits = MixedFieldTraits<MatsetView, FieldT>;
 
-  Traits &traits() { return m_traits; }
-  const Traits &traits() const { return m_traits; }
+  Traits& traits() { return m_traits; }
+  const Traits& traits() const { return m_traits; }
 
   /*!
    * \brief Given a MatsetView's const_iterator, use it to look up the typed field
    *        data in the field.
    */
-  AXOM_HOST_DEVICE FieldT value(const typename MatsetView::const_iterator &it) const
+  AXOM_HOST_DEVICE FieldT value(const typename MatsetView::const_iterator& it) const
   {
     return m_traits.value(it.index());
   }
@@ -156,4 +155,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-#endif

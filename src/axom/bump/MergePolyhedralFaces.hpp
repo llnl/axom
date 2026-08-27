@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MERGE_POLYHEDRAL_FACES_HPP_
-#define AXOM_BUMP_MERGE_POLYHEDRAL_FACES_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
@@ -48,7 +48,7 @@ public:
    *
    * \param n_topology The topology to modify.
    */
-  static void execute(conduit::Node &n_topo,
+  static void execute(conduit::Node& n_topo,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     SLIC_ASSERT(n_topo.fetch_existing("elements/shape").as_string() == "polyhedral");
@@ -59,12 +59,12 @@ public:
     const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
 
     // Get the data from the topology and make views.
-    conduit::Node &n_elem_conn = n_topo["elements/connectivity"];
-    conduit::Node &n_elem_sizes = n_topo["elements/sizes"];
-    conduit::Node &n_elem_offsets = n_topo["elements/offsets"];
-    conduit::Node &n_se_conn = n_topo["subelements/connectivity"];
-    conduit::Node &n_se_sizes = n_topo["subelements/sizes"];
-    conduit::Node &n_se_offsets = n_topo["subelements/offsets"];
+    conduit::Node& n_elem_conn = n_topo["elements/connectivity"];
+    conduit::Node& n_elem_sizes = n_topo["elements/sizes"];
+    conduit::Node& n_elem_offsets = n_topo["elements/offsets"];
+    conduit::Node& n_se_conn = n_topo["subelements/connectivity"];
+    conduit::Node& n_se_sizes = n_topo["subelements/sizes"];
+    conduit::Node& n_se_offsets = n_topo["subelements/offsets"];
     auto elem_conn = utils::make_array_view<ConnectivityType>(n_elem_conn);
     auto elem_sizes = utils::make_array_view<ConnectivityType>(n_elem_sizes);
     auto elem_offsets = utils::make_array_view<ConnectivityType>(n_elem_offsets);
@@ -279,5 +279,3 @@ public:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

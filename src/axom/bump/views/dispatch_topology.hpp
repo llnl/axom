@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_TOPOLOGY_HPP_
-#define AXOM_BUMP_DISPATCH_TOPOLOGY_HPP_
+#pragma once
 
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/dispatch_uniform_topology.hpp"
@@ -33,7 +32,7 @@ namespace views
  * \param func     The function to invoke using the view. It should accept a string with the shape name and an auto parameter for the view.
  */
 template <int SelectedDimensions = select_dimensions(1, 2, 3), int ShapeTypes = AnyShape, typename FuncType>
-void dispatch_topology(const conduit::Node &topo, FuncType &&func)
+void dispatch_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
   const auto type = topo.fetch_existing("type").as_string();
@@ -52,5 +51,3 @@ void dispatch_topology(const conduit::Node &topo, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

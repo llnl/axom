@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_STRUCTURED_TOPOLOGY_HPP_
-#define AXOM_BUMP_DISPATCH_STRUCTURED_TOPOLOGY_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/views/StructuredTopologyView.hpp"
@@ -48,7 +47,7 @@ struct make_strided_structured_topology<3>
    * \param topo The node containing the topology.
    * \return The indexing
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     namespace utils = axom::bump::utilities;
     verify(topo, "topology");
@@ -92,7 +91,7 @@ struct make_strided_structured_topology<3>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -110,7 +109,7 @@ struct make_strided_structured_topology<2>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     namespace utils = axom::bump::utilities;
     verify(topo, "topology");
@@ -147,7 +146,7 @@ struct make_strided_structured_topology<2>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -165,7 +164,7 @@ struct make_strided_structured_topology<1>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     namespace utils = axom::bump::utilities;
     verify(topo, "topology");
@@ -190,7 +189,7 @@ struct make_strided_structured_topology<1>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -215,7 +214,7 @@ struct make_structured_topology<3>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
     LogicalIndex zoneDims;
@@ -231,7 +230,7 @@ struct make_structured_topology<3>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -249,7 +248,7 @@ struct make_structured_topology<2>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
     LogicalIndex zoneDims;
@@ -263,7 +262,7 @@ struct make_structured_topology<2>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -281,7 +280,7 @@ struct make_structured_topology<1>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
     LogicalIndex zoneDims;
@@ -295,7 +294,7 @@ struct make_structured_topology<1>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 //------------------------------------------------------------------------------
@@ -307,8 +306,8 @@ namespace internal
 template <bool enabled, int NDIMS, typename FuncType>
 struct dispatch_only_structured_topology
 {
-  static void execute(const conduit::Node &AXOM_UNUSED_PARAM(topo),
-                      FuncType &&AXOM_UNUSED_PARAM(func))
+  static void execute(const conduit::Node& AXOM_UNUSED_PARAM(topo),
+                      FuncType&& AXOM_UNUSED_PARAM(func))
   { }
 };
 
@@ -325,7 +324,7 @@ struct dispatch_only_structured_topology<true, 3, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
@@ -356,7 +355,7 @@ struct dispatch_only_structured_topology<true, 2, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
@@ -387,7 +386,7 @@ struct dispatch_only_structured_topology<true, 1, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
@@ -412,8 +411,8 @@ struct dispatch_only_structured_topology<true, 1, FuncType>
 template <bool enabled, int NDIMS, typename FuncType>
 struct dispatch_any_structured_topology
 {
-  static void execute(const conduit::Node &AXOM_UNUSED_PARAM(topo),
-                      FuncType &&AXOM_UNUSED_PARAM(func))
+  static void execute(const conduit::Node& AXOM_UNUSED_PARAM(topo),
+                      FuncType&& AXOM_UNUSED_PARAM(func))
   { }
 };
 
@@ -430,7 +429,7 @@ struct dispatch_any_structured_topology<true, 3, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("offsets"), stridesKey("strides");
     const std::string type = topo.fetch_existing("type").as_string();
@@ -469,7 +468,7 @@ struct dispatch_any_structured_topology<true, 2, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("offsets"), stridesKey("strides");
     const std::string type = topo.fetch_existing("type").as_string();
@@ -507,7 +506,7 @@ struct dispatch_any_structured_topology<true, 1, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     const std::string offsetsKey("offsets"), stridesKey("strides");
     const std::string type = topo.fetch_existing("type").as_string();
@@ -537,7 +536,7 @@ struct dispatch_any_structured_topology<true, 1, FuncType>
  * \param func     The function to invoke using the view. It should accept a string with the shape name and an auto parameter for the view.
  */
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
-void dispatch_structured_topology(const conduit::Node &topo, FuncType &&func)
+void dispatch_structured_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
   int ndims = 1;
@@ -578,7 +577,7 @@ void dispatch_structured_topology(const conduit::Node &topo, FuncType &&func)
  * \note We try to initialize the topoView for each dimension and share the dispatch.
  */
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
-void dispatch_structured_topologies(const conduit::Node &topo, FuncType &&func)
+void dispatch_structured_topologies(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
   const auto ndims = conduit::blueprint::mesh::utils::topology::dims(topo);
@@ -607,5 +606,3 @@ void dispatch_structured_topologies(const conduit::Node &topo, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

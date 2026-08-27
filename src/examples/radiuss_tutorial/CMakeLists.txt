@@ -71,7 +71,7 @@ blt_add_executable(NAME       lesson_02_naive_self_intersections
 
 if(umpire_FOUND AND RAJA_FOUND)
     blt_list_append(TO tutorial_deps ELEMENTS RAJA   IF RAJA_FOUND)
-    blt_list_append(TO tutorial_deps ELEMENTS umpire IF umpire_FOUND)
+    blt_list_append(TO tutorial_deps ELEMENTS umpire::umpire IF umpire_FOUND)
 
     blt_add_executable(NAME       lesson_03_device_self_intersections
                        SOURCES    lesson_03/device_self_intersections.cpp
@@ -139,4 +139,3 @@ endif()
 if(EXAMPLE_VERBOSE_OUTPUT)
     blt_print_target_properties(TARGET axom CHILDREN TRUE)  
 endif()
-

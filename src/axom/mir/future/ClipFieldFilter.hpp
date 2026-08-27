@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_CLIP_FIELD_FILTER_HPP_
-#define AXOM_MIR_CLIP_FIELD_FILTER_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/mir.hpp"
@@ -46,7 +46,7 @@ public:
    *
    * \note The clipField field must currently be vertex-associated.
    */
-  void execute(const conduit::Node &n_input, const conduit::Node &n_options, conduit::Node &n_output);
+  void execute(const conduit::Node& n_input, const conduit::Node& n_options, conduit::Node& n_output);
 
   /**
    * \brief Execute the clipping operation using the specified options.
@@ -61,13 +61,13 @@ public:
    *
    * \note The clipField field must currently be vertex-associated. Also, the output topology will be an unstructured topology with mixed shape types.
    */
-  void execute(const conduit::Node &n_topo,
-               const conduit::Node &n_coordset,
-               const conduit::Node &n_fields,
-               const conduit::Node &n_options,
-               conduit::Node &n_newTopo,
-               conduit::Node &n_newCoordset,
-               conduit::Node &n_newFields);
+  void execute(const conduit::Node& n_topo,
+               const conduit::Node& n_coordset,
+               const conduit::Node& n_fields,
+               const conduit::Node& n_options,
+               conduit::Node& n_newTopo,
+               conduit::Node& n_newCoordset,
+               conduit::Node& n_newFields);
 
 private:
   axom::runtime_policy::Policy m_runtime;
@@ -76,5 +76,3 @@ private:
 }  // end namespace clipping
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

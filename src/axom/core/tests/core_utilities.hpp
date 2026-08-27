@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "gtest/gtest.h"
 
 #include "axom/config.hpp"
@@ -125,7 +127,7 @@ TEST(core_utilities, qsort_sort_double)
  * \return True if all elements are in increasing order; False otherwise.
  */
 template <typename ArrayType>
-bool is_increasing(const ArrayType &arr)
+bool is_increasing(const ArrayType& arr)
 {
   bool retval = true;
   for(size_t i = 1; i < arr.size(); i++)
@@ -141,7 +143,7 @@ bool is_increasing(const ArrayType &arr)
  * \return True if all elements are in decreasing order; False otherwise.
  */
 template <typename ArrayType>
-bool is_decreasing(const ArrayType &arr)
+bool is_decreasing(const ArrayType& arr)
 {
   bool retval = true;
   for(size_t i = 1; i < arr.size(); i++)

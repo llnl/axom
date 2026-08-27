@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_NUMERICS_TRANSFORMS_HPP_
-#define AXOM_NUMERICS_TRANSFORMS_HPP_
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
@@ -231,7 +231,7 @@ Matrix<T> scale(T sx, T sy, int ndims = 3)
  * \return A 3x3 Matrix containing the scaling transform.
  */
 template <typename T = double>
-Matrix<T> scale(T sx, T sy, const axom::ArrayView<T> &center)
+Matrix<T> scale(T sx, T sy, const axom::ArrayView<T>& center)
 {
   assert(center.size() == 2);
   const T zero {0};
@@ -262,7 +262,7 @@ Matrix<T> scale(T sx, T sy, const axom::ArrayView<T> &center)
  * \return A 4x4 Matrix containing the scaling transform.
  */
 template <typename T = double>
-Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T> &center)
+Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T>& center)
 {
   assert(center.size() == 3);
   const T zero {0};
@@ -287,5 +287,3 @@ Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T> &center)
 }  // end namespace transforms
 }  // end namespace numerics
 }  // end namespace axom
-
-#endif

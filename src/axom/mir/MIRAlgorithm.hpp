@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_ALGORITHM_HPP_
-#define AXOM_MIR_ALGORITHM_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -60,9 +59,9 @@ options:
     \param[out] n_output A node that will contain the new entities.
 
     */
-  virtual void execute(const conduit::Node &n_input,
-                       const conduit::Node &n_options,
-                       conduit::Node &n_output);
+  virtual void execute(const conduit::Node& n_input,
+                       const conduit::Node& n_options,
+                       conduit::Node& n_output);
 
 protected:
   /*!
@@ -72,9 +71,9 @@ protected:
    * \param n_options The MIR options.
    * \param n_newDomain The output domain.
    */
-  void executeSetup(const conduit::Node &n_domain,
-                    const conduit::Node &n_options,
-                    conduit::Node &n_newDomain);
+  void executeSetup(const conduit::Node& n_domain,
+                    const conduit::Node& n_options,
+                    conduit::Node& n_newDomain);
 
   /*!
    * \brief Perform material interface reconstruction on a single domain. Derived classes
@@ -92,15 +91,15 @@ protected:
    * \param[out] n_newMatset A Conduit node that will contain the new matset.
    * 
    */
-  virtual void executeDomain(const conduit::Node &n_topo,
-                             const conduit::Node &n_coordset,
-                             const conduit::Node &n_fields,
-                             const conduit::Node &n_matset,
-                             const conduit::Node &n_options,
-                             conduit::Node &n_newTopo,
-                             conduit::Node &n_newCoordset,
-                             conduit::Node &n_newFields,
-                             conduit::Node &n_newMatset) = 0;
+  virtual void executeDomain(const conduit::Node& n_topo,
+                             const conduit::Node& n_coordset,
+                             const conduit::Node& n_fields,
+                             const conduit::Node& n_matset,
+                             const conduit::Node& n_options,
+                             conduit::Node& n_newTopo,
+                             conduit::Node& n_newCoordset,
+                             conduit::Node& n_newFields,
+                             conduit::Node& n_newMatset) = 0;
 
   /*!
    * \brief Update names in some of the objects when we can tell they have been renamed.
@@ -118,23 +117,23 @@ protected:
    *
    * \note This method is used internally mainly when MIR copies the input mesh to the output when MIR is no-op.
    */
-  void updateNames(const std::string &origTopoName,
-                   const std::string &newTopoName,
-                   const std::string &origCoordsetName,
-                   const std::string &newCoordsetName,
-                   const std::string &origMatsetName,
-                   const std::string &newMatsetName,
-                   conduit::Node &n_newTopo,
-                   conduit::Node &n_newCoordset,
-                   conduit::Node &n_newFields,
-                   conduit::Node &n_newMatset);
+  void updateNames(const std::string& origTopoName,
+                   const std::string& newTopoName,
+                   const std::string& origCoordsetName,
+                   const std::string& newCoordsetName,
+                   const std::string& origMatsetName,
+                   const std::string& newMatsetName,
+                   conduit::Node& n_newTopo,
+                   conduit::Node& n_newCoordset,
+                   conduit::Node& n_newFields,
+                   conduit::Node& n_newMatset);
 
   /*!
    * \brief Copy state from the src domain to the destination domain.
    * \param srcState The node that contains the state in the source domain.
    * \param destState The node that contains the state in the destination domain.
    */
-  void copyState(const conduit::Node &srcState, conduit::Node &destState) const;
+  void copyState(const conduit::Node& srcState, conduit::Node& destState) const;
 
   /*!
    * \brief This is a utility method for printing a Conduit node with large limits
@@ -142,7 +141,7 @@ protected:
    *
    * \param n The Conduit node to print.
    */
-  void printNode(const conduit::Node &n) const;
+  void printNode(const conduit::Node& n) const;
 
   /*!
    * \brief Save a Blueprint mesh to disk (YAML and HDF5, if available).
@@ -150,7 +149,7 @@ protected:
    * \param n_mesh The mesh to save.
    * \param filebase The base filename to use when writing files. Extensions may be added.
    */
-  void saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const;
+  void saveMesh(const conduit::Node& n_mesh, const std::string& filebase) const;
 
   /*!
    * \brief Return the local path name, stripping off a domain path prefix. Blueprint domains
@@ -161,10 +160,8 @@ protected:
    *
    * \return The path without the domain prefix.
    */
-  std::string localPath(const conduit::Node &obj) const;
+  std::string localPath(const conduit::Node& obj) const;
 };
 
 }  // end namespace mir
 }  // end namespace axom
-
-#endif

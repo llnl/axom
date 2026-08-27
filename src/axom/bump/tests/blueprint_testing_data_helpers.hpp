@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BLUEPRINT_TESTING_DATA_HELPERS_HPP_
-#define AXOM_BLUEPRINT_TESTING_DATA_HELPERS_HPP_
+
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -32,19 +32,19 @@ namespace data
  * \param mesh The node that contains the blueprint mesh and fields.
  * \param dist The radial distance of interest.
  */
-void add_distance(conduit::Node &mesh, float dist = 6.5f)
+void add_distance(conduit::Node& mesh, float dist = 6.5f)
 {
   // Make a new distance field.
-  const conduit::Node &n_coordset = mesh["coordsets"][0];
+  const conduit::Node& n_coordset = mesh["coordsets"][0];
   axom::bump::views::dispatch_coordset(n_coordset, [&](auto coordsetView) {
     using PointType = typename decltype(coordsetView)::PointType;
     using SphereType = axom::primal::Sphere<typename PointType::CoordType, PointType::DIMENSION>;
     mesh["fields/distance/topology"] = "mesh";
     mesh["fields/distance/association"] = "vertex";
-    conduit::Node &n_values = mesh["fields/distance/values"];
+    conduit::Node& n_values = mesh["fields/distance/values"];
     const auto nnodes = coordsetView.size();
     n_values.set(conduit::DataType::float32(nnodes));
-    float *valuesPtr = static_cast<float *>(n_values.data_ptr());
+    float* valuesPtr = static_cast<float*>(n_values.data_ptr());
     SphereType s(dist);
     for(int index = 0; index < nnodes; index++)
     {
@@ -62,7 +62,7 @@ void add_distance(conduit::Node &mesh, float dist = 6.5f)
  * \param[out] mesh The node that will contain the new mesh and fields.
  */
 template <typename Dimensions>
-void braid(const std::string &type, const Dimensions &dims, conduit::Node &mesh)
+void braid(const std::string& type, const Dimensions& dims, conduit::Node& mesh)
 {
   int d[3] = {0, 0, 0};
   auto n = dims.size();
@@ -76,9 +76,9 @@ void braid(const std::string &type, const Dimensions &dims, conduit::Node &mesh)
 }
 
 // Return the max value for element i in vfA, vfB, vfC.
-float make_field_value(const std::vector<float> &vfA,
-                       const std::vector<float> &vfB,
-                       const std::vector<float> &vfC,
+float make_field_value(const std::vector<float>& vfA,
+                       const std::vector<float>& vfB,
+                       const std::vector<float>& vfC,
                        size_t i)
 {
   return vfA[i] + vfB[i] + vfC[i];
@@ -96,12 +96,12 @@ float make_field_value(const std::vector<float> &vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_unibuffer(const std::vector<float> &vfA,
-                    const std::vector<float> &vfB,
-                    const std::vector<float> &vfC,
-                    const std::vector<int> &matnos,
-                    conduit::Node &matset,
-                    conduit::Node &mfield)
+void make_unibuffer(const std::vector<float>& vfA,
+                    const std::vector<float>& vfB,
+                    const std::vector<float>& vfC,
+                    const std::vector<int>& matnos,
+                    conduit::Node& matset,
+                    conduit::Node& mfield)
 {
   std::vector<int> material_ids;
   std::vector<float> volume_fractions, field_values;
@@ -164,12 +164,12 @@ void make_unibuffer(const std::vector<float> &vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_multibuffer(const std::vector<float> &vfA,
-                      const std::vector<float> &vfB,
-                      const std::vector<float> &vfC,
-                      const std::vector<int> &AXOM_UNUSED_PARAM(matnos),
-                      conduit::Node &matset,
-                      conduit::Node &mfield)
+void make_multibuffer(const std::vector<float>& vfA,
+                      const std::vector<float>& vfB,
+                      const std::vector<float>& vfC,
+                      const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
+                      conduit::Node& matset,
+                      conduit::Node& mfield)
 {
   std::vector<int> indices(vfA.size());
   std::iota(indices.begin(), indices.end(), 0);
@@ -199,12 +199,12 @@ void make_multibuffer(const std::vector<float> &vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_element_dominant(const std::vector<float> &vfA,
-                           const std::vector<float> &vfB,
-                           const std::vector<float> &vfC,
-                           const std::vector<int> &AXOM_UNUSED_PARAM(matnos),
-                           conduit::Node &matset,
-                           conduit::Node &mfield)
+void make_element_dominant(const std::vector<float>& vfA,
+                           const std::vector<float>& vfB,
+                           const std::vector<float>& vfC,
+                           const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
+                           conduit::Node& matset,
+                           conduit::Node& mfield)
 {
   // NOTE: These are not sparse.
   matset["volume_fractions/A"].set(vfA);
@@ -229,12 +229,12 @@ void make_element_dominant(const std::vector<float> &vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_material_dominant(const std::vector<float> &vfA,
-                            const std::vector<float> &vfB,
-                            const std::vector<float> &vfC,
-                            const std::vector<int> &AXOM_UNUSED_PARAM(matnos),
-                            conduit::Node &matset,
-                            conduit::Node &mfield)
+void make_material_dominant(const std::vector<float>& vfA,
+                            const std::vector<float>& vfB,
+                            const std::vector<float>& vfC,
+                            const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
+                            conduit::Node& matset,
+                            conduit::Node& mfield)
 {
   std::vector<float> svfA, svfB, svfC;  // sparse arrays
   std::vector<int> ziA, ziB, ziC;
@@ -293,12 +293,12 @@ void make_material_dominant(const std::vector<float> &vfA,
  *   *--------------*
  */
 template <typename Dimensions>
-void make_matset(const std::string &type,
-                 const std::string &topoName,
-                 const Dimensions &dims,
+void make_matset(const std::string& type,
+                 const std::string& topoName,
+                 const Dimensions& dims,
                  bool cleanMats,
                  bool makeMixedField,
-                 conduit::Node &mesh)
+                 conduit::Node& mesh)
 {
   SLIC_ERROR_IF(cleanMats && makeMixedField,
                 "We cannot make a mixed field when making clean materials.");
@@ -405,7 +405,7 @@ void make_matset(const std::string &type,
   }
 
   const std::vector<int> matnos {{22, 66, 33}};
-  conduit::Node &matset = mesh["matsets/mat"];
+  conduit::Node& matset = mesh["matsets/mat"];
   matset["topology"] = topoName;
   matset["material_map/A"] = matnos[0];
   matset["material_map/B"] = matnos[1];
@@ -440,7 +440,7 @@ void make_matset(const std::string &type,
  *
  * \param[out] mesh The node that will contain the new mesh.
  */
-void mixed3d(conduit::Node &mesh)
+void mixed3d(conduit::Node& mesh)
 {
   // clang-format off
   const std::vector<int> conn{{
@@ -659,5 +659,3 @@ void strided_structured(conduit::Node &hostMesh)
 } // end namespace testing
 } // end namespace blueprint
 } // end namespace axom
-
-#endif

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 
@@ -130,8 +132,8 @@ namespace slamLulesh {
  *  "Real_t &z(Index_t idx) { return m_coord[idx].z ; }"
  */
 
-  class Domain {
-
+  class Domain
+  {
   public:
     using SetBase = axom::slam::Set<>;
     using NullSet = axom::slam::NullSet<>;
@@ -143,64 +145,47 @@ namespace slamLulesh {
     using CornerSet = axom::slam::RangeSet<>;
     using ExtendedElemSet = axom::slam::RangeSet<>;
 
-    using SymmNodeSet = axom::slam::VectorIndirectionSet<>;
+    using SymmNodeSet = axom::slam::ArrayIndirectionSet<PositionType, ElementType>;
 
-    using STLIndirection = axom::slam::policies::STLVectorIndirection<PositionType, ElementType>;
+    enum
+    {
+      NODES_PER_ZONE = 8,
+      FACES_PER_ZONE = 1
+    };
 
-    enum { NODES_PER_ZONE = 8, FACES_PER_ZONE = 1};
-    using ZNStride = axom::slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
-    using ZFStride = axom::slam::policies::CompileTimeStride<PositionType, FACES_PER_ZONE>;
-
-    using ZNCard = axom::slam::policies::ConstantCardinality<PositionType, ZNStride>;
-    using ElemToNodeRelation =
-        axom::slam::StaticRelation<PositionType, ElementType,ZNCard, STLIndirection, ElemSet, NodeSet>;
+    using ElemToNodeRelation = axom::slam::ConstantRelation<ElemSet, NodeSet, NODES_PER_ZONE>;
     using ElemNodeSet = const ElemToNodeRelation::RelationSubset;
 
-    using ZFCard = axom::slam::policies::ConstantCardinality<PositionType, ZFStride>;
     using ElemFaceAdjacencyRelation =
-        axom::slam::StaticRelation<PositionType, ElementType,ZFCard, STLIndirection, ElemSet, ExtendedElemSet>;
-
+      axom::slam::ConstantRelation<ElemSet, ExtendedElemSet, FACES_PER_ZONE>;
 
     using RegionSet = axom::slam::RangeSet<>;
-    using VariableCardinality = axom::slam::policies::VariableCardinality<PositionType, STLIndirection>;
-    using RegionToElemRelation = axom::slam::StaticRelation<
-                                    PositionType, ElementType,
-                                    VariableCardinality,
-                                    STLIndirection,
-                                    RegionSet,
-                                    ElemSet>;
+    using RegionToElemRelation = axom::slam::VariableRelation<RegionSet, ElemSet>;
     using RegionElemSet = const RegionToElemRelation::RelationSubset;
 
+    using NodeToCornerRelation = axom::slam::VariableRelation<NodeSet, CornerSet>;
+    using NodeCornerSet = const NodeToCornerRelation::RelationSubset;
 
-    using NodeToCornerRelation = axom::slam::StaticRelation<
-                                    PositionType, ElementType,
-                                    VariableCardinality,
-                                    STLIndirection,
-                                    NodeSet,
-                                    CornerSet>;
-    using NodeCornerSet = const NodeToCornerRelation::RelationSubset ;
+    using ElemIndexMap = axom::slam::Map<Index_t, SetBase>;
+    using ElemIntMap = axom::slam::Map<Int_t, SetBase>;
+    //using ElemRealMap = axom::slam::Map<Real_t, SetBase>;
 
-    using ElemIndexMap = axom::slam::Map<Index_t>;
-    using ElemIntMap = axom::slam::Map<Int_t>;
-    //using ElemRealMap = axom::slam::Map<Real_t>;
+    using NodeIndexMap = axom::slam::Map<Index_t, SetBase>;
+    //using NodeIntMap = axom::slam::Map<Int_t, SetBase>;
+    //using NodeRealMap = axom::slam::Map<Real_t, SetBase>;
 
-    using NodeIndexMap = axom::slam::Map<Index_t>;
-    //using NodeIntMap = axom::slam::Map<Int_t>;
-    //using NodeRealMap = axom::slam::Map<Real_t>;
+    //using RegionIndexMap = axom::slam::Map<Index_t, SetBase>;
+    using RegionIntMap = axom::slam::Map<Int_t, SetBase>;
+    //using RegionRealMap = axom::slam::Map<Real_t, SetBase>;
 
-    //using RegionIndexMap = axom::slam::Map<Index_t>;
-    using RegionIntMap = axom::slam::Map<Int_t>;
-    //using RegionRealMap = axom::slam::Map<Real_t>;
-
-    //using CornerIndexMap = axom::slam::Map<Index_t>;
-    //using CornerIntMap = axom::slam::Map<Int_t>;
-    using CornerRealMap = axom::slam::Map<Real_t>;
+    //using CornerIndexMap = axom::slam::Map<Index_t, SetBase>;
+    //using CornerIntMap = axom::slam::Map<Int_t, SetBase>;
+    using CornerRealMap = axom::slam::Map<Real_t, SetBase>;
 
     using RealsRegistry = axom::slam::FieldRegistry<SetBase, Real_t>;
     using IntsRegistry = axom::slam::FieldRegistry<SetBase, Index_t>;
 
   public:
-
     // Constructor
     Domain(Int_t numRanks, Index_t colLoc,
         Index_t rowLoc, Index_t planeLoc,
@@ -209,7 +194,7 @@ namespace slamLulesh {
 
     // Destructor
     ~Domain();
-    
+
     //
     // ALLOCATION
     //

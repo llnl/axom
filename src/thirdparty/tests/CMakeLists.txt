@@ -12,7 +12,7 @@
 #------------------------------------------------------------------------------
 if ( UMPIRE_FOUND )
 
-  set( umpire_smoke_dependencies umpire gtest )
+  set( umpire_smoke_dependencies umpire::umpire gtest )
 
   blt_list_append( TO umpire_smoke_dependencies ELEMENTS mpi IF AXOM_ENABLE_MPI)
 
@@ -34,7 +34,7 @@ if ( RAJA_FOUND )
 
   set( raja_smoke_dependencies RAJA gtest )
 
-  blt_list_append( TO raja_smoke_dependencies ELEMENTS umpire IF UMPIRE_FOUND)
+  blt_list_append( TO raja_smoke_dependencies ELEMENTS umpire::umpire IF UMPIRE_FOUND)
   blt_list_append( TO raja_smoke_dependencies ELEMENTS mpi    IF AXOM_ENABLE_MPI)
 
   axom_add_executable(NAME raja_smoke_test
@@ -292,7 +292,7 @@ endif()
 
 foreach(test ${BLT_SMOKE_TESTS})
     get_filename_component( test_name ${test} NAME_WE )
-    axom_add_executable(
+    blt_add_executable(
         NAME       ${test_name}_test
         SOURCES    ${test}
         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
@@ -304,7 +304,7 @@ foreach(test ${BLT_SMOKE_TESTS})
 
 endforeach()
 
-set( ADDL_SMOKE_FLAGS "${BLT_WARNINGS_AS_ERRORS_FLAG} ${BLT_ENABLE_ALL_WARNINGS_FLAG}")
+set( ADDL_SMOKE_FLAGS "${BLT_WARNINGS_AS_ERRORS_CXX_FLAG} ${BLT_ENABLE_ALL_WARNINGS_CXX_FLAG}")
 
 set_target_properties(compiler_flag_uninitialized_test
     PROPERTIES COMPILE_FLAGS "${ADDL_SMOKE_FLAGS} ${AXOM_DISABLE_UNINITIALIZED_WARNINGS}")

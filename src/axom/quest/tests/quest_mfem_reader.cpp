@@ -32,18 +32,18 @@ namespace quest = axom::quest;
 namespace fs = axom::utilities::filesystem;
 
 //------------------------------------------------------------------------------
-std::string pjoin(const std::string &str) { return str; }
+std::string pjoin(const std::string& str) { return str; }
 
-std::string pjoin(const char *str) { return std::string(str); }
+std::string pjoin(const char* str) { return std::string(str); }
 
 template <typename... Args>
-std::string pjoin(const std::string &str, Args... args)
+std::string pjoin(const std::string& str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(str, pjoin(args...));
 }
 
 template <typename... Args>
-std::string pjoin(const char *str, Args... args)
+std::string pjoin(const char* str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
@@ -54,10 +54,10 @@ namespace
 using BezierCurve2D = primal::BezierCurve<double, 2>;
 using Point2D = primal::Point<double, 2>;
 
-void write_mesh_from_bezier_curves(const std::string &mesh_path,
-                                   const axom::Array<BezierCurve2D> &bezier_curves,
-                                   const axom::Array<int> &attributes,
-                                   mfem::FiniteElementCollection &fec)
+void write_mesh_from_bezier_curves(const std::string& mesh_path,
+                                   const axom::Array<BezierCurve2D>& bezier_curves,
+                                   const axom::Array<int>& attributes,
+                                   mfem::FiniteElementCollection& fec)
 {
   ASSERT_EQ(bezier_curves.size(), attributes.size());
   const int num_curves = bezier_curves.size();
@@ -73,11 +73,11 @@ void write_mesh_from_bezier_curves(const std::string &mesh_path,
 
   for(int i = 0; i < num_curves; ++i)
   {
-    const auto &curve = bezier_curves[i];
+    const auto& curve = bezier_curves[i];
     ASSERT_EQ(curve.getOrder(), fec.GetOrder());
 
-    const auto &p0 = curve.getInitPoint();
-    const auto &p1 = curve.getEndPoint();
+    const auto& p0 = curve.getInitPoint();
+    const auto& p1 = curve.getEndPoint();
 
     const double v0[] = {p0[0], p0[1]};
     const double v1[] = {p1[0], p1[1]};
@@ -115,7 +115,7 @@ void write_mesh_from_bezier_curves(const std::string &mesh_path,
 
     for(int i = 0; i <= order; ++i)
     {
-      const auto &cp = bezier_curves[e][mfemLocalToBezier(i)];
+      const auto& cp = bezier_curves[e][mfemLocalToBezier(i)];
       nodes(fes.DofToVDof(dofs[i], 0)) = cp[0];
       nodes(fes.DofToVDof(dofs[i], 1)) = cp[1];
     }
@@ -193,7 +193,7 @@ TEST(quest_mfem_reader, preserves_rational_weights)
     ASSERT_GT(curves.size(), 0);
 
     bool any_rational = false;
-    for(const auto &curve : curves)
+    for(const auto& curve : curves)
     {
       if(curve.isRational())
       {
@@ -211,9 +211,9 @@ TEST(quest_mfem_reader, preserves_rational_weights)
     ASSERT_GT(polys.size(), 0);
 
     bool any_rational = false;
-    for(const auto &poly : polys)
+    for(const auto& poly : polys)
     {
-      for(const auto &cur : poly.getEdges())
+      for(const auto& cur : poly.getEdges())
       {
         if(cur.isRational())
         {
@@ -268,7 +268,7 @@ TEST(quest_mfem_reader, read_bernstein_basis_roundtrip_bezier_order3)
     const int attr = attributes[i];
     const auto expected_it = expected.find(attr);
     ASSERT_TRUE(expected_it != expected.end());
-    const auto &expected_curve = expected_it->second;
+    const auto& expected_curve = expected_it->second;
 
     EXPECT_EQ(curves[i].getDegree(), expected_curve.getOrder());
     EXPECT_EQ(curves[i].getNumControlPoints(), expected_curve.getOrder() + 1);
@@ -348,7 +348,7 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
     // the y-coordinates of the edges start and end vertex should equal the attribute
     for(int i : {0, 1})
     {
-      const auto &curve = polys[i][0];
+      const auto& curve = polys[i][0];
       switch(attributes[i])
       {
       case attr10:
@@ -376,7 +376,7 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
 
     for(int i : {0, 1})
     {
-      const auto &curve = curves[i];
+      const auto& curve = curves[i];
       switch(attributes[i])
       {
       case attr10:
@@ -453,7 +453,6 @@ dimension
 2
 
 controlpoints
-# points (0,0), (0.5,0), (1,0) with weights (1,2,1) in homogeneous form (x*w, y*w, w)
 0 0 1
 1 0 2
 1 0 1
@@ -484,7 +483,7 @@ controlpoints
   // Validate basic properties of the extracted curves.
   for(int i = 0; i < curves.size(); ++i)
   {
-    const auto &c = curves[i];
+    const auto& c = curves[i];
     const int a = attributes[i];
     ASSERT_TRUE(c.isValidNURBS());
 
@@ -515,7 +514,7 @@ TEST(quest_mfem_reader, read_patches_format_1d_nurbs)
 }
 #endif
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

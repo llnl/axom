@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
-#define AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -41,7 +41,7 @@ public:
    * \param topologyView The view for the input topology.
    * \param coordsetView The view for the input coordset.
    */
-  MakeZoneVolumes(const TopologyView &topologyView, const CoordsetView &coordsetView)
+  MakeZoneVolumes(const TopologyView& topologyView, const CoordsetView& coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
@@ -75,9 +75,9 @@ public:
    * \param[out] n_outputField The output node that will contain the new field.
    *
    */
-  void execute(const conduit::Node &n_topology,
-               const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
-               conduit::Node &n_outputField) const
+  void execute(const conduit::Node& n_topology,
+               const conduit::Node& AXOM_UNUSED_PARAM(n_coordset),
+               conduit::Node& n_outputField) const
   {
     namespace utils = axom::bump::utilities;
     const auto conduitAllocatorId =
@@ -90,7 +90,7 @@ public:
     n_outputField.reset();
     n_outputField["association"] = "element";
     n_outputField["topology"] = n_topology.name();
-    conduit::Node &n_values = n_outputField["values"];
+    conduit::Node& n_values = n_outputField["values"];
     n_values.set_allocator(conduitAllocatorId);
     n_values.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
     auto valuesView = utils::make_array_view<value_type>(n_values);
@@ -120,5 +120,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

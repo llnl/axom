@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file Polyhedron.hpp
  *
  * \brief A Polyhedron primitive for primal
  */
-
-#ifndef AXOM_PRIMAL_POLYHEDRON_HPP_
-#define AXOM_PRIMAL_POLYHEDRON_HPP_
 
 #include "axom/core/StackArray.hpp"
 
@@ -212,7 +211,7 @@ public:
         nbrs[iv][curr_idx] = nbrs[iv][inbr];
         curr_idx++;
       }
-      num_nbrs[iv] = curr_idx;
+      num_nbrs[iv] = static_cast<std::int8_t>(curr_idx);
     }
   }
 
@@ -313,7 +312,7 @@ public:
     {
       if(m_vertices[i] == pt)
       {
-        m_neighbors.addNeighbors(i, nbrs);
+        m_neighbors.addNeighbors(static_cast<std::int8_t>(i), nbrs);
       }
     }
   }
@@ -332,7 +331,7 @@ public:
   AXOM_HOST_DEVICE
   void addNeighbors(int vtxId, std::initializer_list<std::int8_t> nbrs)
   {
-    m_neighbors.addNeighbors(vtxId, nbrs);
+    m_neighbors.addNeighbors(static_cast<std::int8_t>(vtxId), nbrs);
   }
 
   /*!
@@ -347,7 +346,10 @@ public:
    * \pre vtxId < getVertices()
    */
   AXOM_HOST_DEVICE
-  void addNeighbors(int vtxId, int nbr) { m_neighbors.addNeighbors(vtxId, nbr); }
+  void addNeighbors(int vtxId, int nbr)
+  {
+    m_neighbors.addNeighbors(static_cast<std::int8_t>(vtxId), static_cast<std::int8_t>(nbr));
+  }
 
   /*! Clears the list of vertices and neighbors */
   AXOM_HOST_DEVICE void clear()
@@ -464,9 +466,9 @@ public:
           face_offset[facesAdded] = curFaceIndex;
           faces[curFaceIndex++] = i;
           std::int8_t curFaceSize = 1;
-          std::int8_t vstart = i;
-          std::int8_t vnext = ni;
-          std::int8_t vprev = i;
+          std::int8_t vstart = static_cast<std::int8_t>(i);
+          std::int8_t vnext = static_cast<std::int8_t>(ni);
+          std::int8_t vprev = static_cast<std::int8_t>(i);
 
           // Add neighboring vertices until we reach the starting vertex.
           while(vnext != vstart)
@@ -1045,5 +1047,3 @@ std::ostream& operator<<(std::ostream& os, const Polyhedron<T, NDIMS>& poly)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Polyhedron<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_POLYHEDRON_HPP_

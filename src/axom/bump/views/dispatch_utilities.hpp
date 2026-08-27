@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_UTILITIES_HPP_
-#define AXOM_BUMP_DISPATCH_UTILITIES_HPP_
+#pragma once
 
 #include <conduit/conduit_node.hpp>
 
@@ -37,10 +36,8 @@ constexpr bool dimension_selected(int encoded_dims, int dim) { return encoded_di
  * \param protocol The name of the item to check in the mesh. If the string is empty,
  *                 \a obj node is treated as a mesh and it all gets checked.
  */
-void verify(const conduit::Node &obj, const std::string &protocol = std::string());
+void verify(const conduit::Node& obj, const std::string& protocol = std::string());
 
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

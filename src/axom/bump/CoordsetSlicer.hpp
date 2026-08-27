@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_COORDSET_SLICER_HPP_
-#define AXOM_BUMP_COORDSET_SLICER_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -35,7 +35,7 @@ class CoordsetSlicer
 {
 public:
   /// Constructor
-  CoordsetSlicer(const CoordsetView &coordsetView)
+  CoordsetSlicer(const CoordsetView& coordsetView)
     : m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -69,7 +69,7 @@ public:
    *
    * \note We assume for now that n_input != n_output.
    */
-  void execute(const SliceData &slice, const conduit::Node &n_input, conduit::Node &n_output)
+  void execute(const SliceData& slice, const conduit::Node& n_input, conduit::Node& n_output)
   {
     AXOM_ANNOTATE_SCOPE("CoordsetSlicer");
     using value_type = typename CoordsetView::value_type;
@@ -88,7 +88,7 @@ public:
 
     n_output.reset();
     n_output["type"] = "explicit";
-    conduit::Node &n_values = n_output["values"];
+    conduit::Node& n_values = n_output["values"];
 
     // Determine output size.
     const auto outputSize = slice.m_indicesView.size();
@@ -98,7 +98,7 @@ public:
     for(size_t i = 0; i < nComponents; i++)
     {
       // Allocate data in the Conduit node and make a view.
-      conduit::Node &comp = n_values[axes[i]];
+      conduit::Node& comp = n_values[axes[i]];
       comp.set_allocator(conduitAllocatorId);
       comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = utils::make_array_view<value_type>(comp);
@@ -128,5 +128,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

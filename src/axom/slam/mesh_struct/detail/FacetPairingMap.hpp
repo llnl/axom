@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SLAM_MESH_STRUCT_DETAIL_FACET_PAIRING_MAP_HPP_
-#define AXOM_SLAM_MESH_STRUCT_DETAIL_FACET_PAIRING_MAP_HPP_
+#pragma once
 
 /**
  * \file FacetPairingMap.hpp
@@ -104,11 +103,7 @@
 #include <optional>
 #include <vector>
 
-namespace axom
-{
-namespace slam
-{
-namespace detail
+namespace axom::slam::detail
 {
 
 /**
@@ -462,8 +457,4 @@ thread_local std::vector<typename FacetPairingMap<TDIM, IndexType>::Entry>
 template <int TDIM, typename IndexType>
 thread_local unsigned int FacetPairingMap<TDIM, IndexType>::s_generation = 0;
 
-}  // namespace detail
-}  // namespace slam
-}  // namespace axom
-
-#endif  // AXOM_SLAM_MESH_STRUCT_DETAIL_FACET_PAIRING_MAP_HPP_
+}  // namespace axom::slam::detail

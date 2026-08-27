@@ -3,15 +3,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file intersect_patch_impl.hpp
  *
  * This file provides helper functions for testing the intersection
  * of rays and Bezier patches
  */
-
-#ifndef AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Polygon.hpp"
@@ -70,11 +69,11 @@ namespace detail
  * \return False if an early return was triggered (failure). True otherwise
  */
 template <typename T>
-bool intersect_line_patch(const Line<T, 3> &line,
-                          const BezierPatch<T, 3> &patch,
-                          axom::Array<T> &tp,
-                          axom::Array<T> &up,
-                          axom::Array<T> &vp,
+bool intersect_line_patch(const Line<T, 3>& line,
+                          const BezierPatch<T, 3>& patch,
+                          axom::Array<T>& tp,
+                          axom::Array<T>& up,
+                          axom::Array<T>& vp,
                           int order_u,
                           int order_v,
                           double u_offset,
@@ -84,16 +83,16 @@ bool intersect_line_patch(const Line<T, 3> &line,
                           double sq_tol,
                           double EPS,
                           bool isRay,
-                          bool &success);
+                          bool& success);
 
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
 template <typename T>
-bool intersect_line_patch(const Line<T, 3> &line,
-                          const BezierPatch<T, 3> &patch,
-                          axom::Array<T> &tp,
-                          axom::Array<T> &up,
-                          axom::Array<T> &vp,
+bool intersect_line_patch(const Line<T, 3>& line,
+                          const BezierPatch<T, 3>& patch,
+                          axom::Array<T>& tp,
+                          axom::Array<T>& up,
+                          axom::Array<T>& vp,
                           int order_u,
                           int order_v,
                           double u_offset,
@@ -103,7 +102,7 @@ bool intersect_line_patch(const Line<T, 3> &line,
                           double sq_tol,
                           double EPS,
                           bool isRay,
-                          bool &success)
+                          bool& success)
 {
   using BPatch = BezierPatch<T, 3>;
 
@@ -202,5 +201,3 @@ bool intersect_line_patch(const Line<T, 3> &line,
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom
-
-#endif  // AXOM_PRIMAL_INTERSECT_PATCH_IMPL_HPP_

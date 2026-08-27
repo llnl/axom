@@ -49,9 +49,9 @@ static int ShapeID_to_vtk_cell(int shape_value)
   return vtktype;
 }
 
-static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &path)
+static void save_unstructured_vtk(const conduit::Node& mesh, const std::string& path)
 {
-  FILE *file = fopen(path.c_str(), "wt");
+  FILE* file = fopen(path.c_str(), "wt");
   if(file == nullptr)
   {
     SLIC_ERROR(fmt::format("The file {} could not be created.", path));
@@ -65,8 +65,8 @@ static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &
   fprintf(file, "DATASET UNSTRUCTURED_GRID\n");
 
   // Write the points
-  const conduit::Node &coordset = mesh["coordsets"][0];
-  const conduit::Node &points = coordset["values"];
+  const conduit::Node& coordset = mesh["coordsets"][0];
+  const conduit::Node& points = coordset["values"];
   const auto x = points["x"].as_double_accessor();
   const auto y = points["y"].as_double_accessor();
   size_t num_points = 0;
@@ -98,10 +98,10 @@ static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &
   });
 
   // Write the cells
-  const conduit::Node &topologies = mesh["topologies"];
-  const conduit::Node &topo = topologies[0];
-  const conduit::Node &elements = topo["elements"];
-  const conduit::Node &connectivity = elements["connectivity"];
+  const conduit::Node& topologies = mesh["topologies"];
+  const conduit::Node& topo = topologies[0];
+  const conduit::Node& elements = topo["elements"];
+  const conduit::Node& connectivity = elements["connectivity"];
   size_t num_cells = elements["sizes"].dtype().number_of_elements();
   size_t total_num_indices = connectivity.dtype().number_of_elements();
 
@@ -139,7 +139,7 @@ static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &
   fprintf(file, "CELL_TYPES %zu\n", num_cells);
   if(elements.has_child("shapes"))
   {
-    const conduit::Node &shapes = elements["shapes"];
+    const conduit::Node& shapes = elements["shapes"];
     for(size_t i = 0; i < num_cells; ++i)
     {
       const auto type = ShapeID_to_vtk_cell(shapes.as_int32_array()[i]);
@@ -161,9 +161,9 @@ static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &
   fclose(file);
 }
 
-void save_vtk(const conduit::Node &mesh, const std::string &path)
+void save_vtk(const conduit::Node& mesh, const std::string& path)
 {
-  const conduit::Node &n_topologies = mesh.fetch_existing("topologies");
+  const conduit::Node& n_topologies = mesh.fetch_existing("topologies");
   if(n_topologies.number_of_children() != 1)
   {
     SLIC_ERROR("The mesh must have a single topology.");

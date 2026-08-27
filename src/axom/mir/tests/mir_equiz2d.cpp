@@ -26,7 +26,7 @@ axom::blueprint::testing::TestApplication TestApp;
 //------------------------------------------------------------------------------
 TEST(mir_equiz, miralgorithm)
 {
-  axom::mir::MIRAlgorithm *m = nullptr;
+  axom::mir::MIRAlgorithm* m = nullptr;
   EXPECT_EQ(m, nullptr);
 }
 
@@ -52,9 +52,9 @@ TEST(mir_equiz, materialinformation)
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void braid2d_mat_test(const std::string &type,
-                      const std::string &mattype,
-                      const std::string &name,
+void braid2d_mat_test(const std::string& type,
+                      const std::string& mattype,
+                      const std::string& name,
                       int nDomains,
                       bool selectedZones,
                       bool cleanMats)
@@ -67,7 +67,7 @@ void braid2d_mat_test(const std::string &type,
   for(int dom = 0; dom < nDomains; dom++)
   {
     const std::string domainName = axom::fmt::format("domain_{:07}", dom);
-    conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
+    conduit::Node& hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
     axom::blueprint::testing::data::braid(type, dims, hostDomain);
     const bool makeMixedField = false;  // for now
     axom::blueprint::testing::data::make_matset(mattype,
@@ -85,7 +85,7 @@ void braid2d_mat_test(const std::string &type,
   for(int dom = 0; dom < nDomains; dom++)
   {
     const std::string domainName = axom::fmt::format("domain_{:07}", dom);
-    conduit::Node &deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
+    conduit::Node& deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
 
     // Make views.
     auto coordsetView = views::make_uniform_coordset<2>::view(deviceDomain["coordsets/coords"]);
@@ -109,6 +109,7 @@ void braid2d_mat_test(const std::string &type,
       using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
       conduit::Node options;
+      options["verbose"] = 1;
       options["matset"] = "mat";
       if(cleanMats)
       {
@@ -162,7 +163,7 @@ public:
   static constexpr conduit::index_t NLEVELS = 4;
   static constexpr int MAX_MATERIALS = NLEVELS + 1;
 
-  static void test(const std::string &name)
+  static void test(const std::string& name)
   {
     // Make the 2D input mesh.
     conduit::Node n_mesh;
@@ -187,14 +188,14 @@ public:
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostResult));
   }
 
-  static void initialize(conduit::Node &n_mesh)
+  static void initialize(conduit::Node& n_mesh)
   {
     // Make polygonal geometry
     const conduit::index_t nz = 1;
     conduit::blueprint::mesh::examples::polytess(NLEVELS, nz, n_mesh);
 
     // Make a matset from the level field.
-    conduit::Node &n_matset = n_mesh["matsets/mat"];
+    conduit::Node& n_matset = n_mesh["matsets/mat"];
     n_matset["topology"] = "topo";
     for(int mat = 1; mat <= NLEVELS; mat++)
     {
@@ -225,13 +226,13 @@ public:
     make_target2(n_mesh);
   }
 
-  static void make_target2(conduit::Node &n_mesh)
+  static void make_target2(conduit::Node& n_mesh)
   {
     const auto x = n_mesh["coordsets/coords/values/x"].as_float64_accessor();
     const auto y = n_mesh["coordsets/coords/values/y"].as_float64_accessor();
 
     // Make a rotated copy of the input topo mesh.
-    conduit::Node &target2_coords = n_mesh["coordsets/target2_coords"];
+    conduit::Node& target2_coords = n_mesh["coordsets/target2_coords"];
     target2_coords["type"] = "explicit";
     target2_coords["values/x"].set(conduit::DataType::float64(x.number_of_elements()));
     target2_coords["values/y"].set(conduit::DataType::float64(y.number_of_elements()));
@@ -252,19 +253,19 @@ public:
     n_mesh["topologies/target2/coordset"] = "target2_coords";
   }
 
-  static void mapping_target2(conduit::Node &n_dev)
+  static void mapping_target2(conduit::Node& n_dev)
   {
     // Wrap polygonal mesh in views.
     auto srcCoordset = views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
     using SrcCoordsetView = decltype(srcCoordset);
 
-    const conduit::Node &n_srcTopo = n_dev["topologies/topo"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/topo"];
     auto srcTopo =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
-    const conduit::Node &n_srcMatset = n_dev["matsets/mat"];
+    const conduit::Node& n_srcMatset = n_dev["matsets/mat"];
     auto srcMatset = views::make_unibuffer_matset<int, float, MAX_MATERIALS>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
@@ -273,7 +274,7 @@ public:
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/target2_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/target2"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/target2"];
     auto targetTopo =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_targetTopo);
@@ -296,20 +297,20 @@ public:
     mapper.execute(n_dev, n_opts, n_dev);
   }
 
-  static void mir_target2(conduit::Node &n_dev)
+  static void mir_target2(conduit::Node& n_dev)
   {
     // Wrap target2 mesh in views.
     auto coordsetView =
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/target2_coords"]);
     using CoordsetView = decltype(coordsetView);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/target2"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/target2"];
     auto topologyView =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_targetTopo);
     using TopologyView = decltype(topologyView);
 
-    const conduit::Node &n_targetMatset = n_dev["matsets/target2_matset"];
+    const conduit::Node& n_targetMatset = n_dev["matsets/target2_matset"];
     auto matsetView = views::make_unibuffer_matset<int, float, MAX_MATERIALS>::view(n_targetMatset);
     using MatsetView = decltype(matsetView);
 
@@ -318,6 +319,7 @@ public:
     using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
+    options["verbose"] = 1;
     options["matset"] = "target2_matset";
     options["matsetName"] = "mir_matset";
     m.execute(n_dev, options, n_mir);
@@ -332,7 +334,7 @@ public:
     n_dev["fields/originalElements/topology"] = "mir";
   }
 
-  static int countBadMaterialZones(const conduit::Node &matset, double eps = 1.e-4)
+  static int countBadMaterialZones(const conduit::Node& matset, double eps = 1.e-4)
   {
     const auto volume_fractions = utils::make_array_view<float>(matset["volume_fractions"]);
     //const auto material_ids = utils::make_array_view<int>(matset["material_ids"]);
@@ -479,7 +481,7 @@ TEST(mir_equiz, equiz_polygonal_unibuffer_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

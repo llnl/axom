@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MAKE_POINT_MESH_
-#define AXOM_BUMP_MAKE_POINT_MESH_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -33,7 +33,7 @@ struct MakePointMesh
    * \param topologyView The topology view that describes the input topology.
    * \param coordsetView The coordset view that describes the input coordset.
    */
-  MakePointMesh(const TopologyView &topologyView, const CoordsetView &coordsetView)
+  MakePointMesh(const TopologyView& topologyView, const CoordsetView& coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
@@ -70,10 +70,10 @@ struct MakePointMesh
    *       a view and the coordset node since the view may not be able to contain
    *       some coordset metadata and remain trivially copyable.
    */
-  void execute(const conduit::Node &n_topology,
-               const conduit::Node &n_coordset,
-               const conduit::Node &n_options,
-               conduit::Node &n_output) const
+  void execute(const conduit::Node& n_topology,
+               const conduit::Node& n_coordset,
+               const conduit::Node& n_options,
+               conduit::Node& n_output) const
   {
     const auto numZones = m_topologyView.numberOfZones();
     const int allocatorID = getAllocatorID();
@@ -97,10 +97,10 @@ struct MakePointMesh
    * \param[out] n_output A node that will contain the new point mesh.
    */
   void execute(axom::ArrayView<axom::IndexType> selectedZonesView,
-               const conduit::Node &n_topology,
-               const conduit::Node &n_coordset,
-               const conduit::Node &n_options,
-               conduit::Node &n_output) const
+               const conduit::Node& n_topology,
+               const conduit::Node& n_coordset,
+               const conduit::Node& n_options,
+               conduit::Node& n_output) const
   {
     AXOM_ANNOTATE_SCOPE("ConvertToPointMesh");
     namespace utils = axom::bump::utilities;
@@ -117,29 +117,29 @@ struct MakePointMesh
 
     // Make the zone centers be the new coordset values in the output coordset.
     AXOM_ANNOTATE_BEGIN("allocate");
-    conduit::Node &n_output_coordset = n_output["coordsets/" + opts.coordsetName(n_coordset.name())];
+    conduit::Node& n_output_coordset = n_output["coordsets/" + opts.coordsetName(n_coordset.name())];
     n_output_coordset.reset();
     n_output_coordset["type"] = "explicit";
     n_output_coordset["values"].move(zcfield["values"]);
 
     // Allocate point mesh data.
-    conduit::Node &n_output_topo = n_output["topologies/" + opts.topologyName(n_topology.name())];
+    conduit::Node& n_output_topo = n_output["topologies/" + opts.topologyName(n_topology.name())];
     const auto numPoints = selectedZonesView.size();
     n_output_topo.reset();
     n_output_topo["type"] = "unstructured";
     n_output_topo["coordset"] = opts.coordsetName(n_coordset.name());
     n_output_topo["elements/shape"] = "point";
-    conduit::Node &n_conn = n_output_topo["elements/connectivity"];
+    conduit::Node& n_conn = n_output_topo["elements/connectivity"];
     n_conn.set_allocator(conduitAllocatorId);
     n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
     auto connectivity = utils::make_array_view<ConnectivityType>(n_conn);
 
-    conduit::Node &n_sizes = n_output_topo["elements/sizes"];
+    conduit::Node& n_sizes = n_output_topo["elements/sizes"];
     n_sizes.set_allocator(conduitAllocatorId);
     n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
     auto sizes = utils::make_array_view<ConnectivityType>(n_sizes);
 
-    conduit::Node &n_offsets = n_output_topo["elements/offsets"];
+    conduit::Node& n_offsets = n_output_topo["elements/offsets"];
     n_offsets.set_allocator(conduitAllocatorId);
     n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
     auto offsets = utils::make_array_view<ConnectivityType>(n_offsets);
@@ -165,5 +165,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

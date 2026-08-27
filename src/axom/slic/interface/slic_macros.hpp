@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SLIC_MACROS_HPP_
-#define AXOM_SLIC_MACROS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -924,5 +923,3 @@ static const FalseType false_value;
 } /* namespace detail */
 } /* namespace slic */
 } /* namespace axom */
-
-#endif /* AXOM_SLIC_MACROS_HPP_ */

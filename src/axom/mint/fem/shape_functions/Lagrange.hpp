@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_LAGRANGE_SHAPEFUNCTION_HPP_
-#define MINT_LAGRANGE_SHAPEFUNCTION_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/core/Macros.hpp"
@@ -236,5 +235,3 @@ private:
 #include "axom/mint/fem/shape_functions/lagrange/lagrange_quad_9.hpp"
 #include "axom/mint/fem/shape_functions/lagrange/lagrange_tetra_4.hpp"
 #include "axom/mint/fem/shape_functions/lagrange/lagrange_tri_3.hpp"
-
-#endif /* MINT_LAGRANGE_SHAPEFUNCTION_HPP_ */

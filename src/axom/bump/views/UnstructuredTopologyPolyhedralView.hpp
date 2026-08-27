@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_POLYHEDRAL_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_POLYHEDRAL_VIEW_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -37,12 +36,12 @@ public:
   {
     /// Constructor
     AXOM_HOST_DEVICE
-    PolyhedronData(const ConnectivityView &subelement_conn,
-                   const ConnectivityView &subelement_sizes,
-                   const ConnectivityView &subelement_offsets,
-                   const ConnectivityView &element_conn,
-                   const ConnectivityView &element_sizes,
-                   const ConnectivityView &element_offsets)
+    PolyhedronData(const ConnectivityView& subelement_conn,
+                   const ConnectivityView& subelement_sizes,
+                   const ConnectivityView& subelement_offsets,
+                   const ConnectivityView& element_conn,
+                   const ConnectivityView& element_sizes,
+                   const ConnectivityView& element_offsets)
       : m_subelement_conn(subelement_conn)
       , m_subelement_sizes(subelement_sizes)
       , m_subelement_offsets(subelement_offsets)
@@ -65,7 +64,7 @@ public:
 
     /// Copy Constructor
     AXOM_HOST_DEVICE
-    PolyhedronData(const PolyhedronData &obj)
+    PolyhedronData(const PolyhedronData& obj)
       : m_subelement_conn(obj.m_subelement_conn)
       , m_subelement_sizes(obj.m_subelement_sizes)
       , m_subelement_offsets(obj.m_subelement_offsets)
@@ -92,7 +91,7 @@ public:
     constexpr static IndexType MaximumNumberOfIds = 20 * 3;
 
     /// Constructor.
-    AXOM_HOST_DEVICE PolyhedronShape(const PolyhedronData &obj, axom::IndexType zi)
+    AXOM_HOST_DEVICE PolyhedronShape(const PolyhedronData& obj, axom::IndexType zi)
       : m_data(obj)
       , m_zoneIndex(zi)
       , m_ids()
@@ -183,7 +182,7 @@ public:
                               m_data.m_subelement_sizes[faceId]);
     }
 
-    AXOM_HOST_DEVICE void getFace(int faceIndex, ConnectivityType *ids, axom::IndexType &numIds) const
+    AXOM_HOST_DEVICE void getFace(int faceIndex, ConnectivityType* ids, axom::IndexType& numIds) const
     {
       const auto faceIds = getFace(faceIndex);
       numIds = faceIds.size();
@@ -194,7 +193,7 @@ public:
     }
 
   private:
-    AXOM_HOST_DEVICE bool find(const ConnectivityType *arr,
+    AXOM_HOST_DEVICE bool find(const ConnectivityType* arr,
                                axom::IndexType n,
                                ConnectivityType value) const
     {
@@ -218,12 +217,12 @@ public:
    * \brief Constructor.
    */
   AXOM_HOST_DEVICE
-  UnstructuredTopologyPolyhedralView(const ConnectivityView &subelement_conn,
-                                     const ConnectivityView &subelement_sizes,
-                                     const ConnectivityView &subelement_offsets,
-                                     const ConnectivityView &element_conn,
-                                     const ConnectivityView &element_sizes,
-                                     const ConnectivityView &element_offsets)
+  UnstructuredTopologyPolyhedralView(const ConnectivityView& subelement_conn,
+                                     const ConnectivityView& subelement_sizes,
+                                     const ConnectivityView& subelement_offsets,
+                                     const ConnectivityView& element_conn,
+                                     const ConnectivityView& element_sizes,
+                                     const ConnectivityView& element_offsets)
     : m_data(subelement_conn,
              subelement_sizes,
              subelement_offsets,
@@ -260,7 +259,7 @@ public:
    *
    * \return The size of the connectivity.
    */
-  AXOM_HOST_DEVICE inline const IndexingPolicy &indexing() const { return m_data.m_indexing; }
+  AXOM_HOST_DEVICE inline const IndexingPolicy& indexing() const { return m_data.m_indexing; }
 
   /*!
    * \brief Return a zone.
@@ -283,5 +282,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

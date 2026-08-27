@@ -55,7 +55,7 @@ using primal::Vector3D;
 namespace
 {
 template <typename ColumnVector>
-ColumnVector operator*(const numerics::Matrix<double> &matrix, const ColumnVector &rhs)
+ColumnVector operator*(const numerics::Matrix<double>& matrix, const ColumnVector& rhs)
 {
   if(matrix.getNumRows() != matrix.getNumColumns() || matrix.getNumRows() != rhs.dimension())
   {
@@ -66,14 +66,14 @@ ColumnVector operator*(const numerics::Matrix<double> &matrix, const ColumnVecto
   return result;
 }
 
-primal::Vector<double, 4> affineVec(const Vector3D &vec3d)
+primal::Vector<double, 4> affineVec(const Vector3D& vec3d)
 {
   primal::Vector<double, 4> vector {vec3d.data(), 3};
   vector[3] = 0;
   return vector;
 }
 
-primal::Point<double, 4> affinePoint(const Point3D &point3d)
+primal::Point<double, 4> affinePoint(const Point3D& point3d)
 {
   primal::Point<double, 4> point {point3d.data(), 3};
   point[3] = 1;
@@ -86,12 +86,12 @@ Dimensions ALL_DIMS[] = {Dimensions::Two, Dimensions::Three};
 class MockVisitor : public GeometryOperatorVisitor
 {
 public:
-  MOCK_METHOD(void, visit, (const Translation &translation), (override));
-  MOCK_METHOD(void, visit, (const Rotation &rotation), (override));
-  MOCK_METHOD(void, visit, (const Scale &scale), (override));
-  MOCK_METHOD(void, visit, (const UnitConverter &converter), (override));
-  MOCK_METHOD(void, visit, (const CompositeOperator &op), (override));
-  MOCK_METHOD(void, visit, (const SliceOperator &op), (override));
+  MOCK_METHOD(void, visit, (const Translation& translation), (override));
+  MOCK_METHOD(void, visit, (const Rotation& rotation), (override));
+  MOCK_METHOD(void, visit, (const Scale& scale), (override));
+  MOCK_METHOD(void, visit, (const UnitConverter& converter), (override));
+  MOCK_METHOD(void, visit, (const CompositeOperator& op), (override));
+  MOCK_METHOD(void, visit, (const SliceOperator& op), (override));
 };
 
 TEST(GeometryOperator, getProperties)
@@ -108,6 +108,25 @@ TEST(GeometryOperator, getProperties)
   auto endProperties = op.getEndProperties();
   EXPECT_EQ(constructorProps.dimensions, endProperties.dimensions);
   EXPECT_EQ(constructorProps.units, endProperties.units);
+}
+
+TEST(GeometryOperator, names)
+{
+  TransformableGeometryProperties props {Dimensions::Three, LengthUnit::cm};
+
+  CompositeOperator composite {props};
+  Translation translation {{1, 2, 3}, props};
+  Rotation rotation {45, {0, 0, 0}, {0, 0, 1}, props};
+  Scale scale {1, 2, 3, props};
+  UnitConverter converter {LengthUnit::m, props};
+  SliceOperator slice {{0, 0, 0}, {0, 0, 1}, {0, 1, 0}, props};
+
+  EXPECT_EQ("composite", composite.getName());
+  EXPECT_EQ("translate", translation.getName());
+  EXPECT_EQ("rotate", rotation.getName());
+  EXPECT_EQ("scale", scale.getName());
+  EXPECT_EQ("convert_units_to", converter.getName());
+  EXPECT_EQ("slice", slice.getName());
 }
 
 TEST(Translation, basics)
@@ -132,7 +151,7 @@ TEST(Translation, accept)
 {
   Translation translation {{10, 20, 30}, {Dimensions::Two, LengthUnit::cm}};
   MockVisitor visitor;
-  EXPECT_CALL(visitor, visit(Matcher<const Translation &>(Ref(translation))));
+  EXPECT_CALL(visitor, visit(Matcher<const Translation&>(Ref(translation))));
   translation.accept(visitor);
 }
 
@@ -226,7 +245,7 @@ TEST(Rotation, accept)
 {
   Rotation rotation {90, {0, 0, 0}, {1, 2, 3}, {Dimensions::Three, LengthUnit::cm}};
   MockVisitor visitor;
-  EXPECT_CALL(visitor, visit(Matcher<const Rotation &>(Ref(rotation))));
+  EXPECT_CALL(visitor, visit(Matcher<const Rotation&>(Ref(rotation))));
   rotation.accept(visitor);
 }
 
@@ -299,7 +318,7 @@ TEST(Scale, accept)
 {
   Scale scale {1, 2, 3, {Dimensions::Three, LengthUnit::cm}};
   MockVisitor visitor;
-  EXPECT_CALL(visitor, visit(Matcher<const Scale &>(Ref(scale))));
+  EXPECT_CALL(visitor, visit(Matcher<const Scale&>(Ref(scale))));
   scale.accept(visitor);
 }
 
@@ -322,7 +341,7 @@ TEST(UnitConverter, accept)
 {
   UnitConverter converter {LengthUnit::m, {Dimensions::Three, LengthUnit::cm}};
   MockVisitor visitor;
-  EXPECT_CALL(visitor, visit(Matcher<const UnitConverter &>(Ref(converter))));
+  EXPECT_CALL(visitor, visit(Matcher<const UnitConverter&>(Ref(converter))));
   converter.accept(visitor);
 }
 
@@ -396,7 +415,7 @@ TEST(CompositeOperator, accept)
 {
   CompositeOperator composite {{Dimensions::Three, LengthUnit::cm}};
   MockVisitor visitor;
-  EXPECT_CALL(visitor, visit(Matcher<const CompositeOperator &>(Ref(composite))));
+  EXPECT_CALL(visitor, visit(Matcher<const CompositeOperator&>(Ref(composite))));
   composite.accept(visitor);
 }
 
@@ -462,6 +481,6 @@ TEST(Slice, accept)
 {
   SliceOperator slice {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {Dimensions::Three, LengthUnit::cm}};
   MockVisitor visitor;
-  EXPECT_CALL(visitor, visit(Matcher<const SliceOperator &>(Ref(slice))));
+  EXPECT_CALL(visitor, visit(Matcher<const SliceOperator&>(Ref(slice))));
   slice.accept(visitor);
 }

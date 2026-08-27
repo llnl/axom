@@ -4,13 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file MessageLevel.h
  *
  */
-
-#ifndef MESSAGELEVEL_H_
-#define MESSAGELEVEL_H_
 
 #include <string>
 
@@ -97,5 +96,3 @@ static const flags masks[message::Num_Levels] = {error, warning, info, debug};
 } /* namespace slic */
 
 } /* namespace axom */
-
-#endif /* MESSAGELEVEL_H_ */

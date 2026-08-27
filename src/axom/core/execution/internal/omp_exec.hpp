@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_OMP_EXEC_HPP_
-#define AXOM_OMP_EXEC_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
@@ -48,10 +47,10 @@ struct execution_space<OMP_EXEC>
   static constexpr MemorySpace memory_space = MemorySpace::Dynamic;
 #endif
 
-  static constexpr bool async() noexcept { return false; }
-  static constexpr bool valid() noexcept { return true; }
-  static constexpr bool onDevice() noexcept { return false; }
-  static constexpr char* name() noexcept { return (char*)"[OMP_EXEC]"; }
+  AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr bool valid() noexcept { return true; }
+  AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
+  AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[OMP_EXEC]"; }
 
   static int allocatorID() noexcept
   {
@@ -61,7 +60,7 @@ struct execution_space<OMP_EXEC>
     return axom::getDefaultAllocatorID();
 #endif
   }
-  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::omp;
   }
@@ -82,5 +81,3 @@ struct execution_space<OMP_EXEC>
 };
 
 }  // namespace axom
-
-#endif  // AXOM_OMP_EXEC_HPP_

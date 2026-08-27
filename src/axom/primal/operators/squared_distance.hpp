@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file squared_distance.hpp
  *
  * \brief Consists of a set of templated (overloaded) routines used to calculate
  *  the squared distance between two geometric entities.
  */
-
-#ifndef AXOM_PRIMAL_SQUAREDDISTANCE_HPP_
-#define AXOM_PRIMAL_SQUAREDDISTANCE_HPP_
 
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
@@ -164,5 +163,3 @@ AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& P,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_SQUAREDDISTANCE_HPP_

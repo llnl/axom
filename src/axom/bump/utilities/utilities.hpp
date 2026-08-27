@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_UTILITIES_HPP_
-#define AXOM_BUMP_UTILITIES_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -90,7 +89,7 @@ template <>
 struct ComputeShapeAmount<2>
 {
   template <typename ShapeType>
-  static inline AXOM_HOST_DEVICE double execute(const ShapeType &shape)
+  static inline AXOM_HOST_DEVICE double execute(const ShapeType& shape)
   {
     return shape.area();
   }
@@ -103,7 +102,7 @@ template <>
 struct ComputeShapeAmount<3>
 {
   template <typename ShapeType>
-  static inline AXOM_HOST_DEVICE double execute(const ShapeType &shape)
+  static inline AXOM_HOST_DEVICE double execute(const ShapeType& shape)
   {
     return shape.volume();
   }
@@ -112,5 +111,3 @@ struct ComputeShapeAmount<3>
 }  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

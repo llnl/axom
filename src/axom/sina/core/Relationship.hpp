@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_RELATIONSHIP_HPP
-#define SINA_RELATIONSHIP_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -99,28 +98,28 @@ public:
      *
      * \param asNode the relationship as a Node
      */
-  explicit Relationship(conduit::Node const &asNode);
+  explicit Relationship(conduit::Node const& asNode);
 
   /**
      * \brief Get the subject.
      *
      * \return the subject
      */
-  ID const &getSubject() const noexcept { return subject.getID(); }
+  ID const& getSubject() const noexcept { return subject.getID(); }
 
   /**
      * \brief Get the object.
      *
      * \return the object
      */
-  ID const &getObject() const noexcept { return object.getID(); }
+  ID const& getObject() const noexcept { return object.getID(); }
 
   /**
      * \brief Get the predicate.
      *
      * \return the predicate
      */
-  std::string const &getPredicate() const noexcept { return predicate; }
+  std::string const& getPredicate() const noexcept { return predicate; }
 
   /**
      * \brief Convert this Relationship to its Node representation.
@@ -137,5 +136,3 @@ private:
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_RELATIONSHIP_HPP

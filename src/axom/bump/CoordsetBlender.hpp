@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_COORDSET_BLENDER_HPP_
-#define AXOM_BUMP_COORDSET_BLENDER_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
@@ -51,10 +51,10 @@ public:
    *       a view and the coordset node since the view may not be able to contain
    *       some coordset metadata and remain trivially copyable.
    */
-  void execute(const BlendData &blend,
-               const CoordsetViewType &view,
-               const conduit::Node &n_input,
-               conduit::Node &n_output,
+  void execute(const BlendData& blend,
+               const CoordsetViewType& view,
+               const conduit::Node& n_input,
+               conduit::Node& n_output,
                int allocator_id = axom::execution_space<ExecSpace>::allocatorID()) const
   {
     using value_type = typename CoordsetViewType::value_type;
@@ -73,7 +73,7 @@ public:
 
     n_output.reset();
     n_output["type"] = "explicit";
-    conduit::Node &n_values = n_output["values"];
+    conduit::Node& n_values = n_output["values"];
 
     // Determine output size.
     const auto origSize = blend.m_originalIdsView.size();
@@ -85,7 +85,7 @@ public:
     for(size_t i = 0; i < nComponents; i++)
     {
       // Allocate data in the Conduit node and make a view.
-      conduit::Node &comp = n_values[axes[i]];
+      conduit::Node& comp = n_values[axes[i]];
       comp.set_allocator(conduitAllocatorId);
       comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = utils::make_array_view<value_type>(comp);
@@ -147,5 +147,3 @@ public:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

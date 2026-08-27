@@ -99,3 +99,4 @@ needs and use cases.
    parallel_io_concepts
    sidre_conduit
    mfem_sidre_datacollection
+   python_interface

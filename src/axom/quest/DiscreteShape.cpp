@@ -8,16 +8,16 @@
 #include "axom/quest/Discretize.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
+#ifdef AXOM_USE_C2C
+  #include "axom/quest/io/C2CReader.hpp"
+#endif
 
 #include <algorithm>
-#include <stdexcept>
 #include <utility>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 // TODO: These were needed for linking - but why? They are constexpr.
@@ -103,22 +103,19 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
   std::string shapePath =
     axom::utilities::filesystem::prefixRelativePath(m_shape.getGeometry().getPath(), m_prefixPath);
+  const std::string fileExtension = utilities::filesystem::getFileExtension(shapePath);
   SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
 
   // Initialize revolved volume.
   m_revolvedVolume = 0.;
 
-  if(utilities::string::endsWith(shapePath, ".stl"))
+  if(fileExtension == ".stl")
   {
     SLIC_ERROR_ROOT_IF(file_format != "stl",
                        axom::fmt::format(" '{}' format requires .stl file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
-#ifdef AXOM_USE_MPI
     const int rc = quest::internal::read_stl_mesh(shapePath, meshRep, m_comm);
-#else
-    const int rc = quest::internal::read_stl_mesh(shapePath, meshRep);
-#endif
     SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
                        axom::fmt::format("Failed to read STL shape '{}' from file '{}'.",
                                          m_shape.getName(),
@@ -128,17 +125,13 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     // Transform the coordinates of the linearized mesh.
     applyTransforms();
   }
-  else if(utilities::string::endsWith(shapePath, ".proe"))
+  else if(fileExtension == ".proe")
   {
     SLIC_ERROR_ROOT_IF(file_format != "proe",
                        axom::fmt::format(" '{}' format requires .proe file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
-#ifdef AXOM_USE_MPI
     const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep, m_comm);
-#else
-    const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep);
-#endif
     SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
                        axom::fmt::format("Failed to read Pro/E shape '{}' from file '{}'.",
                                          m_shape.getName(),
@@ -147,10 +140,11 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     m_meshRep.reset(meshRep);
   }
 #ifdef AXOM_USE_C2C
-  else if(utilities::string::endsWith(shapePath, ".contour"))
+  else if(C2CReader::hasValidExtension(shapePath))
   {
-    SLIC_ERROR_ROOT_IF(file_format != "c2c",
-                       axom::fmt::format(" '{}' format requires .contour file type", file_format));
+    SLIC_ERROR_ROOT_IF(
+      file_format != "c2c",
+      axom::fmt::format(" '{}' format requires a .contour or .assembly file type", file_format));
 
     // Get the transforms that are being applied to the mesh as a single concatenated matrix
     auto transform = getTransforms();
@@ -163,7 +157,6 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     int rc = quest::internal::READ_FAILED;
     try
     {
-  #ifdef AXOM_USE_MPI
       rc = quest::internal::read_c2c_mesh(shapePath,
                                           uniform,
                                           transform,
@@ -173,16 +166,6 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                                           meshRep,
                                           m_revolvedVolume,  // output arg
                                           m_comm);
-  #else
-      rc = quest::internal::read_c2c_mesh(shapePath,
-                                          uniform,
-                                          transform,
-                                          m_samplesPerKnotSpan,
-                                          m_vertexWeldThreshold,
-                                          m_percentError,
-                                          meshRep,
-                                          m_revolvedVolume);  // output arg
-  #endif
     }
     catch(const std::exception& e)
     {
@@ -213,7 +196,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   }
 #endif
 #ifdef AXOM_USE_MFEM
-  else if(utilities::string::endsWith(shapePath, ".mesh"))
+  else if(fileExtension == ".mesh")
   {
     SLIC_ERROR_ROOT_IF(file_format != "mfem",
                        axom::fmt::format(" '{}' format requires .mesh file extension", file_format));
@@ -617,17 +600,21 @@ void DiscreteShape::createRepresentationOfSOR()
 
 void DiscreteShape::applyTransforms()
 {
-  numerics::Matrix<double> transformation = getTransforms();
+  if(!m_shape.getGeometry().getGeometryOperator())
+  {
+    return;
+  }
 
-  // Apply transformation to coordinates of each vertex in mesh
+  const int spaceDim = m_meshRep->getDimension();
+  const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
+  double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
+  double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
+  double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
+
+  numerics::Matrix<double> transformation = getTransforms();
+  // Apply transformation to coordinates of each vertex in mesh.
   if(!transformation.isIdentity())
   {
-    const int spaceDim = m_meshRep->getDimension();
-    const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
-    double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
-    double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
-    double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
-
     double xformed[4];
     for(int i = 0; i < numSurfaceVertices; ++i)
     {
@@ -757,5 +744,4 @@ void DiscreteShape::setParentGroup(axom::sidre::Group* parentGroup)
   }
 }
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_CONDUIT_ARRAY_VIEW_HPP_
-#define AXOM_BUMP_CONDUIT_ARRAY_VIEW_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -29,7 +28,7 @@ namespace detail
  *       regular interleaved layouts in addition to dense arrays.
  */
 template <typename T>
-inline axom::ArrayView<T> make_conduit_array_view(conduit::Node &n)
+inline axom::ArrayView<T> make_conduit_array_view(conduit::Node& n)
 {
   SLIC_ASSERT_MSG(cpp2conduit<T>::id == n.dtype().id(),
                   "Cannot create ArrayView with a type that does not match the Conduit node.");
@@ -41,7 +40,7 @@ inline axom::ArrayView<T> make_conduit_array_view(conduit::Node &n)
   SLIC_ERROR_IF(stride_bytes % static_cast<conduit::index_t>(sizeof(T)) != 0,
                 "Conduit stride is not compatible with the selected node type.");
 
-  auto *data = static_cast<T *>(n.element_ptr(0));
+  auto* data = static_cast<T*>(n.element_ptr(0));
   const auto stride = stride_bytes / static_cast<conduit::index_t>(sizeof(T));
   return axom::ArrayView<T>(
     data,
@@ -51,7 +50,7 @@ inline axom::ArrayView<T> make_conduit_array_view(conduit::Node &n)
 }
 
 template <typename T>
-inline axom::ArrayView<T> make_conduit_array_view(const conduit::Node &n)
+inline axom::ArrayView<T> make_conduit_array_view(const conduit::Node& n)
 {
   SLIC_ASSERT_MSG(cpp2conduit<T>::id == n.dtype().id(),
                   "Cannot create ArrayView with a type that does not match the Conduit node.");
@@ -63,7 +62,7 @@ inline axom::ArrayView<T> make_conduit_array_view(const conduit::Node &n)
   SLIC_ERROR_IF(stride_bytes % static_cast<conduit::index_t>(sizeof(T)) != 0,
                 "Conduit stride is not compatible with the selected node type.");
 
-  auto *data = const_cast<T *>(static_cast<const T *>(n.element_ptr(0)));
+  auto* data = const_cast<T*>(static_cast<const T*>(n.element_ptr(0)));
   const auto stride = stride_bytes / static_cast<conduit::index_t>(sizeof(T));
   return axom::ArrayView<T>(
     data,
@@ -76,5 +75,3 @@ inline axom::ArrayView<T> make_conduit_array_view(const conduit::Node &n)
 }  // namespace utilities
 }  // namespace bump
 }  // namespace axom
-
-#endif

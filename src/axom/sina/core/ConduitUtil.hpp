@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_JSONUTIL_HPP
-#define SINA_JSONUTIL_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -37,9 +36,9 @@ namespace sina
  * \return the requested field as a Node
  * \throws std::invalid_argument if the field does not exist
  */
-conduit::Node const &getRequiredField(std::string const &fieldName,
-                                      conduit::Node const &parent,
-                                      std::string const &parentType);
+conduit::Node const& getRequiredField(std::string const& fieldName,
+                                      conduit::Node const& parent,
+                                      std::string const& parentType);
 
 /**
  * \brief Get the value of a required field from a conduit Node. The field value
@@ -52,9 +51,9 @@ conduit::Node const &getRequiredField(std::string const &fieldName,
  * \return the value of the requested field
  * \throws std::invalid_argument if the field does not exist or is not a string
  */
-std::string getRequiredString(std::string const &fieldName,
-                              conduit::Node const &parent,
-                              std::string const &parentType);
+std::string getRequiredString(std::string const& fieldName,
+                              conduit::Node const& parent,
+                              std::string const& parentType);
 
 /**
  * \brief Get the value of a required field from a conduit Node. The field value
@@ -67,9 +66,9 @@ std::string getRequiredString(std::string const &fieldName,
  * \return the value of the requested field
  * \throws std::invalid_argument if the field does not exist or is not a double
  */
-double getRequiredDouble(std::string const &fieldName,
-                         conduit::Node const &parent,
-                         std::string const &parentType);
+double getRequiredDouble(std::string const& fieldName,
+                         conduit::Node const& parent,
+                         std::string const& parentType);
 
 /**
  * \brief Get the value of an optional field from a conduit Node. The field value
@@ -83,9 +82,9 @@ double getRequiredDouble(std::string const &fieldName,
  *         does not exist
  * \throws std::invalid_argument if the field exists but is not a string
  */
-std::string getOptionalString(std::string const &fieldName,
-                              conduit::Node const &parent,
-                              std::string const &parentType);
+std::string getOptionalString(std::string const& fieldName,
+                              conduit::Node const& parent,
+                              std::string const& parentType);
 
 /**
  * \brief Convert the given node to a vector of doubles.
@@ -95,7 +94,7 @@ std::string getOptionalString(std::string const &fieldName,
  * \return the node as a list of doubles
  * \throws std::invalid_argument if the node is not a list of doubles
  */
-std::vector<double> toDoubleVector(conduit::Node const &node, std::string const &name);
+std::vector<double> toDoubleVector(conduit::Node const& node, std::string const& name);
 
 /**
  * \brief Convert the given node to a vector of strings.
@@ -105,7 +104,7 @@ std::vector<double> toDoubleVector(conduit::Node const &node, std::string const 
  * \return the node as a list of strings
  * \throws std::invalid_argument if the node is not a list of strings
  */
-std::vector<std::string> toStringVector(conduit::Node const &node, std::string const &name);
+std::vector<std::string> toStringVector(conduit::Node const& node, std::string const& name);
 
 /**
  * \brief Add a vector of strings to a Node. This operation's not natively
@@ -115,11 +114,9 @@ std::vector<std::string> toStringVector(conduit::Node const &node, std::string c
  * \param child_name the name of the child (aka the name of the field)
  * \param string_values the data values for the field
  */
-void addStringsToNode(conduit::Node &parent,
-                      const std::string &child_name,
-                      std::vector<std::string> const &string_values);
+void addStringsToNode(conduit::Node& parent,
+                      const std::string& child_name,
+                      std::vector<std::string> const& string_values);
 
 }  // end namespace sina
 }  // end namespace axom
-
-#endif  //SINA_JSONUTIL_HPP

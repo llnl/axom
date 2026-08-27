@@ -6,8 +6,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef PYQUESTMODULE_HPP
-#define PYQUESTMODULE_HPP
+
+#pragma once
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -21,12 +21,10 @@
 // splicer begin header.C_declaration
 // splicer end header.C_declaration
 
-extern PyObject *PY_error_obj;
+extern PyObject* PY_error_obj;
 
 #if PY_MAJOR_VERSION >= 3
 extern "C" PyMODINIT_FUNC PyInit_quest(void);
 #else
 extern "C" PyMODINIT_FUNC initquest(void);
 #endif
-
-#endif /* PYQUESTMODULE_HPP */

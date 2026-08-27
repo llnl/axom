@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/memory_management.hpp"
@@ -14,9 +16,6 @@
 #include <cassert>
 #include <cstring>
 #include <iostream>
-
-#ifndef AXOM_MATRIX_HPP_
-  #define AXOM_MATRIX_HPP_
 
 namespace axom
 {
@@ -626,13 +625,13 @@ AXOM_HOST_DEVICE Matrix<T>::Matrix(int rows, int cols, T* data, bool external)
   }
   else
   {
-  #if defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_DEVICE_CODE)
     assert(false);
-  #else
+#else
     const int nitems = m_rows * m_cols;
     m_data = allocate<T>(nitems);
     memcpy(m_data, data, nitems * sizeof(T));
-  #endif
+#endif
   }
 }
 
@@ -685,8 +684,8 @@ void Matrix<T>::fillRow(IndexType i, const T& val)
 {
   assert((i >= 0) && (i < m_rows));
 
-  const int N = (m_cols - 1) * m_rows + i + 1;
-  const int p = m_rows;
+  const IndexType N = (m_cols - 1) * m_rows + i + 1;
+  const IndexType p = m_rows;
   for(IndexType j = i; j < N; j += p)
   {
     m_data[j] = val;
@@ -710,7 +709,7 @@ void Matrix<T>::fillColumn(IndexType j, const T& val)
 template <typename T>
 void Matrix<T>::fill(const T& val)
 {
-  const int nitems = m_rows * m_cols;
+  const IndexType nitems = m_rows * m_cols;
   for(IndexType i = 0; i < nitems; ++i)
   {
     m_data[i] = val;
@@ -876,7 +875,7 @@ bool Matrix<T>::isIdentity() const
     {
       for(IndexType j = 0; j < m_cols && ok; ++j)
       {
-        T expected = (i == j) ? 1.0 : 0.0;
+        T expected = (i == j) ? T {1} : T {0};
         ok = (this->operator()(i, j) == expected);
       }  // END for all columns
     }  // END for all rows
@@ -951,14 +950,14 @@ void Matrix<T>::copy(const Matrix<T>& rhs)
 template <typename T>
 AXOM_HOST_DEVICE void Matrix<T>::clear()
 {
-  #if defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_DEVICE_CODE)
   assert(m_usingExternal);
-  #else
+#else
   if(!m_usingExternal)
   {
     deallocate(m_data);
   }
-  #endif
+#endif
 
   m_rows = m_cols = 0;
 }
@@ -1095,5 +1094,3 @@ std::ostream& operator<<(std::ostream& os, const Matrix<T>& M)
 template <typename T>
 struct axom::fmt::formatter<axom::numerics::Matrix<T>> : ostream_formatter
 { };
-
-#endif /* AXOM_MATRIX_HPP_ */

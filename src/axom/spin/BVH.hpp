@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_SPIN_BVH_H_
-#define AXOM_SPIN_BVH_H_
+#pragma once
 
 // axom core includes
 #include "axom/config.hpp"                               // for Axom compile-time definitions
@@ -579,5 +578,3 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::writeVtkFile(const std::string& fil
 
 }  // namespace spin
 }  // namespace axom
-
-#endif  // AXOM_SPIN_BVH_H_

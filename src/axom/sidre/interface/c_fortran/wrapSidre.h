@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPSIDRE_H
+#define WRAPSIDRE_H
+
 /**
  * \file wrapSidre.h
  * \brief Shroud generated wrapper for sidre namespace
  */
 // For C users and C++ implementation
-
-#ifndef WRAPSIDRE_H
-#define WRAPSIDRE_H
 
 #ifndef __cplusplus
   #include <stdbool.h>
@@ -54,9 +55,9 @@ typedef short SIDRE_TypeID;
 typedef int SIDRE_TypeIDint;
 // splicer end typedef.TypeIDint
 
-bool SIDRE_name_is_valid(const char *name);
+bool SIDRE_name_is_valid(const char* name);
 
-bool SIDRE_name_is_valid_bufferify(char *name, int SHT_name_len);
+bool SIDRE_name_is_valid_bufferify(char* name, int SHT_name_len);
 
 int SIDRE_get_invalid_allocator_id(void);
 

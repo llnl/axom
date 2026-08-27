@@ -4,14 +4,15 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_MATERIAL_HPP_
-#define AXOM_BUMP_DISPATCH_MATERIAL_HPP_
+#pragma once
 
 #include "axom/bump/views/MaterialView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
 
 #include <conduit/conduit_blueprint.hpp>
+
+#include <type_traits>
 
 namespace axom
 {
@@ -27,7 +28,7 @@ constexpr void verifyPositiveMaxMaterials()
   static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
 }
 
-inline void verifyMixedField(const conduit::Node &n_field)
+inline void verifyMixedField(const conduit::Node& n_field)
 {
   SLIC_ERROR_IF(!n_field.has_path("matset_values"),
                 "The mixed field does not contain matset_values");
@@ -46,29 +47,32 @@ inline void verifyMixedField(const conduit::Node &n_field)
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_unibuffer_with_values(const conduit::Node &matset,
-                                             const conduit::Node &values,
-                                             FuncType &&func)
+bool dispatch_material_unibuffer_with_values(const conduit::Node& matset,
+                                             const conduit::Node& values,
+                                             FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_uni_buffer(matset))
   {
-    indexNodeToArrayViewSame(matset["material_ids"],
-                             matset["sizes"],
-                             matset["offsets"],
-                             matset["indices"],
-                             [&](auto material_ids, auto sizes, auto offsets, auto indices) {
-                               floatNodeToArrayView(values, [&](auto typedValues) {
-                                 using IndexType = typename decltype(material_ids)::value_type;
-                                 using FloatType = typename decltype(typedValues)::value_type;
+    indexNodeToArrayViewSame(
+      matset["material_ids"],
+      matset["sizes"],
+      matset["offsets"],
+      matset["indices"],
+      [&](auto material_ids, auto sizes, auto offsets, auto indices) {
+        floatNodeToArrayView(values, [&](auto typedValues) {
+          using MaterialIDsView = std::remove_reference_t<decltype(material_ids)>;
+          using ValuesView = std::remove_reference_t<decltype(typedValues)>;
+          using IndexType = typename MaterialIDsView::value_type;
+          using FloatType = typename ValuesView::value_type;
 
-                                 UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
-                                 matsetView.set(material_ids, typedValues, sizes, offsets, indices);
-                                 func(matsetView);
-                               });
-                             });
+          UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
+          matsetView.set(material_ids, typedValues, sizes, offsets, indices);
+          func(matsetView);
+        });
+      });
     retval = true;
   }
   return retval;
@@ -84,14 +88,14 @@ bool dispatch_material_unibuffer_with_values(const conduit::Node &matset,
  * \return The material id for the named material.
  */
 template <typename IntElement>
-IntElement getMaterialID(const conduit::Node &matset,
-                         const std::string &matName,
+IntElement getMaterialID(const conduit::Node& matset,
+                         const std::string& matName,
                          IntElement defaultValue)
 {
   IntElement matno = static_cast<IntElement>(defaultValue);
   if(matset.has_child("material_map"))
   {
-    const conduit::Node &n_mm = matset["material_map"];
+    const conduit::Node& n_mm = matset["material_map"];
     if(n_mm.has_child(matName))
     {
       matno = static_cast<IntElement>(n_mm[matName].to_int());
@@ -113,9 +117,9 @@ IntElement getMaterialID(const conduit::Node &matset,
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
-                                                    const conduit::Node &values_object,
-                                                    FuncType &&func)
+bool dispatch_material_element_dominant_with_values(const conduit::Node& matset,
+                                                    const conduit::Node& values_object,
+                                                    FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
@@ -125,10 +129,10 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
   {
     if(values_object.number_of_children() > 0)
     {
-      const conduit::Node &n_firstValues = values_object[0];
+      const conduit::Node& n_firstValues = values_object[0];
       floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
-        using FloatElement =
-          typename std::remove_const<typename decltype(firstValues)::value_type>::type;
+        using FirstValuesView = std::remove_reference_t<decltype(firstValues)>;
+        using FloatElement = typename std::remove_const<typename FirstValuesView::value_type>::type;
         using FloatView = axom::ArrayView<FloatElement>;
         using IntElement = axom::IndexType;
 
@@ -136,9 +140,9 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
 
         for(conduit::index_t i = 0; i < values_object.number_of_children(); i++)
         {
-          const conduit::Node &values = values_object[i];
-          const FloatElement *values_ptr = values.value();
-          FloatView values_view(const_cast<FloatElement *>(values_ptr),
+          const conduit::Node& values = values_object[i];
+          const FloatElement* values_ptr = values.value();
+          FloatView values_view(const_cast<FloatElement*>(values_ptr),
                                 values.dtype().number_of_elements());
 
           // Get the material number if we can.
@@ -168,9 +172,9 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_material_dominant_with_values(const conduit::Node &matset,
-                                                     const conduit::Node &values_object,
-                                                     FuncType &&func)
+bool dispatch_material_material_dominant_with_values(const conduit::Node& matset,
+                                                     const conduit::Node& values_object,
+                                                     FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
@@ -178,19 +182,19 @@ bool dispatch_material_material_dominant_with_values(const conduit::Node &matset
   if(conduit::blueprint::mesh::matset::is_multi_buffer(matset) &&
      conduit::blueprint::mesh::matset::is_material_dominant(matset))
   {
-    const conduit::Node &element_ids = matset.fetch_existing("element_ids");
+    const conduit::Node& element_ids = matset.fetch_existing("element_ids");
     if(values_object.number_of_children() > 0 &&
        values_object.number_of_children() == element_ids.number_of_children())
     {
-      const conduit::Node &n_firstValues = values_object[0];
-      const conduit::Node &n_firstIndices = element_ids[0];
+      const conduit::Node& n_firstValues = values_object[0];
+      const conduit::Node& n_firstIndices = element_ids[0];
 
       indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
         floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
-          using FloatElement =
-            typename std::remove_const<typename decltype(firstValues)::value_type>::type;
-          using IntElement =
-            typename std::remove_const<typename decltype(firstIndices)::value_type>::type;
+          using FirstValuesView = std::remove_reference_t<decltype(firstValues)>;
+          using FirstIndicesView = std::remove_reference_t<decltype(firstIndices)>;
+          using FloatElement = typename std::remove_const<typename FirstValuesView::value_type>::type;
+          using IntElement = typename std::remove_const<typename FirstIndicesView::value_type>::type;
           using FloatView = axom::ArrayView<FloatElement>;
           using IntView = axom::ArrayView<IntElement>;
 
@@ -198,15 +202,15 @@ bool dispatch_material_material_dominant_with_values(const conduit::Node &matset
 
           for(conduit::index_t i = 0; i < values_object.number_of_children(); i++)
           {
-            const conduit::Node &indices = element_ids[i];
-            const conduit::Node &values = values_object[i];
+            const conduit::Node& indices = element_ids[i];
+            const conduit::Node& values = values_object[i];
 
-            const IntElement *indices_ptr = indices.value();
-            const FloatElement *values_ptr = values.value();
+            const IntElement* indices_ptr = indices.value();
+            const FloatElement* values_ptr = values.value();
 
-            IntView indices_view(const_cast<IntElement *>(indices_ptr),
+            IntView indices_view(const_cast<IntElement*>(indices_ptr),
                                  indices.dtype().number_of_elements());
-            FloatView values_view(const_cast<FloatElement *>(values_ptr),
+            FloatView values_view(const_cast<FloatElement*>(values_ptr),
                                   values.dtype().number_of_elements());
 
             // Get the material number if we can.
@@ -243,7 +247,7 @@ struct make_unibuffer_matset
    *
    * \return A UnibufferMaterialView.
    */
-  static MatsetView view(const conduit::Node &n_matset)
+  static MatsetView view(const conduit::Node& n_matset)
   {
     namespace utils = axom::bump::utilities;
     verify(n_matset, "matset");
@@ -269,7 +273,7 @@ struct make_unibuffer_matset
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
+bool dispatch_material_unibuffer(const conduit::Node& matset, FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
@@ -291,7 +295,7 @@ bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&func)
+bool dispatch_material_element_dominant(const conduit::Node& matset, FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
@@ -311,7 +315,7 @@ bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &&func)
+bool dispatch_material_material_dominant(const conduit::Node& matset, FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
@@ -332,7 +336,7 @@ bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material(const conduit::Node &matset, FuncType &&func)
+bool dispatch_material(const conduit::Node& matset, FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval =
@@ -362,5 +366,3 @@ bool dispatch_material(const conduit::Node &matset, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

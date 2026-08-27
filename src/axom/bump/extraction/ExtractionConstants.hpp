@@ -2,8 +2,7 @@
 // Project developers.  See the top-level LICENSE file for dates and other
 // details.  No copyright assignment is required to contribute to VisIt.
 
-#ifndef AXOM_BUMP_EXTRACTION_CONSTANTS_HPP
-#define AXOM_BUMP_EXTRACTION_CONSTANTS_HPP
+#pragma once
 #include "axom/export/bump.h"
 
 #include <cstdlib>
@@ -78,5 +77,3 @@ constexpr unsigned char NOCOLOR = 122;
 }  // namespace axom
 // clang-format on
 //---------------------------------------------------------------------------
-
-#endif

@@ -4,8 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_UTILITIES_SORTING_HPP
-#define AXOM_CORE_UTILITIES_SORTING_HPP
+#pragma once
+
 #include <axom/core/utilities/Utilities.hpp>
 #include <axom/core/NumericLimits.hpp>
 
@@ -40,7 +40,7 @@ AXOM_HOST_DEVICE constexpr static T stack_size(T N)
  * param b The second value.
  */
 template <typename T>
-AXOM_HOST_DEVICE inline void ifswap(T &a, T &b)
+AXOM_HOST_DEVICE inline void ifswap(T& a, T& b)
 {
   if(a > b)
   {
@@ -75,7 +75,7 @@ AXOM_HOST_DEVICE inline void internal_swap(axom::IndexType idx1,
 }
 
 template <typename T, typename Predicate, typename... Args>
-AXOM_HOST_DEVICE inline void ifswap_multiple(Predicate &&predicate,
+AXOM_HOST_DEVICE inline void ifswap_multiple(Predicate&& predicate,
                                              axom::IndexType idx1,
                                              axom::IndexType idx2,
                                              T values,
@@ -97,7 +97,7 @@ AXOM_HOST_DEVICE inline void ifswap_multiple(Predicate &&predicate,
  * \return A new pivot.
  */
 template <typename T, typename Predicate, typename... Args>
-AXOM_HOST_DEVICE static axom::IndexType partitionMultiple(Predicate &&predicate,
+AXOM_HOST_DEVICE static axom::IndexType partitionMultiple(Predicate&& predicate,
                                                           axom::IndexType low,
                                                           axom::IndexType high,
                                                           T values,
@@ -124,7 +124,7 @@ AXOM_HOST_DEVICE static axom::IndexType partitionMultiple(Predicate &&predicate,
  * \param n The number of values in the array.
  */
 template <typename T, typename Predicate, typename... Args>
-AXOM_HOST_DEVICE static void qsortMultiple(Predicate &&predicate,
+AXOM_HOST_DEVICE static void qsortMultiple(Predicate&& predicate,
                                            axom::IndexType n,
                                            T values,
                                            Args... args)
@@ -164,7 +164,7 @@ AXOM_HOST_DEVICE static void qsortMultiple(Predicate &&predicate,
  * \param args The rest of the arrays to be sorted the same way.
  */
 template <typename T, typename Predicate, typename... Args>
-AXOM_HOST_DEVICE static void insertionSortMultiple(Predicate &&predicate,
+AXOM_HOST_DEVICE static void insertionSortMultiple(Predicate&& predicate,
                                                    axom::IndexType n,
                                                    T values,
                                                    Args... args)
@@ -196,7 +196,7 @@ struct Delimiter
  * \param args A parameter pack containing all other arrays to be sorted.
  */
 template <typename T, typename Predicate, typename... Args>
-AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate &&predicate,
+AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate&& predicate,
                                                            axom::IndexType n,
                                                            T first,
                                                            Delimiter,
@@ -217,7 +217,7 @@ AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate &&predicate
  * \brief Shift args to end until the array length is at the desired position.
  */
 template <typename T, typename Predicate, typename... Args>
-AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate &&predicate,
+AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate&& predicate,
                                                            T first,
                                                            Delimiter d,
                                                            axom::IndexType n,
@@ -230,7 +230,7 @@ AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate &&predicate
  * \brief Shift args to end until the array length is at the desired position.
  */
 template <typename T, typename Predicate, typename S, typename... Args>
-AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate &&predicate,
+AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate&& predicate,
                                                            T first,
                                                            Delimiter d,
                                                            S second,
@@ -245,7 +245,7 @@ AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate &&predicate
 template <typename T>
 struct less_than
 {
-  AXOM_HOST_DEVICE inline bool operator()(const T &a, const T &b) const { return a < b; }
+  AXOM_HOST_DEVICE inline bool operator()(const T& a, const T& b) const { return a < b; }
 };
 
 /*!
@@ -254,7 +254,7 @@ struct less_than
 template <typename T>
 struct greater_than
 {
-  AXOM_HOST_DEVICE inline bool operator()(const T &a, const T &b) const { return a > b; }
+  AXOM_HOST_DEVICE inline bool operator()(const T& a, const T& b) const { return a > b; }
 };
 
 }  // end namespace detail
@@ -328,7 +328,7 @@ struct Sorting
    * \param n The number of values in the array. 
    */
   AXOM_HOST_DEVICE
-  inline static void sort(T *values, int n)
+  inline static void sort(T* values, int n)
   {
     if(n < SORT_SIZE_CUTOFF)
     {
@@ -351,7 +351,7 @@ struct Sorting
    * \param n The number of values in the array.
    */
   AXOM_HOST_DEVICE
-  static void qsort(T *values, int n)
+  static void qsort(T* values, int n)
   {
     if(n <= 1)
     {
@@ -393,7 +393,7 @@ struct Sorting
    * \return A new pivot.
    */
   AXOM_HOST_DEVICE
-  static int partition(T *values, int low, int high)
+  static int partition(T* values, int low, int high)
   {
     // Median-of-three pivot selection
     const int mid = low + (high - low) / 2;
@@ -428,7 +428,7 @@ struct Sorting
    * \param n The number of values in the array.
    */
   AXOM_HOST_DEVICE
-  inline static void insertionSort(T *values, int n)
+  inline static void insertionSort(T* values, int n)
   {
     for(int i = 1; i < n; i++)
     {
@@ -456,7 +456,7 @@ struct Sorting<T, 3>
    * \param[inout] values The array to be sorted.
    */
   AXOM_HOST_DEVICE
-  inline static void sort(T *values, int AXOM_UNUSED_PARAM(n))
+  inline static void sort(T* values, int AXOM_UNUSED_PARAM(n))
   {
     detail::ifswap(values[0], values[1]);
     detail::ifswap(values[1], values[2]);
@@ -477,7 +477,7 @@ struct Sorting<T, 4>
    * \param[inout] values The array to be sorted.
    */
   AXOM_HOST_DEVICE
-  inline static void sort(T *values, int AXOM_UNUSED_PARAM(n))
+  inline static void sort(T* values, int AXOM_UNUSED_PARAM(n))
   {
     detail::ifswap(values[0], values[1]);
     detail::ifswap(values[2], values[3]);
@@ -490,5 +490,3 @@ struct Sorting<T, 4>
 
 }  // end namespace utilities
 }  // end namespace axom
-
-#endif

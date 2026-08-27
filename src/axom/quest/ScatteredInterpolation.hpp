@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_SCATTERED_INTERPOLATION_H_
-#define QUEST_SCATTERED_INTERPOLATION_H_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -272,8 +271,7 @@ private:
   using MortonIndexType = std::uint64_t;
 
   using VertexSet = typename DelaunayTriangulation::IAMeshType::VertexSet;
-  using VertexIndirectionSet =
-    slam::ArrayIndirectionSet<typename VertexSet::PositionType, axom::IndexType>;
+  using VertexIndirectionSet = slam::ArraySet<typename VertexSet::PositionType, axom::IndexType>;
 
 private:
   /**
@@ -753,5 +751,3 @@ constexpr int ScatteredInterpolation<NDIMS>::DIM;
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_SCATTERED_INTERPOLATION_H_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_ID_HPP
-#define SINA_ID_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -62,7 +61,7 @@ public:
      *
      * \return the actual ID
      */
-  std::string const &getId() const noexcept { return id; }
+  std::string const& getId() const noexcept { return id; }
 
   /**
      * \brief Get the type of the ID.
@@ -107,35 +106,35 @@ public:
      * \param localName the local name of the field
      * \param globalName the global name of the field
      */
-  IDField(conduit::Node const &parentObject, std::string localName, std::string globalName);
+  IDField(conduit::Node const& parentObject, std::string localName, std::string globalName);
 
   /**
      * \brief Get the value of this field.
      *
      * \return the ID describing the field's value
      */
-  ID const &getID() const noexcept { return value; }
+  ID const& getID() const noexcept { return value; }
 
   /**
      * \brief Get the name to use for this field when the ID is local.
      *
      * \return the name of the local ID field
      */
-  std::string const &getLocalName() const noexcept { return localName; }
+  std::string const& getLocalName() const noexcept { return localName; }
 
   /**
      * \brief Get the name to use for this field when the ID is global.
      *
      * \return the name of the global ID field
      */
-  std::string const &getGlobalName() const noexcept { return globalName; }
+  std::string const& getGlobalName() const noexcept { return globalName; }
 
   /**
      * \brief Add this field to the given Node.
      *
      * \param object the Node to which to add the field
      */
-  void addTo(conduit::Node &object) const;
+  void addTo(conduit::Node& object) const;
 
 private:
   ID value;
@@ -146,5 +145,3 @@ private:
 }  // namespace internal
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_ID_HPP

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_RECTILINEAR_COORDSET_VIEW_HPP_
-#define AXOM_BUMP_RECTILINEAR_COORDSET_VIEW_HPP_
+#pragma once
 
 #include "axom/core/StackArray.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -48,7 +47,7 @@ public:
    * \param y The second coordinate component.
    */
   AXOM_HOST_DEVICE
-  RectilinearCoordsetView2(const axom::ArrayView<DataType> &x, const axom::ArrayView<DataType> &y)
+  RectilinearCoordsetView2(const axom::ArrayView<DataType>& x, const axom::ArrayView<DataType>& y)
     : m_coordinates {x, y}
     , m_indexing(LogicalIndex {{x.size(), y.size()}})
   { }
@@ -72,7 +71,7 @@ public:
    * \return The indexing that contains the mesh logical sizes.
    */
   AXOM_HOST_DEVICE
-  const StructuredIndexing<IndexType, 2> &indexing() const { return m_indexing; }
+  const StructuredIndexing<IndexType, 2>& indexing() const { return m_indexing; }
 
   /*!
    * \brief Get a coordinate array view for a dimension.
@@ -170,9 +169,9 @@ public:
    * \param z The third coordinate component.
    */
   AXOM_HOST_DEVICE
-  RectilinearCoordsetView3(const axom::ArrayView<DataType> &x,
-                           const axom::ArrayView<DataType> &y,
-                           const axom::ArrayView<DataType> &z)
+  RectilinearCoordsetView3(const axom::ArrayView<DataType>& x,
+                           const axom::ArrayView<DataType>& y,
+                           const axom::ArrayView<DataType>& z)
     : m_coordinates {x, y, z}
     , m_indexing(LogicalIndex {{x.size(), y.size(), z.size()}})
   { }
@@ -197,7 +196,7 @@ public:
    * \return The indexing that contains the mesh logical sizes.
    */
   AXOM_HOST_DEVICE
-  const StructuredIndexing<IndexType, 3> &indexing() const { return m_indexing; }
+  const StructuredIndexing<IndexType, 3>& indexing() const { return m_indexing; }
 
   /*!
    * \brief Get a coordinate array view for a dimension.
@@ -272,5 +271,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

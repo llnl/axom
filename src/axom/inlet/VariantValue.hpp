@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file VariantValue.hpp
@@ -12,9 +14,6 @@
  * collections.
  *******************************************************************************
  */
-
-#ifndef INLET_VARIANT_VALUE_HPP
-#define INLET_VARIANT_VALUE_HPP
 
 #include <string>
 #include <variant>
@@ -28,5 +27,3 @@ using VariantValue = std::variant<bool, int, double, std::string>;
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

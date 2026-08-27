@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPDATASTORE_H
+#define WRAPDATASTORE_H
+
 /**
  * \file wrapDataStore.h
  * \brief Shroud generated wrapper for DataStore class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPDATASTORE_H
-#define WRAPDATASTORE_H
 
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"
@@ -39,77 +40,77 @@ extern "C" {
 // splicer begin class.DataStore.C_declarations
 // splicer end class.DataStore.C_declarations
 
-SIDRE_DataStore *SIDRE_DataStore_new(SIDRE_DataStore *SHC_rv);
+SIDRE_DataStore* SIDRE_DataStore_new(SIDRE_DataStore* SHC_rv);
 
-void SIDRE_DataStore_new_bufferify(SIDRE_DataStore *SHC_rv);
+void SIDRE_DataStore_new_bufferify(SIDRE_DataStore* SHC_rv);
 
-void SIDRE_DataStore_delete(SIDRE_DataStore *self);
+void SIDRE_DataStore_delete(SIDRE_DataStore* self);
 
-SIDRE_Group *SIDRE_DataStore_get_root(SIDRE_DataStore *self, SIDRE_Group *SHC_rv);
+SIDRE_Group* SIDRE_DataStore_get_root(SIDRE_DataStore* self, SIDRE_Group* SHC_rv);
 
-void SIDRE_DataStore_get_root_bufferify(SIDRE_DataStore *self, SIDRE_Group *SHC_rv);
+void SIDRE_DataStore_get_root_bufferify(SIDRE_DataStore* self, SIDRE_Group* SHC_rv);
 
-size_t SIDRE_DataStore_get_num_buffers(const SIDRE_DataStore *self);
+size_t SIDRE_DataStore_get_num_buffers(const SIDRE_DataStore* self);
 
-SIDRE_Buffer *SIDRE_DataStore_get_buffer(SIDRE_DataStore *self,
+SIDRE_Buffer* SIDRE_DataStore_get_buffer(SIDRE_DataStore* self,
                                          SIDRE_IndexType idx,
-                                         SIDRE_Buffer *SHC_rv);
+                                         SIDRE_Buffer* SHC_rv);
 
-void SIDRE_DataStore_get_buffer_bufferify(SIDRE_DataStore *self,
+void SIDRE_DataStore_get_buffer_bufferify(SIDRE_DataStore* self,
                                           SIDRE_IndexType idx,
-                                          SIDRE_Buffer *SHC_rv);
+                                          SIDRE_Buffer* SHC_rv);
 
-SIDRE_Buffer *SIDRE_DataStore_create_buffer_empty(SIDRE_DataStore *self, SIDRE_Buffer *SHC_rv);
+SIDRE_Buffer* SIDRE_DataStore_create_buffer_empty(SIDRE_DataStore* self, SIDRE_Buffer* SHC_rv);
 
-void SIDRE_DataStore_create_buffer_empty_bufferify(SIDRE_DataStore *self, SIDRE_Buffer *SHC_rv);
+void SIDRE_DataStore_create_buffer_empty_bufferify(SIDRE_DataStore* self, SIDRE_Buffer* SHC_rv);
 
-SIDRE_Buffer *SIDRE_DataStore_create_buffer_from_type(SIDRE_DataStore *self,
+SIDRE_Buffer* SIDRE_DataStore_create_buffer_from_type(SIDRE_DataStore* self,
                                                       SIDRE_TypeID type,
                                                       SIDRE_IndexType num_elems,
-                                                      SIDRE_Buffer *SHC_rv);
+                                                      SIDRE_Buffer* SHC_rv);
 
-void SIDRE_DataStore_create_buffer_from_type_bufferify(SIDRE_DataStore *self,
+void SIDRE_DataStore_create_buffer_from_type_bufferify(SIDRE_DataStore* self,
                                                        SIDRE_TypeID type,
                                                        SIDRE_IndexType num_elems,
-                                                       SIDRE_Buffer *SHC_rv);
+                                                       SIDRE_Buffer* SHC_rv);
 
-void SIDRE_DataStore_destroy_buffer(SIDRE_DataStore *self, SIDRE_IndexType id);
+void SIDRE_DataStore_destroy_buffer(SIDRE_DataStore* self, SIDRE_IndexType id);
 
-bool SIDRE_DataStore_generate_blueprint_index_0(SIDRE_DataStore *self,
-                                                const char *domain_path,
-                                                const char *mesh_name,
-                                                const char *index_path,
+bool SIDRE_DataStore_generate_blueprint_index_0(SIDRE_DataStore* self,
+                                                const char* domain_path,
+                                                const char* mesh_name,
+                                                const char* index_path,
                                                 int num_domains);
 
-bool SIDRE_DataStore_generate_blueprint_index_0_bufferify(SIDRE_DataStore *self,
-                                                          char *domain_path,
+bool SIDRE_DataStore_generate_blueprint_index_0_bufferify(SIDRE_DataStore* self,
+                                                          char* domain_path,
                                                           int SHT_domain_path_len,
-                                                          char *mesh_name,
+                                                          char* mesh_name,
                                                           int SHT_mesh_name_len,
-                                                          char *index_path,
+                                                          char* index_path,
                                                           int SHT_index_path_len,
                                                           int num_domains);
 
 #ifdef AXOM_USE_MPI
-bool SIDRE_DataStore_generate_blueprint_index_1(SIDRE_DataStore *self,
+bool SIDRE_DataStore_generate_blueprint_index_1(SIDRE_DataStore* self,
                                                 MPI_Fint comm,
-                                                const char *domain_path,
-                                                const char *mesh_name,
-                                                const char *index_path);
+                                                const char* domain_path,
+                                                const char* mesh_name,
+                                                const char* index_path);
 #endif
 
 #ifdef AXOM_USE_MPI
-bool SIDRE_DataStore_generate_blueprint_index_1_bufferify(SIDRE_DataStore *self,
+bool SIDRE_DataStore_generate_blueprint_index_1_bufferify(SIDRE_DataStore* self,
                                                           MPI_Fint comm,
-                                                          char *domain_path,
+                                                          char* domain_path,
                                                           int SHT_domain_path_len,
-                                                          char *mesh_name,
+                                                          char* mesh_name,
                                                           int SHT_mesh_name_len,
-                                                          char *index_path,
+                                                          char* index_path,
                                                           int SHT_index_path_len);
 #endif
 
-void SIDRE_DataStore_print(const SIDRE_DataStore *self);
+void SIDRE_DataStore_print(const SIDRE_DataStore* self);
 
 #ifdef __cplusplus
 }

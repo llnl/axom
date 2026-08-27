@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_SPHERE_HPP_
-#define AXOM_PRIMAL_SPHERE_HPP_
+#pragma once
 
 #include "axom/core/Macros.hpp"
 
@@ -113,11 +112,19 @@ public:
   AXOM_HOST_DEVICE
   inline const PointType& getCenter() const { return m_center; };
 
-  /*!
-   * \brief Returns the volume of the Sphere.
-   */
+  /// \brief Returns the n-dimensional volume enclosed by the Sphere.
   AXOM_HOST_DEVICE
-  inline T getVolume() const { return 4.0 / 3 * M_PI * m_radius * m_radius * m_radius; };
+  inline T getVolume() const
+  {
+    if constexpr(NDIMS == 2)
+    {
+      return M_PI * m_radius * m_radius;
+    }
+    else
+    {
+      return 4. / 3. * M_PI * m_radius * m_radius * m_radius;
+    }
+  }
 
   /*!
    * \brief Computes the signed distance of a point to the Sphere's boundary.
@@ -165,6 +172,27 @@ public:
     }
 
     return (signed_distance < T {0}) ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+  }
+
+  /*!
+   * \brief Tests if a point lies inside this sphere.
+   *
+   * \param [in] q The test point
+   * \param [in] includeBoundary should points on the boundary count as contained? (default true)
+   * \return true if \a q lies inside (and possibly on) the sphere, false otherwise.
+   *
+   * \note This is an exact-arithmetic-free containment test.
+   *  When a tolerance-aware answer is required (for example, to treat points within
+   *  \a EPS of the surface as lying on the boundary), use getOrientation(),
+   *  which returns primal::ON_BOUNDARY within the supplied tolerance, or compare
+   *  the result of computeSignedDistance() against your own scale-aware tolerance.
+   */
+  AXOM_HOST_DEVICE
+  inline bool contains(const PointType& q, bool includeBoundary = true) const
+  {
+    const T dist_sq = (q - m_center).squared_norm();
+    const T radius_sq = m_radius * m_radius;
+    return includeBoundary ? (dist_sq <= radius_sq) : (dist_sq < radius_sq);
   }
 
   /*!
@@ -272,5 +300,3 @@ std::ostream& operator<<(std::ostream& os, const Sphere<T, NDIMS>& s)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Sphere<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_SPHERE_HPP_

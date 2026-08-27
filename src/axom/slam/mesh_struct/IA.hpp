@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file IA.hpp
  *
  * \brief Contains the header information of IA class
  */
-
-#ifndef SLAM_IA_H_
-#define SLAM_IA_H_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -35,9 +34,7 @@
 
 #include <array>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class IA
@@ -444,9 +441,6 @@ constexpr int IAMesh<TDIM, SDIM, P>::COORDS_PER_VERT;
 template <int TDIM, int SDIM, typename P>
 constexpr int IAMesh<TDIM, SDIM, P>::VERTS_PER_ELEM;
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam
 
 #include "axom/slam/mesh_struct/IA_impl.hpp"
-
-#endif  //  SLAM_IA_H_

@@ -32,11 +32,11 @@
 #endif
 
 #include <cmath>
+#include <map>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <utility>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -234,15 +234,6 @@ struct PlaneProjector23
     return Point3D {x, y, z};
   }
 };
-
-const std::pair<const char*, int> supported_quadrature_types[] = {
-  {"default", static_cast<int>(mfem::Quadrature1D::Invalid)},
-  {"gausslegendre", static_cast<int>(mfem::Quadrature1D::GaussLegendre)},
-  {"gausslobatto", static_cast<int>(mfem::Quadrature1D::GaussLobatto)},
-  {"openuniform", static_cast<int>(mfem::Quadrature1D::OpenUniform)},
-  {"closeduniform", static_cast<int>(mfem::Quadrature1D::ClosedUniform)},
-  {"openhalfuniform", static_cast<int>(mfem::Quadrature1D::OpenHalfUniform)},
-  {"closedgl", static_cast<int>(mfem::Quadrature1D::ClosedGL)}};
 
 }  // namespace
 
@@ -861,6 +852,44 @@ shapes:
   {
     this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
   }
+}
+
+TEST_F(SamplingShaperTest2D, basic_circle_assembly_transform)
+{
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: circle_assembly
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+    operators:
+      - scale: .5
+)";
+
+  const std::string circle_material = "circleMat";
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile assembly_file(testname, ".assembly");
+  assembly_file.write(axom::fmt::format("pieces = contour(path='{}')", contour_file.getPath()));
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), circle_material, assembly_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+  this->runShaping();
+
+  constexpr double expected_volume = M_PI / 4.;
+  this->checkExpectedVolumeFractions(circle_material, expected_volume, 2e-2);
 }
 
 TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
@@ -2378,7 +2407,7 @@ piece = line(end=start)
 
   int sampleRes[3] = {3, 5};
   this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 2});
-  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::ClosedUniform);
   this->m_shaper->setVolumeFractionOrder(0);
 
   this->runShaping();
@@ -2425,7 +2454,7 @@ piece = line(end=start)
 
   int sampleRes[3] = {3, 5};
 
-  for(const auto& quadrature : supported_quadrature_types)
+  for(const auto& quadrature : axom::numerics::stringToQuadratureType())
   {
     this->validateShapeFile(shape_file.getPath());
     this->initializeShaping(shape_file.getPath());
@@ -2474,9 +2503,9 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   slic::ScopedAbortToThrow abort_guard;
-  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::Invalid) - 1),
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<axom::numerics::QuadratureType>(-2)),
                slic::SlicAbortException);
-  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedGL) + 1),
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<axom::numerics::QuadratureType>(6)),
                slic::SlicAbortException);
 }
 
@@ -2511,7 +2540,7 @@ shapes:
 
   int sampleRes[3] = {3, 5, 2};
   this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
-  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::ClosedUniform);
   this->m_shaper->setVolumeFractionOrder(0);
 
   this->runShaping();
@@ -2559,7 +2588,7 @@ shapes:
 
   int sampleRes[3] = {3, 4, 5};
   this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
-  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::OpenUniform));
+  this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::OpenUniform);
   this->m_shaper->setVolumeFractionOrder(4);
 
   this->runShaping();
@@ -2589,7 +2618,7 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   quest::shaping::generatePositionsQFunction(&mesh,
                                              qfuncs,
                                              axom::ArrayView<int> {sampleRes, 2},
-                                             static_cast<int>(mfem::Quadrature1D::OpenUniform));
+                                             axom::numerics::QuadratureType::OpenUniform);
 
   auto* positions = qfuncs.Get("positions");
   ASSERT_NE(positions, nullptr);
@@ -2623,6 +2652,33 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   qfuncs.DeleteData(true);
 }
 
+TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
+{
+  quest::shaping::MFEMState mfemState;
+  mfemState.m_dc = &this->getDC();
+
+  int sampleRes[] = {3, 2};
+  quest::shaping::generateSamplingPositions(mfemState,
+                                            axom::ArrayView<int> {sampleRes, 2},
+                                            axom::numerics::QuadratureType::OpenUniform);
+
+  auto* positions = mfemState.m_inoutShapeQFuncs.Get("positions");
+  ASSERT_NE(positions, nullptr);
+  auto* qspace = dynamic_cast<mfem::QuadratureSpace*>(positions->GetSpace());
+  ASSERT_NE(qspace, nullptr);
+  const int initialNumPoints = qspace->GetElementIntRule(0).GetNPoints();
+
+  // Once the "positions" quadrature function has been generated, subsequent
+  // calls are intentionally no-ops, even if a different quadrature type is
+  // requested.
+  quest::shaping::generateSamplingPositions(mfemState,
+                                            axom::ArrayView<int> {sampleRes, 2},
+                                            axom::numerics::QuadratureType::ClosedUniform);
+
+  EXPECT_EQ(mfemState.m_inoutShapeQFuncs.Get("positions"), positions);
+  EXPECT_EQ(qspace->GetElementIntRule(0).GetNPoints(), initialNumPoints);
+}
+
 //-----------------------------------------------------------------------------
 
 TEST_F(SamplingShaperTest2D, loadShape_missing_c2c_file_aborts)
@@ -2643,6 +2699,37 @@ shapes:
 
   fs::TempFile shape_file(testname, ".yaml");
   shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.contour"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
+}
+
+TEST_F(SamplingShaperTest2D, loadShape_missing_c2c_assembly_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant c2c assembly; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: missing_c2c_assembly
+  material: mat
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.assembly"));
 
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());

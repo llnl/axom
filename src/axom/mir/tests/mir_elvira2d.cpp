@@ -44,10 +44,10 @@ constexpr int maxAttempts()
 template <typename ExecSpace>
 struct braid2d_mat_test
 {
-  static void initialize(const std::string &type,
-                         const std::string &mattype,
+  static void initialize(const std::string& type,
+                         const std::string& mattype,
                          bool cleanMats,
-                         conduit::Node &n_mesh)
+                         conduit::Node& n_mesh)
   {
     axom::StackArray<axom::IndexType, 2> dims {10, 10};
     axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
@@ -62,14 +62,14 @@ struct braid2d_mat_test
   }
 
   // Select a chunk of clean and mixed zones.
-  static void selectZones(conduit::Node &n_options)
+  static void selectZones(conduit::Node& n_options)
   {
     n_options["selectedZones"].set(std::vector<axom::IndexType> {30, 31, 32, 39, 40, 41, 48, 49, 50});
   }
 
-  static void test(const std::string &type,
-                   const std::string &mattype,
-                   const std::string &name,
+  static void test(const std::string& type,
+                   const std::string& mattype,
+                   const std::string& name,
                    bool selectedZones = false,
                    bool pointMesh = false,
                    bool cleanMats = false,
@@ -80,7 +80,7 @@ struct braid2d_mat_test
     for(int dom = 0; dom < nDomains; dom++)
     {
       const std::string domainName = axom::fmt::format("domain_{:07}", dom);
-      conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
+      conduit::Node& hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
 
       initialize(type, mattype, cleanMats, hostDomain);
       TestApp.saveVisualization(name + "_orig", hostDomain);
@@ -96,7 +96,7 @@ struct braid2d_mat_test
       for(int dom = 0; dom < nDomains; dom++)
       {
         const std::string domainName = axom::fmt::format("domain_{:07}", dom);
-        conduit::Node &deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
+        conduit::Node& deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
 
         // _elvira_mir_start
         namespace views = axom::bump::views;
@@ -120,6 +120,7 @@ struct braid2d_mat_test
           options["matset"] = "mat";
           options["plane"] = 1;
           options["pointmesh"] = pointMesh ? 1 : 0;
+          options["verbose"] = 1;
           if(cleanMats)
           {
             // Set the output names
@@ -544,7 +545,7 @@ TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

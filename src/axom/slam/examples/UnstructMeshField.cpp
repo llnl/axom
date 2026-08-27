@@ -57,24 +57,18 @@ public:
   using ZoneSet = slam::PositionSet<PositionType, ElementType>;
 
   /// types for relations
-  using STLIndirection = slam::policies::STLVectorIndirection<PositionType, PositionType>;
-  using VariableCardinality = slam::policies::VariableCardinality<PositionType, STLIndirection>;
-  using NodeToZoneRelation =
-    slam::StaticRelation<PositionType, ElementType, VariableCardinality, STLIndirection, NodeSet, ZoneSet>;
+  using NodeToZoneRelation = slam::VariableRelation<NodeSet, ZoneSet>;
   using NodeZoneIterator = NodeToZoneRelation::RelationConstIterator;
 
-  using ZNStride = slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
-  using ConstantCardinality = slam::policies::ConstantCardinality<PositionType, ZNStride>;
-  using ZoneToNodeRelation =
-    slam::StaticRelation<PositionType, ElementType, ConstantCardinality, STLIndirection, ZoneSet, NodeSet>;
+  using ZoneToNodeRelation = slam::ConstantRelation<ZoneSet, NodeSet, NODES_PER_ZONE>;
   using ZoneNodeIterator = ZoneToNodeRelation::RelationConstIterator;
 
   /// types for maps
   using BaseSet = axom::slam::Set<PositionType, ElementType>;
-  using NodalPositions = slam::Map<Point3>;
-  using ZonalPositions = slam::Map<Point3>;
-  using NodeField = slam::Map<DataType>;
-  using ZoneField = slam::Map<DataType>;
+  using NodalPositions = slam::Map<Point3, BaseSet>;
+  using ZonalPositions = slam::Map<Point3, BaseSet>;
+  using NodeField = slam::Map<DataType, BaseSet>;
+  using ZoneField = slam::Map<DataType, BaseSet>;
 
 public:
   /** \brief Simple accessor for the number of nodes in the mesh  */
@@ -107,8 +101,8 @@ struct Repository
   using SetType = axom::slam::Set<>;
   using IntsRegistry = slam::FieldRegistry<SetType, SetType::ElementType>;
   using RealsRegistry = slam::FieldRegistry<SetType, double>;
-  using IntField = slam::Map<int>;
-  using RealField = slam::Map<double>;
+  using IntField = slam::Map<int, SetType>;
+  using RealField = slam::Map<double, SetType>;
 
   static IntsRegistry intsRegistry;
   static RealsRegistry realsRegistry;
@@ -210,7 +204,6 @@ void readHexMesh(std::string fileName, HexMesh* mesh)
     SimpleVTKHexMeshReader vtkMeshReader(fileName);
     vtkMeshReader.parseMeshFile();
   }
-  using RealBuf = Repository::RealsRegistry::BufferType;
   using IndexBuf = Repository::IntsRegistry::BufferType;
   using PositionType = HexMesh::PositionType;
 
@@ -232,7 +225,7 @@ void readHexMesh(std::string fileName, HexMesh* mesh)
 
   /// Create the nodal position field
   mesh->nodePosition = HexMesh::NodalPositions(&mesh->nodes);
-  RealBuf::iterator ptIt = Repository::realsRegistry.getBuffer("node_positions").begin();
+  auto ptIt = Repository::realsRegistry.getBuffer("node_positions").begin();
   for(PositionType idx = 0; idx < mesh->numNodes(); ++idx)
   {
     mesh->nodePosition[idx] = Point3(*ptIt++, *ptIt++, *ptIt++);

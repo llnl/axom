@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_MATERIAL_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_MATERIAL_VIEW_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -43,7 +42,7 @@ using MaterialInformation = std::vector<Material>;
  *
  * \return A vector of Material that contains the materials in the material_map.
  */
-MaterialInformation materials(const conduit::Node &matset);
+MaterialInformation materials(const conduit::Node& matset);
 
 /*!
  * \brief This struct can encode some positional information about the material
@@ -101,11 +100,11 @@ public:
 
   constexpr static axom::IndexType MaxMaterials = MAXMATERIALS;
 
-  void set(const axom::ArrayView<IndexType> &material_ids,
-           const axom::ArrayView<FloatType> &volume_fractions,
-           const axom::ArrayView<IndexType> &sizes,
-           const axom::ArrayView<IndexType> &offsets,
-           const axom::ArrayView<IndexType> &indices)
+  void set(const axom::ArrayView<IndexType>& material_ids,
+           const axom::ArrayView<FloatType>& volume_fractions,
+           const axom::ArrayView<IndexType>& sizes,
+           const axom::ArrayView<IndexType>& offsets,
+           const axom::ArrayView<IndexType>& indices)
   {
 #if !defined(AXOM_DEVICE_CODE)
     SLIC_ERROR_IF(material_ids.size() != volume_fractions.size(),
@@ -131,7 +130,7 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  void zoneMaterials(ZoneIndex zi, IDList &ids, VFList &vfs) const
+  void zoneMaterials(ZoneIndex zi, IDList& ids, VFList& vfs) const
   {
     SLIC_ASSERT(zi < static_cast<ZoneIndex>(numberOfZones()));
 
@@ -151,8 +150,8 @@ public:
 
   AXOM_HOST_DEVICE
   axom::IndexType zoneMaterials(ZoneIndex zi,
-                                axom::ArrayView<IndexType> &ids,
-                                axom::ArrayView<FloatType> &vfs) const
+                                axom::ArrayView<IndexType>& ids,
+                                axom::ArrayView<FloatType>& vfs) const
   {
     SLIC_ASSERT(zi < static_cast<ZoneIndex>(numberOfZones()));
 
@@ -177,7 +176,7 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  bool zoneContainsMaterial(ZoneIndex zi, MaterialID mat, FloatType &vf) const
+  bool zoneContainsMaterial(ZoneIndex zi, MaterialID mat, FloatType& vf) const
   {
     SLIC_ASSERT(zi < static_cast<ZoneIndex>(numberOfZones()));
     const auto sz = numberOfMaterials(zi);
@@ -224,12 +223,12 @@ public:
 
     void AXOM_HOST_DEVICE operator++() { advance(true); }
     void AXOM_HOST_DEVICE operator++(int) { advance(true); }
-    bool AXOM_HOST_DEVICE operator==(const const_iterator &rhs) const
+    bool AXOM_HOST_DEVICE operator==(const const_iterator& rhs) const
     {
       return m_currentIndex == rhs.m_currentIndex && m_zoneIndex == rhs.m_zoneIndex &&
         m_view == rhs.m_view;
     }
-    bool AXOM_HOST_DEVICE operator!=(const const_iterator &rhs) const
+    bool AXOM_HOST_DEVICE operator!=(const const_iterator& rhs) const
     {
       return m_currentIndex != rhs.m_currentIndex || m_zoneIndex != rhs.m_zoneIndex ||
         m_view != rhs.m_view;
@@ -243,7 +242,7 @@ public:
     DISABLE_DEFAULT_CTOR(const_iterator);
 
     /// Constructor
-    AXOM_HOST_DEVICE const_iterator(const UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS> *view,
+    AXOM_HOST_DEVICE const_iterator(const UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS>* view,
                                     ZoneIndex zoneIndex,
                                     axom::IndexType currentIndex = 0)
       : m_view(view)
@@ -262,7 +261,7 @@ public:
       }
     }
 
-    const UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS> *m_view;
+    const UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS>* m_view;
     ZoneIndex m_zoneIndex;
     axom::IndexType m_currentIndex;
     axom::IndexType m_index;  // not considered in ==, !=
@@ -346,7 +345,7 @@ public:
   constexpr static axom::IndexType MaxMaterials = MAXMATERIALS;
   constexpr static axom::IndexType InvalidIndex = -1;
 
-  void add(MaterialID matno, const axom::ArrayView<FloatType> &vfs)
+  void add(MaterialID matno, const axom::ArrayView<FloatType>& vfs)
   {
 #if !defined(AXOM_DEVICE_CODE)
     const auto begin = m_matnos.data();
@@ -380,7 +379,7 @@ public:
     axom::IndexType nmats = 0;
     for(axom::IndexType i = 0; i < m_volume_fractions.size(); i++)
     {
-      const auto &currentVF = m_volume_fractions[i];
+      const auto& currentVF = m_volume_fractions[i];
       SLIC_ASSERT(zi < currentVF.size());
       nmats += currentVF[zi] > 0 ? 1 : 0;
     }
@@ -388,14 +387,14 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  void zoneMaterials(ZoneIndex zi, IDList &ids, VFList &vfs) const
+  void zoneMaterials(ZoneIndex zi, IDList& ids, VFList& vfs) const
   {
     ids.clear();
     vfs.clear();
 
     for(axom::IndexType i = 0; i < m_volume_fractions.size(); i++)
     {
-      const auto &currentVF = m_volume_fractions[i];
+      const auto& currentVF = m_volume_fractions[i];
       SLIC_ASSERT(zi < currentVF.size());
       if(currentVF[zi] > 0)
       {
@@ -407,13 +406,13 @@ public:
 
   AXOM_HOST_DEVICE
   axom::IndexType zoneMaterials(ZoneIndex zi,
-                                axom::ArrayView<IndexType> &ids,
-                                axom::ArrayView<FloatType> &vfs) const
+                                axom::ArrayView<IndexType>& ids,
+                                axom::ArrayView<FloatType>& vfs) const
   {
     axom::IndexType n = 0;
     for(axom::IndexType i = 0; i < m_volume_fractions.size(); i++)
     {
-      const auto &currentVF = m_volume_fractions[i];
+      const auto& currentVF = m_volume_fractions[i];
       SLIC_ASSERT(zi < currentVF.size());
       if(currentVF[zi] > 0)
       {
@@ -433,14 +432,14 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  bool zoneContainsMaterial(ZoneIndex zi, MaterialID mat, FloatType &vf) const
+  bool zoneContainsMaterial(ZoneIndex zi, MaterialID mat, FloatType& vf) const
   {
     bool found = false;
     vf = FloatType {};
     int mi = indexOfMaterialID(mat);
     if(mi != InvalidIndex)
     {
-      const auto &currentVF = m_volume_fractions[mi];
+      const auto& currentVF = m_volume_fractions[mi];
       SLIC_ASSERT(zi < currentVF.size());
       vf = currentVF[zi];
       found = vf > 0;
@@ -483,12 +482,12 @@ public:
       m_currentIndex += (m_currentIndex < m_view->m_volume_fractions.size()) ? 1 : 0;
       advance();
     }
-    bool AXOM_HOST_DEVICE operator==(const const_iterator &rhs) const
+    bool AXOM_HOST_DEVICE operator==(const const_iterator& rhs) const
     {
       return m_currentIndex == rhs.m_currentIndex && m_zoneIndex == rhs.m_zoneIndex &&
         m_view == rhs.m_view;
     }
-    bool AXOM_HOST_DEVICE operator!=(const const_iterator &rhs) const
+    bool AXOM_HOST_DEVICE operator!=(const const_iterator& rhs) const
     {
       return m_currentIndex != rhs.m_currentIndex || m_zoneIndex != rhs.m_zoneIndex ||
         m_view != rhs.m_view;
@@ -502,7 +501,7 @@ public:
     DISABLE_DEFAULT_CTOR(const_iterator);
 
     /// Constructor
-    AXOM_HOST_DEVICE const_iterator(const ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS> *view,
+    AXOM_HOST_DEVICE const_iterator(const ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS>* view,
                                     ZoneIndex zoneIndex,
                                     axom::IndexType currentIndex = 0)
       : m_view(view)
@@ -523,7 +522,7 @@ public:
       }
     }
 
-    const ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS> *m_view;
+    const ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS>* m_view;
     ZoneIndex m_zoneIndex;
     axom::IndexType m_currentIndex;
   };
@@ -638,8 +637,8 @@ public:
   constexpr static axom::IndexType InvalidIndex = -1;
 
   void add(MaterialID matno,
-           const axom::ArrayView<ZoneIndex> &ids,
-           const axom::ArrayView<FloatType> &vfs)
+           const axom::ArrayView<ZoneIndex>& ids,
+           const axom::ArrayView<FloatType>& vfs)
   {
 #if !defined(AXOM_DEVICE_CODE)
     SLIC_ERROR_IF(ids.size() != vfs.size(), "Array views for ids, vfs have different sizes.");
@@ -662,7 +661,7 @@ public:
     axom::IndexType nzones = -1;
     for(axom::IndexType mi = 0; mi < m_size; mi++)
     {
-      const auto &element_ids = m_element_ids[mi];
+      const auto& element_ids = m_element_ids[mi];
       const auto sz = element_ids.size();
       for(axom::IndexType i = 0; i < sz; i++)
       {
@@ -680,7 +679,7 @@ public:
     axom::IndexType nmats = 0;
     for(axom::IndexType mi = 0; mi < m_size; mi++)
     {
-      const auto &element_ids = m_element_ids[mi];
+      const auto& element_ids = m_element_ids[mi];
       const auto sz = element_ids.size();
       for(axom::IndexType i = 0; i < sz; i++)
       {
@@ -695,15 +694,15 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  void zoneMaterials(ZoneIndex zi, IDList &ids, VFList &vfs) const
+  void zoneMaterials(ZoneIndex zi, IDList& ids, VFList& vfs) const
   {
     ids.clear();
     vfs.clear();
 
     for(axom::IndexType mi = 0; mi < m_size; mi++)
     {
-      const auto &element_ids = m_element_ids[mi];
-      const auto &volume_fractions = m_volume_fractions[mi];
+      const auto& element_ids = m_element_ids[mi];
+      const auto& volume_fractions = m_volume_fractions[mi];
       const auto sz = element_ids.size();
       for(axom::IndexType i = 0; i < sz; i++)
       {
@@ -719,14 +718,14 @@ public:
 
   AXOM_HOST_DEVICE
   axom::IndexType zoneMaterials(ZoneIndex zi,
-                                axom::ArrayView<IndexType> &ids,
-                                axom::ArrayView<FloatType> &vfs) const
+                                axom::ArrayView<IndexType>& ids,
+                                axom::ArrayView<FloatType>& vfs) const
   {
     axom::IndexType n = 0;
     for(axom::IndexType mi = 0; mi < m_size; mi++)
     {
-      const auto &element_ids = m_element_ids[mi];
-      const auto &volume_fractions = m_volume_fractions[mi];
+      const auto& element_ids = m_element_ids[mi];
+      const auto& volume_fractions = m_volume_fractions[mi];
       const auto sz = element_ids.size();
       for(axom::IndexType i = 0; i < sz; i++)
       {
@@ -750,15 +749,15 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  bool zoneContainsMaterial(ZoneIndex zi, MaterialID mat, FloatType &vf) const
+  bool zoneContainsMaterial(ZoneIndex zi, MaterialID mat, FloatType& vf) const
   {
     bool found = false;
     vf = FloatType {};
     axom::IndexType mi = indexOfMaterialID(mat);
     if(mi != InvalidIndex)
     {
-      const auto &element_ids = m_element_ids[mi];
-      const auto &volume_fractions = m_volume_fractions[mi];
+      const auto& element_ids = m_element_ids[mi];
+      const auto& volume_fractions = m_volume_fractions[mi];
       const auto n = element_ids.size();
       for(axom::IndexType i = 0; i < n; i++)
       {
@@ -800,12 +799,12 @@ public:
     axom::IndexType AXOM_HOST_DEVICE size() const { return m_view->numberOfMaterials(m_zoneIndex); }
     void AXOM_HOST_DEVICE operator++() { advance(true); }
     void AXOM_HOST_DEVICE operator++(int) { advance(true); }
-    bool AXOM_HOST_DEVICE operator==(const const_iterator &rhs) const
+    bool AXOM_HOST_DEVICE operator==(const const_iterator& rhs) const
     {
       return m_miIndex == rhs.m_miIndex && m_index == rhs.m_index &&
         m_zoneIndex == rhs.m_zoneIndex && m_view == rhs.m_view;
     }
-    bool AXOM_HOST_DEVICE operator!=(const const_iterator &rhs) const
+    bool AXOM_HOST_DEVICE operator!=(const const_iterator& rhs) const
     {
       return m_miIndex != rhs.m_miIndex || m_index != rhs.m_index ||
         m_zoneIndex != rhs.m_zoneIndex || m_view != rhs.m_view;
@@ -819,7 +818,7 @@ public:
     DISABLE_DEFAULT_CTOR(const_iterator);
 
     /// Constructor
-    AXOM_HOST_DEVICE const_iterator(const MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS> *view,
+    AXOM_HOST_DEVICE const_iterator(const MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS>* view,
                                     ZoneIndex zoneIndex,
                                     axom::IndexType miIndex,
                                     axom::IndexType index)
@@ -848,7 +847,7 @@ public:
       // Look for the next m_miIndex,m_index pair that contains material for the selected zone index.
       for(; m_miIndex < m_view->m_size; m_miIndex++)
       {
-        const auto &element_ids = m_view->m_element_ids[m_miIndex];
+        const auto& element_ids = m_view->m_element_ids[m_miIndex];
         const auto sz = element_ids.size();
         for(; m_index < sz; m_index++)
         {
@@ -861,7 +860,7 @@ public:
       }
     }
 
-    const MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS> *m_view;
+    const MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS>* m_view;
     ZoneIndex m_zoneIndex;
     axom::IndexType m_miIndex;
     axom::IndexType m_index;
@@ -925,5 +924,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

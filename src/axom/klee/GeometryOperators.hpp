@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP_
-#define AXOM_KLEE_GEOMETRYOPERATOR_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
@@ -18,6 +17,7 @@
 #include "axom/primal/geometry/Vector.hpp"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace axom
@@ -40,16 +40,19 @@ public:
    * Create an operator with the given start properties
    * \param startProperties the properties before the operator is applied
    */
-  explicit GeometryOperator(const TransformableGeometryProperties &startProperties);
+  explicit GeometryOperator(const TransformableGeometryProperties& startProperties);
 
   virtual ~GeometryOperator() = default;
+
+  /// Returns the name of this operator
+  virtual std::string getName() const = 0;
 
   /**
    * Get the properties that the operator expects to start in
    *
    * \return the properties which must be true before this operator is applied
    */
-  const TransformableGeometryProperties &getStartProperties() const { return m_startProperties; }
+  const TransformableGeometryProperties& getStartProperties() const { return m_startProperties; }
 
   /**
    * Get the properties after this operator is applied
@@ -68,7 +71,7 @@ public:
    *
    * \param visitor the visitor to accept.
    */
-  virtual void accept(GeometryOperatorVisitor &visitor) const = 0;
+  virtual void accept(GeometryOperatorVisitor& visitor) const = 0;
 
 private:
   TransformableGeometryProperties m_startProperties;
@@ -99,21 +102,24 @@ public:
 
   using OpPtr = std::shared_ptr<const GeometryOperator>;
 
-  void accept(GeometryOperatorVisitor &visitor) const override;
+  std::string getName() const override { return "composite"; }
+
+  void accept(GeometryOperatorVisitor& visitor) const override;
 
   /**
    * Add the given operator to the end of the list of operators in this composite.
    *
    * \param op the operator to add
+   * \throws std::invalid_argument if \a op cannot start from this composite's current end properties
    */
-  void addOperator(const OpPtr &op);
+  void addOperator(const OpPtr& op);
 
   /**
    * Get a list of all the operators. They should be applied in order.
    *
    * \return the list of operators
    */
-  const std::vector<OpPtr> &getOperators() const { return m_operators; }
+  const std::vector<OpPtr>& getOperators() const { return m_operators; }
 
   TransformableGeometryProperties getEndProperties() const override;
 
@@ -132,18 +138,20 @@ public:
    * \param startProperties the initial properties, as in the parent class. 
    * If the number of dimensions is 2, the 3rd entry in the offset should be zero, but this is not checked.
    */
-  Translation(const primal::Vector3D &offset, const TransformableGeometryProperties &startProperties);
+  Translation(const primal::Vector3D& offset, const TransformableGeometryProperties& startProperties);
 
   /**
    * Get the amount by which to offset points.
    *
    * \return a vector by which points should be offset
    */
-  const primal::Vector3D &getOffset() const { return m_offset; }
+  const primal::Vector3D& getOffset() const { return m_offset; }
+
+  std::string getName() const override { return "translate"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
-  void accept(GeometryOperatorVisitor &visitor) const override;
+  void accept(GeometryOperatorVisitor& visitor) const override;
 
 private:
   primal::Vector3D m_offset;
@@ -163,9 +171,9 @@ public:
    * If the number of dimensions is 2, the axis should be [0, 0, 1], but this is not checked.
    */
   Rotation(double angle,
-           const primal::Point3D &center,
-           const primal::Vector3D &axis,
-           const TransformableGeometryProperties &startProperties);
+           const primal::Point3D& center,
+           const primal::Vector3D& axis,
+           const TransformableGeometryProperties& startProperties);
 
   /**
    * Get the angle of rotation.
@@ -180,18 +188,20 @@ public:
    * \return the point about which to rotate in 2D, and in 3D, the point
    * which defines the axis of rotation along with getAxis().
    */
-  const primal::Point3D &getCenter() const { return m_center; }
+  const primal::Point3D& getCenter() const { return m_center; }
 
   /**
    * The direction of the axis of rotation.
    *
    * \return the vector, which when combined with the center, defines the axis of rotation.
    */
-  const primal::Vector3D &getAxis() const { return m_axis; }
+  const primal::Vector3D& getAxis() const { return m_axis; }
+
+  std::string getName() const override { return "rotate"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
-  void accept(GeometryOperatorVisitor &visitor) const override;
+  void accept(GeometryOperatorVisitor& visitor) const override;
 
 private:
   double m_angle;
@@ -212,7 +222,7 @@ public:
    *
    * \note The scaling factor used for the 3rd dimension is 1.
    */
-  Scale(double xFactor, double yFactor, const TransformableGeometryProperties &startProperties);
+  Scale(double xFactor, double yFactor, const TransformableGeometryProperties& startProperties);
 
   /**
    * Create a new Scale operator.
@@ -227,7 +237,7 @@ public:
   Scale(double xFactor,
         double yFactor,
         double zFactor,
-        const TransformableGeometryProperties &startProperties);
+        const TransformableGeometryProperties& startProperties);
 
   /**
    * Create a new Scale operator.
@@ -241,8 +251,8 @@ public:
    */
   Scale(double xFactor,
         double yFactor,
-        const primal::Point2D &center,
-        const TransformableGeometryProperties &startProperties);
+        const primal::Point2D& center,
+        const TransformableGeometryProperties& startProperties);
 
   /**
    * Create a new Scale operator.
@@ -258,8 +268,8 @@ public:
   Scale(double xFactor,
         double yFactor,
         double zFactor,
-        const primal::Point3D &center,
-        const TransformableGeometryProperties &startProperties);
+        const primal::Point3D& center,
+        const TransformableGeometryProperties& startProperties);
 
   /**
    * Get the scale factor in the x direction.
@@ -287,12 +297,14 @@ public:
    *
    * \return the z scale factor
    */
-  primal::Point3D &getCenter() { return m_center; }
-  const primal::Point3D &getCenter() const { return m_center; }
+  primal::Point3D& getCenter() { return m_center; }
+  const primal::Point3D& getCenter() const { return m_center; }
+
+  std::string getName() const override { return "scale"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
-  void accept(GeometryOperatorVisitor &visitor) const override;
+  void accept(GeometryOperatorVisitor& visitor) const override;
 
 private:
   double m_xFactor;
@@ -310,17 +322,26 @@ public:
    * \param endUnits the units at the end of the operation
    * \param startProperties the properties before the operation
    */
-  UnitConverter(LengthUnit endUnits, const TransformableGeometryProperties &startProperties);
+  UnitConverter(LengthUnit endUnits, const TransformableGeometryProperties& startProperties);
+
+  std::string getName() const override { return "convert_units_to"; }
 
   TransformableGeometryProperties getEndProperties() const override;
 
+  /**
+   * Convert this operator to its matrix representation.
+   *
+   * \return a 4x4 affine transformation matrix
+   * \throws std::invalid_argument if the start or end units are unspecified
+   */
   numerics::Matrix<double> toMatrix() const override;
 
-  void accept(GeometryOperatorVisitor &visitor) const override;
+  void accept(GeometryOperatorVisitor& visitor) const override;
 
   /**
    * Get the conversion factor used to convert from the start units to the end units
    * \return the unit conversion factor
+   * \throws std::invalid_argument if the start or end units are unspecified
    */
   double getConversionFactor() const;
 
@@ -344,35 +365,37 @@ public:
    * \param startProperties the initial properties, as in the parent class. 
    * The number of dimensions should be 3, though this is not checked.
    */
-  SliceOperator(const primal::Point3D &origin,
-                const primal::Vector3D &normal,
-                const primal::Vector3D &up,
-                const TransformableGeometryProperties &startProperties);
+  SliceOperator(const primal::Point3D& origin,
+                const primal::Vector3D& normal,
+                const primal::Vector3D& up,
+                const TransformableGeometryProperties& startProperties);
 
   /**
    * Get the origin of the coordinate system.
    *
    * \return the system's origin
    */
-  const primal::Point3D &getOrigin() const { return m_origin; }
+  const primal::Point3D& getOrigin() const { return m_origin; }
 
   /**
    * Get a vector normal to the slice plane.
    *
    * \return a vector normal to the slice plane
    */
-  const primal::Vector3D &getNormal() const { return m_normal; }
+  const primal::Vector3D& getNormal() const { return m_normal; }
 
   /**
    * Get a vector in the direction of the positive Y axis.
    *
    * \return the direction of the positive Y axis
    */
-  const primal::Vector3D &getUp() const { return m_up; }
+  const primal::Vector3D& getUp() const { return m_up; }
+
+  std::string getName() const override { return "slice"; }
 
   numerics::Matrix<double> toMatrix() const override;
 
-  void accept(GeometryOperatorVisitor &visitor) const override;
+  void accept(GeometryOperatorVisitor& visitor) const override;
 
   TransformableGeometryProperties getEndProperties() const override;
 
@@ -397,20 +420,18 @@ class GeometryOperatorVisitor
 public:
   virtual ~GeometryOperatorVisitor() = default;
 
-  virtual void visit(const Translation &translation) = 0;
+  virtual void visit(const Translation& translation) = 0;
 
-  virtual void visit(const Rotation &rotation) = 0;
+  virtual void visit(const Rotation& rotation) = 0;
 
-  virtual void visit(const Scale &scale) = 0;
+  virtual void visit(const Scale& scale) = 0;
 
-  virtual void visit(const UnitConverter &converter) = 0;
+  virtual void visit(const UnitConverter& converter) = 0;
 
-  virtual void visit(const CompositeOperator &composite) = 0;
+  virtual void visit(const CompositeOperator& composite) = 0;
 
-  virtual void visit(const SliceOperator &slice) = 0;
+  virtual void visit(const SliceOperator& slice) = 0;
 };
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_GEOMETRYOPERATOR_HPP_

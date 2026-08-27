@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_STLREADER_HPP_
-#define QUEST_STLREADER_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -120,5 +119,3 @@ private:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // QUEST_STLREADER_HPP_

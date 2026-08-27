@@ -8,9 +8,7 @@
 
 #include "axom/slam/BitSet.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 void BitSet::clear()
 {
@@ -246,5 +244,4 @@ bool BitSet::operator==(const BitSet& other) const
   return m_data == other.m_data;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

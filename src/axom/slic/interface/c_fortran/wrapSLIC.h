@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPSLIC_H
+#define WRAPSLIC_H
+
 /**
  * \file wrapSLIC.h
  * \brief Shroud generated wrapper for slic namespace
  */
 // For C users and C++ implementation
-
-#ifndef WRAPSLIC_H
-#define WRAPSLIC_H
 
 #include "wrapSLIC.h"
 #ifndef __cplusplus
@@ -47,18 +48,18 @@ void SLIC_initialize(void);
 
 bool SLIC_isInitialized(void);
 
-void SLIC_createLogger(const char *name, char imask);
+void SLIC_createLogger(const char* name, char imask);
 
-void SLIC_createLogger_bufferify(char *name, int SHT_name_len, char imask);
+void SLIC_createLogger_bufferify(char* name, int SHT_name_len, char imask);
 
-bool SLIC_activateLogger(const char *name);
+bool SLIC_activateLogger(const char* name);
 
-bool SLIC_activateLogger_bufferify(char *name, int SHT_name_len);
+bool SLIC_activateLogger_bufferify(char* name, int SHT_name_len);
 
-const char *SLIC_getActiveLoggerName(SLIC_SHROUD_capsule_data *SHT_rv_capsule);
+const char* SLIC_getActiveLoggerName(SLIC_SHROUD_capsule_data* SHT_rv_capsule);
 
-void SLIC_getActiveLoggerName_bufferify(SLIC_SHROUD_array *SHT_rv_cdesc,
-                                        SLIC_SHROUD_capsule_data *SHT_rv_capsule);
+void SLIC_getActiveLoggerName_bufferify(SLIC_SHROUD_array* SHT_rv_cdesc,
+                                        SLIC_SHROUD_capsule_data* SHT_rv_capsule);
 
 enum SLIC_message_Level SLIC_getLoggingMsgLevel(void);
 
@@ -68,11 +69,11 @@ void SLIC_setLoggingMsgLevel(enum SLIC_message_Level level);
 
 void SLIC_setLoggingMsgLevel_bufferify(int level);
 
-void SLIC_addStreamToMsgLevel(SLIC_GenericOutputStream *ls, enum SLIC_message_Level level);
+void SLIC_addStreamToMsgLevel(SLIC_GenericOutputStream* ls, enum SLIC_message_Level level);
 
-void SLIC_addStreamToMsgLevel_bufferify(SLIC_GenericOutputStream *ls, int level);
+void SLIC_addStreamToMsgLevel_bufferify(SLIC_GenericOutputStream* ls, int level);
 
-void SLIC_addStreamToAllMsgLevels(SLIC_GenericOutputStream *ls);
+void SLIC_addStreamToAllMsgLevels(SLIC_GenericOutputStream* ls);
 
 void SLIC_setAbortOnError(bool status);
 
@@ -91,39 +92,39 @@ void SLIC_disableAbortOnWarning(void);
 bool SLIC_isAbortOnWarningsEnabled(void);
 
 void SLIC_logMessage_file_line(enum SLIC_message_Level level,
-                               const char *message,
-                               const char *fileName,
+                               const char* message,
+                               const char* fileName,
                                int line);
 
 void SLIC_logMessage_file_line_bufferify(int level,
-                                         char *message,
+                                         char* message,
                                          int SHT_message_len,
-                                         char *fileName,
+                                         char* fileName,
                                          int SHT_fileName_len,
                                          int line);
 
 void SLIC_logMessage_file_line_filter(enum SLIC_message_Level level,
-                                      const char *message,
-                                      const char *fileName,
+                                      const char* message,
+                                      const char* fileName,
                                       int line,
                                       bool filter_duplicates);
 
 void SLIC_logMessage_file_line_filter_bufferify(int level,
-                                                char *message,
+                                                char* message,
                                                 int SHT_message_len,
-                                                char *fileName,
+                                                char* fileName,
                                                 int SHT_fileName_len,
                                                 int line,
                                                 bool filter_duplicates);
 
-void SLIC_logMessage(enum SLIC_message_Level level, const char *message);
+void SLIC_logMessage(enum SLIC_message_Level level, const char* message);
 
-void SLIC_logMessage_bufferify(int level, char *message, int SHT_message_len);
+void SLIC_logMessage_bufferify(int level, char* message, int SHT_message_len);
 
-void SLIC_logMessage_filter(enum SLIC_message_Level level, const char *message, bool filter_duplicates);
+void SLIC_logMessage_filter(enum SLIC_message_Level level, const char* message, bool filter_duplicates);
 
 void SLIC_logMessage_filter_bufferify(int level,
-                                      char *message,
+                                      char* message,
                                       int SHT_message_len,
                                       bool filter_duplicates);
 

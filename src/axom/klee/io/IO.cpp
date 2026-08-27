@@ -11,11 +11,18 @@
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
 
+#include "axom/config.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
+#include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/inlet.hpp"
+#ifdef AXOM_USE_LUA
+  #include "axom/inlet/LuaReader.hpp"
+#endif
 
-#include <fstream>
+#include <exception>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <tuple>
 
@@ -58,7 +65,7 @@ struct ShapeData
 template <>
 struct FromInlet<axom::klee::ShapeData>
 {
-  axom::klee::ShapeData operator()(const axom::inlet::Container &base)
+  axom::klee::ShapeData operator()(const axom::inlet::Container& base)
   {
     return axom::klee::ShapeData {base.get<std::string>("name"),
                                   base.get<std::string>("material"),
@@ -71,7 +78,7 @@ struct FromInlet<axom::klee::ShapeData>
 template <>
 struct FromInlet<axom::klee::GeometryData>
 {
-  axom::klee::GeometryData operator()(const axom::inlet::Container &base)
+  axom::klee::GeometryData operator()(const axom::inlet::Container& base)
   {
     axom::klee::GeometryData data;
     data.format = base.contains("format") ? base.get<std::string>("format") : "";
@@ -107,11 +114,11 @@ namespace
  *
  * @param geometry the Container representing a "geometry" object.
  */
-void defineGeometry(inlet::Container &geometry)
+void defineGeometry(inlet::Container& geometry)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
-                     "The path of the input file, relative to the yaml file."
+                     "The path of the input file, relative to the Klee input file."
                      "Required unless 'format' is 'none'");
   internal::defineDimensionsField(geometry,
                                   "start_dimensions",
@@ -136,22 +143,22 @@ void defineGeometry(inlet::Container &geometry)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineShapeList(inlet::Inlet &document)
+void defineShapeList(inlet::Inlet& document)
 {
-  inlet::Container &shapeList = document.addStructArray("shapes", "The list of shapes");
+  inlet::Container& shapeList = document.addStructArray("shapes", "The list of shapes");
 
   shapeList.addString("name", "The shape's name").required();
   shapeList.addString("material", "The shape's material").required();
   shapeList.addStringArray("replaces", "The list of materials this shape replaces");
   shapeList.addStringArray("does_not_replace", "The list of materials this shape does not replace");
-  auto &geometry =
+  auto& geometry =
     shapeList.addStruct("geometry", "Contains information about the shape's geometry");
 
   defineGeometry(geometry);
 
   // Verify syntax here, semantics later!!!
   shapeList.registerVerifier(
-    [](const inlet::Container &shape, std::vector<inlet::VerificationError> *errors) -> bool {
+    [](const inlet::Container& shape, std::vector<inlet::VerificationError>* errors) -> bool {
       if(shape.contains("replaces") && shape.contains("does_not_replace"))
       {
         INLET_VERIFICATION_WARNING(shape.name(),
@@ -184,7 +191,7 @@ void defineShapeList(inlet::Inlet &document)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineKleeSchema(inlet::Inlet &document)
+void defineKleeSchema(inlet::Inlet& document)
 {
   internal::defineDimensionsField(document.getGlobalContainer(), "dimensions").required();
   defineShapeList(document);
@@ -198,10 +205,11 @@ void defineKleeSchema(inlet::Inlet &document)
  * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the geometry description for the shape
+ * \throws KleeError if the converted geometry does not match the expected dimensions
  */
-Geometry convert(GeometryData const &data,
+Geometry convert(GeometryData const& data,
                  Dimensions fileDimensions,
-                 internal::NamedOperatorMap const &namedOperators)
+                 internal::NamedOperatorMap const& namedOperators)
 {
   const bool has_start_dims = data.startDimensions != Dimensions::Unspecified;
   const bool has_explicit_dims = data.explicitDimensions != Dimensions::Unspecified;
@@ -247,10 +255,12 @@ Geometry convert(GeometryData const &data,
  * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
+ * \throws KleeError if the geometry data is invalid
+ * \throws std::logic_error if mutually exclusive material replacement lists are both populated
  */
-Shape convert(ShapeData const &data,
+Shape convert(ShapeData const& data,
               Dimensions fileDimensions,
-              internal::NamedOperatorMap const &namedOperators)
+              internal::NamedOperatorMap const& namedOperators)
 {
   return Shape {data.name,
                 data.material,
@@ -266,14 +276,16 @@ Shape convert(ShapeData const &data,
  * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
+ * \throws KleeError if any shape's geometry data is invalid
+ * \throws std::logic_error if mutually exclusive material replacement lists are both populated
  */
-std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
-                           Dimensions const &fileDimensions,
-                           internal::NamedOperatorMap const &namedOperators)
+std::vector<Shape> convert(std::vector<ShapeData> const& shapeData,
+                           Dimensions const& fileDimensions,
+                           internal::NamedOperatorMap const& namedOperators)
 {
   std::vector<Shape> converted;
   converted.reserve(shapeData.size());
-  for(auto &data : shapeData)
+  for(auto& data : shapeData)
   {
     converted.emplace_back(convert(data, fileDimensions, namedOperators));
   }
@@ -287,8 +299,9 @@ std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
  * \param startDimensions the number of dimensions that operators should
  * start at unless otherwise specified
  * \return all named operators read from the document
+ * \throws KleeError if named operator conversion fails
  */
-internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions startDimensions)
+internal::NamedOperatorMap getNamedOperators(const inlet::Inlet& doc, Dimensions startDimensions)
 {
   if(doc.contains("named_operators"))
   {
@@ -297,20 +310,150 @@ internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions
   }
   return internal::NamedOperatorMap {};
 }
-}  // namespace
 
-ShapeSet readShapeSet(std::istream &stream)
+/**
+ * Infer the Klee input format from a file path.
+ *
+ * \param filePath the input file path
+ * \return the inferred input format
+ * \throws KleeError if the file extension is not a supported Klee input extension
+ */
+InputFormat inferInputFormat(const std::string& filePath)
 {
-  std::string contents {std::istreambuf_iterator<char>(stream), {}};
+  auto extension = utilities::filesystem::getFileExtension(filePath);
+  utilities::string::toLower(extension);
+  if(extension.empty())
+  {
+    return InputFormat::YAML;
+  }
+  if(extension == ".yaml" || extension == ".yml")
+  {
+    return InputFormat::YAML;
+  }
+  if(extension == ".lua")
+  {
+    return InputFormat::Lua;
+  }
 
-  auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
-  reader->parseString(contents);
+  throw KleeError(
+    {Path {filePath},
+     axom::fmt::format("Unsupported Klee input file extension '{}'. Supported extensions are "
+                       ".yaml, .yml, and .lua.",
+                       extension)});
+}
 
+/**
+ * Create an Inlet reader for a Klee input format.
+ *
+ * \param format the input file format to read
+ * \return a reader for \a format
+ * \throws KleeError if \a format is unsupported or Lua support was not enabled
+ */
+std::unique_ptr<inlet::Reader> createReader(InputFormat format)
+{
+  switch(format)
+  {
+  case InputFormat::YAML:
+    return std::make_unique<inlet::YAMLReader>();
+  case InputFormat::Lua:
+#ifdef AXOM_USE_LUA
+    return std::make_unique<inlet::LuaReader>();
+#else
+    throw KleeError(
+      {Path {"<unknown path>"},
+       "Lua input files require Axom configured with AXOM_ENABLE_LUA=ON and Sol library support. "
+       "Rebuild Axom with Lua enabled or convert the file to YAML."});
+#endif
+  }
+
+  throw KleeError({Path {"<unknown path>"}, "Unsupported Klee input format."});
+}
+
+const char* inputFormatName(InputFormat format)
+{
+  switch(format)
+  {
+  case InputFormat::YAML:
+    return "YAML";
+  case InputFormat::Lua:
+    return "Lua";
+  }
+
+  return "unknown";
+}
+
+/**
+ * Run a reader parse operation and convert parse failures to KleeError.
+ *
+ * \param parse callable that returns true on successful parse
+ * \param format the input file format being parsed
+ * \param path the path to report in any generated error
+ * \param sourceDescription a human-readable description of the parsed source
+ * \throws KleeError if parsing fails or the reader throws while parsing
+ */
+template <typename Parse>
+void parseOrThrow(Parse&& parse,
+                  InputFormat format,
+                  const Path& path,
+                  const std::string& sourceDescription)
+{
+  bool parsed = false;
+  std::string details;
+  try
+  {
+    parsed = parse();
+  }
+  catch(const std::exception& error)
+  {
+    details = error.what();
+  }
+
+  if(!parsed)
+  {
+    auto message = axom::fmt::format("Failed to parse {} Klee input {}",
+                                     inputFormatName(format),
+                                     sourceDescription);
+    message += details.empty() ? "." : axom::fmt::format(": {}", details);
+    throw KleeError({path, std::move(message)});
+  }
+}
+
+void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
+                                  std::vector<inlet::VerificationError>& errors)
+{
+  for(const auto& name : doc.unexpectedNames())
+  {
+    if(name.find('/') == std::string::npos)
+    {
+      errors.push_back({Path {name},
+                        axom::fmt::format("Unexpected global variable '{}' in Lua input file. "
+                                          "Use 'local' for helper values and functions.",
+                                          name)});
+    }
+  }
+}
+
+/**
+ * Read a ShapeSet from a reader that has already parsed an input file.
+ *
+ * \param reader the parsed Inlet reader
+ * \param rejectUnexpectedGlobals true if unexpected top-level Lua globals should be rejected
+ * \return the parsed and verified ShapeSet
+ * \throws KleeError if schema verification or semantic validation fails
+ */
+ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader, bool rejectUnexpectedGlobals)
+{
   sidre::DataStore dataStore;
   inlet::Inlet doc(std::move(reader), dataStore.getRoot());
   defineKleeSchema(doc);
   std::vector<inlet::VerificationError> errors;
-  if(!doc.verify(&errors))
+  bool verified = doc.verify(&errors);
+  if(rejectUnexpectedGlobals)
+  {
+    appendUnexpectedGlobalErrors(doc, errors);
+    verified = verified && errors.empty();
+  }
+  if(!verified)
   {
     if(errors.empty())
     {
@@ -328,12 +471,35 @@ ShapeSet readShapeSet(std::istream &stream)
   shapeSet.setShapes(convert(shapeData, dimensions, namedOperators));
   return shapeSet;
 }
+}  // namespace
 
-ShapeSet readShapeSet(const std::string &filePath)
+ShapeSet readShapeSet(std::istream& stream) { return readShapeSet(stream, InputFormat::YAML); }
+
+ShapeSet readShapeSet(std::istream& stream, InputFormat format)
 {
-  std::ifstream fin {filePath};
-  auto shapeSet = readShapeSet(fin);
-  fin.close();
+  std::string contents {std::istreambuf_iterator<char>(stream), {}};
+
+  auto reader = createReader(format);
+  parseOrThrow([&]() { return reader->parseString(contents); },
+               format,
+               Path {"<stream>"},
+               "from stream");
+  return readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
+}
+
+ShapeSet readShapeSet(const std::string& filePath)
+{
+  return readShapeSet(filePath, inferInputFormat(filePath));
+}
+
+ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
+{
+  auto reader = createReader(format);
+  parseOrThrow([&]() { return reader->parseFile(filePath); },
+               format,
+               Path {filePath},
+               axom::fmt::format("from file '{}'", filePath));
+  auto shapeSet = readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
   shapeSet.setPath(filePath);
   return shapeSet;
 }

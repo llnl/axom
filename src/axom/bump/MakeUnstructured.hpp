@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MAKE_UNSTRUCTURED_HPP_
-#define AXOM_BUMP_MAKE_UNSTRUCTURED_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
@@ -40,10 +40,10 @@ public:
    *
    * \note There are blueprint methods for this sort of thing but this one runs on device.
    */
-  static void execute(const conduit::Node &topo,
-                      const conduit::Node &coordset,
-                      const std::string &topoName,
-                      conduit::Node &mesh,
+  static void execute(const conduit::Node& topo,
+                      const conduit::Node& coordset,
+                      const std::string& topoName,
+                      conduit::Node& mesh,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     const std::string type = topo.fetch_existing("type").as_string();
@@ -51,7 +51,7 @@ public:
     namespace utils = axom::bump::utilities;
 
     mesh["coordsets"][coordset.name()].set_external(coordset);
-    conduit::Node &n_newtopo = mesh["topologies"][topoName];
+    conduit::Node& n_newtopo = mesh["topologies"][topoName];
     n_newtopo["coordset"] = coordset.name();
 
     if(type == "unstructured")
@@ -61,16 +61,16 @@ public:
     else
     {
       n_newtopo["type"] = "unstructured";
-      conduit::Node &n_newconn = n_newtopo["elements/connectivity"];
-      conduit::Node &n_newsizes = n_newtopo["elements/sizes"];
-      conduit::Node &n_newoffsets = n_newtopo["elements/offsets"];
+      conduit::Node& n_newconn = n_newtopo["elements/connectivity"];
+      conduit::Node& n_newsizes = n_newtopo["elements/sizes"];
+      conduit::Node& n_newoffsets = n_newtopo["elements/offsets"];
       n_newconn.set_allocator(conduitAllocatorId);
       n_newsizes.set_allocator(conduitAllocatorId);
       n_newoffsets.set_allocator(conduitAllocatorId);
 
       axom::bump::views::dispatch_structured_topologies(
         topo,
-        [&](const std::string &shape, auto &topoView) {
+        [&](const std::string& shape, auto& topoView) {
           n_newtopo["elements/shape"] = shape;
 
           int ptsPerZone = 2;
@@ -137,5 +137,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

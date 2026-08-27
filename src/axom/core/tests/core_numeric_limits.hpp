@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/config.hpp"  // for compile time definitions
 
 #include "axom/core/NumericLimits.hpp"

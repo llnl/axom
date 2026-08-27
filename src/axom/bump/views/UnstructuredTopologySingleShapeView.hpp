@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_SINGLE_SHAPE_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_SINGLE_SHAPE_VIEW_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -40,7 +39,7 @@ public:
    * \param conn The mesh connectivity.
    */
   AXOM_HOST_DEVICE
-  UnstructuredTopologySingleShapeView(const ConnectivityView &conn)
+  UnstructuredTopologySingleShapeView(const ConnectivityView& conn)
     : m_connectivityView(conn)
     , m_sizesView()
     , m_offsetsView()
@@ -58,9 +57,9 @@ public:
    * \param offsets The offset to each zone in the connectivity.
    */
   AXOM_HOST_DEVICE
-  UnstructuredTopologySingleShapeView(const ConnectivityView &conn,
-                                      const ConnectivityView &sizes,
-                                      const ConnectivityView &offsets)
+  UnstructuredTopologySingleShapeView(const ConnectivityView& conn,
+                                      const ConnectivityView& sizes,
+                                      const ConnectivityView& offsets)
     : m_connectivityView(conn)
     , m_sizesView(sizes)
     , m_offsetsView(offsets)
@@ -112,7 +111,7 @@ public:
    *
    * \return The size of the connectivity.
    */
-  AXOM_HOST_DEVICE inline const IndexingPolicy &indexing() const { return m_indexing; }
+  AXOM_HOST_DEVICE inline const IndexingPolicy& indexing() const { return m_indexing; }
 
   /*!
    * \brief Return a zone.
@@ -159,5 +158,3 @@ private:
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

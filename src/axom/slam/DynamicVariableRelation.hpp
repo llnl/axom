@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file DynamicVariableRelation.hpp
  *
@@ -12,9 +14,6 @@
  * second set. This relation is dynamic; the related entities can change
  * at runtime.
  */
-
-#ifndef SLAM_DYNAMIC_VARIABLE_RELATION_HPP_
-#define SLAM_DYNAMIC_VARIABLE_RELATION_HPP_
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
@@ -28,9 +27,7 @@
 #include <sstream>
 #include <iterator>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 template <typename FirstSetType = slam::Set<>, typename SecondSetType = slam::Set<>>
 class DynamicVariableRelation
@@ -308,7 +305,4 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(bool verboseO
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_DYNAMIC_VARIABLE_RELATION_HPP_
+}  // end namespace axom::slam

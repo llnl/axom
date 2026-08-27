@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // Axom includes
 #include "axom/config.hpp"                         /* for compile time defs */
 #include "axom/core/Macros.hpp"                    /* for axom macros */
@@ -32,13 +34,13 @@ template <typename ExecSpace>
 struct utility<ExecSpace, 1>
 {
   static axom::IndexType numValues(axom::IndexType N) { return N; }
-  static void initialize(int *array, axom::IndexType N, int value)
+  static void initialize(int* array, axom::IndexType N, int value)
   {
     axom::for_all<ExecSpace>(
       N,
       AXOM_LAMBDA(axom::IndexType index) { array[index] = static_cast<int>(index + value); });
   }
-  static void modify(int *array, axom::IndexType N, int value)
+  static void modify(int* array, axom::IndexType N, int value)
   {
     axom::for_all<ExecSpace>(
       N,
@@ -52,7 +54,7 @@ template <typename ExecSpace>
 struct utility<ExecSpace, 2>
 {
   static axom::IndexType numValues(axom::IndexType N) { return N * N; }
-  static void initialize(int *array, axom::IndexType N, int value)
+  static void initialize(int* array, axom::IndexType N, int value)
   {
     axom::StackArray<axom::IndexType, 2> shape {{N, N}};
     axom::for_all<ExecSpace>(
@@ -62,7 +64,7 @@ struct utility<ExecSpace, 2>
         array[index] = static_cast<int>(index + value);
       });
   }
-  static void modify(int *array, axom::IndexType N, int value)
+  static void modify(int* array, axom::IndexType N, int value)
   {
     axom::StackArray<axom::IndexType, 2> shape {{N, N}};
     axom::for_all<ExecSpace>(
@@ -80,7 +82,7 @@ template <typename ExecSpace>
 struct utility<ExecSpace, 3>
 {
   static axom::IndexType numValues(axom::IndexType N) { return N * N * N; }
-  static void initialize(int *array, axom::IndexType N, int value)
+  static void initialize(int* array, axom::IndexType N, int value)
   {
     axom::StackArray<axom::IndexType, 3> shape {{N, N, N}};
     axom::for_all<ExecSpace>(
@@ -90,7 +92,7 @@ struct utility<ExecSpace, 3>
         array[index] = static_cast<int>(index + value);
       });
   }
-  static void modify(int *array, axom::IndexType N, int value)
+  static void modify(int* array, axom::IndexType N, int value)
   {
     axom::StackArray<axom::IndexType, 3> shape {{N, N, N}};
     axom::for_all<ExecSpace>(
@@ -120,7 +122,7 @@ void check_for_all(axom::IndexType N)
 
   // STEP 3: allocate buffer
   const auto arraySize = utils::numValues(N);
-  int *a = axom::allocate<int>(arraySize, allocID);
+  int* a = axom::allocate<int>(arraySize, allocID);
 
   // STEP 4: initialize to (index + VALUE)
   utils::initialize(a, N, VALUE);
@@ -131,7 +133,7 @@ void check_for_all(axom::IndexType N)
   }
 
   // STEP 5: check array
-  int *a_host = axom::allocate<int>(arraySize, hostID);
+  int* a_host = axom::allocate<int>(arraySize, hostID);
   axom::copy(a_host, a, arraySize * sizeof(int));
 
   for(int i = 0; i < arraySize; ++i)

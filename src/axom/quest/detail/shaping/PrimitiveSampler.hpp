@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file PrimitiveSampler.hpp
  *
  * \brief Helper class for sampling-based shaping queries using primal geometric primitives
  */
-
-#ifndef AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
-#define AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -23,7 +22,9 @@
 
 #include "axom/fmt.hpp"
 
-#include "mfem.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
+#endif
 
 namespace axom
 {
@@ -31,9 +32,6 @@ namespace quest
 {
 namespace shaping
 {
-using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
-using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
-
 template <int NDIMS, typename ExecSpace>
 class PrimitiveSampler
 {
@@ -154,6 +152,7 @@ public:
     m_bvh.initialize(m_aabbs.view(), m_aabbs.size());
   }
 
+#if defined(AXOM_USE_MFEM)
   /**
     * \brief Samples the inout field over the indexed geometry, possibly using a
     * callback function to project the input points (from the computational mesh)
@@ -161,14 +160,7 @@ public:
     * 
     * \tparam FromDim The dimension of points from the input mesh
     * \tparam ToDim The dimension of points on the indexed shape
-    * \param [in] dc The data collection containing the mesh and associated query points
-    * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
-    * inout samples
-    * \param [in] sampleRes The sampling resolution in each logical direction.
-    * For custom quadrature families, these values specify the per-direction
-    * sample counts directly, which in turn determine the quadrature rule used
-    * in each logical direction.
-    * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
+    * \param [in] mfemState The structure that contains mesh data, query points, and fields.
     * \param [in] projector A callback function to apply to points from the input mesh
     * before querying them on the spatial index
     * 
@@ -177,10 +169,7 @@ public:
     * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
     */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
-                                                        shaping::QFunctionCollection& inoutQFuncs,
-                                                        axom::ArrayView<int> sampleRes,
-                                                        int quadratureType,
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::MFEMState& mfemState,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using FromPoint = primal::Point<double, FromDim>;
@@ -190,16 +179,11 @@ public:
     SLIC_ERROR_IF(FromDim != ToDim && !projector,
                   "A projector callback function is required when FromDim != ToDim");
 
-    auto* mesh = dc->GetMesh();
-    SLIC_ASSERT(mesh != nullptr);
-    //const int NE = mesh->GetNE();
-    //const int dim = mesh->Dimension();
+    auto* mesh = mfemState.m_dc->GetMesh();
+    SLIC_ERROR_IF(mesh == nullptr, "No input mesh");
 
-    // Generate a Quadrature Function with the geometric positions, if not already available
-    if(!inoutQFuncs.Has("positions"))
-    {
-      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
-    }
+    auto& inoutQFuncs = mfemState.m_inoutShapeQFuncs;
+    SLIC_ASSERT(inoutQFuncs.Has("positions"));
 
     // Access the positions QFunc and associated QuadratureSpace
     mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
@@ -208,7 +192,7 @@ public:
 
     // Sample the in/out field at each point
     // store in QField which we register with the QFunc collection
-    const std::string inoutName = axom::fmt::format("inout_{}", m_shapeName);
+    const std::string inoutName = shaping::shapeInOutFieldName(m_shapeName);
     const int vdim = 1;
     auto* inout = new mfem::QuadratureFunction(sp, vdim);
     inoutQFuncs.Register(inoutName, inout, true);
@@ -291,10 +275,7 @@ public:
     * defined to support various callback specializations for the \a PointProjector.
     */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
-                                                        shaping::QFunctionCollection&,
-                                                        axom::ArrayView<int> AXOM_UNUSED_PARAM(sampleRes),
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::MFEMState&,
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -308,13 +289,30 @@ public:
    * \warning Not yet implemented
    */
   template <int FromDim, int ToDim = DIM>
-  void computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+  void computeVolumeFractionsBaseline(shaping::MFEMState& AXOM_UNUSED_PARAM(mfemState),
                                       int AXOM_UNUSED_PARAM(outputOrder),
                                       PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
     SLIC_WARNING_ROOT("computeVolumeFractionsBaseline() not implemented yet");
   }
+#endif
+
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+  template <int FromDim, int ToDim = DIM>
+  void sampleInOutField(shaping::BlueprintState& bpState,
+                        PointProjector<FromDim, ToDim> projector = {})
+  {
+    auto checkInside = [](const primal::Point<double, DIM>&) -> bool { return false; };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, bpState, checkInside, projector);
+  }
+
+  template <int FromDim, int ToDim = DIM>
+  void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                                      int AXOM_UNUSED_PARAM(outputOrder),
+                                      PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
+  { }
+#endif
 
 private:
   DISABLE_COPY_AND_ASSIGNMENT(PrimitiveSampler);
@@ -334,5 +332,3 @@ private:
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_PRIMITIVE_SAMPLER__HPP_

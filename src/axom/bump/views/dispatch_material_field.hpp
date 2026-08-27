@@ -4,8 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_MATERIAL_FIELD_HPP_
-#define AXOM_BUMP_DISPATCH_MATERIAL_FIELD_HPP_
+#pragma once
+
 #include "axom/bump/views/dispatch_material.hpp"
 #include "axom/bump/views/MixedFieldView.hpp"
 
@@ -17,8 +17,8 @@ namespace views
 {
 namespace detail
 {
-inline void verifyMatchingMaterialOrder(const conduit::Node &mat_values,
-                                        const conduit::Node &field_values)
+inline void verifyMatchingMaterialOrder(const conduit::Node& mat_values,
+                                        const conduit::Node& field_values)
 {
   SLIC_ERROR_IF(
     mat_values.number_of_children() != field_values.number_of_children(),
@@ -40,11 +40,11 @@ inline void verifyMatchingMaterialOrder(const conduit::Node &mat_values,
  * \tparam FuncType The function/lambda type to call on the MixedFieldView.
  */
 template <typename MatsetView, typename FuncType>
-bool dispatch_unibuffer_field(const conduit::Node &n_field, FuncType &&func)
+bool dispatch_unibuffer_field(const conduit::Node& n_field, FuncType&& func)
 {
   bool rv = false;
   detail::verifyMixedField(n_field);
-  const conduit::Node &matset_values = n_field["matset_values"];
+  const conduit::Node& matset_values = n_field["matset_values"];
   SLIC_ERROR_IF(!matset_values.dtype().is_number(), "The matset_values must be a number.");
   // NOTE: For now support float, double types.
   axom::bump::views::floatNodeToArrayView(matset_values, [&](auto valuesView) {
@@ -65,11 +65,11 @@ bool dispatch_unibuffer_field(const conduit::Node &n_field, FuncType &&func)
  * \tparam FuncType The function/lambda type to call on the MixedFieldView.
  */
 template <typename MatsetView, typename FuncType>
-bool dispatch_multibuffer_field(const conduit::Node &n_field, FuncType &&func)
+bool dispatch_multibuffer_field(const conduit::Node& n_field, FuncType&& func)
 {
   bool rv = false;
   detail::verifyMixedField(n_field);
-  const conduit::Node &matset_values = n_field["matset_values"];
+  const conduit::Node& matset_values = n_field["matset_values"];
   SLIC_ERROR_IF(matset_values.number_of_children() < 1, "Missing fields in matset_values.");
   // NOTE: For now support float, double types.
   axom::bump::views::floatNodeToArrayView(matset_values[0], [&](auto firstValuesView) {
@@ -99,9 +99,9 @@ bool dispatch_multibuffer_field(const conduit::Node &n_field, FuncType &&func)
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_unibuffer_field(const conduit::Node &matset,
-                                       const conduit::Node &n_field,
-                                       FuncType &&func)
+bool dispatch_material_unibuffer_field(const conduit::Node& matset,
+                                       const conduit::Node& n_field,
+                                       FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
@@ -130,9 +130,9 @@ bool dispatch_material_unibuffer_field(const conduit::Node &matset,
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_element_dominant_field(const conduit::Node &matset,
-                                              const conduit::Node &n_field,
-                                              FuncType &&func)
+bool dispatch_material_element_dominant_field(const conduit::Node& matset,
+                                              const conduit::Node& n_field,
+                                              FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
@@ -161,9 +161,9 @@ bool dispatch_material_element_dominant_field(const conduit::Node &matset,
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_material_dominant_field(const conduit::Node &matset,
-                                               const conduit::Node &n_field,
-                                               FuncType &&func)
+bool dispatch_material_material_dominant_field(const conduit::Node& matset,
+                                               const conduit::Node& n_field,
+                                               FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
@@ -193,7 +193,7 @@ bool dispatch_material_material_dominant_field(const conduit::Node &matset,
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
 template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
-bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n_field, FuncType &&func)
+bool dispatch_material_field(const conduit::Node& matset, const conduit::Node& n_field, FuncType&& func)
 {
   detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval =
@@ -228,5 +228,3 @@ bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

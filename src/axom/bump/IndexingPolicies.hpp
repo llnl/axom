@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_INDEXING_POLICIES_HPP_
-#define AXOM_BUMP_INDEXING_POLICIES_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_memory.hpp"
 
@@ -45,7 +44,7 @@ struct SSElementFieldIndexing
    *
    * \note Executes on the host.
    */
-  void update(const conduit::Node &field)
+  void update(const conduit::Node& field)
   {
     axom::bump::utilities::fillFromNode(field, "offsets", m_indexing.m_offsets, true);
     axom::bump::utilities::fillFromNode(field, "strides", m_indexing.m_strides, true);
@@ -79,7 +78,7 @@ struct SSVertexFieldIndexing
    *
    * \note Executes on the host.
    */
-  void update(const conduit::Node &field)
+  void update(const conduit::Node& field)
   {
     axom::bump::utilities::fillFromNode(field, "offsets", m_fieldIndexing.m_offsets, true);
     axom::bump::utilities::fillFromNode(field, "strides", m_fieldIndexing.m_strides, true);
@@ -110,5 +109,3 @@ struct SSVertexFieldIndexing
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

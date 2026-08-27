@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_MATSET_SLICER_HPP
-#define AXOM_BUMP_MATSET_SLICER_HPP
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -36,7 +35,7 @@ public:
   /*!
    * \brief Constructor.
    */
-  MatsetSlicer(const MatsetView &matsetView)
+  MatsetSlicer(const MatsetView& matsetView)
     : m_matsetView(matsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -69,16 +68,16 @@ public:
    * \param n_matset The input matset.
    * \param[out] n_newMatset The output matset.
    */
-  void execute(const SliceData &slice, const conduit::Node &n_matset, conduit::Node &n_newMatset)
+  void execute(const SliceData& slice, const conduit::Node& n_matset, conduit::Node& n_newMatset)
   {
     using MatsetIndex = typename MatsetView::IndexType;
     using MatsetFloat = typename MatsetView::FloatType;
     namespace utils = axom::bump::utilities;
-    const axom::ArrayView<axom::IndexType> &selectedZonesView = slice.m_indicesView;
+    const axom::ArrayView<axom::IndexType>& selectedZonesView = slice.m_indicesView;
     SLIC_ASSERT(selectedZonesView.size() > 0);
 
     // Copy the material_map if it exists.
-    const char *keys[] = {"topology", "material_map"};
+    const char* keys[] = {"topology", "material_map"};
     for(int i = 0; i < 2; i++)
     {
       if(n_matset.has_child(keys[i])) n_newMatset[keys[i]] = n_matset.fetch_existing(keys[i]);
@@ -89,12 +88,12 @@ public:
 
     // Allocate sizes/offsets.
     AXOM_ANNOTATE_BEGIN("alloc");
-    conduit::Node &n_sizes = n_newMatset["sizes"];
+    conduit::Node& n_sizes = n_newMatset["sizes"];
     n_sizes.set_allocator(conduitAllocatorId);
     n_sizes.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto sizesView = utils::make_array_view<MatsetIndex>(n_sizes);
 
-    conduit::Node &n_offsets = n_newMatset["offsets"];
+    conduit::Node& n_offsets = n_newMatset["offsets"];
     n_offsets.set_allocator(conduitAllocatorId);
     n_offsets.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto offsetsView = utils::make_array_view<MatsetIndex>(n_offsets);
@@ -148,17 +147,17 @@ public:
     {
       SLIC_ERROR_IF(totalSize == 0, "ReduceSum returned 0 for totalSize.");
     }
-    conduit::Node &n_indices = n_newMatset["indices"];
+    conduit::Node& n_indices = n_newMatset["indices"];
     n_indices.set_allocator(conduitAllocatorId);
     n_indices.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, totalSize));
     auto indicesView = utils::make_array_view<MatsetIndex>(n_indices);
 
-    conduit::Node &n_material_ids = n_newMatset["material_ids"];
+    conduit::Node& n_material_ids = n_newMatset["material_ids"];
     n_material_ids.set_allocator(conduitAllocatorId);
     n_material_ids.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, totalSize));
     auto materialIdsView = utils::make_array_view<MatsetIndex>(n_material_ids);
 
-    conduit::Node &n_volume_fractions = n_newMatset["volume_fractions"];
+    conduit::Node& n_volume_fractions = n_newMatset["volume_fractions"];
     n_volume_fractions.set_allocator(conduitAllocatorId);
     n_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MatsetFloat>::id, totalSize));
     auto volumeFractionsView = utils::make_array_view<MatsetFloat>(n_volume_fractions);
@@ -191,5 +190,3 @@ private:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

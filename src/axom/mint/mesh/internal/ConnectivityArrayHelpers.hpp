@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_ConnectivityArrayHelpers_HPP_
-#define MINT_ConnectivityArrayHelpers_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
@@ -452,5 +451,3 @@ inline IndexType calcValueCapacity(IndexType n_IDs,
 } /* namespace internal */
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_ConnectivityArrayHelpers_HPP_ */

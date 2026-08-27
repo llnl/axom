@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file CommandLineUtilities.hpp
  *
  * \brief Defines utilities in support of validating command line input
  */
-
-#ifndef AXOM_CORE_COMMANDLINE_UTILITIES_HPP_
-#define AXOM_CORE_COMMANDLINE_UTILITIES_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Annotations.hpp"
@@ -34,7 +33,7 @@ struct CaliperModeValidator : public axom::CLI::Validator
   CaliperModeValidator()
   {
     name_ = "MODE";
-    func_ = [](const std::string &str) {
+    func_ = [](const std::string& str) {
       if(str == "help")
       {
         return axom::fmt::format("Valid caliper modes are:\n{}\n",
@@ -55,5 +54,3 @@ const static CaliperModeValidator ValidCaliperMode;
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_CORE_COMMANDLINE_UTILITIES_HPP_

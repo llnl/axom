@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file MarchingCubesSingleDomain.hpp
  *
  * \brief Consists of classes implementing marching cubes algorithm to
  * compute isocontour from a scalar field in a blueprint mesh.
  */
-
-#ifndef AXOM_QUEST_MARCHINGCUBESSINGLEDOMAIN_H_
-#define AXOM_QUEST_MARCHINGCUBESSINGLEDOMAIN_H_
 
 #include "axom/config.hpp"
 
@@ -57,7 +56,7 @@ public:
   /*!
    \brief Constructor for applying algorithm in a single domain.
   */
-  MarchingCubesSingleDomain(MarchingCubes &mc);
+  MarchingCubesSingleDomain(MarchingCubes& mc);
 
   ~MarchingCubesSingleDomain() { }
 
@@ -81,9 +80,9 @@ public:
     requirement may be relaxed, possibly at the cost of a
     transformation and storage of the temporary contiguous layout.
   */
-  void setDomain(const conduit::Node &dom,
-                 const std::string &topologyName,
-                 const std::string &maskfield);
+  void setDomain(const conduit::Node& dom,
+                 const std::string& topologyName,
+                 const std::string& maskfield);
 
   int spatialDimension() const { return m_ndim; }
 
@@ -92,7 +91,7 @@ public:
     in the input mesh.
     \param [in] fcnField Name of node-based scalar function values.
   */
-  void setFunctionField(const std::string &fcnField)
+  void setFunctionField(const std::string& fcnField)
   {
     m_fcnFieldName = fcnField;
     m_fcnPath = "fields/" + fcnField;
@@ -155,11 +154,11 @@ public:
      * Put in here codes that can't be in MarchingCubesSingleDomain
      * due to template use (DIM and ExecSpace).
      */
-    virtual void setDomain(const conduit::Node &dom,
-                           const std::string &topologyName,
-                           const std::string &maskPath = {}) = 0;
+    virtual void setDomain(const conduit::Node& dom,
+                           const std::string& topologyName,
+                           const std::string& maskPath = {}) = 0;
 
-    virtual void setFunctionField(const std::string &fcnFieldName) = 0;
+    virtual void setFunctionField(const std::string& fcnFieldName) = 0;
     virtual void setContourValue(double contourVal) = 0;
     virtual void setMaskValue(int maskVal) = 0;
 
@@ -188,9 +187,9 @@ public:
     virtual axom::IndexType getContourCellCount() const = 0;
     ///@}
 
-    void setOutputBuffers(axom::ArrayView<axom::IndexType, 2> &facetNodeIds,
-                          axom::ArrayView<double, 2> &facetNodeCoords,
-                          axom::ArrayView<axom::IndexType, 1> &facetParentIds,
+    void setOutputBuffers(axom::ArrayView<axom::IndexType, 2>& facetNodeIds,
+                          axom::ArrayView<double, 2>& facetNodeCoords,
+                          axom::ArrayView<axom::IndexType, 1>& facetParentIds,
                           axom::IndexType facetIndexOffset)
     {
       m_facetNodeIds = facetNodeIds;
@@ -213,11 +212,11 @@ public:
     axom::IndexType m_facetIndexOffset = -1;
   };
 
-  ImplBase &getImpl() { return *m_impl; }
+  ImplBase& getImpl() { return *m_impl; }
 
 private:
   //! @brief Multi-domain implementation this object is under.
-  MarchingCubes &m_mc;
+  MarchingCubes& m_mc;
 
   RuntimePolicy m_runtimePolicy;
   int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
@@ -226,7 +225,7 @@ private:
   MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
 
   //! \brief Computational mesh as a conduit::Node.
-  const conduit::Node *m_dom;
+  const conduit::Node* m_dom;
   int m_ndim;
 
   //! @brief Name of Blueprint topology in m_dom.
@@ -250,7 +249,7 @@ private:
    *
    * Some data from \a dom may be cached.
    */
-  void setDomain(const conduit::Node &dom);
+  void setDomain(const conduit::Node& dom);
 
   /// @brief Allocate MarchingCubesImpl object
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
@@ -263,4 +262,3 @@ private:
 }  // namespace axom
 
 #endif  // AXOM_USE_CONDUIT
-#endif  // AXOM_QUEST_MARCHINGCUBES_H_

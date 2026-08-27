@@ -61,21 +61,21 @@ void DistributedClosestPoint::setDefaultAllocatorID()
     defaultAllocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
     break;
 
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
     defaultAllocatorID = axom::execution_space<axom::OMP_EXEC>::allocatorID();
     break;
 #endif
 
 #ifdef __CUDACC__
-  #ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case RuntimePolicy::cuda:
     defaultAllocatorID = axom::execution_space<axom::CUDA_EXEC<256>>::allocatorID();
     break;
   #endif
 #endif
 
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case RuntimePolicy::hip:
     defaultAllocatorID = axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
     break;
@@ -128,6 +128,15 @@ void DistributedClosestPoint::setDistanceThreshold(double threshold)
 {
   SLIC_ERROR_IF(threshold < 0.0, "Distance threshold must be non-negative.");
   m_sqDistanceThreshold = threshold * threshold;
+}
+
+void DistributedClosestPoint::setDynamicDistanceFiltering(bool on)
+{
+  m_dynamicDistanceFiltering = on;
+  if(m_impl)
+  {
+    m_impl->setDynamicDistanceFiltering(m_dynamicDistanceFiltering);
+  }
 }
 
 void DistributedClosestPoint::setOutput(const std::string& field, bool on)
@@ -211,6 +220,7 @@ void DistributedClosestPoint::computeClosestPoints(conduit::Node& query_node,
   SLIC_ASSERT(this->isValidBlueprint(query_node));
 
   m_impl->setSquaredDistanceThreshold(m_sqDistanceThreshold);
+  m_impl->setDynamicDistanceFiltering(m_dynamicDistanceFiltering);
   m_impl->setMpiCommunicator(m_mpiComm);
   m_impl->setOutputSwitches(m_outputRank,
                             m_outputIndex,
@@ -229,21 +239,21 @@ void DistributedClosestPoint::allocateQueryInstance()
                      : allocateQueryInstance<3, axom::SEQ_EXEC>();
     break;
 
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::omp:
     m_dimension == 2 ? allocateQueryInstance<2, axom::OMP_EXEC>()
                      : allocateQueryInstance<3, axom::OMP_EXEC>();
     break;
 #endif
 
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case RuntimePolicy::cuda:
     m_dimension == 2 ? allocateQueryInstance<2, axom::CUDA_EXEC<256>>()
                      : allocateQueryInstance<3, axom::CUDA_EXEC<256>>();
     break;
 #endif
 
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case RuntimePolicy::hip:
     m_dimension == 2 ? allocateQueryInstance<2, axom::HIP_EXEC<256>>()
                      : allocateQueryInstance<3, axom::HIP_EXEC<256>>();

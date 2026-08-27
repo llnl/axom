@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_POINT_IN_CELL_MFEM_IMPL_HPP_
-#define AXOM_QUEST_POINT_IN_CELL_MFEM_IMPL_HPP_
+#pragma once
 
 /*!
  * \file PointInCellMeshWrapper_mfem.hpp
@@ -502,5 +501,3 @@ private:
 }  // end namespace detail
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_POINT_IN_CELL_MFEM_IMPL_HPP_

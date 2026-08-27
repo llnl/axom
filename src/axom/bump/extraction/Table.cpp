@@ -13,9 +13,9 @@ namespace extraction
 {
 
 void Table::load(size_t n,
-                 const IndexData *shapes,
-                 const IndexData *offsets,
-                 const TableData *table,
+                 const IndexData* shapes,
+                 const IndexData* offsets,
+                 const TableData* table,
                  size_t tableLen,
                  int allocatorID)
 {

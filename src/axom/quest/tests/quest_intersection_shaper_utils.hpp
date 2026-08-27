@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_TESTS_INTERSECTION_SHAPER_UTILS_HPP
-#define QUEST_TESTS_INTERSECTION_SHAPER_UTILS_HPP
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -45,12 +44,12 @@ namespace slic = axom::slic;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
-std::string pjoin(const std::string &path, const std::string &filename)
+std::string pjoin(const std::string& path, const std::string& filename)
 {
   return axom::utilities::filesystem::joinPath(path, filename);
 }
 
-void psplit(const std::string &filepath, std::string &path, std::string &filename)
+void psplit(const std::string& filepath, std::string& path, std::string& filename)
 {
   axom::Path p(filepath);
   path = p.dirName();
@@ -59,14 +58,14 @@ void psplit(const std::string &filepath, std::string &path, std::string &filenam
 
 std::string dataDirectory() { return AXOM_DATA_DIR; }
 
-std::string testData(const std::string &filename) { return pjoin(dataDirectory(), filename); }
+std::string testData(const std::string& filename) { return pjoin(dataDirectory(), filename); }
 
 std::string baselineDirectory()
 {
   return pjoin(pjoin(pjoin(dataDirectory(), "quest"), "regression"), "quest_intersection_shaper");
 }
 
-std::string yamlRoot(const std::string &filepath)
+std::string yamlRoot(const std::string& filepath)
 {
   std::string retval, path, filename;
   psplit(filepath, path, filename);
@@ -83,20 +82,20 @@ std::string yamlRoot(const std::string &filepath)
 }
 
 // The caller is responsible for freeing the returned grid function.
-mfem::GridFunction *newGridFunction(mfem::Mesh *mesh)
+mfem::GridFunction* newGridFunction(mfem::Mesh* mesh)
 {
   const int vfOrder = 0;
   const int dim = mesh->Dimension();
-  mfem::L2_FECollection *coll = new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
-  mfem::FiniteElementSpace *fes = new mfem::FiniteElementSpace(mesh, coll);
-  mfem::GridFunction *gf = new mfem::GridFunction(fes);
+  mfem::L2_FECollection* coll = new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
+  mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, coll);
+  mfem::GridFunction* gf = new mfem::GridFunction(fes);
   gf->MakeOwner(coll);
   // Initialize the values to 0.
   *gf = 0;
   return gf;
 }
 
-void makeTestMesh(sidre::MFEMSidreDataCollection &dc, bool initialMats)
+void makeTestMesh(sidre::MFEMSidreDataCollection& dc, bool initialMats)
 {
   const int polynomialOrder = 1;
   const auto celldims = axom::NumericArray<int, 3> {20, 20, 1};
@@ -110,8 +109,8 @@ void makeTestMesh(sidre::MFEMSidreDataCollection &dc, bool initialMats)
   // This mode will make 2 clean materials in the mesh.
   if(initialMats)
   {
-    mfem::GridFunction *mata = newGridFunction(mesh);
-    mfem::GridFunction *matb = newGridFunction(mesh);
+    mfem::GridFunction* mata = newGridFunction(mesh);
+    mfem::GridFunction* matb = newGridFunction(mesh);
     for(int k = 0; k < celldims[2]; k++)
     {
       for(int j = 0; j < celldims[1]; j++)
@@ -131,7 +130,7 @@ void makeTestMesh(sidre::MFEMSidreDataCollection &dc, bool initialMats)
 }
 
 // Save Sidre as VisIt
-void saveVisIt(const std::string &path, const std::string &filename, sidre::MFEMSidreDataCollection &dc)
+void saveVisIt(const std::string& path, const std::string& filename, sidre::MFEMSidreDataCollection& dc)
 {
   // Wrap mesh and grid functions in a VisItDataCollection and save it.
   mfem::VisItDataCollection vdc(filename, dc.GetMesh());
@@ -143,7 +142,8 @@ void saveVisIt(const std::string &path, const std::string &filename, sidre::MFEM
   vdc.SetFormat(mfem::DataCollection::SERIAL_FORMAT);
   for(auto it : dc.GetFieldMap())
   {
-    if(it.first.find("vol_frac_") != std::string::npos)
+    if(quest::shaping::isVolumeFractionFieldName(it.first) ||
+       quest::shaping::isShapeVolumeFractionFieldName(it.first))
     {
       vdc.RegisterField(it.first, it.second);
     }
@@ -152,7 +152,7 @@ void saveVisIt(const std::string &path, const std::string &filename, sidre::MFEM
 }
 
 // Load VisIt as Sidre
-void loadVisIt(mfem::VisItDataCollection &vdc, sidre::MFEMSidreDataCollection &dc)
+void loadVisIt(mfem::VisItDataCollection& vdc, sidre::MFEMSidreDataCollection& dc)
 {
   // Wrap mesh and grid functions in a VisItDataCollection and save it.
   vdc.SetFormat(mfem::DataCollection::SERIAL_FORMAT);
@@ -161,7 +161,8 @@ void loadVisIt(mfem::VisItDataCollection &vdc, sidre::MFEMSidreDataCollection &d
   dc.SetMesh(vdc.GetMesh());
   for(auto it : vdc.GetFieldMap())
   {
-    if(it.first.find("vol_frac_") != std::string::npos)
+    if(quest::shaping::isVolumeFractionFieldName(it.first) ||
+       quest::shaping::isShapeVolumeFractionFieldName(it.first))
     {
       dc.RegisterField(it.first, it.second);
     }
@@ -169,22 +170,23 @@ void loadVisIt(mfem::VisItDataCollection &vdc, sidre::MFEMSidreDataCollection &d
 }
 
 // Turn a MFEMSidreDataCollection's fields into a simple Conduit node so I/O is not so problematic.
-void dcToConduit(sidre::MFEMSidreDataCollection &dc, conduit::Node &n)
+void dcToConduit(sidre::MFEMSidreDataCollection& dc, conduit::Node& n)
 {
   for(auto it : dc.GetFieldMap())
   {
-    // Just compare vol_frac_ grid functions.
-    if(it.first.find("vol_frac_") != std::string::npos)
+    // Just compare material and per-shape volume-fraction grid functions.
+    if(quest::shaping::isVolumeFractionFieldName(it.first) ||
+       quest::shaping::isShapeVolumeFractionFieldName(it.first))
     {
       n[it.first].set(it.second->GetData(), it.second->Size());
     }
   }
 }
 
-bool compareConduit(const conduit::Node &n1,
-                    const conduit::Node &n2,
+bool compareConduit(const conduit::Node& n1,
+                    const conduit::Node& n2,
                     double tolerance,
-                    conduit::Node &info)
+                    conduit::Node& info)
 {
   bool same = true;
   if(n1.dtype().id() == n2.dtype().id() && n1.dtype().is_floating_point())
@@ -208,8 +210,8 @@ bool compareConduit(const conduit::Node &n1,
   {
     for(int i = 0; i < n1.number_of_children() && same; i++)
     {
-      const auto &n1c = n1.child(i);
-      const auto &n2c = n2.fetch_existing(n1c.name());
+      const auto& n1c = n1.child(i);
+      const auto& n2c = n2.fetch_existing(n1c.name());
       same &= compareConduit(n1c, n2c, tolerance, info);
     }
   }
@@ -219,14 +221,14 @@ bool compareConduit(const conduit::Node &n1,
 // NOTE: The baselines are read/written using Conduit directly because the
 //       various data collections in Sidre, MFEM, VisIt all exhibited problems
 //       either saving or loading the data.
-void saveBaseline(const std::string &filename, const conduit::Node &n)
+void saveBaseline(const std::string& filename, const conduit::Node& n)
 {
   std::string file_with_ext(filename + ".yaml");
   SLIC_INFO(axom::fmt::format("Save baseline ", file_with_ext));
   conduit::relay::io::save(n, file_with_ext, "yaml");
 }
 
-bool loadBaseline(const std::string &filename, conduit::Node &n)
+bool loadBaseline(const std::string& filename, conduit::Node& n)
 {
   bool loaded = false;
   std::string file_with_ext(filename + ".yaml");
@@ -240,8 +242,8 @@ bool loadBaseline(const std::string &filename, conduit::Node &n)
   return loaded;
 }
 
-void replacementRuleTest(const std::string &shapeFile,
-                         const std::string &policyName,
+void replacementRuleTest(const std::string& shapeFile,
+                         const std::string& policyName,
                          RuntimePolicy policy,
                          double tolerance,
                          bool initialMats = false)
@@ -282,7 +284,7 @@ void replacementRuleTest(const std::string &shapeFile,
 
   // Borrowed from shaping_driver.
   const klee::Dimensions shapeDim = shapeSet.getDimensions();
-  for(const auto &shape : shapeSet.getShapes())
+  for(const auto& shape : shapeSet.getShapes())
   {
     SLIC_INFO(axom::fmt::format("\tshape {} -> material {}", shape.getName(), shape.getMaterial()));
 
@@ -315,7 +317,7 @@ void replacementRuleTest(const std::string &shapeFile,
   saveVisIt("", baselineName, dc);
 #endif
 #ifdef GENERATE_BASELINES
-  for(const auto &path : baselinePaths)
+  for(const auto& path : baselinePaths)
   {
     SLIC_INFO(axom::fmt::format("Saving baseline to {}", path));
     axom::utilities::filesystem::makeDirsForPath(path);
@@ -328,7 +330,7 @@ void replacementRuleTest(const std::string &shapeFile,
 
   // Need to get the MFEM mesh out and compare to expected results
   bool success = false;
-  for(const auto &path : baselinePaths)
+  for(const auto& path : baselinePaths)
   {
     try
     {
@@ -352,25 +354,25 @@ void replacementRuleTest(const std::string &shapeFile,
   EXPECT_EQ(success, true);
 }
 
-void replacementRuleTestSet(const std::vector<std::string> &cases,
-                            const std::string &policyName,
+void replacementRuleTestSet(const std::vector<std::string>& cases,
+                            const std::string& policyName,
                             RuntimePolicy policy,
                             double tolerance,
                             bool initialMats = false)
 {
-  for(const auto &c : cases)
+  for(const auto& c : cases)
   {
     replacementRuleTest(testData(c), policyName, policy, tolerance, initialMats);
   }
 }
 
-void IntersectionWithErrorTolerances(const std::string &filebase,
-                                     const std::string &contour,
-                                     const std::string &shapeYAML,
+void IntersectionWithErrorTolerances(const std::string& filebase,
+                                     const std::string& contour,
+                                     const std::string& shapeYAML,
                                      double expectedRevolvedVolume,
                                      int refinementLevel,
                                      double targetPercentError,
-                                     const std::string &policyName,
+                                     const std::string& policyName,
                                      RuntimePolicy policy,
                                      double revolvedVolumeEPS = 1.e-4)
 {
@@ -415,7 +417,7 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
 
   // Borrowed from shaping_driver (there should just be one shape)
   const klee::Dimensions shapeDim = shapeSet.getDimensions();
-  for(const auto &shape : shapeSet.getShapes())
+  for(const auto& shape : shapeSet.getShapes())
   {
     SLIC_INFO(axom::fmt::format("\tshape {} -> material {}", shape.getName(), shape.getMaterial()));
 
@@ -447,7 +449,7 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
   }
 
   // Clean up files.
-  for(const auto &filename : filenames)
+  for(const auto& filename : filenames)
   {
     EXPECT_EQ(axom::utilities::filesystem::removeFile(filename), 0);
   }
@@ -468,7 +470,7 @@ public:
   ~ShapingTestApplication() { }
 
   /// \brief Parse the command line and run the tests
-  int execute(int argc, char *argv[])
+  int execute(int argc, char* argv[])
   {
     int result = 0;
 
@@ -497,12 +499,12 @@ public:
       // Run all the tests.
       result = RUN_ALL_TESTS();
     }
-    catch(axom::CLI::CallForHelp &e)
+    catch(axom::CLI::CallForHelp& e)
     {
       std::cout << m_app.help() << std::endl;
       result = 0;
     }
-    catch(axom::CLI::ParseError &e)
+    catch(axom::CLI::ParseError& e)
     {
       // Handle other parsing errors
       std::cerr << e.what() << std::endl;
@@ -511,7 +513,7 @@ public:
     return result;
   }
 
-  bool selected(const std::string &policy, int caseNumber)
+  bool selected(const std::string& policy, int caseNumber)
   {
     bool sel = false;
     if(m_policy.empty())
@@ -536,5 +538,3 @@ public:
   std::string m_policy;
   int m_caseNumber;
 };
-
-#endif

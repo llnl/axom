@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_MFEMREADER_HPP_
-#define QUEST_MFEMREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -44,7 +43,7 @@ public:
 
 public:
   /// Sets the name of the contour file to load. Must be called before \a read()
-  void setFileName(const std::string &fileName) { m_fileName = fileName; }
+  void setFileName(const std::string& fileName) { m_fileName = fileName; }
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -53,7 +52,7 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurveArray &curves);
+  int read(CurveArray& curves);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -65,7 +64,7 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurveArray &curves, axom::Array<int> &attributes);
+  int read(CurveArray& curves, axom::Array<int>& attributes);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -77,7 +76,7 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurvedPolygonArray &curvedPolygons);
+  int read(CurvedPolygonArray& curvedPolygons);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -91,7 +90,7 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurvedPolygonArray &curvedPolygons, axom::Array<int> &attributes);
+  int read(CurvedPolygonArray& curvedPolygons, axom::Array<int>& attributes);
 
 protected:
   std::string m_fileName;
@@ -99,5 +98,3 @@ protected:
 
 }  // namespace quest
 }  // namespace axom
-
-#endif

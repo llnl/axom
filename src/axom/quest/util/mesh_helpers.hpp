@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_MESH_HELPERS__HPP_
-#define AXOM_QUEST_MESH_HELPERS__HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -184,6 +183,22 @@ void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::
  * \brief Check if blueprint mesh is valid.
  */
 bool verifyBlueprintMesh(const axom::sidre::Group* meshGrp, conduit::Node info);
+
+/*!
+ * \brief Convert a structured explicit blueprint mesh to unstructured.
+ * \param n_mesh The conduit::Node that contains the coordsets and topologies.
+ * \param topologyName Name of the blueprint topoloyy to use.
+ * \param runtimePolicy Runtime policy, see axom::runtime_policy.
+ *        Memory in \c meshGrp must be compatible with the
+ *        specified policy.
+ *
+ * \note This function is similar to convert_blueprint_structured_explicit_to_unstructured_2d,
+ *       convert_blueprint_structured_explicit_to_unstructured_3d but it operates on conduit::Node
+ *       through axom::bump.
+ */
+void convert_blueprint_structured_explicit_to_unstructured(conduit::Node& n_mesh,
+                                                           const std::string& topologyName,
+                                                           axom::runtime_policy::Policy runtimePolicy);
   #endif
 
 #endif
@@ -251,5 +266,3 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
 }  // namespace util
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_MESH_HELPERS__HPP_

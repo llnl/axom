@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_SELECTED_ZONES_HPP_
-#define AXOM_BUMP_SELECTED_ZONES_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 
@@ -43,8 +43,8 @@ public:
    * \endcode
    */
   SelectedZones(axom::IndexType nzones,
-                const conduit::Node &n_options,
-                const std::string &selection_key = std::string("selectedZones"),
+                const conduit::Node& n_options,
+                const std::string& selection_key = std::string("selectedZones"),
                 int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
     : m_selectionKey(selection_key)
     , m_selectedZones()
@@ -76,7 +76,7 @@ public:
    *
    * \return The name of the key in the options that this class looks for.
    */
-  const std::string &selectionKey() const { return m_selectionKey; }
+  const std::string& selectionKey() const { return m_selectionKey; }
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
@@ -96,7 +96,7 @@ protected:
    *       strided-structured indexing are the [0..n) zone numbers that exist only
    *       within the selected window.
    */
-  void buildSelectedZones(axom::IndexType nzones, const conduit::Node &n_options)
+  void buildSelectedZones(axom::IndexType nzones, const conduit::Node& n_options)
   {
     if(n_options.has_path(m_selectionKey))
     {
@@ -179,5 +179,3 @@ protected:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

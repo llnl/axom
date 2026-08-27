@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRACTION_TABLE_HPP_
-#define AXOM_BUMP_EXTRACTION_TABLE_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -58,7 +57,7 @@ public:
     {
       if(m_currentShape < m_numShapes)
       {
-        const TableData *ptr = m_shapeStart + m_offset;
+        const TableData* ptr = m_shapeStart + m_offset;
         m_offset += shapeLength(ptr);
         m_currentShape++;
       }
@@ -72,7 +71,7 @@ public:
     {
       if(m_currentShape < m_numShapes)
       {
-        const TableData *ptr = m_shapeStart + m_offset;
+        const TableData* ptr = m_shapeStart + m_offset;
         m_offset += shapeLength(ptr);
         m_currentShape++;
       }
@@ -84,7 +83,7 @@ public:
      * \return true if the iterators are equal; false otherwise.
      */
     AXOM_HOST_DEVICE
-    inline bool operator==(const iterator &it) const
+    inline bool operator==(const iterator& it) const
     {
       // Do not worry about m_offset
       return m_shapeStart == it.m_shapeStart && m_currentShape == it.m_currentShape &&
@@ -97,7 +96,7 @@ public:
      * \return true if the iterators are different; false otherwise.
      */
     AXOM_HOST_DEVICE
-    inline bool operator!=(const iterator &it) const
+    inline bool operator!=(const iterator& it) const
     {
       // Do not worry about m_offset
       return m_shapeStart != it.m_shapeStart || m_currentShape != it.m_currentShape ||
@@ -111,13 +110,13 @@ public:
     AXOM_HOST_DEVICE
     inline TableDataView operator*() const
     {
-      TableData *ptr = m_shapeStart + m_offset;
+      TableData* ptr = m_shapeStart + m_offset;
       const auto len = shapeLength(ptr);
       return TableDataView(ptr, len);
     }
 #if !defined(AXOM_DEVICE_CODE)
   private:
-    void printShape(std::ostream &os, TableData shape) const
+    void printShape(std::ostream& os, TableData shape) const
     {
       switch(shape)
       {
@@ -159,7 +158,7 @@ public:
         break;
       }
     }
-    void printColor(std::ostream &os, TableData color) const
+    void printColor(std::ostream& os, TableData color) const
     {
       switch(color)
       {
@@ -174,7 +173,7 @@ public:
         break;
       }
     }
-    void printIds(std::ostream &os, const TableData *ids, int n) const
+    void printIds(std::ostream& os, const TableData* ids, int n) const
     {
       for(int i = 0; i < n; i++)
       {
@@ -194,9 +193,9 @@ public:
     }
 
   public:
-    void print(std::ostream &os) const
+    void print(std::ostream& os) const
     {
-      TableData *ptr = m_shapeStart + m_offset;
+      TableData* ptr = m_shapeStart + m_offset;
       printShape(os, ptr[0]);
       os << " ";
       int offset = 2;
@@ -233,7 +232,7 @@ public:
      * \return The number of values to advance.
      */
     AXOM_HOST_DEVICE
-    size_t shapeLength(const TableData *caseData) const
+    size_t shapeLength(const TableData* caseData) const
     {
       size_t retval = 0;
       const auto shape = caseData[0];
@@ -279,7 +278,7 @@ public:
       return retval;
     }
 
-    TableData *m_shapeStart {nullptr};
+    TableData* m_shapeStart {nullptr};
     int m_offset {0};
     int m_currentShape {0};
     int m_numShapes {0};
@@ -299,7 +298,7 @@ public:
    * \param table   The table data that contains all cases.
    */
   AXOM_HOST_DEVICE
-  TableView(const IndexView &shapes, const IndexView &offsets, const TableDataView &table)
+  TableView(const IndexView& shapes, const IndexView& offsets, const TableDataView& table)
     : m_shapes(shapes)
     , m_offsets(offsets)
     , m_table(table)
@@ -324,7 +323,7 @@ public:
   {
     SLIC_ASSERT(static_cast<IndexType>(caseId) < m_shapes.size());
     iterator it;
-    it.m_shapeStart = const_cast<TableData *>(m_table.data() + m_offsets[caseId]);
+    it.m_shapeStart = const_cast<TableData*>(m_table.data() + m_offsets[caseId]);
     it.m_offset = 0;
     it.m_currentShape = 0;
     it.m_numShapes = m_shapes[caseId];
@@ -342,7 +341,7 @@ public:
   {
     SLIC_ASSERT(static_cast<IndexType>(caseId) < m_shapes.size());
     iterator it;
-    it.m_shapeStart = const_cast<TableData *>(m_table.data() + m_offsets[caseId]);
+    it.m_shapeStart = const_cast<TableData*>(m_table.data() + m_offsets[caseId]);
     it.m_offset = 0;  // not checked in iterator::operator==
     it.m_currentShape = m_shapes[caseId];
     it.m_numShapes = m_shapes[caseId];
@@ -383,9 +382,9 @@ public:
    * \param allocatorID The allocator ID to use when allocating memory.
    */
   void load(size_t n,
-            const IndexData *shapes,
-            const IndexData *offsets,
-            const TableData *table,
+            const IndexData* shapes,
+            const IndexData* offsets,
+            const TableData* table,
             size_t tableLen,
             int allocatorID);
   /*!
@@ -404,5 +403,3 @@ private:
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

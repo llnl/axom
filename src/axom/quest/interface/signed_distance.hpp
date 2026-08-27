@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_SIGNED_DISTANCE_INTERFACE_HPP_
-#define QUEST_SIGNED_DISTANCE_INTERFACE_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
 
-// Quest includes
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
+#if defined(AXOM_USE_MPI)
+  #include <mpi.h>
+#endif
 
 // C/C++ includes
 #include <cstddef>
@@ -76,15 +76,13 @@
  * \endcode
  */
 
-namespace axom
-{
 // Forward Mint declarations
-namespace mint
+namespace axom::mint
 {
 class Mesh;
 }
 
-namespace quest
+namespace axom::quest
 {
 // Signed Distance execution policies
 enum class SignedDistExec
@@ -103,7 +101,6 @@ enum class SignedDistExec
  *  file.
  *
  * \param [in] file the name of the file consisting of the surface mesh.
- * \param [in] comm the MPI communicator (applicable when MPI is available)
  *
  * \return status zero on success, or a non-zero value if an error occurs
  *
@@ -111,18 +108,44 @@ enum class SignedDistExec
  *  defined in <a href="https://en.wikipedia.org/wiki/STL_(file_format)">STL</a>
  *  file format.
  *
+ * \note In an MPI build this behaves as if \a MPI_COMM_SELF had been passed,
+ *  so every rank opens and reads the file independently.
+ *  MPI applications should prefer the overload taking a communicator,
+ *  which reads the file on rank 0 and broadcasts it.
+ *
  * \pre file.empty() == false
- * \pre comm != MPI_COMM_NULL (when MPI is available)
  * \pre signed_distance_initialized() == false
  * \post signed_distance_initialized() == true
  */
-int signed_distance_init(const std::string& file, MPI_Comm comm = MPI_COMM_SELF);
+int signed_distance_init(const std::string& file);
+
+#if defined(AXOM_USE_MPI)
+/*!
+ * \brief Initializes the Signed Distance Query with a surface given in an
+ *  <a href="https://en.wikipedia.org/wiki/STL_(file_format)">STL</a> formatted
+ *  file, over the ranks of the given MPI communicator.
+ *
+ * \param [in] file the name of the file consisting of the surface mesh.
+ * \param [in] comm the MPI communicator
+ *
+ * \return status zero on success, or a non-zero value if an error occurs
+ *
+ * \note Only available when Axom is configured with MPI.
+ *  The overload without a communicator is equivalent to passing \a MPI_COMM_SELF.
+ *  The file is read on rank 0 of \a comm and broadcast to the other ranks.
+ *
+ * \pre file.empty() == false
+ * \pre comm != MPI_COMM_NULL
+ * \pre signed_distance_initialized() == false
+ * \post signed_distance_initialized() == true
+ */
+int signed_distance_init(const std::string& file, MPI_Comm comm);
+#endif
 
 /*!
  * \brief Initializes the Signed Distance Query with the given surface mesh
  *
  * \param [in] m pointer to the surface mesh object
- * \param [in] comm the MPI communicator (applicable whem MPI is available)
  *
  * \return status zero on success, or a non-zero value if an error occurs.
  *
@@ -130,13 +153,35 @@ int signed_distance_init(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
  *  surface meshes.
  *
  * \pre m != nullptr
- * \pre comm != MPI_COMM_NULL (when MPI is available)
  * \pre signed_distance_initialized() == false
  * \post signed_distance_initialized() == true
  *
  * \see mint::Mesh
  */
-int signed_distance_init(const mint::Mesh* m, MPI_Comm comm = MPI_COMM_SELF);
+int signed_distance_init(const mint::Mesh* m);
+
+#if defined(AXOM_USE_MPI)
+/*!
+ * \brief Initializes the Signed Distance Query with the given surface mesh,
+ *  over the ranks of the given MPI communicator
+ *
+ * \param [in] m pointer to the surface mesh object
+ * \param [in] comm the MPI communicator
+ *
+ * \return status zero on success, or a non-zero value if an error occurs.
+ *
+ * \note Only available when Axom is configured with MPI. The overload without
+ *  a communicator is equivalent to passing \a MPI_COMM_SELF.
+ *
+ * \pre m != nullptr
+ * \pre comm != MPI_COMM_NULL
+ * \pre signed_distance_initialized() == false
+ * \post signed_distance_initialized() == true
+ *
+ * \see mint::Mesh
+ */
+int signed_distance_init(const mint::Mesh* m, MPI_Comm comm);
+#endif
 
 /*!
  * \brief Checks if the Signed Distance Query has been initialized
@@ -339,7 +384,4 @@ void signed_distance_finalize();
 
 /// @}
 
-}  // end namespace quest
-}  // end namespace axom
-
-#endif /* QUEST_SIGNED_DISTANCE_INTERFACE_HPP_ */
+}  // end namespace axom::quest
