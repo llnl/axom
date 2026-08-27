@@ -166,8 +166,8 @@ private:
       // Check if the surface is periodic in u or v
       const bool isUPeriodic = m_surface->IsUPeriodic();
       const bool isVPeriodic = m_surface->IsVPeriodic();
-      SLIC_ERROR_ROOT_IF(isUPeriodic || isVPeriodic,
-                         "Axom's NURBSPatch only supports non-periodic patches");
+      SLIC_ERROR_IF(isUPeriodic || isVPeriodic,
+                    "Axom's NURBSPatch only supports non-periodic patches");
 
       // Extract weights, if the surface is rational
       const bool isRational = m_surface->IsURational() || m_surface->IsVRational();
@@ -486,7 +486,7 @@ private:
     NCurve nurbsCurve() const
     {
       const bool isPeriodic = m_curve->IsPeriodic();
-      SLIC_ERROR_ROOT_IF(isPeriodic, "Axom's NURBSCurve only supports non-periodic curves");
+      SLIC_ERROR_IF(isPeriodic, "Axom's NURBSCurve only supports non-periodic curves");
 
       return m_curve->IsRational()
         ? NCurve(extractControlPoints(), extractWeights(), extractCombinedKnots())

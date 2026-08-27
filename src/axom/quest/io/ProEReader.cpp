@@ -151,13 +151,13 @@ void ProEReader::compact_arrays(int elt_count)
 void ProEReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
 {
   /* Sanity checks */
-  SLIC_ERROR_ROOT_IF(mesh == nullptr, "supplied mesh is null!");
-  SLIC_ERROR_ROOT_IF(static_cast<axom::IndexType>(m_nodes.size()) != m_num_nodes * 3,
-                     "nodes vector size doesn't match expected size!");
-  SLIC_ERROR_ROOT_IF(static_cast<axom::IndexType>(m_tets.size()) != m_num_tets * 4,
-                     "tets vector size doesn't match expected size!");
-  SLIC_ERROR_ROOT_IF(mesh->getDimension() != 3, "Pro/E reader expects a 3D mesh!");
-  SLIC_ERROR_ROOT_IF(mesh->getCellType() != mint::TET, "Pro/E reader expects a tetrahedra mesh!");
+  SLIC_ERROR_IF(mesh == nullptr, "supplied mesh is null!");
+  SLIC_ERROR_IF(static_cast<axom::IndexType>(m_nodes.size()) != m_num_nodes * 3,
+                "nodes vector size doesn't match expected size!");
+  SLIC_ERROR_IF(static_cast<axom::IndexType>(m_tets.size()) != m_num_tets * 4,
+                "tets vector size doesn't match expected size!");
+  SLIC_ERROR_IF(mesh->getDimension() != 3, "Pro/E reader expects a 3D mesh!");
+  SLIC_ERROR_IF(mesh->getCellType() != mint::TET, "Pro/E reader expects a tetrahedra mesh!");
 
   // pre-allocate space to store the mesh
   if(!mesh->isExternal())
@@ -165,12 +165,12 @@ void ProEReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
     mesh->resize(m_num_nodes, m_num_tets);
   }
 
-  SLIC_ERROR_ROOT_IF(mesh->getNumberOfNodes() != m_num_nodes,
-                     "mesh number of nodes does not match the number of nodes in "
-                     "the Pro/E file!");
-  SLIC_ERROR_ROOT_IF(mesh->getNumberOfCells() != m_num_tets,
-                     "mesh number of cells does not match number of tetrahedra in "
-                     "the Pro/E file!");
+  SLIC_ERROR_IF(mesh->getNumberOfNodes() != m_num_nodes,
+                "mesh number of nodes does not match the number of nodes in "
+                "the Pro/E file!");
+  SLIC_ERROR_IF(mesh->getNumberOfCells() != m_num_tets,
+                "mesh number of cells does not match number of tetrahedra in "
+                "the Pro/E file!");
 
   double* x = mesh->getCoordinateArray(mint::X_COORDINATE);
   double* y = mesh->getCoordinateArray(mint::Y_COORDINATE);
