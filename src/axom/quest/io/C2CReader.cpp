@@ -136,9 +136,9 @@ C2CReader::ResultType C2CReader::readAssembly(const std::string& filename, Curve
   SLIC_INFO_ROOT(fmt::format("Loading assembly with {} pieces", assembly.getNumEntries()));
 
   // Make an initial guess at the number of curves we may need.
-  constexpr int contours_per_file_guess = 6;
+  constexpr int contoursPerFileGuess = 6;
   CurveArray assemblyCurves;
-  assemblyCurves.reserve(assembly.getNumEntries() * contours_per_file_guess);
+  assemblyCurves.reserve(assembly.getNumEntries() * contoursPerFileGuess);
 
   ResultType ret = ResultType::Success;
   for(auto it = assembly.begin(); it != assembly.end(); it++)

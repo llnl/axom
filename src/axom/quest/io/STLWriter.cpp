@@ -135,14 +135,14 @@ int STLWriter::write(const mint::Mesh* mesh)
   // Write header
   if(m_binary)
   {
-    constexpr int stl_header_size = 80;
-    std::uint8_t header[stl_header_size];
+    constexpr int STL_HEADER_SIZE = 80;
+    std::uint8_t header[STL_HEADER_SIZE];
     // Fill with spaces
-    memset(header, ' ', sizeof(std::uint8_t) * stl_header_size);
+    memset(header, ' ', sizeof(std::uint8_t) * STL_HEADER_SIZE);
     // Copy in string (without terminator)
-    constexpr char message[] = "STL Binary File Written By Axom";
-    memcpy(header, message, strlen(message));
-    out.write(reinterpret_cast<const char*>(header), stl_header_size);
+    constexpr char msg[] = "STL Binary File Written By Axom";
+    memcpy(header, msg, strlen(msg));
+    out.write(reinterpret_cast<const char*>(header), STL_HEADER_SIZE);
 
     // Write number of triangles
     std::uint32_t ntri = static_cast<std::uint32_t>(getNumberOfTriangles());
