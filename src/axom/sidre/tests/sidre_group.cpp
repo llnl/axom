@@ -4140,14 +4140,13 @@ TEST_P(UmpireTest, root_default_allocator)
   axom::setDefaultAllocator(allocID);
 
   DataStore dsPrime;
-  ASSERT_EQ(dsPrime.getRoot()->getDefaultAllocatorID(), allocID);
+  ASSERT_EQ(dsPrime.getRoot()->getDefaultAllocatorID(), axom::detail::getDefaultHostAllocatorID());
 }
 
 TEST_P(UmpireTest, get_set_allocator)
 {
   int defaultAllocatorID = axom::getDefaultAllocatorID();
-  ASSERT_EQ(root->getDefaultAllocator().getId(), defaultAllocatorID);
-  ASSERT_EQ(root->getDefaultAllocatorID(), defaultAllocatorID);
+  ASSERT_EQ(root->getDefaultAllocatorID(), axom::detail::getDefaultHostAllocatorID());
 
   root->setDefaultAllocator(allocID);
   defaultAllocatorID = axom::getDefaultAllocatorID();

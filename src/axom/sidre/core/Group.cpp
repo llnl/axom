@@ -17,6 +17,7 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/MapCollection.hpp"
 #include "axom/core/Path.hpp"
+#include "axom/core/memory_management.hpp"
 
 // Sidre headers
 #include "Buffer.hpp"
@@ -1084,10 +1085,8 @@ Group* Group::createGroup(const std::string& path, bool is_list, bool accept_exi
       return nullptr;
     }
 
-    SLIC_ASSERT(group->getDefaultArrayAllocatorID() == m_default_array_alloc_id);
-    SLIC_ASSERT(group->getDefaultTupleAllocatorID() == m_default_tuple_alloc_id);
-    new_group->setDefaultArrayAllocator(m_default_array_alloc_id);
-    new_group->setDefaultTupleAllocator(m_default_tuple_alloc_id);
+    new_group->setDefaultArrayAllocator(group->getDefaultArrayAllocatorID());
+    new_group->setDefaultTupleAllocator(group->getDefaultTupleAllocatorID());
     return group->attachGroup(new_group);
   }
 
@@ -1115,11 +1114,8 @@ Group* Group::createUnnamedGroup(bool is_list)
     return nullptr;
   }
 
-#ifdef AXOM_USE_UMPIRE
-  // Why only do this with Umpire?  BTNG.
-  new_group->setDefaultArrayAllocator(getDefaultArrayAllocator());
-  new_group->setDefaultTupleAllocator(getDefaultTupleAllocator());
-#endif
+  new_group->setDefaultArrayAllocator(getDefaultArrayAllocatorID());
+  new_group->setDefaultTupleAllocator(getDefaultTupleAllocatorID());
   return attachGroup(new_group);
 }
 
@@ -2290,13 +2286,8 @@ Group::Group(const std::string& name, DataStore* datastore, bool is_list)
   , m_is_list(is_list)
   , m_view_coll(nullptr)
   , m_group_coll(nullptr)
-#ifdef AXOM_USE_UMPIRE
-  , m_default_array_alloc_id(axom::getDefaultAllocatorID())
-  , m_default_tuple_alloc_id(axom::getDefaultAllocatorID())
-#else
-  , m_default_array_alloc_id(axom::MALLOC_ALLOCATOR_ID)
-  , m_default_tuple_alloc_id(axom::MALLOC_ALLOCATOR_ID)
-#endif
+  , m_default_array_alloc_id(axom::detail::getDefaultHostAllocatorID())
+  , m_default_tuple_alloc_id(axom::detail::getDefaultHostAllocatorID())
 {
   if(is_list)
   {

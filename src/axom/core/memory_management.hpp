@@ -577,13 +577,12 @@ inline void fill(void* dst, std::size_t n, const T& value) noexcept
       doHostFill = false;
 
       // Device memory: fill on host, then copy to device
-      const auto num_bytes = n * sizeof(T);
       T* src = allocate<T>(n, axom::detail::getDefaultHostAllocatorID());
       for(std::size_t i = 0; i < n; ++i)
       {
         src[i] = value;
       }
-      axom::copy(dst, src, num_bytes);
+      axom::copy(dst, src, n * sizeof(T));
       deallocate<T>(src);
     }
   }
