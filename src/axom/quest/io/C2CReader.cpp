@@ -22,13 +22,11 @@
 #include <string>
 #include <utility>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace
 {
-c2c::LengthUnit toC2CLengthUnit(utilities::LengthUnit unit)
+constexpr c2c::LengthUnit toC2CLengthUnit(utilities::LengthUnit unit)
 {
   switch(unit)
   {
@@ -138,9 +136,9 @@ C2CReader::ResultType C2CReader::readAssembly(const std::string& filename, Curve
   SLIC_INFO_ROOT(fmt::format("Loading assembly with {} pieces", assembly.getNumEntries()));
 
   // Make an initial guess at the number of curves we may need.
-  const int contoursPerFileGuess = 6;
+  constexpr int contours_per_file_guess = 6;
   CurveArray assemblyCurves;
-  assemblyCurves.reserve(assembly.getNumEntries() * contoursPerFileGuess);
+  assemblyCurves.reserve(assembly.getNumEntries() * contours_per_file_guess);
 
   ResultType ret = ResultType::Success;
   for(auto it = assembly.begin(); it != assembly.end(); it++)
@@ -307,5 +305,4 @@ void C2CReader::log()
   SLIC_INFO_ROOT(sstr.str());
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

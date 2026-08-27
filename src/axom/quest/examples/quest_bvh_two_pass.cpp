@@ -375,7 +375,7 @@ int main(int argc, char** argv)
   {
     axom::quest::STLReader reader;
     reader.setFileName(args.file_name);
-    reader.read();
+    SLIC_ERROR_IF(reader.read() != 0, "Failed to load STL file '" << args.file_name << "'.");
 
     // Get surface mesh
     surface_mesh.reset(new UMesh(3, mint::TRIANGLE));

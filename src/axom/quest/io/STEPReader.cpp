@@ -58,9 +58,7 @@
 
 #include <iostream>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace internal
 {
@@ -1213,7 +1211,7 @@ private:
   bool m_deflectionIsRelative;
 };
 
-}  // end namespace internal
+}  // namespace internal
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
 
@@ -1595,5 +1593,4 @@ int STEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_
   return 0;
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

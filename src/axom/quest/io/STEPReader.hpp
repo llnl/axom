@@ -20,9 +20,7 @@
 #include <memory>
 #include <map>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace internal
 {
@@ -59,15 +57,15 @@ public:
    * \param[in] validate Adds validation tests on the model, when true
    * \return 0 for a successful read; non-zero otherwise
    */
-  virtual int read(bool validate);
+  [[nodiscard]] virtual int read(bool validate);
 
-  std::string getFileUnits() const;
+  [[nodiscard]] std::string getFileUnits() const;
 
-  PatchArray& getPatchArray() { return m_patches; }
-  const PatchArray& getPatchArray() const { return m_patches; }
+  [[nodiscard]] PatchArray& getPatchArray() { return m_patches; }
+  [[nodiscard]] const PatchArray& getPatchArray() const { return m_patches; }
 
   /// Get the number of patches in the read file
-  int numPatches() { return m_patches.size(); }
+  [[nodiscard]] int numPatches() const { return m_patches.size(); }
 
   /*!
    * \brief Returns a 0-based patch id per entry in \a getPatchArray()
@@ -75,7 +73,7 @@ public:
    * This id corresponds to the face index in the input STEP file enumeration.
    * If consumers skip patches, these ids will be non-contiguous.
    */
-  axom::ArrayView<const int> getPatchIds() const { return m_patchIds.view(); }
+  [[nodiscard]] axom::ArrayView<const int> getPatchIds() const { return m_patchIds.view(); }
 
   /*!
    * \brief Returns the 0-based wire index for each extracted trimming curve
@@ -83,19 +81,20 @@ public:
    * The i-th entry corresponds to `getPatchArray()[patchArrayIndex].getTrimmingCurves()[i]`
    * and stores the 0-based wire index from the input face enumeration.
    */
-  axom::ArrayView<const int> getTrimmingCurveWireIds(int patchArrayIndex) const;
+  [[nodiscard]] axom::ArrayView<const int> getTrimmingCurveWireIds(int patchArrayIndex) const;
 
   /// \brief Returns whether the input STEP surface was originally periodic in u for this patch
-  bool patchWasOriginallyPeriodic_u(int patchArrayIndex) const;
+  [[nodiscard]] bool patchWasOriginallyPeriodic_u(int patchArrayIndex) const;
 
   /// \brief Returns whether the input STEP surface was originally periodic in v for this patch
-  bool patchWasOriginallyPeriodic_v(int patchArrayIndex) const;
+  [[nodiscard]] bool patchWasOriginallyPeriodic_v(int patchArrayIndex) const;
 
   /// Returns some information about the loaded BRep
-  std::string getBRepStats() const;
+  [[nodiscard]] std::string getBRepStats() const;
 
   /// Returns an AABB for the loaded BRep as evaluated by OpenCascade
-  axom::primal::BoundingBox<double, 3> getBRepBoundingBox(bool useTriangulation = false) const;
+  [[nodiscard]] axom::primal::BoundingBox<double, 3> getBRepBoundingBox(
+    bool useTriangulation = false) const;
 
   /*!
    * \brief Generates a triangulated representation of the STEP file as a Mint unstructured triangle mesh.
@@ -112,15 +111,15 @@ public:
    *            otherwise, we triangulate the untrimmed patches. The latter is mostly to aid 
    *            in understanding the model's patches and is not generally useful.
    */
-  virtual int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
-                              double linear_deflection = 0.1,
-                              double angular_deflection = 0.5,
-                              bool is_relative = false,
-                              bool trimmed = true);
+  [[nodiscard]] virtual int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
+                                            double linear_deflection = 0.1,
+                                            double angular_deflection = 0.5,
+                                            bool is_relative = false,
+                                            bool trimmed = true);
 
 protected:
   // open cascade does not appear to offer a direct way to get the number of patches
-  int numPatchesInFile() const;
+  [[nodiscard]] int numPatchesInFile() const;
 
 protected:
   std::string m_fileName;
@@ -133,5 +132,4 @@ protected:
   IndexArray m_patchOriginallyPeriodic_v;
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

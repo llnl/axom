@@ -161,7 +161,7 @@ TriangleMesh makeTriangleMesh(const std::string& stl_mesh_path, double weldThres
 
     auto reader = std::make_unique<axom::quest::STLReader>();
     reader->setFileName(stl_mesh_path);
-    reader->read();
+    SLIC_ERROR_IF(reader->read() != 0, "Failed to load STL file '" << stl_mesh_path << "'.");
     reader->getMesh(surface_mesh);
 
     timer.stop();

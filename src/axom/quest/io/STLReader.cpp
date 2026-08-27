@@ -16,21 +16,19 @@
 
 namespace
 {
-const std::size_t BINARY_HEADER_SIZE = 80;  // bytes
-const std::size_t BINARY_TRI_SIZE = 50;     // bytes
+constexpr std::size_t binary_header_size = 80;  // bytes
+constexpr std::size_t binary_tri_size = 50;     // bytes
 }  // namespace
 
 //------------------------------------------------------------------------------
 //      STLReader Implementation
 //------------------------------------------------------------------------------
-namespace axom
+namespace axom::quest
 {
-namespace quest
-{
-STLReader::STLReader() : m_fileName(""), m_num_nodes(0), m_num_faces(0) { }
+STLReader::STLReader() = default;
 
 //------------------------------------------------------------------------------
-STLReader::~STLReader() { this->clear(); }
+STLReader::~STLReader() = default;
 
 //------------------------------------------------------------------------------
 void STLReader::clear()
@@ -44,9 +42,9 @@ void STLReader::clear()
 bool STLReader::isAsciiFormat() const
 {
   // The binary format consists of
-  //    a header of size BINARY_HEADER_SIZE==80 bytes
+  //    a header of size binary_header_size==80 bytes
   //    followed by a four byte int encoding the number of triangles
-  //    followed by the triangle data (BINARY_TRI_SIZE == 50 bytes per triangle)
+  //    followed by the triangle data (binary_tri_size == 50 bytes per triangle)
 
   // Open the file
   std::ifstream ifs(m_fileName.c_str(), std::ios::in | std::ios::binary);
@@ -62,15 +60,15 @@ bool STLReader::isAsciiFormat() const
   ifs.seekg(0, ifs.end);
   std::int32_t fileSize = static_cast<std::int32_t>(ifs.tellg());
 
-  const int totalHeaderSize = (BINARY_HEADER_SIZE + sizeof(std::int32_t));
-  if(fileSize < totalHeaderSize)
+  constexpr int total_header_size = binary_header_size + sizeof(std::int32_t);
+  if(fileSize < total_header_size)
   {
     return true;
   }
 
   // Find the number of triangles (if the file were binary)
   int numTris = 0;
-  ifs.seekg(BINARY_HEADER_SIZE, ifs.beg);
+  ifs.seekg(binary_header_size, ifs.beg);
   ifs.read((char*)&numTris, sizeof(std::int32_t));
 
   if(!utilities::isLittleEndian())
@@ -79,11 +77,11 @@ bool STLReader::isAsciiFormat() const
   }
 
   // Check if the size matches our expectation
-  int expectedBinarySize = totalHeaderSize + (numTris * BINARY_TRI_SIZE);
+  const int expected_binary_size = total_header_size + (numTris * binary_tri_size);
 
   ifs.close();
 
-  return (fileSize != expectedBinarySize);
+  return (fileSize != expected_binary_size);
 }
 
 //------------------------------------------------------------------------------
@@ -132,14 +130,14 @@ int STLReader::readAsciiSTL()
 int STLReader::readBinarySTL()
 {
   // Binary STL format consists of
-  //    an 80 byte header (BINARY_HEADER_SIZE)
+  //    an 80 byte header (binary_header_size)
   //    followed by a 32 bit int encoding the number of faces
-  //    followed by the triangles, each of which is 50 bytes (BINARY_TRI_SIZE)
+  //    followed by the triangles, each of which is 50 bytes (binary_tri_size)
 
   // A local union data structure for triangles in a binary STL
   union BinarySTLTri
   {
-    std::int8_t raw[BINARY_TRI_SIZE];
+    std::int8_t raw[binary_tri_size];
 
     struct
     {
@@ -160,7 +158,7 @@ int STLReader::readBinarySTL()
     return (-1);
   }
 
-  ifs.seekg(BINARY_HEADER_SIZE);
+  ifs.seekg(binary_header_size);
 
   // read the num faces and reserve room for the vertex positions
   ifs.read((char*)&m_num_faces, sizeof(std::int32_t));
@@ -176,7 +174,7 @@ int STLReader::readBinarySTL()
   // Read the triangles. Cast to doubles and ignore normals and attributes
   for(axom::IndexType i = 0; i < m_num_faces; ++i)
   {
-    ifs.read((char*)tri.raw, BINARY_TRI_SIZE);
+    ifs.read((char*)tri.raw, binary_tri_size);
 
     for(int j = 0; j < 9; ++j)
     {
@@ -251,5 +249,4 @@ void STLReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
   }
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

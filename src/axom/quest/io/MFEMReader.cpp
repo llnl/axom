@@ -299,7 +299,7 @@ int read_mfem(const std::string& fileName,
   return MFEMReader::READ_SUCCESS;
 }
 
-}  // end namespace internal
+}  // namespace internal
 
 int MFEMReader::read(CurveArray& curves)
 {
@@ -364,4 +364,4 @@ int MFEMReader::read(CurvedPolygonArray& curvedPolygons, axom::Array<int>& attri
   return ret;
 }
 
-}  // end namespace axom::quest
+}  // namespace axom::quest

@@ -13,9 +13,7 @@
 #include <cstring>
 #include <fstream>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace internal
 {
@@ -45,7 +43,7 @@ void writeTriangle(std::ofstream& out, bool binary, double coords[3][3], const N
     }
     // The attribute is sometimes used as colors. Set bits to white.
     // See https://en.wikipedia.org/wiki/STL_(file_format).
-    const std::uint16_t attr = 0x7fff;
+    constexpr std::uint16_t attr = 0x7fff;
     out.write(reinterpret_cast<const char*>(n32), 3 * sizeof(float32));
     out.write(reinterpret_cast<const char*>(coords32[0]), 3 * sizeof(float32));
     out.write(reinterpret_cast<const char*>(coords32[1]), 3 * sizeof(float32));
@@ -64,11 +62,10 @@ void writeTriangle(std::ofstream& out, bool binary, double coords[3][3], const N
   }
 }
 
-}  // end namespace internal
+}  // namespace internal
 
 STLWriter::STLWriter(const std::string& filename, bool binary)
-  : m_mesh(nullptr)
-  , m_fileName(filename)
+  : m_fileName(filename)
   , m_binary(binary)
 { }
 
@@ -121,7 +118,7 @@ int STLWriter::write(const mint::Mesh* mesh)
   using VectorType = axom::primal::Vector<double, 3>;
 
   SLIC_ERROR_IF(mesh == nullptr, "mesh pointer is null!");
-  SLIC_ERROR_IF(m_fileName.length() <= 0, "STL filename is empty!");
+  SLIC_ERROR_IF(m_fileName.empty(), "STL filename is empty!");
   SLIC_ERROR_IF(mesh->getDimension() < 2 || mesh->getDimension() > 3, "Input mesh is not 2D/3D.");
 
   // Save mesh pointer
@@ -138,14 +135,14 @@ int STLWriter::write(const mint::Mesh* mesh)
   // Write header
   if(m_binary)
   {
-    constexpr int STL_HEADER_SIZE = 80;
-    std::uint8_t header[STL_HEADER_SIZE];
+    constexpr int stl_header_size = 80;
+    std::uint8_t header[stl_header_size];
     // Fill with spaces
-    memset(header, ' ', sizeof(std::uint8_t) * STL_HEADER_SIZE);
+    memset(header, ' ', sizeof(std::uint8_t) * stl_header_size);
     // Copy in string (without terminator)
-    const char* msg = "STL Binary File Written By Axom";
-    memcpy(header, msg, strlen(msg));
-    out.write(reinterpret_cast<const char*>(header), STL_HEADER_SIZE);
+    constexpr char message[] = "STL Binary File Written By Axom";
+    memcpy(header, message, strlen(message));
+    out.write(reinterpret_cast<const char*>(header), stl_header_size);
 
     // Write number of triangles
     std::uint32_t ntri = static_cast<std::uint32_t>(getNumberOfTriangles());
@@ -233,5 +230,4 @@ int write_stl(const mint::Mesh* mesh, const std::string& filename, bool binary)
   return w.write(mesh);
 }
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest
