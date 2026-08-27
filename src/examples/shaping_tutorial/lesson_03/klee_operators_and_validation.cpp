@@ -160,13 +160,10 @@ int main(int argc, char** argv)
     }
 
     std::ifstream initializationStream {initializationFilename};
-    std::string initializationSource {
-      std::istreambuf_iterator<char>(initializationStream),
-      {}};
+    std::string initializationSource {std::istreambuf_iterator<char>(initializationStream), {}};
     axom::klee::LuaInputOptions options;
-    options.initialization = axom::klee::LuaInitializationChunk {
-      initializationSource,
-      initializationFilename};
+    options.initialization =
+      axom::klee::LuaInitializationChunk {initializationSource, initializationFilename};
     return axom::klee::readShapeSet(inputFilename, options);
   };
 

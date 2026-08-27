@@ -33,7 +33,7 @@ namespace internal
  * \return A LengthUnit containing the unit type.
  * \throws KleeError if the unit string is invalid
  */
-LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path);
+LengthUnit parseLengthUnits(const std::string& unitsAsString, const std::string& path);
 
 /*!
  * \brief This function parses a string and returns a LengthUnit. It is a compatibility

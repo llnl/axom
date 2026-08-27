@@ -30,9 +30,8 @@ namespace internal
 namespace
 {
 using OpPtr = CompositeOperator::OpPtr;
-using OperatorParser = std::function<OpPtr(const inlet::Container &,
-                                           const TransformableGeometryProperties &,
-                                           const std::string &)>;
+using OperatorParser =
+  std::function<OpPtr(const inlet::Container&, const TransformableGeometryProperties&, const std::string&)>;
 using internal::toDoubleVector;
 using primal::Point3D;
 using primal::Vector3D;
@@ -55,7 +54,7 @@ std::string childName(const inlet::Container& container, const std::string& name
  * \param fieldName the public operator field name
  * \return true when \a fieldName has a supplied function alternative
  */
-bool hasCallback(const inlet::Container &container, char const *fieldName)
+bool hasCallback(const inlet::Container& container, char const* fieldName)
 {
   return container.containsFunctionValueAlternative(fieldName);
 }
@@ -67,7 +66,7 @@ bool hasCallback(const inlet::Container &container, char const *fieldName)
  * \param fieldName the public operator field name
  * \return true when either supported representation was supplied
  */
-bool containsFieldOrCallback(const inlet::Container &container, char const *fieldName)
+bool containsFieldOrCallback(const inlet::Container& container, char const* fieldName)
 {
   return container.contains(fieldName) || hasCallback(container, fieldName);
 }
@@ -79,7 +78,7 @@ bool containsFieldOrCallback(const inlet::Container &container, char const *fiel
  * \param fieldName the public operator field name
  * \return the full path to \a fieldName
  */
-Path fieldPath(const inlet::Container &container, char const *fieldName)
+Path fieldPath(const inlet::Container& container, char const* fieldName)
 {
   return Path::join({Path {container.name()}, Path {std::string {fieldName}}});
 }
@@ -94,10 +93,10 @@ Path fieldPath(const inlet::Container &container, char const *fieldName)
  * \return \a message, prefixed with the callback, owner and operator when
  *         \a fieldName was supplied as a callback, and unchanged otherwise
  */
-std::string fieldMessage(const inlet::Container &container,
-                         char const *fieldName,
-                         const std::string &ownerLabel,
-                         const std::string &message)
+std::string fieldMessage(const inlet::Container& container,
+                         char const* fieldName,
+                         const std::string& ownerLabel,
+                         const std::string& message)
 {
   if(!hasCallback(container, fieldName))
   {
@@ -114,10 +113,7 @@ std::string fieldMessage(const inlet::Container &container,
   const auto operatorLabel = operatorIndex.empty() ? std::string {"operator at "} + container.name()
                                                    : std::string {"operator "} + operatorIndex;
   const auto owner = ownerLabel.empty() ? operatorLabel : ownerLabel + " " + operatorLabel;
-  return axom::fmt::format("Error evaluating callback for '{}' in {}: {}",
-                           fieldName,
-                           owner,
-                           message);
+  return axom::fmt::format("Error evaluating callback for '{}' in {}: {}", fieldName, owner, message);
 }
 
 /**
@@ -133,10 +129,10 @@ std::string fieldMessage(const inlet::Container &container,
  * \throws KleeError if callback invocation or result conversion fails
  */
 template <typename Result, typename Func>
-Result wrapCallbackErrors(const inlet::Container &container,
-                          char const *fieldName,
-                          const std::string &ownerLabel,
-                          Func &&func)
+Result wrapCallbackErrors(const inlet::Container& container,
+                          char const* fieldName,
+                          const std::string& ownerLabel,
+                          Func&& func)
 {
   // Convert Inlet callback failures into Klee diagnostics at the boundary
   // where the shape, operator, and field context are all available.
@@ -144,10 +140,10 @@ Result wrapCallbackErrors(const inlet::Container &container,
   {
     return func();
   }
-  catch(const inlet::InletError &ex)
+  catch(const inlet::InletError& ex)
   {
-    throw KleeError({fieldPath(container, fieldName),
-                     fieldMessage(container, fieldName, ownerLabel, ex.what())});
+    throw KleeError(
+      {fieldPath(container, fieldName), fieldMessage(container, fieldName, ownerLabel, ex.what())});
   }
 }
 
@@ -160,9 +156,7 @@ Result wrapCallbackErrors(const inlet::Container &container,
  * \return the resolved scalar value
  * \throws KleeError if callback evaluation fails
  */
-double getScalar(const inlet::Container &container,
-                 char const *fieldName,
-                 const std::string &ownerLabel)
+double getScalar(const inlet::Container& container, char const* fieldName, const std::string& ownerLabel)
 {
   if(hasCallback(container, fieldName))
   {
@@ -182,9 +176,9 @@ double getScalar(const inlet::Container &container,
  * \return the resolved string value
  * \throws KleeError if callback evaluation fails
  */
-std::string getString(const inlet::Container &container,
-                      char const *fieldName,
-                      const std::string &ownerLabel)
+std::string getString(const inlet::Container& container,
+                      char const* fieldName,
+                      const std::string& ownerLabel)
 {
   if(hasCallback(container, fieldName))
   {
@@ -201,7 +195,7 @@ std::string getString(const inlet::Container &container,
  * \param value the callback vector
  * \return the active components of \a value
  */
-std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vector &value)
+std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vector& value)
 {
   std::vector<double> result;
   result.reserve(value.dim);
@@ -222,10 +216,10 @@ std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vect
  * \return the resolved vector components
  * \throws KleeError if callback evaluation or dimension validation fails
  */
-std::vector<double> getDoubleVector(const inlet::Container &container,
-                                    char const *fieldName,
+std::vector<double> getDoubleVector(const inlet::Container& container,
+                                    char const* fieldName,
                                     Dimensions expectedDims,
-                                    const std::string &ownerLabel)
+                                    const std::string& ownerLabel)
 {
   if(hasCallback(container, fieldName))
   {
@@ -237,15 +231,14 @@ std::vector<double> getDoubleVector(const inlet::Container &container,
     auto expectedSize = static_cast<std::size_t>(expectedDims);
     if(actualSize != expectedSize)
     {
-      throw KleeError(
-        {fieldPath(container, fieldName),
-         fieldMessage(container,
-                      fieldName,
-                      ownerLabel,
-                      fmt::format("Wrong size for {}. Expected {}. Got {}.",
-                                  fieldName,
-                                  expectedSize,
-                                  actualSize))});
+      throw KleeError({fieldPath(container, fieldName),
+                       fieldMessage(container,
+                                    fieldName,
+                                    ownerLabel,
+                                    fmt::format("Wrong size for {}. Expected {}. Got {}.",
+                                                fieldName,
+                                                expectedSize,
+                                                actualSize))});
     }
     return values;
   }
@@ -263,10 +256,10 @@ std::vector<double> getDoubleVector(const inlet::Container &container,
  * \return the resolved value converted to \a T
  */
 template <typename T>
-T toArrayLike(const inlet::Container &parent,
-              char const *fieldName,
+T toArrayLike(const inlet::Container& parent,
+              char const* fieldName,
               Dimensions expectedDims,
-              const std::string &ownerLabel)
+              const std::string& ownerLabel)
 {
   auto values = getDoubleVector(parent, fieldName, expectedDims, ownerLabel);
   return T {values.data(), static_cast<int>(expectedDims)};
@@ -284,11 +277,11 @@ T toArrayLike(const inlet::Container &parent,
  * \return the resolved value, or \a defaultValue when absent
  */
 template <typename T>
-T toArrayLike(const inlet::Container &parent,
-              char const *fieldName,
+T toArrayLike(const inlet::Container& parent,
+              char const* fieldName,
               Dimensions expectedDims,
-              const T &defaultValue,
-              const std::string &ownerLabel)
+              const T& defaultValue,
+              const std::string& ownerLabel)
 {
   if(containsFieldOrCallback(parent, fieldName))
   {
@@ -306,10 +299,10 @@ T toArrayLike(const inlet::Container &parent,
  * \param ownerLabel description of the owning shape or named operator
  * \return the resolved point
  */
-Point3D getPoint(const inlet::Container &parent,
-                 char const *fieldName,
+Point3D getPoint(const inlet::Container& parent,
+                 char const* fieldName,
                  Dimensions expectedDims,
-                 const std::string &ownerLabel)
+                 const std::string& ownerLabel)
 {
   return toArrayLike<Point3D>(parent, fieldName, expectedDims, ownerLabel);
 }
@@ -324,11 +317,11 @@ Point3D getPoint(const inlet::Container &parent,
  * \param ownerLabel description of the owning shape or named operator
  * \return the resolved point, or \a defaultValue when absent
  */
-Point3D getPoint(const inlet::Container &parent,
-                 char const *fieldName,
+Point3D getPoint(const inlet::Container& parent,
+                 char const* fieldName,
                  Dimensions expectedDims,
-                 const Point3D &defaultValue,
-                 const std::string &ownerLabel)
+                 const Point3D& defaultValue,
+                 const std::string& ownerLabel)
 {
   return toArrayLike(parent, fieldName, expectedDims, defaultValue, ownerLabel);
 }
@@ -342,10 +335,10 @@ Point3D getPoint(const inlet::Container &parent,
  * \param ownerLabel description of the owning shape or named operator
  * \return the resolved vector
  */
-Vector3D getVector(const inlet::Container &parent,
-                   char const *fieldName,
+Vector3D getVector(const inlet::Container& parent,
+                   char const* fieldName,
                    Dimensions expectedDims,
-                   const std::string &ownerLabel)
+                   const std::string& ownerLabel)
 {
   return toArrayLike<Vector3D>(parent, fieldName, expectedDims, ownerLabel);
 }
@@ -360,11 +353,11 @@ Vector3D getVector(const inlet::Container &parent,
  * \param ownerLabel description of the owning shape or named operator
  * \return the resolved vector, or \a defaultValue when absent
  */
-Vector3D getVector(const inlet::Container &parent,
-                   char const *fieldName,
+Vector3D getVector(const inlet::Container& parent,
+                   char const* fieldName,
                    Dimensions expectedDims,
-                   const Vector3D &defaultValue,
-                   const std::string &ownerLabel)
+                   const Vector3D& defaultValue,
+                   const std::string& ownerLabel)
 {
   return toArrayLike(parent, fieldName, expectedDims, defaultValue, ownerLabel);
 }
@@ -398,7 +391,7 @@ std::unordered_set<std::string> getChildNames(const inlet::Container& container)
     }
   }
 
-  for(const auto &name : container.getFunctionValueAlternativeNames())
+  for(const auto& name : container.getFunctionValueAlternativeNames())
   {
     allChildren.insert(name);
   }
@@ -477,9 +470,9 @@ void verifyObjectFields(const inlet::Container& containerToTest,
  * \return the created operator
  * \throws KleeError if the operator fields or vector dimensions are invalid
  */
-OpPtr parseTranslate(const inlet::Container &opContainer,
-                     const TransformableGeometryProperties &startProperties,
-                     const std::string &ownerLabel)
+OpPtr parseTranslate(const inlet::Container& opContainer,
+                     const TransformableGeometryProperties& startProperties,
+                     const std::string& ownerLabel)
 {
   verifyObjectFields(opContainer, "translate", FieldSet {}, FieldSet {});
   return std::make_shared<Translation>(
@@ -496,9 +489,9 @@ OpPtr parseTranslate(const inlet::Container &opContainer,
  * \return the created operator
  * \throws KleeError if the rotation is invalid for the start dimensions or operator fields
  */
-OpPtr parseRotate(const inlet::Container &opContainer,
-                  const TransformableGeometryProperties &startProperties,
-                  const std::string &ownerLabel)
+OpPtr parseRotate(const inlet::Container& opContainer,
+                  const TransformableGeometryProperties& startProperties,
+                  const std::string& ownerLabel)
 {
   switch(startProperties.dimensions)
   {
@@ -506,8 +499,7 @@ OpPtr parseRotate(const inlet::Container &opContainer,
   {
     verifyObjectFields(opContainer, "rotate", FieldSet {}, {"center"});
     auto angle = getScalar(opContainer, "rotate", ownerLabel);
-    auto center =
-      getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, ownerLabel);
+    auto center = getPoint(opContainer, "center", Dimensions::Two, Point3D {0, 0, 0}, ownerLabel);
     Vector3D axis {0, 0, 1};
     return std::make_shared<Rotation>(angle, center, axis, startProperties);
   }
@@ -516,8 +508,7 @@ OpPtr parseRotate(const inlet::Container &opContainer,
   {
     verifyObjectFields(opContainer, "rotate", {"axis"}, {"center"});
     auto angle = getScalar(opContainer, "rotate", ownerLabel);
-    auto center =
-      getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, ownerLabel);
+    auto center = getPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}, ownerLabel);
     auto axis = getVector(opContainer, "axis", Dimensions::Three, ownerLabel);
     if(axis.is_zero())
     {
@@ -551,26 +542,25 @@ OpPtr parseRotate(const inlet::Container &opContainer,
 OpPtr makeCheckedSlice(Point3D origin,
                        Vector3D normal,
                        Vector3D up,
-                       const TransformableGeometryProperties &startProperties,
-                       const inlet::Container &sliceContainer,
-                       const std::string &ownerLabel)
+                       const TransformableGeometryProperties& startProperties,
+                       const inlet::Container& sliceContainer,
+                       const std::string& ownerLabel)
 {
   if(normal.is_zero())
   {
-    throw KleeError(
-      {Path {sliceContainer.name()},
-       fieldMessage(sliceContainer,
-                    "normal",
-                    ownerLabel,
-                    "The 'normal' vector must not be a zero vector")});
+    throw KleeError({Path {sliceContainer.name()},
+                     fieldMessage(sliceContainer,
+                                  "normal",
+                                  ownerLabel,
+                                  "The 'normal' vector must not be a zero vector")});
   }
   if(!utilities::isNearlyEqual(normal.dot(up), 0.))
   {
     // Either vector may have come from a callback; report the first one that did
     const std::string message = "The 'normal' and 'up' vectors must be perpendicular";
-    char const *reported = hasCallback(sliceContainer, "up") ? "up" : "normal";
-    throw KleeError({Path {sliceContainer.name()},
-                     fieldMessage(sliceContainer, reported, ownerLabel, message)});
+    char const* reported = hasCallback(sliceContainer, "up") ? "up" : "normal";
+    throw KleeError(
+      {Path {sliceContainer.name()}, fieldMessage(sliceContainer, reported, ownerLabel, message)});
   }
   return std::make_shared<SliceOperator>(origin, normal, up, startProperties);
 }
@@ -585,10 +575,10 @@ OpPtr makeCheckedSlice(Point3D origin,
  * \return the point to use as the origin
  * \throws KleeError if the specified origin is not on the slice plane
  */
-primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContainer,
-                                            char const *planeName,
-                                            const primal::Vector3D &defaultNormal,
-                                            const std::string &ownerLabel)
+primal::Point3D getPerpendicularSliceOrigin(const inlet::Container& sliceContainer,
+                                            char const* planeName,
+                                            const primal::Vector3D& defaultNormal,
+                                            const std::string& ownerLabel)
 {
   double axisIntercept = getScalar(sliceContainer, planeName, ownerLabel);
 
@@ -611,11 +601,9 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
   primal::Point3D givenOrigin = getPoint(sliceContainer, "origin", Dimensions::Three, ownerLabel);
   if(givenOrigin[nonZeroIndex] != axisIntercept)
   {
-    throw KleeError({Path {sliceContainer["origin"].name()},
-                     fieldMessage(sliceContainer,
-                                  "origin",
-                                  ownerLabel,
-                                  "The origin must be on the slice plane")});
+    throw KleeError(
+      {Path {sliceContainer["origin"].name()},
+       fieldMessage(sliceContainer, "origin", ownerLabel, "The origin must be on the slice plane")});
   }
   return givenOrigin;
 }
@@ -629,9 +617,9 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
  * \return the vector to use as the normal
  * \throws KleeError if the specified normal is not parallel to the slice plane normal
  */
-primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContainer,
-                                             const primal::Vector3D &defaultNormal,
-                                             const std::string &ownerLabel)
+primal::Vector3D getPerpendicularSliceNormal(const inlet::Container& sliceContainer,
+                                             const primal::Vector3D& defaultNormal,
+                                             const std::string& ownerLabel)
 {
   if(!containsFieldOrCallback(sliceContainer, "normal"))
   {
@@ -643,9 +631,8 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
   bool parallel = cross.is_zero();
   if(!parallel)
   {
-    throw KleeError(
-      {Path {sliceContainer["normal"].name()},
-       fieldMessage(sliceContainer, "normal", ownerLabel, "Invalid normal")});
+    throw KleeError({Path {sliceContainer["normal"].name()},
+                     fieldMessage(sliceContainer, "normal", ownerLabel, "Invalid normal")});
   }
   return givenNormal;
 }
@@ -662,12 +649,12 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
  * \return the parsed plane
  * \throws KleeError if the slice fields or values are invalid
  */
-OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
-                             char const *planeName,
-                             Vector3D const &defaultNormal,
-                             Vector3D const &defaultUp,
-                             const TransformableGeometryProperties &startProperties,
-                             const std::string &ownerLabel)
+OpPtr readPerpendicularSlice(const inlet::Container& sliceContainer,
+                             char const* planeName,
+                             Vector3D const& defaultNormal,
+                             Vector3D const& defaultUp,
+                             const TransformableGeometryProperties& startProperties,
+                             const std::string& ownerLabel)
 {
   verifyObjectFields(sliceContainer, planeName, FieldSet {}, {"origin", "normal", "up"});
   const primal::Vector3D defaultNormalVec {defaultNormal.data()};
@@ -688,42 +675,27 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
  * \return the created operator
  * \throws KleeError if the slice fields or values are invalid
  */
-OpPtr parseSlice(const inlet::Container &opContainer,
-                 const TransformableGeometryProperties &startProperties,
-                 const std::string &ownerLabel)
+OpPtr parseSlice(const inlet::Container& opContainer,
+                 const TransformableGeometryProperties& startProperties,
+                 const std::string& ownerLabel)
 {
   if(startProperties.dimensions != Dimensions::Three)
   {
     throw KleeError({opContainer.name(), "Cannot do a slice from 2D"});
   }
   verifyObjectFields(opContainer, "slice", FieldSet {}, FieldSet {});
-  auto &sliceContainer = *opContainer.getChildContainers().at(opContainer.name() + "/slice").get();
+  auto& sliceContainer = *opContainer.getChildContainers().at(opContainer.name() + "/slice").get();
   if(containsFieldOrCallback(sliceContainer, "x"))
   {
-    return readPerpendicularSlice(sliceContainer,
-                                  "x",
-                                  {1, 0, 0},
-                                  {0, 0, 1},
-                                  startProperties,
-                                  ownerLabel);
+    return readPerpendicularSlice(sliceContainer, "x", {1, 0, 0}, {0, 0, 1}, startProperties, ownerLabel);
   }
   else if(containsFieldOrCallback(sliceContainer, "y"))
   {
-    return readPerpendicularSlice(sliceContainer,
-                                  "y",
-                                  {0, 1, 0},
-                                  {1, 0, 0},
-                                  startProperties,
-                                  ownerLabel);
+    return readPerpendicularSlice(sliceContainer, "y", {0, 1, 0}, {1, 0, 0}, startProperties, ownerLabel);
   }
   else if(containsFieldOrCallback(sliceContainer, "z"))
   {
-    return readPerpendicularSlice(sliceContainer,
-                                  "z",
-                                  {0, 0, 1},
-                                  {0, 1, 0},
-                                  startProperties,
-                                  ownerLabel);
+    return readPerpendicularSlice(sliceContainer, "z", {0, 0, 1}, {0, 1, 0}, startProperties, ownerLabel);
   }
 
   verifyObjectFields(sliceContainer, "origin", {"normal", "up"}, FieldSet {});
@@ -743,9 +715,9 @@ OpPtr parseSlice(const inlet::Container &opContainer,
  * \return the created operator
  * \throws KleeError if the scale fields or vector dimensions are invalid
  */
-OpPtr parseScale(const inlet::Container &opContainer,
-                 const TransformableGeometryProperties &startProperties,
-                 const std::string &ownerLabel)
+OpPtr parseScale(const inlet::Container& opContainer,
+                 const TransformableGeometryProperties& startProperties,
+                 const std::string& ownerLabel)
 {
   verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {"center"});
   auto factors = hasCallback(opContainer, "scale")
@@ -768,12 +740,11 @@ OpPtr parseScale(const inlet::Container &opContainer,
     {
       throw KleeError(
         {fieldPath(opContainer, "scale"),
-         fieldMessage(opContainer,
-                      "scale",
-                      ownerLabel,
-                      fmt::format("Wrong size for scale. Expected {}. Got {}.",
-                                  expectedSize,
-                                  actualSize))});
+         fieldMessage(
+           opContainer,
+           "scale",
+           ownerLabel,
+           fmt::format("Wrong size for scale. Expected {}. Got {}.", expectedSize, actualSize))});
     }
   }
   else if(!isUniform)
@@ -788,21 +759,13 @@ OpPtr parseScale(const inlet::Container &opContainer,
   Point3D center {0., 0., 0.};
   if(containsFieldOrCallback(opContainer, "center"))
   {
-    center = getPoint(opContainer,
-                      "center",
-                      startProperties.dimensions,
-                      Point3D {0, 0, 0},
-                      ownerLabel);
+    center =
+      getPoint(opContainer, "center", startProperties.dimensions, Point3D {0, 0, 0}, ownerLabel);
   }
 
   if(isUniform)
   {
-    return std::make_shared<Scale>(
-      factors[0],
-      factors[0],
-      factors[0],
-      center,
-      startProperties);
+    return std::make_shared<Scale>(factors[0], factors[0], factors[0], center, startProperties);
   }
 
   return std::make_shared<Scale>(factors[0], factors[1], factors[2], center, startProperties);
@@ -817,9 +780,9 @@ OpPtr parseScale(const inlet::Container &opContainer,
  * \return the created operator
  * \throws KleeError if the unit string or operator fields are invalid
  */
-OpPtr parseConvertUnits(const inlet::Container &opContainer,
-                        const TransformableGeometryProperties &startProperties,
-                        const std::string &ownerLabel)
+OpPtr parseConvertUnits(const inlet::Container& opContainer,
+                        const TransformableGeometryProperties& startProperties,
+                        const std::string& ownerLabel)
 {
   verifyObjectFields(opContainer, "convert_units_to", FieldSet {}, FieldSet {});
   const auto unitName = getString(opContainer, "convert_units_to", ownerLabel);
@@ -829,14 +792,13 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
   {
     endUnits = internal::parseLengthUnits(unitName, static_cast<std::string>(path));
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     if(!hasCallback(opContainer, "convert_units_to"))
     {
       throw;
     }
-    throw KleeError(
-      {path, fieldMessage(opContainer, "convert_units_to", ownerLabel, err.what())});
+    throw KleeError({path, fieldMessage(opContainer, "convert_units_to", ownerLabel, err.what())});
   }
   return std::make_shared<UnitConverter>(endUnits, startProperties);
 }
@@ -851,10 +813,10 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
  * \return the created operator
  * \throws KleeError if the reference is missing or the operator fields are invalid
  */
-OpPtr parseRef(const inlet::Container &opContainer,
-               const TransformableGeometryProperties &startProperties,
-               const NamedOperatorMap &namedOperators,
-               const std::string &ownerLabel)
+OpPtr parseRef(const inlet::Container& opContainer,
+               const TransformableGeometryProperties& startProperties,
+               const NamedOperatorMap& namedOperators,
+               const std::string& ownerLabel)
 {
   verifyObjectFields(opContainer, "ref", FieldSet {}, FieldSet {});
   const auto operatorName = getString(opContainer, "ref", ownerLabel);
@@ -862,8 +824,8 @@ OpPtr parseRef(const inlet::Container &opContainer,
   if(opIter == namedOperators.end())
   {
     const auto message = axom::fmt::format("No operator named '{}'", operatorName);
-    throw KleeError({fieldPath(opContainer, "ref"),
-                     fieldMessage(opContainer, "ref", ownerLabel, message)});
+    throw KleeError(
+      {fieldPath(opContainer, "ref"), fieldMessage(opContainer, "ref", ownerLabel, message)});
   }
   auto referencedOperator = opIter->second;
   bool startUnitsMatch = startProperties.units == referencedOperator->getStartProperties().units;
@@ -902,8 +864,8 @@ OpPtr parseRef(const inlet::Container &opContainer,
  */
 OpPtr convertOperator(SingleOperatorData const& data,
                       TransformableGeometryProperties startProperties,
-                      const NamedOperatorMap &namedOperators,
-                      const std::string &ownerLabel)
+                      const NamedOperatorMap& namedOperators,
+                      const std::string& ownerLabel)
 {
   std::unordered_map<std::string, OperatorParser> parsers {
     {"translate", parseTranslate},
@@ -912,9 +874,9 @@ OpPtr convertOperator(SingleOperatorData const& data,
     {"scale", parseScale},
     {"convert_units_to", parseConvertUnits},
     {"ref",
-     [&namedOperators](const inlet::Container &opContainer,
-                       const TransformableGeometryProperties &startProperties,
-                       const std::string &ownerLabel) {
+     [&namedOperators](const inlet::Container& opContainer,
+                       const TransformableGeometryProperties& startProperties,
+                       const std::string& ownerLabel) {
        return parseRef(opContainer, startProperties, namedOperators, ownerLabel);
      }},
   };
@@ -932,7 +894,7 @@ OpPtr convertOperator(SingleOperatorData const& data,
   if(!childNames.empty())
   {
     message += ". Found parameters:";
-    for(const auto &name : childNames)
+    for(const auto& name : childNames)
     {
       message += " ";
       message += name;
@@ -954,17 +916,17 @@ GeometryOperatorData::GeometryOperatorData(const Path& path,
   , m_singleOperatorData {std::move(singleOperatorData)}
 { }
 
-inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
-                                                     const std::string &fieldName,
-                                                     const std::string &description,
+inlet::Container& GeometryOperatorData::defineSchema(inlet::Container& parent,
+                                                     const std::string& fieldName,
+                                                     const std::string& description,
                                                      bool enableLuaCallbacks)
 {
-  auto &opContainer = parent.addStructArray(fieldName, description).strict();
+  auto& opContainer = parent.addStructArray(fieldName, description).strict();
 
   // A callback alternative must be declared before the concrete field it may
   // stand in for, so each pair is declared together.
-  const auto addCallback = [enableLuaCallbacks](inlet::Container &container,
-                                                const char *name,
+  const auto addCallback = [enableLuaCallbacks](inlet::Container& container,
+                                                const char* name,
                                                 inlet::FunctionTag returnType) {
     if(enableLuaCallbacks)
     {
@@ -988,7 +950,7 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
   addCallback(opContainer, "convert_units_to", inlet::FunctionTag::String);
   opContainer.addString("convert_units_to");
 
-  auto &slice = opContainer.addStruct("slice");
+  auto& slice = opContainer.addStruct("slice");
   addCallback(slice, "x", inlet::FunctionTag::Double);
   slice.addDouble("x");
   addCallback(slice, "y", inlet::FunctionTag::Double);
@@ -1008,9 +970,9 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
 }
 
 std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
-  const TransformableGeometryProperties &startProperties,
-  const NamedOperatorMap &namedOperators,
-  const std::string &ownerLabel) const
+  const TransformableGeometryProperties& startProperties,
+  const NamedOperatorMap& namedOperators,
+  const std::string& ownerLabel) const
 {
   if(m_singleOperatorData.empty())
   {
@@ -1030,7 +992,7 @@ std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
   return composite;
 }
 
-void NamedOperatorData::defineSchema(inlet::Container &container, bool enableLuaCallbacks)
+void NamedOperatorData::defineSchema(inlet::Container& container, bool enableLuaCallbacks)
 {
   container.addString("name").required();
   defineDimensionsField(container, "start_dimensions", "The initial dimensions of the operator");
@@ -1048,11 +1010,11 @@ NamedOperatorMapData::NamedOperatorMapData(std::vector<NamedOperatorData>&& oper
   : m_operatorData {operatorData}
 { }
 
-void NamedOperatorMapData::defineSchema(inlet::Container &parent,
-                                        const std::string &name,
+void NamedOperatorMapData::defineSchema(inlet::Container& parent,
+                                        const std::string& name,
                                         bool enableLuaCallbacks)
 {
-  auto &container = parent.addStructArray(name);
+  auto& container = parent.addStructArray(name);
   NamedOperatorData::defineSchema(container, enableLuaCallbacks);
 }
 

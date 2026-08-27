@@ -70,7 +70,7 @@ ShapeSet readShapeSetFromString(const std::string& input,
   return klee::readShapeSet(istream, format, options);
 }
 
-std::string makeLuaSliceCallbackInput(const std::string &sliceFields)
+std::string makeLuaSliceCallbackInput(const std::string& sliceFields)
 {
   std::ostringstream input;
   input << R"(
@@ -88,8 +88,8 @@ std::string makeLuaSliceCallbackInput(const std::string &sliceFields)
           operators = {
             {
               slice = {
-  )"
-        << sliceFields << R"(
+  )" << sliceFields
+        << R"(
               }
             }
           }
@@ -100,7 +100,7 @@ std::string makeLuaSliceCallbackInput(const std::string &sliceFields)
   return input.str();
 }
 
-std::string makeLuaRotationCallbackInput(const std::string &rotationFields)
+std::string makeLuaRotationCallbackInput(const std::string& rotationFields)
 {
   std::ostringstream input;
   input << R"(
@@ -115,8 +115,8 @@ std::string makeLuaRotationCallbackInput(const std::string &rotationFields)
           units = "cm",
           operators = {
             {
-  )"
-        << rotationFields << R"(
+  )" << rotationFields
+        << R"(
             }
           }
         }
@@ -126,8 +126,8 @@ std::string makeLuaRotationCallbackInput(const std::string &rotationFields)
   return input.str();
 }
 
-std::string makeLuaStringOperatorCallbackInput(const std::string &fieldName,
-                                               const std::string &returnExpression)
+std::string makeLuaStringOperatorCallbackInput(const std::string& fieldName,
+                                               const std::string& returnExpression)
 {
   std::ostringstream input;
   input << R"(
@@ -153,8 +153,8 @@ std::string makeLuaStringOperatorCallbackInput(const std::string &fieldName,
           units = "cm",
           operators = {
             {
-  )"
-        << fieldName << " = function() return " << returnExpression << R"( end
+  )" << fieldName
+        << " = function() return " << returnExpression << R"( end
             }
           }
         }
@@ -538,7 +538,7 @@ TEST(IOTest, readShapeSet_yamlRejectsLuaInitialization)
       dimensions = 2
     }
   )",
-                                      "runtime_initialization"};
+                                                   "runtime_initialization"};
 
   try
   {
@@ -659,7 +659,7 @@ TEST(IOTest, readShapeSet_luaInitializationProvidesDimensionAndOperator)
       enabled = true
     }
   )",
-                                            "runtime_initialization"};
+                                         "runtime_initialization"};
   LuaInputOptions options;
   options.initialization = initialization;
 
@@ -708,7 +708,7 @@ TEST(IOTest, readShapeSet_luaInitializationExportsMutableGlobals)
       }
     }
   )",
-                                            "runtime_initialization"};
+                                         "runtime_initialization"};
   LuaInputOptions options;
   options.initialization = initialization;
 
@@ -759,7 +759,7 @@ TEST(IOTest, readShapeSet_luaInitializationIsolatesUnexportedGlobals)
       exported_lift = 4.0
     }
   )",
-                                            "runtime_initialization"};
+                                         "runtime_initialization"};
   LuaInputOptions options;
   options.initialization = initialization;
 
@@ -806,8 +806,7 @@ TEST(IOTest, readShapeSet_luaInitializationCannotSetSchemaGlobalsWithoutExportin
     LuaInitializationChunk initialization {std::string {source}, "runtime_initialization"};
     LuaInputOptions options;
     options.initialization = initialization;
-    EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, options),
-                 KleeError);
+    EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, options), KleeError);
   }
 }
 
@@ -866,7 +865,7 @@ TEST(IOTest, readShapeSet_luaInitializationPreservesLuaInteger)
       exact_integer = 9007199254740993
     }
   )",
-                                                        "integer_initialization"};
+                                                   "integer_initialization"};
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 2
@@ -897,7 +896,7 @@ TEST(IOTest, readShapeSet_luaInitializationIsolationIsShallow)
     math.initialization_value = 4.0
     return {}
   )",
-                                                        "shallow_initialization"};
+                                                   "shallow_initialization"};
 
   auto shapeSet = readShapeSetFromString(R"(
     dimensions = 2
@@ -940,15 +939,11 @@ TEST(IOTest, readShapeSet_luaInitializationRejectsInvalidChunks)
   for(const auto& invalid : invalidInitializations)
   {
     LuaInputOptions options;
-    options.initialization =
-      LuaInitializationChunk {invalid.source, "invalid_initialization"};
+    options.initialization = LuaInitializationChunk {invalid.source, "invalid_initialization"};
 
     try
     {
-      readShapeSetFromString(
-        "dimensions = 2; shapes = {}",
-        InputFormat::Lua,
-        options);
+      readShapeSetFromString("dimensions = 2; shapes = {}", InputFormat::Lua, options);
       FAIL() << "Should have thrown";
     }
     catch(const KleeError& err)
@@ -967,7 +962,7 @@ TEST(IOTest, readShapeSet_luaInitializationRejectsInvalidExportName)
       ["shape-dim"] = 2
     }
   )",
-                                      "runtime_initialization"};
+                                                   "runtime_initialization"};
 
   try
   {
@@ -993,7 +988,7 @@ TEST(IOTest, readShapeSet_luaInitializationRejectsKeywordExport)
       ["function"] = 2
     }
   )",
-                                      "runtime_initialization"};
+                                                   "runtime_initialization"};
 
   try
   {
@@ -1015,7 +1010,7 @@ TEST(IOTest, readShapeSet_luaInitializationRejectsReservedGlobalName)
       math = 2
     }
   )",
-                                      "runtime_initialization"};
+                                                   "runtime_initialization"};
 
   try
   {
@@ -1036,8 +1031,7 @@ TEST(IOTest, readShapeSet_luaInitializationRejectsReservedGlobalName)
 TEST(IOTest, readShapeSet_luaInitializationRequiresTableReturn)
 {
   LuaInputOptions options;
-  options.initialization =
-    LuaInitializationChunk {"return 2", "runtime_initialization"};
+  options.initialization = LuaInitializationChunk {"return 2", "runtime_initialization"};
 
   try
   {
@@ -1316,8 +1310,7 @@ TEST(IOTest, readShapeSet_luaNamedOperatorCallbackIsEvaluatedOnceAndReused)
     std::dynamic_pointer_cast<const CompositeOperator>(firstComposite->getOperators()[0]);
   ASSERT_TRUE(sharedOperator);
   ASSERT_EQ(1u, sharedOperator->getOperators().size());
-  auto translation =
-    std::dynamic_pointer_cast<const Translation>(sharedOperator->getOperators()[0]);
+  auto translation = std::dynamic_pointer_cast<const Translation>(sharedOperator->getOperators()[0]);
   ASSERT_TRUE(translation);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1, 2, 0}));
 }
@@ -1466,7 +1459,7 @@ TEST(IOTest, readShapeSet_luaNamedOperatorCallbackErrorIncludesContext)
                            InputFormat::Lua);
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("translate"));
     EXPECT_THAT(err.what(), HasSubstr("named operator"));
@@ -1739,12 +1732,10 @@ TEST(IOTest, readShapeSet_luaStringOperatorCallbacks)
   EXPECT_EQ(LengthUnit::m, converter->getStartProperties().units);
   EXPECT_EQ(LengthUnit::cm, converter->getEndProperties().units);
 
-  auto referenced =
-    std::dynamic_pointer_cast<const CompositeOperator>(composite->getOperators()[1]);
+  auto referenced = std::dynamic_pointer_cast<const CompositeOperator>(composite->getOperators()[1]);
   ASSERT_TRUE(referenced);
   ASSERT_EQ(1u, referenced->getOperators().size());
-  auto translation =
-    std::dynamic_pointer_cast<const Translation>(referenced->getOperators()[0]);
+  auto translation = std::dynamic_pointer_cast<const Translation>(referenced->getOperators()[0]);
   ASSERT_TRUE(translation);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1, 2, 0}));
 }
@@ -1753,9 +1744,9 @@ TEST(IOTest, readShapeSet_luaStringOperatorCallbackErrorsIncludeContext)
 {
   struct FailureCase
   {
-    const char *field;
-    const char *returnExpression;
-    const char *expectedMessage;
+    const char* field;
+    const char* returnExpression;
+    const char* expectedMessage;
   };
   const std::array<FailureCase, 4> cases {{
     {"convert_units_to", "{}", "function call"},
@@ -1764,7 +1755,7 @@ TEST(IOTest, readShapeSet_luaStringOperatorCallbackErrorsIncludeContext)
     {"ref", "\"missing_operator\"", "No operator named"},
   }};
 
-  for(const auto &testCase : cases)
+  for(const auto& testCase : cases)
   {
     SCOPED_TRACE(testCase.expectedMessage);
     try
@@ -1774,10 +1765,9 @@ TEST(IOTest, readShapeSet_luaStringOperatorCallbackErrorsIncludeContext)
         InputFormat::Lua);
       FAIL() << "Should have thrown";
     }
-    catch(const KleeError &err)
+    catch(const KleeError& err)
     {
-      EXPECT_THAT(err.what(),
-                  HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
       EXPECT_THAT(err.what(), HasSubstr("string_callback"));
       EXPECT_THAT(err.what(), HasSubstr("operator 1"));
       EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
@@ -1859,7 +1849,7 @@ TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbacks)
 
 TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbackWrongTypeIncludesContext)
 {
-  for(const char *axis : {"x", "y", "z"})
+  for(const char* axis : {"x", "y", "z"})
   {
     SCOPED_TRACE(axis);
     const auto sliceFields = std::string {axis} + " = function() return {1} end";
@@ -1868,7 +1858,7 @@ TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbackWrongTypeIncludesContext)
       readShapeSetFromString(makeLuaSliceCallbackInput(sliceFields), InputFormat::Lua);
       FAIL() << "Should have thrown";
     }
-    catch(const KleeError &err)
+    catch(const KleeError& err)
     {
       EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + axis + "'"));
       EXPECT_THAT(err.what(), HasSubstr("slice_callback"));
@@ -1881,9 +1871,9 @@ TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbacksAreValidated)
 {
   struct ValidationCase
   {
-    const char *field;
-    const char *returnValue;
-    const char *expectedMessage;
+    const char* field;
+    const char* returnValue;
+    const char* expectedMessage;
   };
   const std::array<ValidationCase, 3> cases {{
     {"origin", "{20, 0, 0}", "slice plane"},
@@ -1891,21 +1881,19 @@ TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbacksAreValidated)
     {"up", "{1, 0, 0}", "perpendicular"},
   }};
 
-  for(const auto &testCase : cases)
+  for(const auto& testCase : cases)
   {
     SCOPED_TRACE(testCase.field);
-    const auto sliceFields =
-      std::string {"x = function() return 10 end, "} + testCase.field +
+    const auto sliceFields = std::string {"x = function() return 10 end, "} + testCase.field +
       " = function() return " + testCase.returnValue + " end";
     try
     {
       readShapeSetFromString(makeLuaSliceCallbackInput(sliceFields), InputFormat::Lua);
       FAIL() << "Should have thrown";
     }
-    catch(const KleeError &err)
+    catch(const KleeError& err)
     {
-      EXPECT_THAT(err.what(),
-                  HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
       EXPECT_THAT(err.what(), HasSubstr("shape 'slice_callback'"));
       EXPECT_THAT(err.what(), HasSubstr("operator 1"));
       EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
@@ -1917,9 +1905,9 @@ TEST(IOTest, readShapeSet_luaArbitrarySliceCallbackValidationErrorsIncludeContex
 {
   struct ValidationCase
   {
-    const char *field;
-    const char *sliceFields;
-    const char *expectedMessage;
+    const char* field;
+    const char* sliceFields;
+    const char* expectedMessage;
   };
   const std::array<ValidationCase, 2> cases {{
     {"normal",
@@ -1934,7 +1922,7 @@ TEST(IOTest, readShapeSet_luaArbitrarySliceCallbackValidationErrorsIncludeContex
      "perpendicular"},
   }};
 
-  for(const auto &testCase : cases)
+  for(const auto& testCase : cases)
   {
     SCOPED_TRACE(testCase.field);
     try
@@ -1942,10 +1930,9 @@ TEST(IOTest, readShapeSet_luaArbitrarySliceCallbackValidationErrorsIncludeContex
       readShapeSetFromString(makeLuaSliceCallbackInput(testCase.sliceFields), InputFormat::Lua);
       FAIL() << "Should have thrown";
     }
-    catch(const KleeError &err)
+    catch(const KleeError& err)
     {
-      EXPECT_THAT(err.what(),
-                  HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
       EXPECT_THAT(err.what(), HasSubstr("shape 'slice_callback'"));
       EXPECT_THAT(err.what(), HasSubstr("operator 1"));
       EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
@@ -1957,20 +1944,18 @@ TEST(IOTest, readShapeSet_luaRotationCallbacksAreValidated)
 {
   struct ValidationCase
   {
-    const char *fields;
-    const char *field;
-    const char *expectedMessage;
+    const char* fields;
+    const char* field;
+    const char* expectedMessage;
   };
   const std::array<ValidationCase, 4> cases {{
     {"rotate = function() return {45} end, axis = {0, 0, 1}", "rotate", "function call"},
     {"rotate = 45, axis = function() return {0, 1} end", "axis", "Wrong size"},
-    {"rotate = 45, axis = {0, 0, 1}, center = function() return {1, 2} end",
-     "center",
-     "Wrong size"},
+    {"rotate = 45, axis = {0, 0, 1}, center = function() return {1, 2} end", "center", "Wrong size"},
     {"rotate = 45, axis = function() return {0, 0, 0} end", "axis", "zero"},
   }};
 
-  for(const auto &testCase : cases)
+  for(const auto& testCase : cases)
   {
     SCOPED_TRACE(testCase.expectedMessage);
     try
@@ -1978,10 +1963,9 @@ TEST(IOTest, readShapeSet_luaRotationCallbacksAreValidated)
       readShapeSetFromString(makeLuaRotationCallbackInput(testCase.fields), InputFormat::Lua);
       FAIL() << "Should have thrown";
     }
-    catch(const KleeError &err)
+    catch(const KleeError& err)
     {
-      EXPECT_THAT(err.what(),
-                  HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
       EXPECT_THAT(err.what(), HasSubstr("rotation_callback"));
       EXPECT_THAT(err.what(), HasSubstr("operator 1"));
       EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));

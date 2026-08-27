@@ -36,8 +36,8 @@ namespace klee
 {
 namespace
 {
-bool isLuaKeyword(const std::string &name);
-bool isLuaIdentifier(const std::string &name);
+bool isLuaKeyword(const std::string& name);
+bool isLuaIdentifier(const std::string& name);
 
 #ifdef AXOM_USE_LUA
 class KleeLuaReader : public inlet::LuaReader
@@ -52,7 +52,7 @@ public:
   {
     std::unordered_set<std::string> names;
     auto lua = solState();
-    for(const auto &entry : lua->globals())
+    for(const auto& entry : lua->globals())
     {
       if(entry.first.get_type() == axom::sol::type::string)
       {
@@ -71,18 +71,15 @@ public:
    * \throws KleeError if evaluation fails or the returned exports are invalid
    */
   std::unordered_set<std::string> applyInitializationChunk(
-    const LuaInitializationChunk &initialization,
-    const std::unordered_set<std::string> &reservedNames)
+    const LuaInitializationChunk& initialization,
+    const std::unordered_set<std::string>& reservedNames)
   {
     auto lua = solState();
     const std::string chunkName =
       initialization.label.empty() ? "<lua initialization>" : initialization.label;
     const auto chunkPath = Path {chunkName};
-    const auto chunkMessage = [&](const std::string &message) {
-      return axom::fmt::format(
-        "Klee Lua initialization chunk '{}': {}",
-        chunkName,
-        message);
+    const auto chunkMessage = [&](const std::string& message) {
+      return axom::fmt::format("Klee Lua initialization chunk '{}': {}", chunkName, message);
     };
     if(initialization.source.empty())
     {
@@ -94,32 +91,24 @@ public:
       // Evaluate initialization in its own environment so assignments made by the
       // chunk do not mutate the input file's globals. The fallback keeps
       // preloaded libraries and caller-provided initial globals visible.
-      axom::sol::environment initializationEnvironment {
-        *lua,
-        axom::sol::create,
-        lua->globals()};
+      axom::sol::environment initializationEnvironment {*lua, axom::sol::create, lua->globals()};
       initializationEnvironment["_G"] = initializationEnvironment;
       auto result = lua->script(initialization.source, initializationEnvironment);
       if(!result.valid())
       {
         axom::sol::error err = result;
         throw KleeError(
-          {chunkPath,
-           chunkMessage(axom::fmt::format("Failed to evaluate chunk: {}", err.what()))});
+          {chunkPath, chunkMessage(axom::fmt::format("Failed to evaluate chunk: {}", err.what()))});
       }
 
       axom::sol::optional<axom::sol::table> tableOption = result;
       if(!tableOption)
       {
-        throw KleeError(
-          {chunkPath,
-           chunkMessage("Chunk must return a table of exported globals.")});
+        throw KleeError({chunkPath, chunkMessage("Chunk must return a table of exported globals.")});
       }
 
       std::unordered_set<std::string> exportedNames;
-      auto exportPath = [&](const std::string &name) {
-        return Path::join({chunkPath, Path {name}});
-      };
+      auto exportPath = [&](const std::string& name) { return Path::join({chunkPath, Path {name}}); };
       auto typeName = [](axom::sol::type type) {
         switch(type)
         {
@@ -140,13 +129,11 @@ public:
         }
       };
 
-      for(const auto &entry : tableOption.value())
+      for(const auto& entry : tableOption.value())
       {
         if(entry.first.get_type() != axom::sol::type::string)
         {
-          throw KleeError(
-            {chunkPath,
-             chunkMessage("Export table must contain only string keys.")});
+          throw KleeError({chunkPath, chunkMessage("Export table must contain only string keys.")});
         }
 
         const std::string name = entry.first.as<std::string>();
@@ -157,18 +144,15 @@ public:
             : "Exported global names must be Lua identifiers.";
           throw KleeError(
             {exportPath(name),
-             chunkMessage(axom::fmt::format(
-               "Invalid exported Lua global name '{}'. {}",
-               name,
-               reason))});
+             chunkMessage(
+               axom::fmt::format("Invalid exported Lua global name '{}'. {}", name, reason))});
         }
         if(reservedNames.find(name) != reservedNames.end())
         {
-          throw KleeError(
-            {exportPath(name),
-             chunkMessage(axom::fmt::format(
-               "Exported Lua global name '{}' conflicts with an existing Lua global.",
-               name))});
+          throw KleeError({exportPath(name),
+                           chunkMessage(axom::fmt::format(
+                             "Exported Lua global name '{}' conflicts with an existing Lua global.",
+                             name))});
         }
         switch(entry.second.get_type())
         {
@@ -179,14 +163,13 @@ public:
         case axom::sol::type::table:
           break;
         default:
-          throw KleeError(
-            {exportPath(name),
-             chunkMessage(axom::fmt::format(
-               "Exported Lua global '{}' has unsupported value type '{}'. "
-               "Supported exported global value types are booleans, numbers, "
-               "strings, tables, and functions.",
-               name,
-               typeName(entry.second.get_type())))});
+          throw KleeError({exportPath(name),
+                           chunkMessage(axom::fmt::format(
+                             "Exported Lua global '{}' has unsupported value type '{}'. "
+                             "Supported exported global value types are booleans, numbers, "
+                             "strings, tables, and functions.",
+                             name,
+                             typeName(entry.second.get_type())))});
         }
 
         // Preserve the original Lua representation. In particular, copying a
@@ -197,15 +180,14 @@ public:
 
       return exportedNames;
     }
-    catch(const KleeError &)
+    catch(const KleeError&)
     {
       throw;
     }
-    catch(const std::exception &ex)
+    catch(const std::exception& ex)
     {
       throw KleeError(
-        {chunkPath,
-         chunkMessage(axom::fmt::format("Failed to evaluate chunk: {}", ex.what()))});
+        {chunkPath, chunkMessage(axom::fmt::format("Failed to evaluate chunk: {}", ex.what()))});
     }
   }
 };
@@ -294,7 +276,7 @@ namespace
  * @param geometry the Container representing a "geometry" object.
  * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
  */
-void defineGeometry(inlet::Container &geometry, bool enableLuaCallbacks)
+void defineGeometry(inlet::Container& geometry, bool enableLuaCallbacks)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
@@ -325,7 +307,7 @@ void defineGeometry(inlet::Container &geometry, bool enableLuaCallbacks)
  * @param document the Inlet document for which to define the schema
  * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
  */
-void defineShapeList(inlet::Inlet &document, bool enableLuaCallbacks)
+void defineShapeList(inlet::Inlet& document, bool enableLuaCallbacks)
 {
   inlet::Container& shapeList = document.addStructArray("shapes", "The list of shapes");
 
@@ -374,7 +356,7 @@ void defineShapeList(inlet::Inlet &document, bool enableLuaCallbacks)
  * @param document the Inlet document for which to define the schema
  * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
  */
-void defineKleeSchema(inlet::Inlet &document, bool enableLuaCallbacks)
+void defineKleeSchema(inlet::Inlet& document, bool enableLuaCallbacks)
 {
   internal::defineDimensionsField(document.getGlobalContainer(), "dimensions").required();
   defineShapeList(document, enableLuaCallbacks);
@@ -395,8 +377,8 @@ void defineKleeSchema(inlet::Inlet &document, bool enableLuaCallbacks)
  */
 Geometry convert(GeometryData const& data,
                  Dimensions fileDimensions,
-                 internal::NamedOperatorMap const &namedOperators,
-                 const std::string &shapeName)
+                 internal::NamedOperatorMap const& namedOperators,
+                 const std::string& shapeName)
 {
   const bool has_start_dims = data.startDimensions != Dimensions::Unspecified;
   const bool has_explicit_dims = data.explicitDimensions != Dimensions::Unspecified;
@@ -537,13 +519,12 @@ InputFormat inferInputFormat(const std::string& filePath)
  * \param name the candidate name
  * \return true when \a name is a Lua keyword
  */
-bool isLuaKeyword(const std::string &name)
+bool isLuaKeyword(const std::string& name)
 {
   static const std::unordered_set<std::string> keywords {
-    "and", "break", "do", "else", "elseif", "end", "false",
-    "for", "function", "goto", "if", "in", "local", "nil",
-    "not", "or", "repeat", "return", "then", "true", "until",
-    "while",
+    "and",      "break",  "do",   "else", "elseif", "end",   "false", "for",
+    "function", "goto",   "if",   "in",   "local",  "nil",   "not",   "or",
+    "repeat",   "return", "then", "true", "until",  "while",
   };
   return keywords.find(name) != keywords.end();
 }
@@ -554,7 +535,7 @@ bool isLuaKeyword(const std::string &name)
  * \param name the candidate name
  * \return true when \a name may be used as a Lua identifier
  */
-bool isLuaIdentifier(const std::string &name)
+bool isLuaIdentifier(const std::string& name)
 {
   if(name.empty())
   {
@@ -574,9 +555,9 @@ bool isLuaIdentifier(const std::string &name)
   {
     return false;
   }
-  return std::all_of(name.begin() + 1, name.end(), [&](char ch) {
-           return isNameChar(static_cast<unsigned char>(ch));
-         }) &&
+  return std::all_of(name.begin() + 1,
+                     name.end(),
+                     [&](char ch) { return isNameChar(static_cast<unsigned char>(ch)); }) &&
     !isLuaKeyword(name);
 }
 
@@ -591,14 +572,14 @@ bool isLuaIdentifier(const std::string &name)
  *         or the external Lua initialization is invalid for the selected format
  */
 std::unique_ptr<inlet::Reader> createReader(InputFormat format,
-                                            const LuaInputOptions &options,
-                                            std::unordered_set<std::string> &allowedGlobals)
+                                            const LuaInputOptions& options,
+                                            std::unordered_set<std::string>& allowedGlobals)
 {
   allowedGlobals.clear();
   if(format != InputFormat::Lua && options.initialization)
   {
-    throw KleeError({Path {"<unknown path>"},
-                     "Klee Lua initialization is only supported for Lua input decks."});
+    throw KleeError(
+      {Path {"<unknown path>"}, "Klee Lua initialization is only supported for Lua input decks."});
   }
 
   switch(format)
@@ -614,8 +595,8 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format,
       // Exported values are ordinary Lua globals installed before deck parsing.
       // allowedGlobals only prevents Klee's unexpected-global check from rejecting
       // those names; it does not make them read-only inside the deck.
-      allowedGlobals = reader->applyInitializationChunk(*options.initialization,
-                                                        reader->topLevelGlobalNames());
+      allowedGlobals =
+        reader->applyInitializationChunk(*options.initialization, reader->topLevelGlobalNames());
     }
     return reader;
   }
@@ -686,9 +667,9 @@ void parseOrThrow(Parse&& parse,
  * \param errors receives errors for unexpected globals
  * \param allowedGlobals caller-provided globals that are permitted in the deck
  */
-void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
-                                  std::vector<inlet::VerificationError> &errors,
-                                  const std::unordered_set<std::string> &allowedGlobals)
+void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
+                                  std::vector<inlet::VerificationError>& errors,
+                                  const std::unordered_set<std::string>& allowedGlobals)
 {
   for(const auto& name : doc.unexpectedNames())
   {
@@ -717,7 +698,7 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
  */
 ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader,
                                 InputFormat format,
-                                const std::unordered_set<std::string> &allowedGlobals)
+                                const std::unordered_set<std::string>& allowedGlobals)
 {
   const bool isLuaInput = format == InputFormat::Lua;
   sidre::DataStore dataStore;
@@ -757,9 +738,7 @@ ShapeSet readShapeSet(std::istream& stream, InputFormat format)
   return readShapeSet(stream, format, LuaInputOptions {});
 }
 
-ShapeSet readShapeSet(std::istream &stream,
-                      InputFormat format,
-                      const LuaInputOptions &options)
+ShapeSet readShapeSet(std::istream& stream, InputFormat format, const LuaInputOptions& options)
 {
   std::string contents {std::istreambuf_iterator<char>(stream), {}};
 
@@ -769,9 +748,7 @@ ShapeSet readShapeSet(std::istream &stream,
                format,
                Path {"<stream>"},
                "from stream");
-  return readShapeSetFromReader(std::move(reader),
-                                format,
-                                allowedGlobals);
+  return readShapeSetFromReader(std::move(reader), format, allowedGlobals);
 }
 
 ShapeSet readShapeSet(const std::string& filePath)
@@ -784,14 +761,12 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
   return readShapeSet(filePath, format, LuaInputOptions {});
 }
 
-ShapeSet readShapeSet(const std::string &filePath, const LuaInputOptions &options)
+ShapeSet readShapeSet(const std::string& filePath, const LuaInputOptions& options)
 {
   return readShapeSet(filePath, inferInputFormat(filePath), options);
 }
 
-ShapeSet readShapeSet(const std::string &filePath,
-                      InputFormat format,
-                      const LuaInputOptions &options)
+ShapeSet readShapeSet(const std::string& filePath, InputFormat format, const LuaInputOptions& options)
 {
   std::unordered_set<std::string> allowedGlobals;
   auto reader = createReader(format, options, allowedGlobals);
@@ -799,9 +774,7 @@ ShapeSet readShapeSet(const std::string &filePath,
                format,
                Path {filePath},
                axom::fmt::format("from file '{}'", filePath));
-  auto shapeSet = readShapeSetFromReader(std::move(reader),
-                                         format,
-                                         allowedGlobals);
+  auto shapeSet = readShapeSetFromReader(std::move(reader), format, allowedGlobals);
   shapeSet.setPath(filePath);
   return shapeSet;
 }

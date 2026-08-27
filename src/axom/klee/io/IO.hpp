@@ -71,9 +71,7 @@ ShapeSet readShapeSet(std::istream& stream, InputFormat format);
  * \return the ShapeSet read from the stream
  * \throws KleeError if the input or Lua input options are invalid
  */
-ShapeSet readShapeSet(std::istream &stream,
-                      InputFormat format,
-                      const LuaInputOptions &options);
+ShapeSet readShapeSet(std::istream& stream, InputFormat format, const LuaInputOptions& options);
 
 /**
  * Read a ShapeSet from a specified file
@@ -108,7 +106,7 @@ ShapeSet readShapeSet(const std::string& filePath, InputFormat format);
  * \return the ShapeSet read from the file
  * \throws KleeError if the input or Lua input options are invalid
  */
-ShapeSet readShapeSet(const std::string &filePath, const LuaInputOptions &options);
+ShapeSet readShapeSet(const std::string& filePath, const LuaInputOptions& options);
 
 /**
  * Read a ShapeSet from a specified file using an explicit format and
@@ -121,9 +119,7 @@ ShapeSet readShapeSet(const std::string &filePath, const LuaInputOptions &option
  * \return the ShapeSet read from the file
  * \throws KleeError if the input or Lua input options are invalid
  */
-ShapeSet readShapeSet(const std::string &filePath,
-                      InputFormat format,
-                      const LuaInputOptions &options);
+ShapeSet readShapeSet(const std::string& filePath, InputFormat format, const LuaInputOptions& options);
 
 }  // namespace klee
 }  // namespace axom

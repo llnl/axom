@@ -442,8 +442,7 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
     {
       if(entry.first.get_type() != axom::sol::type::number)
       {
-        throw InletError(
-          "[Inlet] Lua vector function return must only contain numeric indices");
+        throw InletError("[Inlet] Lua vector function return must only contain numeric indices");
       }
 
       const double numeric_index = entry.first.as<double>();
@@ -455,8 +454,7 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
       }
       if(entry.second.get_type() != axom::sol::type::number)
       {
-        throw InletError(
-          "[Inlet] Lua vector function return components must be numeric");
+        throw InletError("[Inlet] Lua vector function return components must be numeric");
       }
 
       values[index - 1] = entry.second.as<double>();
@@ -466,10 +464,10 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
 
     if(count < 1 || count > 3)
     {
-      throw InletError(fmt::format(
-        "[Inlet] Lua vector function returned a table with {0} entries; "
-        "expected 1 to 3 numeric entries",
-        count));
+      throw InletError(
+        fmt::format("[Inlet] Lua vector function returned a table with {0} entries; "
+                    "expected 1 to 3 numeric entries",
+                    count));
     }
     for(int i = 0; i < count; ++i)
     {

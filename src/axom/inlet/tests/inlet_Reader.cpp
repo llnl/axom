@@ -486,8 +486,7 @@ TEST(inlet_Reader_lua, objectLookupReportsConsistentReaderResults)
   EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("callback", typedValues));
   EXPECT_TRUE(typedValues.empty());
 
-  std::unordered_map<int, axom::inlet::VariantValue> values {
-    {99, axom::inlet::VariantValue {99}}};
+  std::unordered_map<int, axom::inlet::VariantValue> values {{99, axom::inlet::VariantValue {99}}};
   EXPECT_EQ(ReaderResult::WrongType, reader.getVariantMap("callback", values));
   EXPECT_TRUE(values.empty());
   EXPECT_EQ(ReaderResult::NotFound, reader.getVariantMap("missing", values));

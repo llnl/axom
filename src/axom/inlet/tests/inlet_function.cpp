@@ -135,8 +135,7 @@ TEST(inlet_function, lua_callback_failures_are_catchable)
   }
   catch(const axom::inlet::InletError& error)
   {
-    EXPECT_NE(std::string(error.what()).find("callback failed"),
-              std::string::npos);
+    EXPECT_NE(std::string(error.what()).find("callback failed"), std::string::npos);
   }
 }
 
@@ -410,8 +409,7 @@ TEST(inlet_function, returned_function_keeps_lua_state_alive)
   // An extracted callback must retain its Lua state after Inlet is destroyed.
   std::function<double(double)> callback;
   {
-    auto inlet = createBasicInlet(
-      "offset = 3.0; function foo (value) return value + offset end");
+    auto inlet = createBasicInlet("offset = 3.0; function foo (value) return value + offset end");
     inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::Double});
     callback = inlet["foo"].get<std::function<double(double)>>();
   }
