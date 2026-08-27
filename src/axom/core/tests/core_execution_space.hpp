@@ -224,7 +224,7 @@ TEST(core_execution_space, check_cuda_exec_async)
                            RAJA::cuda_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
 //------------------------------------------------------------------------------
-void build(axom::Array<axom::IndexType> &values, axom::Array<axom::IndexType> &ids, int allocatorID)
+void build(axom::Array<axom::IndexType>& values, axom::Array<axom::IndexType>& ids, int allocatorID)
 {
   const std::vector<axom::IndexType> data {{0, 1, 2, 3}};
   const axom::IndexType n = static_cast<axom::IndexType>(data.size());

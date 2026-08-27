@@ -54,12 +54,12 @@ namespace sina
  *            anything like a CurveSet. As a result, to do that, you must hold on to
  *            the Record object passed here as the opaque value and manipulate it directly.
  **/
-void adiakSinaCallback(const char *name,
+void adiakSinaCallback(const char* name,
                        adiak_category_t category,
-                       const char *subcategory,
-                       adiak_value_t *value,
-                       adiak_datatype_t *t,
-                       void *opaque_value);
+                       const char* subcategory,
+                       adiak_value_t* value,
+                       adiak_datatype_t* t,
+                       void* opaque_value);
 
 }  // namespace sina
 }  // namespace axom

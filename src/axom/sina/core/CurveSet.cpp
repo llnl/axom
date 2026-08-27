@@ -54,7 +54,7 @@ constexpr auto DEPENDENT_KEY = "dependent";
  * @param nameList the vector of curve names to add the curve's name to.
                    Used for tracking insertion order for codes.
  */
-void addCurve(Curve &&curve, CurveSet::CurveMap &curves, std::vector<std::string> &nameList)
+void addCurve(Curve&& curve, CurveSet::CurveMap& curves, std::vector<std::string>& nameList)
 {
   std::string curveName = curve.getName();  // Make a COPY before moving
   auto existing = curves.find(curveName);
@@ -74,8 +74,8 @@ void addCurve(Curve &&curve, CurveSet::CurveMap &curves, std::vector<std::string
  *
  * Helper, users use independent/dependent specific ones as above.
  */
-bool applyCustomCurveOrder(const std::vector<std::string> &newOrder,
-                           std::vector<std::string> &oldOrder)
+bool applyCustomCurveOrder(const std::vector<std::string>& newOrder,
+                           std::vector<std::string>& oldOrder)
 {
   if(newOrder.size() != oldOrder.size())
   {
@@ -98,7 +98,7 @@ bool applyCustomCurveOrder(const std::vector<std::string> &newOrder,
  * @param childNodeName the name of the child node
  * @return a struct containing the curveMap and ordered curve names.
  */
-CurveSet::curveNodeInfo extractCurveMap(conduit::Node const &parent, std::string const &childNodeName)
+CurveSet::curveNodeInfo extractCurveMap(conduit::Node const& parent, std::string const& childNodeName)
 {
   CurveSet::CurveMap curveMap;
   std::vector<std::string> curveNames;
@@ -108,10 +108,10 @@ CurveSet::curveNodeInfo extractCurveMap(conduit::Node const &parent, std::string
     return CurveSet::curveNodeInfo {curveMap, curveNames};
   }
 
-  auto &mapAsNode = parent.child(childNodeName);
+  auto& mapAsNode = parent.child(childNodeName);
   for(auto iter = mapAsNode.children(); iter.has_next();)
   {
-    auto &curveAsNode = iter.next();
+    auto& curveAsNode = iter.next();
     std::string curveName = iter.name();
     curveNames.emplace_back(curveName);
     Curve curve {curveName, curveAsNode};
@@ -129,8 +129,8 @@ CurveSet::curveNodeInfo extractCurveMap(conduit::Node const &parent, std::string
  * @param curveOrder how nameList should be sorted if not oldest-first, ex: alphabetical.
  * @return the map as a node
  */
-conduit::Node createCurveMapNode(CurveSet::CurveMap const &curveMap,
-                                 std::vector<std::string> const &nameList,
+conduit::Node createCurveMapNode(CurveSet::CurveMap const& curveMap,
+                                 std::vector<std::string> const& nameList,
                                  CurveSet::CurveOrder const curveOrder)
 {
   conduit::Node mapNode;
@@ -151,7 +151,7 @@ conduit::Node createCurveMapNode(CurveSet::CurveMap const &curveMap,
     std::sort(orderedNameList.begin(), orderedNameList.end(), std::greater<std::string>());
     break;
   }
-  for(auto &curveName : orderedNameList)
+  for(auto& curveName : orderedNameList)
   {
     auto expectedCurve = curveMap.find(curveName);
     // Warn if not found? Should this be allowed to happen?
@@ -173,7 +173,7 @@ CurveSet::CurveSet(std::string name_)
   , orderedDependentCurveNames {}
 { }
 
-CurveSet::CurveSet(std::string name_, conduit::Node const &node)
+CurveSet::CurveSet(std::string name_, conduit::Node const& node)
 {
   name = std::move(name_);
   auto independentCurveInfo = extractCurveMap(node, INDEPENDENT_KEY);

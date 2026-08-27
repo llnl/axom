@@ -39,7 +39,7 @@ TEST(Dimensions, unspecified)
   std::cout << "The dimension is " << axom::fmt::format("{}", unspec) << "\n";
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

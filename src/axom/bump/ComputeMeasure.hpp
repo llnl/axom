@@ -35,7 +35,7 @@ public:
    *
    * \param adaptor The adaptor object to use to compute the measure.
    */
-  ComputeMeasure(Adaptor &adaptor)
+  ComputeMeasure(Adaptor& adaptor)
     : m_adaptor(adaptor)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -67,14 +67,14 @@ public:
    * \param topoName The topology name for the field.
    * \param n_field The node that will contain the new field.
    */
-  void execute(const std::string &topoName, conduit::Node &n_field)
+  void execute(const std::string& topoName, conduit::Node& n_field)
   {
     const auto conduitAllocatorId =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     n_field["topology"] = topoName;
     n_field["association"] = "element";
-    conduit::Node &n_values = n_field["values"];
+    conduit::Node& n_values = n_field["values"];
     n_values.set_allocator(conduitAllocatorId);
     n_values.set(conduit::DataType::float64(m_adaptor.numberOfZones()));
     auto valuesView = bump::utilities::make_array_view<double>(n_values);

@@ -74,7 +74,7 @@ void C2CReader::setLengthUnit(utilities::LengthUnit lengthUnit)
   m_lengthUnit = lengthUnit;
 }
 
-bool C2CReader::hasValidExtension(const std::string &filename)
+bool C2CReader::hasValidExtension(const std::string& filename)
 {
   return utilities::string::endsWith(filename, ".contour") ||
     utilities::string::endsWith(filename, ".assembly");
@@ -98,7 +98,7 @@ int C2CReader::read()
   return ret;
 }
 
-C2CReader::ResultType C2CReader::readInternal(const std::string &filename, CurveArray &inputCurves)
+C2CReader::ResultType C2CReader::readInternal(const std::string& filename, CurveArray& inputCurves)
 {
   try
   {
@@ -117,7 +117,7 @@ C2CReader::ResultType C2CReader::readInternal(const std::string &filename, Curve
       return readAssembly(filename, inputCurves);
     }
   }
-  catch(const std::exception &e)
+  catch(const std::exception& e)
   {
     SLIC_WARNING(axom::fmt::format("Failed to read c2c file '{}': {}", filename, e.what()));
   }
@@ -129,7 +129,7 @@ C2CReader::ResultType C2CReader::readInternal(const std::string &filename, Curve
   return ResultType::Failure;
 }
 
-C2CReader::ResultType C2CReader::readAssembly(const std::string &filename, CurveArray &inputCurves)
+C2CReader::ResultType C2CReader::readAssembly(const std::string& filename, CurveArray& inputCurves)
 {
   const c2c::Assembly assembly = c2c::parseAssembly(filename);
   std::string assemblyDir;
@@ -156,7 +156,7 @@ C2CReader::ResultType C2CReader::readAssembly(const std::string &filename, Curve
   {
     // Move the curves out to inputCurves.
     inputCurves.reserve(inputCurves.size() + assemblyCurves.size());
-    for(auto &curve : assemblyCurves)
+    for(auto& curve : assemblyCurves)
     {
       inputCurves.emplace_back(std::move(curve));
     }
@@ -165,7 +165,7 @@ C2CReader::ResultType C2CReader::readAssembly(const std::string &filename, Curve
   return ret;
 }
 
-C2CReader::ResultType C2CReader::readContour(const std::string &filename, CurveArray &inputCurves)
+C2CReader::ResultType C2CReader::readContour(const std::string& filename, CurveArray& inputCurves)
 {
   using PointType = primal::Point<double, 2>;
 
@@ -177,14 +177,14 @@ C2CReader::ResultType C2CReader::readContour(const std::string &filename, CurveA
   inputCurves.reserve(inputCurves.size() + contour.getPieces().size());
 
   int piece_index = 0;
-  for(auto *piece : contour.getPieces())
+  for(auto* piece : contour.getPieces())
   {
     const auto nurbsData = c2c::toNurbs(*piece, c2cLengthUnit);
 
     // Load control points
     axom::Array<PointType> controlPoints;
     controlPoints.reserve(nurbsData.controlPoints.size());
-    for(const auto &pt : nurbsData.controlPoints)
+    for(const auto& pt : nurbsData.controlPoints)
     {
       controlPoints.emplace_back(PointType {pt.getZ().getValue(), pt.getR().getValue()});
     }
@@ -255,7 +255,7 @@ C2CReader::ResultType C2CReader::readContour(const std::string &filename, CurveA
 
       // Check if weights are non-trivial (present and not all equal to 1)
       bool has_non_trivial_weights = false;
-      for(const double &wt : nurbsData.weights)
+      for(const double& wt : nurbsData.weights)
       {
         if(wt != 1.0)
         {
@@ -268,7 +268,7 @@ C2CReader::ResultType C2CReader::readContour(const std::string &filename, CurveA
       if(has_non_trivial_weights)
       {
         weights.reserve(nurbsData.weights.size());
-        for(const double &wt : nurbsData.weights)
+        for(const double& wt : nurbsData.weights)
         {
           weights.push_back(wt);
         }
@@ -298,7 +298,7 @@ void C2CReader::log()
   sstr << fmt::format("The contour has {} pieces\n", m_nurbsData.size());
 
   int index = 0;
-  for(const auto &curve : m_nurbsData)
+  for(const auto& curve : m_nurbsData)
   {
     sstr << fmt::format("\tCurve {}: {}\n", index, curve);
     ++index;

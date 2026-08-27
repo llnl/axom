@@ -30,7 +30,7 @@ namespace internal
  * \param N The triangle normal.
  */
 template <typename NormalType>
-void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const NormalType &N)
+void writeTriangle(std::ofstream& out, bool binary, double coords[3][3], const NormalType& N)
 {
   if(binary)
   {
@@ -46,11 +46,11 @@ void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const N
     // The attribute is sometimes used as colors. Set bits to white.
     // See https://en.wikipedia.org/wiki/STL_(file_format).
     const std::uint16_t attr = 0x7fff;
-    out.write(reinterpret_cast<const char *>(n32), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(coords32[0]), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(coords32[1]), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(coords32[2]), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(&attr), sizeof(std::uint16_t));
+    out.write(reinterpret_cast<const char*>(n32), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(coords32[0]), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(coords32[1]), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(coords32[2]), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(&attr), sizeof(std::uint16_t));
   }
   else
   {
@@ -66,7 +66,7 @@ void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const N
 
 }  // end namespace internal
 
-STLWriter::STLWriter(const std::string &filename, bool binary)
+STLWriter::STLWriter(const std::string& filename, bool binary)
   : m_mesh(nullptr)
   , m_fileName(filename)
   , m_binary(binary)
@@ -116,7 +116,7 @@ IndexType STLWriter::getNumberOfTriangles() const
   return ntri;
 }
 
-int STLWriter::write(const mint::Mesh *mesh)
+int STLWriter::write(const mint::Mesh* mesh)
 {
   using VectorType = axom::primal::Vector<double, 3>;
 
@@ -143,13 +143,13 @@ int STLWriter::write(const mint::Mesh *mesh)
     // Fill with spaces
     memset(header, ' ', sizeof(std::uint8_t) * STL_HEADER_SIZE);
     // Copy in string (without terminator)
-    const char *msg = "STL Binary File Written By Axom";
+    const char* msg = "STL Binary File Written By Axom";
     memcpy(header, msg, strlen(msg));
-    out.write(reinterpret_cast<const char *>(header), STL_HEADER_SIZE);
+    out.write(reinterpret_cast<const char*>(header), STL_HEADER_SIZE);
 
     // Write number of triangles
     std::uint32_t ntri = static_cast<std::uint32_t>(getNumberOfTriangles());
-    out.write(reinterpret_cast<const char *>(&ntri), sizeof(std::uint32_t));
+    out.write(reinterpret_cast<const char*>(&ntri), sizeof(std::uint32_t));
   }
   else
   {
@@ -227,7 +227,7 @@ int STLWriter::write(const mint::Mesh *mesh)
   return 0;
 }
 
-int write_stl(const mint::Mesh *mesh, const std::string &filename, bool binary)
+int write_stl(const mint::Mesh* mesh, const std::string& filename, bool binary)
 {
   STLWriter w(filename, binary);
   return w.write(mesh);

@@ -45,7 +45,7 @@ struct make_unstructured_single_shape_topology
    *
    * \return The topology view that wraps the Conduit data.
    */
-  static TopologyView view(const conduit::Node &n_topo)
+  static TopologyView view(const conduit::Node& n_topo)
   {
     namespace utils = axom::bump::utilities;
     verify(n_topo, "topology");
@@ -94,7 +94,7 @@ struct make_unstructured_polyhedral_topology
    *
    * \return The topology view that wraps the Conduit data.
    */
-  static TopologyView view(const conduit::Node &n_topo)
+  static TopologyView view(const conduit::Node& n_topo)
   {
     namespace utils = axom::bump::utilities;
     verify(n_topo, "topology");
@@ -126,7 +126,7 @@ struct make_unstructured_polyhedral_topology
  */
 ///@{
 template <typename FuncType>
-void dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, FuncType &&func)
+void dispatch_unstructured_polyhedral_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
   const std::string shape = topo["elements/shape"].as_string();
@@ -158,7 +158,7 @@ void dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, FuncTy
 }
 
 template <typename ConnType, typename FuncType>
-void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, FuncType &&func)
+void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node& topo, FuncType&& func)
 {
   namespace utils = axom::bump::utilities;
   verify(topo, "topology");
@@ -185,7 +185,7 @@ void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, 
  */
 ///@{
 template <typename FuncType>
-void dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&func)
+void dispatch_unstructured_mixed_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
   const std::string shape = topo["elements/shape"].as_string();
@@ -218,7 +218,7 @@ void dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&
 }
 
 template <typename ConnType, typename FuncType>
-void typed_dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&func)
+void typed_dispatch_unstructured_mixed_topology(const conduit::Node& topo, FuncType&& func)
 {
   namespace utils = axom::bump::utilities;
   verify(topo, "topology");
@@ -282,21 +282,21 @@ struct dispatch_shape
   /*!
    * \brief Execute method that gets generated when a shape is not enabled or supported. Do nothing.
    */
-  static void execute(bool &AXOM_UNUSED_PARAM(eligible),
-                      const std::string &AXOM_UNUSED_PARAM(shape),
-                      const axom::ArrayView<ConnType> &AXOM_UNUSED_PARAM(connView),
-                      const axom::ArrayView<ConnType> &AXOM_UNUSED_PARAM(sizesView),
-                      const axom::ArrayView<ConnType> &AXOM_UNUSED_PARAM(offsetsView),
-                      FuncType &&AXOM_UNUSED_PARAM(func))
+  static void execute(bool& AXOM_UNUSED_PARAM(eligible),
+                      const std::string& AXOM_UNUSED_PARAM(shape),
+                      const axom::ArrayView<ConnType>& AXOM_UNUSED_PARAM(connView),
+                      const axom::ArrayView<ConnType>& AXOM_UNUSED_PARAM(sizesView),
+                      const axom::ArrayView<ConnType>& AXOM_UNUSED_PARAM(offsetsView),
+                      FuncType&& AXOM_UNUSED_PARAM(func))
   { }
 
   /*!
    * \brief Execute method that gets generated when a shape is not enabled or supported. Do nothing.
    */
-  static void execute(bool &AXOM_UNUSED_PARAM(eligible),
-                      const std::string &AXOM_UNUSED_PARAM(shape),
-                      const conduit::Node &AXOM_UNUSED_PARAM(topo),
-                      FuncType &&AXOM_UNUSED_PARAM(func))
+  static void execute(bool& AXOM_UNUSED_PARAM(eligible),
+                      const std::string& AXOM_UNUSED_PARAM(shape),
+                      const conduit::Node& AXOM_UNUSED_PARAM(topo),
+                      FuncType&& AXOM_UNUSED_PARAM(func))
   { }
 };
 
@@ -305,12 +305,12 @@ struct dispatch_shape
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, TriShape<ConnType>, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const axom::ArrayView<ConnType> &connView,
-                      const axom::ArrayView<ConnType> &sizesView,
-                      const axom::ArrayView<ConnType> &offsetsView,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const axom::ArrayView<ConnType>& connView,
+                      const axom::ArrayView<ConnType>& sizesView,
+                      const axom::ArrayView<ConnType>& offsetsView,
+                      FuncType&& func)
   {
     if(eligible && shape == "tri")
     {
@@ -324,12 +324,12 @@ struct dispatch_shape<true, ConnType, TriShape<ConnType>, FuncType>
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, QuadShape<ConnType>, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const axom::ArrayView<ConnType> &connView,
-                      const axom::ArrayView<ConnType> &sizesView,
-                      const axom::ArrayView<ConnType> &offsetsView,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const axom::ArrayView<ConnType>& connView,
+                      const axom::ArrayView<ConnType>& sizesView,
+                      const axom::ArrayView<ConnType>& offsetsView,
+                      FuncType&& func)
   {
     if(eligible && shape == "quad")
     {
@@ -343,12 +343,12 @@ struct dispatch_shape<true, ConnType, QuadShape<ConnType>, FuncType>
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, PolygonShape<ConnType>, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const axom::ArrayView<ConnType> &connView,
-                      const axom::ArrayView<ConnType> &sizesView,
-                      const axom::ArrayView<ConnType> &offsetsView,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const axom::ArrayView<ConnType>& connView,
+                      const axom::ArrayView<ConnType>& sizesView,
+                      const axom::ArrayView<ConnType>& offsetsView,
+                      FuncType&& func)
   {
     if(eligible && shape == "polygonal")
     {
@@ -364,12 +364,12 @@ struct dispatch_shape<true, ConnType, PolygonShape<ConnType>, FuncType>
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, TetShape<ConnType>, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const axom::ArrayView<ConnType> &connView,
-                      const axom::ArrayView<ConnType> &sizesView,
-                      const axom::ArrayView<ConnType> &offsetsView,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const axom::ArrayView<ConnType>& connView,
+                      const axom::ArrayView<ConnType>& sizesView,
+                      const axom::ArrayView<ConnType>& offsetsView,
+                      FuncType&& func)
   {
     if(eligible && shape == "tet")
     {
@@ -383,12 +383,12 @@ struct dispatch_shape<true, ConnType, TetShape<ConnType>, FuncType>
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, PyramidShape<ConnType>, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const axom::ArrayView<ConnType> &connView,
-                      const axom::ArrayView<ConnType> &sizesView,
-                      const axom::ArrayView<ConnType> &offsetsView,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const axom::ArrayView<ConnType>& connView,
+                      const axom::ArrayView<ConnType>& sizesView,
+                      const axom::ArrayView<ConnType>& offsetsView,
+                      FuncType&& func)
   {
     if(eligible && shape == "pyramid")
     {
@@ -404,12 +404,12 @@ struct dispatch_shape<true, ConnType, PyramidShape<ConnType>, FuncType>
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, WedgeShape<ConnType>, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const axom::ArrayView<ConnType> &connView,
-                      const axom::ArrayView<ConnType> &sizesView,
-                      const axom::ArrayView<ConnType> &offsetsView,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const axom::ArrayView<ConnType>& connView,
+                      const axom::ArrayView<ConnType>& sizesView,
+                      const axom::ArrayView<ConnType>& offsetsView,
+                      FuncType&& func)
   {
     if(eligible && shape == "wedge")
     {
@@ -425,12 +425,12 @@ struct dispatch_shape<true, ConnType, WedgeShape<ConnType>, FuncType>
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, HexShape<ConnType>, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const axom::ArrayView<ConnType> &connView,
-                      const axom::ArrayView<ConnType> &sizesView,
-                      const axom::ArrayView<ConnType> &offsetsView,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const axom::ArrayView<ConnType>& connView,
+                      const axom::ArrayView<ConnType>& sizesView,
+                      const axom::ArrayView<ConnType>& offsetsView,
+                      FuncType&& func)
   {
     if(eligible && shape == "hex")
     {
@@ -447,10 +447,10 @@ struct SelectMixedShape
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, SelectMixedShape, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const conduit::Node &topo,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const conduit::Node& topo,
+                      FuncType&& func)
   {
     if(eligible && shape == "mixed")
     {
@@ -466,10 +466,10 @@ struct SelectPHShape
 template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, SelectPHShape, FuncType>
 {
-  static void execute(bool &eligible,
-                      const std::string &shape,
-                      const conduit::Node &topo,
-                      FuncType &&func)
+  static void execute(bool& eligible,
+                      const std::string& shape,
+                      const conduit::Node& topo,
+                      FuncType&& func)
   {
     if(eligible && shape == "polyhedral")
     {
@@ -493,7 +493,7 @@ struct dispatch_shape<true, ConnType, SelectPHShape, FuncType>
  * \param func The function/lambda to call with the topology view.
  */
 template <typename ConnType, int ShapeTypes = AnyShape, typename FuncType>
-void typed_dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&func)
+void typed_dispatch_unstructured_topology(const conduit::Node& topo, FuncType&& func)
 {
   namespace utils = axom::bump::utilities;
   verify(topo, "topology");
@@ -594,7 +594,7 @@ void typed_dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&
 
 /// Dispatch in a way that does not care about the connectivity type.
 template <int ShapeTypes = AnyShape, typename FuncType>
-void dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&func)
+void dispatch_unstructured_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
   indexNodeToArrayView(topo["elements/connectivity"], [&](auto connView) {

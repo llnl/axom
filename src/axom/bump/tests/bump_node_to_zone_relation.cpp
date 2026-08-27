@@ -23,14 +23,14 @@ namespace utils = axom::bump::utilities;
 template <typename ExecSpace, typename IndexT = int>
 struct test_node_to_zone_relation_builder
 {
-  static void test(const conduit::Node &hostMesh)
+  static void test(const conduit::Node& hostMesh)
   {
     // host -> device
     conduit::Node deviceMesh;
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
     // _bump_utilities_n2zrel_begin
-    const conduit::Node &deviceTopo = deviceMesh["topologies/mesh"];
-    const conduit::Node &deviceCoordset = deviceMesh["coordsets/coords"];
+    const conduit::Node& deviceTopo = deviceMesh["topologies/mesh"];
+    const conduit::Node& deviceCoordset = deviceMesh["coordsets/coords"];
 
     // Run the algorithm on the device
     conduit::Node deviceRelation;
@@ -69,10 +69,10 @@ struct test_node_to_zone_relation_builder
                     axom::ArrayView<const int>(offsets, sizeof(offsets) / sizeof(int)));
   }
 
-  static void compareRelation(const conduit::Node &hostRelation,
-                              const axom::ArrayView<const int> &zones,
-                              const axom::ArrayView<const int> &sizes,
-                              const axom::ArrayView<const int> &offsets)
+  static void compareRelation(const conduit::Node& hostRelation,
+                              const axom::ArrayView<const int>& zones,
+                              const axom::ArrayView<const int>& sizes,
+                              const axom::ArrayView<const int>& offsets)
   {
     const auto zonesView = utils::make_array_view<IndexT>(hostRelation["zones"]);
     const auto sizesView = utils::make_array_view<IndexT>(hostRelation["sizes"]);
@@ -87,8 +87,8 @@ struct test_node_to_zone_relation_builder
     for(axom::IndexType i = 0; i < sizesView.size(); i++)
     {
       // Sort the result so we can compare to the expected answer.
-      IndexT *begin = zonesView.data() + offsetsView[i];
-      IndexT *end = zonesView.data() + offsetsView[i] + sizesView[i];
+      IndexT* begin = zonesView.data() + offsetsView[i];
+      IndexT* end = zonesView.data() + offsetsView[i] + sizesView[i];
       std::sort(begin, end);
 
       for(int j = 0; j < sizesView[i]; j++)
@@ -192,13 +192,13 @@ struct test_node_to_zone_relation_builder_polyhedral
 {
   using SuperClass = test_node_to_zone_relation_builder<ExecSpace, IndexT>;
 
-  static void test(const conduit::Node &hostMesh)
+  static void test(const conduit::Node& hostMesh)
   {
     // host -> device
     conduit::Node deviceMesh;
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
-    const conduit::Node &deviceTopo = deviceMesh["topologies/mesh"];
-    const conduit::Node &deviceCoordset = deviceMesh["coordsets/coords"];
+    const conduit::Node& deviceTopo = deviceMesh["topologies/mesh"];
+    const conduit::Node& deviceCoordset = deviceMesh["coordsets/coords"];
 
     // Run the algorithm on the device
     conduit::Node deviceRelation;
@@ -258,7 +258,7 @@ struct test_node_to_zone_relation_builder_polyhedral
                                 axom::ArrayView<const int>(offsets, sizeof(offsets) / sizeof(int)));
   }
 
-  static void create(conduit::Node &mesh)
+  static void create(conduit::Node& mesh)
   {
     conduit::blueprint::mesh::examples::basic("polyhedra", 3, 3, 3, mesh);
     // Make sure all the types are the same.
@@ -306,7 +306,7 @@ TEST(bump_node_to_zone_relation, n2zrel_polyhedral_hip)
 #endif
 
 //------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
+void conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
 {
   std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
   // This is on purpose.
@@ -314,7 +314,7 @@ void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
@@ -349,12 +349,12 @@ int main(int argc, char *argv[])
 
     result = RUN_ALL_TESTS();
   }
-  catch(axom::CLI::CallForHelp &e)
+  catch(axom::CLI::CallForHelp& e)
   {
     std::cout << app.help() << std::endl;
     result = 0;
   }
-  catch(axom::CLI::ParseError &e)
+  catch(axom::CLI::ParseError& e)
   {
     // Handle other parsing errors
     std::cerr << e.what() << std::endl;
