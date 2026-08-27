@@ -174,7 +174,7 @@ private:
     }
     else
     {
-      SLIC_ERROR("Unsupported ArrayType dimensionality in PSTEPReader::bcast_array");
+      SLIC_ERROR_ROOT("Unsupported ArrayType dimensionality in PSTEPReader::bcast_array");
     }
   }
 
