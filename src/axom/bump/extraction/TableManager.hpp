@@ -37,7 +37,7 @@ public:
    *
    * \return A reference to the table. 
    */
-  Table &operator[](size_t shape);
+  Table& operator[](size_t shape);
 
   /*!
    * \brief Load tables based on dimension.

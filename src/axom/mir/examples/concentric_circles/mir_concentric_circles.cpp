@@ -6,7 +6,7 @@
 
 #include "MIRApplication.hpp"
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   MIRApplication app;
   int retval = app.initialize(argc, argv);

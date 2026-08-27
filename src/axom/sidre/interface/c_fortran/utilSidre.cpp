@@ -16,9 +16,9 @@ extern "C" {
 #endif
 
 // Release library allocated memory.
-void SIDRE_SHROUD_memory_destructor(SIDRE_SHROUD_capsule_data *cap)
+void SIDRE_SHROUD_memory_destructor(SIDRE_SHROUD_capsule_data* cap)
 {
-  void *ptr = cap->addr;
+  void* ptr = cap->addr;
   switch(cap->idtor)
   {
   case 0:  // --none--
@@ -28,13 +28,13 @@ void SIDRE_SHROUD_memory_destructor(SIDRE_SHROUD_capsule_data *cap)
   }
   case 1:  // std::string
   {
-    std::string *cxx_ptr = reinterpret_cast<std::string *>(ptr);
+    std::string* cxx_ptr = reinterpret_cast<std::string*>(ptr);
     delete cxx_ptr;
     break;
   }
   case 2:  // axom::sidre::DataStore
   {
-    axom::sidre::DataStore *cxx_ptr = reinterpret_cast<axom::sidre::DataStore *>(ptr);
+    axom::sidre::DataStore* cxx_ptr = reinterpret_cast<axom::sidre::DataStore*>(ptr);
     delete cxx_ptr;
     break;
   }
@@ -50,7 +50,7 @@ void SIDRE_SHROUD_memory_destructor(SIDRE_SHROUD_capsule_data *cap)
 }
 
 // axom::sidre::Buffer = axom::sidre::Buffer
-void SIDRE_Buffer_assign_Buffer(SIDRE_Buffer *lhs_capsule, SIDRE_Buffer *rhs_capsule)
+void SIDRE_Buffer_assign_Buffer(SIDRE_Buffer* lhs_capsule, SIDRE_Buffer* rhs_capsule)
 {
   if(lhs_capsule->addr == nullptr)
   {
@@ -75,7 +75,7 @@ void SIDRE_Buffer_assign_Buffer(SIDRE_Buffer *lhs_capsule, SIDRE_Buffer *rhs_cap
     // Replace LHS with a null pointer.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = nullptr;
     lhs_capsule->idtor = 0;
@@ -91,7 +91,7 @@ void SIDRE_Buffer_assign_Buffer(SIDRE_Buffer *lhs_capsule, SIDRE_Buffer *rhs_cap
     // Move-assign and delete the transient data.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -102,7 +102,7 @@ void SIDRE_Buffer_assign_Buffer(SIDRE_Buffer *lhs_capsule, SIDRE_Buffer *rhs_cap
     // RHS shouldn't be deleted, alias to LHS.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -111,7 +111,7 @@ void SIDRE_Buffer_assign_Buffer(SIDRE_Buffer *lhs_capsule, SIDRE_Buffer *rhs_cap
 }
 
 // axom::sidre::Group = axom::sidre::Group
-void SIDRE_Group_assign_Group(SIDRE_Group *lhs_capsule, SIDRE_Group *rhs_capsule)
+void SIDRE_Group_assign_Group(SIDRE_Group* lhs_capsule, SIDRE_Group* rhs_capsule)
 {
   if(lhs_capsule->addr == nullptr)
   {
@@ -136,7 +136,7 @@ void SIDRE_Group_assign_Group(SIDRE_Group *lhs_capsule, SIDRE_Group *rhs_capsule
     // Replace LHS with a null pointer.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = nullptr;
     lhs_capsule->idtor = 0;
@@ -152,7 +152,7 @@ void SIDRE_Group_assign_Group(SIDRE_Group *lhs_capsule, SIDRE_Group *rhs_capsule
     // Move-assign and delete the transient data.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -163,7 +163,7 @@ void SIDRE_Group_assign_Group(SIDRE_Group *lhs_capsule, SIDRE_Group *rhs_capsule
     // RHS shouldn't be deleted, alias to LHS.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -172,7 +172,7 @@ void SIDRE_Group_assign_Group(SIDRE_Group *lhs_capsule, SIDRE_Group *rhs_capsule
 }
 
 // axom::sidre::View = axom::sidre::View
-void SIDRE_View_assign_View(SIDRE_View *lhs_capsule, SIDRE_View *rhs_capsule)
+void SIDRE_View_assign_View(SIDRE_View* lhs_capsule, SIDRE_View* rhs_capsule)
 {
   if(lhs_capsule->addr == nullptr)
   {
@@ -197,7 +197,7 @@ void SIDRE_View_assign_View(SIDRE_View *lhs_capsule, SIDRE_View *rhs_capsule)
     // Replace LHS with a null pointer.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = nullptr;
     lhs_capsule->idtor = 0;
@@ -213,7 +213,7 @@ void SIDRE_View_assign_View(SIDRE_View *lhs_capsule, SIDRE_View *rhs_capsule)
     // Move-assign and delete the transient data.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -224,7 +224,7 @@ void SIDRE_View_assign_View(SIDRE_View *lhs_capsule, SIDRE_View *rhs_capsule)
     // RHS shouldn't be deleted, alias to LHS.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -233,7 +233,7 @@ void SIDRE_View_assign_View(SIDRE_View *lhs_capsule, SIDRE_View *rhs_capsule)
 }
 
 // axom::sidre::DataStore = axom::sidre::DataStore
-void SIDRE_DataStore_assign_DataStore(SIDRE_DataStore *lhs_capsule, SIDRE_DataStore *rhs_capsule)
+void SIDRE_DataStore_assign_DataStore(SIDRE_DataStore* lhs_capsule, SIDRE_DataStore* rhs_capsule)
 {
   if(lhs_capsule->addr == nullptr)
   {
@@ -258,7 +258,7 @@ void SIDRE_DataStore_assign_DataStore(SIDRE_DataStore *lhs_capsule, SIDRE_DataSt
     // Replace LHS with a null pointer.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = nullptr;
     lhs_capsule->idtor = 0;
@@ -274,7 +274,7 @@ void SIDRE_DataStore_assign_DataStore(SIDRE_DataStore *lhs_capsule, SIDRE_DataSt
     // Move-assign and delete the transient data.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -285,7 +285,7 @@ void SIDRE_DataStore_assign_DataStore(SIDRE_DataStore *lhs_capsule, SIDRE_DataSt
     // RHS shouldn't be deleted, alias to LHS.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data *)lhs_capsule);
+      SIDRE_SHROUD_memory_destructor((SIDRE_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;

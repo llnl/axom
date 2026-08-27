@@ -38,14 +38,14 @@ struct make_rectilinear_topology<3>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node *coordset =
+    const conduit::Node* coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);
-    const conduit::Node &values = coordset->fetch_existing("values");
+    const conduit::Node& values = coordset->fetch_existing("values");
     LogicalIndex zoneDims;
     zoneDims[0] = values.fetch_existing(axes[0]).dtype().number_of_elements() - 1;
     zoneDims[1] = values.fetch_existing(axes[1]).dtype().number_of_elements() - 1;
@@ -58,7 +58,7 @@ struct make_rectilinear_topology<3>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -76,14 +76,14 @@ struct make_rectilinear_topology<2>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node *coordset =
+    const conduit::Node* coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);
-    const conduit::Node &values = coordset->fetch_existing("values");
+    const conduit::Node& values = coordset->fetch_existing("values");
     LogicalIndex zoneDims;
     zoneDims[0] = values.fetch_existing(axes[0]).dtype().number_of_elements() - 1;
     zoneDims[1] = values.fetch_existing(axes[1]).dtype().number_of_elements() - 1;
@@ -95,7 +95,7 @@ struct make_rectilinear_topology<2>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -113,14 +113,14 @@ struct make_rectilinear_topology<1>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node *coordset =
+    const conduit::Node* coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
     const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);
-    const conduit::Node &values = coordset->fetch_existing("values");
+    const conduit::Node& values = coordset->fetch_existing("values");
     LogicalIndex zoneDims;
     zoneDims[0] = values.fetch_existing(axes[0]).dtype().number_of_elements() - 1;
     return Indexing(zoneDims);
@@ -131,7 +131,7 @@ struct make_rectilinear_topology<1>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 namespace internal
@@ -142,8 +142,8 @@ namespace internal
 template <bool enabled, int NDIMS, typename FuncType>
 struct dispatch_one_rectilinear_topology
 {
-  static void execute(const conduit::Node &AXOM_UNUSED_PARAM(topo),
-                      FuncType &&AXOM_UNUSED_PARAM(func))
+  static void execute(const conduit::Node& AXOM_UNUSED_PARAM(topo),
+                      FuncType&& AXOM_UNUSED_PARAM(func))
   { }
 };
 
@@ -160,7 +160,7 @@ struct dispatch_one_rectilinear_topology<true, 3, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     auto topoView = make_rectilinear_topology<3>::view(topo);
     const std::string shape("hex");
@@ -181,7 +181,7 @@ struct dispatch_one_rectilinear_topology<true, 2, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     auto topoView = make_rectilinear_topology<2>::view(topo);
     const std::string shape("quad");
@@ -202,7 +202,7 @@ struct dispatch_one_rectilinear_topology<true, 1, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     auto topoView = make_rectilinear_topology<1>::view(topo);
     const std::string shape("line");
@@ -222,10 +222,10 @@ struct dispatch_one_rectilinear_topology<true, 1, FuncType>
  * \param func     The function to invoke using the view.
  */
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
-void dispatch_rectilinear_topology(const conduit::Node &topo, FuncType &&func)
+void dispatch_rectilinear_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
-  const conduit::Node *coordset =
+  const conduit::Node* coordset =
     conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
   SLIC_ASSERT(coordset != nullptr);
   const auto axes = conduit::blueprint::mesh::utils::coordset::axes(*coordset);

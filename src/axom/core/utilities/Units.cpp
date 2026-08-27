@@ -31,7 +31,7 @@ struct LengthUnitHash
   std::size_t operator()(LengthUnit unit) const { return static_cast<std::size_t>(unit); }
 };
 
-std::string unrecognizedUnitsMessage(const std::string &unitsAsString)
+std::string unrecognizedUnitsMessage(const std::string& unitsAsString)
 {
   std::string message = "Unrecognized units: ";
   message += unitsAsString;
@@ -39,7 +39,7 @@ std::string unrecognizedUnitsMessage(const std::string &unitsAsString)
 }
 }  // namespace
 
-LengthUnit getLengthUnit(const std::string &unit)
+LengthUnit getLengthUnit(const std::string& unit)
 {
   std::string lowerUnit(unit);
   string::toLower(lowerUnit);

@@ -44,7 +44,7 @@ struct Input
   axom::CLI::App m_app {};
 
   /// Parse command line.
-  void parse(int argc, char **argv)
+  void parse(int argc, char** argv)
   {
     m_app.add_option("--test-case", m_test_case)
       ->check(axom::CLI::Range(1, 5))
@@ -105,7 +105,7 @@ struct Input
 
 //--------------------------------------------------------------------------------
 /// Print a Conduit node.
-void printNode(const conduit::Node &n)
+void printNode(const conduit::Node& n)
 {
   conduit::Node options;
   options["num_children_threshold"] = 10000;
@@ -117,7 +117,7 @@ void printNode(const conduit::Node &n)
 /*!
  * \brief Tutorial main showing how to initialize test cases and perform mir.
  */
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
 
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
   {
     params.parse(argc, argv);
   }
-  catch(const axom::CLI::ParseError &e)
+  catch(const axom::CLI::ParseError& e)
   {
     return params.m_app.exit(e);
   }

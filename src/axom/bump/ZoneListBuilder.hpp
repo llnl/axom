@@ -38,7 +38,7 @@ public:
    * \param topoView The topology view to use for creating the zone lists.
    * \param matsetView The matset view to use for creating the zone lists.
    */
-  ZoneListBuilder(const TopologyView &topoView, const MatsetView &matsetView)
+  ZoneListBuilder(const TopologyView& topoView, const MatsetView& matsetView)
     : m_topologyView(topoView)
     , m_matsetView(matsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
@@ -78,8 +78,8 @@ public:
    *       considered mixed as we might have to split those zones.
    */
   void execute(axom::IndexType nnodes,
-               axom::Array<axom::IndexType> &cleanIndices,
-               axom::Array<axom::IndexType> &mixedIndices) const
+               axom::Array<axom::IndexType>& cleanIndices,
+               axom::Array<axom::IndexType>& mixedIndices) const
   {
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder.1");
     const int allocatorID = getAllocatorID();
@@ -102,11 +102,11 @@ public:
         {
           const auto zone = deviceTopologyView.zone(zoneIndex);
           const auto nnodesThisZone = zone.numberOfNodes();
-          int *nodeData = nMatsPerNodeView.data();
+          int* nodeData = nMatsPerNodeView.data();
           for(axom::IndexType i = 0; i < nnodesThisZone; i++)
           {
             const auto nodeId = zone.getId(i);
-            int *nodePtr = nodeData + nodeId;
+            int* nodePtr = nodeData + nodeId;
             axom::atomicMax<ExecSpace>(nodePtr, nmats);
           }
         }
@@ -126,7 +126,7 @@ public:
 
         MaskType clean {1};
         const axom::IndexType nnodesThisZone = zone.numberOfNodes();
-        const auto &zoneNodeIds = zone.getIdsStorage();
+        const auto& zoneNodeIds = zone.getIdsStorage();
         for(axom::IndexType i = 0; i < nnodesThisZone; i++)
         {
           const auto nodeId = zoneNodeIds[i];
@@ -249,8 +249,8 @@ public:
    */
   void execute(axom::IndexType nnodes,
                const SelectedZonesView selectedZonesView,
-               axom::Array<axom::IndexType> &cleanIndices,
-               axom::Array<axom::IndexType> &mixedIndices) const
+               axom::Array<axom::IndexType>& cleanIndices,
+               axom::Array<axom::IndexType>& mixedIndices) const
   {
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder.2");
     SLIC_ASSERT(selectedZonesView.size() > 0);
@@ -276,11 +276,11 @@ public:
         {
           const auto zone = deviceTopologyView.zone(zoneIndex);
           const auto nnodesThisZone = zone.numberOfNodes();
-          int *nodeData = nMatsPerNodeView.data();
+          int* nodeData = nMatsPerNodeView.data();
           for(axom::IndexType i = 0; i < nnodesThisZone; i++)
           {
             const auto nodeId = zone.getId(i);
-            int *nodePtr = nodeData + nodeId;
+            int* nodePtr = nodeData + nodeId;
             axom::atomicMax<ExecSpace>(nodePtr, nmats);
           }
         }
@@ -417,8 +417,8 @@ public:
    *
    */
   void execute(const SelectedZonesView selectedZonesView,
-               axom::Array<axom::IndexType> &cleanIndices,
-               axom::Array<axom::IndexType> &mixedIndices) const
+               axom::Array<axom::IndexType>& cleanIndices,
+               axom::Array<axom::IndexType>& mixedIndices) const
   {
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder.3");
     const int allocatorID = getAllocatorID();

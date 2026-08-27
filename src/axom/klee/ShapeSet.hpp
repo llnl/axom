@@ -32,7 +32,7 @@ public:
    *
    * \return the shapes in this set
    */
-  std::vector<Shape> const &getShapes() const { return m_shapes; }
+  std::vector<Shape> const& getShapes() const { return m_shapes; }
 
   /**
    * Set the file path from which this ShapeSet was created. This must be
@@ -40,14 +40,14 @@ public:
    *
    * \param path the ShapeSet's path
    */
-  void setPath(const std::string &path);
+  void setPath(const std::string& path);
 
   /**
    * Get the path of the file from which this ShapeSet was created.
    *
    * \return the path of the file. Can be empty.
    */
-  const std::string &getPath() const { return m_path; }
+  const std::string& getPath() const { return m_path; }
 
   /**
    * Sets the dimensions for all shapes in the ShapeSet.

@@ -48,14 +48,14 @@ public:
    * \brief Add a point to the shape.
    * \param pt The point to add.
    */
-  AXOM_HOST_DEVICE void push_back(const PointType &pt) { m_points.push_back(pt); }
+  AXOM_HOST_DEVICE void push_back(const PointType& pt) { m_points.push_back(pt); }
 
   /*!
    * \brief Return the \a index'th point.
    * \param index The index of the point to return.
    * \return The desired point.
    */
-  AXOM_HOST_DEVICE const PointType &operator[](axom::IndexType index) const
+  AXOM_HOST_DEVICE const PointType& operator[](axom::IndexType index) const
   {
     return m_points[index];
   }
@@ -138,7 +138,7 @@ public:
 
 /// Printing method for VariableShape objects.
 template <typename T, int NDIMS, int N = 8>
-std::ostream &operator<<(std::ostream &os, const VariableShape<T, NDIMS, N> &obj)
+std::ostream& operator<<(std::ostream& os, const VariableShape<T, NDIMS, N>& obj)
 {
   os << "{shapeId=" << obj.m_shapeId << ", points={";
   for(int i = 0; i < obj.m_points.size(); i++)

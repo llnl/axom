@@ -51,7 +51,7 @@ public:
   virtual ~C2CReader() = default;
 
   /// Sets the name of the contour file to load. Must be called before \a read()
-  void setFileName(const std::string &fileName) { m_fileName = fileName; }
+  void setFileName(const std::string& fileName) { m_fileName = fileName; }
 
   /// Sets the length unit. All lengths will be converted to this unit when reading the mesh
   void setLengthUnit(utilities::LengthUnit lengthUnit);
@@ -60,7 +60,7 @@ public:
   void clear();
 
   /// Returns true if the file has a recognized c2c extension.
-  static bool hasValidExtension(const std::string &filename);
+  static bool hasValidExtension(const std::string& filename);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -88,7 +88,7 @@ protected:
    *
    * \return Success on success, Failure otherwise.
    */
-  ResultType readInternal(const std::string &filename, CurveArray &inputCurves);
+  ResultType readInternal(const std::string& filename, CurveArray& inputCurves);
 
   /*!
    * \brief Internal helper for reading a contour file.
@@ -98,7 +98,7 @@ protected:
    *
    * \return Success on success, Failure otherwise.
    */
-  ResultType readContour(const std::string &filename, CurveArray &inputCurves);
+  ResultType readContour(const std::string& filename, CurveArray& inputCurves);
 
   /*!
    * \brief Internal helper for reading an assembly file.
@@ -108,7 +108,7 @@ protected:
    *
    * \return Success on success, Failure otherwise.
    */
-  ResultType readAssembly(const std::string &filename, CurveArray &inputCurves);
+  ResultType readAssembly(const std::string& filename, CurveArray& inputCurves);
 
 protected:
   std::string m_fileName;

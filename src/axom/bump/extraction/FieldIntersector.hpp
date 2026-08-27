@@ -73,7 +73,7 @@ public:
      */
     AXOM_HOST_DEVICE
     axom::IndexType determineTableCase(axom::IndexType AXOM_UNUSED_PARAM(zone_index),
-                                       const ConnectivityView &node_ids) const
+                                       const ConnectivityView& node_ids) const
     {
       axom::IndexType case_number = 0, num_ids = node_ids.size();
       for(IndexType i = 0; i < num_ids; i++)
@@ -116,12 +116,12 @@ public:
    * \param n_options The node that contains the options.
    * \param n_fields The node that contains fields.
    */
-  void initialize(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                  const CoordsetView &AXOM_UNUSED_PARAM(coordsetView),
-                  const conduit::Node &n_options,
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
-                  const conduit::Node &n_fields)
+  void initialize(const TopologyView& AXOM_UNUSED_PARAM(topologyView),
+                  const CoordsetView& AXOM_UNUSED_PARAM(coordsetView),
+                  const conduit::Node& n_options,
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_topology),
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_coordset),
+                  const conduit::Node& n_fields)
   {
     namespace utils = axom::bump::utilities;
     const int allocator_id = getAllocatorID();
@@ -131,8 +131,8 @@ public:
     m_view.m_fieldValue = opts.value();
 
     // Make sure the clipField is the right data type and store access to it in the view.
-    const conduit::Node &n_field = n_fields.fetch_existing(opts.field());
-    const conduit::Node &n_field_values = n_field["values"];
+    const conduit::Node& n_field = n_fields.fetch_existing(opts.field());
+    const conduit::Node& n_field_values = n_field["values"];
     SLIC_ASSERT(n_field["association"].as_string() == "vertex");
     SLIC_ASSERT(!n_field_values.dtype().is_object());
     if(n_field_values.dtype().id() == utils::cpp2conduit<FieldType>::id)
@@ -157,12 +157,12 @@ public:
    * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  std::string getTopologyName(const conduit::Node &n_input, const conduit::Node &n_options) const
+  std::string getTopologyName(const conduit::Node& n_input, const conduit::Node& n_options) const
   {
     // Get the topo name.
     FieldOptions opts(n_options);
-    const conduit::Node &n_fields = n_input.fetch_existing("fields");
-    const conduit::Node &n_field = n_fields.fetch_existing(opts.field());
+    const conduit::Node& n_fields = n_input.fetch_existing("fields");
+    const conduit::Node& n_field = n_fields.fetch_existing(opts.field());
     return n_field["topology"].as_string();
   }
 

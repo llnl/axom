@@ -38,7 +38,7 @@ void createRun()
 //! [end create run]
 
 //! [begin adding data]
-void addData(axom::sina::Record &record)
+void addData(axom::sina::Record& record)
 {
   // Add a scalar named "my_scalar" with the value 123.456
   record.add("my_scalar", axom::sina::Datum {123.456});
@@ -57,7 +57,7 @@ void addData(axom::sina::Record &record)
 //! [end adding data]
 
 //! [begin curve sets]
-void addCurveSets(axom::sina::Record &record)
+void addCurveSets(axom::sina::Record& record)
 {
   axom::sina::CurveSet timePlots {"time_plots"};
 
@@ -76,7 +76,7 @@ void addCurveSets(axom::sina::Record &record)
 //! [end curve sets]
 
 //! [begin file add_and_remove]
-void addAndRemoveFileToRecord(axom::sina::Record &run)
+void addAndRemoveFileToRecord(axom::sina::Record& run)
 {
   axom::sina::File my_file {"some/path.txt"};
   // Adds the file to the record's file list
@@ -87,16 +87,16 @@ void addAndRemoveFileToRecord(axom::sina::Record &run)
 //! [end file add_and_remove]
 
 //! [begin relationships]
-void associateRunToStudy(axom::sina::Document &doc,
-                         axom::sina::Record const &uqStudy,
-                         axom::sina::Record const &run)
+void associateRunToStudy(axom::sina::Document& doc,
+                         axom::sina::Record const& uqStudy,
+                         axom::sina::Record const& run)
 {
   doc.add(axom::sina::Relationship {uqStudy.getId(), "contains", run.getId()});
 }
 //! [end relationships]
 
 //! [begin library data foo]
-void foo_collectData(axom::sina::DataHolder &fooData)
+void foo_collectData(axom::sina::DataHolder& fooData)
 {
   fooData.add("temperature", axom::sina::Datum {500});
   fooData.add("energy", axom::sina::Datum {1.2e10});
@@ -104,7 +104,7 @@ void foo_collectData(axom::sina::DataHolder &fooData)
 //! [end library data foo]
 
 //! [begin library data bar]
-void bar_gatherData(axom::sina::DataHolder &barData)
+void bar_gatherData(axom::sina::DataHolder& barData)
 {
   barData.add("temperature", axom::sina::Datum {400});
   barData.add("mass", axom::sina::Datum {15});
@@ -112,7 +112,7 @@ void bar_gatherData(axom::sina::DataHolder &barData)
 //! [end library data bar]
 
 //! [begin library data host]
-void gatherAllData(axom::sina::Record &record)
+void gatherAllData(axom::sina::Record& record)
 {
   auto fooData = record.addLibraryData("foo");
   auto barData = record.addLibraryData("bar");
@@ -125,7 +125,7 @@ void gatherAllData(axom::sina::Record &record)
 //! [end library data host]
 
 //! [begin io write]
-void save(axom::sina::Document const &doc)
+void save(axom::sina::Document const& doc)
 {
   axom::sina::saveDocument(doc, "my_output.json");
 #ifdef AXOM_USE_HDF5
@@ -146,9 +146,9 @@ void load()
 //! [end io read]
 
 //! [begin user defined]
-void addUserDefined(axom::sina::Record &record)
+void addUserDefined(axom::sina::Record& record)
 {
-  conduit::Node &userDefined = record.getUserDefinedContent();
+  conduit::Node& userDefined = record.getUserDefinedContent();
   userDefined["var_1"] = "a";
   userDefined["var_2"] = "b";
 
