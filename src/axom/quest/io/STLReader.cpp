@@ -54,7 +54,7 @@ bool STLReader::isAsciiFormat() const
   if(!ifs.is_open())
   {
     /* short-circuit */
-    SLIC_WARNING("Cannot open the provided STL file [" << m_fileName << "]");
+    SLIC_WARNING_ROOT("Cannot open the provided STL file [" << m_fileName << "]");
     return false;
   }
 
@@ -93,7 +93,7 @@ int STLReader::readAsciiSTL()
 
   if(!ifs.is_open())
   {
-    SLIC_WARNING("Cannot open the provided STL file [" << m_fileName << "]");
+    SLIC_WARNING_ROOT("Cannot open the provided STL file [" << m_fileName << "]");
     return (-1);
   }
 
@@ -156,7 +156,7 @@ int STLReader::readBinarySTL()
   std::ifstream ifs(m_fileName.c_str(), std::ios::in | std::ios::binary);
   if(!ifs.is_open())
   {
-    SLIC_WARNING("Cannot open the provided STL file [" << m_fileName << "]");
+    SLIC_WARNING_ROOT("Cannot open the provided STL file [" << m_fileName << "]");
     return (-1);
   }
 
@@ -210,11 +210,11 @@ int STLReader::read()
 void STLReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
 {
   /* Sanity checks */
-  SLIC_ERROR_IF(mesh == nullptr, "supplied mesh is null!");
-  SLIC_ERROR_IF(static_cast<axom::IndexType>(m_nodes.size()) != 3 * m_num_nodes,
-                "nodes vector size doesn't match expected size!");
-  SLIC_ERROR_IF(mesh->getDimension() != 3, "STL reader expects a 3D mesh!");
-  SLIC_ERROR_IF(mesh->getCellType() != mint::TRIANGLE, "STL reader expects a triangle mesh!");
+  SLIC_ERROR_ROOT_IF(mesh == nullptr, "supplied mesh is null!");
+  SLIC_ERROR_ROOT_IF(static_cast<axom::IndexType>(m_nodes.size()) != 3 * m_num_nodes,
+                     "nodes vector size doesn't match expected size!");
+  SLIC_ERROR_ROOT_IF(mesh->getDimension() != 3, "STL reader expects a 3D mesh!");
+  SLIC_ERROR_ROOT_IF(mesh->getCellType() != mint::TRIANGLE, "STL reader expects a triangle mesh!");
 
   // pre-allocate space to store the mesh
   if(!mesh->isExternal())
@@ -222,10 +222,10 @@ void STLReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
     mesh->resize(m_num_nodes, m_num_faces);
   }
 
-  SLIC_ERROR_IF(mesh->getNumberOfNodes() != m_num_nodes,
-                "mesh number of nodes does not match the number of nodes in the STL file!");
-  SLIC_ERROR_IF(mesh->getNumberOfCells() != m_num_faces,
-                "mesh number of cells does not match number of triangles in the STL file!");
+  SLIC_ERROR_ROOT_IF(mesh->getNumberOfNodes() != m_num_nodes,
+                     "mesh number of nodes does not match the number of nodes in the STL file!");
+  SLIC_ERROR_ROOT_IF(mesh->getNumberOfCells() != m_num_faces,
+                     "mesh number of cells does not match number of triangles in the STL file!");
 
   double* x = mesh->getCoordinateArray(mint::X_COORDINATE);
   double* y = mesh->getCoordinateArray(mint::Y_COORDINATE);

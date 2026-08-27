@@ -31,14 +31,10 @@ namespace quest
 class STLReader
 {
 public:
-  /*!
-   * \brief Constructor.
-   */
+  /// \brief Constructor
   STLReader();
 
-  /*!
-   * \brief Destructor.
-   */
+  /// \brief Destructor
   virtual ~STLReader();
 
   /*!
@@ -59,9 +55,7 @@ public:
    */
   int getNumFaces() const { return static_cast<int>(m_num_faces); };
 
-  /*!
-   * \brief Clears all internal data-structures
-   */
+  /// \brief Clears all internal data-structures
   void clear();
 
   /*!
