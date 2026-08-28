@@ -56,9 +56,14 @@ public:
 
   using DataType = typename SuperMapType::DataType;
 
-  using SetType = SubsetType;
+  /// The subset carrying flat indices into the super-map's domain.
+  using IndexSetType = SubsetType;
+  /// The SubMap domain; retained as SetType for MapLike compatibility.
+  using SetType = IndexSetType;
   using SetPosition = typename SubsetType::PositionType;
   using SetElement = typename SubsetType::ElementType;
+  /// The element obtained after projecting a subset index through the super-map's set.
+  using ProjectedElement = typename SuperMapType::SetElement;
   using SuperSetElement = typename SuperMapType::SetElement;
 
   using StridePolicyType = typename SuperMapType::StridePolicyType;
@@ -161,9 +166,16 @@ public:
     return operator()(idx, comp...);
   }
 
-  /// \brief Return the set element in the SuperMap at the given subset index
+  /*!
+   * \brief Project a subset position to the corresponding super-map domain element.
+   *
+   * \note index() is not part of the MapLike contract. 
+   * SetType describes the index-carrying subset returned by set(),
+   * while this function returns a ProjectedElement from the super-map's semantic domain.
+   * For a bivariate super-map, that projected element is a coordinate pair.
+   */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE SuperSetElement index(IndexType idx) const
+  AXOM_HOST_DEVICE ProjectedElement index(IndexType idx) const
   {
     return m_superMap->set()->at(m_subsetIdx[idx]);
   }

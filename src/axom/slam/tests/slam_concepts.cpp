@@ -665,6 +665,10 @@ static_assert(slam::MapLike<BinarySubMap>);
 static_assert(slam::MapLike<ConstBinarySubMap>);
 static_assert(slam::MapOver<BinarySubMap, typename BinaryMap::SetType>);
 static_assert(slam::MapOver<ConstBinarySubMap, typename BinaryMap::SetType>);
+static_assert(std::same_as<typename BinarySubMap::IndexSetType, typename BinaryMap::SetType>);
+static_assert(std::same_as<typename BinarySubMap::ProjectedElement, typename Product::ElementType>);
+static_assert(std::same_as<decltype(std::declval<const BinarySubMap&>().index(Position {})),
+                           typename Product::ElementType>);
 
 // Policies
 using Size = policies::CompileTimeSize<int, 5>;
