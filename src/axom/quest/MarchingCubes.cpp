@@ -133,6 +133,13 @@ void MarchingCubes::computeIsocontour(double contourVal)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::computeIsoContour");
 
+  /*
+    NOTE: the accumulators are deliberately not reset here.
+    Successive computeIsocontour() calls accumulate into one facet buffer.
+    It calls clearOutput() once, then loops over function fields and mask values
+    calling computeIsocontour() for each, recording a running prefix sum of facet counts per strategy.
+  */
+
   // Mark and scan domains while adding up their
   // facet counts to get the total facet counts.
   m_facetIndexOffsets.resize(m_singles.size());
