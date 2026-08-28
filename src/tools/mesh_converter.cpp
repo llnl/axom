@@ -248,7 +248,10 @@ bool loadProe(const std::string& filename, TetMesh& slam_mesh, bool dump_debug_m
     axom::quest::ProEReader reader;
     reader.setFileName(filename);
 
-    reader.read();
+    if(reader.read() != 0)
+    {
+      return false;
+    }
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Input mesh has {:L} vertices and {:L} tets",
                                 reader.getNumNodes(),

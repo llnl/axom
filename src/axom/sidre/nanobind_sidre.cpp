@@ -674,8 +674,7 @@ NB_MODULE(_sidre, m_sidre)
   m_sidre.attr("AXOM_ENABLE_MPI") = false;
 #endif
 
-#if defined(AXOM_USE_MPI) && \
-  ((NB_VERSION_MAJOR > 2) || (NB_VERSION_MAJOR == 2 && NB_VERSION_MINOR >= 10))
+#if defined(AXOM_USE_MPI)
   m_sidre.attr("AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING") = true;
 #else
   m_sidre.attr("AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING") = false;
@@ -833,9 +832,7 @@ NB_MODULE(_sidre, m_sidre)
          nb::keep_alive<0, 1>(),
          "Return an iterator over Attributes")
 
-#if defined(AXOM_USE_MPI) && \
-  ((NB_VERSION_MAJOR > 2) || (NB_VERSION_MAJOR == 2 && NB_VERSION_MINOR >= 10))
-    // Distributed Blueprint index generation builds cleanly under nanobind >= 2.10
+#if defined(AXOM_USE_MPI)
     .def(
       "generateBlueprintIndex",
       [](DataStore& self,

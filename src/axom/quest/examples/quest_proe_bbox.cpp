@@ -141,7 +141,8 @@ int main(int argc, char** argv)
   // To keep all tets, do not set a TetPred.
 
   // Read in the file.
-  reader.read();
+  const int read_status = reader.read();
+  SLIC_ERROR_IF(read_status != 0, "Failed to load Pro/E file '" << args.file_name << "'.");
 
   // Get surface mesh
   UMesh mesh(3, axom::mint::TET);

@@ -101,6 +101,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   internal `quest::internal::read_*_mesh()`/`logger_init()` helpers are now declared only when Axom is
   configured with MPI. Serial code that passed the placeholder `MPI_COMM_SELF` explicitly should drop the argument.
 - We can now configure Axom without MPI when some of its dependencies were configured with MPI.
+- Python: Raised the minimum supported versions for Python bindings to Python 3.9 and nanobind 2.10.
+- Quest: Status-returning reader/writer operations in `C2CReader`, `MFEMReader`, `ProEReader`,
+  `STEPReader`, `STLReader`, `STLWriter`, and their parallel variants are now marked `[[nodiscard]]`.
+  Callers that previously ignored returned status values must check them to avoid compiler diagnostics.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
