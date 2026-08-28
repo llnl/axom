@@ -881,7 +881,7 @@ TEST_P(SlicMacrosParallel, test_debug_macros)
 
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
-#ifdef AXOM_DEBUG
+#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG("test debug message"), "DEBUG", "test debug message");
 
@@ -1015,7 +1015,7 @@ TEST_P(SlicMacrosParallel, test_debug_macros)
   slic::internal::clear_streams();
 
 #else
-  // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
+  // SLIC_DEBUG macros only log messages when Slic debug macros are enabled
   AXOM_UNUSED_VAR(expected_line_number);
 
   SLIC_DEBUG("test debug message");
@@ -1088,7 +1088,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
         slic::disableAbortOnError();
       }
 
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
 
       bool abort_enabled = slic::isAbortOnErrorsEnabled();
 
@@ -1177,7 +1177,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
       }
       axom::slic::setIsRoot(true);
 #else
-      // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
+      // SLIC_ASSERT macros only log messages when Slic debug macros are enabled
 
       // Quiet warning about has_aborted and reset_state never being referenced
       AXOM_UNUSED_VAR(has_aborted);
@@ -1221,7 +1221,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
         slic::disableAbortOnWarning();
       }
 
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
 
       bool abort_enabled = slic::isAbortOnWarningsEnabled();
 
@@ -1314,7 +1314,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
 
 #else
       AXOM_UNUSED_VAR(expected_line_number);
-      // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined
+      // SLIC_CHECK macros only log messages when Slic debug macros are enabled
       EXPECT_TRUE(slic::internal::are_all_streams_empty());
 #endif
 
@@ -1332,7 +1332,7 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
   constexpr int val = 42;
 
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ASSERT(val < 0), "ERROR", "Failed Assert: val < 0");
 
@@ -1342,7 +1342,7 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
   // clang-format on
 
 #else
-  // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
+  // SLIC_ASSERT macros only log messages when Slic debug macros are enabled
   AXOM_UNUSED_VAR(val);
 
   SLIC_ASSERT(val < 0);
@@ -1365,7 +1365,7 @@ TEST_P(SlicMacrosParallel, test_check_macros)
 
   constexpr int val = 42;
 
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_CHECK(val < 0), "WARNING", "Failed Check: val < 0");
 
   // Single line - Placement of ")" matters for __LINE__ for slic call and checking
@@ -1374,7 +1374,7 @@ TEST_P(SlicMacrosParallel, test_check_macros)
   // clang-format on
 
 #else
-  // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined
+  // SLIC_CHECK macros only log messages when Slic debug macros are enabled
   AXOM_UNUSED_VAR(val);
 
   SLIC_CHECK(val < 0);
