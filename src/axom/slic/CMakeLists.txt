@@ -82,6 +82,12 @@ axom_add_library(NAME        slic
                  FOLDER      axom/slic
                  )
 
+if(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+  blt_add_target_definitions(TO slic
+                             SCOPE PUBLIC
+                             TARGET_DEFINITIONS AXOM_ENABLE_SLIC_DEBUG_MACROS)
+endif()
+
 axom_write_unified_header( NAME slic
                            HEADERS ${slic_headers}
                            )

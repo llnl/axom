@@ -22,7 +22,7 @@ void testInit(const std::string& label, std::function<void(void)> f)
 
 TEST(slic_uninit, log_macro)
 {
-#ifdef AXOM_DEBUG
+#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
   testInit("debug message", []() { SLIC_DEBUG("test debug message"); });
   testInit("debug_if", []() { SLIC_DEBUG_IF(true, "debug message should print"); });
 #endif
@@ -37,7 +37,7 @@ TEST(slic_uninit, log_macro)
 
 TEST(slic_uninit, tests_and_asserts)
 {
-#ifdef AXOM_DEBUG
+#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
   testInit("check", []() { SLIC_CHECK(false); });
   testInit("check_msg", []() { SLIC_CHECK_MSG(false, "checked false; this should print"); });
   testInit("assert", []() { SLIC_ASSERT(false); });
