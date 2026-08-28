@@ -53,6 +53,9 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::
       SLIC_ERROR(
         "MarchingCubes bump backend is not enabled for this runtime policy "
         "on Windows shared-library builds.");
+      // With a non-aborting error handler for SLIC_ERROR, we could
+      // fall through to the common return below and silently hand back the
+      // structured-only legacy kernel for what may be an unstructured mesh.
       return nullptr;
     }
   #else
