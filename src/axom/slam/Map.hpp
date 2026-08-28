@@ -91,6 +91,7 @@ public:
   using ValueType = typename IndirectionPolicy::IndirectionResult;
   using ConstValueType = typename IndirectionPolicy::ConstIndirectionResult;
 
+  static_assert(SetLike<SetType>, "Map requires a univariate SetLike domain");
   static_assert(MapStridePolicyFor<StridePolicyType, SetPosition>,
                 "Map requires a scalar or multi-dimensional stride over its position type");
   static_assert(MapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>,

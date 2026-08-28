@@ -590,6 +590,7 @@ static_assert(!slam::BivariateSetLike<WrongElementBivariateSet>);
 static_assert(!slam::BivariateSetLike<WrongCoordinateBivariateSet>);
 static_assert(CanFormProductSet<NarrowRange, NarrowRange>);
 static_assert(CanFormProductSet<NarrowRange, WideRange>);
+static_assert(!CanFormProductSet<TypedefOnlySet, NarrowRange>);
 static_assert(!slam::SetLike<int>);
 
 // Relations

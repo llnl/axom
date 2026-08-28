@@ -112,6 +112,8 @@ public:
   using ValueType = typename IndirectionPolicy::IndirectionResult;
   using ConstValueType = typename IndirectionPolicy::ConstIndirectionResult;
 
+  static_assert(BivariateSetLike<BivariateSetType>,
+                "BivariateMap requires a BivariateSetLike domain");
   static_assert(
     MapStridePolicyFor<StridePolicyType, SetPosition>,
     "BivariateMap requires a scalar or multi-dimensional stride over its position type");

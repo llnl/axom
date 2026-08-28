@@ -14,6 +14,7 @@
 
 #include "axom/core/IteratorBase.hpp"
 #include "axom/slam/BivariateSet.hpp"
+#include "axom/slam/Concepts.hpp"
 #include "axom/slam/RangeSet.hpp"
 
 #include "axom/slam/policies/BivariateSetInterfacePolicies.hpp"
@@ -39,6 +40,7 @@ template <typename SetType1 = slam::Set<>,
           typename InterfaceType = policies::VirtualInterface,
           typename FlatPosition = detail::default_flat_position_t<typename SetType1::PositionType,
                                                                   typename SetType2::PositionType>>
+  requires SetLike<SetType1> && SetLike<SetType2> && PositionLike<FlatPosition>
 class ProductSet final
   : public policies::BivariateSetInterface<InterfaceType, SetType1, SetType2, FlatPosition>
 {
