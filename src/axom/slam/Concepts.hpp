@@ -82,7 +82,9 @@ inline constexpr bool enable_position_like = false;
 
 /// \brief A built-in integral or explicitly opted-in SLAM position type.
 template <typename T>
-concept PositionLike = std::integral<detail::model_t<T>> || enable_position_like<detail::model_t<T>>;
+concept PositionLike =
+  (std::integral<detail::model_t<T>> && !std::same_as<detail::model_t<T>, bool>) ||
+  enable_position_like<detail::model_t<T>>;
 
 /*!
  * \brief A univariate set with position-based size and element access.

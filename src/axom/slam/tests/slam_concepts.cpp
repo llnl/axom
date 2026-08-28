@@ -765,6 +765,7 @@ static_assert(!slam::IndirectionPolicy<int>);
 
 // Index and deployment properties
 static_assert(slam::PositionLike<int>);
+static_assert(!slam::PositionLike<bool>);
 static_assert(!slam::PositionLike<double>);
 static_assert(slam::PositionLike<StrongPosition>);
 static_assert(slam::DeviceCapturable<TrivialCapture>);
