@@ -271,7 +271,7 @@ int getSharedMemoryAllocatorID(std::size_t minSegmentSize = 0);
  * \brief Allocates a chunk of memory of type T.
  *
  * \param [in] n the number of elements to allocate.
- * \param [in] allocID the Umpire allocator to use (optional)
+ * \param [in] allocID the Axom/Umpire allocator to use (optional)
  *
  * \tparam T the type of pointer returned.
  *
@@ -290,7 +290,7 @@ inline T* allocate(std::size_t n, int allocID = getDefaultAllocatorID()) noexcep
  *
  * \param [in] n the number of elements to allocate.
  * \param [in] name allocation name (must be non-empty for shared memory allocators)
- * \param [in] allocID the Umpire allocator to use (optional)
+ * \param [in] allocID the Axom/Umpire allocator to use (optional)
  *
  * \return pointer to the new allocation or a nullptr if allocation failed.
  */
@@ -390,6 +390,11 @@ inline T* allocate(std::size_t n, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    return static_cast<T*>(std::malloc(numbytes));
+  }
+
 #ifdef AXOM_USE_UMPIRE
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
@@ -397,11 +402,6 @@ inline T* allocate(std::size_t n, int allocID) noexcept
     return static_cast<T*>(allocator.allocate(numbytes));
   }
 #endif
-
-  if(allocID == MALLOC_ALLOCATOR_ID)
-  {
-    return static_cast<T*>(std::malloc(numbytes));
-  }
 
   std::cerr << "Unrecognized allocator id " << allocID << std::endl;
   axom::utilities::processAbort();
@@ -414,6 +414,12 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    AXOM_UNUSED_VAR(name);
+    return static_cast<T*>(std::malloc(numbytes));
+  }
+
 #ifdef AXOM_USE_UMPIRE
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
@@ -422,12 +428,6 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
                         : static_cast<T*>(allocator.allocate(name, numbytes));
   }
 #endif
-
-  if(allocID == MALLOC_ALLOCATOR_ID)
-  {
-    AXOM_UNUSED_VAR(name);
-    return static_cast<T*>(std::malloc(numbytes));
-  }
 
   std::cerr << "Unrecognized allocator id " << allocID << std::endl;
   axom::utilities::processAbort();
