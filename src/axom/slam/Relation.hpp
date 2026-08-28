@@ -10,7 +10,6 @@
  * \file Relation.hpp
  *
  * \brief Basic API for a topological relation between two sets
- *
  */
 
 #include <vector>
@@ -31,7 +30,7 @@ public:
   using SetElement = typename Set<PosType, ElemType>::ElementType;
 
   // A relation row is indexed by a position in the from-set and stores positions in the to-set
-  using RelationVec = std::vector<SetElement>;
+  using RelationVec = std::vector<SetPosition>;
   using RelationVecIterator = typename RelationVec::iterator;
   using RelationVecIteratorPair = std::pair<RelationVecIterator, RelationVecIterator>;
   using RelationVecConstIterator = typename RelationVec::const_iterator;

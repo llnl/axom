@@ -713,5 +713,8 @@ static_assert(slam::is_handle_like_v<TrivialCapture> == slam::DeviceCapturable<T
 static_assert(!slam::is_set_like_v<int>);
 static_assert(!slam::is_map_over_v<int, ConcreteRange>);
 
+using LegacyDistinctRelation = slam::Relation<std::int32_t, double>;
+static_assert(std::same_as<typename LegacyDistinctRelation::RelationVec::value_type, std::int32_t>);
+
 TEST(slam_concepts, compile_time_contracts) { SUCCEED(); }
 }  // namespace slam_concept_test
