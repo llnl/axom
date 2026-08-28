@@ -22,7 +22,9 @@
 #include "axom/slam/policies/StridePolicies.hpp"
 
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <vector>
 
@@ -45,16 +47,6 @@ struct NotPositionConvertible
 
 using WideSet = slam::RangeSet<std::int64_t, std::int64_t>;
 using NarrowSet = slam::RangeSet<std::int32_t, std::int32_t>;
-
-struct BytePositionSet
-{
-  using PositionType = std::uint8_t;
-  using ElementType = std::uint8_t;
-
-  constexpr PositionType size() const { return 0; }
-  constexpr bool empty() const { return true; }
-  constexpr ElementType at(PositionType) const { return 0; }
-};
 
 struct SignedBytePositionSet
 {
@@ -137,6 +129,7 @@ concept CanMakeExplicitStaticRelation =
   };
 
 static_assert(CanMakeRangeSet<Pos, Pos, int>);
+static_assert(CanMakeRangeSet<Pos, Pos, std::size_t>);
 static_assert(!CanMakeRangeSet<Pos, Pos, double>);
 static_assert(!CanMakeRangeSet<double, double, double>);
 static_assert(!CanMakeRangeSet<Pos, NonPositionElement, int>);
@@ -156,9 +149,9 @@ static_assert(!CanMakeRuntimeMap<WideSet, NotPositionConvertible, double>);
 static_assert(CanMakeStaticMap<2, WideSet, double>);
 static_assert(!CanMakeStaticMap<0, WideSet, double>);
 static_assert(!CanMakeStaticMap<-1, WideSet, double>);
-static_assert(CanMakeStaticMap<255, BytePositionSet, double>);
-static_assert(!CanMakeStaticMap<256, BytePositionSet, double>);
-static_assert(!CanMakeStaticMap<257, BytePositionSet, double>);
+static_assert(CanMakeStaticMap<127, SignedBytePositionSet, double>);
+static_assert(!CanMakeStaticMap<128, SignedBytePositionSet, double>);
+static_assert(!CanMakeStaticMap<129, SignedBytePositionSet, double>);
 static_assert(CanMakeExplicitStaticMap<2, WideSet, double, std::int64_t>);
 static_assert(!CanMakeExplicitStaticMap<2, WideSet, double, std::int32_t>);
 
@@ -168,7 +161,7 @@ static_assert(!CanMakeVariableRelation<WideSet, NarrowSet, std::int32_t, std::in
 static_assert(!CanMakeVariableRelation<WideSet, NarrowSet, std::int64_t, std::int64_t>);
 static_assert(CanMakeVariableRelation<NarrowSet, NarrowSet, std::int64_t, std::int32_t>);
 static_assert(CanMakeVariableRelation<NarrowSet, WideSet, std::int64_t, std::int64_t>);
-static_assert(!CanMakeVariableRelation<NarrowSet, WideSet, std::int32_t, std::int64_t>);
+static_assert(CanMakeVariableRelation<NarrowSet, WideSet, std::int32_t, std::int64_t>);
 static_assert(!CanMakeVariableRelation<TypedefOnlySet, NarrowSet, Pos, std::int32_t>);
 
 static_assert(CanMakeRuntimeRelation<WideSet, NarrowSet, int, std::int32_t>);
@@ -178,9 +171,9 @@ static_assert(!CanMakeRuntimeRelation<WideSet, NarrowSet, int, std::int64_t>);
 static_assert(CanMakeStaticRelation<2, WideSet, NarrowSet, std::int32_t>);
 static_assert(!CanMakeStaticRelation<0, WideSet, NarrowSet, std::int32_t>);
 static_assert(!CanMakeStaticRelation<2, WideSet, NarrowSet, std::int64_t>);
-static_assert(CanMakeStaticRelation<255, BytePositionSet, NarrowSet, std::int32_t>);
-static_assert(CanMakeStaticRelation<256, BytePositionSet, NarrowSet, std::int32_t>);
-static_assert(CanMakeStaticRelation<257, BytePositionSet, NarrowSet, std::int32_t>);
+static_assert(CanMakeStaticRelation<255, SignedBytePositionSet, NarrowSet, std::int32_t>);
+static_assert(CanMakeStaticRelation<256, SignedBytePositionSet, NarrowSet, std::int32_t>);
+static_assert(CanMakeStaticRelation<257, SignedBytePositionSet, NarrowSet, std::int32_t>);
 static_assert(CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int64_t, std::int32_t>);
 static_assert(!CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int32_t, std::int32_t>);
 static_assert(CanMakeExplicitStaticRelation<2, NarrowSet, NarrowSet, std::int64_t, std::int32_t>);
@@ -479,6 +472,23 @@ TEST(slam_make_helpers, make_variable_relation_separates_endpoint_and_flat_posit
   EXPECT_EQ(relation.toSetSize(), std::int64_t {4});
   EXPECT_EQ(relation.size(std::int32_t {0}), std::int64_t {2});
   EXPECT_EQ(relation[std::int32_t {0}][std::int64_t {1}], std::int64_t {3});
+}
+
+TEST(slam_make_helpers, make_variable_relation_accepts_narrow_flat_storage_with_wide_to_positions)
+{
+  constexpr std::int64_t widePosition =
+    static_cast<std::int64_t>(std::numeric_limits<std::int32_t>::max()) + 7;
+  NarrowSet fromSet(1);
+  WideSet toSet(widePosition + 1);
+
+  std::vector<std::int32_t> begins {0, 1};
+  std::vector<std::int64_t> indices {widePosition};
+  auto relation = slam::make_variable_relation(fromSet, toSet, begins, indices);
+
+  static_assert(std::same_as<typename decltype(relation)::FlatPositionType, std::int32_t>);
+  static_assert(std::same_as<typename decltype(relation)::ToPositionType, std::int64_t>);
+  ASSERT_TRUE(relation.isValid(true));
+  EXPECT_EQ(relation[std::int32_t {0}][std::int32_t {0}], widePosition);
 }
 
 TEST(slam_make_helpers, make_variable_relation_accepts_wider_flat_storage)

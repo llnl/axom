@@ -57,7 +57,8 @@ namespace axom::slam
 /// \name Set construction helpers
 /// \brief Construct a SLAM set while deducing its policy stack from the buffer or range.
 ///  \a PosType defaults to slam's default position type and may be supplied explicitly
-///  as the leading template argument. Position and size arguments must model PositionLike.
+///  as the leading template argument. Position types must model PositionLike.
+///  Size and bound arguments must be non-Boolean integral or opted-in position values.
 ///  Compatible values are converted to the selected \a PosType before constructing the set.
 /// \{
 
@@ -67,7 +68,7 @@ namespace axom::slam
  * \return a RangeSet<PosType, ElemType>
  */
 template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType, typename SizeType>
-  requires PositionLike<PosType> && PositionLike<SizeType> &&
+  requires PositionLike<PosType> && detail::PositionValueLike<SizeType> &&
   std::convertible_to<SizeType, PosType> && std::constructible_from<ElemType, PosType>
 RangeSet<PosType, ElemType> make_range_set(SizeType size)
 {
@@ -84,9 +85,9 @@ template <typename PosType = DefaultPositionType,
           typename ElemType = DefaultElementType,
           typename LowerType,
           typename UpperType>
-  requires PositionLike<PosType> && PositionLike<LowerType> && PositionLike<UpperType> &&
-  std::convertible_to<LowerType, PosType> && std::convertible_to<UpperType, PosType> &&
-  std::constructible_from<ElemType, PosType>
+  requires PositionLike<PosType> && detail::PositionValueLike<LowerType> &&
+  detail::PositionValueLike<UpperType> && std::convertible_to<LowerType, PosType> &&
+  std::convertible_to<UpperType, PosType> && std::constructible_from<ElemType, PosType>
 RangeSet<PosType, ElemType> make_range_set(LowerType lower, UpperType upper)
 {
   return RangeSet<PosType, ElemType>(static_cast<PosType>(lower), static_cast<PosType>(upper));
@@ -167,7 +168,8 @@ ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPA
  * \return a CArrayIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T, typename SizeType>
-  requires PositionLike<PosType> && PositionLike<SizeType> && std::convertible_to<SizeType, PosType>
+  requires PositionLike<PosType> && detail::PositionValueLike<SizeType> &&
+  std::convertible_to<SizeType, PosType>
 CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, SizeType size)
 {
   using SetType = CArrayIndirectionSet<PosType, T>;

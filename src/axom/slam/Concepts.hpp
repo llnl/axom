@@ -16,6 +16,7 @@
 #pragma once
 
 #include <concepts>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -80,11 +81,38 @@ using policy_default_t = std::remove_cv_t<decltype(model_t<T>::DEFAULT_VALUE)>;
 template <typename T>
 inline constexpr bool enable_position_like = false;
 
-/// \brief A built-in integral or explicitly opted-in SLAM position type.
+/// \brief A built-in signed integral or explicitly opted-in SLAM position type.
 template <typename T>
-concept PositionLike =
-  (std::integral<detail::model_t<T>> && !std::same_as<detail::model_t<T>, bool>) ||
-  enable_position_like<detail::model_t<T>>;
+concept PositionLike = std::signed_integral<detail::model_t<T>> ||
+  (!std::integral<detail::model_t<T>> && enable_position_like<detail::model_t<T>>);
+
+namespace detail
+{
+/// \brief A non-Boolean integral or an opted-in value convertible to a position.
+template <typename T>
+concept PositionValueLike =
+  (std::integral<model_t<T>> && !std::same_as<model_t<T>, bool>) || enable_position_like<model_t<T>>;
+
+template <typename Position, typename RepresentedPosition>
+consteval bool positionTypeCanRepresent()
+{
+  using PositionType = model_t<Position>;
+  using RepresentedType = model_t<RepresentedPosition>;
+  if constexpr(std::integral<PositionType> && std::integral<RepresentedType>)
+  {
+    // Positions and sizes are nonnegative, so compare the number of value bits.
+    return std::numeric_limits<PositionType>::digits >= std::numeric_limits<RepresentedType>::digits;
+  }
+  else
+  {
+    return std::constructible_from<PositionType, RepresentedType>;
+  }
+}
+
+template <typename Position, typename RepresentedPosition>
+concept PositionCanRepresent = PositionLike<Position> && PositionLike<RepresentedPosition> &&
+  positionTypeCanRepresent<Position, RepresentedPosition>();
+}  // namespace detail
 
 /*!
  * \brief A univariate set with position-based size and element access.
@@ -104,7 +132,7 @@ namespace detail
 {
 // Shared glue for constrained construction helpers.
 template <typename Set, typename Value>
-concept SetPositionConvertible = SetLike<Set> && PositionLike<Value> &&
+concept SetPositionConvertible = SetLike<Set> && PositionValueLike<Value> &&
   std::convertible_to<model_t<Value>, typename model_t<Set>::PositionType>;
 
 template <typename Set, typename Position>
@@ -180,7 +208,7 @@ concept BivariateSetLike =
     { set.at(flatPosition) } -> std::convertible_to<typename detail::model_t<T>::ElementType>;
     { set.getFirstSet() } -> std::same_as<const typename detail::model_t<T>::FirstSetType*>;
     { set.getSecondSet() } -> std::same_as<const typename detail::model_t<T>::SecondSetType*>;
-    { set.getElements(firstPosition).size() } -> PositionLike;
+    { set.getElements(firstPosition).size() } -> detail::PositionValueLike;
     set.getElements(firstPosition).begin();
     {
       set.getElements(firstPosition).end()
@@ -219,7 +247,7 @@ concept RelationLike =
            typename detail::model_t<T>::FromSetType::PositionType fromPosition) {
     { relation.fromSet() } -> std::same_as<const typename detail::model_t<T>::FromSetType*>;
     { relation.toSet() } -> std::same_as<const typename detail::model_t<T>::ToSetType*>;
-    { relation[fromPosition].size() } -> PositionLike;
+    { relation[fromPosition].size() } -> detail::PositionValueLike;
     relation[fromPosition].begin();
     { relation[fromPosition].end() } -> std::same_as<decltype(relation[fromPosition].begin())>;
     {
@@ -243,15 +271,15 @@ concept FlatRelationLike = RelationLike<T> &&
   requires(const detail::model_t<T>& relation,
            typename detail::model_t<T>::FromSetType::PositionType fromPosition,
            typename detail::model_t<T>::FlatPositionType flatPosition) {
-    requires std::same_as<std::remove_cvref_t<decltype(relation[fromPosition])>,
-                          typename detail::model_t<T>::RelationSubset>;
-    { relation.size(fromPosition) } -> PositionLike;
+    { relation[fromPosition] } -> std::convertible_to<typename detail::model_t<T>::RelationSubset>;
+    { relation.size(fromPosition) } -> detail::PositionValueLike;
     {
       relation.offset(fromPosition)
     } -> std::convertible_to<typename detail::model_t<T>::FlatPositionType>;
     {
-      relation.firstIndex(flatPosition)
-    } -> std::convertible_to<typename detail::model_t<T>::FromSetType::PositionType>;
+      static_cast<typename detail::model_t<T>::FromSetType::PositionType>(
+        relation.firstIndex(flatPosition))
+    } -> std::same_as<typename detail::model_t<T>::FromSetType::PositionType>;
     {
       relation.relationData().size()
     } -> std::convertible_to<typename detail::model_t<T>::FlatPositionType>;

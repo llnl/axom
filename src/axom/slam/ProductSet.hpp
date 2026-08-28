@@ -20,6 +20,7 @@
 #include "axom/slam/policies/BivariateSetInterfacePolicies.hpp"
 
 #include <cassert>
+#include <limits>
 #include <optional>
 
 namespace axom::slam
@@ -40,7 +41,9 @@ template <typename SetType1 = slam::Set<>,
           typename InterfaceType = policies::VirtualInterface,
           typename FlatPosition = detail::default_flat_position_t<typename SetType1::PositionType,
                                                                   typename SetType2::PositionType>>
-  requires SetLike<SetType1> && SetLike<SetType2> && PositionLike<FlatPosition>
+  requires SetLike<SetType1> && SetLike<SetType2> &&
+  detail::PositionCanRepresent<FlatPosition, typename SetType1::PositionType> &&
+  detail::PositionCanRepresent<FlatPosition, typename SetType2::PositionType>
 class ProductSet final
   : public policies::BivariateSetInterface<InterfaceType, SetType1, SetType2, FlatPosition>
 {
@@ -317,7 +320,27 @@ public:
 
   [[nodiscard]] bool isValid(bool verboseOutput = false) const
   {
-    return BaseType::isValid(verboseOutput);
+    if(!BaseType::isValid(verboseOutput))
+    {
+      return false;
+    }
+
+    if constexpr(std::integral<PositionType>)
+    {
+      const PositionType firstSize = static_cast<PositionType>(this->firstSetSize());
+      const PositionType secondSize = static_cast<PositionType>(this->secondSetSize());
+      const bool productIsRepresentable =
+        firstSize == 0 || secondSize <= std::numeric_limits<PositionType>::max() / firstSize;
+
+      SLIC_INFO_IF(!productIsRepresentable && verboseOutput,
+                   "ProductSet is not valid: the product of endpoint sizes "
+                     << firstSize << " and " << secondSize
+                     << " is not representable by its flat position type.");
+
+      return productIsRepresentable;
+    }
+
+    return true;
   }
 
 private:

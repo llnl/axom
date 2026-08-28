@@ -44,7 +44,6 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
 
-#include <limits>
 #include <vector>
 
 namespace axom::slam
@@ -65,26 +64,9 @@ using SelectedRelationFlatPosition =
                      RelationFlatPosition<FromSet, ToSet>,
                      model_t<ExplicitPosition>>;
 
-template <typename Position, typename EndpointPosition>
-consteval bool positionTypeCanRepresent()
-{
-  using PositionType = model_t<Position>;
-  using EndpointType = model_t<EndpointPosition>;
-  if constexpr(std::integral<PositionType> && std::integral<EndpointType>)
-  {
-    // Positions and sizes are nonnegative, so compare the number of value bits.
-    return std::numeric_limits<PositionType>::digits >= std::numeric_limits<EndpointType>::digits;
-  }
-  else
-  {
-    return std::constructible_from<PositionType, EndpointType>;
-  }
-}
-
 template <typename FromSet, typename ToSet, typename Position>
-concept RelationFlatPositionFor = SetLike<FromSet> && SetLike<ToSet> && PositionLike<Position> &&
-  positionTypeCanRepresent<Position, typename model_t<FromSet>::PositionType>() &&
-  positionTypeCanRepresent<Position, typename model_t<ToSet>::PositionType>();
+concept RelationFlatPositionFor = SetLike<FromSet> && SetLike<ToSet> &&
+  PositionCanRepresent<Position, typename model_t<FromSet>::PositionType>;
 
 template <typename FromSet, typename ToSet, typename ExplicitPosition>
 concept OptionalRelationFlatPositionFor = SetLike<FromSet> && SetLike<ToSet> &&
@@ -92,12 +74,12 @@ concept OptionalRelationFlatPositionFor = SetLike<FromSet> && SetLike<ToSet> &&
 
 template <typename FromSet, typename ToSet, typename Value>
 concept RelationFlatPositionConstructible =
-  SetLike<FromSet> && SetLike<ToSet> && PositionLike<Value> &&
+  SetLike<FromSet> && SetLike<ToSet> && PositionValueLike<Value> &&
   std::constructible_from<RelationFlatPosition<FromSet, ToSet>, model_t<Value>>;
 
 template <typename FromSet, typename ToSet, typename ExplicitPosition, typename Value>
 concept SelectedRelationFlatPositionConstructible =
-  OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosition> && PositionLike<Value> &&
+  OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosition> && PositionValueLike<Value> &&
   std::constructible_from<SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosition>, model_t<Value>>;
 
 template <typename FromSet, typename ToSet, typename PosType, typename ElemType>
@@ -169,7 +151,8 @@ inline void check_constant_relation_size(const FromSet* fromSet,
 /// \brief Construct relations whose entries use the to-set position type.
 /// Variable relations use their begins-buffer element type for flattened storage.
 /// Constant relations use the common endpoint position type unless an explicit flat type is supplied.
-/// Runtime sizes and strides must model PositionLike and be convertible to the flattened position type.
+/// Runtime sizes and strides must be non-Boolean integral or opted-in position values
+/// and be convertible to the flattened position type.
 /// Compile-time strides must be positive.
 /// \{
 

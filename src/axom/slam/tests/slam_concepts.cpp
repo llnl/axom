@@ -78,6 +78,11 @@ using DistinctElementDynamicConstantRelation =
 template <typename FirstSet, typename SecondSet>
 concept CanFormProductSet = requires { sizeof(slam::ProductSet<FirstSet, SecondSet>); };
 
+template <typename FirstSet, typename SecondSet, typename FlatPosition>
+concept CanFormProductSetWithFlatPosition = requires {
+  sizeof(slam::ProductSet<FirstSet, SecondSet, policies::ConcreteInterface, FlatPosition>);
+};
+
 template <typename RelationType>
 concept CanFormRelationSet = slam::FlatRelationLike<RelationType> && requires {
   typename std::type_identity_t<
@@ -351,6 +356,32 @@ struct WrongRelationEntry
   WrongRelationRow operator[](FromSetType::PositionType) const;
 };
 
+struct ConvertibleRelationRow
+{
+  using RelationSubset = typename VariableRelation::RelationSubset;
+
+  VariableRelation::FlatPositionType size() const;
+  typename RelationSubset::const_iterator begin() const;
+  typename RelationSubset::const_iterator end() const;
+  operator RelationSubset() const;
+};
+
+struct ProxyRowRelation : VariableRelation
+{
+  ConvertibleRelationRow operator[](FromSetType::PositionType) const;
+};
+
+struct ExplicitFirstIndexResult
+{
+  using FromPositionType = typename VariableRelation::FromPositionType;
+  explicit operator FromPositionType() const;
+};
+
+struct ExplicitFirstIndexRelation : VariableRelation
+{
+  ExplicitFirstIndexResult firstIndex(FlatPositionType) const;
+};
+
 struct TypedefOnlyMap
 {
   using DataType = double;
@@ -590,6 +621,8 @@ static_assert(!slam::BivariateSetLike<WrongElementBivariateSet>);
 static_assert(!slam::BivariateSetLike<WrongCoordinateBivariateSet>);
 static_assert(CanFormProductSet<NarrowRange, NarrowRange>);
 static_assert(CanFormProductSet<NarrowRange, WideRange>);
+static_assert(CanFormProductSetWithFlatPosition<NarrowRange, WideRange, std::int64_t>);
+static_assert(!CanFormProductSetWithFlatPosition<NarrowRange, WideRange, std::int32_t>);
 static_assert(!CanFormProductSet<TypedefOnlySet, NarrowRange>);
 static_assert(!slam::SetLike<int>);
 
@@ -605,6 +638,8 @@ static_assert(std::same_as<typename HeterogeneousDynamicVariableRelation::SetEle
 static_assert(CanFormRelationSet<VariableRelation>);
 static_assert(CanFormRelationSet<HeterogeneousVariableRelation>);
 static_assert(slam::FlatRelationLike<VariableRelation>);
+static_assert(slam::FlatRelationLike<ProxyRowRelation>);
+static_assert(slam::FlatRelationLike<ExplicitFirstIndexRelation>);
 static_assert(slam::RelationLike<DynamicConstantRelation>);
 static_assert(slam::RelationLike<DistinctElementDynamicConstantRelation>);
 static_assert(slam::RelationLike<const DynamicConstantRelation&>);
@@ -766,6 +801,7 @@ static_assert(!slam::IndirectionPolicy<int>);
 
 // Index and deployment properties
 static_assert(slam::PositionLike<int>);
+static_assert(!slam::PositionLike<unsigned>);
 static_assert(!slam::PositionLike<bool>);
 static_assert(!slam::PositionLike<double>);
 static_assert(slam::PositionLike<StrongPosition>);

@@ -61,9 +61,9 @@ inline void check_map_view_size(const SetType* set,
 }  // namespace detail
 
 /// \name Map construction helpers
-/// \brief Construct a SLAM map while deducing its policy stack from the set and
-/// backing buffer. Runtime strides must model PositionLike and be convertible
-/// to the set's position type; the returned map always uses that position type.
+/// \brief Construct a SLAM map while deducing its policy stack from the set and backing buffer.
+/// Runtime strides must be non-Boolean integral or opted-in position values
+/// and be convertible to the set's position type. The returned map always uses that position type.
 /// Compile-time strides must be positive.
 /// \{
 

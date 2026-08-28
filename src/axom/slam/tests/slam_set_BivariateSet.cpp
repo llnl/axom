@@ -670,6 +670,23 @@ TEST(slam_bivariate_set, product_set_preserves_heterogeneous_coordinate_types)
   EXPECT_EQ(product.findElementFlatIndex(FirstPosition {1}, SecondPosition {2}), 5);
 }
 
+TEST(slam_bivariate_set, product_set_rejects_unrepresentable_cardinality)
+{
+  using Position = std::int32_t;
+  using Set = slam::RangeSet<Position, Position>;
+  using Product = typename slam::ProductSet<Set, Set>::ConcreteSet;
+
+  constexpr Position endpointSize = 50'000;
+  static_assert(static_cast<std::int64_t>(endpointSize) * endpointSize >
+                std::numeric_limits<Position>::max());
+
+  Set firstSet(endpointSize);
+  Set secondSet(endpointSize);
+  Product product(&firstSet, &secondSet);
+
+  EXPECT_FALSE(product.isValid(true));
+}
+
 TEST(slam_bivariate_set, heterogeneous_coordinates_preserve_indices_above_int32)
 {
   using FirstPosition = std::int32_t;
