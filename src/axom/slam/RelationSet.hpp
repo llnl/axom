@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "axom/slam/Concepts.hpp"
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/BivariateSet.hpp"
 #include "axom/slam/policies/BivariateSetInterfacePolicies.hpp"
@@ -39,6 +40,9 @@ class RelationSet final
   : public policies::BivariateSetInterface<InterfaceType, SetType1, SetType2, typename Relation::FlatPositionType>
 {
 public:
+  static_assert(FlatRelationLike<Relation>,
+                "RelationSet requires a relation with contiguous flat storage");
+
   using FirstSetType = SetType1;
   using SecondSetType = SetType2;
 

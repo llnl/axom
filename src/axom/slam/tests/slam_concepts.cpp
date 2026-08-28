@@ -79,7 +79,7 @@ template <typename FirstSet, typename SecondSet>
 concept CanFormProductSet = requires { sizeof(slam::ProductSet<FirstSet, SecondSet>); };
 
 template <typename RelationType>
-concept CanFormRelationSet = requires {
+concept CanFormRelationSet = slam::FlatRelationLike<RelationType> && requires {
   typename std::type_identity_t<
     slam::RelationSet<RelationType, typename RelationType::FromSetType, typename RelationType::ToSetType>>;
 };
@@ -603,11 +603,18 @@ static_assert(std::same_as<typename HeterogeneousDynamicVariableRelation::SetEle
                            typename WideRange::PositionType>);
 static_assert(CanFormRelationSet<VariableRelation>);
 static_assert(CanFormRelationSet<HeterogeneousVariableRelation>);
+static_assert(slam::FlatRelationLike<VariableRelation>);
 static_assert(slam::RelationLike<DynamicConstantRelation>);
 static_assert(slam::RelationLike<DistinctElementDynamicConstantRelation>);
 static_assert(slam::RelationLike<const DynamicConstantRelation&>);
 static_assert(slam::is_relation_like_v<DynamicConstantRelation>);
 static_assert(slam::RelationLike<MinimalRelation>);
+static_assert(!slam::FlatRelationLike<MinimalRelation>);
+static_assert(!slam::FlatRelationLike<DynamicVariableRelation>);
+static_assert(!slam::FlatRelationLike<DynamicConstantRelation>);
+static_assert(!CanFormRelationSet<MinimalRelation>);
+static_assert(!CanFormRelationSet<DynamicVariableRelation>);
+static_assert(!CanFormRelationSet<DynamicConstantRelation>);
 static_assert(!slam::RelationLike<TypedefOnlyRelation>);
 static_assert(!slam::RelationLike<WrongRelationEntry>);
 

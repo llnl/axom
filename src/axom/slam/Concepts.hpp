@@ -225,6 +225,39 @@ concept RelationLike =
     } -> std::convertible_to<typename detail::model_t<T>::ToSetType::PositionType>;
   };
 
+/*!
+ * \brief A RelationLike type exposing the flattened storage used by RelationSet.
+ *
+ * RelationLike deliberately models only row access. 
+ * This refinement names the additional static-storage operations required 
+ * to adapt a relation into a bivariate RelationSet.
+ */
+template <typename T>
+concept FlatRelationLike = RelationLike<T> &&
+  requires {
+    typename detail::model_t<T>::FlatPositionType;
+    typename detail::model_t<T>::RelationSubset;
+  } && PositionLike<typename detail::model_t<T>::FlatPositionType> &&
+  requires(const detail::model_t<T>& relation,
+           typename detail::model_t<T>::FromSetType::PositionType fromPosition,
+           typename detail::model_t<T>::FlatPositionType flatPosition) {
+    requires std::same_as<std::remove_cvref_t<decltype(relation[fromPosition])>,
+                          typename detail::model_t<T>::RelationSubset>;
+    { relation.size(fromPosition) } -> PositionLike;
+    {
+      relation.offset(fromPosition)
+    } -> std::convertible_to<typename detail::model_t<T>::FlatPositionType>;
+    {
+      relation.firstIndex(flatPosition)
+    } -> std::convertible_to<typename detail::model_t<T>::FromSetType::PositionType>;
+    {
+      relation.relationData().size()
+    } -> std::convertible_to<typename detail::model_t<T>::FlatPositionType>;
+    {
+      relation.relationData()[flatPosition]
+    } -> std::convertible_to<typename detail::model_t<T>::ToSetType::PositionType>;
+  };
+
 namespace detail
 {
 template <typename Value, typename Data>
