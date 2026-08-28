@@ -64,6 +64,9 @@
 #include "conduit_node.hpp"
 #include "conduit_blueprint.hpp"
 
+#include <cmath>
+#include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <type_traits>
@@ -273,6 +276,17 @@ public:
 #if !defined(__CUDACC__)
 private:
 #endif
+  /*!
+   * @brief Convert the requested isovalue to bump's field type while preserving
+   * the legacy backend's greater-than-or-equal corner classification.
+   */
+  template <typename FieldType>
+  static FieldType isoValueForBump(double contourVal)
+  {
+    const auto value = static_cast<FieldType>(contourVal);
+    return std::nextafter(value, -std::numeric_limits<FieldType>::infinity());
+  }
+
   /*! @brief Dispatch a coordset view restricted to this implementation's DIM. */
   template <typename FuncType>
   static void dispatchCoordset(const conduit::Node& n_coords, FuncType&& func)
@@ -606,7 +620,16 @@ private:
     return crossingCountValue > 0;
   }
 
-  bool attachStructuredCrossingSelectedZonesOption(conduit::Node& n_options,
+  /*!
+   * @brief Fast structured crossing pre-filter.
+   *
+   * @param isoForBump Threshold in the intersector's field type; see isoValueForBump().
+   *   The corner test below MUST be the same expression bump's FieldIntersector uses,
+   *   or this pre-filter can exclude a zone that bump would have cut (silently dropping facets).
+   */
+  template <typename IsoFieldType>
+  bool attachStructuredCrossingSelectedZonesOption(IsoFieldType isoForBump,
+                                                   conduit::Node& n_options,
                                                    axom::Array<axom::IndexType>& crossingZones) const
   {
     AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::attachStructuredCrossingSelectedZonesOption");
@@ -625,56 +648,104 @@ private:
 
     if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
     {
+      /*
+        Iterate the logical index space directly rather than deriving it from a flat zone index.
+
+        topoMap.toMultiIndex(zoneIndex) costs DIM integer divisions per zone, 
+        and this loop runs over EVERY zone, not just crossing ones.
+        Nested loops make the flat index incremental and the divisions disappear.
+
+        Node signs are also hoisted: adjacent zones share four (2D) or eight (3D) corners,
+        so classifying each NODE once into a byte array and combining bytes per zone
+        replaces 2^DIM strided double reads per zone with 2^DIM byte reads.
+      */
       crossingZones = axom::Array<axom::IndexType>(0, 0, m_allocatorID);
       crossingZones.reserve(nZones);
-
-      for(axom::IndexType zoneIndex = 0; zoneIndex < nZones; ++zoneIndex)
       {
-        const auto idx = topoMap.toMultiIndex(zoneIndex);
-        bool useZone = maskView.empty();
-        if(!useZone)
-        {
-          if constexpr(DIM == 2)
-          {
-            useZone = (maskView(idx[0], idx[1]) == m_maskVal);
-          }
-          else
-          {
-            useZone = (maskView(idx[0], idx[1], idx[2]) == m_maskVal);
-          }
-        }
+        // Node-sign plane cache: signs for logical k and k+1 (3D), or the single plane (2D).
+        // Indexed [j * pi + i] over NODE counts.
+        const axom::IndexType pi = cellShape[0] + 1;
+        const axom::IndexType pj = cellShape[1] + 1;
+        const axom::IndexType planeSize = pi * pj;
+        axom::Array<std::uint8_t> signPlanes(2 * planeSize, 2 * planeSize);
+        auto signs = signPlanes.view();
 
-        bool hasPositive = false;
-        bool hasNonPositive = false;
-        if(useZone)
-        {
-          if constexpr(DIM == 2)
+        auto fillPlane = [&](axom::IndexType which, axom::IndexType k) {
+          std::uint8_t* dst = signs.data() + which * planeSize;
+          for(axom::IndexType j = 0; j < pj; ++j)
           {
-            const bool p0 = fcnView(idx[0], idx[1]) > m_contourVal;
-            const bool p1 = fcnView(idx[0] + 1, idx[1]) > m_contourVal;
-            const bool p2 = fcnView(idx[0] + 1, idx[1] + 1) > m_contourVal;
-            const bool p3 = fcnView(idx[0], idx[1] + 1) > m_contourVal;
-            hasPositive = p0 || p1 || p2 || p3;
-            hasNonPositive = !p0 || !p1 || !p2 || !p3;
+            for(axom::IndexType i = 0; i < pi; ++i)
+            {
+              if constexpr(DIM == 2)
+              {
+                AXOM_UNUSED_VAR(k);
+                dst[j * pi + i] = static_cast<IsoFieldType>(fcnView(i, j)) > isoForBump ? 1 : 0;
+              }
+              else
+              {
+                dst[j * pi + i] = static_cast<IsoFieldType>(fcnView(i, j, k)) > isoForBump ? 1 : 0;
+              }
+            }
           }
-          else
-          {
-            const bool p0 = fcnView(idx[0], idx[1], idx[2]) > m_contourVal;
-            const bool p1 = fcnView(idx[0] + 1, idx[1], idx[2]) > m_contourVal;
-            const bool p2 = fcnView(idx[0], idx[1] + 1, idx[2]) > m_contourVal;
-            const bool p3 = fcnView(idx[0] + 1, idx[1] + 1, idx[2]) > m_contourVal;
-            const bool p4 = fcnView(idx[0], idx[1], idx[2] + 1) > m_contourVal;
-            const bool p5 = fcnView(idx[0] + 1, idx[1], idx[2] + 1) > m_contourVal;
-            const bool p6 = fcnView(idx[0], idx[1] + 1, idx[2] + 1) > m_contourVal;
-            const bool p7 = fcnView(idx[0] + 1, idx[1] + 1, idx[2] + 1) > m_contourVal;
-            hasPositive = p0 || p1 || p2 || p3 || p4 || p5 || p6 || p7;
-            hasNonPositive = !p0 || !p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7;
-          }
-        }
+        };
 
-        if(hasPositive && hasNonPositive)
+        const axom::IndexType nk = (DIM == 3) ? cellShape[DIM - 1] : 1;
+        fillPlane(0, 0);
+
+        for(axom::IndexType k = 0; k < nk; ++k)
         {
-          crossingZones.push_back(zoneIndex);
+          if constexpr(DIM == 3)
+          {
+            // Plane k is already in slot (k % 2); fill k+1 into the other slot.
+            fillPlane((k + 1) % 2, k + 1);
+          }
+          const std::uint8_t* lo = signs.data() + (DIM == 3 ? (k % 2) : 0) * planeSize;
+          const std::uint8_t* hi = signs.data() + (DIM == 3 ? ((k + 1) % 2) : 0) * planeSize;
+
+          for(axom::IndexType j = 0; j < cellShape[1]; ++j)
+          {
+            const axom::IndexType row = j * pi;
+            const axom::IndexType rowUp = (j + 1) * pi;
+            for(axom::IndexType i = 0; i < cellShape[0]; ++i)
+            {
+              bool useZone = maskView.empty();
+              if(!useZone)
+              {
+                if constexpr(DIM == 2)
+                {
+                  useZone = (maskView(i, j) == m_maskVal);
+                }
+                else
+                {
+                  useZone = (maskView(i, j, k) == m_maskVal);
+                }
+              }
+              if(!useZone)
+              {
+                continue;
+              }
+
+              int nPos = lo[row + i] + lo[row + i + 1] + lo[rowUp + i] + lo[rowUp + i + 1];
+              int nCorners = 4;
+              if constexpr(DIM == 3)
+              {
+                nPos += hi[row + i] + hi[row + i + 1] + hi[rowUp + i] + hi[rowUp + i + 1];
+                nCorners = 8;
+              }
+
+              if(nPos != 0 && nPos != nCorners)
+              {
+                if constexpr(DIM == 2)
+                {
+                  crossingZones.push_back(i + j * cellShape[0]);
+                }
+                else
+                {
+                  crossingZones.push_back(i + cellShape[0] * (j + cellShape[1] * k));
+                }
+              }
+            }
+          }
         }
       }
 
@@ -685,12 +756,14 @@ private:
     axom::Array<axom::IndexType> crossingFlags(nZones, nZones, m_allocatorID);
     auto crossingFlagsView = crossingFlags.view();
 
-    const double contourVal = m_contourVal;
+    // Local copies for device capture: AXOM_LAMBDA is [=], so capturing members
+    // would capture `this` and dereference a host pointer in a device kernel.
+    const IsoFieldType isoVal = isoForBump;
     const int maskVal = m_maskVal;
     axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
     axom::for_all<ExecSpace>(
       nZones,
-      [topoMap, maskView, fcnView, contourVal, maskVal, crossingFlagsView, crossingCount] AXOM_HOST_DEVICE(
+      [topoMap, maskView, fcnView, isoVal, maskVal, crossingFlagsView, crossingCount] AXOM_HOST_DEVICE(
         axom::IndexType zoneIndex) {
         const auto idx = topoMap.toMultiIndex(zoneIndex);
         bool useZone = maskView.empty();
@@ -712,23 +785,27 @@ private:
         {
           if constexpr(DIM == 2)
           {
-            const bool p0 = fcnView(idx[0], idx[1]) > contourVal;
-            const bool p1 = fcnView(idx[0] + 1, idx[1]) > contourVal;
-            const bool p2 = fcnView(idx[0] + 1, idx[1] + 1) > contourVal;
-            const bool p3 = fcnView(idx[0], idx[1] + 1) > contourVal;
+            const bool p0 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1])) > isoVal;
+            const bool p1 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1])) > isoVal;
+            const bool p2 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1)) > isoVal;
+            const bool p3 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1)) > isoVal;
             hasPositive = p0 || p1 || p2 || p3;
             hasNonPositive = !p0 || !p1 || !p2 || !p3;
           }
           else
           {
-            const bool p0 = fcnView(idx[0], idx[1], idx[2]) > contourVal;
-            const bool p1 = fcnView(idx[0] + 1, idx[1], idx[2]) > contourVal;
-            const bool p2 = fcnView(idx[0], idx[1] + 1, idx[2]) > contourVal;
-            const bool p3 = fcnView(idx[0] + 1, idx[1] + 1, idx[2]) > contourVal;
-            const bool p4 = fcnView(idx[0], idx[1], idx[2] + 1) > contourVal;
-            const bool p5 = fcnView(idx[0] + 1, idx[1], idx[2] + 1) > contourVal;
-            const bool p6 = fcnView(idx[0], idx[1] + 1, idx[2] + 1) > contourVal;
-            const bool p7 = fcnView(idx[0] + 1, idx[1] + 1, idx[2] + 1) > contourVal;
+            const bool p0 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1], idx[2])) > isoVal;
+            const bool p1 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1], idx[2])) > isoVal;
+            const bool p2 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1, idx[2])) > isoVal;
+            const bool p3 =
+              static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1, idx[2])) > isoVal;
+            const bool p4 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1], idx[2] + 1)) > isoVal;
+            const bool p5 =
+              static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1], idx[2] + 1)) > isoVal;
+            const bool p6 =
+              static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1, idx[2] + 1)) > isoVal;
+            const bool p7 =
+              static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1, idx[2] + 1)) > isoVal;
             hasPositive = p0 || p1 || p2 || p3 || p4 || p5 || p6 || p7;
             hasNonPositive = !p0 || !p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7;
           }
@@ -835,9 +912,21 @@ private:
 
         Cut iso(topologyView, coordsetView);
         iso.setAllocatorID(m_allocatorID);
+
+        // --- Corner-classification convention ------------------------------
+        // Reconcile bump's strict corner test with the legacy kernel's `>=`.
+        // Both the value handed to bump AND the structured pre-filter's own
+        // test must use this, or the pre-filter and the extractor disagree.
+        using IsoFieldType =
+          typename bumpx::FieldIntersector<ExecSpace, TopologyView, CoordsetView>::FieldType;
+        const IsoFieldType isoForBump = isoValueForBump<IsoFieldType>(m_contourVal);
+        n_options["value"] = static_cast<double>(isoForBump);
+
         axom::Array<axom::IndexType> selectedZones;
         const bool hasCrossingZones = m_isStructured
-          ? attachStructuredCrossingSelectedZonesOption(n_options, selectedZones)
+          ? attachStructuredCrossingSelectedZonesOption<IsoFieldType>(isoForBump,
+                                                                      n_options,
+                                                                      selectedZones)
           : [&]() {
               addMaskSelectedZonesOption(topologyView, n_options, selectedZones);
               return attachCrossingSelectedZonesOption(topologyView,
