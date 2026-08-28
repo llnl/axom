@@ -59,13 +59,11 @@ template <typename FromSet, typename ToSet>
 using RelationFlatPosition =
   default_flat_position_t<typename FromSet::PositionType, typename ToSet::PositionType>;
 
-template <typename FromSet, typename ToSet, typename Position>
-concept RelationFlatPositionSame = SetLike<FromSet> && SetLike<ToSet> &&
-  std::same_as<model_t<Position>, RelationFlatPosition<FromSet, ToSet>>;
-
-template <typename FromSet, typename ToSet, typename Position>
-concept OptionalRelationFlatPositionSame = SetLike<FromSet> && SetLike<ToSet> &&
-  (std::same_as<model_t<Position>, void> || RelationFlatPositionSame<FromSet, ToSet, Position>);
+template <typename FromSet, typename ToSet, typename ExplicitPosition>
+using SelectedRelationFlatPosition =
+  std::conditional_t<std::same_as<model_t<ExplicitPosition>, void>,
+                     RelationFlatPosition<FromSet, ToSet>,
+                     model_t<ExplicitPosition>>;
 
 template <typename Position, typename EndpointPosition>
 consteval bool positionTypeCanRepresent()
@@ -88,10 +86,19 @@ concept RelationFlatPositionFor = SetLike<FromSet> && SetLike<ToSet> && Position
   positionTypeCanRepresent<Position, typename model_t<FromSet>::PositionType>() &&
   positionTypeCanRepresent<Position, typename model_t<ToSet>::PositionType>();
 
+template <typename FromSet, typename ToSet, typename ExplicitPosition>
+concept OptionalRelationFlatPositionFor = SetLike<FromSet> && SetLike<ToSet> &&
+  RelationFlatPositionFor<FromSet, ToSet, SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosition>>;
+
 template <typename FromSet, typename ToSet, typename Value>
 concept RelationFlatPositionConstructible =
   SetLike<FromSet> && SetLike<ToSet> && PositionLike<Value> &&
   std::constructible_from<RelationFlatPosition<FromSet, ToSet>, model_t<Value>>;
+
+template <typename FromSet, typename ToSet, typename ExplicitPosition, typename Value>
+concept SelectedRelationFlatPositionConstructible =
+  OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosition> && PositionLike<Value> &&
+  std::constructible_from<SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosition>, model_t<Value>>;
 
 template <typename FromSet, typename ToSet, typename PosType, typename ElemType>
 concept VariableRelationBufferTypes = RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
@@ -161,7 +168,7 @@ inline void check_constant_relation_size(const FromSet* fromSet,
 /// \name Relation construction helpers
 /// \brief Construct relations whose entries use the to-set position type.
 /// Variable relations use their begins-buffer element type for flattened storage.
-/// Constant relations use the common endpoint position type.
+/// Constant relations use the common endpoint position type unless an explicit flat type is supplied.
 /// Runtime sizes and strides must model PositionLike and be convertible to the flattened position type.
 /// Compile-time strides must be positive.
 /// \{
@@ -538,12 +545,14 @@ auto make_constant_relation(FromSet& fromSet,
  */
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType, typename SizeType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType> &&
-  detail::RelationFlatPositionConstructible<FromSet, ToSet, SizeType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType> &&
+  detail::SelectedRelationFlatPositionConstructible<FromSet, ToSet, ExplicitPosType, SizeType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, ElemType* indices, SizeType indicesSize)
 {
-  using PosType = detail::RelationFlatPosition<FromSet, ToSet>;
+  using PosType = detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>;
   using IndicesIndirection = policies::CArrayIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
@@ -561,22 +570,29 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, ElemType* indices
 /// \brief Reference overload for make_constant_relation_ct (C-array-backed).
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType, typename SizeType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType> &&
-  detail::RelationFlatPositionConstructible<FromSet, ToSet, SizeType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType> &&
+  detail::SelectedRelationFlatPositionConstructible<FromSet, ToSet, ExplicitPosType, SizeType>
 auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, ElemType* indices, SizeType indicesSize)
 {
-  return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices, indicesSize);
+  return make_constant_relation_ct<STRIDE, FromSet, ToSet, ExplicitPosType>(&fromSet,
+                                                                            &toSet,
+                                                                            indices,
+                                                                            indicesSize);
 }
 
 /// \brief Make a static, constant-cardinality relation with a compile-time stride, backed by std::vector indices.
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, std::vector<ElemType>& indices)
 {
-  using PosType = detail::RelationFlatPosition<FromSet, ToSet>;
+  using PosType = detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>;
   using IndicesIndirection = policies::STLVectorIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
@@ -593,21 +609,25 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, std::vector<ElemT
 /// \brief Reference overload for make_constant_relation_ct (std::vector-backed).
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, std::vector<ElemType>& indices)
 {
-  return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices);
+  return make_constant_relation_ct<STRIDE, FromSet, ToSet, ExplicitPosType>(&fromSet, &toSet, indices);
 }
 
 /// \brief Make a static, constant-cardinality relation with a compile-time stride, backed by ArrayView indices.
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::ArrayView<ElemType> indices)
 {
-  using PosType = detail::RelationFlatPosition<FromSet, ToSet>;
+  using PosType = detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>;
   using IndicesIndirection = policies::ArrayViewIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
@@ -624,21 +644,25 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::ArrayView<E
 /// \brief Reference overload for make_constant_relation_ct (ArrayView-backed).
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, axom::ArrayView<ElemType> indices)
 {
-  return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices);
+  return make_constant_relation_ct<STRIDE, FromSet, ToSet, ExplicitPosType>(&fromSet, &toSet, indices);
 }
 
 /// \brief Make a static, constant-cardinality relation with a compile-time stride, backed by axom::Array indices.
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::Array<ElemType>& indices)
 {
-  using PosType = detail::RelationFlatPosition<FromSet, ToSet>;
+  using PosType = detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>;
   using IndicesIndirection = policies::ArrayIndirection<PosType, ElemType>;
   using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
   using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
@@ -655,11 +679,13 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::Array<ElemT
 /// \brief Reference overload for make_constant_relation_ct (axom::Array-backed).
 template <int STRIDE, typename FromSet, typename ToSet, typename ExplicitPosType = void, typename ElemType>
   requires detail::RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  detail::PositiveStaticStrideFor<STRIDE, FromSet> &&
-  detail::OptionalRelationFlatPositionSame<FromSet, ToSet, ExplicitPosType>
+  detail::PositiveStaticStrideForPosition<
+             STRIDE,
+             detail::SelectedRelationFlatPosition<FromSet, ToSet, ExplicitPosType>> &&
+  detail::OptionalRelationFlatPositionFor<FromSet, ToSet, ExplicitPosType>
 auto make_constant_relation_ct(FromSet& fromSet, ToSet& toSet, axom::Array<ElemType>& indices)
 {
-  return make_constant_relation_ct<STRIDE>(&fromSet, &toSet, indices);
+  return make_constant_relation_ct<STRIDE, FromSet, ToSet, ExplicitPosType>(&fromSet, &toSet, indices);
 }
 
 /// \}

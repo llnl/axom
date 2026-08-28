@@ -128,9 +128,13 @@ consteval bool positiveStaticStrideRepresentable()
   }
 }
 
+template <int Stride, typename Position>
+concept PositiveStaticStrideForPosition =
+  PositionLike<Position> && (Stride > 0) && positiveStaticStrideRepresentable<Stride, Position>();
+
 template <int Stride, typename Set>
-concept PositiveStaticStrideFor = SetLike<Set> && (Stride > 0) &&
-  positiveStaticStrideRepresentable<Stride, typename model_t<Set>::PositionType>();
+concept PositiveStaticStrideFor =
+  SetLike<Set> && PositiveStaticStrideForPosition<Stride, typename model_t<Set>::PositionType>;
 }  // namespace detail
 
 /*!

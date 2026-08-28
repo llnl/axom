@@ -56,6 +56,16 @@ struct BytePositionSet
   constexpr ElementType at(PositionType) const { return 0; }
 };
 
+struct SignedBytePositionSet
+{
+  using PositionType = std::int8_t;
+  using ElementType = std::int8_t;
+
+  constexpr PositionType size() const { return 0; }
+  constexpr bool empty() const { return true; }
+  constexpr ElementType at(PositionType) const { return 0; }
+};
+
 template <typename Position, typename Element, typename Size>
 concept CanMakeRangeSet = requires(Size size) { slam::make_range_set<Position, Element>(size); };
 
@@ -169,10 +179,15 @@ static_assert(CanMakeStaticRelation<2, WideSet, NarrowSet, std::int32_t>);
 static_assert(!CanMakeStaticRelation<0, WideSet, NarrowSet, std::int32_t>);
 static_assert(!CanMakeStaticRelation<2, WideSet, NarrowSet, std::int64_t>);
 static_assert(CanMakeStaticRelation<255, BytePositionSet, NarrowSet, std::int32_t>);
-static_assert(!CanMakeStaticRelation<256, BytePositionSet, NarrowSet, std::int32_t>);
-static_assert(!CanMakeStaticRelation<257, BytePositionSet, NarrowSet, std::int32_t>);
+static_assert(CanMakeStaticRelation<256, BytePositionSet, NarrowSet, std::int32_t>);
+static_assert(CanMakeStaticRelation<257, BytePositionSet, NarrowSet, std::int32_t>);
 static_assert(CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int64_t, std::int32_t>);
 static_assert(!CanMakeExplicitStaticRelation<2, WideSet, NarrowSet, std::int32_t, std::int32_t>);
+static_assert(CanMakeExplicitStaticRelation<2, NarrowSet, NarrowSet, std::int64_t, std::int32_t>);
+static_assert(
+  CanMakeExplicitStaticRelation<127, SignedBytePositionSet, SignedBytePositionSet, std::int8_t, std::int8_t>);
+static_assert(
+  !CanMakeExplicitStaticRelation<128, SignedBytePositionSet, SignedBytePositionSet, std::int8_t, std::int8_t>);
 }  // anonymous namespace
 
 TEST(slam_make_helpers, make_range_set_size)
@@ -600,6 +615,42 @@ TEST(slam_make_helpers, make_constant_relation_compile_time_stride_axom_array_ba
   ASSERT_EQ(r0.size(), 2);
   EXPECT_EQ(r0[0], 0);
   EXPECT_EQ(r0[1], 4);
+}
+
+TEST(slam_make_helpers, make_constant_relation_compile_time_accepts_wider_flat_storage)
+{
+  NarrowSet fromSet(2);
+  NarrowSet toSet(4);
+
+  std::int32_t rawIndices[] {0, 3, 1, 2};
+  auto rawRelation =
+    slam::make_constant_relation_ct<2, NarrowSet, NarrowSet, std::int64_t>(fromSet,
+                                                                           toSet,
+                                                                           rawIndices,
+                                                                           std::int64_t {4});
+  static_assert(std::same_as<typename decltype(rawRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(rawRelation.isValid(true));
+
+  std::vector<std::int32_t> vectorIndices {0, 3, 1, 2};
+  auto vectorRelation =
+    slam::make_constant_relation_ct<2, NarrowSet, NarrowSet, std::int64_t>(fromSet,
+                                                                           toSet,
+                                                                           vectorIndices);
+  static_assert(std::same_as<typename decltype(vectorRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(vectorRelation.isValid(true));
+
+  axom::Array<std::int32_t> axomIndices {0, 3, 1, 2};
+  auto viewRelation =
+    slam::make_constant_relation_ct<2, NarrowSet, NarrowSet, std::int64_t>(fromSet,
+                                                                           toSet,
+                                                                           axomIndices.view());
+  static_assert(std::same_as<typename decltype(viewRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(viewRelation.isValid(true));
+
+  auto axomRelation =
+    slam::make_constant_relation_ct<2, NarrowSet, NarrowSet, std::int64_t>(fromSet, toSet, axomIndices);
+  static_assert(std::same_as<typename decltype(axomRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(axomRelation.isValid(true));
 }
 
 TEST(slam_make_helpers, make_constant_relation_runtime_stride_carray)
