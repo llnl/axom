@@ -12,9 +12,7 @@
 
 #include "mpi.h"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 class PProEReader : public ProEReader
 {
@@ -22,7 +20,7 @@ public:
   PProEReader() = delete;
   PProEReader(MPI_Comm comm);
 
-  virtual ~PProEReader();
+  ~PProEReader() override;
 
   /*!
    * \brief Reads in a Pro/E file to all ranks in the associated communicator.
@@ -30,7 +28,7 @@ public:
    * \note Rank 0 reads in the Pro/E mesh file and broadcasts to the other ranks.
    * \return status set to zero on success; set to a non-zero value otherwise.
    */
-  int read() final override;
+  [[nodiscard]] int read() final override;
 
 private:
   MPI_Comm m_comm {MPI_COMM_NULL};
@@ -40,5 +38,4 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(PProEReader);
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

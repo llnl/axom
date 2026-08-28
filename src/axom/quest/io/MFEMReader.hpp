@@ -20,9 +20,7 @@
 #include <string>
 #include <vector>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /*
  * \class MFEMReader
@@ -52,7 +50,7 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurveArray& curves);
+  [[nodiscard]] int read(CurveArray& curves);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -64,7 +62,7 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurveArray& curves, axom::Array<int>& attributes);
+  [[nodiscard]] int read(CurveArray& curves, axom::Array<int>& attributes);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -76,7 +74,7 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurvedPolygonArray& curvedPolygons);
+  [[nodiscard]] int read(CurvedPolygonArray& curvedPolygons);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
@@ -90,11 +88,10 @@ public:
    *
    * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
    */
-  int read(CurvedPolygonArray& curvedPolygons, axom::Array<int>& attributes);
+  [[nodiscard]] int read(CurvedPolygonArray& curvedPolygons, axom::Array<int>& attributes);
 
 protected:
   std::string m_fileName;
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

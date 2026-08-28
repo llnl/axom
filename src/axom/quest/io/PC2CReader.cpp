@@ -13,9 +13,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace
 {
@@ -128,5 +126,4 @@ bool PC2CReader::bcast_bool(bool value)
   return static_cast<bool>(intValue);
 }
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

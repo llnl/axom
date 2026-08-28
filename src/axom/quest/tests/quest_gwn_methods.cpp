@@ -277,7 +277,7 @@ void check_step_file_evaluation()
 
   // Get a triangulation of the shape
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
-  step_reader.getTriangleMesh(&tri_mesh, 0.01, 0.5);
+  ASSERT_EQ(step_reader.getTriangleMesh(&tri_mesh, 0.01, 0.5), 0);
 
   // Get bounding box of the shape
   axom::primal::BoundingBox<double, 3> shape_bbox = step_reader.getBRepBoundingBox();
