@@ -459,6 +459,63 @@ struct TypedefOnlyIndirection
   static constexpr bool DeviceAccessible = true;
 };
 
+struct PrvalueMapIndirection : ViewIndirection
+{
+  using IndirectionResult = double;
+  using ConstIndirectionResult = const double&;
+  using ResultPtr = double*;
+  using ConstResultPtr = const double*;
+};
+
+struct MismatchedConstPointerIndirection : ViewIndirection
+{
+  using IndirectionResult = double&;
+  using ConstIndirectionResult = double&;
+  using ResultPtr = double*;
+  using ConstResultPtr = const double*;
+};
+
+struct NonDefaultBuffer
+{
+  NonDefaultBuffer() = delete;
+  explicit NonDefaultBuffer(Position size) : m_size(size) { }
+
+  Position size() const { return m_size; }
+  bool empty() const { return m_size == 0; }
+  void resize(Position size) { m_size = size; }
+
+  Position m_size;
+};
+
+struct NonDefaultBufferIndirection
+{
+  using PositionType = Position;
+  using ElementType = double;
+  using IndirectionResult = double&;
+  using ConstIndirectionResult = const double&;
+  using IndirectionBufferType = NonDefaultBuffer;
+  using IndirectionPtrType = IndirectionBufferType*;
+  using IndirectionRefType = IndirectionBufferType&;
+  using IndirectionConstRefType = const IndirectionBufferType&;
+  using ResultPtr = double*;
+  using ConstResultPtr = const double*;
+
+  static constexpr bool DeviceAccessible = false;
+  static constexpr bool IsMutableBuffer = true;
+
+  bool hasIndirection() const { return true; }
+
+  static ResultPtr getIndirection(IndirectionBufferType&, Position) { return nullptr; }
+  static ConstResultPtr getConstIndirection(const IndirectionBufferType&, Position)
+  {
+    return nullptr;
+  }
+  static IndirectionBufferType create(Position size, const double&, int)
+  {
+    return IndirectionBufferType(size);
+  }
+};
+
 struct TrivialCapture
 {
   int value;
@@ -675,6 +732,8 @@ static_assert(!slam::MapIndirectionPolicyFor<ViewIndirection, Position, const do
 static_assert(!slam::MapIndirectionPolicyFor<ConstViewIndirection, Position, double>);
 static_assert(!slam::AllocatingMapIndirectionPolicyFor<ViewIndirection, Position, double>);
 static_assert(!slam::MapIndirectionPolicyFor<RawPointerMapIndirection, Position, double>);
+static_assert(!slam::MapIndirectionPolicyFor<PrvalueMapIndirection, Position, double>);
+static_assert(!slam::MapIndirectionPolicyFor<MismatchedConstPointerIndirection, Position, double>);
 static_assert(slam::MapIndirectionPolicyFor<VectorMapIndirection, Position, double>);
 static_assert(slam::AllocatingMapIndirectionPolicyFor<VectorMapIndirection, Position, double>);
 static_assert(slam::IndirectionPolicy<NoIndirection>);
@@ -683,6 +742,9 @@ static_assert(slam::OrderedSetIndirectionPolicyFor<NoIndirection, Position, Elem
 static_assert(!slam::MapIndirectionPolicyFor<NoIndirection, Position, Element>);
 static_assert(slam::MapIndirectionPolicyFor<OwningIndirection, Position, double>);
 static_assert(slam::AllocatingMapIndirectionPolicyFor<OwningIndirection, Position, double>);
+static_assert(slam::AllocatingMapIndirectionPolicyFor<NonDefaultBufferIndirection, Position, double>);
+using NonDefaultBufferMap = slam::Map<double, ConcreteRange, NonDefaultBufferIndirection>;
+static_assert(std::constructible_from<NonDefaultBufferMap, const ConcreteRange*>);
 static_assert(std::default_initializable<OwningMap>);
 static_assert(!std::default_initializable<UnaryMap>);
 static_assert(std::constructible_from<UnaryMap, const ConcreteRange*, typename UnaryMap::OrderedMap>);

@@ -445,6 +445,7 @@ struct ArrayViewIndirectionBase
   using ElemType = ElementType;
 
   using IndirectionResult = ElementType&;
+  // ArrayView has shallow constness: a const view can modify external elements.
   using ConstIndirectionResult = ElementType&;
 
   using IndirectionBufferType = axom::ArrayView<ElementType>;

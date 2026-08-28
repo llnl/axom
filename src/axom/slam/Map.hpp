@@ -172,9 +172,8 @@ public:
     requires AllocatingMapIndirectionPolicyFor<IndirectionPolicy, SetPosition, DataType>
     : StridePolicyType(shape)
     , m_set(theSet)
-  {
-    m_data = IndirectionPolicy::create(size() * numComp(), defaultValue, allocatorID);
-  }
+    , m_data(IndirectionPolicy::create(size() * numComp(), defaultValue, allocatorID))
+  { }
 
   /**
    * \brief Constructor for Map from a Set pointer and an existing buffer.
@@ -208,9 +207,8 @@ public:
       int allocatorID = axom::getDefaultAllocatorID())
     : StridePolicyType(shape)
     , m_set(theSet)
-  {
-    m_data = IndirectionPolicy::create(size() * numComp(), defaultValue, allocatorID);
-  }
+    , m_data(IndirectionPolicy::create(size() * numComp(), defaultValue, allocatorID))
+  { }
 
   /**
    * \brief Constructor for Map using a Set passed by-value and data passed in by-value.

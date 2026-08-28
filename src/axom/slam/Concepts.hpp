@@ -436,15 +436,27 @@ concept OrderedSetIndirectionPolicyFor = IndirectionPolicyFor<T, Position> &&
     { policy.isValid(size, offset, stride, false) } -> std::convertible_to<bool>;
   };
 
-/// \brief An indirection policy providing Map's buffer and static access API.
+/*!
+ * \brief An indirection policy providing Map's buffer and static access API.
+ *
+ * Both access paths must return stable lvalue references, and their pointer aliases must point
+ * to the same cv-qualified value types. Const access may retrain shallow view semantics.
+ */
 template <typename T, typename Position, typename Data>
 concept MapIndirectionPolicyFor =
   IndirectionPolicy<T> && PositionLike<Position> && detail::HasTypedIndirectionAssociatedTypes<T> &&
   detail::HasMapIndirectionAssociatedTypes<T> && detail::MapBufferFor<T, Position> &&
   std::same_as<typename detail::model_t<T>::PositionType, detail::model_t<Position>> &&
   std::same_as<typename detail::model_t<T>::ElementType, std::remove_reference_t<Data>> &&
+  std::is_lvalue_reference_v<typename detail::model_t<T>::IndirectionResult> &&
+  std::is_lvalue_reference_v<typename detail::model_t<T>::ConstIndirectionResult> &&
   detail::MapValueFor<typename detail::model_t<T>::IndirectionResult, Data> &&
   detail::MapValueFor<typename detail::model_t<T>::ConstIndirectionResult, Data> &&
+  std::same_as<typename detail::model_t<T>::ResultPtr,
+               std::add_pointer_t<std::remove_reference_t<typename detail::model_t<T>::IndirectionResult>>> &&
+  std::same_as<
+    typename detail::model_t<T>::ConstResultPtr,
+    std::add_pointer_t<std::remove_reference_t<typename detail::model_t<T>::ConstIndirectionResult>>> &&
   requires(typename detail::model_t<T>::IndirectionBufferType& buffer,
            const typename detail::model_t<T>::IndirectionBufferType& constBuffer,
            detail::model_t<Position> pos) {
