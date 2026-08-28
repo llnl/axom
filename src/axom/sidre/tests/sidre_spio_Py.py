@@ -120,8 +120,7 @@ def test_iomanager_split_communicator(tmp_path):
 
 
 def test_distributed_generate_blueprint_index(tmp_path):
-    # The distributed generateBlueprintIndex overload is built only under
-    # nanobind >= 2.10; skip cleanly if this build omitted it.
+    # The distributed generateBlueprintIndex overload is built only with MPI.
     if not sidre.AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING:
         pytest.skip("generateBlueprintIndex not bound")
 

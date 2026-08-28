@@ -299,12 +299,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     # Python
     with when("+python"):
-        depends_on("python")
+        depends_on("python@3.9:")
 
         # extending python allows spack environment views to import axom from python
         extends("python")
 
-        depends_on("py-nanobind@2.7.0:")
+        depends_on("py-nanobind@2.10.0:")
         depends_on("py-pytest")
         depends_on("py-packaging")
         depends_on("py-pygments")
