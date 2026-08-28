@@ -385,7 +385,11 @@ public:
    * bump cannot give us a count without doing the full extraction, so we perform extraction here and cache the result. 
    * The count then becomes available to the parent, and computeFacets() copies cached data into the buffers the parent allocated.
    */
-  void scanCrossings() override { runExtraction(); }
+  void scanCrossings() override
+  {
+    m_extractionRan = true;
+    runExtraction();
+  }
 
   //! @brief Copy cached bump output into the parent-allocated output buffers.
   void computeFacets() override { fillLegacyOutputBuffers(); }
@@ -410,13 +414,23 @@ public:
       n_coords.fetch_existing("values/x").dtype().number_of_elements());
   }
 
-  bool hasContourMeshBlueprint() const override { return m_output != nullptr; }
+  /*!
+   * @brief Whether a Blueprint contour can be produced.
+   *
+   * True once computeIsocontour() has run, even if the contour is empty.
+   */
+  bool hasContourMeshBlueprint() const override { return m_extractionRan; }
 
   void copyContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const override
   {
-    SLIC_ERROR_IF(m_output == nullptr,
+    SLIC_ERROR_IF(!m_extractionRan,
                   "MarchingCubes bump backend has no Blueprint contour output. "
                   "Call computeIsocontour() before requesting it.");
+    if(m_output == nullptr)
+    {
+      bpMesh.reset();
+      return;
+    }
     axom::bump::utilities::copy<ExecSpace>(bpMesh, *m_output, m_allocatorID);
     if(triangulate)
     {
@@ -426,19 +440,24 @@ public:
 
   void relinquishContourMeshBlueprint(conduit::Node& bpMesh) override
   {
-    SLIC_ERROR_IF(m_output == nullptr,
+    SLIC_ERROR_IF(!m_extractionRan,
                   "MarchingCubes bump backend has no Blueprint contour output. "
                   "Call computeIsocontour() before requesting it.");
     bpMesh.reset();
-    bpMesh.swap(*m_output);
-    m_output.reset();
+    if(m_output != nullptr)
+    {
+      bpMesh.swap(*m_output);
+      m_output.reset();
+    }
     m_facetCount = 0;
+    m_extractionRan = false;
   }
 
   void clearDomain() override
   {
     m_output.reset();
     m_facetCount = 0;
+    m_extractionRan = false;
   }
 
 #if !defined(__CUDACC__)
@@ -1046,7 +1065,7 @@ private:
     n_options["value"] = m_contourVal;
     // Ask bump to record each output facet's originating input zone, which we
     // map onto the legacy "parent cell id" output.
-    n_options["originalElementsField"] = "originalElements";
+    n_options["originalElementsField"] = kOriginalElementsField;
     // MarchingCubes only consumes the generated originalElements field from CutField.
     // An explicit empty fields map avoids blending/slicing all input fields by default.
     n_options["fields"].set(conduit::DataType::object());
@@ -1125,6 +1144,14 @@ private:
         {
           AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::CutField::execute");
           iso.execute(*m_dom, execOptions, n_out);
+
+          // Restore the public field name before the adaptor or any caller sees the output.
+          // The private request name prevents bump from forwarding a same-named field from the input mesh.
+          const std::string privateField = axom::fmt::format("fields/{}", kOriginalElementsField);
+          if(n_out.has_path(privateField))
+          {
+            n_out["fields"].rename_child(kOriginalElementsField, kPublicOriginalElementsField);
+          }
         }
         extracted = true;
       });
@@ -1132,6 +1159,10 @@ private:
 
     if(!extracted)
     {
+      // An out-of-range isovalue or an empty mask is valid and produces an available, empty contour
+      // rather than an empty Blueprint node.
+      m_output.reset();
+      m_facetCount = 0;
       return;
     }
 
@@ -1189,11 +1220,11 @@ private:
       return facets;
     }
 
-    // Fixed-shape output (e.g. all-tri or all-segment):
-    // infer count from connectivity length / corners-per-element.
-    const conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
-    const auto cornersPerElem = (DIM == 3) ? 3 : 2;  // tri or segment
-    return static_cast<axom::IndexType>(n_conn.dtype().number_of_elements() / cornersPerElem);
+    SLIC_ERROR(axom::fmt::format(
+      "MarchingCubes bump backend: cut output topology '{}' has no 'sizes' array. "
+      "The adaptor requires explicit sizes on bump's cut output.",
+      newTopoName));
+    return 0;
   }
 
   /*!
@@ -1203,11 +1234,11 @@ private:
   void fillLegacyOutputBuffers()
   {
     AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::fillLegacyOutputBuffers");
-    SLIC_ASSERT(m_output != nullptr);
     if(m_facetCount == 0)
     {
       return;
     }
+    SLIC_ASSERT(m_output != nullptr);
 
     // Build the legacy field-stride remap only when the user asked for the legacy numbering AND the input is structured
     // (unstructured has no canonical field stride order; we leave the remap empty -> pass-through).
@@ -1233,7 +1264,8 @@ private:
                                         m_facetIndexOffset,
                                         m_nodeIndexOffset,
                                         m_facetCount,
-                                        remapView);
+                                        remapView,
+                                        m_allocatorID);
   }
 
   //! @brief Return the (single) topology name present in a bump output node.
@@ -1269,6 +1301,9 @@ private:
 
   //! @brief Legacy facet count (post fan-triangulation).
   axom::IndexType m_facetCount {};
+
+  //! @brief Whether extraction ran, distinguishing unavailable from empty output.
+  bool m_extractionRan {false};
 };
 
 }  // namespace axom::quest::detail::marching_cubes
