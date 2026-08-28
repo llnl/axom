@@ -54,32 +54,6 @@ enum class MarchingCubesDataParallelism
 };
 
 /*!
- * @brief Enum controlling the meaning of the parent-cell ids reported for generated contour facets
- * (see MarchingCubes::getContourFacetParents and MarchingCubes::populateContourMesh).
- *
- * The legacy marching cubes implementation numbered parent cells by their flat index
- * in the same row- or column-major ordering as the input scalar function array
- * (i.e. following the function field's stride order).
- *
- * The bump-backed implementation natively numbers cells by their Blueprint zone index.
- * For structured input these two numberings coincide only when the field is stored i-fastest;
- * otherwise they differ by a stride-order permutation.
- *
- * This enum lets callers choose which numbering they receive:
- *  - \c blueprintZoneId (default): report the Blueprint zone index.  This is the natural,
- *    mesh-type-agnostic identifier and the only meaningful choice for unstructured input.
- *  - \c legacyFieldOrder: reproduce the legacy numbering (flat index in the function field's stride order).
- *     Provided so existing structured-mesh callers that depend on the historical meaning are unaffected.
- * 
- * @note This option only applies to structured input; for unstructured input the Blueprint zone id is always used.
- */
-enum class MarchingCubesParentCellIdMode
-{
-  blueprintZoneId = 0,
-  legacyFieldOrder = 1
-};
-
-/*!
  * @brief Enum selecting the isosurface case-table / intersector robustness used by the bump backend
  *
  * The bump backend determines per-cell topology with an intersector policy plus VisIt-derived cut tables.
@@ -206,20 +180,6 @@ public:
    * The mask value has no effect if a mask field is not specified.
   */
   void setMaskValue(int maskVal) { m_maskVal = maskVal; }
-
-  /*!
-   * @brief Set how parent-cell ids are numbered for generated contour facets.
-   * @param [in] mode A value from MarchingCubesParentCellIdMode.
-   *
-   * The default is MarchingCubesParentCellIdMode::blueprintZoneId.
-   * See that enum for the meaning of each mode and for why the two modes can differ
-   * for structured input.  Has no effect unless parent-cell ids are requested
-   * (via getContourFacetParents() or the cellIdField of populateContourMesh()).
-   *
-   * @note The legacyFieldOrder mode only affects structured input;
-   *   unstructured input always reports the Blueprint zone id.
-  */
-  void setParentCellIdMode(MarchingCubesParentCellIdMode mode) { m_parentCellIdMode = mode; }
 
   /*!
    * @brief Select the bump::extraction::CutField backend 
@@ -452,9 +412,6 @@ private:
   std::string m_maskPath;
 
   int m_maskVal {1};
-
-  //! @brief How to number parent-cell ids of generated facets.
-  MarchingCubesParentCellIdMode m_parentCellIdMode {MarchingCubesParentCellIdMode::blueprintZoneId};
 
   //! @brief Whether to use the bump CutField backend (opt-in; default legacy).
   bool m_useBumpBackend {false};

@@ -338,19 +338,6 @@ public:
   void setMaskValue(int maskVal) override { m_maskVal = maskVal; }
 
   /*!
-   * @brief Honor the requested parent-cell-id numbering.
-   *
-   * blueprintZoneId (default): use bump's originalElements directly.
-   * legacyFieldOrder: for structured+explicit input, remap the Blueprint zone
-   *   index to the legacy flat index in the function field's stride order.
-   *   Other topology types use the Blueprint zone id.
-   */
-  void setParentCellIdMode(MarchingCubesParentCellIdMode mode) override
-  {
-    m_parentCellIdMode = mode;
-  }
-
-  /*!
    * @brief Record the requested robustness policy (Phase 6 seam).
    *
    * Currently advisory: `standard` and `robust` both run bump's default intersector + tables.
@@ -1173,28 +1160,6 @@ private:
       AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::computeTriangulatedFacetCount");
       m_facetCount = computeTriangulatedFacetCount(n_out);
     }
-
-    // For the opt-in legacyFieldOrder numbering on structured input, capture the logical cell dims
-    // and the function field's stride order so the output adaptor can remap bump's i-fastest zone ids back to the legacy ordering.
-    // The legacy field-stride numbering is defined by the function field's MDMapping,
-    // which MeshViewUtil supplies -- so it is available only on structured+explicit meshes.
-    // For uniform/rectilinear input the request falls back to blueprintZoneId.
-    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_useMeshViewUtilPath)
-    {
-      captureStructuredMetadata();
-    }
-  }
-
-  /*!
-   * @brief Populate metadata for the legacyFieldOrder parent-id remap.
-   */
-  void captureStructuredMetadata()
-  {
-    axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
-    m_cellDims = mvu.getCellShape();
-    const auto fcnView = mvu.template getConstFieldView<double>(m_fcnFieldName, false);
-    const axom::MDMapping<DIM> fcnMap(fcnView.strides());
-    m_fieldSlowestDirs = fcnMap.slowestDirs();
   }
 
   /*!
@@ -1240,23 +1205,6 @@ private:
     }
     SLIC_ASSERT(m_output != nullptr);
 
-    // Build the legacy field-stride remap only when the user asked for the legacy numbering AND the input is structured
-    // (unstructured has no canonical field stride order; we leave the remap empty -> pass-through).
-    axom::Array<axom::IndexType> remapHost(0, 0);
-    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_useMeshViewUtilPath)
-    {
-      remapHost = buildFieldStrideRemap<DIM>(m_cellDims, m_fieldSlowestDirs);
-    }
-
-    // Move the (possibly empty) remap into ExecSpace memory for the kernel.
-    axom::Array<axom::IndexType> remapDevice;
-    axom::ArrayView<const axom::IndexType, 1> remapView;
-    if(!remapHost.empty())
-    {
-      remapDevice = axom::Array<axom::IndexType>(remapHost, m_allocatorID);
-      remapView = remapDevice.view();
-    }
-
     adaptCutFieldOutput<DIM, ExecSpace>(*m_output,
                                         m_facetNodeIds,
                                         m_facetNodeCoords,
@@ -1264,7 +1212,6 @@ private:
                                         m_facetIndexOffset,
                                         m_nodeIndexOffset,
                                         m_facetCount,
-                                        remapView,
                                         m_allocatorID);
   }
 
@@ -1284,17 +1231,10 @@ private:
   std::string m_fcnFieldName;
   std::string m_maskFieldName;
 
-  //! @brief How to number parent-cell ids of generated facets.
-  MarchingCubesParentCellIdMode m_parentCellIdMode {MarchingCubesParentCellIdMode::blueprintZoneId};
   MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
-  //! @name Structured metadata, captured only for the legacyFieldOrder remap.
-  //! @{
   //! @brief Whether the MeshViewUtil fast paths apply (structured + explicit only).
   bool m_useMeshViewUtilPath {false};
-  axom::StackArray<axom::IndexType, DIM> m_cellDims {};
-  axom::StackArray<std::uint16_t, DIM> m_fieldSlowestDirs {};
-  //! @}
 
   //! @brief Cached bump CutField output (Blueprint mesh).
   std::unique_ptr<conduit::Node> m_output;

@@ -109,15 +109,6 @@ public:
     }
   }
 
-  void setParentCellIdMode(MarchingCubesParentCellIdMode mode)
-  {
-    m_parentCellIdMode = mode;
-    if(m_impl)
-    {
-      m_impl->setParentCellIdMode(m_parentCellIdMode);
-    }
-  }
-
   void setRobustnessPolicy(MarchingCubesRobustnessPolicy policy)
   {
     m_robustnessPolicy = policy;
@@ -168,15 +159,6 @@ public:
     virtual void setFunctionField(const std::string& fcnFieldName) = 0;
     virtual void setContourValue(double contourVal) = 0;
     virtual void setMaskValue(int maskVal) = 0;
-
-    /*!
-     * @brief Set how parent-cell ids of generated facets are numbered.
-     *
-     * Default is a no-op so backends that only ever produce the legacy numbering
-     * (the structured-only MarchingCubesImpl) need not implement it.
-     * The bump backend overrides this to honor both numbering modes.
-     */
-    virtual void setParentCellIdMode(MarchingCubesParentCellIdMode) { }
 
     /*!
      * @brief Set the isosurface robustness policy (bump backend only).
@@ -306,7 +288,6 @@ private:
 
   double m_contourVal {0.0};
   int m_maskVal {1};
-  MarchingCubesParentCellIdMode m_parentCellIdMode {MarchingCubesParentCellIdMode::blueprintZoneId};
   MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   std::unique_ptr<ImplBase> m_impl;
