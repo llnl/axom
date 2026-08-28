@@ -31,7 +31,7 @@ Basic requirements:
     a minimum version of 3.18 when building with CUDA support,
     and a minimum version of 3.21 when building with HIP support
   * Fortran Compiler (optional)
-  * Python 3.8 at a minimum for python bindings (optional)
+  * Python 3.9 at a minimum for python bindings (optional)
 
 Supported Compilers
 ~~~~~~~~~~~~~~~~~~~

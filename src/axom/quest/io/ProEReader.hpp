@@ -13,12 +13,10 @@
 #include "axom/primal/geometry/BoundingBox.hpp"
 
 // C/C++ includes
-#include <string>  // for std::string
-#include <vector>  // for std::vector
+#include <string>
+#include <vector>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /*!
  * \class ProEReader
@@ -53,8 +51,8 @@ namespace quest
 class ProEReader
 {
 public:
-  constexpr static int NUM_NODES_PER_TET = 4;
-  constexpr static int NUM_COMPS_PER_NODE = 3;
+  static constexpr int NUM_NODES_PER_TET = 4;
+  static constexpr int NUM_COMPS_PER_NODE = 3;
   using Point3D = primal::Point<double, NUM_COMPS_PER_NODE>;
   using BBox3D = primal::BoundingBox<double, 3>;
   /*! \brief Specify tets to keep.
@@ -81,19 +79,19 @@ public:
    * \brief Sets the name of the file to read.
    * \param [in] fileName the name of the file to read.
    */
-  void setFileName(const std::string& fileName) { m_fileName = fileName; };
+  void setFileName(const std::string& fileName) { m_fileName = fileName; }
 
   /*!
    * \brief Returns the number of nodes of the mesh.
    * \return numNodes the number of nodes.
    */
-  int getNumNodes() const { return static_cast<int>(m_num_nodes); };
+  int getNumNodes() const { return static_cast<int>(m_num_nodes); }
 
   /*!
    * \brief Returns the number of tetrahedra of the mesh
    * \return numTets the number of tetrahedra.
    */
-  int getNumTets() const { return static_cast<int>(m_num_tets); };
+  int getNumTets() const { return static_cast<int>(m_num_tets); }
 
   /*!
    * \brief Clears all internal data-structures
@@ -105,7 +103,7 @@ public:
    * \pre path to input file has been set by calling `setFileName()`
    * \return status set to zero on success; set to a non-zero value otherwise.
    */
-  virtual int read();
+  [[nodiscard]] virtual int read();
 
   /// \name Set tetrahedron predicate to read mesh subset
   /// @{
@@ -139,8 +137,8 @@ public:
 protected:
   std::string m_fileName;
 
-  axom::IndexType m_num_nodes;
-  axom::IndexType m_num_tets;
+  axom::IndexType m_num_nodes {0};
+  axom::IndexType m_num_tets {0};
 
   std::vector<double> m_nodes;
   std::vector<int> m_tets;
@@ -161,5 +159,4 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(ProEReader);
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest
