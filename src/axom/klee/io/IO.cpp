@@ -65,7 +65,7 @@ struct ShapeData
 template <>
 struct FromInlet<axom::klee::ShapeData>
 {
-  axom::klee::ShapeData operator()(const axom::inlet::Container &base)
+  axom::klee::ShapeData operator()(const axom::inlet::Container& base)
   {
     return axom::klee::ShapeData {base.get<std::string>("name"),
                                   base.get<std::string>("material"),
@@ -78,7 +78,7 @@ struct FromInlet<axom::klee::ShapeData>
 template <>
 struct FromInlet<axom::klee::GeometryData>
 {
-  axom::klee::GeometryData operator()(const axom::inlet::Container &base)
+  axom::klee::GeometryData operator()(const axom::inlet::Container& base)
   {
     axom::klee::GeometryData data;
     data.format = base.contains("format") ? base.get<std::string>("format") : "";
@@ -114,7 +114,7 @@ namespace
  *
  * @param geometry the Container representing a "geometry" object.
  */
-void defineGeometry(inlet::Container &geometry)
+void defineGeometry(inlet::Container& geometry)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
@@ -143,22 +143,22 @@ void defineGeometry(inlet::Container &geometry)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineShapeList(inlet::Inlet &document)
+void defineShapeList(inlet::Inlet& document)
 {
-  inlet::Container &shapeList = document.addStructArray("shapes", "The list of shapes");
+  inlet::Container& shapeList = document.addStructArray("shapes", "The list of shapes");
 
   shapeList.addString("name", "The shape's name").required();
   shapeList.addString("material", "The shape's material").required();
   shapeList.addStringArray("replaces", "The list of materials this shape replaces");
   shapeList.addStringArray("does_not_replace", "The list of materials this shape does not replace");
-  auto &geometry =
+  auto& geometry =
     shapeList.addStruct("geometry", "Contains information about the shape's geometry");
 
   defineGeometry(geometry);
 
   // Verify syntax here, semantics later!!!
   shapeList.registerVerifier(
-    [](const inlet::Container &shape, std::vector<inlet::VerificationError> *errors) -> bool {
+    [](const inlet::Container& shape, std::vector<inlet::VerificationError>* errors) -> bool {
       if(shape.contains("replaces") && shape.contains("does_not_replace"))
       {
         INLET_VERIFICATION_WARNING(shape.name(),
@@ -191,7 +191,7 @@ void defineShapeList(inlet::Inlet &document)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineKleeSchema(inlet::Inlet &document)
+void defineKleeSchema(inlet::Inlet& document)
 {
   internal::defineDimensionsField(document.getGlobalContainer(), "dimensions").required();
   defineShapeList(document);
@@ -207,9 +207,9 @@ void defineKleeSchema(inlet::Inlet &document)
  * \return the geometry description for the shape
  * \throws KleeError if the converted geometry does not match the expected dimensions
  */
-Geometry convert(GeometryData const &data,
+Geometry convert(GeometryData const& data,
                  Dimensions fileDimensions,
-                 internal::NamedOperatorMap const &namedOperators)
+                 internal::NamedOperatorMap const& namedOperators)
 {
   const bool has_start_dims = data.startDimensions != Dimensions::Unspecified;
   const bool has_explicit_dims = data.explicitDimensions != Dimensions::Unspecified;
@@ -258,9 +258,9 @@ Geometry convert(GeometryData const &data,
  * \throws KleeError if the geometry data is invalid
  * \throws std::logic_error if mutually exclusive material replacement lists are both populated
  */
-Shape convert(ShapeData const &data,
+Shape convert(ShapeData const& data,
               Dimensions fileDimensions,
-              internal::NamedOperatorMap const &namedOperators)
+              internal::NamedOperatorMap const& namedOperators)
 {
   return Shape {data.name,
                 data.material,
@@ -279,13 +279,13 @@ Shape convert(ShapeData const &data,
  * \throws KleeError if any shape's geometry data is invalid
  * \throws std::logic_error if mutually exclusive material replacement lists are both populated
  */
-std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
-                           Dimensions const &fileDimensions,
-                           internal::NamedOperatorMap const &namedOperators)
+std::vector<Shape> convert(std::vector<ShapeData> const& shapeData,
+                           Dimensions const& fileDimensions,
+                           internal::NamedOperatorMap const& namedOperators)
 {
   std::vector<Shape> converted;
   converted.reserve(shapeData.size());
-  for(auto &data : shapeData)
+  for(auto& data : shapeData)
   {
     converted.emplace_back(convert(data, fileDimensions, namedOperators));
   }
@@ -301,7 +301,7 @@ std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
  * \return all named operators read from the document
  * \throws KleeError if named operator conversion fails
  */
-internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions startDimensions)
+internal::NamedOperatorMap getNamedOperators(const inlet::Inlet& doc, Dimensions startDimensions)
 {
   if(doc.contains("named_operators"))
   {
@@ -318,7 +318,7 @@ internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions
  * \return the inferred input format
  * \throws KleeError if the file extension is not a supported Klee input extension
  */
-InputFormat inferInputFormat(const std::string &filePath)
+InputFormat inferInputFormat(const std::string& filePath)
 {
   auto extension = utilities::filesystem::getFileExtension(filePath);
   utilities::string::toLower(extension);
@@ -369,7 +369,7 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format)
   throw KleeError({Path {"<unknown path>"}, "Unsupported Klee input format."});
 }
 
-const char *inputFormatName(InputFormat format)
+const char* inputFormatName(InputFormat format)
 {
   switch(format)
   {
@@ -392,10 +392,10 @@ const char *inputFormatName(InputFormat format)
  * \throws KleeError if parsing fails or the reader throws while parsing
  */
 template <typename Parse>
-void parseOrThrow(Parse &&parse,
+void parseOrThrow(Parse&& parse,
                   InputFormat format,
-                  const Path &path,
-                  const std::string &sourceDescription)
+                  const Path& path,
+                  const std::string& sourceDescription)
 {
   bool parsed = false;
   std::string details;
@@ -403,7 +403,7 @@ void parseOrThrow(Parse &&parse,
   {
     parsed = parse();
   }
-  catch(const std::exception &error)
+  catch(const std::exception& error)
   {
     details = error.what();
   }
@@ -418,10 +418,10 @@ void parseOrThrow(Parse &&parse,
   }
 }
 
-void appendUnexpectedGlobalErrors(const inlet::Inlet &doc,
-                                  std::vector<inlet::VerificationError> &errors)
+void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
+                                  std::vector<inlet::VerificationError>& errors)
 {
-  for(const auto &name : doc.unexpectedNames())
+  for(const auto& name : doc.unexpectedNames())
   {
     if(name.find('/') == std::string::npos)
     {
@@ -473,9 +473,9 @@ ShapeSet readShapeSetFromReader(std::unique_ptr<inlet::Reader> reader, bool reje
 }
 }  // namespace
 
-ShapeSet readShapeSet(std::istream &stream) { return readShapeSet(stream, InputFormat::YAML); }
+ShapeSet readShapeSet(std::istream& stream) { return readShapeSet(stream, InputFormat::YAML); }
 
-ShapeSet readShapeSet(std::istream &stream, InputFormat format)
+ShapeSet readShapeSet(std::istream& stream, InputFormat format)
 {
   std::string contents {std::istreambuf_iterator<char>(stream), {}};
 
@@ -487,12 +487,12 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format)
   return readShapeSetFromReader(std::move(reader), format == InputFormat::Lua);
 }
 
-ShapeSet readShapeSet(const std::string &filePath)
+ShapeSet readShapeSet(const std::string& filePath)
 {
   return readShapeSet(filePath, inferInputFormat(filePath));
 }
 
-ShapeSet readShapeSet(const std::string &filePath, InputFormat format)
+ShapeSet readShapeSet(const std::string& filePath, InputFormat format)
 {
   auto reader = createReader(format);
   parseOrThrow([&]() { return reader->parseFile(filePath); },

@@ -25,7 +25,7 @@ namespace
  * \return whether the container contains the value
  */
 template <typename Container>
-bool contains(const Container &container, const typename Container::value_type &value)
+bool contains(const Container& container, const typename Container::value_type& value)
 {
   auto endIter = std::end(container);
   return std::find(std::begin(container), endIter, value) != endIter;
@@ -51,7 +51,7 @@ Shape::Shape(std::string name,
   }
 }
 
-bool Shape::replaces(const std::string &material) const
+bool Shape::replaces(const std::string& material) const
 {
   if(!m_materialsReplaced.empty())
   {

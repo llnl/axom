@@ -62,8 +62,8 @@ namespace detail
  */
 AXOM_SUPPRESS_HD_WARN
 template <typename T, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> &shape1,
-                                     const axom::primal::Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& shape1,
+                                     const axom::primal::Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& shape2,
                                      double eps = 1.e-10)
 {
   constexpr bool tryFixOrientation = false;
@@ -84,8 +84,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYP
 
 // Tetrahedron first
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
-                                     const axom::primal::Tetrahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3>& shape1,
+                                     const axom::primal::Tetrahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -93,8 +93,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
-                                     const axom::primal::Hexahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3>& shape1,
+                                     const axom::primal::Hexahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -102,8 +102,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
-                                     const axom::primal::Polyhedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3>& shape1,
+                                     const axom::primal::Polyhedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -111,8 +111,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
-                                     const axom::bump::PolyhedralFaces<T> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3>& shape1,
+                                     const axom::bump::PolyhedralFaces<T>& shape2,
                                      double eps = 1.e-10)
 {
   const bool tryFixOrientation = false;
@@ -123,8 +123,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
 
 // Hexahedron first
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
-                                     const axom::primal::Tetrahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3>& shape1,
+                                     const axom::primal::Tetrahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -132,8 +132,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
-                                     const axom::primal::Hexahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3>& shape1,
+                                     const axom::primal::Hexahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -141,8 +141,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
-                                     const axom::primal::Polyhedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3>& shape1,
+                                     const axom::primal::Polyhedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -150,8 +150,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
-                                     const axom::bump::PolyhedralFaces<T> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3>& shape1,
+                                     const axom::bump::PolyhedralFaces<T>& shape2,
                                      double eps = 1.e-10)
 {
   const bool tryFixOrientation = false;
@@ -162,8 +162,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape
 
 // Polyhedron first
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
-                                     const axom::primal::Tetrahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3>& shape1,
+                                     const axom::primal::Tetrahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -171,8 +171,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
-                                     const axom::primal::Hexahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3>& shape1,
+                                     const axom::primal::Hexahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -180,8 +180,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
-                                     const axom::primal::Polyhedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3>& shape1,
+                                     const axom::primal::Polyhedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const auto ph = axom::primal::clip(shape1, shape2, eps);
@@ -189,8 +189,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
-                                     const axom::bump::PolyhedralFaces<T> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3>& shape1,
+                                     const axom::bump::PolyhedralFaces<T>& shape2,
                                      double eps = 1.e-10)
 {
   auto clipped = shape1;
@@ -200,42 +200,42 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 
 // PolyhedralFaces first
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
-                                     const axom::primal::Tetrahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T>& shape1,
+                                     const axom::primal::Tetrahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   return shapeOverlap(shape2, shape1, eps);
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
-                                     const axom::primal::Hexahedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T>& shape1,
+                                     const axom::primal::Hexahedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   return shapeOverlap(shape2, shape1, eps);
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
-                                     const axom::primal::Polyhedron<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T>& shape1,
+                                     const axom::primal::Polyhedron<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   return shapeOverlap(shape2, shape1, eps);
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
-                                     const axom::bump::PolyhedralFaces<T> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T>& shape1,
+                                     const axom::bump::PolyhedralFaces<T>& shape2,
                                      double eps = 1.e-10)
 {
   using PointType = axom::primal::Point<T, 3>;
   // Find largest plane offset.
   T maxOffset {};
-  for(const auto &plane : shape1.getFaces())
+  for(const auto& plane : shape1.getFaces())
   {
     maxOffset = axom::utilities::max(maxOffset, axom::utilities::abs(plane.getOffset()));
   }
-  for(const auto &plane : shape2.getFaces())
+  for(const auto& plane : shape2.getFaces())
   {
     maxOffset = axom::utilities::max(maxOffset, axom::utilities::abs(plane.getOffset()));
   }
@@ -269,8 +269,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape
  * \return The volume of the overlap between the shapes.
  */
 template <typename T, typename Shape2Type>
-AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
-                                     const Shape2Type &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3>& shape1,
+                                     const Shape2Type& shape2,
                                      double eps = 1.e-10)
 {
   const int id = shape1.id();
@@ -319,8 +319,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
  * \return The volume of the overlap between the shapes.
  */
 template <typename T, typename Shape1Type>
-AXOM_HOST_DEVICE double shapeOverlap(const Shape1Type &shape1,
-                                     const VariableShape<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const Shape1Type& shape1,
+                                     const VariableShape<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   const int id = shape2.id();
@@ -369,8 +369,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const Shape1Type &shape1,
  * \return The volume of the overlap between the shapes.
  */
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
-                                     const VariableShape<T, 3> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3>& shape1,
+                                     const VariableShape<T, 3>& shape2,
                                      double eps = 1.e-10)
 {
   int id = shape1.id();
@@ -465,11 +465,11 @@ public:
    * \param targetTopoView The target topology view.
    * \param targetCoordsetView The target coordset view.
    */
-  TopologyMapper(const SrcTopologyView &srcTopoView,
-                 const SrcCoordsetView &srcCoordsetView,
-                 const SrcMatsetView &srcMatsetView,
-                 const TargetTopologyView &targetTopoView,
-                 const TargetCoordsetView &targetCoordsetView)
+  TopologyMapper(const SrcTopologyView& srcTopoView,
+                 const SrcCoordsetView& srcCoordsetView,
+                 const SrcMatsetView& srcMatsetView,
+                 const TargetTopologyView& targetTopoView,
+                 const TargetCoordsetView& targetCoordsetView)
     : m_srcView(srcTopoView, srcCoordsetView)
     , m_srcMatsetView(srcMatsetView)
     , m_targetView(targetTopoView, targetCoordsetView)
@@ -521,9 +521,9 @@ public:
    * \note After executing, the n_targetMesh node will contain a new matset containing
    *       the results of the intersections with the src/target meshes.
    */
-  void execute(const conduit::Node &n_srcMesh,
-               const conduit::Node &n_options,
-               conduit::Node &n_targetMesh) const
+  void execute(const conduit::Node& n_srcMesh,
+               const conduit::Node& n_options,
+               conduit::Node& n_targetMesh) const
   {
     AXOM_ANNOTATE_SCOPE("TopologyMapper::execute");
     namespace utils = axom::bump::utilities;
@@ -534,11 +534,11 @@ public:
 
     const int allocatorID = getAllocatorID();
 
-    const char *SRC_MATSET_NAME = "source/matsetName";
-    const char *SRC_SELECTED_ZONES = "source/selectedZones";
-    const char *TARGET_TOPOLOGY_NAME = "target/topologyName";
-    const char *TARGET_MATSET_NAME = "target/matsetName";
-    const char *TARGET_SELECTED_ZONES = "target/selectedZones";
+    const char* SRC_MATSET_NAME = "source/matsetName";
+    const char* SRC_SELECTED_ZONES = "source/selectedZones";
+    const char* TARGET_TOPOLOGY_NAME = "target/topologyName";
+    const char* TARGET_MATSET_NAME = "target/matsetName";
+    const char* TARGET_SELECTED_ZONES = "target/selectedZones";
 
     // Make sure options are in the right memory space in case we are given lists of
     // selected zone ids.
@@ -546,8 +546,8 @@ public:
     utils::copy<ExecSpace>(n_options_copy, n_options, getAllocatorID());
 
     // Ensure required options exist.
-    const char *required[] = {SRC_MATSET_NAME, TARGET_TOPOLOGY_NAME, TARGET_MATSET_NAME};
-    for(const auto &key : required)
+    const char* required[] = {SRC_MATSET_NAME, TARGET_TOPOLOGY_NAME, TARGET_MATSET_NAME};
+    for(const auto& key : required)
     {
       if(!n_options_copy.has_path(key))
       {
@@ -560,8 +560,8 @@ public:
     const std::string targetMatsetName = n_options_copy[TARGET_MATSET_NAME].as_string();
 
     // Look at the source mesh's matset. Count the number of materials.
-    const conduit::Node &n_matset = n_srcMesh.fetch_existing("matsets/" + srcMatsetName);
-    const conduit::Node &n_materialMap = n_matset.fetch_existing("material_map");
+    const conduit::Node& n_matset = n_srcMesh.fetch_existing("matsets/" + srcMatsetName);
+    const conduit::Node& n_materialMap = n_matset.fetch_existing("material_map");
     const auto nmats = n_materialMap.number_of_children();
     const auto numMaterialSlots = nmats + 1;  // leave space for empty material.
 
@@ -638,15 +638,15 @@ public:
     const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
 
     // Make target matset.
-    conduit::Node &n_targetMatset = n_targetMesh["matsets/" + targetMatsetName];
+    conduit::Node& n_targetMatset = n_targetMesh["matsets/" + targetMatsetName];
     n_targetMatset["material_map"].set(n_materialMap);
     n_targetMatset["topology"].set(targetTopologyName);
 
-    conduit::Node &n_volume_fractions = n_targetMatset["volume_fractions"];
-    conduit::Node &n_material_ids = n_targetMatset["material_ids"];
-    conduit::Node &n_indices = n_targetMatset["indices"];
-    conduit::Node &n_sizes = n_targetMatset["sizes"];
-    conduit::Node &n_offsets = n_targetMatset["offsets"];
+    conduit::Node& n_volume_fractions = n_targetMatset["volume_fractions"];
+    conduit::Node& n_material_ids = n_targetMatset["material_ids"];
+    conduit::Node& n_indices = n_targetMatset["indices"];
+    conduit::Node& n_sizes = n_targetMatset["sizes"];
+    conduit::Node& n_offsets = n_targetMatset["offsets"];
 
     // Allocate memory for the output matset.
     n_volume_fractions.set_allocator(conduitAllocatorId);
@@ -703,7 +703,7 @@ public:
           utils::ComputeShapeAmount<TargetCoordsetView::dimension()>::execute(targetShape);
 
         // Handle intersection in-depth of the bounding boxes intersected.
-        auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
+        auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
           const auto srcBboxIndex = leafNodes[currentNode];
 
           // This should not happen but check that we're not given bad values.
@@ -743,8 +743,8 @@ public:
 #endif
 
             // Add the src material contribution into the target material.
-            MatIntType *matids = material_ids.data() + zi * numMaterialSlots;
-            MatFloatType *vfs = volume_fractions.data() + zi * numMaterialSlots;
+            MatIntType* matids = material_ids.data() + zi * numMaterialSlots;
+            MatFloatType* vfs = volume_fractions.data() + zi * numMaterialSlots;
             for(int m = 0; m < nmats; m++)
             {
               if(matids[m] == mat)
@@ -777,7 +777,7 @@ public:
         };
 
         // This predicate determines whether 2 bboxes intersect.
-        auto bbIsect = [](const SrcBoundingBox &queryBbox, const SrcBoundingBox &bvhBbox) -> bool {
+        auto bbIsect = [](const SrcBoundingBox& queryBbox, const SrcBoundingBox& bvhBbox) -> bool {
           bool rv = queryBbox.intersectsWith(bvhBbox);
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
           std::cout << "bbIsect: rv=" << rv << ", q=" << queryBbox << ", bvh=" << bvhBbox
@@ -802,7 +802,7 @@ public:
         nTargetZones,
         AXOM_LAMBDA(axom::IndexType index) {
           // Sum the material within the zone.
-          MatFloatType *vfs = volume_fractions.data() + index * numMaterialSlots;
+          MatFloatType* vfs = volume_fractions.data() + index * numMaterialSlots;
           MatFloatType vfSum(0);
           for(MatIntType m = 0; m < sizes[index]; m++)
           {

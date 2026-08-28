@@ -79,9 +79,9 @@ struct StridedStructuredIndexing
    * \param strides The amount to stride when moving to the next element for each logical dimension.
    */
   AXOM_HOST_DEVICE
-  StridedStructuredIndexing(const LogicalIndex &dims,
-                            const LogicalIndex &offsets,
-                            const LogicalIndex &strides)
+  StridedStructuredIndexing(const LogicalIndex& dims,
+                            const LogicalIndex& offsets,
+                            const LogicalIndex& strides)
     : m_dimensions(dims)
     , m_offsets(offsets)
     , m_strides(strides)
@@ -113,7 +113,7 @@ struct StridedStructuredIndexing
    * \return The logical dimensions.
    */
   AXOM_HOST_DEVICE
-  const LogicalIndex &logicalDimensions() const { return m_dimensions; }
+  const LogicalIndex& logicalDimensions() const { return m_dimensions; }
 
   /*!
    * \brief Return the j stride.
@@ -143,7 +143,7 @@ struct StridedStructuredIndexing
    * \return The global index.
    */
   AXOM_HOST_DEVICE
-  IndexType globalToGlobal(const LogicalIndex &global) const
+  IndexType globalToGlobal(const LogicalIndex& global) const
   {
     IndexType gl {};
     for(int i = 0; i < NDIMS; i++)
@@ -199,7 +199,7 @@ struct StridedStructuredIndexing
    * \return local logical index.
    */
   AXOM_HOST_DEVICE
-  LogicalIndex globalToLocal(const LogicalIndex &global) const
+  LogicalIndex globalToLocal(const LogicalIndex& global) const
   {
     LogicalIndex local(global);
     for(int i = 0; i < NDIMS; i++)
@@ -228,7 +228,7 @@ struct StridedStructuredIndexing
    * \return global logical index.
    */
   AXOM_HOST_DEVICE
-  LogicalIndex localToGlobal(const LogicalIndex &local) const
+  LogicalIndex localToGlobal(const LogicalIndex& local) const
   {
     LogicalIndex global(local);
     for(int i = 0; i < NDIMS; i++)
@@ -301,7 +301,7 @@ struct StridedStructuredIndexing
    * \return The index that corresponds to the \a logical index.
    */
   AXOM_HOST_DEVICE
-  IndexType logicalIndexToIndex(const LogicalIndex &logical) const
+  IndexType logicalIndexToIndex(const LogicalIndex& logical) const
   {
     IndexType index {};
     IndexType stride {1};
@@ -321,7 +321,7 @@ struct StridedStructuredIndexing
    * \return True if the logical index is within the index, false otherwise.
    */
   AXOM_HOST_DEVICE
-  bool contains(const LogicalIndex &logical) const
+  bool contains(const LogicalIndex& logical) const
   {
     bool retval = true;
     for(int i = 0; i < dimension(); i++)
@@ -392,7 +392,7 @@ struct StridedStructuredIndexing
    */
   /// @{
   AXOM_HOST_DEVICE
-  LogicalIndex clamp(const LogicalIndex &logical) const
+  LogicalIndex clamp(const LogicalIndex& logical) const
   {
     LogicalIndex retval;
     const IndexType lower(0);
