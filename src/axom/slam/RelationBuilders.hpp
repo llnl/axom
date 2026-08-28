@@ -44,6 +44,7 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
 
+#include <limits>
 #include <vector>
 
 namespace axom::slam
@@ -66,6 +67,27 @@ template <typename FromSet, typename ToSet, typename Position>
 concept OptionalRelationFlatPositionSame = SetLike<FromSet> && SetLike<ToSet> &&
   (std::same_as<model_t<Position>, void> || RelationFlatPositionSame<FromSet, ToSet, Position>);
 
+template <typename Position, typename EndpointPosition>
+consteval bool positionTypeCanRepresent()
+{
+  using PositionType = model_t<Position>;
+  using EndpointType = model_t<EndpointPosition>;
+  if constexpr(std::integral<PositionType> && std::integral<EndpointType>)
+  {
+    // Positions and sizes are nonnegative, so compare the number of value bits.
+    return std::numeric_limits<PositionType>::digits >= std::numeric_limits<EndpointType>::digits;
+  }
+  else
+  {
+    return std::constructible_from<PositionType, EndpointType>;
+  }
+}
+
+template <typename FromSet, typename ToSet, typename Position>
+concept RelationFlatPositionFor = SetLike<FromSet> && SetLike<ToSet> && PositionLike<Position> &&
+  positionTypeCanRepresent<Position, typename model_t<FromSet>::PositionType>() &&
+  positionTypeCanRepresent<Position, typename model_t<ToSet>::PositionType>();
+
 template <typename FromSet, typename ToSet, typename Value>
 concept RelationFlatPositionConstructible =
   SetLike<FromSet> && SetLike<ToSet> && PositionLike<Value> &&
@@ -73,7 +95,7 @@ concept RelationFlatPositionConstructible =
 
 template <typename FromSet, typename ToSet, typename PosType, typename ElemType>
 concept VariableRelationBufferTypes = RelationIndexBufferTypes<FromSet, ToSet, ElemType> &&
-  RelationFlatPositionSame<FromSet, ToSet, PosType>;
+  RelationFlatPositionFor<FromSet, ToSet, PosType>;
 
 /// Number of from-set elements (null-safe). Reads only the set's size scalar.
 template <typename FromSet>
@@ -137,10 +159,10 @@ inline void check_constant_relation_size(const FromSet* fromSet,
 }  // namespace detail
 
 /// \name Relation construction helpers
-/// \brief Construct relations whose begins offsets and flattened storage use
-/// the common position type of the endpoint sets, while relation entries use
-/// the to-set position type. Runtime sizes and strides must model PositionLike
-/// and be convertible to the flattened position type.
+/// \brief Construct relations whose entries use the to-set position type.
+/// Variable relations use their begins-buffer element type for flattened storage.
+/// Constant relations use the common endpoint position type.
+/// Runtime sizes and strides must model PositionLike and be convertible to the flattened position type.
 /// Compile-time strides must be positive.
 /// \{
 

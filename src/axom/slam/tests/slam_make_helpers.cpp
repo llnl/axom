@@ -156,6 +156,7 @@ static_assert(CanMakeVariableRelation<WideSet, NarrowSet, std::int64_t, std::int
 static_assert(CanMakeVariableRelationRef<WideSet, NarrowSet, std::int64_t, std::int32_t>);
 static_assert(!CanMakeVariableRelation<WideSet, NarrowSet, std::int32_t, std::int32_t>);
 static_assert(!CanMakeVariableRelation<WideSet, NarrowSet, std::int64_t, std::int64_t>);
+static_assert(CanMakeVariableRelation<NarrowSet, NarrowSet, std::int64_t, std::int32_t>);
 static_assert(CanMakeVariableRelation<NarrowSet, WideSet, std::int64_t, std::int64_t>);
 static_assert(!CanMakeVariableRelation<NarrowSet, WideSet, std::int32_t, std::int64_t>);
 static_assert(!CanMakeVariableRelation<TypedefOnlySet, NarrowSet, Pos, std::int32_t>);
@@ -463,6 +464,40 @@ TEST(slam_make_helpers, make_variable_relation_separates_endpoint_and_flat_posit
   EXPECT_EQ(relation.toSetSize(), std::int64_t {4});
   EXPECT_EQ(relation.size(std::int32_t {0}), std::int64_t {2});
   EXPECT_EQ(relation[std::int32_t {0}][std::int64_t {1}], std::int64_t {3});
+}
+
+TEST(slam_make_helpers, make_variable_relation_accepts_wider_flat_storage)
+{
+  NarrowSet fromSet(2);
+  NarrowSet toSet(4);
+
+  std::vector<std::int64_t> vectorBegins {0, 2, 3};
+  std::vector<std::int32_t> vectorIndices {0, 3, 2};
+  auto vectorRelation = slam::make_variable_relation(fromSet, toSet, vectorBegins, vectorIndices);
+  static_assert(std::same_as<typename decltype(vectorRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(vectorRelation.isValid(true));
+
+  std::int64_t arrayBegins[] {0, 2, 3};
+  std::int32_t arrayIndices[] {0, 3, 2};
+  auto arrayRelation = slam::make_variable_relation(fromSet,
+                                                    toSet,
+                                                    arrayBegins,
+                                                    std::int64_t {3},
+                                                    arrayIndices,
+                                                    std::int64_t {3});
+  static_assert(std::same_as<typename decltype(arrayRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(arrayRelation.isValid(true));
+
+  axom::Array<std::int64_t> axomBegins {0, 2, 3};
+  axom::Array<std::int32_t> axomIndices {0, 3, 2};
+  auto viewRelation =
+    slam::make_variable_relation(fromSet, toSet, axomBegins.view(), axomIndices.view());
+  static_assert(std::same_as<typename decltype(viewRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(viewRelation.isValid(true));
+
+  auto axomRelation = slam::make_variable_relation(fromSet, toSet, axomBegins, axomIndices);
+  static_assert(std::same_as<typename decltype(axomRelation)::FlatPositionType, std::int64_t>);
+  EXPECT_TRUE(axomRelation.isValid(true));
 }
 
 TEST(slam_make_helpers, make_constant_relation_runtime_stride)
