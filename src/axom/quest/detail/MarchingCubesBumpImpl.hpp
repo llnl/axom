@@ -141,7 +141,36 @@ public:
     const conduit::Node& n_topo =
       dom.fetch_existing(axom::fmt::format("topologies/{}", topologyName));
     const std::string topoType = n_topo.fetch_existing("type").as_string();
-    m_isStructured = (topoType != "unstructured");
+
+    // MeshViewUtil::isValid() requires both a "structured" topology and an explicit coordset
+    // Gating those paths on m_isStructured meant a uniform/rectilinear mesh passed setDomain()'s validation,
+    // and then hard-errored deep inside the crossing pre-filter.
+    // bump handles uniform and rectilinear, so use bump's views rather than MeshViewUtil.
+
+    const std::string coordsetTypeForPath =
+      dom
+        .fetch_existing(
+          axom::fmt::format("coordsets/{}", n_topo.fetch_existing("coordset").as_string()))
+        .fetch_existing("type")
+        .as_string();
+    m_useMeshViewUtilPath = (topoType == "structured") && (coordsetTypeForPath == "explicit");
+
+    // Strided-structured (ghost-padded) input needs no special handling here.
+    // adaptCutFieldOutputViews() reads bump's blended output coordset with make_array_view<double>,
+    // which errors late and opaquely on a float32 coordset.
+    // Catch it here instead, where the path can be named.
+    const std::string csPath =
+      axom::fmt::format("coordsets/{}/values", n_topo.fetch_existing("coordset").as_string());
+    for(const char* comp : {"x", "y", "z"})
+    {
+      validateFieldIsFloat64(axom::fmt::format("{}/{}", csPath, comp), "coordset component");
+    }
+    if(!m_fcnFieldName.empty())
+    {
+      validateFieldIsFloat64(axom::fmt::format("fields/{}/values", m_fcnFieldName),
+                             "function field");
+      validateFieldStrideOrder(axom::fmt::format("fields/{}", m_fcnFieldName));
+    }
     if(topoType == "unstructured")
     {
       const std::string shape = n_topo.fetch_existing("elements/shape").as_string();
@@ -162,7 +191,147 @@ public:
     }
   }
 
-  void setFunctionField(const std::string& fcnFieldName) override { m_fcnFieldName = fcnFieldName; }
+  /*!
+   * @brief Set the nodal function field, validating its type.
+   *
+   * The structured pre-filter reads the field through MeshViewUtil::getConstFieldView<double>(),
+   * which assumes that the values are `double`. Check the type here, and provide an error
+   * message with the actual type when necessary.
+   */
+  void setFunctionField(const std::string& fcnFieldName) override
+  {
+    m_fcnFieldName = fcnFieldName;
+    if(m_dom != nullptr && !m_fcnFieldName.empty())
+    {
+      validateFieldIsFloat64(axom::fmt::format("fields/{}/values", m_fcnFieldName),
+                             "function field");
+      validateFieldStrideOrder(axom::fmt::format("fields/{}", m_fcnFieldName));
+    }
+  }
+
+  /*!
+   * @brief Validate the function field layout used by bump's flat field view.
+   *
+   * bump's FieldIntersector reads the field with a flat make_array_view,
+   * ignoring the field's Blueprint offsets/strides. That is only correct for a compact i-fastest layout,
+   * or a ghost-padded i-fastest layout whose offsets and strides match the structured topology.
+   * Reject independently strided fields and topology arrays cases.
+   *
+   * i-fastest is characterised by strides[0] == 1 and non-decreasing strides.
+   *
+   * @note Uniform, rectilinear, and unstructured topologies use compact node
+   *   numbering, so field offsets/strides are not supported on those paths.
+   */
+  void validateFieldStrideOrder(const std::string& fieldPath) const
+  {
+    if(m_dom == nullptr || !m_dom->has_path(fieldPath))
+    {
+      return;
+    }
+    const conduit::Node& n_field = m_dom->fetch_existing(fieldPath);
+    const bool hasFieldOffsets = n_field.has_child("offsets");
+    const bool hasFieldStrides = n_field.has_child("strides");
+
+    const conduit::Node& n_topo =
+      m_dom->fetch_existing(axom::fmt::format("topologies/{}", m_topologyName));
+    const bool hasTopoOffsets = n_topo.has_path("elements/dims/offsets");
+    const bool hasTopoStrides = n_topo.has_path("elements/dims/strides");
+
+    if(!hasFieldOffsets && !hasFieldStrides && !hasTopoOffsets && !hasTopoStrides)
+    {
+      return;
+    }
+    if(!m_useMeshViewUtilPath)
+    {
+      SLIC_ERROR(axom::fmt::format(
+        "MarchingCubes (bump backend) does not support function-field offsets/strides "
+        "on topology '{}'; bump indexes this field with compact topology node ids.",
+        m_topologyName));
+      return;
+    }
+
+    axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
+    const auto nodeShape = mvu.getNodeShape();
+    axom::StackArray<axom::IndexType, DIM> fieldOffsets {};
+    axom::StackArray<axom::IndexType, DIM> topoOffsets {};
+    axom::StackArray<axom::IndexType, DIM> fieldStrides {};
+    axom::StackArray<axom::IndexType, DIM> topoStrides {};
+
+    axom::IndexType compactStride = 1;
+    for(int d = 0; d < DIM; ++d)
+    {
+      fieldStrides[d] = compactStride;
+      topoStrides[d] = compactStride;
+      compactStride *= nodeShape[d];
+    }
+
+    auto readMetadata = [](const conduit::Node& node, const std::string& path, auto& values) {
+      if(!node.has_path(path))
+      {
+        return true;
+      }
+      const conduit::Node& metadata = node.fetch_existing(path);
+      if(metadata.dtype().number_of_elements() != DIM)
+      {
+        SLIC_ERROR(axom::fmt::format("MarchingCubes metadata '{}' has {} values; expected {}.",
+                                     path,
+                                     metadata.dtype().number_of_elements(),
+                                     DIM));
+        return false;
+      }
+      // The input mesh can reside in device memory. Copy its small metadata
+      // array to the host before inspecting it.
+      axom::bump::utilities::fillFromNode(node, path, values, true);
+      return true;
+    };
+
+    if(!readMetadata(n_field, "offsets", fieldOffsets) ||
+       !readMetadata(n_field, "strides", fieldStrides) ||
+       !readMetadata(n_topo, "elements/dims/offsets", topoOffsets) ||
+       !readMetadata(n_topo, "elements/dims/strides", topoStrides))
+    {
+      return;
+    }
+
+    bool iFastest = fieldStrides[0] == 1;
+    for(int d = 1; d < DIM; ++d)
+    {
+      iFastest = iFastest && (fieldStrides[d] >= fieldStrides[d - 1]);
+    }
+    if(!iFastest)
+    {
+      SLIC_ERROR(
+        axom::fmt::format("MarchingCubes (bump backend) requires an i-fastest function field: bump "
+                          "reads field values as a flat array and does not honor Blueprint field "
+                          "strides, so a permuted layout is silently transposed. Field '{}' has "
+                          "strides that are not i-fastest.",
+                          fieldPath));
+      return;
+    }
+
+    SLIC_ERROR_IF(
+      fieldOffsets != topoOffsets || fieldStrides != topoStrides,
+      axom::fmt::format("MarchingCubes (bump backend) requires function field '{}' to use the "
+                        "same offsets and strides as its structured topology. bump indexes "
+                        "field values directly with topology node ids.",
+                        fieldPath));
+  }
+
+  //! @brief Require a float64 Blueprint array, naming the offending type if not.
+  void validateFieldIsFloat64(const std::string& path, const std::string& what) const
+  {
+    if(m_dom == nullptr || !m_dom->has_path(path))
+    {
+      return;  // absence is reported elsewhere, with a better message
+    }
+    const conduit::Node& n = m_dom->fetch_existing(path);
+    SLIC_ERROR_IF(!n.dtype().is_float64(),
+                  axom::fmt::format("MarchingCubes (bump backend) requires a float64 {} at '{}', "
+                                    "but found '{}'.",
+                                    what,
+                                    path,
+                                    n.dtype().name()));
+  }
 
   void setContourValue(double contourVal) override { m_contourVal = contourVal; }
 
@@ -172,10 +341,9 @@ public:
    * @brief Honor the requested parent-cell-id numbering.
    *
    * blueprintZoneId (default): use bump's originalElements directly.
-   * legacyFieldOrder: for structured input, remap the Blueprint zone index (which bump orders i-fastest,
-   *   independent of memory layout) to the legacy flat index in the function field's stride order.
-   *   For unstructured input this mode is ignored (no canonical "field stride order" exists)
-   *   and the Blueprint zone id is used.
+   * legacyFieldOrder: for structured+explicit input, remap the Blueprint zone
+   *   index to the legacy flat index in the function field's stride order.
+   *   Other topology types use the Blueprint zone id.
    */
   void setParentCellIdMode(MarchingCubesParentCellIdMode mode) override
   {
@@ -513,8 +681,10 @@ private:
     // (Compiles and passes on seq/omp regardless, which is why this must be a local, not the member.)
     const int maskVal = m_maskVal;
 
-    if(m_isStructured)
+    if(m_useMeshViewUtilPath)
     {
+      // Structured + explicit: read the mask through MeshViewUtil so any
+      // ghost offsets/strides on the field are honored.
       axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
       const auto maskView = mvu.template getConstFieldView<int>(m_maskFieldName, false);
       const axom::MDMapping<DIM> topoMap(mvu.getCellShape(), axom::ArrayStrideOrder::COLUMN);
@@ -537,6 +707,13 @@ private:
     }
     else
     {
+      // Everything else (unstructured, uniform, rectilinear): the mask values
+      // are a flat array in the topology's zone order, which matches bump's
+      // zone numbering.  That is only true without per-field offsets/strides,
+      // so reject those explicitly rather than silently misindexing.
+      SLIC_ERROR_IF(n_mask.has_child("offsets") || n_mask.has_child("strides"),
+                    "MarchingCubes (bump backend) does not support a mask field with "
+                    "Blueprint offsets/strides on a non-structured-explicit topology.");
       auto maskView = bputils::make_array_view<int>(n_maskValues);
       SLIC_ERROR_IF(maskView.size() < nZones,
                     "MarchingCubes mask field has fewer values than topology zones.");
@@ -923,7 +1100,7 @@ private:
         n_options["value"] = static_cast<double>(isoForBump);
 
         axom::Array<axom::IndexType> selectedZones;
-        const bool hasCrossingZones = m_isStructured
+        const bool hasCrossingZones = m_useMeshViewUtilPath
           ? attachStructuredCrossingSelectedZonesOption<IsoFieldType>(isoForBump,
                                                                       n_options,
                                                                       selectedZones)
@@ -968,29 +1145,24 @@ private:
 
     // For the opt-in legacyFieldOrder numbering on structured input, capture the logical cell dims
     // and the function field's stride order so the output adaptor can remap bump's i-fastest zone ids back to the legacy ordering.
-    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_isStructured)
+    // The legacy field-stride numbering is defined by the function field's MDMapping,
+    // which MeshViewUtil supplies -- so it is available only on structured+explicit meshes.
+    // For uniform/rectilinear input the request falls back to blueprintZoneId.
+    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_useMeshViewUtilPath)
     {
       captureStructuredMetadata();
     }
   }
 
   /*!
-   * @brief Populate m_cellDims and m_fieldSlowestDirs from the structured domain,
-   * for the legacyFieldOrder parent-id remap.
-   *
-   * Uses MeshViewUtil to read the logical cell shape and the function field's strides,
-   * from which an MDMapping yields the slowest->fastest permutation.
-   *
-   * NOTE: This path is exercised only when a caller explicitly opts into legacyFieldOrder on structured input;
-   * it is the part of the bump backend most in need of build/test validation (MeshViewUtil templating x ExecSpace).
+   * @brief Populate metadata for the legacyFieldOrder parent-id remap.
    */
   void captureStructuredMetadata()
   {
     axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
     m_cellDims = mvu.getCellShape();
     const auto fcnView = mvu.template getConstFieldView<double>(m_fcnFieldName, false);
-    // Build an MDMapping from the field strides to extract the stride order.
-    axom::MDMapping<DIM> fcnMap(fcnView.strides());
+    const axom::MDMapping<DIM> fcnMap(fcnView.strides());
     m_fieldSlowestDirs = fcnMap.slowestDirs();
   }
 
@@ -1040,7 +1212,7 @@ private:
     // Build the legacy field-stride remap only when the user asked for the legacy numbering AND the input is structured
     // (unstructured has no canonical field stride order; we leave the remap empty -> pass-through).
     axom::Array<axom::IndexType> remapHost(0, 0);
-    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_isStructured)
+    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_useMeshViewUtilPath)
     {
       remapHost = buildFieldStrideRemap<DIM>(m_cellDims, m_fieldSlowestDirs);
     }
@@ -1086,7 +1258,8 @@ private:
 
   //! @name Structured metadata, captured only for the legacyFieldOrder remap.
   //! @{
-  bool m_isStructured {false};
+  //! @brief Whether the MeshViewUtil fast paths apply (structured + explicit only).
+  bool m_useMeshViewUtilPath {false};
   axom::StackArray<axom::IndexType, DIM> m_cellDims {};
   axom::StackArray<std::uint16_t, DIM> m_fieldSlowestDirs {};
   //! @}

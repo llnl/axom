@@ -65,9 +65,13 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
   }
   else
   {
-    m_singleDomainMesh.reset();
-    m_singleDomainMesh.append().set_external(bpMesh);
-    mdMesh = &m_singleDomainMesh;
+    // Neither a single domain carrying the requested topology nor a valid multi-domain mesh.
+    // Error out here since wrapping it would defers the failure into an opaque fetch_existing() below.
+    SLIC_ERROR(
+      axom::fmt::format("MarchingCubes::setMesh: the input mesh is neither a multi-domain "
+                        "Blueprint mesh nor a single domain containing topology '{}'.",
+                        topologyName));
+    return;
   }
 
   m_topologyName = topologyName;
