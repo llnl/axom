@@ -605,26 +605,23 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
                   set(_scale 3 3 1.5)
                 endif()
 
-                foreach(_parent_mode blueprintZoneId legacyFieldOrder)
-                    set(_test "quest_marching_cubes_bump_run_${_ndim}D_${_pol}_${_parent_mode}_${_mesh}")
-                    axom_add_test(
-                        NAME    ${_test}
-                        COMMAND quest_marching_cubes_ex
-                                    --policy ${_pol}
-                                    --mesh-file ${quest_data_dir}/${_mesh}.root
-                                    --fields-file ${_test}.field
-                                    --dir ${_dir}
-                                    --center ${_center}
-                                    --scale ${_scale}
-                                    --contourVal 1.25
-                                    --useBumpBackend
-                                    --parentCellIdMode ${_parent_mode}
-                                    --check-results
-                        NUM_MPI_TASKS ${_nranks}
-                        NUM_OMP_THREADS ${_num_threads})
-                    set_tests_properties(${_test} PROPERTIES
-                        PASS_REGULAR_EXPRESSION "Contour mesh has .* cells")
-                endforeach()
+                set(_test "quest_marching_cubes_bump_run_${_ndim}D_${_pol}_${_mesh}")
+                axom_add_test(
+                    NAME    ${_test}
+                    COMMAND quest_marching_cubes_ex
+                                --policy ${_pol}
+                                --mesh-file ${quest_data_dir}/${_mesh}.root
+                                --fields-file ${_test}.field
+                                --dir ${_dir}
+                                --center ${_center}
+                                --scale ${_scale}
+                                --contourVal 1.25
+                                --useBumpBackend
+                                --check-results
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
+                set_tests_properties(${_test} PROPERTIES
+                    PASS_REGULAR_EXPRESSION "Contour mesh has .* cells")
             endforeach()
         endforeach()
 

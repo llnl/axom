@@ -41,8 +41,7 @@
  *   1. For DIM==2: each welded segment (Line_ShapeID, size 2) is one facet.
  *      For DIM==3: each welded polygon of p corners fan-triangulates into (p-2) triangles (corners {0,k,k+1}).
  *   2. Reuse bump's welded vertex coordinates and write only triangle/segment connectivity.
- *   3. Parent id per facet := originalElements[srcZone], optionally remapped to
- *      the legacy field-stride flat order (structured input + legacyFieldOrder).
+ *   3. Parent id per facet := originalElements[srcZone].
  */
 
 #pragma once
@@ -62,7 +61,6 @@
 #include "axom/core/memory_management.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
-#include "axom/core/MDMapping.hpp"
 #include "axom/core/numerics/floating_point_limits.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 
@@ -358,7 +356,6 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
                               axom::ArrayView<axom::IndexType, 1> facetParentIds,
                               axom::IndexType facetIndexOffset,
                               axom::IndexType nodeIndexOffset,
-                              axom::ArrayView<const axom::IndexType, 1> fieldStrideRemap,
                               int objectAllocatorID)
 {
   namespace bputils = axom::bump::utilities;
@@ -406,9 +403,6 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   auto zoneFacetOffsetsView = zoneFacetOffsets.view();
   axom::exclusive_scan<ExecSpace>(zoneFacetCountsView, zoneFacetOffsetsView);
 
-  // Capture raw views for the kernel.
-  const bool doRemap = !fieldStrideRemap.empty();
-
   // --- The fan-triangulation kernel -------------------------------------
   // One thread per bump zone.  Each zone writes facetsPerZone facets;
   // each facet reuses bump's welded coordset vertex ids.
@@ -424,11 +418,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
       const axom::IndexType connStart = static_cast<axom::IndexType>(offsetsView[z]);
 
       // Parent-cell id for every facet of this zone.
-      axom::IndexType parentId = static_cast<axom::IndexType>(origView[z]);
-      if(doRemap)
-      {
-        parentId = fieldStrideRemap[parentId];
-      }
+      const axom::IndexType parentId = static_cast<axom::IndexType>(origView[z]);
 
       // This zone's first facet within the whole concatenated output.
       const axom::IndexType facetBase = facetIndexOffset + zoneFacetOffsetsView[z];
@@ -481,9 +471,6 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
  * @param nodeIndexOffset This domain's first node index in the concatenated output.
  * @param thisDomainFacetCount Number of facets this domain produces (already
  *   computed by the caller; equals sum of facetsPerZone over the bump zones).
- * @param fieldStrideRemap If non-null, a precomputed per-input-zone map from bump's
- *   i-fastest Blueprint zone id to the legacy field-stride flat id.
- *   When null, originalElements ids are written through unchanged.
  * @param objectAllocatorID Allocator used for temporary arrays.
  *
  * @pre All output views and \a n_output live in ExecSpace's memory space.
@@ -496,7 +483,6 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
                          axom::IndexType facetIndexOffset,
                          axom::IndexType nodeIndexOffset,
                          axom::IndexType thisDomainFacetCount,
-                         axom::ArrayView<const axom::IndexType, 1> fieldStrideRemap,
                          int objectAllocatorID)
 {
   namespace bputils = axom::bump::utilities;
@@ -543,7 +529,6 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
                                              facetParentIds,
                                              facetIndexOffset,
                                              nodeIndexOffset,
-                                             fieldStrideRemap,
                                              objectAllocatorID);
   };
 
@@ -555,62 +540,6 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
 #else
   bpviews::indexNodeToArrayViewSame(n_sizes, n_offsets, n_conn, n_orig, std::move(adaptViews));
 #endif
-}
-
-/*!
- * @brief Build the per-input-zone remap from bump's i-fastest Blueprint zone id
- * to the legacy field-stride flat id, for structured input.
- *
- * bump's StructuredIndexing numbers zones flat = i + j*nx + k*nx*ny (i-fastest), independent of memory layout.
- * The legacy parent-cell id is the flat index in the function field's stride order.
- * This routine, given the per-dimension cell counts \a cellDims (logical, in i,j,k order) and the function field's
- * \a fieldSlowestDirs (the slowest-to-fastest permutation from the field's MDMapping), produces remap[bumpZoneId] = legacyZoneId.
- *
- * Returns an empty Array when the two orderings coincide (i-fastest field), so callers can skip remapping entirely.
- *
- * @note Built in host memory then copied to ExecSpace memory by the caller.
- */
-template <int DIM>
-axom::Array<axom::IndexType> buildFieldStrideRemap(
-  const axom::StackArray<axom::IndexType, DIM>& cellDims,
-  const axom::StackArray<std::uint16_t, DIM>& fieldSlowestDirs)
-{
-  // Identity stride order is "i fastest" == slowestDirs {DIM-1, ..., 1, 0}.
-  bool isIFastest = true;
-  for(int d = 0; d < DIM; ++d)
-  {
-    if(fieldSlowestDirs[d] != static_cast<std::uint16_t>(DIM - 1 - d))
-    {
-      isIFastest = false;
-      break;
-    }
-  }
-  if(isIFastest)
-  {
-    return axom::Array<axom::IndexType>(0, 0);  // no remap needed
-  }
-
-  axom::IndexType numZones = 1;
-  for(int d = 0; d < DIM; ++d)
-  {
-    numZones *= cellDims[d];
-  }
-
-  // bump mapping: i-fastest.
-  axom::MDMapping<DIM> bumpMap(cellDims, axom::ArrayStrideOrder::COLUMN);
-  // legacy mapping: field stride order via slowestDirs.
-  axom::MDMapping<DIM> legacyMap;
-  legacyMap.initializeShape(cellDims, fieldSlowestDirs);
-
-  axom::Array<axom::IndexType> remap(numZones, numZones);
-  auto remapView = remap.view();
-  // Host loop: enumerate logical multi-indices, map each to both flat ids.
-  for(axom::IndexType bumpId = 0; bumpId < numZones; ++bumpId)
-  {
-    const auto multi = bumpMap.toMultiIndex(bumpId);
-    remapView[bumpId] = legacyMap.toFlatIndex(multi);
-  }
-  return remap;
 }
 
 }  // namespace axom::quest::detail::marching_cubes
