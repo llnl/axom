@@ -80,6 +80,28 @@
 namespace axom::quest::detail::marching_cubes
 {
 /*!
+ * @brief Private name for the parent-zone field requested from bump.
+ *
+ * Not bump's default: TableBasedExtractor::makeOriginalElements branches on
+ * whether the input mesh already carries a field of the configured name
+ * and, if so, maps those values forward instead of writing zone indices.
+ * Any mesh produced by a prior bump operation contains that field,
+ * and the empty "fields" option does not suppress the branch,
+ * so a plausible input silently redefines what a parent cell id means.
+ */
+constexpr const char* kOriginalElementsField = "__axom_mc_originalElements";
+
+/*!
+ * @brief Name the parent-zone field carries on the PUBLIC Blueprint output.
+ *
+ * populateContourMeshBlueprint() hands the mesh to the caller and
+ * quest_marching_cubes_bump.cpp asserts on this name, so it is an API contract.
+ * bump's output is renamed from the private request name to this immediately
+ * after extraction, keeping the private name confined to the request.
+ */
+constexpr const char* kPublicOriginalElementsField = "originalElements";
+
+/*!
  * @brief Number of legacy facets a bump zone of \a nCorners contributes.
  *
  * 2D: segment -> 1.
@@ -285,6 +307,10 @@ void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
   namespace bputils = axom::bump::utilities;
   namespace bpviews = axom::bump::views;
 
+  if(!n_output.has_child("topologies"))
+  {
+    return;  // empty contour (isovalue outside the data range): nothing to triangulate
+  }
   const conduit::Node& n_topos = n_output.fetch_existing("topologies");
   SLIC_ASSERT(n_topos.number_of_children() == 1);
   const std::string topologyName = n_topos.child(0).name();
@@ -332,7 +358,8 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
                               axom::ArrayView<axom::IndexType, 1> facetParentIds,
                               axom::IndexType facetIndexOffset,
                               axom::IndexType nodeIndexOffset,
-                              axom::ArrayView<const axom::IndexType, 1> fieldStrideRemap)
+                              axom::ArrayView<const axom::IndexType, 1> fieldStrideRemap,
+                              int objectAllocatorID)
 {
   namespace bputils = axom::bump::utilities;
 
@@ -365,7 +392,8 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   // --- Per-zone facet offset (exclusive scan of facetsPerZone) -----------
   // We need, for each bump zone, the index of its first facet within this
   // domain so kernels can write without atomics.
-  const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  // Use the object's allocator, not the execution space default.
+  const int allocatorID = objectAllocatorID;
   axom::Array<axom::IndexType> zoneFacetCounts(numZones, numZones, allocatorID);
   auto zoneFacetCountsView = zoneFacetCounts.view();
   axom::for_all<ExecSpace>(
@@ -453,9 +481,10 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
  * @param nodeIndexOffset This domain's first node index in the concatenated output.
  * @param thisDomainFacetCount Number of facets this domain produces (already
  *   computed by the caller; equals sum of facetsPerZone over the bump zones).
- * @param fieldStrideRemap If non-null, a precomputed per-input-zone map from
- *   bump's i-fastest Blueprint zone id to the legacy field-stride flat id.  When
- *   null, originalElements ids are written through unchanged.
+ * @param fieldStrideRemap If non-null, a precomputed per-input-zone map from bump's
+ *   i-fastest Blueprint zone id to the legacy field-stride flat id.
+ *   When null, originalElements ids are written through unchanged.
+ * @param objectAllocatorID Allocator used for temporary arrays.
  *
  * @pre All output views and \a n_output live in ExecSpace's memory space.
  */
@@ -467,7 +496,8 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
                          axom::IndexType facetIndexOffset,
                          axom::IndexType nodeIndexOffset,
                          axom::IndexType thisDomainFacetCount,
-                         axom::ArrayView<const axom::IndexType, 1> fieldStrideRemap)
+                         axom::ArrayView<const axom::IndexType, 1> fieldStrideRemap,
+                         int objectAllocatorID)
 {
   namespace bputils = axom::bump::utilities;
   namespace bpviews = axom::bump::views;
@@ -493,7 +523,8 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
     n_output.fetch_existing(axom::fmt::format("coordsets/{}", coordsetName));
 
   // originalElements: element-associated, one entry per output zone (fragment).
-  const conduit::Node& n_orig = n_output.fetch_existing("fields/originalElements/values");
+  const conduit::Node& n_orig =
+    n_output.fetch_existing(axom::fmt::format("fields/{}/values", kPublicOriginalElementsField));
 
   SLIC_ERROR_IF(n_offsets.dtype().id() != n_sizes.dtype().id() ||
                   n_conn.dtype().id() != n_sizes.dtype().id() ||
@@ -512,7 +543,8 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
                                              facetParentIds,
                                              facetIndexOffset,
                                              nodeIndexOffset,
-                                             fieldStrideRemap);
+                                             fieldStrideRemap,
+                                             objectAllocatorID);
   };
 
 #if defined(_WIN32)

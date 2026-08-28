@@ -185,6 +185,10 @@ axom::IndexType MarchingCubes::getContourNodeCount() const { return m_nodeCount;
 
 void MarchingCubes::clearOutput()
 {
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    m_singles[d]->getImpl().clearDomain();
+  }
   m_facetCount = 0;
   m_nodeCount = 0;
   m_facetNodeIds.clear();
