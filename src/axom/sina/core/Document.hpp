@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_DOCUMENT_HPP
-#define SINA_DOCUMENT_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -147,22 +146,22 @@ public:
      * Disable copying Document objects. We must do this since we hold
      * pointers to polymorphic objects.
      */
-  Document(Document const &) = delete;
+  Document(Document const&) = delete;
 
   /**
      * Disabling copy assignment.
      */
-  Document &operator=(Document const &) = delete;
+  Document& operator=(Document const&) = delete;
 
   /**
      * Move constructor which should be handled by the compiler.
      */
-  Document(Document &&) = default;
+  Document(Document&&) = default;
 
   /**
      * Move assignment which should be handled by the compiler.
      */
-  Document &operator=(Document &&) = default;
+  Document& operator=(Document&&) = default;
 
   /**
      * \brief Create a Document from its Conduit Node representation
@@ -171,7 +170,7 @@ public:
      * \param recordLoader an RecordLoader to use to load the different
      *                     types of records which may be in the document
      */
-  Document(conduit::Node const &asNode, RecordLoader const &recordLoader);
+  Document(conduit::Node const& asNode, RecordLoader const& recordLoader);
 
   /**
      * \brief Create a Document from a JSON string representation
@@ -180,7 +179,7 @@ public:
      * \param recordLoader an RecordLoader to use to load the different
      *                     types of records which may be in the document
      */
-  Document(std::string const &asJson, RecordLoader const &recordLoader);
+  Document(std::string const& asJson, RecordLoader const& recordLoader);
 
   /**
      * \brief Add the given record to this document.
@@ -194,7 +193,7 @@ public:
      *
      * \return the list of records
      */
-  RecordList const &getRecords() const noexcept { return records; }
+  RecordList const& getRecords() const noexcept { return records; }
 
   /**
      * \brief Add a relationship to this document
@@ -208,7 +207,7 @@ public:
      *
      * \return the list of relationships
      */
-  RelationshipList const &getRelationships() const noexcept { return relationships; }
+  RelationshipList const& getRelationships() const noexcept { return relationships; }
 
   /**
      * \brief Convert this document to a conduit Node.
@@ -226,14 +225,14 @@ public:
    * 
    *  \return This node with slashes escaped for HDF5.
    */
-  conduit::Node &toHDF5Node(conduit::Node &writeTo) const;
+  conduit::Node& toHDF5Node(conduit::Node& writeTo) const;
 
   /**
    *  \brief Dump this document as an HDF5 File
    * 
    *  \param filename the location of which to save the file
    */
-  void toHDF5(const std::string &filename) const;
+  void toHDF5(const std::string& filename) const;
 #endif
 
   /**
@@ -243,8 +242,8 @@ public:
      */
   std::string toJson(conduit::index_t indent = 0,
                      conduit::index_t depth = 0,
-                     const std::string &pad = "",
-                     const std::string &eoe = "") const;
+                     const std::string& pad = "",
+                     const std::string& eoe = "") const;
 
   /**
     * \brief Get the list of file types currently supported by the implementation.
@@ -257,7 +256,7 @@ private:
   /**
      * Constructor helper method, extracts info from a conduit Node.
      */
-  void createFromNode(conduit::Node const &asNode, RecordLoader const &recordLoader);
+  void createFromNode(conduit::Node const& asNode, RecordLoader const& recordLoader);
   RecordList records;
   RelationshipList relationships;
 };
@@ -272,8 +271,8 @@ private:
  * \throws std::ios::failure if there are any IO errors
  *         std::invalid_argument if the protocol given is an undefined, optional protocol
  */
-void saveDocument(Document const &document,
-                  std::string const &fileName,
+void saveDocument(Document const& document,
+                  std::string const& fileName,
                   Protocol protocol = Protocol::AUTO_DETECT);
 
 /**
@@ -287,7 +286,7 @@ inline std::string getSinaFileFormatVersion()
     std::to_string(SINA_FILE_FORMAT_VERSION_MINOR);
 }
 
-void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNode);
+void restoreSlashes(const conduit::Node& modifiedNode, conduit::Node& restoredNode);
 
 /**
  * \brief Load a document from the given path. Only records which this library
@@ -297,7 +296,7 @@ void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNo
  * \param protocol the type of file being loaded, default = JSON
  * \return the loaded Document
  */
-Document loadDocument(std::string const &path, Protocol protocol = Protocol::JSON);
+Document loadDocument(std::string const& path, Protocol protocol = Protocol::JSON);
 
 /**
  * \brief Load a document from the given path.
@@ -309,8 +308,8 @@ Document loadDocument(std::string const &path, Protocol protocol = Protocol::JSO
  * \throws std::invalid_argument if the protocol given is an undefined, optional protocol
  * \return the loaded Document
  */
-Document loadDocument(std::string const &path,
-                      RecordLoader const &recordLoader,
+Document loadDocument(std::string const& path,
+                      RecordLoader const& recordLoader,
                       Protocol protocol = Protocol::JSON);
 
 /**
@@ -326,12 +325,17 @@ Document loadDocument(std::string const &path,
  *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
  * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
  *                       ex: a code is appending values to every timeseries every N cycles.
+ * \param overwriteCurves Indicates that curves should be overwritten instead of appended to. Useful for cases
+ *                        where a data source must pass the full curve each time. Note: the type of the data
+ *                        can't change on overwrite, don't use ints for floats etc.
+ * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
-conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
-                                   const Document &newData,
+conduit::Node appendDocumentToJson(const std::string& jsonFilePath,
+                                   const Document& newData,
                                    const int mergeProtocol = 1,
-                                   const bool skipValidation = false);
+                                   const bool skipValidation = false,
+                                   const bool overwriteCurves = false);
 
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
@@ -358,13 +362,17 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
  *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
  * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
  *                       ex: a code is appending values to every timeseries every N cycles.
+ * \param overwriteCurves Indicates that curves should be overwritten instead of appended to. Useful for cases
+ *                        where a data source must pass the full curve each time. Note: the type of the data
+ *                        can't change on overwrite, don't use ints for floats etc.
  * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success!
  */
-conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
-                                   Document const &newData,
+conduit::Node appendDocumentToHDF5(const std::string& hdf5FilePath,
+                                   Document const& newData,
                                    const int mergeProtocol = 1,
-                                   const bool skipValidation = false);
+                                   const bool skipValidation = false,
+                                   const bool overwriteCurves = false);
 
 /**
  * @brief Append a Document to an existing file with automatic format detection
@@ -376,12 +384,16 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
  * \param filepath Path to the existing file
  * \param mergeProtocol How to handle conflicts (1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
  * \param outputProtocol Optional format override (default: AUTO_DETECT)
+ * \param overwriteCurves Indicates that curves should be overwritten instead of appended to. Useful for cases
+ *                        where a data source must pass the full curve each time. Note: the type of the data
+ *                        can't change on overwrite, don't use ints for floats etc.
  * \throws std::runtime_error If the file cannot be opened or the format is unsupported
  */
-void appendDocument(const Document &document,
-                    const std::string &filepath,
+void appendDocument(const Document& document,
+                    const std::string& filepath,
                     int mergeProtocol = 1,
-                    Protocol Protocol = Protocol::AUTO_DETECT);
+                    Protocol Protocol = Protocol::AUTO_DETECT,
+                    const bool overwriteCurves = false);
 
 /**
  * \brief Check a node against some file handle and return a Conduit node populated with any errors that
@@ -397,15 +409,13 @@ void appendDocument(const Document &document,
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
 template <typename ConduitRelayLike>
-conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
-                                     const conduit::Node &appendFrom,
-                                     const std::string &endpoint,
+conduit::Node validateAppendDocument(ConduitRelayLike& appendTo,
+                                     const conduit::Node& appendFrom,
+                                     const std::string& endpoint,
                                      const int mergeProtocol,
                                      int record_num,
                                      // default'd because it might go away with a conduit update
-                                     const std::string &original_file_path = "");
+                                     const std::string& original_file_path = "");
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_DOCUMENT_HPP

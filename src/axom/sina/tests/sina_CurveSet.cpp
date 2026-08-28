@@ -25,7 +25,7 @@ namespace sina
 //
 // NOTE: Since this isn't in an unnamed namespace, we need a forward
 // declaration to satisfy strict compiler warnings.
-bool operator==(Curve const &lhs, Curve const &rhs);
+bool operator==(Curve const& lhs, Curve const& rhs);
 
 /**
  * Compare two curves for equality. All fields must be equal, including the
@@ -36,17 +36,21 @@ bool operator==(Curve const &lhs, Curve const &rhs);
  * @param rhs the right-hand-side operand
  * @return whether the curves are equal
  */
-bool operator==(Curve const &lhs, Curve const &rhs)
+bool operator==(Curve const& lhs, Curve const& rhs)
 {
   bool r = lhs.getName() == rhs.getName() && lhs.getUnits() == rhs.getUnits() &&
     lhs.getTags() == rhs.getTags() && lhs.getValues() == rhs.getValues();
   return r;
 }
+}  // namespace sina
+}  // namespace axom
 
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
+using sina::Curve;
+using sina::CurveSet;
 
 using ::testing::ContainerEq;
 using ::testing::ElementsAre;
@@ -375,8 +379,3 @@ TEST(CurveSet, customIndependentSortOrder)
   curveSet.applyCustomIndependentCurveOrder(newOrder);
   EXPECT_THAT(curveSet.getOrderedIndependentCurveNames(), ContainerEq(newOrder));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

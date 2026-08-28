@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_ConnectivityArray_typed_indirection_HPP_
-#define MINT_ConnectivityArray_typed_indirection_HPP_
+#pragma once
 
 #include <iostream>
 
@@ -585,5 +584,3 @@ private:
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_ConnectivityArray_typed_indirection_HPP_ */

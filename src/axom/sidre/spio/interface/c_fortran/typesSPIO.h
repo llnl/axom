@@ -6,10 +6,11 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-// For C users and C++ implementation
 
 #ifndef TYPESSPIO_H
 #define TYPESSPIO_H
+
+// For C users and C++ implementation
 
 // Shared with other Shroud wrapped libraries
 #ifndef SHROUD_SHARED_H
@@ -36,7 +37,7 @@ extern "C" {
 // helper capsule_data
 struct s_SPIO_SHROUD_capsule_data
 {
-  void *addr;    /* address of C++ memory */
+  void* addr;    /* address of C++ memory */
   int idtor;     /* index of destructor */
   int cmemflags; /* memory flags */
 };
@@ -55,13 +56,13 @@ typedef struct s_SPIO_IOManager SPIO_IOManager;
 // C capsule SPIO_IOManager
 struct s_SPIO_IOManager
 {
-  void *addr;     // address of C++ memory
+  void* addr;     // address of C++ memory
   int idtor;      // index of destructor
   int cmemflags;  // memory flags
 };
 typedef struct s_SPIO_IOManager SPIO_IOManager;
 
-void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data *cap);
+void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data* cap);
 
 #ifdef __cplusplus
 }

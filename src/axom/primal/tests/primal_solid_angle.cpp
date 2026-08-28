@@ -640,7 +640,7 @@ TEST(primal_solid_angle, teardrop_regression_test)
       // The vertical cross-section of the tip is given by 3sin(1/3 * asin(1-2x)) + x - 0.5
       double fun = 3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
       return (x[2] <= fun) &&
-        ((x[2] > -1.0) || std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0) <= 1.0));
+        ((x[2] > -1.0) || std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0)) <= 1.0);
     }
   };
 
@@ -674,6 +674,13 @@ TEST(primal_solid_angle, teardrop_regression_test)
     const bool calc_containment = (std::round(gwn_array[n]) != 0);
     EXPECT_EQ(calc_containment, true_containment_arr[n]);
   }
+
+  // Verify determinism of GWN calculation
+  double gwn_1 = axom::primal::winding_number(query_arr[tot_npts / 2], teardrop_shape[0]);
+  double gwn_2 = axom::primal::winding_number(query_arr[tot_npts / 2], teardrop_shape[0]);
+
+  // Should be equal in double precision
+  EXPECT_EQ(gwn_1, gwn_2);
 }
 
 int main(int argc, char** argv)

@@ -11,11 +11,13 @@
  */
 
 #include <iterator>
+#include <type_traits>
 #include "gtest/gtest.h"
 
 #include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
+#include "axom/slam/MapBuilders.hpp"
 
 namespace
 {
@@ -60,7 +62,7 @@ bool constructAndTestMap()
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
+  SLIC_INFO("Creating map on the set ");
 
   slam::Map<T, BaseSet> m(&s);
   EXPECT_TRUE(m.isValid());
@@ -145,6 +147,75 @@ TEST(slam_map, map_builder)
   }
 }
 
+TEST(slam_map, make_map_array_view_storage)
+{
+  SetType s(MAX_SET_SIZE);
+  BaseSet* s_ptr = &s;
+
+  double data[MAX_SET_SIZE] = {};
+  for(SetPosition i = 0; i < MAX_SET_SIZE; ++i)
+  {
+    data[i] = 0.25 * i;
+  }
+
+  auto m = slam::make_map(s_ptr, data);
+  using Indirection = policies::ArrayViewIndirection<SetPosition, double>;
+  using Stride = policies::StrideOne<SetPosition>;
+  static_assert(std::is_same_v<decltype(m), slam::Map<double, BaseSet, Indirection, Stride>>,
+                "make_map(set, ptr) yields an ArrayView-backed stride-one Map");
+
+  EXPECT_TRUE(m.isValid());
+  EXPECT_EQ(m.size(), s.size());
+  EXPECT_EQ(m.stride(), 1);
+  for(SetPosition i = 0; i < MAX_SET_SIZE; ++i)
+  {
+    EXPECT_DOUBLE_EQ(m(i), data[i]);
+  }
+}
+
+TEST(slam_map, make_map_runtime_stride_array_view_storage)
+{
+  SetType s(3);
+  BaseSet* s_ptr = &s;
+
+  constexpr SetPosition stride = 2;
+  double data[3 * stride] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
+
+  auto m = slam::make_map(s_ptr, stride, data);
+  using Indirection = policies::ArrayViewIndirection<SetPosition, double>;
+  using Stride = policies::RuntimeStride<SetPosition>;
+  static_assert(std::is_same_v<decltype(m), slam::Map<double, BaseSet, Indirection, Stride>>,
+                "make_map(set, stride, ptr) yields an ArrayView-backed runtime-stride Map");
+
+  EXPECT_TRUE(m.isValid());
+  EXPECT_EQ(m.size(), s.size());
+  EXPECT_EQ(m.stride(), stride);
+  EXPECT_DOUBLE_EQ(m(0, 0), 1.0);
+  EXPECT_DOUBLE_EQ(m(0, 1), 2.0);
+  EXPECT_DOUBLE_EQ(m(2, 0), 5.0);
+  EXPECT_DOUBLE_EQ(m(2, 1), 6.0);
+}
+
+TEST(slam_map, make_map_compile_time_stride_array_view_storage)
+{
+  SetType s(2);
+  BaseSet* s_ptr = &s;
+
+  double data[4] = {10.0, 11.0, 20.0, 21.0};
+
+  auto m = slam::make_map_ct<2>(s_ptr, data);
+  using Indirection = policies::ArrayViewIndirection<SetPosition, double>;
+  using Stride = policies::CompileTimeStride<SetPosition, 2>;
+  static_assert(std::is_same_v<decltype(m), slam::Map<double, BaseSet, Indirection, Stride>>,
+                "make_map_ct yields an ArrayView-backed compile-time-stride Map");
+
+  EXPECT_TRUE(m.isValid());
+  EXPECT_EQ(m.size(), s.size());
+  EXPECT_EQ(m.stride(), 2);
+  EXPECT_DOUBLE_EQ(m(1, 0), 20.0);
+  EXPECT_DOUBLE_EQ(m(1, 1), 21.0);
+}
+
 template <typename T, typename StrideType>
 void constructAndTestMapWithStride(int stride)
 {
@@ -155,8 +226,7 @@ void constructAndTestMapWithStride(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("\nCreating " << slam::util::TypeToString<T>::to_string() << " map with stride "
-                          << stride << " on the set ");
+  SLIC_INFO("\nCreating map with stride " << stride << " on the set ");
 
   using MapType = slam::Map<T, BaseSet, VecIndirection<T>, StrideType>;
   MapType m(&s, 0, stride);
@@ -211,7 +281,7 @@ TEST(slam_map, iterate)
   SetType s(MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating '" << slam::util::TypeToString<double>::to_string() << "' map on the set ");
+  SLIC_INFO("Creating map on the set ");
   RealMap m(&s);
   EXPECT_TRUE(m.isValid());
 

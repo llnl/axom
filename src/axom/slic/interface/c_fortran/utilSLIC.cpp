@@ -19,18 +19,18 @@ extern "C" {
 // helper copy_string
 // Copy the char* or std::string in context into c_var.
 // Called by Fortran to deal with allocatable character.
-void SLIC_ShroudCopyString(SLIC_SHROUD_array *data, char *c_var, size_t c_var_len)
+void SLIC_ShroudCopyString(SLIC_SHROUD_array* data, char* c_var, size_t c_var_len)
 {
-  const void *cxx_var = data->base_addr;
+  const void* cxx_var = data->base_addr;
   size_t n = c_var_len;
   if(data->elem_len < n) n = data->elem_len;
   std::memcpy(c_var, cxx_var, n);
 }
 
 // Release library allocated memory.
-void SLIC_SHROUD_memory_destructor(SLIC_SHROUD_capsule_data *cap)
+void SLIC_SHROUD_memory_destructor(SLIC_SHROUD_capsule_data* cap)
 {
-  void *ptr = cap->addr;
+  void* ptr = cap->addr;
   switch(cap->idtor)
   {
   case 0:  // --none--
@@ -40,20 +40,20 @@ void SLIC_SHROUD_memory_destructor(SLIC_SHROUD_capsule_data *cap)
   }
   case 1:  // axom::slic::GenericOutputStream
   {
-    axom::slic::GenericOutputStream *cxx_ptr =
-      reinterpret_cast<axom::slic::GenericOutputStream *>(ptr);
+    axom::slic::GenericOutputStream* cxx_ptr =
+      reinterpret_cast<axom::slic::GenericOutputStream*>(ptr);
     delete cxx_ptr;
     break;
   }
   case 2:  // std::string
   {
-    std::string *cxx_ptr = reinterpret_cast<std::string *>(ptr);
+    std::string* cxx_ptr = reinterpret_cast<std::string*>(ptr);
     delete cxx_ptr;
     break;
   }
   case 3:  // new_string
   {
-    std::string *cxx_ptr = reinterpret_cast<std::string *>(ptr);
+    std::string* cxx_ptr = reinterpret_cast<std::string*>(ptr);
     delete cxx_ptr;
     break;
   }
@@ -69,8 +69,8 @@ void SLIC_SHROUD_memory_destructor(SLIC_SHROUD_capsule_data *cap)
 }
 
 // axom::slic::GenericOutputStream = axom::slic::GenericOutputStream
-void SLIC_GenericOutputStream_assign_GenericOutputStream(SLIC_GenericOutputStream *lhs_capsule,
-                                                         SLIC_GenericOutputStream *rhs_capsule)
+void SLIC_GenericOutputStream_assign_GenericOutputStream(SLIC_GenericOutputStream* lhs_capsule,
+                                                         SLIC_GenericOutputStream* rhs_capsule)
 {
   if(lhs_capsule->addr == nullptr)
   {
@@ -95,7 +95,7 @@ void SLIC_GenericOutputStream_assign_GenericOutputStream(SLIC_GenericOutputStrea
     // Replace LHS with a null pointer.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SLIC_SHROUD_memory_destructor((SLIC_SHROUD_capsule_data *)lhs_capsule);
+      SLIC_SHROUD_memory_destructor((SLIC_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = nullptr;
     lhs_capsule->idtor = 0;
@@ -111,7 +111,7 @@ void SLIC_GenericOutputStream_assign_GenericOutputStream(SLIC_GenericOutputStrea
     // Move-assign and delete the transient data.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SLIC_SHROUD_memory_destructor((SLIC_SHROUD_capsule_data *)lhs_capsule);
+      SLIC_SHROUD_memory_destructor((SLIC_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -122,7 +122,7 @@ void SLIC_GenericOutputStream_assign_GenericOutputStream(SLIC_GenericOutputStrea
     // RHS shouldn't be deleted, alias to LHS.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SLIC_SHROUD_memory_destructor((SLIC_SHROUD_capsule_data *)lhs_capsule);
+      SLIC_SHROUD_memory_destructor((SLIC_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;

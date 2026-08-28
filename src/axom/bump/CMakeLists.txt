@@ -45,6 +45,7 @@ set(bump_headers
     views/BasicIndexing.hpp
     views/dispatch_coordset.hpp
     views/dispatch_material.hpp
+    views/dispatch_material_field.hpp
     views/dispatch_rectilinear_topology.hpp
     views/dispatch_structured_topology.hpp
     views/dispatch_topology.hpp
@@ -53,6 +54,7 @@ set(bump_headers
     views/dispatch_utilities.hpp
     views/ExplicitCoordsetView.hpp
     views/MaterialView.hpp
+    views/MixedFieldView.hpp
     views/NodeArrayView.hpp
     views/RectilinearCoordsetView.hpp
     views/Shapes.hpp
@@ -65,6 +67,7 @@ set(bump_headers
     views/UnstructuredTopologySingleShapeView.hpp
     views/view_traits.hpp
     BlendData.hpp
+    ComputeMeasure.hpp
     CoordsetBlender.hpp
     CoordsetExtents.hpp
     CoordsetSlicer.hpp
@@ -73,14 +76,17 @@ set(bump_headers
     ExtrudeMesh.hpp
     FieldBlender.hpp
     FieldSlicer.hpp
+    GenerateQuadratureMesh.hpp
     HashNaming.hpp
     IndexingPolicies.hpp
+    MakeExplicitCoordset.hpp
     MakePointMesh.hpp
     MakePolyhedralTopology.hpp
     MakeUnstructured.hpp
     MakeZoneCenters.hpp
     MakeZoneVolumes.hpp
     MapBasedNaming.hpp
+    MappedZoneUtilities.hpp
     MatsetSlicer.hpp
     MergeCoordsetPoints.hpp
     MergeMeshes.hpp

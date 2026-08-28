@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file InOutOctreeMeshDumper.hpp
  *
  * \brief Defines helper class to write meshes for InOutOctree instances
  */
-
-#ifndef AXOM_QUEST_INOUT_OCTREE_MESHDUMPER__HPP_
-#define AXOM_QUEST_INOUT_OCTREE_MESHDUMPER__HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -64,10 +63,11 @@ public:
   using CellVertIndices = typename MeshWrapper<DIM>::CellVertIndices;
   using GeometricBoundingBox = typename InOutOctreeType::GeometricBoundingBox;
   using SpaceCell = typename InOutOctreeType::SpaceCell;
+  using LeafSet = slam::PositionSet<>;
 
-  using LeafVertMap = slam::Map<VertexIndex>;
-  using LeafIntMap = slam::Map<axom::IndexType>;
-  using LeafGridPtMap = slam::Map<GridPt>;
+  using LeafVertMap = slam::Map<VertexIndex, LeafSet>;
+  using LeafIntMap = slam::Map<axom::IndexType, LeafSet>;
+  using LeafGridPtMap = slam::Map<GridPt, LeafSet>;
 
   using DebugMesh = mint::UnstructuredMesh<mint::MIXED_SHAPE>;
 
@@ -132,7 +132,7 @@ public:
       return;
     }
 
-    using LevelGridIntMap = slam::Map<GridIntMap>;
+    using LevelGridIntMap = slam::Map<GridIntMap, OctreeLevels>;
     LevelGridIntMap diffBlocks(&(m_octree.m_levels));
 
     int totalBlocks = 0;
@@ -217,7 +217,7 @@ public:
     const bool hasColors = (m_generationState >= InOutOctreeType::INOUTOCTREE_LEAVES_COLORED);
 
     // Allocate Slam Maps for the field data
-    slam::PositionSet<> leafSet(blocks.size());
+    LeafSet leafSet(blocks.size());
 
     LeafVertMap leafVertID(&leafSet);
     LeafVertMap leafVertID_unique(&leafSet);
@@ -413,7 +413,9 @@ private:
   using Base::CellIndexSet;
   using Base::CellVertIndices;
   using Base::DebugMesh;
+  using Base::GeometricBoundingBox;
   using Base::InOutOctreeType;
+  using Base::SpaceCell;
   using Base::SpacePt;
   using Base::VertexIndex;
 
@@ -621,7 +623,9 @@ private:
   using Base::CellIndexSet;
   using Base::CellVertIndices;
   using Base::DebugMesh;
+  using Base::GeometricBoundingBox;
   using Base::InOutOctreeType;
+  using Base::SpaceCell;
   using Base::SpacePt;
   using Base::VertexIndex;
 
@@ -832,5 +836,3 @@ public:
 }  // namespace detail
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_INOUT_OCTREE_MESHDUMPER__HPP_

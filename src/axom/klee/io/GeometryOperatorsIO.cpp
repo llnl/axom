@@ -7,6 +7,7 @@
 #include "GeometryOperatorsIO.hpp"
 #include "IOUtil.hpp"
 
+#include "axom/core/utilities/StringUtilities.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
@@ -29,11 +30,21 @@ namespace
 {
 using OpPtr = CompositeOperator::OpPtr;
 using OperatorParser =
-  std::function<OpPtr(const inlet::Container &, const TransformableGeometryProperties &)>;
+  std::function<OpPtr(const inlet::Container&, const TransformableGeometryProperties&)>;
 using internal::toDoubleVector;
 using primal::Point3D;
 using primal::Vector3D;
 using FieldSet = std::unordered_set<std::string>;
+
+std::string childName(const inlet::Container& container, const std::string& name)
+{
+  std::string result = axom::utilities::string::removePrefix(container.name(), name);
+  if(axom::utilities::string::startsWith(result, '/'))
+  {
+    result = result.substr(1);
+  }
+  return result;
+}
 
 /**
  * Get the names of all the children in the given container.
@@ -41,37 +52,34 @@ using FieldSet = std::unordered_set<std::string>;
  * @param container the Container whose children to get
  * @return the names of all the children
  */
-std::unordered_set<std::string> getChildNames(const inlet::Container &container)
+std::unordered_set<std::string> getChildNames(const inlet::Container& container)
 {
   std::unordered_set<std::string> allChildren;
 
   std::vector<std::string> unexpectedNames = container.unexpectedNames();
   allChildren.insert(unexpectedNames.begin(), unexpectedNames.end());
 
-  // Add 1 for the "/" separator
-  auto prefixLength = container.name().size() + 1;
-
-  for(auto &child : container.getChildContainers())
+  for(auto& child : container.getChildContainers())
   {
     if(child.second->exists())
     {
-      allChildren.insert(child.first.substr(prefixLength));
+      allChildren.insert(childName(container, child.first));
     }
   }
 
-  for(auto &child : container.getChildFields())
+  for(auto& child : container.getChildFields())
   {
     if(child.second->exists())
     {
-      allChildren.insert(child.first.substr(prefixLength));
+      allChildren.insert(childName(container, child.first));
     }
   }
 
-  for(auto &child : container.getChildFunctions())
+  for(auto& child : container.getChildFunctions())
   {
     if(*child.second)
     {
-      allChildren.insert(child.first.substr(prefixLength));
+      allChildren.insert(childName(container, child.first));
     }
   }
 
@@ -82,8 +90,7 @@ std::unordered_set<std::string> getChildNames(const inlet::Container &container)
  * Verify that a Container has the correct fields.
  *
  * While Inlet can do a lot of the verification, there are some situations
- * where we need some extra manual checks. For example, operators can look
- * like this:
+ * where we need some extra manual checks. For example, operators can look like this:
  *
  * \code{.yaml}
  *
@@ -106,16 +113,17 @@ std::unordered_set<std::string> getChildNames(const inlet::Container &container)
  * \param name the name of the container. This must be one of its fields.
  * \param additionalRequiredFields any additional required fields
  * \param optionalFields any additional optional fields
+ * \throws KleeError if a required field is missing or an unexpected field is present
  */
-void verifyObjectFields(const inlet::Container &containerToTest,
-                        const std::string &name,
-                        const FieldSet &additionalRequiredFields,
-                        const FieldSet &optionalFields)
+void verifyObjectFields(const inlet::Container& containerToTest,
+                        const std::string& name,
+                        const FieldSet& additionalRequiredFields,
+                        const FieldSet& optionalFields)
 {
   std::unordered_set<std::string> requiredFields {additionalRequiredFields};
   requiredFields.insert(name);
 
-  for(auto &requiredField : requiredFields)
+  for(auto& requiredField : requiredFields)
   {
     if(!containerToTest.contains(requiredField))
     {
@@ -125,7 +133,7 @@ void verifyObjectFields(const inlet::Container &containerToTest,
     }
   }
 
-  for(auto &child : getChildNames(containerToTest))
+  for(auto& child : getChildNames(containerToTest))
   {
     if(requiredFields.find(child) != requiredFields.end())
     {
@@ -147,9 +155,10 @@ void verifyObjectFields(const inlet::Container &containerToTest,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the operator fields or vector dimensions are invalid
  */
-OpPtr parseTranslate(const inlet::Container &opContainer,
-                     const TransformableGeometryProperties &startProperties)
+OpPtr parseTranslate(const inlet::Container& opContainer,
+                     const TransformableGeometryProperties& startProperties)
 {
   verifyObjectFields(opContainer, "translate", FieldSet {}, FieldSet {});
   return std::make_shared<Translation>(toVector(opContainer, "translate", startProperties.dimensions),
@@ -162,9 +171,10 @@ OpPtr parseTranslate(const inlet::Container &opContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the rotation is invalid for the start dimensions or operator fields
  */
-OpPtr parseRotate(const inlet::Container &opContainer,
-                  const TransformableGeometryProperties &startProperties)
+OpPtr parseRotate(const inlet::Container& opContainer,
+                  const TransformableGeometryProperties& startProperties)
 {
   switch(startProperties.dimensions)
   {
@@ -209,8 +219,8 @@ OpPtr parseRotate(const inlet::Container &opContainer,
 OpPtr makeCheckedSlice(Point3D origin,
                        Vector3D normal,
                        Vector3D up,
-                       const TransformableGeometryProperties &startProperties,
-                       const Path &path)
+                       const TransformableGeometryProperties& startProperties,
+                       const Path& path)
 {
   if(normal.is_zero())
   {
@@ -230,10 +240,11 @@ OpPtr makeCheckedSlice(Point3D origin,
  * \param planeName the name of the plane ("x", "y", or "z")
  * \param defaultNormal the default normal vector
  * \return the point to use as the origin
+ * \throws KleeError if the specified origin is not on the slice plane
  */
-primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContainer,
-                                            char const *planeName,
-                                            const primal::Vector3D &defaultNormal)
+primal::Point3D getPerpendicularSliceOrigin(const inlet::Container& sliceContainer,
+                                            char const* planeName,
+                                            const primal::Vector3D& defaultNormal)
 {
   double axisIntercept = sliceContainer[planeName];
 
@@ -267,9 +278,10 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
  * \param sliceContainer the Container describing the slice
  * \param defaultNormal the default normal vector
  * \return the vector to use as the normal
+ * \throws KleeError if the specified normal is not parallel to the slice plane normal
  */
-primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContainer,
-                                             const primal::Vector3D &defaultNormal)
+primal::Vector3D getPerpendicularSliceNormal(const inlet::Container& sliceContainer,
+                                             const primal::Vector3D& defaultNormal)
 {
   if(!sliceContainer.contains("normal"))
   {
@@ -295,12 +307,13 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
  * \param defaultUp the default up vector for the plane being parsed
  * \param startProperties the properties prior to this operator
  * \return the parsed plane
+ * \throws KleeError if the slice fields or values are invalid
  */
-OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
-                             char const *planeName,
-                             Vector3D const &defaultNormal,
-                             Vector3D const &defaultUp,
-                             const TransformableGeometryProperties &startProperties)
+OpPtr readPerpendicularSlice(const inlet::Container& sliceContainer,
+                             char const* planeName,
+                             Vector3D const& defaultNormal,
+                             Vector3D const& defaultUp,
+                             const TransformableGeometryProperties& startProperties)
 {
   verifyObjectFields(sliceContainer, planeName, FieldSet {}, {"origin", "normal", "up"});
   const primal::Vector3D defaultNormalVec {defaultNormal.data()};
@@ -318,16 +331,17 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the slice fields or values are invalid
  */
-OpPtr parseSlice(const inlet::Container &opContainer,
-                 const TransformableGeometryProperties &startProperties)
+OpPtr parseSlice(const inlet::Container& opContainer,
+                 const TransformableGeometryProperties& startProperties)
 {
   if(startProperties.dimensions != Dimensions::Three)
   {
     throw KleeError({opContainer.name(), "Cannot do a slice from 2D"});
   }
   verifyObjectFields(opContainer, "slice", FieldSet {}, FieldSet {});
-  auto &sliceContainer = *opContainer.getChildContainers().at(opContainer.name() + "/slice").get();
+  auto& sliceContainer = *opContainer.getChildContainers().at(opContainer.name() + "/slice").get();
   if(sliceContainer.contains("x"))
   {
     return readPerpendicularSlice(sliceContainer, "x", {1, 0, 0}, {0, 0, 1}, startProperties);
@@ -356,11 +370,12 @@ OpPtr parseSlice(const inlet::Container &opContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the scale fields or vector dimensions are invalid
  */
-OpPtr parseScale(const inlet::Container &opContainer,
-                 const TransformableGeometryProperties &startProperties)
+OpPtr parseScale(const inlet::Container& opContainer,
+                 const TransformableGeometryProperties& startProperties)
 {
-  verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {});
+  verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {"center"});
   auto factors = opContainer["scale"].get<std::vector<double>>();
   if(factors.size() == 1)
   {
@@ -371,7 +386,13 @@ OpPtr parseScale(const inlet::Container &opContainer,
   {
     factors.emplace_back(1.0);
   }
-  return std::make_shared<Scale>(factors[0], factors[1], factors[2], startProperties);
+  Point3D center {0., 0., 0.};
+  if(opContainer.contains("center"))
+  {
+    center = toPoint(opContainer, "center", startProperties.dimensions, Point3D {0, 0, 0});
+  }
+
+  return std::make_shared<Scale>(factors[0], factors[1], factors[2], center, startProperties);
 }
 
 /**
@@ -380,12 +401,13 @@ OpPtr parseScale(const inlet::Container &opContainer,
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties prior to this operator
  * \return the created operator
+ * \throws KleeError if the unit string or operator fields are invalid
  */
-OpPtr parseConvertUnits(const inlet::Container &opContainer,
-                        const TransformableGeometryProperties &startProperties)
+OpPtr parseConvertUnits(const inlet::Container& opContainer,
+                        const TransformableGeometryProperties& startProperties)
 {
   verifyObjectFields(opContainer, "convert_units_to", FieldSet {}, FieldSet {});
-  auto endUnits = parseLengthUnits(opContainer["convert_units_to"]);
+  auto endUnits = internal::parseLengthUnits(opContainer["convert_units_to"]);
   return std::make_shared<UnitConverter>(endUnits, startProperties);
 }
 
@@ -396,13 +418,14 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
  * \param startProperties the properties before the "ref" command
  * \param namedOperators a map of named operators from which to get referenced operators
  * \return the created operator
+ * \throws KleeError if the reference is missing or the operator fields are invalid
  */
-OpPtr parseRef(const inlet::Container &opContainer,
-               const TransformableGeometryProperties &startProperties,
-               const NamedOperatorMap &namedOperators)
+OpPtr parseRef(const inlet::Container& opContainer,
+               const TransformableGeometryProperties& startProperties,
+               const NamedOperatorMap& namedOperators)
 {
   verifyObjectFields(opContainer, "ref", FieldSet {}, FieldSet {});
-  std::string const &operatorName = opContainer["ref"];
+  std::string const& operatorName = opContainer["ref"];
   auto opIter = namedOperators.find(operatorName);
   if(opIter == namedOperators.end())
   {
@@ -443,10 +466,11 @@ OpPtr parseRef(const inlet::Container &opContainer,
  * \param startProperties the properties before the operator
  * \param namedOperators a map of named operators from which to get referenced operators
  * \return the created operator
+ * \throws KleeError if the operator type or fields are invalid
  */
-OpPtr convertOperator(SingleOperatorData const &data,
+OpPtr convertOperator(SingleOperatorData const& data,
                       TransformableGeometryProperties startProperties,
-                      const NamedOperatorMap &namedOperators)
+                      const NamedOperatorMap& namedOperators)
 {
   std::unordered_map<std::string, OperatorParser> parsers {
     {"translate", parseTranslate},
@@ -455,13 +479,13 @@ OpPtr convertOperator(SingleOperatorData const &data,
     {"scale", parseScale},
     {"convert_units_to", parseConvertUnits},
     {"ref",
-     [&namedOperators](const inlet::Container &opNode,
-                       const TransformableGeometryProperties &startProperties) {
+     [&namedOperators](const inlet::Container& opNode,
+                       const TransformableGeometryProperties& startProperties) {
        return parseRef(opNode, startProperties, namedOperators);
      }},
   };
 
-  for(auto &entry : parsers)
+  for(auto& entry : parsers)
   {
     if(data.m_container->contains(entry.first))
     {
@@ -474,22 +498,22 @@ OpPtr convertOperator(SingleOperatorData const &data,
 
 }  // namespace
 
-GeometryOperatorData::GeometryOperatorData(const Path &path)
+GeometryOperatorData::GeometryOperatorData(const Path& path)
   : m_path {path}
   , m_singleOperatorData {}
 { }
 
-GeometryOperatorData::GeometryOperatorData(const Path &path,
-                                           std::vector<SingleOperatorData> &&singleOperatorData)
+GeometryOperatorData::GeometryOperatorData(const Path& path,
+                                           std::vector<SingleOperatorData>&& singleOperatorData)
   : m_path {path}
   , m_singleOperatorData {singleOperatorData}
 { }
 
-inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
-                                                     const std::string &fieldName,
-                                                     const std::string &description)
+inlet::Container& GeometryOperatorData::defineSchema(inlet::Container& parent,
+                                                     const std::string& fieldName,
+                                                     const std::string& description)
 {
-  auto &opContainer = parent.addStructArray(fieldName, description).strict();
+  auto& opContainer = parent.addStructArray(fieldName, description).strict();
 
   opContainer.addDoubleArray("translate");
 
@@ -501,7 +525,7 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
 
   opContainer.addString("convert_units_to");
 
-  auto &slice = opContainer.addStruct("slice");
+  auto& slice = opContainer.addStruct("slice");
   slice.addDouble("x");
   slice.addDouble("y");
   slice.addDouble("z");
@@ -514,8 +538,8 @@ inlet::Container &GeometryOperatorData::defineSchema(inlet::Container &parent,
 }
 
 std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
-  const TransformableGeometryProperties &startProperties,
-  const NamedOperatorMap &namedOperators) const
+  const TransformableGeometryProperties& startProperties,
+  const NamedOperatorMap& namedOperators) const
 {
   if(m_singleOperatorData.empty())
   {
@@ -527,14 +551,14 @@ std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
                      "Cannot specify operators without specifying units"});
   }
   auto composite = std::make_shared<CompositeOperator>(startProperties);
-  for(auto &data : m_singleOperatorData)
+  for(auto& data : m_singleOperatorData)
   {
     composite->addOperator(convertOperator(data, composite->getEndProperties(), namedOperators));
   }
   return composite;
 }
 
-void NamedOperatorData::defineSchema(inlet::Container &container)
+void NamedOperatorData::defineSchema(inlet::Container& container)
 {
   container.addString("name").required();
   defineDimensionsField(container, "start_dimensions", "The initial dimensions of the operator");
@@ -546,13 +570,13 @@ void NamedOperatorData::defineSchema(inlet::Container &container)
                                      "The operation to apply");  //.required();
 }
 
-NamedOperatorMapData::NamedOperatorMapData(std::vector<NamedOperatorData> &&operatorData)
+NamedOperatorMapData::NamedOperatorMapData(std::vector<NamedOperatorData>&& operatorData)
   : m_operatorData {operatorData}
 { }
 
-void NamedOperatorMapData::defineSchema(inlet::Container &parent, const std::string &name)
+void NamedOperatorMapData::defineSchema(inlet::Container& parent, const std::string& name)
 {
-  auto &container = parent.addStructArray(name);
+  auto& container = parent.addStructArray(name);
   NamedOperatorData::defineSchema(container);
 }
 
@@ -560,7 +584,7 @@ NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(Dimensions fileDimen
 {
   NamedOperatorMap namedOperators;
 
-  for(auto &opData : m_operatorData)
+  for(auto& opData : m_operatorData)
   {
     Dimensions dimensions = fileDimensions;
     if(opData.startDimsSet)
@@ -590,14 +614,14 @@ NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(Dimensions fileDimen
 template <>
 struct FromInlet<axom::klee::internal::SingleOperatorData>
 {
-  axom::klee::internal::SingleOperatorData operator()(const axom::inlet::Container &base)
+  axom::klee::internal::SingleOperatorData operator()(const axom::inlet::Container& base)
   {
     return axom::klee::internal::SingleOperatorData {&base};
   }
 };
 
 axom::klee::internal::GeometryOperatorData
-FromInlet<axom::klee::internal::GeometryOperatorData>::operator()(const axom::inlet::Container &base)
+FromInlet<axom::klee::internal::GeometryOperatorData>::operator()(const axom::inlet::Container& base)
 {
   std::vector<axom::klee::internal::SingleOperatorData> v =
     base.get<std::vector<axom::klee::internal::SingleOperatorData>>();
@@ -605,7 +629,7 @@ FromInlet<axom::klee::internal::GeometryOperatorData>::operator()(const axom::in
 }
 
 axom::klee::internal::NamedOperatorData FromInlet<axom::klee::internal::NamedOperatorData>::operator()(
-  const axom::inlet::Container &base)
+  const axom::inlet::Container& base)
 {
   axom::klee::internal::NamedOperatorData data;
   std::tie(data.startUnits, data.endUnits) = axom::klee::internal::getStartAndEndUnits(base);
@@ -624,7 +648,7 @@ axom::klee::internal::NamedOperatorData FromInlet<axom::klee::internal::NamedOpe
 }
 
 axom::klee::internal::NamedOperatorMapData
-FromInlet<axom::klee::internal::NamedOperatorMapData>::operator()(const axom::inlet::Container &base)
+FromInlet<axom::klee::internal::NamedOperatorMapData>::operator()(const axom::inlet::Container& base)
 {
   return axom::klee::internal::NamedOperatorMapData {
     base.get<std::vector<axom::klee::internal::NamedOperatorData>>()};

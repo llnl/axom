@@ -11,6 +11,7 @@ set( primal_tests
     primal_bezier_curve.cpp
     primal_bezier_intersect.cpp
     primal_bezier_patch.cpp
+    primal_bezier_triangle.cpp
     primal_boundingbox.cpp
     primal_bounding_box_intersect.cpp
     primal_clip.cpp
@@ -38,6 +39,7 @@ set( primal_tests
     primal_rational_bezier.cpp
     primal_ray_intersect.cpp
     primal_segment.cpp
+    primal_slice.cpp
     primal_sphere.cpp
     primal_solid_angle.cpp
     primal_split.cpp

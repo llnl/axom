@@ -24,14 +24,18 @@ set(core_headers
     ## utilities
     utilities/About.hpp
     utilities/Annotations.hpp
+    utilities/Abort.hpp
     utilities/BitUtilities.hpp
+    utilities/Checksum.hpp
     utilities/CommandLineUtilities.hpp
+    utilities/ConstexprAssert.hpp
     utilities/FileUtilities.hpp
     utilities/RAII.hpp
     utilities/Sorting.hpp
     utilities/StringUtilities.hpp
     utilities/System.hpp
     utilities/Timer.hpp
+    utilities/Units.hpp
     utilities/Utilities.hpp
 
     ## numerics
@@ -60,7 +64,10 @@ set(core_headers
     ArrayBase.hpp
     ArrayIteratorBase.hpp
     ArrayView.hpp
-    MDMapping.hpp
+    DeviceHash.hpp
+    FlatMap.hpp
+    FlatMapView.hpp
+    FlatMapUtil.hpp
     IndexedCollection.hpp
     ItemCollection.hpp
     IteratorBase.hpp
@@ -68,10 +75,7 @@ set(core_headers
     Macros.hpp
     Map.hpp
     MapCollection.hpp
-    FlatMap.hpp
-    FlatMapView.hpp
-    FlatMapUtil.hpp
-    DeviceHash.hpp
+    MDMapping.hpp
     NumericArray.hpp
     NumericLimits.hpp
     Path.hpp
@@ -101,10 +105,12 @@ set(core_headers
     )
 
 set(core_sources
+    utilities/Abort.cpp
     utilities/Annotations.cpp
     utilities/FileUtilities.cpp
     utilities/StringUtilities.cpp
     utilities/System.cpp
+    utilities/Units.cpp
     utilities/Utilities.cpp
     ${PROJECT_BINARY_DIR}/axom/core/utilities/About.cpp
 
@@ -124,7 +130,7 @@ set( core_depends fmt )
 blt_list_append( TO core_depends ELEMENTS adiak::adiak IF ADIAK_FOUND )
 blt_list_append( TO core_depends ELEMENTS caliper IF CALIPER_FOUND )
 blt_list_append( TO core_depends ELEMENTS camp IF CAMP_FOUND )
-blt_list_append( TO core_depends ELEMENTS umpire IF UMPIRE_FOUND )
+blt_list_append( TO core_depends ELEMENTS umpire::umpire IF UMPIRE_FOUND )
 blt_list_append( TO core_depends ELEMENTS RAJA IF RAJA_FOUND )
 blt_list_append( TO core_depends ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 blt_list_append( TO core_depends ELEMENTS mpi IF AXOM_ENABLE_MPI )

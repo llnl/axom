@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SPHERECLIPPER_HPP
-#define AXOM_QUEST_SPHERECLIPPER_HPP
+#pragma once
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
@@ -95,5 +94,3 @@ private:
 }  // namespace experimental
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_SPHERECLIPPER_HPP

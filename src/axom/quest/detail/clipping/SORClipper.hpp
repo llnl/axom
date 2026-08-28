@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SORCLIPPER_HPP
-#define AXOM_QUEST_SORCLIPPER_HPP
+#pragma once
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
@@ -33,6 +32,8 @@ namespace experimental
 class SORClipper : public MeshClipperStrategy
 {
 public:
+  using MeshClipperStrategy::specializedClipCells;
+
   /*!
    * @brief Constructor.
    *
@@ -113,5 +114,3 @@ private:
 }  // namespace experimental
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_SORCLIPPER_HPP

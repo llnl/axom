@@ -107,7 +107,7 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::
                                                                    m_mc.m_scannedFlags,
                                                                    m_mc.m_facetIncrs));
   }
-#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(m_runtimePolicy == MarchingCubes::RuntimePolicy::omp)
   {
     impl = m_ndim == 2
@@ -125,7 +125,7 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::
                                                                    m_mc.m_facetIncrs));
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(m_runtimePolicy == MarchingCubes::RuntimePolicy::cuda)
   {
     impl = m_ndim == 2
@@ -143,7 +143,7 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::
                                                                              m_mc.m_facetIncrs));
   }
 #endif
-#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(m_runtimePolicy == MarchingCubes::RuntimePolicy::hip)
   {
     impl = m_ndim == 2

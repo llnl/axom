@@ -3,8 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_PRIMAL_LINE_HPP_
-#define AXOM_PRIMAL_LINE_HPP_
+#pragma once
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Segment.hpp"
@@ -164,5 +163,3 @@ std::ostream& operator<<(std::ostream& os, const Line<T, NDIMS>& line)
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Line<T, NDIMS>> : ostream_formatter
 { };
-
-#endif  // AXOM_PRIMAL_LINE_HPP_

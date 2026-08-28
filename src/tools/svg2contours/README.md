@@ -39,6 +39,23 @@ Wrote 'drawing.mesh' with 54 vertices and NURBS 27 elements
 ```
 > :information_source: This assumes your Axom clone has the `data` submodule located at `<axom_root>/data`
 
+### Optional: write MFEM patches-format NURBS meshes
+
+MFEM added support for reading patch-based 1D NURBS segments embedded in 2D after MFEM 4.9.0.
+To write this newer format, pass `--mfem-patches`:
+
+```shell
+> cd <axom_root>/<build_dir>
+> uv run --project ../src/tools/svg2contours ../src/tools/svg2contours/svg2contours.py \
+    -i ../data/contours/svg/shapes.svg --mfem-patches -o drawing_patches.mesh
+```
+
+In `--mfem-patches` mode, Lines/Quadratic/Cubic segments are written with degree 1/2/3 respectively,
+and elliptical arcs are written as rational quadratics (degree 2). When an SVG arc is split into
+multiple quadratic Bezier spans internally, the `--mfem-patches` output merges them into a single
+multi-span quadratic NURBS patch (multi-knotvector) to reduce element/patch count.
+Control points in the MFEM patches format are stored in homogeneous form `(x*w, y*w, w)`.
+
 ### Run the quest winding number example
 Now that we have an MFEM NURBS mesh, we can run our winding number application
 

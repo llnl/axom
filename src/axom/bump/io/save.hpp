@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_IO_SAVE_HPP_
-#define AXOM_BUMP_IO_SAVE_HPP_
+#pragma once
 
 #include <conduit/conduit.hpp>
 #include <string>
@@ -25,10 +24,8 @@ namespace io
  *
  * \note This function currently handles only unstructured topos with explicit coordsets.
  */
-void save_vtk(const conduit::Node &node, const std::string &path);
+void save_vtk(const conduit::Node& node, const std::string& path);
 
 }  // end namespace io
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_NUMERICS_DETERMINANTS_HPP_
-#define AXOM_NUMERICS_DETERMINANTS_HPP_
+#pragma once
 
 #include "axom/core/numerics/LU.hpp"      // for lu_decompose()
 #include "axom/core/numerics/Matrix.hpp"  // for Matrix
@@ -199,5 +198,3 @@ real determinant(const Matrix<real>& A)
 
 } /* namespace numerics */
 } /* namespace axom */
-
-#endif

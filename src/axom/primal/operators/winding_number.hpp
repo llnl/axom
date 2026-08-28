@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number.hpp
  *
  * \brief Consists of methods to compute the generalized winding number (GWN) 
  *        for points with respect to various geometric objects.
  */
-
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_HPP_
 
 // Axom includes
 #include "axom/core.hpp"
@@ -227,9 +226,9 @@ double winding_number(const Point<T, 2>& q,
 {
   bool dummy_isOnCurve = false;
   double ret_val = 0.0;
-  for(int i = 0; i < carray.size(); i++)
+  for(auto& curv : carray)
   {
-    ret_val += detail::bezier_winding_number(q, carray[i], dummy_isOnCurve, edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, curv, dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -296,7 +295,7 @@ double winding_number(const Point<T, 2>& query,
   bool isOnThisCurve = false;
   isOnCurve = false;
 
-  for(int n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
+  for(axom::IndexType n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
   {
     gwn +=
       detail::bezier_winding_number_memoized(query, nurbs_cache, n, 0, 0, isOnThisCurve, edge_tol, EPS);
@@ -321,7 +320,7 @@ double winding_number(const Point<T, 2>& q,
  * \brief Computes the GWN for a 2D point wrt an array of memoized data for 2D NURBS curves
  *
  * \param [in] query The query point to test
- * \param [in] nurbs_curve_arr The array of memoized curve objects
+ * \param [in] nurbs_cache_arr The array of memoized curve objects
  * \param [out] isOnCurve Set to true is the query point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -330,18 +329,35 @@ double winding_number(const Point<T, 2>& q,
  */
 template <typename T>
 double winding_number(const Point<T, 2>& query,
-                      const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                      const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_cache_arr,
                       bool& isOnCurve,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
   double gwn = 0;
   isOnCurve = false;
-  for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+  for(auto& the_cache : nurbs_cache_arr)
   {
     bool isOnThisCurve = false;
-    gwn += winding_number(query, nurbs_curve_arr[i], isOnThisCurve, edge_tol, EPS);
+    gwn += winding_number(query, the_cache, isOnThisCurve, edge_tol, EPS);
     isOnCurve = isOnCurve || isOnThisCurve;
+  }
+
+  return gwn;
+}
+
+/// \brief Overload for views
+template <typename T>
+double winding_number(const Point<T, 2>& query,
+                      const axom::ArrayView<const detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  double gwn = 0;
+  bool dummy_isOnCurve = false;
+  for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+  {
+    gwn += winding_number(query, nurbs_curve_arr[i], dummy_isOnCurve, edge_tol, EPS);
   }
 
   return gwn;
@@ -373,7 +389,7 @@ double winding_number(const Point<T, 2>& query,
  */
 template <typename T>
 axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
-                                   const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                                   const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_cache_arr,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
@@ -383,13 +399,19 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
   {
     ret_val[n] = 0.0;
 
-    for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+    for(auto& the_cache : nurbs_cache_arr)
     {
-      ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
-                                                           nurbs_curve_arr[i],
-                                                           dummy_isOnCurve,
-                                                           edge_tol,
-                                                           EPS);
+      for(axom::IndexType k = 0; k < the_cache.getNumKnotSpans(); ++k)
+      {
+        ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
+                                                             the_cache,
+                                                             k,
+                                                             0,
+                                                             0,
+                                                             dummy_isOnCurve,
+                                                             edge_tol,
+                                                             EPS);
+      }
     }
   }
 
@@ -418,9 +440,9 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
 {
   axom::Array<detail::NURBSCurveGWNCache<T>> cache_arr(0, curve_arr.size());
 
-  for(int i = 0; i < curve_arr.size(); ++i)
+  for(auto& curv : curve_arr)
   {
-    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(curve_arr[i], edge_tol));
+    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(curv, edge_tol));
   }
 
   return winding_number(query_arr, cache_arr, edge_tol, EPS);
@@ -543,12 +565,26 @@ double winding_number(const Point<T, 3>& q,
     return 0;
   }
 
-  const double num = Vec3::scalar_triple_product(a, b, c);
-  if(axom::utilities::isNearlyEqual(num, 0.0, EPS))
+  // Explicitly compute distance from the triangle plane to the point.
+  // Use the triangle's (query-independent) normal here instead of (b x c),
+  // which can be zero when the query lies on the line through tri[1] and tri[2].
+  const auto tri_normal = Vec3::cross_product(tri[1] - tri[0], tri[2] - tri[0]);
+  const double tri_normal_norm = tri_normal.norm();
+  if(axom::utilities::isNearlyEqual(tri_normal_norm, 0.0, PRIMAL_TINY))
+  {
+    return 0;
+  }
+
+  if(axom::utilities::isNearlyEqual(Vec3::dot_product(q - tri[0], tri_normal) / tri_normal_norm,
+                                    0.0,
+                                    edge_tol))
   {
     isOnFace = true;
     return 0;
   }
+
+  const auto bxc = Vec3::cross_product(b, c);
+  const double num = Vec3::dot_product(a, bxc);
 
   const double denom =
     a_norm * b_norm * c_norm + a_norm * b.dot(c) + b_norm * a.dot(c) + c_norm * a.dot(b);
@@ -708,7 +744,7 @@ int winding_number(const Point<T, 3>& q,
     }
   }
 
-  return std::lround(wn);
+  return static_cast<int>(std::lround(wn));
 }
 
 /*!
@@ -736,28 +772,40 @@ double winding_number(const Point<T, 3>& query,
                       const double disk_size = 0.01,
                       const double EPS = 1e-8)
 {
-  // Select the cast direction as an average normal of the untrimmed surface
-  auto cast_direction = nurbs.getAverageNormal();
-  if(cast_direction.norm() < 1e-10)
-  {
-    // ...unless the average direction is zero
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
-    cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-  }
-  else
-  {
-    cast_direction = cast_direction.unitVector();
-  }
-
   return detail::nurbs_winding_number(query,
                                       nurbs,
-                                      cast_direction,
+                                      nurbs.getCastDirection(),
                                       edge_tol,
                                       ls_tol,
                                       quad_tol,
                                       disk_size,
                                       EPS);
+}
+
+/// \brief Overload for a single query and an ArrayView
+template <typename T>
+double winding_number(const Point<T, 3>& query,
+                      const axom::ArrayView<const detail::NURBSPatchGWNCache<T>>& nurbs_arr,
+                      const double edge_tol = 1e-8,
+                      const double ls_tol = 1e-8,
+                      const double quad_tol = 1e-8,
+                      const double disk_size = 0.01,
+                      const double EPS = 1e-8)
+{
+  double ret_val = 0.0;
+  for(int i = 0; i < nurbs_arr.size(); ++i)
+  {
+    ret_val += detail::nurbs_winding_number(query,
+                                            nurbs_arr[i],
+                                            nurbs_arr[i].getCastDirection(),
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol,
+                                            disk_size,
+                                            EPS);
+  }
+
+  return ret_val;
 }
 
 /*!
@@ -824,26 +872,6 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
                                    const double disk_size = 0.01,
                                    const double EPS = 1e-8)
 {
-  // Pull precomputed cast directions for each patch
-  axom::Array<Vector<T, 3>> cast_direction_arr(0, nurbs_arr.size());
-  for(int i = 0; i < nurbs_arr.size(); ++i)
-  {
-    // Select the cast direction as an average normal of the untrimmed surface
-    cast_direction_arr.emplace_back(nurbs_arr[i].getAverageNormal());
-    if(cast_direction_arr[i].norm() < 1e-10)
-    {
-      // ...unless the average direction is zero
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      cast_direction_arr[i] =
-        Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-    }
-    else
-    {
-      cast_direction_arr[i] = cast_direction_arr[i].unitVector();
-    }
-  }
-
   axom::Array<double> ret_val(query_arr.size());
   for(int n = 0; n < query_arr.size(); ++n)
   {
@@ -853,7 +881,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
     {
       ret_val[n] += detail::nurbs_winding_number(query_arr[n],
                                                  nurbs_arr[i],
-                                                 cast_direction_arr[i],
+                                                 nurbs_arr[i].getCastDirection(),
                                                  edge_tol,
                                                  ls_tol,
                                                  quad_tol,
@@ -896,9 +924,9 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 {
   // Precompute the expansions and cast directions for each patch
   axom::Array<detail::NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
-  for(int i = 0; i < surf_arr.size(); ++i)
+  for(auto& surf : surf_arr)
   {
-    nurbs_cache_arr.emplace_back(detail::NURBSPatchGWNCache<T>(surf_arr[i]));
+    nurbs_cache_arr.emplace_back(detail::NURBSPatchGWNCache<T>(surf));
   }
 
   return winding_number(query_arr, nurbs_cache_arr, edge_tol, ls_tol, quad_tol, disk_size, EPS);
@@ -907,5 +935,3 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_H_

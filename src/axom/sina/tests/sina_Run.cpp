@@ -11,14 +11,12 @@
 
 #include "axom/sina/core/Run.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::addRunLoader;
+using sina::ID;
+using sina::IDType;
+using sina::RecordLoader;
 
 using ::testing::HasSubstr;
 
@@ -61,7 +59,7 @@ TEST(Run, create_fromNode_missingApplication)
     axom::sina::Run run {originNode};
     FAIL() << "Application should be missing, but is " << run.getApplication();
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_APPLICATION_KEY));
   }
@@ -94,7 +92,7 @@ TEST(Run, addRunLoader)
   addRunLoader(loader);
 
   auto record = loader.load(originNode);
-  auto run = dynamic_cast<axom::sina::Run *>(record.get());
+  auto run = dynamic_cast<axom::sina::Run*>(record.get());
   ASSERT_NE(nullptr, run);
   EXPECT_EQ("run", run->getType());
   EXPECT_EQ("the id", run->getId().getId());
@@ -103,8 +101,3 @@ TEST(Run, addRunLoader)
   EXPECT_EQ("1.2.3", run->getVersion());
   EXPECT_EQ("jdoe", run->getUser());
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

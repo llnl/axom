@@ -6,10 +6,11 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-// For C users and C++ implementation
 
 #ifndef TYPESSIDRE_H
 #define TYPESSIDRE_H
+
+// For C users and C++ implementation
 
 // Shared with other Shroud wrapped libraries
 #ifndef SHROUD_SHARED_H
@@ -37,7 +38,7 @@ extern "C" {
 // helper capsule_data
 struct s_SIDRE_SHROUD_capsule_data
 {
-  void *addr;    /* address of C++ memory */
+  void* addr;    /* address of C++ memory */
   int idtor;     /* index of destructor */
   int cmemflags; /* memory flags */
 };
@@ -80,7 +81,7 @@ typedef struct s_SIDRE_DataStore SIDRE_DataStore;
 // C capsule SIDRE_Buffer
 struct s_SIDRE_Buffer
 {
-  void *addr;     // address of C++ memory
+  void* addr;     // address of C++ memory
   int idtor;      // index of destructor
   int cmemflags;  // memory flags
 };
@@ -89,7 +90,7 @@ typedef struct s_SIDRE_Buffer SIDRE_Buffer;
 // C capsule SIDRE_Group
 struct s_SIDRE_Group
 {
-  void *addr;     // address of C++ memory
+  void* addr;     // address of C++ memory
   int idtor;      // index of destructor
   int cmemflags;  // memory flags
 };
@@ -98,7 +99,7 @@ typedef struct s_SIDRE_Group SIDRE_Group;
 // C capsule SIDRE_View
 struct s_SIDRE_View
 {
-  void *addr;     // address of C++ memory
+  void* addr;     // address of C++ memory
   int idtor;      // index of destructor
   int cmemflags;  // memory flags
 };
@@ -107,13 +108,13 @@ typedef struct s_SIDRE_View SIDRE_View;
 // C capsule SIDRE_DataStore
 struct s_SIDRE_DataStore
 {
-  void *addr;     // address of C++ memory
+  void* addr;     // address of C++ memory
   int idtor;      // index of destructor
   int cmemflags;  // memory flags
 };
 typedef struct s_SIDRE_DataStore SIDRE_DataStore;
 
-void SIDRE_SHROUD_memory_destructor(SIDRE_SHROUD_capsule_data *cap);
+void SIDRE_SHROUD_memory_destructor(SIDRE_SHROUD_capsule_data* cap);
 
 #ifdef __cplusplus
 }

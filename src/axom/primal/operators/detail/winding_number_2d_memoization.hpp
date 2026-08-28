@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file winding_number_2d_memoization.hpp
  *
  * \brief Consists of data structures that accelerate GWN queries through "memoization,"
  *         i.e. dynamically caching and reusing intermediate curve subdivisions.
  */
-
-#ifndef AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_
-#define AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -120,9 +119,9 @@ public:
     m_bezierSubdivisionMaps.resize(m_numSpans);
     auto beziers = a_curve.extractBezier();
 
-    for(int idx = 0; idx < m_numSpans; ++idx)
+    for(axom::IndexType idx = 0; idx < m_numSpans; ++idx)
     {
-      m_bezierSubdivisionMaps[idx][std::make_pair(0, 0)] =
+      m_bezierSubdivisionMaps[static_cast<std::size_t>(idx)][std::make_pair(0, 0)] =
         BezierCurveData<T>(beziers[idx], false, bbExpansionAmount);
     }
 
@@ -158,13 +157,13 @@ public:
   }
 
   /// \brief Query the map. If curve is not found, add it and its pair from subdivision
-  const BezierCurveData<T>& getSubdivisionData(int idx,
+  const BezierCurveData<T>& getSubdivisionData(axom::IndexType idx,
                                                int refinementLevel,
                                                int refinementIndex,
                                                double bbExpansionAmount = 0.0) const
   {
     using Key = std::pair<int, int>;
-    auto& level_map = m_bezierSubdivisionMaps[idx];
+    auto& level_map = m_bezierSubdivisionMaps[static_cast<std::size_t>(idx)];
     const Key hash_key {refinementLevel, refinementIndex};
 
     // If already there, return it
@@ -199,9 +198,9 @@ public:
   //! \name Functions that mirror functionality of NURBSCurve and BezierCurve so signatures match in GWN evaluation.
   //!
   //! By limiting access to these functions, we ensure memoized information is always accurate
-  auto getNumKnotSpans() const { return m_numSpans; }
+  axom::IndexType getNumKnotSpans() const { return m_numSpans; }
   auto boundingBox() const { return m_boundingBox; }
-  auto getNumControlPoints() const { return m_numControlPoints; }
+  axom::IndexType getNumControlPoints() const { return m_numControlPoints; }
   auto getDegree() const { return m_degree; }
 
   const auto& getInitPoint() const { return m_initPoint; }
@@ -228,7 +227,7 @@ public:
     {
       os << m_bezierSubdivisionMaps[0][std::make_pair(0, 0)].getCurve();
     }
-    for(int i = 1; i < m_numSpans; ++i)
+    for(axom::IndexType i = 1; i < m_numSpans; ++i)
     {
       os << ", " << m_bezierSubdivisionMaps[i][std::make_pair(0, 0)].getCurve();
     }
@@ -239,9 +238,9 @@ public:
 
 private:
   BoundingBox<T, 2> m_boundingBox;
-  int m_numControlPoints;
+  axom::IndexType m_numControlPoints;
   int m_degree;
-  int m_numSpans;
+  axom::IndexType m_numSpans;
 
   Point<T, 2> m_initPoint, m_endPoint;
 
@@ -256,7 +255,116 @@ std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCa
 }
 
 }  // namespace detail
+
+/*!
+ * \brief Manage an array of NURBSCurveGWNCache<double>
+ */
+class NURBSCurveCacheManager
+{
+  using NURBSCache = axom::primal::detail::NURBSCurveGWNCache<double>;
+  using NURBSCacheArray = axom::Array<NURBSCache>;
+  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+
+  using CurveArrayView = axom::ArrayView<const axom::primal::NURBSCurve<double, 2>>;
+
+public:
+  NURBSCurveCacheManager() = default;
+
+  NURBSCurveCacheManager(CurveArrayView curves, double bbExpansionAmount = 0.0)
+  {
+    for(auto& curve : curves)
+    {
+      m_nurbs_caches.push_back(NURBSCache(curve, bbExpansionAmount));
+    }
+  }
+
+  /// A view of the manager object.
+  struct View
+  {
+    NURBSCacheArrayView m_view;
+
+    /// Return the NURBSCacheArrayView.
+    NURBSCacheArrayView caches() const { return m_view; }
+  };
+
+  /// Return a view of this manager to pass into a device function.
+  View view() const { return View {m_nurbs_caches.view()}; }
+
+  /// Return if the underlying array is empty
+  bool empty() const { return m_nurbs_caches.empty(); }
+
+private:
+  NURBSCacheArray m_nurbs_caches;
+};
+
+template <typename ExecSpace>
+struct nurbs_cache_2d_traits
+{
+  using type = NURBSCurveCacheManager;
+};
+
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+/*!
+ * \brief Manage per-thread arrays of NURBSCurveGWNCache<double>
+ */
+class NURBSCurveCacheManagerOMP
+{
+  using NURBSCache = axom::primal::detail::NURBSCurveGWNCache<double>;
+  using NURBSCachePerThreadArray = axom::Array<axom::Array<NURBSCache>>;
+  using NURBSCachePerThreadArrayView = axom::ArrayView<const axom::Array<NURBSCache>>;
+  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+
+  using CurveArrayView = axom::ArrayView<const axom::primal::NURBSCurve<double, 2>>;
+
+public:
+  NURBSCurveCacheManagerOMP() = default;
+
+  NURBSCurveCacheManagerOMP(CurveArrayView curves, double bbExpansionAmount = 0.0)
+  {
+    const int nt = omp_get_max_threads();
+    m_nurbs_caches.resize(nt);
+    auto nurbs_caches_view = m_nurbs_caches.view();
+
+    // Make the first one
+    nurbs_caches_view[0].resize(curves.size());
+    axom::for_all<axom::OMP_EXEC>(
+      curves.size(),
+      AXOM_HOST_LAMBDA(axom::IndexType i) {
+        nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
+      });
+
+    // Copy the constructed cache to the other threads' copies (less work than construction)
+    axom::for_all<axom::OMP_EXEC>(
+      1,
+      nt,
+      AXOM_HOST_LAMBDA(axom::IndexType t) { nurbs_caches_view[t] = nurbs_caches_view[0]; });
+  }
+
+  /// A view of the manager object.
+  struct View
+  {
+    NURBSCachePerThreadArrayView m_views;
+
+    /// Return the NURBSCacheArrayView for the current OMP thread.
+    NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+  };
+
+  /// Return a view of this manager to pass into a device function.
+  View view() const { return View {m_nurbs_caches.view()}; }
+
+  /// Return if the underlying array is empty
+  bool empty() const { return m_nurbs_caches.empty(); }
+
+private:
+  NURBSCachePerThreadArray m_nurbs_caches;
+};
+
+template <>
+struct nurbs_cache_2d_traits<axom::OMP_EXEC>
+{
+  using type = NURBSCurveCacheManagerOMP;
+};
+#endif
+
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_WINDING_NUMBER_2D_MEMOIZATION_HPP_

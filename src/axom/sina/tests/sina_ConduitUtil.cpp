@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include <stdexcept>
+#include <string>
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -12,14 +13,15 @@
 #include "axom/sina/core/ConduitUtil.hpp"
 #include "axom/sina/tests/SinaMatchers.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using axom::sina::testing::parseJsonValue;
+using sina::getOptionalString;
+using sina::getRequiredDouble;
+using sina::getRequiredField;
+using sina::getRequiredString;
+using sina::toDoubleVector;
+using sina::toStringVector;
 
 using ::testing::ContainerEq;
 using ::testing::DoubleEq;
@@ -30,7 +32,9 @@ TEST(ConduitUtil, getRequiredField_present)
 {
   conduit::Node parent;
   parent["fieldName"] = "field value";
-  auto &field = getRequiredField("fieldName", parent, "parent name");
+  std::string const field_name {"fieldName"};
+  std::string const parent_name {"parent name"};
+  conduit::Node const& field = getRequiredField(field_name, parent, parent_name);
   EXPECT_TRUE(field.dtype().is_string());
   EXPECT_EQ("field value", field.as_string());
 }
@@ -40,10 +44,12 @@ TEST(ConduitUtil, getRequiredField_missing)
   conduit::Node parent;
   try
   {
-    auto &field = getRequiredField("fieldName", parent, "parent name");
+    std::string const field_name {"fieldName"};
+    std::string const parent_name {"parent name"};
+    conduit::Node const& field = getRequiredField(field_name, parent, parent_name);
     FAIL() << "Should not have found field, but got " << field.name();
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -75,7 +81,7 @@ TEST(ConduitUtil, getRequiredString_missing)
     auto value = getRequiredString("fieldName", parent, "parent name");
     FAIL() << "Should not have found string, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -91,7 +97,7 @@ TEST(ConduitUtil, getRequiredString_wrongType)
     auto value = getRequiredString("fieldName", parent, "parent name");
     FAIL() << "Should not have found string, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -122,7 +128,7 @@ TEST(ConduitUtil, getRequiredDouble_missing)
     auto value = getRequiredDouble("fieldName", parent, "parent name");
     FAIL() << "Should not have found double, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -138,7 +144,7 @@ TEST(ConduitUtil, getRequiredDouble_wrongType)
     auto value = getRequiredDouble("fieldName", parent, "parent name");
     FAIL() << "Should not have found double, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -175,7 +181,7 @@ TEST(ConduitUtil, getOptionalString_wrongType)
     auto value = getOptionalString("fieldName", parent, "parent name");
     FAIL() << "Should not have found string, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -210,7 +216,7 @@ TEST(ConduitUtil, toDoubleVector_NotList)
     toDoubleVector(notList, "someName");
     FAIL() << "Should have thrown an exception";
   }
-  catch(std::invalid_argument const &ex)
+  catch(std::invalid_argument const& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("someName"));
   }
@@ -236,7 +242,7 @@ TEST(ConduitUtil, toStringVector_NotList)
     toStringVector(notList, "someName");
     FAIL() << "Should have thrown an exception.";
   }
-  catch(std::invalid_argument const &ex)
+  catch(std::invalid_argument const& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("someName"));
   }
@@ -250,13 +256,8 @@ TEST(ConduitUtil, toStringVector_NotListOfStrings)
     toStringVector(notList, "someName");
     FAIL() << "Should have thrown an exception.";
   }
-  catch(std::invalid_argument const &ex)
+  catch(std::invalid_argument const& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("someName"));
   }
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

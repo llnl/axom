@@ -12,16 +12,16 @@ namespace bump
 {
 namespace views
 {
-ShapeMap buildShapeMap(const conduit::Node &n_topo,
-                       axom::Array<IndexType> &values,
-                       axom::Array<IndexType> &ids,
+ShapeMap buildShapeMap(const conduit::Node& n_topo,
+                       axom::Array<IndexType>& values,
+                       axom::Array<IndexType>& ids,
                        int allocatorID)
 {
   // Make the map from the Conduit shape_map. Use std::map to sort the key values.
   // The shape_map nodes should be in host memory since the int values can fit
   // in a Conduit::Node.
   std::map<IndexType, IndexType> sm;
-  const conduit::Node &n_shape_map = n_topo.fetch_existing("elements/shape_map");
+  const conduit::Node& n_shape_map = n_topo.fetch_existing("elements/shape_map");
   for(conduit::index_t i = 0; i < n_shape_map.number_of_children(); i++)
   {
     const auto value = static_cast<IndexType>(n_shape_map[i].to_int());

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_REDUCTIONS_HPP_
-#define AXOM_CORE_EXECUTION_REDUCTIONS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -69,7 +68,7 @@ public:
 
   ReduceSum(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
-  ReduceSum(const ReduceSum &v)
+  ReduceSum(const ReduceSum& v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
@@ -83,7 +82,7 @@ public:
 
 private:
   T m_value;
-  T *m_value_ptr;
+  T* m_value_ptr;
 };
 
 /*!
@@ -100,7 +99,7 @@ public:
 
   ReduceMin(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
-  ReduceMin(const ReduceMin &v)
+  ReduceMin(const ReduceMin& v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
@@ -118,7 +117,7 @@ public:
 
 private:
   T m_value;
-  T *m_value_ptr;
+  T* m_value_ptr;
 };
 
 /*!
@@ -145,7 +144,7 @@ public:
     , m_index_ptr(&m_index)
   { }
 
-  ReduceMinLoc(const ReduceMinLoc &v)
+  ReduceMinLoc(const ReduceMinLoc& v)
     : m_value(v.m_value)
     ,  // will be unused in copies
     m_value_ptr(v.m_value_ptr)
@@ -170,9 +169,9 @@ public:
 
 private:
   T m_value;
-  T *m_value_ptr;
+  T* m_value_ptr;
   axom::IndexType m_index;
-  axom::IndexType *m_index_ptr;
+  axom::IndexType* m_index_ptr;
 };
 
 /*!
@@ -189,7 +188,7 @@ public:
 
   ReduceMax(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
-  ReduceMax(const ReduceMax &v)
+  ReduceMax(const ReduceMax& v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
@@ -208,7 +207,7 @@ public:
 
 private:
   T m_value;
-  T *m_value_ptr;
+  T* m_value_ptr;
 };
 
 /*!
@@ -235,7 +234,7 @@ public:
     , m_index_ptr(&m_index)
   { }
 
-  ReduceMaxLoc(const ReduceMaxLoc &v)
+  ReduceMaxLoc(const ReduceMaxLoc& v)
     : m_value(v.m_value)
     ,  // will be unused in copies
     m_value_ptr(v.m_value_ptr)
@@ -261,9 +260,9 @@ public:
 
 private:
   T m_value;
-  T *m_value_ptr;
+  T* m_value_ptr;
   axom::IndexType m_index;
-  axom::IndexType *m_index_ptr;
+  axom::IndexType* m_index_ptr;
 };
 
 /*!
@@ -280,7 +279,7 @@ public:
 
   ReduceBitAnd(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
-  ReduceBitAnd(const ReduceBitAnd &v)
+  ReduceBitAnd(const ReduceBitAnd& v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
@@ -292,7 +291,7 @@ public:
 
 private:
   T m_value;
-  T *m_value_ptr;
+  T* m_value_ptr;
 };
 
 /*!
@@ -309,7 +308,7 @@ public:
 
   ReduceBitOr(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
-  ReduceBitOr(const ReduceBitOr &v)
+  ReduceBitOr(const ReduceBitOr& v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
@@ -321,7 +320,7 @@ public:
 
 private:
   T m_value;
-  T *m_value_ptr;
+  T* m_value_ptr;
 };
 
 }  // namespace reductions
@@ -351,5 +350,3 @@ using ReduceBitOr = axom::serial::reductions::ReduceBitOr<ExecSpace, T>;
 
 }  // namespace axom
 #endif  // AXOM_HAVE_RAJA
-
-#endif

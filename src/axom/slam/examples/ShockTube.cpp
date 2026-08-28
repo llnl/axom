@@ -73,7 +73,7 @@ const double INIT_P_RATIO = 0.5;
 const double INIT_D_RATIO = 0.5;
 
 #ifdef AXOM_DEBUG
-const bool verboseOutput = false;
+[[maybe_unused]] const bool verboseOutput = false;
 #endif
 
 /**
@@ -123,18 +123,10 @@ public:
     FACES_PER_ELEM = 2
   };
 
-  using EFStride = slam::policies::CompileTimeStride<PositionType, FACES_PER_ELEM>;
-  using FEStride = slam::policies::CompileTimeStride<PositionType, ELEMS_PER_FACE>;
+  using IndexVec = axom::Array<ElementType>;
 
-  using EFCard = slam::policies::ConstantCardinality<PositionType, EFStride>;
-  using FECard = slam::policies::ConstantCardinality<PositionType, FEStride>;
-  using STLIndirection = slam::policies::STLVectorIndirection<PositionType, ElementType>;
-  using IndexVec = typename STLIndirection::IndirectionBufferType;
-
-  using TubeElemToFaceRelation =
-    slam::StaticRelation<PositionType, ElementType, EFCard, STLIndirection, ElemSubset, FaceSet>;
-  using FaceToElemRelation =
-    slam::StaticRelation<PositionType, ElementType, FECard, STLIndirection, FaceSet, ElemSet>;
+  using TubeElemToFaceRelation = slam::ConstantRelation<ElemSubset, FaceSet, FACES_PER_ELEM>;
+  using FaceToElemRelation = slam::ConstantRelation<FaceSet, ElemSet, ELEMS_PER_FACE>;
 
 public:
   ElemSet elems;            // The entire set of elements
@@ -290,7 +282,7 @@ void CreateShockTubeMesh(ShockTubeMesh* mesh)
   /// Setup the FaceToElem relation
   IndexVec& feRelVec =
     intsRegistry.addBuffer("feRel", ShockTubeMesh::FACES_PER_ELEM * mesh->faces.size());
-  IndexVec::iterator relIt = feRelVec.begin();
+  auto relIt = feRelVec.begin();
   for(ShockTubeMesh::IndexType idx = 0;
       idx < static_cast<ShockTubeMesh::IndexType>(mesh->faces.size());
       ++idx)

@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_OPTIONS_HPP_
-#define AXOM_BUMP_OPTIONS_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 
@@ -28,14 +28,14 @@ public:
    * \param nzones The total number of zones in the associated topology.
    * \param options The node that contains the options.
    */
-  Options(const conduit::Node &options) : m_options(options) { }
+  Options(const conduit::Node& options) : m_options(options) { }
 
   /*!
    * \brief Return the name of the topology to make in the output.
    * \param default_value The name to use if the option is not defined.
    * \return The name of the topology to make in the output.
    */
-  std::string topologyName(const std::string &default_value = std::string()) const
+  std::string topologyName(const std::string& default_value = std::string()) const
   {
     std::string name(default_value);
     if(m_options.has_child("topologyName"))
@@ -50,7 +50,7 @@ public:
    * \param default_value The name to use if the option is not defined.
    * \return The name of the coordset to make in the output.
    */
-  std::string coordsetName(const std::string &default_value = std::string()) const
+  std::string coordsetName(const std::string& default_value = std::string()) const
   {
     std::string name(default_value);
     if(m_options.has_child("coordsetName"))
@@ -81,13 +81,13 @@ public:
    * \param[out] f A map of the fields that will be processed, as well as their output name in the new fields.
    * \return True if the fields were present in the options. False otherwise.
    */
-  bool fields(std::map<std::string, std::string> &f) const
+  bool fields(std::map<std::string, std::string>& f) const
   {
     bool retval = m_options.has_child("fields");
     f.clear();
     if(retval)
     {
-      const conduit::Node &n_opt_fields = m_options.fetch_existing("fields");
+      const conduit::Node& n_opt_fields = m_options.fetch_existing("fields");
       for(conduit::index_t i = 0; i < n_opt_fields.number_of_children(); i++)
       {
         if(n_opt_fields[i].dtype().is_string())
@@ -107,7 +107,7 @@ public:
    * \brief Return the options node reference.
    * \return The options node reference.
    */
-  const conduit::Node &options() const { return m_options; }
+  const conduit::Node& options() const { return m_options; }
 
   /**
    * \brief Get the name of the matset on which we'll operate.
@@ -120,7 +120,7 @@ public:
    * \param default_value The name to use if the option is not defined.
    * \return The name of the matset to make in the output.
    */
-  std::string matsetName(const std::string &default_value = std::string()) const
+  std::string matsetName(const std::string& default_value = std::string()) const
   {
     std::string name(default_value.empty() ? matset() : default_value);
     if(options().has_child("matsetName"))
@@ -130,11 +130,34 @@ public:
     return name;
   }
 
+  /**
+   * \brief Get whether the algorithm should issue verbose output.
+   * \return True if the output should be verbose, false otherwise.
+   */
+  bool verbose() const { return flagValue("verbose", false); }
+
 protected:
-  const conduit::Node &m_options;  // A reference to the options node.
+  /**
+   * \brief Get whether the flag is set in the options.
+   *
+   * \param key The name of the key that contains the flag.
+   * \param defaultValue The default value for the flag.
+   *
+   * \return True if key is present and set to non-zero, false otherwise.
+   */
+  bool flagValue(const std::string& key, bool defaultValue) const
+  {
+    bool retval = defaultValue;
+    if(options().has_path(key))
+    {
+      retval = options().fetch_existing(key).to_int() != 0;
+    }
+    return retval;
+  }
+
+protected:
+  const conduit::Node& m_options;  // A reference to the options node.
 };
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

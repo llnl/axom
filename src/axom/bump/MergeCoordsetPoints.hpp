@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_MERGE_COORDSET_POINTS_HPP_
-#define AXOM_BUMP_MERGE_COORDSET_POINTS_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -93,7 +93,7 @@ public:
    *
    * \param coordsetView The coordset view that wraps the coordset to be modified.
    */
-  MergeCoordsetPoints(const CoordsetView &coordsetView)
+  MergeCoordsetPoints(const CoordsetView& coordsetView)
     : m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -146,12 +146,13 @@ public:
    *
    * \return True if point merging happened; False if no point merging was needed.
    */
-  bool execute(conduit::Node &n_coordset,
-               const conduit::Node &n_options,
-               axom::Array<axom::IndexType> &selectedIds,
-               axom::Array<axom::IndexType> &old2new) const
+  bool execute(conduit::Node& n_coordset,
+               const conduit::Node& n_options,
+               axom::Array<axom::IndexType>& selectedIds,
+               axom::Array<axom::IndexType>& old2new) const
   {
     namespace utils = axom::bump::utilities;
+    const axom::bump::Options opts(n_options);
     const int allocatorID = getAllocatorID();
 
     // If the coordset is not explicit then there is nothing to do.
@@ -204,7 +205,8 @@ public:
     if(merged)
     {
       // There are fewer nodes in the selectedIds so we are able to combine nodes.
-      SLIC_INFO(axom::fmt::format("Merged {} nodes into {} nodes.", nnodes, selectedIds.size()));
+      SLIC_INFO_IF(opts.verbose(),
+                   axom::fmt::format("Merged {} nodes into {} nodes.", nnodes, selectedIds.size()));
 
       AXOM_ANNOTATE_BEGIN("old2new");
       // Make a map of nodes in the old coordset to nodes in the new coordset. We
@@ -295,7 +297,7 @@ public:
    * \param tolerance The tolerance used to merge points.
    */
   template <typename KeyType>
-  void createNames(axom::Array<KeyType> &coordNames, double tolerance) const
+  void createNames(axom::Array<KeyType>& coordNames, double tolerance) const
   {
     constexpr double smallTolerance = 1.e-6;
 
@@ -320,7 +322,7 @@ public:
    * \param tolerance The tolerance used to merge points.
    */
   template <typename KeyType, typename Precision>
-  void createNamesInner(axom::Array<KeyType> &coordNames, double tolerance) const
+  void createNamesInner(axom::Array<KeyType>& coordNames, double tolerance) const
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE(axom::fmt::format("createNames<{}>", utils::cpp2conduit<Precision>::name));
@@ -354,9 +356,9 @@ public:
         }
 
         // Make a name for this point
-        const void *tptr = static_cast<const void *>(truncated);
+        const void* tptr = static_cast<const void*>(truncated);
         coordNamesView[index] =
-          axom::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
+          axom::utilities::hash_bytes(static_cast<const std::uint8_t*>(tptr),
                                       sizeof(Precision) * CoordsetView::dimension());
       });
   }
@@ -367,5 +369,3 @@ public:
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

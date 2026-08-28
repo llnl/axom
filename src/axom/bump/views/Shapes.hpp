@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_SHAPES_HPP_
-#define AXOM_BUMP_VIEWS_SHAPES_HPP_
+#pragma once
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
@@ -87,7 +86,7 @@ struct PointTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 1> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -100,7 +99,7 @@ struct PointTraits
     return axom::StackArray<IndexType, 2> {0, 0};
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "point"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "point"; }
 };
 
 /*!
@@ -136,7 +135,7 @@ struct LineTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 2> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -148,7 +147,7 @@ struct LineTraits
     return axom::StackArray<IndexType, 2> {0, 1};
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "line"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "line"; }
 };
 
 /*!
@@ -190,7 +189,7 @@ struct TriTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 3> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -203,7 +202,7 @@ struct TriTraits
     return edges[edgeIndex];
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "tri"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "tri"; }
 };
 
 /*!
@@ -245,7 +244,7 @@ struct QuadTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 4> getFace(IndexType faceIndex)
   {
-#if !defined(AXOM_DEBUG)
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -258,7 +257,7 @@ struct QuadTraits
     return edges[edgeIndex];
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "quad"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "quad"; }
 };
 
 /*!
@@ -317,7 +316,7 @@ struct TetTraits
     return edges[edgeIndex];
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "tet"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "tet"; }
 };
 
 /*!
@@ -382,7 +381,7 @@ struct PyramidTraits
     return edges[edgeIndex];
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "pyramid"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "pyramid"; }
 };
 
 /*!
@@ -449,7 +448,7 @@ struct WedgeTraits
     return edges[edgeIndex];
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "wedge"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "wedge"; }
 };
 
 /*!
@@ -511,7 +510,7 @@ struct HexTraits
     return edges[edgeIndex];
   }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "hex"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "hex"; }
 };
 
 /*!
@@ -534,7 +533,7 @@ struct PolygonTraits
   AXOM_HOST_DEVICE constexpr static IndexType dimension() { return 2; }
   AXOM_HOST_DEVICE constexpr static IndexType numberOfFaces() { return 1; }
   AXOM_HOST_DEVICE constexpr static IndexType maxNodesInFace() { return 20; }
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "polygonal"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "polygonal"; }
 };
 
 /*!
@@ -549,7 +548,7 @@ struct PolyhedronTraits
   AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return true; }
   AXOM_HOST_DEVICE constexpr static bool is_variable_size() { return true; }
   AXOM_HOST_DEVICE constexpr static IndexType dimension() { return 3; }
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "polyhedral"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "polyhedral"; }
 };
 
 /*!
@@ -561,13 +560,13 @@ struct PolygonShape : public PolygonTraits
   using ConnectivityType = ConnType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
   using ConnectivityStorage = ConnectivityType;
-  using ConnectivityStorageRef = ConnectivityView &;
-  using ConnectivityStorageConstRef = const ConnectivityView &;
+  using ConnectivityStorageRef = ConnectivityView&;
+  using ConnectivityStorageConstRef = const ConnectivityView&;
 
   /*!
    * \brief Construct a shape.
    */
-  AXOM_HOST_DEVICE PolygonShape(const ConnectivityView &ids) : m_ids(ids) { }
+  AXOM_HOST_DEVICE PolygonShape(const ConnectivityView& ids) : m_ids(ids) { }
 
   /*!
    * \brief Return the number of nodes in the polygon.
@@ -617,8 +616,8 @@ struct PolygonShape : public PolygonTraits
    *
    */
   AXOM_HOST_DEVICE void getFace(int AXOM_UNUSED_PARAM(faceIndex),
-                                ConnectivityType *ids,
-                                axom::IndexType &numIds) const
+                                ConnectivityType* ids,
+                                axom::IndexType& numIds) const
   {
     numIds = m_ids.size();
     for(axom::IndexType i = 0; i < numIds; i++)
@@ -666,8 +665,8 @@ template <typename ShapeTraits, typename ConnStorage>
 struct Shape : public ShapeTraits
 {
   using ConnectivityStorage = ConnStorage;
-  using ConnectivityStorageRef = ConnStorage &;
-  using ConnectivityStorageConstRef = const ConnStorage &;
+  using ConnectivityStorageRef = ConnStorage&;
+  using ConnectivityStorageConstRef = const ConnStorage&;
   using ConnectivityType = typename ConnStorage::value_type;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
 
@@ -718,7 +717,7 @@ struct Shape : public ShapeTraits
    */
   AXOM_HOST_DEVICE ConnectivityView getIds() const
   {
-    return ConnectivityView(const_cast<ConnectivityType *>(m_ids.data()), m_ids.size());
+    return ConnectivityView(const_cast<ConnectivityType*>(m_ids.data()), m_ids.size());
   }
 
   /*!
@@ -741,8 +740,8 @@ struct Shape : public ShapeTraits
   template <int _ndims = ShapeTraits::dimension()>
   AXOM_HOST_DEVICE typename std::enable_if<(_ndims == 2), void>::type getFace(
     axom::IndexType AXOM_UNUSED_PARAM(faceIndex),
-    ConnectivityType *ids,
-    axom::IndexType &numIds) const
+    ConnectivityType* ids,
+    axom::IndexType& numIds) const
   {
     numIds = static_cast<axom::IndexType>(m_ids.size());
     for(axom::IndexType i = 0; i < numIds; i++)
@@ -753,8 +752,8 @@ struct Shape : public ShapeTraits
 
   template <int _ndims = ShapeTraits::dimension()>
   AXOM_HOST_DEVICE typename std::enable_if<_ndims != 2, void>::type getFace(axom::IndexType faceIndex,
-                                                                            ConnectivityType *ids,
-                                                                            axom::IndexType &numIds) const
+                                                                            ConnectivityType* ids,
+                                                                            axom::IndexType& numIds) const
   {
     numIds = ShapeTraits::numberOfNodesInFace(faceIndex);
     const auto faceIds = ShapeTraits::getFace(faceIndex);
@@ -829,8 +828,8 @@ template <typename ConnType>
 struct VariableShape
 {
   using ConnectivityStorage = axom::ArrayView<ConnType>;
-  using ConnectivityStorageRef = ConnectivityStorage &;
-  using ConnectivityStorageConstRef = const ConnectivityStorage &;
+  using ConnectivityStorageRef = ConnectivityStorage&;
+  using ConnectivityStorageConstRef = const ConnectivityStorage&;
 
   using ConnectivityType = ConnType;
   using ConnectivityView = ConnectivityStorage;
@@ -947,8 +946,8 @@ struct VariableShape
   }
 
   AXOM_HOST_DEVICE void getFace(axom::IndexType faceIndex,
-                                ConnectivityType *ids,
-                                axom::IndexType &numIds) const
+                                ConnectivityType* ids,
+                                axom::IndexType& numIds) const
   {
     switch(m_shapeId)
     {
@@ -1102,7 +1101,7 @@ struct VariableShape
    */
   AXOM_HOST_DEVICE ConnectivityView getIds() const { return m_ids; }
 
-  AXOM_HOST_DEVICE constexpr static const char *name() { return "mixed"; }
+  AXOM_HOST_DEVICE constexpr static const char* name() { return "mixed"; }
 
   /*!
    * \brief Get the storage for the ids that make up this shape.
@@ -1130,7 +1129,7 @@ private:
  *
  * \return The shape id that matches the name, or 0 if there is no match.
  */
-inline int shapeNameToID(const std::string &name)
+inline int shapeNameToID(const std::string& name)
 {
   int id = Invalid_ShapeID;
   if(name == PointTraits::name())
@@ -1212,5 +1211,3 @@ AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_COORDSET_HPP_
-#define AXOM_BUMP_DISPATCH_COORDSET_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
@@ -40,11 +39,11 @@ struct make_rectilinear_coordset<DataType, 3>
    * \param topo The node containing the coordset.
    * \return The coordset view.
    */
-  static CoordsetView view(const conduit::Node &coordset)
+  static CoordsetView view(const conduit::Node& coordset)
   {
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
-    const conduit::Node &values = coordset.fetch_existing("values");
+    const conduit::Node& values = coordset.fetch_existing("values");
     SLIC_ERROR_IF(values.number_of_children() != 3,
                   "3D rectilinear coordsets require 3 component arrays.");
     auto xView = utils::make_array_view<DataType>(values[0]);
@@ -67,11 +66,11 @@ struct make_rectilinear_coordset<DataType, 2>
    * \param topo The node containing the coordset.
    * \return The coordset view.
    */
-  static CoordsetView view(const conduit::Node &coordset)
+  static CoordsetView view(const conduit::Node& coordset)
   {
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
-    const conduit::Node &values = coordset.fetch_existing("values");
+    const conduit::Node& values = coordset.fetch_existing("values");
     SLIC_ERROR_IF(values.number_of_children() != 2,
                   "2D rectilinear coordsets require 2 component arrays.");
     auto xView = utils::make_array_view<DataType>(values[0]);
@@ -100,11 +99,11 @@ struct make_uniform_coordset<3>
    * \param topo The node containing the coordset.
    * \return The coordset view.
    */
-  static CoordsetView view(const conduit::Node &coordset)
+  static CoordsetView view(const conduit::Node& coordset)
   {
     verify(coordset, "coordset");
     const std::string keys[] = {"i", "j", "k"};
-    const conduit::Node &n_dims = coordset["dims"];
+    const conduit::Node& n_dims = coordset["dims"];
     axom::StackArray<axom::IndexType, 3> dims;
     axom::StackArray<double, 3> origin {0., 0., 0.}, spacing {1., 1., 1.};
     for(int i = 0; i < 3; i++)
@@ -131,11 +130,11 @@ struct make_uniform_coordset<2>
    * \param topo The node containing the coordset.
    * \return The coordset view.
    */
-  static CoordsetView view(const conduit::Node &coordset)
+  static CoordsetView view(const conduit::Node& coordset)
   {
     verify(coordset, "coordset");
     const std::string keys[] = {"i", "j"};
-    const conduit::Node &n_dims = coordset["dims"];
+    const conduit::Node& n_dims = coordset["dims"];
     axom::StackArray<axom::IndexType, 2> dims;
     axom::StackArray<double, 2> origin {0., 0.}, spacing {1., 1.};
     for(int i = 0; i < 2; i++)
@@ -159,10 +158,10 @@ struct make_uniform_coordset<2>
  * \param func     The function/lambda to invoke using the coordset view.
  */
 template <typename FuncType>
-void dispatch_uniform_coordset(const conduit::Node &coordset, FuncType &&func)
+void dispatch_uniform_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   verify(coordset, "coordset");
-  const conduit::Node &n_dims = coordset["dims"];
+  const conduit::Node& n_dims = coordset["dims"];
   const conduit::index_t ndims = n_dims.number_of_children();
   if(ndims == 2)
   {
@@ -190,10 +189,10 @@ void dispatch_uniform_coordset(const conduit::Node &coordset, FuncType &&func)
  * \param func     The function/lambda to invoke using the coordset view.
  */
 template <typename FuncType>
-void dispatch_rectilinear_coordset(const conduit::Node &coordset, FuncType &&func)
+void dispatch_rectilinear_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   verify(coordset, "coordset");
-  const conduit::Node &values = coordset["values"];
+  const conduit::Node& values = coordset["values"];
   if(values.number_of_children() == 2)
   {
     axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
@@ -238,11 +237,11 @@ struct make_explicit_coordset<DataType, 3>
    * \param topo The node containing the coordset.
    * \return The coordset view.
    */
-  static CoordsetView view(const conduit::Node &coordset)
+  static CoordsetView view(const conduit::Node& coordset)
   {
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
-    const conduit::Node &values = coordset.fetch_existing("values");
+    const conduit::Node& values = coordset.fetch_existing("values");
     SLIC_ERROR_IF(values.number_of_children() != 3,
                   "3D explicit coordsets require 3 component arrays.");
     auto x = utils::make_array_view<DataType>(values[0]);
@@ -265,11 +264,11 @@ struct make_explicit_coordset<DataType, 2>
    * \param topo The node containing the coordset.
    * \return The coordset view.
    */
-  static CoordsetView view(const conduit::Node &coordset)
+  static CoordsetView view(const conduit::Node& coordset)
   {
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
-    const conduit::Node &values = coordset.fetch_existing("values");
+    const conduit::Node& values = coordset.fetch_existing("values");
     SLIC_ERROR_IF(values.number_of_children() != 2,
                   "2D explicit coordsets require 2 component arrays.");
     auto x = utils::make_array_view<DataType>(values[0]);
@@ -288,10 +287,10 @@ struct make_explicit_coordset<DataType, 2>
  * \param func     The function/lambda to invoke using the coordset view.
  */
 template <typename FuncType>
-void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
+void dispatch_explicit_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   verify(coordset, "coordset");
-  const conduit::Node &values = coordset["values"];
+  const conduit::Node& values = coordset["values"];
   if(values.number_of_children() == 2)
   {
     axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
@@ -327,7 +326,7 @@ void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
  * \param func     The function/lambda to invoke using the coordset view.
  */
 template <typename FuncType>
-void dispatch_coordset(const conduit::Node &coordset, FuncType &&func)
+void dispatch_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   const std::string cstype = coordset["type"].as_string();
   if(cstype == "uniform")
@@ -348,5 +347,3 @@ void dispatch_coordset(const conduit::Node &coordset, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

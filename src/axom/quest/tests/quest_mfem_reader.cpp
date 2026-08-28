@@ -14,6 +14,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
+#include "axom/fmt.hpp"
 
 #include "mfem.hpp"
 
@@ -23,24 +24,26 @@
 #include <fstream>
 #include <map>
 #include <string>
+#include <unordered_set>
 
 // namespace aliases
 namespace primal = axom::primal;
 namespace quest = axom::quest;
+namespace fs = axom::utilities::filesystem;
 
 //------------------------------------------------------------------------------
-std::string pjoin(const std::string &str) { return str; }
+std::string pjoin(const std::string& str) { return str; }
 
-std::string pjoin(const char *str) { return std::string(str); }
+std::string pjoin(const char* str) { return std::string(str); }
 
 template <typename... Args>
-std::string pjoin(const std::string &str, Args... args)
+std::string pjoin(const std::string& str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(str, pjoin(args...));
 }
 
 template <typename... Args>
-std::string pjoin(const char *str, Args... args)
+std::string pjoin(const char* str, Args... args)
 {
   return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
@@ -51,10 +54,10 @@ namespace
 using BezierCurve2D = primal::BezierCurve<double, 2>;
 using Point2D = primal::Point<double, 2>;
 
-void write_mesh_from_bezier_curves(const std::string &mesh_path,
-                                   const axom::Array<BezierCurve2D> &bezier_curves,
-                                   const axom::Array<int> &attributes,
-                                   mfem::FiniteElementCollection &fec)
+void write_mesh_from_bezier_curves(const std::string& mesh_path,
+                                   const axom::Array<BezierCurve2D>& bezier_curves,
+                                   const axom::Array<int>& attributes,
+                                   mfem::FiniteElementCollection& fec)
 {
   ASSERT_EQ(bezier_curves.size(), attributes.size());
   const int num_curves = bezier_curves.size();
@@ -70,11 +73,11 @@ void write_mesh_from_bezier_curves(const std::string &mesh_path,
 
   for(int i = 0; i < num_curves; ++i)
   {
-    const auto &curve = bezier_curves[i];
+    const auto& curve = bezier_curves[i];
     ASSERT_EQ(curve.getOrder(), fec.GetOrder());
 
-    const auto &p0 = curve.getInitPoint();
-    const auto &p1 = curve.getEndPoint();
+    const auto& p0 = curve.getInitPoint();
+    const auto& p1 = curve.getEndPoint();
 
     const double v0[] = {p0[0], p0[1]};
     const double v1[] = {p1[0], p1[1]};
@@ -112,7 +115,7 @@ void write_mesh_from_bezier_curves(const std::string &mesh_path,
 
     for(int i = 0; i <= order; ++i)
     {
-      const auto &cp = bezier_curves[e][mfemLocalToBezier(i)];
+      const auto& cp = bezier_curves[e][mfemLocalToBezier(i)];
       nodes(fes.DofToVDof(dofs[i], 0)) = cp[0];
       nodes(fes.DofToVDof(dofs[i], 1)) = cp[1];
     }
@@ -190,7 +193,7 @@ TEST(quest_mfem_reader, preserves_rational_weights)
     ASSERT_GT(curves.size(), 0);
 
     bool any_rational = false;
-    for(const auto &curve : curves)
+    for(const auto& curve : curves)
     {
       if(curve.isRational())
       {
@@ -208,9 +211,9 @@ TEST(quest_mfem_reader, preserves_rational_weights)
     ASSERT_GT(polys.size(), 0);
 
     bool any_rational = false;
-    for(const auto &poly : polys)
+    for(const auto& poly : polys)
     {
-      for(const auto &cur : poly.getEdges())
+      for(const auto& cur : poly.getEdges())
       {
         if(cur.isRational())
         {
@@ -265,7 +268,7 @@ TEST(quest_mfem_reader, read_bernstein_basis_roundtrip_bezier_order3)
     const int attr = attributes[i];
     const auto expected_it = expected.find(attr);
     ASSERT_TRUE(expected_it != expected.end());
-    const auto &expected_curve = expected_it->second;
+    const auto& expected_curve = expected_it->second;
 
     EXPECT_EQ(curves[i].getDegree(), expected_curve.getOrder());
     EXPECT_EQ(curves[i].getNumControlPoints(), expected_curve.getOrder() + 1);
@@ -345,7 +348,7 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
     // the y-coordinates of the edges start and end vertex should equal the attribute
     for(int i : {0, 1})
     {
-      const auto &curve = polys[i][0];
+      const auto& curve = polys[i][0];
       switch(attributes[i])
       {
       case attr10:
@@ -373,7 +376,7 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
 
     for(int i : {0, 1})
     {
-      const auto &curve = curves[i];
+      const auto& curve = curves[i];
       switch(attributes[i])
       {
       case attr10:
@@ -394,7 +397,124 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
 
 //------------------------------------------------------------------------------
 
-int main(int argc, char *argv[])
+#if defined(MFEM_VERSION) && (MFEM_VERSION >= 40901)
+TEST(quest_mfem_reader, read_patches_format_1d_nurbs)
+{
+  // Minimal patch-based 1D NURBS mesh embedded in 2D. MFEM support for reading
+  // patch-based 1D NURBS meshes was added after the 4.9.0 release.
+
+  fs::TempFile tmp_mesh("mfem_patches_1d_nurbs_test", ".mesh");
+
+  // Two "patches" (each corresponds to a 1D NURBS curve in (x,y)).
+  // Patch 0: degree 1, non-rational
+  // Patch 1: degree 2, rational (weights differ)
+  const std::string mesh_string = R"MFEM(
+MFEM NURBS mesh v1.0
+
+dimension
+1
+
+elements
+2
+7 1 0 1
+9 1 2 3
+
+boundary
+0
+
+edges
+2
+0 0 1
+1 2 3
+
+vertices
+4
+
+patches
+
+# Patch 0: degree 1
+knotvectors
+1
+1 2  0 0 1 1
+
+dimension
+2
+
+controlpoints
+0 0 1
+1 0 1
+
+# Patch 1: degree 2 (rational)
+knotvectors
+1
+2 3  0 0 0 1 1 1
+
+dimension
+2
+
+controlpoints
+0 0 1
+1 0 2
+1 0 1
+)MFEM";
+
+  tmp_mesh.write(mesh_string);
+
+  quest::MFEMReader reader;
+  reader.setFileName(tmp_mesh.getPath());
+
+  axom::Array<primal::NURBSCurve<double, 2>> curves;
+  axom::Array<int> attributes;
+  EXPECT_EQ(reader.read(curves, attributes), quest::MFEMReader::READ_SUCCESS);
+
+  ASSERT_EQ(curves.size(), 2);
+  ASSERT_EQ(attributes.size(), 2);
+
+  // Attributes correspond to element attributes; ordering follows std::map key order.
+  std::unordered_set<int> attribs;
+  for(int a : attributes)
+  {
+    attribs.insert(a);
+  }
+  EXPECT_EQ(attribs.size(), 2u);
+  EXPECT_TRUE(attribs.count(7) == 1u);
+  EXPECT_TRUE(attribs.count(9) == 1u);
+
+  // Validate basic properties of the extracted curves.
+  for(int i = 0; i < curves.size(); ++i)
+  {
+    const auto& c = curves[i];
+    const int a = attributes[i];
+    ASSERT_TRUE(c.isValidNURBS());
+
+    if(a == 7)
+    {
+      EXPECT_EQ(c.getDegree(), 1);
+      EXPECT_EQ(c.getNumControlPoints(), 2);
+      EXPECT_FALSE(c.isRational());
+    }
+    else if(a == 9)
+    {
+      EXPECT_EQ(c.getDegree(), 2);
+      EXPECT_EQ(c.getNumControlPoints(), 3);
+      EXPECT_TRUE(c.isRational());
+      ASSERT_EQ(c.getWeights().size(), 3);
+      EXPECT_NE(c.getWeights()[0], c.getWeights()[1]);
+    }
+    else
+    {
+      FAIL() << "Unexpected MFEM attribute " << a;
+    }
+  }
+}
+#else
+TEST(quest_mfem_reader, read_patches_format_1d_nurbs)
+{
+  GTEST_SKIP() << "MFEM patches-format NURBS reading requires MFEM_VERSION >= 40901";
+}
+#endif
+
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

@@ -9,6 +9,7 @@
 
 set(quest_tests
     quest_all_nearest_neighbors.cpp
+    quest_delaunay.cpp
     quest_inout_octree.cpp
     quest_inout_quadtree.cpp
     quest_linearize_curves.cpp
@@ -28,6 +29,11 @@ blt_list_append(TO       quest_tests
 blt_list_append(TO       quest_tests
                 IF       AXOM_DATA_DIR
                 ELEMENTS quest_meshtester.cpp)
+
+if(OPENCASCADE_FOUND AND AXOM_DATA_DIR)
+    list(APPEND quest_tests quest_step_quadrature.cpp)
+    list(APPEND quest_tests quest_step_reader.cpp)
+endif()
 
 set(quest_tests_depends
     quest
@@ -123,6 +129,25 @@ if(MFEM_FOUND)
     endif()
 endif()
 
+#------------------------------------------------------------------------------
+# Blueprint SamplingShaper tests require Conduit, Bump, Sidre, and Klee
+#------------------------------------------------------------------------------
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
+    axom_add_executable(
+        NAME        quest_sampling_shaper_blueprint_test
+        SOURCES     quest_sampling_shaper_blueprint.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_tests_depends} conduit::conduit
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_sampling_shaper_blueprint
+        COMMAND quest_sampling_shaper_blueprint_test
+        NUM_MPI_TASKS 1
+        )
+endif()
+
 
 #------------------------------------------------------------------------------
 # Tests that use MPI when available
@@ -193,16 +218,7 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
     endforeach()
 
     # Invoke the intersection shaper test program as many tests that run a subset of the tests.
-    set(_policies "seq")
-    if(RAJA_FOUND)
-      blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-      if(AXOM_USE_UMPIRE)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-      endif()
-    endif()
-
-    foreach(_pol ${_policies})
+    foreach(_pol ${AXOM_EXECUTION_POLICIES})
       # sets the number of threads
       set(_num_threads)
       if(_pol STREQUAL "omp")
@@ -262,17 +278,10 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
     set(_nranks 1)
 
     # Run the geometry clipping test on with each enabled policy
-    set(_policies "seq")
-    if(RAJA_FOUND)
-      blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
-      blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-      blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
-    endif()
-
     set(_testgeoms "plane" "tet" "hex" "sphere" "tetmesh" "cupmesh" "sor" "cyl" "cone" "plane,hex,tetmesh")
     set(_meshTypes "bpSidre" "bpConduit")
     foreach(_meshType ${_meshTypes})
-      foreach(_policy ${_policies})
+      foreach(_policy ${AXOM_EXECUTION_POLICIES})
         # sets the number of threads for the omp policy; leave empty for non-omp policies
         set(_num_threads)
         if(_policy STREQUAL "omp")
@@ -292,7 +301,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
                         --scale .99 .99 .99
                         --dir 8 4 2
                         --meshType ${_meshType}
-                        inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
+                        inline_mesh --min -2 -2 -2 --max 2 2 2 --resolution 16 16 16
             NUM_MPI_TASKS ${_nranks}
             NUM_OMP_THREADS ${_num_threads})
         endforeach()

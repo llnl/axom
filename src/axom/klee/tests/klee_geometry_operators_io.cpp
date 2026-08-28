@@ -19,14 +19,30 @@
 #include <memory>
 #include <unordered_map>
 
-namespace axom
-{
-namespace klee
-{
-namespace internal
-{
 namespace
 {
+namespace inlet = axom::inlet;
+namespace internal = axom::klee::internal;
+namespace klee = axom::klee;
+namespace primal = axom::primal;
+namespace sidre = axom::sidre;
+namespace test = axom::klee::test;
+
+using axom::Path;
+using internal::GeometryOperatorData;
+using internal::NamedOperatorMap;
+using internal::NamedOperatorMapData;
+using klee::CompositeOperator;
+using klee::Dimensions;
+using klee::GeometryOperator;
+using klee::KleeError;
+using klee::LengthUnit;
+using klee::Rotation;
+using klee::Scale;
+using klee::SliceOperator;
+using klee::TransformableGeometryProperties;
+using klee::Translation;
+using klee::UnitConverter;
 using primal::Point3D;
 using primal::Vector3D;
 using test::AlmostEqMatrix;
@@ -45,9 +61,9 @@ using OperatorPointer = CompositeOperator::OpPtr;
  * \param an optional map of named operators
  * \return the operators that were read.
  */
-OperatorPointer readOperators(const TransformableGeometryProperties &startProperties,
-                              const std::string &input,
-                              const NamedOperatorMap &namedOperators = NamedOperatorMap {})
+OperatorPointer readOperators(const TransformableGeometryProperties& startProperties,
+                              const std::string& input,
+                              const NamedOperatorMap& namedOperators = NamedOperatorMap {})
 {
   auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
   std::string wrappedInput = "test_list:\n  ";
@@ -74,7 +90,7 @@ OperatorPointer readOperators(const TransformableGeometryProperties &startProper
  * \param input the operators expressed in yaml
  * \return the named operators that were read
  */
-NamedOperatorMap readNamedOperators(Dimensions startingDimensions, const std::string &input)
+NamedOperatorMap readNamedOperators(Dimensions startingDimensions, const std::string& input)
 {
   auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
   std::string wrappedInput = "op_list:\n";
@@ -102,9 +118,9 @@ NamedOperatorMap readNamedOperators(Dimensions startingDimensions, const std::st
  * \throws std::logic error if the pointer is of the wrong type
  */
 template <typename T>
-T copyOperator(const OperatorPointer &ptr)
+T copyOperator(const OperatorPointer& ptr)
 {
-  auto desired = dynamic_cast<const T *>(ptr.get());
+  auto desired = dynamic_cast<const T*>(ptr.get());
   if(desired == nullptr)
   {
     throw KleeError {inlet::VerificationError {Path {"<no path>"}, "Did not get expected type"}};
@@ -121,9 +137,9 @@ T copyOperator(const OperatorPointer &ptr)
  * \throws std::logic error if the pointer is of the wrong type
  */
 template <typename T>
-T getSingleOperatorFromComposite(const OperatorPointer &ptr)
+T getSingleOperatorFromComposite(const OperatorPointer& ptr)
 {
-  auto composite = dynamic_cast<const CompositeOperator *>(ptr.get());
+  auto composite = dynamic_cast<const CompositeOperator*>(ptr.get());
   if(composite == nullptr)
   {
     throw KleeError {inlet::VerificationError {Path {"<no path>"}, "Did not get CompositeOperator"}};
@@ -148,9 +164,9 @@ T getSingleOperatorFromComposite(const OperatorPointer &ptr)
  * the specified type.
  */
 template <typename T>
-T readSingleOperator(const TransformableGeometryProperties &startProperties,
-                     const std::string &input,
-                     const std::unordered_map<std::string, OperatorPointer> &namedOperators =
+T readSingleOperator(const TransformableGeometryProperties& startProperties,
+                     const std::string& input,
+                     const std::unordered_map<std::string, OperatorPointer>& namedOperators =
                        std::unordered_map<std::string, OperatorPointer> {})
 {
   std::string wrappedInput {"-\n"};
@@ -170,7 +186,7 @@ T readSingleOperator(const TransformableGeometryProperties &startProperties,
  * \throws KleeError if any of the operators are of the wrong type
  */
 template <typename T>
-T getSingleNamedOperator(const NamedOperatorMap &operators, std::string const &name)
+T getSingleNamedOperator(const NamedOperatorMap& operators, std::string const& name)
 {
   auto iter = operators.find(name);
   if(iter == operators.end())
@@ -189,6 +205,7 @@ SliceOperator make_slice(Point3D origin,
 {
   return SliceOperator {origin, normal, up, startProperties};
 }
+}  // namespace
 
 TEST(GeometryOperatorsIO, readMultipleOperatorsIncluded)
 {
@@ -200,7 +217,7 @@ TEST(GeometryOperatorsIO, readMultipleOperatorsIncluded)
     )");
     FAIL() << "Should have thrown";
   }
-  catch(KleeError const &error)
+  catch(KleeError const& error)
   {
     EXPECT_THAT(error.what(), HasSubstr("translate"));
     EXPECT_THAT(error.what(), HasSubstr("rotate"));
@@ -240,7 +257,7 @@ TEST(GeometryOperatorsIO, readTranslation_unknownKeys)
       )");
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &err)
+  catch(const KleeError& err)
   {
     EXPECT_THAT(err.what(), HasSubstr("UNKNOWN_KEY"));
   }
@@ -283,7 +300,7 @@ TEST(GeometryOperatorsIO, readRotation_2D_axisNotAllowed)
         )");
     FAIL() << "Should have thrown an exception";
   }
-  catch(const KleeError &ex)
+  catch(const KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("rotate"));
     EXPECT_THAT(ex.what(), HasSubstr("axis"));
@@ -328,7 +345,7 @@ TEST(GeometryOperatorsIO, readRotation_3D_axisMissing)
         )");
     FAIL() << "Should not have parsed";
   }
-  catch(const KleeError &ex)
+  catch(const KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("axis"));
   }
@@ -364,6 +381,18 @@ TEST(GeometryOperatorsIO, readScale_2d_array)
   EXPECT_EQ(expectedProperties, scale.getEndProperties());
 }
 
+TEST(GeometryOperatorsIO, readScale_2d_array_withCenter)
+{
+  auto scale = readSingleOperator<Scale>({Dimensions::Two, LengthUnit::cm}, R"(
+      scale: [1.2, 3.4]
+      center: [10, 20]
+    )");
+  EXPECT_DOUBLE_EQ(1.2, scale.getXFactor());
+  EXPECT_DOUBLE_EQ(3.4, scale.getYFactor());
+  EXPECT_DOUBLE_EQ(1.0, scale.getZFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {10, 20, 0}));
+}
+
 TEST(GeometryOperatorsIO, readScale_3d_array)
 {
   auto scale = readSingleOperator<Scale>({Dimensions::Three, LengthUnit::cm},
@@ -376,6 +405,19 @@ TEST(GeometryOperatorsIO, readScale_3d_array)
   TransformableGeometryProperties expectedProperties {Dimensions::Three, LengthUnit::cm};
   EXPECT_EQ(expectedProperties, scale.getStartProperties());
   EXPECT_EQ(expectedProperties, scale.getEndProperties());
+}
+
+TEST(GeometryOperatorsIO, readScale_3d_array_withCenter)
+{
+  auto scale = readSingleOperator<Scale>({Dimensions::Three, LengthUnit::cm},
+                                         R"(
+      scale: [1.2, 3.4, 5.6]
+      center: [4, 5, 6]
+  )");
+  EXPECT_DOUBLE_EQ(1.2, scale.getXFactor());
+  EXPECT_DOUBLE_EQ(3.4, scale.getYFactor());
+  EXPECT_DOUBLE_EQ(5.6, scale.getZFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {4, 5, 6}));
 }
 
 TEST(GeometryOperatorsIO, readConvertUnits)
@@ -492,7 +534,7 @@ TEST(GeometryOperatorsIO, readSlice_zeroNormal)
         )");
     FAIL() << "Should have thrown a message about the normal being zero";
   }
-  catch(KleeError &ex)
+  catch(KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("normal"));
     EXPECT_THAT(ex.what(), HasSubstr("zero"));
@@ -512,7 +554,7 @@ TEST(GeometryOperatorsIO, readSlice_upAndNormalNotNormal)
     FAIL() << "Should have thrown a message about the normal and up "
               "vectors not being perpendicular";
   }
-  catch(KleeError &ex)
+  catch(KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("normal"));
     EXPECT_THAT(ex.what(), HasSubstr("up"));
@@ -588,7 +630,7 @@ TEST(GeometryOperatorsIO, readMultiple_unknownOperator)
          )");
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &error)
+  catch(const KleeError& error)
   {
     EXPECT_THAT(error.what(), HasSubstr("UNKNOWN_OPERATOR"));
   }
@@ -603,7 +645,7 @@ TEST(GeometryOperatorsIO, readRef_missing)
     )");
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &ex)
+  catch(const KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("MISSING"));
   }
@@ -629,7 +671,7 @@ class RefIoUnitsMismatchTest : public ::testing::Test
 protected:
   void SetUp() override;
   std::shared_ptr<GeometryOperator> referencedOperator;
-  CompositeOperator readOperator(const TransformableGeometryProperties &startProperties) const;
+  CompositeOperator readOperator(const TransformableGeometryProperties& startProperties) const;
 };
 
 void RefIoUnitsMismatchTest::SetUp()
@@ -646,7 +688,7 @@ void RefIoUnitsMismatchTest::SetUp()
 }
 
 CompositeOperator RefIoUnitsMismatchTest::readOperator(
-  const TransformableGeometryProperties &startProperties) const
+  const TransformableGeometryProperties& startProperties) const
 {
   NamedOperatorMap namedOperators = {
     {"op1", referencedOperator},
@@ -731,6 +773,7 @@ TEST(GeometryOperatorsIO, readNamedOperators_basic)
   EXPECT_EQ(expectedScaleProperties, scale.getEndProperties());
   EXPECT_EQ(1.5, scale.getXFactor());
   EXPECT_EQ(1.5, scale.getYFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {0, 0, 0}));
 }
 
 TEST(GeometryOperatorsIO, readNamedOperators_invalidDimensions)
@@ -812,7 +855,7 @@ TEST(GeometryOperatorsIO, readNamedOperators_errorInEndUnits)
     )");
     FAIL() << "Should have thrown";
   }
-  catch(const KleeError &ex)
+  catch(const KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("units"));
   }
@@ -837,7 +880,7 @@ TEST(GeometryOperatorsIO, readNamedOperators_ref)
   EXPECT_THAT(translation.getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 
   auto op2 = readOperators["op2"];
-  auto composite = dynamic_cast<const CompositeOperator *>(op2.get());
+  auto composite = dynamic_cast<const CompositeOperator*>(op2.get());
   ASSERT_NE(nullptr, composite);
   TransformableGeometryProperties expectedOp2Units {Dimensions::Two, LengthUnit::inches};
   EXPECT_EQ(expectedOp2Units, composite->getStartProperties());
@@ -847,6 +890,7 @@ TEST(GeometryOperatorsIO, readNamedOperators_ref)
   auto scale = copyOperator<Scale>(composite->getOperators()[0]);
   EXPECT_EQ(1.5, scale.getXFactor());
   EXPECT_EQ(1.5, scale.getYFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {0, 0, 0}));
 
   auto referencedOperator = copyOperator<CompositeOperator>(composite->getOperators()[1]);
   ASSERT_EQ(1u, referencedOperator.getOperators().size());
@@ -854,12 +898,7 @@ TEST(GeometryOperatorsIO, readNamedOperators_ref)
   EXPECT_THAT(referencedTranslation.getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
 
-}  // namespace
-}  // namespace internal
-}  // namespace klee
-}  // namespace axom
-
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_STLREADER_HPP_
-#define QUEST_STLREADER_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -16,9 +15,7 @@
 #include <string>  // for std::string
 #include <vector>  // for std::vector
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /*!
  * \class STLReader
@@ -32,37 +29,31 @@ namespace quest
 class STLReader
 {
 public:
-  /*!
-   * \brief Constructor.
-   */
+  /// \brief Constructor
   STLReader();
 
-  /*!
-   * \brief Destructor.
-   */
+  /// \brief Destructor
   virtual ~STLReader();
 
   /*!
    * \brief Sets the name of the file to read.
    * \param [in] fileName the name of the file to read.
    */
-  void setFileName(const std::string& fileName) { m_fileName = fileName; };
+  void setFileName(const std::string& fileName) { m_fileName = fileName; }
 
   /*!
    * \brief Returns the number of nodes of the surface mesh.
    * \return numNodes the number of nodes.
    */
-  int getNumNodes() const { return static_cast<int>(m_num_nodes); };
+  int getNumNodes() const { return static_cast<int>(m_num_nodes); }
 
   /*!
    * \brief Returns the number of faces of the surface mesh.
    * \return numFaces the number of faces.
    */
-  int getNumFaces() const { return static_cast<int>(m_num_faces); };
+  int getNumFaces() const { return static_cast<int>(m_num_faces); }
 
-  /*!
-   * \brief Clears all internal data-structures
-   */
+  /// \brief Clears all internal data-structures
   void clear();
 
   /*!
@@ -70,7 +61,7 @@ public:
    * \pre path to input file has been set by calling `setFileName()`
    * \return status set to zero on success; set to a non-zero value otherwise.
    */
-  virtual int read();
+  [[nodiscard]] virtual int read();
 
   /*!
    * \brief Stores the STL data in the supplied unstructured mesh object.
@@ -97,19 +88,19 @@ private:
    * \brief Reads an ascii-encoded STL file into memory
    * \note The filename should be set with STLReader::setFileName()
    */
-  int readAsciiSTL();
+  [[nodiscard]] int readAsciiSTL();
 
   /*!
    * \brief Reads a binary-encoded STL file into memory
    * \note The filename should be set with STLReader::setFileName()
    */
-  int readBinarySTL();
+  [[nodiscard]] int readBinarySTL();
 
 protected:
   std::string m_fileName;
 
-  axom::IndexType m_num_nodes;
-  axom::IndexType m_num_faces;
+  axom::IndexType m_num_nodes {0};
+  axom::IndexType m_num_faces {0};
 
   std::vector<double> m_nodes;
 
@@ -118,7 +109,4 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(STLReader);
 };
 
-}  // namespace quest
-}  // namespace axom
-
-#endif  // QUEST_STLREADER_HPP_
+}  // namespace axom::quest

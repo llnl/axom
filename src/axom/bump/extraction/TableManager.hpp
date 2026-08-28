@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRACTION_TABLE_MANAGER_HPP_
-#define AXOM_BUMP_EXTRACTION_TABLE_MANAGER_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -38,7 +37,7 @@ public:
    *
    * \return A reference to the table. 
    */
-  Table &operator[](size_t shape);
+  Table& operator[](size_t shape);
 
   /*!
    * \brief Load tables based on dimension.
@@ -80,5 +79,3 @@ protected:
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

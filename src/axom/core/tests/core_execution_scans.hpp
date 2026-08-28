@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/core/execution/scans.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/Array.hpp"
@@ -22,7 +24,7 @@ using axom::IndexType;
 // -----------------------------------------------------------------------------
 
 template <typename InContainer, typename OutValue>
-std::vector<OutValue> reference_exclusive_scan(const InContainer &input)
+std::vector<OutValue> reference_exclusive_scan(const InContainer& input)
 {
   std::vector<OutValue> result(input.size());
   OutValue total = 0;
@@ -35,7 +37,7 @@ std::vector<OutValue> reference_exclusive_scan(const InContainer &input)
 }
 
 template <typename InContainer, typename OutValue>
-std::vector<OutValue> reference_inclusive_scan(const InContainer &input)
+std::vector<OutValue> reference_inclusive_scan(const InContainer& input)
 {
   std::vector<OutValue> result(input.size());
   OutValue total = 0;
@@ -80,7 +82,7 @@ std::vector<T> make_mask(IndexType n, bool alternating, int stride = 1)
 
 // Create an axom::Array<T> in the allocator for ExecSpace and fill it from host
 template <typename ExecSpace, typename T>
-axom::Array<T> create_exec_array_from_host(const std::vector<T> &hostData)
+axom::Array<T> create_exec_array_from_host(const std::vector<T>& hostData)
 {
   const IndexType n = static_cast<IndexType>(hostData.size());
   const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -97,7 +99,7 @@ axom::Array<T> create_exec_array_from_host(const std::vector<T> &hostData)
 
 // Copy an axom::Array<T> in exec-space back to a host std::vector<T>
 template <typename T>
-std::vector<T> copy_exec_array_to_host(const axom::Array<T> &arr)
+std::vector<T> copy_exec_array_to_host(const axom::Array<T>& arr)
 {
   const IndexType n = arr.size();
   std::vector<T> hostData(n);

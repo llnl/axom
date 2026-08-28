@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_EXTRACTOR_OPTIONS_HPP_
-#define AXOM_BUMP_EXTRACTOR_OPTIONS_HPP_
+
+#pragma once
 
 #include "axom/bump/Options.hpp"
 
@@ -26,7 +26,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  ExtractorOptions(const conduit::Node &options) : axom::bump::Options(options) { }
+  ExtractorOptions(const conduit::Node& options) : axom::bump::Options(options) { }
 
   /**
    * \brief Return the name of the field used for clipping.
@@ -99,11 +99,9 @@ public:
 
 protected:
   /// Access the base class' options.
-  const conduit::Node &options() const { return this->m_options; }
+  const conduit::Node& options() const { return this->m_options; }
 };
 
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

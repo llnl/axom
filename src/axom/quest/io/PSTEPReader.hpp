@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_PSTEPREADER_HPP_
-#define QUEST_PSTEPREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -18,9 +17,7 @@
 
 #include "mpi.h"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 /*
@@ -54,7 +51,7 @@ public:
    * \param validate_model When true, runs OpenCascade BRep validation on rank 0
    * \return 0 on success on all ranks, non-zero otherwise
    */
-  int read(bool validate_model) override;
+  [[nodiscard]] int read(bool validate_model) override;
 
   /*!
   * \brief Generates a triangulated representation of the STEP file as a Mint unstructured triangle mesh.
@@ -73,11 +70,11 @@ public:
   *
   * The mesh is constructed on rank 0 and is then broadcast to the other ranks.
   */
-  int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
-                      double linear_deflection = 0.1,
-                      double angular_deflection = 0.5,
-                      bool is_relative = false,
-                      bool trimmed = true) override;
+  [[nodiscard]] int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
+                                    double linear_deflection = 0.1,
+                                    double angular_deflection = 0.5,
+                                    bool is_relative = false,
+                                    bool trimmed = true) override;
 
 private:
   /// MPI broadcasts an integer from rank 0 and returns the value to all ranks
@@ -113,9 +110,10 @@ private:
     constexpr int ARR_DIM = axom::detail::ArrayTraits<ArrayType>::dimension;
     static_assert(ARR_DIM == 1 || ARR_DIM == 2);
 
-    // Check that the value_type of the array is either double or Point<double, DIM>
+    // Check that the value_type of the array is either double, int, or Point<double, DIM>
     using value_type = typename ArrayType::value_type;
-    static_assert(std::is_same_v<value_type, double> || primal::detail::is_point_v<value_type>);
+    static_assert(std::is_same_v<value_type, double> || std::is_same_v<value_type, int> ||
+                  primal::detail::is_point_v<value_type>);
 
     const bool is_root = (m_my_rank == 0);
 
@@ -149,25 +147,25 @@ private:
     }
 
     // then, send/receive the data
-    if constexpr(std::is_same_v<value_type, double>)
+    if constexpr(std::is_same_v<value_type, double> || std::is_same_v<value_type, int>)
     {
-      // handles Array<double,1> and Array<double,2>
+      // handles Array<double,1>, Array<double,2>, Array<int,1>, and Array<int,2>
       bcast_data(arr.view());
     }
     else if constexpr(primal::detail::is_point_v<value_type>)
     {
       // handles 1D or 2D array of primal::Point
       // since the data is contiguous, we cast the values to a 1D ArrayView<double>
-      constexpr static int POINT_DIM = value_type::DIMENSION;
+      static constexpr int POINT_DIM = value_type::DIMENSION;
       const int numVals = arr.size() * POINT_DIM;
       double* dataPtr = nullptr;
       if constexpr(ARR_DIM == 1)  // 1D array of points
       {
-        dataPtr = (arr.size() > 0) ? arr[0].data() : nullptr;
+        dataPtr = !arr.empty() ? arr[0].data() : nullptr;
       }
       else if constexpr(ARR_DIM == 2)  // 2D array of points
       {
-        dataPtr = (arr.size() > 0) ? &arr(0, 0)[0] : nullptr;
+        dataPtr = !arr.empty() ? &arr(0, 0)[0] : nullptr;
       }
       axom::ArrayView<double> flatView(dataPtr, numVals);
       bcast_data(flatView);
@@ -187,7 +185,4 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(PSTEPReader);
 };
 
-}  // namespace quest
-}  // namespace axom
-
-#endif  // QUEST_PSTEPREADER_HPP_
+}  // namespace axom::quest

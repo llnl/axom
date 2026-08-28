@@ -4,15 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file MeshTester.hpp
  * 
  * \brief Contains the specification for the MeshTester class.
  * 
  */
-
-#ifndef __AXOM_BUMP_MESH_TESTER_HPP__
-#define __AXOM_BUMP_MESH_TESTER_HPP__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/primal.hpp"
@@ -72,7 +71,7 @@ public:
    * 
    * \return  The generated mesh.
    */
-  void initTestCaseOne(conduit::Node &mesh);
+  void initTestCaseOne(conduit::Node& mesh);
 
   /*!
    * \brief Initializes an MIRMesh based on the example from Meredith and Childs 2010 paper.
@@ -81,7 +80,7 @@ public:
    * 
    * \return  The generated mesh.
    */
-  void initTestCaseTwo(conduit::Node &mesh);
+  void initTestCaseTwo(conduit::Node& mesh);
 
   /*!
    * \brief Initializes an MIRMesh used for testing triangle clipping cases.
@@ -90,7 +89,7 @@ public:
    * 
    * \return  The generated mesh.
    */
-  void initTestCaseThree(conduit::Node &mesh);
+  void initTestCaseThree(conduit::Node& mesh);
 
   /*!
    * \brief Intializes a mesh used for testing a single circle of one materials surrounded by another.
@@ -100,7 +99,7 @@ public:
    * 
    * \return  The generated mesh.
    */
-  void initTestCaseFour(conduit::Node &mesh);
+  void initTestCaseFour(conduit::Node& mesh);
 
   /*!
    * \brief Initializes a mesh to be used for testing a set of concentric circles centered in a uniform 2D grid.
@@ -112,7 +111,7 @@ public:
    * 
    * \return  The generated mesh.
    */
-  void initTestCaseFive(int gridSize, int numCircles, conduit::Node &mesh);
+  void initTestCaseFive(int gridSize, int numCircles, conduit::Node& mesh);
 
   /*!
    * \brief Initializes a mesh to be used for testing a set of concentric spheres centered in a uniform 3D grid.
@@ -124,7 +123,7 @@ public:
    * 
    * \return  The generated mesh.
    */
-  void initTestCaseSix(int gridSize, int numSpheres, conduit::Node &mesh);
+  void initTestCaseSix(int gridSize, int numSpheres, conduit::Node& mesh);
 
   /*!
    * \brief Initializes a mesh composed of a uniform grid with a circle of material in it.
@@ -136,9 +135,9 @@ public:
    * \return  The generated mesh.
    */
   void createUniformGridTestCaseMesh(int gridSize,
-                                     const Point2 &circleCenter,
+                                     const Point2& circleCenter,
                                      axom::float64 circleRadius,
-                                     conduit::Node &mesh);
+                                     conduit::Node& mesh);
   /*!
    * \brief Initializes a mesh to be used for validating the results of quad clipping.
    * 
@@ -147,28 +146,28 @@ public:
    * 
    * \return  The generated mesh.
    */
-  void initQuadClippingTestMesh(conduit::Node &mesh);
+  void initQuadClippingTestMesh(conduit::Node& mesh);
 
 private:
   /*!
    * \brief make a 3x3 mesh of quads.
    * \param mesh A conduit node that will contain the new mesh.
    */
-  void mesh3x3(conduit::Node &mesh);
+  void mesh3x3(conduit::Node& mesh);
 
   /*!
    * \brief Generates a 2D uniform grid of n x n elements.
    * 
    * \param gridSize  The number of elements in the width and height of the uniform grid.
    */
-  void generateGrid(int gridSize, conduit::Node &mesh);
+  void generateGrid(int gridSize, conduit::Node& mesh);
 
   /*!
    * \brief Generates a 3D uniform grid of n x n x n elements.
    * 
    * \param gridSize  The number of elements in the width, height, and depth of the uniform grid.
    */
-  void generateGrid3D(int gridSize, conduit::Node &mesh);
+  void generateGrid3D(int gridSize, conduit::Node& mesh);
 
   /*!
    * \brief Calculates the number of corners of the quad that are within the circle.
@@ -182,12 +181,12 @@ private:
    * 
    * \return The number of corners of the quad that are within the circle.
    */
-  int circleQuadCornersOverlaps(const Point2 &circleCenter,
+  int circleQuadCornersOverlaps(const Point2& circleCenter,
                                 axom::float64 circleRadius,
-                                const Point2 &quadP0,
-                                const Point2 &quadP1,
-                                const Point2 &quadP2,
-                                const Point2 &quadP3);
+                                const Point2& quadP0,
+                                const Point2& quadP1,
+                                const Point2& quadP2,
+                                const Point2& quadP3);
 
   bool m_structured {false};
 };
@@ -195,5 +194,3 @@ private:
 }  // namespace data
 }  // namespace bump
 }  // namespace axom
-
-#endif

@@ -23,6 +23,7 @@ set( primal_headers
     ## geometry
     geometry/BezierCurve.hpp
     geometry/BezierPatch.hpp
+    geometry/BezierTriangle.hpp
     geometry/BoundingBox.hpp
     geometry/CoordinateTransformer.hpp
     geometry/Cone.hpp
@@ -53,7 +54,10 @@ set( primal_headers
     ## operators
     operators/clip.hpp
     operators/closest_point.hpp
+    operators/curvature.hpp
     operators/evaluate_integral.hpp
+    operators/evaluate_integral_curve.hpp
+    operators/evaluate_integral_surface.hpp
     operators/intersect.hpp
     operators/intersection_volume.hpp
     operators/orientation.hpp
@@ -65,18 +69,23 @@ set( primal_headers
     operators/in_polygon.hpp
     operators/in_sphere.hpp
     operators/is_convex.hpp
+    operators/slice.hpp
     operators/split.hpp
     operators/winding_number.hpp
 
     operators/detail/clip_impl.hpp
     operators/detail/compute_moments_impl.hpp
     operators/detail/evaluate_integral_impl.hpp
+    operators/detail/evaluate_integral_curve_impl.hpp
+    operators/detail/evaluate_integral_surface_impl.hpp
     operators/detail/fuzzy_comparators.hpp
     operators/detail/intersect_bezier_impl.hpp
     operators/detail/intersect_bounding_box_impl.hpp
     operators/detail/intersect_patch_impl.hpp
     operators/detail/intersect_impl.hpp
     operators/detail/intersect_ray_impl.hpp
+    operators/detail/predicate_determinants.hpp
+    operators/detail/slice_impl.hpp
     operators/detail/winding_number_2d_impl.hpp
     operators/detail/winding_number_2d_memoization.hpp
     operators/detail/winding_number_3d_impl.hpp

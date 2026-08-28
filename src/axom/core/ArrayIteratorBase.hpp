@@ -4,10 +4,9 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_ARRAYITERATORBASE_HPP_
-#define AXOM_ARRAYITERATORBASE_HPP_
+#pragma once
 
-#include "axom/core/IteratorBase.hpp"  // for Iterator
+#include "axom/core/IteratorBase.hpp"
 
 namespace axom
 {
@@ -46,14 +45,16 @@ public:
   AXOM_HOST_DEVICE
   ArrayIteratorBase(IndexType pos, ArrayPointerType arr) : BaseType(pos), m_arrayPtr(arr) { }
 
-  /**
-   * \brief Returns the current iterator value
-   */
+  /// \brief Returns the current iterator value
   AXOM_HOST_DEVICE
   ValueType& operator*() const { return m_arrayPtr->flatIndex(BaseType::m_pos); }
 
+  /// \brief Returns the value at offset \a n from the current iterator position
+  AXOM_HOST_DEVICE
+  ValueType& operator[](IndexType n) const { return m_arrayPtr->flatIndex(BaseType::m_pos + n); }
+
 protected:
-  /** Implementation of advance() as required by IteratorBase */
+  /// Implementation of advance() as required by IteratorBase
   AXOM_HOST_DEVICE
   void advance(IndexType n) { BaseType::m_pos += n; }
 
@@ -64,5 +65,3 @@ protected:
 /// @}
 
 } /* namespace axom */
-
-#endif /* AXOM_ARRAYITERATORBASE_HPP_ */

@@ -5,9 +5,9 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/numerics/matvecops.hpp"
+#include "axom/core/numerics/transforms.hpp"
 
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/Units.hpp"
 
 #include <cmath>
 #include <stdexcept>
@@ -16,13 +16,13 @@ namespace axom
 {
 namespace klee
 {
-GeometryOperator::GeometryOperator(const TransformableGeometryProperties &startProperties)
+GeometryOperator::GeometryOperator(const TransformableGeometryProperties& startProperties)
   : m_startProperties(startProperties)
 { }
 
-void CompositeOperator::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
+void CompositeOperator::accept(GeometryOperatorVisitor& visitor) const { visitor.visit(*this); }
 
-void CompositeOperator::addOperator(const OpPtr &op)
+void CompositeOperator::addOperator(const OpPtr& op)
 {
   if(getEndProperties() != op->getStartProperties())
   {
@@ -40,28 +40,23 @@ TransformableGeometryProperties CompositeOperator::getEndProperties() const
   return (*m_operators.rbegin())->getEndProperties();
 }
 
-Translation::Translation(const primal::Vector3D &offset,
-                         const TransformableGeometryProperties &startProperties)
+Translation::Translation(const primal::Vector3D& offset,
+                         const TransformableGeometryProperties& startProperties)
   : MatrixOperator {startProperties}
   , m_offset {offset}
 { }
 
 numerics::Matrix<double> Translation::toMatrix() const
 {
-  auto transformation = numerics::Matrix<double>::identity(4);
-  for(int i = 0; i < 3; ++i)
-  {
-    transformation(i, 3) = m_offset[i];
-  }
-  return transformation;
+  return axom::numerics::transforms::translate(m_offset[0], m_offset[1], m_offset[2]);
 }
 
-void Translation::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
+void Translation::accept(GeometryOperatorVisitor& visitor) const { visitor.visit(*this); }
 
 Rotation::Rotation(double angle,
-                   const primal::Point3D &center,
-                   const primal::Vector3D &axis,
-                   const TransformableGeometryProperties &startProperties)
+                   const primal::Point3D& center,
+                   const primal::Vector3D& axis,
+                   const TransformableGeometryProperties& startProperties)
   : MatrixOperator {startProperties}
   , m_angle {angle}
   , m_center {center}
@@ -109,32 +104,52 @@ numerics::Matrix<double> Rotation::toMatrix() const
   return transformation;
 }
 
-void Rotation::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
+void Rotation::accept(GeometryOperatorVisitor& visitor) const { visitor.visit(*this); }
+
+Scale::Scale(double xFactor, double yFactor, const TransformableGeometryProperties& startProperties)
+  : Scale(xFactor, yFactor, 1., startProperties)
+{ }
 
 Scale::Scale(double xFactor,
              double yFactor,
              double zFactor,
-             const TransformableGeometryProperties &startProperties)
+             const TransformableGeometryProperties& startProperties)
   : MatrixOperator {startProperties}
   , m_xFactor {xFactor}
   , m_yFactor {yFactor}
   , m_zFactor {zFactor}
+  , m_center {0., 0., 0.}
+{ }
+
+Scale::Scale(double xFactor,
+             double yFactor,
+             const primal::Point2D& center,
+             const TransformableGeometryProperties& startProperties)
+  : Scale(xFactor, yFactor, 1., primal::Point3D({center[0], center[1], 0.}), startProperties)
+{ }
+
+Scale::Scale(double xFactor,
+             double yFactor,
+             double zFactor,
+             const primal::Point3D& center,
+             const TransformableGeometryProperties& startProperties)
+  : MatrixOperator {startProperties}
+  , m_xFactor {xFactor}
+  , m_yFactor {yFactor}
+  , m_zFactor {zFactor}
+  , m_center {center}
 { }
 
 numerics::Matrix<double> Scale::toMatrix() const
 {
-  auto transformation = numerics::Matrix<double>::zeros(4, 4);
-  transformation(0, 0) = m_xFactor;
-  transformation(1, 1) = m_yFactor;
-  transformation(2, 2) = m_zFactor;
-  transformation(3, 3) = 1;
-  return transformation;
+  axom::ArrayView<double> centerView(const_cast<double*>(m_center.data()), 3);
+  return axom::numerics::transforms::scale(m_xFactor, m_yFactor, m_zFactor, centerView);
 }
 
-void Scale::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
+void Scale::accept(GeometryOperatorVisitor& visitor) const { visitor.visit(*this); }
 
 UnitConverter::UnitConverter(LengthUnit endUnits,
-                             const TransformableGeometryProperties &startProperties)
+                             const TransformableGeometryProperties& startProperties)
   : MatrixOperator {startProperties}
   , m_endUnits {endUnits}
 { }
@@ -151,17 +166,17 @@ numerics::Matrix<double> UnitConverter::toMatrix() const
   return scale.toMatrix();
 }
 
-void UnitConverter::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); };
+void UnitConverter::accept(GeometryOperatorVisitor& visitor) const { visitor.visit(*this); };
 
 double UnitConverter::getConversionFactor() const
 {
-  return klee::getConversionFactor(getStartProperties().units, m_endUnits);
+  return utilities::getConversionFactor(getStartProperties().units, m_endUnits);
 };
 
-SliceOperator::SliceOperator(const primal::Point3D &origin,
-                             const primal::Vector3D &normal,
-                             const primal::Vector3D &up,
-                             const TransformableGeometryProperties &startProperties)
+SliceOperator::SliceOperator(const primal::Point3D& origin,
+                             const primal::Vector3D& normal,
+                             const primal::Vector3D& up,
+                             const TransformableGeometryProperties& startProperties)
   : MatrixOperator {startProperties}
   , m_origin {origin}
   , m_normal {normal}
@@ -223,7 +238,7 @@ primal::Vector3D SliceOperator::calculateRightVector() const
   return primal::Vector3D {unitRightAffine.data()};
 }
 
-void SliceOperator::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
+void SliceOperator::accept(GeometryOperatorVisitor& visitor) const { visitor.visit(*this); }
 
 TransformableGeometryProperties SliceOperator::getEndProperties() const
 {

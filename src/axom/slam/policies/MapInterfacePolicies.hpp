@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SLAM_MapIfacePolicies_HPP
-#define SLAM_MapIfacePolicies_HPP
+#pragma once
 
 #include <type_traits>
 
@@ -13,11 +12,7 @@
 #include "axom/slam/MapBase.hpp"
 #include "axom/slam/policies/InterfacePolicies.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 namespace detail
 {
@@ -40,8 +35,4 @@ struct MapInterfaceSelector<VirtualInterface, PosType>
 template <typename InterfacePolicy, typename SetPositionType>
 using MapInterface = typename detail::MapInterfaceSelector<InterfacePolicy, SetPositionType>::Type;
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  // SLAM_MapIfacePolicies_HPP
+}  // end namespace axom::slam::policies

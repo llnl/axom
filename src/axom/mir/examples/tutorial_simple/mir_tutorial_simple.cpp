@@ -44,7 +44,7 @@ struct Input
   axom::CLI::App m_app {};
 
   /// Parse command line.
-  void parse(int argc, char **argv)
+  void parse(int argc, char** argv)
   {
     m_app.add_option("--test-case", m_test_case)
       ->check(axom::CLI::Range(1, 5))
@@ -80,17 +80,15 @@ struct Input
 
     std::stringstream pol_sstr;
     pol_sstr << "Set MIR runtime policy.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
     pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
     m_app.add_option("-p, --policy", m_policy, pol_sstr.str())
       ->capture_default_str()
@@ -107,7 +105,7 @@ struct Input
 
 //--------------------------------------------------------------------------------
 /// Print a Conduit node.
-void printNode(const conduit::Node &n)
+void printNode(const conduit::Node& n)
 {
   conduit::Node options;
   options["num_children_threshold"] = 10000;
@@ -119,7 +117,7 @@ void printNode(const conduit::Node &n)
 /*!
  * \brief Tutorial main showing how to initialize test cases and perform mir.
  */
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
 
@@ -129,7 +127,7 @@ int main(int argc, char **argv)
   {
     params.parse(argc, argv);
   }
-  catch(const axom::CLI::ParseError &e)
+  catch(const axom::CLI::ParseError& e)
   {
     return params.m_app.exit(e);
   }
@@ -214,25 +212,23 @@ int main(int argc, char **argv)
   {
     retval = runMIR_seq(mesh, options, resultMesh);
   }
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(params.m_policy == RuntimePolicy::omp)
   {
     retval = runMIR_omp(mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(params.m_policy == RuntimePolicy::cuda)
   {
     retval = runMIR_cuda(mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(params.m_policy == RuntimePolicy::hip)
   {
     retval = runMIR_hip(mesh, options, resultMesh);
   }
-  #endif
 #endif
   else
   {

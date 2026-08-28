@@ -28,6 +28,8 @@
 #include <iostream>
 #include <limits>
 #include <fstream>
+#include <type_traits>
+#include <variant>
 
 namespace mint = axom::mint;
 namespace primal = axom::primal;
@@ -42,6 +44,8 @@ template <int DIM>
 class ContainmentDriver
 {
 public:
+  static constexpr int Dimension = DIM;
+
   using CellVertIndices = primal::Point<axom::IndexType, DIM>;
 
   using InOutOctreeType = quest::InOutOctree<DIM>;
@@ -69,12 +73,19 @@ public:
   }
 
 #ifdef AXOM_USE_C2C
-  void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
+  bool loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
   {
     AXOM_ANNOTATE_SCOPE("load c2c");
     quest::C2CReader reader;
     reader.setFileName(inputFile);
-    reader.read();
+    const int rc = reader.read();
+    if(rc != 0)
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Failed to load contour file '{}'. See earlier warnings for details.",
+                          inputFile));
+      return false;
+    }
 
     // Create surface mesh
     m_surfaceMesh.reset(new UMesh(2, mint::SEGMENT));
@@ -82,15 +93,15 @@ public:
     lin.getLinearMeshUniform(reader.getCurvesView(),
                              static_cast<UMesh*>(m_surfaceMesh.get()),
                              segmentsPerKnotSpan);
+    return true;
   }
 #else
-  void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
+  bool loadContourMesh(const std::string&, int)
   {
-    AXOM_UNUSED_VAR(inputFile);
-    AXOM_UNUSED_VAR(segmentsPerKnotSpan);
-    SLIC_ERROR(
+    SLIC_WARNING(
       "Configuration error: Loading contour files is only supported when Axom "
       "is configured with C2C support.");
+    return false;
   }
 #endif  // AXOM_USE_C2C
 
@@ -99,7 +110,8 @@ public:
     AXOM_ANNOTATE_SCOPE("load stl");
     quest::STLReader reader;
     reader.setFileName(inputFile);
-    reader.read();
+    const int read_status = reader.read();
+    SLIC_ERROR_IF(read_status != 0, "Failed to load STL file '" << inputFile << "'.");
 
     // Create surface mesh
     m_surfaceMesh.reset(new UMesh(3, mint::TRIANGLE));
@@ -147,10 +159,15 @@ public:
     SLIC_INFO("Bounding box for query points: " << m_queryBB);
   }
 
-  void initializeInOutOctree()
+  void initializeInOutOctree(bool shouldOutputVtk, const std::string& vtkOutputDirectory)
   {
     AXOM_ANNOTATE_SCOPE("generate octree");
     m_octree = new InOutOctreeType(m_meshBB, m_surfaceMesh);
+    m_octree->setVtkOutputEnabled(shouldOutputVtk);
+    if(shouldOutputVtk)
+    {
+      m_octree->setVtkOutputDirectory(vtkOutputDirectory);
+    }
     m_octree->generateIndex();
   }
 
@@ -481,6 +498,7 @@ public:
 private:
   bool m_verboseOutput {false};
   bool m_use_batched_query {false};
+  bool m_output_octree_vtk {false};
 
 public:
   Input()
@@ -502,30 +520,27 @@ public:
 
   bool isInput2D() const
   {
-    using axom::utilities::string::endsWith;
-    return endsWith(inputFile, ".contour");
+    return axom::utilities::filesystem::getFileExtension(inputFile) == ".contour";
   }
 
   bool isVerbose() const { return m_verboseOutput; }
 
   bool useBatchedQuery() const { return m_use_batched_query; }
 
+  bool outputOctreeVtk() const { return m_output_octree_vtk; }
+
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_option("-i,--input", inputFile, "Path to input file")->check(axom::CLI::ExistingFile);
 
-    app
-      .add_flag("-v,--verbose",
-                m_verboseOutput,
-                "Enable/disable verbose output, "
-                "including outputting generated containment grids.")
+    app.add_flag("-v,--verbose", m_verboseOutput)
+      ->description(
+        "Enable/disable verbose output, including outputting generated containment grids.")
       ->capture_default_str();
 
-    app
-      .add_option("-l,--levels",
-                  maxQueryLevel,
-                  "Max query resolution. \n"
-                  "Will query uniform grids at levels 1 through the provided level")
+    app.add_option("-l,--levels", maxQueryLevel)
+      ->description(
+        "Max query resolution.\n Will query uniform grids at levels 1 through the provided level")
       ->capture_default_str()
       ->check(axom::CLI::PositiveNumber);
 
@@ -537,17 +552,16 @@ public:
     minbb->needs(maxbb);
     maxbb->needs(minbb);
 
-    app
-      .add_flag("--batched",
-                m_use_batched_query,
-                "uses a single batched query on all points instead of many "
-                "individual queries")
+    app.add_flag("--batched", m_use_batched_query)
+      ->description("uses a single batched query on all points instead of many individual queries")
       ->capture_default_str();
 
-    app
-      .add_option("-n,--segments-per-knot-span",
-                  samplesPerKnotSpan,
-                  "(2D only) Number of linear segments to generate per NURBS knot span")
+    app.add_flag("--vis", m_output_octree_vtk)
+      ->description("writes InOutOctree visualization VTK files during octree generation")
+      ->capture_default_str();
+
+    app.add_option("-n,--segments-per-knot-span", samplesPerKnotSpan)
+      ->description("(2D only) Number of linear segments to generate per NURBS knot span")
       ->capture_default_str()
       ->check(axom::CLI::PositiveNumber);
 
@@ -560,7 +574,7 @@ public:
       ->check(axom::utilities::ValidCaliperMode);
 #endif
 
-    app.get_formatter()->column_width(48);
+    app.get_formatter()->column_width(50);
 
     // could throw an exception
     app.parse(argc, argv);
@@ -596,8 +610,12 @@ int main(int argc, char** argv)
 
   const bool is2D = params.isInput2D();
 
-  ContainmentDriver<2> driver2D;
-  ContainmentDriver<3> driver3D;
+  using DriverVariant = std::variant<ContainmentDriver<2>, ContainmentDriver<3>>;
+  DriverVariant driver;
+  if(!is2D)
+  {
+    driver.emplace<ContainmentDriver<3>>();
+  }
 
   /// Load mesh file
   SLIC_INFO(axom::fmt::format("{:-^80}", " Loading the mesh "));
@@ -606,71 +624,69 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_METADATA("dimension", is2D ? 2 : 3, "");
   AXOM_ANNOTATE_BEGIN("init");
 
-  if(is2D)
+  const bool loadedMesh = std::visit(
+    [&params](auto& activeDriver) -> bool {
+      using DriverType = std::decay_t<decltype(activeDriver)>;
+      if constexpr(DriverType::Dimension == 2)
+      {
+        return activeDriver.loadContourMesh(params.inputFile, params.samplesPerKnotSpan);
+      }
+      else
+      {
+        activeDriver.loadSTLMesh(params.inputFile);
+        return true;
+      }
+    },
+    driver);
+  if(!loadedMesh)
   {
-    driver2D.loadContourMesh(params.inputFile, params.samplesPerKnotSpan);
-  }
-  else
-  {
-    driver3D.loadSTLMesh(params.inputFile);
+    return 1;
   }
 
   /// Compute mesh bounding box and log some stats about the surface
-  if(is2D)
-  {
-    driver2D.computeBounds();
-    driver2D.printSurfaceStats();
-  }
-  else
-  {
-    driver3D.computeBounds();
-    driver3D.printSurfaceStats();
-  }
+  std::visit(
+    [](auto& activeDriver) {
+      activeDriver.computeBounds();
+      activeDriver.printSurfaceStats();
+    },
+    driver);
 
   /// Create octree over mesh's bounding box
   SLIC_INFO(axom::fmt::format("{:-^80}", " Generating the octree "));
-  if(is2D)
-  {
-    driver2D.initializeInOutOctree();
-    driver2D.printSurfaceStats();
+  const std::string vtkOutputDirectory {"vis"};
+  std::visit(
+    [&params, &vtkOutputDirectory](auto& activeDriver) {
+      activeDriver.initializeInOutOctree(params.outputOctreeVtk(), vtkOutputDirectory);
+      activeDriver.printSurfaceStats();
 
-    mint::write_vtk(driver2D.getSurfaceMesh(), "meldedSegmentMesh.vtk");
-  }
-  else
-  {
-    driver3D.initializeInOutOctree();
-    driver3D.printSurfaceStats();
-
-    mint::write_vtk(driver3D.getSurfaceMesh(), "meldedTriMesh.vtk");
-  }
+      if(params.outputOctreeVtk())
+      {
+        using DriverType = std::decay_t<decltype(activeDriver)>;
+        const std::string meldedMeshName =
+          (DriverType::Dimension == 2) ? "meldedSegmentMesh.vtk" : "meldedTriMesh.vtk";
+        mint::write_vtk(activeDriver.getSurfaceMesh(),
+                        axom::utilities::filesystem::joinPath(vtkOutputDirectory, meldedMeshName));
+      }
+    },
+    driver);
 
   AXOM_ANNOTATE_END("init");
   AXOM_ANNOTATE_BEGIN("query");
 
   /// Query the octree over mesh's bounding box
   SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the octree "));
-  if(is2D)
-  {
-    driver2D.initializeQueryBox(params.queryBoxMins, params.queryBoxMaxs);
+  std::visit(
+    [&params](auto& activeDriver) {
+      activeDriver.initializeQueryBox(params.queryBoxMins, params.queryBoxMaxs);
 
-    // Query the mesh
-    for(int i = 1; i < params.maxQueryLevel; ++i)
-    {
-      const int res = 1 << i;
-      driver2D.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
-    }
-  }
-  else
-  {
-    driver3D.initializeQueryBox(params.queryBoxMins, params.queryBoxMaxs);
-
-    // Query the mesh
-    for(int i = 1; i < params.maxQueryLevel; ++i)
-    {
-      const int res = 1 << i;
-      driver3D.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
-    }
-  }
+      // Query the mesh
+      for(int i = 1; i < params.maxQueryLevel; ++i)
+      {
+        const int res = 1 << i;
+        activeDriver.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
+      }
+    },
+    driver);
 
   AXOM_ANNOTATE_END("query");
   SLIC_INFO(axom::fmt::format("{:-^80}", ""));

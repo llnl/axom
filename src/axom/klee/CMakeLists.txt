@@ -10,6 +10,7 @@ axom_component_requires(NAME       Klee
 # Specify all headers/sources
 #------------------------------------------------------------------------------
 set(klee_headers
+    AffineMatrixVisitor.hpp
     Dimensions.hpp
     Geometry.hpp
     GeometryOperators.hpp
@@ -26,6 +27,7 @@ set(klee_internal_headers
     )
 
 set(klee_sources
+    AffineMatrixVisitor.cpp
     Geometry.cpp
     GeometryOperators.cpp
     KleeError.cpp
@@ -43,7 +45,7 @@ set(klee_sources
 axom_add_library(NAME        klee
                  SOURCES     ${klee_sources}
                  HEADERS     ${klee_headers} ${klee_internal_headers}
-                 DEPENDS_ON  inlet
+                 DEPENDS_ON  core inlet
                  FOLDER      axom/klee
                  )
 

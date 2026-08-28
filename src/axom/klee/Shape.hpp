@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_SHAPE_HPP_
-#define AXOM_KLEE_SHAPE_HPP_
+#pragma once
 
 #include "axom/klee/Geometry.hpp"
 
@@ -45,13 +44,13 @@ public:
      * Get the name of this shape.
      * \return the shape's name
      */
-  const std::string &getName() const { return m_name; }
+  const std::string& getName() const { return m_name; }
 
   /**
    * Get the material this shape is made of.
    * \return the shape's material.
    */
-  const std::string &getMaterial() const { return m_material; }
+  const std::string& getMaterial() const { return m_material; }
 
   /**
    * Check whether this shape can replace the given material (within the
@@ -60,26 +59,26 @@ public:
    * \param material the material to check
    * \return whether this shape replaces the given material
    */
-  bool replaces(const std::string &material) const;
+  bool replaces(const std::string& material) const;
 
   /**
    * Get the description fo the geometry for this shape.
    *
    * \return the shape's geometry
    */
-  const Geometry &getGeometry() const { return m_geometry; }
+  const Geometry& getGeometry() const { return m_geometry; }
 
   /**
    * Get the vector of materials that this shape can replace.
    * \return A reference to the material name vector.
    */
-  const std::vector<std::string> &getMaterialsReplaced() const { return m_materialsReplaced; }
+  const std::vector<std::string>& getMaterialsReplaced() const { return m_materialsReplaced; }
 
   /**
    * Get the vector of materials that this shape cannot replace.
    * \return A reference to the material name vector.
    */
-  const std::vector<std::string> &getMaterialsNotReplaced() const { return m_materialsNotReplaced; }
+  const std::vector<std::string>& getMaterialsNotReplaced() const { return m_materialsNotReplaced; }
 
 private:
   std::string m_name;
@@ -91,5 +90,3 @@ private:
 
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_SHAPE_HPP_

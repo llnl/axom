@@ -34,7 +34,7 @@ MIRApplication::MIRApplication()
 { }
 
 //--------------------------------------------------------------------------------
-int MIRApplication::initialize(int argc, char **argv)
+int MIRApplication::initialize(int argc, char** argv)
 {
   axom::CLI::App app;
   app.add_flag("--handler", handler)
@@ -69,17 +69,15 @@ int MIRApplication::initialize(int argc, char **argv)
 
   std::stringstream pol_sstr;
   pol_sstr << "Set MIR runtime policy method.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
   app.add_option("-p, --policy", policy, pol_sstr.str())
     ->capture_default_str()
@@ -92,12 +90,12 @@ int MIRApplication::initialize(int argc, char **argv)
     app.parse(argc, argv);
     writeFiles = !disable_write;
   }
-  catch(axom::CLI::CallForHelp &e)
+  catch(axom::CLI::CallForHelp& e)
   {
     std::cout << app.help() << std::endl;
     retval = -1;
   }
-  catch(axom::CLI::ParseError &e)
+  catch(axom::CLI::ParseError& e)
   {
     // Handle other parsing errors
     std::cerr << e.what() << std::endl;
@@ -124,12 +122,12 @@ int MIRApplication::execute()
   {
     retval = runMIR();
   }
-  catch(std::invalid_argument const &e)
+  catch(std::invalid_argument const& e)
   {
     SLIC_WARNING("Bad input. " << e.what());
     retval = -2;
   }
-  catch(std::out_of_range const &e)
+  catch(std::out_of_range const& e)
   {
     SLIC_WARNING("Integer overflow. " << e.what());
     retval = -3;
@@ -138,7 +136,7 @@ int MIRApplication::execute()
 }
 
 //--------------------------------------------------------------------------------
-bool MIRApplication::requiresStructuredMesh(const std::string &method) const
+bool MIRApplication::requiresStructuredMesh(const std::string& method) const
 {
   return method == "elvira";
 }
@@ -246,10 +244,10 @@ size_t MIRApplication::estimateMemoryPoolSize() const
 }
 
 //--------------------------------------------------------------------------------
-void MIRApplication::adjustMesh(conduit::Node &) { }
+void MIRApplication::adjustMesh(conduit::Node&) { }
 
 //--------------------------------------------------------------------------------
-void MIRApplication::saveMesh(const conduit::Node &n_mesh, const std::string &path)
+void MIRApplication::saveMesh(const conduit::Node& n_mesh, const std::string& path)
 {
 #if defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
   std::string protocol("hdf5");
@@ -260,7 +258,7 @@ void MIRApplication::saveMesh(const conduit::Node &n_mesh, const std::string &pa
 }
 
 //--------------------------------------------------------------------------------
-void MIRApplication::conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
+void MIRApplication::conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
 {
   SLIC_ERROR(axom::fmt::format("Error from Conduit: s1={}, s2={}, i1={}", s1, s2, i1));
   // This is on purpose.

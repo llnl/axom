@@ -13,10 +13,12 @@
 
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
+#include "axom/core/utilities/Units.hpp"
 
 #include "opencascade/BRep_Tool.hxx"
 #include "opencascade/BRepAdaptor_Curve.hxx"
 #include "opencascade/BRepBuilderAPI_MakeFace.hxx"
+#include "opencascade/BRepBuilderAPI_Sewing.hxx"
 #include "opencascade/BRepBuilderAPI_NurbsConvert.hxx"
 #include "opencascade/BRepCheck_Analyzer.hxx"
 #include "opencascade/BRepCheck_Edge.hxx"
@@ -26,6 +28,7 @@
 #include "opencascade/BRepLib.hxx"
 #include "opencascade/BRepMesh_IncrementalMesh.hxx"
 #include "opencascade/BRepTools.hxx"
+#include "opencascade/BRepTools_WireExplorer.hxx"
 #include "opencascade/BRepBndLib.hxx"
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
@@ -49,14 +52,13 @@
 #include "opencascade/TopoDS_Edge.hxx"
 #include "opencascade/TopoDS_Face.hxx"
 #include "opencascade/TopoDS_Shape.hxx"
+#include "opencascade/TopoDS_Solid.hxx"
 #include "opencascade/TopoDS_Wire.hxx"
 #include "opencascade/TopoDS.hxx"
 
 #include <iostream>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace internal
 {
@@ -66,9 +68,11 @@ struct PatchData
   int patchIndex {-1};
   bool wasOriginallyPeriodic_u {false};
   bool wasOriginallyPeriodic_v {false};
+  bool was_reversed_u {false};
   axom::primal::BoundingBox<double, 2> parametricBBox;
   axom::primal::BoundingBox<double, 3> physicalBBox;
   axom::Array<bool> trimmingCurves_originallyPeriodic;
+  axom::Array<int> trimmingCurves_wireIds;
 };
 
 using PatchDataMap = std::map<int, PatchData>;
@@ -110,6 +114,16 @@ public:
   using PatchToTrimmingCurvesMap = std::map<int, NCurveArray>;
 
 private:
+  /// Reflect a trimming curve in u to match a u-reversed patch parameterization.
+  static void reflectCurve_u(NCurve& curve, double umin, double umax)
+  {
+    auto& ctrl = curve.getControlPoints();
+    for(int i = 0; i < ctrl.size(); ++i)
+    {
+      ctrl[i][0] = umin + umax - ctrl[i][0];
+    }
+  }
+
   /// Returns a bounding box convering the patch's knot spans in 2D parametric space
   BBox2D faceBoundingBox(const TopoDS_Face& face) const
   {
@@ -206,18 +220,18 @@ private:
 
           const double sq_dist = axom::primal::squared_distance(my_val, other_val);
           squared_sum += sq_dist;
-          SLIC_WARNING_IF(m_verbose && sq_dist > sq_tol,
-                          axom::fmt::format("Distance between surfaces at evaluated param "
-                                            "({},{}) exceeded tolerance {}.\n"
-                                            "Point on my surface {}; Point on other surface "
-                                            "{}; Squared distance {}  (running sum {})",
-                                            u,
-                                            v,
-                                            sq_tol,
-                                            my_val,
-                                            other_val,
-                                            sq_dist,
-                                            squared_sum));
+          SLIC_WARNING_ROOT_IF(m_verbose && sq_dist > sq_tol,
+                               axom::fmt::format("Distance between surfaces at evaluated param "
+                                                 "({},{}) exceeded tolerance {}.\n"
+                                                 "Point on my surface {}; Point on other surface "
+                                                 "{}; Squared distance {}  (running sum {})",
+                                                 u,
+                                                 v,
+                                                 sq_tol,
+                                                 my_val,
+                                                 other_val,
+                                                 sq_dist,
+                                                 squared_sum));
         }
       }
 
@@ -227,30 +241,30 @@ private:
     /// Logs some information about the patch
     void printSurfaceInfo() const
     {
-      SLIC_INFO(axom::fmt::format("Patch is periodic in u: {}", m_surface->IsUPeriodic()));
-      SLIC_INFO(axom::fmt::format("Patch is periodic in v: {}", m_surface->IsVPeriodic()));
+      SLIC_INFO_ROOT(axom::fmt::format("Patch is periodic in u: {}", m_surface->IsUPeriodic()));
+      SLIC_INFO_ROOT(axom::fmt::format("Patch is periodic in v: {}", m_surface->IsVPeriodic()));
 
       // Print control points
       {
         const auto patch_control_points = extractControlPoints();
-        SLIC_INFO(axom::fmt::format("Patch control points ({} x {}): {}",
-                                    patch_control_points.shape()[0],
-                                    patch_control_points.shape()[1],
-                                    patch_control_points));
+        SLIC_INFO_ROOT(axom::fmt::format("Patch control points ({} x {}): {}",
+                                         patch_control_points.shape()[0],
+                                         patch_control_points.shape()[1],
+                                         patch_control_points));
       }
 
       // Print weights (if the surface is rational)
       if(const bool isRational = m_surface->IsURational() || m_surface->IsVRational(); isRational)
       {
         const auto patch_weights = extractWeights();
-        SLIC_INFO(axom::fmt::format("Patch weights ({} x {}): {}",
-                                    patch_weights.shape()[0],
-                                    patch_weights.shape()[1],
-                                    patch_weights));
+        SLIC_INFO_ROOT(axom::fmt::format("Patch weights ({} x {}): {}",
+                                         patch_weights.shape()[0],
+                                         patch_weights.shape()[1],
+                                         patch_weights));
       }
       else
       {
-        SLIC_INFO("Patch is polynomial (uniform weights)");
+        SLIC_INFO_ROOT("Patch is polynomial (uniform weights)");
       }
     }
 
@@ -511,17 +525,17 @@ private:
 
         const double sq_dist = axom::primal::squared_distance(my_val, other_val);
         squared_sum += sq_dist;
-        SLIC_WARNING_IF(m_verbose && sq_dist > sq_tol,
-                        axom::fmt::format("Distance between curves at evaluated param {} "
-                                          "exceeded tolerance {}.\n"
-                                          "Point on my curve {}; Point on other curve {}; "
-                                          "Squared distance {}  (running sum {})",
-                                          val,
-                                          sq_tol,
-                                          my_val,
-                                          other_val,
-                                          sq_dist,
-                                          squared_sum));
+        SLIC_WARNING_ROOT_IF(
+          m_verbose && sq_dist > sq_tol,
+          axom::fmt::format(
+            "Distance between curves at evaluated param {} exceeded tolerance {}.\n"
+            "Point on my curve {}; Point on other curve {}; Squared distance {}  (running sum {})",
+            val,
+            sq_tol,
+            my_val,
+            other_val,
+            sq_dist,
+            squared_sum));
       }
 
       return squared_sum <= sq_tol;
@@ -670,7 +684,7 @@ public:
     int patchIndex = 0;
     for(TopExp_Explorer ex(m_shape, TopAbs_FACE); ex.More(); ex.Next(), ++patchIndex)
     {
-      SLIC_DEBUG_IF(m_verbose, "*** Processing patch " << patchIndex);
+      SLIC_DEBUG_ROOT_IF(m_verbose, "*** Processing patch " << patchIndex);
       const TopoDS_Face& face = TopoDS::Face(ex.Current());
 
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
@@ -683,18 +697,20 @@ public:
 
         patches[patchIndex] = patchProcessor.nurbsPatchGeometry();
 
-        // If the face is flipped in opencascade, we need to flip the primal primitive too
-        if(face.Orientation() == TopAbs_REVERSED)
-        {
-          patches[patchIndex].reverseOrientation_u();
-        }
-
         PatchData& patchData = m_patchData[patchIndex];
         patchData.patchIndex = patchIndex;
         patchData.wasOriginallyPeriodic_u = patchProcessor.patchWasOriginallyPeriodic_u();
         patchData.wasOriginallyPeriodic_v = patchProcessor.patchWasOriginallyPeriodic_v();
+        patchData.was_reversed_u = (face.Orientation() != TopAbs_FORWARD);
         patchData.parametricBBox = faceBoundingBox(face);
         patchData.physicalBBox = patches[patchIndex].boundingBox();
+
+        // Apply the face orientation to the Axom patch so that normals are
+        // consistent with the original B-Rep.
+        if(patchData.was_reversed_u)
+        {
+          patches[patchIndex].reverseOrientation_u();
+        }
 
         if(patchData.wasOriginallyPeriodic_u || patchData.wasOriginallyPeriodic_v)
         {
@@ -702,19 +718,19 @@ public:
             opencascade::handle<Geom_BSplineSurface>::DownCast(surface);
 
           const bool withinThreshold = patchProcessor.compareToSurface(origSurface, 25);
-          SLIC_WARNING_IF(!withinThreshold,
-                          axom::fmt::format("[Patch {}] Patch geometry was not "
-                                            "within threshold after clamping.",
-                                            patchIndex,
-                                            patches[patchIndex]));
+          SLIC_WARNING_ROOT_IF(!withinThreshold,
+                               axom::fmt::format("[Patch {}] Patch geometry was not within "
+                                                 "threshold after clamping.\n Patch data: {}.",
+                                                 patchIndex,
+                                                 patches[patchIndex]));
         }
       }
       else
       {
         const std::string surfaceType = surface->DynamicType()->Name();
-        SLIC_WARNING(fmt::format("Skipping patch {} with non-BSpline surface type: '{}'",
-                                 patchIndex,
-                                 surfaceType));
+        SLIC_WARNING_ROOT(fmt::format("Skipping patch {} with non-BSpline surface type: '{}'",
+                                      patchIndex,
+                                      surfaceType));
       }
     }
   }
@@ -779,7 +795,7 @@ public:
       }
       if(!sstr.str().empty())
       {
-        SLIC_INFO(prefix << "\n" << sstr.str());
+        SLIC_INFO_ROOT(prefix << "\n" << sstr.str());
       }
     };
 
@@ -849,16 +865,20 @@ public:
       PatchData& patchData = m_patchData[patchIndex];
       auto& patch = patches[patchIndex];
 
+      const double patch_umin = patch.getMinKnot_u();
+      const double patch_umax = patch.getMaxKnot_u();
+
       // Get span of this patch in u and v directions
       BBox2D patchBbox = patchData.parametricBBox;
       auto expandedPatchBbox = patchBbox;
       expandedPatchBbox.scale(1. + 1e-3);
 
-      SLIC_INFO_IF(m_verbose,
-                   axom::fmt::format("[Patch {}]: BBox in parametric space: {}; expanded BBox {}",
-                                     patchIndex,
-                                     patchBbox,
-                                     expandedPatchBbox));
+      SLIC_INFO_ROOT_IF(
+        m_verbose,
+        axom::fmt::format("[Patch {}]: BBox in parametric space: {}; expanded BBox {}",
+                          patchIndex,
+                          patchBbox,
+                          expandedPatchBbox));
 
       int wireIndex = 0;
       for(TopExp_Explorer wireExp(faceExp.Current(), TopAbs_WIRE); wireExp.More();
@@ -867,23 +887,19 @@ public:
         const TopoDS_Wire& wire = TopoDS::Wire(wireExp.Current());
 
         int edgeIndex = 0;
-        for(TopExp_Explorer edgeExp(wire, TopAbs_EDGE); edgeExp.More(); edgeExp.Next(), ++edgeIndex)
+        BRepTools_WireExplorer edgeExp(wire, TopoDS::Face(faceExp.Current()));
+        for(; edgeExp.More(); edgeExp.Next(), ++edgeIndex)
         {
           const TopoDS_Edge& edge = TopoDS::Edge(edgeExp.Current());
-          const int curveIndex = patch.getNumTrimmingCurves();
-
-          TopAbs_Orientation orientation = edge.Orientation();
-          const bool isReversed = (orientation == TopAbs_REVERSED);
 
           if(m_verbose)
           {
             BRepAdaptor_Curve curveAdaptor(edge);
-            SLIC_INFO(axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Curve type: '{}'",
-                                        patchIndex,
-                                        wireIndex,
-                                        edgeIndex,
-                                        curveIndex,
-                                        curveTypeMap[curveAdaptor.GetType()]));
+            SLIC_INFO_ROOT(axom::fmt::format("[Patch {} Wire {} Edge {}] Curve type: '{}'",
+                                             patchIndex,
+                                             wireIndex,
+                                             edgeIndex,
+                                             curveTypeMap[curveAdaptor.GetType()]));
           }
 
           Standard_Real first, last;
@@ -900,23 +916,29 @@ public:
             auto curve = curveProcessor.nurbsCurve();
             patchData.trimmingCurves_originallyPeriodic.push_back(
               curveProcessor.curveWasOriginallyPeriodic());
+            patchData.trimmingCurves_wireIds.push_back(wireIndex);
 
-            if(isReversed)  // Ensure consistency of curve w.r.t. patch
-            {
-              curve.reverseOrientation();
-            }
             SLIC_ASSERT(curve.isValidNURBS());
             SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
 
+            if(patchData.was_reversed_u)
+            {
+              reflectCurve_u(curve, patch_umin, patch_umax);
+            }
+
+            if(edge.Orientation() == TopAbs_REVERSED)
+            {
+              curve.reverseOrientation();
+            }
+
             patch.addTrimmingCurve(curve);
 
-            SLIC_INFO_IF(m_verbose,
-                         axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Added curve: {}",
-                                           patchIndex,
-                                           wireIndex,
-                                           edgeIndex,
-                                           curveIndex,
-                                           curve));
+            SLIC_INFO_ROOT_IF(m_verbose,
+                              axom::fmt::format("[Patch {} Wire {} Edge {}] Added curve: {}",
+                                                patchIndex,
+                                                wireIndex,
+                                                edgeIndex,
+                                                curve));
 
             // Check to ensure that curve did not change geometrically after making non-periodic
             if(originalCurvePeriodic)
@@ -924,26 +946,18 @@ public:
               opencascade::handle<Geom2d_BSplineCurve> origCurve =
                 Geom2dConvert::CurveToBSplineCurve(parametricCurve);
               const bool withinThreshold = curveProcessor.compareToCurve(origCurve, 25);
-              SLIC_WARNING_IF(
+              SLIC_WARNING_ROOT_IF(
                 !withinThreshold,
-                axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Trimming curve was not "
+                axom::fmt::format("[Patch {} Wire {} Edge {}] Trimming curve was not "
                                   "within threshold after clamping.",
                                   patchIndex,
                                   wireIndex,
-                                  edgeIndex,
-                                  curveIndex));
+                                  edgeIndex));
             }
 
             // TODO: Check that curve control points are within UV patch after adjusting periodicity
           }
         }
-      }
-
-      // If the face is flipped, then the trimming curves all need to be reversed too
-      if(patch.isTrimmed() &&
-         TopoDS::Face(faceExp.Current()).Orientation() == TopAbs_Orientation::TopAbs_REVERSED)
-      {
-        patch.reverseTrimmingCurves();
       }
     }
   }
@@ -953,87 +967,6 @@ public:
   std::string getFileUnits() const { return m_fileUnits; }
 
 private:
-  /// Returns the canonical representation of a unit string (e.g. "centimeter" -> "cm")
-  std::string getCanonicalUnit(const std::string& unit) const
-  {
-    // we'll convert all units to lower case
-    auto toLower = [](std::string str) {
-      std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-      return str;
-    };
-
-    // start with imperial units
-    std::map<std::string, std::string> unitCanonicalMap = {{"inch", "in"},
-                                                           {"inches", "in"},
-                                                           {"in", "in"},
-                                                           {"foot", "ft"},
-                                                           {"feet", "ft"},
-                                                           {"ft", "ft"},
-                                                           {"mile", "mi"},
-                                                           {"miles", "mi"},
-                                                           {"mi", "mi"}};
-
-    // now add the SI units w/ several suffixes
-    // we're going to reverse this for the map to canonical units
-    std::map<std::string, std::string> prefixes = {
-      {"am", "atto"},
-      {"fm", "femto"},
-      {"pm", "pico"},
-      {"nm", "nano"},
-      {"um", "micro"},
-      {"mm", "milli"},
-      {"cm", "centi"},
-      {"dm", "deci"},
-      {"m", ""},
-      {"dam", "deca"},
-      {"hm", "hecto"},
-      {"km", "kilo"},
-    };
-
-    for(const auto& kv : prefixes)
-    {
-      const std::string& canonical = kv.first;
-      const std::string& prefix = kv.second;
-      unitCanonicalMap[canonical] = canonical;
-      for(const std::string& suffix : {"meter", "meters", "metre", "metres"})
-      {
-        unitCanonicalMap[prefix + suffix] = canonical;
-      }
-    }
-
-    return unitCanonicalMap[toLower(unit)];
-  }
-
-  /**
-   *  Returns the conversion factor from an input unit to an output unit
-   * 
-   * \note Converts the units to their canonical form
-   * \sa getCanonicalUnit
-   */
-  double getConversionFactor(const std::string& fileUnits, const std::string& defaultUnits = "mm") const
-  {
-    std::map<std::string, double> unitConversionMap = {{"am", 1e-15},
-                                                       {"fm", 1e-12},
-                                                       {"pm", 1e-9},
-                                                       {"nm", 1e-6},
-                                                       {"um", 1e-3},
-                                                       {"mm", 1.0},
-                                                       {"cm", 10.0},
-                                                       {"dm", 100.0},
-                                                       {"m", 1e3},
-                                                       {"dam", 1e4},
-                                                       {"hm", 1e5},
-                                                       {"km", 1e6},
-                                                       {"in", 25.4},
-                                                       {"ft", 304.8},
-                                                       {"mi", 1609344.0}};
-
-    const double fileUnitFactor = unitConversionMap[getCanonicalUnit(fileUnits)];
-    const double defaultUnitFactor = unitConversionMap[getCanonicalUnit(defaultUnits)];
-
-    return fileUnitFactor / defaultUnitFactor;
-  };
-
   /// Loads the step file \a filename from disk
   /// Uses the units from \a filename
   TopoDS_Shape loadStepFile(const std::string& filename)
@@ -1055,9 +988,11 @@ private:
     reader.FileUnits(anUnitLengthNames, anUnitAngleNames, anUnitSolidAngleNames);
     if(anUnitLengthNames.Size() > 0)
     {
-      m_fileUnits = getCanonicalUnit(anUnitLengthNames(1).ToCString());
-      std::string defaultUnit = Interface_Static::CVal("xstep.cascade.unit");
-      const double lengthUnit = getConversionFactor(m_fileUnits, defaultUnit);
+      const auto fileUnits = axom::utilities::getLengthUnit(anUnitLengthNames(1).ToCString());
+      m_fileUnits = axom::utilities::getLengthUnitName(fileUnits);
+      const auto defaultUnit =
+        axom::utilities::getLengthUnit(Interface_Static::CVal("xstep.cascade.unit"));
+      const double lengthUnit = axom::utilities::getConversionFactor(fileUnits, defaultUnit);
       reader.SetSystemLengthUnit(lengthUnit);
     }
 
@@ -1083,8 +1018,8 @@ private:
     }
 
     m_loadStatus = LoadStatus::SUCCESS;
-    SLIC_INFO_IF(m_verbose,
-                 axom::fmt::format("Successfully read the STEP file with {} roots", numRoots));
+    SLIC_INFO_ROOT_IF(m_verbose,
+                      axom::fmt::format("Successfully read the STEP file with {} roots", numRoots));
 
     return nurbsShape;
   }
@@ -1141,8 +1076,7 @@ public:
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
-
-      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
+      const bool isReversed = (face.Orientation() != TopAbs_FORWARD);
 
       // Create a triangulation of this patch
       TopLoc_Location loc;
@@ -1150,8 +1084,8 @@ public:
 
       if(triangulation.IsNull())
       {
-        SLIC_WARNING(axom::fmt::format("Error: Triangulation could not be generated for patch {}",
-                                       patchIndex));
+        SLIC_WARNING_ROOT(
+          axom::fmt::format("Error: Triangulation could not be generated for patch {}", patchIndex));
         continue;
       }
 
@@ -1164,14 +1098,15 @@ public:
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
 
-        if(isReversed)
-        {
-          std::swap(n1, n3);
-        }
-
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
         gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
+
+        // Ensure triangle orientation matches the oriented face normal.
+        if(isReversed)
+        {
+          axom::utilities::swap(p2, p3);
+        }
 
         axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
         axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
@@ -1201,8 +1136,7 @@ public:
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
-
-      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
+      const bool isReversed = (face.Orientation() != TopAbs_FORWARD);
 
       // Get the underlying surface of the face
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
@@ -1216,6 +1150,7 @@ public:
 
       // Create a new face from the untrimmed surface
       TopoDS_Face newFace = BRepBuilderAPI_MakeFace(untrimmedSurface, Precision::Confusion());
+      newFace.Orientation(face.Orientation());
 
       // Mesh the new face
       BRepMesh_IncrementalMesh mesh(newFace, m_deflection, m_deflectionIsRelative, m_angularDeflection);
@@ -1226,7 +1161,7 @@ public:
 
       if(triangulation.IsNull())
       {
-        SLIC_WARNING(
+        SLIC_WARNING_ROOT(
           axom::fmt::format("Error: Triangulation could not be generated for untrimmed patch {}",
                             patchIndex));
         break;
@@ -1241,14 +1176,14 @@ public:
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
 
-        if(isReversed)
-        {
-          std::swap(n1, n3);
-        }
-
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
         gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
+
+        if(isReversed)
+        {
+          axom::utilities::swap(p2, p3);
+        }
 
         axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
         axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
@@ -1276,9 +1211,19 @@ private:
   bool m_deflectionIsRelative;
 };
 
-}  // end namespace internal
+}  // namespace internal
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
+
+axom::ArrayView<const int> STEPReader::getTrimmingCurveWireIds(int patchArrayIndex) const
+{
+  if(patchArrayIndex < 0 || patchArrayIndex >= static_cast<int>(m_trimmingCurveWireIds.size()))
+  {
+    return {};
+  }
+
+  return m_trimmingCurveWireIds[patchArrayIndex].view();
+}
 
 std::string STEPReader::getBRepStats() const
 {
@@ -1525,7 +1470,7 @@ axom::primal::BoundingBox<double, 3> STEPReader::getBRepBoundingBox(bool useTria
 {
   if(!m_stepProcessor->isLoaded())
   {
-    SLIC_WARNING("Cannot compute bounding box until calling STEPReader::read()");
+    SLIC_WARNING_ROOT("Cannot compute bounding box until calling STEPReader::read()");
     return axom::primal::BoundingBox<double, 3> {};
   }
 
@@ -1553,6 +1498,18 @@ STEPReader::~STEPReader()
   }
 }
 
+bool STEPReader::patchWasOriginallyPeriodic_u(int patchArrayIndex) const
+{
+  SLIC_ASSERT(patchArrayIndex >= 0 && patchArrayIndex < m_patchOriginallyPeriodic_u.size());
+  return m_patchOriginallyPeriodic_u[patchArrayIndex] != 0;
+}
+
+bool STEPReader::patchWasOriginallyPeriodic_v(int patchArrayIndex) const
+{
+  SLIC_ASSERT(patchArrayIndex >= 0 && patchArrayIndex < m_patchOriginallyPeriodic_v.size());
+  return m_patchOriginallyPeriodic_v[patchArrayIndex] != 0;
+}
+
 int STEPReader::read(bool validate_model)
 {
   m_stepProcessor = new internal::StepFileProcessor(m_fileName, m_verbosity);
@@ -1569,6 +1526,35 @@ int STEPReader::read(bool validate_model)
   m_stepProcessor->extractPatches(m_patches);
   m_stepProcessor->extractTrimmingCurves(m_patches);
 
+  // Record stable ids that match the input STEP enumeration, even if consumers
+  // later filter/skip patches or trimming curves.
+  m_patchIds.clear();
+  m_patchIds.resize(m_patches.size());
+  m_trimmingCurveWireIds.clear();
+  m_trimmingCurveWireIds.resize(m_patches.size());
+  m_patchOriginallyPeriodic_u.clear();
+  m_patchOriginallyPeriodic_u.resize(m_patches.size());
+  m_patchOriginallyPeriodic_u.fill(0);
+  m_patchOriginallyPeriodic_v.clear();
+  m_patchOriginallyPeriodic_v.resize(m_patches.size());
+  m_patchOriginallyPeriodic_v.fill(0);
+
+  const auto& patchDataMap = m_stepProcessor->getPatchDataMap();
+  for(int patchArrayIndex = 0; patchArrayIndex < m_patches.size(); ++patchArrayIndex)
+  {
+    // Current implementation preserves patch array index == input face index.
+    // Keep this explicit mapping in case future logic filters patches.
+    m_patchIds[patchArrayIndex] = patchArrayIndex;
+
+    auto it = patchDataMap.find(patchArrayIndex);
+    if(it != patchDataMap.end())
+    {
+      m_trimmingCurveWireIds[patchArrayIndex] = it->second.trimmingCurves_wireIds;
+      m_patchOriginallyPeriodic_u[patchArrayIndex] = it->second.wasOriginallyPeriodic_u ? 1 : 0;
+      m_patchOriginallyPeriodic_v[patchArrayIndex] = it->second.wasOriginallyPeriodic_v ? 1 : 0;
+    }
+  }
+
   return 0;
 }
 
@@ -1580,13 +1566,13 @@ int STEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_
 {
   if(!m_stepProcessor || !m_stepProcessor->isLoaded())
   {
-    SLIC_WARNING("Cannot triangulate model until calling STEPReader::read()");
+    SLIC_WARNING_ROOT("Cannot triangulate model until calling STEPReader::read()");
     return 1;
   }
 
   if(!mesh)
   {
-    SLIC_WARNING("Passed in mesh instance was null. Skipping triangulation");
+    SLIC_WARNING_ROOT("Passed in mesh instance was null. Skipping triangulation");
     return 1;
   }
 
@@ -1607,5 +1593,4 @@ int STEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_
   return 0;
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

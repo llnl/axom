@@ -4,9 +4,9 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_FlatMap_HPP
-#define Axom_Core_FlatMap_HPP
+#pragma once
 
+#include <cstdint>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -74,6 +74,8 @@ public:
   using mapped_type = ValueType;
   using size_type = IndexType;
   using value_type = KeyValuePair;
+  using hasher = Hash;
+  using hash_result_type = typename Hash::result_type;
   using iterator = IteratorImpl<false>;
   using const_iterator = IteratorImpl<true>;
 
@@ -104,7 +106,7 @@ public:
    */
   template <typename InputIt>
   FlatMap(InputIt first, InputIt last, IndexType bucket_count = -1)
-    : FlatMap(std::distance(first, last), first, last, bucket_count, Allocator {})
+    : FlatMap(static_cast<IndexType>(std::distance(first, last)), first, last, bucket_count, Allocator {})
   { }
 
   /*!
@@ -179,7 +181,7 @@ public:
     static_assert(std::is_copy_constructible<ValueType>::value,
                   "Cannot copy an axom::FlatMap when value type is not "
                   "copy-constructible.");
-    if(*this != other)
+    if(this != &other)
     {
       FlatMap new_map(other);
       swap(new_map);
@@ -233,6 +235,7 @@ public:
     m_metadata.swap(other.m_metadata);
     m_buckets.swap(other.m_buckets);
     axom::utilities::swap(m_loadCount, other.m_loadCount);
+    axom::utilities::swap(m_allocator, other.m_allocator);
   }
 
   /*!
@@ -286,8 +289,25 @@ public:
    *  if the key wasn't found.
    */
   /// @{
-  iterator find(const KeyType& key);
-  const_iterator find(const KeyType& key) const;
+  AXOM_FORCE_INLINE iterator find(const KeyType& key);
+  AXOM_FORCE_INLINE const_iterator find(const KeyType& key) const;
+  /// @}
+
+  /*!
+   * \brief Try to find an entry with a given key and a precomputed hash.
+   *
+   * \param [in] key the key to search for
+   * \param [in] hash the precomputed hash for \a key
+   *
+   * \return An iterator pointing to the corresponding key-value pair, or end()
+   *  if the key wasn't found.
+   *
+   * \pre hash must be equivalent to hasher{}(key) for this FlatMap's Hash policy.
+   *  Supplying a hash computed for a different key or Hash policy can miss an existing key
+   */
+  /// @{
+  AXOM_FORCE_INLINE iterator find_with_hash(const KeyType& key, hash_result_type hash);
+  AXOM_FORCE_INLINE const_iterator find_with_hash(const KeyType& key, hash_result_type hash) const;
   /// @}
 
   /*!
@@ -331,7 +351,6 @@ public:
    *
    * \pre ValueType is default-constructible
    */
-  /// @{
   ValueType& operator[](const KeyType& key)
   {
     static_assert(std::is_default_constructible<ValueType>::value,
@@ -339,14 +358,6 @@ public:
                   "default-constructible.");
     return this->try_emplace(key).first->second;
   }
-  const ValueType& operator[](const KeyType& key) const
-  {
-    static_assert(std::is_default_constructible<ValueType>::value,
-                  "Cannot use axom::FlatMap::operator[] when value type is not "
-                  "default-constructible.");
-    return this->try_emplace(key).first->second;
-  }
-  /// @}
 
   /*!
    * \brief Return the number of entries matching a given key.
@@ -376,7 +387,7 @@ public:
     detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(), m_buckets.view());
 
     // Also reset metadata.
-    IndexType numGroupsRounded = 1 << m_numGroups2;
+    IndexType numGroupsRounded = IndexType {1} << m_numGroups2;
     m_metadata.clear();
     m_metadata.resize(numGroupsRounded, detail::flat_map::GroupBucket {});
 
@@ -590,12 +601,18 @@ public:
   /*!
    * \brief Returns the current load factor of the FlatMap.
    */
-  double load_factor() const { return ((double)m_loadCount) / bucket_count(); }
+  double load_factor() const
+  {
+    return static_cast<double>(m_loadCount) / static_cast<double>(bucket_count());
+  }
 
   /*!
    * \brief Returns the maximum load factor of the FlatMap.
    */
-  double max_load_factor() const { return MAX_LOAD_FACTOR; }
+  double max_load_factor() const
+  {
+    return static_cast<double>(MAX_LOAD_FACTOR_NUM) / MAX_LOAD_FACTOR_DEN;
+  }
 
   /*!
    * \brief Returns the allocator ID the FlatMap is allocated with.
@@ -616,34 +633,9 @@ public:
     }
     else
     {
-      if constexpr(std::is_trivially_copyable_v<KeyValuePair>)
+      if(tryDeviceAwareRehash(count))
       {
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
-        MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
-        if(space == MemorySpace::Device || space == MemorySpace::Unified)
-        {
-  #if !defined(AXOM_GPUCC)
-          // Similar to the issue in ArrayBase (PR #1582), using FlatMap from
-          // a GPU-enabled Axom library but with a host-only compiler results
-          // in an ODR violation.
-
-          // HACK: this looks ugly, but is the best we can do pending a DR:
-          // https://stackoverflow.com/questions/44059557/whats-the-right-way-to-call-static-assertfalse
-          // https://cplusplus.github.io/CWG/issues/2518.html
-          static_assert(std::is_pod_v<KeyType> && !std::is_pod_v<KeyType>,
-                        "Cannot instantiate device-aware FlatMap operations when file is compiled "
-                        "with a host-only compiler. Axom was built with GPU support, so you should "
-                        "build all source files using FlatMap with a CUDA/HIP compiler.");
-          using ExecSpace = axom::SEQ_EXEC;
-  #elif defined(AXOM_USE_CUDA)
-          using ExecSpace = axom::CUDA_EXEC<256>;
-  #elif defined(AXOM_USE_HIP)
-          using ExecSpace = axom::HIP_EXEC<256>;
-  #endif
-          this->parallelRehash<ExecSpace>(count);
-          return;
-        }
-#endif
+        return;
       }
       FlatMap rehashed(m_size,
                        std::make_move_iterator(begin()),
@@ -662,7 +654,7 @@ public:
    */
   void reserve(IndexType count)
   {
-    if(count >= max_load_factor() * bucket_count())
+    if(exceedsMaxLoadFactor(count, bucket_count()))
     {
       rehash(count);
     }
@@ -713,14 +705,14 @@ private:
   template <typename... Args>
   void emplaceImpl(const std::pair<iterator, bool>& pos, bool assign_on_existence, Args&&... args);
 
-  template <typename ExecSpace>
-  void parallelRehash(IndexType count);
+  bool tryDeviceAwareRehash(IndexType count);
 
+private:
   constexpr static IndexType MIN_NUM_BUCKETS {29};
 
   Allocator m_allocator;
 
-  IndexType m_numGroups2;  // Number of groups of 15 buckets, expressed as a power of 2
+  int m_numGroups2;  // Number of groups of 15 buckets, expressed as a power of 2
   IndexType m_size;
   axom::Array<detail::flat_map::GroupBucket> m_metadata;
 
@@ -728,8 +720,35 @@ private:
   using PairStorage = detail::flat_map::TypeErasedStorage<KeyValuePair>;
   axom::Array<PairStorage> m_buckets;
 
-  // Boost flat_unordered_map uses a fixed load factor.
-  constexpr static double MAX_LOAD_FACTOR = 0.875;
+  // Boost flat_unordered_map uses a fixed maximum load factor of 7/8.
+  // MAX_LOAD_FACTOR_NUM and MAX_LOAD_FACTOR_DEN name the fraction directly:
+  //   max_load_factor() == MAX_LOAD_FACTOR_NUM / MAX_LOAD_FACTOR_DEN
+  //
+  // Constructor sizing historically computed:
+  //   static_cast<IndexType>(requested_bucket_count / 0.875)
+  //
+  // For non-negative integer inputs, truncating requested_bucket_count / (7/8)
+  // is equivalent to:
+  //   requested_bucket_count + requested_bucket_count / 7
+  //
+  // Keep bucketCapacityForSize() truncating, not ceiling, to preserve the
+  // previous bucket-count behavior at group boundaries.
+  constexpr static std::uint64_t MAX_LOAD_FACTOR_NUM {7};
+  constexpr static std::uint64_t MAX_LOAD_FACTOR_DEN {8};
+
+  static constexpr IndexType bucketCapacityForSize(IndexType size)
+  {
+    // Integer equivalent of truncating size / (7/8), avoiding floating-point
+    // conversion warnings and avoiding overflow from size * 8.
+    return size + size / MAX_LOAD_FACTOR_NUM;
+  }
+
+  static constexpr bool exceedsMaxLoadFactor(IndexType size, IndexType bucket_count)
+  {
+    return MAX_LOAD_FACTOR_DEN * static_cast<std::uint64_t>(size) >=
+      MAX_LOAD_FACTOR_NUM * static_cast<std::uint64_t>(bucket_count);
+  }
+
   std::uint64_t m_loadCount;
 };
 
@@ -806,16 +825,20 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   , m_loadCount(0)
 {
   IndexType minBuckets = MIN_NUM_BUCKETS;
-  bucket_count = axom::utilities::max<IndexType>(minBuckets, bucket_count / MAX_LOAD_FACTOR);
+  const IndexType loadFactorBuckets = bucketCapacityForSize(bucket_count);
+  bucket_count = axom::utilities::max<IndexType>(minBuckets, loadFactorBuckets);
   // Get the smallest power-of-two number of groups satisfying:
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
-    std::int32_t numGroups = std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
+    // Integer equivalent of ceil((bucket_count + 1) / double(BucketsPerGroup)).
+    const IndexType bucketCountWithSentinel = bucket_count + 1;
+    std::int32_t numGroups =
+      static_cast<std::int32_t>((bucketCountWithSentinel + BucketsPerGroup - 1) / BucketsPerGroup);
     m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups - 1));
   }
 
-  IndexType numGroupsRounded = 1 << m_numGroups2;
+  IndexType numGroupsRounded = IndexType {1} << m_numGroups2;
   IndexType numBuckets = numGroupsRounded * BucketsPerGroup - 1;
 
   using BucketType = detail::flat_map::GroupBucket;
@@ -839,7 +862,13 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType num_elems,
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 {
-  auto hash = Hash {}(key);
+  return find_with_hash(key, Hash {}(key));
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+auto FlatMap<KeyType, ValueType, Hash>::find_with_hash(const KeyType& key, hash_result_type hash)
+  -> iterator
+{
   iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)
@@ -856,7 +885,13 @@ auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
 {
-  auto hash = Hash {}(key);
+  return find_with_hash(key, Hash {}(key));
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+auto FlatMap<KeyType, ValueType, Hash>::find_with_hash(const KeyType& key, hash_result_type hash) const
+  -> const_iterator
+{
   const_iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)
@@ -887,22 +922,31 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
 {
   auto hash = Hash {}(key);
 
-  // If the key already exists, return the existing iterator.
-  iterator existing_elem = this->find(key);
+  // Single fused probe: visit key matches and locate the insertion slot in a single pass
+  iterator existing_elem = this->end();
+  IndexType newBucket =
+    this->probeEmplaceIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
+      if(this->m_buckets[bucket_index].get().first == key)
+      {
+        existing_elem = iterator(this, bucket_index);
+        return false;
+      }
+      return true;
+    });
+
   if(existing_elem != this->end())
   {
     return {existing_elem, false};
   }
   // Resize to double the number of bucket groups if insertion would put us
-  // above the maximum load factor.
-  if(((m_loadCount + 1) / (double)bucket_count()) >= MAX_LOAD_FACTOR)
+  // above the maximum load factor using exact integer arithmetic.
+  if(exceedsMaxLoadFactor(static_cast<IndexType>(m_loadCount + 1), bucket_count()))
   {
     IndexType newNumGroups = m_metadata.size() * 2;
     rehash(newNumGroups * BucketsPerGroup - 1);
+    // The table was rebuilt, so the slot is stale. If we got here, the key is missing
+    newBucket = this->probeEmptyIndex(m_numGroups2, m_metadata, hash);
   }
-
-  // Get an empty index to place the element into.
-  IndexType newBucket = this->probeEmptyIndex(m_numGroups2, m_metadata, hash);
 
   // Add a hash to the corresponding bucket slot.
   this->setBucketHash(m_metadata, newBucket, hash);
@@ -953,5 +997,3 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
 }  // namespace axom
 
 #include "FlatMapUtil.hpp"
-
-#endif  // Axom_Core_FlatMap_HPP

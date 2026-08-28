@@ -21,6 +21,7 @@ set(gtest_sidre_tests
    sidre_external.cpp
    sidre_group.cpp
    sidre_opaque.cpp
+   sidre_checksum.cpp
    sidre_view.cpp
    sidre_native_layout.cpp
    sidre_attribute.cpp
@@ -56,6 +57,8 @@ set(python_sidre_tests
    sidre_view_Py.py
    sidre_external_Py.py
    sidre_attribute_Py.py
+   sidre_lifetime_Py.py
+   sidre_import_Py.py
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)
@@ -126,6 +129,14 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
                               OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                               )
     endforeach()
+
+    if(AXOM_ENABLE_MPI)
+        axom_add_python_test( NAME sidre_spio_Py
+                              SOURCE sidre_spio_Py.py
+                              OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                              NUM_MPI_TASKS 4
+                              )
+    endif()
 endif()
 
 #------------------------------------------------------------------------------

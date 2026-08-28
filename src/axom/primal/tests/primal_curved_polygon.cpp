@@ -12,6 +12,7 @@
 #include "gtest/gtest.h"
 
 #include "axom/config.hpp"
+#include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 
@@ -275,7 +276,7 @@ void test_split_edge(primal::CurvedPolygon<CurveType>& curved_polygon)
   nCurve.split(.5, nCurve2, nCurve3);
 
   EXPECT_EQ(curved_polygon.numEdges(), 4);
-  for(int i = 0; i < curved_polygon[0].getNumControlPoints(); ++i)
+  for(axom::IndexType i = 0; i < curved_polygon[0].getNumControlPoints(); ++i)
   {
     for(int dimi = 0; dimi < 2; ++dimi)
     {
@@ -367,7 +368,7 @@ TEST(primal_curvedpolygon, moments_triangle_linear)
   axom::Array<int> orders = {1, 1, 1};
   CurvedPolygonType bPolygon = createBezierPolygon(CP, orders);
 
-  CoordType trueA = -.18;
+  CoordType trueA = .18;
   PointType trueC = PointType::make_point(0.3, 1.6);
 
   checkMoments(bPolygon, trueA, trueC, 1e-14, 1e-15);
@@ -395,7 +396,7 @@ TEST(primal_curvedpolygon, moments_triangle_quadratic)
   axom::Array<int> orders = {2, 2, 2};
   CurvedPolygonType bPolygon = createBezierPolygon(CP, orders);
 
-  CoordType trueA = -0.097333333333333;
+  CoordType trueA = 0.097333333333333;
   PointType trueC {.294479452054794, 1.548219178082190};
 
   checkMoments(bPolygon, trueA, trueC, 1e-15, 1e-14);
@@ -422,7 +423,7 @@ TEST(primal_curvedpolygon, moments_triangle_mixed_order)
   axom::Array<int> orders = {2, 2, 1};
   CurvedPolygonType bPolygon = createBezierPolygon(CP, orders);
 
-  CoordType trueA = -.0906666666666666666666;
+  CoordType trueA = .0906666666666666666666;
   PointType trueC {.2970147058823527, 1.55764705882353};
 
   checkMoments(bPolygon, trueA, trueC, 1e-14, 1e-14);
@@ -447,7 +448,7 @@ TEST(primal_curvedpolygon, moments_quad_all_orders)
   axom::Array<int> orders = {1, 1, 1, 1};
   CurvedPolygonType bPolygon = createBezierPolygon(CPorig, orders);
 
-  CoordType trueA = 1.0;
+  CoordType trueA = -1.0;
   PointType trueC = PointType::make_point(0.5, 0.5);
 
   checkMoments(bPolygon, trueA, trueC, 1e-14, 1e-15);

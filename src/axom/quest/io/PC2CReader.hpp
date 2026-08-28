@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_PC2CREADER_HPP_
-#define QUEST_PC2CREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -18,9 +17,7 @@
 
 #include "mpi.h"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 class PC2CReader : public C2CReader
@@ -29,7 +26,7 @@ public:
   PC2CReader() = delete;
   PC2CReader(MPI_Comm comm);
 
-  virtual ~PC2CReader() = default;
+  ~PC2CReader() override = default;
 
   /*!
    * \brief Reads in a C2C file to all ranks in the associated communicator
@@ -37,7 +34,7 @@ public:
    * \note Rank 0 reads in the C2C mesh file and broadcasts to the other ranks
    * \return status set to zero on success; non-zero otherwise
    */
-  int read() final override;
+  [[nodiscard]] int read() final override;
 
 private:
   /// MPI broadcasts an integer from rank 0 and returns the value to all ranks
@@ -79,7 +76,7 @@ private:
     {
       // since the data is contiguous, we can cast the start of the data to a double*
       const int numVals = arr.size() * value_type::DIMENSION;
-      double* dataPtr = (numVals > 0) ? arr[0].data() : nullptr;
+      double* dataPtr = !arr.empty() ? arr[0].data() : nullptr;
       MPI_Bcast(dataPtr, numVals, axom::mpi_traits<double>::type, 0, m_comm);
     }
   }
@@ -93,7 +90,4 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(PC2CReader);
 };
 
-}  // namespace quest
-}  // namespace axom
-
-#endif  // QUEST_PC2CREADER_HPP_
+}  // namespace axom::quest

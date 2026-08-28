@@ -12,7 +12,7 @@
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 
 // Quest includes
-#ifdef AXOM_USE_MPI
+#if defined(AXOM_USE_MPI)
   #include "axom/quest/io/PSTLReader.hpp"
   #include "axom/quest/io/PProEReader.hpp"
 #endif
@@ -34,18 +34,12 @@
 #include <algorithm>
 #include <limits>
 
-namespace axom
-{
-namespace quest
-{
-namespace internal
+namespace axom::quest::internal
 {
 /// Mesh I/O methods
 
-#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
-/*!
- * \brief Deallocates the specified MPI communicator object.
- */
+#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+/// Deallocates the specified MPI communicator object.
 static void mpi_comm_free(MPI_Comm* comm)
 {
   if(*comm != MPI_COMM_NULL)
@@ -101,10 +95,7 @@ static int read_and_exchange_mesh_metadata(int global_rank_id,
   return rc;
 }
 
-/*!
- * \brief Creates inter-node and intra-node communicators from the given global
- *        MPI communicator handle.
- */
+/// \brief Creates inter-node and intra-node communicators from the given global MPI communicator handle.
 static void create_communicators(MPI_Comm global_comm,
                                  MPI_Comm& intra_node_comm,
                                  MPI_Comm& inter_node_comm,
@@ -300,10 +291,8 @@ int read_stl_mesh_shared(const std::string& file,
 }
 #endif
 
-/*
- * Reads in the surface mesh from the specified file.
- */
-int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
+/// Reads in the surface mesh from the specified file.
+int read_stl_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm)
 {
   // NOTE: STL meshes are always 3D
   constexpr int DIMENSION = 3;
@@ -320,7 +309,7 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   m = new TriangleMesh(DIMENSION, mint::TRIANGLE);
 
   // STEP 2: construct STL reader
-#ifdef AXOM_USE_MPI
+#if defined(AXOM_USE_MPI)
   quest::PSTLReader reader(comm);
 #else
   AXOM_UNUSED_VAR(comm);
@@ -344,10 +333,8 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   return rc;
 }
 
-#ifdef AXOM_USE_C2C
-/*
- * Reads in the contour mesh from the specified file.
- */
+#if defined(AXOM_USE_C2C)
+/// Reads in the contour mesh from the specified file.
 int read_c2c_mesh(const std::string& file,
                   bool uniform,
                   const numerics::Matrix<double>& transform,
@@ -356,7 +343,7 @@ int read_c2c_mesh(const std::string& file,
                   double percentError,
                   mint::Mesh*& m,
                   double& revolvedVolume,
-                  MPI_Comm comm)
+                  CommHandle comm)
 {
   // NOTE: C2C meshes are always 2D
   constexpr int DIMENSION = 2;
@@ -371,7 +358,7 @@ int read_c2c_mesh(const std::string& file,
   }
 
   // STEP 2: construct C2C reader
-  #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
+  #if defined(AXOM_USE_MPI)
   quest::PC2CReader reader(comm);
   #else
   AXOM_UNUSED_VAR(comm);
@@ -400,7 +387,7 @@ int read_c2c_mesh(const std::string& file,
   }
   else
   {
-    SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
+    SLIC_WARNING_ROOT(axom::fmt::format("reading C2C file '{}' failed, setting mesh to NULL", file));
     m = nullptr;
   }
 
@@ -409,10 +396,8 @@ int read_c2c_mesh(const std::string& file,
 
 #endif  // AXOM_USE_C2C
 
-/*
- * Reads in the Pro/E tetrahedral from the specified file.
- */
-int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
+/// Reads in the Pro/E tetrahedral from the specified file.
+int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, CommHandle comm)
 {
   constexpr int DIMENSION = 3;
   using TetMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
@@ -428,7 +413,7 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   m = new TetMesh(DIMENSION, mint::TET);
 
   // STEP 2: construct Pro/E reader
-#ifdef AXOM_USE_MPI
+#if defined(AXOM_USE_MPI)
   quest::PProEReader reader(comm);
 #else
   AXOM_UNUSED_VAR(comm);
@@ -453,9 +438,7 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
 }
 
 #if defined(AXOM_USE_MFEM)
-/*
- * Reads in the contour mesh from the specified file.
- */
+/// Reads in the contour mesh from the specified file.
 int read_mfem_mesh(const std::string& file,
                    bool uniform,
                    const numerics::Matrix<double>& transform,
@@ -513,9 +496,7 @@ int read_mfem_mesh(const std::string& file,
 
 /// Mesh Helper Methods
 
-/*
- * Computes the bounds of the given mesh.
- */
+/// Computes the bounds of the given mesh.
 void compute_mesh_bounds(const mint::Mesh* mesh, double* lo, double* hi)
 {
   SLIC_ASSERT(mesh != nullptr);
@@ -548,10 +529,8 @@ void compute_mesh_bounds(const mint::Mesh* mesh, double* lo, double* hi)
 
 /// Logger Initialize/Finalize Methods
 
-/*
- * Helper method to initialize the Slic logger if needed.
- */
-void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, MPI_Comm comm)
+/// Helper method to initialize the Slic logger if needed.
+void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, CommHandle comm)
 {
   if(isInitialized)
   {
@@ -591,9 +570,7 @@ void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, MPI_Comm
   slic::setLoggingMsgLevel((verbose) ? slic::message::Info : slic::message::Error);
 }
 
-/*
- * Finalizes the Slic logger (if needed)
- */
+/// Finalizes the Slic logger (if needed)
 void logger_finalize(bool mustFinalize)
 {
   if(mustFinalize)
@@ -602,6 +579,4 @@ void logger_finalize(bool mustFinalize)
   }
 }
 
-}  // end namespace internal
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest::internal

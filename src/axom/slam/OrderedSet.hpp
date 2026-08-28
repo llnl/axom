@@ -4,23 +4,23 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file OrderedSet.hpp
  *
  * \brief Basic API for an ordered set of entities in a simulation
+ * 
  * \note We are actually storing (ordered) multisets, since elements can be
  *  repeated an arbitrary number of times (e.g. for indirection sets)
- *
  */
-
-#ifndef SLAM_ORDERED_SET_H_
-#define SLAM_ORDERED_SET_H_
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/slic.hpp"
 
 #include "axom/slam/Set.hpp"
+#include "axom/slam/Traits.hpp"
 
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/OffsetPolicies.hpp"
@@ -37,9 +37,7 @@
 #include <vector>
 #include <iterator>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class OrderedSet
@@ -124,9 +122,7 @@ private:
             typename OtherInterfacePolicy>
   friend struct OrderedSet;
 
-  /*!
-   * \brief Helper tag class to call OrderedSet conversion constructor.
-   */
+  /// \brief Helper tag class to call OrderedSet conversion constructor
   struct ConversionTag
   { };
 
@@ -184,9 +180,8 @@ public:
    * \class SetBuilder
    * \brief Helper class for constructing an ordered set.
    *
-   *  Uses named parameter idiom to enable function chaining and for better code
-   *  self-documentation
-   * */
+   *  Uses named parameter idiom to enable function chaining and for better code self-documentation
+   */
   struct SetBuilder
   {
     friend struct OrderedSet;
@@ -227,6 +222,14 @@ public:
     AXOM_HOST_DEVICE SetBuilder& data(DataType bufPtr)
     {
       m_data = IndirectionPolicyType(bufPtr);
+      return *this;
+    }
+
+    AXOM_HOST_DEVICE SetBuilder& data(DataType bufPtr, PositionType bufferSize)
+    {
+      static_assert(std::is_constructible<IndirectionPolicyType, DataType, PositionType>::value,
+                    "This indirection policy does not support sized data binding.");
+      m_data = IndirectionPolicyType(bufPtr, bufferSize);
       return *this;
     }
 
@@ -311,11 +314,11 @@ public:
     using difference_type = PositionType;
 
     using reference =
-      typename std::conditional<Const,
-                                typename OrderedSet::IndirectionPolicyType::ConstIndirectionResult,
-                                typename OrderedSet::IndirectionPolicyType::IndirectionResult>::type;
+      std::conditional_t<Const,
+                         typename OrderedSet::IndirectionPolicyType::ConstIndirectionResult,
+                         typename OrderedSet::IndirectionPolicyType::IndirectionResult>;
 
-    using pointer = typename std::conditional<Const, const T*, T*>::type;
+    using pointer = maybe_const_t<Const, T>*;
 
     using IterBase = IteratorBase<OrderedSetIterator<T, Const>, PositionType>;
 
@@ -336,51 +339,21 @@ public:
     /// \}
 
     /// \name Member and pointer operators
-    /// \note We use the \a enable_if construct to implement both
-    /// const and non-const iterators in the same implementation.
+    /// \note A single const-qualified implementation serves both the const and non-const iterator.
+    /// Element mutability is carried by the \a reference and \a pointer types
+    /// \a m_orderedSet is \c mutable so the non-const iterator can return
+    /// a mutable reference from a const-qualified operator, and the
+    /// iterator is const-dereferenceable (as the standard iterator concepts require).
     /// \{
 
-    /// Indirection operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, reference>::type operator*()
-    {
-      return m_orderedSet.IndirectionType::indirection(m_pos);
-    }
+    /// Dereference operator
+    reference operator*() const { return m_orderedSet.IndirectionType::indirection(m_pos); }
 
-    /// Indirection operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, reference>::type operator*() const
-    {
-      return m_orderedSet.IndirectionType::indirection(m_pos);
-    }
+    /// Structure dereference operator
+    pointer operator->() const { return &(m_orderedSet.IndirectionType::indirection(m_pos)); }
 
-    /// Structure dereference operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, pointer>::type operator->()
-    {
-      return &(m_orderedSet.IndirectionType::indirection(m_pos));
-    }
-
-    /// Structure dereference operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, pointer>::type operator->() const
-    {
-      return &(m_orderedSet.IndirectionType::indirection(m_pos));
-    }
-
-    /// Subscript operator for non-const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<!_Const, reference>::type operator[](PositionType n)
-    {
-      return *(*this + n);
-    }
-
-    /// Subscript operator for const iterator
-    template <bool _Const = Const>
-    typename std::enable_if<_Const, reference>::type operator[](PositionType n) const
-    {
-      return *(*this + n);
-    }
+    /// Subscript operator
+    reference operator[](PositionType n) const { return *(*this + n); }
 
     /// \}
 
@@ -412,7 +385,7 @@ public:
     inline const PositionType offset() const { return m_orderedSet.OffsetType::offset(); }
 
   private:
-    OrderedSet::ConcreteSet m_orderedSet;
+    mutable OrderedSet::ConcreteSet m_orderedSet;
   };
 
 public:  // Functions related to iteration
@@ -438,10 +411,7 @@ public:  // Functions related to iteration
   const_iterator_pair range() const { return std::make_pair(begin(), end()); }
 
 public:
-  /**
-   * \brief Given a position in the Set, return a position in the larger index
-   *  space
-   */
+  /// \brief Given a position in the Set, return a position in the larger index space
   AXOM_HOST_DEVICE
   inline typename IndirectionPolicy::ConstIndirectionResult operator[](PositionType pos) const
   {
@@ -461,14 +431,14 @@ public:
     return IndirectionPolicy::indirection(pos * StridePolicyType::stride() +
                                           OffsetPolicyType::offset());
   }
-  inline ElementType at(PositionType pos) const { return operator[](pos); }
+  [[nodiscard]] inline ElementType at(PositionType pos) const { return operator[](pos); }
 
-  AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicyType::size(); }
+  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicyType::size(); }
 
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE inline bool empty() const { return SizePolicyType::empty(); }
+  [[nodiscard]] AXOM_HOST_DEVICE inline bool empty() const { return SizePolicyType::empty(); }
 
-  bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
   bool isSubset() const { return SubsettingPolicy::isSubset(); }
 
@@ -478,7 +448,10 @@ public:
    * An index pos is valid when \f$ 0 \le pos < size() \f$
    * \return true if the position is valid, false otherwise
    */
-  inline bool isValidIndex(PositionType pos) const { return pos >= 0 && pos < size(); }
+  [[nodiscard]] inline bool isValidIndex(PositionType pos) const
+  {
+    return pos >= 0 && pos < size();
+  }
 
   /**
    * \brief returns a PositionSet over the set's positions
@@ -522,7 +495,4 @@ bool OrderedSet<PosType, ElemType, SizePolicy, OffsetPolicy, StridePolicy, Indir
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  //  SLAM_ORDERED_SET_H_
+}  // end namespace axom::slam

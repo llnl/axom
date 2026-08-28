@@ -25,14 +25,12 @@ extern "C" {
   #include "axom/sina/core/ID.hpp"
   #include "axom/sina/core/Run.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::adiakSinaCallback;
+using sina::ID;
+using sina::IDType;
+using sina::Record;
 
 using ::testing::DoubleEq;
 using ::testing::ElementsAre;
@@ -52,22 +50,22 @@ protected:
 
   void SetUp() override { current_test = this; }
 
-  static void callbackWrapper(const char *name,
+  static void callbackWrapper(const char* name,
                               adiak_category_t category,
-                              const char *subcategory,
-                              adiak_value_t *val,
-                              adiak_datatype_t *adiak_type,
-                              void *adiakwriter)
+                              const char* subcategory,
+                              adiak_value_t* val,
+                              adiak_datatype_t* adiak_type,
+                              void* adiakwriter)
   {
-    auto test = static_cast<AdiakWriterTest **>(adiakwriter);
+    auto test = static_cast<AdiakWriterTest**>(adiakwriter);
     adiakSinaCallback(name, category, subcategory, val, adiak_type, &((*test)->record));
   }
 
   axom::sina::Record record {axom::sina::ID {"test_run", axom::sina::IDType::Local}, "test_type"};
-  static AdiakWriterTest *current_test;
+  static AdiakWriterTest* current_test;
 };
 
-AdiakWriterTest *AdiakWriterTest::current_test;
+AdiakWriterTest* AdiakWriterTest::current_test;
 
 TEST_F(AdiakWriterTest, basic_assignment)
 {
@@ -163,10 +161,5 @@ TEST_F(AdiakWriterTest, files_list)
   EXPECT_EQ(1, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"].number_of_children());
   EXPECT_EQ(fileListName, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"][0].as_string());
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom
 
 #endif  // AXOM_USE_ADIAK

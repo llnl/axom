@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_EXTRUDE_MESH_HPP_
-#define AXOM_BUMP_EXTRUDE_MESH_HPP_
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump.hpp"
@@ -42,7 +41,7 @@ public:
    * \param topoView The topology view.
    * \param coordsetView The coordset view.
    */
-  ExtrudeMesh(const TopologyView &topoView, const CoordsetView &coordsetView)
+  ExtrudeMesh(const TopologyView& topoView, const CoordsetView& coordsetView)
     : m_topologyView(topoView)
     , m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
@@ -87,7 +86,7 @@ public:
    * outputMatsetName: newmatset
    * \endverbatim
    */
-  void execute(const conduit::Node &n_mesh, const conduit::Node &n_options, conduit::Node &n_output) const
+  void execute(const conduit::Node& n_mesh, const conduit::Node& n_options, conduit::Node& n_output) const
   {
     namespace utils = axom::bump::utilities;
     namespace views = axom::bump::views;
@@ -97,7 +96,7 @@ public:
     // Get some properties from the options.
     const std::string srcTopoName =
       n_options.has_child("topologyName") ? n_options["topologyName"].as_string() : "main";
-    const conduit::Node &n_srcTopo = n_mesh.fetch_existing("topologies/" + srcTopoName);
+    const conduit::Node& n_srcTopo = n_mesh.fetch_existing("topologies/" + srcTopoName);
     const std::string srcCoordsetName = n_srcTopo["coordset"].as_string();
     const std::string outputTopoName = n_options.has_child("outputTopologyName")
       ? n_options["outputTopologyName"].as_string()
@@ -154,14 +153,14 @@ public:
 
     // Create the new coordset.
     AXOM_ANNOTATE_BEGIN("coordset");
-    const char *coordNames[] = {"values/x", "values/y", "values/z"};
-    conduit::Node &n_outputCoordset = n_output["coordsets/" + outputCoordsetName];
+    const char* coordNames[] = {"values/x", "values/y", "values/z"};
+    conduit::Node& n_outputCoordset = n_output["coordsets/" + outputCoordsetName];
     n_outputCoordset["type"] = "explicit";
     using value_type = typename CoordsetView::value_type;
     axom::StackArray<axom::ArrayView<value_type>, 3> values;
     for(int d = 0; d < 3; d++)
     {
-      conduit::Node &n_value = n_outputCoordset[coordNames[d]];
+      conduit::Node& n_value = n_outputCoordset[coordNames[d]];
       n_value.set_allocator(conduitAllocatorId);
       n_value.set(conduit::DataType(utils::cpp2conduit<value_type>::id, totalNodes));
       values[d] = utils::make_array_view<value_type>(n_value);
@@ -189,7 +188,7 @@ public:
 
     // Create the new topology.
     AXOM_ANNOTATE_BEGIN("topology");
-    conduit::Node &n_outputTopo = n_output["topologies/" + outputTopoName];
+    conduit::Node& n_outputTopo = n_output["topologies/" + outputTopoName];
     n_outputTopo["type"] = "unstructured";
     n_outputTopo["coordset"] = outputCoordsetName;
     int count = axom::utilities::popcount(shapes);
@@ -212,10 +211,10 @@ public:
         n_outputTopo["elements/shape"] = "hex";
     }
 
-    conduit::Node &n_connectivity = n_outputTopo["elements/connectivity"];
-    conduit::Node &n_shapes = n_outputTopo["elements/shapes"];
-    conduit::Node &n_sizes = n_outputTopo["elements/sizes"];
-    conduit::Node &n_offsets = n_outputTopo["elements/offsets"];
+    conduit::Node& n_connectivity = n_outputTopo["elements/connectivity"];
+    conduit::Node& n_shapes = n_outputTopo["elements/shapes"];
+    conduit::Node& n_sizes = n_outputTopo["elements/sizes"];
+    conduit::Node& n_offsets = n_outputTopo["elements/offsets"];
 
     using ConnectivityType = typename TopologyView::ConnectivityType;
     n_connectivity.set_allocator(conduitAllocatorId);
@@ -311,11 +310,11 @@ public:
     std::string matsetName = findMatset(n_mesh, srcTopoName);
     if(!matsetName.empty())
     {
-      const conduit::Node &n_srcMatset = n_mesh.fetch_existing("matsets/" + matsetName);
+      const conduit::Node& n_srcMatset = n_mesh.fetch_existing("matsets/" + matsetName);
       std::string outputMatsetName = n_options.has_child("outputMatsetName")
         ? n_options["outputMatsetName"].as_string()
         : matsetName;
-      conduit::Node &n_outputMatset = n_output["matsets/" + outputMatsetName];
+      conduit::Node& n_outputMatset = n_output["matsets/" + outputMatsetName];
       extrudeMatset(n_srcMatset, n_outputMatset, outputTopoName, nz);
     }
   }
@@ -334,12 +333,12 @@ private:
    * \return The name of the matset associated with the input topology, or an
    *         empty string if no matset exists.
    */
-  std::string findMatset(const conduit::Node &n_mesh, const std::string &topoName) const
+  std::string findMatset(const conduit::Node& n_mesh, const std::string& topoName) const
   {
     std::string matset;
     if(n_mesh.has_child("matsets"))
     {
-      const conduit::Node &n_matsets = n_mesh["matsets"];
+      const conduit::Node& n_matsets = n_mesh["matsets"];
       for(conduit::index_t i = 0; i < n_matsets.number_of_children(); i++)
       {
         if(n_matsets[i]["topology"].as_string() == topoName)
@@ -362,32 +361,32 @@ private:
    *
    * \note In future work, we could use matset views to support more input matset types.
    */
-  void extrudeMatset(const conduit::Node &n_srcMatset,
-                     conduit::Node &n_outputMatset,
-                     const std::string &outputTopoName,
+  void extrudeMatset(const conduit::Node& n_srcMatset,
+                     conduit::Node& n_outputMatset,
+                     const std::string& outputTopoName,
                      int nz) const
   {
     namespace utils = axom::bump::utilities;
     namespace views = axom::bump::views;
     AXOM_ANNOTATE_SCOPE("matset");
 
-    const conduit::Node &n_materialMap = n_srcMatset["material_map"];
+    const conduit::Node& n_materialMap = n_srcMatset["material_map"];
 
-    const conduit::Node &n_src_volume_fractions = n_srcMatset["volume_fractions"];
-    const conduit::Node &n_src_material_ids = n_srcMatset["material_ids"];
-    const conduit::Node &n_src_indices = n_srcMatset["indices"];
-    const conduit::Node &n_src_sizes = n_srcMatset["sizes"];
-    const conduit::Node &n_src_offsets = n_srcMatset["offsets"];
+    const conduit::Node& n_src_volume_fractions = n_srcMatset["volume_fractions"];
+    const conduit::Node& n_src_material_ids = n_srcMatset["material_ids"];
+    const conduit::Node& n_src_indices = n_srcMatset["indices"];
+    const conduit::Node& n_src_sizes = n_srcMatset["sizes"];
+    const conduit::Node& n_src_offsets = n_srcMatset["offsets"];
 
     // Make new matset nodes
     n_outputMatset["material_map"].set(n_materialMap);
     n_outputMatset["topology"].set(outputTopoName);
 
-    conduit::Node &n_material_ids = n_outputMatset["material_ids"];
-    conduit::Node &n_volume_fractions = n_outputMatset["volume_fractions"];
-    conduit::Node &n_indices = n_outputMatset["indices"];
-    conduit::Node &n_sizes = n_outputMatset["sizes"];
-    conduit::Node &n_offsets = n_outputMatset["offsets"];
+    conduit::Node& n_material_ids = n_outputMatset["material_ids"];
+    conduit::Node& n_volume_fractions = n_outputMatset["volume_fractions"];
+    conduit::Node& n_indices = n_outputMatset["indices"];
+    conduit::Node& n_sizes = n_outputMatset["sizes"];
+    conduit::Node& n_offsets = n_outputMatset["offsets"];
 
     const auto conduitAllocatorId =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
@@ -499,5 +498,3 @@ private:
 
 }  // namespace bump
 }  // namespace axom
-
-#endif

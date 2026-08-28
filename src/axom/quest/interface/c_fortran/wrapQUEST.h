@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPQUEST_H
+#define WRAPQUEST_H
+
 /**
  * \file wrapQUEST.h
  * \brief Shroud generated wrapper for quest namespace
  */
 // For C users and C++ implementation
-
-#ifndef WRAPQUEST_H
-#define WRAPQUEST_H
 
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
@@ -48,19 +49,19 @@ enum QUEST_SignedDistExec
 };
 
 #ifdef AXOM_USE_MPI
-int QUEST_inout_init_mpi(const char *fileName, MPI_Fint comm);
+int QUEST_inout_init_mpi(const char* fileName, MPI_Fint comm);
 #endif
 
 #ifdef AXOM_USE_MPI
-int QUEST_inout_init_mpi_bufferify(char *fileName, int SHT_fileName_len, MPI_Fint comm);
+int QUEST_inout_init_mpi_bufferify(char* fileName, int SHT_fileName_len, MPI_Fint comm);
 #endif
 
 #ifndef AXOM_USE_MPI
-int QUEST_inout_init_serial(const char *fileName);
+int QUEST_inout_init_serial(const char* fileName);
 #endif
 
 #ifndef AXOM_USE_MPI
-int QUEST_inout_init_serial_bufferify(char *fileName, int SHT_fileName_len);
+int QUEST_inout_init_serial_bufferify(char* fileName, int SHT_fileName_len);
 #endif
 
 bool QUEST_inout_initialized(void);
@@ -77,35 +78,35 @@ bool QUEST_inout_evaluate_0(double x, double y);
 
 bool QUEST_inout_evaluate_1(double x, double y, double z);
 
-int QUEST_inout_mesh_min_bounds(double *coords);
+int QUEST_inout_mesh_min_bounds(double* coords);
 
-int QUEST_inout_mesh_max_bounds(double *coords);
+int QUEST_inout_mesh_max_bounds(double* coords);
 
-int QUEST_inout_mesh_center_of_mass(double *coords);
+int QUEST_inout_mesh_center_of_mass(double* coords);
 
 int QUEST_inout_get_dimension(void);
 
 int QUEST_inout_finalize(void);
 
 #ifdef AXOM_USE_MPI
-int QUEST_signed_distance_init_mpi(const char *file, MPI_Fint comm);
+int QUEST_signed_distance_init_mpi(const char* file, MPI_Fint comm);
 #endif
 
 #ifdef AXOM_USE_MPI
-int QUEST_signed_distance_init_mpi_bufferify(char *file, int SHT_file_len, MPI_Fint comm);
+int QUEST_signed_distance_init_mpi_bufferify(char* file, int SHT_file_len, MPI_Fint comm);
 #endif
 
 #ifndef AXOM_USE_MPI
-int QUEST_signed_distance_init_serial(const char *file);
+int QUEST_signed_distance_init_serial(const char* file);
 #endif
 
 #ifndef AXOM_USE_MPI
-int QUEST_signed_distance_init_serial_bufferify(char *file, int SHT_file_len);
+int QUEST_signed_distance_init_serial_bufferify(char* file, int SHT_file_len);
 #endif
 
 bool QUEST_signed_distance_initialized(void);
 
-void QUEST_signed_distance_get_mesh_bounds(double *lo, double *hi);
+void QUEST_signed_distance_get_mesh_bounds(double* lo, double* hi);
 
 void QUEST_signed_distance_set_dimension(int dim);
 
@@ -130,12 +131,12 @@ double QUEST_signed_distance_evaluate_0(double x, double y, double z);
 double QUEST_signed_distance_evaluate_1(double x,
                                         double y,
                                         double z,
-                                        double *cp_x,
-                                        double *cp_y,
-                                        double *cp_z,
-                                        double *n_x,
-                                        double *n_y,
-                                        double *n_z);
+                                        double* cp_x,
+                                        double* cp_y,
+                                        double* cp_z,
+                                        double* n_x,
+                                        double* n_y,
+                                        double* n_z);
 
 void QUEST_signed_distance_finalize(void);
 

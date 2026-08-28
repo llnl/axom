@@ -6,14 +6,15 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
+
+#ifndef WRAPGENERICOUTPUTSTREAM_H
+#define WRAPGENERICOUTPUTSTREAM_H
+
 /**
  * \file wrapGenericOutputStream.h
  * \brief Shroud generated wrapper for GenericOutputStream class
  */
 // For C users and C++ implementation
-
-#ifndef WRAPGENERICOUTPUTSTREAM_H
-#define WRAPGENERICOUTPUTSTREAM_H
 
 #include "typesSLIC.h"
 
@@ -27,24 +28,24 @@ extern "C" {
 // splicer begin class.GenericOutputStream.C_declarations
 // splicer end class.GenericOutputStream.C_declarations
 
-SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_default(const char *stream,
-                                                                SLIC_GenericOutputStream *SHC_rv);
+SLIC_GenericOutputStream* SLIC_GenericOutputStream_ctor_default(const char* stream,
+                                                                SLIC_GenericOutputStream* SHC_rv);
 
-void SLIC_GenericOutputStream_ctor_default_bufferify(char *stream,
+void SLIC_GenericOutputStream_ctor_default_bufferify(char* stream,
                                                      int SHT_stream_len,
-                                                     SLIC_GenericOutputStream *SHC_rv);
+                                                     SLIC_GenericOutputStream* SHC_rv);
 
-SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_format(const char *stream,
-                                                               const char *format,
-                                                               SLIC_GenericOutputStream *SHC_rv);
+SLIC_GenericOutputStream* SLIC_GenericOutputStream_ctor_format(const char* stream,
+                                                               const char* format,
+                                                               SLIC_GenericOutputStream* SHC_rv);
 
-void SLIC_GenericOutputStream_ctor_format_bufferify(char *stream,
+void SLIC_GenericOutputStream_ctor_format_bufferify(char* stream,
                                                     int SHT_stream_len,
-                                                    char *format,
+                                                    char* format,
                                                     int SHT_format_len,
-                                                    SLIC_GenericOutputStream *SHC_rv);
+                                                    SLIC_GenericOutputStream* SHC_rv);
 
-void SLIC_GenericOutputStream_delete(SLIC_GenericOutputStream *self);
+void SLIC_GenericOutputStream_delete(SLIC_GenericOutputStream* self);
 
 #ifdef __cplusplus
 }

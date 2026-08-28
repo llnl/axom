@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_C2CREADER_HPP_
-#define QUEST_C2CREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -15,16 +14,14 @@
 
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
+#include "axom/core/utilities/Units.hpp"
 #include "axom/mint.hpp"
 #include "axom/primal.hpp"
-#include "c2c/C2C.hpp"
 
 #include <string>
 #include <vector>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /*
  * \class C2CReader
@@ -39,6 +36,13 @@ public:
   using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
   using CurveArray = axom::Array<NURBSCurve>;
   using CurveArrayView = axom::ArrayView<NURBSCurve>;
+  using ConstCurveArrayView = axom::ArrayView<const NURBSCurve>;
+
+  enum class ResultType
+  {
+    Success,
+    Failure
+  };
 
 public:
   C2CReader() = default;
@@ -46,20 +50,23 @@ public:
   virtual ~C2CReader() = default;
 
   /// Sets the name of the contour file to load. Must be called before \a read()
-  void setFileName(const std::string &fileName) { m_fileName = fileName; }
+  void setFileName(const std::string& fileName) { m_fileName = fileName; }
 
   /// Sets the length unit. All lengths will be converted to this unit when reading the mesh
-  void setLengthUnit(c2c::LengthUnit lengthUnit) { m_lengthUnit = lengthUnit; }
+  void setLengthUnit(utilities::LengthUnit lengthUnit);
 
   /// Clears data associated with this reader
   void clear();
+
+  /// Returns true if the file has a recognized c2c extension.
+  static bool hasValidExtension(const std::string& filename);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
    * 
    * \return 0 for a successful read; non-zero otherwise
    */
-  virtual int read();
+  [[nodiscard]] virtual int read();
 
   /// \brief Utility function to log details about the read in file
   virtual void log();
@@ -70,17 +77,43 @@ public:
    * \return A view that contains the curves.
    */
   CurveArrayView getCurvesView() { return m_nurbsData.view(); }
+  ConstCurveArrayView getCurvesView() const { return m_nurbsData.view(); }
 
 protected:
-  int readContour();
+  /*!
+   * \brief Internal helper for reading files.
+   *
+   * \param filename The name of the file to read.
+   * \param[inout] inputCurves The array of curves to append.
+   *
+   * \return Success on success, Failure otherwise.
+   */
+  [[nodiscard]] ResultType readInternal(const std::string& filename, CurveArray& inputCurves);
+
+  /*!
+   * \brief Internal helper for reading a contour file.
+   *
+   * \param filename The name of the file to read.
+   * \param[inout] inputCurves The array of curves to append.
+   *
+   * \return Success on success, Failure otherwise.
+   */
+  [[nodiscard]] ResultType readContour(const std::string& filename, CurveArray& inputCurves);
+
+  /*!
+   * \brief Internal helper for reading an assembly file.
+   *
+   * \param filename The name of the file to read.
+   * \param[inout] inputCurves The array of curves to append.
+   *
+   * \return Success on success, Failure otherwise.
+   */
+  [[nodiscard]] ResultType readAssembly(const std::string& filename, CurveArray& inputCurves);
 
 protected:
   std::string m_fileName;
-  c2c::LengthUnit m_lengthUnit {c2c::LengthUnit::cm};
+  utilities::LengthUnit m_lengthUnit {utilities::LengthUnit::cm};
   CurveArray m_nurbsData;
 };
 
-}  // namespace quest
-}  // namespace axom
-
-#endif  // QUEST_C2CREADER_HPP_
+}  // namespace axom::quest

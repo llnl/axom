@@ -13,14 +13,15 @@
 #include "axom/sina/core/DataHolder.hpp"
 #include "axom/sina/tests/SinaMatchers.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
+using sina::addStringsToNode;
+using sina::Curve;
+using sina::CurveSet;
+using sina::DataHolder;
+using sina::Datum;
 
 using ::testing::Contains;
 using ::testing::DoubleEq;
@@ -54,7 +55,7 @@ TEST(DataHolder, add_curve_set_existing_key)
   cs1.addDependentCurve(Curve {"original", {1, 2, 3}});
   dh.add(cs1);
 
-  auto &csAfterFirstInsert = dh.getCurveSets();
+  auto& csAfterFirstInsert = dh.getCurveSets();
   ASSERT_THAT(csAfterFirstInsert, Contains(Key("cs1")));
   EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(), Contains(Key("original")));
 
@@ -62,7 +63,7 @@ TEST(DataHolder, add_curve_set_existing_key)
   cs2.addDependentCurve(Curve {"new", {1, 2, 3}});
   dh.add(cs2);
 
-  auto &csAfterSecondInsert = dh.getCurveSets();
+  auto& csAfterSecondInsert = dh.getCurveSets();
   ASSERT_THAT(csAfterSecondInsert, Contains(Key("cs1")));
   EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Not(Contains(Key("original"))));
   EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Contains(Key("new")));
@@ -77,7 +78,7 @@ TEST(DataHolder, create_fromNode_userDefined)
   originalNode[EXPECTED_USER_DEFINED_KEY]["k3"] = k3_vals;
 
   DataHolder holder {originalNode};
-  auto const &userDefined = holder.getUserDefinedContent();
+  auto const& userDefined = holder.getUserDefinedContent();
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
@@ -96,14 +97,14 @@ TEST(DataHolder, create_fromNode_userDefined_not_object)
 TEST(DataHolder, getUserDefined_initialConst)
 {
   DataHolder const holder;
-  conduit::Node const &userDefined = holder.getUserDefinedContent();
+  conduit::Node const& userDefined = holder.getUserDefinedContent();
   EXPECT_TRUE(userDefined.dtype().is_empty());
 }
 
 TEST(DataHolder, getUserDefined_initialNonConst)
 {
   DataHolder holder;
-  conduit::Node &initialUserDefined = holder.getUserDefinedContent();
+  conduit::Node& initialUserDefined = holder.getUserDefinedContent();
   EXPECT_TRUE(initialUserDefined.dtype().is_empty());
   initialUserDefined["foo"] = 123;
   EXPECT_EQ(123, holder.getUserDefinedContent()["foo"].as_int());
@@ -113,14 +114,14 @@ TEST(DataHolder, add_new_library)
 {
   DataHolder dh {};
   auto outer = dh.addLibraryData("outer");
-  auto &libDataAfterFirstInsert = dh.getLibraryData();
+  auto& libDataAfterFirstInsert = dh.getLibraryData();
   ASSERT_THAT(libDataAfterFirstInsert, Contains(Key("outer")));
   dh.addLibraryData("other_outer");
-  auto &libDataAfterSecondInsert = dh.getLibraryData();
+  auto& libDataAfterSecondInsert = dh.getLibraryData();
   ASSERT_THAT(libDataAfterSecondInsert, Contains(Key("outer")));
   ASSERT_THAT(libDataAfterSecondInsert, Contains(Key("other_outer")));
   outer->addLibraryData("inner");
-  auto &libDataAfterThirdInsert = dh.getLibraryData();
+  auto& libDataAfterThirdInsert = dh.getLibraryData();
   ASSERT_THAT(libDataAfterThirdInsert.at("outer")->getLibraryData(), Contains(Key("inner")));
   ASSERT_THAT(libDataAfterThirdInsert.at("other_outer")->getLibraryData(),
               Not(Contains(Key("inner"))));
@@ -155,7 +156,7 @@ TEST(DataHolder, create_fromNode_data)
   name2_node["value"] = 2.22;
   originalNode[EXPECTED_DATA_KEY].add_child(name2) = name2_node;
   DataHolder dh {originalNode};
-  auto &data = dh.getData();
+  auto& data = dh.getData();
   ASSERT_EQ(2u, data.size());
   EXPECT_EQ("value 1", data.at(name1).getValue());
   EXPECT_THAT(2.22, DoubleEq(data.at(name2).getScalar()));
@@ -179,7 +180,7 @@ TEST(DataHolder, create_fromNode_curveSets)
         }
     })");
   DataHolder dh {dataHolderAsNode};
-  auto &curveSets = dh.getCurveSets();
+  auto& curveSets = dh.getCurveSets();
   ASSERT_THAT(curveSets, Contains(Key("cs1")));
 }
 
@@ -195,11 +196,11 @@ TEST(DataHolder, create_fromNode_libraryData)
         }
     })");
   DataHolder dh {dataHolderAsNode};
-  auto &fullLibData = dh.getLibraryData();
+  auto& fullLibData = dh.getLibraryData();
   ASSERT_THAT(fullLibData, Contains(Key("outer_lib")));
   auto outerLibData = fullLibData.at("outer_lib")->getLibraryData();
   ASSERT_THAT(outerLibData, Contains(Key("inner_lib")));
-  auto &innerData = outerLibData.at("inner_lib")->getData();
+  auto& innerData = outerLibData.at("inner_lib")->getData();
   EXPECT_EQ("good morning!", innerData.at("i2").getValue());
 }
 
@@ -311,8 +312,3 @@ TEST(DataHolder, toNode_userDefined)
                                 int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

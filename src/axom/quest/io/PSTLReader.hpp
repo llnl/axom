@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_PSTLREADER_HPP_
-#define QUEST_PSTLREADER_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
@@ -13,9 +12,7 @@
 
 #include "mpi.h"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 class PSTLReader : public STLReader
 {
@@ -23,7 +20,7 @@ public:
   PSTLReader() = delete;
   PSTLReader(MPI_Comm comm);
 
-  virtual ~PSTLReader();
+  ~PSTLReader() override;
 
   /*!
    * \brief Reads in an STL file to all ranks in the associated communicator.
@@ -31,7 +28,7 @@ public:
    * \note Rank 0 reads in the STL mesh file and broadcasts to the other ranks.
    * \return status set to zero on success; set to a non-zero value otherwise.
    */
-  int read() final override;
+  [[nodiscard]] int read() final override;
 
 private:
   MPI_Comm m_comm {MPI_COMM_NULL};
@@ -41,7 +38,4 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(PSTLReader);
 };
 
-}  // namespace quest
-}  // namespace axom
-
-#endif /* QUEST_PSTLREADER_HPP_ */
+}  // namespace axom::quest

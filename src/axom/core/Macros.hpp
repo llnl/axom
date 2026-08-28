@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file AxomMacros.hpp
  *
  * \brief Contains several useful macros for the axom project
  */
-
-#ifndef AXOM_MACROS_HPP_
-#define AXOM_MACROS_HPP_
 
 #include "axom/config.hpp"
 #include <cassert>  // for assert()
@@ -89,6 +88,24 @@
   #define AXOM_HOST_LAMBDA [=]
 #endif
 // _decorating_macros_end
+
+/*!
+ * \def AXOM_FORCE_INLINE
+ *
+ * \brief Force-inline annotation for hot-path functions
+ *
+ * \note Prefer using this sparingly on true hot paths since overuse can increase
+ *  code size and hurt instruction cache behavior
+ */
+#if defined(__CUDACC__) || defined(__HIPCC__)
+  #define AXOM_FORCE_INLINE __forceinline__
+#elif defined(__GNUC__) || defined(__clang__)
+  #define AXOM_FORCE_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+  #define AXOM_FORCE_INLINE __forceinline
+#else
+  #define AXOM_FORCE_INLINE inline
+#endif
 
 /*
  * \def AXOM_STRINGIFY
@@ -398,4 +415,11 @@
   template <typename gtest_TypeParam_>                                                            \
   void GTEST_TEST_CLASS_NAME_(CaseName, TestName)<gtest_TypeParam_>::TestBody()
 
-#endif  // AXOM_MACROS_HPP_
+// Provides the definition for `axom::detail::constexprAssert` used by AXOM_CONSTEXPR_ASSERT.
+#include "axom/core/utilities/ConstexprAssert.hpp"
+
+/*!
+ * \def AXOM_CONSTEXPR_ASSERT(EXP)
+ * \brief Assert \a EXP in a way that is valid inside constexpr functions.
+ */
+#define AXOM_CONSTEXPR_ASSERT(EXP) ::axom::detail::constexprAssert((EXP), #EXP, __FILE__, __LINE__)

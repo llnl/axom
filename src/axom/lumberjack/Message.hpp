@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Message.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of the Message.
  *******************************************************************************
  */
-
-#ifndef MESSAGE_HPP
-#define MESSAGE_HPP
 
 #include <cstring>
 #include <string>
@@ -387,5 +386,3 @@ inline bool isPackedMessagesEmpty(const char* packedMessages)
 
 }  // end namespace lumberjack
 }  // end namespace axom
-
-#endif

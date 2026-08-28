@@ -736,7 +736,7 @@ void TetMeshClipper::checkTetOrientations(conduit::Node& connNode,
       {
         if(fixOrientation)
         {
-          std::swap(connArray(iTet, 2), connArray(iTet, 3));
+          axom::utilities::swap(connArray(iTet, 2), connArray(iTet, 3));
         }
         else
         {
@@ -792,12 +792,12 @@ void TetMeshClipper::transformCoordset()
   axom::ArrayView<double> xV(coordset.fetch_existing("values/x").as_double_ptr(), count);
   axom::ArrayView<double> yV(coordset.fetch_existing("values/y").as_double_ptr(), count);
   axom::ArrayView<double> zV(coordset.fetch_existing("values/z").as_double_ptr(), count);
-  axom::for_all<axom::SEQ_EXEC>(
-    count,
-    AXOM_LAMBDA(axom::IndexType i) {
-      transformer.transform(xV[i], yV[i], zV[i]);
-      m_tetMeshBb.addPoint(Point3DType {xV[i], yV[i], zV[i]});
-    });
+  const axom::IndexType numPts = static_cast<axom::IndexType>(count);
+  for(axom::IndexType i = 0; i < numPts; ++i)
+  {
+    transformer.transform(xV[i], yV[i], zV[i]);
+    m_tetMeshBb.addPoint(Point3DType {xV[i], yV[i], zV[i]});
+  }
   m_tetMesh.fetch_existing("topologies")
     .fetch_existing(m_topoName)
     .fetch_existing("coordset")

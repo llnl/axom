@@ -2,8 +2,9 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_QUEST_FAST_APPROXIMATE_GWN_HPP
-#define AXOM_QUEST_FAST_APPROXIMATE_GWN_HPP
+
+#pragma once
+
 #include "axom/primal.hpp"
 
 #include <type_traits>
@@ -125,6 +126,27 @@ public:
 
     compute_coefficients();
   }
+
+  /// Construct moments from a trimmed NURBS surface
+  explicit GWNMomentData(const axom::primal::NURBSPatch<T, 3>& a_patch)
+  {
+    const auto patch_data =
+      a_patch.template calculateSurfaceMoments<ORD>(/*npts*/ 10, /*useBezierExtraction*/ false);
+
+    a = patch_data[0];
+    ap[0] = patch_data[1];
+    ap[1] = patch_data[2];
+    ap[2] = patch_data[3];
+
+    for(int i = 0; i < NumberOfEntries; ++i) rm[i] = patch_data[i + 4];
+
+    compute_coefficients();
+  }
+
+  /// Construct moments from the endpoints of a 2D segment
+  explicit GWNMomentData(const axom::primal::NURBSCurve<T, 2>& c)
+    : GWNMomentData(c.getInitPoint(), c.getEndPoint())
+  { }
 
   /// Construct moments from a 2D Segment
   explicit GWNMomentData(const axom::primal::Segment<T, 2>& s)
@@ -292,6 +314,20 @@ public:
     return axom::primal::Point<T, NDIMS>((ap / a).array());
   }
 
+  /// Return the normal if computed from 3D data
+  axom::primal::Vector<T, 3> getNormal() const
+  {
+    static_assert(NDIMS == 3, "Normal vectors are defined only for 3D");
+    return axom::primal::Vector<T, 3> {ec[0], ec[1], ec[2]};
+  }
+
+  /// Return the surface area if computed from 3D data
+  double getSurfaceArea() const
+  {
+    static_assert(NDIMS == 3, "Surface areas are defined only for 3D");
+    return a;
+  }
+
 private:
   /// Transform raw moments into expansion coefficients
   void compute_coefficients()
@@ -403,7 +439,9 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     }
   };
 
-  if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>>)
+  if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>> ||
+               std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>> ||
+               std::is_same_v<LeafGeom, axom::primal::detail::NURBSCurveGWNCache<T>>)
   {
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
@@ -424,12 +462,246 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
 
     traverser.traverse_tree(query, leaf_gwn, bbContain);
   }
+
+  if constexpr(std::is_same_v<LeafGeom, axom::primal::NURBSPatch<T, 3>> ||
+               std::is_same_v<LeafGeom, axom::primal::detail::NURBSPatchGWNCache<T>>)
+  {
+    auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
+                                                           const std::int32_t* leafNodes) -> void {
+      const auto idx = leafNodes[currentNode];
+      gwn += axom::primal::winding_number(query,
+                                          leaf_objects_view[idx],
+                                          wt.edge_tol,
+                                          wt.ls_tol,
+                                          wt.quad_tol,
+                                          wt.disk_size,
+                                          wt.EPS);
+    };
+
+    traverser.traverse_tree(query, leaf_gwn, bbContain);
+  }
   // Support for other leaf types forthcoming...
 
   return gwn;
 }
 
+/*!
+ * \brief Subdivides an array of NURBS curves to limit their maximum AABB diagonal
+ *
+ * \param [in] input_curves_view A const view to the const NURBS input curves
+ * \param [in] bbox_threshold The maximum AABB diagonal of each subdivided curve,
+ *               as a percent of an AABB of the entire input shape
+ * \param [in] max_curves The maximum number of curves after which further curves
+ *               will not be subdivided
+ * \param [in] npasses The maximum number of passes through the input curves before
+ *               an early return
+ * 
+ * Starts with a collection of Bezier-extracted components, then iterates through the 
+ *   curves at most `npasses` times, and subdivides any which have an AABB diagonal 
+ *   greater than the threshold. The AABB of the entire shape is based on the union 
+ *   of AABB for the subdivisions, which is tighter than that of the original
+ * 
+ * \return The array of subdivided NURBS curves.
+ */
+template <typename T>
+axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
+  const axom::ArrayView<const primal::NURBSCurve<T, 2>>& input_curves_view,
+  double bbox_threshold,
+  int max_curves = 1e6,
+  int npasses = 10)
+{
+  using BoxType = primal::BoundingBox<T, 2>;
+  using NURBSType = primal::NURBSCurve<T, 2>;
+  using BezierType = primal::BezierCurve<T, 2>;
+
+  // Compute a bounding box of all the curves
+  axom::Array<BezierType> candidates, subdivisions;
+  BoxType total_bbox;
+
+  // For NURBSCurves, first do a pass of Bezier extraction
+  for(auto& curv : input_curves_view)
+  {
+    for(auto& bez : curv.extractBezier())
+    {
+      candidates.push_back(bez);
+      total_bbox.addBox(bez.boundingBox());
+    }
+  }
+
+  SLIC_WARNING_IF(
+    candidates.size() >= max_curves,
+    "quest::subdivide_curves: Number of bezier extracted input curves exceeds given maximum");
+
+  // Iterate over all the curves until none have a bounding box
+  //  bigger than threshold * (total_bbox's size)
+  for(int i = 0; i < npasses && candidates.size() < max_curves; ++i)
+  {
+    subdivisions.clear();
+    BoxType new_bbox;
+
+    // If any patch is bigger than the threshold, subdivide it,
+    //  and add it to the next level. Repeat as needed.
+    const double max_range_norm = bbox_threshold * total_bbox.range().norm();
+    for(int j = 0; j < candidates.size(); ++j)
+    {
+      const auto& candidate = candidates[j];
+      const int remaining = candidates.size() - j - 1;
+
+      // Skip the bisect if the surface is already below the threshold,
+      //  or if doind the subdivision will put us above the maximum patch cound
+      if(candidate.boundingBox().range().norm() < max_range_norm ||
+         subdivisions.size() + 2 + remaining > max_curves)
+      {
+        new_bbox.addBox(candidate.boundingBox());
+        subdivisions.push_back(candidate);
+        continue;
+      }
+
+      BezierType subcurves[2];
+      candidate.split(0.5, subcurves[0], subcurves[1]);
+      for(int si = 0; si < 2; si++)
+      {
+        subdivisions.emplace_back(std::move(subcurves[si]));
+        new_bbox.addBox(subdivisions.back().boundingBox());
+      }
+    }
+
+    // Break if no additional subdivisions are made
+    if(candidates.size() == subdivisions.size()) break;
+
+    candidates.swap(subdivisions);
+    total_bbox = new_bbox;
+
+    // Break if over the maximum number of surfaces
+    if(candidates.size() >= max_curves)
+    {
+      SLIC_WARNING("quest::subdivide_curves: Number of subdivided curves exceeds given maximum");
+      break;
+    }
+  }
+
+  // Do one final pass to turn the array of candidates into NURBS
+  axom::Array<NURBSType> candidates_nurbs(0, candidates.size());
+  for(auto& c : candidates)
+  {
+    candidates_nurbs.emplace_back(NURBSType(c));
+  }
+
+  return candidates_nurbs;
+}
+
+/*!
+ * \brief Subdivides an array of trimmed NURBS surfaces to limit their maximum AABB diagonal
+ *
+ * \param [in] input_patches_view A const view to the const NURBS input surfaces
+ * \param [in] bbox_threshold The maximum AABB diagonal of each subdivided surface,
+ *               as a percent of an AABB of the entire input shape
+ * \param [in] max_patches The maximum number of surfaces before additional surfaces
+ *               will not be subdivided
+ * \param [in] npasses The maximum number of passes through the input surfaces before
+ *               an early return
+ * 
+ * Iterates through the curves at most `npasses` times, and subdivides any which have
+ *   an AABB diagonal greater than the threshold. The AABB of the entire shape is based
+ *   on the union of AABB for the subdivisions, which is tighter than that of the original
+ * Subdivision is performed on the single axis which is determined to be "longer" in physical
+ *   space, as determined by NURBSPatch::nearBisectOnLongerAxis
+ * 
+ * \return The array of subdivided NURBS surfaces.
+ */
+template <typename T>
+axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
+  const axom::ArrayView<const primal::NURBSPatch<T, 3>>& input_patches_view,
+  double bbox_threshold,
+  int max_patches = 1e5,
+  int npasses = 10)
+{
+  using BoxType = primal::BoundingBox<T, 3>;
+  using NURBSType = primal::NURBSPatch<T, 3>;
+
+  axom::Array<NURBSType> candidates, subdivisions;
+  candidates.reserve(input_patches_view.size());
+  BoxType total_bbox;
+
+  // Create initial array of processed patches,
+  //  beginning by clipping each patch parameter space
+  //  to a bounding box of its trimming curves
+  // Then compute a bounding box of all the surfaces
+  for(auto& surf : input_patches_view)
+  {
+    auto the_patch = surf;
+
+    if(the_patch.getNumTrimmingCurves() == 0) continue;
+
+    the_patch.normalize();
+    the_patch.clipToCurves();
+
+    // Re-check if the patch is empty after clipping to curve
+    if(the_patch.getNumTrimmingCurves() == 0) continue;
+
+    candidates.push_back(the_patch);
+    total_bbox.addBox(the_patch.boundingBox());
+  }
+
+  if(candidates.size() >= max_patches)
+  {
+    SLIC_WARNING("quest::subdivide_patches: Number of input patches exceeds given maximum");
+    return candidates;
+  }
+
+  // Iterate over all the surfaces until no patch has a bounding box
+  //  bigger than threshold * (total_bbox's size)
+  for(int i = 0; i < npasses; ++i)
+  {
+    subdivisions.clear();
+    BoxType new_bbox;
+
+    // If any patch is bigger than the threshold, subdivide it, clip it,
+    //  and add it to the next level. Repeat as needed.
+    const double max_range_norm = bbox_threshold * total_bbox.range().norm();
+    for(int j = 0; j < candidates.size(); ++j)
+    {
+      const auto& candidate = candidates[j];
+      const int remaining = candidates.size() - j - 1;
+
+      // Skip the bisect if the surface is already below the threshold,
+      //  or if doind the subdivision will put us above the maximum patch cound
+      if(candidate.boundingBox().range().norm() < max_range_norm ||
+         subdivisions.size() + 2 + remaining > max_patches)
+      {
+        new_bbox.addBox(candidate.boundingBox());
+        subdivisions.push_back(candidate);
+        continue;
+      }
+
+      NURBSType subpatches[2];
+      candidate.nearBisectOnLongerAxis(subpatches[0], subpatches[1]);
+      for(int si = 0; si < 2; si++)
+      {
+        if(subpatches[si].getNumTrimmingCurves() == 0) continue;
+
+        subdivisions.emplace_back(std::move(subpatches[si]));
+        subdivisions.back().clipToCurves();
+        new_bbox.addBox(subdivisions.back().boundingBox());
+      }
+    }
+
+    // Break if no additional subdivisions are made
+    if(candidates.size() == subdivisions.size()) break;
+
+    candidates.swap(subdivisions);
+    total_bbox = new_bbox;
+
+    // Break if over the maximum number of surfaces
+    if(candidates.size() >= max_patches)
+    {
+      SLIC_WARNING("quest::subdivide_patches: Number of subdivided patches exceeds given maximum");
+      break;
+    }
+  }
+
+  return candidates;
+}
+
 }  // end namespace quest
 }  // end namespace axom
-
-#endif

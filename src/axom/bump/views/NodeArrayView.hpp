@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
-#define AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
+#pragma once
 
 #include "axom/bump/utilities/conduit_array_view.hpp"
 #include "axom/slic/interface/slic.hpp"
@@ -95,15 +94,15 @@ constexpr int select_float_types()
 template <typename T>
 struct NodeTypeTraits;
 
-#define AXOM_BUMP_DECLARE_NODE_TYPE_TRAITS(CppType, DTypeID, IsMethod, PtrMethod, Label)          \
-  template <>                                                                                     \
-  struct NodeTypeTraits<CppType>                                                                  \
-  {                                                                                               \
-    static bool matches(const conduit::Node &n) { return n.dtype().IsMethod(); }                  \
-    static CppType *data(conduit::Node &n) { return n.PtrMethod(); }                              \
-    static CppType *data(const conduit::Node &n) { return const_cast<CppType *>(n.PtrMethod()); } \
-    static const char *label() { return Label; }                                                  \
-    static int dtypeId() { return conduit::DataType::DTypeID; }                                   \
+#define AXOM_BUMP_DECLARE_NODE_TYPE_TRAITS(CppType, DTypeID, IsMethod, PtrMethod, Label)         \
+  template <>                                                                                    \
+  struct NodeTypeTraits<CppType>                                                                 \
+  {                                                                                              \
+    static bool matches(const conduit::Node& n) { return n.dtype().IsMethod(); }                 \
+    static CppType* data(conduit::Node& n) { return n.PtrMethod(); }                             \
+    static CppType* data(const conduit::Node& n) { return const_cast<CppType*>(n.PtrMethod()); } \
+    static const char* label() { return Label; }                                                 \
+    static int dtypeId() { return conduit::DataType::DTypeID; }                                  \
   };
 
 AXOM_BUMP_NODE_ARRAY_VIEW_TYPES(AXOM_BUMP_DECLARE_NODE_TYPE_TRAITS)
@@ -111,31 +110,31 @@ AXOM_BUMP_NODE_ARRAY_VIEW_TYPES(AXOM_BUMP_DECLARE_NODE_TYPE_TRAITS)
 #undef AXOM_BUMP_DECLARE_NODE_TYPE_TRAITS
 
 template <bool Enabled, typename T, typename FuncType, typename NodeType>
-std::enable_if_t<Enabled, void> invoke_single_array_view(NodeType &n, FuncType &&func)
+std::enable_if_t<Enabled, void> invoke_single_array_view(NodeType& n, FuncType&& func)
 {
   func(axom::bump::utilities::detail::make_conduit_array_view<T>(n));
 }
 
 template <bool Enabled, typename T, typename FuncType, typename NodeType>
-std::enable_if_t<!Enabled, void> invoke_single_array_view(NodeType &AXOM_UNUSED_PARAM(n),
-                                                          FuncType &&AXOM_UNUSED_PARAM(func))
+std::enable_if_t<!Enabled, void> invoke_single_array_view(NodeType& AXOM_UNUSED_PARAM(n),
+                                                          FuncType&& AXOM_UNUSED_PARAM(func))
 {
   SLIC_WARNING("Unsupported " << NodeTypeTraits<T>::label() << " node.");
 }
 
 template <bool Enabled, typename T, typename FuncType, typename... NodeTypes>
-std::enable_if_t<Enabled, void> invoke_same_array_views(FuncType &&func, NodeTypes &&...nodes)
+std::enable_if_t<Enabled, void> invoke_same_array_views(FuncType&& func, NodeTypes&&... nodes)
 {
   func(axom::bump::utilities::detail::make_conduit_array_view<T>(nodes)...);
 }
 
 template <bool Enabled, typename T, typename FuncType, typename... NodeTypes>
-std::enable_if_t<!Enabled, void> invoke_same_array_views(FuncType &&AXOM_UNUSED_PARAM(func),
-                                                         NodeTypes &&...AXOM_UNUSED_PARAM(nodes))
+std::enable_if_t<!Enabled, void> invoke_same_array_views(FuncType&& AXOM_UNUSED_PARAM(func),
+                                                         NodeTypes&&... AXOM_UNUSED_PARAM(nodes))
 { }
 
 template <int Types = select_all_types(), typename NodeType, typename FuncType>
-void dispatch_single_array_view(NodeType &n, FuncType &&func)
+void dispatch_single_array_view(NodeType& n, FuncType&& func)
 {
 #define AXOM_BUMP_DISPATCH_SINGLE(CppType, DTypeID, IsMethod, PtrMethod, Label)          \
   if(NodeTypeTraits<CppType>::matches(n))                                                \
@@ -155,7 +154,7 @@ void dispatch_single_array_view(NodeType &n, FuncType &&func)
 }
 
 template <int Types = select_all_types(), typename FirstNodeType, typename FuncType, typename... NodeTypes>
-void dispatch_same_array_views(FirstNodeType &first, FuncType &&func, NodeTypes &&...nodes)
+void dispatch_same_array_views(FirstNodeType& first, FuncType&& func, NodeTypes&&... nodes)
 {
 #define AXOM_BUMP_DISPATCH_SAME(CppType, DTypeID, IsMethod, PtrMethod, Label)           \
   if(NodeTypeTraits<CppType>::matches(first))                                           \
@@ -175,13 +174,13 @@ void dispatch_same_array_views(FirstNodeType &first, FuncType &&func, NodeTypes 
 }
 
 template <int Types, typename FuncType, typename... ViewTypes>
-void nodeToArrayViewInternal(FuncType &&func, Delimiter, ViewTypes... views)
+void nodeToArrayViewInternal(FuncType&& func, Delimiter, ViewTypes... views)
 {
   func(views...);
 }
 
 template <int Types = select_all_types(), typename NodeType, typename... Args>
-void nodeToArrayViewInternal(NodeType &first, Args &&...args)
+void nodeToArrayViewInternal(NodeType& first, Args&&... args)
 {
   dispatch_single_array_view<Types>(first, [&](auto view) {
     nodeToArrayViewInternal<Types>(std::forward<Args>(args)..., view);
@@ -189,7 +188,7 @@ void nodeToArrayViewInternal(NodeType &first, Args &&...args)
 }
 
 template <int Types = select_all_types(), typename FuncType, typename FirstNode, typename... Args>
-void nodeToArrayViewSameInternal(FuncType &&func, Delimiter, FirstNode &first, Args &&...args)
+void nodeToArrayViewSameInternal(FuncType&& func, Delimiter, FirstNode& first, Args&&... args)
 {
   dispatch_same_array_views<Types>(first,
                                    std::forward<FuncType>(func),
@@ -198,7 +197,7 @@ void nodeToArrayViewSameInternal(FuncType &&func, Delimiter, FirstNode &first, A
 }
 
 template <int Types = select_all_types(), typename FirstNode, typename... Args>
-void nodeToArrayViewSameInternal(FirstNode &first, Args &&...args)
+void nodeToArrayViewSameInternal(FirstNode& first, Args&&... args)
 {
   nodeToArrayViewSameInternal<Types>(std::forward<Args>(args)..., first);
 }
@@ -221,13 +220,13 @@ void nodeToArrayViewSameInternal(FirstNode &first, Args &&...args)
  * nodeToArrayView(node1, node2, [](auto &view1, auto &view2) { });
  */
 template <typename... Args>
-void nodeToArrayView(const conduit::Node &first, Args &&...args)
+void nodeToArrayView(const conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewInternal(first, std::forward<Args>(args)..., detail::ArgumentDelimiter);
 }
 
 template <typename... Args>
-void nodeToArrayView(conduit::Node &first, Args &&...args)
+void nodeToArrayView(conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewInternal(first, std::forward<Args>(args)..., detail::ArgumentDelimiter);
 }
@@ -247,19 +246,19 @@ void nodeToArrayView(conduit::Node &first, Args &&...args)
  * nodeToArrayViewSame(node1, node2, [](auto &view1, auto &view2) { });
  */
 template <typename... Args>
-void nodeToArrayViewSame(const conduit::Node &first, Args &&...args)
+void nodeToArrayViewSame(const conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewSameInternal(first, std::forward<Args>(args)..., detail::ArgumentDelimiter);
 }
 
 template <typename... Args>
-void nodeToArrayViewSame(conduit::Node &first, Args &&...args)
+void nodeToArrayViewSame(conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewSameInternal(first, std::forward<Args>(args)..., detail::ArgumentDelimiter);
 }
 
 template <typename... Args>
-void indexNodeToArrayView(const conduit::Node &first, Args &&...args)
+void indexNodeToArrayView(const conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewInternal<detail::select_index_types()>(first,
                                                                 std::forward<Args>(args)...,
@@ -267,7 +266,7 @@ void indexNodeToArrayView(const conduit::Node &first, Args &&...args)
 }
 
 template <typename... Args>
-void indexNodeToArrayView(conduit::Node &first, Args &&...args)
+void indexNodeToArrayView(conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewInternal<detail::select_index_types()>(first,
                                                                 std::forward<Args>(args)...,
@@ -275,7 +274,7 @@ void indexNodeToArrayView(conduit::Node &first, Args &&...args)
 }
 
 template <typename... Args>
-void indexNodeToArrayViewSame(const conduit::Node &first, Args &&...args)
+void indexNodeToArrayViewSame(const conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewSameInternal<detail::select_index_types()>(first,
                                                                     std::forward<Args>(args)...,
@@ -283,7 +282,7 @@ void indexNodeToArrayViewSame(const conduit::Node &first, Args &&...args)
 }
 
 template <typename... Args>
-void indexNodeToArrayViewSame(conduit::Node &first, Args &&...args)
+void indexNodeToArrayViewSame(conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewSameInternal<detail::select_index_types()>(first,
                                                                     std::forward<Args>(args)...,
@@ -291,7 +290,7 @@ void indexNodeToArrayViewSame(conduit::Node &first, Args &&...args)
 }
 
 template <typename... Args>
-void floatNodeToArrayView(const conduit::Node &first, Args &&...args)
+void floatNodeToArrayView(const conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewInternal<detail::select_float_types()>(first,
                                                                 std::forward<Args>(args)...,
@@ -299,7 +298,7 @@ void floatNodeToArrayView(const conduit::Node &first, Args &&...args)
 }
 
 template <typename... Args>
-void floatNodeToArrayView(conduit::Node &first, Args &&...args)
+void floatNodeToArrayView(conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewInternal<detail::select_float_types()>(first,
                                                                 std::forward<Args>(args)...,
@@ -307,7 +306,7 @@ void floatNodeToArrayView(conduit::Node &first, Args &&...args)
 }
 
 template <typename... Args>
-void floatNodeToArrayViewSame(const conduit::Node &first, Args &&...args)
+void floatNodeToArrayViewSame(const conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewSameInternal<detail::select_float_types()>(first,
                                                                     std::forward<Args>(args)...,
@@ -315,7 +314,7 @@ void floatNodeToArrayViewSame(const conduit::Node &first, Args &&...args)
 }
 
 template <typename... Args>
-void floatNodeToArrayViewSame(conduit::Node &first, Args &&...args)
+void floatNodeToArrayViewSame(conduit::Node& first, Args&&... args)
 {
   detail::nodeToArrayViewSameInternal<detail::select_float_types()>(first,
                                                                     std::forward<Args>(args)...,
@@ -325,5 +324,3 @@ void floatNodeToArrayViewSame(conduit::Node &first, Args &&...args)
 }  // namespace views
 }  // namespace bump
 }  // namespace axom
-
-#endif

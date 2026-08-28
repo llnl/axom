@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // This file exists only to enable documentation of accelerated code within Axom. Do not
 // delete this file, nor add any lines of code.
 

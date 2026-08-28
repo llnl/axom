@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_TESTUTILS_HPP_
-#define AXOM_KLEE_TESTUTILS_HPP_
+#pragma once
 
 #include "axom/klee/GeometryOperators.hpp"
 
@@ -29,14 +28,15 @@ namespace test
  * \param values the values of the matrix, in row-major order
  * \return the affine transformation matrix represented by the rows
  */
-numerics::Matrix<double> affine(const std::array<std::array<double, 4>, 3> &values);
+numerics::Matrix<double> affine(const std::array<std::array<double, 4>, 3>& values);
 
 class MockOperator : public GeometryOperator
 {
 public:
   using GeometryOperator::GeometryOperator;
+  MOCK_METHOD(std::string, getName, (), (const));
   MOCK_METHOD(TransformableGeometryProperties, getEndProperties, (), (const));
-  MOCK_METHOD(void, accept, (GeometryOperatorVisitor &), (const));
+  MOCK_METHOD(void, accept, (GeometryOperatorVisitor&), (const));
   TransformableGeometryProperties getBaseEndProperties() const
   {
     return GeometryOperator::getEndProperties();
@@ -46,5 +46,3 @@ public:
 }  // namespace test
 }  // namespace klee
 }  // namespace axom
-
-#endif  // AXOM_KLEE_TESTUTILS_HPP_

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_MINMAX_HPP_
-#define AXOM_BUMP_MINMAX_HPP_
+#pragma once
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/reductions.hpp"
@@ -39,7 +38,7 @@ struct MinMax
    *
    * \return A pair containing the min,max values in the node.
    */
-  static std::pair<ReturnType, ReturnType> execute(const conduit::Node &n)
+  static std::pair<ReturnType, ReturnType> execute(const conduit::Node& n)
   {
     SLIC_ASSERT(n.dtype().number_of_elements() > 0);
     std::pair<ReturnType, ReturnType> retval;
@@ -75,5 +74,3 @@ struct MinMax
 
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

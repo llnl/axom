@@ -4,15 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file ProductSet.hpp
  *
  * \brief Basic API for a SLAM Cartesian product set
- *
  */
-
-#ifndef SLAM_PRODUCT_SET_H_
-#define SLAM_PRODUCT_SET_H_
 
 #include "axom/core/IteratorBase.hpp"
 #include "axom/slam/BivariateSet.hpp"
@@ -21,17 +19,15 @@
 #include "axom/slam/policies/BivariateSetInterfacePolicies.hpp"
 
 #include <cassert>
+#include <optional>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class ProductSet
  *
- * \brief Models a set whose element is the Cartesian product of two sets. The
- *        number of elements in this set is the product of the sizes of the two
- *        input sets.
+ * \brief Models a set whose element is the Cartesian product of two sets. 
+ *        The number of elements in this set is the product of the sizes of the two input sets.
  *
  *        Users should refer to the BivariateSet documentation for descriptions
  *        of the different indexing names (SparseIndex, DenseIndex, FlatIndex).
@@ -138,6 +134,19 @@ public:
     return pos2;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementIndex`.
+   *
+   * \return An engaged `std::optional` with the SparseIndex if valid, else empty.
+   */
+  [[nodiscard]] std::optional<PositionType> findElementIndexOptional(PositionType pos1,
+                                                                     PositionType pos2) const
+  {
+    const auto idx = findElementIndex(pos1, pos2);
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
+  }
+
   /**
    * \brief Returns an element's FlatIndex given its DenseIndex. Since
    *        ProductSet is the full Cartesian product of the two sets, an
@@ -159,6 +168,20 @@ public:
     return pos;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(pos1, pos2)`.
+   *
+   * \return An engaged `std::optional` with the FlatIndex if valid, else empty.
+   */
+  [[nodiscard]] AXOM_HOST_DEVICE std::optional<PositionType> findElementFlatIndexOptional(
+    PositionType pos1,
+    PositionType pos2) const
+  {
+    const auto idx = findElementFlatIndex(pos1, pos2);
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
+  }
+
   /**
    * \brief Returns the FlatIndex of the first element in the specified row.
    *        This is equal to `pos1*secondSetSize()`.
@@ -167,12 +190,32 @@ public:
    */
   PositionType findElementFlatIndex(PositionType pos1) const
   {
+    SLIC_ASSERT_MSG(pos1 >= 0 && pos1 < this->firstSetSize(),
+                    "SLAM::ProductSet -- requested out-of-range first-set position "
+                      << pos1 << ", but set only has " << this->firstSetSize() << " rows.");
+
+    if(this->secondSetSize() == 0)
+    {
+      return BaseType::INVALID_POS;
+    }
+
     return findElementFlatIndex(pos1, 0);
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(pos1)`.
+   *
+   * \return An engaged `std::optional` with the FlatIndex if valid, else empty.
+   */
+  [[nodiscard]] std::optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  {
+    const auto idx = findElementFlatIndex(pos1);
+    return idx != BaseType::INVALID_POS ? std::optional<PositionType>(idx)
+                                        : std::optional<PositionType> {};
+  }
+
   /**
-   * \brief Given the flat index, return the associated to-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated to-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -188,8 +231,7 @@ public:
   }
 
   /**
-   * \brief Given the flat index, return the associated from-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated from-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -219,7 +261,10 @@ public:
     return m_rowSet.get(this->secondSetSize());
   }
 
-  AXOM_HOST_DEVICE ElementType at(PositionType pos) const { return pos % this->secondSetSize(); }
+  [[nodiscard]] AXOM_HOST_DEVICE ElementType at(PositionType pos) const
+  {
+    return pos % this->secondSetSize();
+  }
 
   AXOM_HOST_DEVICE PositionType size() const
   {
@@ -228,16 +273,10 @@ public:
 
   PositionType size(PositionType) const { return this->secondSetSize(); }
 
-  /*!
-   * \brief Return an iterator to the first pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
 
-  /*!
-   * \brief Return an iterator to one past the last pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to one past the last pair of set elements in the relation.
   IteratorType end() const { return IteratorType(this, size()); }
 
   AXOM_HOST_DEVICE RangeSetType elementRangeSet(PositionType pos1) const
@@ -246,23 +285,26 @@ public:
     return typename RangeSetType::SetBuilder().size(sz).offset(sz * pos1);
   }
 
-  bool isValidIndex(PositionType s1, PositionType s2) const
+  [[nodiscard]] bool isValidIndex(PositionType s1, PositionType s2) const
   {
     PositionType size1 = this->firstSetSize();
     PositionType size2 = this->secondSetSize();
     return s1 >= 0 && s1 < size1 && s2 >= 0 && s2 < size2;
   }
 
-  bool isValid(bool verboseOutput = false) const { return BaseType::isValid(verboseOutput); }
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const
+  {
+    return BaseType::isValid(verboseOutput);
+  }
 
 private:
-  /** \brief verify the FlatIndex \a pos is within the valid range. */
+  /// \brief verify the FlatIndex \a pos is within the valid range.
   void verifyPosition(PositionType pos) const
   {  //from RangeSet, overloading to avoid warning in compiler
     verifyPositionImpl(pos);
   }
 
-  /** \brief implementation for verifyPosition */
+  /// \brief implementation for verifyPosition
   inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos)) const
   {  //from RangeSet, overloading to avoid warning in compiler
     SLIC_ASSERT_MSG(pos >= 0 && pos < size(),
@@ -270,15 +312,13 @@ private:
                       << pos << ", but set only has " << size() << " elements.");
   }
 
-  /** \brief verify the SparseIndex (which is the same as its DenseIndex) is
-   *         within the valid range. */
+  /// \brief verify the SparseIndex (which is the same as its DenseIndex) is within the valid range.
   void verifyPosition(PositionType pos1, PositionType pos2) const
   {
     verifyPositionImpl(pos1, pos2);
   }
 
-  /** \brief verify the SparseIndex (which is the same as its DenseIndex) is
-   *         within the valid range. */
+  /// \brief verify the SparseIndex (which is the same as its DenseIndex) is within the valid range.
   inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos1),
                                  PositionType AXOM_DEBUG_PARAM(pos2)) const
   {
@@ -292,7 +332,4 @@ private:
   RowSet<void, typename BaseType::SubsetType> m_rowSet;
 };
 
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  //  SLAM_PRODUCT_SET_H
+}  // end namespace axom::slam

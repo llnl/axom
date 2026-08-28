@@ -7,7 +7,27 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 ##-----------------------------------------------------------------------------
-## Convenience script that runs python interpreter with Axom extension(s) in
-## the PYTHONPATH.
+## Convenience script that runs the python interpreter with Axom's Python package(s)
+## and their runtime dependencies already on PYTHONPATH:
+##   - Axom's Python package tree (the 'axom' package; e.g. axom.sidre)
+##   - conduit's python module (conduit::Node interop)
+##   - numpy (ndarray returns)
+##   - mpi4py (only populated in MPI-enabled configurations)
+##
+## This is the supported way to run an ad hoc, non-test Python script against a
+## build tree that has the bindings enabled -- it assembles conduit/numpy/mpi4py
+## from their spack prefixes so a one-off script "just works" without a venv.
+##
+## Caveats: this script is bash-only and, since it prepends the PYTHONPATH,
+## does not compose with Jupyter kernels, IDE runners, or debuggers.
+##
+## Build-time (nanobind) and testing dependencies (pytest/pluggy/iniconfig)
+## are intentionally NOT added here.
 ##-----------------------------------------------------------------------------
-env PYTHONPATH=@_PYEXT_DIR@:@CONDUIT_PYTHON_MODULE_DIR@:@PY_NANOBIND_DIR@:@PY_NUMPY_DIR@:@PY_PYTEST_DIR@:@PY_PLUGGY_DIR@:@PY_INICONFIG_DIR@:$PYTHONPATH @Python_EXECUTABLE@ "$@"
+_AXOM_PYEXT_DIR="@_PYEXT_DIR@"
+if [ "@_PYEXT_DIR_IS_RELATIVE@" = "TRUE" ]; then
+    _AXOM_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    _AXOM_PYEXT_DIR="${_AXOM_SCRIPT_DIR}/../${_AXOM_PYEXT_DIR}"
+fi
+
+env PYTHONPATH=${_AXOM_PYEXT_DIR}:@CONDUIT_PYTHON_MODULE_DIR@:@PY_NUMPY_DIR@:@PY_MPI4PY_DIR@:$PYTHONPATH @Python_EXECUTABLE@ "$@"

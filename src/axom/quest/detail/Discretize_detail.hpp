@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_DISCRETIZE_DETAIL_
-#define AXOM_QUEST_DISCRETIZE_DETAIL_
+#pragma once
 
 #include "axom/primal/constants.hpp"
 #include "math.h"
@@ -33,7 +32,7 @@ using NAType = axom::NumericArray<double, 3>;
  * in a right-handed way (thumb points out the axis, fingers spin segment
  * toward wrist).
  */
-inline OctType from_segment(const Point2D &a, const Point2D &b)
+inline OctType from_segment(const Point2D& a, const Point2D& b)
 {
   const double SQ_3_2 = sqrt(3.) / 2.;
 
@@ -84,7 +83,7 @@ inline int count_segment_prisms(int levels)
 }
 
 AXOM_HOST_DEVICE
-Point3D rescale_YZ(const Point3D &p, double new_dst)
+Point3D rescale_YZ(const Point3D& p, double new_dst)
 {
   const double cur_dst =
     axom::utilities::clampLower(sqrt(p[1] * p[1] + p[2] * p[2]), axom::primal::PRIMAL_TINY);
@@ -97,7 +96,7 @@ Point3D rescale_YZ(const Point3D &p, double new_dst)
 }
 
 AXOM_HOST_DEVICE
-inline OctType new_inscribed_prism(OctType &old_oct,
+inline OctType new_inscribed_prism(OctType& old_oct,
                                    int p_off,
                                    int s_off,
                                    int t_off,
@@ -149,7 +148,7 @@ inline OctType new_inscribed_prism(OctType &old_oct,
  * quadrilateral side-wall.
  */
 template <typename ExecSpace>
-int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<OctType> &out, int idx)
+int discrSeg(const Point2D& a, const Point2D& b, int levels, axom::ArrayView<OctType>& out, int idx)
 {
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
@@ -172,7 +171,7 @@ int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<Oct
   // Establish a prism (in an octahedron record) with one triangular
   // end lying on the circle described by rotating point a around the
   // x-axis and the other lying on circle from rotating b.
-  OctType *oct_from_seg = axom::allocate<OctType>(1, hostAllocID);
+  OctType* oct_from_seg = axom::allocate<OctType>(1, hostAllocID);
   oct_from_seg[0] = from_segment(a, b);
 
   axom::copy(out.data() + idx + 0, oct_from_seg, sizeof(OctType));
@@ -260,11 +259,11 @@ namespace quest
  * This routine resizes and populates an Array pointed to by \a out.
  */
 template <typename ExecSpace>
-bool discretize(const axom::ArrayView<Point2D> &polyline,
+bool discretize(const axom::ArrayView<Point2D>& polyline,
                 int pointcount,
                 int levels,
-                axom::Array<OctType> &out,
-                int &octcount)
+                axom::Array<OctType>& out,
+                int& octcount)
 {
   SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(out.getAllocatorID()),
                 axom::fmt::format("Execution space {} cannot access allocator id {}",
@@ -276,8 +275,8 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
   int segmentcount = pointcount - 1;
   for(int seg = 0; seg < segmentcount && stillValid; ++seg)
   {
-    const Point2D &a = polyline[seg];
-    const Point2D &b = polyline[seg + 1];
+    const Point2D& a = polyline[seg];
+    const Point2D& b = polyline[seg + 1];
     if(a[1] < 0 || b[1] < 0)
     {
       stillValid = false;
@@ -313,5 +312,3 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_QUEST_DISCRETIZE_DETAIL_

@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *
  * \file Utilities.hpp
@@ -12,16 +14,15 @@
  *
  */
 
-#ifndef AXOM_UTILITIES_HPP_
-#define AXOM_UTILITIES_HPP_
-
 #include "axom/config.hpp"  // for compile-time definitions
 #include "axom/core/Types.hpp"
 #include "axom/core/Macros.hpp"  // for AXOM_STATIC_ASSERT
+#include "axom/core/utilities/Abort.hpp"
 
 #include <cassert>  // for assert()
 #include <cmath>    // for log2()
 
+#include <cstdint>      // for std::uint64_t
 #include <random>       // for random  number generator
 #include <type_traits>  // for std::is_floating_point()
 
@@ -29,11 +30,6 @@ namespace axom
 {
 namespace utilities
 {
-/*!
- * \brief Gracefully aborts the application
- */
-void processAbort();
-
 /*!
  * \brief Returns the absolute value of x.
  * \accelerated
@@ -243,9 +239,14 @@ inline T random_real(const T& a, const T& b)
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
   assert((a < b) && "invalid bounds, a < b");
 
-  static std::random_device rd;
-  static std::mt19937_64 mt(rd());
-  static std::uniform_real_distribution<T> dist(0.0, 1.0);
+  // Thread-local RNG state: avoids data races when called from threaded code.
+  thread_local std::mt19937_64 mt([]() {
+    std::random_device rd;
+    const std::uint64_t seed_hi = static_cast<std::uint64_t>(rd()) << 32;
+    const std::uint64_t seed_lo = static_cast<std::uint64_t>(rd());
+    return std::mt19937_64(seed_hi ^ seed_lo);
+  }());
+  thread_local std::uniform_real_distribution<T> dist(0.0, 1.0);
 
   T temp = dist(mt);
   return temp * (b - a) + a;
@@ -275,10 +276,24 @@ inline T random_real(const T& a, const T& b, unsigned int seed)
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
   assert((a < b) && "invalid bounds, a < b");
 
-  static std::mt19937_64 mt(seed);
-  static std::uniform_real_distribution<T> dist(0.0, 1.0);
+  // Thread-local RNG state: avoids data races when called from threaded code.
+  // Also supports switching seeds by re-seeding the engine.
+  struct SeededRngState
+  {
+    explicit SeededRngState(unsigned int s) : mt(s), current_seed(s) { }
+    std::mt19937_64 mt;
+    unsigned int current_seed;
+  };
 
-  double temp = dist(mt);
+  thread_local SeededRngState state(seed);
+  if(state.current_seed != seed)
+  {
+    state.mt.seed(seed);
+    state.current_seed = seed;
+  }
+  thread_local std::uniform_real_distribution<T> dist(0.0, 1.0);
+
+  T temp = dist(state.mt);
   return temp * (b - a) + a;
 }
 
@@ -479,7 +494,8 @@ AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
 {
   std::int32_t index = -1;
   std::int32_t left = 0;
-  std::int32_t right = cont.size() - 1;
+  const std::int32_t cont_size = static_cast<std::int32_t>(cont.size());
+  std::int32_t right = cont_size - 1;
   while(left <= right)
   {
     std::int32_t m = (left + right) / 2;
@@ -553,5 +569,3 @@ inline std::uint64_t hash_bytes(const std::uint8_t* data, std::uint32_t length)
 
 }  // namespace utilities
 }  // namespace axom
-
-#endif  // AXOM_UTILITIES_HPP_

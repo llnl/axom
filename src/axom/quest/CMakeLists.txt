@@ -21,6 +21,11 @@ axom_component_requires(NAME       QUEST
 set( quest_headers
 
     Delaunay.hpp
+    detail/DelaunayElementFinder.hpp
+    detail/DelaunayImpl.hpp
+    detail/DelaunayInsertionHelper.hpp
+    detail/DelaunayPointLocation.hpp
+    detail/DelaunayValidation.hpp
     LinearizeCurves.hpp
     SignedDistance.hpp
 
@@ -58,7 +63,6 @@ set( quest_headers
     FastApproximateGWN.hpp
 
     ## quest interface
-    interface/internal/mpicomm_wrapper.hpp
     interface/internal/QuestHelpers.hpp
     interface/inout.hpp
     interface/signed_distance.hpp
@@ -151,13 +155,27 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
-                                  detail/shaping/shaping_helpers.hpp
-                                  )
+                                  detail/shaping/shaping_helpers.hpp)
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
-                                  detail/shaping/shaping_helpers.cpp
-                                  )
+                                  detail/shaping/shaping_helpers.cpp)
+        if(MFEM_FOUND)
+            list(APPEND quest_headers detail/shaping/shaping_helpers_mfem.hpp)
+            list(APPEND quest_sources detail/shaping/shaping_helpers_mfem.cpp)
+        endif()
+        if(CONDUIT_FOUND)
+            list(APPEND quest_headers detail/shaping/shaping_helpers_blueprint.hpp)
+            list(APPEND quest_sources detail/shaping/shaping_helpers_blueprint.cpp)
+        endif()
         list(APPEND quest_depends_on klee)
+    endif()
+
+    if(MFEM_FOUND OR (CONDUIT_FOUND AND AXOM_ENABLE_BUMP))
+        list(APPEND quest_headers SamplingShaper.hpp
+                                  detail/shaping/InOutSampler.hpp
+                                  detail/shaping/PrimitiveSampler.hpp
+                                  detail/shaping/WindingNumberSampler.hpp)
+        list(APPEND quest_sources SamplingShaper.cpp)
     endif()
 
     # Geometry clipping requires Conduit, Sidre, and RAJA.
@@ -184,7 +202,6 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   detail/clipping/SphereClipper.cpp
                                   detail/clipping/MonotonicZSORClipper.cpp
                                   detail/clipping/SORClipper.cpp
-                                  detail/clipping/MeshClipperImpl.hpp
                                   util/make_clipper_strategy.cpp)
 
         # MeshClipperImpl uses RAJA algorithms directly.
@@ -196,14 +213,6 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
             list(APPEND quest_headers detail/clipping/TetMeshClipper.hpp)
             list(APPEND quest_sources detail/clipping/TetMeshClipper.cpp)
         endif()
-    endif()
-
-    if(MFEM_FOUND)
-        list(APPEND quest_headers SamplingShaper.hpp 
-                                  detail/shaping/InOutSampler.hpp
-                                  detail/shaping/PrimitiveSampler.hpp
-                                  detail/shaping/WindingNumberSampler.hpp
-                                  )
     endif()
 endif()
 
@@ -276,6 +285,10 @@ axom_install_component(NAME    quest
 #------------------------------------------------------------------------------
 if (AXOM_ENABLE_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+if (ENABLE_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif()
 
 if (AXOM_ENABLE_TESTS)

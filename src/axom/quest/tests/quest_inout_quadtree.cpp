@@ -17,6 +17,7 @@
 
 #include <cstdlib>
 #include <limits>
+#include <utility>
 
 // Uncomment the define below for true randomized points
 #ifndef INOUT_OCTREE_TESTER_SHOULD_SEED
@@ -189,12 +190,168 @@ TEST(quest_inout_quadtree, circle_mesh)
   }
 }
 
+TEST(quest_inout_quadtree, on_surface_points)
+{
+  // Regression test for https://github.com/LLNL/axom/issues/611 (2D)
+  // Query points on the surface should be marked as inside the surface.
+  // This test also checks for consistency with the winding number results.
+
+  namespace mint = axom::mint;
+  namespace quest = axom::quest;
+  namespace primal = axom::primal;
+
+  using Polygon2D = primal::Polygon<double, 2>;
+
+  // lambda to linearly interpolate a point on an edge of a polygon at parameter 0 <= t <= 1
+  auto lerp_edge = [](const Polygon2D& poly, int edge, double t) {
+    SLIC_ASSERT(edge >= 0 && edge <= poly.numVertices());
+    SLIC_ASSERT(t >= 0. && t <= 1.);
+    return SpacePt::lerp(poly[edge], poly[(edge + 1) == poly.numVertices() ? 0 : edge + 1], t);
+  };
+
+  constexpr double x_lo = 0.;
+  constexpr double y_lo = 0.;
+  constexpr double x_mid = 0.5;
+  constexpr double y_mid = 0.5;
+  constexpr double x_hi = 1.;
+  constexpr double y_hi = 1.;
+
+  const Polygon2D unitSquare(
+    {SpacePt {x_lo, y_lo}, SpacePt {x_hi, y_lo}, SpacePt {x_hi, y_hi}, SpacePt {x_lo, y_hi}});
+
+  // Create mesh of unit square, with several edge refinements
+  for(int segsPerSide : {1, 2, 3, 5})
+  {
+    // Build the perimeter vertices (counter-clockwise; corners not duplicated).
+    axom::Array<SpacePt> verts;
+    for(int edge = 0; edge < unitSquare.numVertices(); ++edge)
+    {
+      for(int s = 0; s < segsPerSide; ++s)
+      {
+        const double t = static_cast<double>(s) / segsPerSide;
+        verts.push_back(lerp_edge(unitSquare, edge, t));
+      }
+    }
+    const int nverts = static_cast<int>(verts.size());
+
+    // Segment mesh for the quadtree.
+    std::shared_ptr<mint::Mesh> mesh = [&]() {
+      auto m = std::make_shared<mint::UnstructuredMesh<mint::SINGLE_SHAPE>>(DIM, mint::SEGMENT);
+      for(const auto& v : verts)
+      {
+        m->appendNode(v[0], v[1]);
+      }
+      for(int i = 0; i < nverts; ++i)
+      {
+        axom::IndexType cell[2] = {i, (i + 1) % nverts};
+        m->appendCell(cell);
+      }
+      return m;
+    }();
+
+    // Build quadtree over the linearized unit square.
+    // Use an explicit vertex-weld threshold so the test's on-surface tolerance
+    // and the octree's on-surface tolerance are the same quantity.
+    const double weldThresh = 1e-6;
+    GeometricBoundingBox bbox = computeBoundingBox(*mesh);
+    Octree2D octree(bbox, mesh);
+    octree.setVertexWeldThreshold(weldThresh);
+    octree.generateIndex();
+
+    // The octree treats points within its weld threshold of the surface as 'inside'
+    // The oracle below uses the same tolerance for consistency.
+    const double edgeTol = octree.getVertexWeldThreshold();
+
+    // sanity check on some interior points
+    EXPECT_TRUE(octree.within(SpacePt {x_mid, y_mid}));
+    EXPECT_TRUE(octree.within(SpacePt {0.25, 0.75}));
+
+    // sanity check on some exterior points
+    EXPECT_FALSE(octree.within(SpacePt {0.5, 1.5}));
+    EXPECT_FALSE(octree.within(SpacePt {1.5, 0.5}));
+    EXPECT_FALSE(octree.within(SpacePt {2.0, 2.0}));
+
+    // We will use the winding number over the polygon as an oracle
+    Polygon2D poly;
+    for(const auto& v : verts)
+    {
+      poly.addVertex(v);
+    }
+
+    // Create a set of query points on the boundary, starting from unit square vertices and edge midpoints
+    axom::Array<SpacePt> queryPoints {SpacePt {x_mid, y_hi},
+                                      SpacePt {x_mid, y_lo},
+                                      SpacePt {x_lo, y_mid},
+                                      SpacePt {x_hi, y_mid},
+                                      SpacePt {x_lo, y_lo},
+                                      SpacePt {x_hi, y_hi}};
+
+    // Add regression case from the issue
+    queryPoints.push_back(SpacePt {0.370667, y_hi});
+
+    // Add a dense set of points along the edges
+    const int edgeSamples = 500 / poly.numVertices();
+    for(int edge = 0; edge < poly.numVertices(); ++edge)
+    {
+      for(int sample = 0; sample < edgeSamples; ++sample)
+      {
+        queryPoints.push_back(lerp_edge(poly, edge, static_cast<double>(sample) / edgeSamples));
+      }
+    }
+
+    // Run the tests
+    for(const auto& q : queryPoints)
+    {
+      bool isOnEdge {};
+      const int wn = primal::winding_number(q, poly, isOnEdge, /*includeBoundary=*/true, edgeTol);
+
+      // Sanity check on the oracle: these points really are on the boundary.
+      EXPECT_TRUE(isOnEdge) << axom::fmt::format("Oracle: point {} should be on the boundary", q);
+      EXPECT_NE(0, wn) << axom::fmt::format("Oracle: point {} should have nonzero winding number", q);
+
+      // The actual regression assertion: on-surface points are 'within'.
+      EXPECT_TRUE(octree.within(q))
+        << axom::fmt::format("Boundary point {} should be within the surface (segsPerSide={})",
+                             q,
+                             segsPerSide);
+    }
+
+    // Exercise the tolerance band directly: points just inside the surface weld theshold
+    // must be 'within'; points just beyond it must not.
+    const axom::Array<std::pair<SpacePt, SpaceVector>> edgeMidAndNormal {
+      {SpacePt {x_mid, y_lo}, SpaceVector {0., -1.}},   // bottom edge
+      {SpacePt {x_hi, y_mid}, SpaceVector {1., 0.}},    // right edge
+      {SpacePt {x_mid, y_hi}, SpaceVector {0., 1.}},    // top edge
+      {SpacePt {x_lo, y_mid}, SpaceVector {-1., 0.}}};  // left edge
+
+    for(const auto& [mid, outwardNormal] : edgeMidAndNormal)
+    {
+      // Comfortably within the tolerance band (interior side) -> inside.
+      const SpacePt nearInside = mid - (0.5 * weldThresh) * outwardNormal;
+      EXPECT_TRUE(octree.within(nearInside)) << axom::fmt::format(
+        "Point {} within weld threshold of edge midpoint {} should be inside (segsPerSide={})",
+        nearInside,
+        mid,
+        segsPerSide);
+
+      // Comfortably beyond the tolerance band on the exterior side -> outside.
+      const SpacePt farOutside = mid + (4. * weldThresh) * outwardNormal;
+      EXPECT_FALSE(octree.within(farOutside)) << axom::fmt::format(
+        "Point {} beyond weld threshold outside edge midpoint {} should be outside "
+        "(segsPerSide={})",
+        farOutside,
+        mid,
+        segsPerSide);
+    }
+  }
+}
+
 //----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
+  axom::slic::SimpleLogger logger;
 
 #ifdef INOUT_OCTREE_TESTER_SHOULD_SEED
   std::srand(std::time(0));

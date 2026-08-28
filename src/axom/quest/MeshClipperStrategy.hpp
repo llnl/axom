@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_MESHCLIPPERSTRATEGY_HPP
-#define AXOM_QUEST_MESHCLIPPERSTRATEGY_HPP
+#pragma once
 
 #include "axom/config.hpp"
 
@@ -431,17 +430,8 @@ protected:
    * which apply before m_extTrans.
    */
   numerics::Matrix<double> m_extTrans;
-
-private:
-  /*!
-   * @brief Compute the transformation matrix of a GeometryOperator.
-   */
-  numerics::Matrix<double> computeTransformationMatrix(
-    const std::shared_ptr<const axom::klee::GeometryOperator>& op) const;
 };
 
 }  // namespace experimental
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_MESHCLIPPERSTRATEGY_HPP

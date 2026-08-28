@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Container.hpp
@@ -12,15 +14,15 @@
  *******************************************************************************
  */
 
-#ifndef INLET_CONTAINER_HPP
-#define INLET_CONTAINER_HPP
-
 #include <memory>
 #include <string>
 #include <functional>
+#include <set>
+#include <typeindex>
 #include <unordered_map>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 
 #include "axom/fmt.hpp"
 
@@ -29,6 +31,7 @@
 #include "axom/inlet/Reader.hpp"
 #include "axom/inlet/inlet_utils.hpp"
 #include "axom/inlet/VariantKey.hpp"
+#include "axom/inlet/VariantValue.hpp"
 #include "axom/inlet/Verifiable.hpp"
 
 #include "axom/sidre.hpp"
@@ -60,8 +63,28 @@ namespace inlet
 
 class Container;
 
+template <typename Variant>
+class VariantStructCollection;
+
 namespace detail
 {
+struct VariantStructFactoryBase
+{
+  virtual ~VariantStructFactoryBase() = default;
+};
+
+template <typename Variant>
+struct VariantStructFactory : VariantStructFactoryBase
+{
+  explicit VariantStructFactory(const std::string& discriminatorName)
+    : discriminator(discriminatorName)
+  { }
+
+  std::string discriminator;
+  std::set<std::string> labels;
+  std::unordered_map<std::string, std::function<Variant(const Container&)>> constructors;
+};
+
 /*!
  *******************************************************************************
  * \class is_inlet_primitive
@@ -80,6 +103,13 @@ struct is_inlet_primitive
   static constexpr bool value = std::is_same<BaseType, bool>::value ||
     std::is_same<BaseType, int>::value || std::is_same<BaseType, double>::value ||
     std::is_same<BaseType, std::string>::value;
+};
+
+template <typename T>
+struct is_variant_value
+{
+  using BaseType = typename std::decay<T>::type;
+  static constexpr bool value = std::is_same<BaseType, VariantValue>::value;
 };
 
 /*!
@@ -164,6 +194,14 @@ struct is_std_vector : std::false_type
 
 template <typename T>
 struct is_std_vector<std::vector<T>> : std::true_type
+{ };
+
+template <typename T>
+struct is_std_variant : std::false_type
+{ };
+
+template <typename... T>
+struct is_std_variant<std::variant<T...>> : std::true_type
 { };
 
 template <typename T>
@@ -315,6 +353,45 @@ void updateUnexpectedNames(const std::string& accessedName,
 class Proxy;
 /*!
  *******************************************************************************
+ * \class VariantStructCollection
+ *
+ * \brief Helper for defining collections whose entries are selected from a
+ *        finite set of user-defined struct types.
+ *******************************************************************************
+ */
+template <typename Variant>
+class VariantStructCollection
+{
+public:
+  /*!
+   *****************************************************************************
+   * \brief Add a struct alternative to this variant collection.
+   *
+   * \param [in] label Discriminator value selecting this alternative
+   * \param [in] defineSchema Callable accepting a Container& and defining the
+   * schema for the selected alternative
+   * \tparam Alternative One of the types held by the Variant
+   *****************************************************************************
+   */
+  template <typename Alternative, typename SchemaDefiner>
+  VariantStructCollection& addAlternative(const std::string& label, SchemaDefiner&& defineSchema);
+
+  Container& collection() { return *m_collection; }
+
+private:
+  VariantStructCollection(Container& collection, detail::VariantStructFactory<Variant>& factory)
+    : m_collection(&collection)
+    , m_factory(&factory)
+  { }
+
+  Container* m_collection;
+  detail::VariantStructFactory<Variant>* m_factory;
+
+  friend class Container;
+};
+
+/*!
+ *******************************************************************************
  * \class Container
  *
  * \brief Provides functions to help define how individual Container and Field
@@ -448,6 +525,38 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Add an array of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the array
+   * \param [in] description Description of the Field
+   *
+   * \return Reference to the created array
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantArray(const std::string& name,
+                                         const std::string& description = "");
+
+  /*!
+   *****************************************************************************
+   * \brief Add an array of variant user-defined types to the input file schema.
+   *
+   * Each element must contain a string discriminator field whose value selects
+   * one of the registered struct alternatives.
+   *
+   * \param [in] name Name of the array
+   * \param [in] discriminator Name of the field selecting the alternative
+   * \param [in] description Description of the array
+   *
+   * \return Helper used to register struct alternatives
+   *****************************************************************************
+   */
+  template <typename Variant>
+  VariantStructCollection<Variant> addVariantStructArray(const std::string& name,
+                                                         const std::string& discriminator = "type",
+                                                         const std::string& description = "");
+
+  /*!
+   *****************************************************************************
    * \brief Add an array of Fields to the input file schema.
    *
    * \param [in] name Name of the array
@@ -507,6 +616,36 @@ public:
    */
   Verifiable<Container>& addStringDictionary(const std::string& name,
                                              const std::string& description = "");
+
+  /*!
+   *****************************************************************************
+   * \brief Add a dictionary of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the dict
+   * \param [in] description Description of the dictionary
+   *
+   * \return Reference to the created dictionary
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantDictionary(const std::string& name,
+                                              const std::string& description = "");
+
+  /*!
+   *****************************************************************************
+   * \brief Add a dictionary of variant user-defined types to the input file schema.
+   *
+   * \param [in] name Name of the dictionary
+   * \param [in] discriminator Name of the field selecting the alternative
+   * \param [in] description Description of the dictionary
+   *
+   * \return Helper used to register struct alternatives
+   *****************************************************************************
+   */
+  template <typename Variant>
+  VariantStructCollection<Variant> addVariantStructDictionary(
+    const std::string& name,
+    const std::string& discriminator = "type",
+    const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -635,6 +774,45 @@ public:
 
   /*!
    *******************************************************************************
+   * \brief Returns a stored mixed primitive value.
+   * 
+   * \param [in] name Name of the Field value to be gotten
+   * \return The retrieved value
+   * 
+   * \tparam T The variant value type
+   *******************************************************************************
+   */
+  template <typename T>
+  typename std::enable_if<detail::is_variant_value<T>::value, T>::type get(const std::string& name) const
+  {
+    if(!hasField(name))
+    {
+      const std::string msg = fmt::format(
+        "[Inlet] Field with specified path "
+        "does not exist: {0}",
+        name);
+      SLIC_ERROR(msg);
+    }
+
+    const Field& field = getField(name);
+    switch(field.type())
+    {
+    case InletType::Bool:
+      return field.get<bool>();
+    case InletType::Integer:
+      return field.get<int>();
+    case InletType::Double:
+      return field.get<double>();
+    case InletType::String:
+      return field.get<std::string>();
+    default:
+      SLIC_ERROR(fmt::format("[Inlet] Field with specified path is not a variant value: {0}", name));
+      return {};
+    }
+  }
+
+  /*!
+   *******************************************************************************
    * \brief Returns a stored value of user-defined type.
    * 
    * Retrieves a value of user-defined type.
@@ -648,8 +826,9 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_inlet_array<T>::value &&
-                            !detail::is_inlet_dict<T>::value && !detail::is_std_vector<T>::value,
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value &&
+                            !detail::is_inlet_array<T>::value && !detail::is_inlet_dict<T>::value &&
+                            !detail::is_std_vector<T>::value && !detail::is_variant_value<T>::value,
                           T>::type
   get(const std::string& name = "") const
   {
@@ -928,7 +1107,8 @@ private:
    *****************************************************************************
    */
   template <typename T,
-            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
+            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value ||
+                                                      detail::is_variant_value<T>::value>::type>
   Verifiable<Container>& addPrimitiveArray(const std::string& name,
                                            const std::string& description = "",
                                            const bool isDict = false,
@@ -1134,12 +1314,40 @@ private:
   template <typename Key, typename Val>
   std::unordered_map<Key, Val> getCollection() const
   {
+    return getCollectionImpl<Key, Val>(
+      std::integral_constant < bool,
+      detail::is_std_variant<Val>::value && !detail::is_variant_value<Val>::value > {});
+  }
+
+  template <typename Key, typename Val>
+  std::unordered_map<Key, Val> getCollectionImpl(std::false_type) const
+  {
     std::unordered_map<Key, Val> map;
     for(const auto& indexLabel : detail::collectionIndices(*this))
     {
       if(detail::matchesKeyType<Key>(indexLabel))
       {
         map[detail::toIndex<Key>(indexLabel)] = get<Val>(detail::indexToString(indexLabel));
+      }
+    }
+    return map;
+  }
+
+  template <typename Key, typename Variant>
+  std::unordered_map<Key, Variant> getCollectionImpl(std::true_type) const
+  {
+    const auto& factory = variantStructFactory<Variant>();
+    std::unordered_map<Key, Variant> map;
+    for(const auto& indexLabel : detail::collectionIndices(*this))
+    {
+      if(detail::matchesKeyType<Key>(indexLabel))
+      {
+        const auto& element = getContainer(detail::indexToString(indexLabel));
+        const auto label = element.get<std::string>(factory.discriminator);
+        const auto constructor = factory.constructors.find(label);
+        SLIC_ERROR_IF(constructor == factory.constructors.end(),
+                      fmt::format("[Inlet] Unknown variant struct discriminator '{0}'", label));
+        map.emplace(detail::toIndex<Key>(indexLabel), constructor->second(element));
       }
     }
     return map;
@@ -1173,6 +1381,17 @@ private:
    */
   template <typename Key>
   Container& addStructCollection(const std::string& name, const std::string& description = "");
+
+  template <typename Key, typename Variant>
+  VariantStructCollection<Variant> addVariantStructCollection(const std::string& name,
+                                                              const std::string& discriminator,
+                                                              const std::string& description = "");
+
+  template <typename Variant>
+  detail::VariantStructFactory<Variant>& variantStructFactory(const std::string& discriminator);
+
+  template <typename Variant>
+  const detail::VariantStructFactory<Variant>& variantStructFactory() const;
 
   /*!
    *****************************************************************************
@@ -1246,13 +1465,140 @@ private:
   std::vector<AggregateField> m_aggregate_fields;
   std::vector<AggregateVerifiable<Function>> m_aggregate_funcs;
 
+  std::unordered_map<std::type_index, std::unique_ptr<detail::VariantStructFactoryBase>>
+    m_variant_struct_factories;
+
   // Used when the calling Container is a struct collection within a struct collection
   // Need to delegate schema-defining calls (add*) to the elements of the nested
   // collection
   std::vector<std::reference_wrapper<Container>> m_nested_aggregates;
+
+  template <typename Variant>
+  friend class VariantStructCollection;
 };
+
+template <typename Variant>
+template <typename Alternative, typename SchemaDefiner>
+VariantStructCollection<Variant>& VariantStructCollection<Variant>::addAlternative(
+  const std::string& label,
+  SchemaDefiner&& defineSchema)
+{
+  static_assert(std::is_constructible<Variant, Alternative>::value,
+                "Alternative must be one of the types held by the variant");
+  static_assert(detail::has_FromInlet_specialization<Alternative>::value,
+                "To read a variant struct alternative, specialize FromInlet<T>");
+
+  m_factory->labels.insert(label);
+  m_factory->constructors[label] = [](const Container& container) {
+    FromInlet<Alternative> from_inlet;
+    return Variant {from_inlet(container)};
+  };
+
+  for(const auto& index : detail::collectionIndices(*m_collection))
+  {
+    Container& element = m_collection->getContainer(detail::indexToString(index));
+    if(element.isUserProvided(m_factory->discriminator) &&
+       element.template get<std::string>(m_factory->discriminator) == label)
+    {
+      defineSchema(element);
+    }
+  }
+
+  return *this;
+}
+
+template <typename Variant>
+VariantStructCollection<Variant> Container::addVariantStructArray(const std::string& name,
+                                                                  const std::string& discriminator,
+                                                                  const std::string& description)
+{
+  return addVariantStructCollection<int, Variant>(name, discriminator, description);
+}
+
+template <typename Variant>
+VariantStructCollection<Variant> Container::addVariantStructDictionary(const std::string& name,
+                                                                       const std::string& discriminator,
+                                                                       const std::string& description)
+{
+  return addVariantStructCollection<VariantKey, Variant>(name, discriminator, description);
+}
+
+template <typename Key, typename Variant>
+VariantStructCollection<Variant> Container::addVariantStructCollection(const std::string& name,
+                                                                       const std::string& discriminator,
+                                                                       const std::string& description)
+{
+  static_assert(detail::is_std_variant<Variant>::value,
+                "Variant struct collections must be retrieved as std::variant alternatives");
+
+  auto& collection = addStructCollection<Key>(name, description);
+  if(!collection.m_sidreGroup->hasView(detail::VARIANT_STRUCT_COLLECTION_FLAG))
+  {
+    collection.m_sidreGroup->createViewScalar(detail::VARIANT_STRUCT_COLLECTION_FLAG, true);
+  }
+  auto& factory = collection.template variantStructFactory<Variant>(discriminator);
+  auto* factory_ptr = &factory;
+  collection.addString(discriminator, "Variant struct discriminator")
+    .required()
+    .registerVerifier([factory_ptr](const Field& field) {
+      const auto label = field.get<std::string>();
+      return factory_ptr->labels.find(label) != factory_ptr->labels.end();
+    });
+  collection.m_verifier = [factory_ptr](const Container& container, std::vector<VerificationError>*) {
+    for(const auto& index : detail::collectionIndices(container))
+    {
+      const auto child_name =
+        utilities::string::appendPrefix(container.name(), detail::indexToString(index));
+      const auto& element = *container.getChildContainers().at(child_name);
+      if(!element.isUserProvided(factory_ptr->discriminator))
+      {
+        return false;
+      }
+
+      const auto label = element.template get<std::string>(factory_ptr->discriminator);
+      if(factory_ptr->labels.find(label) == factory_ptr->labels.end())
+      {
+        return false;
+      }
+    }
+    return true;
+  };
+  return VariantStructCollection<Variant>(collection, factory);
+}
+
+template <typename Variant>
+detail::VariantStructFactory<Variant>& Container::variantStructFactory(const std::string& discriminator)
+{
+  auto& base_factory = m_variant_struct_factories[std::type_index(typeid(Variant))];
+  if(!base_factory)
+  {
+    base_factory = std::make_unique<detail::VariantStructFactory<Variant>>(discriminator);
+  }
+
+  auto* factory = dynamic_cast<detail::VariantStructFactory<Variant>*>(base_factory.get());
+  SLIC_ERROR_IF(factory == nullptr, "[Inlet] Variant struct factory type mismatch");
+  SLIC_ERROR_IF(factory->discriminator != discriminator,
+                fmt::format("[Inlet] Variant struct collection already uses discriminator '{0}'",
+                            factory->discriminator));
+  return *factory;
+}
+
+template <typename Variant>
+const detail::VariantStructFactory<Variant>& Container::variantStructFactory() const
+{
+  const auto factory_iter = m_variant_struct_factories.find(std::type_index(typeid(Variant)));
+  SLIC_ERROR_IF(factory_iter == m_variant_struct_factories.end(),
+                fmt::format("[Inlet] Collection '{0}' was read as a variant struct collection, "
+                            "but no variant schema was registered. Define it with "
+                            "addVariantStructArray() or addVariantStructDictionary(), then "
+                            "register each alternative with addAlternative() before calling "
+                            "get<...>().",
+                            m_name));
+
+  auto* factory = dynamic_cast<detail::VariantStructFactory<Variant>*>(factory_iter->second.get());
+  SLIC_ERROR_IF(factory == nullptr, "[Inlet] Variant struct factory type mismatch");
+  return *factory;
+}
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

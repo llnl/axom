@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file Writer.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the abstract base class definition of Writer.
  *******************************************************************************
  */
-
-#ifndef INLET_WRITER_HPP
-#define INLET_WRITER_HPP
 
 namespace axom
 {
@@ -63,5 +62,3 @@ public:
 
 }  // namespace inlet
 }  // namespace axom
-
-#endif

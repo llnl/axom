@@ -10,12 +10,10 @@
 
 #include <stdexcept>
 
-namespace axom
-{
-namespace klee
-{
-namespace
-{
+namespace klee = axom::klee;
+
+using klee::Dimensions;
+using klee::ShapeSet;
 
 TEST(ShapeSetTest, dimensions_getAndSet)
 {
@@ -38,7 +36,3 @@ TEST(ShapeSetTest, dimensions_getAndSet)
     EXPECT_EQ(Dimensions::Three, shapeSet.getDimensions());
   }
 }
-
-}  // namespace
-}  // namespace klee
-}  // namespace axom

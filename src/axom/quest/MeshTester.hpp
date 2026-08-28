@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_MESH_TESTER_HPP_
-#define AXOM_QUEST_MESH_TESTER_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
@@ -276,5 +275,3 @@ void weldTriMeshVertices(mint::UnstructuredMesh<mint::SINGLE_SHAPE>** surface_me
 
 }  // namespace quest
 }  // namespace axom
-
-#endif  // AXOM_QUEST_MESH_TESTER_HPP_

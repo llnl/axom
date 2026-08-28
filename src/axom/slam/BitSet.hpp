@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file BitSet.hpp
  *
  * \brief Contains a BitSet class for manipulating ordered sequences of bits.
  */
-
-#ifndef SLAM_BITSET_H_
-#define SLAM_BITSET_H_
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
@@ -22,9 +21,7 @@
 
 #include <vector>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 // Forward declare the BitSet class and some operator functions
 
@@ -88,16 +85,12 @@ BitSet operator-(const BitSet& lhs, const BitSet& rhs);
  *
  * This class supports bitwise manipulation operations (e.g. set intersection,
  * union and difference) on an ordered set of bits. The class has a similar
- * interface to std::bitset and boost::dynamic_bitset, but with the following
- * differences:
+ * interface to std::bitset and boost::dynamic_bitset, but with the following differences:
  *   - The size of the bitset is supplied at runtime in the class constructor.
- *   However, BitSet does not currently support changing the size after
- *   construction.
+ *     However, BitSet does not currently support changing the size after construction.
  *   - We do not support the random access operation ( operator[](index) ).
- *   The value of individual bits can be checked using the test function
- *   (e.g. bset.test(i) )
- *   - There is no support for directly initializing the bits in the bitset
- *   (e.g. via strings).
+ *     The value of individual bits can be checked using the test function (e.g. bset.test(i) )
+ *   - There is no support for directly initializing the bits in the bitset (e.g. via strings).
  *
  * The individual bits in the bitset are packed into a contiguous array of
  * Words (an unsigned integer type). Many bitset operations such as count()
@@ -221,20 +214,18 @@ public:
   /**
    * \brief Finds the index of the first bit that is set in the bitset
    *
-   * \return The index of the first set bit,
-   * or BitSet::npos if no bits are set
+   * \return The index of the first set bit, or BitSet::npos if no bits are set
    */
-  Index find_first() const;
+  [[nodiscard]] Index find_first() const;
 
   /**
    * \brief Finds the index of the next set bit in the bitset after \a idx
    *
    * \param idx The starting index
-   * \return The index of the first set bit after index \a idx
-   * or BitSet::npos if none can be found
+   * \return The index of the first set bit after index \a idx or BitSet::npos if none can be found
    * \note Will also return BitSet::npos if \a idx is BitSet::npos
    */
-  Index find_next(Index idx) const;
+  [[nodiscard]] Index find_next(Index idx) const;
 
   /// @}
 
@@ -243,10 +234,10 @@ public:
   /// @{
 
   /** \brief Returns the cardinality of the bitset */
-  AXOM_HOST_DEVICE int size() const { return m_numBits; }
+  [[nodiscard]] AXOM_HOST_DEVICE int size() const { return m_numBits; }
 
   /** \brief Returns the number of bits that are set */
-  int count() const;
+  [[nodiscard]] int count() const;
 
   /** \brief Clears all bits in the bitset */
   void clear();
@@ -263,10 +254,9 @@ public:
    * \return True if the bitset is valid, false otherwise
    *
    * A bitset is valid if it has sufficient storage for size() bits.
-   * If we have storage for more than size() bits, none of these additional
-   * bits are set.
+   * If we have storage for more than size() bits, none of these additional bits are set.
    */
-  bool isValid() const;
+  [[nodiscard]] bool isValid() const;
 
   /// @}
 
@@ -340,8 +330,7 @@ private:
    * \brief Gets the index of the word containing bit at index \a idx
    *
    * \param idx The index of the word containing the desired bit
-   * \param checkIndexValid Option to enable bounds checking to ensure
-   * that \a idx is within range [0, size() )
+   * \param checkIndexValid Option to enable bounds checking to ensure that \a idx is within range [0, size() )
    */
   AXOM_HOST_DEVICE
   Word& getWord(Index idx, bool checkIndexValid = true)
@@ -372,8 +361,7 @@ private:
   }
 
   /**
-   * \brief Returns a bitmask for the desired bit within the word
-   * containing \a idx
+   * \brief Returns a bitmask for the desired bit within the word containing \a idx
    *
    * \param idx The index of the desired bit
    */
@@ -407,11 +395,9 @@ private:
   }
 
   /**
-   * \brief Predicate to determine if we need special processing
-   * for the final word of the bitset
+   * \brief Predicate to determine if we need special processing for the final word of the bitset
    *
-   * The last word is full when the bitset has exactly
-   * m_words * BitsPerWord bits
+   * The last word is full when the bitset has exactly m_words * BitsPerWord bits
    */
   bool isLastWordFull() const
   {
@@ -425,7 +411,4 @@ private:
   int m_numBits;
 };
 
-}  // end namespace slam
-}  // end namespace axom
-
-#endif  //  SLAM_BITSET_H_
+}  // end namespace axom::slam

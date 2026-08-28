@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  * \file CurvedPolygon.hpp
  *
  * \brief A polygon primitive whose edges are Bezier curves
  */
-
-#ifndef AXOM_PRIMAL_CURVEDPOLYGON_HPP_
-#define AXOM_PRIMAL_CURVEDPOLYGON_HPP_
 
 #include "axom/slic.hpp"
 
@@ -23,7 +22,7 @@
 #include "axom/primal/geometry/BoundingBox.hpp"
 
 // For NURBSCurveGWNCache objects
-#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
+#include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
 
 #include <vector>
 #include <ostream>
@@ -124,7 +123,7 @@ public:
   /// @{
 
   /// Return the number of edges in the polygon
-  int numEdges() const { return m_edges.size(); }
+  int numEdges() const { return static_cast<int>(m_edges.size()); }
 
   void setNumEdges(int ngon)
   {
@@ -290,5 +289,3 @@ std::ostream& operator<<(std::ostream& os, const CurvedPolygon<CurveType>& poly)
 
 }  // namespace primal
 }  // namespace axom
-
-#endif  // AXOM_PRIMAL_CURVEDPOLYGON_HPP_

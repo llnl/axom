@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_ATOMICS_HPP_
-#define AXOM_CORE_EXECUTION_ATOMICS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -239,5 +238,3 @@ inline AXOM_HOST_DEVICE void atomicStore(T* address, T value)
 
 }  // namespace axom
 #endif  // AXOM_HAVE_RAJA
-
-#endif

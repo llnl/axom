@@ -281,6 +281,37 @@ shapes:
   <figcaption style="font-style: italic;">Figure: Example Klee inputs showing `scale`, `translate`, `rotate` and unit conversion operators.</figcaption>
 </div>
 
+#### Lua decks
+
+Klee can also read Lua decks when Axom is configured with Lua support.
+Lua decks use the same shape schema as YAML, but Lua is evaluated before
+Inlet reads the resulting global tables. The lesson's `ice_cream.lua` deck
+mirrors the YAML setup while using local Lua variables for shared values:
+
+```lua
+local dim = 2
+local scoop_radius = 1.1
+local scoop_offset = {0.0, 2.0}
+
+dimensions = dim
+
+shapes = {
+  {
+    name = "vanilla_scoop",
+    material = "ice_cream",
+    geometry = {
+      format = "mfem",
+      path = "ice_cream_scoop.mesh",
+      units = "cm",
+      operators = {
+        { scale = {scoop_radius} },
+        { rotate = 5 },
+        { translate = scoop_offset }
+      }
+    }
+  }
+}
+```
 
 ### Replacement Rules
 Replacement rules give users some extra control in how shapes get overlaid. By default, a new shape of a given material will replace all other shapes.

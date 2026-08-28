@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 // NOTE: This file is meant to be included by ElviraAlgorithm.hpp after its
 //       other includes so we do not include much here.
 
@@ -104,9 +106,9 @@ inline AXOM_HOST_DEVICE Difference reverseDifference(Difference value)
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE void elvira2d(Result2D<FloatType> &result,
-                               const FloatType *vf,
-                               const int *ivf,
+AXOM_HOST_DEVICE void elvira2d(Result2D<FloatType>& result,
+                               const FloatType* vf,
+                               const int* ivf,
                                Direction direction)
 {
   const FloatType jb = vf[ivf[0]] + vf[ivf[1]] + vf[ivf[2]];  // bottom row
@@ -171,9 +173,9 @@ AXOM_HOST_DEVICE void elvira2d(Result2D<FloatType> &result,
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE inline FloatType elvira_chisq(const FloatType *vf,
-                                               const FloatType *vfs,
-                                               const int *ivf,
+AXOM_HOST_DEVICE inline FloatType elvira_chisq(const FloatType* vf,
+                                               const FloatType* vfs,
+                                               const int* ivf,
                                                int k)
 {
   FloatType chisq = 0.0;
@@ -410,7 +412,7 @@ AXOM_HOST_DEVICE FloatType vf_1cube(FloatType d, FloatType n1, FloatType n2, Flo
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE FloatType cub4p(const FloatType *x, const FloatType *y)
+AXOM_HOST_DEVICE FloatType cub4p(const FloatType* x, const FloatType* y)
 {
   FloatType dstar;
   FloatType e0 = 0.0, e1 = 0.0, e2 = 0.0, ep, em, ea, eb;
@@ -771,7 +773,7 @@ AXOM_HOST_DEVICE FloatType d_3cube(const FloatType n[3], FloatType vf13)
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE void vf_3cube(FloatType n[3], FloatType pd, FloatType *vfs, const int *ivf, int k)
+AXOM_HOST_DEVICE void vf_3cube(FloatType n[3], FloatType pd, FloatType* vfs, const int* ivf, int k)
 {
   // Find node of lowest d
   // as 0 or 1 offset for each coord.
@@ -810,7 +812,7 @@ AXOM_HOST_DEVICE void vf_3cube(FloatType n[3], FloatType pd, FloatType *vfs, con
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE void elvira2xy(const FloatType *vf, FloatType n[3])
+AXOM_HOST_DEVICE void elvira2xy(const FloatType* vf, FloatType n[3])
 {
   // These are indices into the volume fractions that pull out values in the XY plane.
   const int ivf[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
@@ -880,7 +882,7 @@ AXOM_HOST_DEVICE void elvira2xy(const FloatType *vf, FloatType n[3])
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE FloatType det_variance(const FloatType *vf, const int *ivf)
+AXOM_HOST_DEVICE FloatType det_variance(const FloatType* vf, const int* ivf)
 {
   /* "andfn" selects these zones from the ivf stencil.
    *  *---*---*---*
@@ -923,7 +925,7 @@ AXOM_HOST_DEVICE FloatType det_variance(const FloatType *vf, const int *ivf)
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE void pick_elv(Result2D<FloatType> elv2d[2], const FloatType *vf)
+AXOM_HOST_DEVICE void pick_elv(Result2D<FloatType> elv2d[2], const FloatType* vf)
 {
   const int ivf[19] = {1, 3, 4, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 21, 22, 23, 25};
   const int idiff[5] = {0, 0, 1, 2, 2};
@@ -1005,7 +1007,7 @@ AXOM_HOST_DEVICE void missvol1(FloatType c00,  // Center column sum.
                                FloatType v10,
                                FloatType c01,
                                FloatType v01,
-                               FloatType &vma,
+                               FloatType& vma,
                                int is_far)
 {
   constexpr FloatType one6 = 1. / 6.;
@@ -1365,7 +1367,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
     FloatType n2a[2][2];
     for(int i = 0; i < 2; i++)
     {
-      const FloatType *n2 = elv2d[i].normal[differenceToInt(elv2d[i].difference_used)];
+      const FloatType* n2 = elv2d[i].normal[differenceToInt(elv2d[i].difference_used)];
       for(int k = 0; k < 2; k++)
       {
         n2a[i][k] = axom::utilities::abs(n2[k]);
@@ -1412,7 +1414,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE void elvira3d(const FloatType *vf, FloatType n[3])
+AXOM_HOST_DEVICE void elvira3d(const FloatType* vf, FloatType n[3])
 {
   const int stencil2d[3][9] = {{1, 4, 7, 10, 13, 16, 19, 22, 25},     // yz
                                {3, 12, 21, 4, 13, 22, 5, 14, 23},     // zx
@@ -1466,7 +1468,7 @@ AXOM_HOST_DEVICE void elvira3d(const FloatType *vf, FloatType n[3])
  * \note Adapted from code by Jeff Grandy
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE void transform(FloatType *normal, const FloatType jac[3][3])
+AXOM_HOST_DEVICE void transform(FloatType* normal, const FloatType jac[3][3])
 {
   SLIC_ASSERT(normal != nullptr);
 
@@ -1521,9 +1523,9 @@ AXOM_HOST_DEVICE void transform(FloatType *normal, const FloatType jac[3][3])
  * \note  Adapted from code by Jeff Grandy.
  */
 template <typename FloatType>
-AXOM_HOST_DEVICE void computeJacobian(const FloatType *xcst,
-                                      const FloatType *ycst,
-                                      const FloatType *zcst,
+AXOM_HOST_DEVICE void computeJacobian(const FloatType* xcst,
+                                      const FloatType* ycst,
+                                      const FloatType* zcst,
                                       int ndims,
                                       FloatType jac[3][3])
 {
@@ -1536,7 +1538,7 @@ AXOM_HOST_DEVICE void computeJacobian(const FloatType *xcst,
   const int idx_2D[6] = {3, 5, 1, 7, 4, 4};
   const int idx_3D[6] = {12, 14, 10, 16, 4, 22};
 
-  const int *idx = (ndims == 3) ? idx_3D : idx_2D;
+  const int* idx = (ndims == 3) ? idx_3D : idx_2D;
 
   /*
   *  Note face convention : opposite face pairs (01), (23), (45) form
@@ -1637,15 +1639,15 @@ struct elvira<2>
    */
   AXOM_HOST_DEVICE
   static void execute(int matCount,
-                      const double *fragmentVFStencilStart,
-                      double *fragmentVectorsStart,
+                      const double* fragmentVFStencilStart,
+                      double* fragmentVectorsStart,
                       int iskip)
   {
     constexpr int StencilSize = getStencilSize(NDIMS);
     constexpr int numVectorComponents = 3;
 
-    const double *vol_fracs = fragmentVFStencilStart;
-    double *normal = fragmentVectorsStart;
+    const double* vol_fracs = fragmentVFStencilStart;
+    double* normal = fragmentVectorsStart;
 
     for(int m = 0; m < matCount; m++)
     {
@@ -1689,15 +1691,15 @@ struct elvira<3>
    */
   AXOM_HOST_DEVICE
   static void execute(int matCount,
-                      const double *fragmentVFStencilStart,
-                      double *fragmentVectorsStart,
+                      const double* fragmentVFStencilStart,
+                      double* fragmentVectorsStart,
                       int iskip)
   {
     constexpr int StencilSize = getStencilSize(NDIMS);
     constexpr int numVectorComponents = 3;
 
-    const double *vol_fracs = fragmentVFStencilStart;
-    double *normal = fragmentVectorsStart;
+    const double* vol_fracs = fragmentVFStencilStart;
+    double* normal = fragmentVectorsStart;
 
     for(int m = 0; m < matCount; m++)
     {

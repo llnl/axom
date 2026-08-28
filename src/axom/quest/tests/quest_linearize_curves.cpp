@@ -26,14 +26,14 @@ using SegmentMesh = axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>;
  * \return The total length of segments in the mesh.
  */
 template <typename ExecPolicy = axom::SEQ_EXEC>
-double totalSegmentLength(const SegmentMesh *mesh)
+double totalSegmentLength(const SegmentMesh* mesh)
 {
   axom::ReduceSum<ExecPolicy, double> totalSegmentLength(0.);
   axom::mint::for_all_cells<ExecPolicy, axom::mint::xargs::coords>(
     mesh,
     AXOM_LAMBDA(axom::IndexType AXOM_UNUSED_PARAM(cellID),
-                const axom::numerics::Matrix<double> &coordsMatrix,
-                const axom::IndexType *AXOM_UNUSED_PARAM(nodes)) {
+                const axom::numerics::Matrix<double>& coordsMatrix,
+                const axom::IndexType* AXOM_UNUSED_PARAM(nodes)) {
       constexpr int xdim = 0;
       constexpr int ydim = 1;
       const double dx = coordsMatrix(xdim, 1) - coordsMatrix(xdim, 0);
@@ -50,7 +50,7 @@ double totalSegmentLength(const SegmentMesh *mesh)
  * \param[out] curves The array that will contain the curves.
  */
 template <typename NURBSCurveType>
-void makeCurves(axom::Array<NURBSCurveType> &curves, bool circle = true)
+void makeCurves(axom::Array<NURBSCurveType>& curves, bool circle = true)
 {
   const double center[] = {0., 0.};
   const double radius = 1.;
@@ -89,7 +89,7 @@ TEST(quest_linearize_curves, linearize_uniform)
   const double expectedLength = 2. * M_PI;
   const int segmentsPerKnotSpan = 30;
   axom::quest::LinearizeCurves lin;
-  SegmentMesh *mesh = new SegmentMesh(DIM, axom::mint::SEGMENT);
+  SegmentMesh* mesh = new SegmentMesh(DIM, axom::mint::SEGMENT);
   lin.getLinearMeshUniform(curves.view(), mesh, segmentsPerKnotSpan);
   const double actualLength = totalSegmentLength(mesh);
   EXPECT_NEAR(actualLength, expectedLength, 1.e-3);
@@ -110,7 +110,7 @@ TEST(quest_linearize_curves, linearize_nonuniform)
   const double expectedLength = M_PI * 3. / 4.;
   const double percentError = 0.01;
   axom::quest::LinearizeCurves lin;
-  SegmentMesh *mesh = new SegmentMesh(DIM, axom::mint::SEGMENT);
+  SegmentMesh* mesh = new SegmentMesh(DIM, axom::mint::SEGMENT);
   lin.getLinearMeshNonUniform(curves.view(), mesh, percentError);
   const double actualLength = totalSegmentLength(mesh);
   EXPECT_NEAR(((expectedLength - actualLength) / expectedLength), percentError, percentError);
@@ -136,7 +136,7 @@ TEST(quest_linearize_curves, revolved_volume)
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
 

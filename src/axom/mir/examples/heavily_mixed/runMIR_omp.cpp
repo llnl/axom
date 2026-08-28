@@ -7,9 +7,9 @@
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_OPENMP)
 int runMIR_omp(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result)
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result)
 {
   int retval = 0;
   if(dimension == 3)
@@ -24,9 +24,9 @@ int runMIR_omp(int dimension,
 }
 #else
 int runMIR_omp(int AXOM_UNUSED_PARAM(dimension),
-               const conduit::Node &AXOM_UNUSED_PARAM(mesh),
-               const conduit::Node &AXOM_UNUSED_PARAM(options),
-               conduit::Node &AXOM_UNUSED_PARAM(result))
+               const conduit::Node& AXOM_UNUSED_PARAM(mesh),
+               const conduit::Node& AXOM_UNUSED_PARAM(options),
+               conduit::Node& AXOM_UNUSED_PARAM(result))
 {
   return 0;
 }

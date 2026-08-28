@@ -15,6 +15,10 @@ else()
     cmake_minimum_required(VERSION 3.14)
 endif()
 
+# Default unset third-party CMP0074 handling to NEW so imported packages honor
+# <PackageName>_ROOT hints without emitting developer warnings.
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW CACHE STRING "")
+
 project(axom LANGUAGES C CXX)
 
 if (ENABLE_FORTRAN)
@@ -42,11 +46,11 @@ else()
     endif()
 endif()
 
-if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
+if ("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
     # Set some default BLT options before loading BLT only if not included in
     # another project
     if (NOT BLT_CXX_STD)
-        set(BLT_CXX_STD "c++17" CACHE STRING "")
+        set(BLT_CXX_STD "c++20" CACHE STRING "")
     endif()
 
     # These are not used in Axom, turn them off
@@ -104,8 +108,9 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
 endif()
 
 if("${BLT_CXX_STD}" STREQUAL "c++98" OR "${BLT_CXX_STD}" STREQUAL "c++11"
-                                     OR "${BLT_CXX_STD}" STREQUAL "c++14" )
-    message(FATAL_ERROR "Axom requires BLT_CXX_STD to be 'c++17' or above.")
+                                     OR "${BLT_CXX_STD}" STREQUAL "c++14"
+                                     OR "${BLT_CXX_STD}" STREQUAL "c++17" )
+    message(FATAL_ERROR "Axom requires BLT_CXX_STD to be 'c++20' or above.")
 endif()
 
 include(${BLT_SOURCE_DIR}/SetupBLT.cmake)

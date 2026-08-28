@@ -24,7 +24,7 @@ axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void braid3d_mat_test(const std::string &type, const std::string &mattype, const std::string &name)
+void braid3d_mat_test(const std::string& type, const std::string& mattype, const std::string& name)
 {
   axom::StackArray<axom::IndexType, 3> dims {11, 11, 11};
   axom::StackArray<axom::IndexType, 3> zoneDims {dims[0] - 1, dims[1] - 1, dims[2] - 1};
@@ -33,7 +33,13 @@ void braid3d_mat_test(const std::string &type, const std::string &mattype, const
   const bool cleanMats = false;
   conduit::Node hostMesh, deviceMesh;
   axom::blueprint::testing::data::braid(type, dims, hostMesh);
-  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostMesh);
+  const bool makeMixedField = false;  // for now
+  axom::blueprint::testing::data::make_matset(mattype,
+                                              "mesh",
+                                              zoneDims,
+                                              cleanMats,
+                                              makeMixedField,
+                                              hostMesh);
   utils::copy<ExecSpace>(deviceMesh, hostMesh);
   TestApp.saveVisualization(name + "_orig", hostMesh);
 
@@ -63,6 +69,7 @@ void braid3d_mat_test(const std::string &type, const std::string &mattype, const
     using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
+    options["verbose"] = 1;
     options["matset"] = "mat";
     m.execute(deviceMesh, options, deviceMIRMesh);
   }
@@ -110,7 +117,7 @@ TEST(mir_equiz, equiz_hex_unibuffer_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef Axom_Core_FlatMap_Util_HPP
-#define Axom_Core_FlatMap_Util_HPP
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/FlatMap.hpp"
@@ -127,92 +126,6 @@ private:
   ValueIterator m_valueIter {nullptr};
 };
 
-/*!
- * \class FlatMapOffsetIterator
- * \brief Iterator helper for iterating over filled buckets given an array of
- *  bucket indices.
- */
-template <typename KeyType, typename ValueType>
-class FlatMapOffsetIterator
-  : public IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>
-{
-private:
-  using BaseType = IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>;
-  using KeyValuePair = std::pair<const KeyType, ValueType>;
-  using PairStorage = detail::flat_map::TypeErasedStorage<KeyValuePair>;
-
-public:
-  // Iterator traits required to satisfy LegacyRandomAccessIterator concept
-  // before C++20
-  // See: https://en.cppreference.com/w/cpp/iterator/iterator_traits
-  using difference_type = IndexType;
-  using value_type = std::pair<const KeyType, ValueType>;
-  using reference = value_type&;
-  using pointer = value_type*;
-  using iterator_category = std::random_access_iterator_tag;
-
-  FlatMapOffsetIterator() = default;
-
-  AXOM_HOST_DEVICE FlatMapOffsetIterator(PairStorage* buckets, IndexType* offsets)
-    : m_buckets {buckets}
-    , m_offsets {offsets}
-  { }
-
-  AXOM_HOST_DEVICE reference operator*() const { return m_buckets[m_offsets[this->m_pos]].get(); }
-
-protected:
-  /** Implementation of advance() as required by IteratorBase */
-  AXOM_HOST_DEVICE void advance(IndexType n) { BaseType::m_pos += n; }
-
-private:
-  PairStorage* m_buckets {nullptr};
-  IndexType* m_offsets {nullptr};
-};
-
-/**
- * \brief Helper function to gather filled buckets within a FlatMap.
- *
- *  Workaround for a limitation within CUDA where a lambda cannot be defined in
- *  a protected or private member function.
- */
-template <typename ExecSpace>
-void gatherFilledBuckets(ArrayView<flat_map::GroupBucket> group_metadata,
-                         ArrayView<IndexType> filled_bucket_indexes,
-                         IndexType num_buckets,
-                         int allocator_id)
-{
-  using flat_map::GroupBucket;
-
-  IndexType* counter = axom::allocate<IndexType>(1, allocator_id);
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
-  if(detail::getAllocatorSpace(allocator_id) == MemorySpace::Device)
-  {
-    for_all<ExecSpace>(1, AXOM_LAMBDA(IndexType) { *counter = 0; });
-  }
-  else
-  {
-    *counter = 0;
-  }
-#else
-  *counter = 0;
-#endif
-
-  for_all<ExecSpace>(
-    num_buckets,
-    AXOM_LAMBDA(IndexType bucket_idx) {
-      IndexType group_idx = bucket_idx / GroupBucket::Size;
-      int slot_idx = bucket_idx % GroupBucket::Size;
-      if(group_metadata[group_idx].metadata.buckets[slot_idx] > GroupBucket::Sentinel)
-      {
-        // Bucket contains an element.
-        IndexType dest = axom::atomicAdd<ExecSpace>(counter, IndexType {1});
-        filled_bucket_indexes[dest] = bucket_idx;
-      }
-    });
-
-  axom::deallocate(counter);
-}
-
 }  // namespace detail
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -232,27 +145,126 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   return new_map;
 }
 
-template <typename KeyType, typename ValueType, typename Hash>
-template <typename ExecSpace>
-void FlatMap<KeyType, ValueType, Hash>::parallelRehash(IndexType count)
+namespace detail
 {
-  using detail::FlatMapOffsetIterator;
 
-  // If the FlatMap is constructed in device-only memory, construct in
-  // parallel on the device.
-  axom::Array<IndexType> filled_bucket_idx_vec(m_size, m_size, m_allocator.getID());
+/**
+ * \brief Rehashes occupied FlatMap buckets directly on the device.
+ *
+ * Recomputes the destination slot for each filled bucket and relocates the
+ * underlying PairStorage into the new table without materializing key-value
+ * pairs through the batched insert path.
+ */
+template <typename ExecSpace, typename Hash, typename KeyValuePair, typename PairStorage>
+void deviceRehashBuckets(ArrayView<flat_map::GroupBucket> old_metadata,
+                         ArrayView<PairStorage> old_buckets,
+                         int new_num_groups2,
+                         ArrayView<flat_map::GroupBucket> new_metadata,
+                         ArrayView<PairStorage> new_buckets)
+{
+  using LookupPolicy = flat_map::SequentialLookupPolicy<typename Hash::result_type>;
+  using GroupBucket = flat_map::GroupBucket;
 
-  detail::gatherFilledBuckets<ExecSpace>(m_metadata.view(),
-                                         filled_bucket_idx_vec.view(),
-                                         m_buckets.size(),
-                                         m_allocator.getID());
+  const IndexType num_groups = 1 << new_num_groups2;
+  Array<SpinLock> lock_vec(num_groups, num_groups, new_metadata.getAllocatorID());
+  const auto group_locks = lock_vec.view();
 
-  FlatMapOffsetIterator bucket_begin {m_buckets.data(), filled_bucket_idx_vec.data()};
+  const IndexType num_old_buckets = old_buckets.size();
 
-  FlatMap new_map(count, m_allocator);
-  new_map.template insert<ExecSpace>(bucket_begin, bucket_begin + m_size);
+  for_all<ExecSpace>(
+    num_old_buckets,
+    AXOM_LAMBDA(IndexType bucket_idx) {
+      IndexType group_idx = bucket_idx / GroupBucket::Size;
+      int slot_idx = bucket_idx % GroupBucket::Size;
+      if(old_metadata[group_idx].metadata.buckets[slot_idx] <= GroupBucket::Sentinel)
+      {
+        return;
+      }
 
-  this->swap(new_map);
+      auto hash = Hash {}(old_buckets[bucket_idx].get().first);
+      // We use the k MSBs of the hash as the initial group probe point,
+      // where ngroups = 2^k.
+      const auto init = LookupPolicy::initGroupProbe(hash, new_num_groups2);
+      const auto group_mask = init.group_mask;
+      auto curr_group = init.curr_group;
+      const std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
+
+      int iteration = 0;
+      while(iteration < new_metadata.size())
+      {
+        if(group_locks[curr_group].tryLock())
+        {
+          int empty_slot = new_metadata[curr_group].getEmptyBucket();
+          if(empty_slot == GroupBucket::InvalidSlot)
+          {
+            new_metadata[curr_group].template setOverflow<true>(hash_8);
+            group_locks[curr_group].unlock();
+            curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) & group_mask;
+            ++iteration;
+          }
+          else
+          {
+            new_metadata[curr_group].template setBucket<true>(empty_slot, hash_8);
+            IndexType new_bucket = curr_group * GroupBucket::Size + empty_slot;
+          // Device code preserves the raw-storage relocation path; host code
+          // constructs into the destination bucket for non-trivial types.
+#if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+            new_buckets[new_bucket] = old_buckets[bucket_idx];
+#else
+            new(&new_buckets[new_bucket].data) KeyValuePair(std::move(old_buckets[bucket_idx].get()));
+            old_buckets[bucket_idx].get().~KeyValuePair();
+#endif
+            group_locks[curr_group].unlock();
+            break;
+          }
+        }
+      }
+    });
+}
+
+}  // namespace detail
+
+template <typename KeyType, typename ValueType, typename Hash>
+bool FlatMap<KeyType, ValueType, Hash>::tryDeviceAwareRehash(IndexType count)
+{
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
+  MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
+  if(space == MemorySpace::Device || space == MemorySpace::Unified)
+  {
+    const IndexType old_size = m_size;
+  #if defined(AXOM_USE_CUDA)
+    using ExecSpace = axom::CUDA_EXEC<256>;
+  #elif defined(AXOM_USE_HIP)
+    using ExecSpace = axom::HIP_EXEC<256>;
+  #else
+    return false;
+  #endif
+
+    FlatMap new_map(count, m_allocator);
+
+    // Rebuild the table layout in device-accessible memory while preserving
+    // the existing bucket payloads as raw storage.
+    detail::deviceRehashBuckets<ExecSpace, Hash, KeyValuePair>(m_metadata.view(),
+                                                               m_buckets.view(),
+                                                               new_map.m_numGroups2,
+                                                               new_map.m_metadata.view(),
+                                                               new_map.m_buckets.view());
+
+    new_map.m_size = old_size;
+    new_map.m_loadCount = old_size;
+
+    // The occupied bucket payloads have been transferred into new_map. Prevent
+    // the old storage from destroying those buckets when it is swapped out and
+    // freed.
+    m_size = 0;
+    m_loadCount = 0;
+
+    this->swap(new_map);
+    return true;
+  }
+#endif
+  AXOM_UNUSED_VAR(count);
+  return false;
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -263,206 +275,258 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
                                 typename std::iterator_traits<InputIt>::iterator_category>::value,
                 "InputIt must be a random-access iterator for batched construction");
 
-  using HashResult = typename Hash::result_type;
-  using GroupBucket = detail::flat_map::GroupBucket;
-
-  IndexType num_elems = std::distance(kv_begin, kv_end);
-
-  // Batched insertion assumes probing sequences are gap-free
-  // (i.e., there are no tombstones from prior erase() operations).
-  // When tombstones exist, the parallel insertion logic can mishandle duplicates
-  // under contention (e.g. OpenMP) and produce incorrect size/value results.
-  //
-  // If tombstones exist, rehash to compact the table and restore the invariants required by this algorithm.
-  if(this->m_loadCount != static_cast<std::uint64_t>(this->m_size))
+  // Fast path for sequential execution:
+  // The batched insertion algorithm below is designed for parallel execution and
+  // uses per-group locks and auxiliary arrays for deduplication. In SEQ, those
+  // structures add significant overhead; a simple sequential loop provides
+  // better performance while preserving the documented semantics that later
+  // duplicates overwrite earlier ones.
+  if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
   {
-    this->rehash(this->m_size + num_elems);
+    const IndexType num_elems = static_cast<IndexType>(std::distance(kv_begin, kv_end));
+
+    // Ensure we have enough capacity up-front to avoid repeated rehashing.
+    this->reserve(this->size() + num_elems);
+
+    for(IndexType idx = 0; idx < num_elems; ++idx)
+    {
+      // Preserve the value category of the input pair. In particular, when
+      // kv_begin/kv_end are move iterators, we must forward the mapped value
+      // so move-only types remain supported.
+      decltype(auto) kv = *(kv_begin + idx);
+      this->insert_or_assign(std::forward<decltype(kv)>(kv).first,
+                             std::forward<decltype(kv)>(kv).second);
+    }
   }
+  else
+  {
+    using HashResult = typename Hash::result_type;
+    using GroupBucket = detail::flat_map::GroupBucket;
 
-  const bool is_gap_free = (this->m_loadCount == static_cast<std::uint64_t>(this->m_size));
+    IndexType num_elems = static_cast<IndexType>(std::distance(kv_begin, kv_end));
 
-  // Assume that all elements will be inserted into an empty slot.
-  this->reserve(this->size() + num_elems);
+    // Batched insertion assumes probing sequences are gap-free
+    // (i.e., there are no tombstones from prior erase() operations).
+    // When tombstones exist, the parallel insertion logic can mishandle duplicates
+    // under contention (e.g. OpenMP) and produce incorrect size/value results.
+    //
+    // If tombstones exist, rehash to compact the table and restore the invariants required by this algorithm.
+    if(this->m_loadCount != static_cast<std::uint64_t>(this->m_size))
+    {
+      this->rehash(this->m_size + num_elems);
+    }
 
-  // Grab some needed internal fields from the flat map.
-  // We're going to be constructing metadata and the K-V pairs directly
-  // in-place.
-  const int ngroups_pow_2 = this->m_numGroups2;
-  const auto meta_group = this->m_metadata.view();
-  const auto buckets = this->m_buckets.view();
+    const bool is_gap_free = (this->m_loadCount == static_cast<std::uint64_t>(this->m_size));
 
-  // Construct an array of locks per-group. This guards metadata updates for
-  // each insertion.
-  const IndexType num_groups = 1 << ngroups_pow_2;
-  Array<detail::SpinLock> lock_vec(num_groups, num_groups, this->m_allocator.getID());
-  const auto group_locks = lock_vec.view();
+    // Assume that all elements will be inserted into an empty slot.
+    this->reserve(this->size() + num_elems);
 
-  // Map bucket slots to k-v pair indices. This is used to deduplicate pairs
-  // with the same key value.
-  Array<IndexType> key_index_dedup_vec(0, 0, this->m_allocator.getID());
-  key_index_dedup_vec.resize(num_groups * GroupBucket::Size, -1);
-  const auto key_index_dedup = key_index_dedup_vec.view();
-
-  // Map k-v pair indices to bucket slots. This is essentially the inverse of
-  // the above mapping.
-  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, this->m_allocator.getID());
-  const auto key_index_to_bucket = key_index_to_bucket_vec.view();
-
-  axom::ReduceSum<ExecSpace, IndexType> total_overwrites(0);
-
-  for_all<ExecSpace>(
-    num_elems,
-    AXOM_LAMBDA(IndexType idx) {
-      // Construct key.
-      KeyType key = (*(kv_begin + idx)).first;
-
-      // Hash keys.
-      auto hash = Hash {}(key);
-
-      // We use the k MSBs of the hash as the initial group probe point,
-      // where ngroups = 2^k.
-      int bitshift_right = ((CHAR_BIT * sizeof(HashResult)) - ngroups_pow_2);
-      HashResult curr_group = hash >> bitshift_right;
-      curr_group &= ((1 << ngroups_pow_2) - 1);
-
-      std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
-
-      IndexType duplicate_bucket_index = -1;
-      IndexType empty_bucket_index = -1;
-      int iteration = 0;
-      while(iteration < meta_group.size())
-      {
-        // Try to lock the group. We do this in a non-blocking manner to avoid
-        // intra-warp progress hazards.
-        bool group_locked = group_locks[curr_group].tryLock();
-
-        if(group_locked)
-        {
-          // Every bucket visit - check prior filled buckets for duplicate
-          // keys.
-          meta_group[curr_group].visitHashBucket(hash_8, [&](int matching_slot) -> bool {
-            IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
-
-            if(buckets[bucket_index].get().first == key)
-            {
-              duplicate_bucket_index = bucket_index;
-              return false;  // Don't need to search other buckets.
-            }
-            return true;
-          });
-          int empty_slot_index = meta_group[curr_group].getEmptyBucket();
-
-          if(duplicate_bucket_index == -1 && empty_bucket_index == -1)
-          {
-            // Default probing behavior: no duplicate found yet, and no empty
-            // bucket found prior.
-            if(empty_slot_index == GroupBucket::InvalidSlot)
-            {
-              // Group is full. Set overflow bit for the group.
-              meta_group[curr_group].template setOverflow<true>(hash_8);
-            }
-            else
-            {
-              // Update empty bucket index with first empty slot we encounter.
-              empty_bucket_index = curr_group * GroupBucket::Size + empty_slot_index;
-              key_index_dedup[empty_bucket_index] = idx;
-              key_index_to_bucket[idx] = empty_bucket_index;
-
-              // Insert initial element, this will be updated with the value of
-              // the "winning" key-value pair.
-              meta_group[curr_group].template setBucket<true>(empty_slot_index, hash_8);
-#if defined(__CUDA_ARCH__)
-              detail::constructPairInPlace(buckets[empty_bucket_index].get(),
-                                           key,
-                                           (*(kv_begin + idx)).second);
-#else
-              new(&buckets[empty_bucket_index]) KeyValuePair(*(kv_begin + idx));
+    FlatMap<KeyType, ValueType, Hash> temp;
+    bool allocate_temp_map = false;
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+    if(this->m_allocator.getSpace() == MemorySpace::Pinned)
+    {
+      // Pinned memory is allocated on the CPU, and is not always coherent with respect to the GPU.
+      // Instead of using system-scope atomics, we just construct a temporary map in device memory
+      // and copy it back to the pinned space.
+      axom::Allocator device_allocator {axom::detail::getAllocatorID<MemorySpace::Device>()};
+      temp = FlatMap(*this, device_allocator);
+      allocate_temp_map = true;
+    }
 #endif
-            }
-          }
-          else if(duplicate_bucket_index != -1)
-          {
-            // Found a duplicate bucket.
-            if(!is_gap_free && empty_bucket_index != -1)
-            {
-              // We've already encountered an empty bucket earlier to place a
-              // k-v pair. This may occur if a probing sequence contains gaps
-              // (insertions followed by erasures).
-              //
-              // Just erase this element.
-              total_overwrites += 1;
+    FlatMap<KeyType, ValueType, Hash>& map = allocate_temp_map ? temp : *this;
 
-              int slot_index = duplicate_bucket_index - curr_group * GroupBucket::Size;
-              buckets[duplicate_bucket_index].get().~KeyValuePair();
-              meta_group[curr_group].clearBucket(slot_index);
+    // Grab some needed internal fields from the flat map.
+    // We're going to be constructing metadata and the K-V pairs directly
+    // in-place.
+    const int ngroups_pow_2 = map.m_numGroups2;
+    const auto meta_group = map.m_metadata.view();
+    const auto buckets = map.m_buckets.view();
+
+    // Construct an array of locks per-group. This guards metadata updates for
+    // each insertion.
+    const IndexType num_groups = 1 << ngroups_pow_2;
+    Array<detail::SpinLock> lock_vec(num_groups, num_groups, map.m_allocator.getID());
+    const auto group_locks = lock_vec.view();
+
+    // Map bucket slots to k-v pair indices. This is used to deduplicate pairs
+    // with the same key value.
+    Array<IndexType> key_index_dedup_vec(0, 0, map.m_allocator.getID());
+    key_index_dedup_vec.resize(num_groups * GroupBucket::Size, -1);
+    const auto key_index_dedup = key_index_dedup_vec.view();
+
+    // Map k-v pair indices to bucket slots. This is essentially the inverse of
+    // the above mapping.
+    Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, map.m_allocator.getID());
+    const auto key_index_to_bucket = key_index_to_bucket_vec.view();
+
+    axom::ReduceSum<ExecSpace, IndexType> total_overwrites(0);
+
+    for_all<ExecSpace>(
+      num_elems,
+      AXOM_LAMBDA(IndexType idx) {
+        // Construct key.
+        KeyType key = (*(kv_begin + idx)).first;
+
+        // Hash keys.
+        auto hash = Hash {}(key);
+
+        // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
+        const auto init =
+          detail::flat_map::SequentialLookupPolicy<HashResult>::initGroupProbe(hash, ngroups_pow_2);
+        const HashResult group_mask = init.group_mask;
+        IndexType curr_group = init.curr_group;
+
+        std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
+
+        IndexType duplicate_bucket_index = -1;
+        IndexType empty_bucket_index = -1;
+        int iteration = 0;
+        while(iteration < meta_group.size())
+        {
+          // Try to lock the group. We do this in a non-blocking manner to avoid
+          // intra-warp progress hazards.
+          bool group_locked = group_locks[curr_group].tryLock();
+
+          if(group_locked)
+          {
+            // Every bucket visit - check prior filled buckets for duplicate
+            // keys.
+            meta_group[curr_group].visitHashBucket(hash_8, [&](int matching_slot) -> bool {
+              IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
+
+              if(buckets[bucket_index].get().first == key)
+              {
+                duplicate_bucket_index = bucket_index;
+                return false;  // Don't need to search other buckets.
+              }
+              return true;
+            });
+            int empty_slot_index = meta_group[curr_group].getEmptyBucket();
+
+            if(duplicate_bucket_index == -1 && empty_bucket_index == -1)
+            {
+              // Default probing behavior: no duplicate found yet, and no empty
+              // bucket found prior.
+              if(empty_slot_index == GroupBucket::InvalidSlot)
+              {
+                // Group is full. Set overflow bit for the group.
+                meta_group[curr_group].template setOverflow<true>(hash_8);
+              }
+              else
+              {
+                // Update empty bucket index with first empty slot we encounter.
+                empty_bucket_index = curr_group * GroupBucket::Size + empty_slot_index;
+                key_index_dedup[empty_bucket_index] = idx;
+                key_index_to_bucket[idx] = empty_bucket_index;
+
+                // Insert initial element, this will be updated with the value of
+                // the "winning" key-value pair.
+                meta_group[curr_group].template setBucket<true>(empty_slot_index, hash_8);
+#if defined(__CUDA_ARCH__)
+                detail::constructPairInPlace(buckets[empty_bucket_index].get(),
+                                             key,
+                                             (*(kv_begin + idx)).second);
+#else
+                new(&buckets[empty_bucket_index]) KeyValuePair(*(kv_begin + idx));
+#endif
+              }
+            }
+            else if(duplicate_bucket_index != -1)
+            {
+              // Found a duplicate bucket.
+              if(!is_gap_free && empty_bucket_index != -1)
+              {
+                // We've already encountered an empty bucket earlier to place a
+                // k-v pair. This may occur if a probing sequence contains gaps
+                // (insertions followed by erasures).
+                //
+                // Just erase this element.
+                total_overwrites += 1;
+
+                int slot_index = duplicate_bucket_index - curr_group * GroupBucket::Size;
+                buckets[duplicate_bucket_index].get().~KeyValuePair();
+                meta_group[curr_group].clearBucket(slot_index);
+              }
+              else
+              {
+                if(key_index_dedup[duplicate_bucket_index] == -1)
+                {
+                  // The k-v pair matches an already-existing pair in the map.
+                  // Keep track of the number of overwrites so that we don't
+                  // double-count them when incrementing the size.
+                  total_overwrites += 1;
+                }
+                // Highest-indexed kv pair wins.
+                axom::atomicMax<ExecSpace>(&key_index_dedup[duplicate_bucket_index], idx);
+                key_index_to_bucket[idx] = duplicate_bucket_index;
+              }
+            }
+            // Unlock group once we're done.
+            group_locks[curr_group].unlock();
+
+            if(duplicate_bucket_index != -1)
+            {
+              // We've found a duplicate key to overwrite.
+              break;
+            }
+            else if(empty_bucket_index != -1 &&
+                    (is_gap_free || !meta_group[curr_group].getMaybeOverflowed(hash_8)))
+            {
+              // If we're inserting into a gap-free map, empty bucket signals the
+              // end of the probing sequence.
+              // Otherwise, we need to check the overflow mask to continue probing.
+              break;
             }
             else
             {
-              if(key_index_dedup[duplicate_bucket_index] == -1)
-              {
-                // The k-v pair matches an already-existing pair in the map.
-                // Keep track of the number of overwrites so that we don't
-                // double-count them when incrementing the size.
-                total_overwrites += 1;
-              }
-              // Highest-indexed kv pair wins.
-              axom::atomicMax<ExecSpace>(&key_index_dedup[duplicate_bucket_index], idx);
-              key_index_to_bucket[idx] = duplicate_bucket_index;
+              // Move to next group.
+              curr_group = static_cast<IndexType>(
+                (static_cast<HashResult>(curr_group) + LookupPolicy {}.getNext(iteration)) &
+                group_mask);
+              iteration++;
             }
-          }
-          // Unlock group once we're done.
-          group_locks[curr_group].unlock();
-
-          if(duplicate_bucket_index != -1)
-          {
-            // We've found a duplicate key to overwrite.
-            break;
-          }
-          else if(empty_bucket_index != -1 &&
-                  (is_gap_free || !meta_group[curr_group].getMaybeOverflowed(hash_8)))
-          {
-            // If we're inserting into a gap-free map, empty bucket signals the
-            // end of the probing sequence.
-            // Otherwise, we need to check the overflow mask to continue probing.
-            break;
-          }
-          else
-          {
-            // Move to next group.
-            curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) % meta_group.size();
-            iteration++;
           }
         }
-      }
-    });
+      });
 
-  // Add a counter for duplicated inserts.
-  axom::ReduceSum<ExecSpace, IndexType> total_inserts(0);
+    // Add a counter for duplicated inserts.
+    axom::ReduceSum<ExecSpace, IndexType> total_inserts(0);
 
-  // Using key-deduplication map, assign unique k-v pairs to buckets.
-  for_all<ExecSpace>(
-    num_elems,
-    AXOM_LAMBDA(IndexType kv_idx) {
-      IndexType bucket_idx = key_index_to_bucket[kv_idx];
-      IndexType winning_idx = key_index_dedup[bucket_idx];
-      // Place k-v pair at bucket_idx.
-      if(kv_idx == winning_idx)
-      {
+    // Using key-deduplication map, assign unique k-v pairs to buckets.
+    for_all<ExecSpace>(
+      num_elems,
+      AXOM_LAMBDA(IndexType kv_idx) {
+        IndexType bucket_idx = key_index_to_bucket[kv_idx];
+        IndexType winning_idx = key_index_dedup[bucket_idx];
+        // Place k-v pair at bucket_idx.
+        if(kv_idx == winning_idx)
+        {
 #if defined(__CUDA_ARCH__)
-        detail::constructPairInPlace(buckets[bucket_idx].get(),
-                                     (*(kv_begin + kv_idx)).first,
-                                     (*(kv_begin + kv_idx)).second);
+          detail::constructPairInPlace(buckets[bucket_idx].get(),
+                                       (*(kv_begin + kv_idx)).first,
+                                       (*(kv_begin + kv_idx)).second);
 #else
-        new(&buckets[bucket_idx]) KeyValuePair(*(kv_begin + kv_idx));
+          new(&buckets[bucket_idx]) KeyValuePair(*(kv_begin + kv_idx));
 #endif
-        total_inserts += 1;
-      }
-    });
+          total_inserts += 1;
+        }
+      });
 
-  this->m_size += total_inserts.get() - total_overwrites.get();
-  this->m_loadCount += total_inserts.get() - total_overwrites.get();
+    map.m_size += total_inserts.get() - total_overwrites.get();
+    map.m_loadCount += total_inserts.get() - total_overwrites.get();
+
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+    if(allocate_temp_map)
+    {
+      // Original pinned map is in temp.
+      axom::Allocator pinned_allocator = temp.getAllocator();
+
+      // Move new FlatMap to pinned memory.
+      *this = FlatMap(map, pinned_allocator);
+    }
+#endif
+  }
 }
 
 }  // namespace axom
-
-#endif

@@ -42,7 +42,7 @@ Run::Run(sina::ID id, std::string application_, std::string version_, std::strin
   , user {std::move(user_)}
 { }
 
-Run::Run(conduit::Node const &asNode)
+Run::Run(conduit::Node const& asNode)
   : Record(asNode)
   , application {getRequiredString(APPLICATION_FIELD, asNode, RUN_TYPE)}
   , version {getOptionalString(VERSION_FIELD, asNode, RUN_TYPE)}
@@ -60,10 +60,10 @@ conduit::Node Run::toNode(CurveSet::CurveOrder curveOrder) const
 
 conduit::Node Run::toNode() const { return toNode(getDefaultCurveOrder()); }
 
-void addRunLoader(RecordLoader &loader)
+void addRunLoader(RecordLoader& loader)
 {
   loader.addTypeLoader(RUN_TYPE,
-                       [](conduit::Node const &value) { return std::make_unique<Run>(value); });
+                       [](conduit::Node const& value) { return std::make_unique<Run>(value); });
 }
 
 }  // namespace sina

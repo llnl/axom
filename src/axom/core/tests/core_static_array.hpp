@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 #include "axom/config.hpp"  // for compile time definitions
 
 #include "axom/core/StaticArray.hpp"
@@ -24,6 +26,8 @@ struct DevicePair
   AXOM_HOST_DEVICE DevicePair() : first(0), second(0) { }
 
   AXOM_HOST_DEVICE explicit DevicePair(int value) : first(value), second(-value) { }
+
+  AXOM_HOST_DEVICE DevicePair(const DevicePair& obj) : first(obj.first), second(obj.second) { }
 
   AXOM_HOST_DEVICE DevicePair& operator=(const DevicePair& other)
   {
@@ -65,7 +69,7 @@ void check_static_array_policy()
         s_arrays_view[i].push_back(idx);
       }
 
-      sizes_view[0][i] = s_arrays_view[i].size();
+      sizes_view[0][i] = static_cast<int>(s_arrays_view[i].size());
     });
 
   if(axom::execution_space<ExecSpace>::async())

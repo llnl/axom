@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_CORE_EXECUTION_SCANS_HPP_
-#define AXOM_CORE_EXECUTION_SCANS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
@@ -58,7 +57,7 @@ namespace axom
  *
  */
 template <typename ExecSpace, typename Container1, typename Container2>
-inline void exclusive_scan(const Container1 &input, Container2 &&output)
+inline void exclusive_scan(const Container1& input, Container2&& output)
 {
   assert(input.size() == output.size());
   using OutContainer = std::remove_reference_t<Container2>;
@@ -109,7 +108,7 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
  *        type of data stored in the container.
  */
 template <typename ExecSpace, typename Container>
-inline void exclusive_scan_inplace(Container &&input)
+inline void exclusive_scan_inplace(Container&& input)
 {
 #if defined(AXOM_USE_RAJA)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
@@ -164,7 +163,7 @@ inline void exclusive_scan_inplace(Container &&input)
  *
  */
 template <typename ExecSpace, typename Container1, typename Container2>
-inline void inclusive_scan(const Container1 &input, Container2 &&output)
+inline void inclusive_scan(const Container1& input, Container2&& output)
 {
   assert(input.size() == output.size());
   using OutContainer = std::remove_reference_t<Container2>;
@@ -205,7 +204,7 @@ inline void inclusive_scan(const Container1 &input, Container2 &&output)
  *        type of data stored in the container.
  */
 template <typename ExecSpace, typename Container>
-inline void inclusive_scan_inplace(Container &&input)
+inline void inclusive_scan_inplace(Container&& input)
 {
 #if defined(AXOM_USE_RAJA)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
@@ -229,5 +228,3 @@ inline void inclusive_scan_inplace(Container &&input)
 /// @}
 
 }  // namespace axom
-
-#endif  // AXOM_CORE_EXECUTION_FOR_ALL_HPP_

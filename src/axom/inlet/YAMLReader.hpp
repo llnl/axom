@@ -4,6 +4,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /*!
  *******************************************************************************
  * \file YAMLReader.hpp
@@ -11,9 +13,6 @@
  * \brief This file contains the class definition of the YAMLReader.
  *******************************************************************************
  */
-
-#ifndef INLET_YAMLREADER_HPP
-#define INLET_YAMLREADER_HPP
 
 #include "axom/inlet/ConduitReader.hpp"
 
@@ -40,5 +39,3 @@ public:
 
 }  // end namespace inlet
 }  // end namespace axom
-
-#endif

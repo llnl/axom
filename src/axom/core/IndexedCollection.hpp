@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SIDRE_INDEXED_COLLECTION_HPP_
-#define SIDRE_INDEXED_COLLECTION_HPP_
+#pragma once
 
 // Standard C++ headers
 #include <iostream>
@@ -280,5 +279,3 @@ T* IndexedCollection<T>::removeItem(IndexType idx)
 }
 
 }  // end namespace axom
-
-#endif  // SIDRE_INDEXED_COLLECTION_HPP_

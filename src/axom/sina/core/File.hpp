@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_FILE_HPP
-#define SINA_FILE_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -59,28 +58,28 @@ public:
      * \param uri the uri for a file
      * \param asNode the Node representation of the file's additional info
      */
-  File(std::string uri, conduit::Node const &asNode);
+  File(std::string uri, conduit::Node const& asNode);
 
   /**
      * \brief Get the File's URI.
      *
      * \return the URI
      */
-  std::string const &getUri() const noexcept { return uri; }
+  std::string const& getUri() const noexcept { return uri; }
 
   /**
      * \brief Get the File's MIME type.
      *
      * \return the MIME type
      */
-  std::string const &getMimeType() const noexcept { return mimeType; }
+  std::string const& getMimeType() const noexcept { return mimeType; }
 
   /**
      * \brief Get the File's tags.
      *
      * \return the tags
      */
-  std::vector<std::string> const &getTags() const noexcept { return tags; }
+  std::vector<std::string> const& getTags() const noexcept { return tags; }
 
   /**
      * \brief Set the File's MIME type.
@@ -111,5 +110,3 @@ private:
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_FILE_HPP

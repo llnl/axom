@@ -3,8 +3,8 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_TABLE_BASED_EXTRACTOR_HPP_
-#define AXOM_BUMP_TABLE_BASED_EXTRACTOR_HPP_
+
+#pragma once
 
 #include "axom/core.hpp"
 #include "axom/bump/extraction/BlendGroupBuilder.hpp"
@@ -259,14 +259,14 @@ struct FragmentOperations
    * \return True if the fragment was added, false otherwise.
    */
   AXOM_HOST_DEVICE
-  static bool addFragment(const TableView::TableDataView &fragment,
+  static bool addFragment(const TableView::TableDataView& fragment,
                           axom::ArrayView<ConnectivityType> connView,
-                          ConnectivityType &size,
-                          ConnectivityType &offset,
-                          ConnectivityType &shape,
-                          int &color,
-                          const ConnectivityType *point_2_new,
-                          int &outputIndex)
+                          ConnectivityType& size,
+                          ConnectivityType& offset,
+                          ConnectivityType& shape,
+                          int& color,
+                          const ConnectivityType* point_2_new,
+                          int& outputIndex)
   {
     // Output the nodes used in this zone.
     const int fragmentSize = fragment.size();
@@ -298,15 +298,15 @@ struct FragmentOperations
    * \param[inout] colorView The view that wraps colors (can change on output).
    * \param allocator_id The allocator to use.
    */
-  static void filterZeroSizes(FragmentData &AXOM_UNUSED_PARAM(fragmentData),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_sizes),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_offsets),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_shapes),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_color),
-                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(sizesView),
-                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(offsetsView),
-                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(shapesView),
-                              axom::ArrayView<int> &AXOM_UNUSED_PARAM(colorView),
+  static void filterZeroSizes(FragmentData& AXOM_UNUSED_PARAM(fragmentData),
+                              conduit::Node& AXOM_UNUSED_PARAM(n_sizes),
+                              conduit::Node& AXOM_UNUSED_PARAM(n_offsets),
+                              conduit::Node& AXOM_UNUSED_PARAM(n_shapes),
+                              conduit::Node& AXOM_UNUSED_PARAM(n_color),
+                              axom::ArrayView<ConnectivityType>& AXOM_UNUSED_PARAM(sizesView),
+                              axom::ArrayView<ConnectivityType>& AXOM_UNUSED_PARAM(offsetsView),
+                              axom::ArrayView<ConnectivityType>& AXOM_UNUSED_PARAM(shapesView),
+                              axom::ArrayView<int>& AXOM_UNUSED_PARAM(colorView),
                               int AXOM_UNUSED_PARAM(allocator_id))
   { }
 
@@ -344,7 +344,7 @@ struct FragmentOperations
  * \param maskOffsetsView The offsets view to indicate where to write the new data.
  */
 template <typename ExecSpace, typename DataView, typename MaskType>
-DataView filter(conduit::Node &n_src,
+DataView filter(conduit::Node& n_src,
                 DataView srcView,
                 axom::IndexType newSize,
                 axom::ArrayView<MaskType> maskView,
@@ -400,14 +400,14 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
    * \return True if the fragment was added, false otherwise.
    */
   AXOM_HOST_DEVICE
-  static bool addFragment(const TableView::TableDataView &fragment,
+  static bool addFragment(const TableView::TableDataView& fragment,
                           axom::ArrayView<ConnectivityType> connView,
-                          ConnectivityType &size,
-                          ConnectivityType &offset,
-                          ConnectivityType &shape,
-                          int &color,
-                          const ConnectivityType *point_2_new,
-                          int &outputIndex)
+                          ConnectivityType& size,
+                          ConnectivityType& offset,
+                          ConnectivityType& shape,
+                          int& color,
+                          const ConnectivityType* point_2_new,
+                          int& outputIndex)
   {
     constexpr int NotFound = -1;
     // Output the nodes used in this zone.
@@ -468,15 +468,15 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
    * \param[inout] colorView The view that wraps colors (can change on output).
    * \param allocator_id The allocator to use.
    */
-  static void filterZeroSizes(FragmentData &fragmentData,
-                              conduit::Node &n_sizes,
-                              conduit::Node &n_offsets,
-                              conduit::Node &n_shapes,
-                              conduit::Node &n_color,
-                              axom::ArrayView<ConnectivityType> &sizesView,
-                              axom::ArrayView<ConnectivityType> &offsetsView,
-                              axom::ArrayView<ConnectivityType> &shapesView,
-                              axom::ArrayView<int> &colorView,
+  static void filterZeroSizes(FragmentData& fragmentData,
+                              conduit::Node& n_sizes,
+                              conduit::Node& n_offsets,
+                              conduit::Node& n_shapes,
+                              conduit::Node& n_color,
+                              axom::ArrayView<ConnectivityType>& sizesView,
+                              axom::ArrayView<ConnectivityType>& offsetsView,
+                              axom::ArrayView<ConnectivityType>& shapesView,
+                              axom::ArrayView<int>& colorView,
                               int allocator_id)
   {
     AXOM_ANNOTATE_SCOPE("filterZeroSizes");
@@ -623,10 +623,10 @@ struct StridedStructuredFields
    * \param n_newField The node that will contain the new field.
    */
   static bool sliceElementField(
-    const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-    const axom::bump::SliceData &AXOM_UNUSED_PARAM(slice),
-    const conduit::Node &AXOM_UNUSED_PARAM(n_field),
-    conduit::Node &AXOM_UNUSED_PARAM(n_newField),
+    const TopologyView& AXOM_UNUSED_PARAM(topologyView),
+    const axom::bump::SliceData& AXOM_UNUSED_PARAM(slice),
+    const conduit::Node& AXOM_UNUSED_PARAM(n_field),
+    conduit::Node& AXOM_UNUSED_PARAM(n_newField),
     int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
   {
     return false;
@@ -641,10 +641,10 @@ struct StridedStructuredFields
    * \param n_newField The node that will contain the new field.
    */
   static bool blendVertexField(
-    const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-    const axom::bump::BlendData &AXOM_UNUSED_PARAM(blend),
-    const conduit::Node &AXOM_UNUSED_PARAM(n_field),
-    conduit::Node &AXOM_UNUSED_PARAM(n_newField),
+    const TopologyView& AXOM_UNUSED_PARAM(topologyView),
+    const axom::bump::BlendData& AXOM_UNUSED_PARAM(blend),
+    const conduit::Node& AXOM_UNUSED_PARAM(n_field),
+    conduit::Node& AXOM_UNUSED_PARAM(n_newField),
     int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
   {
     return false;
@@ -672,10 +672,10 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
    * \param n_field The field being sliced.
    * \param n_newField The node that will contain the new field.
    */
-  static bool sliceElementField(const TopologyView &topologyView,
-                                const axom::bump::SliceData &slice,
-                                const conduit::Node &n_field,
-                                conduit::Node &n_newField,
+  static bool sliceElementField(const TopologyView& topologyView,
+                                const axom::bump::SliceData& slice,
+                                const conduit::Node& n_field,
+                                conduit::Node& n_newField,
                                 int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     bool handled = false;
@@ -703,10 +703,10 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
    * \param n_field The field being sliced.
    * \param n_newField The node that will contain the new field.
    */
-  static bool blendVertexField(const TopologyView &topologyView,
-                               const axom::bump::BlendData &blend,
-                               const conduit::Node &n_field,
-                               conduit::Node &n_newField,
+  static bool blendVertexField(const TopologyView& topologyView,
+                               const axom::bump::BlendData& blend,
+                               const conduit::Node& n_field,
+                               conduit::Node& n_newField,
                                int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     bool handled = false;
@@ -787,9 +787,9 @@ public:
    * \param coordsetView A coordset view suitable for the supplied coordset.
    *
    */
-  TableBasedExtractor(const TopologyView &topoView,
-                      const CoordsetView &coordsetView,
-                      const Intersector &intersector = Intersector())
+  TableBasedExtractor(const TopologyView& topoView,
+                      const CoordsetView& coordsetView,
+                      const Intersector& intersector = Intersector())
     : m_topologyView(topoView)
     , m_coordsetView(coordsetView)
     , m_intersector(intersector)
@@ -826,7 +826,7 @@ public:
    *
    * \param naming A new naming policy object. 
    */
-  void setNamingPolicy(NamingPolicy &naming) { m_naming = naming; }
+  void setNamingPolicy(NamingPolicy& naming) { m_naming = naming; }
 
   /*!
    * \brief Execute the extraction operation.
@@ -835,19 +835,19 @@ public:
    * \param[in] n_options A Conduit node that contains options.
    * \param[out] n_output A Conduit node that will hold the output mesh. This should be a different node from \a n_input.
    */
-  void execute(const conduit::Node &n_input, const conduit::Node &n_options, conduit::Node &n_output)
+  void execute(const conduit::Node& n_input, const conduit::Node& n_options, conduit::Node& n_output)
   {
     // Get the topo/coordset names in the input.
     ExtractorOptions opts(n_options);
-    const std::string &topoName = m_intersector.getTopologyName(n_input, n_options);
-    const conduit::Node &n_topo = n_input.fetch_existing("topologies/" + topoName);
+    const std::string& topoName = m_intersector.getTopologyName(n_input, n_options);
+    const conduit::Node& n_topo = n_input.fetch_existing("topologies/" + topoName);
     const std::string coordsetName = n_topo["coordset"].as_string();
-    const conduit::Node &n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
-    const conduit::Node &n_fields = n_input.fetch_existing("fields");
+    const conduit::Node& n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
+    const conduit::Node& n_fields = n_input.fetch_existing("fields");
 
-    conduit::Node &n_newTopo = n_output["topologies/" + opts.topologyName(topoName)];
-    conduit::Node &n_newCoordset = n_output["coordsets/" + opts.coordsetName(coordsetName)];
-    conduit::Node &n_newFields = n_output["fields"];
+    conduit::Node& n_newTopo = n_output["topologies/" + opts.topologyName(topoName)];
+    conduit::Node& n_newCoordset = n_output["coordsets/" + opts.coordsetName(coordsetName)];
+    conduit::Node& n_newFields = n_output["fields"];
 
     execute(n_topo, n_coordset, n_fields, n_options, n_newTopo, n_newCoordset, n_newFields);
   }
@@ -863,13 +863,13 @@ public:
    * \param[out] n_newCoordset A node that will contain the new coordset for the topology.
    * \param[out] n_newFields A node that will contain the new fields for the topology.
    */
-  void execute(const conduit::Node &n_topo,
-               const conduit::Node &n_coordset,
-               const conduit::Node &n_fields,
-               const conduit::Node &n_options,
-               conduit::Node &n_newTopo,
-               conduit::Node &n_newCoordset,
-               conduit::Node &n_newFields)
+  void execute(const conduit::Node& n_topo,
+               const conduit::Node& n_coordset,
+               const conduit::Node& n_fields,
+               const conduit::Node& n_options,
+               conduit::Node& n_newTopo,
+               conduit::Node& n_newCoordset,
+               conduit::Node& n_newFields)
   {
     namespace utils = axom::bump::utilities;
     const auto allocatorID = getAllocatorID();
@@ -1084,7 +1084,7 @@ public:
       // Fields were present in the options. Count the element fields.
       for(auto it = fieldsToProcess.begin(); it != fieldsToProcess.end(); it++)
       {
-        const conduit::Node &n_field = n_fields.fetch_existing(it->first);
+        const conduit::Node& n_field = n_fields.fetch_existing(it->first);
         if(n_field.fetch_existing("topology").as_string() == n_topo.name())
         {
           numElementFields +=
@@ -1097,7 +1097,7 @@ public:
       // Fields were not present in the options. Select all fields that have the same topology as n_topo.
       for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
       {
-        const conduit::Node &n_field = n_fields[i];
+        const conduit::Node& n_field = n_fields[i];
         if(n_field.fetch_existing("topology").as_string() == n_topo.name())
         {
           numElementFields +=
@@ -1177,7 +1177,7 @@ private:
   /*!
    * \brief Make a bitset that indicates the parts of the selection that are selected.
    */
-  int getSelection(const ExtractorOptions &opts) const
+  int getSelection(const ExtractorOptions& opts) const
   {
     int selection = 0;
     if(opts.inside()) axom::utilities::setBitOn(selection, 0);
@@ -1192,7 +1192,7 @@ private:
    * \param[out] views The views array that will contain the table views.
    * \param dimension The dimension the topology (so we can load a subset of tables)
    */
-  void createTableViews(TableViews &views, int dimension)
+  void createTableViews(TableViews& views, int dimension)
   {
     AXOM_ANNOTATE_SCOPE("createTableViews");
     if(dimension == -1 || dimension == 2)
@@ -1231,8 +1231,8 @@ private:
                     ZoneData zoneData,
                     NodeData nodeData,
                     FragmentData fragmentData,
-                    const ExtractorOptions &opts,
-                    const SelectedZones &selectedZones) const
+                    const ExtractorOptions& opts,
+                    const SelectedZones& selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("computeSizes");
     const auto selection = getSelection(opts);
@@ -1263,7 +1263,7 @@ private:
 
         // Iterate over the shapes in this case to determine the number of blend groups.
         const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
-        const auto &ctView = tableViews[tableIndex];
+        const auto& ctView = tableViews[tableIndex];
 
         int thisBlendGroups = 0;      // The number of blend groups produced in this case.
         int thisBlendGroupLen = 0;    // The total length of the blend groups.
@@ -1393,7 +1393,7 @@ private:
    *
    * \param[inout] fragmentData The object that contains data about the zone fragments.
    */
-  void computeFragmentOffsets(FragmentData &fragmentData) const
+  void computeFragmentOffsets(FragmentData& fragmentData) const
   {
     AXOM_ANNOTATE_SCOPE("computeFragmentOffsets");
     axom::exclusive_scan<ExecSpace>(fragmentData.m_fragmentsView, fragmentData.m_fragmentOffsetsView);
@@ -1419,7 +1419,7 @@ private:
    *
    * \param[inout] fragmentData The object that contains data about the zone fragments.
    */
-  void computeFragmentSizes(FragmentData &fragmentData, const SelectedZones &selectedZones) const
+  void computeFragmentSizes(FragmentData& fragmentData, const SelectedZones& selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("computeFragmentSizes");
     const auto nzones = selectedZones.view().size();
@@ -1528,8 +1528,8 @@ private:
   void makeBlendGroups(TableViews tableViews,
                        BlendGroupBuilderType builder,
                        ZoneData zoneData,
-                       const ExtractorOptions &opts,
-                       const SelectedZones &selectedZones) const
+                       const ExtractorOptions& opts,
+                       const SelectedZones& selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("makeBlendGroups");
     const auto selection = getSelection(opts);
@@ -1551,7 +1551,7 @@ private:
 
         // Iterate over the shapes in this case to determine the number of blend groups.
         const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
-        const auto &ctView = tableViews[tableIndex];
+        const auto& ctView = tableViews[tableIndex];
 
         // These are the points used in this zone's fragments.
         const BitSet ptused = zoneData.m_pointsUsedView[szIndex];
@@ -1692,12 +1692,12 @@ private:
                     ZoneData zoneData,
                     NodeData nodeData,
                     FragmentData fragmentData,
-                    const ExtractorOptions &opts,
-                    const SelectedZones &selectedZones,
-                    const std::string &newTopologyName,
-                    conduit::Node &n_newTopo,
-                    conduit::Node &n_newCoordset,
-                    conduit::Node &n_newFields) const
+                    const ExtractorOptions& opts,
+                    const SelectedZones& selectedZones,
+                    const std::string& newTopologyName,
+                    conduit::Node& n_newTopo,
+                    conduit::Node& n_newCoordset,
+                    conduit::Node& n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
     using FragmentOps =
@@ -1714,34 +1714,34 @@ private:
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Allocate connectivity.
-    conduit::Node &n_conn = n_newTopo["elements/connectivity"];
+    conduit::Node& n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(conduitAllocatorID);
     n_conn.set(conduit::DataType(connTypeID, fragmentData.m_finalConnSize));
     auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
     // Allocate shapes.
-    conduit::Node &n_shapes = n_newTopo["elements/shapes"];
+    conduit::Node& n_shapes = n_newTopo["elements/shapes"];
     n_shapes.set_allocator(conduitAllocatorID);
     n_shapes.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
     auto shapesView = utils::make_array_view<ConnectivityType>(n_shapes);
 
     // Allocate sizes.
-    conduit::Node &n_sizes = n_newTopo["elements/sizes"];
+    conduit::Node& n_sizes = n_newTopo["elements/sizes"];
     n_sizes.set_allocator(conduitAllocatorID);
     n_sizes.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
     auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
     // Allocate offsets.
-    conduit::Node &n_offsets = n_newTopo["elements/offsets"];
+    conduit::Node& n_offsets = n_newTopo["elements/offsets"];
     n_offsets.set_allocator(conduitAllocatorID);
     n_offsets.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
     auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
     // Allocate a color variable to keep track of the "color" of the fragments.
-    conduit::Node &n_color = n_newFields[opts.colorField()];
+    conduit::Node& n_color = n_newFields[opts.colorField()];
     n_color["topology"] = newTopologyName;
     n_color["association"] = "element";
-    conduit::Node &n_color_values = n_color["values"];
+    conduit::Node& n_color_values = n_color["values"];
     n_color_values.set_allocator(conduitAllocatorID);
     n_color_values.set(conduit::DataType::int32(fragmentData.m_finalNumZones));
     auto colorView = utils::make_array_view<int>(n_color_values);
@@ -1752,10 +1752,10 @@ private:
       "AXOM_EXTRACTOR_ADD_CASE_FIELD and AXOM_EXTRACTOR_DEGENERATES are mutually exclusive.")
   #endif
     // Allocate a color variable to keep track of the "color" of the fragments.
-    conduit::Node &n_case = n_newFields["case"];
+    conduit::Node& n_case = n_newFields["case"];
     n_case["topology"] = newTopologyName;
     n_case["association"] = "element";
-    conduit::Node &n_case_values = n_case["values"];
+    conduit::Node& n_case_values = n_case["values"];
     n_case_values.set_allocator(conduitAllocatorID);
     n_case_values.set(conduit::DataType::int32(fragmentData.m_finalNumZones));
     auto caseView = utils::make_array_view<int>(n_case_values);
@@ -2015,7 +2015,7 @@ private:
       else
       {
         n_newTopo["elements/shape"] = "mixed";
-        conduit::Node &n_shape_map = n_newTopo["elements/shape_map"];
+        conduit::Node& n_shape_map = n_newTopo["elements/shape_map"];
         for(auto it = shapeMap.cbegin(); it != shapeMap.cend(); it++)
         {
           n_shape_map[it->first] = it->second;
@@ -2059,9 +2059,9 @@ private:
    * \param n_coordset The input coordset, which is passed for metadata.
    * \param[out] n_newCoordset The new coordset.
    */
-  void makeCoordset(const BlendData &blend,
-                    const conduit::Node &n_coordset,
-                    conduit::Node &n_newCoordset) const
+  void makeCoordset(const BlendData& blend,
+                    const conduit::Node& n_coordset,
+                    conduit::Node& n_newCoordset) const
   {
     AXOM_ANNOTATE_SCOPE("makeCoordset");
     // _bump_utilities_coordsetblender_begin
@@ -2080,12 +2080,12 @@ private:
    * \param n_fields The source fields.
    * \param[out] n_out_fields The node that will contain the new fields.
    */
-  void makeFields(const BlendData &blend,
-                  const SliceData &slice,
-                  const std::string &topologyName,
-                  const std::map<std::string, std::string> &fieldMap,
-                  const conduit::Node &n_fields,
-                  conduit::Node &n_out_fields) const
+  void makeFields(const BlendData& blend,
+                  const SliceData& slice,
+                  const std::string& topologyName,
+                  const std::map<std::string, std::string>& fieldMap,
+                  const conduit::Node& n_fields,
+                  conduit::Node& n_out_fields) const
   {
     AXOM_ANNOTATE_SCOPE("makeFields");
     bool handled = false;
@@ -2109,8 +2109,8 @@ private:
       // Make the fields one at a time using ExecSpace kernels to copy data.
       for(auto it = fieldMap.begin(); it != fieldMap.end(); it++)
       {
-        const conduit::Node &n_field = n_fields.fetch_existing(it->first);
-        conduit::Node &n_out_field = n_out_fields[it->second];
+        const conduit::Node& n_field = n_fields.fetch_existing(it->first);
+        conduit::Node& n_out_field = n_out_fields[it->second];
         makeSingleField<ExecSpace>(blend, slice, topologyName, n_field, n_out_field);
       }
     }
@@ -2128,11 +2128,11 @@ private:
    * \param[out] n_out_field The node that will contain the new field.
    */
   template <typename FieldExecSpace = ExecSpace>
-  void makeSingleField(const BlendData &blend,
-                       const SliceData &slice,
-                       const std::string &topologyName,
-                       const conduit::Node &n_field,
-                       conduit::Node &n_out_field) const
+  void makeSingleField(const BlendData& blend,
+                       const SliceData& slice,
+                       const std::string& topologyName,
+                       const conduit::Node& n_field,
+                       conduit::Node& n_out_field) const
   {
     constexpr bool ss = axom::bump::views::view_traits<TopologyView>::supports_strided_structured();
     const std::string association = n_field["association"].as_string();
@@ -2191,19 +2191,19 @@ private:
    * \param n_fields The source fields.
    * \param[out] n_out_fields The node that will contain the new fields.
    */
-  void makeFieldsInParallel(const BlendData &blend,
-                            const SliceData &slice,
-                            const std::string &topologyName,
-                            const std::map<std::string, std::string> &fieldMap,
-                            const conduit::Node &n_fields,
-                            conduit::Node &n_out_fields) const
+  void makeFieldsInParallel(const BlendData& blend,
+                            const SliceData& slice,
+                            const std::string& topologyName,
+                            const std::map<std::string, std::string>& fieldMap,
+                            const conduit::Node& n_fields,
+                            conduit::Node& n_out_fields) const
   {
     // Set up output fields.
     int numFields = static_cast<int>(fieldMap.size());
     if(numFields > 0)
     {
-      axom::Array<const conduit::Node *> inFields(numFields, numFields);
-      axom::Array<conduit::Node *> outFields(numFields, numFields);
+      axom::Array<const conduit::Node*> inFields(numFields, numFields);
+      axom::Array<conduit::Node*> outFields(numFields, numFields);
       axom::IndexType i = 0;
       for(auto it = fieldMap.begin(); it != fieldMap.end(); it++, i++)
       {
@@ -2233,11 +2233,11 @@ private:
    * \note Objects that we need to capture into kernels are passed by value (they only contain views anyway). Data can be modified through the views.
    */
   void makeOriginalElements(FragmentData fragmentData,
-                            const ExtractorOptions &opts,
-                            const SelectedZones &selectedZones,
-                            const conduit::Node &n_fields,
-                            conduit::Node &n_newTopo,
-                            conduit::Node &n_newFields) const
+                            const ExtractorOptions& opts,
+                            const SelectedZones& selectedZones,
+                            const conduit::Node& n_fields,
+                            conduit::Node& n_newTopo,
+                            conduit::Node& n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeOriginalElements");
     namespace utils = axom::bump::utilities;
@@ -2253,14 +2253,14 @@ private:
     if(n_fields.has_child(originalElements))
     {
       // originalElements already exists. We need to map it forward.
-      const conduit::Node &n_orig = n_fields[originalElements];
-      const conduit::Node &n_orig_values = n_orig["values"];
+      const conduit::Node& n_orig = n_fields[originalElements];
+      const conduit::Node& n_orig_values = n_orig["values"];
       views::indexNodeToArrayView(n_orig_values, [&](auto origValuesView) {
         using value_type = typename decltype(origValuesView)::value_type;
-        conduit::Node &n_origElem = n_newFields[originalElements];
+        conduit::Node& n_origElem = n_newFields[originalElements];
         n_origElem["association"] = "element";
         n_origElem["topology"] = opts.topologyName(n_newTopo.name());
-        conduit::Node &n_values = n_origElem["values"];
+        conduit::Node& n_values = n_origElem["values"];
         n_values.set_allocator(conduitAllocatorID);
         n_values.set(conduit::DataType(n_orig_values.dtype().id(), fragmentData.m_finalNumZones));
         auto valuesView = utils::make_array_view<value_type>(n_values);
@@ -2270,10 +2270,10 @@ private:
     else
     {
       // Make a new node and populate originalElement.
-      conduit::Node &n_orig = n_newFields[originalElements];
+      conduit::Node& n_orig = n_newFields[originalElements];
       n_orig["association"] = "element";
       n_orig["topology"] = opts.topologyName(n_newTopo.name());
-      conduit::Node &n_values = n_orig["values"];
+      conduit::Node& n_values = n_orig["values"];
       n_values.set_allocator(conduitAllocatorID);
       n_values.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
       auto valuesView = utils::make_array_view<ConnectivityType>(n_values);
@@ -2305,7 +2305,7 @@ private:
    */
   template <typename DataView>
   void makeOriginalElements_copy(FragmentData fragmentData,
-                                 const SelectedZones &selectedZones,
+                                 const SelectedZones& selectedZones,
                                  DataView valuesView,
                                  DataView origValuesView) const
   {
@@ -2374,10 +2374,10 @@ private:
    * \param topoName The name of the output topology.
    * \param[inout] n_newFields The fields node for the output mesh.
    */
-  void markNewNodes(const BlendData &blend,
-                    const std::string &newNodes,
-                    const std::string &topoName,
-                    conduit::Node &n_newFields) const
+  void markNewNodes(const BlendData& blend,
+                    const std::string& newNodes,
+                    const std::string& topoName,
+                    conduit::Node& n_newFields) const
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("markNewNodes");
@@ -2396,8 +2396,8 @@ private:
         // We can mark the new nodes with fresh values. This comes up in
         // applications that call the extractor multiple times.
 
-        conduit::Node &n_new_nodes = n_newFields.fetch_existing(newNodes);
-        conduit::Node &n_new_nodes_values = n_new_nodes["values"];
+        conduit::Node& n_new_nodes = n_newFields.fetch_existing(newNodes);
+        conduit::Node& n_new_nodes_values = n_new_nodes["values"];
         auto valuesView = utils::make_array_view<Precision>(n_new_nodes_values);
 
         // Update values for the blend groups only.
@@ -2410,10 +2410,10 @@ private:
         // Make the field for the first time.
         const auto conduitAllocatorId =
           axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
-        conduit::Node &n_new_nodes = n_newFields[newNodes];
+        conduit::Node& n_new_nodes = n_newFields[newNodes];
         n_new_nodes["topology"] = topoName;
         n_new_nodes["association"] = "vertex";
-        conduit::Node &n_new_nodes_values = n_new_nodes["values"];
+        conduit::Node& n_new_nodes_values = n_new_nodes["values"];
         n_new_nodes_values.set_allocator(conduitAllocatorId);
         n_new_nodes_values.set(conduit::DataType(utils::cpp2conduit<Precision>::id, outputSize));
         auto valuesView = utils::make_array_view<Precision>(n_new_nodes_values);
@@ -2442,5 +2442,3 @@ private:
 }  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

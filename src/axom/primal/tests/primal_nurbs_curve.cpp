@@ -14,9 +14,87 @@
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/NURBSCurve.hpp"
+#include "axom/primal/operators/intersect.hpp"
 #include <math.h>
 
 namespace primal = axom::primal;
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, is_linear_predicate)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  constexpr double tol = 1e-12;
+
+  // Degree-1 segment
+  {
+    NURBSCurveType c(2, 1);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Degree-2, collinear control polygon
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Degree-2, non-collinear interior point
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 1e-3};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_FALSE(c.isLinear(tol));
+  }
+
+  // Rational, collinear should still be linear
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    c.makeRational();
+    c.setWeight(0, 1.0);
+    c.setWeight(1, 2.0);
+    c.setWeight(2, 0.5);
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Strict mode requires a uniform control-point distribution along the endpoint segment
+  {
+    // evenly spaced -> strict linear
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/true));
+  }
+  {
+    // collinear but not evenly spaced -> not strict linear
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.2, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/false));
+    EXPECT_FALSE(c.isLinear(tol, /*useStrictLinear=*/true));
+  }
+  {
+    // slight deviation within tolerance should still be linear (non-strict)
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.5e-6};  // squared distance 2.5e-13 < 1e-12
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/false));
+  }
+}
 
 //------------------------------------------------------------------------------
 TEST(primal_nurbscurve, default_constructor)
@@ -54,7 +132,6 @@ TEST(primal_nurbscurve, default_constructor)
   }
 }
 
-//------------------------------------------------------------------------------
 TEST(primal_nurbscurve, sizing_constructors)
 {
   constexpr int DIM = 3;
@@ -149,7 +226,7 @@ TEST(primal_nurbscurve, knotless_array_constructors)
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 
-    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    for(axom::IndexType p = 0; p < cur.getNumControlPoints(); ++p)
     {
       EXPECT_EQ(controlPoints[p], cur[p]);
       if(expect_rational)
@@ -239,7 +316,7 @@ TEST(primal_nurbscurve, knotted_array_constructor)
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 
-    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    for(axom::IndexType p = 0; p < cur.getNumControlPoints(); ++p)
     {
       EXPECT_EQ(controlPoints[p], cur[p]);
       if(expect_rational)
@@ -1083,7 +1160,7 @@ TEST(primal_nurbscurve, circular_arc_constructor)
 //------------------------------------------------------------------------------
 TEST(primal_nurbscurve, linear_segment_constructor)
 {
-  // Define a nurbs curve that represents a circle
+  // Define a nurbs curve that represents a line segment
   const int DIM = 2;
   using CoordType = double;
   using PointType = primal::Point<CoordType, DIM>;
@@ -1119,6 +1196,495 @@ TEST(primal_nurbscurve, linear_segment_constructor)
     for(int i = 0; i < DIM; ++i)
     {
       EXPECT_NEAR(p[i], start[i], 1e-13);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename NURBS2D, typename NURBS3D, typename VectorType = typename NURBS3D::VectorType>
+NURBS3D promoteTo3D(const NURBS2D& input, const VectorType& xvec, const VectorType& yvec)
+{
+  SLIC_ASSERT(NURBS2D::PointType::DIMENSION == 2);
+  SLIC_ASSERT(NURBS3D::PointType::DIMENSION == 3);
+
+  using PointType = typename NURBS3D::PointType;
+
+  NURBS3D output(input.getNumControlPoints(), input.getDegree());
+  for(int i = 0; i < input.getNumControlPoints(); ++i)
+  {
+    const auto& p2 = input[i];
+    output[i] = PointType((xvec * p2[0] + yvec * p2[1]).data(), PointType::DIMENSION);
+  }
+
+  output.setKnots(input.getKnots());
+
+  if(input.isRational())
+  {
+    output.makeRational();
+    for(int i = 0; i < input.getNumControlPoints(); ++i)
+    {
+      output.setWeight(i, input.getWeight(i));
+    }
+  }
+
+  return output;
+}
+
+template <typename T>
+void checkCircularArcCurvature2D(T tol)
+{
+  using NURBSCurveType = primal::NURBSCurve<T, 2>;
+
+  const T radius = 4.;
+  const auto curve =
+    NURBSCurveType::make_circular_arc_nurbs(T(0.15) * T(M_PI), T(1.85) * T(M_PI), T(0.), T(0.), radius);
+
+  constexpr int numSamples = 17;
+  for(int i = 0; i < numSamples; ++i)
+  {
+    const T t = static_cast<T>(i) / static_cast<T>(numSamples - 1);
+    EXPECT_NEAR(curve.curvature(t), T(1.) / radius, tol);
+  }
+}
+
+template <typename T>
+void checkCircularArcCurvature3D(T tol)
+{
+  using NURBSCurve2D = primal::NURBSCurve<T, 2>;
+  using NURBSCurve3D = primal::NURBSCurve<T, 3>;
+  using Vector3D = primal::Vector<T, 3>;
+
+  const T radius = 4.;
+  const auto curve2d =
+    NURBSCurve2D::make_circular_arc_nurbs(T(0.1) * T(M_PI), T(1.6) * T(M_PI), T(0.), T(0.), radius);
+
+  const T a0 = T(M_PI) / T(4.);
+  const T a1 = a0 + T(M_PI) / T(2.);
+  const Vector3D uvec {std::cos(a0), T(0.), -std::sin(a0)};
+  const Vector3D vvec {std::cos(a1), T(0.), -std::sin(a1)};
+  const auto curve3d = promoteTo3D<NURBSCurve2D, NURBSCurve3D>(curve2d, uvec, vvec);
+
+  constexpr int numSamples = 17;
+  for(int i = 0; i < numSamples; ++i)
+  {
+    const T t = static_cast<T>(i) / static_cast<T>(numSamples - 1);
+    EXPECT_NEAR(curve3d.curvature(t), T(1.) / radius, tol);
+  }
+}
+
+template <typename T>
+void checkCircularArcCurvatureDerivative2D(T tol)
+{
+  using NURBSCurveType = primal::NURBSCurve<T, 2>;
+
+  const T radius = 4.;
+  const auto curve =
+    NURBSCurveType::make_circular_arc_nurbs(T(0.15) * T(M_PI), T(1.85) * T(M_PI), T(0.), T(0.), radius);
+
+  constexpr int numSamples = 17;
+  for(int i = 0; i < numSamples; ++i)
+  {
+    const T t = static_cast<T>(i) / static_cast<T>(numSamples - 1);
+    EXPECT_NEAR(curve.curvatureDerivative(t), T(0.), tol);
+  }
+}
+
+template <typename T>
+void checkCircularArcCurvatureDerivative3D(T tol)
+{
+  using NURBSCurve2D = primal::NURBSCurve<T, 2>;
+  using NURBSCurve3D = primal::NURBSCurve<T, 3>;
+  using Vector3D = primal::Vector<T, 3>;
+
+  const T radius = 4.;
+  const auto curve2d =
+    NURBSCurve2D::make_circular_arc_nurbs(T(0.1) * T(M_PI), T(1.6) * T(M_PI), T(0.), T(0.), radius);
+
+  const T a0 = T(M_PI) / T(4.);
+  const T a1 = a0 + T(M_PI) / T(2.);
+  const Vector3D uvec {std::cos(a0), T(0.), -std::sin(a0)};
+  const Vector3D vvec {std::cos(a1), T(0.), -std::sin(a1)};
+  const auto curve3d = promoteTo3D<NURBSCurve2D, NURBSCurve3D>(curve2d, uvec, vvec);
+
+  constexpr int numSamples = 17;
+  for(int i = 0; i < numSamples; ++i)
+  {
+    const T t = static_cast<T>(i) / static_cast<T>(numSamples - 1);
+    EXPECT_NEAR(curve3d.curvatureDerivative(t), T(0.), tol);
+  }
+}
+
+TEST(primal_nurbscurve, curvature2d)
+{
+  checkCircularArcCurvature2D<float>(1.e-5F);
+  checkCircularArcCurvature2D<double>(1.e-10);
+}
+
+TEST(primal_nurbscurve, curvature3d)
+{
+  checkCircularArcCurvature3D<float>(1.e-5F);
+  checkCircularArcCurvature3D<double>(1.e-10);
+}
+
+TEST(primal_nurbscurve, curvature_derivative2d)
+{
+  checkCircularArcCurvatureDerivative2D<float>(1.e-5F);
+  checkCircularArcCurvatureDerivative2D<double>(1.e-10);
+}
+
+TEST(primal_nurbscurve, curvature_derivative3d)
+{
+  checkCircularArcCurvatureDerivative3D<float>(1.e-5F);
+  checkCircularArcCurvatureDerivative3D<double>(1.e-10);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, curvature_reverse_orientation)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  PointType controlPoints[3] = {PointType {0.0, 0.0}, PointType {0.5, 0.5}, PointType {1.0, 0.0}};
+  NURBSCurveType curve(controlPoints, 3, 2);
+  NURBSCurveType reversed(curve);
+  reversed.reverseOrientation();
+
+  for(const CoordType t : {0.0, 0.25, 0.5, 0.75, 1.0})
+  {
+    EXPECT_NEAR(curve.curvature(t), -reversed.curvature(1.0 - t), 1e-12);
+    EXPECT_NEAR(curve.curvatureDerivative(t), reversed.curvatureDerivative(1.0 - t), 1e-12);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, quartic_graph_derivatives_and_curvature)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  // This degree-4 nonrational NURBS span exactly represents
+  // f(x) = 0.25 * (x + 1) * (x - 2) * (x^2 - 0.25)
+  // over x in [-1, 2], parameterized by x(t) = -1 + 3 t.
+  auto analyticY = [](CoordType t) {
+    return (81.0 / 4.0) * t * t * t * t - (135.0 / 4.0) * t * t * t + (243.0 / 16.0) * t * t -
+      (27.0 / 16.0) * t;
+  };
+
+  auto analyticYp = [](CoordType t) {
+    return 81.0 * t * t * t - (405.0 / 4.0) * t * t + (243.0 / 8.0) * t - (27.0 / 16.0);
+  };
+
+  auto analyticYpp = [](CoordType t) { return 243.0 * t * t - (405.0 / 2.0) * t + (243.0 / 8.0); };
+
+  auto analyticYppp = [](CoordType t) { return 486.0 * t - (405.0 / 2.0); };
+
+  auto analyticCurvature = [&](CoordType t) {
+    const CoordType yp = analyticYp(t);
+    const CoordType ypp = analyticYpp(t);
+    const CoordType denom = 9.0 + yp * yp;
+    return 3.0 * ypp / std::pow(denom, 1.5);
+  };
+
+  auto analyticCurvatureDerivative = [&](CoordType t) {
+    const CoordType yp = analyticYp(t);
+    const CoordType ypp = analyticYpp(t);
+    const CoordType yppp = analyticYppp(t);
+    const CoordType denom = 9.0 + yp * yp;
+    return 3.0 * yppp / std::pow(denom, 1.5) - 9.0 * yp * ypp * ypp / std::pow(denom, 2.5);
+  };
+
+  PointType controlPoints[5] = {PointType {-1.0, 0.0},
+                                PointType {-0.25, -27.0 / 64.0},
+                                PointType {0.5, 27.0 / 16.0},
+                                PointType {1.25, -135.0 / 64.0},
+                                PointType {2.0, 0.0}};
+
+  NURBSCurveType curve(controlPoints, 5, 4);
+
+  for(const CoordType t : {0.0, 1.0 / 6.0, 1.0 / 3.0, 0.5, 2.0 / 3.0, 5.0 / 6.0, 1.0})
+  {
+    const PointType eval = curve.evaluate(t);
+    const VectorType Dt = curve.dt(t);
+    const VectorType DtDt = curve.dtdt(t);
+
+    PointType evalBatch;
+    axom::Array<VectorType> ders;
+    curve.evaluateDerivatives(t, 3, evalBatch, ders);
+
+    EXPECT_NEAR(eval[0], -1.0 + 3.0 * t, 1e-13);
+    EXPECT_NEAR(eval[1], analyticY(t), 1e-13);
+    EXPECT_NEAR(evalBatch[0], eval[0], 1e-13);
+    EXPECT_NEAR(evalBatch[1], eval[1], 1e-13);
+
+    EXPECT_NEAR(Dt[0], 3.0, 1e-13);
+    EXPECT_NEAR(Dt[1], analyticYp(t), 1e-12);
+    EXPECT_NEAR(DtDt[0], 0.0, 1e-13);
+    EXPECT_NEAR(DtDt[1], analyticYpp(t), 1e-11);
+
+    ASSERT_EQ(ders.size(), 3);
+    EXPECT_NEAR(ders[0][0], 3.0, 1e-13);
+    EXPECT_NEAR(ders[0][1], analyticYp(t), 1e-12);
+    EXPECT_NEAR(ders[1][0], 0.0, 1e-13);
+    EXPECT_NEAR(ders[1][1], analyticYpp(t), 1e-11);
+    EXPECT_NEAR(ders[2][0], 0.0, 1e-13);
+    EXPECT_NEAR(ders[2][1], analyticYppp(t), 1e-10);
+
+    EXPECT_NEAR(curve.curvature(t), analyticCurvature(t), 1e-12);
+    EXPECT_NEAR(curve.curvatureDerivative(t), analyticCurvatureDerivative(t), 1e-11);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, repeated_knot_kink_behavior)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  // This quadratic nonrational NURBS curve has an internal knot with
+  // multiplicity equal to the degree, so it is only C^0 at t = 0.5.
+  PointType controlPoints[5] = {PointType {0.0, 0.0},
+                                PointType {1.0, 0.0},
+                                PointType {1.0, 1.0},
+                                PointType {2.0, 1.0},
+                                PointType {3.0, 1.0}};
+  CoordType knots[8] = {0.0, 0.0, 0.0, 0.5, 0.5, 1.0, 1.0, 1.0};
+  NURBSCurveType curve(controlPoints, 5, knots, 8);
+
+  ASSERT_TRUE(curve.isValidNURBS());
+
+  const PointType pStart = curve.evaluate(0.0);
+  const PointType pEnd = curve.evaluate(1.0);
+  const VectorType dtStart = curve.dt(0.0);
+  const VectorType dtEnd = curve.dt(1.0);
+  const VectorType dtdtStart = curve.dtdt(0.0);
+  const VectorType dtdtEnd = curve.dtdt(1.0);
+
+  EXPECT_NEAR(pStart[0], 0.0, 1e-14);
+  EXPECT_NEAR(pStart[1], 0.0, 1e-14);
+  EXPECT_NEAR(dtStart[0], 4.0, 1e-12);
+  EXPECT_NEAR(dtStart[1], 0.0, 1e-12);
+  EXPECT_NEAR(dtdtStart[0], -8.0, 1e-12);
+  EXPECT_NEAR(dtdtStart[1], 8.0, 1e-12);
+  EXPECT_NEAR(curve.curvature(0.0), 0.5, 1e-12);
+
+  EXPECT_NEAR(pEnd[0], 3.0, 1e-14);
+  EXPECT_NEAR(pEnd[1], 1.0, 1e-14);
+  EXPECT_NEAR(dtEnd[0], 4.0, 1e-12);
+  EXPECT_NEAR(dtEnd[1], 0.0, 1e-12);
+  EXPECT_NEAR(dtdtEnd[0], 0.0, 1e-12);
+  EXPECT_NEAR(dtdtEnd[1], 0.0, 1e-12);
+  EXPECT_NEAR(curve.curvature(1.0), 0.0, 1e-12);
+  EXPECT_NEAR(curve.curvatureDerivative(1.0), 0.0, 1e-12);
+
+  const CoordType tLine = 0.75;
+  EXPECT_NEAR(curve.curvature(tLine), 0.0, 1e-12);
+  EXPECT_NEAR(curve.curvatureDerivative(tLine), 0.0, 1e-12);
+
+  const CoordType eps = 1.e-4;
+  const CoordType tLeft = 0.5 - eps;
+  const CoordType tRight = 0.5 + eps;
+
+  const PointType pMid = curve.evaluate(0.5);
+  const PointType pLeft = curve.evaluate(tLeft);
+  const PointType pRight = curve.evaluate(tRight);
+
+  EXPECT_NEAR(pMid[0], 1.0, 1e-14);
+  EXPECT_NEAR(pMid[1], 1.0, 1e-14);
+  EXPECT_NEAR(pLeft[0], 1.0 - 4.0 * eps * eps, 1e-12);
+  EXPECT_NEAR(pLeft[1], 1.0 - 4.0 * eps + 4.0 * eps * eps, 1e-12);
+  EXPECT_NEAR(pRight[0], 1.0 + 4.0 * eps, 1e-12);
+  EXPECT_NEAR(pRight[1], 1.0, 1e-12);
+
+  const VectorType dtLeft = curve.dt(tLeft);
+  const VectorType dtRight = curve.dt(tRight);
+  const VectorType dtdtLeft = curve.dtdt(tLeft);
+  const VectorType dtdtRight = curve.dtdt(tRight);
+
+  EXPECT_NEAR(dtLeft[0], 8.0 * eps, 1e-10);
+  EXPECT_NEAR(dtLeft[1], 4.0 - 8.0 * eps, 1e-10);
+  EXPECT_NEAR(dtRight[0], 4.0, 1e-12);
+  EXPECT_NEAR(dtRight[1], 0.0, 1e-12);
+
+  EXPECT_NEAR(dtdtLeft[0], -8.0, 1e-10);
+  EXPECT_NEAR(dtdtLeft[1], 8.0, 1e-10);
+  EXPECT_NEAR(dtdtRight[0], 0.0, 1e-12);
+  EXPECT_NEAR(dtdtRight[1], 0.0, 1e-12);
+
+  // Position is continuous at the knot, but the sided derivatives are not.
+  EXPECT_GT((dtLeft - dtRight).norm(), 1.0);
+  EXPECT_GT((dtdtLeft - dtdtRight).norm(), 1.0);
+
+  const CoordType kLeft = curve.curvature(tLeft);
+  const CoordType kRight = curve.curvature(tRight);
+  const CoordType expectedKLeft = 1.0 / (2.0 * std::pow(1.0 - 4.0 * eps + 8.0 * eps * eps, 1.5));
+  EXPECT_NEAR(kLeft, expectedKLeft, 1e-9);
+  EXPECT_NEAR(kRight, 0.0, 1e-12);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_intersections)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+  using Point2D = primal::Point<CoordType, DIM>;
+
+  constexpr int max_degree = 3;
+
+  // Define two nurbs curves in 2D intersecting at one point.
+  const Point2D data1_2d[max_degree + 1] = {Point2D {0.6, 1.2},
+                                            Point2D {1.3, 1.6},
+                                            Point2D {2.9, 2.4},
+                                            Point2D {3.2, 3.5}};
+
+  const Point2D data2_2d[max_degree + 1] = {Point2D {0.5, 3.4},
+                                            Point2D {1.2, 2.3},
+                                            Point2D {2.8, 1.5},
+                                            Point2D {3.1, 1.1}};
+
+  constexpr double weights[4] = {1.0, 2.0, 3.0, 4.0};
+
+  constexpr int degree = 3;
+  constexpr int npts = 4;
+
+  NURBSCurveType curve1(data1_2d, weights, npts, degree);
+  NURBSCurveType curve2(data2_2d, weights, npts, degree);
+
+  Point2D intersection1, intersection2;
+
+  axom::Array<CoordType> p1, p2, q1, q2;
+  const bool found = intersect(curve1, curve2, p1, p2);
+  const axom::IndexType num_intersections = p1.size();
+  EXPECT_TRUE(found && num_intersections == 1 && num_intersections == p2.size());
+
+  for(axom::IndexType j = 0; j < num_intersections; ++j)
+  {
+    intersection1 = curve1.evaluate(p1[j]);
+    intersection2 = curve2.evaluate(p2[j]);
+
+    for(int i = 0; i < DIM; ++i) EXPECT_NEAR(intersection1[i], intersection2[i], 1e-8);
+  }
+
+  // Test two curves that do not intersect.
+  const Point2D data3_2d[max_degree + 1] = {Point2D {0.5, -3.4},
+                                            Point2D {1.2, -2.3},
+                                            Point2D {2.8, -1.5},
+                                            Point2D {3.1, -1.1}};
+
+  NURBSCurveType curve3(data3_2d, weights, npts, degree);
+  const bool not_found = !intersect(curve2, curve3, q1, q2);
+  EXPECT_TRUE(not_found && q1.size() == 0 && q2.size() == 0);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_circle_intersections)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  // Test two circles that intersect at two points.
+  const auto circle1 = NURBSCurveType::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 0.0, 0.0, 1.0);
+  const auto circle2 = NURBSCurveType::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 1.0, 0.0, 1.0);
+
+  axom::Array<CoordType> p1, p2;
+  const bool found = intersect(circle1, circle2, p1, p2);
+  EXPECT_TRUE(found && p1.size() == 2 && p2.size() == 2);
+}
+
+primal::NURBSCurve<double, 2> make_cubic_shape()
+{
+  // Open cubic NURBS curve (degree 3), non-rational.
+  // 24 control points, 28 knots (n + p + 2: 24 + 3 + 1 = 28).
+  using Point2D = primal::Point<double, 2>;
+
+  axom::Array<double> weights(24);
+  for(int i = 0; i < 24; ++i) weights[i] = 1.0;
+
+  return primal::NURBSCurve<double, 2>(
+    axom::Array<Point2D> {
+      Point2D {-5.0, +3.6}, Point2D {-3.4, +3.0}, Point2D {-1.8, +2.2}, Point2D {-0.4, +1.0},
+      Point2D {+1.0, -0.4}, Point2D {+2.4, -1.6}, Point2D {+3.6, -2.4}, Point2D {+4.4, -1.0},
+      Point2D {+3.6, +0.8}, Point2D {+2.0, +2.0}, Point2D {+0.0, +2.8}, Point2D {-2.0, +2.0},
+      Point2D {-3.2, +0.8}, Point2D {-2.6, -0.8}, Point2D {-1.0, -1.6}, Point2D {+0.4, -2.2},
+      Point2D {+1.6, -2.6}, Point2D {+0.0, -3.4}, Point2D {-2.2, -3.0}, Point2D {-2.8, -1.4},
+      Point2D {-1.0, +0.4}, Point2D {+1.8, +1.8}, Point2D {+3.4, +3.0}, Point2D {+5.0, +3.6}},
+    weights,
+    axom::Array<double> {0.0,          0.0,          0.0,          0.0,          0.0476190476,
+                         0.0952380952, 0.1428571429, 0.1904761905, 0.2380952381, 0.2857142857,
+                         0.3333333333, 0.3809523810, 0.4285714286, 0.4761904762, 0.5238095238,
+                         0.5714285714, 0.6190476190, 0.6666666667, 0.7142857143, 0.7619047619,
+                         0.8095238095, 0.8571428571, 0.9047619048, 0.9523809524, 1.0,
+                         1.0,          1.0,          1.0});
+}
+
+primal::NURBSCurve<double, 2> make_ellipse_curve()
+{
+  // Quadratic rational NURBS ellipse (degree 2), 9-control-point 4-arc construction.
+  // Center, semi-axes:
+  //   center      = (+0.055509, +0.246636)
+  //   semi-axes   = (2.506091, 2.506234)   (a == b -> circle in this case)
+  //   rotation    = +0.0000 degrees
+  // Corner control-point weights are w = cos(pi/4) = sqrt(2)/2.
+  using Point2D = primal::Point<double, 2>;
+  const double w = 1.0 / std::sqrt(2.0);
+
+  return primal::NURBSCurve<double, 2>(
+    axom::Array<Point2D> {Point2D {+2.5615994286, +0.2466357797},
+                          Point2D {+2.5615994286, +2.7528699841},
+                          Point2D {+0.0555086484, +2.7528699841},
+                          Point2D {-2.4505821318, +2.7528699841},
+                          Point2D {-2.4505821318, +0.2466357797},
+                          Point2D {-2.4505821318, -2.2595984246},
+                          Point2D {+0.0555086484, -2.2595984246},
+                          Point2D {+2.5615994286, -2.2595984246},
+                          Point2D {+2.5615994286, +0.2466357797}},
+    axom::Array<double> {1.0, w, 1.0, w, 1.0, w, 1.0, w, 1.0},
+    axom::Array<double> {0.0, 0.0, 0.0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 1.0});
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, nurbscurve_self_intersections)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using Point2D = primal::Point<double, 2>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  NURBSCurveType curve1 = make_cubic_shape();
+  NURBSCurveType curve2 = make_ellipse_curve();
+
+  // Note: This pair of NURBS curves has eight intersections at five unique intersection points
+  axom::Array<CoordType> p1, p2;
+  const bool found = intersect(curve1, curve2, p1, p2);
+  EXPECT_TRUE(found && p1.size() == 8 && p2.size() == 8);
+
+  axom::Array<Point2D> intersections {Point2D {-1.7060766733448747, 2.0292202966044366},
+                                      Point2D {2.044376271360025, -1.2782097206437852},
+                                      Point2D {1.884074237582652, 1.9604430112255964},
+                                      Point2D {-2.1644784828526533, -0.9161966686461217},
+                                      Point2D {0.5039968961448462, -2.2191102081421588}};
+
+  primal::Point<double, 2> int1, int2;
+  std::array<int, 8> intid = {0, 1, 2, 0, 3, 4, 3, 2};
+
+  for(int i = 0; i < p1.size(); ++i)
+  {
+    int1 = curve1.evaluate(p1[i]);
+    int2 = curve2.evaluate(p2[i]);
+
+    for(int j = 0; j < DIM; ++j)
+    {
+      EXPECT_NEAR(int1[j], int2[j], 1e-8);
+      EXPECT_NEAR(int1[j], intersections[intid[i]][j], 1e-4);
     }
   }
 }

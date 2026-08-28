@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_DISPATCH_UNIFORM_TOPOLOGY_HPP_
-#define AXOM_BUMP_DISPATCH_UNIFORM_TOPOLOGY_HPP_
+#pragma once
 
 #include "axom/bump/views/StructuredTopologyView.hpp"
 #include "axom/bump/views/dispatch_utilities.hpp"
@@ -41,13 +40,13 @@ struct make_uniform_topology<3>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node *coordset =
+    const conduit::Node* coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
-    const conduit::Node &n_dims = coordset->fetch_existing("dims");
+    const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
     zoneDims[0] = n_dims[0].to_index_t() - 1;
     zoneDims[1] = n_dims[1].to_index_t() - 1;
@@ -60,7 +59,7 @@ struct make_uniform_topology<3>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -78,13 +77,13 @@ struct make_uniform_topology<2>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node *coordset =
+    const conduit::Node* coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
-    const conduit::Node &n_dims = coordset->fetch_existing("dims");
+    const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
     zoneDims[0] = n_dims[0].to_index_t() - 1;
     zoneDims[1] = n_dims[1].to_index_t() - 1;
@@ -96,7 +95,7 @@ struct make_uniform_topology<2>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -114,13 +113,13 @@ struct make_uniform_topology<1>
    * \param topo The node containing the topology.
    * \return The indexing.
    */
-  static Indexing indexing(const conduit::Node &topo)
+  static Indexing indexing(const conduit::Node& topo)
   {
     verify(topo, "topology");
-    const conduit::Node *coordset =
+    const conduit::Node* coordset =
       conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
     SLIC_ASSERT(coordset != nullptr);
-    const conduit::Node &n_dims = coordset->fetch_existing("dims");
+    const conduit::Node& n_dims = coordset->fetch_existing("dims");
     LogicalIndex zoneDims;
     zoneDims[0] = n_dims[0].to_index_t() - 1;
     return Indexing(zoneDims);
@@ -131,7 +130,7 @@ struct make_uniform_topology<1>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
+  static TopoView view(const conduit::Node& topo) { return TopoView(indexing(topo)); }
 };
 
 namespace internal
@@ -142,8 +141,8 @@ namespace internal
 template <bool enabled, int NDIMS, typename FuncType>
 struct dispatch_one_uniform_topology
 {
-  static void execute(const conduit::Node &AXOM_UNUSED_PARAM(topo),
-                      FuncType &&AXOM_UNUSED_PARAM(func))
+  static void execute(const conduit::Node& AXOM_UNUSED_PARAM(topo),
+                      FuncType&& AXOM_UNUSED_PARAM(func))
   { }
 };
 
@@ -160,7 +159,7 @@ struct dispatch_one_uniform_topology<true, 3, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     auto topoView = make_uniform_topology<3>::view(topo);
     const std::string shape("hex");
@@ -181,7 +180,7 @@ struct dispatch_one_uniform_topology<true, 2, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     auto topoView = make_uniform_topology<2>::view(topo);
     const std::string shape("quad");
@@ -202,7 +201,7 @@ struct dispatch_one_uniform_topology<true, 1, FuncType>
    * \param topo The node that contains the topology.
    * \param func The kernel to be invoked.
    */
-  static void execute(const conduit::Node &topo, FuncType &&func)
+  static void execute(const conduit::Node& topo, FuncType&& func)
   {
     auto topoView = make_uniform_topology<1>::view(topo);
     const std::string shape("line");
@@ -222,13 +221,13 @@ struct dispatch_one_uniform_topology<true, 1, FuncType>
  * \param func The function to invoke using the view.
  */
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
-void dispatch_uniform_topology(const conduit::Node &topo, FuncType &&func)
+void dispatch_uniform_topology(const conduit::Node& topo, FuncType&& func)
 {
   verify(topo, "topology");
-  const conduit::Node *coordset =
+  const conduit::Node* coordset =
     conduit::blueprint::mesh::utils::find_reference_node(topo, "coordset");
   SLIC_ASSERT(coordset != nullptr);
-  const conduit::Node &n_dims = coordset->fetch_existing("dims");
+  const conduit::Node& n_dims = coordset->fetch_existing("dims");
   switch(n_dims.dtype().number_of_elements())
   {
   case 3:
@@ -254,5 +253,3 @@ void dispatch_uniform_topology(const conduit::Node &topo, FuncType &&func)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-
-#endif

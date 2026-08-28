@@ -4,14 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
 /**
  * \file GWNMethods.hpp
  *
  * \brief Helper classes and type traits for GWN Evaluation methods
  */
-
-#ifndef AXOM_QUEST_GWN_METHODS_HPP_
-#define AXOM_QUEST_GWN_METHODS_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -128,17 +127,61 @@ void generate_gwn_query_mesh(mfem::DataCollection& dc,
 ///@{
 /// \name Query methods for 2D GWN applications
 
-class DirectGWN2D
+/*!
+ * \class NURBSCurveGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses NURBSCurve geometry for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done curve-by-curve.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ *  `use_memoization` : Caches and re-uses subdivision data for curve evaluations
+ */
+template <typename ExecSpace, int ORDER = 2>
+class NURBSCurveGWNQuery
 {
 public:
-  using CurveArrayType = axom::Array<axom::primal::NURBSCurve<double, 2>>;
-  using NURBSCacheArray = axom::Array<axom::primal::detail::NURBSCurveGWNCache<double>>;
+  using BoxType = axom::primal::BoundingBox<double, 2>;
+  using GWNMoments = axom::quest::GWNMomentData<double, 2, ORDER>;
 
-  DirectGWN2D() = default;
+  using CurveType = axom::primal::NURBSCurve<double, 2>;
+  using CurveArrayType = axom::Array<CurveType>;
+  using NURBSCacheManager = typename axom::primal::nurbs_cache_2d_traits<ExecSpace>::type;
 
-  /// \brief Define view for NURBS data.
-  ///    If memoization is used, allocate a cache for each curve.
-  void preprocess(const CurveArrayType& input_curves, bool use_memoization = true)
+  NURBSCurveGWNQuery() = default;
+
+  ///@{
+  /// \name Setters for misc algorithm parameters
+  void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
+  {
+    m_subdivision_bbox_threshold = subdivision_bbox_threshold;
+  }
+
+  void setSubdivisionMaxPasses(int subdivision_max_passes)
+  {
+    m_subdivision_max_passes = subdivision_max_passes;
+  }
+
+  void setSubdivisionMaxNumCurves(int subdivision_max_curves)
+  {
+    m_subdivision_max_curves = subdivision_max_curves;
+  }
+  ///@}
+
+  /*!
+   * \brief Process input curves, optionally building a BVH
+   *
+   * \param [in] input_curves A view to the input curves
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   * \param [in] use_memoization If true, allocate a per-thread cache for each curve
+   */
+  void preprocess(const CurveArrayType& input_curves,
+                  bool use_direct_eval = false,
+                  bool use_memoization = true)
   {
     m_input_curves_view = input_curves.view();
     if(m_input_curves_view.size() <= 0)
@@ -147,23 +190,56 @@ public:
       return;
     }
 
-    axom::utilities::Timer timer(true);
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+
+    if(!use_direct_eval)
     {
-      AXOM_ANNOTATE_SCOPE("preprocessing");
-      if(use_memoization)
       {
-        m_nurbs_caches.reserve(input_curves.size());
-        for(const auto& curv : input_curves)
-        {
-          m_nurbs_caches.emplace_back(curv);
-        }
+        AXOM_ANNOTATE_SCOPE("subdivision");
+        m_subdivided_curves = subdivide_curves(m_input_curves_view,
+                                               m_subdivision_bbox_threshold,
+                                               m_subdivision_max_curves,
+                                               m_subdivision_max_passes);
+        m_processed_curves_view = m_subdivided_curves.view();
+      }
+
+      {
+        AXOM_ANNOTATE_SCOPE("bvh_initialization");
+        const int ncurves = m_processed_curves_view.size();
+        axom::Array<BoxType> aabbs(ncurves, ncurves);
+        auto aabbs_view = aabbs.view();
+        const auto processed_curves_view = m_processed_curves_view;
+
+        axom::for_all<ExecSpace>(
+          ncurves,
+          AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = processed_curves_view[i].boundingBox(); });
+        m_bvh.initialize(aabbs_view, ncurves);
+      }
+
+      {
+        AXOM_ANNOTATE_SCOPE("moment_precomputation");
+        const auto processed_curves_view = m_processed_curves_view;
+        auto compute_moments = [processed_curves_view](std::int32_t currentNode,
+                                                       const std::int32_t* leafNodes) -> GWNMoments {
+          const auto idx = leafNodes[currentNode];
+          return GWNMoments(processed_curves_view[idx]);
+        };
+
+        const auto traverser = m_bvh.getTraverser();
+        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
     }
-    timer.stop();
-    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading curves{}): {} s",
-                                use_memoization ? " and memoization caches" : "",
-                                timer.elapsedTimeInSec()));
+    else
+    {
+      // Without fast-approximation, processing is unnecessary
+      m_processed_curves_view = m_input_curves_view;
+    }
+
+    if(use_memoization)
+    {
+      AXOM_ANNOTATE_SCOPE("cache_initialization");
+      m_nurbs_cache_mgr = NURBSCacheManager(m_processed_curves_view);
+    }
   }
 
   /*!
@@ -199,65 +275,115 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
-      const auto input_curves_view = m_input_curves_view;
+      const auto processed_curves_view = m_processed_curves_view;
 
-      // Use non-memoized form
-      if(m_nurbs_caches.empty())
+      // Use fast approximation
+      if(m_bvh.isInitialized())
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const auto q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& cache : input_curves_view)
-          {
-            wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
-          }
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
-        });
+        const auto traverser = m_bvh.getTraverser();
+        auto internal_moments_view = m_internal_moments.view();
+
+        // Use fast-approximate, non-memoized form
+        if(m_nurbs_cache_mgr.empty())
+        {
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+            const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                           traverser,
+                                                                           processed_curves_view,
+                                                                           internal_moments_view,
+                                                                           tol_copy);
+            winding[static_cast<int>(index)] = wn;
+            inout[static_cast<int>(index)] = std::lround(wn);
+          });
+        }
+        // Use fast-approximate, memoized form
+        else
+        {
+          const auto cache_mgr_view = m_nurbs_cache_mgr.view();
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+            const auto nurbs_cache_view = cache_mgr_view.caches();
+            const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                           traverser,
+                                                                           nurbs_cache_view,
+                                                                           internal_moments_view,
+                                                                           tol_copy);
+            winding[static_cast<int>(index)] = wn;
+            inout[static_cast<int>(index)] = std::lround(wn);
+          });
+        }
       }
-      else  // Use memoized form
+      // Use direct formula
+      else
       {
-        const auto nurbs_caches_view = m_nurbs_caches.view();
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const auto q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& cache : nurbs_caches_view)
-          {
-            wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
-          }
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
-        });
+        // Use direct, non-memoized form
+        if(m_nurbs_cache_mgr.empty())
+        {
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+            const auto q = query_point(static_cast<int>(nidx));
+            double wn {};
+            for(const auto& curve : processed_curves_view)
+            {
+              wn += axom::primal::winding_number(q, curve, tol_copy.edge_tol, tol_copy.EPS);
+            }
+            winding[static_cast<int>(nidx)] = wn;
+            inout[static_cast<int>(nidx)] = std::lround(wn);
+          });
+        }
+        else  // Use direct, memoized form
+        {
+          const auto cache_mgr_view = m_nurbs_cache_mgr.view();
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+            const auto q = query_point(static_cast<int>(nidx));
+            const auto caches_view = cache_mgr_view.caches();
+
+            const double wn =
+              axom::primal::winding_number(q, caches_view, tol_copy.edge_tol, tol_copy.EPS);
+
+            winding[static_cast<int>(nidx)] = wn;
+            inout[static_cast<int>(nidx)] = std::lround(wn);
+          });
+        }
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Querying {:L} samples in winding number field with{} memoization took {:.3Lf} seconds"
-      " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
-      num_query_points,
-      m_nurbs_caches.empty() ? "out" : "",
-      query_time_s,
-      num_query_points / query_time_s,
-      ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
-  axom::ArrayView<const axom::primal::NURBSCurve<double, 2>> m_input_curves_view;
-  NURBSCacheArray m_nurbs_caches;
+  // For the input curves/BVH leaf nodes
+  axom::ArrayView<const CurveType> m_input_curves_view;
+  NURBSCacheManager m_nurbs_cache_mgr;
+
+  // For preprocessed curves
+  axom::Array<CurveType> m_subdivided_curves;
+  axom::ArrayView<const CurveType> m_processed_curves_view;
+
+  // Only needed for fast approximation method
+  axom::Array<GWNMoments> m_internal_moments;
+  axom::spin::BVH<2, ExecSpace> m_bvh;
+
+  // Additional algorithm parameters
+  double m_subdivision_bbox_threshold {1.0};
+  int m_subdivision_max_passes {10};
+  int m_subdivision_max_curves {1000000};
 };
 
-template <int ORDER>
-class PolylineGWN2D
+/*!
+ * \class PolylineGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses a linear mesh for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done segment-by-segment.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ */
+template <typename ExecSpace, int ORDER = 2>
+class PolylineGWNQuery
 {
 public:
   using Point2D = axom::primal::Point<double, 2>;
@@ -266,12 +392,16 @@ public:
   using SegmentType = axom::primal::Segment<double, 2>;
   using GWNMoments = axom::quest::GWNMomentData<double, 2, ORDER>;
 
-  PolylineGWN2D() = default;
+  PolylineGWNQuery() = default;
 
-  /// \brief Load polyline data into primal::Segments.
-  ///    If fast-approximation is used, construct BVH
+  /*!
+   * \brief Process mint::mesh into axom::Segments, optionally building a BVH
+   *
+   * \param [in] poly_mesh The input mesh
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   */
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
-                  bool useDirectEval)
+                  bool use_direct_eval)
   {
     if(poly_mesh == nullptr || poly_mesh->getNumberOfCells() <= 0)
     {
@@ -279,58 +409,44 @@ public:
       return;
     }
 
-    axom::utilities::Timer timer(true);
-    axom::utilities::Timer stage_timer(false);
-
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    stage_timer.start();
     {
       AXOM_ANNOTATE_SCOPE("extract_segments");
 
       m_segments.resize(poly_mesh->getNumberOfCells());
       auto segments_view = m_segments.view();
 
-      axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
+      axom::mint::for_all_cells<ExecSpace, axom::mint::xargs::coords>(
         poly_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
-                    const axom::IndexType* /*nodeIds*/) {
+                    const axom::IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
           segments_view[cellIdx] =
             SegmentType {Point2D {coords(0, 0), coords(1, 0)}, Point2D {coords(0, 1), coords(1, 1)}};
         });
     }
-    stage_timer.stop();
-    SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_segments): {} s",
-                                stage_timer.elapsedTimeInSec()));
 
     // If direct evaluation is preferred, skip BVH initialization
-    if(!useDirectEval)
+    if(!use_direct_eval)
     {
-      stage_timer.reset();
-      stage_timer.start();
       {
-        AXOM_ANNOTATE_SCOPE("bvh_init");
+        AXOM_ANNOTATE_SCOPE("bvh_initialization");
         const int nlines = m_segments.size();
         axom::Array<BoxType> aabbs(nlines, nlines);
         auto aabbs_view = aabbs.view();
         const auto segments_view = m_segments.view();
 
-        axom::for_all<axom::SEQ_EXEC>(
+        axom::for_all<ExecSpace>(
           nlines,
           AXOM_LAMBDA(axom::IndexType i) {
             aabbs_view[i] = BoxType {segments_view[i].source(), segments_view[i].target()};
           });
         m_bvh.initialize(aabbs_view, nlines);
       }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
 
-      stage_timer.reset();
-      stage_timer.start();
       {
-        AXOM_ANNOTATE_SCOPE("moments");
+        AXOM_ANNOTATE_SCOPE("moment_precomputation");
         const auto segments_view = m_segments.view();
 
         auto compute_moments = [segments_view](std::int32_t currentNode,
@@ -340,14 +456,9 @@ public:
         };
 
         const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<axom::SEQ_EXEC, GWNMoments>(compute_moments);
+        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
     }
-    timer.stop();
-    SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
 
   /*!
@@ -383,7 +494,6 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
 
@@ -394,9 +504,9 @@ public:
       if(m_bvh.isInitialized())
       {
         const auto traverser = m_bvh.getTraverser();
-        const auto internal_moments_view = m_internal_moments.view();
+        auto internal_moments_view = m_internal_moments.view();
 
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                          traverser,
                                                                          segments_view,
@@ -410,7 +520,7 @@ public:
       // Use direct formula
       else
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const axom::primal::Point<double, 2> q = query_point(static_cast<int>(index));
           double wn {};
           for(const auto& seg : segments_view)
@@ -423,19 +533,6 @@ public:
         });
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
-                                num_query_points,
-                                query_time_s,
-                                num_query_points / query_time_s,
-                                ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
@@ -444,23 +541,73 @@ private:
 
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
-  axom::spin::BVH<2, axom::SEQ_EXEC> m_bvh;
+  axom::spin::BVH<2, ExecSpace> m_bvh;
 };
 ///@}
 
 ///@{
 /// \name Query methods for 3D GWN applications
-class DirectGWN3D
+
+/*!
+ * \class NURBSPatchGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses NURBSPatch geometry for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done patch-by-patch.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ *  `use_memoization` : Caches and re-uses trimming curve quadrature data for patch evaluation
+ */
+template <typename ExecSpace, int ORDER = 2>
+class NURBSPatchGWNQuery
 {
 public:
-  using PatchArrayType = axom::Array<axom::primal::NURBSPatch<double, 3>>;
-  using NURBSCacheArray = axom::Array<axom::primal::detail::NURBSPatchGWNCache<double>>;
+  using BoxType = axom::primal::BoundingBox<double, 3>;
+  using GWNMoments = axom::quest::GWNMomentData<double, 3, ORDER>;
 
-  DirectGWN3D() = default;
+  using PatchType = axom::primal::NURBSPatch<double, 3>;
+  using PatchArrayType = axom::Array<PatchType>;
+  using NURBSCacheManager = typename axom::primal::nurbs_cache_3d_traits<ExecSpace>::type;
 
-  /// \brief Define view for NURBS data.
-  ///    If memoization is used, allocate a cache for each patch.
-  void preprocess(const PatchArrayType& input_patches, bool use_memoization = true)
+  NURBSPatchGWNQuery() = default;
+
+  ///@{
+  /// \name Setters for misc algorithm parameters
+  void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
+  {
+    m_subdivision_bbox_threshold = subdivision_bbox_threshold;
+  }
+
+  void setSubdivisionMaxPasses(int subdivision_max_passes)
+  {
+    m_subdivision_max_passes = subdivision_max_passes;
+  }
+
+  void setSubdivisionMaxNumPatches(int subdivision_max_patches)
+  {
+    m_subdivision_max_patches = subdivision_max_patches;
+  }
+  ///@}
+
+  /*!
+   * \brief Process input patches, optionally building a BVH
+   *
+   * Processing involves "cleaning" input surfaces for more robust GWN evaluation by 
+   *  - Normalizing the parameter space of each surface according to the number of knot spans
+   *  - Ensuring each input is represented as a trimmed surface
+   *  - Clipping the parameter space of each surface to the visible (i.e. trimmed) portion 
+   * 
+   * \param [in] input_patches A view to the input trimmed NURBS surfaces
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   * \param [in] use_memoization If true, allocate a per-thread cache for each patch
+   */
+  void preprocess(const PatchArrayType& input_patches,
+                  bool use_direct_eval = false,
+                  bool use_memoization = true)
   {
     m_input_patches_view = input_patches.view();
     if(m_input_patches_view.size() <= 0)
@@ -469,23 +616,85 @@ public:
       return;
     }
 
-    axom::utilities::Timer timer(true);
+    // To use if normals are precomputed as moments, then used in caches
+    axom::Array<primal::Vector<double, 3>> precomputed_normals {};
+    axom::Array<double> precomputed_surface_areas {};
+
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+
+    if(!use_direct_eval)
     {
-      AXOM_ANNOTATE_SCOPE("preprocessing");
-      if(use_memoization)
       {
-        m_nurbs_caches.reserve(input_patches.size());
-        for(const auto& patch : input_patches)
-        {
-          m_nurbs_caches.emplace_back(patch);
-        }
+        AXOM_ANNOTATE_SCOPE("subdivision");
+        m_subdivided_patches = subdivide_patches(m_input_patches_view,
+                                                 m_subdivision_bbox_threshold,
+                                                 m_subdivision_max_patches,
+                                                 m_subdivision_max_passes);
+        m_processed_patches_view = m_subdivided_patches.view();
+      }
+
+      {
+        AXOM_ANNOTATE_SCOPE("bvh_initialization");
+        const int npatches = m_processed_patches_view.size();
+        axom::Array<BoxType> aabbs(npatches, npatches);
+        auto aabbs_view = aabbs.view();
+        const auto processed_patches_view = m_processed_patches_view;
+
+        axom::for_all<ExecSpace>(
+          npatches,
+          AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = processed_patches_view[i].boundingBox(); });
+        m_bvh.initialize(aabbs_view, npatches);
+      }
+
+      {
+        AXOM_ANNOTATE_SCOPE("moment_precomputation");
+        precomputed_normals.resize(m_processed_patches_view.size());
+        precomputed_surface_areas.resize(m_processed_patches_view.size());
+
+        auto normals_view = precomputed_normals.view();
+        auto surface_areas_view = precomputed_surface_areas.view();
+
+        const auto processed_patches_view = m_processed_patches_view;
+        auto compute_moments = [=](std::int32_t currentNode,
+                                   const std::int32_t* leafNodes) -> GWNMoments {
+          const auto idx = leafNodes[currentNode];
+          const auto leaf_moments = GWNMoments(processed_patches_view[idx]);
+
+          normals_view[idx] = leaf_moments.getNormal();
+          surface_areas_view[idx] = leaf_moments.getSurfaceArea();
+          return leaf_moments;
+        };
+
+        const auto traverser = m_bvh.getTraverser();
+        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
     }
-    timer.stop();
-    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading surfaces{}): {} s",
-                                use_memoization ? " and memoization caches" : "",
-                                timer.elapsedTimeInSec()));
+    else
+    {
+      // Without fast-approximation, processing is unnecessary, but we still clean the
+      //  the trimmed representation for more precise moment calculation
+      for(auto& surf : m_input_patches_view)
+      {
+        auto cleaned = surf.cleanedTrimmedRepresentation();
+        if(cleaned.getNumTrimmingCurves() == 0)
+        {
+          continue;
+        }
+
+        m_subdivided_patches.push_back(std::move(cleaned));
+      }
+      m_processed_patches_view = m_subdivided_patches.view();
+    }
+
+    if(use_memoization)
+    {
+      AXOM_ANNOTATE_SCOPE("cache_initialization");
+
+      // If internal moments are already allocated, then normals are already precomputed
+      m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view,
+                                            precomputed_normals.view(),
+                                            precomputed_surface_areas.view());
+    }
   }
 
   /*!
@@ -496,9 +705,7 @@ public:
    * \param [in] slice_z If the dc mesh is 2D, the GWN will be evaluated on a slice 
    *                      parallel to the x-y plane with this offset on the z-axis
    */
-  void query(mfem::DataCollection& dc,
-             const primal::WindingTolerances& tol,
-             const double slice_z = 0.0) const
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol, const double slice_z = 0.0)
   {
     if(!dc.HasField("winding") || !dc.HasField("inout"))
     {
@@ -525,77 +732,130 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
-      const auto input_patches_view = m_input_patches_view;
+      const auto processed_patches_view = m_processed_patches_view;
 
-      // Use non-memoized form
-      if(m_nurbs_caches.empty())
+      // Use fast approximation
+      if(m_bvh.isInitialized())
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const auto q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& patch : input_patches_view)
-          {
-            wn += axom::primal::winding_number(q,
-                                               patch,
-                                               tol_copy.edge_tol,
-                                               tol_copy.ls_tol,
-                                               tol_copy.quad_tol,
-                                               tol_copy.disk_size,
-                                               tol_copy.EPS);
-          }
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
-        });
+        const auto traverser = m_bvh.getTraverser();
+        auto internal_moments_view = m_internal_moments.view();
+
+        // Use fast-approximate, non-memoized form
+        if(m_nurbs_cache_mgr.empty())
+        {
+          SLIC_WARNING(
+            "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+            const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                           traverser,
+                                                                           processed_patches_view,
+                                                                           internal_moments_view,
+                                                                           tol_copy);
+            winding[static_cast<int>(index)] = wn;
+            inout[static_cast<int>(index)] = std::lround(wn);
+          });
+        }
+        // Use fast-approximate, memoized form
+        else
+        {
+          const auto cache_mgr_view = m_nurbs_cache_mgr.view();
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+            const auto nurbs_cache_view = cache_mgr_view.caches();
+            const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                           traverser,
+                                                                           nurbs_cache_view,
+                                                                           internal_moments_view,
+                                                                           tol_copy);
+            winding[static_cast<int>(index)] = wn;
+            inout[static_cast<int>(index)] = std::lround(wn);
+          });
+        }
       }
-      else  // Use memoized form
+      // Use direct formula
+      else
       {
-        const auto nurbs_patches_view = m_nurbs_caches.view();
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const auto q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& cache : nurbs_patches_view)
-          {
-            wn += axom::primal::winding_number(q,
-                                               cache,
-                                               tol_copy.edge_tol,
-                                               tol_copy.ls_tol,
-                                               tol_copy.quad_tol,
-                                               tol_copy.disk_size,
-                                               tol_copy.EPS);
-          }
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
-        });
+        // Use direct, non-memoized form
+        if(m_nurbs_cache_mgr.empty())
+        {
+          SLIC_WARNING(
+            "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+            const auto q = query_point(static_cast<int>(nidx));
+            double wn {};
+            for(const auto& patch : processed_patches_view)
+            {
+              wn += axom::primal::winding_number(q,
+                                                 patch,
+                                                 tol_copy.edge_tol,
+                                                 tol_copy.ls_tol,
+                                                 tol_copy.quad_tol,
+                                                 tol_copy.disk_size,
+                                                 tol_copy.EPS);
+            }
+            winding[static_cast<int>(nidx)] = wn;
+            inout[static_cast<int>(nidx)] = std::lround(wn);
+          });
+        }
+        else  // Use direct, memoized form
+        {
+          const auto cache_mgr_view = m_nurbs_cache_mgr.view();
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+            const auto q = query_point(static_cast<int>(nidx));
+            const auto caches_view = cache_mgr_view.caches();
+
+            const double wn = axom::primal::winding_number(q,
+                                                           caches_view,
+                                                           tol_copy.edge_tol,
+                                                           tol_copy.ls_tol,
+                                                           tol_copy.quad_tol,
+                                                           tol_copy.disk_size,
+                                                           tol_copy.EPS);
+
+            winding[static_cast<int>(nidx)] = wn;
+            inout[static_cast<int>(nidx)] = std::lround(wn);
+          });
+        }
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Querying {:L} samples in winding number field with{} memoization took {:.3Lf} seconds"
-      " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
-      num_query_points,
-      m_nurbs_caches.empty() ? "out" : "",
-      query_time_s,
-      num_query_points / query_time_s,
-      ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
-  axom::ArrayView<const axom::primal::NURBSPatch<double, 3>> m_input_patches_view;
-  NURBSCacheArray m_nurbs_caches;
+  // For the input curves/BVH leaf nodes
+  axom::ArrayView<const PatchType> m_input_patches_view;
+  NURBSCacheManager m_nurbs_cache_mgr;
+
+  // For preprocessed patches
+  axom::Array<PatchType> m_subdivided_patches;
+  axom::ArrayView<const PatchType> m_processed_patches_view;
+
+  // Only needed for fast approximation method
+  axom::Array<GWNMoments> m_internal_moments;
+  axom::spin::BVH<3, ExecSpace> m_bvh;
+
+  // Additional algorithm parameters
+  double m_subdivision_bbox_threshold {1.0};
+  int m_subdivision_max_passes {10};
+  int m_subdivision_max_patches {10000};
 };
 
-template <int ORDER>
-class TriangleGWN3D
+/*!
+ * \class TriangleGWNQuery
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam ORDER If agglomeration is used, this is the order of the Taylor expansion.
+ *
+ * \brief Preprocesses a triangle mesh for GWN evaluation, 
+ *         and performs the calculation on the DOFs of an input MFEM mesh.
+ * 
+ * Possible evaluation modes are
+ *  `use_direct_eval` : If true, evaluation is done triangle-by-triangle.
+ *                      If false, evaluation is sped up with agglomeration via Taylor-expansion
+ */
+template <typename ExecSpace, int ORDER = 2>
+class TriangleGWNQuery
 {
 public:
   using Point3D = axom::primal::Point<double, 3>;
@@ -603,15 +863,17 @@ public:
   using TriangleType = axom::primal::Triangle<double, 3>;
   using GWNMoments = axom::quest::GWNMomentData<double, 3, ORDER>;
 
-  TriangleGWN3D() = default;
+  TriangleGWNQuery() = default;
 
-  /// \brief Load mesh data into primal::Triangles.
-  ///    If fast-approximation is used, construct BVH
-  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh, bool useDirectEval)
+  /*!
+   * \brief Load triangles from mint::mesh to primal::Triangles, optionally building a BVH
+   *
+   * \param [in] tri_mesh The input mesh
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH
+   */
+  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh,
+                  bool use_direct_eval)
   {
-    axom::utilities::Timer timer(true);
-    axom::utilities::Timer stage_timer(false);
-
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
     const auto ntris = tri_mesh->getNumberOfCells();
@@ -621,14 +883,13 @@ public:
       return;
     }
 
-    stage_timer.start();
     {
       AXOM_ANNOTATE_SCOPE("extract_triangles");
 
       // Iterate over mesh nodes and get a bounding box for the shape
       BoxType shape_bbox;
       BoxType* shape_bbox_ptr = &shape_bbox;
-      axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
+      axom::mint::for_all_nodes<ExecSpace, axom::mint::xargs::xyz>(
         tri_mesh,
         AXOM_LAMBDA(axom::IndexType, double x, double y, double z) {
           shape_bbox_ptr->addPoint(Point3D {x, y, z});
@@ -645,11 +906,11 @@ public:
 
       m_triangles.resize(ntris);
       auto triangles_view = m_triangles.view();
-      axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
+      axom::mint::for_all_cells<ExecSpace, axom::mint::xargs::coords>(
         tri_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
-                    const axom::IndexType* /*nodeIds*/) {
+                    const axom::IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
           triangles_view[cellIdx] =
             TriangleType {Point3D {(coords(0, 0) - shape_center[0]) / scale,
                                    (coords(1, 0) - shape_center[1]) / scale,
@@ -662,22 +923,17 @@ public:
                                    (coords(2, 2) - shape_center[2]) / scale}};
         });
     }
-    stage_timer.stop();
-    SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_triangles): {} s",
-                                stage_timer.elapsedTimeInSec()));
 
     // If direct evaluation is preferred, skip BVH initialization
-    if(!useDirectEval)
+    if(!use_direct_eval)
     {
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_init");
         axom::Array<BoxType> aabbs(ntris, ntris);
         auto aabbs_view = aabbs.view();
         const auto triangles_view = m_triangles.view();
 
-        axom::for_all<axom::SEQ_EXEC>(
+        axom::for_all<ExecSpace>(
           ntris,
           AXOM_LAMBDA(axom::IndexType i) {
             aabbs_view[i] =
@@ -685,12 +941,7 @@ public:
           });
         m_bvh.initialize(aabbs_view, ntris);
       }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
 
-      stage_timer.reset();
-      stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("moments");
         const auto triangles_view = m_triangles.view();
@@ -702,16 +953,11 @@ public:
         };
 
         const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<axom::SEQ_EXEC, GWNMoments>(compute_moments);
+        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
     }
-    timer.stop();
-
-    SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
+
   /*!
    * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh
    *
@@ -753,7 +999,6 @@ public:
       return pt;
     };
 
-    axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
 
@@ -764,9 +1009,9 @@ public:
       if(m_bvh.isInitialized())
       {
         const auto traverser = m_bvh.getTraverser();
-        const auto internal_moments_view = m_internal_moments.view();
+        auto internal_moments_view = m_internal_moments.view();
 
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const double wn = axom::quest::fast_approximate_winding_number(scaled_query_point(index),
                                                                          traverser,
                                                                          triangles_view,
@@ -780,7 +1025,7 @@ public:
       // Use direct formula
       else
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const auto q = scaled_query_point(static_cast<int>(index));
           double wn {};
           for(const auto& tri : triangles_view)
@@ -793,19 +1038,6 @@ public:
         });
       }
     }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
-                                num_query_points,
-                                query_time_s,
-                                num_query_points / query_time_s,
-                                ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
 private:
@@ -814,7 +1046,7 @@ private:
 
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
-  axom::spin::BVH<3, axom::SEQ_EXEC> m_bvh;
+  axom::spin::BVH<3, ExecSpace> m_bvh;
 
   // Parameters for normalization
   axom::primal::Point<double, 3> m_shape_center;
@@ -837,23 +1069,23 @@ enum class GWNInputType
 template <typename GWNQueryType>
 struct gwn_input_traits;
 
-template <int ORDER>
-struct gwn_input_traits<axom::quest::PolylineGWN2D<ORDER>>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::PolylineGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Polyline>
 { };
 
-template <>
-struct gwn_input_traits<axom::quest::DirectGWN2D>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::NURBSCurveGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Curve>
 { };
 
-template <int ORDER>
-struct gwn_input_traits<axom::quest::TriangleGWN3D<ORDER>>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::TriangleGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Triangulation>
 { };
 
-template <>
-struct gwn_input_traits<axom::quest::DirectGWN3D>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::NURBSPatchGWNQuery<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Surface>
 { };
 
@@ -924,4 +1156,3 @@ IntegralStats compute_integrals(const mfem::GridFunction& gf)
 
 }  // namespace quest
 }  // namespace axom
-#endif

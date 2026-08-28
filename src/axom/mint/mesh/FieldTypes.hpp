@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef MINT_FIELDTYPES_HPP_
-#define MINT_FIELDTYPES_HPP_
+#pragma once
 
 #include "axom/core/Types.hpp"  // for axom type definitions
 
@@ -72,5 +71,3 @@ struct field_traits<std::int64_t>
 
 } /* namespace mint */
 } /* namespace axom */
-
-#endif /* MINT_FIELDTYPES_HPP_ */

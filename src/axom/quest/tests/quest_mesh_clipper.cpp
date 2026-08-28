@@ -225,7 +225,7 @@ public:
         ->expected(2, 3)
         ->required();
 
-      inline_mesh_subcommand->add_option("--res", boxResolution)
+      inline_mesh_subcommand->add_option("--res, --resolution", boxResolution)
         ->description("Resolution of the box mesh (i,j[,k])")
         ->expected(2, 3)
         ->required();
@@ -247,16 +247,14 @@ public:
       std::stringstream pol_sstr;
       pol_sstr << "Set runtime policy for intersection-based sampling method.";
       pol_sstr << "\nSet to 'seq' or 0 to use the sequential policy.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
 
       intersection_options->add_option("-p, --policy", policy, pol_sstr.str())
@@ -654,6 +652,7 @@ axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string&
   std::string proeFile = axom::utilities::filesystem::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
   reader.setFileName(proeFile);
   int readStatus = reader.read();
+  AXOM_UNUSED_VAR(readStatus);
   SLIC_ASSERT(readStatus == 0);
   reader.getMesh(&tetMesh);
   const double extraScale = 1 / sqrt(3.0);  // to ensure tetMesh remains inside mesh when rotated.

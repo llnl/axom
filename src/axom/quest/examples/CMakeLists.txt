@@ -23,17 +23,40 @@ axom_add_executable(
     FOLDER      axom/quest/examples
     )
 
-if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND CALIPER_FOUND)
-    set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
-    
+if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+
+    set(_optional_caliper)
+    if(CALIPER_FOUND)
+        set(_optional_caliper "--caliper" "report")
+    endif()
+
     # this test requires MPI when available (but only 1 rank)
+    set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
     axom_add_test(
         NAME    quest_containment_sphere_ex
         COMMAND quest_containment_driver_ex
-                --input ${_input_file}
-                --caliper report
+                 --input ${_input_file}
+                 ${_optional_caliper}
         NUM_MPI_TASKS 1
     )
+
+    if(C2C_FOUND)
+        set(_input_file "${AXOM_DATA_DIR}/contours/unit_square.contour")
+        axom_add_test(
+            NAME     quest_containment_on_surface_regression_ex
+            COMMAND  quest_containment_driver_ex
+                      --input ${_input_file}
+                      --min -0.234 -0.43
+                      --max 1.58 1.715
+                      -n3
+                      -l3
+                      ${_optional_caliper}
+            NUM_MPI_TASKS 1
+        )
+    endif()
+
+    unset(_input_file)
+    unset(_optional_caliper)
 endif()
 
 # BVH two pass example --------------------------------------------------------
@@ -52,14 +75,7 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
 
     set(input_file "${AXOM_DATA_DIR}/quest/unit_cube.stl")
 
-    set (_policies "seq")
-    if(RAJA_FOUND)
-        blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-    endif()
-
-    foreach(_policy ${_policies})
+    foreach(_policy ${AXOM_EXECUTION_POLICIES})
         # sets the number of threads for the omp policy; leave empty for non-omp policies
         set(_num_threads)
         if(_policy STREQUAL "omp")
@@ -88,13 +104,13 @@ axom_add_executable(
     FOLDER      axom/quest/examples
     )
 
-# BVH silo example ------------------------------------------------------------
-if (CONDUIT_FOUND AND UMPIRE_FOUND)
+# BVH Blueprint candidate example -------------------------------------------------
+if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
     axom_add_executable(
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit umpire
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire::umpire
         FOLDER      axom/quest/examples
         )
 
@@ -109,15 +125,8 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 
         set(_methods "bvh" "implicit")
 
-        set (_policies "seq")
-        if(RAJA_FOUND)
-          blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-          blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-          blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-        endif()
-
         foreach(_method ${_methods})
-            foreach(_policy ${_policies})
+            foreach(_policy ${AXOM_EXECUTION_POLICIES})
                 # sets the number of threads for the omp policy; leave empty for non-omp policies
                 set(_num_threads)
                 if(_policy STREQUAL "omp")
@@ -136,7 +145,7 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 
                 # Match either one comma or none for portability
                 set_tests_properties(${_testname} PROPERTIES
-                    PASS_REGULAR_EXPRESSION  "Mesh had 6[,]?859 candidates pairs")
+                    PASS_REGULAR_EXPRESSION  "Mesh had 6[,]?859 candidate pairs")
             endforeach()
         endforeach()
     endif()
@@ -144,17 +153,26 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 endif()
 
 # Shaping example -------------------------------------------------------------
-if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-                   AND AXOM_ENABLE_SIDRE
-                   AND AXOM_ENABLE_KLEE)
+set(shaping_driver_dependencies ${quest_example_depends})
+if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI)
+  set(AXOM_HAS_MFEM_WITH_MPI TRUE)
+  list(APPEND shaping_driver_dependencies mfem)
+endif()
+if(CONDUIT_FOUND)
+  list(APPEND shaping_driver_dependencies conduit)
+endif()
+
+if((AXOM_HAS_MFEM_WITH_MPI OR (CONDUIT_FOUND AND AXOM_ENABLE_BUMP)) AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     axom_add_executable(
         NAME        quest_shaping_driver_ex
         SOURCES     shaping_driver.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} mfem
+        DEPENDS_ON  ${shaping_driver_dependencies}
         FOLDER      axom/quest/examples
         )
-
+endif()
+# Existing tests require MFEM or C2C input.
+if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
         # 2D shaping tests
         set(_nranks 1)
@@ -165,7 +183,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 COMMAND  quest_shaping_driver_ex 
                             -i ${shaping_data_dir}/circles.yaml
                             --method sampling
-                            inline_mesh --min -6 -6 --max 6 6 --res 25 25 -d 2
+                            inline_mesh --min -6 -6 --max 6 6 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~58.905
             set_tests_properties(${_testname} PROPERTIES 
@@ -177,11 +195,28 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 COMMAND  quest_shaping_driver_ex 
                         -i ${shaping_data_dir}/circles_opposite.yaml
                         --method sampling
-                        inline_mesh --min -6 -6 --max 6 6 --res 25 25 -d 2
+                        inline_mesh --min -6 -6 --max 6 6 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~65.97
             set_tests_properties(${_testname} PROPERTIES 
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 65.")
+
+            if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
+                foreach(_backing sidre conduit)
+                    set(_testname quest_shaping_driver_ex_sampling_circles_blueprint_${_backing})
+                    axom_add_test(
+                        NAME ${_testname}
+                        COMMAND  quest_shaping_driver_ex
+                                -i ${shaping_data_dir}/circles.yaml
+                                --method sampling
+                                --verbose
+                                inline_mesh_blueprint --backing ${_backing} --min -6 -6 --max 6 6 --resolution 25 25 -d 2
+                        NUM_MPI_TASKS ${_nranks})
+                    # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~58.905
+                    set_tests_properties(${_testname} PROPERTIES
+                        PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 58.")
+                endforeach()
+            endif()
 
             set(_testname quest_shaping_driver_ex_sampling_balls_and_jacks)
             axom_add_test(
@@ -190,7 +225,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                         -i ${shaping_data_dir}/balls_and_jacks.yaml
                         --method sampling
                         --background-material air
-                        inline_mesh --min -10 0 --max 60 50 --res 25 25 -d 2
+                        inline_mesh --min -10 0 --max 60 50 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # background: 3500; balls: ~373; jacks: ~230; air ~2897
             set_tests_properties(${_testname} PROPERTIES 
@@ -203,7 +238,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                         -i ${shaping_data_dir}/ball_impact.yaml
                         --method sampling
                         --background-material air
-                        inline_mesh --min -10 0 --max 40 30 --res 25 25 -d 2
+                        inline_mesh --min -10 0 --max 40 30 --resolution 25 25 -d 2
                 NUM_MPI_TASKS ${_nranks})
             # steel ball: semi-cirle of radius 5.5 has area ~47.516
             set_tests_properties(${_testname} PROPERTIES 
@@ -217,7 +252,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                         -i ${shaping_data_dir}/ball_impact.yaml
                         --method sampling
                         --background-material air
-                        inline_mesh --min -30 -30 -10 --max 30 30 40 --res 16 16 16 -d3
+                        inline_mesh --min -30 -30 -10 --max 30 30 40 --resolution 16 16 16 -d3
                 NUM_MPI_TASKS ${_nranks})
             # steel ball: cirle of radius 5.5 has analytic volume ~696.91
             set_tests_properties(${_testname} PROPERTIES 
@@ -231,7 +266,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex
                     -i ${shaping_data_dir}/flat_star.yaml
                     --method intersection
-                    inline_mesh --min 0 0 --max 1 1 --res 4 4 -d 2
+                    inline_mesh --min 0 0 --max 1 1 --resolution 4 4 -d 2
             NUM_MPI_TASKS ${_nranks})
         # steel triangle: star composed of 16 right triangles with
         # leg length 0.25 has analytic volume 0.5
@@ -240,16 +275,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
 
         # Tests 2D c2c contour
         if(C2C_FOUND)
-            set(_policies "seq")
-            if(RAJA_FOUND)
-                blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-                if(UMPIRE_FOUND)
-                  blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-                  blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-                endif()
-            endif()
-
-            foreach(_policy ${_policies})
+            foreach(_policy ${AXOM_EXECUTION_POLICIES})
                 # sets the number of threads for the omp policy; leave empty for non-omp policies
                 set(_num_threads)
                 if(_policy STREQUAL "omp")
@@ -265,7 +291,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                             --policy ${_policy}
                             --segments-per-knot-span 50
                             --method intersection
-                            inline_mesh --min 0 0 --max 3 3 --res 3 3 -d 2
+                            inline_mesh --min 0 0 --max 3 3 --resolution 3 3 -d 2
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
                 # steel unit semi-circle with an area of pi/2
@@ -273,20 +299,42 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                     PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57")
             endforeach()
 
-            unset(_policies)
+            # Test 2D C2C assembly input on an MFEM mesh
+            set(_testname quest_shaping_driver_ex_heroic_roses_assembly)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                         -i ${shaping_data_dir}/heroic_roses_assembly.yaml
+                         --method sampling
+                         inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+
+            # Test heroic_roses.yaml
+            set(_testname quest_shaping_driver_ex_heroic_roses)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                         -i ${shaping_data_dir}/heroic_roses.yaml
+                         --method sampling
+                         inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
         endif()
 
         # Test 2D MFEM mesh (linearize contours)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem)
         axom_add_test(
             NAME ${_testname}
-            COMMAND  quest_shaping_driver_ex 
+            COMMAND  quest_shaping_driver_ex
                      -i ${shaping_data_dir}/heroic_roses_mfem.yaml
                      --method sampling
-                     inline_mesh --min 0 0 --max 300 400 --res 150 200 -d 2
+                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?595.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?66[0-9].")
 
         # Test 2D MFEM mesh (winding number)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem_cp)
@@ -295,7 +343,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex 
                      -i ${shaping_data_dir}/heroic_roses_mfem_cp.yaml
                      --method sampling --sampling windingnumber
-                     inline_mesh --min 0 0 --max 300 400 --res 150 200 -d 2
+                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?654.")
@@ -308,7 +356,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex 
                     -i ${shaping_data_dir}/sphere.yaml
                     --method sampling
-                    inline_mesh --min -6 -6 -6 --max 6 6 6 --res 16 16 16 -d 3
+                    inline_mesh --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
             NUM_MPI_TASKS ${_nranks})
         # sphere of radius 5 has volume: 4/3 pi * r^3 ~523.6
         # input sphere is discretized and mesh is coarse; accuracy is within ~1%
@@ -322,7 +370,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                     -i ${shaping_data_dir}/spheres.yaml
                     --method sampling
                     --background-material void
-                    inline_mesh --min -6 -6 -6 --max 6 6 6 --res 16 16 16 -d 3
+                    inline_mesh --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
             NUM_MPI_TASKS ${_nranks})
         # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
         # expected analytic volume when fully resolved: ~1237.9
@@ -336,7 +384,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                     -i ${shaping_data_dir}/plane.yaml
                     --method sampling
                     --background-material air
-                    inline_mesh --min -430 -45 -35 --max 430 855 210 --res 16 16 16 -d 3
+                    inline_mesh --min -430 -45 -35 --max 430 855 210 --resolution 16 16 16 -d 3
             NUM_MPI_TASKS ${_nranks})
         # background: 860*900*245=189,630,000; airplane volume from meshlab: 7,420,578.5
         # expected volume when fully resolved: 182,209,421.5
@@ -344,6 +392,29 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         set_tests_properties(${_testname} PROPERTIES 
             PASS_REGULAR_EXPRESSION  "Volume of material 'air' is 182,?227,?963")
     endif()
+endif()
+# Blueprint-only shaping test
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+    set(_nranks 1)
+    foreach(_backing sidre conduit)
+        set(_testname quest_shaping_driver_ex_sampling_blueprint_3D_${_backing})
+        axom_add_test(NAME ${_testname}
+                      COMMAND  quest_shaping_driver_ex 
+                                -i ${shaping_data_dir}/spheres.yaml
+                                --verbose
+                                --method sampling
+                                --sampling inout
+                                --background-material void
+                                inline_mesh_blueprint --backing ${_backing} --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
+                                --sampling-resolution 5 5 5
+                                --quadrature-type gausslegendre
+                      NUM_MPI_TASKS ${_nranks})
+        # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
+        # expected analytic volume when fully resolved: ~1237.9
+        # NOTE: the answer depends on the quadrature type. This answer is for gausslegendre.
+        set_tests_properties(${_testname} PROPERTIES 
+                             PASS_REGULAR_EXPRESSION  "Volume of material 'void' is 1,?239.")
+    endforeach()
 endif()
 
 # Distributed closest point example -------------------------------------------
@@ -360,20 +431,13 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
         set(_nranks 3)
 
         # Run the distributed closest point example on N ranks for each enabled policy
-        set(_policies "seq")
-        if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
-            blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
-        endif()
-
         # Non-zero empty-rank probability tests domain underloading case
         set(_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")
         # The mdmesh.* files were generated by these commands:
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,1 -o mdmesh.2x1
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,3 -o mdmesh.2x3
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
-        foreach(_pol ${_policies})
+        foreach(_pol ${AXOM_EXECUTION_POLICIES})
             # sets the number of threads for the omp policy; leave empty for non-omp policies
             set(_num_threads)
             if(_pol STREQUAL "omp")
@@ -406,18 +470,43 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                                 --dist-threshold .3
                                 --no-random-spacing
                                 --check-results
+                                --dynamic-distance-filtering
                                 --policy ${_pol}
                                 --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}
                                 --distance-file dcp_closest_point_2d_${_pol}_${_mesh}
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
+
+                if(_pol STREQUAL "seq" AND (_mesh STREQUAL "mdmesh.2x1" OR _mesh STREQUAL "mdmesh.2x2x1"))
+                    # Keep fallback coverage for the non-dynamic filtering path
+                    # with one 2D and one 3D seq case.
+                    set(_static_test "${_test}_no_dynamic_distance_filtering")
+                    axom_add_test(
+                        NAME    ${_static_test}
+                        COMMAND quest_distributed_distance_query_ex
+                                    --mesh-file ${quest_data_dir}/${_mesh}.root
+                                    --long-point-count 60
+                                    --center ${_center}
+                                    --radius 0.9
+                                    --lat-point-count 30
+                                    --obj-domain-count-range 0 2
+                                    --dist-threshold .3
+                                    --no-random-spacing
+                                    --check-results
+                                    --no-dynamic-distance-filtering
+                                    --policy ${_pol}
+                                    --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}_no_dynamic
+                                    --distance-file dcp_closest_point_2d_${_pol}_${_mesh}_no_dynamic
+                        NUM_MPI_TASKS ${_nranks}
+                        NUM_OMP_THREADS ${_num_threads})
+                endif()
             endforeach()
         endforeach()
 
         unset(optional_dependency)
         unset(_nranks)
-        unset(_policies)
         unset(_test)
+        unset(_static_test)
     endif()
 endif()
 
@@ -447,13 +536,6 @@ if(CONDUIT_FOUND)
         endif()
 
         # Run the marching cubes example on N ranks for each enabled policy
-        set(_policies "seq")
-        if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-        endif()
-
         # Non-zero empty-rank probability tests domain underloading case
         set(_meshes "mdmesh.2x1" "mdmesh.2x3" "mdmesh.2x2x1" "mdmeshg.2x2x1")
         # The amc.* files were generated by these commands:
@@ -461,7 +543,7 @@ if(CONDUIT_FOUND)
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,3 -o mdmesh.2x3
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmesh.2x2x1
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
-        foreach(_pol ${_policies})
+        foreach(_pol ${AXOM_EXECUTION_POLICIES})
             # sets the number of threads for the omp policy; leave empty for non-omp policies
             set(_num_threads)
             if(_pol STREQUAL "omp")
@@ -504,7 +586,6 @@ if(CONDUIT_FOUND)
         endforeach()
 
         unset(_nranks)
-        unset(_policies)
         unset(_test)
     endif()
 
@@ -556,6 +637,16 @@ if(AXOM_ENABLE_SIDRE)
                 COMMAND quest_scattered_interpolation_ex -d ${d} -n 10000 -q 20000
                 )
         endforeach()
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_2d_test
+            COMMAND quest_scattered_interpolation_ex -d 2 --grid-res 20 20 -q 200
+            )
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_3d_test
+            COMMAND quest_scattered_interpolation_ex -d 3 --grid-res 3 3 3 -q 200
+            )
     endif()
 endif()
 
@@ -719,6 +810,7 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
                         --output-prefix wn3d_${_model}_res${_res_i}
                         --no-vis
                         --stats
+                        --policy seq
                         query_mesh --res ${_res_i} ${_res_j} ${_res_k} --order 1)
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION "${_pass_regex}")
@@ -728,6 +820,14 @@ endif()
 
 
 if(OPENCASCADE_FOUND)
+    axom_add_executable(
+        NAME        quest_step_moments_ex
+        SOURCES     quest_step_moments.cpp
+        OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
+        DEPENDS_ON  axom cli11 fmt opencascade
+        FOLDER      axom/quest/examples
+    )
+
     axom_add_executable(
         NAME        quest_step_file_ex
         SOURCES     quest_step_file.cpp
@@ -741,6 +841,15 @@ if(OPENCASCADE_FOUND)
         if(AXOM_ENABLE_MPI)
             set(_num_ranks 2)
         endif()
+
+        axom_add_test(
+            NAME quest_step_moments_revolved_sphere
+            COMMAND quest_step_moments_ex -f ${quest_data_dir}/step/revolved_sphere.step
+                                         --integral both
+                                         --order 1
+                                         --npts 16)
+        set_tests_properties(quest_step_moments_revolved_sphere PROPERTIES
+            PASS_REGULAR_EXPRESSION "SUMMARY surface_m0=3\\.14159265358979[0-9]*e\\+02 volume_m0=5\\.23598775598298[0-9]*e\\+02")
 
         axom_add_test(
             NAME quest_step_file_sliced_cylinder

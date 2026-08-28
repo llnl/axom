@@ -4,14 +4,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef QUEST_INOUT_INTERFACE_HPP_
-#define QUEST_INOUT_INTERFACE_HPP_
+#pragma once
 
 // Axom includes
 #include "axom/config.hpp"
 
-// Quest includes
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
+#if defined(AXOM_USE_MPI)
+  #include <mpi.h>
+#endif
 
 // C/C++ includes
 #include <string>
@@ -36,15 +36,13 @@
  * the query has been initialized.
  */
 
-namespace axom
-{
 // Forward Mint declarations
-namespace mint
+namespace axom::mint
 {
 class Mesh;
 }
 
-namespace quest
+namespace axom::quest
 {
 constexpr int QUEST_INOUT_SUCCESS = 0;
 constexpr int QUEST_INOUT_FAILED = -1;
@@ -56,21 +54,42 @@ constexpr int QUEST_INOUT_FAILED = -1;
  * \brief Initializes the quest inout query from a mesh file
  *
  * \param [in] file Path to an STL file containing the surface mesh
- * \param [in] comm The MPI communicator (when running in parallel)
  * \return Return code is QUEST_INOUT_SUCCESS if successful
  *  and QUEST_INOUT_FAILED otherwise.
+ *
+ * \note In an MPI build this behaves as if \a MPI_COMM_SELF had been passed,
+ *  so every rank opens and reads the file independently.
+ *  MPI applications should prefer the overload taking a communicator,
+ *  which reads the file on rank 0 and broadcasts it.
  *
  * \pre inout_initialized() == false
  * \post inout_initialized() == true, when rc is QUEST_INOUT_SUCCESS
  */
-int inout_init(const std::string& file, MPI_Comm comm = MPI_COMM_SELF);
+int inout_init(const std::string& file);
+
+#if defined(AXOM_USE_MPI)
+/*!
+ * \brief Initializes the quest inout query from a mesh file, over the ranks of the given MPI communicator
+ *
+ * \param [in] file Path to an STL file containing the surface mesh
+ * \param [in] comm The MPI communicator
+ * \return Return code is QUEST_INOUT_SUCCESS if successful and QUEST_INOUT_FAILED otherwise.
+ *
+ * \note Only available when Axom is configured with MPI.
+ *  The overload without a communicator is equivalent to passing \a MPI_COMM_SELF.
+ *  The file is read on rank 0 of \a comm and broadcast to the other ranks.
+ *
+ * \pre inout_initialized() == false
+ * \post inout_initialized() == true, when rc is QUEST_INOUT_SUCCESS
+ */
+int inout_init(const std::string& file, MPI_Comm comm);
+#endif
 
 /*!
  * \brief Initialize the inout query using a pre-loaded mesh
  *
  * \param [inout] mesh Pointer to the input mesh. This pointer will
  * be updated during this invocation
- * \param [in] comm The MPI communicator (when running in parallel)
  * \return Return code is QUEST_INOUT_SUCCESS if successful
  *  and QUEST_INOUT_FAILED otherwise.
  *
@@ -80,7 +99,27 @@ int inout_init(const std::string& file, MPI_Comm comm = MPI_COMM_SELF);
  * by welding vertices) and updates the \a mesh pointer. It is the user's
  * responsibility to update any other pointers to this same mesh.
  */
-int inout_init(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm = MPI_COMM_SELF);
+int inout_init(std::shared_ptr<mint::Mesh>& mesh);
+
+#if defined(AXOM_USE_MPI)
+/*!
+ * \brief Initialize the inout query using a pre-loaded mesh, over the ranks of the given MPI communicator
+ *
+ * \param [inout] mesh Pointer to the input mesh. This pointer will be updated during this invocation
+ * \param [in] comm The MPI communicator
+ * \return Return code is QUEST_INOUT_SUCCESS if successful and QUEST_INOUT_FAILED otherwise.
+ *
+ * \note Only available when Axom is configured with MPI.
+ *  The overload without a communicator is equivalent to passing \a MPI_COMM_SELF.
+ *
+ * \pre inout_initialized() == false
+ * \post inout_initialized() == true, when rc is QUEST_INOUT_SUCCESS
+ * \warning The underlying data structure modifies the input mesh
+ *  (e.g. by welding vertices) and updates the \a mesh pointer.
+ *  It is the user's responsibility to update any other pointers to this same mesh.
+ */
+int inout_init(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm);
+#endif
 
 /*!
  * \brief Finalizes the inout query
@@ -251,7 +290,4 @@ int inout_set_segments_per_knot_span(int segmentsPerKnotSpan);
 
 /// @}
 
-}  // end namespace quest
-}  // end namespace axom
-
-#endif  // QUEST_INOUT_INTERFACE_HPP_
+}  // end namespace axom::quest

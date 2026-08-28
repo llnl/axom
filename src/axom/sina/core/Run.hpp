@@ -4,8 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef SINA_RUN_HPP
-#define SINA_RUN_HPP
+#pragma once
 
 /*!
  ******************************************************************************
@@ -62,28 +61,28 @@ public:
      *
      * \param asNode the run as a Node
      */
-  explicit Run(conduit::Node const &asNode);
+  explicit Run(conduit::Node const& asNode);
 
   /**
      * \brief Get the application that was run.
      *
      * \return the application's name
      */
-  std::string const &getApplication() const { return application; }
+  std::string const& getApplication() const { return application; }
 
   /**
      * \brief Get the version of the application that was run.
      *
      * \return the application's version
      */
-  std::string const &getVersion() const { return version; }
+  std::string const& getVersion() const { return version; }
 
   /**
      * \brief Get the name of the user who ran the application.
      *
      * \return the user's name
      */
-  std::string const &getUser() const { return user; }
+  std::string const& getUser() const { return user; }
 
   conduit::Node toNode(CurveSet::CurveOrder curveOrder) const override;
   conduit::Node toNode() const;
@@ -100,9 +99,7 @@ private:
  * \param loader the RecordLoader to which to add the function for loading
  *               Run instances.
  */
-void addRunLoader(RecordLoader &loader);
+void addRunLoader(RecordLoader& loader);
 
 }  // namespace sina
 }  // namespace axom
-
-#endif  //SINA_RUN_HPP

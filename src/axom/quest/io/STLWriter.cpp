@@ -13,9 +13,7 @@
 #include <cstring>
 #include <fstream>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace internal
 {
@@ -30,7 +28,7 @@ namespace internal
  * \param N The triangle normal.
  */
 template <typename NormalType>
-void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const NormalType &N)
+void writeTriangle(std::ofstream& out, bool binary, double coords[3][3], const NormalType& N)
 {
   if(binary)
   {
@@ -45,12 +43,12 @@ void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const N
     }
     // The attribute is sometimes used as colors. Set bits to white.
     // See https://en.wikipedia.org/wiki/STL_(file_format).
-    const std::uint16_t attr = 0x7fff;
-    out.write(reinterpret_cast<const char *>(n32), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(coords32[0]), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(coords32[1]), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(coords32[2]), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(&attr), sizeof(std::uint16_t));
+    constexpr std::uint16_t attr = 0x7fff;
+    out.write(reinterpret_cast<const char*>(n32), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(coords32[0]), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(coords32[1]), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(coords32[2]), 3 * sizeof(float32));
+    out.write(reinterpret_cast<const char*>(&attr), sizeof(std::uint16_t));
   }
   else
   {
@@ -64,11 +62,10 @@ void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const N
   }
 }
 
-}  // end namespace internal
+}  // namespace internal
 
-STLWriter::STLWriter(const std::string &filename, bool binary)
-  : m_mesh(nullptr)
-  , m_fileName(filename)
+STLWriter::STLWriter(const std::string& filename, bool binary)
+  : m_fileName(filename)
   , m_binary(binary)
 { }
 
@@ -108,23 +105,20 @@ IndexType STLWriter::getNumberOfTriangles() const
   }
   else if(m_mesh->getDimension() == 3)
   {
-    axom::ReduceSum<axom::SEQ_EXEC, axom::IndexType> ntri_reduce(0);
-    axom::mint::for_all_faces<axom::SEQ_EXEC, axom::mint::xargs::nodeids>(
-      m_mesh,
-      AXOM_LAMBDA(IndexType AXOM_UNUSED_PARAM(faceID),
-                  const IndexType *AXOM_UNUSED_PARAM(nodes),
-                  IndexType N) { ntri_reduce += (N - 2); });
-    ntri = ntri_reduce.get();
+    for(IndexType faceId = 0; faceId < m_mesh->getNumberOfFaces(); faceId++)
+    {
+      ntri += (m_mesh->getNumberOfFaceNodes(faceId) - 2);
+    }
   }
   return ntri;
 }
 
-int STLWriter::write(const mint::Mesh *mesh)
+int STLWriter::write(const mint::Mesh* mesh)
 {
   using VectorType = axom::primal::Vector<double, 3>;
 
   SLIC_ERROR_IF(mesh == nullptr, "mesh pointer is null!");
-  SLIC_ERROR_IF(m_fileName.length() <= 0, "STL filename is empty!");
+  SLIC_ERROR_IF(m_fileName.empty(), "STL filename is empty!");
   SLIC_ERROR_IF(mesh->getDimension() < 2 || mesh->getDimension() > 3, "Input mesh is not 2D/3D.");
 
   // Save mesh pointer
@@ -146,13 +140,13 @@ int STLWriter::write(const mint::Mesh *mesh)
     // Fill with spaces
     memset(header, ' ', sizeof(std::uint8_t) * STL_HEADER_SIZE);
     // Copy in string (without terminator)
-    const char *msg = "STL Binary File Written By Axom";
+    constexpr char msg[] = "STL Binary File Written By Axom";
     memcpy(header, msg, strlen(msg));
-    out.write(reinterpret_cast<const char *>(header), STL_HEADER_SIZE);
+    out.write(reinterpret_cast<const char*>(header), STL_HEADER_SIZE);
 
     // Write number of triangles
     std::uint32_t ntri = static_cast<std::uint32_t>(getNumberOfTriangles());
-    out.write(reinterpret_cast<const char *>(&ntri), sizeof(std::uint32_t));
+    out.write(reinterpret_cast<const char*>(&ntri), sizeof(std::uint32_t));
   }
   else
   {
@@ -195,34 +189,30 @@ int STLWriter::write(const mint::Mesh *mesh)
   }
   else
   {
-    // For value capture.
-    std::ofstream *out_ptr = &out;
-    const bool binary = m_binary;
+    axom::Array<axom::IndexType> nodes;
+    for(IndexType faceId = 0; faceId < mesh->getNumberOfFaces(); faceId++)
+    {
+      nodes.resize(mesh->getNumberOfFaceNodes(faceId));
+      const auto nnodes = mesh->getFaceNodeIDs(faceId, nodes.data());
 
-    axom::mint::for_all_faces<axom::SEQ_EXEC, axom::mint::xargs::nodeids>(
-      m_mesh,
-      AXOM_LAMBDA(IndexType AXOM_UNUSED_PARAM(faceID), const IndexType *nodes, IndexType nnodes) {
-        // NOTE: Here in the lambda, we use "mesh" instead of "m_mesh" so we do
-        //       not capture STLWriter's "this" pointer.
+      // Iterate over the face like a triangle fan.
+      double coords[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+      mesh->getNode(nodes[0], coords[0]);
+      const IndexType ntri = nnodes - 2;
+      for(IndexType ti = 0; ti < ntri; ti++)
+      {
+        mesh->getNode(nodes[ti + 1], coords[1]);
+        mesh->getNode(nodes[ti + 2], coords[2]);
 
-        // Iterate over the face like a triangle fan.
-        double coords[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-        mesh->getNode(nodes[0], coords[0]);
-        const IndexType ntri = nnodes - 2;
-        for(IndexType ti = 0; ti < ntri; ti++)
-        {
-          mesh->getNode(nodes[ti + 1], coords[1]);
-          mesh->getNode(nodes[ti + 2], coords[2]);
+        // Compute facet normal.
+        const VectorType A(coords[0], 3);
+        const VectorType B(coords[1], 3);
+        const VectorType C(coords[2], 3);
+        const VectorType N = VectorType::cross_product(B - A, C - A).unitVector();
 
-          // Compute facet normal.
-          const VectorType A(coords[0], 3);
-          const VectorType B(coords[1], 3);
-          const VectorType C(coords[2], 3);
-          const VectorType N = VectorType::cross_product(B - A, C - A).unitVector();
-
-          internal::writeTriangle(*out_ptr, binary, coords, N);
-        }
-      });
+        internal::writeTriangle(out, m_binary, coords, N);
+      }
+    }
   }
 
   if(!m_binary)
@@ -234,11 +224,10 @@ int STLWriter::write(const mint::Mesh *mesh)
   return 0;
 }
 
-int write_stl(const mint::Mesh *mesh, const std::string &filename, bool binary)
+int write_stl(const mint::Mesh* mesh, const std::string& filename, bool binary)
 {
   STLWriter w(filename, binary);
   return w.write(mesh);
 }
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest
