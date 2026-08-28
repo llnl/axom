@@ -149,7 +149,6 @@ void MarchingCubes::computeIsocontour(double contourVal)
     auto& single = *m_singles[d];
     single.setContourValue(contourVal);
     single.setMaskValue(m_maskVal);
-    single.setParentCellIdMode(m_parentCellIdMode);
     single.setRobustnessPolicy(m_robustnessPolicy);
     single.markCrossings();
     single.scanCrossings();
