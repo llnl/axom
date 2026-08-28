@@ -107,9 +107,6 @@ public:
 
   quest::MarchingCubesDataParallelism dataParallelism = quest::MarchingCubesDataParallelism::byPolicy;
 
-  quest::MarchingCubesParentCellIdMode parentCellIdMode =
-    quest::MarchingCubesParentCellIdMode::blueprintZoneId;
-
   // Use the bump CutField backend (supports unstructured quad/hex) vs legacy.
   bool useBumpBackend {false};
 
@@ -134,10 +131,6 @@ private:
     {"hybridParallel", quest::MarchingCubesDataParallelism::hybridParallel},
     {"fullParallel", quest::MarchingCubesDataParallelism::fullParallel}};
 
-  const std::map<std::string, quest::MarchingCubesParentCellIdMode> s_validParentCellIdModes {
-    {"blueprintZoneId", quest::MarchingCubesParentCellIdMode::blueprintZoneId},
-    {"legacyFieldOrder", quest::MarchingCubesParentCellIdMode::legacyFieldOrder}};
-
   const std::map<std::string, quest::MarchingCubesRobustnessPolicy> s_validRobustnessPolicies {
     {"standard", quest::MarchingCubesRobustnessPolicy::standard},
     {"robust", quest::MarchingCubesRobustnessPolicy::robust}};
@@ -158,13 +151,6 @@ public:
         "(ignored by --useBumpBackend)")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validImplChoices));
-
-    app.add_option("--parentCellIdMode", parentCellIdMode)
-      ->description(
-        "How to number parent-cell ids of generated facets: "
-        "'blueprintZoneId' (default) or 'legacyFieldOrder' (structured only)")
-      ->capture_default_str()
-      ->transform(axom::CLI::CheckedTransformer(s_validParentCellIdModes));
 
     app.add_flag("--useBumpBackend", useBumpBackend)
       ->description(
@@ -1136,7 +1122,6 @@ struct ContourTestBase
                                                        s_allocatorId,
                                                        m_params.dataParallelism);
         mcPtr->setUseBumpBackend(m_params.useBumpBackend);
-        mcPtr->setParentCellIdMode(m_params.parentCellIdMode);
         mcPtr->setRobustnessPolicy(m_params.robustnessPolicy);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
         initializationTimer.stop();
