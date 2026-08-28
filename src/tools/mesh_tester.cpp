@@ -651,7 +651,8 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("load stl mesh");
     auto reader = std::make_unique<quest::STLReader>();
     reader->setFileName(params.stlInput);
-    reader->read();
+    const int read_status = reader->read();
+    SLIC_ERROR_IF(read_status != 0, "Failed to load STL file '" << params.stlInput << "'.");
 
     reader->getMesh(surface_mesh);
   }

@@ -16,21 +16,19 @@
 
 namespace
 {
-const std::size_t BINARY_HEADER_SIZE = 80;  // bytes
-const std::size_t BINARY_TRI_SIZE = 50;     // bytes
+constexpr std::size_t BINARY_HEADER_SIZE = 80;  // bytes
+constexpr std::size_t BINARY_TRI_SIZE = 50;     // bytes
 }  // namespace
 
 //------------------------------------------------------------------------------
 //      STLReader Implementation
 //------------------------------------------------------------------------------
-namespace axom
+namespace axom::quest
 {
-namespace quest
-{
-STLReader::STLReader() : m_fileName(""), m_num_nodes(0), m_num_faces(0) { }
+STLReader::STLReader() = default;
 
 //------------------------------------------------------------------------------
-STLReader::~STLReader() { this->clear(); }
+STLReader::~STLReader() = default;
 
 //------------------------------------------------------------------------------
 void STLReader::clear()
@@ -54,7 +52,7 @@ bool STLReader::isAsciiFormat() const
   if(!ifs.is_open())
   {
     /* short-circuit */
-    SLIC_WARNING("Cannot open the provided STL file [" << m_fileName << "]");
+    SLIC_WARNING_ROOT("Cannot open the provided STL file [" << m_fileName << "]");
     return false;
   }
 
@@ -62,8 +60,8 @@ bool STLReader::isAsciiFormat() const
   ifs.seekg(0, ifs.end);
   std::int32_t fileSize = static_cast<std::int32_t>(ifs.tellg());
 
-  const int totalHeaderSize = (BINARY_HEADER_SIZE + sizeof(std::int32_t));
-  if(fileSize < totalHeaderSize)
+  constexpr int TOTAL_HEADER_SIZE = BINARY_HEADER_SIZE + sizeof(std::int32_t);
+  if(fileSize < TOTAL_HEADER_SIZE)
   {
     return true;
   }
@@ -79,11 +77,11 @@ bool STLReader::isAsciiFormat() const
   }
 
   // Check if the size matches our expectation
-  int expectedBinarySize = totalHeaderSize + (numTris * BINARY_TRI_SIZE);
+  const int EXPECTED_BINARY_SIZE = TOTAL_HEADER_SIZE + (numTris * BINARY_TRI_SIZE);
 
   ifs.close();
 
-  return (fileSize != expectedBinarySize);
+  return (fileSize != EXPECTED_BINARY_SIZE);
 }
 
 //------------------------------------------------------------------------------
@@ -93,7 +91,7 @@ int STLReader::readAsciiSTL()
 
   if(!ifs.is_open())
   {
-    SLIC_WARNING("Cannot open the provided STL file [" << m_fileName << "]");
+    SLIC_WARNING_ROOT("Cannot open the provided STL file [" << m_fileName << "]");
     return (-1);
   }
 
@@ -156,7 +154,7 @@ int STLReader::readBinarySTL()
   std::ifstream ifs(m_fileName.c_str(), std::ios::in | std::ios::binary);
   if(!ifs.is_open())
   {
-    SLIC_WARNING("Cannot open the provided STL file [" << m_fileName << "]");
+    SLIC_WARNING_ROOT("Cannot open the provided STL file [" << m_fileName << "]");
     return (-1);
   }
 
@@ -251,5 +249,4 @@ void STLReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
   }
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest
