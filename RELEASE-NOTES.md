@@ -18,6 +18,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+## [Version 0.15.0] - Release date 2026-08-28
+
 ### Added
 - Primal: Functions to evaluate surface and volume integrals over collections of `BezierPatch` and `NURBSPatch` objects.
 - Quest: An example to evaluate surface and volume integrals over a STEP model
@@ -1525,7 +1527,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.14.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.15.0...develop
+[Version 0.15.0]: https://github.com/LLNL/axom/compare/v0.14.0...v0.15.0
 [Version 0.14.0]: https://github.com/LLNL/axom/compare/v0.13.0...v0.14.0
 [Version 0.13.0]: https://github.com/LLNL/axom/compare/v0.12.0...v0.13.0
 [Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
