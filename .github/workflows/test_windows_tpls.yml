@@ -26,6 +26,7 @@ jobs:
         - arch: "x86"
           triplet: "x86-windows"
           msvc:    "2022"
+      max-parallel: 2
 
     steps:
     - name: Checkout repo w/ submodules
