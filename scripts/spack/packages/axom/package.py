@@ -37,6 +37,28 @@ _AXOM_COMPONENTS = (
     "spin",
 )
 
+_AXOM_COMPONENT_REQUIREMENTS = {
+    "bump": ("sidre", "slic", "spin", "primal"),
+    "inlet": ("sidre", "slic", "primal"),
+    "klee": ("sidre", "slic", "inlet", "primal"),
+    "mint": ("slic", "slam"),
+    "mir": ("bump", "sidre", "slic", "slam", "primal"),
+    "multimat": ("slic", "slam"),
+    "primal": ("slic",),
+    "quest": ("slic", "slam", "primal", "mint", "spin"),
+    "sidre": ("slic",),
+    "sina": ("slic",),
+    "slam": ("slic",),
+    "spin": ("slic", "slam", "primal"),
+}
+
+_AXOM_COMPONENT_VALUES = tuple(
+    conditional(component, when=f"components={','.join(_AXOM_COMPONENT_REQUIREMENTS[component])}")
+    if component in _AXOM_COMPONENT_REQUIREMENTS
+    else component
+    for component in _AXOM_COMPONENTS
+)
+
 
 def get_spec_path(spec, package_name, path_replacements={}, use_bin=False, use_lib=False):
     """Extracts the prefix path for the given spack package
@@ -77,6 +99,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     version("main", branch="main")
     version("develop", branch="develop")
+    version("0.15.0", tag="v0.15.0", commit="da2a50a7ee661896400d49b019e17bbe7ab5bd44")
     version("0.14.0", tag="v0.14.0", commit="146c8c15386a810791b7ab5c7fcb288cadea6151")
     version("0.13.0", tag="v0.13.0", commit="d00f6c66ef390ad746ae840f1074d982513611ac")
     version("0.12.0", tag="v0.12.0", commit="297544010a3dfb98145a1a85f09f9c648c00a18c")
@@ -145,7 +168,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             "Missing dependencies will be added (e.g. we'll add `sidre` "
             "and `conduit` for `components=inlet`)"
         ),
-        values=any_combination_of("all", *_AXOM_COMPONENTS).with_default("all"),
+        # "all" is a sentinel and must not be combined with individual components.
+        # Keeping it in the same value set causes an additive request such as
+        # components=sina to retain the default "all" on Spack 1.2 and newer.
+        values=(
+            disjoint_sets(("all",), _AXOM_COMPONENT_VALUES).allow_empty_set().with_default("all")
+        ),
     )
 
     variant("int64", default=True, description="Use 64bit integers for IndexType")
@@ -330,27 +358,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # -----------------------------------------------------------------------
     # Component requirements
     # -----------------------------------------------------------------------
-    # Hard inter-component dependencies taken from Axom's dependency graph.
-    requires(f"components={','.join(_AXOM_COMPONENTS)}", when="components=all")
-
-    requires("components=sidre,slic,spin,primal", when="components=bump")
-    requires("components=sidre,slic,primal", when="components=inlet")
-    requires("components=sidre,slic,inlet,primal", when="components=klee")
-    requires("components=slic,slam", when="components=mint")
-    requires("components=bump,sidre,slic,slam,primal", when="components=mir")
-    requires("components=slic,slam", when="components=multimat")
-    requires("components=slic", when="components=primal")
-    requires("components=slic,slam,primal,mint,spin", when="components=quest")
-    requires("components=slic", when="components=sidre")
-    requires("components=slic", when="components=sina")
-    requires("components=slic", when="components=slam")
-    requires("components=slic,slam,primal", when="components=spin")
-
     # Hard dependencies of Axom components on other packages
     requires("+conduit", when="components=bump")
     requires("+conduit", when="components=mir")
     requires("+conduit", when="components=sidre")
     requires("+conduit", when="components=sina")
+    requires("+conduit", when="components=all")
 
     # -----------------------------------------------------------------------
     # Conflicts
@@ -675,7 +688,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         entries = []
         path_replacements = {}
 
-        all_components_enabled = all(
+        all_components_enabled = spec.satisfies("components=all") or all(
             spec.satisfies(f"components={comp}") for comp in _AXOM_COMPONENTS
         )
 
@@ -914,6 +927,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             example()
             make("clean")
 
+    @run_after("install", when="+examples+python+tools components=all")
     @run_after("install", when="+examples+python+tools components=sidre")
     @on_package_attributes(run_tests=True)
     def test_install_using_python(self):
@@ -927,6 +941,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         run_python = Executable(python_runner)
         run_python(example)
 
+    @run_after("install", when="+python components=all")
     @run_after("install", when="+python components=sidre")
     @on_package_attributes(run_tests=True)
     def test_axom_sidre_installed_into_site_packages(self):
