@@ -333,6 +333,24 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
         COMMAND quest_marching_cubes_bump_test
         NUM_MPI_TASKS 1
         )
+    set_tests_properties(quest_marching_cubes_bump PROPERTIES PROCESSORS 1)
+
+    # Compares native MC vs. bump-based MC backend on the structured/explicit meshes.
+    # Builds its meshes in memory, so it doesn't depend on HDF5.
+    axom_add_executable(
+        NAME        quest_marching_cubes_equivalence_test
+        SOURCES     quest_marching_cubes_equivalence.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mc_bump_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_marching_cubes_equivalence
+        COMMAND quest_marching_cubes_equivalence_test
+        NUM_MPI_TASKS 1
+        )
+    set_tests_properties(quest_marching_cubes_equivalence PROPERTIES PROCESSORS 1)
 
 endif()
 
