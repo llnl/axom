@@ -17,8 +17,8 @@ isosurface mesh contains information on which elements of the field
 mesh it crosses.  The output may be useful for material surface
 reconstruction and visualization, among other things.
 
-We support 2D and 3D configurations.  The isosurface mesh is a
-composed of line segments in 2D and triangles in 3D.
+We support 2D and 3D configurations.
+The isosurface mesh is composed of line segments in 2D and triangles in 3D.
 
 .. Note::
 

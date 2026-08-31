@@ -822,7 +822,7 @@ private:
       /*
         Iterate the logical index space directly rather than deriving it from a flat zone index.
 
-        topoMap.toMultiIndex(zoneIndex) costs DIM integer divisions per zone, 
+        topoMap.toMultiIndex(zoneIndex) costs DIM integer divisions per zone,
         and this loop runs over EVERY zone, not just crossing ones.
         Nested loops make the flat index incremental and the divisions disappear.
 
