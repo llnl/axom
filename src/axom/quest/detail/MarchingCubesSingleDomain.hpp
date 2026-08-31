@@ -60,7 +60,7 @@ public:
    * \param [in] maskField Cell-based std::int32_t mask field.  If provided,
    *             cells where this field evaluates to false are skipped.
    *
-   * Array data in \a dom must be accessible in the the \a runtimePolicy environment 
+   * Array data in \a dom must be accessible in the the \a runtimePolicy environment
    * in the constructor.  It's an error if not, e.g., using CPU memory with a GPU policy.
    *
    * Some data from \a dom may be cached by the constructor.

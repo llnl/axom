@@ -81,7 +81,7 @@ public:
    * @param maskFieldName Name of integer cell mask function is in dom
    *
    * Set up views to domain data and allocate other data to work on the given domain.
-   * 
+   *
    * The above data from the domain MUST be in a memory space compatible with ExecSpace.
   */
   AXOM_HOST void setDomain(const conduit::Node& dom,
