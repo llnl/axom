@@ -30,6 +30,7 @@
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/views/Shapes.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
@@ -57,6 +58,7 @@
 #include <map>
 #include <vector>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <type_traits>
 #include <variant>
@@ -67,6 +69,7 @@ namespace slic = axom::slic;
 namespace sidre = axom::sidre;
 #endif
 namespace primal = axom::primal;
+namespace bumpviews = axom::bump::views;
 namespace mint = axom::mint;
 namespace numerics = axom::numerics;
 
@@ -86,6 +89,8 @@ struct Input
 public:
   std::string meshFile;
   std::string fieldsFile {"fields"};
+  //! @brief Also emit bump's welded polygonal contour as a Blueprint mesh.
+  std::string blueprintContourFile {};
 
   // Center of round contour function
   std::vector<double> fcnCenter;
@@ -169,6 +174,12 @@ public:
       ->description(
         "Path to multidomain computational mesh following conduit blueprint convention.")
       ->check(axom::CLI::ExistingFile);
+
+    app.add_option("--blueprint-contour-file", blueprintContourFile)
+      ->description(
+        "Write the bump backend's welded polygonal contour to this Blueprint file "
+        "as Blueprint output. Requires --useBumpBackend.")
+      ->capture_default_str();
 
     app.add_option("-s,--fields-file", fieldsFile)
       ->description("Name of output mesh file with all its fields.")
@@ -340,11 +351,9 @@ struct BlueprintStructuredMesh
 public:
   explicit BlueprintStructuredMesh(const std::string& meshFile,
                                    const std::string& topologyName,
-                                   bool compactStridedStructured = false,
                                    bool verboseOutput = false)
     : _topologyName(topologyName)
     , _topologyPath("topologies/" + topologyName)
-    , _compactStridedStructured(compactStridedStructured)
   {
     readBlueprintMesh(meshFile);
 
@@ -502,10 +511,30 @@ public:
       domain(domId).fetch_existing(_topologyPath + "/elements/dims").has_child("strides");
   }
 
-  bool useFlatFields(axom::IndexType domId) const
+  /*!
+   * @brief Whether this domain's field arrays can be indexed as a flat, compact array of node values.
+   *
+   * This is false only for strided structured topologies whose fields live in a ghost padded window
+   * and must be indexed through the field offsets and strides.
+   */
+  bool useFlatFields(axom::IndexType domId) const { return !isStridedStructured(domId); }
+
+  const std::string& coordsetPath() const { return _coordsetPath; }
+
+  //! @brief Corner node ids of a zone, for an unstructured single-shape topology.
+  void unstructuredCellNodeIds(axom::IndexType domId,
+                               axom::IndexType cellId,
+                               axom::Array<axom::IndexType>& nodeIds) const
   {
-    return (_domCount == 1 && !isStridedStructured(domId)) || isUnstructured(domId) ||
-      domain(domId).has_path("fields/fcn") || (_compactedStridedStructured && isStructured(domId));
+    const conduit::Node& elems = domain(domId).fetch_existing(_topologyPath + "/elements");
+    const std::string shape = elems.fetch_existing("shape").as_string();
+    const axom::IndexType cornersPerCell = shape == "hex" ? 8 : 4;
+    const auto conn = elems.fetch_existing("connectivity").as_index_t_accessor();
+    nodeIds.resize(cornersPerCell);
+    for(axom::IndexType c = 0; c < cornersPerCell; ++c)
+    {
+      nodeIds[c] = static_cast<axom::IndexType>(conn[cellId * cornersPerCell + c]);
+    }
   }
 
   /*!
@@ -643,38 +672,34 @@ public:
     return maxLen;
   }
 
-  double maxUnstructuredEdgeLength(const conduit::Node& dom) const
+  /*!
+   * @brief Longest cell edge over an unstructured single-shape topology.
+   *
+   * This uses bump's shape traits for edge connectivity.
+   */
+  template <typename ShapeTraits>
+  double maxEdgeLengthForTraits(const conduit::Node& topo, const conduit::Node& coords) const
   {
-    const conduit::Node& topo = dom.fetch_existing(_topologyPath);
-    const conduit::Node& coords = dom.fetch_existing(_coordsetPath + "/values");
     const auto xs = coords.fetch_existing("x").as_double_accessor();
     const auto ys = coords.fetch_existing("y").as_double_accessor();
     const bool hasZ = _ndims == 3;
     const auto zs = hasZ ? coords.fetch_existing("z").as_double_accessor()
                          : coords.fetch_existing("x").as_double_accessor();
     const auto conn = topo.fetch_existing("elements/connectivity").as_index_t_accessor();
-    const std::string shape = topo.fetch_existing("elements/shape").as_string();
 
-    const axom::IndexType cornersPerCell = shape == "hex" ? 8 : shape == "quad" ? 4 : 0;
-    SLIC_ASSERT_MSG(cornersPerCell != 0,
-                    axom::fmt::format("Unsupported unstructured shape '{}'.", shape));
-
-    const int edgePairsHex[12][2] =
-      {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
-    const int edgePairsQuad[4][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}};
-
-    double maxLen = 0.0;
+    constexpr auto cornersPerCell = ShapeTraits::numberOfNodes();
+    constexpr auto edgeCount = ShapeTraits::numberOfEdges();
     const axom::IndexType numCells =
       static_cast<axom::IndexType>(conn.number_of_elements()) / cornersPerCell;
+
+    double maxLen = 0.0;
     for(axom::IndexType cell = 0; cell < numCells; ++cell)
     {
-      const int edgeCount = shape == "hex" ? 12 : 4;
       for(int e = 0; e < edgeCount; ++e)
       {
-        const int aLocal = shape == "hex" ? edgePairsHex[e][0] : edgePairsQuad[e][0];
-        const int bLocal = shape == "hex" ? edgePairsHex[e][1] : edgePairsQuad[e][1];
-        const axom::IndexType a = static_cast<axom::IndexType>(conn[cell * cornersPerCell + aLocal]);
-        const axom::IndexType b = static_cast<axom::IndexType>(conn[cell * cornersPerCell + bLocal]);
+        const auto edge = ShapeTraits::getEdge(e);
+        const auto a = static_cast<axom::IndexType>(conn[cell * cornersPerCell + edge[0]]);
+        const auto b = static_cast<axom::IndexType>(conn[cell * cornersPerCell + edge[1]]);
         const double dx = xs[a] - xs[b];
         const double dy = ys[a] - ys[b];
         const double dz = hasZ ? zs[a] - zs[b] : 0.0;
@@ -682,6 +707,24 @@ public:
       }
     }
     return maxLen;
+  }
+
+  double maxUnstructuredEdgeLength(const conduit::Node& dom) const
+  {
+    const conduit::Node& topo = dom.fetch_existing(_topologyPath);
+    const conduit::Node& coords = dom.fetch_existing(_coordsetPath + "/values");
+    const std::string shape = topo.fetch_existing("elements/shape").as_string();
+
+    if(shape == "hex")
+    {
+      return maxEdgeLengthForTraits<bumpviews::HexTraits>(topo, coords);
+    }
+    if(shape == "quad")
+    {
+      return maxEdgeLengthForTraits<bumpviews::QuadTraits>(topo, coords);
+    }
+    SLIC_ERROR(axom::fmt::format("Unsupported unstructured shape '{}'.", shape));
+    return 0.0;
   }
 
   /// Checks whether the blueprint is valid and prints diagnostics
@@ -712,11 +755,8 @@ private:
   int _ndims {-1};
   conduit::Node _mdMesh;
   axom::IndexType _domCount;
-  bool _coordsAreStrided = false;
-  bool _compactedStridedStructured = false;
   const std::string _topologyName;
   const std::string _topologyPath;
-  bool _compactStridedStructured = false;
   std::string _coordsetPath;
   double _maxSpacing = -1.0;
 
@@ -742,91 +782,6 @@ private:
     return defaultValue;
   }
 
-  void compactStridedStructuredDomains()
-  {
-    bool compactedAny = false;
-    for(axom::IndexType domId = 0; domId < _domCount; ++domId)
-    {
-      if(!isStructured(domId))
-      {
-        continue;
-      }
-
-      conduit::Node& dom = domain(domId);
-      conduit::Node& dimsNode = dom.fetch_existing(_topologyPath + "/elements/dims");
-      const bool hasOffsets = dimsNode.has_child("offsets");
-      const bool hasStrides = dimsNode.has_child("strides");
-      if(!hasOffsets && !hasStrides)
-      {
-        continue;
-      }
-      SLIC_ASSERT_MSG(hasOffsets && hasStrides,
-                      "Expected strided structured topology to define both offsets and strides.");
-
-      axom::StackArray<axom::IndexType, 3> nodeShape {{1, 1, 1}};
-      axom::StackArray<axom::IndexType, 3> offsets {{0, 0, 0}};
-      axom::StackArray<axom::IndexType, 3> strides {{1, 1, 1}};
-      for(int dim = 0; dim < _ndims; ++dim)
-      {
-        nodeShape[dim] = dimValue(dimsNode, dim) + 1;
-        offsets[dim] = dimValue(dimsNode.fetch_existing("offsets"), dim);
-        strides[dim] = dimValue(dimsNode.fetch_existing("strides"), dim);
-      }
-
-      const axom::IndexType compactNodeCount = nodeShape[0] * nodeShape[1] * nodeShape[2];
-      const conduit::Node& coordValues = dom.fetch_existing(_coordsetPath + "/values");
-
-      auto compactComponent = [&](const std::string& componentName) {
-        std::vector<double> compactValues(static_cast<std::size_t>(compactNodeCount));
-        const auto source = coordValues.fetch_existing(componentName).as_double_accessor();
-        for(axom::IndexType k = 0; k < nodeShape[2]; ++k)
-        {
-          for(axom::IndexType j = 0; j < nodeShape[1]; ++j)
-          {
-            for(axom::IndexType i = 0; i < nodeShape[0]; ++i)
-            {
-              const axom::IndexType sourceIdx = (i + offsets[0]) * strides[0] +
-                (j + offsets[1]) * strides[1] + (k + offsets[2]) * strides[2];
-              const axom::IndexType destIdx = i + nodeShape[0] * (j + nodeShape[1] * k);
-              compactValues[static_cast<std::size_t>(destIdx)] = source[sourceIdx];
-            }
-          }
-        }
-        return compactValues;
-      };
-
-      std::vector<double> xs = compactComponent("x");
-      std::vector<double> ys = compactComponent("y");
-      std::vector<double> zs;
-      if(_ndims == 3)
-      {
-        zs = compactComponent("z");
-      }
-
-      conduit::Node& compactCoordValues = dom.fetch_existing(_coordsetPath + "/values");
-      compactCoordValues["x"].set(xs);
-      compactCoordValues["y"].set(ys);
-      if(_ndims == 3)
-      {
-        compactCoordValues["z"].set(zs);
-      }
-
-      dimsNode.remove("offsets");
-      dimsNode.remove("strides");
-      if(dom.has_child("fields"))
-      {
-        dom.remove("fields");
-      }
-      compactedAny = true;
-    }
-
-    if(compactedAny)
-    {
-      _coordsAreStrided = false;
-      _compactedStridedStructured = true;
-    }
-  }
-
   //! @brief Read a blueprint mesh into conduit::Node _mdMesh.
   void readBlueprintMesh(const std::string& meshFilename)
   {
@@ -834,12 +789,12 @@ private:
 
     conduit::Node loadedMesh;
     loadBlueprintMesh(meshFilename, loadedMesh);
+    // Normalize to a multi-domain node. MarchingCubes::setMesh() performs the
+    // equivalent normalization for its own input; this wrapper still needs its own
+    // copy because domainLengths(), cellCount(), and the coordset helpers below
+    // operate on it independently of the query object.
     _mdMesh.reset();
-    if(loadedMesh.has_path(_topologyPath))
-    {
-      _mdMesh.append().set(loadedMesh);
-    }
-    else if(conduit::blueprint::mesh::is_multi_domain(loadedMesh))
+    if(conduit::blueprint::mesh::is_multi_domain(loadedMesh))
     {
       _mdMesh.swap(loadedMesh);
     }
@@ -856,13 +811,6 @@ private:
       _coordsetPath = axom::fmt::format("coordsets/{}", coordsetName);
       SLIC_ASSERT(_mdMesh[0].has_path(_coordsetPath));
 
-      _coordsAreStrided = false;
-      for(axom::IndexType domId = 0; domId < _domCount; ++domId)
-      {
-        _coordsAreStrided = _coordsAreStrided ||
-          (isStructured(domId) &&
-           domain(domId).fetch_existing(_topologyPath + "/elements/dims").has_child("strides"));
-      }
       const conduit::Node coordsetNode = _mdMesh[0].fetch_existing(_coordsetPath);
       _ndims = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
@@ -870,11 +818,6 @@ private:
     MPI_Allreduce(MPI_IN_PLACE, &_ndims, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #endif
     SLIC_ASSERT(_ndims > 0);
-
-    if(_compactStridedStructured && _coordsAreStrided)
-    {
-      compactStridedStructuredDomains();
-    }
 
     SLIC_ASSERT(isValid());
   }
@@ -1225,6 +1168,27 @@ struct ContourTestBase
     mc.populateContourMesh(contourMesh, m_parentCellIdField, m_domainIdField);
     extractTimer.stop();
     printTimingStats(extractTimer, "extract");
+
+    // Demonstrate the bump backend's native output: a welded, connected, polygonal contour mesh.
+    if(!m_params.blueprintContourFile.empty())
+    {
+      if(!m_params.useBumpBackend)
+      {
+        SLIC_WARNING(
+          "--blueprint-contour-file requires --useBumpBackend; the legacy kernel has no "
+          "Blueprint contour output. Skipping.");
+      }
+      else
+      {
+        AXOM_ANNOTATE_SCOPE("write blueprint contour");
+        conduit::Node contourBp;
+        mc.populateContourMeshBlueprint(contourBp);
+        SLIC_INFO(axom::fmt::format("Blueprint contour has {} domains; writing to '{}'",
+                                    contourBp.number_of_children(),
+                                    m_params.blueprintContourFile));
+        saveMesh(contourBp, m_params.blueprintContourFile);
+      }
+    }
 
     {
       axom::Array<axom::IndexType, 2> facetNodeIds;
@@ -1599,8 +1563,14 @@ struct ContourTestBase
       domainCount);
     for(int iDomain = 0; iDomain < domainCount; ++iDomain)
     {
-      auto domainView = computationalMesh.getDomainView<DIM>(iDomain);
-      allCoordsViews[iDomain] = domainView.getConstCoordsViews(false);
+      // MeshViewUtil requires a structured topology with an explicit coordset,
+      // so it can only be used for the structured domains.
+      // Unstructured domains get their parent-cell bounds from the connectivity below.
+      if(!computationalMesh.isUnstructured(iDomain))
+      {
+        auto domainView = computationalMesh.getDomainView<DIM>(iDomain);
+        allCoordsViews[iDomain] = domainView.getConstCoordsViews(false);
+      }
     }
 
     std::map<axom::quest::MarchingCubes::DomainIdType, axom::quest::MarchingCubes::DomainIdType>
@@ -1620,6 +1590,10 @@ struct ContourTestBase
     axom::Array<axom::MDMapping<DIM>> mappings(domainCount);
     for(int d = 0; d < domainCount; ++d)
     {
+      if(computationalMesh.isUnstructured(d))
+      {
+        continue;  // no logical index space
+      }
       axom::StackArray<axom::IndexType, DIM> domShape;
       computationalMesh.domainLengths(d, domShape);
       mappings[d].initializeShape(domShape,
@@ -1649,18 +1623,56 @@ struct ContourTestBase
 
         axom::IndexType parentCellId = parentCellIdView[iContourCell];
 
-        axom::StackArray<axom::IndexType, DIM> parentCellIdx =
-          mappings[contiguousIndex].toMultiIndex(parentCellId);
-        axom::StackArray<axom::IndexType, DIM> upperIdx = parentCellIdx;
-        addToStackArray(upperIdx, 1);
+        /*
+          Bounds over all corners of the parent cell, for either topology type.
 
-        PointType lower, upper;
-        for(int d = 0; d < DIM; ++d)
+          The structured path previously used only the (i,j,k) and (i+1,j+1,k+1) nodes.
+          That is exact for an axis-aligned grid and wrong for a curvilinear structured mesh
+          or any warped cell, where the two opposite corners do not bound the cell.
+          Enumerating every corner is correct in both cases and costs 8 lookups instead of 2.
+        */
+        axom::primal::BoundingBox<double, DIM> parentCellBox;
+        if(computationalMesh.isUnstructured(contiguousIndex))
         {
-          lower[d] = coordsViews[d][parentCellIdx];
-          upper[d] = coordsViews[d][upperIdx];
+          const conduit::Node& dom = computationalMesh.domain(contiguousIndex);
+          const conduit::Node& cvals =
+            dom.fetch_existing(computationalMesh.coordsetPath() + "/values");
+          axom::Array<axom::IndexType> nodeIds;
+          computationalMesh.unstructuredCellNodeIds(contiguousIndex, parentCellId, nodeIds);
+          for(const auto nodeId : nodeIds)
+          {
+            PointType corner;
+            const char* comps[3] = {"x", "y", "z"};
+            for(int d = 0; d < DIM; ++d)
+            {
+              corner[d] = cvals.fetch_existing(comps[d]).as_double_accessor()[nodeId];
+            }
+            parentCellBox.addPoint(corner);
+          }
         }
-        axom::primal::BoundingBox<double, DIM> parentCellBox(lower, upper);
+        else
+        {
+          const axom::StackArray<axom::IndexType, DIM> parentCellIdx =
+            mappings[contiguousIndex].toMultiIndex(parentCellId);
+          constexpr short int cornerCount = (1 << DIM);
+          for(short int cornerId = 0; cornerId < cornerCount; ++cornerId)
+          {
+            axom::StackArray<axom::IndexType, DIM> cornerIdx = parentCellIdx;
+            for(int d = 0; d < DIM; ++d)
+            {
+              if(cornerId & (1 << d))
+              {
+                ++cornerIdx[d];
+              }
+            }
+            PointType corner;
+            for(int d = 0; d < DIM; ++d)
+            {
+              corner[d] = coordsViews[d][cornerIdx];
+            }
+            parentCellBox.addPoint(corner);
+          }
+        }
         auto tol = geometryTolerance(computationalMesh);
         axom::primal::BoundingBox<double, DIM> big(parentCellBox);
         big.expand(tol);
@@ -1711,6 +1723,95 @@ struct ContourTestBase
   }
 
   /*!
+   * @brief Half-width of the band around the contour value in which the bump
+   *   backend's classification is indeterminate relative to a double predicate.
+   *
+   * bump's FieldIntersector evaluates the corner test in float, so any corner value
+   * within one float ULP of the contour value can land on either side after rounding.
+   * This check compares in double, so it needs a small band to treat near-equal values as equal.
+   * The legacy kernel also compares in double.
+   *
+   * This shows up on the radius 0.25 sphere over a 12^3 unit lattice. Some nodes land within one
+   * float ULP of 0.25 because 1/6 is not exactly representable. Exact equality misses those cases.
+   *
+   * Widening the pass-through from exact equality to one float ULP makes the check
+   * agree with what the backend can actually resolve, rather than holding a float
+   * classifier to a double predicate.
+   */
+  double contourIndeterminacyBand() const
+  {
+    const auto c = static_cast<float>(m_params.contourVal);
+    const float up = std::nextafterf(c, std::numeric_limits<float>::infinity());
+    return static_cast<double>(up - c);
+  }
+
+  /*!
+   * @brief Unstructured counterpart of the per-cell contour-membership check.
+   *
+   * The structured path flags a cell when its corner values straddle the contour value.
+   * This does the same thing, but it reads corner values through the topology connectivity.
+   * It does not need MeshViewUtil or a structured topology.
+   */
+  int checkCellsContainingContourUnstructured(const BlueprintStructuredMesh& computationalMesh,
+                                              axom::IndexType domId,
+                                              const axom::Array<axom::IndexType>& hasContours) const
+  {
+    int errCount = 0;
+    const conduit::Node& dom = computationalMesh.domain(domId);
+    const axom::IndexType parentCellCount = computationalMesh.cellCount(domId);
+
+    axom::Array<axom::IndexType> nodeIds;
+    for(axom::IndexType parentCellId = 0; parentCellId < parentCellCount; ++parentCellId)
+    {
+      computationalMesh.unstructuredCellNodeIds(domId, parentCellId, nodeIds);
+      const axom::IndexType hasContourBits = hasContours[parentCellId];
+
+      for(axom::IndexType iStrat = 0; iStrat < m_testStrategies.size(); ++iStrat)
+      {
+        auto& strategy = *m_testStrategies[iStrat];
+        const axom::IndexType iStratBit = (1 << iStrat);
+        const auto fcn =
+          dom.fetch_existing("fields/" + strategy.functionName() + "/values").as_double_accessor();
+
+        double minFcnValue = axom::numeric_limits<double>::max();
+        double maxFcnValue = axom::numeric_limits<double>::lowest();
+        for(const auto nodeId : nodeIds)
+        {
+          const double fcnValue = fcn[nodeId];
+          minFcnValue = std::min(minFcnValue, fcnValue);
+          maxFcnValue = std::max(maxFcnValue, fcnValue);
+        }
+
+        const bool hasContour = hasContourBits & iStratBit;
+        bool touchesContour =
+          (minFcnValue <= m_params.contourVal && maxFcnValue >= m_params.contourVal);
+        // A cell whose extremum lies within the backend's resolution of the contour
+        // value may be reported either way; see contourIndeterminacyBand().
+        const double band = contourIndeterminacyBand();
+        if(std::abs(minFcnValue - m_params.contourVal) <= band ||
+           std::abs(maxFcnValue - m_params.contourVal) <= band)
+        {
+          touchesContour = hasContour;
+        }
+
+        if(touchesContour != hasContour)
+        {
+          ++errCount;
+          SLIC_INFO_IF(m_params.isVerbose(),
+                       axom::fmt::format("checkCellsContainingContourUnstructured: cell {}: "
+                                         "hasContour ({}) and touchesContour ({}) don't agree "
+                                         "for strategy {}.",
+                                         parentCellId,
+                                         hasContour,
+                                         touchesContour,
+                                         strategy.testName()));
+        }
+      }
+    }
+    return errCount;
+  }
+
+  /*!
    * Check that computational cells that contain the contour value
    * have at least one contour mesh cell.
    */
@@ -1751,12 +1852,9 @@ struct ContourTestBase
     axom::Array<axom::Array<axom::IndexType>> hasContours(domainCount);
     for(axom::IndexType domId = 0; domId < domainCount; ++domId)
     {
-      axom::quest::MeshViewUtil<DIM> domainView = computationalMesh.getDomainView<DIM>(domId);
-
-      const axom::IndexType cellCount = domainView.getCellCount();
-
+      // Do not use MeshViewUtil here since it requires a structured topology with an explicit coordset.
       axom::Array<axom::IndexType>& hasContour = hasContours[domId];
-      hasContour.resize(cellCount, 0);
+      hasContour.resize(computationalMesh.cellCount(domId), 0);
     }
 
     for(int iStrat = 0; iStrat < m_testStrategies.size(); ++iStrat)
@@ -1774,10 +1872,16 @@ struct ContourTestBase
       }
     }
 
-    // Verify that cells marked by hasContours touches the contour
-    // and other cells don't.
+    // Verify that cells marked by hasContours touches the contour and other cells don't.
     for(axom::IndexType domId = 0; domId < domainCount; ++domId)
     {
+      if(computationalMesh.isUnstructured(domId))
+      {
+        errCount +=
+          checkCellsContainingContourUnstructured(computationalMesh, domId, hasContours[domId]);
+        continue;
+      }
+
       auto domainView = computationalMesh.getDomainView<DIM>(domId);
 
       axom::StackArray<axom::IndexType, DIM> domLengths;
@@ -1806,7 +1910,7 @@ struct ContourTestBase
 
           // Compute min and max function values in the cell.
           double minFcnValue = axom::numeric_limits<double>::max();
-          double maxFcnValue = axom::numeric_limits<double>::min();
+          double maxFcnValue = axom::numeric_limits<double>::lowest();
           constexpr short int cornerCount = (1 << DIM);  // Number of nodes in a cell.
           for(short int cornerId = 0; cornerId < cornerCount; ++cornerId)
           {
@@ -1829,9 +1933,11 @@ struct ContourTestBase
 
           bool touchesContour =
             (minFcnValue <= m_params.contourVal && maxFcnValue >= m_params.contourVal);
-          // If the min or max values in the cell is close to the contour value,
-          // touchesContour and hasCont can go either way.  So give it a pass.
-          if(minFcnValue == m_params.contourVal || maxFcnValue == m_params.contourVal)
+          // If the min or max value in the cell is close to the contour value,
+          // touchesContour and hasContour can go either way, so give it a pass.
+          const double band = contourIndeterminacyBand();
+          if(std::abs(minFcnValue - m_params.contourVal) <= band ||
+             std::abs(maxFcnValue - m_params.contourVal) <= band)
           {
             touchesContour = hasContour;
           }
@@ -2147,10 +2253,7 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
 
   AXOM_ANNOTATE_BEGIN("load mesh");
-  BlueprintStructuredMesh computationalMesh(params.meshFile,
-                                            "mesh",
-                                            params.useBumpBackend,
-                                            params.isVerbose());
+  BlueprintStructuredMesh computationalMesh(params.meshFile, "mesh", params.isVerbose());
   AXOM_ANNOTATE_END("load mesh");
 
   SLIC_ERROR_IF(
