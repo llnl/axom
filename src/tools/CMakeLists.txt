@@ -237,9 +237,7 @@ if(NANOBIND_FOUND)
     #--------------------------------------------------------------------------
     # Python utilities for generating Blueprint mesh inputs.
     #--------------------------------------------------------------------------
-    foreach(_mesh_gen_script
-            gen-marching-cubes-mesh.py
-            gen-multidom-structured-mesh.py)
+    foreach(_mesh_gen_script gen-multidom-structured-mesh.py)
         axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/${_mesh_gen_script}"
                              "${PROJECT_BINARY_DIR}/bin/${_mesh_gen_script}" COPYONLY)
         axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/${_mesh_gen_script}"

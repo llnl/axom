@@ -6,35 +6,39 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
-# Write a simple multidomain structured Blueprint mesh for testing.
+# Write a multidomain Blueprint mesh for testing.
 #
-# This script requires a conduit installation configured with python3 and hdf5.
-# Make sure PYTHONPATH includes /path/to/conduit/install/python-modules,
-# or use Axom's convenience script /path/to/axom_build_dir/bin/run_python_with_axom.sh
-# that includes Conduit in PYTHONPATH.
+# You need Conduit's Python module available on PYTHONPATH.
+# Axom's build tree usually provides `bin/run_python_with_axom.sh` for that.
 #
 # The generated Blueprint hierarchy is:
 #   <bp_root>
-#    ├── <domain_i_j[_k]>          (or list children when --useList is set)
+#    ├── <domain_i_j[_k]>          Map entry, or list child with --useList
 #    │    ├── topologies
 #    │    │   └── mesh
-#    │    │        ├─• type        == "structured"
+#    │    │        ├─• type        == "structured" or "unstructured"
 #    │    │        ├─• coordset    == "coords"
 #    │    │        └── elements
-#    │    │             └── dims
-#    │    │                  ├─• i
-#    │    │                  ├─• j
-#    │    │                  └─• [k]
+#    │    │             ├── dims              Structured only
+#    │    │             │    ├─• i
+#    │    │             │    ├─• j
+#    │    │             │    └─• [k]
+#    │    │             ├─• shape             Unstructured only, quad or hex
+#    │    │             └─• connectivity      Unstructured only, flat int64 connectivity
 #    │    ├── coordsets
 #    │    │   └── coords
 #    │    │        ├─• type        == "explicit"
-#    │    │        └── values      (i-fastest node ordering, with ghost padding for --strided)
+#    │    │        └── values      i-fastest node ordering, ghost padded for --strided
 #    │    │             ├─• x
 #    │    │             ├─• y
 #    │    │             └─• [z]
 #    │    └── fields
-#    │        └── field
-#    │             ├─• association == "element"
+#    │        ├── field                        Conduit's example field
+#    │        │    ├─• association == "element"
+#    │        │    ├─• topology    == "mesh"
+#    │        │    └─• values
+#    │        └── <fieldName>                  Only with --field. Nodal for MarchingCubes
+#    │             ├─• association == "vertex"
 #    │             ├─• topology    == "mesh"
 #    │             └─• values
 #    └── ...
@@ -44,11 +48,12 @@ try:
     import conduit.blueprint
     import conduit.relay
 except ModuleNotFoundError as e:
-    print(f'{e}\nMake sure your PYTHONPATH includes /path/to/conduit/install/python-modules\n'
-          'Conduit must be configured with python and hdf5.\n'
-          'Alternatively, you can use the convenience script\n'
-          '/path/to/axom_build_dir/bin/run_python_with_axom.sh\n'
-          'that includes Conduit in PYTHONPATH.')
+    print(f'{e}\n'
+          'Add Conduit to PYTHONPATH, for example:\n'
+          '  export PYTHONPATH=/path/to/conduit/install/python-modules:$PYTHONPATH\n'
+          'If you have an Axom build directory, you can also run:\n'
+          '  /path/to/axom_build_dir/bin/run_python_with_axom.sh <this_script.py> ...\n'
+          'Note: HDF5 support is only needed when using `--protocol hdf5`.')
     exit(-1)
 
 import numpy as np
@@ -67,7 +72,7 @@ def parse_component_list(values, cast):
 
 
 def parse_args():
-    ps = ArgumentParser(description='Write a multidomain structured Blueprint mesh.',
+    ps = ArgumentParser(description='Write a multidomain Blueprint mesh.',
                         formatter_class=ArgumentDefaultsHelpFormatter)
     ps.add_argument('--useList', action='store_true', help='Put domains in a list instead of a map')
     ps.add_argument('-ml',
@@ -96,6 +101,37 @@ def parse_args():
                     help='Domain counts in each index direction, space- or comma-separated')
     ps.add_argument('-o', '--output', type=str, default='mdmesh', help='Output file base name')
     ps.add_argument('--strided', action='store_true', help='Use strided_structured (has ghosts)')
+    ps.add_argument(
+        '--topology',
+        choices=('structured', 'unstructured'),
+        default='structured',
+        help='Topology type. "unstructured" emits single-shape quad or hex connectivity '
+        'over the same nodes. Incompatible with --strided.')
+    ps.add_argument(
+        '--field',
+        choices=('none', 'sphere', 'plane'),
+        default='none',
+        help='Add an analytic nodal field, which MarchingCubes needs. The Conduit example '
+        'field is element-associated.')
+    ps.add_argument('--fieldName', type=str, default='fcn', help='Name of the analytic nodal field')
+    ps.add_argument('--center',
+                    nargs='+',
+                    default=None,
+                    help='Center for --field sphere, or point on plane for --field plane. '
+                    'Defaults to the mesh center.')
+    ps.add_argument(
+        '--radius',
+        type=float,
+        default=None,
+        help='Radius for --field sphere. Defaults to one quarter of the shortest mesh extent.')
+    ps.add_argument('--normal',
+                    nargs='+',
+                    default=None,
+                    help='Normal direction for --field plane. Defaults to +y in 2D and +z in 3D.')
+    ps.add_argument('--protocol',
+                    choices=('hdf5', 'json', 'yaml'),
+                    default='hdf5',
+                    help='Conduit relay output protocol. json/yaml let readers run without HDF5.')
     ps.add_argument('-v', '--verbose', action='store_true', help='Print additional info')
 
     opts, unkn = ps.parse_known_args()
@@ -140,7 +176,43 @@ def validated_mesh_options(opts):
     domain_size = mesh_size // domain_counts[:dim]
     domain_size_remainder = mesh_size % domain_counts[:dim]
 
+    if opts.topology == 'unstructured' and opts.strided:
+        raise RuntimeError(
+            '--topology unstructured is incompatible with --strided. The ghost padded '
+            'coordset does not have compact node numbering to build connectivity over.')
+
+    mesh_center = 0.5 * (mesh_lower + mesh_upper)
+    if opts.center is None:
+        center = mesh_center
+    else:
+        center = np.array(parse_component_list(opts.center, float), dtype=float)
+        if len(center) < dim:
+            raise RuntimeError(f'--center ({opts.center}) needs at least {dim} components')
+
+    if opts.radius is None:
+        radius = 0.25 * float(np.min(mesh_extent))
+    else:
+        radius = float(opts.radius)
+    if radius <= 0.0:
+        raise RuntimeError(f'--radius must be positive (got {radius})')
+
+    if opts.normal is None:
+        normal = np.array((0.0, 1.0) if dim == 2 else (0.0, 0.0, 1.0), dtype=float)
+    else:
+        normal = np.array(parse_component_list(opts.normal, float), dtype=float)
+    if opts.field != 'none':
+        if opts.field == 'plane' and len(normal) < dim:
+            raise RuntimeError(f'--normal ({opts.normal}) needs at least {dim} components')
+        if opts.field == 'plane':
+            normal_norm = float(np.linalg.norm(normal[:dim]))
+            if normal_norm == 0.0:
+                raise RuntimeError('--normal must be nonzero for --field plane')
+            normal = normal / normal_norm
+
     return {
+        'center': center,
+        'normal': normal,
+        'radius': radius,
         'dim': dim,
         'domain_counts': domain_counts,
         'mesh_size': mesh_size,
@@ -236,6 +308,64 @@ def generate_coordset(dom, context, start_coord, end_coord):
         dom['coordsets/coords/values'][xyz[d]] = coords
 
 
+def add_analytic_nodal_field(dom, opts, context):
+    '''Add a nodal scalar field sampled at every coordset node. The implementation is vectorized'''
+
+    if opts.field == 'none':
+        return
+
+    dim = context['dim']
+    vals = dom['coordsets/coords/values']
+    comps = [np.asarray(vals[c], dtype=np.float64) for c in 'xyz'[:dim]]
+    pts = np.stack(comps, axis=1)
+
+    center = np.array(context['center'][:dim], dtype=np.float64)
+    if opts.field == 'sphere':
+        values = np.linalg.norm(pts - center, axis=1) - context['radius']
+    else:
+        normal = np.array(context['normal'][:dim], dtype=np.float64)
+        values = (pts - center) @ normal
+
+    field = dom[f'fields/{opts.fieldName}']
+    field['topology'] = 'mesh'
+    field['association'] = 'vertex'
+    field['values'] = values
+
+
+def structured_to_unstructured(dom, context):
+    '''Rewrite the structured topology as single-shape quad/hex connectivity.
+
+    This uses numpy broadcasting instead of a per-cell Python loop. Node order
+    within a cell matches Blueprint's quad/hex convention. Node ids follow the
+    coordset's i-fastest numbering, so the coordset stays as-is.
+    '''
+    dim = context['dim']
+    topo = dom['topologies/mesh']
+    dims = topo['elements/dims']
+    cells = np.array([dims['i'], dims['j']] + ([dims['k']] if dim == 3 else []), dtype=np.int64)
+    pts = cells + 1
+
+    if dim == 2:
+        j, i = np.meshgrid(np.arange(cells[1]), np.arange(cells[0]), indexing='ij')
+        base = (i + j * pts[0]).ravel()
+        offs = [0, 1, 1 + pts[0], pts[0]]
+    else:
+        k, j, i = np.meshgrid(np.arange(cells[2]),
+                              np.arange(cells[1]),
+                              np.arange(cells[0]),
+                              indexing='ij')
+        base = (i + j * pts[0] + k * pts[0] * pts[1]).ravel()
+        pij = pts[0] * pts[1]
+        offs = [0, 1, 1 + pts[0], pts[0], pij, pij + 1, pij + 1 + pts[0], pij + pts[0]]
+
+    conn = (base[:, None] + np.array(offs, dtype=np.int64)[None, :]).ravel()
+
+    topo.remove_child('elements')
+    topo['type'] = 'unstructured'
+    topo['elements/shape'] = 'quad' if dim == 2 else 'hex'
+    topo['elements/connectivity'] = conn
+
+
 def generate_fields(dom, opts, context):
     '''Keep Conduit's example element field and ensure it references the generated topology.'''
     del opts, context
@@ -261,6 +391,11 @@ def generate_domain(md_mesh, opts, context, di, dj, dk):
     dom_upper = mesh_lower[:dim] + cell_end * cell_physical_size[:dim]
     generate_coordset(dom, context, dom_lower, dom_upper)
     generate_fields(dom, opts, context)
+    # Sample the field before rewriting the topology. The unstructured rewrite drops
+    # elements/dims, and we still need those to size the coordset.
+    add_analytic_nodal_field(dom, opts, context)
+    if opts.topology == 'unstructured':
+        structured_to_unstructured(dom, context)
 
 
 def generate_mesh(opts):
@@ -291,11 +426,11 @@ def main():
 
     info = conduit.Node()
     if not conduit.blueprint.mesh.verify(md_mesh, info):
-        print("Mesh failed blueprint verification.  Info:")
+        print("Mesh failed blueprint verification. Info:")
         print(info)
         return 2
 
-    conduit.relay.io.blueprint.save_mesh(md_mesh, opts.output, "hdf5")
+    conduit.relay.io.blueprint.save_mesh(md_mesh, opts.output, opts.protocol)
     print(f'Wrote mesh {opts.output}')
     return 0
 
