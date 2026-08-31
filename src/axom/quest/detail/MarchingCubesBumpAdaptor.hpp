@@ -108,7 +108,7 @@ constexpr const char* kPublicOriginalElementsField = "originalElements";
 template <int DIM>
 AXOM_HOST_DEVICE inline axom::IndexType facetsPerZone(axom::IndexType nCorners)
 {
-  if(DIM == 3)
+  if constexpr(DIM == 3)
   {
     return nCorners >= 3 ? (nCorners - 2) : 0;
   }
@@ -291,7 +291,7 @@ void triangulateBlueprintMeshViews(conduit::Node& n_output,
 template <int DIM, typename ExecSpace>
 void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
 {
-  if(DIM != 3)
+  if constexpr(DIM != 3)
   {
     return;
   }
@@ -360,7 +360,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   auto yView = bputils::make_array_view<double>(n_y);
   // z only in 3D.
   axom::ArrayView<double> zView;
-  if(DIM == 3)
+  if constexpr(DIM == 3)
   {
     const conduit::Node& n_z = n_coords.fetch_existing("values/z");
     zView = bputils::make_array_view<double>(n_z);
@@ -372,7 +372,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   axom::for_all<ExecSpace>(numNodes, [=] AXOM_HOST_DEVICE(axom::IndexType n) {
     facetNodeCoords(nodeIndexOffset + n, 0) = xView[n];
     facetNodeCoords(nodeIndexOffset + n, 1) = yView[n];
-    if(DIM == 3)
+    if constexpr(DIM == 3)
     {
       facetNodeCoords(nodeIndexOffset + n, 2) = zView[n];
     }
