@@ -64,7 +64,7 @@ enum class MarchingCubesDataParallelism
  * that matches the trilinear interpolant. It does not implement the +/-/0 (three-label) / asymptotic-decider
  * topology of Wenger's Isosurfaces or MC33.
  *
- * @note This enum is in anticipation of the more robust case that will be added soon 
+ * @note This enum is in anticipation of the more robust case that will be added soon
  * and only applies to the new bump-based backend:
  *  - \c standard (default): use bump's default intersector + tables.
  *    This is the only policy currently implemented.
@@ -182,7 +182,7 @@ public:
   void setMaskValue(int maskVal) { m_maskVal = maskVal; }
 
   /*!
-   * @brief Select the bump::extraction::CutField backend 
+   * @brief Select the bump::extraction::CutField backend
    *   (vs. the legacy structured-only marching cubes kernel).
    * @param [in] useBump If true, isocontour extraction is delegated to bump,
    *   which additionally supports unstructured single-shape quad (2D) and hex

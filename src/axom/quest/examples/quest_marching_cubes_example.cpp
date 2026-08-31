@@ -539,7 +539,7 @@ public:
 
   /*!
    * @return largest mesh spacing.
-   *    
+   *
    * Compute only once, because after that, coordinates data may be moved to devices.
    */
   double maxSpacing() const
