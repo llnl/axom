@@ -629,6 +629,58 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
         unset(_test)
     endif()
 
+    #--------------------------------------------------------------------------
+    # Unstructured coverage for the bump backend.
+    #
+    # The axom_data meshes are structured, so they do not hit the unstructured
+    # quad and hex path that the bump backend adds. Generate a small unstructured
+    # hex mesh at test time instead of adding a binary file to the data repo.
+    #
+    # Use a CTest fixture so we build the mesh once and reuse it across policies.
+    #--------------------------------------------------------------------------
+    if(AXOM_ENABLE_TESTS AND NOT WIN32 AND Python_EXECUTABLE AND CONDUIT_PYTHON_MODULE_DIR)
+        axom_python_test_environment(_mc_py_env)
+        set(_mc_gen_mesh "${CMAKE_CURRENT_BINARY_DIR}/mc_uhex")
+
+        axom_add_test(
+            NAME    quest_marching_cubes_gen_unstructured_mesh
+            COMMAND ${Python_EXECUTABLE}
+                        ${PROJECT_SOURCE_DIR}/tools/gen-multidom-structured-mesh.py
+                        -ml 0,0,0 -mu 1,1,1 -ms 12,12,12 -dc 1,1,1
+                        --topology unstructured
+                        --field sphere --center 0.5,0.5,0.5 --radius 0.25
+                        -o ${_mc_gen_mesh}
+            NUM_MPI_TASKS 1
+            )
+        set_tests_properties(quest_marching_cubes_gen_unstructured_mesh
+            PROPERTIES FIXTURES_SETUP mc_unstructured_mesh
+                       ENVIRONMENT "${_mc_py_env}"
+                       PROCESSORS 1)
+
+        foreach(_pol ${AXOM_EXECUTION_POLICIES})
+            set(_test "quest_marching_cubes_bump_run_3D_${_pol}_unstructured_hex")
+            axom_add_test(
+                NAME    ${_test}
+                COMMAND quest_marching_cubes_ex
+                            --policy ${_pol}
+                            --useBumpBackend
+                            --mesh-file ${_mc_gen_mesh}.root
+                            --center 0.5 0.5 0.5
+                            --contourVal 0.25
+                            --blueprint-contour-file ${_test}.contour
+                NUM_MPI_TASKS 1
+                )
+            set_tests_properties(${_test}
+                PROPERTIES FIXTURES_REQUIRED mc_unstructured_mesh
+                           PROCESSORS 1
+                           PASS_REGULAR_EXPRESSION "Contour mesh has")
+        endforeach()
+
+        unset(_test)
+        unset(_mc_py_env)
+        unset(_mc_gen_mesh)
+    endif()
+
 endif()
 
 # Point in cell example -------------------------------------------------------
