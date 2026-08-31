@@ -158,12 +158,15 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
                                               weldThreshold,
                                               percentError,
                                               tmpMeshPtr,
-                                              revolvedVolume);
+                                              revolvedVolume,
+                                              axom::quest::internal::commSelf());
 #endif  // AXOM_USE_C2C
   }
   else  // DIM == 3
   {
-    rc = axom::quest::internal::read_stl_mesh(this->meshfile, tmpMeshPtr);
+    rc = axom::quest::internal::read_stl_mesh(this->meshfile,
+                                              tmpMeshPtr,
+                                              axom::quest::internal::commSelf());
   }
 
   std::shared_ptr<axom::mint::Mesh> mesh {tmpMeshPtr};
@@ -298,17 +301,12 @@ TYPED_TEST(InOutInterfaceTest, query)
 
 int main(int argc, char** argv)
 {
-#ifdef AXOM_USE_MPI
-  MPI_Init(&argc, &argv);
-#endif
   ::testing::InitGoogleTest(&argc, argv);
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
+
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
+  axom::slic::SimpleLogger logger;
 
   int result = RUN_ALL_TESTS();
-
-#ifdef AXOM_USE_MPI
-  MPI_Finalize();
-#endif
 
   return result;
 }

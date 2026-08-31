@@ -12,12 +12,12 @@ namespace bump
 {
 namespace views
 {
-MaterialInformation materials(const conduit::Node &matset)
+MaterialInformation materials(const conduit::Node& matset)
 {
   MaterialInformation info;
   if(matset.has_child("material_map"))
   {
-    const conduit::Node &mm = matset["material_map"];
+    const conduit::Node& mm = matset["material_map"];
     for(conduit::index_t i = 0; i < mm.number_of_children(); i++)
     {
       info.push_back(Material {mm[i].to_int(), mm[i].name()});

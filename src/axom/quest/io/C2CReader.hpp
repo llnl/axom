@@ -21,9 +21,7 @@
 #include <string>
 #include <vector>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /*
  * \class C2CReader
@@ -38,6 +36,7 @@ public:
   using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
   using CurveArray = axom::Array<NURBSCurve>;
   using CurveArrayView = axom::ArrayView<NURBSCurve>;
+  using ConstCurveArrayView = axom::ArrayView<const NURBSCurve>;
 
   enum class ResultType
   {
@@ -51,7 +50,7 @@ public:
   virtual ~C2CReader() = default;
 
   /// Sets the name of the contour file to load. Must be called before \a read()
-  void setFileName(const std::string &fileName) { m_fileName = fileName; }
+  void setFileName(const std::string& fileName) { m_fileName = fileName; }
 
   /// Sets the length unit. All lengths will be converted to this unit when reading the mesh
   void setLengthUnit(utilities::LengthUnit lengthUnit);
@@ -60,14 +59,14 @@ public:
   void clear();
 
   /// Returns true if the file has a recognized c2c extension.
-  static bool hasValidExtension(const std::string &filename);
+  static bool hasValidExtension(const std::string& filename);
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
    * 
    * \return 0 for a successful read; non-zero otherwise
    */
-  virtual int read();
+  [[nodiscard]] virtual int read();
 
   /// \brief Utility function to log details about the read in file
   virtual void log();
@@ -78,6 +77,7 @@ public:
    * \return A view that contains the curves.
    */
   CurveArrayView getCurvesView() { return m_nurbsData.view(); }
+  ConstCurveArrayView getCurvesView() const { return m_nurbsData.view(); }
 
 protected:
   /*!
@@ -88,7 +88,7 @@ protected:
    *
    * \return Success on success, Failure otherwise.
    */
-  ResultType readInternal(const std::string &filename, CurveArray &inputCurves);
+  [[nodiscard]] ResultType readInternal(const std::string& filename, CurveArray& inputCurves);
 
   /*!
    * \brief Internal helper for reading a contour file.
@@ -98,7 +98,7 @@ protected:
    *
    * \return Success on success, Failure otherwise.
    */
-  ResultType readContour(const std::string &filename, CurveArray &inputCurves);
+  [[nodiscard]] ResultType readContour(const std::string& filename, CurveArray& inputCurves);
 
   /*!
    * \brief Internal helper for reading an assembly file.
@@ -108,7 +108,7 @@ protected:
    *
    * \return Success on success, Failure otherwise.
    */
-  ResultType readAssembly(const std::string &filename, CurveArray &inputCurves);
+  [[nodiscard]] ResultType readAssembly(const std::string& filename, CurveArray& inputCurves);
 
 protected:
   std::string m_fileName;
@@ -116,5 +116,4 @@ protected:
   CurveArray m_nurbsData;
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

@@ -586,7 +586,7 @@ int main(int argc, char** argv)
 
   // Add mfem mesh to data collection
   dc.SetMeshNodesName("positions");
-#ifdef MFEM_USE_MPI
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   dc.SetMesh(MPI_COMM_WORLD, mesh);
 #else
   dc.SetMesh(mesh);

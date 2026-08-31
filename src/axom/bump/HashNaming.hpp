@@ -71,7 +71,7 @@ public:
      *       to some of the other shortcuts for smaller arrays.
      */
     AXOM_HOST_DEVICE
-    KeyType makeName(const IndexType *p, int n) const
+    KeyType makeName(const IndexType* p, int n) const
     {
       KeyType name {};
       if(n == 1)
@@ -125,7 +125,7 @@ public:
      * \return A name that encodes the ids.
      */
     AXOM_HOST_DEVICE
-    KeyType make_name_n(const IndexType *p, int n) const
+    KeyType make_name_n(const IndexType* p, int n) const
     {
       KeyType retval {};
       if(n == 3 && m_maxId <= Max20Bit)
@@ -171,9 +171,9 @@ public:
         axom::utilities::Sorting<std::uint16_t, MAXIDS>::sort(sorted, n);
 
         // Make a hash from the narrowed ids
-        void *ptr = static_cast<void *>(sorted);
+        void* ptr = static_cast<void*>(sorted);
         KeyType k0 =
-          axom::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr), n * sizeof(std::uint16_t));
+          axom::utilities::hash_bytes(static_cast<std::uint8_t*>(ptr), n * sizeof(std::uint16_t));
         retval = KeyIDHash | (k0 & PayloadMask);
       }
       else if(m_maxId < Max32Bit)
@@ -187,9 +187,9 @@ public:
         axom::utilities::Sorting<std::uint32_t, MAXIDS>::sort(sorted, n);
 
         // Make a hash from the narrowed ids
-        void *ptr = static_cast<void *>(sorted);
+        void* ptr = static_cast<void*>(sorted);
         KeyType k0 =
-          axom::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr), n * sizeof(std::uint32_t));
+          axom::utilities::hash_bytes(static_cast<std::uint8_t*>(ptr), n * sizeof(std::uint32_t));
         retval = KeyIDHash | (k0 & PayloadMask);
       }
       else if(n > 0)
@@ -202,9 +202,9 @@ public:
         axom::utilities::Sorting<IndexType, MAXIDS>::sort(sorted, n);
 
         // Make a hash from the ids
-        void *ptr = static_cast<void *>(sorted);
+        void* ptr = static_cast<void*>(sorted);
         KeyType k0 =
-          axom::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr), n * sizeof(IndexType));
+          axom::utilities::hash_bytes(static_cast<std::uint8_t*>(ptr), n * sizeof(IndexType));
         retval = KeyIDHash | (k0 & PayloadMask);
       }
       return retval;
@@ -216,7 +216,7 @@ public:
   // Host-callable methods
 
   /// Make a name from the array of ids.
-  KeyType makeName(const IndexType *p, int n) const { return m_view.makeName(p, n); }
+  KeyType makeName(const IndexType* p, int n) const { return m_view.makeName(p, n); }
 
   /*!
    * \brief Set the max number of nodes, which can help with id packing/narrowing.

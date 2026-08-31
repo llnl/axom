@@ -66,7 +66,7 @@ int installAllocator([[maybe_unused]] size_t initialPoolSizeBytes)
 {
   int allocator_id = axom::execution_space<ExecSpace>::allocatorID();
 #if defined(AXOM_USE_UMPIRE)
-  auto &rm = umpire::ResourceManager::getInstance();
+  auto& rm = umpire::ResourceManager::getInstance();
   umpire::Allocator allocator = rm.getAllocator(allocator_id);
 
   const std::string newName = allocator.getName() + "_POOL";
@@ -89,7 +89,7 @@ int installAllocator([[maybe_unused]] size_t initialPoolSizeBytes)
 
 //--------------------------------------------------------------------------------
 template <typename ExecSpace, int NDIMS>
-int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
+int runMIR(const conduit::Node& hostMesh, const conduit::Node& options, conduit::Node& hostResult)
 {
   AXOM_ANNOTATE_SCOPE("runMIR");
 
@@ -141,9 +141,9 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     utils::copy<ExecSpace>(deviceMesh, hostMesh, allocator_id);
   }
 
-  const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-  const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
-  const conduit::Node &n_matset = deviceMesh["matsets/mat"];
+  const conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+  const conduit::Node& n_topology = deviceMesh["topologies/mesh"];
+  const conduit::Node& n_matset = deviceMesh["matsets/mat"];
   conduit::Node deviceResult;
   for(int trial = 0; trial < trials; trial++)
   {
@@ -210,7 +210,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 #if defined(AXOM_USE_UMPIRE)
     try
     {
-      auto &rm = umpire::ResourceManager::getInstance();
+      auto& rm = umpire::ResourceManager::getInstance();
       umpire::Allocator allocator = rm.getAllocator(allocator_id);
       SLIC_INFO("Allocator Information:");
       SLIC_INFO(axom::fmt::format("\tname: {}", allocator.getName()));
@@ -231,18 +231,18 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
 // Prototypes.
 int runMIR_seq(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result);
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result);
 int runMIR_omp(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result);
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result);
 int runMIR_cuda(int dimension,
-                const conduit::Node &mesh,
-                const conduit::Node &options,
-                conduit::Node &result);
+                const conduit::Node& mesh,
+                const conduit::Node& options,
+                conduit::Node& result);
 int runMIR_hip(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result);
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result);

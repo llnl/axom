@@ -204,7 +204,7 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
   }
 
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> triMesh(3, mint::TRIANGLE);
-  stepReader.getTriangleMesh(&triMesh, deflection);
+  ASSERT_EQ(0, stepReader.getTriangleMesh(&triMesh, deflection));
 
   MiniTriangleGWN3D triEval;
   triEval.preprocess(triMesh);

@@ -34,13 +34,13 @@ namespace quest = axom::quest;
 namespace testing
 {
 
-void writeArray(const axom::Array<double> &vec, const std::string &var_name = "v")
+void writeArray(const axom::Array<double>& vec, const std::string& var_name = "v")
 {
   axom::fmt::print("axom::Array<double> {} = {{{}}};\n", var_name, axom::fmt::join(vec, ", "));
 }
 
 /// Convert mesh coordinates into arrays that can be easily compared.
-void getCoordinates(const mint::Mesh &mesh, axom::Array<double> &xc, axom::Array<double> &yc)
+void getCoordinates(const mint::Mesh& mesh, axom::Array<double>& xc, axom::Array<double>& yc)
 {
   for(axom::IndexType cellId = 0; cellId < mesh.getNumberOfCells(); cellId++)
   {
@@ -57,10 +57,10 @@ void getCoordinates(const mint::Mesh &mesh, axom::Array<double> &xc, axom::Array
 }
 
 /// Convert mesh coordinates into arrays that can be easily compared.
-void getCoordinates(const mint::Mesh &mesh,
-                    axom::Array<double> &xc,
-                    axom::Array<double> &yc,
-                    axom::Array<double> &zc)
+void getCoordinates(const mint::Mesh& mesh,
+                    axom::Array<double>& xc,
+                    axom::Array<double>& yc,
+                    axom::Array<double>& zc)
 {
   for(axom::IndexType cellId = 0; cellId < mesh.getNumberOfCells(); cellId++)
   {
@@ -77,7 +77,7 @@ void getCoordinates(const mint::Mesh &mesh,
   }
 }
 
-bool compareArrays(const axom::Array<double> &A, const axom::Array<double> &B, double tolerance = 1.e-8)
+bool compareArrays(const axom::Array<double>& A, const axom::Array<double>& B, double tolerance = 1.e-8)
 {
   bool eq = A.size() == B.size();
   if(eq)
@@ -112,7 +112,7 @@ struct Test2D
                                  1.5, 1.5, 2,   1.5, 2,   2,   1.5, 1.5, 2,   1.5, 2,   2}};
   }
 
-  void test(const mint::Mesh &mesh, const std::string &filename, bool binary)
+  void test(const mint::Mesh& mesh, const std::string& filename, bool binary)
   {
     // Write STL file.
     int result = axom::quest::write_stl(&mesh, filename, binary);
@@ -187,7 +187,7 @@ struct Test3D
        2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}};
   }
 
-  void test(const mint::Mesh &mesh, const std::string &filename, bool binary)
+  void test(const mint::Mesh& mesh, const std::string& filename, bool binary)
   {
     // Write STL file.
     int result = axom::quest::write_stl(&mesh, filename, binary);
@@ -291,7 +291,7 @@ TEST(quest_stl_writer, rectilinear2d)
   const double y[] = {1., 1.5, 2.};
   constexpr axom::IndexType NI = 3;
   constexpr axom::IndexType NJ = 3;
-  mint::RectilinearMesh mesh(NI, const_cast<double *>(x), NJ, const_cast<double *>(y));
+  mint::RectilinearMesh mesh(NI, const_cast<double*>(x), NJ, const_cast<double*>(y));
 
   testing::Test2D tester;
   tester.test(mesh, "rectilinear2d.stl", false);
@@ -305,7 +305,7 @@ TEST(quest_stl_writer, curvilinear2d)
   const double y[] = {1., 1., 1., 1.5, 1.5, 1.5, 2., 2., 2.};
   constexpr axom::IndexType NI = 3;
   constexpr axom::IndexType NJ = 3;
-  mint::CurvilinearMesh mesh(NI, const_cast<double *>(x), NJ, const_cast<double *>(y));
+  mint::CurvilinearMesh mesh(NI, const_cast<double*>(x), NJ, const_cast<double*>(y));
 
   testing::Test2D tester;
   tester.test(mesh, "curvilinear2d.stl", false);
@@ -324,11 +324,11 @@ TEST(quest_stl_writer, unstructured2d)
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::CellType::TRIANGLE,
                                                   numTriangles,  // ncells
                                                   numTriangles,  // cell_capacity
-                                                  const_cast<axom::IndexType *>(conn),
+                                                  const_cast<axom::IndexType*>(conn),
                                                   nnodes,  // nnodes
                                                   nnodes,  // node_capacity
-                                                  const_cast<double *>(x),
-                                                  const_cast<double *>(y));
+                                                  const_cast<double*>(x),
+                                                  const_cast<double*>(y));
 
   testing::Test2D tester;
   tester.test(mesh, "unstructured2d.stl", false);
@@ -360,11 +360,11 @@ TEST(quest_stl_writer, rectilinear3d)
   constexpr axom::IndexType NJ = 3;
   constexpr axom::IndexType NK = 2;
   mint::RectilinearMesh mesh(NI,
-                             const_cast<double *>(x),
+                             const_cast<double*>(x),
                              NJ,
-                             const_cast<double *>(y),
+                             const_cast<double*>(y),
                              NK,
-                             const_cast<double *>(z));
+                             const_cast<double*>(z));
 
   testing::Test3D tester;
   tester.test(mesh, "rectilinear3d.stl", false);
@@ -381,11 +381,11 @@ TEST(quest_stl_writer, curvilinear3d)
   constexpr axom::IndexType NJ = 3;
   constexpr axom::IndexType NK = 2;
   mint::CurvilinearMesh mesh(NI,
-                             const_cast<double *>(x),
+                             const_cast<double*>(x),
                              NJ,
-                             const_cast<double *>(y),
+                             const_cast<double*>(y),
                              NK,
-                             const_cast<double *>(z));
+                             const_cast<double*>(z));
 
   testing::Test3D tester;
   tester.test(mesh, "curvilinear3d.stl", false);
@@ -412,12 +412,12 @@ TEST(quest_stl_writer, unstructured3d)
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::CellType::HEX,
                                                   ncells,  // ncells
                                                   ncells,  // cell_capacity
-                                                  const_cast<axom::IndexType *>(conn),
+                                                  const_cast<axom::IndexType*>(conn),
                                                   nnodes,  // nnodes
                                                   nnodes,  // node_capacity
-                                                  const_cast<double *>(x),
-                                                  const_cast<double *>(y),
-                                                  const_cast<double *>(z));
+                                                  const_cast<double*>(x),
+                                                  const_cast<double*>(y),
+                                                  const_cast<double*>(z));
   mesh.initializeFaceConnectivity();
 
   testing::Test3DUns tester;
@@ -426,7 +426,7 @@ TEST(quest_stl_writer, unstructured3d)
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

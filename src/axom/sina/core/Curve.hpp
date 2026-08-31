@@ -47,7 +47,7 @@ public:
      * \param values the curve's values
      * \param numValues the number of values.
      */
-  Curve(std::string name, double const *values, std::size_t numValues);
+  Curve(std::string name, double const* values, std::size_t numValues);
 
   /**
      * \brief Create a Curve by deserializing a conduit node.
@@ -55,21 +55,21 @@ public:
      * \param name the name of the curve
      * \param curveAsNode the serialized version of a curve
      */
-  Curve(std::string name, conduit::Node const &curveAsNode);
+  Curve(std::string name, conduit::Node const& curveAsNode);
 
   /**
      * \brief Get the curve's name.
      *
      * \return the curve's name
      */
-  std::string const &getName() const { return name; }
+  std::string const& getName() const { return name; }
 
   /**
      * \brief Get the values of the curve.
      *
      * \return the curve's values
      */
-  std::vector<double> const &getValues() const { return values; }
+  std::vector<double> const& getValues() const { return values; }
 
   /**
      * \brief Set the units of the values.
@@ -83,7 +83,7 @@ public:
      *
      * \return the value's units
      */
-  std::string const &getUnits() const { return units; }
+  std::string const& getUnits() const { return units; }
 
   /**
      * \brief Set the tags for this curve.
@@ -97,7 +97,7 @@ public:
      *
      * \return the curve's tags
      */
-  std::vector<std::string> const &getTags() const { return tags; }
+  std::vector<std::string> const& getTags() const { return tags; }
 
   /**
      * \brief Convert this curve to a Conduit node.

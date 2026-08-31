@@ -6,9 +6,9 @@
 #include "runMIR.hpp"
 
 int runMIR_seq(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result)
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result)
 {
   int retval = 0;
   if(dimension == 3)

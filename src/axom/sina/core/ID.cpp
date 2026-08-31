@@ -39,9 +39,9 @@ namespace
  * @param globalName the global variant of the ID field
  * @return the ID from the object
  */
-ID extractIDFromObject(conduit::Node const &parentObject,
-                       std::string const &localName,
-                       std::string const &globalName)
+ID extractIDFromObject(conduit::Node const& parentObject,
+                       std::string const& localName,
+                       std::string const& globalName)
 {
   if(parentObject.has_child(globalName))
   {
@@ -63,16 +63,16 @@ IDField::IDField(ID value_, std::string localName_, std::string globalName_)
   , globalName {std::move(globalName_)}
 { }
 
-IDField::IDField(conduit::Node const &parentObject, std::string localName_, std::string globalName_)
+IDField::IDField(conduit::Node const& parentObject, std::string localName_, std::string globalName_)
   : value(extractIDFromObject(parentObject, localName_, globalName_))
 {
   std::swap(localName, localName_);
   std::swap(globalName, globalName_);
 }
 
-void IDField::addTo(conduit::Node &object) const
+void IDField::addTo(conduit::Node& object) const
 {
-  auto &key = value.getType() == IDType::Global ? globalName : localName;
+  auto& key = value.getType() == IDType::Global ? globalName : localName;
   object[key] = value.getId();
 }
 

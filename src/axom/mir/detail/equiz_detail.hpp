@@ -66,7 +66,7 @@ public:
      */
     AXOM_HOST_DEVICE
     axom::IndexType determineTableCase(axom::IndexType zoneIndex,
-                                       const ConnectivityView &nodeIdsView) const
+                                       const ConnectivityView& nodeIdsView) const
     {
       // Determine the matvf view index for the material that owns the zone.
       int backgroundIndex = INVALID_INDEX;
@@ -152,19 +152,19 @@ public:
 
     /// Helper initialization methods for the host.
 
-    void addMaterial(const MaterialVFView &matvf) { m_matvfViews.push_back(matvf); }
+    void addMaterial(const MaterialVFView& matvf) { m_matvfViews.push_back(matvf); }
 
-    void setMaterialNumbers(const axom::ArrayView<int> &matNumbersView)
+    void setMaterialNumbers(const axom::ArrayView<int>& matNumbersView)
     {
       m_matNumbersView = matNumbersView;
     }
 
-    void setMaterialIndices(const axom::ArrayView<int> &matIndicesView)
+    void setMaterialIndices(const axom::ArrayView<int>& matIndicesView)
     {
       m_matIndicesView = matIndicesView;
     }
 
-    void setZoneMaterialID(const axom::ArrayView<int> &zoneMatsView)
+    void setZoneMaterialID(const axom::ArrayView<int>& zoneMatsView)
     {
       m_zoneMatNumberView = zoneMatsView;
     }
@@ -188,12 +188,12 @@ public:
    * \param n_options The node that contains the options.
    * \param n_fields The node that contains fields.
    */
-  void initialize(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                  const CoordsetView &AXOM_UNUSED_PARAM(coordsetView),
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_options),
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_fields))
+  void initialize(const TopologyView& AXOM_UNUSED_PARAM(topologyView),
+                  const CoordsetView& AXOM_UNUSED_PARAM(coordsetView),
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_options),
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_topology),
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_coordset),
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_fields))
   { }
 
   /*!
@@ -202,27 +202,27 @@ public:
    * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input),
-                              const conduit::Node &n_options) const
+  std::string getTopologyName(const conduit::Node& AXOM_UNUSED_PARAM(n_input),
+                              const conduit::Node& n_options) const
   {
     return n_options["topology"].as_string();
   }
 
   /// Set various attributes.
 
-  void addMaterial(const MaterialVFView &matvf) { m_view.addMaterial(matvf); }
+  void addMaterial(const MaterialVFView& matvf) { m_view.addMaterial(matvf); }
 
-  void setMaterialNumbers(const axom::ArrayView<int> &matNumbers)
+  void setMaterialNumbers(const axom::ArrayView<int>& matNumbers)
   {
     m_view.setMaterialNumbers(matNumbers);
   }
 
-  void setMaterialIndices(const axom::ArrayView<int> &matIndices)
+  void setMaterialIndices(const axom::ArrayView<int>& matIndices)
   {
     m_view.setMaterialIndices(matIndices);
   }
 
-  void setZoneMaterialID(const axom::ArrayView<int> &zoneMatsView)
+  void setZoneMaterialID(const axom::ArrayView<int>& zoneMatsView)
   {
     m_view.setZoneMaterialID(zoneMatsView);
   }
