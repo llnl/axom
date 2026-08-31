@@ -22,7 +22,7 @@
  *    We run it once per domain in computeFacets();
  *    markCrossings()/scanCrossings() do the cheap bookkeeping the parent MarchingCubes orchestration expects.
  *  - The phased ImplBase interface (mark/scan/compute) was designed around the legacy kernel.
- *    bump does everything in one execute() call, so we run the extractor lazily and cache its result, 
+ *    bump does everything in one execute() call, so we run the extractor lazily and cache its result,
  *    then satisfy the count queries from the cached result.
  *  - bump produces a welded, topologically-connected surface (blend-group uniquification).
  *    The 3D output may be polygonal (tri/quad/poly5..8), and the 2D output is line segments.
@@ -368,8 +368,8 @@ public:
    *
    * The parent MarchingCubes allocates the shared output buffers after the scan phase
    * (it needs per-domain counts to size them) and before the compute phase.
-   * 
-   * bump cannot give us a count without doing the full extraction, so we perform extraction here and cache the result. 
+   *
+   * bump cannot give us a count without doing the full extraction, so we perform extraction here and cache the result.
    * The count then becomes available to the parent, and computeFacets() copies cached data into the buffers the parent allocated.
    */
   void scanCrossings() override
@@ -834,7 +834,7 @@ private:
       /*
         Iterate the logical index space directly rather than deriving it from a flat zone index.
 
-        topoMap.toMultiIndex(zoneIndex) costs DIM integer divisions per zone, 
+        topoMap.toMultiIndex(zoneIndex) costs DIM integer divisions per zone,
         and this loop runs over EVERY zone, not just crossing ones.
         Nested loops make the flat index incremental and the divisions disappear.
 

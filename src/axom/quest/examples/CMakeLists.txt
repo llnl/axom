@@ -634,7 +634,7 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
     # generated via:
     # src/tools/gen-multidom-mesh.py                                             \
     #         -ml 0,0,0 -mu 1,1,1 -ms 12,12,12 -dc 1,1,1 --topology unstructured \
-    #         --field sphere --center 0.5,0.5,0.5 --radius 0.25 --protocol hdf5 
+    #         --field sphere --center 0.5,0.5,0.5 --radius 0.25 --protocol hdf5
     #--------------------------------------------------------------------------
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32 AND HDF5_FOUND)
         set(_mc_unstructured_mesh "${quest_data_dir}/mc_uhex.root")
