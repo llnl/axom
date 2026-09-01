@@ -79,6 +79,16 @@ for a debug build **must** be guarded using the `AXOM_DEBUG` macro::
       // rest of method implementation
    }
 
+The ``AXOM_DEBUG_DEFINE`` CMake setting controls when ``AXOM_DEBUG`` is
+defined. Its supported values are:
+
+* ``DEFAULT``: define it for ``Debug`` and ``RelWithDebInfo`` configurations.
+* ``ON``: define it for every configuration.
+* ``OFF``: do not define it in any configuration.
+
+Thus, ``AXOM_DEBUG`` normally follows the build configuration, but
+``AXOM_DEBUG_DEFINE`` can explicitly override that behavior.
+
 Axom provides various other macro constants for conditionally-compiled code 
 which reflect which built-in and third-party libraries are being used and 
 which Axom components are enabled. The macro constants are defined in the 
@@ -131,29 +141,32 @@ problematic usage. Here's an example of common *SLIC* macro usage in AXOM::
      return bar;
    }
 
-This example uses slic macros that are only active when the code is compiled
-in debug mode. When compiled in release mode, for example, the macros are 
-empty and so do nothing. Also, when a condition is encountered that is 
-problematic, such as 'in_val < 0' or 'in_foo == nullptr', the code will
+This example uses Slic macros that are active when ``AXOM_DEBUG_DEFINE``
+enables ``AXOM_DEBUG`` or when Axom is configured with
+``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON``. Otherwise, the macros are empty and do
+nothing. When a condition is encountered that is problematic, such as
+'in_val < 0' or 'in_foo == nullptr', the code will
 emit the condition and an optional message and not halt. This allows calling
 code to catch the issue (in this case a null return value) and react. There
 are other macros (e.g., SLIC_ASSERT) that will halt the code if that is 
 desired.
 
-Slic macros operate in one of two compilation-defined modes. Some macros are 
-active only in for a debug compile. Others are active for any build type.
+Slic macros operate in one of two compilation-defined modes. Some macros are
+controlled by the debug-macro settings described above. Others are active for
+any build type.
 Macros provided for each of these modes can be used to halt the code or not 
 after describing the condition that triggered them. The following table
 summarizes the SLIC macros.
 
-============== ================ ====================
-  Macro type     When active?     Halts code?
-============== ================ ====================
-  ERROR          Always           Yes
-  WARNING        Always           No
-  ASSERT         Debug only       Yes
-  CHECK          Debug only       No
-============== ================ ====================
+============== ========================================== ====================
+  Macro type     When active?                               Halts code?
+============== ========================================== ====================
+  ERROR          Always                                     Yes
+  WARNING        Always                                     No
+  ASSERT         When Slic debug macros are enabled         Yes
+  CHECK          When Slic debug macros are enabled         No
+  DEBUG          When Slic debug macros are enabled         No
+============== ========================================== ====================
 
 Typically, we use macros ERROR/WARNING macros rarely. They are used primarily
 to catch cases that are obvious programming errors or would put an application 
@@ -161,7 +174,7 @@ in a state where continuing is seriously in doubt. CHECK macros are used most
 often, since they provide useful debugging information and do not halt the 
 code -- they allow users to catch cases from which they can recover. ASSERT
 macros are used in cases where halting the code is desired, but only in 
-debug mode.
+builds where Slic debug macros are enabled.
 
 Please see the `slic.hpp` header file to see which macros are available and 
 how to use them. 
@@ -170,4 +183,3 @@ how to use them.
                benefit users and other developers. We want to help folks use 
                our software correctly and not "spam" them with too much 
                information.
-
