@@ -372,6 +372,8 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   axom::for_all<ExecSpace>(numNodes, [=] AXOM_HOST_DEVICE(axom::IndexType n) {
     facetNodeCoords(nodeIndexOffset + n, 0) = xView[n];
     facetNodeCoords(nodeIndexOffset + n, 1) = yView[n];
+    // Avoid first-capture in constexpr-if context error
+    (void)zView;
     if constexpr(DIM == 3)
     {
       facetNodeCoords(nodeIndexOffset + n, 2) = zView[n];
