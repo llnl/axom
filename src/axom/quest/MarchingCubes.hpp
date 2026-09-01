@@ -28,32 +28,55 @@
   // C++ includes
   #include <string>
 
-namespace axom
+namespace axom::quest
 {
-namespace quest
-{
-namespace detail
-{
-namespace marching_cubes
+namespace detail::marching_cubes
 {
 class MarchingCubesSingleDomain;
-}  // namespace marching_cubes
-}  // namespace detail
+}  // namespace detail::marching_cubes
 
 /*!
- * @brief Enum for implementation.
+ * @brief Enum for the legacy marching cubes data-parallel implementation.
  *
- * Partial parallel implementation uses a non-parallizable loop and
- * processes less data.  It has been shown to work well on CPUs.
- * Full parallel implementation processes more data, but parallelizes
- * fully and has been shown to work well on GPUs.  byPolicy chooses
- * based on runtime policy.
+ * Partial parallel implementation uses a non-parallizable loop and processes less data.
+ * It has been shown to work well on CPUs. Full parallel implementation processes more data,
+ * but parallelizes fully and has been shown to work well on GPUs.
+ * byPolicy chooses based on runtime policy.
+ *
+ * @note This setting controls only the legacy structured-mesh backend. When MarchingCubes is configured
+ *   to use the bump backend, bump manages its own internal parallelism.
  */
 enum class MarchingCubesDataParallelism
 {
   byPolicy = 0,
   hybridParallel = 1,
   fullParallel = 2
+};
+
+/*!
+ * @brief Enum selecting the isosurface case-table / intersector robustness used by the bump backend
+ *
+ * The bump backend determines per-cell topology with an intersector policy plus VisIt-derived cut tables.
+ * The default intersector (\c axom::bump::extraction::FieldIntersector) classifies cell corners
+ * with a strict two-label test (corner value > isovalue), evaluates edge crossings in single precision
+ * and uses a single fixed triangulation per case. Like the classic 1987 marching-cubes tables,
+ * this resolves ambiguous (saddle) configurations consistently but not necessarily in a way
+ * that matches the trilinear interpolant. It does not implement the +/-/0 (three-label) / asymptotic-decider
+ * topology of Wenger's Isosurfaces or MC33.
+ *
+ * @note This enum is in anticipation of the more robust case that will be added soon
+ * and only applies to the new bump-based backend:
+ *  - \c standard (default): use bump's default intersector + tables.
+ *    This is the only policy currently implemented.
+ *  - \c robust: request a topologically-robust intersector/table set (double precision, +/-/0 aware).
+ *    When bump provides such a policy it will be selected here with no further change to quest;
+ *    until then, selecting \c robust behaves identically to \c standard (and may emit a one-time
+ *    informational note), so callers can opt in now and benefit automatically once the robust policy lands.
+ */
+enum class MarchingCubesRobustnessPolicy
+{
+  standard = 0,
+  robust = 1
 };
 
 /*!
@@ -67,8 +90,8 @@ enum class MarchingCubesDataParallelism
  *
  * Implementation is for 2D (marching squares) and 3D (marching cubes).
  *
- * The input mesh is a Conduit::Node following the Mesh Blueprint
- * convention.  The mesh must be in multi-domain format.
+ * The input mesh is a Conduit::Node following the Mesh Blueprint convention.
+ * The mesh must be in multi-domain format.
  *
  * Usage example:
  * @verbatim
@@ -89,20 +112,19 @@ enum class MarchingCubesDataParallelism
  *   }
  * @endverbatim
  *
- * To avoid confusion between the two meshes, we refer to the input
- * mesh with the scalar function as "parent" and the generated mesh
- * as the "contour".
+ * To avoid confusion between the two meshes, we refer to the input mesh with the scalar function
+ * as "parent" and the generated mesh as the "contour".
  *
- * The output contour mesh format can be a mint::UnstructuredMesh or
- * Array data.  IDs of parent cell and domain that generated the
- * individual contour facets are provided.  Blueprint allows users to
- * specify ids for the domains.  If "state/domain_id" exists in the
- * domains, it is used as the domain id.  Otherwise, the domain's
- * iteration index within the multidomain mesh is used.
+ * The output contour mesh format can be a mint::UnstructuredMesh or Array data.
+ * IDs of parent cell and domain that generated the individual contour facets are provided.
+ * Blueprint allows users to specify ids for the domains.
+ *
+ * If "state/domain_id" exists in the domains, it is used as the domain id.
+ * Otherwise, the domain's iteration index within the multidomain mesh is used.
  *
  * Output arrays use the allocator id specified in the constructor.
- * However, the output mint mesh currently uses host data.  The data
- * output interfaces are interim and subject to change)
+ * However, the output mint mesh currently uses host data.
+ * The data output interfaces are interim and subject to change)
  */
 class MarchingCubes
 {
@@ -110,15 +132,16 @@ public:
   using RuntimePolicy = axom::runtime_policy::Policy;
   using DomainIdType = axom::IndexType;
   /*!
-   * @brief Constructor sets up runtime preferences for the marching
-   * cubes implementation.
+   * @brief Constructor sets up runtime preferences for the marching cubes implementation.
    *
    * @param [in] runtimePolicy A value from RuntimePolicy.
    *             The simplest policy is RuntimePolicy::seq, which specifies
    *             running sequentially on the CPU.
    * @param [in] allocatorID Data allocator ID.  Choose something compatible
    *             with \c runtimePolicy.  See \c execution_space.
-   * @param [in] dataParallelism Data parallel implementation choice.
+   * @param [in] dataParallelism Data parallel implementation choice for the legacy backend.
+   *             The bump backend accepts but ignores this setting because
+   *             bump manages its own internal parallelism.
   */
   MarchingCubes(RuntimePolicy runtimePolicy,
                 int allocatorId,
@@ -126,7 +149,7 @@ public:
 
   /*!
    * @brief Set the input mesh.
-   * @param [in] bpMesh Blueprint multi-domain mesh containing scalar field.
+   * @param [in] bpMesh Blueprint single-domain or multi-domain mesh containing scalar field.
    * @param [in] topologyName Name of Blueprint topology to use in \a bpMesh.
    * @param [in] maskField Cell-based std::int32_t mask field.  If provided,
    *             cells where this field evaluates to false are skipped.
@@ -135,8 +158,8 @@ public:
    * environment specified in the constructor.  It's an error if not,
    * e.g., using CPU memory with a GPU policy.
    * 
-   * Some metadata from \a bpMesh may be cached.  Any change to it
-   * after setMesh() leads to undefined behavior.
+   * Some metadata from \a bpMesh may be cached.
+   * Any change to it after setMesh() leads to undefined behavior.
   */
   void setMesh(const conduit::Node& bpMesh,
                const std::string& topologyName,
@@ -150,13 +173,45 @@ public:
 
   /*!
    * @brief Set the mask value.
-   * @param [in] maskVal mask value.  If a mask field is given in
-   *   setMesh(), compute only for cells whose mask matches this value.
+   * @param [in] maskVal mask value.  If a mask field is given in setMesh(),
+   *             compute only for cells whose mask matches this value.
    *
    * The default vask value is 1 unless explicitly set by this method.
    * The mask value has no effect if a mask field is not specified.
   */
   void setMaskValue(int maskVal) { m_maskVal = maskVal; }
+
+  /*!
+   * @brief Select the bump::extraction::CutField backend
+   *   (vs. the legacy structured-only marching cubes kernel).
+   * @param [in] useBump If true, isocontour extraction is delegated to bump,
+   *   which additionally supports unstructured single-shape quad (2D) and hex
+   *   (3D) meshes.  If false (default), the legacy kernel is used.
+   *
+   * Only available when Axom is configured with the bump component (AXOM_USE_BUMP).
+   * Requesting the bump backend without bump is an error.
+   * The legacy backend supports only structured input.
+   *
+   * @note The MarchingCubesDataParallelism constructor argument is a legacy
+   * backend scan-strategy selector.  The bump backend ignores it and relies on
+   * bump's internal parallelism for the selected runtime policy.
+   *
+   * @note This is transitional: while the bump backend matures it is opt-in so
+   * existing users are unaffected.  A future release is expected to make it the
+   * default and retire the legacy kernel and its lookup tables.
+  */
+  void setUseBumpBackend(bool useBump);
+
+  /*!
+   * @brief Select the isosurface robustness policy for the bump backend.
+   * @param [in] policy A value from MarchingCubesRobustnessPolicy.
+   *
+   * See MarchingCubesRobustnessPolicy for the meaning of each value.  The
+   * default is MarchingCubesRobustnessPolicy::standard.  Has no effect on the
+   * legacy backend, and selecting \c robust currently behaves as \c standard
+   * until a robust bump intersector is available.
+  */
+  void setRobustnessPolicy(MarchingCubesRobustnessPolicy policy) { m_robustnessPolicy = policy; }
 
   /*!
    * @brief Computes the isocontour.
@@ -179,13 +234,12 @@ public:
   /*!
    * @brief Put generated contour in a mint::UnstructuredMesh.
    * @param mesh Output contour mesh
-   * @param cellIdField Name of field to store the array of
-   *   parent cells ids, numbered in the row- or column-major
-   *   ordering of the nodal scalar function.
-   *   If empty, the data is not provided.
-   * @param domainIdField Name of field to store the
-   *   parent domain ids.  The type of this data is \c DomainIdType.
-   *   If omitted, the data is not provided.
+   * @param cellIdField Name of field to store the array of parent cells ids,
+            numbered in the row- or column-major ordering of the nodal scalar function.
+   *        If empty, the data is not provided.
+   * @param domainIdField Name of field to store the parent domain ids.
+   *        The type of this data is \c DomainIdType.
+   *        If omitted, the data is not provided.
    *
    *  If the fields aren't in the mesh, they will be created.
    *
@@ -193,10 +247,30 @@ public:
    *  regardless of the allocator ID, this method always deep-copies
    *  data to host memory.  To access the data without deep-copying, see
    *  the other output methods in this name group.
+   *
+   *  When the bump backend is enabled, its native 3D CutField output may contain polygonal surface elements.
+   *  The adaptor triangulates those polygons (reusing bump's welded vertex coordinates).
   */
   void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
                            const std::string& cellIdField = {},
                            const std::string& domainIdField = {}) const;
+
+  /*!
+   * @brief Copy the richer bump-backed contour mesh into a Blueprint multi-domain mesh.
+   * @param [out] bpMesh Output Blueprint multi-domain mesh.
+   * @param triangulate If true, convert 3D polygonal surface elements into triangles
+   *        while preserving bump's welded coordset.
+   *
+   * This accessor is available only for contours computed with the bump backend.
+   * It preserves bump's native welded representation: line segments in 2D
+   * and polygonal surface elements in 3D with Blueprint elements/{connectivity,sizes,offsets}.
+   * When \a triangulate is true, 3D polygonal faces are triangulated in the returned Blueprint mesh.
+   *
+   * Array data in \a bpMesh is copied into the same memory space used by the MarchingCubes object.
+   * If the contour was computed with a device policy, callers that need host-readable Blueprint data
+   * should copy it to host.
+  */
+  void populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate = false) const;
 
   /*!
    * @brief Return view of facet corner node indices (connectivity) Array.
@@ -274,6 +348,17 @@ public:
     facetParentIds.swap(m_facetParentIds);
     facetDomainIds.swap(m_facetDomainIds);
   }
+
+  /*!
+   * @brief Give caller possession of the richer bump-backed Blueprint contour.
+   * @param [out] bpMesh Output Blueprint multi-domain mesh.
+   *
+   * This moves the cached bump output nodes without deep-copying them.
+   * It is available only for contours computed with the bump backend
+   * and leaves this MarchingCubes object with no accessible contour output,
+   * as though clearOutput() had been called.
+  */
+  void relinquishContourDataBlueprint(conduit::Node& bpMesh);
   ///@}
 
   //! @brief Clear the computed contour mesh.
@@ -292,14 +377,18 @@ public:
   using CrossingFlagType = std::uint32_t;
 
 private:
-  RuntimePolicy m_runtimePolicy;
-  int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
+  //! @brief Allocate output buffers corresponding to runtime policy.
+  void allocateOutputBuffers();
 
-  //! @brief Choice of full or partial data-parallelism, or byPolicy.
-  MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
+private:
+  RuntimePolicy m_runtimePolicy;
+  int m_allocatorID {axom::INVALID_ALLOCATOR_ID};
+
+  //! @brief Legacy backend data-parallel scan strategy, or byPolicy.
+  MarchingCubesDataParallelism m_dataParallelism {MarchingCubesDataParallelism::byPolicy};
 
   //! @brief Number of domains.
-  axom::IndexType m_domainCount;
+  axom::IndexType m_domainCount {0};
 
   /*!
    * @brief Single-domain implementations.
@@ -307,13 +396,28 @@ private:
    * May be longer than m_domainCount (the real count).
   */
   axom::Array<std::shared_ptr<detail::marching_cubes::MarchingCubesSingleDomain>> m_singles;
+
+  /*!
+   * @brief Wrapper used when callers pass a single-domain Blueprint mesh.
+   *
+   * MarchingCubesSingleDomain caches references into the per-domain node, so
+   * the synthetic multi-domain parent must outlive setMesh().
+  */
+  conduit::Node m_singleDomainMesh;
+
   std::string m_topologyName;
   std::string m_fcnFieldName;
   std::string m_fcnPath;
   std::string m_maskFieldName;
   std::string m_maskPath;
 
-  int m_maskVal = 1;
+  int m_maskVal {1};
+
+  //! @brief Whether to use the bump CutField backend (opt-in; default legacy).
+  bool m_useBumpBackend {false};
+
+  //! @brief Isosurface robustness policy for the bump backend (Phase 6 seam).
+  MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   //! @brief First facet index from each parent domain.
   axom::Array<axom::IndexType> m_facetIndexOffsets;
@@ -333,6 +437,9 @@ private:
 
   ///@{
   //!@name Generated contour mesh, shared with singles.
+
+  axom::IndexType m_nodeCount {0};
+
   /*!
    * @brief Corners (index into m_facetNodeCoords) of generated facets.
    * @see allocateOutputBuffers().
@@ -345,6 +452,8 @@ private:
   */
   axom::Array<double, 2> m_facetNodeCoords;
 
+  axom::Array<axom::IndexType> m_nodeIndexOffsets;
+
   /*!
    * @brief Flat index of parent cell of facets.
    * @see allocateOutputBuffers().
@@ -354,12 +463,8 @@ private:
   /// @brief Domain ids of facets
   axom::Array<IndexType, 1> m_facetDomainIds;
   ///@}
-
-  //! @brief Allocate output buffers corresponding to runtime policy.
-  void allocateOutputBuffers();
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest
 
 #endif  // AXOM_USE_CONDUIT

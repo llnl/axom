@@ -311,6 +311,50 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
 endif()
 
 #------------------------------------------------------------------------------
+# Bump-backed MarchingCubes tests (structured + unstructured quad/hex).
+# Requires the bump component; the unstructured-conversion path needs Sidre.
+#------------------------------------------------------------------------------
+if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
+    set(quest_mc_bump_depends ${quest_tests_depends} conduit::conduit RAJA)
+    blt_list_append(TO quest_mc_bump_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
+
+    axom_add_executable(
+        NAME        quest_marching_cubes_bump_test
+        SOURCES     quest_marching_cubes_bump.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mc_bump_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    # The gtest cases self-select the enabled execution spaces internally,
+    # so a single registration runs all compiled-in policies.
+    axom_add_test(
+        NAME    quest_marching_cubes_bump
+        COMMAND quest_marching_cubes_bump_test
+        NUM_MPI_TASKS 1
+        )
+    set_tests_properties(quest_marching_cubes_bump PROPERTIES PROCESSORS 1)
+
+    # Compares native MC vs. bump-based MC backend on the structured/explicit meshes.
+    # Builds its meshes in memory, so it doesn't depend on HDF5.
+    axom_add_executable(
+        NAME        quest_marching_cubes_equivalence_test
+        SOURCES     quest_marching_cubes_equivalence.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mc_bump_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_marching_cubes_equivalence
+        COMMAND quest_marching_cubes_equivalence_test
+        NUM_MPI_TASKS 1
+        )
+    set_tests_properties(quest_marching_cubes_equivalence PROPERTIES PROCESSORS 1)
+
+endif()
+
+#------------------------------------------------------------------------------
 # Regression tests for quest signed distance and inout queries
 #
 # Note: By default we only run a small subset of the quest regression tests.

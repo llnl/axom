@@ -33,15 +33,13 @@ namespace detail
 namespace marching_cubes
 {
 /*!
-  @brief Computations for MarchingCubesSingleDomain
-
-  Spatial dimension and execution space are here as template
-  parameters, to keep out of higher level classes MarchingCubes and
-  MarchingCubesSingleDomain.
-
-  ExecSpace is the general execution space, like axom::SEQ_EXEC and
-  axom::CUDA_EXEC<256>.
-*/
+ * @brief Computations for MarchingCubesSingleDomain
+ *
+ * Spatial dimension and execution space are here as template parameters,
+ * to keep out of higher level classes MarchingCubes and MarchingCubesSingleDomain.
+ *
+ * ExecSpace is the general execution space, like axom::SEQ_EXEC and axom::CUDA_EXEC<256>.
+ */
 template <int DIM, typename ExecSpace, typename SequentialExecSpace>
 class MarchingCubesImpl : public MarchingCubesSingleDomain::ImplBase
 {
@@ -77,17 +75,14 @@ public:
   }
 
   /*!
-    @brief Initialize data to a blueprint domain.
-    @param dom Blueprint structured mesh domain
-    @param topologyName Name of mesh topology (see blueprint
-           mesh documentation)
-    @param maskFieldName Name of integer cell mask function is in dom
-
-    Set up views to domain data and allocate other data to work on the
-    given domain.
-
-    The above data from the domain MUST be in a memory space
-    compatible with ExecSpace.
+   * @brief Initialize data to a blueprint domain.
+   * @param dom Blueprint structured mesh domain
+   * @param topologyName Name of mesh topology (see blueprint mesh documentation)
+   * @param maskFieldName Name of integer cell mask function is in dom
+   *
+   * Set up views to domain data and allocate other data to work on the given domain.
+   *
+   * The above data from the domain MUST be in a memory space compatible with ExecSpace.
   */
   AXOM_HOST void setDomain(const conduit::Node& dom,
                            const std::string& topologyName,
@@ -215,10 +210,9 @@ public:
   }
 
   /*!
-    @brief Implementation used by MarchingCubesImpl::markCrossings_dim()
-    containing just the objects needed for that part, to be made available
-    on devices.
-  */
+   * @brief Implementation used by MarchingCubesImpl::markCrossings_dim()
+   * containing just the objects needed for that part, to be made available on devices.
+   */
   struct MarkCrossings_Util
   {
     axom::ArrayView<std::uint16_t, DIM, MemorySpace> caseIdsView;
@@ -468,6 +462,8 @@ public:
     // m_firstFacetIds.resize(m_crossingCount);
   }
 
+  axom::IndexType getContourNodeCount() const override { return DIM * getContourCellCount(); }
+
   void computeFacets() override
   {
     AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::computeFacets");
@@ -480,6 +476,7 @@ public:
     axom::ArrayView<double, 2> facetNodeCoordsView = m_facetNodeCoords;
     axom::ArrayView<axom::IndexType> facetParentIdsView = m_facetParentIds;
     const axom::IndexType facetIndexOffset = m_facetIndexOffset;
+    const axom::IndexType nodeIndexOffset = m_nodeIndexOffset;
 
     ComputeFacets_Util cfu(m_contourVal, m_caseIdsMDMapper, m_fcnView, m_coordsViews);
 
@@ -496,8 +493,9 @@ public:
 
       for(axom::IndexType fId = 0; fId < additionalFacets; ++fId)
       {
+        const axom::IndexType localFacetId = firstFacetIdsView[crossingId] + fId;
         axom::IndexType newFacetId = firstFacetId + fId;
-        axom::IndexType firstCornerId = newFacetId * DIM;
+        axom::IndexType firstCornerId = nodeIndexOffset + localFacetId * DIM;
 
         facetParentIdsView[newFacetId] = parentCellId;
 
@@ -516,10 +514,9 @@ public:
   }
 
   /*!
-    @brief Implementation used by MarchingCubesImpl::computeFacets().
-    containing just the objects needed for that part, to be made available
-    on devices.
-  */
+   * @brief Implementation used by MarchingCubesImpl::computeFacets().
+   * containing just the objects needed for that part, to be made available on devices.
+   */
   struct ComputeFacets_Util
   {
     double contourVal;
@@ -764,10 +761,8 @@ public:
     return index;
   }
 
-  /*!
-    @brief Constructor.
-  */
-  MarchingCubesImpl() { }
+  //! @brief Constructor
+  MarchingCubesImpl() = default;
 
   /*!
     @brief Clear computed data (without deallocating memory).

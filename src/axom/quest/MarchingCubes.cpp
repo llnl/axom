@@ -18,9 +18,7 @@
 #include "axom/quest/detail/MarchingCubesImpl.hpp"
 #include "axom/fmt.hpp"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 const axom::StackArray<axom::IndexType, 2> twoZeros {0, 0};
 
@@ -42,6 +40,7 @@ MarchingCubes::MarchingCubes(RuntimePolicy runtimePolicy,
   , m_crossingFlags(0, 0, m_allocatorID)
   , m_scannedFlags(0, 0, m_allocatorID)
   , m_facetIncrs(0, 0, m_allocatorID)
+  , m_nodeCount(0)
   , m_facetNodeIds(twoZeros, m_allocatorID)
   , m_facetNodeCoords(twoZeros, m_allocatorID)
   , m_facetParentIds(0, 0, m_allocatorID)
@@ -53,8 +52,27 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
                             const std::string& topologyName,
                             const std::string& maskField)
 {
-  SLIC_ASSERT_MSG(conduit::blueprint::mesh::is_multi_domain(bpMesh),
-                  "MarchingCubes class input mesh must be in multidomain format.");
+  const conduit::Node* mdMesh = &bpMesh;
+  if(bpMesh.has_path("topologies/" + topologyName))
+  {
+    m_singleDomainMesh.reset();
+    m_singleDomainMesh.append().set_external(bpMesh);
+    mdMesh = &m_singleDomainMesh;
+  }
+  else if(conduit::blueprint::mesh::is_multi_domain(bpMesh))
+  {
+    m_singleDomainMesh.reset();
+  }
+  else
+  {
+    // Neither a single domain carrying the requested topology nor a valid multi-domain mesh.
+    // Error out here since wrapping it would defers the failure into an opaque fetch_existing() below.
+    SLIC_ERROR(
+      axom::fmt::format("MarchingCubes::setMesh: the input mesh is neither a multi-domain "
+                        "Blueprint mesh nor a single domain containing topology '{}'.",
+                        topologyName));
+    return;
+  }
 
   m_topologyName = topologyName;
   m_maskFieldName = maskField;
@@ -66,7 +84,7 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
     domains is m_domainCount, not m_singles.size().  To *really*
     deallocate memory, deallocate the MarchingCubes object.
   */
-  auto newDomainCount = conduit::blueprint::mesh::number_of_domains(bpMesh);
+  auto newDomainCount = conduit::blueprint::mesh::number_of_domains(*mdMesh);
 
   if(m_singles.size() < newDomainCount)
   {
@@ -80,7 +98,7 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
 
   for(int d = 0; d < newDomainCount; ++d)
   {
-    const auto& dom = bpMesh.child(d);
+    const auto& dom = mdMesh->child(d);
     m_singles[d]->setDomain(dom, m_topologyName, maskField);
   }
   for(int d = newDomainCount; d < m_singles.size(); ++d)
@@ -101,22 +119,43 @@ void MarchingCubes::setFunctionField(const std::string& fcnField)
   }
 }
 
+void MarchingCubes::setUseBumpBackend(bool useBump)
+{
+#if !defined(AXOM_USE_BUMP)
+  SLIC_ERROR_IF(useBump,
+                "MarchingCubes bump backend requires Axom to be configured "
+                "with the bump component.");
+#endif
+  m_useBumpBackend = useBump;
+}
+
 void MarchingCubes::computeIsocontour(double contourVal)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::computeIsoContour");
 
+  /*
+    NOTE: the accumulators are deliberately not reset here.
+    Successive computeIsocontour() calls accumulate into one facet buffer.
+    It calls clearOutput() once, then loops over function fields and mask values
+    calling computeIsocontour() for each, recording a running prefix sum of facet counts per strategy.
+  */
+
   // Mark and scan domains while adding up their
   // facet counts to get the total facet counts.
   m_facetIndexOffsets.resize(m_singles.size());
+  m_nodeIndexOffsets.resize(m_singles.size());
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
   {
     auto& single = *m_singles[d];
     single.setContourValue(contourVal);
     single.setMaskValue(m_maskVal);
+    single.setRobustnessPolicy(m_robustnessPolicy);
     single.markCrossings();
     single.scanCrossings();
     m_facetIndexOffsets[d] = m_facetCount;
+    m_nodeIndexOffsets[d] = m_nodeCount;
     m_facetCount += single.getContourCellCount();
+    m_nodeCount += single.getContourNodeCount();
   }
 
   allocateOutputBuffers();
@@ -130,7 +169,8 @@ void MarchingCubes::computeIsocontour(double contourVal)
     m_singles[d]->getImpl().setOutputBuffers(facetNodeIdsView,
                                              facetNodeCoordsView,
                                              facetParentIdsView,
-                                             m_facetIndexOffsets[d]);
+                                             m_facetIndexOffsets[d],
+                                             m_nodeIndexOffsets[d]);
   }
 
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
@@ -147,16 +187,16 @@ void MarchingCubes::computeIsocontour(double contourVal)
   }
 }
 
-axom::IndexType MarchingCubes::getContourNodeCount() const
-{
-  axom::IndexType contourNodeCount =
-    (m_domainCount > 0) ? m_facetCount * m_singles[0]->spatialDimension() : 0;
-  return contourNodeCount;
-}
+axom::IndexType MarchingCubes::getContourNodeCount() const { return m_nodeCount; }
 
 void MarchingCubes::clearOutput()
 {
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    m_singles[d]->getImpl().clearDomain();
+  }
   m_facetCount = 0;
+  m_nodeCount = 0;
   m_facetNodeIds.clear();
   m_facetNodeCoords.clear();
   m_facetParentIds.clear();
@@ -234,19 +274,71 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
   }
 }
 
+void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
+{
+  AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMeshBlueprint");
+  bpMesh.reset();
+
+  SLIC_ERROR_IF(!m_useBumpBackend,
+                "MarchingCubes Blueprint contour output is available only when "
+                "setUseBumpBackend(true) was used.");
+
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    const auto& single = *m_singles[d];
+    const auto& impl = single.getImpl();
+    SLIC_ERROR_IF(!impl.hasContourMeshBlueprint(),
+                  "MarchingCubes has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+
+    conduit::Node& outDom = bpMesh.append();
+    impl.copyContourMeshBlueprint(outDom, triangulate);
+    if(!outDom.has_path("state/domain_id"))
+    {
+      outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));
+    }
+  }
+}
+
+void MarchingCubes::relinquishContourDataBlueprint(conduit::Node& bpMesh)
+{
+  AXOM_ANNOTATE_SCOPE("MarchingCubes::relinquishContourDataBlueprint");
+  bpMesh.reset();
+
+  SLIC_ERROR_IF(!m_useBumpBackend,
+                "MarchingCubes Blueprint contour output is available only when "
+                "setUseBumpBackend(true) was used.");
+
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    auto& single = *m_singles[d];
+    auto& impl = single.getImpl();
+    SLIC_ERROR_IF(!impl.hasContourMeshBlueprint(),
+                  "MarchingCubes has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+
+    conduit::Node& outDom = bpMesh.append();
+    impl.relinquishContourMeshBlueprint(outDom);
+    if(!outDom.has_path("state/domain_id"))
+    {
+      outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));
+    }
+  }
+
+  clearOutput();
+}
+
 void MarchingCubes::allocateOutputBuffers()
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::allocateOutputBuffers");
   if(!m_singles.empty())
   {
     int ndim = m_singles[0]->spatialDimension();
-    const auto nodeCount = m_facetCount * ndim;
     m_facetNodeIds.resize(axom::StackArray<axom::IndexType, 2> {m_facetCount, ndim}, 0);
-    m_facetNodeCoords.resize(axom::StackArray<axom::IndexType, 2> {nodeCount, ndim}, 0.0);
+    m_facetNodeCoords.resize(axom::StackArray<axom::IndexType, 2> {m_nodeCount, ndim}, 0.0);
     m_facetParentIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
     m_facetDomainIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
   }
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest

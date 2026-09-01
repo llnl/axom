@@ -18,6 +18,20 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+### Added
+- Quest: `MarchingCubes` gained an optional `bump` backend, selected with `setUseBumpBackend(true)`.
+  It extends isocontour extraction to `unstructured` meshes (quads in 2D, hexs in 3D)
+  and to `uniform` and `rectilinear` topologies. The legacy backend requires a `structured` topology
+  with an `explicit` coordset. It runs on all runtime policies and preserves the existing output API.
+
+### Changed
+- Quest: `MarchingCubes::setMesh()` now accepts either a single-domain or a multi-domain Blueprint mesh.
+
+### Fixed
+- Bump: `dispatch_any_structured_topology` now detects strided-structured topologies. It previously
+  probed `offsets` and `strides` at the topology root. Blueprint stores them under `elements/dims`.
+
+
 ## [Version 0.15.0] - Release date 2026-08-28
 
 ### Added

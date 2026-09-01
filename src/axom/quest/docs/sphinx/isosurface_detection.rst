@@ -11,20 +11,19 @@ Isosurface Detection
 ********************
 
 Quest can generate isosurface meshes for node-centered scalar fields.
-This feature takes a structured mesh with some scalar nodal field and
-generates an ``UnstructuredMesh`` at a user-specified isovalue.  The
-isosurface mesh contains information on which elements of the field
-mesh it crosses.  The output may be useful for material surface
-reconstruction and visualization, among other things.
+This feature takes a Conduit Blueprint mesh with a scalar nodal field and
+generates an ``UnstructuredMesh`` at a user-specified isovalue.
+The isosurface mesh contains information on which elements of the field mesh it crosses.
+The output may be useful for material interface reconstruction and visualization, among other things.
 
-We support 2D and 3D configurations.  The isosurface mesh is a
-composed of line segments in 2D and triangles in 3D.
+We support 2D and 3D configurations.
+The isosurface mesh is composed of line segments in 2D and triangles in 3D.
 
 .. Note::
 
    The current implementation is for the original algorithm:
 
-   Lorensen, William E.; Cline, Harvey E. (1 August 1987).
+   William E. Lorensen,  and Harvey E. Cline (1 August 1987).
    "Marching cubes: A high resolution 3D surface construction algorithm".
    *ACM SIGGRAPH Computer Graphics*. 21 (**4**): 163-169
 
@@ -57,8 +56,8 @@ The inputs are:
 #. The contour value.
 
 The following example shows usage of the ``MarchingCubes`` class.
-(A complete example is provided in
-``src/axom/quest/examples/quest_marching_cubes_example.cpp``.)
+A complete example is in
+``src/axom/quest/examples/quest_marching_cubes_example.cpp``.
 
 Relevant header files:
 
@@ -70,12 +69,14 @@ Relevant header files:
 
 Set up the user's blueprint mesh and the ``MarchingCubes`` object:
 
-The blueprint mesh must be a structured mesh in multi-domain format.
-A domain is a part of a global mesh that has been subdivided for
-reasons including parallel partitioning, geometric constraints and
-size constraints.  Any number of domains is allowed, including zero.
-(For single-domain format, see the similar
-``MarchingCubesSingleDomain`` class in the ``axom::quest`` namespace.)
+``MarchingCubes`` accepts a Blueprint mesh in multi-domain format.  A domain
+is a part of a global mesh that has been subdivided for reasons including
+parallel partitioning, geometric constraints, and size constraints.  Any
+number of domains is allowed, including zero.
+
+If you already have a single-domain mesh, you can pass it directly and
+``MarchingCubes`` will wrap it internally.  The ``MarchingCubesSingleDomain``
+class provides a similar interface with a single-domain focus.
 
 Blueprint convention allows for named coordinate sets and scalar
 fields.  Here, we tell the ``MarchingCubes`` constructor that the
@@ -86,6 +87,74 @@ The constructor's ``quest::MarchingCubesRuntimePolicy::seq`` argument
 tells ``mc`` to run sequentially on the host.  ``MarchingCubes``
 currently also supports OpenMP and GPU device executions using CUDA
 and HIP.
+
+The ``MarchingCubesDataParallelism`` constructor argument selects the scan
+strategy used by the legacy structured-mesh backend.  When the optional bump
+``CutField`` backend is enabled with ``setUseBumpBackend(true)``, bump manages
+its own internal parallelism for the selected runtime policy.  The
+data-parallelism setting is accepted for API compatibility only.
+
+The two backends accept different input.
+
+Legacy backend
+  This is the default backend.  It supports only a ``structured`` topology
+  with an ``explicit`` coordset.  It does not support ``uniform`` or
+  ``rectilinear`` topologies.  It accepts ghost-padded structured input.
+
+Bump backend
+  Enable this backend with ``setUseBumpBackend(true)``.  It supports the
+  same structured input.  It also supports
+  ``uniform`` and ``rectilinear`` topologies, plus unstructured single-shape
+  meshes.  In 2D this means quadrilaterals.  In 3D this means hexahedra.
+  It accepts ghost-padded structured input.
+
+  The bump backend requires ``float64`` coordinates and function field, and
+  validates that at ``setMesh`` and ``setFunctionField`` time.
+
+The bump backend produces a welded, topologically connected contour, which
+``populateContourMeshBlueprint`` and ``relinquishContourDataBlueprint``
+expose directly.  In 3D, bump's native ``CutField`` output may contain
+triangles, quadrilaterals, or polygons with more than four vertices.
+The legacy ``MarchingCubes`` output API still returns a triangle mesh,
+so the bump adaptor fan-triangulates each polygonal output face when it
+fills the fixed-stride contour arrays used by ``populateContourMesh``.
+
+Note two behavioral differences from the legacy backend, both inherited
+from bump's current default intersector and cut tables:
+
+#. *Precision.*  The bump default intersector evaluates the scalar field
+   and edge-crossing positions in single precision (``float``), whereas
+   the legacy backend uses ``double``.  Input fields of other types are
+   converted to ``float`` for the intersection computation.
+#. *Ambiguity.*  Like the legacy 1987 tables, bump's VisIt-derived cut
+   tables resolve ambiguous saddle cell configurations with a single
+   fixed triangulation per case.  It is consistent, but not necessarily
+   the same as the trilinear interpolant.  Neither backend currently
+   implements a topologically robust resolution such as an asymptotic
+   decider or plus-minus-zero.
+#. *Fan triangulation.*  Because the legacy output API returns a triangle
+   mesh, each polygonal bump face is fan-triangulated from its first
+   corner.  For a planar polygon every fan gives the same geometry, but
+   for a *non-planar* one the resulting facet areas depend on which
+   corner the fan starts from.  We measured up to 3.8% per polygon on a
+   high-curvature field.  ``populateContourMeshBlueprint`` returns the
+   un-triangulated polygons and is unaffected.
+
+``MarchingCubes`` normalizes one bump behavior rather than exposing it.
+bump's intersector classifies a corner as inside with a strict ``>``,
+while the legacy kernel uses ``>=``.  A node lying exactly on the
+isovalue would therefore be classified oppositely by the two backends,
+attributing the same surface to parent cells one cell layer apart
+whenever the isovalue coincides with nodal values.  ``MarchingCubes``
+passes bump the next representable value below the requested isovalue so
+that the two agree.  A direct ``axom::bump::extraction::CutField`` call
+at the same nominal isovalue keeps bump's own convention.
+
+``MarchingCubes::setRobustnessPolicy`` reserves
+``MarchingCubesRobustnessPolicy::robust`` for a future topologically
+robust bump intersector.  Until that intersector is available,
+selecting ``robust`` behaves identically to ``standard``; callers may
+opt in now to benefit automatically once it lands.
 
 .. sourcecode:: C++
 
@@ -106,7 +175,11 @@ Place the isocontour in an output ``mint::UnstructuredMesh`` object:
 
 ``MarchingCubes`` generates the isocontour mesh in an internal format.
 Use ``populateContourMesh`` to put it in a ``mint::UnstructuredMesh``
-object.  In the future, we will support outputs in blueprint format.
+object.  In 3D this method always produces triangles, including when the
+bump backend first produced polygonal ``CutField`` faces internally.
+When the bump backend is enabled,
+``populateContourMeshBlueprint`` and ``relinquishContourDataBlueprint``
+provide the richer welded Blueprint output directly.
 
 ``populateContourMesh`` provides two scalar fields for the generated
 mesh:

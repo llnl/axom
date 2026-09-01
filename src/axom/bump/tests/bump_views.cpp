@@ -582,6 +582,32 @@ struct test_strided_structured
 
 TEST(bump_views, strided_structured_seq) { test_strided_structured::test(); }
 
+template <int NDIMS>
+void test_strided_structured_any_dispatch()
+{
+  conduit::Node hostMesh;
+  axom::blueprint::testing::data::strided_structured<NDIMS>(hostMesh);
+
+  bool callback_invoked = false;
+  bool supports_strided_structured = false;
+  views::dispatch_structured_topologies<views::select_dimensions(NDIMS)>(
+    hostMesh["topologies/mesh"],
+    [&](const std::string&, auto topoView) {
+      callback_invoked = true;
+      supports_strided_structured =
+        views::view_traits<decltype(topoView)>::supports_strided_structured();
+    });
+
+  EXPECT_TRUE(callback_invoked);
+  EXPECT_TRUE(supports_strided_structured);
+}
+
+TEST(bump_views, strided_structured_any_dispatch)
+{
+  test_strided_structured_any_dispatch<2>();
+  test_strided_structured_any_dispatch<3>();
+}
+
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_braid2d_mat
