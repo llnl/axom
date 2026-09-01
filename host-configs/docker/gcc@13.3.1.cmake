@@ -4,20 +4,20 @@
 # CMake executable path: /usr/local/bin/cmake
 #------------------------------------------------------------------------------
 
-set(CMAKE_PREFIX_PATH "/home/axom/axom_tpls/gcc-13.3.1/blt-0.7.2-5absc3jx6wakorcjsjkdynqwxnbnorh6;/home/axom/axom_tpls/gcc-13.3.1/caliper-git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c_master-inngzcnkamxvkx4tf63litjl37mvlhi3;/home/axom/axom_tpls/gcc-13.3.1/conduit-0.9.7-4u7iwy46n5rjodzl22mh7qpwoodwxv2x;/home/axom/axom_tpls/gcc-13.3.1/gmake-4.4.1-eo7xr5pepi4gjz4id45mww2wwoobqna4;/home/axom/axom_tpls/gcc-13.3.1/mfem-git.c8ef9676e83c93a9037dbdf3bf0f2d741321e632_master-5vywxe4djohzhgqr3kb4tgixgt6stazq;/home/axom/axom_tpls/gcc-13.3.1/py-nanobind-2.12.0-7hnfo23qy7drvs62irqa2gexzkhlvres;/home/axom/axom_tpls/none-none/py-pytest-9.0.3-wsk5ciiop2d2pscyghldid7tl63skcka;/home/axom/axom_tpls/gcc-13.3.1/raja-git.6e4fe62d810711a0af9020d4e94c6c41c9a6117b_develop-xzintylixuvg4mx46mvsx4m2fqujzvzz;/home/axom/axom_tpls/gcc-13.3.1/umpire-git.f544027ef118133f1ecbc26e64c04ea77c3eb5ae_develop-m6kv3jw7n6tlzdgadoevpdbnaw3vkkyz;/home/axom/axom_tpls/gcc-13.3.1/adiak-0.5.0-qfz5sst753v27xdf55jjxcddepe6eken;/home/axom/axom_tpls/gcc-13.3.1/elfutils-0.194-24lcmosh4ix5dftamu6sl4krvd3qzcq7;/home/axom/axom_tpls/gcc-13.3.1/libunwind-1.8.3-lm4pigmiq5ev32in37mfo5pct2z4t7ka;/home/axom/axom_tpls/gcc-13.3.1/hdf5-1.8.23-vupxkvhhvrj5yllafuiydpgvnny5tdvf;/home/axom/axom_tpls/gcc-13.3.1/parmetis-4.0.3-hbcgadqq565zdm5sm7oeg43c2o25f4lp;/home/axom/axom_tpls/gcc-13.3.1/py-mpi4py-4.1.1-4raoq3qthuhepcfzlp3k4vuu2gx23ok7;/home/axom/axom_tpls/gcc-13.3.1/py-numpy-2.4.6-xnjkt4apjzihu342dmdtpyin3wq6xyfc;/home/axom/axom_tpls/gcc-13.3.1/hypre-3.1.0-qkjigq3mapfvdz2kjqz7dhmn4arpdxyw;/home/axom/axom_tpls/none-none/py-packaging-26.2-5qmmalrwmxlsiezzrqdx2yoas2mkwsv5;/home/axom/axom_tpls/none-none/py-pygments-2.19.2-jb2gqqg34jlv3f4eqln24wtfurtcdv3j;/home/axom/axom_tpls/gcc-13.3.1/camp-git.e75ab64c029aa27c80593715cb2a3ccad7453c8c_main-wcnztqffxlaxgoql4davxooormnfyv37;/home/axom/axom_tpls/gcc-13.3.1/fmt-12.1.0-gngayzothl7ztt3bauma6t44imsldtfn;/home/axom/axom_tpls/gcc-13.3.1/zstd-1.5.7-7g4seslqjeav25vhy3rox5s4n43btd6y;/home/axom/axom_tpls/gcc-13.3.1/metis-5.1.0-olrhfcwe2wisiz7in37tyq56lv5elmx3;/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xvyqlju67s3lyqmitye6roi2aqnihskz;/home/axom/axom_tpls/none-none/python-venv-1.0-6ljhagbvjtfwdoxe2557jxgyswj4degz;/home/axom/axom_tpls/gcc-13.3.1/hwloc-2.13.0-fam7eyle4i3ooqfrkgkrlfwpul4qn52e;/home/axom/axom_tpls/gcc-13.3.1/libfabric-2.5.1-op5snnnjhxudqbotmo3u7pdjo4xz3ozz;/home/axom/axom_tpls/gcc-13.3.1/yaksa-0.4-xaaaay5p6gx6yrgvrosbpul2edpevf7r;/home/axom/axom_tpls/gcc-13.3.1/libpciaccess-0.17-7kbxqu54pe26k5lsycdmofuy2zzoqsfe;/home/axom/axom_tpls/gcc-13.3.1/libxml2-2.15.3-i6bw5j722v27z6yuj4j6of6s4xstrcie;/home/axom/axom_tpls/gcc-13.3.1/ncurses-6.6-dkz2ddp537t4bxvqneirkupvmfzkxxcc;/home/axom/axom_tpls/gcc-13.3.1/libiconv-1.18-hbn7cpldeutre5dr6puqt4573djkr5vj;/home/axom/axom_tpls/gcc-13.3.1/xz-5.8.3-l2j7trx645gxzandrqmk7tnjh3patviy;/home/axom/axom_tpls/gcc-13.3.1/zlib-ng-2.3.3-ggnrpefs2kr7yleaxhhy4ugi6uebp6yy;/home/axom/axom_tpls/none-none/gcc-runtime-13.3.1-tmwwov6s5vhnf7ecrbz24zwhy4bclvox;/home/axom/axom_tpls/none-none/compiler-wrapper-1.1.0-m2hzi6ouuda4xfn6tiiaok5ekmsr62nh" CACHE STRING "")
+set(CMAKE_PREFIX_PATH "/home/axom/axom_tpls/gcc-13.3.1/blt-0.7.2-2wnklwfq3qabcxvukwwywfm65y2diaii;/home/axom/axom_tpls/gcc-13.3.1/caliper-2.15.0-xjlk6epi2nwgppcz4zseo2gbav6k4pds;/home/axom/axom_tpls/gcc-13.3.1/conduit-0.9.7-kpafnyggzkpb2wnp6b7ehznqln2qihqk;/home/axom/axom_tpls/gcc-13.3.1/gmake-4.4.1-eecv45innqsrgv2srwnbpl5ctxuz4jrk;/home/axom/axom_tpls/gcc-13.3.1/mfem-git.c8ef9676e83c93a9037dbdf3bf0f2d741321e632_master-mao3j7jzmla2ryajzh653fycmesas7je;/home/axom/axom_tpls/gcc-13.3.1/py-nanobind-2.13.0-fkd54fnijjcj23kuko4k4lg2unpcsfxt;/home/axom/axom_tpls/none-none/py-pytest-9.0.3-yekg4rpqijz2uzxuaiid2empcfmz6wrn;/home/axom/axom_tpls/gcc-13.3.1/raja-2026.07.0-ri6bosmkyti63lqjb2ggtpm35vesjsql;/home/axom/axom_tpls/gcc-13.3.1/umpire-2026.07.1-wavtlj2gvb2stysgfrzeyjpjnoivfmvs;/home/axom/axom_tpls/gcc-13.3.1/adiak-0.5.0-luljnxaninlotdhultc3nztcq6daferb;/home/axom/axom_tpls/gcc-13.3.1/elfutils-0.194-lzjcutwryppv7df3yxsq5cbobzl3jryd;/home/axom/axom_tpls/gcc-13.3.1/libunwind-1.8.3-tx55tgxtemzow3vze3rq2xkbwlrjszmm;/home/axom/axom_tpls/gcc-13.3.1/hdf5-1.8.23-4ahasvolfsfqyryedghyuqayyhcue5ue;/home/axom/axom_tpls/gcc-13.3.1/parmetis-4.0.3-pn25xltdzjg5zgo43q5o2mvvrw645yb7;/home/axom/axom_tpls/gcc-13.3.1/py-mpi4py-4.1.1-ywtyecgj3qvl6zrqczkc6c6bo4q5adv6;/home/axom/axom_tpls/gcc-13.3.1/py-numpy-2.5.2-7alnoyhiae4r2ohvijjmxzoifwxp5hfc;/home/axom/axom_tpls/gcc-13.3.1/hypre-3.1.0-ztmcvdevmmh7k6u3vdbt6mzkc3ajgued;/home/axom/axom_tpls/none-none/py-packaging-26.2-my25fjoxkuhvb3zww32d43u3batgrmix;/home/axom/axom_tpls/none-none/py-pygments-2.20.0-dvhlfb2pbyteehfaoxp3hynaogofzmvo;/home/axom/axom_tpls/gcc-13.3.1/camp-2026.07.1-hzaxkjruh5zzabtbaxkpggh7ev7sklnl;/home/axom/axom_tpls/gcc-13.3.1/fmt-12.1.0-vpjqtp3k6vkalw7bvk2hndk4f4l6q4qu;/home/axom/axom_tpls/gcc-13.3.1/metis-5.1.0-i7m2nei66pxoew45e2wuf3hhhoidry2t;/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-pi4relbapz4frptl6kqrom5vqr42znkj;/home/axom/axom_tpls/none-none/python-venv-1.0-j26bruippivwpgd7bs4i7rn6jawxno2l;/home/axom/axom_tpls/gcc-13.3.1/hwloc-2.13.0-ysbpd4xc4hy7d3aqxsgt3gvl3ojbthqp;/home/axom/axom_tpls/gcc-13.3.1/libfabric-2.6.0-avka5k4xal5vulnqao44yryv4kb5sw64;/home/axom/axom_tpls/gcc-13.3.1/yaksa-0.4-n5zuh27gvhu5tr46umwhsbkqucplcidn;/home/axom/axom_tpls/gcc-13.3.1/python-3.14.5-zkdmbaaoad3wwxu6rexxsy4zem5uuz43;/home/axom/axom_tpls/gcc-13.3.1/libpciaccess-0.17-zcxnxqzbkqs6pbx7xtcmdrrwx4gvfe7t;/home/axom/axom_tpls/gcc-13.3.1/libxml2-2.15.3-b5dgnhy7lzjygcyv2wjg4iopjowfmarl;/home/axom/axom_tpls/gcc-13.3.1/expat-2.8.3-bwfl5ipvl2lcrxxc3geu4sci6g2qstbg;/home/axom/axom_tpls/gcc-13.3.1/gdbm-1.26-ixinhh5kcx7vypognwpnbjdd6dguc7tj;/home/axom/axom_tpls/gcc-13.3.1/libffi-3.5.2-vzrjaxuzzuw6syqv3h6mtp4lwg5cjcvn;/home/axom/axom_tpls/gcc-13.3.1/openssl-3.6.1-77pdnmewyt5oebhmrsn74cbs7gzstasm;/home/axom/axom_tpls/gcc-13.3.1/sqlite-3.53.1-fj7v4cuc3cuz5mgvqmtzjvv542zdxlig;/home/axom/axom_tpls/gcc-13.3.1/util-linux-uuid-2.41-va7nsd3jkr7osgzwzpmntqbv2vdx3v4o;/home/axom/axom_tpls/gcc-13.3.1/zstd-1.5.7-buszhzxaxeyxxhcvmzj6tmnpqrenlyab;/home/axom/axom_tpls/gcc-13.3.1/libiconv-1.18-jp7rcsczqmj7b4n3ozl3lz7zrzka3uqe;/home/axom/axom_tpls/gcc-13.3.1/xz-5.8.3-i6hknywqe3k2qxok3a44m7zngqhxk3iu;/home/axom/axom_tpls/gcc-13.3.1/libbsd-0.12.2-nsh35qci7sqrzqidm3mhjwni3xra53fa;/home/axom/axom_tpls/gcc-13.3.1/readline-8.3-clfqtnrmfum254teqspqbhltpatxamoz;/home/axom/axom_tpls/gcc-13.3.1/zlib-ng-2.3.3-s7cz3mcnxb6a26jlfoxbfesl223hal3r;/home/axom/axom_tpls/gcc-13.3.1/libmd-1.1.0-w5gfizni5ii7e57lbyeedcqhgxn5pjkh;/home/axom/axom_tpls/gcc-13.3.1/ncurses-6.6-phw26i3sfg5o7okt23m237dagrcmnzru;/home/axom/axom_tpls/none-none/gcc-runtime-13.3.1-l3euralfc224f4h2nz7ixrzdqog7ju4f;/home/axom/axom_tpls/none-none/compiler-wrapper-1.1.0-m2hzi6ouuda4xfn6tiiaok5ekmsr62nh" CACHE STRING "")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE STRING "")
 
-set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-6ux2zokpxpe74nz7imbw7wo5zzgtfxta/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-6ux2zokpxpe74nz7imbw7wo5zzgtfxta/lib64;;" CACHE STRING "")
+set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ncqqljt5logpc6bpqlvhcbui6rdthcws/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ncqqljt5logpc6bpqlvhcbui6rdthcws/lib64;;" CACHE STRING "")
 
-set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-6ux2zokpxpe74nz7imbw7wo5zzgtfxta/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-6ux2zokpxpe74nz7imbw7wo5zzgtfxta/lib64;;" CACHE STRING "")
+set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ncqqljt5logpc6bpqlvhcbui6rdthcws/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ncqqljt5logpc6bpqlvhcbui6rdthcws/lib64;;" CACHE STRING "")
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
 #------------------------------------------------------------------------------
 # Compilers
 #------------------------------------------------------------------------------
-# Compiler Spec: gcc@13.3.1/qheu24jrtqgtemkgehdgrqp6sxqnpu6k
+# Compiler Spec: gcc@13.3.1/cewwcllxa5cdzhof4452eqglk5ahtfeq
 #------------------------------------------------------------------------------
 if(DEFINED ENV{SPACK_CC})
 
@@ -43,17 +43,19 @@ set(CMAKE_CXX_FLAGS "-pthread" CACHE STRING "")
 
 set(ENABLE_FORTRAN ON CACHE BOOL "")
 
+set(BLT_CXX_STD "c++20" CACHE STRING "")
+
 #------------------------------------------------------------------------------
 # MPI
 #------------------------------------------------------------------------------
 
-set(MPI_C_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xvyqlju67s3lyqmitye6roi2aqnihskz/bin/mpicc" CACHE PATH "")
+set(MPI_C_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-pi4relbapz4frptl6kqrom5vqr42znkj/bin/mpicc" CACHE PATH "")
 
-set(MPI_CXX_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xvyqlju67s3lyqmitye6roi2aqnihskz/bin/mpicxx" CACHE PATH "")
+set(MPI_CXX_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-pi4relbapz4frptl6kqrom5vqr42znkj/bin/mpicxx" CACHE PATH "")
 
-set(MPI_Fortran_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xvyqlju67s3lyqmitye6roi2aqnihskz/bin/mpif90" CACHE PATH "")
+set(MPI_Fortran_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-pi4relbapz4frptl6kqrom5vqr42znkj/bin/mpif90" CACHE PATH "")
 
-set(MPIEXEC_EXECUTABLE "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xvyqlju67s3lyqmitye6roi2aqnihskz/bin/mpirun" CACHE PATH "")
+set(MPIEXEC_EXECUTABLE "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-pi4relbapz4frptl6kqrom5vqr42znkj/bin/mpirun" CACHE PATH "")
 
 set(MPIEXEC_NUMPROC_FLAG "-np" CACHE STRING "")
 
@@ -77,27 +79,27 @@ set(ENABLE_GTEST_DEATH_TESTS ON CACHE BOOL "")
 
 set(TPL_ROOT "/home/axom/axom_tpls/gcc-13.3.1" CACHE PATH "")
 
-set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.7-4u7iwy46n5rjodzl22mh7qpwoodwxv2x" CACHE PATH "")
+set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.7-kpafnyggzkpb2wnp6b7ehznqln2qihqk" CACHE PATH "")
 
 # C2C not built
 
-set(MFEM_DIR "${TPL_ROOT}/mfem-git.c8ef9676e83c93a9037dbdf3bf0f2d741321e632_master-5vywxe4djohzhgqr3kb4tgixgt6stazq" CACHE PATH "")
+set(MFEM_DIR "${TPL_ROOT}/mfem-git.c8ef9676e83c93a9037dbdf3bf0f2d741321e632_master-mao3j7jzmla2ryajzh653fycmesas7je" CACHE PATH "")
 
-set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-vupxkvhhvrj5yllafuiydpgvnny5tdvf" CACHE PATH "")
+set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-4ahasvolfsfqyryedghyuqayyhcue5ue" CACHE PATH "")
 
 set(LUA_DIR "/usr" CACHE PATH "")
 
-set(RAJA_DIR "${TPL_ROOT}/raja-git.6e4fe62d810711a0af9020d4e94c6c41c9a6117b_develop-xzintylixuvg4mx46mvsx4m2fqujzvzz" CACHE PATH "")
+set(RAJA_DIR "${TPL_ROOT}/raja-2026.07.0-ri6bosmkyti63lqjb2ggtpm35vesjsql" CACHE PATH "")
 
-set(UMPIRE_DIR "${TPL_ROOT}/umpire-git.f544027ef118133f1ecbc26e64c04ea77c3eb5ae_develop-m6kv3jw7n6tlzdgadoevpdbnaw3vkkyz" CACHE PATH "")
+set(UMPIRE_DIR "${TPL_ROOT}/umpire-2026.07.1-wavtlj2gvb2stysgfrzeyjpjnoivfmvs" CACHE PATH "")
 
 # OPENCASCADE not built
 
-set(ADIAK_DIR "${TPL_ROOT}/adiak-0.5.0-qfz5sst753v27xdf55jjxcddepe6eken" CACHE PATH "")
+set(ADIAK_DIR "${TPL_ROOT}/adiak-0.5.0-luljnxaninlotdhultc3nztcq6daferb" CACHE PATH "")
 
-set(CALIPER_DIR "${TPL_ROOT}/caliper-git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c_master-inngzcnkamxvkx4tf63litjl37mvlhi3" CACHE PATH "")
+set(CALIPER_DIR "${TPL_ROOT}/caliper-2.15.0-xjlk6epi2nwgppcz4zseo2gbav6k4pds" CACHE PATH "")
 
-set(CAMP_DIR "${TPL_ROOT}/camp-git.e75ab64c029aa27c80593715cb2a3ccad7453c8c_main-wcnztqffxlaxgoql4davxooormnfyv37" CACHE PATH "")
+set(CAMP_DIR "${TPL_ROOT}/camp-2026.07.1-hzaxkjruh5zzabtbaxkpggh7ev7sklnl" CACHE PATH "")
 
 # scr not built
 
@@ -109,26 +111,26 @@ set(CAMP_DIR "${TPL_ROOT}/camp-git.e75ab64c029aa27c80593715cb2a3ccad7453c8c_main
 
 set(ENABLE_CLANGFORMAT OFF CACHE BOOL "")
 
-set(Python_EXECUTABLE "/usr/bin/python3" CACHE PATH "")
+set(Python_EXECUTABLE "${TPL_ROOT}/python-3.14.5-zkdmbaaoad3wwxu6rexxsy4zem5uuz43/bin/python3" CACHE PATH "")
 
-set(AXOM_PYTHON_MODULE_INSTALL_PREFIX "local/lib/python3.12/dist-packages" CACHE PATH "")
+set(AXOM_PYTHON_MODULE_INSTALL_PREFIX "lib/python3.14/site-packages" CACHE PATH "")
 
 set(ENABLE_DOCS OFF CACHE BOOL "")
 
-set(PY_NANOBIND_DIR "${TPL_ROOT}/py-nanobind-2.12.0-7hnfo23qy7drvs62irqa2gexzkhlvres/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_NANOBIND_DIR "${TPL_ROOT}/py-nanobind-2.13.0-fkd54fnijjcj23kuko4k4lg2unpcsfxt/lib/python3.14/site-packages" CACHE PATH "")
 
-set(PY_PYTEST_DIR "/home/axom/axom_tpls/none-none/py-pytest-9.0.3-wsk5ciiop2d2pscyghldid7tl63skcka/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_PYTEST_DIR "/home/axom/axom_tpls/none-none/py-pytest-9.0.3-yekg4rpqijz2uzxuaiid2empcfmz6wrn/lib/python3.14/site-packages" CACHE PATH "")
 
-set(PY_NUMPY_DIR "${TPL_ROOT}/py-numpy-2.4.6-xnjkt4apjzihu342dmdtpyin3wq6xyfc/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_NUMPY_DIR "${TPL_ROOT}/py-numpy-2.5.2-7alnoyhiae4r2ohvijjmxzoifwxp5hfc/lib/python3.14/site-packages" CACHE PATH "")
 
-set(PY_PLUGGY_DIR "/home/axom/axom_tpls/none-none/py-pluggy-1.6.0-xgegorq25sifwjlfyjctzynclh575iuk/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_PLUGGY_DIR "/home/axom/axom_tpls/none-none/py-pluggy-1.6.0-daflnho5jozisczyhg3emjgh6zbtfw6o/lib/python3.14/site-packages" CACHE PATH "")
 
-set(PY_INICONFIG_DIR "/home/axom/axom_tpls/none-none/py-iniconfig-2.1.0-nmh3ypew4zehi2ymgsflx65cfsiahf4y/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_INICONFIG_DIR "/home/axom/axom_tpls/none-none/py-iniconfig-2.1.0-gl4zplg2wwbypzn6eryudici4fzrlo2n/lib/python3.14/site-packages" CACHE PATH "")
 
-set(PY_PACKAGING_DIR "/home/axom/axom_tpls/none-none/py-packaging-26.2-5qmmalrwmxlsiezzrqdx2yoas2mkwsv5/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_PACKAGING_DIR "/home/axom/axom_tpls/none-none/py-packaging-26.2-my25fjoxkuhvb3zww32d43u3batgrmix/lib/python3.14/site-packages" CACHE PATH "")
 
-set(PY_PYGMENTS_DIR "/home/axom/axom_tpls/none-none/py-pygments-2.19.2-jb2gqqg34jlv3f4eqln24wtfurtcdv3j/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_PYGMENTS_DIR "/home/axom/axom_tpls/none-none/py-pygments-2.20.0-dvhlfb2pbyteehfaoxp3hynaogofzmvo/lib/python3.14/site-packages" CACHE PATH "")
 
-set(PY_MPI4PY_DIR "${TPL_ROOT}/py-mpi4py-4.1.1-4raoq3qthuhepcfzlp3k4vuu2gx23ok7/local/lib/python3.12/dist-packages" CACHE PATH "")
+set(PY_MPI4PY_DIR "${TPL_ROOT}/py-mpi4py-4.1.1-ywtyecgj3qvl6zrqczkc6c6bo4q5adv6/lib/python3.14/site-packages" CACHE PATH "")
 
 

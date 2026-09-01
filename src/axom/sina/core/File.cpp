@@ -37,7 +37,7 @@ char const TAGS_KEY[] = "tags";
 
 File::File(std::string uri_) : uri {std::move(uri_)} { }
 
-File::File(std::string uri_, conduit::Node const &asNode)
+File::File(std::string uri_, conduit::Node const& asNode)
   : uri {std::move(uri_)}
   , mimeType {getOptionalString(MIMETYPE_KEY, asNode, FILE_TYPE_NAME)}
 {
@@ -46,7 +46,7 @@ File::File(std::string uri_, conduit::Node const &asNode)
     auto tagsIter = asNode[TAGS_KEY].children();
     while(tagsIter.has_next())
     {
-      auto &tag = tagsIter.next();
+      auto& tag = tagsIter.next();
       if(tag.dtype().is_string())
         tags.emplace_back(tag.as_string());
       else

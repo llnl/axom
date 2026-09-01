@@ -110,7 +110,7 @@ if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire::umpire
         FOLDER      axom/quest/examples
         )
 
@@ -153,17 +153,26 @@ if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
 endif()
 
 # Shaping example -------------------------------------------------------------
-if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-                   AND AXOM_ENABLE_SIDRE
-                   AND AXOM_ENABLE_KLEE)
+set(shaping_driver_dependencies ${quest_example_depends})
+if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI)
+  set(AXOM_HAS_MFEM_WITH_MPI TRUE)
+  list(APPEND shaping_driver_dependencies mfem)
+endif()
+if(CONDUIT_FOUND)
+  list(APPEND shaping_driver_dependencies conduit)
+endif()
+
+if((AXOM_HAS_MFEM_WITH_MPI OR (CONDUIT_FOUND AND AXOM_ENABLE_BUMP)) AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     axom_add_executable(
         NAME        quest_shaping_driver_ex
         SOURCES     shaping_driver.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} mfem
+        DEPENDS_ON  ${shaping_driver_dependencies}
         FOLDER      axom/quest/examples
         )
-
+endif()
+# Existing tests require MFEM or C2C input.
+if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
         # 2D shaping tests
         set(_nranks 1)
@@ -191,6 +200,23 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~65.97
             set_tests_properties(${_testname} PROPERTIES 
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 65.")
+
+            if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
+                foreach(_backing sidre conduit)
+                    set(_testname quest_shaping_driver_ex_sampling_circles_blueprint_${_backing})
+                    axom_add_test(
+                        NAME ${_testname}
+                        COMMAND  quest_shaping_driver_ex
+                                -i ${shaping_data_dir}/circles.yaml
+                                --method sampling
+                                --verbose
+                                inline_mesh_blueprint --backing ${_backing} --min -6 -6 --max 6 6 --resolution 25 25 -d 2
+                        NUM_MPI_TASKS ${_nranks})
+                    # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~58.905
+                    set_tests_properties(${_testname} PROPERTIES
+                        PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 58.")
+                endforeach()
+            endif()
 
             set(_testname quest_shaping_driver_ex_sampling_balls_and_jacks)
             axom_add_test(
@@ -284,19 +310,19 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 NUM_MPI_TASKS ${_nranks})
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
-        endif()
 
-        # Test heroic_roses.yaml
-        set(_testname quest_shaping_driver_ex_heroic_roses)
-        axom_add_test(
-            NAME ${_testname}
-            COMMAND  quest_shaping_driver_ex
-                     -i ${shaping_data_dir}/heroic_roses.yaml
-                     --method sampling
-                     inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
-            NUM_MPI_TASKS ${_nranks})
-        set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+            # Test heroic_roses.yaml
+            set(_testname quest_shaping_driver_ex_heroic_roses)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                         -i ${shaping_data_dir}/heroic_roses.yaml
+                         --method sampling
+                         inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 37,?301.")
+        endif()
 
         # Test 2D MFEM mesh (linearize contours)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem)
@@ -366,6 +392,29 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         set_tests_properties(${_testname} PROPERTIES 
             PASS_REGULAR_EXPRESSION  "Volume of material 'air' is 182,?227,?963")
     endif()
+endif()
+# Blueprint-only shaping test
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+    set(_nranks 1)
+    foreach(_backing sidre conduit)
+        set(_testname quest_shaping_driver_ex_sampling_blueprint_3D_${_backing})
+        axom_add_test(NAME ${_testname}
+                      COMMAND  quest_shaping_driver_ex 
+                                -i ${shaping_data_dir}/spheres.yaml
+                                --verbose
+                                --method sampling
+                                --sampling inout
+                                --background-material void
+                                inline_mesh_blueprint --backing ${_backing} --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
+                                --sampling-resolution 5 5 5
+                                --quadrature-type gausslegendre
+                      NUM_MPI_TASKS ${_nranks})
+        # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
+        # expected analytic volume when fully resolved: ~1237.9
+        # NOTE: the answer depends on the quadrature type. This answer is for gausslegendre.
+        set_tests_properties(${_testname} PROPERTIES 
+                             PASS_REGULAR_EXPRESSION  "Volume of material 'void' is 1,?239.")
+    endforeach()
 endif()
 
 # Distributed closest point example -------------------------------------------

@@ -12,7 +12,7 @@
  * \brief Contains the specifications for types aliases used throughout the MIR component.
  */
 
-#include "axom/core.hpp"  // for axom macros
+#include "axom/core.hpp"
 #include "axom/slam.hpp"
 #include "axom/primal.hpp"
 

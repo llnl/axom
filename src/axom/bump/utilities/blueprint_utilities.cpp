@@ -19,7 +19,7 @@ namespace bump
 namespace utilities
 {
 
-std::vector<std::string> coordsetAxes(const conduit::Node &n_input)
+std::vector<std::string> coordsetAxes(const conduit::Node& n_input)
 {
   std::vector<std::string> axes;
   // Get the axis names for the output coordset. For uniform, prefer x,y,z

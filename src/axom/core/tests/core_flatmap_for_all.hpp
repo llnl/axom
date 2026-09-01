@@ -421,7 +421,7 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_batched_with_dups)
 
   // Check that we only have one instance of every key in the map
   axom::Array<int> dedup_keys(NUM_ELEMS);
-  for(auto &pair : test_map)
+  for(auto& pair : test_map)
   {
     // Check that we haven't seen another K-V pair with the same key.
     EXPECT_EQ(dedup_keys[pair.first], 0);
@@ -501,7 +501,7 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_multiple_batch_with_dups)
 
   // Check that we only have one instance of every key in the map
   axom::Array<int> dedup_keys(NUM_ELEMS);
-  for(auto &pair : test_map)
+  for(auto& pair : test_map)
   {
     // Check that we haven't seen another K-V pair with the same key.
     EXPECT_EQ(dedup_keys[pair.first], 0);
@@ -627,7 +627,7 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_batch_with_gaps_and_dups)
 
     // Check that we only have one instance of every key in the map
     axom::Array<int> dedup_keys(NUM_ELEMS);
-    for(auto &pair : test_map)
+    for(auto& pair : test_map)
     {
       // Check that we haven't seen another K-V pair with the same key.
       EXPECT_EQ(dedup_keys[pair.first], 0);

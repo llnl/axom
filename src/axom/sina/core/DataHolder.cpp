@@ -63,7 +63,7 @@ void DataHolder::add(CurveSet curveSet)
   }
 }
 
-std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const &name)
+std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const& name)
 {
   auto existing = libraryData.find(name);
   if(existing == libraryData.end())
@@ -77,7 +77,7 @@ std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const &name)
   return libraryData.at(name);
 }
 
-std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const &name,
+std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const& name,
                                                        conduit::Node existingLibraryData)
 {
   auto existing = libraryData.find(name);
@@ -105,7 +105,7 @@ conduit::Node DataHolder::toNode(CurveSet::CurveOrder curveOrder) const
   {
     //Loop through vector of data and append Json
     conduit::Node libRef;
-    for(auto &lib : libraryData)
+    for(auto& lib : libraryData)
     {
       libRef.add_child(lib.first) = lib.second->toNode(curveOrder);
     }
@@ -114,7 +114,7 @@ conduit::Node DataHolder::toNode(CurveSet::CurveOrder curveOrder) const
   if(!curveSets.empty())
   {
     conduit::Node curveSetsNode;
-    for(auto &entry : curveSets)
+    for(auto& entry : curveSets)
     {
       curveSetsNode.add_child(entry.first) = entry.second.toNode(curveOrder);
     }
@@ -124,7 +124,7 @@ conduit::Node DataHolder::toNode(CurveSet::CurveOrder curveOrder) const
   {
     //Loop through vector of data and append Json
     conduit::Node datumRef;
-    for(auto &datum : data)
+    for(auto& datum : data)
     {
       datumRef.add_child(datum.first) = datum.second.toNode();
     }
@@ -137,7 +137,7 @@ conduit::Node DataHolder::toNode(CurveSet::CurveOrder curveOrder) const
   return asNode;
 }
 
-DataHolder::DataHolder(conduit::Node const &asNode)
+DataHolder::DataHolder(conduit::Node const& asNode)
 {
   if(asNode.has_child(DATA_FIELD))
   {
@@ -145,7 +145,7 @@ DataHolder::DataHolder(conduit::Node const &asNode)
     //Loop through DATA_FIELD objects and add them to data:
     while(dataIter.has_next())
     {
-      auto &namedDatum = dataIter.next();
+      auto& namedDatum = dataIter.next();
       data.emplace(std::make_pair(dataIter.name(), Datum(namedDatum)));
     }
   }
@@ -154,7 +154,7 @@ DataHolder::DataHolder(conduit::Node const &asNode)
     auto curveSetsIter = asNode[CURVE_SETS_FIELD].children();
     while(curveSetsIter.has_next())
     {
-      auto &curveSetNode = curveSetsIter.next();
+      auto& curveSetNode = curveSetsIter.next();
       std::string name = curveSetsIter.name();
       CurveSet cs {name, curveSetNode};
       curveSets.emplace(std::make_pair(std::move(name), std::move(cs)));
@@ -165,7 +165,7 @@ DataHolder::DataHolder(conduit::Node const &asNode)
     auto libraryIter = asNode[LIBRARY_DATA_FIELD].children();
     while(libraryIter.has_next())
     {
-      auto &libraryDataNode = libraryIter.next();
+      auto& libraryDataNode = libraryIter.next();
       std::string name = libraryIter.name();
       libraryData.emplace(
         std::make_pair(std::move(name), std::make_shared<DataHolder>(libraryDataNode)));

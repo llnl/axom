@@ -18,6 +18,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+## [Version 0.15.0] - Release date 2026-08-28
+
 ### Added
 - Primal: Functions to evaluate surface and volume integrals over collections of `BezierPatch` and `NURBSPatch` objects.
 - Quest: An example to evaluate surface and volume integrals over a STEP model
@@ -39,6 +41,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Quest: Enhanced `SamplingShaper` so it can operate on Blueprint quad/hex meshes. Pass `inline_mesh_blueprint` to the
+  `quest_shaping_driver_ex` example program instead of `input_mesh` when a Blueprint mesh is desired.
+- Quest: `quest_shaping_driver_ex` now lets `inline_mesh_blueprint` runs choose the Blueprint backing
+  store with `--backing sidre|conduit`, which enables the program to operate on either Sidre or Conduit meshes.
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
@@ -55,6 +61,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: The C2CReader was enhanced to provide assembly support.
 - Core: Adds `utilities::filesystem::getFileExtension(str)`
 - Klee: Adds support for lua-based input decks for shaping
+- Slam: Adds convenience aliases in `axom/slam/Aliases.hpp` for the most common set and relation configurations, 
+  including `ArraySet`, `ArrayViewSet`, `VariableRelation`, `ConstantRelation` and their `View` forms.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -63,6 +71,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
 
 ### Changed
+- Axom now requires `C++20` (or newer) and will default to that if not specified via `BLT_CXX_STD`.
+  Configuring with `BLT_CXX_STD` set to `c++17` or lower is now a configuration error.
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 - CMake: Simplified execution policy logic through use of `AXOM_EXECUTION_POLICIES` variable.
 - Core: Moved length unit parsing and conversion helpers into `axom::utilities`.
@@ -74,9 +84,34 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Changed to `#pragma once` instead of unique header guard defines
 - Python: Sidre's bindings now install under the `axom` Python package (`import axom.sidre`)
   Code that previously imported `pysidre` needs to be updated to `axom.sidre`.
+- Uberenv's spack updated to v1.2.2
+- Updates blt submodule to [BLT version 0.7.2](https://github.com/LLNL/blt/releases/tag/v0.7.2)
+- Updates to [camp version 2026.07.1](https://github.com/LLNL/camp/releases/tag/v2026.07.1)
+- Updates to [RAJA version 2026.07.0](https://github.com/LLNL/RAJA/releases/tag/v2026.07.0)
+- Updates to [Umpire version 2026.07.1](https://github.com/LLNL/Umpire/releases/tag/v2026.07.1)
+- Updates to [Caliper version 2.15.0](https://github.com/LLNL/Caliper/releases/tag/v2.15.0)
+- Updates to [Conduit version 0.9.7](https://github.com/LLNL/conduit/releases/tag/v0.9.7)
+- Slam: `slam::Map`, `slam::BivariateMap` and `policies::VariableCardinality` now default to
+  `policies::ArrayIndirection` instead of `policies::STLVectorIndirection`.
+   Code that previously used the default `std::vector`-backed Maps will need to either
+   add a template for the `policies::STLVectorIndirection` or update to `policies::ArrayIndirection`.
+- Slam: `FieldRegistry` fields and buffers that it manages now use `axom::Array`
+  (a `slam::Map` with the default `axom::Array` indirection) rather than `std::vector`.
+  Code that previously registered `std::vector`-backed buffers should use
+  `FieldRegistry::MapType`, `FieldRegistry::BufferType`, `auto`, or `buffer.view()`, as appropriate.
+- Quest: The communicator-taking overloads of `quest::inout_init()`, `quest::signed_distance_init()` and the
+  internal `quest::internal::read_*_mesh()`/`logger_init()` helpers are now declared only when Axom is
+  configured with MPI. Serial code that passed the placeholder `MPI_COMM_SELF` explicitly should drop the argument.
+- We can now configure Axom without MPI when some of its dependencies were configured with MPI.
+- Python: Raised the minimum supported versions for Python bindings to Python 3.9 and nanobind 2.10.
+- Quest: Status-returning reader/writer operations in `C2CReader`, `MFEMReader`, `ProEReader`,
+  `STEPReader`, `STLReader`, `STLWriter`, and their parallel variants are now marked `[[nodiscard]]`.
+  Callers that previously ignored returned status values must check them to avoid compiler diagnostics.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
+- Slam: View-backed static relations are now trivially copyable and safe to capture by
+  value into device kernels.
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
@@ -94,6 +129,7 @@ and marked the templated `axom::sidre::View::getAttributeScalar<T>()` overloads 
 so they can be called on a `const View`. Also added  `const` overloads for `axom::sidre::Buffer::getData()`
 and `axom::sidre::Buffer::getVoidPtr()` so they can be called on a `const Buffer`.
 - Quest: Fixes `InOutOctree::within()` for query points that lie on (or very near) the surface, in both 2D (segment meshes) and 3D (triangle meshes).
+- Core: Adds missing subscript operator to ArrayIteratorBase to satisfy random access contract.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
@@ -1491,7 +1527,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.14.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.15.0...develop
+[Version 0.15.0]: https://github.com/LLNL/axom/compare/v0.14.0...v0.15.0
 [Version 0.14.0]: https://github.com/LLNL/axom/compare/v0.13.0...v0.14.0
 [Version 0.13.0]: https://github.com/LLNL/axom/compare/v0.12.0...v0.13.0
 [Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0

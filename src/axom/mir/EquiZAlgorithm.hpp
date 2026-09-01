@@ -71,9 +71,9 @@ public:
    * \param coordsetView The coordset view to use for the input data.
    * \param matsetView The matset view to use for the input data.
    */
-  EquiZAlgorithm(const TopologyView &topoView,
-                 const CoordsetView &coordsetView,
-                 const MatsetView &matsetView)
+  EquiZAlgorithm(const TopologyView& topoView,
+                 const CoordsetView& coordsetView,
+                 const MatsetView& matsetView)
     : axom::mir::MIRAlgorithm()
     , m_topologyView(topoView)
     , m_coordsetView(coordsetView)
@@ -125,15 +125,15 @@ protected:
    * \param[out] n_newMatset A Conduit node that will contain the new matset.
    * 
    */
-  virtual void executeDomain(const conduit::Node &n_topo,
-                             const conduit::Node &n_coordset,
-                             const conduit::Node &n_fields,
-                             const conduit::Node &n_matset,
-                             const conduit::Node &n_options,
-                             conduit::Node &n_newTopo,
-                             conduit::Node &n_newCoordset,
-                             conduit::Node &n_newFields,
-                             conduit::Node &n_newMatset) override
+  virtual void executeDomain(const conduit::Node& n_topo,
+                             const conduit::Node& n_coordset,
+                             const conduit::Node& n_fields,
+                             const conduit::Node& n_matset,
+                             const conduit::Node& n_options,
+                             conduit::Node& n_newTopo,
+                             conduit::Node& n_newCoordset,
+                             conduit::Node& n_newFields,
+                             conduit::Node& n_newMatset) override
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("EquizAlgorithm");
@@ -174,10 +174,10 @@ protected:
       n_root[localPath(n_coordset)].set_external(n_coordset);
       n_root[localPath(n_topo)].set_external(n_topo);
       n_root[localPath(n_matset)].set_external(n_matset);
-      conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
-      conduit::Node &n_root_topo = n_root[localPath(n_topo)];
-      conduit::Node &n_root_matset = n_root[localPath(n_matset)];
-      conduit::Node &n_root_fields = n_root["fields"];
+      conduit::Node& n_root_coordset = n_root[localPath(n_coordset)];
+      conduit::Node& n_root_topo = n_root[localPath(n_topo)];
+      conduit::Node& n_root_matset = n_root[localPath(n_matset)];
+      conduit::Node& n_root_fields = n_root["fields"];
       for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
       {
         n_root_fields[n_fields[i].name()].set_external(n_fields[i]);
@@ -318,9 +318,9 @@ protected:
    *        so we can process them specially since mixed zones require much
    *        more work.
    */
-  void makeZoneLists(const conduit::Node &n_options,
-                     axom::Array<axom::IndexType> &cleanZones,
-                     axom::Array<axom::IndexType> &mixedZones) const
+  void makeZoneLists(const conduit::Node& n_options,
+                     axom::Array<axom::IndexType>& cleanZones,
+                     axom::Array<axom::IndexType>& mixedZones) const
   {
     // Call variants of the ZoneListBuilder methods that take into account adjacent
     // zones materials when determining if a zone should be mixed.
@@ -356,17 +356,17 @@ protected:
    * \param n_mirOutput The mesh that contains the MIR output.
    * \param[out] n_merged The output node for the merged mesh.
    */
-  void merge(const std::string &topoName,
-             conduit::Node &n_cleanOutput,
-             conduit::Node &n_mirOutput,
-             conduit::Node &n_merged) const
+  void merge(const std::string& topoName,
+             conduit::Node& n_cleanOutput,
+             conduit::Node& n_mirOutput,
+             conduit::Node& n_merged) const
   {
     AXOM_ANNOTATE_SCOPE("merge");
     namespace utils = axom::bump::utilities;
 
     // Make node map and slice info for merging.
     axom::Array<axom::IndexType> nodeMap, nodeSlice;
-    conduit::Node &n_mir_fields = n_mirOutput["fields"];
+    conduit::Node& n_mir_fields = n_mirOutput["fields"];
     createNodeMapAndSlice(n_mir_fields, nodeMap, nodeSlice);
 
     // Create a MergeMeshesAndMatsets type that will operate on the material
@@ -406,9 +406,9 @@ protected:
    *       of which nodes are original nodes in the output. Blended nodes may not have good values
    *       but there is a mask field that can identify those nodes.
    */
-  void addOriginal(conduit::Node &n_field,
-                   const std::string &topoName,
-                   const std::string &association,
+  void addOriginal(conduit::Node& n_field,
+                   const std::string& topoName,
+                   const std::string& association,
                    axom::IndexType nvalues) const
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
@@ -440,11 +440,11 @@ protected:
    *
    * \return The number of nodes in the clean mesh output.
    */
-  void makeCleanZones(const conduit::Node &n_root,
-                      const std::string &topoName,
-                      const conduit::Node &n_options,
-                      const axom::ArrayView<axom::IndexType> &cleanZones,
-                      conduit::Node &n_cleanOutput) const
+  void makeCleanZones(const conduit::Node& n_root,
+                      const std::string& topoName,
+                      const conduit::Node& n_options,
+                      const axom::ArrayView<axom::IndexType>& cleanZones,
+                      conduit::Node& n_cleanOutput) const
   {
     AXOM_ANNOTATE_SCOPE("makeCleanZones");
     namespace utils = axom::bump::utilities;
@@ -460,7 +460,7 @@ protected:
     n_ezopts["originalElementsField"] = axom::bump::Options(n_options).originalElementsField();
     // Forward some options involved in naming the objects.
     const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
-    for(const auto &key : keys)
+    for(const auto& key : keys)
     {
       if(n_options.has_path(key))
       {
@@ -484,9 +484,9 @@ protected:
    * \param[out] nodeMap An array used to map node ids from the MIR output to their node ids in the merged mesh.
    * \param[out] nodeSlice An array that identifies new blended node ids in the MIR output so they can be appended into coordsets and fields during merge.
    */
-  void createNodeMapAndSlice(conduit::Node &n_newFields,
-                             axom::Array<axom::IndexType> &nodeMap,
-                             axom::Array<axom::IndexType> &nodeSlice) const
+  void createNodeMapAndSlice(conduit::Node& n_newFields,
+                             axom::Array<axom::IndexType>& nodeMap,
+                             axom::Array<axom::IndexType>& nodeSlice) const
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("createNodeMapAndSlice");
@@ -496,12 +496,12 @@ protected:
     const axom::IndexType numCleanNodes = m_coordsetView.numberOfNodes();
 
     // These are the original node ids.
-    const conduit::Node &n_output_orig_nodes = n_newFields[originalNodesFieldName() + "/values"];
+    const conduit::Node& n_output_orig_nodes = n_newFields[originalNodesFieldName() + "/values"];
     auto numOutputNodes = n_output_orig_nodes.dtype().number_of_elements();
     auto outputOrigNodesView = utils::make_array_view<ConnectivityType>(n_output_orig_nodes);
 
     // __equiz_new_nodes is the int mask field that identifies new nodes created from blending.
-    const conduit::Node &n_new_nodes_values = n_newFields[newNodesFieldName() + "/values"];
+    const conduit::Node& n_new_nodes_values = n_newFields[newNodesFieldName() + "/values"];
     const auto maskView = utils::make_array_view<int>(n_new_nodes_values);
 
     // Count new nodes created from blending.
@@ -566,15 +566,15 @@ protected:
    * \param[out] n_newMatset A Conduit node that will contain the new matset.
    * 
    */
-  void processMixedZones(const conduit::Node &n_topo,
-                         const conduit::Node &n_coordset,
-                         const conduit::Node &n_fields,
-                         const conduit::Node &n_matset,
-                         conduit::Node &n_options,
-                         conduit::Node &n_newTopo,
-                         conduit::Node &n_newCoordset,
-                         conduit::Node &n_newFields,
-                         conduit::Node &n_newMatset) const
+  void processMixedZones(const conduit::Node& n_topo,
+                         const conduit::Node& n_coordset,
+                         const conduit::Node& n_fields,
+                         const conduit::Node& n_matset,
+                         conduit::Node& n_options,
+                         conduit::Node& n_newTopo,
+                         conduit::Node& n_newCoordset,
+                         conduit::Node& n_newFields,
+                         conduit::Node& n_newMatset) const
   {
     AXOM_ANNOTATE_SCOPE("processMixedZones");
     namespace views = axom::bump::views;
@@ -582,9 +582,9 @@ protected:
     // Make some nodes that will contain the inputs to subsequent iterations.
     // Store them under a single node so the nodes will have names.
     conduit::Node n_Input;
-    conduit::Node &n_InputTopo = n_Input[localPath(n_topo)];
-    conduit::Node &n_InputCoordset = n_Input[localPath(n_coordset)];
-    conduit::Node &n_InputFields = n_Input[localPath(n_fields)];
+    conduit::Node& n_InputTopo = n_Input[localPath(n_topo)];
+    conduit::Node& n_InputCoordset = n_Input[localPath(n_coordset)];
+    conduit::Node& n_InputFields = n_Input[localPath(n_fields)];
 
     // Get the materials from the matset and determine which of them are clean/mixed.
     axom::bump::views::MaterialInformation allMats, cleanMats, mixedMats;
@@ -598,7 +598,7 @@ protected:
     n_InputFields.reset();
     for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
     {
-      const conduit::Node &n_field = n_fields[i];
+      const conduit::Node& n_field = n_fields[i];
       if(n_field["topology"].as_string() == n_newTopo.name())
       {
         n_InputFields[n_fields[i].name()].set_external(n_fields[i]);
@@ -666,7 +666,7 @@ protected:
         views::typed_dispatch_unstructured_topology<ConnectivityType,
                                                     views::view_traits<TopologyView>::selected_shapes()>(
           n_InputTopo,
-          [&](const auto &AXOM_UNUSED_PARAM(shape), auto topologyView) {
+          [&](const auto& AXOM_UNUSED_PARAM(shape), auto topologyView) {
             // Do the next iteration (uses new topologyView type).
             iteration(i,
                       topologyView,
@@ -694,7 +694,7 @@ protected:
     // Cleanup.
     {
       AXOM_ANNOTATE_SCOPE("cleanup");
-      for(const auto &mat : allMats)
+      for(const auto& mat : allMats)
       {
         const std::string nodalMatName(nodalFieldName(mat.m_number));
         if(n_newFields.has_child(nodalMatName))
@@ -735,10 +735,10 @@ protected:
    * \param[out] cleanMats A vector of the clean materials.
    * \param[out] mixedMats A vector of the mixed materials.
    */
-  void classifyMaterials(const conduit::Node &n_matset,
-                         axom::bump::views::MaterialInformation &allMats,
-                         axom::bump::views::MaterialInformation &cleanMats,
-                         axom::bump::views::MaterialInformation &mixedMats) const
+  void classifyMaterials(const conduit::Node& n_matset,
+                         axom::bump::views::MaterialInformation& allMats,
+                         axom::bump::views::MaterialInformation& cleanMats,
+                         axom::bump::views::MaterialInformation& mixedMats) const
   {
     AXOM_ANNOTATE_SCOPE("classifyMaterials");
 
@@ -802,10 +802,10 @@ protected:
    * \param[inout] A Conduit node where the new fields will be added.
    * \param mixedMats A vector of mixed materials.
    */
-  void makeNodeCenteredVFs(const conduit::Node &n_topo,
-                           const conduit::Node &n_coordset,
-                           conduit::Node &n_fields,
-                           const axom::bump::views::MaterialInformation &mixedMats) const
+  void makeNodeCenteredVFs(const conduit::Node& n_topo,
+                           const conduit::Node& n_coordset,
+                           conduit::Node& n_fields,
+                           const axom::bump::views::MaterialInformation& mixedMats) const
   {
     AXOM_ANNOTATE_SCOPE("makeNodeCenteredVFs");
 
@@ -830,11 +830,11 @@ protected:
     const auto nnodes = m_coordsetView.numberOfNodes();
     {
       AXOM_ANNOTATE_SCOPE("zonal");
-      for(const auto &mat : mixedMats)
+      for(const auto& mat : mixedMats)
       {
         const int matNumber = mat.m_number;
         const std::string zonalName = zonalFieldName(matNumber);
-        conduit::Node &n_zonalField = n_fields[zonalName];
+        conduit::Node& n_zonalField = n_fields[zonalName];
         n_zonalField["topology"] = n_topo.name();
         n_zonalField["association"] = "element";
         n_zonalField["values"].set_allocator(conduitAllocatorID);
@@ -855,15 +855,15 @@ protected:
 
     {
       AXOM_ANNOTATE_SCOPE("recenter");
-      for(const auto &mat : mixedMats)
+      for(const auto& mat : mixedMats)
       {
         const int matNumber = mat.m_number;
         const std::string zonalName = zonalFieldName(matNumber);
-        conduit::Node &n_zonalField = n_fields[zonalName];
+        conduit::Node& n_zonalField = n_fields[zonalName];
 
         // Make a nodal field for the current material by recentering.
         const std::string nodalName = nodalFieldName(matNumber);
-        conduit::Node &n_nodalField = n_fields[nodalName];
+        conduit::Node& n_nodalField = n_fields[nodalName];
         n_nodalField["topology"] = n_topo.name();
         n_nodalField["association"] = "vertex";
         n_nodalField["values"].set_allocator(conduitAllocatorID);
@@ -889,10 +889,10 @@ protected:
    * \param cleanMats A vector of clean materials.
    * \param mixedMats A vector of mixed materials.
    */
-  void makeWorkingFields(const conduit::Node &n_topo,
-                         conduit::Node &n_fields,
-                         const axom::bump::views::MaterialInformation &cleanMats,
-                         const axom::bump::views::MaterialInformation &AXOM_UNUSED_PARAM(mixedMats)) const
+  void makeWorkingFields(const conduit::Node& n_topo,
+                         conduit::Node& n_fields,
+                         const axom::bump::views::MaterialInformation& cleanMats,
+                         const axom::bump::views::MaterialInformation& AXOM_UNUSED_PARAM(mixedMats)) const
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("makeWorkingFields");
@@ -904,7 +904,7 @@ protected:
     const auto nzones = m_topologyView.numberOfZones();
 
     // Make the zonal id field.
-    conduit::Node &n_zonalIDField = n_fields[zonalMaterialIDName()];
+    conduit::Node& n_zonalIDField = n_fields[zonalMaterialIDName()];
     n_zonalIDField["topology"] = n_topo.name();
     n_zonalIDField["association"] = "element";
     n_zonalIDField["values"].set_allocator(conduitAllocatorID);
@@ -919,7 +919,7 @@ protected:
     // Fill in the clean zones.
     using FloatType = typename MatsetView::FloatType;
     MatsetView deviceMatsetView(m_matsetView);
-    for(const auto &mat : cleanMats)
+    for(const auto& mat : cleanMats)
     {
       const int matNumber = mat.m_number;
       axom::for_all<ExecSpace>(
@@ -958,21 +958,21 @@ protected:
    */
   template <typename ITopologyView, typename ICoordsetView>
   void iteration(int iter,
-                 const ITopologyView &topoView,
-                 const ICoordsetView &coordsetView,
+                 const ITopologyView& topoView,
+                 const ICoordsetView& coordsetView,
 
-                 const axom::bump::views::MaterialInformation &allMats,
-                 const axom::bump::views::Material &currentMat,
+                 const axom::bump::views::MaterialInformation& allMats,
+                 const axom::bump::views::Material& currentMat,
 
-                 const conduit::Node &n_topo,
-                 const conduit::Node &n_coordset,
-                 conduit::Node &n_fields,
+                 const conduit::Node& n_topo,
+                 const conduit::Node& n_coordset,
+                 conduit::Node& n_fields,
 
-                 const conduit::Node &n_options,
+                 const conduit::Node& n_options,
 
-                 conduit::Node &n_newTopo,
-                 conduit::Node &n_newCoordset,
-                 conduit::Node &n_newFields) const
+                 conduit::Node& n_newTopo,
+                 conduit::Node& n_newCoordset,
+                 conduit::Node& n_newFields) const
   {
     namespace utils = axom::bump::utilities;
     namespace bpmeshutils = conduit::blueprint::mesh::utils;
@@ -1116,7 +1116,7 @@ protected:
       const auto nzonesNew = colorView.size();
 
       // Get zonalMaterialID field so we can make adjustments.
-      conduit::Node &n_zonalMaterialID =
+      conduit::Node& n_zonalMaterialID =
         n_newFields.fetch_existing(zonalMaterialIDName() + "/values");
       auto zonalMaterialID = utils::make_array_view<MaterialID>(n_zonalMaterialID);
       const int currentMatNumber = currentMat.m_number;
@@ -1162,15 +1162,15 @@ protected:
    * \param[inout] n_newFields The Conduit node that contains the fields for the MIR output.
    * \param[out] n_newMatset The node that contains the new matset.
    */
-  void buildNewMatset(const conduit::Node &n_matset,
-                      conduit::Node &n_newFields,
-                      conduit::Node &n_newMatset) const
+  void buildNewMatset(const conduit::Node& n_matset,
+                      conduit::Node& n_newFields,
+                      conduit::Node& n_newMatset) const
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("buildNewMatset");
 
     // Get the zonalMaterialID field that has our new material ids.
-    conduit::Node &n_zonalMaterialID = n_newFields[zonalMaterialIDName() + "/values"];
+    conduit::Node& n_zonalMaterialID = n_newFields[zonalMaterialIDName() + "/values"];
     auto zonalMaterialID = utils::make_array_view<MaterialID>(n_zonalMaterialID);
     const auto nzones = n_zonalMaterialID.dtype().number_of_elements();
 
@@ -1185,11 +1185,11 @@ protected:
     }
 
     // Make new nodes in the matset.
-    conduit::Node &n_material_ids = n_newMatset["material_ids"];
-    conduit::Node &n_volume_fractions = n_newMatset["volume_fractions"];
-    conduit::Node &n_sizes = n_newMatset["sizes"];
-    conduit::Node &n_offsets = n_newMatset["offsets"];
-    conduit::Node &n_indices = n_newMatset["indices"];
+    conduit::Node& n_material_ids = n_newMatset["material_ids"];
+    conduit::Node& n_volume_fractions = n_newMatset["volume_fractions"];
+    conduit::Node& n_sizes = n_newMatset["sizes"];
+    conduit::Node& n_offsets = n_newMatset["offsets"];
+    conduit::Node& n_indices = n_newMatset["indices"];
 
     const auto conduitAllocatorID =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());

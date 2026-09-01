@@ -42,21 +42,21 @@ constexpr int NRIGHT = 1;
  * \param extents The mesh coordinate extents {xmin, xmax, ymin, ymax, zmin, zmax}.
  * \param dims The total number of NODES in each dimension.
  */
-void make_explicit_coordset(conduit::Node &n_mesh,
-                            const std::string &coordsetName,
+void make_explicit_coordset(conduit::Node& n_mesh,
+                            const std::string& coordsetName,
                             double extents[6],
                             int dims[3])
 {
   SLIC_ASSERT(dims[0] > 0 && dims[1] > 0 && dims[2] > 0);
   const int nnodes = dims[0] * dims[1] * dims[2];
-  conduit::Node &n_coordset = n_mesh["coordsets/" + coordsetName];
+  conduit::Node& n_coordset = n_mesh["coordsets/" + coordsetName];
   n_coordset["type"] = "explicit";
   n_coordset["values/x"].set(conduit::DataType::float64(nnodes));
   n_coordset["values/y"].set(conduit::DataType::float64(nnodes));
   n_coordset["values/z"].set(conduit::DataType::float64(nnodes));
-  double *x = n_coordset["values/x"].as_double_ptr();
-  double *y = n_coordset["values/y"].as_double_ptr();
-  double *z = n_coordset["values/z"].as_double_ptr();
+  double* x = n_coordset["values/x"].as_double_ptr();
+  double* y = n_coordset["values/y"].as_double_ptr();
+  double* z = n_coordset["values/z"].as_double_ptr();
   int index = 0;
   for(int k = 0; k < dims[2]; k++)
   {
@@ -89,9 +89,9 @@ void make_explicit_coordset(conduit::Node &n_mesh,
  *
  * \note extents and dims include phonies.
  */
-void make_mesh(conduit::Node &n_mesh,
-               const std::string &topoName,
-               const std::string &coordsetName,
+void make_mesh(conduit::Node& n_mesh,
+               const std::string& topoName,
+               const std::string& coordsetName,
                const int dims[3])
 {
   SLIC_ASSERT(dims[0] > 0 && dims[1] > 0 && dims[2] > 0);
@@ -106,7 +106,7 @@ void make_mesh(conduit::Node &n_mesh,
   strides[2] = dims[0] * dims[1];
 
   // Make the strided-structured topology,
-  conduit::Node &n_topo = n_mesh["topologies/" + topoName];
+  conduit::Node& n_topo = n_mesh["topologies/" + topoName];
   n_topo["type"] = "structured";
   n_topo["coordset"] = coordsetName;
   n_topo["elements/dims/i"] = real_zone_dims[0];
@@ -131,9 +131,9 @@ void make_mesh(conduit::Node &n_mesh,
  * \param ballRadius The radius of the ball.
  * \param wallX The X value above which zones are filled with CU.
  */
-void make_matset(conduit::Node &n_mesh,
-                 const std::string &topologyName,
-                 const std::string &matsetName,
+void make_matset(conduit::Node& n_mesh,
+                 const std::string& topologyName,
+                 const std::string& matsetName,
                  const double extents[6],
                  const int dims[3],
                  const double ballCenter[3],
@@ -141,7 +141,7 @@ void make_matset(conduit::Node &n_mesh,
                  const double wallX)
 {
   /// Sample a zone and determine vfCU and vfAIR, returning number of materials 1 or 2.
-  auto ballVF = [&](const double zExt[6], double &vfCU, double &vfAIR) -> int {
+  auto ballVF = [&](const double zExt[6], double& vfCU, double& vfAIR) -> int {
     const int nSamples = 10;
     const double br2 = ballRadius * ballRadius;
     const int nTotalSamples = nSamples * nSamples * nSamples;
@@ -258,7 +258,7 @@ void make_matset(conduit::Node &n_mesh,
     }
   }
 
-  conduit::Node &n_matset = n_mesh["matsets/" + matsetName];
+  conduit::Node& n_matset = n_mesh["matsets/" + matsetName];
   n_matset["topology"] = topologyName;
   n_matset["material_map/AIR"] = AIR;
   n_matset["material_map/CU"] = CU;
@@ -303,7 +303,7 @@ void adjust_sizes(int real_dims[3], double real_extents[6], int total_dims[3], d
  * \param real_extents The box that defines the extents for the real nodes.
  * \param real_dims The number of real nodes in each dimension.
  */
-void make_coarse(conduit::Node &n_mesh, double real_extents[6], int real_dims[3])
+void make_coarse(conduit::Node& n_mesh, double real_extents[6], int real_dims[3])
 {
   SLIC_ASSERT(real_dims[0] > 0 && real_dims[1] > 0 && real_dims[2] > 0);
 
@@ -332,7 +332,7 @@ void make_coarse(conduit::Node &n_mesh, double real_extents[6], int real_dims[3]
  * \param real_dims The number of real nodes in each dimension.
  * \param refinement The refinement ration in each dimension.
  */
-void make_fine(conduit::Node &n_mesh, double real_extents[6], int real_dims[3], int refinement[3])
+void make_fine(conduit::Node& n_mesh, double real_extents[6], int real_dims[3], int refinement[3])
 {
   SLIC_ASSERT(real_dims[0] > 0 && real_dims[1] > 0 && real_dims[2] > 0);
   SLIC_ASSERT(refinement[0] > 0 && refinement[1] > 0 && refinement[2] > 0);
@@ -360,7 +360,7 @@ template <typename ExecSpace>
 class test_coupling
 {
 public:
-  static void test(const std::string &name)
+  static void test(const std::string& name)
   {
     // Make the input mesh.
     conduit::Node n_mesh;
@@ -399,7 +399,7 @@ public:
 
 private:
   /// Make the meshes
-  static void initialize(conduit::Node &n_mesh)
+  static void initialize(conduit::Node& n_mesh)
   {
     // Unit cube with different numbers of zones (and refinements) in each dimension.
     double extents[] = {0., 1., 0., 1., 0., 1.};
@@ -411,17 +411,17 @@ private:
   }
 
   /// Perform MIR on input mesh and make new output mesh.
-  static void mir(const std::string &input_prefix,
-                  conduit::Node &n_input,
-                  const std::string &output_prefix,
-                  conduit::Node &n_output)
+  static void mir(const std::string& input_prefix,
+                  conduit::Node& n_input,
+                  const std::string& output_prefix,
+                  conduit::Node& n_output)
   {
     SLIC_INFO(axom::fmt::format("mir {} to {}", input_prefix, output_prefix));
 
     // Wrap the input mesh in views.
-    const conduit::Node &n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
-    const conduit::Node &n_topology = n_input[axom::fmt::format("topologies/{}", input_prefix)];
-    const conduit::Node &n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
+    const conduit::Node& n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
+    const conduit::Node& n_topology = n_input[axom::fmt::format("topologies/{}", input_prefix)];
+    const conduit::Node& n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
 
     auto coordsetView = views::make_explicit_coordset<double, 3>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
@@ -450,14 +450,14 @@ private:
   }
 
   /// Map material from postmir mesh onto fine mesh to make fine matset.
-  static void mapping(conduit::Node &n_src, conduit::Node &n_target)
+  static void mapping(conduit::Node& n_src, conduit::Node& n_target)
   {
     SLIC_INFO("mapping postmir to fine");
 
     // Wrap the source mesh from (coarse MIR output).
-    const conduit::Node &n_src_coordset = n_src["coordsets/postmir_coords"];
-    const conduit::Node &n_src_topology = n_src["topologies/postmir"];
-    const conduit::Node &n_src_matset = n_src["matsets/postmir_matset"];
+    const conduit::Node& n_src_coordset = n_src["coordsets/postmir_coords"];
+    const conduit::Node& n_src_topology = n_src["topologies/postmir"];
+    const conduit::Node& n_src_matset = n_src["matsets/postmir_matset"];
 
     auto srcCoordsetView = views::make_explicit_coordset<double, 3>::view(n_src_coordset);
     using SrcCoordsetView = decltype(srcCoordsetView);
@@ -472,8 +472,8 @@ private:
     using SrcMatsetView = decltype(srcMatsetView);
 
     // Wrap the target mesh (fine)
-    const conduit::Node &n_target_coordset = n_target["coordsets/fine_coords"];
-    const conduit::Node &n_target_topology = n_target["topologies/fine"];
+    const conduit::Node& n_target_coordset = n_target["coordsets/fine_coords"];
+    const conduit::Node& n_target_topology = n_target["topologies/fine"];
 
     auto targetCoordsetView = views::make_explicit_coordset<double, 3>::view(n_target_coordset);
     using TargetCoordsetView = decltype(targetCoordsetView);
@@ -529,7 +529,7 @@ TEST(mir_coupling, coupling_3d_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

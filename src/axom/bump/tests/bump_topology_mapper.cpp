@@ -105,7 +105,7 @@ If fine has 2x2 refinement, it looks like this:
 %----%----%----%----%----%----%
 
 */
-const char *yaml = R"(
+const char* yaml = R"(
 coordsets:
   coarse_coords:
     type: explicit
@@ -177,10 +177,10 @@ matsets:
  * \param ny The number of nodes in the Y direction.
  * \param refinement The number of refinements to make from the coarse to fine levels.
  */
-void make_fine(conduit::Node &n_mesh,
-               const std::string &coordsetName,
-               const std::string &topoName,
-               const double *extents,
+void make_fine(conduit::Node& n_mesh,
+               const std::string& coordsetName,
+               const std::string& topoName,
+               const double* extents,
                int nx,
                int ny,
                int refinement)
@@ -224,12 +224,12 @@ void make_fine(conduit::Node &n_mesh,
     }
   }
 
-  conduit::Node &n_coordset = n_mesh["coordsets/" + coordsetName];
+  conduit::Node& n_coordset = n_mesh["coordsets/" + coordsetName];
   n_coordset["type"] = "explicit";
   n_coordset["values/x"].set(xc);
   n_coordset["values/y"].set(yc);
 
-  conduit::Node &n_topo = n_mesh["topologies/" + topoName];
+  conduit::Node& n_topo = n_mesh["topologies/" + topoName];
   n_topo["type"] = "unstructured";
   n_topo["coordset"] = coordsetName;
   n_topo["elements/shape"] = "quad";
@@ -326,7 +326,7 @@ public:
 private:
   static constexpr int refinement = 4;
 
-  static void initialize(conduit::Node &n_mesh)
+  static void initialize(conduit::Node& n_mesh)
   {
     // Make the 2D input mesh.
     n_mesh.parse(yaml);
@@ -349,7 +349,7 @@ private:
    *              the output meshes. The data needs to be in the right memory for
    *              the ExecutionSpace.
    */
-  static void extrude(conduit::Node &n_dev)
+  static void extrude(conduit::Node& n_dev)
   {
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
@@ -360,7 +360,7 @@ private:
 
     using SrcTopologyView = views::UnstructuredTopologyMixedShapeView<conduit::index_t>;
     axom::Array<axom::IndexType> shapeValues, shapeIds;
-    const conduit::Node &n_srcTopo = n_dev["topologies/postmir"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/postmir"];
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
     axom::synchronize<ExecSpace>();
     SrcTopologyView srcTopo(
@@ -375,7 +375,7 @@ private:
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/fine_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/fine"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/fine"];
     using TargetShapeType = views::QuadShape<int>;
     auto targetTopo =
       views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
@@ -410,7 +410,7 @@ private:
     targetExt.execute(n_dev, n_opts2, n_dev);
   }
 
-  static void mapping2D(conduit::Node &n_dev)
+  static void mapping2D(conduit::Node& n_dev)
   {
     // Wrap coarse/post_mir mesh in views.
     auto srcCoordset =
@@ -419,7 +419,7 @@ private:
 
     using SrcTopologyView = views::UnstructuredTopologyMixedShapeView<conduit::index_t>;
     axom::Array<axom::IndexType> shapeValues, shapeIds;
-    const conduit::Node &n_srcTopo = n_dev["topologies/postmir"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/postmir"];
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
     axom::synchronize<ExecSpace>();
@@ -430,7 +430,7 @@ private:
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
       shapeMap);
 
-    const conduit::Node &n_srcMatset = n_dev["matsets/postmir_matset"];
+    const conduit::Node& n_srcMatset = n_dev["matsets/postmir_matset"];
     auto srcMatset = views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
@@ -439,7 +439,7 @@ private:
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/fine_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/fine"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/fine"];
     using TargetShapeType = views::QuadShape<int>;
     auto targetTopo =
       views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
@@ -458,7 +458,7 @@ private:
     // _bump_utilities_topologymapper_end
   }
 
-  static void mapping3D(conduit::Node &n_dev)
+  static void mapping3D(conduit::Node& n_dev)
   {
     // Wrap coarse/post_mir mesh in views.
     auto srcCoordset =
@@ -466,7 +466,7 @@ private:
     using SrcCoordsetView = decltype(srcCoordset);
     using SrcTopologyView = views::UnstructuredTopologyMixedShapeView<conduit::index_t>;
     axom::Array<axom::IndexType> shapeValues, shapeIds;
-    const conduit::Node &n_srcTopo = n_dev["topologies/epm"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/epm"];
     EXPECT_EQ(n_srcTopo["type"].as_string(), "unstructured");
     EXPECT_EQ(n_srcTopo["elements/shape"].as_string(), "mixed");
 
@@ -487,7 +487,7 @@ private:
 
     SrcTopologyView srcTopo(srcConnView, srcShapesView, srcSizesView, srcOffsetsView, shapeMap);
 
-    const conduit::Node &n_srcMatset = n_dev["matsets/epm_matset"];
+    const conduit::Node& n_srcMatset = n_dev["matsets/epm_matset"];
     auto srcMatset = views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
@@ -496,7 +496,7 @@ private:
       views::make_explicit_coordset<double, 3>::view(n_dev["coordsets/efm_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/efm"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/efm"];
     using TargetShapeType = views::HexShape<int>;
     auto targetTopo =
       views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
@@ -513,12 +513,12 @@ private:
     mapper.execute(n_dev, n_opts, n_dev);
   }
 
-  static void makePolyhedral(conduit::Node &n_dev)
+  static void makePolyhedral(conduit::Node& n_dev)
   {
     // Wrap coarse/epm mesh in a view.
     using SrcTopologyView = views::UnstructuredTopologyMixedShapeView<conduit::index_t>;
     axom::Array<axom::IndexType> shapeValues, shapeIds;
-    const conduit::Node &n_srcTopo = n_dev["topologies/epm"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/epm"];
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
     axom::synchronize<ExecSpace>();
@@ -530,7 +530,7 @@ private:
       shapeMap);
 
     // Turn the source mesh "epm" polyhedral and store in phmesh.
-    conduit::Node &n_phTopo = n_dev["topologies/phmesh"];
+    conduit::Node& n_phTopo = n_dev["topologies/phmesh"];
     bump::MakePolyhedralTopology<ExecSpace, SrcTopologyView> mph(srcTopo);
     mph.execute(n_srcTopo, n_phTopo);
     bump::MergePolyhedralFaces<ExecSpace, conduit::index_t>::execute(n_phTopo);
@@ -540,7 +540,7 @@ private:
     n_dev["matsets/ph_matset/topology"] = "phmesh";
   }
 
-  static void mappingPolyhedral(conduit::Node &n_dev)
+  static void mappingPolyhedral(conduit::Node& n_dev)
   {
     // Wrap coarse/post_mir mesh in views.
     auto srcCoordset =
@@ -548,11 +548,11 @@ private:
     using SrcCoordsetView = decltype(srcCoordset);
 
     // Make polyhedral topology view.
-    const conduit::Node &n_srcTopo = n_dev["topologies/phmesh"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/phmesh"];
     auto srcTopo = views::make_unstructured_polyhedral_topology<conduit::index_t>::view(n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
-    const conduit::Node &n_srcMatset = n_dev["matsets/ph_matset"];
+    const conduit::Node& n_srcMatset = n_dev["matsets/ph_matset"];
     auto srcMatset = views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
@@ -561,7 +561,7 @@ private:
       views::make_explicit_coordset<double, 3>::view(n_dev["coordsets/efm_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/efm"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/efm"];
     using TargetShapeType = views::HexShape<int>;
     auto targetTopo =
       views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
@@ -613,7 +613,7 @@ public:
     EXPECT_TRUE(TestApp.test<ExecSpace>("test_poly", hostResult));
   }
 
-  static void initialize(conduit::Node &n_mesh)
+  static void initialize(conduit::Node& n_mesh)
   {
     // Make polygonal geometry
     const conduit::index_t nlevels = 4;
@@ -621,7 +621,7 @@ public:
     conduit::blueprint::mesh::examples::polytess(nlevels, nz, n_mesh);
 
     // Make a matset from the level field.
-    conduit::Node &n_matset = n_mesh["matsets/mat"];
+    conduit::Node& n_matset = n_mesh["matsets/mat"];
     n_matset["topology"] = "topo";
     for(int mat = 1; mat <= nlevels; mat++)
     {
@@ -653,20 +653,20 @@ public:
     make_target2(n_mesh);
   }
 
-  static void make_target1(conduit::Node &n_mesh)
+  static void make_target1(conduit::Node& n_mesh)
   {
     // Make a quad mesh
     double extents[] = {-6.32843, 6.32843, -6.32843, 6.32843};
     make_fine(n_mesh, "target1_coords", "target1", extents, 100, 100, 1);
   }
 
-  static void make_target2(conduit::Node &n_mesh)
+  static void make_target2(conduit::Node& n_mesh)
   {
     const auto x = n_mesh["coordsets/coords/values/x"].as_float64_accessor();
     const auto y = n_mesh["coordsets/coords/values/y"].as_float64_accessor();
 
     // Make a rotated copy of the input topo mesh.
-    conduit::Node &target2_coords = n_mesh["coordsets/target2_coords"];
+    conduit::Node& target2_coords = n_mesh["coordsets/target2_coords"];
     target2_coords["type"] = "explicit";
     target2_coords["values/x"].set(conduit::DataType::float64(x.number_of_elements()));
     target2_coords["values/y"].set(conduit::DataType::float64(y.number_of_elements()));
@@ -687,19 +687,19 @@ public:
     n_mesh["topologies/target2/coordset"] = "target2_coords";
   }
 
-  static void mapping_target1(conduit::Node &n_dev)
+  static void mapping_target1(conduit::Node& n_dev)
   {
     // Wrap polygonal mesh in views.
     auto srcCoordset = views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
     using SrcCoordsetView = decltype(srcCoordset);
 
-    const conduit::Node &n_srcTopo = n_dev["topologies/topo"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/topo"];
     auto srcTopo =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
-    const conduit::Node &n_srcMatset = n_dev["matsets/mat"];
+    const conduit::Node& n_srcMatset = n_dev["matsets/mat"];
     auto srcMatset = views::make_unibuffer_matset<int, float, 4>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
@@ -708,7 +708,7 @@ public:
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/target1_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/target1"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/target1"];
     using TargetShapeType = views::QuadShape<int>;
     auto targetTopo =
       views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
@@ -725,19 +725,19 @@ public:
     mapper.execute(n_dev, n_opts, n_dev);
   }
 
-  static void mapping_target2(conduit::Node &n_dev)
+  static void mapping_target2(conduit::Node& n_dev)
   {
     // Wrap polygonal mesh in views.
     auto srcCoordset = views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
     using SrcCoordsetView = decltype(srcCoordset);
 
-    const conduit::Node &n_srcTopo = n_dev["topologies/topo"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/topo"];
     auto srcTopo =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
-    const conduit::Node &n_srcMatset = n_dev["matsets/mat"];
+    const conduit::Node& n_srcMatset = n_dev["matsets/mat"];
     auto srcMatset = views::make_unibuffer_matset<int, float, 4>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
@@ -746,7 +746,7 @@ public:
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/target2_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/target2"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/target2"];
     auto targetTopo =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_targetTopo);
@@ -769,7 +769,7 @@ public:
     mapper.execute(n_dev, n_opts, n_dev);
   }
 
-  static int countBadMaterialZones(const conduit::Node &matset, double eps = 1.e-4)
+  static int countBadMaterialZones(const conduit::Node& matset, double eps = 1.e-4)
   {
     const auto volume_fractions = utils::make_array_view<float>(matset["volume_fractions"]);
     //const auto material_ids = utils::make_array_view<int>(matset["material_ids"]);
@@ -914,7 +914,7 @@ TEST(bump_topology_mapper, TopologyMapper_Polygonal_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

@@ -68,6 +68,9 @@ spack:
     # - Use amdgpu_target=gfx942 for rzadams
     # - Use amdgpu_target=gfx90a for tioga/rzvernal
     # - Use amdgpu_target=gfx908 for rznevada
+    #
+    # gcc-toolchain flag prevents fortran from injecting wrong gcc-toolset-12
+    # link path
     llvm-amdgpu:
       externals:
       - spec: llvm-amdgpu@7.2.1
@@ -80,7 +83,7 @@ spack:
           flags:
             cflags: -fPIC
             cxxflags: -fPIC
-            fflags: -fPIC
+            fflags: -fPIC --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr
           environment: {}
           extra_rpaths: []
       - spec: llvm-amdgpu@6.4.3
@@ -93,7 +96,7 @@ spack:
           flags:
             cflags: -fPIC
             cxxflags: -fPIC
-            fflags: -fPIC
+            fflags: -fPIC --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr
           environment: {}
           extra_rpaths: []
     cce:
@@ -108,7 +111,7 @@ spack:
           flags:
             cflags: -fPIC
             cxxflags: -fPIC
-            fflags: -fPIC
+            fflags: -fPIC --gcc-toolchain=/opt/rh/gcc-toolset-13/root/usr
           environment: {}
           extra_rpaths: []
 

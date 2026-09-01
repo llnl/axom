@@ -33,7 +33,7 @@ namespace axom
  * \param size The number of elements to sort.
  */
 template <typename ExecSpace, typename T>
-inline void sort(T *input, axom::IndexType size)
+inline void sort(T* input, axom::IndexType size)
 {
 #if defined(AXOM_USE_RAJA)
   // Sort using RAJA
@@ -55,7 +55,7 @@ inline void sort(T *input, axom::IndexType size)
  * \param input The container to sort.
  */
 template <typename ExecSpace, typename ContiguousMemoryContainer>
-inline void sort(ContiguousMemoryContainer &input)
+inline void sort(ContiguousMemoryContainer& input)
 {
   sort<ExecSpace>(input.data(), input.size());
 }
@@ -72,7 +72,7 @@ inline void sort(ContiguousMemoryContainer &input)
  * \param input2 A second container to sort (according to input1's sort order).
  */
 template <typename ExecSpace, typename Container1, typename Container2>
-inline void sort_pairs(Container1 &input1, Container2 &input2)
+inline void sort_pairs(Container1& input1, Container2& input2)
 {
   assert(input1.size() == input2.size());
 
@@ -103,7 +103,7 @@ inline void sort_pairs(Container1 &input1, Container2 &input2)
  * \param size The number of elements in input1 and input2.
  */
 template <typename ExecSpace, typename T, typename U>
-inline void stable_sort_pairs(T *input1, U *input2, axom::IndexType size)
+inline void stable_sort_pairs(T* input1, U* input2, axom::IndexType size)
 {
 #if defined(AXOM_USE_RAJA)
   // Sort using RAJA
@@ -146,7 +146,7 @@ inline void stable_sort_pairs(T *input1, U *input2, axom::IndexType size)
  * \param size The number of elements in input1 and input2.
  */
 template <typename ExecSpace, typename Container1, typename Container2>
-inline void stable_sort_pairs(Container1 &input1, Container2 &input2)
+inline void stable_sort_pairs(Container1& input1, Container2& input2)
 {
   assert(input1.size() == input2.size());
   stable_sort_pairs<ExecSpace>(input1.data(), input2.data(), input1.size());
