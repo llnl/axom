@@ -324,8 +324,9 @@
  * \param [in] EXP user-supplied boolean expression.
  *
  * \warning This macro calls processAbort() iff EXP is false.
- * \note This macro is only active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -343,8 +344,9 @@
  * \param [in] msg user-supplied message
  *
  * \warning This macro calls processAbort() iff EXP is false.
- * \note This macro is only active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  * \see SLIC_ASSERT( EXP )
  *
  * Usage:
@@ -401,8 +403,9 @@
  *  application is not aborted.
  *
  * \param [in] EXP user-supplied boolean expression.
- * \note This macro is only active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -419,8 +422,9 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message
  *
- * \note This macro is only active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  * \see SLIC_DEBUG( EXP )
  *
  * Usage:
@@ -674,8 +678,9 @@
  *
  * \param [in] msg user-supplied message
  *
- * \note The SLIC_DEBUG macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -691,8 +696,9 @@
  *
  * \param [in] msg user-supplied message
  *
- * \note The SLIC_DEBUG_ONCE macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -709,8 +715,9 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_IF macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -736,8 +743,9 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_IF_ONCE macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -753,8 +761,9 @@
  *
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -770,8 +779,9 @@
  *
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT_ONCE macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -789,8 +799,9 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT_IF macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -807,8 +818,9 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT_IF_ONCE macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -827,8 +839,9 @@
  * \param [in] name The name of the container in the printed message.
  * \param [in] container The container (array, vector, view).
  *
- * \note The SLIC_DEBUG_PRINT_CONTAINER macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
@@ -853,8 +866,9 @@
  * \param [in] name The name of the container in the printed message.
  * \param [in] container The container (array, vector, view).
  *
- * \note The SLIC_DEBUG_PRINT_CONTAINER_ONCE macro is active when AXOM_DEBUG or
- *       AXOM_ENABLE_SLIC_DEBUG_MACROS is defined.
+ * \note This macro is active when the AXOM_DEBUG_DEFINE CMake setting enables
+ *       AXOM_DEBUG (by default in Debug and RelWithDebInfo builds), or when
+ *       AXOM_ENABLE_SLIC_DEBUG_MACROS=ON.
  *
  * Usage:
  * \code
