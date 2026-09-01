@@ -1,7 +1,10 @@
-# Docker image for Axom tutorial.
+# Docker image for Axom shaping tutorial.
 # Docker container runs a VS Code server accessible through a web browser.
 # Docker and openvscode setup based on the RAJA suite tutorial:
 # https://github.com/LLNL/raja-suite-tutorial/tree/main/containers/tutorial
+
+# Note: For both of the Docker commands below, add --platform linux/amd64 if
+# developing on Apple Silicon for deployment on x86_64 machines.
 
 # This script can be run with the following command:
 # docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:gcc-13-vscode" - < dockerfile_gcc-13_vscode
@@ -19,7 +22,8 @@ RUN sudo apt-get update -y
 RUN sudo apt-get install -y supervisor
 RUN sudo useradd --create-home --shell /bin/bash ${USER}
 RUN sudo apt-get install gettext gfortran-$(gcc -dumpversion) graphviz libopenblas-dev \
-                         lsb-release lua5.2 lua5.2-dev python3-sphinx locales ssh -fy
+                         lsb-release lua5.2 lua5.2-dev python3-sphinx locales ssh \
+                         cpio libxcursor1 libxkbcommon0 -fy
 RUN sudo locale-gen en_US.utf8
 #RUN sudo useradd -m -s /bin/bash -G sudo axom
 
@@ -50,13 +54,18 @@ RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-fil
                  && rm -rf ${HOME}/axom_tpls/build_stage ${HOME}/axom_tpls/spack
 
 # Make sure the new hostconfig works with a release build
+# Build only tutorials to reduce image generation time and overall size
 # Note: having high job slots causes build log to disappear and job to fail
 # Omit testing step, hangs at slam_lulesh unit test (same behavior for azure pipeline images, as well)
-# Disable link-time optimization from MPI wrapper causing linkage failures
 RUN cd ${HOME}/axom_repo && python3 config-build.py -hc *.cmake \
                                                     -bp ${HOME}/axom_repo/build-release \
                                                     -ip ${HOME}/axom_repo/install-release \
                                                     -bt Release \
+                                                    -DENABLE_TESTS=OFF \
+                                                    -DENABLE_EXAMPLES=OFF \
+                                                    -DENABLE_DOCS=OFF \
+                                                    -DAXOM_ENABLE_TOOLS=OFF \
+                                                    -DAXOM_ENABLE_TUTORIALS=ON \
                          && cd ${HOME}/axom_repo/build-release \
                          && make -j4 install
 
@@ -71,15 +80,8 @@ RUN wget https://github.com/visit-dav/visit/releases/download/v3.4.2/visit3_4_2.
     && ./visit-install3_4_2 -c none 3.4.2 linux-x86_64-ubuntu24 ${HOME}/visit \
     && rm -rf visit-install3_4_2 visit3_4_2.linux-x86_64-ubuntu24.tar.gz
 
-# Larger STL meshes for testing (optional)
-# Note: These meshes are large, copied from local directory instead of
-#        downloaded from Github.
-# COPY boxedSphere.stl car.stl porsche.stl ${HOME}/axom_repo/data/quest
-
-
 # Create symlinks for easy access to tutorial material (optional)
-# RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/radiuss_tutorial/ ${HOME}/radiuss_tutorial \
-# && ln -s ${HOME}/axom_repo/data/quest ${HOME}/radiuss_tutorial/stl_meshes
+RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/shaping_tutorial/ ${HOME}/shaping_tutorial
 
 USER root
 ADD ./scripts/docker/supervisord.conf /etc/supervisord.conf
