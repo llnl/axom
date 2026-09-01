@@ -70,6 +70,12 @@ namespace linear_bvh
 AXOM_HOST_DEVICE
 inline bool leaf_node(const std::int32_t& nodeIdx) { return (nodeIdx < 0); }
 
+/*!
+ * \brief Implements a simple FIFO stack of integers for stackful BVH traversal.
+ *
+ *  Local storage is allocated external to this class in an attempt to keep
+ *  this class stored in registers on the GPU.
+ */
 struct BVHStack
 {
 public:
@@ -105,6 +111,14 @@ private:
 };
 
 #if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
+/*!
+ * \brief GPU-only class for a FIFO stack of integers.
+ *
+ *  This version uses shared memory as an LRU cache to store the most-recently used
+ *  entries. When the stack fills to capacity, we take a "chunk" of the oldest 4 integers
+ *  and push them to the "local stack." Conversely, we can refill the shared memory stack
+ *  on a pop() operation by popping a chunk of 4 integers from the local stack.
+ */
 template <int BlockSize>
 struct SharedBVHStack
 {
