@@ -49,6 +49,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 
 #include "conduit_blueprint.hpp"
@@ -68,6 +69,39 @@ namespace
 using RuntimePolicy = axom::runtime_policy::Policy;
 
 int hostAllocatorID() { return axom::execution_space<axom::SEQ_EXEC>::allocatorID(); }
+
+void copyBlueprintToPolicy(conduit::Node& dst,
+                           const conduit::Node& src,
+                           RuntimePolicy policy,
+                           int allocatorID)
+{
+  namespace bputils = axom::bump::utilities;
+
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  if(policy == RuntimePolicy::cuda)
+  {
+    bputils::copy<axom::CUDA_EXEC<256>>(dst, src, allocatorID);
+    return;
+  }
+#endif
+
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  if(policy == RuntimePolicy::hip)
+  {
+    bputils::copy<axom::HIP_EXEC<256>>(dst, src, allocatorID);
+    return;
+  }
+#endif
+
+  AXOM_UNUSED_VAR(policy);
+  AXOM_UNUSED_VAR(allocatorID);
+  dst.set(src);
+}
+
+void copyBlueprintToHost(conduit::Node& dst, const conduit::Node& src)
+{
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(dst, src, hostAllocatorID());
+}
 
 //---------------------------------------------------------------------------
 // Analytic fields
@@ -364,13 +398,17 @@ BackendResult runBackend(const conduit::Node& mesh,
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
   mc.setUseBumpBackend(useBump);
 
-  mc.setMesh(mesh, "mesh");
+  conduit::Node execMesh;
+  copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
+  mc.setMesh(execMesh, "mesh");
   mc.setFunctionField(fieldName);
   mc.computeIsocontour(contourVal);
 
   if(useBump && bumpBlueprint != nullptr)
   {
-    mc.populateContourMeshBlueprint(*bumpBlueprint);
+    conduit::Node bumpBlueprintExec;
+    mc.populateContourMeshBlueprint(bumpBlueprintExec);
+    copyBlueprintToHost(*bumpBlueprint, bumpBlueprintExec);
   }
 
   BackendResult r;
