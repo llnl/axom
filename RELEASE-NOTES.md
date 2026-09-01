@@ -69,6 +69,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   after the `Inlet` and `LuaReader` are destroyed.
 - Inlet: Redeclaring a nested function through a parent `Container`, e.g. `addFunction("group/f", ...)`
   after `group.addFunction("f", ...)`, returns the existing function instead of reporting a SLIC error.
+- Slic: Adds the `AXOM_ENABLE_SLIC_DEBUG_MACROS` CMake option to enable the
+  `SLIC_ASSERT`, `SLIC_CHECK`, and `SLIC_DEBUG` macro families independently of
+  `AXOM_DEBUG`.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
