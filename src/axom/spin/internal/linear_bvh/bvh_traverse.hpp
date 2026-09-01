@@ -104,6 +104,7 @@ private:
   std::int32_t* stack {nullptr};
 };
 
+#if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
 template <int BlockSize>
 struct SharedBVHStack
 {
@@ -199,6 +200,7 @@ private:
   std::int32_t g_ptr {0};
   Chunk* g_stack;
 };
+#endif
 
 /*!
  * \brief Generic BVH traversal routine.
