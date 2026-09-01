@@ -409,12 +409,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
   SLIC_ERROR_IF(counts.size() != numObjs, "counts length not equal to numObjs");
   SLIC_ASSERT(m_initialized);
 
-  const auto inner_nodes = m_inner_nodes.view();
-  const auto leaf_nodes = m_leaf_nodes.view();
-
-  auto noTraversePref = [] AXOM_HOST_DEVICE(const BoundingBoxType&,
-                                            const BoundingBoxType&,
-                                            const PrimitiveType&) { return false; };
+  TraverserType tree_view = this->getTraverserImpl();
 
 #if defined(AXOM_USE_RAJA)
   // STEP 1: count number of candidates for each query point
@@ -430,9 +425,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
       auto leafAction = [&count](std::int32_t AXOM_UNUSED_PARAM(current_node),
                                  const std::int32_t* AXOM_UNUSED_PARAM(leaf_nodes)) { count++; };
 
-      lbvh::BVHStack stack;
-
-      lbvh::bvh_traverse(inner_nodes, leaf_nodes, primitive, stack, predicate, leafAction, noTraversePref);
+      tree_view.traverse_tree(primitive, leafAction, predicate);
 
       counts[i] = count;
       total_count_reduce += count;
@@ -466,9 +459,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
         offset++;
       };
 
-      lbvh::BVHStack stack;
-
-      lbvh::bvh_traverse(inner_nodes, leaf_nodes, obj, stack, predicate, leafAction, noTraversePref);
+      tree_view.traverse_tree(obj, leafAction, predicate);
     });
   AXOM_ANNOTATE_END("PASS[2]:fill_traversal");
 
@@ -492,9 +483,8 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
       current_offset++;
     };
 
-    lbvh::BVHStack stack;
+    tree_view.traverse_tree(obj, leafAction, predicate);
 
-    lbvh::bvh_traverse(inner_nodes, leaf_nodes, obj, stack, predicate, leafAction, noTraversePref);
     counts[i] = matching_leaves;
   });
   AXOM_ANNOTATE_END("PASS[1]:fill_traversal");
