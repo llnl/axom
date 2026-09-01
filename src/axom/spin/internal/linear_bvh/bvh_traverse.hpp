@@ -270,10 +270,13 @@ AXOM_HOST_DEVICE inline void bvh_traverse(axom::ArrayView<const BVH2Node<FloatTy
       curr_node = inner_nodes[current_node];
       BBoxType left_bin = curr_node.left;
       BBoxType right_bin = curr_node.right;
+      // The optional node index supplied to InBinCheck refers to the
+      // flattened child-slot layout exposed by LinearBVHTraverser::reduce_tree.
+      const std::int32_t child_slot = 2 * current_node;
       const bool in_left =
-        left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, current_node + 0) : false;
+        left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, child_slot + 0) : false;
       const bool in_right =
-        right_bin.isValid() ? invoke_InBinCheck(B, p, right_bin, current_node + 1) : false;
+        right_bin.isValid() ? invoke_InBinCheck(B, p, right_bin, child_slot + 1) : false;
       std::int32_t l_child = curr_node.left_child;
       std::int32_t r_child = curr_node.right_child;
       bool swap = Comp(left_bin, right_bin, p);
