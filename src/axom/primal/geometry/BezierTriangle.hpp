@@ -55,23 +55,26 @@ std::ostream& operator<<(std::ostream& os, const BezierTriangle<T, NDIMS>& bTri)
  * A default-constructed triangle will have order -1, and is "invalid".
  * Arrays of nodes and weights will be empty, and most methods are invalid 
  * 
- * \note This triangle uses permuted barycentric coordinates (u0, v0) for evaluation such that, when
- * `getOrder()==1`, the parameter values correspond to the triangle vertices:
+ * \note The two parameters follow (u0, v0) match the indexing of control points, 
+ * such that when `getOrder()==N`, the parameter values correspond to the triangle vertices:
  * - `evaluate(0,0) == (*this)(0,0)`
- * - `evaluate(0,1) == (*this)(0,1)`
- * - `evaluate(1,0) == (*this)(1,0)`
+ * - `evaluate(1,0) == (*this)(N,0)`
+ * - `evaluate(0,1) == (*this)(0,N)`
  * 
- * These are mapped to standard Barycentric coordinates {u,v,w} through (u0, v0) = {1 - u0 - v0, v0, u0}:
+ * These parameters are mapped to standard Barycentric coordinates {u,v,w} through
+ * (u0, v0) = {1 - u0 - v0, v0, u0}:
  *
  *   Parametric (u0, v0):       Barycentric {u,v,w}:
- *        (1, 0)                      {0,0,1}
- *          /\                          /\
- *         /  \                        /  \
- *   ^    /    \         <--->        /    \
- *   |   /      \                    /      \
- *   |  /        \                  /        \
- *  v0 /__________\                /__________\
- * (0, 0) u0 ---> (0, 1)       {1,0,0}        {0,1,0}
+ *
+ *    v0
+ *     ^       (0,1)                     {0,1,0}
+ *     |       | \                       | \
+ *     |       |  \                      |  \
+ *     |       |   \       <--->         |   \
+ *     |       |    \                    |    \
+ *     |       |_____\                   |_____\
+ *     |     (0,0)  (1,0)            {1,0,0}  {0,0,1}
+ *     +-----------> u0
  * 
  */
 template <typename T, int NDIMS>
@@ -444,15 +447,15 @@ public:
    *
    * See overload returning a `BezierTriangle` for the vertex mapping convention.
    *
-   * \param [in] Qa Barycentric coordinates of the first subtriangle vertex `(u,v,w)`
-   * \param [in] Qb Barycentric coordinates of the second subtriangle vertex `(u,v,w)`
-   * \param [in] Qc Barycentric coordinates of the third subtriangle vertex `(u,v,w)`
+   * \param [in] Qa Barycentric coordinates of the first subtriangle vertex `{u,v,w}`
+   * \param [in] Qb Barycentric coordinates of the second subtriangle vertex `{u,v,w}`
+   * \param [in] Qc Barycentric coordinates of the third subtriangle vertex `{u,v,w}`
    * \param [out] out Output restricted Bezier triangle
    *
    * \pre getOrder() >= 0
    *
    * \note The barycentric inputs \a Qa, \a Qb, \a Qc are standard Barycentric coordiantes
-   *       related to parameter convention through (u0 = Qc, v0 = Qb)
+   *       related to parameter convention through (u0 = Qc, v0 = Qb), and Qa = 1 - u0 - v0
    */
   void restrictToSubtriangle(const Barycentric& Qa,
                              const Barycentric& Qb,

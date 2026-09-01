@@ -63,6 +63,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Adds support for lua-based input decks for shaping
 - Slam: Adds convenience aliases in `axom/slam/Aliases.hpp` for the most common set and relation configurations, 
   including `ArraySet`, `ArrayViewSet`, `VariableRelation`, `ConstantRelation` and their `View` forms.
+- Primal: Adds Gregory surface classes, with a `primal::GregoryPatch` class for cubic quadrilateral surfaces and a `primal::GregoryTriangle` class for hybrid cubic-quartic triangle surfaces.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
