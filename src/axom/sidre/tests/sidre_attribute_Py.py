@@ -6,6 +6,7 @@
 
 import axom.sidre as sidre
 import numpy as np
+import pytest
 import conduit
 
 # Global attribute values, used by multiple tests
@@ -945,3 +946,62 @@ def test_save_load_group_with_attributes_same_ds():
         assert gr.getView("scalar2").getAttributeString(g_name_color) == g_color_red
         assert gr.getView("scalar3").hasAttributeValue(g_name_color)
         assert gr.getView("scalar3").getAttributeString(g_name_color) == g_color_blue
+
+
+# ---------------------------------------------------------------------------
+# Scalar setters require an exact python int or float
+# ---------------------------------------------------------------------------
+# The int and float overloads of the scalar setters are bound with nb::arg("value").noconvert(),
+# so nanobind skips its converting overload pass, so numpy floats don't silently get bound
+# to the int and truncated. As a consequence, numpy scalars must be converted by the caller,
+# e.g. float(x) or x.item().
+def test_setAttributeScalar_requires_exact_python_scalar_types():
+    ds = sidre.DataStore()
+    ds.createAttributeScalar(g_name_dump, g_dump_no)
+    view = ds.getRoot().createViewScalar("scalar", 0)
+
+    # Exact python types are accepted.
+    assert view.setAttributeScalar(g_name_dump, 1)
+    assert view.getAttributeScalarInt(g_name_dump) == 1
+
+    # numpy scalars, 0-d arrays, bool and str are rejected rather than converted.
+    for rejected in (np.int32(1), np.int64(1), np.float32(1.0), np.float64(1.0), np.array(1), True,
+                     "1"):
+        with pytest.raises(TypeError):
+            view.setAttributeScalar(g_name_dump, rejected)
+
+    # The value is unchanged by the rejected calls.
+    assert view.getAttributeScalarInt(g_name_dump) == 1
+
+    # The documented conversion at the call site works.
+    assert view.setAttributeScalar(g_name_dump, int(np.int64(7)))
+    assert view.getAttributeScalarInt(g_name_dump) == 7
+
+
+def test_noconvert_prevents_silent_float_to_int_truncation():
+    # This is what the noconvert annotations buy. With conversion enabled,
+    # np.float32(3.5) binds to the int overload and stores 3.
+    ds = sidre.DataStore()
+    ds.createAttributeScalar(g_name_size, g_size_small)
+    view = ds.getRoot().createViewScalar("scalar", 0)
+
+    with pytest.raises(TypeError):
+        view.setAttributeScalar(g_name_size, np.float32(3.5))
+
+    # Converting explicitly keeps the fractional part.
+    assert view.setAttributeScalar(g_name_size, float(np.float32(3.5)))
+    assert view.getAttributeScalarFloat(g_name_size) == 3.5
+
+
+def test_setScalar_requires_exact_python_scalar_types():
+    # The same contract on View.setScalar, which has carried noconvert since
+    # before the attribute setters did.
+    ds = sidre.DataStore()
+    view = ds.getRoot().createViewScalar("scalar", 0)
+
+    assert view.setScalar(5) is not None
+    assert view.getDataInt() == 5
+
+    for rejected in (np.int64(5), np.float64(5.0), np.array(5), True):
+        with pytest.raises(TypeError):
+            view.setScalar(rejected)
