@@ -9,6 +9,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include <conduit/conduit.hpp>
+#include <conduit/conduit_blueprint_mesh.hpp>
 #include <conduit/conduit_relay_io.hpp>
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <algorithm>
@@ -77,9 +78,9 @@ struct execution_name<hip_exec>
 #endif
 
 //------------------------------------------------------------------------------
-std::string pjoin(const std::string& str) { return str; }
+inline std::string pjoin(const std::string& str) { return str; }
 
-std::string pjoin(const char* str) { return std::string(str); }
+inline std::string pjoin(const char* str) { return std::string(str); }
 
 template <typename... Args>
 std::string pjoin(const std::string& str, Args... args)
@@ -93,20 +94,23 @@ std::string pjoin(const char* str, Args... args)
   return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
 
-void psplit(const std::string& filepath, std::string& path, std::string& filename)
+inline void psplit(const std::string& filepath, std::string& path, std::string& filename)
 {
   axom::Path p(filepath);
   path = p.dirName();
   filename = p.baseName();
 }
 
-std::string dataDirectory() { return AXOM_DATA_DIR; }
+inline std::string dataDirectory() { return AXOM_DATA_DIR; }
 
-std::string testData(const std::string& filename) { return pjoin(dataDirectory(), filename); }
+inline std::string testData(const std::string& filename)
+{
+  return pjoin(dataDirectory(), filename);
+}
 
 std::string baselineDirectory();
 
-std::string yamlRoot(const std::string& filepath)
+inline std::string yamlRoot(const std::string& filepath)
 {
   std::string retval, path, filename;
   psplit(filepath, path, filename);
@@ -122,7 +126,7 @@ std::string yamlRoot(const std::string& filepath)
   return retval;
 }
 
-void printNode(const conduit::Node& n)
+inline void printNode(const conduit::Node& n)
 {
   conduit::Node options;
   options["num_children_threshold"] = 10000;
@@ -222,7 +226,10 @@ bool compareScalar(const conduit::Node& n1,
   return same;
 }
 
-bool compareNode(const conduit::Node& n1, const conduit::Node& n2, double tolerance, conduit::Node& info)
+inline bool compareNode(const conduit::Node& n1,
+                        const conduit::Node& n2,
+                        double tolerance,
+                        conduit::Node& info)
 {
   bool same = false;
   // String
@@ -380,10 +387,10 @@ bool compareNode(const conduit::Node& n1, const conduit::Node& n2, double tolera
   return same;
 }
 
-bool compareConduit(const conduit::Node& n1,
-                    const conduit::Node& n2,
-                    double tolerance,
-                    conduit::Node& info)
+inline bool compareConduit(const conduit::Node& n1,
+                           const conduit::Node& n2,
+                           double tolerance,
+                           conduit::Node& info)
 {
   bool same = true;
   // See if n1, n2 are objects - but not both.
@@ -416,7 +423,7 @@ bool compareConduit(const conduit::Node& n1,
   return same;
 }
 
-void saveBaseline(const std::string& filename, const conduit::Node& n)
+inline void saveBaseline(const std::string& filename, const conduit::Node& n)
 {
   std::string file_with_ext(filename + ".yaml");
   try
@@ -439,9 +446,9 @@ void saveBaseline(const std::string& filename, const conduit::Node& n)
   }
 }
 
-void saveBaseline(const std::vector<std::string>& baselinePaths,
-                  const std::string& baselineName,
-                  const conduit::Node& n)
+inline void saveBaseline(const std::vector<std::string>& baselinePaths,
+                         const std::string& baselineName,
+                         const conduit::Node& n)
 {
   for(const auto& path : baselinePaths)
   {
@@ -462,7 +469,7 @@ void saveBaseline(const std::vector<std::string>& baselinePaths,
  *
  * \return True on success; False otherwise.
  */
-bool convert_yaml_json(const std::string& yaml_filename, const std::string& json_filename)
+inline bool convert_yaml_json(const std::string& yaml_filename, const std::string& json_filename)
 {
   const std::string script_path = "convert_yaml_json.py";
 
@@ -526,7 +533,7 @@ if __name__ == "__main__":
 }
 #endif
 
-bool loadBaseline(const std::string& filename, const std::string& protocol, conduit::Node& n)
+inline bool loadBaseline(const std::string& filename, const std::string& protocol, conduit::Node& n)
 {
   bool loaded = false;
   std::string file_with_ext(filename + "." + protocol);
@@ -573,7 +580,7 @@ bool loadBaseline(const std::string& filename, const std::string& protocol, cond
   return loaded;
 }
 
-bool loadBaseline(const std::string& filename, conduit::Node& n)
+inline bool loadBaseline(const std::string& filename, conduit::Node& n)
 {
   bool loaded = false;
 #if defined(_WIN32)
@@ -623,11 +630,11 @@ std::vector<std::string> baselinePaths()
   return paths;
 }
 
-bool compareBaseline(const std::vector<std::string>& baselinePaths,
-                     const std::string& baselineName,
-                     const conduit::Node& current,
-                     conduit::Node& info,
-                     double tolerance = 1.5e-6)
+inline bool compareBaseline(const std::vector<std::string>& baselinePaths,
+                            const std::string& baselineName,
+                            const conduit::Node& current,
+                            conduit::Node& info,
+                            double tolerance = 1.5e-6)
 {
   bool success = false;
   int count = 0;

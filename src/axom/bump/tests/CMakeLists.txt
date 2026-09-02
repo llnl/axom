@@ -19,7 +19,6 @@ set(gtest_bump_tests
     bump_coordset_extents.cpp
     bump_make_explicit_coordset.cpp
     bump_make_polyhedral_topology.cpp
-    bump_mergemeshes.cpp
     bump_mesh_operations.cpp
     bump_node_to_zone_relation.cpp
     bump_planeslice.cpp
@@ -34,6 +33,20 @@ set(bump_tests_depends_on
     slic
     bump 
     gtest)
+
+#-------------------------------------------------------------------------------------
+# Policy-based tests are separated to reduce compile/link time and memory requirements
+#-------------------------------------------------------------------------------------
+
+set(bump_policy_tests 
+    bump_mergemeshes)
+
+foreach(test ${bump_policy_tests})
+   blt_list_append(TO gtest_bump_tests ELEMENTS ${test}_seq.cpp)
+   blt_list_append(TO gtest_bump_tests ELEMENTS ${test}_omp.cpp  IF AXOM_ENABLE_OPENMP)
+   blt_list_append(TO gtest_bump_tests ELEMENTS ${test}_cuda.cpp IF AXOM_ENABLE_CUDA)
+   blt_list_append(TO gtest_bump_tests ELEMENTS ${test}_hip.cpp  IF AXOM_ENABLE_HIP)
+endforeach()
 
 #------------------------------------------------------------------------------
 # Add gtest based tests
