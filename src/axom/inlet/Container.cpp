@@ -310,16 +310,16 @@ Field& Container::addField(axom::sidre::Group* sidreGroup,
   return *(emplace_result.first->second);
 }
 
-Function& Container::addFunctionInternal(axom::sidre::Group* sidreGroup,
-                                         FunctionVariant&& func,
-                                         const std::string& fullName,
-                                         const std::string& name)
+Function& Container::storeFunction(axom::sidre::Group* sidreGroup,
+                                   FunctionVariant&& func,
+                                   const std::string& fullName,
+                                   const std::string& name)
 {
   const size_t found = name.find_last_of("/");
   auto currContainer = this;
   if(found != std::string::npos)
   {
-    // This will add any intermediate Containers (if not present) before adding the field
+    // This will add any intermediate Containers (if not present) before storing the function
     currContainer = &addContainer(name.substr(0, found));
   }
   const auto& emplace_result = currContainer->m_functionChildren.emplace(
@@ -376,7 +376,8 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
-    auto typeId = addPrimitiveHelper(sidreGroup, lookupPath, forArray, val);
+    auto typeId =
+      addPrimitiveHelper(sidreGroup, lookupPath, forArray, val, containsFunctionValueAlternative(name));
     return addField(sidreGroup, typeId, fullName, name);
   }
 }
@@ -385,9 +386,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<bool>(axom::sidre::Group* sidreGroup,
                                                             const std::string& lookupPath,
                                                             bool forArray,
-                                                            bool val)
+                                                            bool val,
+                                                            bool hasFunctionAlternative)
 {
-  const auto result = m_reader.getBool(lookupPath, val);
+  auto result = m_reader.getBool(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value, so the
+    // concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val ? std::int8_t(1) : std::int8_t(0));
@@ -403,9 +411,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<int>(axom::sidre::Group* sidreGroup,
                                                            const std::string& lookupPath,
                                                            bool forArray,
-                                                           int val)
+                                                           int val,
+                                                           bool hasFunctionAlternative)
 {
-  const auto result = m_reader.getInt(lookupPath, val);
+  auto result = m_reader.getInt(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value, so the
+    // concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val);
@@ -421,9 +436,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<double>(axom::sidre::Group* sidreGroup,
                                                               const std::string& lookupPath,
                                                               bool forArray,
-                                                              double val)
+                                                              double val,
+                                                              bool hasFunctionAlternative)
 {
-  const auto result = m_reader.getDouble(lookupPath, val);
+  auto result = m_reader.getDouble(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value, so the
+    // concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewScalar("value", val);
@@ -439,9 +461,16 @@ template <>
 axom::sidre::DataTypeId Container::addPrimitiveHelper<std::string>(axom::sidre::Group* sidreGroup,
                                                                    const std::string& lookupPath,
                                                                    bool forArray,
-                                                                   std::string val)
+                                                                   std::string val,
+                                                                   bool hasFunctionAlternative)
 {
-  const auto result = m_reader.getString(lookupPath, val);
+  auto result = m_reader.getString(lookupPath, val);
+  if(hasFunctionAlternative && result == ReaderResult::WrongType)
+  {
+    // The input supplied the function representation of this value,
+    // so the concrete entry is absent rather than of the wrong type.
+    result = ReaderResult::NotFound;
+  }
   if(forArray || result == ReaderResult::Success)
   {
     sidreGroup->createViewString("value", val);
@@ -854,7 +883,13 @@ Verifiable<Container>& Container::addPrimitiveArray(const std::string& name,
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     std::vector<VariantKey> indices;
-    if(isDict)
+    if(containsFunctionValueAlternative(name))
+    {
+      // The input supplied the function representation of this collection,
+      // so the concrete entry is absent rather than of the wrong type.
+      markRetrievalStatus(*container.sidreGroup(), ReaderResult::NotFound);
+    }
+    else if(isDict)
     {
       indices = detail::PrimitiveArrayHelper<VariantKey, T>::add(container, m_reader, lookupPath);
     }
@@ -897,17 +932,54 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                                              const std::string& description,
                                              const std::string& pathOverride)
 {
-  // If it has indices, we're adding a function to an array
-  // of structs, so we need to iterate over the subcontainers
-  // corresponding to elements of the array
+  return addFunctionInternal(name, name, ret_type, arg_types, description, pathOverride);
+}
+
+Verifiable<Function>& Container::addFunctionAsValueAlternative(const std::string& valueName,
+                                                               const FunctionTag ret_type,
+                                                               const std::vector<FunctionTag>& arg_types,
+                                                               const std::string& description)
+{
+  SLIC_ERROR_IF(valueName.empty(),
+                "[Inlet] A function value alternative requires a non-empty value name");
+  SLIC_ERROR_IF(ret_type == FunctionTag::Void,
+                "[Inlet] A function value alternative requires a non-void return type");
+  // Declaring the concrete entry first would already have marked it as being of
+  // the wrong type, which surfaces later as a confusing verification failure
+  // blaming the input rather than the schema. Reject it here instead.
+  SLIC_ERROR_IF(
+    getChildInternal<Field>(valueName) != nullptr || getChildInternal<Container>(valueName) != nullptr,
+    fmt::format("[Inlet] The function value alternative for '{0}' must be declared before '{0}'",
+                valueName));
+  // The alternative is read from the concrete value's input path but is stored
+  // under a distinct schema name so the two entries do not collide.
+  return addFunctionInternal(detail::functionAlternativeName(valueName),
+                             valueName,
+                             ret_type,
+                             arg_types,
+                             description,
+                             "");
+}
+
+Verifiable<Function>& Container::addFunctionInternal(const std::string& schemaName,
+                                                     const std::string& inputName,
+                                                     const FunctionTag ret_type,
+                                                     const std::vector<FunctionTag>& arg_types,
+                                                     const std::string& description,
+                                                     const std::string& pathOverride)
+{
+  // If it has indices, we're adding a function to an array of structs,
+  // so we need to iterate over the subcontainers corresponding to elements of the array
   std::vector<std::reference_wrapper<Verifiable<Function>>> funcs;
 
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(funcs),
-    name,
-    [&name, &ret_type, &arg_types, &description](Container& subcontainer,
-                                                 const std::string& path) -> Verifiable<Function>& {
-      return subcontainer.addFunction(name, ret_type, arg_types, description, path);
+    inputName,
+    [&schemaName, &inputName, &ret_type, &arg_types, &description](
+      Container& subcontainer,
+      const std::string& path) -> Verifiable<Function>& {
+      return subcontainer
+        .addFunctionInternal(schemaName, inputName, ret_type, arg_types, description, path);
     });
   if(is_nested)
   {
@@ -921,7 +993,7 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   else
   {
     // Otherwise actually add a Function
-    std::string fullName = utilities::string::appendPrefix(m_name, name);
+    std::string fullName = utilities::string::appendPrefix(m_name, schemaName);
     // First check if the function already exists
     auto iter = m_functionChildren.find(fullName);
     if(iter != m_functionChildren.end())
@@ -933,13 +1005,14 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
     // If a pathOverride is specified, needed when Inlet-internal groups
-    // are part of fullName
-    std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
+    // are part of the input path
+    std::string lookupPath =
+      (pathOverride.empty()) ? utilities::string::appendPrefix(m_name, inputName) : pathOverride;
     lookupPath =
       utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
-    return addFunctionInternal(sidreGroup, std::move(func), fullName, name);
+    return storeFunction(sidreGroup, std::move(func), fullName, schemaName);
   }
 }
 
@@ -1303,6 +1376,13 @@ bool Container::isUserProvided() const
 
 bool Container::isUserProvided(const std::string& name) const
 {
+  // A function value alternative is stored under a different schema name than
+  // the value it applies to, so it is not found by the child lookups below
+  if(containsFunctionValueAlternative(name))
+  {
+    return true;
+  }
+
   if(auto container = getChildInternal<Container>(name))
   {
     // Check if the container itself was provided by the user
@@ -1334,6 +1414,34 @@ const std::unordered_map<std::string, std::unique_ptr<Field>>& Container::getChi
 const std::unordered_map<std::string, std::unique_ptr<Function>>& Container::getChildFunctions() const
 {
   return m_functionChildren;
+}
+
+bool Container::containsFunctionValueAlternative(const std::string& valueName) const
+{
+  auto function = getChildInternal<Function>(detail::functionAlternativeName(valueName));
+  return function != nullptr && static_cast<bool>(*function);
+}
+
+const Function& Container::getFunctionValueAlternative(const std::string& valueName) const
+{
+  return getFunction(detail::functionAlternativeName(valueName));
+}
+
+std::vector<std::string> Container::getFunctionValueAlternativeNames() const
+{
+  std::vector<std::string> names;
+  for(const auto& entry : m_functionChildren)
+  {
+    const std::string childName = Path(entry.first).baseName();
+    if(detail::isFunctionAlternativeName(childName) && static_cast<bool>(*entry.second))
+    {
+      names.push_back(
+        childName.substr(0, childName.size() - detail::FUNCTION_ALTERNATIVE_SUFFIX.size()));
+    }
+  }
+  // m_functionChildren is unordered, so sort for a reproducible result
+  std::sort(names.begin(), names.end());
+  return names;
 }
 
 }  // namespace inlet

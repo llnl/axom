@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <memory>
@@ -467,6 +468,42 @@ TEST(inlet_Reader_lua, getDiscontiguousMap)
   EXPECT_EQ(retValue, ReaderResult::NotHomogeneous);
   std::unordered_map<int, std::string> expectedStrs {{33, "hello"}, {200, "bye"}};
   EXPECT_EQ(expectedStrs, strs);
+}
+
+TEST(inlet_Reader_lua, objectLookupReportsConsistentReaderResults)
+{
+  axom::inlet::LuaReader reader;
+  reader.parseString(R"(
+    callback = function() return {1, 2} end
+    nested = {[7] = {values = {[2] = 42, [5] = "five"}}}
+  )");
+
+  double scalar = 0.0;
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("callback", scalar));
+  EXPECT_EQ(ReaderResult::NotFound, reader.getDouble("callback/value", scalar));
+
+  std::unordered_map<int, double> typedValues {{99, 99.0}};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("callback", typedValues));
+  EXPECT_TRUE(typedValues.empty());
+
+  std::unordered_map<int, axom::inlet::VariantValue> values {{99, axom::inlet::VariantValue {99}}};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getVariantMap("callback", values));
+  EXPECT_TRUE(values.empty());
+  EXPECT_EQ(ReaderResult::NotFound, reader.getVariantMap("missing", values));
+  EXPECT_TRUE(values.empty());
+
+  EXPECT_EQ(ReaderResult::Success, reader.getVariantMap("nested/7/values", values));
+  const std::unordered_map<int, axom::inlet::VariantValue> expectedValues {
+    {2, axom::inlet::VariantValue {42}},
+    {5, axom::inlet::VariantValue {std::string {"five"}}}};
+  EXPECT_EQ(expectedValues, values);
+
+  std::vector<int> indices {99};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getIndices("callback", indices));
+  EXPECT_TRUE(indices.empty());
+  EXPECT_EQ(ReaderResult::Success, reader.getIndices("nested/7/values", indices));
+  std::sort(indices.begin(), indices.end());
+  EXPECT_EQ((std::vector<int> {2, 5}), indices);
 }
 #endif
 

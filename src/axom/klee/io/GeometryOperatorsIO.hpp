@@ -57,22 +57,26 @@ public:
    * @param parent the parent container
    * @param fieldName the name of the field
    * @param description a description of the field
+   * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    * @return the Container for the new item
    */
   static inlet::Container& defineSchema(inlet::Container& parent,
                                         const std::string& fieldName,
-                                        const std::string& description);
+                                        const std::string& description,
+                                        bool enableLuaCallbacks = false);
 
   /**
    * Make a (possibly null) operator describing the transformation to apply to the geometry
    *
    * @param startProperties properties of the geometry before the first operator
    * @param namedOperators a map of any named operators
+   * @param ownerLabel a description of the owning shape or named operator, for callback errors
    * @return the (possibly null) operator
    * @throws KleeError if the operator data is invalid for the given properties
    */
   std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties& startProperties,
-                                                 const NamedOperatorMap& namedOperators) const;
+                                                 const NamedOperatorMap& namedOperators,
+                                                 const std::string& ownerLabel) const;
 
   /**
    * Get the path of this operator in the source document
@@ -99,8 +103,9 @@ struct NamedOperatorData
    * Define the schema for a named operator.
    *
    * @param container the container in which to describe a single named operator
+   * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    */
-  static void defineSchema(inlet::Container& container);
+  static void defineSchema(inlet::Container& container, bool enableLuaCallbacks = false);
 };
 
 /// Data for all a collection of named operators
@@ -131,8 +136,11 @@ struct NamedOperatorMapData
    *
    * @param parent the parent object in which to define the operator map
    * @param name the name of the map
+   * @param enableLuaCallbacks whether operator fields may be supplied as Lua callbacks
    */
-  static void defineSchema(inlet::Container& parent, const std::string& name);
+  static void defineSchema(inlet::Container& parent,
+                           const std::string& name,
+                           bool enableLuaCallbacks = false);
 
 private:
   std::vector<NamedOperatorData> m_operatorData;

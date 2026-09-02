@@ -10,12 +10,15 @@
   #include "axom/quest/util/make_clipper_strategy.hpp"
   #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
   #include "axom/quest/detail/clipping/TetClipper.hpp"
-  #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
   #include "axom/quest/detail/clipping/HexClipper.hpp"
   #include "axom/quest/detail/clipping/SphereClipper.hpp"
   #include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
   #include "axom/quest/detail/clipping/SORClipper.hpp"
   #include "axom/slic/interface/slic_macros.hpp"
+
+  #ifdef AXOM_USE_BUMP
+    #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+  #endif
 
 namespace axom
 {
@@ -41,10 +44,6 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
   {
     strategy.reset(new TetClipper(kleeGeometry, name));
   }
-  else if(format == "blueprint-tets")
-  {
-    strategy.reset(new TetMeshClipper(kleeGeometry, name));
-  }
   else if(format == "hex3D")
   {
     strategy.reset(new HexClipper(kleeGeometry, name));
@@ -65,10 +64,24 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
   {
     strategy.reset(new MonotonicZSORClipper(kleeGeometry, name));
   }
+  else if(format == "blueprint-tets")
+  {
+  #if defined(AXOM_USE_BUMP)
+    strategy.reset(new TetMeshClipper(kleeGeometry, name));
+  #else
+    SLIC_WARNING(
+      axom::fmt::format("klee::Geometry format '{}' requires Axom to be configured with bump "
+                        "but this build does not have it, so shape '{}' cannot be clipped.",
+                        format,
+                        name));
+  #endif
+  }
   else
   {
     SLIC_WARNING(
-      axom::fmt::format("klee::Geometry format {} is not supported by MeshClipper.", format));
+      axom::fmt::format("klee::Geometry format '{}' is not supported by MeshClipper (shape '{}').",
+                        format,
+                        name));
   }
 
   return strategy;

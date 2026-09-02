@@ -107,12 +107,57 @@ if(ENABLE_TESTS)
     if(AXOM_USE_LUA)
       blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua
                    COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.lua)
+
+      blt_add_test(NAME    lesson_03_klee_operators_and_validation_lua_initialization
+                   COMMAND lesson_03_klee_operators_and_validation
+                           ../lesson_03/ice_cream_initialized.lua
+                           --initialization-file
+                           ../lesson_03/ice_cream_initialization.lua)
     endif()
 
     if(AXOM_USE_LUA AND AXOM_USE_MFEM)
-      blt_add_test(NAME    lesson_04_quest_sampling_shaper
-                   COMMAND lesson_04_quest_sampling_shaper -m ../lesson_04/circle_input.lua 
-                                                           -k ../lesson_04/circles.yaml -v)                   
+      set(_lesson_04_dir "${CMAKE_CURRENT_SOURCE_DIR}/lesson_04")
+      set(_lesson_04_yaml_test lesson_04_quest_sampling_shaper)
+      set(_lesson_04_lua_callbacks_test lesson_04_quest_sampling_shaper_lua_callbacks)
+      set(_lesson_04_lua_initialization_test lesson_04_quest_sampling_shaper_lua_initialization)
+
+      foreach(_testname
+              ${_lesson_04_yaml_test}
+              ${_lesson_04_lua_callbacks_test}
+              ${_lesson_04_lua_initialization_test})
+        file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${_testname}")
+      endforeach()
+
+      blt_add_test(NAME    ${_lesson_04_yaml_test}
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ${_lesson_04_dir}/circle_input.lua
+                           -k ${_lesson_04_dir}/circles.yaml -v
+                   WORKING_DIRECTORY
+                           ${CMAKE_CURRENT_BINARY_DIR}/${_lesson_04_yaml_test})
+
+      blt_add_test(NAME    ${_lesson_04_lua_callbacks_test}
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ${_lesson_04_dir}/circle_input.lua
+                           -k ${_lesson_04_dir}/circles.lua -v
+                   WORKING_DIRECTORY
+                           ${CMAKE_CURRENT_BINARY_DIR}/${_lesson_04_lua_callbacks_test})
+
+      blt_add_test(NAME    ${_lesson_04_lua_initialization_test}
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ${_lesson_04_dir}/circle_input.lua
+                           -k ${_lesson_04_dir}/circles_initialized.lua
+                           --lua-init-file ${_lesson_04_dir}/circles_initialization.lua -v
+                   WORKING_DIRECTORY
+                           ${CMAKE_CURRENT_BINARY_DIR}/${_lesson_04_lua_initialization_test})
+
+      set(_testname lesson_04_quest_sampling_shaper_yaml_rejects_lua_initialization)
+      blt_add_test(NAME    ${_testname}
+                   COMMAND lesson_04_quest_sampling_shaper
+                           -m ${_lesson_04_dir}/circle_input.lua
+                           -k ${_lesson_04_dir}/circles.yaml
+                           --lua-init-file ${_lesson_04_dir}/circles_initialization.lua)
+      set_tests_properties(${_testname} PROPERTIES
+                           PASS_REGULAR_EXPRESSION "only supported for Lua input decks")
     endif()
 
 endif()
@@ -123,4 +168,3 @@ endif()
 if(EXAMPLE_VERBOSE_OUTPUT)
     blt_print_target_properties(TARGET axom CHILDREN TRUE)  
 endif()
-

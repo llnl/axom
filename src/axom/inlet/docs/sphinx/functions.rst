@@ -37,11 +37,16 @@ The return type and argument types are described with the ``inlet::FunctionTag``
   * ``Void`` - corresponds to C++ ``void``, should only be used for functions that don't return a value
 
 Note that a single type tag is passed for the return type, while a vector of tags is passed
-for the argument types.  Currently a maximum of two arguments are supported. 
+for the argument types.  Currently a maximum of two arguments are supported.
 To declare a function with no arguments, simply leave the list of argument types empty.
 
 .. note::  The ``InletVector`` type (and its Lua representation) are statically-sized vectors with
   a maximum dimension of three.  That is, they can also be used to represent two-dimensional vectors.
+
+A Lua callback declared with a ``Vector`` return type may return either a ``Vector.new(...)``
+value or an ordinary Lua table containing one to three numeric components. Ordinary table
+returns must use contiguous integer indices starting at one; sparse tables, named entries,
+and non-numeric components are rejected when the callback is called.
 
 In Lua, the following operations on the ``Vector`` type are supported (for ``Vector`` s ``u``, ``v``, and ``w``):
 
@@ -58,11 +63,57 @@ In Lua, the following operations on the ``Vector`` type are supported (for ``Vec
 #. Dimension retrieval: ``d = u.dim``
 #. Component retrieval: ``d = u.x``, ``d = u.y``, ``d = u.z``
 
+Functions as value alternatives
+-------------------------------
+
+Some schemas allow an input to be either a concrete value or a function that computes it.
+Declare the concrete entry normally, then associate a function with the same input name:
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_function_value_alternative_schema_start
+   :end-before: _inlet_function_value_alternative_schema_end
+   :language: C++
+   :dedent: 2
+
+Note that you must declare the alternative before the concrete entry it applies to,
+and declaring it afterwards is an error, since the concrete entry has already been read by then.
+Both use the same relative and slash-delimited paths as other ``Container`` methods, 
+and either may be declared through a parent or a child ``Container``. 
+The following example accepts either of these Lua inputs:
+
+.. code-block:: Lua
+
+  scale = 2.0
+
+  -- or
+  scale = function() return 3.0 end
+
+After verification, query which representation was supplied before retrieving it:
+
+.. literalinclude:: ../../examples/functions.cpp
+   :start-after: _inlet_function_value_alternative_access_start
+   :end-before: _inlet_function_value_alternative_access_end
+   :language: C++
+   :dedent: 2
+
+For the shared input name, ``contains`` reports only the concrete representation and
+``containsFunctionValueAlternative`` reports only the function representation.
+Either form counts as user-provided input, and both are recognized by strict Containers.
+An unrelated input type fails verification.
+
+An alternative is an ordinary ``Function``, so it is returned by ``addFunctionAsValueAlternative``
+as a ``Verifiable<Function>`` and can carry the usual schema constraints, such as ``required()``.
+Validation attached to the *concrete* schema entry does not apply to the function result,
+so applications that constrain both forms should validate after resolving the representation.
+
+Generated Sphinx and JSON Schema documentation show only the concrete entry.
+Application documentation should describe the function form when it is part of the Lua interface.
+
 Accessing
 ---------
 
-To retrieve a function, both the implicit conversion and ``get<T>`` syntax is supported.  For example,
-a function can be retrieved as follows:
+To retrieve a function, both the implicit conversion and ``get<T>`` syntax is supported.
+For example, a function can be retrieved as follows:
 
 .. literalinclude:: ../../examples/mfem_coefficient.cpp
    :start-after: _inlet_mfem_coef_simple_retrieve_start
@@ -83,6 +134,40 @@ by calling it directly:
   double result = inlet["coef"].call<double>(axom::inlet::FunctionType::Vector{3, 5, 7});
 
 .. note::  Using ``call<ReturnType>(ArgType1, ArgType2, ...)`` requires both that the return type
-  be explicitly specified and that argument types be passed with the exact type as used in the 
+  be explicitly specified and that argument types be passed with the exact type as used in the
   signature defined as part of the schema.  This is because the arguments do not participate in
   overload resolution.
+
+Callbacks retrieved from Inlet keep their Lua state alive, so they remain callable after the
+Inlet and Reader are destroyed. Callbacks from one ``LuaReader`` share mutable interpreter
+state and must not be invoked concurrently without synchronization.
+
+Lua execution errors and invalid callback return values throw ``axom::inlet::InletError``
+at the call site. This is the one place Inlet throws; everywhere else it reports through
+SLIC or through ``verify()``:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Kind of problem
+     - Reported through
+     - Examples
+   * - API or schema misuse
+     - ``SLIC_ERROR``
+     - an empty or malformed key, a lookup for an entry that was never defined,
+       a name that is ambiguous between a container, field, and function
+   * - Contents of the input file
+     - ``verify()`` and ``VerificationError``
+     - a required entry is missing, a value has the wrong type or fails a
+       registered verifier
+   * - Failure while calling an input function
+     - ``InletError`` (derived from ``std::runtime_error``)
+     - the Lua function raises an error, or returns something that cannot be
+       converted to the declared return type
+
+The distinction is when the failure happens. A callback runs after verification, 
+at the point the application asks for its value, so the failure has to be recoverable: 
+the caller is the only one that knows  which of its own concepts the function belonged to.
+Klee, for example, catches ``InletError`` and re-reports it as a ``KleeError``
+naming the shape, operator, and field.

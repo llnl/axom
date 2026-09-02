@@ -47,10 +47,12 @@
 
 // C/C++ includes
 #include <algorithm>
+#include <fstream>
+#include <iterator>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -137,6 +139,7 @@ public:
   BlueprintMeshBacking blueprintMeshBacking {BlueprintMeshBacking::Sidre};
 
   std::string shapeFile;
+  std::string luaInitializationFile;
   klee::ShapeSet shapeSet;
 
   ShapingMethod shapingMethod {ShapingMethod::Sampling};
@@ -335,9 +338,13 @@ public:
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_option("-i,--shape-file", shapeFile)
-      ->description("Path to input shape file")
+      ->description("Path to Klee input file (YAML or Lua)")
       ->check(axom::CLI::ExistingFile)
       ->required();
+
+    app.add_option("--lua-init-file", luaInitializationFile)
+      ->description("Lua chunk that returns initial globals for a Lua Klee input file")
+      ->check(axom::CLI::ExistingFile);
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
       ->description("Enable/disable verbose output")
@@ -549,6 +556,33 @@ public:
 
     slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
+
+  /**
+   * Load the optional Lua initialization file selected on the command line.
+   *
+   * \return Lua input options containing the initialization source and label
+   * \throws klee::KleeError if the initialization file cannot be read
+   */
+  klee::LuaInputOptions loadLuaInputOptions() const
+  {
+    klee::LuaInputOptions options;
+    if(luaInitializationFile.empty())
+    {
+      return options;
+    }
+
+    std::ifstream stream {luaInitializationFile};
+    if(!stream)
+    {
+      throw klee::KleeError(
+        {axom::Path {luaInitializationFile}, "Could not read Lua initialization file"});
+    }
+
+    options.initialization = klee::LuaInitializationChunk {
+      std::string {std::istreambuf_iterator<char> {stream}, std::istreambuf_iterator<char> {}},
+      luaInitializationFile};
+    return options;
+  }
 };
 
 /**
@@ -699,12 +733,12 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_BEGIN("init");
 
   //---------------------------------------------------------------------------
-  // Load the klee shape file and extract some information
+  // Load the Klee input file and extract some information
   //---------------------------------------------------------------------------
   try
   {
     AXOM_ANNOTATE_SCOPE("read Klee shape set");
-    params.shapeSet = klee::readShapeSet(params.shapeFile);
+    params.shapeSet = klee::readShapeSet(params.shapeFile, params.loadLuaInputOptions());
 
     slic::flushStreams();
   }
@@ -719,7 +753,7 @@ int main(int argc, char** argv)
     }
 
     SLIC_WARNING(
-      axom::fmt::format("Error during parsing klee input. Found the following errors:\n{}",
+      axom::fmt::format("Error during parsing Klee input. Found the following errors:\n{}",
                         axom::fmt::join(errs, "\n")));
 
     finalizeLogger();

@@ -123,10 +123,132 @@ ordinary table values can be generated programmatically:
       }
     }
 
+An application can supply a Lua initialization chunk that runs before the deck is parsed.
+This lets one deck select between 2D and 3D geometry, dimensions, or operator values
+at run time, and lets host code provide helper functions and closures without recompiling.
+The chunk must return a table; its entries become Lua globals that the deck may use,
+while unrelated globals in the deck remain errors:
+
+.. code-block:: c++
+
+    axom::klee::LuaInputOptions options;
+    options.initialization = axom::klee::LuaInitializationChunk {
+      R"(
+        local dim = 2
+        local lift = 3.0
+
+        local function offset(y)
+          return function()
+            return {0.0, y}
+          end
+        end
+
+        return {
+          dimensions = dim,
+          lift = lift,
+          offset = offset
+        }
+      )",
+      "runtime_initialization"
+    };
+    auto shapeSet = axom::klee::readShapeSet("shape.lua", options);
+
+.. code-block:: lua
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = offset(lift) }
+          }
+        }
+      }
+    }
+
+Exported keys must be non-keyword ASCII Lua identifiers that do not collide with
+standard Lua globals such as :code:`math` or :code:`package`.
+Exported values may be booleans, numbers, strings, tables, or functions,
+and keep their original Lua representation.
+
+Klee evaluates the chunk in a separate Lua environment, so names that the chunk
+assigns reach the deck only if they are returned in the export table,
+and exported functions keep access to the chunk's private environment.
+Exported names are ordinary mutable globals and can be modified.
+
+.. note::
+
+   The environment separation is not a sandbox. Inherited objects such as
+   :code:`math` and :code:`package` are shared with the deck, :code:`package` can
+   load additional code, and Klee imposes no CPU, memory, or recursion limits.
+   See :ref:`Inlet's reader documentation <inlet_readers_label>` for the general
+   warning that applies to all Lua input.
+
+   Klee does not coordinate Lua evaluation across MPI ranks. If an application
+   calls :code:`readShapeSet` on every rank, each rank reads and evaluates the
+   deck and the initialization chunk independently, so both must be deterministic.
+
 Use :code:`local` helper functions and constants for intermediate values so the
 global namespace contains only the Klee schema fields that Inlet should read.
 For Lua input, a one-value scale is written as a one-entry table, for example
 :code:`{ scale = {2.0} }`.
+
+Selected operator fields may also be written as zero-argument Lua callbacks.
+Klee evaluates each callback exactly once while reading the deck; the resulting
+shape contains ordinary affine or slice operators, not runtime Lua functions.
+
+Write callbacks as pure functions of local deck variables. Klee does not define
+the order in which it evaluates the callbacks within an operator, so a callback
+must not depend on another having run.
+Klee constructs :code:`named_operators` before :code:`shapes`:
+a :code:`ref` reuses the concrete operator built for that named operator
+rather than evaluating its callbacks again.
+
+.. code-block:: lua
+
+    local dim = 2
+    local r = 4.0
+    local z = 8.0
+    local x = 1.0
+    local y = 2.0
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            {
+              translate = function()
+                if dim == 2 then
+                  return {r, z}
+                end
+                return {x, y, z}
+              end
+            }
+          }
+        }
+      }
+    }
+
+Vector-valued callbacks return raw numeric Lua tables such as :code:`{x, y}` or :code:`{x, y, z}`.
+The typed :code:`Vector.new(...)` object is also accepted.
+Scalar-valued callbacks return a number.
+String-valued callbacks return a string.
+Supported callback fields are
+:code:`translate`, :code:`axis`, :code:`center`, :code:`scale`, :code:`slice.origin`,
+:code:`slice.normal`, :code:`slice.up`, :code:`rotate`, :code:`slice.x`,
+:code:`slice.y`, :code:`slice.z`, :code:`convert_units_to`, and :code:`ref`.
+For :code:`scale`, a one-entry table means uniform scaling and a multi-entry table means per-axis scaling.
 
 Common Lua input errors are reported as Klee parsing errors.
 A Lua input file read without Lua support reports:
@@ -152,6 +274,13 @@ Callers that read input files should catch :code:`axom::klee::KleeError` and dis
 or inspect :code:`getErrors()` when multiple verification errors are available.
 Klee may still throw standard exceptions such as :code:`std::logic_error` or :code:`std::invalid_argument`
 for programming errors or inconsistent manually constructed objects.
+
+Callback failures include the field, owning shape or named operator,
+and operator location, for example:
+
+.. code-block:: text
+
+    Error evaluating callback for 'translate' in shape 'part' operator 1: [Inlet] Lua function call failed: ...
 
 Paths
 *****
@@ -225,10 +354,10 @@ will match that of the (global or per-shape) `dimensions`.
 
 Overlay Rules
 -------------
-Shapes are added to meshes in the order in which they appear in the YAML
-file. By default, each one replaces all materials that occupy the space
-specified by its geometry file. This can be overridden by using the
-:code:`replaces` and :code:`does_not_replace` properties.
+Shapes are added to meshes in the order in which they appear in the input file.
+By default, each one replaces all materials that occupy the space specified by
+its geometry file. This can be overridden by using the :code:`replaces`
+and :code:`does_not_replace` properties.
 
 .. code-block:: yaml
 
@@ -333,7 +462,7 @@ Supported Operators
 The supported operators are listed below. Unless otherwise specified,
 the only difference between the 2D and 3D versions are that whenever points
 or vectors are expected, the points and vectors must be of the dimensionality
-specified by the shape file.
+specified by the Klee input.
 
 Operators take the form of :code:`operator_name: value`, where
 :code:`operator_name` is the name of the operator, and
@@ -358,7 +487,7 @@ Operators may also have additional required or optional parameters.
   :value: an angle, in degrees by which the shape will be rotated
     counterclockwise.
   :additional required parameters:
-    :axis: (3D only) the axis of rotation
+    :axis: (3D only) the nonzero axis of rotation
   :optional arguments:
     :center: a point specifying the center of rotation
   :example:
@@ -480,6 +609,12 @@ object. This is a list where each entry has the following values:
   last operator is specified. It is an error if the units aren't properly
   converted to `end_units` after applying all operations.
 
+For Lua input, named-operator values support the same callback-capable fields
+as shape operators. Klee constructs named operators before shapes, evaluates
+each of their callbacks once, and shares that concrete result through every :code:`ref`.
+A named-operator callback therefore cannot depend on the identity of a shape
+that later refers to it.
+
 The example below demonstrates how to create and then use a named operator.
 Notice how we can use multiple :code:`ref` entries in the list of
 operators and we can intermix these with other operators as needed.
@@ -545,7 +680,8 @@ the transformation was defined when you use it.
 
 In addition to using :code:`ref` in an individual shape's operators, you
 can also use it in other named operators. The only restriction is that it
-be defined in the list before it is used.
+be defined in the list before it is used. For Lua input, this restriction also
+applies when a :code:`ref` callback returns the operator name.
 
 .. code-block:: yaml
 

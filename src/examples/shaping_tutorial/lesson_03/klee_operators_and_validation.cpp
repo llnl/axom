@@ -142,22 +142,41 @@ int main(int argc, char** argv)
   // CLI
   axom::CLI::App app {"Klee Input Validator and Summary"};
   std::string inputFilename;
+  std::string initializationFilename;
   app.add_option("input", inputFilename)
     ->description("Klee input file")
     ->required()
     ->check(axom::CLI::ExistingFile);
+  app.add_option("--initialization-file", initializationFilename)
+    ->description("Optional Lua chunk that returns a table of initial globals")
+    ->check(axom::CLI::ExistingFile);
 
   CLI11_PARSE(app, argc, argv);
 
-  // Load the klee shape file and extract some information
+  auto loadShapeSet = [&]() {
+    if(initializationFilename.empty())
+    {
+      return axom::klee::readShapeSet(inputFilename);
+    }
+
+    std::ifstream initializationStream {initializationFilename};
+    std::string initializationSource {std::istreambuf_iterator<char>(initializationStream), {}};
+    axom::klee::LuaInputOptions options;
+    options.initialization =
+      axom::klee::LuaInitializationChunk {initializationSource, initializationFilename};
+    return axom::klee::readShapeSet(inputFilename, options);
+  };
+
+  // Load the Klee input file and extract some information
+  axom::klee::ShapeSet shapeSet;
   try
   {
-    auto shapeSet = axom::klee::readShapeSet(inputFilename);
+    shapeSet = loadShapeSet();
   }
-  catch(axom::klee::KleeError& error)
+  catch(const axom::klee::KleeError& error)
   {
     std::vector<std::string> errs;
-    for(auto verificationError : error.getErrors())
+    for(const auto& verificationError : error.getErrors())
     {
       errs.push_back(axom::fmt::format(" - '{}': {}",
                                        static_cast<std::string>(verificationError.path),
@@ -165,13 +184,11 @@ int main(int argc, char** argv)
     }
 
     SLIC_WARNING(
-      axom::fmt::format("Error during parsing klee input. Found the following errors:\n{}",
+      axom::fmt::format("Error during parsing Klee input. Found the following errors:\n{}",
                         axom::fmt::join(errs, "\n")));
-    exit(1);
+    return 1;
   }
 
-  auto shapeSet = axom::klee::readShapeSet(inputFilename);
   printShapeSetInfo(shapeSet);
-
   return 0;
 }

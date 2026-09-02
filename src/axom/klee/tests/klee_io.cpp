@@ -16,8 +16,10 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <fstream>
 #include <sstream>
+#include <string_view>
 
 namespace klee = axom::klee;
 namespace inlet = axom::inlet;
@@ -29,12 +31,15 @@ using klee::Dimensions;
 using klee::InputFormat;
 using klee::KleeError;
 using klee::LengthUnit;
+using klee::LuaInitializationChunk;
+using klee::LuaInputOptions;
 using klee::Rotation;
 using klee::Scale;
 using klee::ShapeSet;
 using klee::SliceOperator;
 using klee::TransformableGeometryProperties;
 using klee::Translation;
+using klee::UnitConverter;
 using primal::Point3D;
 using primal::Vector3D;
 using test::AlmostEqPoint;
@@ -55,6 +60,108 @@ ShapeSet readShapeSetFromString(const std::string& input, InputFormat format)
 {
   std::istringstream istream(input);
   return klee::readShapeSet(istream, format);
+}
+
+ShapeSet readShapeSetFromString(const std::string& input,
+                                InputFormat format,
+                                const LuaInputOptions& options)
+{
+  std::istringstream istream(input);
+  return klee::readShapeSet(istream, format, options);
+}
+
+std::string makeLuaSliceCallbackInput(const std::string& sliceFields)
+{
+  std::ostringstream input;
+  input << R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "slice_callback",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "slice_callback.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            {
+              slice = {
+  )" << sliceFields
+        << R"(
+              }
+            }
+          }
+        }
+      }
+    }
+  )";
+  return input.str();
+}
+
+std::string makeLuaRotationCallbackInput(const std::string& rotationFields)
+{
+  std::ostringstream input;
+  input << R"(
+    dimensions = 3
+    shapes = {
+      {
+        name = "rotation_callback",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "rotation_callback.stl",
+          units = "cm",
+          operators = {
+            {
+  )" << rotationFields
+        << R"(
+            }
+          }
+        }
+      }
+    }
+  )";
+  return input.str();
+}
+
+std::string makeLuaStringOperatorCallbackInput(const std::string& fieldName,
+                                               const std::string& returnExpression)
+{
+  std::ostringstream input;
+  input << R"(
+    dimensions = 2
+
+    named_operators = {
+      {
+        name = "known_operator",
+        units = "cm",
+        value = {
+          { translate = {1, 2} }
+        }
+      }
+    }
+
+    shapes = {
+      {
+        name = "string_callback",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "string_callback.stl",
+          units = "cm",
+          operators = {
+            {
+  )" << fieldName
+        << " = function() return " << returnExpression << R"( end
+            }
+          }
+        }
+      }
+    }
+  )";
+  return input.str();
 }
 }  // end namespace
 
@@ -423,6 +530,33 @@ TEST(IOTest, readShapeSet_streamDefaultsToYaml)
   }
 }
 
+TEST(IOTest, readShapeSet_yamlRejectsLuaInitialization)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    return {
+      dimensions = 2
+    }
+  )",
+                                                   "runtime_initialization"};
+
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions: 2
+      shapes: []
+    )",
+                           InputFormat::YAML,
+                           options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Lua initialization"));
+    EXPECT_THAT(err.what(), HasSubstr("Lua input decks"));
+  }
+}
+
 #ifndef AXOM_USE_LUA
 TEST(IOTest, readShapeSet_luaUnavailableDiagnostic)
 {
@@ -450,10 +584,23 @@ TEST(IOTest, readShapeSet_explicitLuaOverridesFileExtension)
 {
   axom::utilities::filesystem::TempFile input {"explicitLua", "yaml"};
   input.write(R"(
-    dimensions = 2
     shapes = {})");
 
-  auto shapeSet = klee::readShapeSet(input.getPath(), InputFormat::Lua);
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {"return {dimensions = 2}"};
+  auto shapeSet = klee::readShapeSet(input.getPath(), InputFormat::Lua, options);
+  EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  EXPECT_EQ(input.getPath(), shapeSet.getPath());
+}
+
+TEST(IOTest, readShapeSet_inferredLuaAcceptsInitializationOptions)
+{
+  axom::utilities::filesystem::TempFile input {"inferredLua", "lua"};
+  input.write("shapes = {}");
+
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {"return {dimensions = 2}"};
+  auto shapeSet = klee::readShapeSet(input.getPath(), options);
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
   EXPECT_EQ(input.getPath(), shapeSet.getPath());
 }
@@ -497,6 +644,410 @@ TEST(IOTest, readShapeSet_luaStreamMinimalShapeList)
   EXPECT_EQ("test_format", shape.getGeometry().getFormat());
   EXPECT_EQ("path/to/file.format", shape.getGeometry().getPath());
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
+}
+
+TEST(IOTest, readShapeSet_luaInitializationProvidesDimensionAndOperator)
+{
+  LuaInitializationChunk initialization {R"(
+    local dim = 2
+    local lift = 3.0
+
+    return {
+      dimensions = dim,
+      shape_suffix = "2d",
+      lift = lift,
+      enabled = true
+    }
+  )",
+                                         "runtime_initialization"};
+  LuaInputOptions options;
+  options.initialization = initialization;
+
+  auto shapeSet = readShapeSetFromString(R"(
+    local function shape_path()
+      return "part_" .. shape_suffix .. ".stl"
+    end
+
+    shapes = {
+      {
+        name = "controlled",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = enabled and shape_path() or "disabled.stl",
+          units = "cm",
+          operators = {
+            { translate = (dimensions == 2) and {1.0, lift} or {1.0, 0.0, lift} }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_EQ("part_2d.stl", geometry.getPath());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 3.0, 0.0}));
+}
+
+TEST(IOTest, readShapeSet_luaInitializationExportsMutableGlobals)
+{
+  LuaInitializationChunk initialization {R"(
+    return {
+      dimensions = 2,
+      settings = {
+        lift = 3.0
+      }
+    }
+  )",
+                                         "runtime_initialization"};
+  LuaInputOptions options;
+  options.initialization = initialization;
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 3
+    settings.lift = 7.0
+
+    shapes = {
+      {
+        name = "overridden",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = {1.0, 2.0, settings.lift} }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(Dimensions::Three, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 2.0, 7.0}));
+}
+
+TEST(IOTest, readShapeSet_luaInitializationIsolatesUnexportedGlobals)
+{
+  LuaInitializationChunk initialization {R"(
+    dimensions = 3
+    unexported_value = "private"
+    math = {
+      sqrt = function() return -1 end
+    }
+    _G.also_unexported = "private"
+
+    return {
+      exported_lift = 4.0
+    }
+  )",
+                                         "runtime_initialization"};
+  LuaInputOptions options;
+  options.initialization = initialization;
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    local isolation_ok =
+      unexported_value == nil and
+      also_unexported == nil and
+      math.sqrt(9.0) == 3.0
+
+    shapes = {
+      {
+        name = "isolated",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = isolation_ok and "isolated.stl" or "leaked.stl",
+          units = "cm",
+          operators = {
+            { translate = {math.sqrt(4.0), exported_lift} }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  EXPECT_EQ("isolated.stl", geometry.getPath());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {2.0, 4.0, 0.0}));
+}
+
+TEST(IOTest, readShapeSet_luaInitializationCannotSetSchemaGlobalsWithoutExporting)
+{
+  for(std::string_view source : {"dimensions = 2; return {}", "_G.dimensions = 2; return {}"})
+  {
+    LuaInitializationChunk initialization {std::string {source}, "runtime_initialization"};
+    LuaInputOptions options;
+    options.initialization = initialization;
+    EXPECT_THROW(readShapeSetFromString("shapes = {}", InputFormat::Lua, options), KleeError);
+  }
+}
+
+TEST(IOTest, readShapeSet_luaInitializationClosureRetainsEnvironment)
+{
+  // private_offset is assigned in the chunk's isolated environment and is not
+  // exported, so it is reachable only through the exported closure
+  LuaInitializationChunk initialization {R"(
+    local base_offset = 1.5
+    private_offset = 3.5
+
+    return {
+      dimensions = 2,
+      offset = function()
+        return {base_offset, private_offset}
+      end
+    }
+  )",
+                                         "runtime_initialization"};
+  LuaInputOptions options;
+  options.initialization = initialization;
+
+  auto shapeSet = readShapeSetFromString(R"(
+    shapes = {
+      {
+        name = "closure",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "closure.stl",
+          units = "cm",
+          operators = {
+            { translate = offset }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  const auto& geometry = shapeSet.getShapes()[0].getGeometry();
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometry.getGeometryOperator());
+  ASSERT_TRUE(composite);
+  auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.5, 3.5, 0.0}));
+}
+
+TEST(IOTest, readShapeSet_luaInitializationPreservesLuaInteger)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    return {
+      exact_integer = 9007199254740993
+    }
+  )",
+                                                   "integer_initialization"};
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    local integer_is_exact = exact_integer == 9007199254740993
+    shapes = {
+      {
+        name = "integer",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = integer_is_exact and "exact.stl" or "rounded.stl",
+          units = "cm"
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  EXPECT_EQ("exact.stl", shapeSet.getShapes()[0].getGeometry().getPath());
+}
+
+TEST(IOTest, readShapeSet_luaInitializationIsolationIsShallow)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    math.initialization_value = 4.0
+    return {}
+  )",
+                                                   "shallow_initialization"};
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "shared_table",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = math.initialization_value == 4.0 and "shared.stl" or "isolated.stl",
+          units = "cm"
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  EXPECT_EQ("shared.stl", shapeSet.getShapes()[0].getGeometry().getPath());
+}
+
+TEST(IOTest, readShapeSet_luaInitializationRejectsInvalidChunks)
+{
+  struct InvalidInitialization
+  {
+    std::string source;
+    std::string expectedMessage;
+  };
+
+  const std::array<InvalidInitialization, 6> invalidInitializations {{
+    {"", "empty"},
+    {"return {", "Failed to evaluate"},
+    {"error('initialization boom')", "initialization boom"},
+    {"local value = 2", "must return a table"},
+    {"return {[1] = 2}", "string keys"},
+    {"return {bad = Vector.new(1, 2)}", "unsupported value type"},
+  }};
+
+  for(const auto& invalid : invalidInitializations)
+  {
+    LuaInputOptions options;
+    options.initialization = LuaInitializationChunk {invalid.source, "invalid_initialization"};
+
+    try
+    {
+      readShapeSetFromString("dimensions = 2; shapes = {}", InputFormat::Lua, options);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr("invalid_initialization"));
+      EXPECT_THAT(err.what(), HasSubstr(invalid.expectedMessage));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaInitializationRejectsInvalidExportName)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    return {
+      ["shape-dim"] = 2
+    }
+  )",
+                                                   "runtime_initialization"};
+
+  try
+  {
+    readShapeSetFromString(R"(
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Invalid exported Lua global name"));
+    EXPECT_THAT(err.what(), HasSubstr("Lua identifiers"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaInitializationRejectsKeywordExport)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    return {
+      ["function"] = 2
+    }
+  )",
+                                                   "runtime_initialization"};
+
+  try
+  {
+    readShapeSetFromString("dimensions = 2; shapes = {}", InputFormat::Lua, options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("Reserved Lua keywords"));
+    EXPECT_THAT(err.what(), HasSubstr("function"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaInitializationRejectsReservedGlobalName)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    return {
+      math = 2
+    }
+  )",
+                                                   "runtime_initialization"};
+
+  try
+  {
+    readShapeSetFromString(R"(
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("conflicts with an existing Lua global"));
+    EXPECT_THAT(err.what(), HasSubstr("math"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaInitializationRequiresTableReturn)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {"return 2", "runtime_initialization"};
+
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {}
+    )",
+                           InputFormat::Lua,
+                           options);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("must return a table"));
+    EXPECT_THAT(err.what(), HasSubstr("runtime_initialization"));
+  }
 }
 
 TEST(IOTest, readShapeSet_luaFileExtension)
@@ -692,6 +1243,232 @@ TEST(IOTest, readShapeSet_luaNamedGeometryOperatorsWithNestedRef)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
 
+TEST(IOTest, readShapeSet_luaNamedOperatorCallbackIsEvaluatedOnceAndReused)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local callback_calls = 0
+
+    dimensions = 2
+
+    named_operators = {
+      {
+        name = "shared_callback",
+        units = "cm",
+        value = {
+          {
+            translate = function()
+              callback_calls = callback_calls + 1
+              return {callback_calls, 2}
+            end
+          }
+        }
+      }
+    }
+
+    shapes = {
+      {
+        name = "first",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "first.stl",
+          units = "cm",
+          operators = {
+            { ref = "shared_callback" }
+          }
+        }
+      },
+      {
+        name = "second",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "second.stl",
+          units = "cm",
+          operators = {
+            { ref = "shared_callback" }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(2u, shapeSet.getShapes().size());
+  auto firstComposite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  auto secondComposite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[1].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(firstComposite);
+  ASSERT_TRUE(secondComposite);
+  ASSERT_EQ(1u, firstComposite->getOperators().size());
+  ASSERT_EQ(1u, secondComposite->getOperators().size());
+
+  // Both refs reuse the concrete named operator built before either shape.
+  EXPECT_EQ(firstComposite->getOperators()[0], secondComposite->getOperators()[0]);
+  auto sharedOperator =
+    std::dynamic_pointer_cast<const CompositeOperator>(firstComposite->getOperators()[0]);
+  ASSERT_TRUE(sharedOperator);
+  ASSERT_EQ(1u, sharedOperator->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(sharedOperator->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1, 2, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local callback_index = 0
+
+    local function ordered(expected_index, value)
+      return function()
+        callback_index = callback_index + 1
+        if callback_index ~= expected_index then
+          error("expected callback " .. expected_index ..
+                ", got callback " .. callback_index)
+        end
+        return value
+      end
+    end
+
+    dimensions = 3
+
+    named_operators = {
+      {
+        name = "rotate_and_scale",
+        units = "cm",
+        value = {
+          {
+            rotate = ordered(1, 30),
+            center = ordered(2, {1, 2, 3}),
+            axis = ordered(3, {0, 0, 1})
+          },
+          {
+            scale = ordered(4, {2}),
+            center = ordered(5, {4, 5, 6})
+          }
+        }
+      },
+      {
+        name = "shift",
+        units = "cm",
+        value = {
+          { translate = ordered(6, {7, 8, 9}) }
+        }
+      }
+    }
+
+    shapes = {
+      {
+        name = "reference",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "reference.stl",
+          units = "cm",
+          operators = {
+            { translate = ordered(7, {1, 2, 3}) },
+            { ref = ordered(8, "rotate_and_scale") }
+          }
+        }
+      },
+      {
+        name = "arbitrary_slice",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "arbitrary_slice.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            {
+              slice = {
+                origin = ordered(9, {0, 0, 0}),
+                normal = ordered(10, {0, 0, 1}),
+                up = ordered(11, {0, 1, 0})
+              }
+            }
+          }
+        }
+      },
+      {
+        name = "perpendicular_slice",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "perpendicular_slice.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            {
+              slice = {
+                x = ordered(12, 3),
+                origin = ordered(13, {3, 0, 0}),
+                normal = ordered(14, {1, 0, 0}),
+                up = ordered(15, {0, 1, 0})
+              }
+            }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  // Reaching the last callback demonstrates that each one ran exactly once.
+  // The specific order is an implementation detail.
+  ASSERT_EQ(3u, shapeSet.getShapes().size());
+}
+#endif
+
+TEST(IOTest, readShapeSet_luaNamedOperatorCallbackErrorIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+
+      named_operators = {
+        {
+          name = "bad_named_operator",
+          units = "cm",
+          value = {
+            {
+              translate = function()
+                error("named callback boom")
+              end
+            }
+          }
+        }
+      }
+
+      shapes = {
+        {
+          name = "placeholder",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "placeholder.stl",
+            units = "cm"
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("translate"));
+    EXPECT_THAT(err.what(), HasSubstr("named operator"));
+    EXPECT_THAT(err.what(), HasSubstr("bad_named_operator"));
+    EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+    EXPECT_THAT(err.what(), HasSubstr("named callback boom"));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaDifferentDimensions)
 {
   auto shapeSet = readShapeSetFromString(R"(
@@ -770,6 +1547,530 @@ TEST(IOTest, readShapeSet_luaGeneratedOrdinaryTableValues)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
 }
 
+TEST(IOTest, readShapeSet_lua2dOperatorCallbacks)
+{
+  // Vector-valued callbacks in a 2D deck return two components and are padded to three.
+  // Scale is covered here because readShapeSet_luaOperatorCallbacks is 3D.
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "part",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = function() return {4, 8} end },
+            { scale = function() return {2.0, 3.0} end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(2u, composite->getOperators().size());
+
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[0].get());
+  ASSERT_NE(translation, nullptr);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 8, 0}));
+
+  auto scale = dynamic_cast<const Scale*>(composite->getOperators()[1].get());
+  ASSERT_NE(scale, nullptr);
+  EXPECT_DOUBLE_EQ(2.0, scale->getXFactor());
+  EXPECT_DOUBLE_EQ(3.0, scale->getYFactor());
+  EXPECT_DOUBLE_EQ(1.0, scale->getZFactor());
+}
+
+TEST(IOTest, readShapeSet_luaOperatorCallbacks)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local dim = 3
+
+    dimensions = dim
+
+    shapes = {
+      {
+        name = "callbacks",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "callbacks.stl",
+          units = "cm",
+          operators = {
+            {
+              rotate = function() return 45 end,
+              axis = function() return {0, 0, 1} end,
+              center = function() return Vector.new(1, 2, 3) end
+            },
+            { translate = function() return {4, 5, 6} end },
+            {
+              scale = function() return {2.0} end,
+              center = function() return {3, 4, 5} end
+            },
+            {
+              scale = function() return {1.5, 2.5, 3.5} end,
+              center = function() return {1, 1, 1} end
+            }
+          }
+        }
+      },
+      {
+        name = "slice_callbacks",
+        material = "glass",
+        geometry = {
+          format = "stl",
+          path = "slice_callbacks.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            {
+              slice = {
+                origin = function() return {1, 2, 3} end,
+                normal = function() return {0, 0, 1} end,
+                up = function() return {0, 1, 0} end
+              }
+            }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(2u, shapeSet.getShapes().size());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(4u, composite->getOperators().size());
+
+  auto rotation = dynamic_cast<const Rotation*>(composite->getOperators()[0].get());
+  ASSERT_NE(rotation, nullptr);
+  EXPECT_DOUBLE_EQ(45.0, rotation->getAngle());
+  EXPECT_THAT(rotation->getAxis(), AlmostEqVector(Vector3D {0, 0, 1}));
+  EXPECT_THAT(rotation->getCenter(), AlmostEqPoint(Point3D {1, 2, 3}));
+
+  auto translation = dynamic_cast<const Translation*>(composite->getOperators()[1].get());
+  ASSERT_NE(translation, nullptr);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {4, 5, 6}));
+
+  auto uniformScale = dynamic_cast<const Scale*>(composite->getOperators()[2].get());
+  ASSERT_NE(uniformScale, nullptr);
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getYFactor());
+  EXPECT_DOUBLE_EQ(2.0, uniformScale->getZFactor());
+  EXPECT_THAT(uniformScale->getCenter(), AlmostEqPoint(Point3D {3, 4, 5}));
+
+  auto vectorScale = dynamic_cast<const Scale*>(composite->getOperators()[3].get());
+  ASSERT_NE(vectorScale, nullptr);
+  EXPECT_DOUBLE_EQ(1.5, vectorScale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.5, vectorScale->getYFactor());
+  EXPECT_DOUBLE_EQ(3.5, vectorScale->getZFactor());
+  EXPECT_THAT(vectorScale->getCenter(), AlmostEqPoint(Point3D {1, 1, 1}));
+
+  auto sliceComposite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[1].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(sliceComposite);
+  ASSERT_EQ(1u, sliceComposite->getOperators().size());
+  auto slice = std::dynamic_pointer_cast<const SliceOperator>(sliceComposite->getOperators()[0]);
+  ASSERT_TRUE(slice);
+  EXPECT_THAT(slice->getOrigin(), AlmostEqPoint(Point3D {1, 2, 3}));
+  EXPECT_THAT(slice->getNormal(), AlmostEqVector(Vector3D {0, 0, 1}));
+  EXPECT_THAT(slice->getUp(), AlmostEqVector(Vector3D {0, 1, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaStringOperatorCallbacks)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    local target_units = "cm"
+    local selected_operator = "shift"
+
+    dimensions = 2
+
+    named_operators = {
+      {
+        name = "shift",
+        units = "cm",
+        value = {
+          { translate = {1, 2} }
+        }
+      }
+    }
+
+    shapes = {
+      {
+        name = "string_callbacks",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "string_callbacks.stl",
+          units = "m",
+          operators = {
+            { convert_units_to = function() return target_units end },
+            { ref = function() return selected_operator end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(2u, composite->getOperators().size());
+
+  auto converter = std::dynamic_pointer_cast<const UnitConverter>(composite->getOperators()[0]);
+  ASSERT_TRUE(converter);
+  EXPECT_EQ(LengthUnit::m, converter->getStartProperties().units);
+  EXPECT_EQ(LengthUnit::cm, converter->getEndProperties().units);
+
+  auto referenced = std::dynamic_pointer_cast<const CompositeOperator>(composite->getOperators()[1]);
+  ASSERT_TRUE(referenced);
+  ASSERT_EQ(1u, referenced->getOperators().size());
+  auto translation = std::dynamic_pointer_cast<const Translation>(referenced->getOperators()[0]);
+  ASSERT_TRUE(translation);
+  EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1, 2, 0}));
+}
+
+TEST(IOTest, readShapeSet_luaStringOperatorCallbackErrorsIncludeContext)
+{
+  struct FailureCase
+  {
+    const char* field;
+    const char* returnExpression;
+    const char* expectedMessage;
+  };
+  const std::array<FailureCase, 4> cases {{
+    {"convert_units_to", "{}", "function call"},
+    {"convert_units_to", "\"parsec\"", "Unrecognized units"},
+    {"ref", "{}", "function call"},
+    {"ref", "\"missing_operator\"", "No operator named"},
+  }};
+
+  for(const auto& testCase : cases)
+  {
+    SCOPED_TRACE(testCase.expectedMessage);
+    try
+    {
+      readShapeSetFromString(
+        makeLuaStringOperatorCallbackInput(testCase.field, testCase.returnExpression),
+        InputFormat::Lua);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr("string_callback"));
+      EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+      EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbacks)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+
+    shapes = {
+      {
+        name = "x_slice",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "x_slice.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            { slice = { x = function() return 10 end } }
+          }
+        }
+      },
+      {
+        name = "y_slice",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "y_slice.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            { slice = { y = function() return 20 end } }
+          }
+        }
+      },
+      {
+        name = "z_slice",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "z_slice.stl",
+          start_dimensions = 3,
+          dimensions = 2,
+          units = "cm",
+          operators = {
+            { slice = { z = function() return 30 end } }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua);
+
+  const std::array<Point3D, 3> expectedOrigins {{{10, 0, 0}, {0, 20, 0}, {0, 0, 30}}};
+  const std::array<Vector3D, 3> expectedNormals {{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}}};
+  const std::array<Vector3D, 3> expectedUp {{{0, 0, 1}, {1, 0, 0}, {0, 1, 0}}};
+
+  ASSERT_EQ(3u, shapeSet.getShapes().size());
+  for(std::size_t i = 0; i < shapeSet.getShapes().size(); ++i)
+  {
+    SCOPED_TRACE(i);
+    auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+      shapeSet.getShapes()[i].getGeometry().getGeometryOperator());
+    ASSERT_TRUE(composite);
+    ASSERT_EQ(1u, composite->getOperators().size());
+    auto slice = std::dynamic_pointer_cast<const SliceOperator>(composite->getOperators()[0]);
+    ASSERT_TRUE(slice);
+    EXPECT_THAT(slice->getOrigin(), AlmostEqPoint(expectedOrigins[i]));
+    EXPECT_THAT(slice->getNormal(), AlmostEqVector(expectedNormals[i]));
+    EXPECT_THAT(slice->getUp(), AlmostEqVector(expectedUp[i]));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbackWrongTypeIncludesContext)
+{
+  for(const char* axis : {"x", "y", "z"})
+  {
+    SCOPED_TRACE(axis);
+    const auto sliceFields = std::string {axis} + " = function() return {1} end";
+    try
+    {
+      readShapeSetFromString(makeLuaSliceCallbackInput(sliceFields), InputFormat::Lua);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + axis + "'"));
+      EXPECT_THAT(err.what(), HasSubstr("slice_callback"));
+      EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaPerpendicularSliceCallbacksAreValidated)
+{
+  struct ValidationCase
+  {
+    const char* field;
+    const char* returnValue;
+    const char* expectedMessage;
+  };
+  const std::array<ValidationCase, 3> cases {{
+    {"origin", "{20, 0, 0}", "slice plane"},
+    {"normal", "{1, 2, 3}", "Invalid normal"},
+    {"up", "{1, 0, 0}", "perpendicular"},
+  }};
+
+  for(const auto& testCase : cases)
+  {
+    SCOPED_TRACE(testCase.field);
+    const auto sliceFields = std::string {"x = function() return 10 end, "} + testCase.field +
+      " = function() return " + testCase.returnValue + " end";
+    try
+    {
+      readShapeSetFromString(makeLuaSliceCallbackInput(sliceFields), InputFormat::Lua);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr("shape 'slice_callback'"));
+      EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+      EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaArbitrarySliceCallbackValidationErrorsIncludeContext)
+{
+  struct ValidationCase
+  {
+    const char* field;
+    const char* sliceFields;
+    const char* expectedMessage;
+  };
+  const std::array<ValidationCase, 2> cases {{
+    {"normal",
+     "origin = {0, 0, 0}, "
+     "normal = function() return {0, 0, 0} end, "
+     "up = {0, 1, 0}",
+     "zero"},
+    {"up",
+     "origin = {0, 0, 0}, "
+     "normal = {1, 0, 0}, "
+     "up = function() return {1, 0, 0} end",
+     "perpendicular"},
+  }};
+
+  for(const auto& testCase : cases)
+  {
+    SCOPED_TRACE(testCase.field);
+    try
+    {
+      readShapeSetFromString(makeLuaSliceCallbackInput(testCase.sliceFields), InputFormat::Lua);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr("shape 'slice_callback'"));
+      EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+      EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaRotationCallbacksAreValidated)
+{
+  struct ValidationCase
+  {
+    const char* fields;
+    const char* field;
+    const char* expectedMessage;
+  };
+  const std::array<ValidationCase, 4> cases {{
+    {"rotate = function() return {45} end, axis = {0, 0, 1}", "rotate", "function call"},
+    {"rotate = 45, axis = function() return {0, 1} end", "axis", "Wrong size"},
+    {"rotate = 45, axis = {0, 0, 1}, center = function() return {1, 2} end", "center", "Wrong size"},
+    {"rotate = 45, axis = function() return {0, 0, 0} end", "axis", "zero"},
+  }};
+
+  for(const auto& testCase : cases)
+  {
+    SCOPED_TRACE(testCase.expectedMessage);
+    try
+    {
+      readShapeSetFromString(makeLuaRotationCallbackInput(testCase.fields), InputFormat::Lua);
+      FAIL() << "Should have thrown";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + testCase.field + "'"));
+      EXPECT_THAT(err.what(), HasSubstr("rotation_callback"));
+      EXPECT_THAT(err.what(), HasSubstr("operator 1"));
+      EXPECT_THAT(err.what(), HasSubstr(testCase.expectedMessage));
+    }
+  }
+}
+
+TEST(IOTest, readShapeSet_luaCallbackErrorIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "bad_shape",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "bad.stl",
+            units = "cm",
+            operators = {
+              {
+                translate = function()
+                  error("callback boom")
+                end
+              }
+            }
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    // The operator is identified by its Lua table key, which is 1-based
+    EXPECT_THAT(err.what(),
+                HasSubstr("Error evaluating callback for 'translate' in shape 'bad_shape' "
+                          "operator 1"));
+    EXPECT_THAT(err.what(), HasSubstr("callback boom"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaCallbackWrongVectorDimensionIncludesContext)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "wrong_dim",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "wrong_dim.stl",
+            units = "cm",
+            operators = {
+              { translate = function() return {1, 2, 3} end }
+            }
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("translate"));
+    EXPECT_THAT(err.what(), HasSubstr("wrong_dim"));
+    EXPECT_THAT(err.what(), HasSubstr("Wrong size"));
+  }
+}
+
+TEST(IOTest, readShapeSet_luaFunctionValueWrongTypeOutsideCallbackFields)
+{
+  try
+  {
+    readShapeSetFromString(R"(
+      dimensions = 2
+      shapes = {
+        {
+          name = "bad_units",
+          material = "steel",
+          geometry = {
+            format = "stl",
+            path = "part.stl",
+            units = function() return "cm" end
+          }
+        }
+      }
+    )",
+                           InputFormat::Lua);
+    FAIL() << "Should have thrown";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("units"));
+    EXPECT_THAT(err.what(), HasSubstr("wrong type"));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaUnexpectedGlobalDiagnostic)
 {
   try
@@ -816,7 +2117,6 @@ TEST(IOTest, readShapeSet_luaNestedUnexpectedFieldsMatchYamlValidation)
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   EXPECT_EQ("wheel", shapeSet.getShapes()[0].getName());
 }
-#endif
 
 TEST(IOTest, readShapeSet_shapeWithReplacesAndDoesNotReplaceLists)
 {
@@ -892,7 +2192,7 @@ TEST(IOTest, readShapeSet_geometryOperators_scaleWithCenter)
             path: path/to/file.format
             units: m
             operators:
-              - scale: [1.5, 2.5]
+              - scale: [1.5]
                 center: [10, 20]
     )");
   auto& shapes = shapeSet.getShapes();
@@ -907,8 +2207,8 @@ TEST(IOTest, readShapeSet_geometryOperators_scaleWithCenter)
   auto scale = dynamic_cast<const Scale*>(composite->getOperators()[0].get());
   ASSERT_NE(scale, nullptr);
   EXPECT_DOUBLE_EQ(1.5, scale->getXFactor());
-  EXPECT_DOUBLE_EQ(2.5, scale->getYFactor());
-  EXPECT_DOUBLE_EQ(1.0, scale->getZFactor());
+  EXPECT_DOUBLE_EQ(1.5, scale->getYFactor());
+  EXPECT_DOUBLE_EQ(1.5, scale->getZFactor());
   EXPECT_THAT(scale->getCenter(), AlmostEqPoint(Point3D {10, 20, 0}));
 }
 
