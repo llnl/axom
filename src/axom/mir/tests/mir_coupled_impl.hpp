@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_coupled_impl.hpp
+ *  \brief Implementation shared by the coupled MIR execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -20,14 +26,14 @@
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
-std::string baselineDirectory()
+inline std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_coupled");
 }
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
+extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 /*!
@@ -119,7 +125,7 @@ fine - refines coarse with equal sized quads.
 
 */
 // NOTE: Coordinates were switched to explicit to play better with VisIt and strided-structured.
-const char* yaml = R"(
+inline const char* yaml = R"(
 coordsets:
   coarse_coords:
     type: explicit
@@ -158,7 +164,7 @@ topologies:
 )";
 
 // This matset is defined on all zones in the mesh.
-const char* coarse_matset_yaml = R"(
+inline const char* coarse_matset_yaml = R"(
 coarse_matset:
   topology: coarse
   material_map:
@@ -174,7 +180,7 @@ coarse_matset:
 )";
 
 // This matset is restricted to the valid zones in a strided structured mesh.
-const char* coarse_matset_ss_yaml = R"(
+inline const char* coarse_matset_ss_yaml = R"(
 coarse_strided_matset:
   topology: coarse_strided
   material_map:
@@ -408,98 +414,3 @@ private:
     mapper.execute(n_src, n_opts, n_target);
   }
 };
-
-//------------------------------------------------------------------------------
-TEST(mir_coupled, coupling_2D_sz0_ss0_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coupled, coupling_2D_sz0_ss0_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coupled, coupling_2D_sz0_ss0_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coupled, coupling_2D_sz0_ss0_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char* argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
-}

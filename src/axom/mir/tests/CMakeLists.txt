@@ -13,19 +13,30 @@
 #------------------------------------------------------------------------------
 
 set(gtest_mir_tests
-    mir_coupled.cpp
-    mir_coupled3d.cpp
     mir_elvira2d.cpp
-    mir_elvira3d.cpp
-    mir_equiz2d.cpp
-    mir_equiz3d.cpp
-    )
+    mir_elvira3d.cpp)
 
 set(mir_tests_depends_on 
     slic
     mir
     bump
     gtest)
+
+#-------------------------------------------------------------------------------------
+# Policy-based tests are separated to reduce compile/link time and memory requirements
+#-------------------------------------------------------------------------------------
+set(policy_mir_tests
+    mir_coupled
+    mir_coupled3d
+    mir_equiz2d
+    mir_equiz3d)
+
+foreach(test ${policy_mir_tests})
+   blt_list_append(TO gtest_mir_tests ELEMENTS ${test}_seq.cpp)
+   blt_list_append(TO gtest_mir_tests ELEMENTS ${test}_omp.cpp  IF AXOM_ENABLE_OPENMP)
+   blt_list_append(TO gtest_mir_tests ELEMENTS ${test}_cuda.cpp IF AXOM_ENABLE_CUDA)
+   blt_list_append(TO gtest_mir_tests ELEMENTS ${test}_hip.cpp  IF AXOM_ENABLE_HIP)
+endforeach()
 
 #------------------------------------------------------------------------------
 # Add gtest based tests
@@ -40,10 +51,9 @@ foreach(test ${gtest_mir_tests})
 
     axom_add_test( NAME ${test_name}
                    COMMAND ${test_name}_test )
+
+    if(ENABLE_HIP AND test MATCHES "^mir_(coupled_hip|equiz2d_hip|elvira2d)\\.cpp$")
+        axom_force_release_for_target(${test_name}_test)
+    endif()
 endforeach()
 
-if(ENABLE_HIP)
-  axom_force_release_for_target(mir_coupled_test)
-  axom_force_release_for_target(mir_elvira2d_test)
-  axom_force_release_for_target(mir_equiz2d_test)
-endif()
