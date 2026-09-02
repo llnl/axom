@@ -326,7 +326,7 @@ TEST(slic_macros, test_info_macros)
 TEST(slic_macros, test_debug_macros)
 {
   EXPECT_TRUE(slic::internal::is_stream_empty());
-#ifdef AXOM_DEBUG
+#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
   EXPECT_SLIC_LOG(SLIC_DEBUG("test debug message"), "DEBUG", "test debug message");
 
   EXPECT_SLIC_ONCE(SLIC_DEBUG_ONCE("test debug message once"), "DEBUG", "test debug message once");
@@ -351,7 +351,7 @@ TEST(slic_macros, test_debug_macros)
   // clang-format on
 
 #else
-  // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
+  // SLIC_DEBUG macros only log messages when Slic debug macros are enabled
 
   SLIC_DEBUG("test debug message");
   SLIC_DEBUG_ONCE("test debug message");
@@ -409,10 +409,10 @@ TEST(slic_macros, test_assert_macros)
   constexpr int val = 42;
   SLIC_ASSERT(val < 0);
   expected_line_number = __LINE__ - 1;
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("ERROR", "Failed Assert: val < 0", expected_line_number);
 #else
-  // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
+  // SLIC_ASSERT macros only log messages when Slic debug macros are enabled
   AXOM_UNUSED_VAR(val);
   AXOM_UNUSED_VAR(expected_line_number);
   EXPECT_TRUE(slic::internal::is_stream_empty());
@@ -423,12 +423,12 @@ TEST(slic_macros, test_assert_macros)
 
   SLIC_ASSERT_MSG(val < 0, "val should be negative!");
   expected_line_number = __LINE__ - 1;
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("ERROR",
                             "Failed Assert: val < 0\nval should be negative!",
                             expected_line_number);
 #else
-  // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
+  // SLIC_ASSERT macros only log messages when Slic debug macros are enabled
   AXOM_UNUSED_VAR(val);
   AXOM_UNUSED_VAR(expected_line_number);
   EXPECT_TRUE(slic::internal::is_stream_empty());
@@ -444,10 +444,10 @@ TEST(slic_macros, test_check_macros)
   constexpr int val = 42;
   SLIC_CHECK(val < 0);
   expected_line_number = __LINE__ - 1;
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("WARNING", "Failed Check: val < 0", expected_line_number);
 #else
-  // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined
+  // SLIC_CHECK macros only log messages when Slic debug macros are enabled
   AXOM_UNUSED_VAR(val);
   AXOM_UNUSED_VAR(expected_line_number);
   EXPECT_TRUE(slic::internal::is_stream_empty());
@@ -458,12 +458,12 @@ TEST(slic_macros, test_check_macros)
 
   SLIC_CHECK_MSG(val < 0, "val should be negative!");
   expected_line_number = __LINE__ - 1;
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("WARNING",
                             "Failed Check: val < 0\nval should be negative!",
                             expected_line_number);
 #else
-  // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined
+  // SLIC_CHECK macros only log messages when Slic debug macros are enabled
   AXOM_UNUSED_VAR(val);
   AXOM_UNUSED_VAR(expected_line_number);
   EXPECT_TRUE(slic::internal::is_stream_empty());

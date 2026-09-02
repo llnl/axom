@@ -398,35 +398,41 @@ to specify paths to Axom external dependencies.
 Axom build options, compiler support, and parallelism
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+------------------------------+---------+----------------------------------------+
-| OPTION                       | Default | Description                            |
-+==============================+=========+========================================+
-| AXOM_DEBUG_DEFINE            | DEFAULT | Controls whether the `AXOM_DEBUG`      |
-|                              |         | compiler define is enabled             |
-|                              |         |                                        |
-|                              |         | By DEFAULT, it is enabled for          |
-|                              |         | `Debug` and `RelWithDebInfo` configs   |
-|                              |         | but this can be overridden by setting  |
-|                              |         | `AXOM_DEBUG_DEFINE` to `ON` or `OFF`   |
-+------------------------------+---------+----------------------------------------+
-| ENABLE_ALL_WARNINGS          | ON      | Enable extra compiler warnings         |
-|                              |         | in all build targets                   |
-+------------------------------+---------+----------------------------------------+
-| ENABLE_WARNINGS_AS_ERRORS    | OFF     | Compiler warnings treated as errors    |
-+------------------------------+---------+----------------------------------------+
-| BUILD_SHARED_LIBS            | OFF     | Build shared libraries.                |
-|                              |         | Default is Static libraries            |
-+------------------------------+---------+----------------------------------------+
-| ENABLE_FORTRAN               | OFF     | Enable Fortran compiler support        |
-+------------------------------+---------+----------------------------------------+
-| AXOM_ENABLE_MPI              | OFF     | Enable MPI                             |
-+------------------------------+---------+----------------------------------------+
-| AXOM_ENABLE_OPENMP           | OFF     | Enable OpenMP                          |
-+------------------------------+---------+----------------------------------------+
-| AXOM_ENABLE_CUDA             | OFF     | Enable CUDA                            |
-+------------------------------+---------+----------------------------------------+
-| AXOM_ENABLE_HIP              | OFF     | Enable HIP                             |
-+------------------------------+---------+----------------------------------------+
++-------------------------------+---------+----------------------------------------+
+| OPTION                        | Default | Description                            |
++===============================+=========+========================================+
+| AXOM_DEBUG_DEFINE             | DEFAULT | Controls whether the ``AXOM_DEBUG``    |
+|                               |         | compiler define is enabled             |
+|                               |         |                                        |
+|                               |         | By ``DEFAULT``, it is enabled for      |
+|                               |         | ``Debug`` and ``RelWithDebInfo``       |
+|                               |         | configurations                         |
+|                               |         | but this can be overridden by setting  |
+|                               |         | it to ``ON`` or ``OFF``                |
++-------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_SLIC_DEBUG_MACROS | OFF     | Enable the ``SLIC_ASSERT``,            |
+|                               |         | ``SLIC_CHECK``, and ``SLIC_DEBUG``     |
+|                               |         | macro families independently of        |
+|                               |         | ``AXOM_DEBUG``                         |
++-------------------------------+---------+----------------------------------------+
+| ENABLE_ALL_WARNINGS           | ON      | Enable extra compiler warnings         |
+|                               |         | in all build targets                   |
++-------------------------------+---------+----------------------------------------+
+| ENABLE_WARNINGS_AS_ERRORS     | OFF     | Compiler warnings treated as errors    |
++-------------------------------+---------+----------------------------------------+
+| BUILD_SHARED_LIBS             | OFF     | Build shared libraries.                |
+|                               |         | Default is Static libraries            |
++-------------------------------+---------+----------------------------------------+
+| ENABLE_FORTRAN                | OFF     | Enable Fortran compiler support        |
++-------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_MPI               | OFF     | Enable MPI                             |
++-------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_OPENMP            | OFF     | Enable OpenMP                          |
++-------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_CUDA              | OFF     | Enable CUDA                            |
++-------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_HIP               | OFF     | Enable HIP                             |
++-------------------------------+---------+----------------------------------------+
 
 Note that, in most Axom components, node-level parallelism features, enabled with 
 OpenMP, CUDA (NVIDIA GPUs), and HIP (AMD GPUs), are implemented using RAJA. See

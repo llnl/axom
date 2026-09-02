@@ -18,6 +18,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+### Added
+- Slic: Adds the `AXOM_ENABLE_SLIC_DEBUG_MACROS` CMake option to enable the
+  `SLIC_ASSERT`, `SLIC_CHECK`, and `SLIC_DEBUG` macro families independently of
+  `AXOM_DEBUG`.
+
 ## [Version 0.15.0] - Release date 2026-08-28
 
 ### Added

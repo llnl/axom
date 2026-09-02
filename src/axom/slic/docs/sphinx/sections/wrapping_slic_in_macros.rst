@@ -109,6 +109,15 @@ operations when certain flags are toggled on or functions are called. Other macr
 such as ``SLIC_ERROR`` and ``SLIC_ASSERT`` can be made not collective when certain
 functions are called.
 
+The ``SLIC_ASSERT``, ``SLIC_CHECK``, and ``SLIC_DEBUG`` families are active
+when the ``AXOM_DEBUG_DEFINE`` CMake setting enables ``AXOM_DEBUG``. The
+default value, ``AXOM_DEBUG_DEFINE=DEFAULT``, enables them in ``Debug`` and
+``RelWithDebInfo`` configurations. Set ``AXOM_DEBUG_DEFINE=ON`` to enable
+``AXOM_DEBUG`` in every configuration or ``AXOM_DEBUG_DEFINE=OFF`` to disable
+it in every configuration. These Slic macro families can also be enabled
+independently of ``AXOM_DEBUG`` by configuring Axom with
+``-DAXOM_ENABLE_SLIC_DEBUG_MACROS=ON``.
+
 The table below details the built-in SLIC macros as well as some notes about when they are collective calls:
 
 .. list-table:: SLIC macro availability and collective behavior
@@ -121,7 +130,8 @@ The table below details the built-in SLIC macros as well as some notes about whe
 
    * - ``SLIC_ASSERT``
        ``SLIC_ASSERT_MSG``
-     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+     - - Available when enabled by ``AXOM_DEBUG_DEFINE`` or
+         ``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON``
        - Not available in device code
      - - Collective by default
        - Collective after calling ``slic::enableAbortOnError()``
@@ -129,7 +139,8 @@ The table below details the built-in SLIC macros as well as some notes about whe
 
    * - ``SLIC_CHECK``
        ``SLIC_CHECK_MSG``
-     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+     - - Available when enabled by ``AXOM_DEBUG_DEFINE`` or
+         ``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON``
        - Not available in device code
      - - Not collective by default
        - Collective after ``slic::debug::checksAreErrors`` is set to ``true``, defaults to ``false``
@@ -144,7 +155,8 @@ The table below details the built-in SLIC macros as well as some notes about whe
        ``SLIC_DEBUG_ROOT_ONCE``
        ``SLIC_DEBUG_ROOT_IF_ONCE``
        ``SLIC_DEBUG_PRINT_CONTAINER_ONCE``
-     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+     - - Available when enabled by ``AXOM_DEBUG_DEFINE`` or
+         ``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON``
      - - Never
 
    * - ``SLIC_INFO``
@@ -186,13 +198,15 @@ Doxygen generated API documentation on Macros can be found here: `SLIC Macros <.
 
 Consider the following rules of thumb when choosing from the above logging macros:
 
-* The `SLIC_ABORT` and `SLIC_CHECK` macros are typically used to check preconditions/postconditions of functions
-  and help catch developer errors. They are only available in debug configurations (i.e. when `AXOM_DEBUG` is available).
+* The `SLIC_ASSERT` and `SLIC_CHECK` macros are typically used to check preconditions/postconditions of functions
+  and help catch developer errors. They are available when enabled by
+  ``AXOM_DEBUG_DEFINE`` or ``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON``.
 * `SLIC_WARNING` and `SLIC_ERROR` are available in all configurations and can be used to check for conditions that might affect the results.
   They are also useful for validating user inputs.
-* `SLIC_INFO` and `SLIC_DEBUG` macros are typically used to provide information about the state of an application. 
-  The `SLIC_*_IF` variants can be used to conditionally log messages. `SLIC_DEBUG` macros are compiled out in non-debug configurations 
-  (i.e. their messages will not get logged), while `SLIC_INFO` macros are always available.
+* `SLIC_INFO` and `SLIC_DEBUG` macros are typically used to provide information about the state of an application.
+  The `SLIC_*_IF` variants can be used to conditionally log messages. `SLIC_DEBUG` macros are compiled out unless
+  enabled by ``AXOM_DEBUG_DEFINE`` or ``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON``,
+  while `SLIC_INFO` macros are always available.
 * The `SLIC_*_ROOT` variants can help reduce logging verbosity when called in an MPI application, especially if all
   MPI ranks are expected to have the same data (for example, if a value was broadcast from one rank to all the other ranks).
 * The `SLIC_*_ONCE` variants can help reduce logging verbosity when only the first invocation at a call-site is necessary.
