@@ -21,6 +21,7 @@ using axom::sidre::View;
 using axom::sidre::getTypeID;
 
 #include <map>
+#include <vector>
 
 //------------------------------------------------------------------------------
 
@@ -90,6 +91,12 @@ void verifyAllocatedBuffer(Buffer* buf, DataTypeId tid, int eltsize, int eltcoun
 
   EXPECT_TRUE(buf->isAllocated());
   EXPECT_NE(static_cast<void*>(nullptr), buf->getVoidPtr());
+}
+
+void verifyBufferAllocatorID(Buffer* buf, int allocID)
+{
+  ASSERT_TRUE(buf->isAllocated());
+  EXPECT_EQ(allocID, axom::getAllocatorIDFromPointer(buf->getVoidPtr()));
 }
 
 // Test describe methods
@@ -277,6 +284,60 @@ TEST(sidre_buffer, buffer_allocate)
     eltcount = 0;
     buf4a->reallocate(eltcount);
     verifyAllocatedBuffer(buf4a, tid, eltsize, eltcount);
+  }
+
+  delete ds;
+}
+
+TEST(sidre_buffer, buffer_default_host_allocator)
+{
+  const DataTypeId tid = getTypeID(SIDRE_INT_ID);
+  constexpr int ELT_SIZE = sizeof(int);
+  constexpr int ELT_COUNT = 10;
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
+
+  DataStore* ds = new DataStore();
+
+  Buffer* allocatedBuf = ds->createBuffer(tid, ELT_COUNT);
+  allocatedBuf->allocate();
+  verifyAllocatedBuffer(allocatedBuf, tid, ELT_SIZE, ELT_COUNT);
+  verifyBufferAllocatorID(allocatedBuf, defaultHostAllocatorID);
+
+  Buffer* reallocatedBuf = ds->createBuffer(tid, ELT_COUNT);
+  reallocatedBuf->reallocate(ELT_COUNT);
+  verifyAllocatedBuffer(reallocatedBuf, tid, ELT_SIZE, ELT_COUNT);
+  verifyBufferAllocatorID(reallocatedBuf, defaultHostAllocatorID);
+
+  delete ds;
+}
+
+TEST(sidre_buffer, buffer_reallocate_preserves_allocator)
+{
+  const DataTypeId tid = getTypeID(SIDRE_INT_ID);
+  constexpr int ELT_SIZE = sizeof(int);
+  constexpr int ELT_COUNT = 10;
+
+  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
+#ifdef AXOM_USE_UMPIRE
+  allocIds.push_back(axom::getUmpireResourceAllocatorID(umpire::resource::Host));
+#endif
+
+  DataStore* ds = new DataStore();
+
+  for(int allocID : allocIds)
+  {
+    Buffer* buf = ds->createBuffer(tid, ELT_COUNT);
+    buf->allocate(allocID);
+    verifyAllocatedBuffer(buf, tid, ELT_SIZE, ELT_COUNT);
+    verifyBufferAllocatorID(buf, allocID);
+
+    buf->reallocate(0);
+    verifyAllocatedBuffer(buf, tid, ELT_SIZE, 0);
+    verifyBufferAllocatorID(buf, allocID);
+
+    buf->reallocate(ELT_COUNT);
+    verifyAllocatedBuffer(buf, tid, ELT_SIZE, ELT_COUNT);
+    verifyBufferAllocatorID(buf, allocID);
   }
 
   delete ds;
