@@ -470,34 +470,26 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
 #if defined(AXOM_USE_UMPIRE)
 
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.isAllocator(allocID))
+
+  if(pointer == nullptr)
   {
-    if(pointer == nullptr)
-    {
-      pointer = axom::allocate<T>(n, allocID);
-    }
-    else
-    {
-      if(rm.hasAllocator(pointer))
-      {
-        pointer = static_cast<T*>(rm.reallocate(pointer, numbytes));
-      }
-      else
-      {
-        /*
-         * Reallocate from non-Umpire to Umpire, manually, using
-         * allocate, copy and deallocate.  Because we don't know the
-         * current size, we first do a (extra) reallocate within the
-         * current space just so we have the size for the copy.
-         * Is there a better way?
-         */
-        auto tmpPointer = std::realloc(pointer, numbytes);
-        pointer = axom::allocate<T>(n, allocID);
-        copy(pointer, tmpPointer, numbytes);
-        deallocate(tmpPointer);
-      }
-    }
+    pointer = axom::allocate<T>(n, allocID);
     return pointer;
+  }
+
+  if(rm.hasAllocator(pointer))
+  {
+    pointer = static_cast<T*>(rm.reallocate(pointer, numbytes));
+  }
+  else
+  {
+    pointer = static_cast<T*>(std::realloc(pointer, numbytes));
+  }
+
+  // Consistently handle realloc(0) for std::realloc to match Umpire's behavior
+  if(n == 0 && pointer == nullptr)
+  {
+    pointer = axom::allocate<T>(0, MALLOC_ALLOCATOR_ID);
   }
 
 #else
