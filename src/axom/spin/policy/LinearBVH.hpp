@@ -115,6 +115,7 @@ public:
 #ifdef AXOM_DEVICE_CODE
     lbvh::SharedBVHStack<BlockSize> stack;
 #else
+    AXOM_UNUSED_VAR(BlockSize);
     lbvh::BVHStack stack;
 #endif
 
