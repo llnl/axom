@@ -2440,6 +2440,34 @@ TEST_P(UmpireTest, allocate_default)
 }
 
 //------------------------------------------------------------------------------
+TEST_P(UmpireTest, allocate_default_host_allocator)
+{
+  axom::setDefaultAllocator(allocID);
+
+  DataStore dsPrime;
+  Group* rootPrime = dsPrime.getRoot();
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
+
+  {
+    View* view = rootPrime->createView("v");
+    view->allocate(INT_ID, SIZE);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+
+  {
+    View* view = rootPrime->createView("v");
+    DataType dtype = conduit::DataType::default_dtype(INT_ID);
+    dtype.set_number_of_elements(SIZE);
+    view->allocate(dtype);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST_P(UmpireTest, reallocate)
 {
   #if defined(AXOM_USE_GPU) && defined(UMPIRE_ENABLE_CONST)
@@ -2488,7 +2516,7 @@ TEST_P(UmpireTest, reallocate_zero)
     view->reallocate(0);
     view->reallocate(SIZE);
 
-    ASSERT_EQ(axom::getDefaultAllocatorID(), rm.getAllocator(view->getVoidPtr()).getId());
+    ASSERT_EQ(allocID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
 
     root->destroyViewAndData("v");
   }
@@ -2501,7 +2529,7 @@ TEST_P(UmpireTest, reallocate_zero)
     view->reallocate(0);
     view->reallocate(SIZE);
 
-    ASSERT_EQ(axom::getDefaultAllocatorID(), rm.getAllocator(view->getVoidPtr()).getId());
+    ASSERT_EQ(allocID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
 
     root->destroyViewAndData("v");
   }

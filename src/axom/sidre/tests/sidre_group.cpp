@@ -4143,6 +4143,39 @@ TEST_P(UmpireTest, root_default_allocator)
   ASSERT_EQ(dsPrime.getRoot()->getDefaultAllocatorID(), axom::detail::getDefaultHostAllocatorID());
 }
 
+TEST_P(UmpireTest, allocate_default_host_allocator)
+{
+  axom::setDefaultAllocator(allocID);
+
+  DataStore dsPrime;
+  Group* rootPrime = dsPrime.getRoot();
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
+
+  {
+    View* view = rootPrime->createViewAndAllocate("v", INT_ID, SIZE);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+
+  {
+    IndexType shape[] = {1, SIZE, 1};
+    View* view = rootPrime->createViewWithShapeAndAllocate("v", INT_ID, 3, shape);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+
+  {
+    DataType dtype = conduit::DataType::default_dtype(INT_ID);
+    dtype.set_number_of_elements(SIZE);
+    View* view = rootPrime->createViewAndAllocate("v", dtype);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+}
+
 TEST_P(UmpireTest, get_set_allocator)
 {
   int defaultAllocatorID = axom::getDefaultAllocatorID();
