@@ -179,12 +179,15 @@ spack:
       - spec: "+shared"
 
     # Globally lock in version of devtools
+
+    # Conduit requires CMake 3.26 or higher (cap is highest 3.XX on LC)
     cmake:
-      version: [3.24.2]
-      buildable: false
-      externals:
-      - spec: cmake@3.24.2
-        prefix: /usr/local
+      require:
+      - "@3.26:3.30"
+      # buildable: true
+      # externals:
+      # - spec: cmake@3.25.3
+      #   prefix: /usr/local
     doxygen:
       version: [1.9.1]
       buildable: false
