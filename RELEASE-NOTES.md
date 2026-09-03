@@ -18,6 +18,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+- Axom's host execution-space default allocator is now a configure-time policy. The default policy is malloc, regardless
+  of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
+  `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
+  allocator-ID arguments.
+
 ## [Version 0.15.0] - Release date 2026-08-28
 
 ### Added
@@ -107,10 +112,6 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Status-returning reader/writer operations in `C2CReader`, `MFEMReader`, `ProEReader`,
   `STEPReader`, `STLReader`, `STLWriter`, and their parallel variants are now marked `[[nodiscard]]`.
   Callers that previously ignored returned status values must check them to avoid compiler diagnostics.
-- Axom's host execution-space default allocator is now a configure-time policy. The default policy is malloc, regardless
-  of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
-  `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
-  allocator-ID arguments.
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
