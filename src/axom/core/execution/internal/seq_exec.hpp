@@ -14,11 +14,6 @@
   #include "RAJA/RAJA.hpp"
 #endif
 
-// Umpire includes
-#ifdef AXOM_USE_UMPIRE
-  #include "umpire/Umpire.hpp"
-#endif
-
 namespace axom
 {
 /*!
@@ -51,10 +46,10 @@ struct execution_space<SEQ_EXEC>
 
   using sync_policy = void;
 
-#ifdef AXOM_USE_UMPIRE
+#ifdef AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST
   static constexpr MemorySpace memory_space = MemorySpace::Host;
 #else
-  static constexpr MemorySpace memory_space = MemorySpace::Dynamic;
+  static constexpr MemorySpace memory_space = MemorySpace::Malloc;
 #endif
 
   AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
@@ -62,14 +57,7 @@ struct execution_space<SEQ_EXEC>
   AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[SEQ_EXEC]"; }
 
-  static int allocatorID() noexcept
-  {
-#ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-    return axom::getDefaultAllocatorID();
-#endif
-  }
+  static int allocatorID() noexcept { return axom::detail::getDefaultHostAllocatorID(); }
   AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::seq;

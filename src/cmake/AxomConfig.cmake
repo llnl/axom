@@ -63,6 +63,23 @@ foreach(option MPI3)
     endif()
 endforeach()
 
+string(TOUPPER "${AXOM_DEFAULT_HOST_ALLOCATOR}" _axom_default_host_allocator_upper)
+if(_axom_default_host_allocator_upper STREQUAL "MALLOC")
+    set(AXOM_DEFAULT_HOST_ALLOCATOR "MALLOC" CACHE STRING "Default host allocator: MALLOC or UMPIRE_HOST" FORCE)
+    unset(AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST)
+elseif(_axom_default_host_allocator_upper STREQUAL "UMPIRE_HOST")
+    if(NOT AXOM_USE_UMPIRE)
+        message(FATAL_ERROR
+            "AXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST requires Axom to be configured with Umpire.")
+    endif()
+    set(AXOM_DEFAULT_HOST_ALLOCATOR "UMPIRE_HOST" CACHE STRING "Default host allocator: MALLOC or UMPIRE_HOST" FORCE)
+    set(AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST TRUE)
+else()
+    message(FATAL_ERROR
+        "Invalid value for AXOM_DEFAULT_HOST_ALLOCATOR. Must be 'MALLOC' or 'UMPIRE_HOST'; "
+        "was '${AXOM_DEFAULT_HOST_ALLOCATOR}'")
+endif()
+
 # Handle paths
 convert_to_native_escaped_file_path(${PROJECT_SOURCE_DIR} AXOM_SRC_DIR_NATIVE)
 convert_to_native_escaped_file_path(${PROJECT_BINARY_DIR} AXOM_BIN_DIR_NATIVE)

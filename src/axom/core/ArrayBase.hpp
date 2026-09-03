@@ -911,7 +911,7 @@ struct DeviceStagingBuffer
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     if(m_deviceStage)
     {
-      int allocator_id = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
+      int allocator_id = axom::detail::getDefaultHostAllocatorID();
       m_staging_buf = axom::allocate<T>(nelems, allocator_id);
       if(read_from_data)
       {
@@ -1018,7 +1018,7 @@ public:
     if constexpr(std::is_default_constructible_v<T>)
     {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-      if(space != MemorySpace::Host)
+      if(space != MemorySpace::Host && space != MemorySpace::Malloc)
       {
         if constexpr(std::is_trivially_default_constructible_v<T>)
         {
@@ -1062,7 +1062,7 @@ public:
   void fill(T* array, IndexType begin, IndexType nelems, const T& value)
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-    if(space != MemorySpace::Host)
+    if(space != MemorySpace::Host && space != MemorySpace::Malloc)
     {
       if constexpr(std::is_trivially_copyable_v<T>)
       {

@@ -404,9 +404,13 @@ public:
   }
 
   DataStore ds;
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   int allocID;
 };
+
+void checkPointerAllocatorID(void* ptr, int expectedAllocID)
+{
+  ASSERT_EQ(expectedAllocID, axom::getAllocatorIDFromPointer(ptr));
+}
 
 //------------------------------------------------------------------------------
 TEST_P(UmpireTest, allocate)
@@ -418,7 +422,7 @@ TEST_P(UmpireTest, allocate)
     buff->describe(INT_ID, SIZE);
     buff->allocate(allocID);
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
     buff->deallocate();
   }
 
@@ -426,7 +430,7 @@ TEST_P(UmpireTest, allocate)
     Buffer* buff = ds.createBuffer();
     buff->allocate(INT_ID, SIZE, allocID);
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
     buff->deallocate();
   }
 
@@ -434,7 +438,7 @@ TEST_P(UmpireTest, allocate)
     Buffer* buff = ds.createBuffer(INT_ID, SIZE);
     buff->allocate(allocID);
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
     buff->deallocate();
   }
 }
@@ -444,13 +448,14 @@ TEST_P(UmpireTest, allocate_default)
   constexpr int SIZE = 100;
 
   axom::setDefaultAllocator(allocID);
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
 
   {
     Buffer* buff = ds.createBuffer();
     buff->describe(INT_ID, SIZE);
     buff->allocate();
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), defaultHostAllocatorID);
     buff->deallocate();
   }
 
@@ -458,7 +463,7 @@ TEST_P(UmpireTest, allocate_default)
     Buffer* buff = ds.createBuffer();
     buff->allocate(INT_ID, SIZE);
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), defaultHostAllocatorID);
     buff->deallocate();
   }
 
@@ -466,7 +471,7 @@ TEST_P(UmpireTest, allocate_default)
     Buffer* buff = ds.createBuffer(INT_ID, SIZE);
     buff->allocate();
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), defaultHostAllocatorID);
     buff->deallocate();
   }
 }
@@ -488,7 +493,7 @@ TEST_P(UmpireTest, reallocate)
     buff->allocate(allocID);
     buff->reallocate(2 * SIZE);
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
 
     buff->deallocate();
   }
@@ -498,7 +503,7 @@ TEST_P(UmpireTest, reallocate)
     buff->allocate(INT_ID, SIZE, allocID);
     buff->reallocate(2 * SIZE);
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
     buff->deallocate();
   }
 
@@ -507,7 +512,7 @@ TEST_P(UmpireTest, reallocate)
     buff->allocate(allocID);
     buff->reallocate(2 * SIZE);
 
-    ASSERT_EQ(allocID, rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
     buff->deallocate();
   }
 }
@@ -533,7 +538,7 @@ TEST_P(UmpireTest, reallocate_zero)
     buff->reallocate(0);
     buff->reallocate(SIZE);
 
-    ASSERT_EQ(axom::getDefaultAllocatorID(), rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
 
     buff->deallocate();
   }
@@ -544,7 +549,7 @@ TEST_P(UmpireTest, reallocate_zero)
     buff->reallocate(0);
     buff->reallocate(SIZE);
 
-    ASSERT_EQ(axom::getDefaultAllocatorID(), rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
     buff->deallocate();
   }
 
@@ -554,7 +559,7 @@ TEST_P(UmpireTest, reallocate_zero)
     buff->reallocate(0);
     buff->reallocate(SIZE);
 
-    ASSERT_EQ(axom::getDefaultAllocatorID(), rm.getAllocator(buff->getVoidPtr()).getId());
+    checkPointerAllocatorID(buff->getVoidPtr(), allocID);
     buff->deallocate();
   }
 }

@@ -157,15 +157,24 @@ inline void setDefaultAllocator(umpire::resource::MemoryResourceType resource_ty
 #endif
 
 /*!
- * \brief Sets the default memory allocator to use.
- * \param [in] allocId the Umpire allocator id
+ * \brief Sets the default memory allocator for the Umpire ResourceManager. 
+ * \param [in] allocId the Axom allocator id
  * 
+ * \note When Axom is compiled with Umpire and \a allocId is
+ *       axom::MALLOC_ALLOCATOR_ID, this function sets Umpire's default
+ *       allocator to its Host resource.
  * \note This function has no effect when Axom is not compiled with Umpire.
  */
 inline void setDefaultAllocator(int allocId)
 {
 #ifdef AXOM_USE_UMPIRE
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  if(allocId == MALLOC_ALLOCATOR_ID)
+  {
+    rm.setDefaultAllocator(rm.getAllocator(umpire::resource::Host));
+    return;
+  }
+
   umpire::Allocator allocator = rm.getAllocator(allocId);
   rm.setDefaultAllocator(allocator);
 #else
@@ -187,6 +196,27 @@ inline int getDefaultAllocatorID()
   return MALLOC_ALLOCATOR_ID;
 #endif
 }
+
+namespace detail
+{
+/*!
+ * \brief Returns the ID of the default host allocator.
+ *
+ * \note This is distinct from the current default allocator returned by
+ *       axom::getDefaultAllocatorID(), which tracks Umpire's default allocator
+ *       when Axom is configured with Umpire.
+ *
+ * \return ID of the default host allocator.
+ */
+inline int getDefaultHostAllocatorID()
+{
+#if defined(AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST)
+  return getUmpireResourceAllocatorID(umpire::resource::Host);
+#else
+  return MALLOC_ALLOCATOR_ID;
+#endif
+}
+}  // namespace detail
 
 /*!
  * \brief Get the allocator id from which data has been allocated.
@@ -241,7 +271,7 @@ int getSharedMemoryAllocatorID(std::size_t minSegmentSize = 0);
  * \brief Allocates a chunk of memory of type T.
  *
  * \param [in] n the number of elements to allocate.
- * \param [in] allocID the Umpire allocator to use (optional)
+ * \param [in] allocID the Axom/Umpire allocator to use (optional)
  *
  * \tparam T the type of pointer returned.
  *
@@ -260,7 +290,7 @@ inline T* allocate(std::size_t n, int allocID = getDefaultAllocatorID()) noexcep
  *
  * \param [in] n the number of elements to allocate.
  * \param [in] name allocation name (must be non-empty for shared memory allocators)
- * \param [in] allocID the Umpire allocator to use (optional)
+ * \param [in] allocID the Axom/Umpire allocator to use (optional)
  *
  * \return pointer to the new allocation or a nullptr if allocation failed.
  */
@@ -360,6 +390,11 @@ inline T* allocate(std::size_t n, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    return static_cast<T*>(std::malloc(numbytes));
+  }
+
 #ifdef AXOM_USE_UMPIRE
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
@@ -367,11 +402,6 @@ inline T* allocate(std::size_t n, int allocID) noexcept
     return static_cast<T*>(allocator.allocate(numbytes));
   }
 #endif
-
-  if(allocID == MALLOC_ALLOCATOR_ID)
-  {
-    return static_cast<T*>(std::malloc(numbytes));
-  }
 
   std::cerr << "Unrecognized allocator id " << allocID << std::endl;
   axom::utilities::processAbort();
@@ -384,6 +414,12 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    AXOM_UNUSED_VAR(name);
+    return static_cast<T*>(std::malloc(numbytes));
+  }
+
 #ifdef AXOM_USE_UMPIRE
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
@@ -392,12 +428,6 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
                         : static_cast<T*>(allocator.allocate(name, numbytes));
   }
 #endif
-
-  if(allocID == MALLOC_ALLOCATOR_ID)
-  {
-    AXOM_UNUSED_VAR(name);
-    return static_cast<T*>(std::malloc(numbytes));
-  }
 
   std::cerr << "Unrecognized allocator id " << allocID << std::endl;
   axom::utilities::processAbort();
@@ -440,34 +470,26 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
 #if defined(AXOM_USE_UMPIRE)
 
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.isAllocator(allocID))
+
+  if(pointer == nullptr)
   {
-    if(pointer == nullptr)
-    {
-      pointer = axom::allocate<T>(n, allocID);
-    }
-    else
-    {
-      if(rm.hasAllocator(pointer))
-      {
-        pointer = static_cast<T*>(rm.reallocate(pointer, numbytes));
-      }
-      else
-      {
-        /*
-         * Reallocate from non-Umpire to Umpire, manually, using
-         * allocate, copy and deallocate.  Because we don't know the
-         * current size, we first do a (extra) reallocate within the
-         * current space just so we have the size for the copy.
-         * Is there a better way?
-         */
-        auto tmpPointer = std::realloc(pointer, numbytes);
-        pointer = axom::allocate<T>(n, allocID);
-        copy(pointer, tmpPointer, numbytes);
-        deallocate(tmpPointer);
-      }
-    }
+    pointer = axom::allocate<T>(n, allocID);
     return pointer;
+  }
+
+  if(rm.hasAllocator(pointer))
+  {
+    pointer = static_cast<T*>(rm.reallocate(pointer, numbytes));
+  }
+  else
+  {
+    pointer = static_cast<T*>(std::realloc(pointer, numbytes));
+  }
+
+  // Consistently handle realloc(0) for std::realloc to match Umpire's behavior
+  if(n == 0 && pointer == nullptr)
+  {
+    pointer = axom::allocate<T>(0, MALLOC_ALLOCATOR_ID);
   }
 
 #else
@@ -547,13 +569,12 @@ inline void fill(void* dst, std::size_t n, const T& value) noexcept
       doHostFill = false;
 
       // Device memory: fill on host, then copy to device
-      const auto num_bytes = n * sizeof(T);
-      T* src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
+      T* src = allocate<T>(n, axom::detail::getDefaultHostAllocatorID());
       for(std::size_t i = 0; i < n; ++i)
       {
         src[i] = value;
       }
-      rm.copy(dst, src, num_bytes);
+      axom::copy(dst, src, n * sizeof(T));
       deallocate<T>(src);
     }
   }

@@ -4115,6 +4115,47 @@ TEST(sidre_group, get_data_info)
 }
 
 //------------------------------------------------------------------------------
+// Default allocator tests:
+//------------------------------------------------------------------------------
+
+TEST(sidre_group, default_allocator_getters_on_fresh_datastore)
+{
+  DataStore ds;
+  Group* root = ds.getRoot();
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
+
+  EXPECT_EQ(defaultHostAllocatorID, root->getDefaultArrayAllocatorID());
+  EXPECT_EQ(defaultHostAllocatorID, root->getDefaultTupleAllocatorID());
+  EXPECT_EQ(defaultHostAllocatorID, root->getDefaultAllocatorID());
+}
+
+TEST(sidre_group, default_allocator_getter_after_exec_space_id)
+{
+  DataStore ds;
+  Group* root = ds.getRoot();
+  const int seqAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  root->setDefaultArrayAllocator(seqAllocID);
+
+  EXPECT_EQ(seqAllocID, root->getDefaultArrayAllocatorID());
+}
+
+#ifdef AXOM_USE_UMPIRE
+TEST(sidre_group, default_allocator_getters_with_umpire_id)
+{
+  auto& rm = umpire::ResourceManager::getInstance();
+  const int hostId = rm.getAllocator(umpire::resource::Host).getId();
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+  root->setDefaultArrayAllocator(hostId);
+  root->setDefaultTupleAllocator(hostId);
+
+  EXPECT_NO_THROW({ EXPECT_EQ(hostId, root->getDefaultArrayAllocator().getId()); });
+  EXPECT_NO_THROW({ EXPECT_EQ(hostId, root->getDefaultTupleAllocator().getId()); });
+}
+#endif
+
+//------------------------------------------------------------------------------
 #ifdef AXOM_USE_UMPIRE
 
 class UmpireTest : public ::testing::TestWithParam<int>
@@ -4140,14 +4181,63 @@ TEST_P(UmpireTest, root_default_allocator)
   axom::setDefaultAllocator(allocID);
 
   DataStore dsPrime;
-  ASSERT_EQ(dsPrime.getRoot()->getDefaultAllocatorID(), allocID);
+  ASSERT_EQ(dsPrime.getRoot()->getDefaultAllocatorID(), axom::detail::getDefaultHostAllocatorID());
+}
+
+TEST_P(UmpireTest, allocate_default_host_allocator)
+{
+  // In this test:
+  //
+  // allocID is an Umpire allocator ID used to change Umpire's default via
+  // axom::setDefaultAllocator(allocID).
+  //
+  // defaultHostAllocatorID is the configured Axom host default allocator
+  //
+  // Thus, a new Datastore root Group ignores the Umpire default and uses the
+  // configured host default instead.
+  //
+  // In general, allocID is not tied to the Axom configured default host allocator:
+  //
+  //  - When AXOM_DEFAULT_HOST_ALLOCATOR=MALLOC, defaultHostAllocatorID == axom::MALLOC_ALLOCATOR_ID,
+  //    and allocID is an Umpire allocator ID.
+  //  - When AXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST, they match only when allocID is Umpire Host.
+  //    They differ for Pinned, Device, Unified, etc. in GPU-enabled builds
+
+  axom::setDefaultAllocator(allocID);
+
+  DataStore dsPrime;
+  Group* rootPrime = dsPrime.getRoot();
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
+
+  {
+    View* view = rootPrime->createViewAndAllocate("v", INT_ID, SIZE);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+
+  {
+    IndexType shape[] = {1, SIZE, 1};
+    View* view = rootPrime->createViewWithShapeAndAllocate("v", INT_ID, 3, shape);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+
+  {
+    DataType dtype = conduit::DataType::default_dtype(INT_ID);
+    dtype.set_number_of_elements(SIZE);
+    View* view = rootPrime->createViewAndAllocate("v", dtype);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
 }
 
 TEST_P(UmpireTest, get_set_allocator)
 {
   int defaultAllocatorID = axom::getDefaultAllocatorID();
-  ASSERT_EQ(root->getDefaultAllocator().getId(), defaultAllocatorID);
-  ASSERT_EQ(root->getDefaultAllocatorID(), defaultAllocatorID);
+  ASSERT_EQ(root->getDefaultAllocatorID(), axom::detail::getDefaultHostAllocatorID());
 
   root->setDefaultAllocator(allocID);
   defaultAllocatorID = axom::getDefaultAllocatorID();
