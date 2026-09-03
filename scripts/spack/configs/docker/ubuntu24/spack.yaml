@@ -120,7 +120,7 @@ spack:
     curl:
       buildable: false
       externals:
-      - spec: curl@7.81.0
+      - spec: curl@8.5.0
         prefix: /usr
     diffutils:
       buildable: false
@@ -179,15 +179,11 @@ spack:
       - spec: "+shared"
 
     # Globally lock in version of devtools
-
-    # Conduit requires CMake 3.26 or higher (cap is highest 3.XX on LC)
     cmake:
-      require:
-      - "@3.26:3.30"
-      # buildable: true
-      # externals:
-      # - spec: cmake@3.25.3
-      #   prefix: /usr/local
+      buildable: false
+      externals:
+      - spec: cmake@3.28.3
+        prefix: /usr
     doxygen:
       version: [1.9.1]
       buildable: false
