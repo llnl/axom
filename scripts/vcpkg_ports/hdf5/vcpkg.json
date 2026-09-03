@@ -1,18 +1,15 @@
 {
   "name": "hdf5",
-  "version": "1.14.4.3",
-  "port-version": 4,
+  "version": "2.1.1",
+  "port-version": 1,
   "description": "HDF5 is a data model, library, and file format for storing and managing data",
   "homepage": "https://www.hdfgroup.org/downloads/hdf5/",
   "license": "BSD-3-Clause",
   "supports": "!uwp",
   "$comment": [
-    "Overlay of the pinned upstream hdf5 manifest used by uberenv's in-place vcpkg ports copy.",
-    "Upstream hdf5 defaults are [\"szip\", \"zlib\"]. We intentionally drop \"szip\" from default-features here",
-    "but keep the explicit \"szip\" feature below so users can still opt in when needed.",
-    "This works around vcpkg pulling libaec through hdf5's default szip feature in Axom's Windows GHA builds.",
-    "The problem was not libaec compatibility; the relevant issue was that the libaec source download repeatedly",
-    "failed from its upstream archive URL with HTTP 429 in GitHub Actions, making Windows dependency bootstrap flaky."
+    "This manifest matches the HDF5 port in Axom's pinned vcpkg revision.",
+    "It removes szip from default-features to avoid the unreliable libaec download in Windows CI.",
+    "The szip feature remains available for callers that explicitly request it."
   ],
   "dependencies": [
     {
@@ -24,7 +21,7 @@
       "host": true
     }
   ],
-  "$comment_default_features": "Upstream default-features were [\"szip\", \"zlib\"]. Keep only zlib by default so CI does not pull libaec unless szip is explicitly requested.",
+  "$comment_default_features": "Upstream defaults are [\"szip\", \"zlib\"]; Axom keeps only zlib enabled by default.",
   "default-features": [
     "zlib"
   ],
@@ -35,17 +32,25 @@
     "fortran": {
       "description": "Build with fortran"
     },
+    "hl": {
+      "description": "Build HIGH Level HDF5 Library"
+    },
     "map": {
       "description": "Build the map API"
     },
+    "mirror": {
+      "description": "Build the Mirror Virtual File Driver",
+      "supports": "!windows | mingw"
+    },
     "parallel": {
       "description": "parallel support for HDF5",
+      "supports": "!staticcrt",
       "dependencies": [
         "mpi"
       ]
     },
     "szip": {
-      "$comment": "Retained as an opt-in feature. It is intentionally not part of default-features in this overlay because the libaec download repeatedly hit HTTP 429 in the Windows GHA path.",
+      "$comment": "Opt-in only because the libaec source download has been unreliable in Windows GitHub Actions.",
       "description": "Build with szip",
       "dependencies": [
         "libaec"
@@ -63,9 +68,6 @@
     },
     "tools": {
       "description": "Build hdf tools"
-    },
-    "utils": {
-      "description": "Build HDF5 Utils"
     },
     "zlib": {
       "description": "Build with zlib",
