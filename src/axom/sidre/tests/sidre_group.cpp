@@ -4115,6 +4115,47 @@ TEST(sidre_group, get_data_info)
 }
 
 //------------------------------------------------------------------------------
+// Default allocator tests:
+//------------------------------------------------------------------------------
+
+TEST(sidre_group, default_allocator_getters_on_fresh_datastore)
+{
+  DataStore ds;
+  Group* root = ds.getRoot();
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
+
+  EXPECT_EQ(defaultHostAllocatorID, root->getDefaultArrayAllocatorID());
+  EXPECT_EQ(defaultHostAllocatorID, root->getDefaultTupleAllocatorID());
+  EXPECT_EQ(defaultHostAllocatorID, root->getDefaultAllocatorID());
+}
+
+TEST(sidre_group, default_allocator_getter_after_exec_space_id)
+{
+  DataStore ds;
+  Group* root = ds.getRoot();
+  const int seqAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  root->setDefaultArrayAllocator(seqAllocID);
+
+  EXPECT_EQ(seqAllocID, root->getDefaultArrayAllocatorID());
+}
+
+#ifdef AXOM_USE_UMPIRE
+TEST(sidre_group, default_allocator_getters_with_umpire_id)
+{
+  auto& rm = umpire::ResourceManager::getInstance();
+  const int hostId = rm.getAllocator(umpire::resource::Host).getId();
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+  root->setDefaultArrayAllocator(hostId);
+  root->setDefaultTupleAllocator(hostId);
+
+  EXPECT_NO_THROW({ EXPECT_EQ(hostId, root->getDefaultArrayAllocator().getId()); });
+  EXPECT_NO_THROW({ EXPECT_EQ(hostId, root->getDefaultTupleAllocator().getId()); });
+}
+#endif
+
+//------------------------------------------------------------------------------
 #ifdef AXOM_USE_UMPIRE
 
 class UmpireTest : public ::testing::TestWithParam<int>
