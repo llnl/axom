@@ -1,13 +1,12 @@
 {
   "name": "hdf5",
-  "version": "2.1.1",
-  "port-version": 1,
+  "version": "1.14.6",
   "description": "HDF5 is a data model, library, and file format for storing and managing data",
   "homepage": "https://www.hdfgroup.org/downloads/hdf5/",
   "license": "BSD-3-Clause",
   "supports": "!uwp",
   "$comment": [
-    "This manifest matches the HDF5 port in Axom's pinned vcpkg revision.",
+    "This manifest matches the HDF5 1.14.6 port in Axom's pinned vcpkg revision.",
     "It removes szip from default-features to avoid the unreliable libaec download in Windows CI.",
     "The szip feature remains available for callers that explicitly request it."
   ],
@@ -32,15 +31,8 @@
     "fortran": {
       "description": "Build with fortran"
     },
-    "hl": {
-      "description": "Build HIGH Level HDF5 Library"
-    },
     "map": {
       "description": "Build the map API"
-    },
-    "mirror": {
-      "description": "Build the Mirror Virtual File Driver",
-      "supports": "!windows | mingw"
     },
     "parallel": {
       "description": "parallel support for HDF5",
@@ -68,6 +60,9 @@
     },
     "tools": {
       "description": "Build hdf tools"
+    },
+    "utils": {
+      "description": "Build HDF5 Utils"
     },
     "zlib": {
       "description": "Build with zlib",

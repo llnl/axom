@@ -6,9 +6,12 @@ vcpkg_from_github(
     SHA512 4ec271ec8db5f0d6f77ea5c0633b40334c796421806a344c568fb8d9ed942fec63f8dfcc65ab9f65e0446d5cd7a49beede5ac693421971b350e828ab1a19d773
     HEAD_REF master
     PATCHES
-        drop-bin-letter-d.patch
         fix-install-prefix-path.patch
+        drop-bin-letter-d.patch
+        dependencies.patch
         install-include-dir.patch
+        remove-vcpkg-enabling.patch
+        csf-redifinition.patch
 )
 
 if (VCPKG_LIBRARY_LINKAGE STREQUAL "dynamic")
@@ -37,7 +40,7 @@ file(WRITE "${_file}" "${_filedata}")
 ### END AXOM PATCH
 
 
-# We turn off BUILD_MODULE_Draw as it requires TCL 8.6 and TK 8.6 specifically which conflicts with vcpkg only having TCL 9.0 
+# We turn off BUILD_MODULE_Draw as it requires TCL 8.6 and TK 8.6 specifically which conflicts with vcpkg only having TCL 9.0
 # And pre-built ActiveTCL binaries are behind a marketing wall :(
 # We use the Unix install layout for Windows as it matches vcpkg
 vcpkg_cmake_configure(
