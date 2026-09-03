@@ -114,6 +114,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   value into device kernels.
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
+- Quest: Sampling-based MFEM shaping now falls back to chunked local mass assembly/solve for large
+  meshes instead of overflowing `mfem::DenseTensor` size calculations when caching full
+  `dofs x dofs x NE` tensors.
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
 - Core: ArrayView assigments/copies now copy the stride
 - Core: Array construction from strided ArrayView now correctly copies the strided elements
