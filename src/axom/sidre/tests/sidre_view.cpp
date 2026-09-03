@@ -2489,6 +2489,10 @@ TEST_P(UmpireTest, allocate_default_host_allocator)
 TEST_P(UmpireTest, reallocate)
 {
   #if defined(AXOM_USE_GPU) && defined(UMPIRE_ENABLE_CONST)
+  // Constant memory is meant for read-only GPU constant storage and generally
+  // cannot support the same runtime reallocation/write semantics as ordinary memory.
+  // So we return early and skip the test in this case instead of asserting
+  // behavior that Sidre cannot promise.
   if(allocID == axom::getUmpireResourceAllocatorID(umpire::resource::Constant))
   {
     return;
