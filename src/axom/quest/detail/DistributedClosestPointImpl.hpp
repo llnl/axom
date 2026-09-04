@@ -8,8 +8,6 @@
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
-#include "axom/core/NumericLimits.hpp"
-#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/spin.hpp"
@@ -1058,6 +1056,8 @@ public:
         /// Create an ArrayView in ExecSpace that is compatible with queryPts
         PointArray execPoints(queryPts, m_allocatorID);
         auto query_pts = execPoints.view();
+        auto query_order = mortonSortQueryPoints(query_pts, qPtCount);
+        auto query_order_view = query_order.view();
         const double sqDistThreshold = m_sqDistanceThreshold;
         auto it = m_bvh->getTraverser();
         const int rank = m_rank;
@@ -1074,7 +1074,8 @@ public:
           axom::ReduceMax<ExecSpace, double> maxSqDistance(currentMaxSqDistance);
           axom::for_all<ExecSpace>(
             qPtCount,
-            AXOM_LAMBDA(std::int32_t idx) mutable {
+            AXOM_LAMBDA(std::int32_t sorted_idx) {
+              const auto idx = query_order_view[sorted_idx];
               PointType qpt = query_pts[idx];
 
               MinCandidate curr_min {};
@@ -1106,7 +1107,7 @@ public:
                 return sqDist <= curr_min.sqDist && sqDist <= sqDistThreshold;
               };
 
-              it.traverse_tree(qpt, checkMinDist, traversePredicate);
+              it.template traverseTreeShared<ExecSpace>(qpt, checkMinDist, traversePredicate);
 
               if(curr_min.rank == rank)
               {
@@ -1131,7 +1132,8 @@ public:
           AXOM_ANNOTATE_SCOPE("ComputeClosestPoints");
           axom::for_all<ExecSpace>(
             qPtCount,
-            AXOM_LAMBDA(std::int32_t idx) mutable {
+            AXOM_LAMBDA(std::int32_t sorted_idx) {
+              const auto idx = query_order_view[sorted_idx];
               PointType qpt = query_pts[idx];
 
               MinCandidate curr_min {};
@@ -1165,7 +1167,7 @@ public:
               };
 
               // Traverse the tree, searching for the point with minimum distance.
-              it.traverse_tree(qpt, checkMinDist, traversePredicate);
+              it.template traverseTreeShared<ExecSpace>(qpt, checkMinDist, traversePredicate);
 
               // If modified, update the fields that changed
               if(curr_min.rank == rank)
@@ -1210,6 +1212,60 @@ public:
   }
 
 private:
+  /*! \brief Returns query point indices ordered by their Morton codes. */
+  axom::Array<axom::IndexType> mortonSortQueryPoints(const axom::ArrayView<PointType>& queryPoints,
+                                                     axom::IndexType queryPointCount) const
+  {
+    axom::Array<axom::IndexType> queryOrder(queryPointCount, queryPointCount, m_allocatorID);
+    if(queryPointCount == 0)
+    {
+      return queryOrder;
+    }
+
+    PointType minPoint;
+    PointType inverseExtent;
+    for(int dim = 0; dim < DIM; ++dim)
+    {
+      axom::ReduceMin<ExecSpace, double> minCoord(axom::numeric_limits<double>::max());
+      axom::ReduceMax<ExecSpace, double> maxCoord(axom::numeric_limits<double>::lowest());
+      axom::for_all<ExecSpace>(
+        queryPointCount,
+        AXOM_LAMBDA(axom::IndexType idx) {
+          minCoord.min(queryPoints[idx][dim]);
+          maxCoord.max(queryPoints[idx][dim]);
+        });
+
+      minPoint[dim] = minCoord.get();
+      const double extent = maxCoord.get() - minPoint[dim];
+      inverseExtent[dim] = extent > 0.0 ? 1.0 / extent : 0.0;
+    }
+
+    axom::Array<std::uint32_t> mortonCodes(queryPointCount, queryPointCount, m_allocatorID);
+    auto morton_codes = mortonCodes.view();
+    auto query_order = queryOrder.view();
+    axom::for_all<ExecSpace>(
+      queryPointCount,
+      AXOM_LAMBDA(axom::IndexType idx) {
+        constexpr int bits_per_dimension = 32 / DIM;
+        constexpr double coordinate_scale = 1 << bits_per_dimension;
+        constexpr double coordinate_max = coordinate_scale - 1.0;
+
+        primal::Point<std::int32_t, DIM> gridPoint;
+        for(int dim = 0; dim < DIM; ++dim)
+        {
+          const double coordinate = (queryPoints[idx][dim] - minPoint[dim]) * inverseExtent[dim];
+          gridPoint[dim] = static_cast<std::int32_t>(
+            axom::utilities::clampVal(coordinate * coordinate_scale, 0.0, coordinate_max));
+        }
+
+        morton_codes[idx] = spin::convertPointToMorton<std::uint32_t>(gridPoint);
+        query_order[idx] = idx;
+      });
+
+    axom::stable_sort_pairs<ExecSpace>(morton_codes, query_order);
+    return queryOrder;
+  }
+
   /*!
     @brief Object point coordindates array.
 

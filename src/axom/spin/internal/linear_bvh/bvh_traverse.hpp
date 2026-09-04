@@ -10,6 +10,7 @@
 #include "axom/core/Macros.hpp"  // for AXOM_HOST_DEVICE
 #include "axom/core/Types.hpp"   // for axom types
 #include "axom/slic.hpp"         // for SLIC macros
+#include "axom/spin/internal/linear_bvh/BVHNode.hpp"
 
 #include <type_traits>  // For template magic
 #include <utility>
@@ -70,6 +71,152 @@ AXOM_HOST_DEVICE
 inline bool leaf_node(const std::int32_t& nodeIdx) { return (nodeIdx < 0); }
 
 /*!
+ * \brief Implements a simple FIFO stack of integers for stackful BVH traversal.
+ *
+ *  Local storage is allocated external to this class in an attempt to keep
+ *  this class stored in registers on the GPU.
+ */
+struct BVHStack
+{
+public:
+  constexpr static std::int32_t STACK_SIZE = 64;
+  constexpr static std::int32_t BARRIER = -2000000000;
+
+  using LocalStack = std::int32_t[STACK_SIZE];
+  AXOM_HOST_DEVICE BVHStack() { }
+
+  AXOM_HOST_DEVICE void setLocalStack(LocalStack& local_stack)
+  {
+    stack_ptr = 0;
+    stack = &(local_stack[0]);
+    stack[stack_ptr] = BARRIER;
+  }
+
+  AXOM_HOST_DEVICE std::int32_t pop()
+  {
+    std::int32_t top = stack[stack_ptr];
+    stack_ptr--;
+    return top;
+  }
+
+  AXOM_HOST_DEVICE void push(std::int32_t value)
+  {
+    stack_ptr++;
+    stack[stack_ptr] = value;
+  }
+
+private:
+  std::int32_t stack_ptr {-1};
+  std::int32_t* stack {nullptr};
+};
+
+#if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
+/*!
+ * \brief GPU-only class for a FIFO stack of integers.
+ *
+ *  This version uses shared memory as an LRU cache to store the most-recently used
+ *  entries. When the stack fills to capacity, we take a "chunk" of the oldest 4 integers
+ *  and push them to the "local stack." Conversely, we can refill the shared memory stack
+ *  on a pop() operation by popping a chunk of 4 integers from the local stack.
+ */
+template <int BlockSize>
+struct SharedBVHStack
+{
+public:
+  constexpr static std::int32_t CHUNK_SIZE = 4;
+  constexpr static std::int32_t STACK_SIZE = 16;
+  constexpr static std::int32_t SHMEM_SIZE_PER_THREAD = CHUNK_SIZE * 2;
+  constexpr static std::int32_t BARRIER = -2000000000;
+
+  struct Chunk
+  {
+    std::int32_t values[CHUNK_SIZE];
+  };
+
+  using LocalStack = Chunk[STACK_SIZE];
+
+  AXOM_DEVICE static int* Get_Shared_Mem_Buffer()
+  {
+    __shared__ int shmem_buf[SHMEM_SIZE_PER_THREAD * BlockSize];
+    return &(shmem_buf[0]);
+  }
+
+  AXOM_DEVICE SharedBVHStack()
+    : s_block_dim(blockDim.x)
+    , s_thread_id(threadIdx.x)
+    , s_stack(SharedBVHStack::Get_Shared_Mem_Buffer())
+  { }
+
+  AXOM_HOST_DEVICE void setLocalStack(LocalStack& local_stack) { g_stack = &(local_stack[0]); }
+
+  AXOM_DEVICE std::int32_t pop()
+  {
+    // Shared is empty, try to refill a chunk.
+    if(s_ptr == 0 && g_ptr > 0)
+    {
+      --g_ptr;
+      Chunk g_top_chunk = g_stack[g_ptr];
+      for(int i = 0; i < CHUNK_SIZE; i++)
+      {
+        shared_stack(s_ptr + i) = g_top_chunk.values[i];
+      }
+      s_ptr += CHUNK_SIZE;
+    }
+    if(s_ptr > 0)
+    {
+      // Can pop directly from shared.
+      --s_ptr;
+      std::int32_t top = shared_stack(s_ptr);
+      return top;
+    }
+    else
+    {
+      // Empty stack, return barrier.
+      return BARRIER;
+    }
+  }
+
+  AXOM_DEVICE void push(std::int32_t value)
+  {
+    if(s_ptr == 2 * CHUNK_SIZE)
+    {
+      // At capacity. Take bottom values and push onto global memory stack.
+      Chunk g_bottom_chunk;
+      for(int i = 0; i < CHUNK_SIZE; i++)
+      {
+        g_bottom_chunk.values[i] = shared_stack(i);
+      }
+      g_stack[g_ptr] = g_bottom_chunk;
+      g_ptr++;
+      // Move remaining stack values down.
+      for(int i = 0; i < CHUNK_SIZE; i++)
+      {
+        shared_stack(i) = shared_stack(i + CHUNK_SIZE);
+      }
+      s_ptr -= CHUNK_SIZE;
+    }
+    assert(s_ptr < 2 * CHUNK_SIZE);
+    // Push value onto shared stack.
+    shared_stack(s_ptr) = value;
+    s_ptr++;
+  }
+
+private:
+  AXOM_DEVICE std::int32_t& shared_stack(int index)
+  {
+    return s_stack[index * s_block_dim + s_thread_id];
+  }
+
+  std::int16_t s_block_dim;
+  std::int16_t s_thread_id;
+  std::int32_t s_ptr {0};
+  std::int32_t* s_stack;
+  std::int32_t g_ptr {0};
+  Chunk* g_stack;
+};
+#endif
+
+/*!
  * \brief Generic BVH traversal routine.
  *
  * \param [in] inner_nodes pointer to the BVH bins.
@@ -105,48 +252,55 @@ inline bool leaf_node(const std::int32_t& nodeIdx) { return (nodeIdx < 0); }
  * device and unified memory.
  *
  */
-template <int NDIMS, typename FloatType, typename PrimitiveType, typename InBinCheck, typename LeafAction, typename TraversePref>
-AXOM_HOST_DEVICE inline void bvh_traverse(
-  axom::ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inner_nodes,
-  axom::ArrayView<const std::int32_t> inner_node_children,
-  axom::ArrayView<const std::int32_t> leaf_nodes,
-  const PrimitiveType& p,
-  InBinCheck&& B,
-  LeafAction&& A,
-  TraversePref&& Comp)
+template <int NDIMS,
+          typename FloatType,
+          typename PrimitiveType,
+          typename TraverseStack,
+          typename InBinCheck,
+          typename LeafAction,
+          typename TraversePref>
+AXOM_HOST_DEVICE inline void bvh_traverse(axom::ArrayView<const BVH2Node<FloatType, NDIMS>> inner_nodes,
+                                          axom::ArrayView<const std::int32_t> leaf_nodes,
+                                          const PrimitiveType& p,
+                                          TraverseStack& stack,
+                                          InBinCheck&& B,
+                                          LeafAction&& A,
+                                          TraversePref&& Comp)
 {
   using BBoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using BVHNode = BVH2Node<FloatType, NDIMS>;
 
   // setup stack
-  constexpr std::int32_t STACK_SIZE = 64;
-  constexpr std::int32_t BARRIER = -2000000000;
-  std::int32_t todo[STACK_SIZE];
-  std::int32_t stackptr = 0;
-  todo[stackptr] = BARRIER;
+  typename TraverseStack::LocalStack local_mem;
+  stack.setLocalStack(local_mem);
 
   std::int32_t found_leaf = 0;
   std::int32_t current_node = 0;
 
-  while(current_node != BARRIER)
+  while(current_node != TraverseStack::BARRIER)
   {
     // Traverse until we hit a leaf node or the barrier.
     while(!leaf_node(current_node))
     {
-      BBoxType left_bin = inner_nodes[current_node + 0];
-      BBoxType right_bin = inner_nodes[current_node + 1];
+      BVHNode curr_node;
+      curr_node = inner_nodes[current_node];
+      BBoxType left_bin = curr_node.left;
+      BBoxType right_bin = curr_node.right;
+      // The optional node index supplied to InBinCheck refers to the
+      // flattened child-slot layout exposed by LinearBVHTraverser::reduce_tree.
+      const std::int32_t child_slot = 2 * current_node;
       const bool in_left =
-        left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, current_node + 0) : false;
+        left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, child_slot + 0) : false;
       const bool in_right =
-        right_bin.isValid() ? invoke_InBinCheck(B, p, right_bin, current_node + 1) : false;
-      std::int32_t l_child = inner_node_children[current_node + 0];
-      std::int32_t r_child = inner_node_children[current_node + 1];
+        right_bin.isValid() ? invoke_InBinCheck(B, p, right_bin, child_slot + 1) : false;
+      std::int32_t l_child = curr_node.left_child;
+      std::int32_t r_child = curr_node.right_child;
       bool swap = Comp(left_bin, right_bin, p);
 
       if(!in_left && !in_right)
       {
         // pop the stack and continue
-        current_node = todo[stackptr];
-        stackptr--;
+        current_node = stack.pop();
       }
       else
       {
@@ -160,8 +314,7 @@ AXOM_HOST_DEVICE inline void bvh_traverse(
             axom::utilities::swap(current_node, r_child);
           }
 
-          stackptr++;
-          todo[stackptr] = r_child;
+          stack.push(r_child);
         }
       }  // END else
 
@@ -169,10 +322,9 @@ AXOM_HOST_DEVICE inline void bvh_traverse(
       {
         // Save this leaf and continue traversing
         found_leaf = current_node;
-        if(current_node != BARRIER)
+        if(current_node != TraverseStack::BARRIER)
         {
-          current_node = todo[stackptr];
-          stackptr--;
+          current_node = stack.pop();
         }
       }
     }  // END while
@@ -181,16 +333,15 @@ AXOM_HOST_DEVICE inline void bvh_traverse(
     // - two leaf nodes (found_leaf=l1, current_node=l2)
     // - one leaf node (found_leaf=l1, current_node=BARRIER)
     // - no leaf nodes (found_leaf=0, current_node=BARRIER)
-    while(leaf_node(found_leaf) && found_leaf != BARRIER)
+    while(leaf_node(found_leaf) && found_leaf != TraverseStack::BARRIER)
     {
       int leaf_idx = -found_leaf - 1;
       A(leaf_idx, leaf_nodes.data());
       found_leaf = current_node;
-      if(leaf_node(current_node) && current_node != BARRIER)
+      if(leaf_node(current_node) && current_node != TraverseStack::BARRIER)
       {
         // pop the stack and continue
-        current_node = todo[stackptr];
-        stackptr--;
+        current_node = stack.pop();
       }
     }
     found_leaf = 0;
