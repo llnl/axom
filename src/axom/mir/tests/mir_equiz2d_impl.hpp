@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_equiz2d_impl.hpp
+ *  \brief Implementation shared by the EquiZ 2D execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -17,38 +23,14 @@ namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 namespace bump = axom::bump;
 
-std::string baselineDirectory() { return pjoin(dataDirectory(), "mir", "regression", "mir_equiz"); }
+inline std::string baselineDirectory()
+{
+  return pjoin(dataDirectory(), "mir", "regression", "mir_equiz");
+}
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, miralgorithm)
-{
-  axom::mir::MIRAlgorithm* m = nullptr;
-  EXPECT_EQ(m, nullptr);
-}
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, materialinformation)
-{
-  conduit::Node matset;
-  matset["material_map/a"] = 1;
-  matset["material_map/b"] = 2;
-  matset["material_map/c"] = 0;
-
-  auto mi = axom::bump::views::materials(matset);
-  EXPECT_EQ(mi.size(), 3);
-  EXPECT_EQ(mi[0].m_number, 1);
-  EXPECT_EQ(mi[0].m_name, "a");
-
-  EXPECT_EQ(mi[1].m_number, 2);
-  EXPECT_EQ(mi[1].m_name, "b");
-
-  EXPECT_EQ(mi[2].m_number, 0);
-  EXPECT_EQ(mi[2].m_name, "c");
-}
+extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -416,73 +398,4 @@ void test_equiz_uniform_unibuffer()
                                 selectedZones,
                                 cleanMats);
   }
-}
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, equiz_uniform_unibuffer_seq)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_seq");
-  test_equiz_uniform_unibuffer<seq_exec>();
-}
-
-#if defined(AXOM_USE_OPENMP)
-TEST(mir_equiz, equiz_uniform_unibuffer_omp)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_omp");
-  test_equiz_uniform_unibuffer<omp_exec>();
-}
-#endif
-
-#if defined(AXOM_USE_CUDA)
-TEST(mir_equiz, equiz_uniform_unibuffer_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_cuda");
-  test_equiz_uniform_unibuffer<cuda_exec>();
-}
-#endif
-
-#if defined(AXOM_USE_HIP)
-TEST(mir_equiz, equiz_uniform_unibuffer_hip)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_hip");
-  test_equiz_uniform_unibuffer<hip_exec>();
-}
-#endif
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, equiz_polygonal_unibuffer_seq)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_seq");
-  test_Polygonal_MIR<seq_exec>::test("equiz_polygonal_unibuffer");
-}
-
-#if defined(AXOM_USE_OPENMP)
-TEST(mir_equiz, equiz_polygonal_unibuffer_omp)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_omp");
-  test_Polygonal_MIR<omp_exec>::test("equiz_polygonal_unibuffer");
-}
-#endif
-
-#if defined(AXOM_USE_CUDA)
-TEST(mir_equiz, equiz_polygonal_unibuffer_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_cuda");
-  test_Polygonal_MIR<cuda_exec>::test("equiz_polygonal_unibuffer");
-}
-#endif
-
-#if defined(AXOM_USE_HIP)
-TEST(mir_equiz, equiz_polygonal_unibuffer_hip)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_hip");
-  test_Polygonal_MIR<hip_exec>::test("equiz_polygonal_unibuffer");
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char* argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
 }
