@@ -43,6 +43,7 @@ set(gtest_slam_tests
     slam_FieldRegistry.cpp
     slam_make_helpers.cpp
     slam_ModularInt.cpp
+    slam_concepts.cpp
     slam_static_asserts.cpp
     
     #mesh structure test
