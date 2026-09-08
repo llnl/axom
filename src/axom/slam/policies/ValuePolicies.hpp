@@ -7,32 +7,16 @@
 /**
  * \file ValuePolicies.hpp
  *
- * \brief Unified storage core for SLAM's scalar value policies.
+ * \brief Shared scalar storage for size, stride and offset policies.
  *
- * Slam's Size, Stride and Offset policies each historically defined
- * a near-identical `Runtime*` / `CompileTime*` pair, with the same: 
- *  (a) single-integer storage
- *  (b) defaulted/asserting constructors, and 
- *  (c) `operator()` accessors, 
- * and differing only in 
- *  (a) the name of the named accessor (`size()` / `stride()` / `offset()`), 
- *  (b) the validity predicate, and
- *  (c) the default value. 
+ * RuntimeValue stores one integer. CompileTimeValue supplies a constant without
+ * storing a value in each object. Both provide value(), operator() and isValid().
  *
- * This file factors that shared substrate into one `RuntimeValue<Tag>` / `CompileTimeValue<auto, Tag>` family.
+ * A tag defines the default value and validity predicate through defaultValue()
+ * and isValidValue(value). The size, stride and offset policies add their named
+ * accessors in SizePolicies.hpp, StridePolicies.hpp and OffsetPolicies.hpp.
  *
- * A `Tag` type supplies the policy-specific knobs as static members:
- *   - `static constexpr IntType defaultValue();` -- the DEFAULT_VALUE
- *   - `static constexpr bool isValidValue(IntType);` -- validity predicate
- *
- * The named accessors (`size()`, `stride()`, `offset()`) are *not* provided here; 
- * they live in the thin leaf policies in SizePolicies.hpp / StridePolicies.hpp / OffsetPolicies.hpp
- * as one-line forwarders to `value()`, which keeps every existing call site spelling 
- * and signature unchanged while removing the storage/ctor/validity duplication.
- *
- * \note Multi-dimensional and dynamically-resizable policies (MultiDimStride,
- *  DynamicRuntimeSize) and the always-zero policies (ZeroSize) are not part of
- *  this scalar substrate and remain defined alongside their families.
+ * MultiDimStride, DynamicRuntimeSize and ZeroSize use separate implementations.
  */
 
 #pragma once
@@ -42,13 +26,12 @@
 namespace axom::slam::policies
 {
 /// \name Value policy tags
-/// \brief Tag types selecting the named-accessor family and the policy knobs
-///  (default value, validity predicate) for the unified value-policy core.
+/// \brief Default values and validity predicates for scalar policies.
 /// \{
 
 /*!
  * \brief Tag for set-size value policies.
- * \note Sizes may not be negative; the default size is zero.
+ * \note Sizes must be nonnegative. The default is zero.
  */
 template <typename IntType>
 struct SizeTag
@@ -59,7 +42,7 @@ struct SizeTag
 
 /*!
  * \brief Tag for set-stride value policies.
- * \note All non-zero strides are valid; the default stride is one.
+ * \note Strides must be nonzero. The default is one. Maps also require positive strides.
  */
 template <typename IntType>
 struct StrideTag
@@ -70,7 +53,7 @@ struct StrideTag
 
 /*!
  * \brief Tag for set-offset value policies.
- * \note Every offset is valid; the default offset is zero.
+ * \note Every offset is valid. The default is zero.
  */
 template <typename IntType>
 struct OffsetTag
@@ -84,16 +67,15 @@ struct OffsetTag
 /*!
  * \class RuntimeValue
  *
- * \brief Shared storage core for a runtime-settable scalar value policy.
+ * \brief Store a scalar policy value that can change at runtime.
  *
  * Stores a single \a IntType whose default is supplied by \a Tag.
- * Provides the generic `value()` accessors (const and mutable), `operator()`,
+ * Provides const and mutable value() access, operator(),
  * and an `isValid()` delegating to the tag's predicate.
  * 
- * Leaf policies derive from this and add their named accessor (`size()` / `stride()` / `offset()`).
+ * Derived policies add size(), stride() or offset().
  *
- * \tparam Tag a value-policy tag (SizeTag / StrideTag / OffsetTag)
- *  carrying the IntType, default value and validity predicate.
+ * \tparam Tag Supplies defaultValue() and isValidValue(). The default's type is IntType.
  */
 template <typename Tag>
 struct RuntimeValue
@@ -119,14 +101,13 @@ protected:
 /*!
  * \class CompileTimeValue
  *
- * \brief Shared core for a compile-time-known scalar value policy.
+ * \brief Supply a scalar policy value fixed at compile time.
  *
  * The value \a V is fixed at compile time.
- * The (defaulted) constructor argument exists only to satisfy 
- * the uniform policy-construction interface and is asserted to match \a V. 
+ * The constructor accepts an argument so that callers can construct runtime and
+ * compile-time policies the same way. The argument must equal \a V.
  *
- * Provides the generic `value()` accessor, `operator()`, and an `isValid()` delegating to the tag's predicate.
- * Leaf policies derive from this and add their named accessor.
+ * Provides value(), operator() and isValid(). Derived policies add their named accessor.
  *
  * \tparam V the compile-time value (its type is the policy's IntType).
  * \tparam Tag a value-policy tag carrying the default value and validity predicate.

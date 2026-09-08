@@ -11,15 +11,16 @@
  *
  * \brief Subsetting policies for SLAM
  *
- * Subsetting policies encompass the type and availability of a set's parent
+ * Subsetting policies describe whether a set has a parent and check its selection.
  * A valid subset policy must support the following interface:
- *   * [required]
- *   * isSubset(): bool -- returns whether the set is a subset of another set
- *   * parentSet() : ParentSetType -- returns a pointer to the parent set.
+ *   * isSubset(): bool, indicating whether the set is a subset of another set
+ *   * ParentSetType: the type of the parent set
+ *   * parentSet(): returns a pointer to the parent set,
  *                                     nullptr when isSubset() is false
- *   * isValid() : bool -- indicates whether the Subsetting policy of the set is valid
- *   * [optional]
- *   * operator(): IntType -- alternate accessor for indirection
+ *   * isValid(begin, end, verbose): validates the selected elements using
+ *     the OrderedSet's const iterators
+ * Policies support default construction, copying, and construction from
+ * ParentSetType*. The parent must outlive the set and its iterators.
  */
 
 #include "axom/config.hpp"
