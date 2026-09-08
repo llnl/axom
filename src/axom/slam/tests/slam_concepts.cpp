@@ -251,7 +251,11 @@ struct MissingIndexMap : MinimalBivariateMap
 struct MissingConstAccessMap : MinimalBivariateMap
 {
   using MinimalBivariateMap::flatValue;
-  const double& flatValue(PositionType, PositionType) const = delete;
+
+private:
+  // HIP compilation currently treats a deleted const overload as satisfying the
+  // MapLike requires-expression, so make the const overload inaccessible.
+  const double& flatValue(PositionType, PositionType) const;
 };
 
 struct ExtraAliasesMap : MinimalBivariateMap
