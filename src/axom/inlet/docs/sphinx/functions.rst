@@ -1,11 +1,11 @@
 ##################
-Function Callbacks
+Function callbacks
 ##################
 
 For input file types that support functions, e.g., Lua, functions can also be read from the input file
 into a ``std::function``, the wrapper for callables provided by the C++ standard library.
 
-Defining And Storing
+Defining and storing
 --------------------
 
 This is accomplished by calling ``addFunction`` on an Inlet or Container object.
@@ -66,8 +66,8 @@ In Lua, the following operations on the ``Vector`` type are supported (for ``Vec
 Functions as value alternatives
 -------------------------------
 
-Some schemas allow an input to be either a concrete value or a function that computes it.
-Declare the concrete entry normally, then associate a function with the same input name:
+Some schemas accept either a concrete value or a function that computes it.
+Declare the function alternative before the concrete entry, using the same input name:
 
 .. literalinclude:: ../../examples/functions.cpp
    :start-after: _inlet_function_value_alternative_schema_start
@@ -75,11 +75,10 @@ Declare the concrete entry normally, then associate a function with the same inp
    :language: C++
    :dedent: 2
 
-Note that you must declare the alternative before the concrete entry it applies to,
-and declaring it afterwards is an error, since the concrete entry has already been read by then.
-Both use the same relative and slash-delimited paths as other ``Container`` methods, 
-and either may be declared through a parent or a child ``Container``. 
-The following example accepts either of these Lua inputs:
+Declaring the alternative afterwards is an error because Inlet has already read the
+concrete entry. Both declarations use paths relative to their ``Container``,
+with slashes separating nested names. They may use different parent or child Containers
+as long as they refer to the same input path. The example accepts either Lua input:
 
 .. code-block:: Lua
 
@@ -96,15 +95,21 @@ After verification, query which representation was supplied before retrieving it
    :language: C++
    :dedent: 2
 
-For the shared input name, ``contains`` reports only the concrete representation and
-``containsFunctionValueAlternative`` reports only the function representation.
-Either form counts as user-provided input, and both are recognized by strict Containers.
-An unrelated input type fails verification.
+For the shared input name, ``contains`` reports the concrete value, including a default,
+and ``containsFunctionValueAlternative`` reports a supplied function. Check the function
+first because a concrete default can exist alongside it. Either supplied form counts as
+user-provided input, and strict Containers recognize both. An unrelated input type fails
+verification.
 
-An alternative is an ordinary ``Function``, so it is returned by ``addFunctionAsValueAlternative``
-as a ``Verifiable<Function>`` and can carry the usual schema constraints, such as ``required()``.
-Validation attached to the *concrete* schema entry does not apply to the function result,
-so applications that constrain both forms should validate after resolving the representation.
+``addFunctionAsValueAlternative`` returns a ``Verifiable<Function>``.
+Calling ``required()`` on it requires a function, and a concrete value does not satisfy the reqquirement.
+Similarly, a function alone does not satisfy ``required()`` on the concrete entry.
+To require either form, leave both entries optional and register a verifier on the
+root Container that checks whether either representation exists.
+
+Inlet does not evaluate the function automatically. Constraints on the concrete entry,
+such as a range, do not apply to the function result, so applications should validate the
+value after resolving and evaluating the supplied representation.
 
 Generated Sphinx and JSON Schema documentation show only the concrete entry.
 Application documentation should describe the function form when it is part of the Lua interface.
@@ -138,13 +143,14 @@ by calling it directly:
   signature defined as part of the schema.  This is because the arguments do not participate in
   overload resolution.
 
-Callbacks retrieved from Inlet keep their Lua state alive, so they remain callable after the
-Inlet and Reader are destroyed. Callbacks from one ``LuaReader`` share mutable interpreter
-state and must not be invoked concurrently without synchronization.
+Lua callbacks copied into a ``std::function`` keep their Lua state alive and remain callable
+after the Inlet and Reader are destroyed. A reference to an Inlet-owned ``Function`` does
+not extend its lifetime. Callbacks from one ``LuaReader`` share mutable interpreter state
+and must not be invoked concurrently without synchronization.
 
 Lua execution errors and invalid callback return values throw ``axom::inlet::InletError``
-at the call site. This is the one place Inlet throws; everywhere else it reports through
-SLIC or through ``verify()``:
+when the callback is invoked. Inlet uses different reporting mechanisms for schema and
+input validation:
 
 .. list-table::
    :header-rows: 1
@@ -154,7 +160,7 @@ SLIC or through ``verify()``:
      - Reported through
      - Examples
    * - API or schema misuse
-     - ``SLIC_ERROR``
+     - SLIC diagnostics
      - an empty or malformed key, a lookup for an entry that was never defined,
        a name that is ambiguous between a container, field, and function
    * - Contents of the input file
@@ -166,8 +172,11 @@ SLIC or through ``verify()``:
      - the Lua function raises an error, or returns something that cannot be
        converted to the declared return type
 
-The distinction is when the failure happens. A callback runs after verification, 
-at the point the application asks for its value, so the failure has to be recoverable: 
-the caller is the only one that knows  which of its own concepts the function belonged to.
-Klee, for example, catches ``InletError`` and re-reports it as a ``KleeError``
-naming the shape, operator, and field.
+Inlet does not evaluate callbacks during ``verify()`` unless a custom verifier calls them.
+Successful verification does not guarantee that a later callback invocation will succeed.
+If a callback throws ``InletError`` inside a custom verifier, the exception propagates
+out of ``verify()`` unless the verifier catches it.
+
+Applications can catch ``InletError`` to report where the callback failed. For example,
+Klee wraps it in a ``KleeError`` that identifies the owning shape or named operator,
+the operator location, and the callback field.

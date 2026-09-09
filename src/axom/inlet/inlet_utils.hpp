@@ -31,12 +31,12 @@ enum class ReaderResult
  *****************************************************************************
  * \brief Exception thrown when evaluating an input function fails
  *
- * Inlet reports API and schema misuse -- a bad key, a missing entry, an
- * ambiguous lookup -- through SLIC, and reports problems with the *contents* of
- * an input file through verify() and VerificationError. Neither applies to a
- * failure that happens while *calling* a function read from the input, which
- * occurs after verification and must be recoverable so the caller can report it
- * with its own context. Those failures throw this type.
+ * Lua callbacks throw this exception for execution errors or invalid return
+ * values. Callers can catch it to add application context. A callback invoked
+ * by a custom verifier can also throw during verification.
+ *
+ * Inlet uses SLIC diagnostics for API and schema misuse, and verify() with
+ * VerificationError for input validation failures.
  *****************************************************************************
  */
 struct InletError : public std::runtime_error

@@ -31,7 +31,11 @@ struct SingleOperatorData
   const inlet::Container* m_container;
 };
 
-/// The data for the "operator" component of "geometry" objects.
+/**
+ * \brief Data for a geometry's "operators" list or a named operator's "value" list.
+ *
+ * Borrows Inlet containers, which must remain alive until makeOperator() returns.
+ */
 class GeometryOperatorData
 {
 public:
@@ -66,13 +70,15 @@ public:
                                         bool enableLuaCallbacks = false);
 
   /**
-   * Make a (possibly null) operator describing the transformation to apply to the geometry
+   * Construct the geometry transformation, evaluating any supplied callbacks.
+   * Each call evaluates the callbacks again.
    *
    * @param startProperties properties of the geometry before the first operator
    * @param namedOperators a map of any named operators
    * @param ownerLabel a description of the owning shape or named operator, for callback errors
-   * @return the (possibly null) operator
-   * @throws KleeError if the operator data is invalid for the given properties
+   * @return the composite operator, or nullptr if the operator list is empty
+   * @throws KleeError if callback evaluation fails or the operator data is invalid
+   *         for the given properties
    */
   std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties& startProperties,
                                                  const NamedOperatorMap& namedOperators,

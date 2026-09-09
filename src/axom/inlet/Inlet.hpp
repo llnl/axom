@@ -436,6 +436,10 @@ public:
    * \brief Add a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
+   * \pre Declare the alternative before the concrete entry.
+   * \note Inlet does not evaluate the function automatically.
+   * Requirements and verifiers apply separately to the function and concrete entry.
+   *
    * \param [in] valueName    Path of the concrete value or collection,
    *                          relative to the root Container
    * \param [in] ret_type     The return type. Must not be FunctionTag::Void

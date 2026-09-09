@@ -42,14 +42,12 @@ Below is a table that lists supported features:
      - 
 
 ***********************
-Extra Lua Functionality
+Extra Lua functionality
 ***********************
 
-The `LuaReader` class has the ability to access the entire Lua State via the protected member function
-``LuaReader::solState()``.  This allows you to fully utilize the Sol library, documented in
-`Sol's documentation <https://sol2.readthedocs.io/en/v2.20.6/index.html>`_. This is an advanced feature
-and not recommended unless there is a good reason.  We provide an example on how to create a derived
-reader class here:
+Derive from ``LuaReader`` to access its Lua state through the protected
+``solState()`` method. Use `Sol <https://sol2.readthedocs.io/en/v2.20.6/index.html>`_
+to add libraries or C++ bindings, as this example shows:
 
 .. literalinclude:: ../../examples/lua_library.cpp
    :start-after: _inlet_sol_state_start
@@ -61,11 +59,10 @@ All libraries are documented in `Sol's open_library documentation <https://sol2.
 
 .. warning::
 
-   Lua input is executable code, and Inlet does not sandbox it. The ``package`` library can
-   load additional Lua or native modules, and Inlet imposes no CPU, memory, recursion, or
-   execution-time limits. Only parse Lua input from trusted sources. Exposing more libraries
-   or modifying ``solState()`` can grant the input more capabilities and change values after
-   Inlet has read or verified them.
+   Only parse Lua input from trusted sources. Inlet does not sandbox Lua or limit its
+   resource use or execution time. The ``package`` library can load Lua or native modules.
+   Adding libraries or bindings can grant input code more capabilities. Changing the Lua
+   state can also affect callbacks after Inlet has verified the input.
 
 For example, you can add the ``io`` library by doing this:
 
