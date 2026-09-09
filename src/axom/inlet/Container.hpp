@@ -366,14 +366,14 @@ inline std::string functionAlternativeName(const std::string& valueName)
 
 /*!
  *******************************************************************************
- * \brief Returns whether a schema name belongs to a function value alternative
+ * \brief Returns whether a function was declared as a value alternative
  *
- * \param [in] schemaName The name of a schema entry
+ * \param [in] function The function to check
  *******************************************************************************
  */
-inline bool isFunctionAlternativeName(const std::string& schemaName)
+inline bool isFunctionAlternative(const Function& function)
 {
-  return axom::utilities::string::endsWith(schemaName, detail::FUNCTION_ALTERNATIVE_SUFFIX);
+  return function.sidreGroup()->hasView(detail::FUNCTION_ALTERNATIVE_NAME);
 }
 
 }  // namespace detail
@@ -793,6 +793,7 @@ public:
    *
    * \pre Declare the alternative before the concrete entry. Declaring it afterwards
    * reports a SLIC error.
+   * \note A collision with an ordinary function's schema name reports a SLIC error.
    * \note Requirements and verifiers apply separately to each representation.
    * Inlet does not evaluate the function automatically or apply concrete constraints to its result.
    *****************************************************************************

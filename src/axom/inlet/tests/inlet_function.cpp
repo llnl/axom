@@ -289,6 +289,77 @@ TEST(inlet_function, function_value_alternative_names_are_sorted)
             (std::vector<std::string> {"alpha", "zeta"}));
 }
 
+TEST(inlet_function, ordinary_function_suffix_does_not_register_an_alternative)
+{
+  for(const bool enableDocs : {true, false})
+  {
+    auto inlet = createBasicInlet(R"(
+      scale = function() return 2.0 end
+      scale_inlet_function_alternative = function() return 9.0 end
+      offset = function() return 3.0 end
+    )",
+                                 enableDocs);
+    inlet.addFunction("scale_inlet_function_alternative", FunctionTag::Double, {});
+    inlet.addFunctionAsValueAlternative("offset", FunctionTag::Double, {});
+    inlet.addDouble("offset");
+
+    auto& container = inlet.getGlobalContainer();
+    EXPECT_FALSE(container.containsFunctionValueAlternative("scale"));
+    EXPECT_EQ(container.getFunctionValueAlternativeNames(), std::vector<std::string> {"offset"});
+    EXPECT_DOUBLE_EQ(inlet["scale_inlet_function_alternative"].call<double>(), 9.0);
+    EXPECT_DOUBLE_EQ(container.getFunctionValueAlternative("offset").call<double>(), 3.0);
+    {
+      axom::slic::ScopedAbortToThrow abortGuard;
+      EXPECT_THROW(container.getFunctionValueAlternative("scale"), axom::slic::SlicAbortException);
+    }
+
+    // An unrelated ordinary function must not suppress a concrete field's type error.
+    inlet.addDouble("scale");
+    EXPECT_FALSE(inlet.verify());
+  }
+}
+
+TEST(inlet_function, function_value_alternative_rejects_function_name_collisions)
+{
+  axom::slic::ScopedAbortToThrow abortGuard;
+  for(const bool alternativeFirst : {true, false})
+  {
+    for(const bool alternativeOnRoot : {true, false})
+    {
+      auto inlet = createBasicInlet(R"(
+        group = {
+          scale = function() return 2.0 end,
+          scale_inlet_function_alternative = function() return 9.0 end
+        }
+      )");
+      auto& group = inlet.addStruct("group");
+      auto& root = inlet.getGlobalContainer();
+      auto& alternativeContainer = alternativeOnRoot ? root : group;
+      auto& ordinaryContainer = alternativeOnRoot ? group : root;
+      const std::string valueName = alternativeOnRoot ? "group/scale" : "scale";
+      const std::string functionName = alternativeOnRoot ? "scale_inlet_function_alternative"
+                                                        : "group/scale_inlet_function_alternative";
+      if(alternativeFirst)
+      {
+        alternativeContainer.addFunctionAsValueAlternative(valueName, FunctionTag::Double, {});
+        EXPECT_THROW(ordinaryContainer.addFunction(functionName, FunctionTag::Double, {}),
+                     axom::slic::SlicAbortException);
+        EXPECT_DOUBLE_EQ(group.getFunctionValueAlternative("scale").call<double>(), 2.0);
+      }
+      else
+      {
+        ordinaryContainer.addFunction(functionName, FunctionTag::Double, {});
+        EXPECT_THROW(alternativeContainer.addFunctionAsValueAlternative(valueName,
+                                                                       FunctionTag::Double,
+                                                                       {}),
+                     axom::slic::SlicAbortException);
+        EXPECT_FALSE(group.containsFunctionValueAlternative("scale"));
+        EXPECT_DOUBLE_EQ(group["scale_inlet_function_alternative"].call<double>(), 9.0);
+      }
+    }
+  }
+}
+
 TEST(inlet_function, function_value_alternative_array_is_container_independent)
 {
   for(const bool functionOnRoot : {true, false})
@@ -337,12 +408,16 @@ TEST(inlet_function, function_value_alternative_is_not_documented_under_its_sche
   // which must not leak into generated documentation
   const std::string docFile = "inlet_function_value_alternative_docs.rst";
   {
-    auto inlet = createBasicInlet("scale = function() return 2.0 end");
+    auto inlet = createBasicInlet(R"(
+      scale = function() return 2.0 end
+      ordinary_inlet_function_alternative = function() return 9.0 end
+    )");
     inlet.addFunctionAsValueAlternative("scale", FunctionTag::Double, {}, "a scale callback");
     inlet.addDouble("scale", "a scale");
+    inlet.addFunction("ordinary_inlet_function_alternative", FunctionTag::Double, {});
     EXPECT_TRUE(inlet.verify());
     // The alternative is a real schema entry, just under an internal name
-    EXPECT_EQ(1u, inlet.getGlobalContainer().getChildFunctions().size());
+    EXPECT_EQ(2u, inlet.getGlobalContainer().getChildFunctions().size());
     inlet.write(axom::inlet::SphinxWriter(docFile));
   }
 
@@ -350,7 +425,8 @@ TEST(inlet_function, function_value_alternative_is_not_documented_under_its_sche
   ASSERT_TRUE(stream.good());
   const std::string contents {std::istreambuf_iterator<char> {stream},
                               std::istreambuf_iterator<char> {}};
-  EXPECT_EQ(std::string::npos, contents.find("_inlet_function_alternative"));
+  EXPECT_EQ(std::string::npos, contents.find("scale_inlet_function_alternative"));
+  EXPECT_NE(std::string::npos, contents.find("ordinary_inlet_function_alternative"));
   EXPECT_NE(std::string::npos, contents.find("scale"));
 }
 
