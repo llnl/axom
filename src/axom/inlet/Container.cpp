@@ -994,16 +994,24 @@ Verifiable<Function>& Container::addFunctionInternal(const std::string& schemaNa
   {
     // Otherwise actually add a Function
     std::string fullName = utilities::string::appendPrefix(m_name, schemaName);
-    // First check if the function already exists
-    auto iter = m_functionChildren.find(fullName);
-    if(iter != m_functionChildren.end())
+    const bool isAlternative = schemaName != inputName;
+    // Check nested declarations too, regardless of which Container declared them.
+    if(auto function = getChildInternal<Function>(schemaName))
     {
-      return *iter->second;
+      SLIC_ERROR_IF(detail::isFunctionAlternative(*function) != isAlternative,
+                    fmt::format("[Inlet] An ordinary function and a function value alternative "
+                                "cannot share schema name '{0}'",
+                                fullName));
+      return *function;
     }
     axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
     SLIC_ERROR_IF(sidreGroup == nullptr,
                   fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
+    if(isAlternative)
+    {
+      sidreGroup->createViewString(detail::FUNCTION_ALTERNATIVE_NAME, Path(inputName).baseName());
+    }
     // If a pathOverride is specified, needed when Inlet-internal groups
     // are part of the input path
     std::string lookupPath =
@@ -1419,12 +1427,16 @@ const std::unordered_map<std::string, std::unique_ptr<Function>>& Container::get
 bool Container::containsFunctionValueAlternative(const std::string& valueName) const
 {
   auto function = getChildInternal<Function>(detail::functionAlternativeName(valueName));
-  return function != nullptr && static_cast<bool>(*function);
+  return function != nullptr && detail::isFunctionAlternative(*function) &&
+    static_cast<bool>(*function);
 }
 
 const Function& Container::getFunctionValueAlternative(const std::string& valueName) const
 {
-  return getFunction(detail::functionAlternativeName(valueName));
+  const auto& function = getFunction(detail::functionAlternativeName(valueName));
+  SLIC_ERROR_IF(!detail::isFunctionAlternative(function),
+                fmt::format("[Inlet] No function value alternative declared for '{0}'", valueName));
+  return function;
 }
 
 std::vector<std::string> Container::getFunctionValueAlternativeNames() const
@@ -1432,11 +1444,10 @@ std::vector<std::string> Container::getFunctionValueAlternativeNames() const
   std::vector<std::string> names;
   for(const auto& entry : m_functionChildren)
   {
-    const std::string childName = Path(entry.first).baseName();
-    if(detail::isFunctionAlternativeName(childName) && static_cast<bool>(*entry.second))
+    if(detail::isFunctionAlternative(*entry.second) && static_cast<bool>(*entry.second))
     {
       names.push_back(
-        childName.substr(0, childName.size() - detail::FUNCTION_ALTERNATIVE_SUFFIX.size()));
+        entry.second->sidreGroup()->getView(detail::FUNCTION_ALTERNATIVE_NAME)->getString());
     }
   }
   // m_functionChildren is unordered, so sort for a reproducible result
