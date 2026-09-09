@@ -246,6 +246,32 @@ TEST(GeometryOperatorsIO, readTranslation_3D)
   EXPECT_EQ(expectedProperties, translation.getEndProperties());
 }
 
+TEST(GeometryOperatorsIO, readTranslation_wrongDimensions)
+{
+  Dimensions all_dims[] = {Dimensions::Two, Dimensions::Three};
+  for(Dimensions dims : all_dims)
+  {
+    SCOPED_TRACE(static_cast<int>(dims));
+    const auto input = dims == Dimensions::Two ? R"(
+      translate: [1, 2, 3]
+    )"
+                                              : R"(
+      translate: [1, 2]
+    )";
+    try
+    {
+      readSingleOperator<Translation>({dims, LengthUnit::cm}, input);
+      FAIL() << "Should have rejected the translation dimension";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr("Wrong size for translate."));
+      EXPECT_THAT(err.what(),
+                  HasSubstr(dims == Dimensions::Two ? "Expected 2. Got 3." : "Expected 3. Got 2."));
+    }
+  }
+}
+
 TEST(GeometryOperatorsIO, readTranslation_unknownKeys)
 {
   try
@@ -334,6 +360,35 @@ TEST(GeometryOperatorsIO, readRotation_3D_optionalFields)
   TransformableGeometryProperties expectedProperties {Dimensions::Three, LengthUnit::cm};
   EXPECT_EQ(expectedProperties, rotation.getStartProperties());
   EXPECT_EQ(expectedProperties, rotation.getEndProperties());
+}
+
+TEST(GeometryOperatorsIO, readRotation_wrongCenterDimensions)
+{
+  Dimensions all_dims[] = {Dimensions::Two, Dimensions::Three};
+  for(Dimensions dims : all_dims)
+  {
+    SCOPED_TRACE(static_cast<int>(dims));
+    const auto input = dims == Dimensions::Two ? R"(
+      rotate: 45
+      center: [1, 2, 3]
+    )"
+                                              : R"(
+      rotate: 45
+      axis: [0, 0, 1]
+      center: [1, 2]
+    )";
+    try
+    {
+      readSingleOperator<Rotation>({dims, LengthUnit::cm}, input);
+      FAIL() << "Should have rejected the rotation center dimension";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr("Wrong size for center."));
+      EXPECT_THAT(err.what(),
+                  HasSubstr(dims == Dimensions::Two ? "Expected 2. Got 3." : "Expected 3. Got 2."));
+    }
+  }
 }
 
 TEST(GeometryOperatorsIO, readRotation_3D_zeroAxis)
