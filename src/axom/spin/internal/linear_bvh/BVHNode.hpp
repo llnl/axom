@@ -18,7 +18,9 @@ namespace linear_bvh
 {
 
 /*!
- * \brief Node structure for a 2-wide BVH tree.
+ * \brief Internal node structure for a 2-wide BVH tree.
+ *
+ *  In a 2-wide tree, each internal node has two children: one left and one right.
  */
 template <typename FloatType, int NDIMS>
 struct BVH2Node
