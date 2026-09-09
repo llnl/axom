@@ -1317,16 +1317,12 @@ TEST(IOTest, readShapeSet_luaNamedOperatorCallbackIsEvaluatedOnceAndReused)
 
 TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
 {
-  auto shapeSet = readShapeSetFromString(R"(
-    local callback_index = 0
-
-    local function ordered(expected_index, value)
+  ShapeSet shapeSet;
+  ::testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(shapeSet = readShapeSetFromString(R"(
+    local function counted(callback_id, value)
       return function()
-        callback_index = callback_index + 1
-        if callback_index ~= expected_index then
-          error("expected callback " .. expected_index ..
-                ", got callback " .. callback_index)
-        end
+        print("callback: " .. callback_id)
         return value
       end
     end
@@ -1339,13 +1335,13 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
         units = "cm",
         value = {
           {
-            rotate = ordered(1, 30),
-            center = ordered(2, {1, 2, 3}),
-            axis = ordered(3, {0, 0, 1})
+            rotate = counted(1, 30),
+            center = counted(2, {1, 2, 3}),
+            axis = counted(3, {0, 0, 1})
           },
           {
-            scale = ordered(4, {2}),
-            center = ordered(5, {4, 5, 6})
+            scale = counted(4, {2}),
+            center = counted(5, {4, 5, 6})
           }
         }
       },
@@ -1353,7 +1349,7 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
         name = "shift",
         units = "cm",
         value = {
-          { translate = ordered(6, {7, 8, 9}) }
+          { translate = counted(6, {7, 8, 9}) }
         }
       }
     }
@@ -1367,8 +1363,8 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
           path = "reference.stl",
           units = "cm",
           operators = {
-            { translate = ordered(7, {1, 2, 3}) },
-            { ref = ordered(8, "rotate_and_scale") }
+            { translate = counted(7, {1, 2, 3}) },
+            { ref = counted(8, "rotate_and_scale") }
           }
         }
       },
@@ -1384,9 +1380,9 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
           operators = {
             {
               slice = {
-                origin = ordered(9, {0, 0, 0}),
-                normal = ordered(10, {0, 0, 1}),
-                up = ordered(11, {0, 1, 0})
+                origin = counted(9, {0, 0, 0}),
+                normal = counted(10, {0, 0, 1}),
+                up = counted(11, {0, 1, 0})
               }
             }
           }
@@ -1404,10 +1400,10 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
           operators = {
             {
               slice = {
-                x = ordered(12, 3),
-                origin = ordered(13, {3, 0, 0}),
-                normal = ordered(14, {1, 0, 0}),
-                up = ordered(15, {0, 1, 0})
+                x = counted(12, 3),
+                origin = counted(13, {3, 0, 0}),
+                normal = counted(14, {1, 0, 0}),
+                up = counted(15, {0, 1, 0})
               }
             }
           }
@@ -1415,10 +1411,27 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
       }
     }
   )",
-                                         InputFormat::Lua);
+                                                    InputFormat::Lua));
 
-  // Reaching the last callback demonstrates that each one ran exactly once.
-  // The specific order is an implementation detail.
+  // Count each callback after parsing, independently of evaluation order.
+  std::istringstream callbackLog(::testing::internal::GetCapturedStdout());
+  std::array<int, 15> callbackCounts {};
+  std::string token;
+  while(callbackLog >> token)
+  {
+    if(token == "callback:")
+    {
+      int callbackId = 0;
+      ASSERT_TRUE(callbackLog >> callbackId);
+      ASSERT_GE(callbackId, 1);
+      ASSERT_LE(callbackId, static_cast<int>(callbackCounts.size()));
+      ++callbackCounts[callbackId - 1];
+    }
+  }
+  for(std::size_t i = 0; i < callbackCounts.size(); ++i)
+  {
+    EXPECT_EQ(1, callbackCounts[i]) << "Callback " << i + 1;
+  }
   ASSERT_EQ(3u, shapeSet.getShapes().size());
 }
 #endif
