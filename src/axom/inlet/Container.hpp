@@ -779,9 +779,9 @@ public:
    * \brief Add a function that is an alternative representation of a primitive
    * value or collection in the input deck.
    *
-   * The function is read from the same public value name as the concrete field or collection.
-   * If a function exists there, the concrete schema entry is treated as absent
-   * rather than as having the wrong type.
+   * The function is read from the same input path as the concrete field or collection.
+   * If the input supplies a function, Inlet treats the concrete entry as absent.
+   * A default value may still populate the concrete entry.
    *
    * \param [in] valueName    Path of the concrete value or collection,
    *                          relative to this Container
@@ -791,9 +791,10 @@ public:
    *
    * \return Reference to the created Function
    *
-   * \note The alternative must be declared before the concrete schema entry it applies to,
-   * so that the concrete entry can be suppressed when the input supplies a function.
-   * Declaring it afterwards is an error.
+   * \pre Declare the alternative before the concrete entry. Declaring it afterwards
+   * reports a SLIC error.
+   * \note Requirements and verifiers apply separately to each representation.
+   * Inlet does not evaluate the function automatically or apply concrete constraints to its result.
    *****************************************************************************
    */
   Verifiable<Function>& addFunctionAsValueAlternative(const std::string& valueName,
@@ -1027,6 +1028,7 @@ public:
    *
    * A function value alternative at \a name is not reported by this method.
    * Use \a containsFunctionValueAlternative() to query that representation.
+   * A concrete default counts as present even when a function alternative is supplied.
    * An ancestor Container is present when an alternative exists below it.
    *
    * \param [in] name Path relative to this Container
@@ -1108,7 +1110,7 @@ public:
    *
    * \param [in] valueName Value path relative to this Container
    *
-   * \return The Function declared as the alternative for \a valueName
+   * \return A reference to the Function owned by this Container for \a valueName
    *****************************************************************************
    */
   const Function& getFunctionValueAlternative(const std::string& valueName) const;

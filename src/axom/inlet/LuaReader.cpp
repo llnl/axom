@@ -492,7 +492,7 @@ FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_fu
  * \param [in] func The sol object containing the lua function of unknown signature
  * \param [in] lua_state Shared ownership of the Lua state used by \a func
  * \tparam Ret The return type of the function
- * \tparam Args... The argument types of the function
+ * \tparam Args The argument types of the function
  *
  * \return A std::function that wraps the lua function
  * 
@@ -525,7 +525,7 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
  * \tparam I The number of arguments processed, or "stack size", used to mitigate
  * infinite compile-time recursion
  * \tparam Ret The function's return type
- * \tparam Args... The function's current arguments (already processed), remaining
+ * \tparam Args The function's current arguments (already processed), remaining
  * arguments are in the arg_types vector
  *
  * \return A callable wrapper

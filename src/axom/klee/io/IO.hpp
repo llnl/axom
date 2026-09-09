@@ -23,20 +23,29 @@ enum class InputFormat
   Lua
 };
 
-/// Lua initialization chunk evaluated before deck parsing in an isolated environment.
+/**
+ * \brief Lua source to evaluate before the Klee input
+ *
+ * The chunk must return a table. Its keys must be ASCII Lua identifiers that are
+ * neither keywords nor preloaded globals. Values may be booleans, numbers,
+ * strings, tables, or functions. The table entries become mutable deck globals
+ * and exported functions retain access to the chunk's locals and environment.
+ *
+ * The environment shares preloaded objects with the deck.
+ */
 struct LuaInitializationChunk
 {
-  /// Lua source to evaluate before the input deck.
+  /// Nonempty Lua source that returns the table of exported globals.
   std::string source;
 
-  /// Source label used in diagnostics from this chunk.
+  /// Diagnostic label. An empty label uses the default label shown below.
   std::string label {"<lua initialization>"};
 };
 
 /// Optional caller-provided initialization for a Lua input deck.
 struct LuaInputOptions
 {
-  /// Isolated chunk whose returned table entries become initial mutable Lua globals.
+  /// Chunk evaluated once per readShapeSet() call. Omit to read without initialization.
   std::optional<LuaInitializationChunk> initialization;
 };
 
@@ -62,14 +71,14 @@ ShapeSet readShapeSet(std::istream& stream);
 ShapeSet readShapeSet(std::istream& stream, InputFormat format);
 
 /**
- * Read a ShapeSet from an input stream with caller-provided Lua inputs.
+ * Read a ShapeSet from an input stream with optional Lua initialization.
  *
  * \param stream the stream from which to read the ShapeSet
  * \param format the input deck format to use
  * \param options optional initialization for a Lua input deck
- * \note Lua input options are supported only for Lua input decks.
  * \return the ShapeSet read from the stream
- * \throws KleeError if the input or Lua input options are invalid
+ * \throws KleeError if initialization, parsing, validation, or callback evaluation fails,
+ *         or if the input format is unsupported by this build
  */
 ShapeSet readShapeSet(std::istream& stream, InputFormat format, const LuaInputOptions& options);
 
@@ -97,27 +106,27 @@ ShapeSet readShapeSet(const std::string& filePath);
 ShapeSet readShapeSet(const std::string& filePath, InputFormat format);
 
 /**
- * Read a ShapeSet from a specified file with caller-provided Lua inputs.
+ * Read a ShapeSet from a file with optional Lua initialization.
  *
  * \param filePath the file from which to read the ShapeSet
- * \param options optional initialization for a Lua input deck
- * \note The input format is inferred from the file extension.
- *       Lua input options are supported only for Lua input decks.
+ * \param options optional extra initialization for a Lua input deck
+ * \note The input format is inferred from the file extension; no extension means YAML.
+ *       A populated initialization requires Lua input; empty options also accept YAML.
  * \return the ShapeSet read from the file
- * \throws KleeError if the input or Lua input options are invalid
+ * \throws KleeError if initialization, parsing, validation, or callback evaluation
+ *         fails, or if the file extension or input format is unsupported
  */
 ShapeSet readShapeSet(const std::string& filePath, const LuaInputOptions& options);
 
 /**
- * Read a ShapeSet from a specified file using an explicit format and
- * caller-provided Lua inputs.
+ * Read a ShapeSet from a file using an explicit format and optional Lua initialization.
  *
  * \param filePath the file from which to read the ShapeSet
  * \param format the input file format to use, regardless of the file extension
- * \param options optional initialization for a Lua input deck
- * \note Lua input options are supported only for Lua input decks.
+ * \param options optional extra initialization for a Lua input deck
  * \return the ShapeSet read from the file
- * \throws KleeError if the input or Lua input options are invalid
+ * \throws KleeError if initialization, parsing, validation, or callback evaluation fails,
+ *         or if the input format is unsupported by this build
  */
 ShapeSet readShapeSet(const std::string& filePath, InputFormat format, const LuaInputOptions& options);
 
