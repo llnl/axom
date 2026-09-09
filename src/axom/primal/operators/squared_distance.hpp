@@ -87,6 +87,8 @@ AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& P,
 
   // compute closest point to the box
   Point<T, NDIMS> cp;
+
+#ifdef AXOM_DEVICE_CODE
   if constexpr(std::is_floating_point_v<T>)
   {
     for(int i = 0; i < NDIMS; ++i)
@@ -95,6 +97,7 @@ AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& P,
     }
   }
   else
+#endif
   {
     for(int i = 0; i < NDIMS; ++i)
     {
