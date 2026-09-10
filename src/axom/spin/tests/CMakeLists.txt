@@ -8,6 +8,7 @@
 #------------------------------------------------------------------------------
 
 set(spin_tests
+    spin_bvh_stack.cpp
     spin_implicit_grid.cpp
     spin_morton.cpp
     spin_octree.cpp
