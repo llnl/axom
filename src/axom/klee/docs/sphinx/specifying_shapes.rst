@@ -163,9 +163,11 @@ The chunk must return a table whose entries become globals available to the deck
     }
 
 Exported keys must be ASCII Lua identifiers. Keywords and preloaded globals such as
-:code:`math`, :code:`package`, and :code:`Vector` are reserved. Exported values may be
-booleans, numbers, strings, tables, or functions. Klee preserves their Lua types,
-including integer values.
+:code:`math`, :code:`package`, and :code:`Vector` are reserved. Exported values retain
+their original Lua types, including integers and userdata such as
+:code:`Vector.new(1, 2)`. Userdata may be exported directly or nested inside a table.
+Values used for Klee fields or returned by callbacks must satisfy the corresponding
+field's validation rules.
 
 The chunk runs in a separate Lua environment. Its assignments to global names remain
 in that environment unless it exports them. Exported functions keep access to the
@@ -245,7 +247,7 @@ The supported callback fields and their return types are:
 Vector tables must have contiguous integer keys starting at one.
 The component count must match the operator's input dimension and not have any other entries.
 For :code:`scale`, a one-entry table such as :code:`{2.0}` also permits uniform scaling,
-but a scalar (like :code:`{2.0}`) is invalid.
+but a scalar (like :code:`2.0`) is invalid.
 Callback results must meet the same field requirements as concrete values,
 such as a nonzero rotation axis or a valid unit name.
 

@@ -27,9 +27,9 @@ enum class InputFormat
  * \brief Lua source to evaluate before the Klee input
  *
  * The chunk must return a table. Its keys must be ASCII Lua identifiers that are
- * neither keywords nor preloaded globals. Values may be booleans, numbers,
- * strings, tables, or functions. The table entries become mutable deck globals
- * and exported functions retain access to the chunk's locals and environment.
+ * neither keywords nor preloaded globals. Values retain their original Lua types,
+ * including userdata such as Vector.new(1, 2). The table entries become mutable
+ * deck globals and exported functions retain access to the chunk's locals and environment.
  *
  * The environment shares preloaded objects with the deck.
  */
