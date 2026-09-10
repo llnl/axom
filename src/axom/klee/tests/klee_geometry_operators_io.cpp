@@ -289,6 +289,14 @@ TEST(GeometryOperatorsIO, readTranslation_unknownKeys)
   }
 }
 
+TEST(GeometryOperatorsIO, readTranslation_wrongComponentType)
+{
+  EXPECT_THROW(readSingleOperator<Translation>({Dimensions::Two, LengthUnit::cm}, R"(
+      translate: [a, b]
+    )"),
+               KleeError);
+}
+
 TEST(GeometryOperatorsIO, readRotation_2D_requiredOnly)
 {
   auto rotation = readSingleOperator<Rotation>({Dimensions::Two, LengthUnit::cm}, R"(
@@ -531,6 +539,35 @@ TEST(GeometryOperatorsIO, readScale_3d_array_withCenter)
   EXPECT_DOUBLE_EQ(3.4, scale.getYFactor());
   EXPECT_DOUBLE_EQ(5.6, scale.getZFactor());
   EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {4, 5, 6}));
+}
+
+TEST(GeometryOperatorsIO, readScale_wrongDimensions)
+{
+  Dimensions all_dims[] = {Dimensions::Two, Dimensions::Three};
+  for(Dimensions dims : all_dims)
+  {
+    SCOPED_TRACE(static_cast<int>(dims));
+    const auto input = dims == Dimensions::Two ? R"(
+      scale: [1, 2, 3]
+    )"
+                                              : R"(
+      scale: [1, 2]
+    )";
+    try
+    {
+      readSingleOperator<Scale>({dims, LengthUnit::cm}, input);
+      FAIL() << "Should have rejected the scale dimension";
+    }
+    catch(const KleeError& err)
+    {
+      ASSERT_EQ(1u, err.getErrors().size());
+      EXPECT_EQ("scale", err.getErrors()[0].path.baseName());
+      EXPECT_EQ("0", err.getErrors()[0].path.parent().baseName());
+      EXPECT_EQ(dims == Dimensions::Two ? "Wrong size for scale. Expected 2. Got 3."
+                                       : "Wrong size for scale. Expected 3. Got 2.",
+                err.getErrors()[0].message);
+    }
+  }
 }
 
 TEST(GeometryOperatorsIO, readConvertUnits)
