@@ -32,7 +32,6 @@ namespace
 using OpPtr = CompositeOperator::OpPtr;
 using OperatorParser =
   std::function<OpPtr(const inlet::Container&, const TransformableGeometryProperties&, const std::string&)>;
-using internal::toDoubleVector;
 using primal::Point3D;
 using primal::Vector3D;
 using FieldSet = std::unordered_set<std::string>;
@@ -120,25 +119,22 @@ std::string fieldMessage(const inlet::Container& container,
  * Invoke a callback and translate its failures to contextual Klee errors.
  *
  * \tparam Result expected callback result type
- * \tparam Func callback invocation type
  * \param container the operator or slice container
  * \param fieldName the callback field name
  * \param ownerLabel description of the owning shape or named operator
- * \param func callable that invokes the Inlet callback
  * \return the callback result
  * \throws KleeError if callback invocation or result conversion fails
  */
-template <typename Result, typename Func>
-Result wrapCallbackErrors(const inlet::Container& container,
-                          char const* fieldName,
-                          const std::string& ownerLabel,
-                          Func&& func)
+template <typename Result>
+Result invokeCallback(const inlet::Container& container,
+                      char const* fieldName,
+                      const std::string& ownerLabel)
 {
   // Convert Inlet callback failures into Klee diagnostics at the boundary
   // where the shape, operator, and field context are all available.
   try
   {
-    return func();
+    return container.getFunctionValueAlternative(fieldName).call<Result>();
   }
   catch(const inlet::InletError& ex)
   {
@@ -160,9 +156,7 @@ double getScalar(const inlet::Container& container, char const* fieldName, const
 {
   if(hasCallback(container, fieldName))
   {
-    return wrapCallbackErrors<double>(container, fieldName, ownerLabel, [&]() {
-      return container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::Double>();
-    });
+    return invokeCallback<inlet::FunctionType::Double>(container, fieldName, ownerLabel);
   }
   return container[fieldName].get<double>();
 }
@@ -182,67 +176,67 @@ std::string getString(const inlet::Container& container,
 {
   if(hasCallback(container, fieldName))
   {
-    return wrapCallbackErrors<std::string>(container, fieldName, ownerLabel, [&]() {
-      return container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::String>();
-    });
+    return invokeCallback<inlet::FunctionType::String>(container, fieldName, ownerLabel);
   }
   return container[fieldName].get<std::string>();
 }
 
 /**
- * Convert an Inlet callback vector to ordinary doubles.
+ * Read vector components from a direct field or callback.
  *
- * \param value the callback vector
- * \return the active components of \a value
+ * \param container the operator container
+ * \param fieldName the public operator field name
+ * \param ownerLabel description of the owning shape or named operator
+ * \return the resolved vector components, without dimension validation
+ * \throws KleeError if callback evaluation fails
  */
-std::vector<double> callbackVectorToDoubleVector(const inlet::FunctionType::Vector& value)
+std::vector<double> readDoubleVector(const inlet::Container& container,
+                                     char const* fieldName,
+                                     const std::string& ownerLabel)
 {
-  std::vector<double> result;
-  result.reserve(value.dim);
-  for(int i = 0; i < value.dim; ++i)
+  if(hasCallback(container, fieldName))
   {
-    result.push_back(value.vec[i]);
+    const auto value = invokeCallback<inlet::FunctionType::Vector>(container, fieldName, ownerLabel);
+    std::vector<double> result;
+    result.reserve(value.dim);
+    for(int i = 0; i < value.dim; ++i)
+    {
+      result.push_back(value.vec[i]);
+    }
+    return result;
   }
-  return result;
+  return container[fieldName].get<std::vector<double>>();
 }
 
 /**
- * Read and validate a vector operator field.
+ * Check the dimension of an already extracted vector.
  *
+ * \param values the resolved vector components
  * \param container the operator container
  * \param fieldName the public operator field name
  * \param expectedDims required vector dimension
  * \param ownerLabel description of the owning shape or named operator
- * \return the resolved vector components
- * \throws KleeError if callback evaluation or dimension validation fails
+ * \throws KleeError if the vector does not have \a expectedDims components
  */
-std::vector<double> getDoubleVector(const inlet::Container& container,
-                                    char const* fieldName,
-                                    Dimensions expectedDims,
-                                    const std::string& ownerLabel)
+void checkVectorSize(const std::vector<double>& values,
+                     const inlet::Container& container,
+                     char const* fieldName,
+                     Dimensions expectedDims,
+                     const std::string& ownerLabel)
 {
-  if(hasCallback(container, fieldName))
+  auto actualSize = values.size();
+  auto expectedSize = static_cast<std::size_t>(expectedDims);
+  if(actualSize != expectedSize)
   {
-    auto values = wrapCallbackErrors<std::vector<double>>(container, fieldName, ownerLabel, [&]() {
-      return callbackVectorToDoubleVector(
-        container.getFunctionValueAlternative(fieldName).call<inlet::FunctionType::Vector>());
-    });
-    auto actualSize = values.size();
-    auto expectedSize = static_cast<std::size_t>(expectedDims);
-    if(actualSize != expectedSize)
-    {
-      throw KleeError({fieldPath(container, fieldName),
-                       fieldMessage(container,
-                                    fieldName,
-                                    ownerLabel,
-                                    fmt::format("Wrong size for {}. Expected {}. Got {}.",
-                                                fieldName,
-                                                expectedSize,
-                                                actualSize))});
-    }
-    return values;
+    throw KleeError({fieldPath(container, fieldName),
+                     fieldMessage(container,
+                                  fieldName,
+                                  ownerLabel,
+                                  fmt::format("Wrong size for {}. Expected {}. Got {}.",
+                                              fieldName,
+                                              expectedSize,
+                                              actualSize))});
   }
-  return toDoubleVector(container[fieldName], expectedDims, fieldName);
 }
 
 /**
@@ -261,7 +255,8 @@ T toArrayLike(const inlet::Container& parent,
               Dimensions expectedDims,
               const std::string& ownerLabel)
 {
-  auto values = getDoubleVector(parent, fieldName, expectedDims, ownerLabel);
+  auto values = readDoubleVector(parent, fieldName, ownerLabel);
+  checkVectorSize(values, parent, fieldName, expectedDims, ownerLabel);
   return T {values.data(), static_cast<int>(expectedDims)};
 }
 
@@ -720,36 +715,12 @@ OpPtr parseScale(const inlet::Container& opContainer,
                  const std::string& ownerLabel)
 {
   verifyObjectFields(opContainer, "scale", FieldSet {}, FieldSet {"center"});
-  auto factors = hasCallback(opContainer, "scale")
-    ? wrapCallbackErrors<std::vector<double>>(
-        opContainer,
-        "scale",
-        ownerLabel,
-        [&]() {
-          return callbackVectorToDoubleVector(
-            opContainer.getFunctionValueAlternative("scale").call<inlet::FunctionType::Vector>());
-        })
-    : opContainer["scale"].get<std::vector<double>>();
+  auto factors = readDoubleVector(opContainer, "scale", ownerLabel);
 
   const bool isUniform = factors.size() == 1;
-  if(!isUniform && hasCallback(opContainer, "scale"))
+  if(!isUniform)
   {
-    auto actualSize = factors.size();
-    auto expectedSize = static_cast<std::size_t>(startProperties.dimensions);
-    if(actualSize != expectedSize)
-    {
-      throw KleeError(
-        {fieldPath(opContainer, "scale"),
-         fieldMessage(
-           opContainer,
-           "scale",
-           ownerLabel,
-           fmt::format("Wrong size for scale. Expected {}. Got {}.", expectedSize, actualSize))});
-    }
-  }
-  else if(!isUniform)
-  {
-    factors = toDoubleVector(opContainer["scale"], startProperties.dimensions, "scale");
+    checkVectorSize(factors, opContainer, "scale", startProperties.dimensions, ownerLabel);
   }
   if(!isUniform && startProperties.dimensions == Dimensions::Two)
   {

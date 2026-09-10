@@ -10,7 +10,6 @@
 #include "axom/klee/Units.hpp"
 
 #include <tuple>
-#include <vector>
 
 namespace axom
 {
@@ -25,20 +24,6 @@ namespace klee
 {
 namespace internal
 {
-/**
- * Convert the given field to a std::vector<double>, ensuring that it
- * has the expected number of entries.
- *
- * @param field the field to convert
- * @param expectedDims the expected dimensionality of the array
- * @param fieldName the name of the field (used for error reporting)
- * @return the field as a std::vector<double>
- * @throws KleeError if the field does not have \a expectedDims entries
- */
-std::vector<double> toDoubleVector(inlet::Proxy const& field,
-                                   Dimensions expectedDims,
-                                   char const* fieldName);
-
 /**
  * Get the start and end units in a Container.
  *

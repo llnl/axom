@@ -11,7 +11,6 @@
 #include "axom/klee/KleeError.hpp"
 
 #include "gtest/gtest.h"
-#include "gmock/gmock.h"
 
 #include <memory>
 
@@ -21,8 +20,6 @@ namespace klee
 {
 namespace internal
 {
-using ::testing::ElementsAre;
-
 static std::unique_ptr<inlet::Reader> readYaml(const std::string& input)
 {
   auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
@@ -57,22 +54,6 @@ InletTestData::InletTestData(const std::string& input, DefOp defOp)
   {
     throw KleeError(errors);
   }
-}
-
-std::vector<double> parseDoubleVector(const std::string& vectorInput, Dimensions dims)
-{
-  std::string fullInput = "values: ";
-  fullInput += vectorInput;
-  InletTestData data {fullInput, [](inlet::Container& c) { c.addDoubleArray("values"); }};
-  return toDoubleVector(data.doc["values"], dims, "values");
-}
-
-TEST(io_util, toDoubleVector)
-{
-  EXPECT_THAT(parseDoubleVector("[1.2, 3.4]", Dimensions::Two), ElementsAre(1.2, 3.4));
-  EXPECT_THAT(parseDoubleVector("[1, 2]", Dimensions::Two), ElementsAre(1.0, 2.0));
-  EXPECT_THROW(parseDoubleVector("[1, 2]", Dimensions::Three), KleeError) << "Wrong length";
-  EXPECT_THROW(parseDoubleVector("[a, b]", Dimensions::Three), KleeError) << "Wrong type";
 }
 
 Dimensions defineAndParseDimension(const char* input)

@@ -1364,7 +1364,8 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
           units = "cm",
           operators = {
             { translate = counted(7, {1, 2, 3}) },
-            { ref = counted(8, "rotate_and_scale") }
+            { ref = counted(8, "rotate_and_scale") },
+            { scale = counted(16, {2, 3, 4}) }
           }
         }
       },
@@ -1415,7 +1416,7 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
 
   // Count each callback after parsing, independently of evaluation order.
   std::istringstream callbackLog(::testing::internal::GetCapturedStdout());
-  std::array<int, 15> callbackCounts {};
+  std::array<int, 16> callbackCounts {};
   std::string token;
   while(callbackLog >> token)
   {
@@ -2026,33 +2027,47 @@ TEST(IOTest, readShapeSet_luaCallbackErrorIncludesContext)
 
 TEST(IOTest, readShapeSet_luaCallbackWrongVectorDimensionIncludesContext)
 {
-  try
+  const char* fields[] = {"translate", "scale"};
+  for(const auto* field : fields)
   {
-    readShapeSetFromString(R"(
-      dimensions = 2
-      shapes = {
-        {
-          name = "wrong_dim",
-          material = "steel",
-          geometry = {
-            format = "stl",
-            path = "wrong_dim.stl",
-            units = "cm",
-            operators = {
-              { translate = function() return {1, 2, 3} end }
+    for(int dims : {2, 3})
+    {
+      SCOPED_TRACE(field);
+      SCOPED_TRACE(dims);
+      std::ostringstream input;
+      input << "dimensions = " << dims << R"(
+        shapes = {
+          {
+            name = "wrong_dim",
+            material = "steel",
+            geometry = {
+              format = "stl",
+              path = "wrong_dim.stl",
+              units = "cm",
+              operators = {
+                { )" << field
+            << " = function() return " << (dims == 2 ? "{1, 2, 3}" : "{1, 2}") << R"( end }
+              }
             }
           }
         }
+      )";
+      try
+      {
+        readShapeSetFromString(input.str(), InputFormat::Lua);
+        FAIL() << "Should have thrown";
       }
-    )",
-                           InputFormat::Lua);
-    FAIL() << "Should have thrown";
-  }
-  catch(const KleeError& err)
-  {
-    EXPECT_THAT(err.what(), HasSubstr("translate"));
-    EXPECT_THAT(err.what(), HasSubstr("wrong_dim"));
-    EXPECT_THAT(err.what(), HasSubstr("Wrong size"));
+      catch(const KleeError& err)
+      {
+        ASSERT_EQ(1u, err.getErrors().size());
+        EXPECT_EQ(field, err.getErrors()[0].path.baseName());
+        EXPECT_EQ("1", err.getErrors()[0].path.parent().baseName());
+        EXPECT_THAT(err.what(), HasSubstr(std::string {"callback for '"} + field + "'"));
+        EXPECT_THAT(err.what(), HasSubstr("shape 'wrong_dim' operator 1"));
+        EXPECT_THAT(err.what(), HasSubstr(std::string {"Wrong size for "} + field + "."));
+        EXPECT_THAT(err.what(), HasSubstr(dims == 2 ? "Expected 2. Got 3." : "Expected 3. Got 2."));
+      }
+    }
   }
 }
 

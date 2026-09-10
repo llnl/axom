@@ -15,22 +15,6 @@ namespace klee
 {
 namespace internal
 {
-std::vector<double> toDoubleVector(inlet::Proxy const& field,
-                                   Dimensions expectedDims,
-                                   char const* fieldName)
-{
-  auto expectedSize = static_cast<std::size_t>(expectedDims);
-  auto values = field.get<std::vector<double>>();
-  auto actualSize = values.size();
-  if(actualSize != expectedSize)
-  {
-    throw KleeError(
-      {field.name(),
-       fmt::format("Wrong size for {}. Expected {}. Got {}.", fieldName, expectedSize, actualSize)});
-  }
-  return values;
-}
-
 std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container& container)
 {
   bool hasStartUnits = container.contains("start_units");
