@@ -505,6 +505,50 @@ TEST(inlet_Reader_lua, objectLookupReportsConsistentReaderResults)
   std::sort(indices.begin(), indices.end());
   EXPECT_EQ((std::vector<int> {2, 5}), indices);
 }
+
+TEST(inlet_Reader_lua, getAllNamesTerminatesOnCycles)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    self = {}
+    self.loop = self
+    left = {}
+    right = {parent = left}
+    left.child = right
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"left",
+                                           "left/child",
+                                           "left/child/parent",
+                                           "right",
+                                           "right/parent",
+                                           "right/parent/child",
+                                           "self",
+                                           "self/loop"};
+  EXPECT_EQ(expected, names);
+}
+
+TEST(inlet_Reader_lua, getAllNamesVisitsSharedTablesUnderEachPath)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    local shared = {nested = {value = 42}}
+    first = shared
+    second = shared
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"first",
+                                           "first/nested",
+                                           "first/nested/value",
+                                           "second",
+                                           "second/nested",
+                                           "second/nested/value"};
+  EXPECT_EQ(expected, names);
+}
 #endif
 
 //------------------------------------------------------------------------------

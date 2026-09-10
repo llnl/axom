@@ -745,6 +745,22 @@ TEST(IOTest, readShapeSet_luaInitializationExportsMutableGlobals)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 2.0, 7.0}));
 }
 
+TEST(IOTest, readShapeSet_luaInitializationExportsCyclicHelper)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    local settings = {dim = 2}
+    settings.self = settings
+    return {settings = settings}
+  )",
+                                                   "cyclic_initialization"};
+
+  const auto shapeSet =
+    readShapeSetFromString("dimensions = settings.self.dim; shapes = {}", InputFormat::Lua, options);
+  EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
+  EXPECT_TRUE(shapeSet.getShapes().empty());
+}
+
 TEST(IOTest, readShapeSet_luaInitializationIsolatesUnexportedGlobals)
 {
   LuaInitializationChunk initialization {R"(
@@ -1435,7 +1451,6 @@ TEST(IOTest, readShapeSet_luaCallbacksAreEachEvaluatedOnce)
   }
   ASSERT_EQ(3u, shapeSet.getShapes().size());
 }
-#endif
 
 TEST(IOTest, readShapeSet_luaNamedOperatorCallbackErrorIncludesContext)
 {
@@ -2145,6 +2160,7 @@ TEST(IOTest, readShapeSet_luaNestedUnexpectedFieldsMatchYamlValidation)
   ASSERT_EQ(1u, shapeSet.getShapes().size());
   EXPECT_EQ("wheel", shapeSet.getShapes()[0].getName());
 }
+#endif
 
 TEST(IOTest, readShapeSet_shapeWithReplacesAndDoesNotReplaceLists)
 {

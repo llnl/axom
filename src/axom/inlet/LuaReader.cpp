@@ -16,6 +16,7 @@
 #include <fstream>
 #include <memory>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "axom/inlet/LuaReader.hpp"
 
@@ -103,13 +104,22 @@ bool extractVariantValue(const axom::sol::object& obj, VariantValue& value)
  * \param [in] prefix The Inlet-style path to \a table relative to the "root" of
  * the input file
  * \param [out] names The vector of paths to add to
+ * \param [in,out] ancestors The table identities on the current traversal path
  *******************************************************************************
  */
 void nameRetrievalHelper(const std::vector<std::string>& ignores,
                          const axom::sol::table& table,
                          const std::string& prefix,
-                         std::vector<std::string>& names)
+                         std::vector<std::string>& names,
+                         std::unordered_set<const void*>& ancestors)
 {
+  const auto table_id = table.pointer();
+  if(!ancestors.insert(table_id).second)
+  {
+    // The caller already recorded the name of this cyclic reference.
+    return;
+  }
+
   auto toString = [](const VariantKey& key) {
     return key.type() == InletType::String ? static_cast<std::string>(key)
                                            : std::to_string(static_cast<int>(key));
@@ -123,10 +133,22 @@ void nameRetrievalHelper(const std::vector<std::string>& ignores,
       names.push_back(fullName);
       if(entry.second.get_type() == axom::sol::type::table && (ignores.back() != fullName))
       {
-        nameRetrievalHelper(ignores, entry.second, fullName, names);
+        nameRetrievalHelper(ignores, entry.second, fullName, names, ancestors);
       }
     }
   }
+  // Shared tables must still be visited through other, noncyclic paths.
+  ancestors.erase(table_id);
+}
+
+/// \brief Start name retrieval with an empty ancestor set.
+void nameRetrievalHelper(const std::vector<std::string>& ignores,
+                         const axom::sol::table& table,
+                         const std::string& prefix,
+                         std::vector<std::string>& names)
+{
+  std::unordered_set<const void*> ancestors;
+  nameRetrievalHelper(ignores, table, prefix, names, ancestors);
 }
 
 }  // end namespace detail
@@ -138,15 +160,15 @@ LuaReader::LuaReader()
                         axom::sol::lib::math,
                         axom::sol::lib::string,
                         axom::sol::lib::package);
-  auto vec_type = m_lua->new_usertype<FunctionType::Vector>(
+  // Register a custom "Vector" usertype
+  m_lua->new_usertype<FunctionType::Vector>(
     "Vector",  // Name of the class in Lua
-    // Add make_vector as a constructor to enable "new Vector(x,y,z)"
-    // Use lambdas for 2D and "default" cases - default arguments cannot be
-    // propagated automatically
+    // Register factories for Vector.new(x, y, z), Vector.new(x, y), and Vector.new().
+    // Separate lambdas expose each supported argument count to Lua.
     "new",
     axom::sol::factories([](double x, double y, double z) { return FunctionType::Vector {x, y, z}; },
                          [](double x, double y) { return FunctionType::Vector {x, y}; },
-                         // Assume three for a default constructor
+                         // Vector.new() creates a zero vector with dimension 3.
                          [] { return FunctionType::Vector {}; }),
     // Add vector addition operation
     axom::sol::meta_function::addition,
@@ -211,8 +233,8 @@ LuaReader::LuaReader()
     "z",
     axom::sol::property([](const FunctionType::Vector& u) { return u.vec[2]; }));
 
-  // Pass the preloaded globals as both the set to ignore and the set to add
-  // to, such that only the top-level preloaded globals are added
+  // Pass the preloaded globals as both the set to ignore and the set to add to,
+  // such that only the top-level preloaded globals are added
   detail::nameRetrievalHelper(m_preloaded_globals, m_lua->globals(), "", m_preloaded_globals);
 }
 
