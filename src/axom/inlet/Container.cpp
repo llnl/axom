@@ -944,13 +944,6 @@ Verifiable<Function>& Container::addFunctionAsValueAlternative(const std::string
                 "[Inlet] A function value alternative requires a non-empty value name");
   SLIC_ERROR_IF(ret_type == FunctionTag::Void,
                 "[Inlet] A function value alternative requires a non-void return type");
-  // Declaring the concrete entry first would already have marked it as being of
-  // the wrong type, which surfaces later as a confusing verification failure
-  // blaming the input rather than the schema. Reject it here instead.
-  SLIC_ERROR_IF(
-    getChildInternal<Field>(valueName) != nullptr || getChildInternal<Container>(valueName) != nullptr,
-    fmt::format("[Inlet] The function value alternative for '{0}' must be declared before '{0}'",
-                valueName));
   // The alternative is read from the concrete value's input path but is stored
   // under a distinct schema name so the two entries do not collide.
   return addFunctionInternal(detail::functionAlternativeName(valueName),
@@ -995,6 +988,17 @@ Verifiable<Function>& Container::addFunctionInternal(const std::string& schemaNa
     // Otherwise actually add a Function
     std::string fullName = utilities::string::appendPrefix(m_name, schemaName);
     const bool isAlternative = schemaName != inputName;
+    if(isAlternative)
+    {
+      // Check after collection expansion, where the concrete entry is stored.
+      // Declaring it first would already have marked the input as the wrong type.
+      SLIC_ERROR_IF(
+        getChildInternal<Field>(inputName) != nullptr ||
+          getChildInternal<Container>(inputName) != nullptr,
+        fmt::format(
+          "[Inlet] The function value alternative for '{0}' must be declared before '{0}'",
+          inputName));
+    }
     // Check nested declarations too, regardless of which Container declared them.
     if(auto function = getChildInternal<Function>(schemaName))
     {
