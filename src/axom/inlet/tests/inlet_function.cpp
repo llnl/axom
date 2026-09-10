@@ -477,6 +477,20 @@ TEST(inlet_function, function_value_alternative_rejects_declaration_after_the_va
   nested.addStruct("group").addDouble("value");
   EXPECT_THROW(nested.addFunctionAsValueAlternative("group/value", FunctionTag::Double, {}),
                axom::slic::SlicAbortException);
+
+  // Collection declarations must check the concrete entries in their elements.
+  auto structArray = createBasicInlet("items = {{value = function() return 2.0 end}}");
+  auto& arrayEntries = structArray.addStructArray("items");
+  arrayEntries.addDouble("value");
+  EXPECT_THROW(arrayEntries.addFunctionAsValueAlternative("value", FunctionTag::Double, {}),
+               axom::slic::SlicAbortException);
+
+  auto structDictionary =
+    createBasicInlet("items = {first = {values = function() return {1.0, 2.0} end}}");
+  auto& dictionaryEntries = structDictionary.addStructDictionary("items");
+  dictionaryEntries.addDoubleArray("values");
+  EXPECT_THROW(dictionaryEntries.addFunctionAsValueAlternative("values", FunctionTag::Vector, {}),
+               axom::slic::SlicAbortException);
 }
 
 TEST(inlet_function, returned_function_keeps_lua_state_alive)
