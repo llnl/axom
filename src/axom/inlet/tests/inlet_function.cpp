@@ -298,7 +298,7 @@ TEST(inlet_function, ordinary_function_suffix_does_not_register_an_alternative)
       scale_inlet_function_alternative = function() return 9.0 end
       offset = function() return 3.0 end
     )",
-                                 enableDocs);
+                                  enableDocs);
     inlet.addFunction("scale_inlet_function_alternative", FunctionTag::Double, {});
     inlet.addFunctionAsValueAlternative("offset", FunctionTag::Double, {});
     inlet.addDouble("offset");
@@ -338,7 +338,7 @@ TEST(inlet_function, function_value_alternative_rejects_function_name_collisions
       auto& ordinaryContainer = alternativeOnRoot ? group : root;
       const std::string valueName = alternativeOnRoot ? "group/scale" : "scale";
       const std::string functionName = alternativeOnRoot ? "scale_inlet_function_alternative"
-                                                        : "group/scale_inlet_function_alternative";
+                                                         : "group/scale_inlet_function_alternative";
       if(alternativeFirst)
       {
         alternativeContainer.addFunctionAsValueAlternative(valueName, FunctionTag::Double, {});
@@ -349,10 +349,9 @@ TEST(inlet_function, function_value_alternative_rejects_function_name_collisions
       else
       {
         ordinaryContainer.addFunction(functionName, FunctionTag::Double, {});
-        EXPECT_THROW(alternativeContainer.addFunctionAsValueAlternative(valueName,
-                                                                       FunctionTag::Double,
-                                                                       {}),
-                     axom::slic::SlicAbortException);
+        EXPECT_THROW(
+          alternativeContainer.addFunctionAsValueAlternative(valueName, FunctionTag::Double, {}),
+          axom::slic::SlicAbortException);
         EXPECT_FALSE(group.containsFunctionValueAlternative("scale"));
         EXPECT_DOUBLE_EQ(group["scale_inlet_function_alternative"].call<double>(), 9.0);
       }

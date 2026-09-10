@@ -228,14 +228,13 @@ void checkVectorSize(const std::vector<double>& values,
   auto expectedSize = static_cast<std::size_t>(expectedDims);
   if(actualSize != expectedSize)
   {
-    throw KleeError({fieldPath(container, fieldName),
-                     fieldMessage(container,
-                                  fieldName,
-                                  ownerLabel,
-                                  fmt::format("Wrong size for {}. Expected {}. Got {}.",
-                                              fieldName,
-                                              expectedSize,
-                                              actualSize))});
+    throw KleeError(
+      {fieldPath(container, fieldName),
+       fieldMessage(
+         container,
+         fieldName,
+         ownerLabel,
+         fmt::format("Wrong size for {}. Expected {}. Got {}.", fieldName, expectedSize, actualSize))});
   }
 }
 
