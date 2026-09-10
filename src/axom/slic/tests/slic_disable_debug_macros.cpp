@@ -6,30 +6,30 @@
 
 #include "axom/config.hpp"
 
-// Exercise the Slic debug macro guard independently of AXOM_DEBUG.
-#ifdef AXOM_DEBUG
-  #undef AXOM_DEBUG
+// Exercise the explicit Slic override when AXOM_DEBUG is enabled.
+#ifndef AXOM_DEBUG
+  #define AXOM_DEBUG 1
 #endif
 
 #ifdef AXOM_ENABLE_SLIC_DEBUG_MACROS
   #undef AXOM_ENABLE_SLIC_DEBUG_MACROS
 #endif
-#define AXOM_ENABLE_SLIC_DEBUG_MACROS 1
+#define AXOM_ENABLE_SLIC_DEBUG_MACROS 0
 
 #include "axom/slic.hpp"
 
 #include "gtest/gtest.h"
 
-TEST(slic_enable_debug_macros, enabled_without_axom_debug)
+TEST(slic_disable_debug_macros, disabled_with_axom_debug)
 {
   axom::slic::SimpleLogger logger;
   int evaluation_count = 0;
 
   SLIC_ASSERT(++evaluation_count == 1);
-  SLIC_CHECK(++evaluation_count == 2);
+  SLIC_CHECK(++evaluation_count == 1);
   SLIC_DEBUG(++evaluation_count);
 
-  EXPECT_EQ(evaluation_count, 3);
+  EXPECT_EQ(evaluation_count, 0);
 }
 
 int main(int argc, char* argv[])

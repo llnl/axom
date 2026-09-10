@@ -67,7 +67,7 @@ class SetFixtureS : public ::testing::Test
 public:
   void SetUp()
   {
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     EXPECT_DEATH_IF_SUPPORTED(SLIC_ASSERT_MSG(false, "Testing assert in fixture setup"), "");
 #else
     SLIC_WARNING("Testing warning in fixture setup");
@@ -83,7 +83,7 @@ class SetFixtureT : public ::testing::Test
 public:
   void TearDown()
   {
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     EXPECT_DEATH_IF_SUPPORTED(SLIC_ASSERT_MSG(false, "Testing assert in fixture teardown"), "");
 #else
     SLIC_WARNING("Testing warning in fixture teardown");
@@ -115,7 +115,7 @@ public:
 TEST(slic_usage, in_test)
 {
   SLIC_ASSERT_MSG(true, "Testing SLIC assert (true) in test body");
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   EXPECT_DEATH_IF_SUPPORTED(SLIC_ASSERT_MSG(false, "Testing SLIC assert(false) in test body"), "")
     << "SLIC assert (false) from a test";
 #else
@@ -128,7 +128,7 @@ TEST(slic_usage, in_test)
 
 TEST(slic_usage, in_ctor)
 {
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   EXPECT_DEATH_IF_SUPPORTED(AssertCtor(), "") << " SLIC assert from class .ctor ";
 #else
   AssertCtor();
@@ -138,7 +138,7 @@ TEST(slic_usage, in_ctor)
 TEST(slic_usage, in_method)
 {
   AssertMethod am;
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   EXPECT_DEATH_IF_SUPPORTED(am.foo(), "") << " SLIC assert from class method ";
 #else
   am.foo();
@@ -147,7 +147,7 @@ TEST(slic_usage, in_method)
 
 TEST(slic_usage, in_dtor)
 {
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   EXPECT_DEATH_IF_SUPPORTED(AssertDtor(), "") << " SLIC assert from class .ctor ";
 #else
   AssertDtor();

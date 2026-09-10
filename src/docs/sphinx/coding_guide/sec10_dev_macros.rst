@@ -141,11 +141,20 @@ problematic usage. Here's an example of common *SLIC* macro usage in AXOM::
      return bar;
    }
 
-This example uses Slic macros that are active when ``AXOM_DEBUG_DEFINE``
-enables ``AXOM_DEBUG`` or when Axom is configured with
-``AXOM_ENABLE_SLIC_DEBUG_MACROS=ON``. Otherwise, the macros are empty and do
-nothing. When a condition is encountered that is problematic, such as
-'in_val < 0' or 'in_foo == nullptr', the code will
+This example uses Slic macros controlled by the
+``AXOM_ENABLE_SLIC_DEBUG_MACROS`` CMake setting. ``DEFAULT`` follows
+``AXOM_DEBUG``: the macros are active when the ``AXOM_DEBUG`` compiler
+definition is visible and are empty otherwise. With
+``AXOM_DEBUG_DEFINE=DEFAULT``, Axom defines
+``AXOM_DEBUG`` in ``Debug`` and ``RelWithDebInfo`` configurations and does not
+define it in ``Release`` or ``MinSizeRel``. An installed Axom can export that
+definition to downstream targets, independently of the downstream build type.
+``ON`` or ``OFF`` explicitly enables or disables the Slic macros without
+changing other code guarded by ``AXOM_DEBUG``. A downstream CMake project can
+set this variable before calling ``find_package(axom)`` to override the setting
+exported by Axom. When disabled, the macros are empty and do nothing. When a
+condition is encountered that is problematic, such as 'in_val < 0' or
+'in_foo == nullptr', the code will
 emit the condition and an optional message and not halt. This allows calling
 code to catch the issue (in this case a null return value) and react. There
 are other macros (e.g., SLIC_ASSERT) that will halt the code if that is 
