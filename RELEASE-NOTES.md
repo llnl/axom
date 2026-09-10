@@ -69,9 +69,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   after the `Inlet` and `LuaReader` are destroyed.
 - Inlet: Redeclaring a nested function through a parent `Container`, e.g. `addFunction("group/f", ...)`
   after `group.addFunction("f", ...)`, returns the existing function instead of reporting a SLIC error.
-- Slic: Adds the `AXOM_ENABLE_SLIC_DEBUG_MACROS` CMake option to enable the
-  `SLIC_ASSERT`, `SLIC_CHECK`, and `SLIC_DEBUG` macro families independently of
-  `AXOM_DEBUG`.
+- Slic: Adds the `AXOM_ENABLE_SLIC_DEBUG_MACROS` CMake setting with `DEFAULT`,
+  `ON`, and `OFF` values to control the `SLIC_ASSERT`, `SLIC_CHECK`, and
+  `SLIC_DEBUG` macro families independently of `AXOM_DEBUG`. Downstream CMake
+  projects can override the setting exported by Axom. With `DEFAULT`, the
+  macros are enabled when `AXOM_DEBUG` is defined and compiled to no-ops
+  otherwise.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 

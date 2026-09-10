@@ -409,10 +409,18 @@ Axom build options, compiler support, and parallelism
 |                               |         | but this can be overridden by setting  |
 |                               |         | `AXOM_DEBUG_DEFINE` to `ON` or `OFF`   |
 +-------------------------------+---------+----------------------------------------+
-| AXOM_ENABLE_SLIC_DEBUG_MACROS | OFF     | Enable the ``SLIC_ASSERT``,            |
+| AXOM_ENABLE_SLIC_DEBUG_MACROS | DEFAULT | Controls the ``SLIC_ASSERT``,          |
 |                               |         | ``SLIC_CHECK``, and ``SLIC_DEBUG``     |
-|                               |         | macro families independently of        |
-|                               |         | ``AXOM_DEBUG``                         |
+|                               |         | macro families. ``DEFAULT`` enables    |
+|                               |         | them when                              |
+|                               |         | ``AXOM_DEBUG`` is defined and disabled |
+|                               |         | otherwise. With the default            |
+|                               |         | ``AXOM_DEBUG_DEFINE`` setting, this is |
+|                               |         | normally ``Debug`` and                 |
+|                               |         | ``RelWithDebInfo`` only. ``ON`` and    |
+|                               |         | ``OFF`` explicitly enable or disable   |
+|                               |         | the Slic macros independently of       |
+|                               |         | ``AXOM_DEBUG``.                        |
 +-------------------------------+---------+----------------------------------------+
 | AXOM_DEFAULT_HOST_ALLOCATOR   | MALLOC  | Controls the allocator used by default |
 |                               |         | for host execution spaces. Valid       |

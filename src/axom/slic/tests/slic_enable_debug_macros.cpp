@@ -11,6 +11,9 @@
   #undef AXOM_DEBUG
 #endif
 
+#ifdef AXOM_ENABLE_SLIC_DEBUG_MACROS
+  #undef AXOM_ENABLE_SLIC_DEBUG_MACROS
+#endif
 #define AXOM_ENABLE_SLIC_DEBUG_MACROS 1
 
 #include "axom/slic.hpp"

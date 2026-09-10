@@ -326,7 +326,7 @@ TEST(slic_macros, test_info_macros)
 TEST(slic_macros, test_debug_macros)
 {
   EXPECT_TRUE(slic::internal::is_stream_empty());
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   EXPECT_SLIC_LOG(SLIC_DEBUG("test debug message"), "DEBUG", "test debug message");
 
   EXPECT_SLIC_ONCE(SLIC_DEBUG_ONCE("test debug message once"), "DEBUG", "test debug message once");
@@ -409,7 +409,7 @@ TEST(slic_macros, test_assert_macros)
   constexpr int val = 42;
   SLIC_ASSERT(val < 0);
   expected_line_number = __LINE__ - 1;
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("ERROR", "Failed Assert: val < 0", expected_line_number);
 #else
   // SLIC_ASSERT macros only log messages when Slic debug macros are enabled
@@ -423,7 +423,7 @@ TEST(slic_macros, test_assert_macros)
 
   SLIC_ASSERT_MSG(val < 0, "val should be negative!");
   expected_line_number = __LINE__ - 1;
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("ERROR",
                             "Failed Assert: val < 0\nval should be negative!",
                             expected_line_number);
@@ -444,7 +444,7 @@ TEST(slic_macros, test_check_macros)
   constexpr int val = 42;
   SLIC_CHECK(val < 0);
   expected_line_number = __LINE__ - 1;
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("WARNING", "Failed Check: val < 0", expected_line_number);
 #else
   // SLIC_CHECK macros only log messages when Slic debug macros are enabled
@@ -458,7 +458,7 @@ TEST(slic_macros, test_check_macros)
 
   SLIC_CHECK_MSG(val < 0, "val should be negative!");
   expected_line_number = __LINE__ - 1;
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
   check_level_msg_line_file("WARNING",
                             "Failed Check: val < 0\nval should be negative!",
                             expected_line_number);

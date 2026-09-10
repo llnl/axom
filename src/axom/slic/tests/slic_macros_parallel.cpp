@@ -881,7 +881,7 @@ TEST_P(SlicMacrosParallel, test_debug_macros)
 
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
-#if defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG("test debug message"), "DEBUG", "test debug message");
 
@@ -1088,7 +1088,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
         slic::disableAbortOnError();
       }
 
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
 
       bool abort_enabled = slic::isAbortOnErrorsEnabled();
 
@@ -1221,7 +1221,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
         slic::disableAbortOnWarning();
       }
 
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
 
       bool abort_enabled = slic::isAbortOnWarningsEnabled();
 
@@ -1332,7 +1332,7 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
   constexpr int val = 42;
 
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ASSERT(val < 0), "ERROR", "Failed Assert: val < 0");
 
@@ -1365,7 +1365,7 @@ TEST_P(SlicMacrosParallel, test_check_macros)
 
   constexpr int val = 42;
 
-#if (defined(AXOM_DEBUG) || defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)) && !defined(AXOM_DEVICE_CODE)
+#if (AXOM_SLIC_DEBUG_MACROS_ENABLED) && !defined(AXOM_DEVICE_CODE)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_CHECK(val < 0), "WARNING", "Failed Check: val < 0");
 
   // Single line - Placement of ")" matters for __LINE__ for slic call and checking
