@@ -255,7 +255,7 @@ TEST(GeometryOperatorsIO, readTranslation_wrongDimensions)
     const auto input = dims == Dimensions::Two ? R"(
       translate: [1, 2, 3]
     )"
-                                              : R"(
+                                               : R"(
       translate: [1, 2]
     )";
     try
@@ -380,7 +380,7 @@ TEST(GeometryOperatorsIO, readRotation_wrongCenterDimensions)
       rotate: 45
       center: [1, 2, 3]
     )"
-                                              : R"(
+                                               : R"(
       rotate: 45
       axis: [0, 0, 1]
       center: [1, 2]
@@ -550,7 +550,7 @@ TEST(GeometryOperatorsIO, readScale_wrongDimensions)
     const auto input = dims == Dimensions::Two ? R"(
       scale: [1, 2, 3]
     )"
-                                              : R"(
+                                               : R"(
       scale: [1, 2]
     )";
     try
@@ -564,7 +564,7 @@ TEST(GeometryOperatorsIO, readScale_wrongDimensions)
       EXPECT_EQ("scale", err.getErrors()[0].path.baseName());
       EXPECT_EQ("0", err.getErrors()[0].path.parent().baseName());
       EXPECT_EQ(dims == Dimensions::Two ? "Wrong size for scale. Expected 2. Got 3."
-                                       : "Wrong size for scale. Expected 3. Got 2.",
+                                        : "Wrong size for scale. Expected 3. Got 2.",
                 err.getErrors()[0].message);
     }
   }

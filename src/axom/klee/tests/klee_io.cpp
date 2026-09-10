@@ -2045,8 +2045,8 @@ TEST(IOTest, readShapeSet_luaCallbackWrongVectorDimensionIncludesContext)
               path = "wrong_dim.stl",
               units = "cm",
               operators = {
-                { )" << field
-            << " = function() return " << (dims == 2 ? "{1, 2, 3}" : "{1, 2}") << R"( end }
+                { )"
+            << field << " = function() return " << (dims == 2 ? "{1, 2, 3}" : "{1, 2}") << R"( end }
               }
             }
           }
