@@ -1,7 +1,6 @@
 {
   "name": "mfem",
-  "$comment":"TODO: We're planning to update to release 4.10 when it is available",
-  "version-string": "master-commit-c8ef9676e83c93a9037dbdf3bf0f2d741321e632",
+  "version-string": "4.10",
   "homepage": "http://mfem.org",
   "description": "Lightweight, general, scalable C++ library for finite element methods",
   "supports": "!uwp"

@@ -32,7 +32,7 @@ namespace data
  * \param mesh The node that contains the blueprint mesh and fields.
  * \param dist The radial distance of interest.
  */
-void add_distance(conduit::Node& mesh, float dist = 6.5f)
+inline void add_distance(conduit::Node& mesh, float dist = 6.5f)
 {
   // Make a new distance field.
   const conduit::Node& n_coordset = mesh["coordsets"][0];
@@ -76,10 +76,10 @@ void braid(const std::string& type, const Dimensions& dims, conduit::Node& mesh)
 }
 
 // Return the max value for element i in vfA, vfB, vfC.
-float make_field_value(const std::vector<float>& vfA,
-                       const std::vector<float>& vfB,
-                       const std::vector<float>& vfC,
-                       size_t i)
+inline float make_field_value(const std::vector<float>& vfA,
+                              const std::vector<float>& vfB,
+                              const std::vector<float>& vfC,
+                              size_t i)
 {
   return vfA[i] + vfB[i] + vfC[i];
 }
@@ -96,12 +96,12 @@ float make_field_value(const std::vector<float>& vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_unibuffer(const std::vector<float>& vfA,
-                    const std::vector<float>& vfB,
-                    const std::vector<float>& vfC,
-                    const std::vector<int>& matnos,
-                    conduit::Node& matset,
-                    conduit::Node& mfield)
+inline void make_unibuffer(const std::vector<float>& vfA,
+                           const std::vector<float>& vfB,
+                           const std::vector<float>& vfC,
+                           const std::vector<int>& matnos,
+                           conduit::Node& matset,
+                           conduit::Node& mfield)
 {
   std::vector<int> material_ids;
   std::vector<float> volume_fractions, field_values;
@@ -164,12 +164,12 @@ void make_unibuffer(const std::vector<float>& vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_multibuffer(const std::vector<float>& vfA,
-                      const std::vector<float>& vfB,
-                      const std::vector<float>& vfC,
-                      const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
-                      conduit::Node& matset,
-                      conduit::Node& mfield)
+inline void make_multibuffer(const std::vector<float>& vfA,
+                             const std::vector<float>& vfB,
+                             const std::vector<float>& vfC,
+                             const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
+                             conduit::Node& matset,
+                             conduit::Node& mfield)
 {
   std::vector<int> indices(vfA.size());
   std::iota(indices.begin(), indices.end(), 0);
@@ -199,12 +199,12 @@ void make_multibuffer(const std::vector<float>& vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_element_dominant(const std::vector<float>& vfA,
-                           const std::vector<float>& vfB,
-                           const std::vector<float>& vfC,
-                           const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
-                           conduit::Node& matset,
-                           conduit::Node& mfield)
+inline void make_element_dominant(const std::vector<float>& vfA,
+                                  const std::vector<float>& vfB,
+                                  const std::vector<float>& vfC,
+                                  const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
+                                  conduit::Node& matset,
+                                  conduit::Node& mfield)
 {
   // NOTE: These are not sparse.
   matset["volume_fractions/A"].set(vfA);
@@ -229,12 +229,12 @@ void make_element_dominant(const std::vector<float>& vfA,
  * \param[out] matset The node that will contain the matset.
  * \param[out] mfield The node that will contain the mixed field.
  */
-void make_material_dominant(const std::vector<float>& vfA,
-                            const std::vector<float>& vfB,
-                            const std::vector<float>& vfC,
-                            const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
-                            conduit::Node& matset,
-                            conduit::Node& mfield)
+inline void make_material_dominant(const std::vector<float>& vfA,
+                                   const std::vector<float>& vfB,
+                                   const std::vector<float>& vfC,
+                                   const std::vector<int>& AXOM_UNUSED_PARAM(matnos),
+                                   conduit::Node& matset,
+                                   conduit::Node& mfield)
 {
   std::vector<float> svfA, svfB, svfC;  // sparse arrays
   std::vector<int> ziA, ziB, ziC;
@@ -440,7 +440,7 @@ void make_matset(const std::string& type,
  *
  * \param[out] mesh The node that will contain the new mesh.
  */
-void mixed3d(conduit::Node& mesh)
+inline void mixed3d(conduit::Node& mesh)
 {
   // clang-format off
   const std::vector<int> conn{{
@@ -517,7 +517,7 @@ void mixed3d(conduit::Node& mesh)
  *
  * \param[out] hostMesh A node that contains the mesh on the host.
  */
-void make_one_hex(conduit::Node &hostMesh)
+inline void make_one_hex(conduit::Node &hostMesh)
 {
   hostMesh["coordsets/coords/type"] = "explicit";
   hostMesh["coordsets/coords/values/x"].set(
@@ -544,7 +544,7 @@ void make_one_hex(conduit::Node &hostMesh)
  *
  * \param[out] hostMesh A node that contains the mesh on the host.
  */
-void make_one_tet(conduit::Node &hostMesh)
+inline void make_one_tet(conduit::Node &hostMesh)
 {
   hostMesh["coordsets/coords/type"] = "explicit";
   hostMesh["coordsets/coords/values/x"].set(std::vector<float> {{0., 0., 1., 0.}});
@@ -568,7 +568,7 @@ void make_one_tet(conduit::Node &hostMesh)
  * \param[out] hostMesh A node that contains the mesh on the host.
  */
 
-void make_one_pyr(conduit::Node &hostMesh)
+inline void make_one_pyr(conduit::Node &hostMesh)
 {
   hostMesh["coordsets/coords/type"] = "explicit";
   hostMesh["coordsets/coords/values/x"].set(
@@ -595,7 +595,7 @@ void make_one_pyr(conduit::Node &hostMesh)
  *
  * \param[out] hostMesh A node that contains the mesh on the host.
  */
-void make_one_wdg(conduit::Node &hostMesh)
+inline void make_one_wdg(conduit::Node &hostMesh)
 {
   hostMesh["coordsets/coords/type"] = "explicit";
   hostMesh["coordsets/coords/values/x"].set(
