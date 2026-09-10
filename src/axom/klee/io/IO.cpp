@@ -109,25 +109,6 @@ public:
 
       std::unordered_set<std::string> exportedNames;
       auto exportPath = [&](const std::string& name) { return Path::join({chunkPath, Path {name}}); };
-      auto typeName = [](axom::sol::type type) {
-        switch(type)
-        {
-        case axom::sol::type::boolean:
-          return "boolean";
-        case axom::sol::type::number:
-          return "number";
-        case axom::sol::type::string:
-          return "string";
-        case axom::sol::type::table:
-          return "table";
-        case axom::sol::type::function:
-          return "function";
-        case axom::sol::type::nil:
-          return "nil";
-        default:
-          return "unsupported";
-        }
-      };
 
       for(const auto& entry : tableOption.value())
       {
@@ -154,24 +135,6 @@ public:
                              "Exported Lua global name '{}' conflicts with an existing Lua global.",
                              name))});
         }
-        switch(entry.second.get_type())
-        {
-        case axom::sol::type::boolean:
-        case axom::sol::type::number:
-        case axom::sol::type::string:
-        case axom::sol::type::function:
-        case axom::sol::type::table:
-          break;
-        default:
-          throw KleeError({exportPath(name),
-                           chunkMessage(axom::fmt::format(
-                             "Exported Lua global '{}' has unsupported value type '{}'. "
-                             "Supported exported global value types are booleans, numbers, "
-                             "strings, tables, and functions.",
-                             name,
-                             typeName(entry.second.get_type())))});
-        }
-
         // Preserve the original Lua representation. In particular, copying a
         // Lua integer through a C++ double can silently lose precision.
         (*lua)[name] = entry.second;

@@ -745,6 +745,52 @@ TEST(IOTest, readShapeSet_luaInitializationExportsMutableGlobals)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {1.0, 2.0, 7.0}));
 }
 
+TEST(IOTest, readShapeSet_luaInitializationExportsVectorValues)
+{
+  LuaInputOptions options;
+  options.initialization = LuaInitializationChunk {R"(
+    return {
+      offset = Vector.new(1, 2),
+      settings = {offset = Vector.new(3, 4)}
+    }
+  )"};
+
+  auto shapeSet = readShapeSetFromString(R"(
+    dimensions = 2
+    shapes = {
+      {
+        name = "vector_exports",
+        material = "steel",
+        geometry = {
+          format = "stl",
+          path = "part.stl",
+          units = "cm",
+          operators = {
+            { translate = function() return offset end },
+            { translate = function() return settings.offset end }
+          }
+        }
+      }
+    }
+  )",
+                                         InputFormat::Lua,
+                                         options);
+
+  ASSERT_EQ(1u, shapeSet.getShapes().size());
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(
+    shapeSet.getShapes()[0].getGeometry().getGeometryOperator());
+  ASSERT_TRUE(composite);
+  const std::array<Vector3D, 2> expectedOffsets {{{1, 2, 0}, {3, 4, 0}}};
+  ASSERT_EQ(expectedOffsets.size(), composite->getOperators().size());
+  for(std::size_t i = 0; i < expectedOffsets.size(); ++i)
+  {
+    SCOPED_TRACE(i);
+    auto translation = std::dynamic_pointer_cast<const Translation>(composite->getOperators()[i]);
+    ASSERT_TRUE(translation);
+    EXPECT_THAT(translation->getOffset(), AlmostEqVector(expectedOffsets[i]));
+  }
+}
+
 TEST(IOTest, readShapeSet_luaInitializationExportsCyclicHelper)
 {
   LuaInputOptions options;
@@ -943,13 +989,12 @@ TEST(IOTest, readShapeSet_luaInitializationRejectsInvalidChunks)
     std::string expectedMessage;
   };
 
-  const std::array<InvalidInitialization, 6> invalidInitializations {{
+  const std::array<InvalidInitialization, 5> invalidInitializations {{
     {"", "empty"},
     {"return {", "Failed to evaluate"},
     {"error('initialization boom')", "initialization boom"},
     {"local value = 2", "must return a table"},
     {"return {[1] = 2}", "string keys"},
-    {"return {bad = Vector.new(1, 2)}", "unsupported value type"},
   }};
 
   for(const auto& invalid : invalidInitializations)
