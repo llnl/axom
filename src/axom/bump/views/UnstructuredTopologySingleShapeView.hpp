@@ -100,6 +100,14 @@ public:
   }
 
   /*!
+   * \brief Return the element-associated field index for a zone.
+   *
+   * \param zoneIndex The zone index.
+   * \return The zone index. Identity in this case; other views use compact indexing.
+   */
+  AXOM_HOST_DEVICE inline IndexType zoneFieldIndex(IndexType zoneIndex) const { return zoneIndex; }
+
+  /*!
    * \brief Return the size of the connectivity.
    *
    * \return The size of the connectivity.

@@ -674,6 +674,70 @@ TEST(bump_views, dispatch_coordset_dimensions_rectilinear)
   test_dispatch_coordset_dimensions("rectilinear", "coords");
 }
 
+//------------------------------------------------------------------------------
+// Verify field indexing for compact and padded topology views.
+//------------------------------------------------------------------------------
+TEST(bump_views, zone_field_index_strided_structured)
+{
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+
+  auto topoView = views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+  const auto nzones = topoView.numberOfZones();
+  ASSERT_GT(nzones, 0);
+
+  const conduit::Node& n_vals = mesh.fetch_existing("fields/ele_vals/values");
+  const conduit::double_accessor vals = n_vals.as_double_accessor();
+
+  // Padding makes an identity mapping point into the array but at the wrong zone.
+  ASSERT_GT(vals.number_of_elements(), nzones);
+
+  bool anyDiffers = false;
+  for(axom::IndexType z = 0; z < nzones; z++)
+  {
+    const auto fieldIndex = topoView.zoneFieldIndex(z);
+    EXPECT_GE(fieldIndex, 0);
+    EXPECT_LT(fieldIndex, vals.number_of_elements());
+    anyDiffers = anyDiffers || (fieldIndex != z);
+  }
+  EXPECT_TRUE(anyDiffers)
+    << "Expected a padded structured topology to use nonidentity field indices";
+}
+
+TEST(bump_views, zone_field_index_compact_is_identity)
+{
+  // A compact structured view uses zone indices as field indices.
+  {
+    conduit::Node mesh;
+    axom::blueprint::testing::data::braid("structured", std::vector<int> {5, 5, 5}, mesh);
+    auto topoView = views::make_structured_topology<3>::view(mesh["topologies/mesh"]);
+    ASSERT_GT(topoView.numberOfZones(), 0);
+    for(axom::IndexType z = 0; z < topoView.numberOfZones(); z++)
+    {
+      EXPECT_EQ(topoView.zoneFieldIndex(z), z);
+    }
+  }
+
+  // The view's index type must match the connectivity type. Braid writes int32,
+  // so convert the connectivity before creating an index_t view.
+  {
+    conduit::Node mesh;
+    axom::blueprint::testing::data::braid("hexs", std::vector<int> {4, 4, 4}, mesh);
+    conduit::Node conn;
+    mesh["topologies/mesh/elements/connectivity"].to_index_t_array(conn);
+    mesh["topologies/mesh/elements/connectivity"].set(conn);
+
+    auto topoView =
+      views::make_unstructured_single_shape_topology<views::HexShape<conduit::index_t>>::view(
+        mesh["topologies/mesh"]);
+    ASSERT_GT(topoView.numberOfZones(), 0);
+    for(axom::IndexType z = 0; z < topoView.numberOfZones(); z++)
+    {
+      EXPECT_EQ(topoView.zoneFieldIndex(z), z);
+    }
+  }
+}
+
 TEST(bump_views, dispatch_coordset_dimensions_explicit)
 {
   // "quads"/"hexs" braid meshes carry an explicit coordset.
