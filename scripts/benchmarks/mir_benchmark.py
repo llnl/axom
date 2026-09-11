@@ -42,12 +42,12 @@ def generate(params):
     if not os.path.exists(r):
       print(f"Skipping {r}")
       continue
-    filename = os.path.join(r, "run_concentric_circles.bash")
+    filename = os.path.join(r, "run_driver.bash")
 
     f = open(filename, "wt")
     f.write("#!/bin/bash\n\n")
-    f.write("CONCENTRIC_CIRCLES=./examples/mir_concentric_circles\n")
-    f.write("CONCENTRIC_CIRCLES_MPI=./examples/mir_concentric_circles_mpi\n\n")
+    f.write(f"DRIVER=./examples/{params['driver']}\n")
+    f.write(f"DRIVER_MPI=./examples/{params['driver']}_mpi\n\n")
 
     f.write("export OMP_PLACES=cores\n")
     f.write("export OMP_PROC_BIND=spread\n")
@@ -62,13 +62,13 @@ def generate(params):
         for np in params["parallel"]:
           launch = runs[r]["launch"](np)
           for policy in runs[r]["policies"]:
-            f.write(f'echo "Running {launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
-            f.write(f'{launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
+            f.write(f'echo "Running {launch} $DRIVER_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+            f.write(f'{launch} $DRIVER_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
       else:
         # serial
         for policy in runs[r]["policies"]:
-          f.write(f'echo "Running --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
-          f.write(f'$CONCENTRIC_CIRCLES --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
+          f.write(f'echo "Running $DRIVER --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+          f.write(f'$DRIVER --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
 
     f.close()
     os.chmod(filename, 0o700)
@@ -461,6 +461,13 @@ def get_params():
   )
 
   parser.add_argument(
+    "--driver",
+    type=str,
+    help="Driver program to use (e.g., 'mir_concentric_circles', 'mir_heavily_mixed')",
+    required=False
+  )
+
+  parser.add_argument(
     "--method",
     type=str,
     help="MIR method to use (e.g., 'equiz', 'elvira')",
@@ -518,6 +525,11 @@ def get_params():
 
   params = {}
   params["parallel"] = parallel
+  if args.driver is not None:
+    params["driver"] = args.driver
+  else:
+    params["driver"] = "mir_concentric_circles"
+
   if args.method is not None:
     params["method"] = args.method
   else:
@@ -583,7 +595,7 @@ def main():
     plot(params)
   else:
     print("Making CSV...")
-    make_csv(params, "concentric_circle_timings.csv")
+    make_csv(params, params["driver"] + "_timings.csv")
 
 if __name__ == "__main__":
   main()
