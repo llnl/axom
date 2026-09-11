@@ -243,6 +243,7 @@ HMApplication::HMApplication()
   , m_refinement(40)
   , m_numTrials(1)
   , m_writeFiles(true)
+  , m_loadFile(false)
   , m_cleanMesh(true)
   , m_outputFilePath("output")
   , m_method("elvira")
@@ -275,6 +276,7 @@ int HMApplication::initialize(int argc, char** argv)
     ->description("The file path for HDF5/YAML output files");
   bool disable_write = !m_writeFiles;
   app.add_flag("--disable-write", disable_write)->description("Disable writing data files");
+  app.add_flag("--load-file", m_loadFile)->description("Attempt to read the input mesh from a file (if it exists).");
   app.add_option("--cleanmesh", m_cleanMesh)
     ->check(axom::CLI::IsMember({"on", "off"}))
     ->description("Enable or disable ELVIRA mesh cleanup (on/off).")
@@ -371,7 +373,24 @@ int HMApplication::runMIR()
 {
   // Initialize a mesh for testing MIR
   auto timer = axom::utilities::Timer(true);
+
+  std::string meshRoot = axom::fmt::format("heavily_mixed_{}_{}_{}", m_dims[0], m_dims[1], m_dims[2]);
+  std::string meshRootWithExt = axom::fmt::format("{}.root", meshRoot);
   conduit::Node mesh;
+  bool generate = true;
+  if(m_loadFile)
+  {
+    if(loadMesh(mesh, meshRootWithExt))
+    {
+      SLIC_INFO(axom::fmt::format("Loaded mesh file {}.", meshRootWithExt));
+      generate = false;
+    }
+    else
+    {
+      SLIC_INFO(axom::fmt::format("The mesh file {} could not be found so it will be generated.", meshRootWithExt));
+    }
+  }
+  if(generate)
   {
     AXOM_ANNOTATE_SCOPE("generate");
 
@@ -391,7 +410,7 @@ int HMApplication::runMIR()
   // Output initial mesh.
   if(m_writeFiles)
   {
-    saveMesh(mesh, "heavily_mixed");
+    saveMesh(mesh, meshRoot);
   }
 
   // Begin material interface reconstruction
@@ -471,6 +490,28 @@ size_t HMApplication::estimateMemoryPoolSize() const
 void HMApplication::adjustMesh(conduit::Node&) { }
 
 //--------------------------------------------------------------------------------
+bool HMApplication::loadMesh(conduit::Node& n_mesh, const std::string& path)
+{
+  AXOM_ANNOTATE_SCOPE("loadMesh");
+#if defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
+  std::string protocol("hdf5");
+#else
+  std::string protocol("yaml");
+#endif
+  bool retval = false;
+
+  if(axom::utilities::filesystem::pathExists(path))
+  {
+    conduit::Node n_domain;
+    conduit::relay::io::blueprint::load_mesh(path, n_domain);
+    // Move the domain contents into n_mesh, removing an extra level
+    n_mesh.move(n_domain["domain_000000"]);
+    retval = true;
+  }
+  return retval;
+}
+
+//--------------------------------------------------------------------------------
 void HMApplication::saveMesh(const conduit::Node& n_mesh, const std::string& path)
 {
 #if defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
@@ -479,6 +520,7 @@ void HMApplication::saveMesh(const conduit::Node& n_mesh, const std::string& pat
   std::string protocol("yaml");
 #endif
   conduit::relay::io::blueprint::save_mesh(n_mesh, path, protocol);
+  SLIC_INFO(axom::fmt::format("Saved {}.root", path));
 }
 
 //--------------------------------------------------------------------------------

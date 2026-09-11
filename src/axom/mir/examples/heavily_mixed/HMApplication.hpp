@@ -47,10 +47,18 @@ protected:
   virtual void adjustMesh(conduit::Node&);
 
   /*!
+   * \brief Load the mesh from a file.
+   *
+   * \param n_mesh A node into which the mesh is loaded
+   * \param path The filepath where the file will be loaded (no extension).
+   */
+  virtual bool loadMesh(conduit::Node& n_mesh, const std::string& path);
+
+  /*!
    * \brief Save the mesh to a file.
    *
-   * \param path The filepath where the file will be saved.
    * \param n_mesh The mesh to be saved.
+   * \param path The filepath where the file will be saved (no extension).
    */
   virtual void saveMesh(const conduit::Node& n_mesh, const std::string& path);
 
@@ -72,6 +80,7 @@ protected:
   conduit::index_t m_refinement;
   int m_numTrials;
   bool m_writeFiles;
+  bool m_loadFile;
   bool m_cleanMesh;
   std::string m_outputFilePath;
   std::string m_method;
