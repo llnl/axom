@@ -13,6 +13,8 @@
 #include "axom/bump/views/RectilinearCoordsetView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 
+#include "axom/fmt.hpp"
+
 namespace axom
 {
 namespace bump
@@ -151,13 +153,15 @@ struct make_uniform_coordset<2>
 /*!
  * \brief Dispatch an uniform coordset to a function.
  *
+ * \tparam SelectedDimensions An integer whose bits indicate which dimensions are instantiated.
+ *                  A dimension that is not selected is not instantiated and \a func is not called for it.
  * \tparam FuncType The type of the function / lambda to invoke. It is expected
  *                  that the callable accepts an auto argument for a coordset view.
  *
  * \param coordset The Conduit node that contains the coordset.
  * \param func     The function/lambda to invoke using the coordset view.
  */
-template <typename FuncType>
+template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_uniform_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   verify(coordset, "coordset");
@@ -165,13 +169,19 @@ void dispatch_uniform_coordset(const conduit::Node& coordset, FuncType&& func)
   const conduit::index_t ndims = n_dims.number_of_children();
   if(ndims == 2)
   {
-    auto coordsetView = make_uniform_coordset<2>::view(coordset);
-    func(coordsetView);
+    if constexpr(dimension_selected(SelectedDimensions, 2))
+    {
+      auto coordsetView = make_uniform_coordset<2>::view(coordset);
+      func(coordsetView);
+    }
   }
   else if(ndims == 3)
   {
-    auto coordsetView = make_uniform_coordset<3>::view(coordset);
-    func(coordsetView);
+    if constexpr(dimension_selected(SelectedDimensions, 3))
+    {
+      auto coordsetView = make_uniform_coordset<3>::view(coordset);
+      func(coordsetView);
+    }
   }
   else
   {
@@ -182,34 +192,42 @@ void dispatch_uniform_coordset(const conduit::Node& coordset, FuncType&& func)
 /*!
  * \brief Dispatch a rectilinear coordset to a function.
  *
+ * \tparam SelectedDimensions An integer whose bits indicate which dimensions are instantiated.
+ *                  A dimension that is not selected is not instantiated and \a func is not called for it.
  * \tparam FuncType The type of the function / lambda to invoke. It is expected
  *                  that the callable accepts an auto argument for a coordset view.
  *
  * \param coordset The Conduit node that contains the coordset.
  * \param func     The function/lambda to invoke using the coordset view.
  */
-template <typename FuncType>
+template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_rectilinear_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   verify(coordset, "coordset");
   const conduit::Node& values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
-      RectilinearCoordsetView2<typename decltype(xView)::value_type> coordView(xView, yView);
-      func(coordView);
-    });
+    if constexpr(dimension_selected(SelectedDimensions, 2))
+    {
+      axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
+        RectilinearCoordsetView2<typename decltype(xView)::value_type> coordView(xView, yView);
+        func(coordView);
+      });
+    }
   }
   else if(values.number_of_children() == 3)
   {
-    axom::bump::views::floatNodeToArrayViewSame(
-      values[0],
-      values[1],
-      values[2],
-      [&](auto xView, auto yView, auto zView) {
-        RectilinearCoordsetView3<typename decltype(xView)::value_type> coordView(xView, yView, zView);
-        func(coordView);
-      });
+    if constexpr(dimension_selected(SelectedDimensions, 3))
+    {
+      axom::bump::views::floatNodeToArrayViewSame(
+        values[0],
+        values[1],
+        values[2],
+        [&](auto xView, auto yView, auto zView) {
+          RectilinearCoordsetView3<typename decltype(xView)::value_type> coordView(xView, yView, zView);
+          func(coordView);
+        });
+    }
   }
   else
   {
@@ -280,34 +298,42 @@ struct make_explicit_coordset<DataType, 2>
 /*!
  * \brief Dispatch an explicit coordset to a function.
  *
+ * \tparam SelectedDimensions An integer whose bits indicate which dimensions are instantiated.
+ *                  A dimension that is not selected is not instantiated and \a func is not called for it.
  * \tparam FuncType The type of the function / lambda to invoke. It is expected
  *                  that the callable accepts an auto argument for a coordset view.
  *
  * \param coordset The Conduit node that contains the coordset.
  * \param func     The function/lambda to invoke using the coordset view.
  */
-template <typename FuncType>
+template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_explicit_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   verify(coordset, "coordset");
   const conduit::Node& values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
-      ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordView(xView, yView);
-      func(coordView);
-    });
+    if constexpr(dimension_selected(SelectedDimensions, 2))
+    {
+      axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
+        ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordView(xView, yView);
+        func(coordView);
+      });
+    }
   }
   else if(values.number_of_children() == 3)
   {
-    axom::bump::views::floatNodeToArrayViewSame(
-      values[0],
-      values[1],
-      values[2],
-      [&](auto xView, auto yView, auto zView) {
-        ExplicitCoordsetView<typename decltype(xView)::value_type, 3> coordView(xView, yView, zView);
-        func(coordView);
-      });
+    if constexpr(dimension_selected(SelectedDimensions, 3))
+    {
+      axom::bump::views::floatNodeToArrayViewSame(
+        values[0],
+        values[1],
+        values[2],
+        [&](auto xView, auto yView, auto zView) {
+          ExplicitCoordsetView<typename decltype(xView)::value_type, 3> coordView(xView, yView, zView);
+          func(coordView);
+        });
+    }
   }
   else
   {
@@ -319,28 +345,34 @@ void dispatch_explicit_coordset(const conduit::Node& coordset, FuncType&& func)
  * \brief Given a Conduit/Blueprint coordset, create an appropriate view and
  *        call the supplied function, passing the coordset view to it.
  *
+ * \tparam SelectedDimensions An integer whose bits indicate which dimensions are instantiated.
+ *                  A dimension that is not selected is not instantiated and \a func is not called for it.
  * \tparam FuncType The type of the function / lambda to invoke. It is expected
  *                  that the callable accepts an auto argument for a coordset view.
  *
  * \param coordset The Conduit node that contains the coordset.
  * \param func     The function/lambda to invoke using the coordset view.
  */
-template <typename FuncType>
+template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_coordset(const conduit::Node& coordset, FuncType&& func)
 {
   const std::string cstype = coordset["type"].as_string();
   if(cstype == "uniform")
   {
-    dispatch_uniform_coordset(coordset, func);
+    dispatch_uniform_coordset<SelectedDimensions>(coordset, func);
   }
   else if(cstype == "rectilinear")
   {
-    dispatch_rectilinear_coordset(coordset, func);
+    dispatch_rectilinear_coordset<SelectedDimensions>(coordset, func);
   }
   else if(cstype == "explicit")
   {
     // TODO: get the axis names.
-    dispatch_explicit_coordset(coordset, func);
+    dispatch_explicit_coordset<SelectedDimensions>(coordset, func);
+  }
+  else
+  {
+    SLIC_ERROR(axom::fmt::format("Unsupported coordset type '{}'.", cstype));
   }
 }
 

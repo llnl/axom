@@ -605,6 +605,92 @@ TEST(bump_views, strided_structured_any_dispatch)
 }
 
 //------------------------------------------------------------------------------
+// Test dispatch_coordset dimension filtering
+//------------------------------------------------------------------------------
+template <int SelectedDimensions>
+struct dispatch_coordset_probe
+{
+  int calls {0};
+  int dimensionSeen {-1};
+
+  void run(const conduit::Node& coordset)
+  {
+    views::dispatch_coordset<SelectedDimensions>(coordset, [&](auto coordsetView) {
+      calls++;
+      dimensionSeen = decltype(coordsetView)::dimension();
+    });
+  }
+};
+
+/// Run every (coordset type x mesh dimension x selected dimension) combination.
+void test_dispatch_coordset_dimensions(const std::string& braidType, const std::string& coordsetName)
+{
+  conduit::Node mesh2d, mesh3d;
+  axom::blueprint::testing::data::braid(braidType, std::vector<int> {4, 5}, mesh2d);
+  axom::blueprint::testing::data::braid(braidType, std::vector<int> {4, 5, 6}, mesh3d);
+
+  const conduit::Node& cs2d = mesh2d.fetch_existing("coordsets/" + coordsetName);
+  const conduit::Node& cs3d = mesh3d.fetch_existing("coordsets/" + coordsetName);
+
+  // Default (all dimensions selected) behaves exactly as before this parameter existed.
+  {
+    dispatch_coordset_probe<views::select_dimensions(1, 2, 3)> p2, p3;
+    p2.run(cs2d);
+    p3.run(cs3d);
+    EXPECT_EQ(p2.calls, 1);
+    EXPECT_EQ(p2.dimensionSeen, 2);
+    EXPECT_EQ(p3.calls, 1);
+    EXPECT_EQ(p3.dimensionSeen, 3);
+  }
+
+  // Selecting only 2D: the 2D coordset dispatches, the 3D coordset does not.
+  {
+    dispatch_coordset_probe<views::select_dimensions(2)> p2, p3;
+    p2.run(cs2d);
+    p3.run(cs3d);
+    EXPECT_EQ(p2.calls, 1);
+    EXPECT_EQ(p2.dimensionSeen, 2);
+    EXPECT_EQ(p3.calls, 0) << "a 3D coordset dispatched even though only 2D was selected";
+  }
+
+  // Selecting only 3D: the mirror image.
+  {
+    dispatch_coordset_probe<views::select_dimensions(3)> p2, p3;
+    p2.run(cs2d);
+    p3.run(cs3d);
+    EXPECT_EQ(p2.calls, 0) << "a 2D coordset dispatched even though only 3D was selected";
+    EXPECT_EQ(p3.calls, 1);
+    EXPECT_EQ(p3.dimensionSeen, 3);
+  }
+}
+
+TEST(bump_views, dispatch_coordset_dimensions_uniform)
+{
+  test_dispatch_coordset_dimensions("uniform", "coords");
+}
+
+TEST(bump_views, dispatch_coordset_dimensions_rectilinear)
+{
+  test_dispatch_coordset_dimensions("rectilinear", "coords");
+}
+
+TEST(bump_views, dispatch_coordset_dimensions_explicit)
+{
+  // "quads"/"hexs" braid meshes carry an explicit coordset.
+  conduit::Node mesh2d, mesh3d;
+  axom::blueprint::testing::data::braid("quads", std::vector<int> {4, 5}, mesh2d);
+  axom::blueprint::testing::data::braid("hexs", std::vector<int> {4, 5, 6}, mesh3d);
+  EXPECT_EQ(mesh2d.fetch_existing("coordsets/coords/type").as_string(), std::string("explicit"));
+
+  dispatch_coordset_probe<views::select_dimensions(3)> p2, p3;
+  p2.run(mesh2d.fetch_existing("coordsets/coords"));
+  p3.run(mesh3d.fetch_existing("coordsets/coords"));
+  EXPECT_EQ(p2.calls, 0) << "a 2D explicit coordset dispatched even though only 3D was selected";
+  EXPECT_EQ(p3.calls, 1);
+  EXPECT_EQ(p3.dimensionSeen, 3);
+}
+
+//------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_braid2d_mat
 {
