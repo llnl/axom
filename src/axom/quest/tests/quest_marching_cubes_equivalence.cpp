@@ -9,32 +9,12 @@
  *
  * @brief Compares the legacy and bump MarchingCubes backends on structured meshes.
  *
- * The outputs do not match one for one.
- *   - The legacy backend emits unwelded facets. Each facet has its own DIM nodes,
-       and adjacent facets duplicate shared vertices.
- *   - The bump backend welds the coordset. In 3D it can produce polygons,
- *     which the adaptor fan-triangulates when filling the legacy triangle output.
- *
- * Counts can differ, but underlying geometry of the extracted mesh cannot.
- *
- * Checks:
- *
- * E1. CROSSING-CELL SET.  The set of parent cell ids that produce at least one
- *     facet must match. This is a relatively cheap test.
- *     Supported structured layouts use the same i-fastest cell numbering in both backends,
- *     and permuted field layouts are rejected.
- *
- * E2. VERTEX SET.  An edge of a cell receives a contour vertex if and only if
- *     its two endpoints lie on opposite sides of the isovalue.
- *     That is a property of the sign pattern not of the case table.
- *
- *     The comparison is a two-sided Hausdorff check with a spatial hash.
- *     Any binning scheme has boundary cases where two near-identical points land in different bins.
- *     The tolerance covers that and bump's single-precision edge interpolation.
- *
- * E3. TOTAL AREA (3D) / LENGTH (2D).  On an ambiguous cell the two case tables may
- *     triangulate the same vertex set differently, and triangulating a non-planar bump polygon
- *     gives an area that depends on the fan origin.
+ * Legacy output duplicates vertices by facet.
+ * Bump output welds vertices and can contain polygons that the adaptor triangulates.
+ * The checks compare:
+ *   - E1: parent cell sets
+ *   - E2: vertex sets
+ *   - E3: area or length when ambiguity cannot change the triangulation
  */
 
 #include "axom/config.hpp"
@@ -54,8 +34,11 @@
 
 #include "conduit_blueprint.hpp"
 
+#include "axom/quest/tests/quest_marching_cubes_testing_helpers.hpp"
+
 #include "gtest/gtest.h"
 
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <cstdint>
@@ -66,161 +49,21 @@
 
 namespace
 {
+namespace mctest = axom::quest::testing::marching_cubes;
+
+using mctest::copyBlueprintToHost;
+using mctest::copyBlueprintToPolicy;
+using mctest::GyroidField;
+using mctest::hostAllocatorID;
+using mctest::PlanarField;
+using mctest::RoundField;
+
 using RuntimePolicy = axom::runtime_policy::Policy;
 
-int hostAllocatorID() { return axom::execution_space<axom::SEQ_EXEC>::allocatorID(); }
-
-void copyBlueprintToPolicy(conduit::Node& dst,
-                           const conduit::Node& src,
-                           RuntimePolicy policy,
-                           int allocatorID)
-{
-  namespace bputils = axom::bump::utilities;
-
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  if(policy == RuntimePolicy::cuda)
-  {
-    bputils::copy<axom::CUDA_EXEC<256>>(dst, src, allocatorID);
-    return;
-  }
-#endif
-
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  if(policy == RuntimePolicy::hip)
-  {
-    bputils::copy<axom::HIP_EXEC<256>>(dst, src, allocatorID);
-    return;
-  }
-#endif
-
-  AXOM_UNUSED_VAR(policy);
-  AXOM_UNUSED_VAR(allocatorID);
-  dst.set(src);
-}
-
-void copyBlueprintToHost(conduit::Node& dst, const conduit::Node& src)
-{
-  axom::bump::utilities::copy<axom::SEQ_EXEC>(dst, src, hostAllocatorID());
-}
-
-//---------------------------------------------------------------------------
-// Analytic fields
-//---------------------------------------------------------------------------
-
-//! @brief Signed distance to a plane. On an axis-aligned grid it produces no
-//!   ambiguous cells, so it is the case where E3 is safe to assert.
-struct PlanarField
-{
-  double nx, ny, nz, d;
-  double operator()(double x, double y, double z) const { return nx * x + ny * y + nz * z - d; }
-};
-
-//! @brief Signed distance to a sphere (3D) / circle (2D).
-struct RoundField
-{
-  double cx, cy, cz, r;
-  double operator()(double x, double y, double z) const
-  {
-    const double dx = x - cx, dy = y - cy, dz = z - cz;
-    return std::sqrt(dx * dx + dy * dy + dz * dz) - r;
-  }
-};
-
 /*!
- * @brief A gyroid.
+ * @brief Build the same box as mctest::buildStructured<3> with a uniform coordset and topology.
  *
- * Its curvature produces non-planar cut polygons. That makes it the harshest
- * test of the fan-triangulation tolerance in E3.
- */
-struct GyroidField
-{
-  double scale;
-  double operator()(double x, double y, double z) const
-  {
-    const double sx = scale * x, sy = scale * y, sz = scale * z;
-    return std::sin(sx) * std::cos(sy) + std::sin(sy) * std::cos(sz) + std::sin(sz) * std::cos(sx);
-  }
-};
-
-//---------------------------------------------------------------------------
-// Mesh construction. Structured plus explicit meshes that both backends accept.
-//---------------------------------------------------------------------------
-
-//! @brief Build a single-domain structured explicit mesh on [0,1]^DIM with
-//!   @a n cells per side, sampling @a f at nodes in i-fastest order.
-template <int DIM, typename Field>
-void buildStructured(conduit::Node& mesh, int n, const Field& f, const std::string& fieldName)
-{
-  static_assert(DIM == 2 || DIM == 3, "DIM must be 2 or 3");
-  const int nn = n + 1;
-  conduit::index_t N = static_cast<conduit::index_t>(nn) * nn;
-  if(DIM == 3)
-  {
-    N *= nn;
-  }
-
-  mesh.reset();
-
-  conduit::Node& cs = mesh["coordsets/coords"];
-  cs["type"] = "explicit";
-  cs["values/x"].set(conduit::DataType::float64(N));
-  cs["values/y"].set(conduit::DataType::float64(N));
-  auto* x = cs["values/x"].as_float64_ptr();
-  auto* y = cs["values/y"].as_float64_ptr();
-  double* z = nullptr;
-  if(DIM == 3)
-  {
-    cs["values/z"].set(conduit::DataType::float64(N));
-    z = cs["values/z"].as_float64_ptr();
-  }
-
-  conduit::Node& topo = mesh["topologies/mesh"];
-  topo["type"] = "structured";
-  topo["coordset"] = "coords";
-  topo["elements/dims/i"] = n;
-  topo["elements/dims/j"] = n;
-  if(DIM == 3)
-  {
-    topo["elements/dims/k"] = n;
-  }
-
-  conduit::Node& fld = mesh["fields/" + fieldName];
-  fld["topology"] = "mesh";
-  fld["association"] = "vertex";
-  fld["values"].set(conduit::DataType::float64(N));
-  auto* fv = fld["values"].as_float64_ptr();
-
-  const int nk = (DIM == 3) ? nn : 1;
-  conduit::index_t idx = 0;
-  for(int k = 0; k < nk; ++k)
-  {
-    for(int j = 0; j < nn; ++j)
-    {
-      for(int i = 0; i < nn; ++i, ++idx)
-      {
-        const double px = double(i) / n;
-        const double py = double(j) / n;
-        const double pz = (DIM == 3) ? double(k) / n : 0.0;
-        x[idx] = px;
-        y[idx] = py;
-        if(z != nullptr)
-        {
-          z[idx] = pz;
-        }
-        fv[idx] = f(px, py, pz);
-      }
-    }
-  }
-}
-
-/*!
- * @brief Build the same box as buildStructured<3>, but as a uniform coordset + uniform topology.
- *
- * @note n must be a power of two.  The explicit builder writes node coordinates
- *   as double(i)/n while a uniform coordset is evaluated as origin + i*spacing.
- *   Those agree bit-for-bit only when 1/n is exactly representable, and the test
- *   below compares vertex sets, so a non-power-of-two n would fail for a reason
- *   that has nothing to do with the code under test.
+ * @note @a n must be a power of two so the uniform and explicit coordinates agree bit for bit.
  */
 template <typename Field>
 void buildUniform3D(conduit::Node& mesh, int n, const Field& f, const std::string& fieldName)
@@ -263,7 +106,7 @@ void buildUniform3D(conduit::Node& mesh, int n, const Field& f, const std::strin
   }
 }
 
-//! @brief The same box again, as a rectilinear coordset + rectilinear topology.
+//! Build the same box with a rectilinear coordset and topology
 template <typename Field>
 void buildRectilinear3D(conduit::Node& mesh, int n, const Field& f, const std::string& fieldName)
 {
@@ -308,10 +151,8 @@ void buildRectilinear3D(conduit::Node& mesh, int n, const Field& f, const std::s
 /*!
  * @brief Build a strided-structured (ghost-padded) version of the same box.
  *
- * The real zone extent is n^3, but the coordset and field arrays are allocated
- * over a padded (n+2*g)^3 window, with a topology that has elements/dims/{offsets,strides}.
- * This is the layout quest_marching_cubes_example produces with --strided.
- * The test below exercises that layout directly without relying on the example driver.
+ * The coordset and field arrays cover a padded (n+2*g)^3 window.
+ * Topology offsets and strides select the n^3 real zones.
  */
 template <typename Field>
 void buildStridedStructured3D(conduit::Node& mesh,
@@ -343,8 +184,7 @@ void buildStridedStructured3D(conduit::Node& mesh,
   fld["offsets"].set(std::vector<conduit::int32> {g, g, g});
   fld["strides"].set(std::vector<conduit::int32> {1, nnPad, nnPad * nnPad});
 
-  // Fill the whole padded window; ghosts get values continuing the same field so
-  // a ghost leak shows up as extra facets rather than as garbage.
+  // Continue the field into ghost nodes so a ghost leak produces extra facets
   conduit::index_t idx = 0;
   for(int k = 0; k < nnPad; ++k)
   {
@@ -372,7 +212,7 @@ void buildStridedStructured3D(conduit::Node& mesh,
 }
 
 //---------------------------------------------------------------------------
-// Extracted result, normalized so the two backends are comparable
+// Comparable backend results
 //---------------------------------------------------------------------------
 
 struct BackendResult
@@ -385,35 +225,15 @@ struct BackendResult
 };
 
 template <int DIM>
-BackendResult runBackend(const conduit::Node& mesh,
-                         const std::string& fieldName,
-                         double contourVal,
-                         RuntimePolicy policy,
-                         bool useBump,
-                         conduit::Node* bumpBlueprint = nullptr)
+BackendResult extractBackendResult(const axom::quest::MarchingCubes& mc,
+                                   axom::IndexType facet_begin = 0,
+                                   axom::IndexType node_begin = 0)
 {
-  namespace quest = axom::quest;
-
-  const int allocatorID = axom::policyToDefaultAllocatorID(policy);
-  quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
-  mc.setUseBumpBackend(useBump);
-
-  conduit::Node execMesh;
-  copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
-  mc.setMesh(execMesh, "mesh");
-  mc.setFunctionField(fieldName);
-  mc.computeIsocontour(contourVal);
-
-  if(useBump && bumpBlueprint != nullptr)
-  {
-    conduit::Node bumpBlueprintExec;
-    mc.populateContourMeshBlueprint(bumpBlueprintExec);
-    copyBlueprintToHost(*bumpBlueprint, bumpBlueprintExec);
-  }
-
   BackendResult r;
-  r.facetCount = mc.getContourCellCount();
-  r.nodeCount = mc.getContourNodeCount();
+  const axom::IndexType facet_end = mc.getContourCellCount();
+  const axom::IndexType node_end = mc.getContourNodeCount();
+  r.facetCount = facet_end - facet_begin;
+  r.nodeCount = node_end - node_begin;
 
   const axom::Array<double, 2> coordsHost(mc.getContourNodeCoords(), hostAllocatorID());
   const axom::Array<axom::IndexType, 2> cornersHost(mc.getContourFacetCorners(), hostAllocatorID());
@@ -422,12 +242,12 @@ BackendResult runBackend(const conduit::Node& mesh,
   const auto corners = cornersHost.view();
   const auto parents = parentsHost.view();
 
-  for(axom::IndexType f = 0; f < r.facetCount; ++f)
+  for(axom::IndexType f = facet_begin; f < facet_end; ++f)
   {
     r.crossingCells.insert(parents[f]);
   }
 
-  for(axom::IndexType v = 0; v < r.nodeCount; ++v)
+  for(axom::IndexType v = node_begin; v < node_end; ++v)
   {
     axom::primal::Point<double, 3> p {};
     p[0] = coords(v, 0);
@@ -436,7 +256,7 @@ BackendResult runBackend(const conduit::Node& mesh,
     r.vertices.push_back(p);
   }
 
-  for(axom::IndexType f = 0; f < r.facetCount; ++f)
+  for(axom::IndexType f = facet_begin; f < facet_end; ++f)
   {
     if(DIM == 3)
     {
@@ -466,21 +286,83 @@ BackendResult runBackend(const conduit::Node& mesh,
   return r;
 }
 
+template <int DIM>
+BackendResult runBackend(const conduit::Node& mesh,
+                         const std::string& field_name,
+                         double contour_value,
+                         RuntimePolicy policy,
+                         bool use_bump,
+                         conduit::Node* bump_blueprint = nullptr)
+{
+  namespace quest = axom::quest;
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setUseBumpBackend(use_bump);
+
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
+  mc.setMesh(exec_mesh, "mesh");
+  mc.setFunctionField(field_name);
+  mc.computeIsocontour(contour_value);
+
+  if(use_bump && bump_blueprint != nullptr)
+  {
+    conduit::Node bump_blueprint_exec;
+    mc.populateContourMeshBlueprint(bump_blueprint_exec);
+    copyBlueprintToHost(*bump_blueprint, bump_blueprint_exec);
+  }
+
+  return extractBackendResult<DIM>(mc);
+}
+
+template <int DIM>
+std::array<BackendResult, 3> runAccumulatedBackend(const conduit::Node& mesh,
+                                                   const std::array<std::string, 3>& field_names,
+                                                   RuntimePolicy policy,
+                                                   bool use_bump,
+                                                   std::array<conduit::Node, 3>* bump_blueprints = nullptr)
+{
+  namespace quest = axom::quest;
+
+  const int allocator_id = axom::policyToDefaultAllocatorID(policy);
+  quest::MarchingCubes mc(policy, allocator_id, quest::MarchingCubesDataParallelism::byPolicy);
+  mc.setUseBumpBackend(use_bump);
+
+  conduit::Node exec_mesh;
+  copyBlueprintToPolicy(exec_mesh, mesh, policy, allocator_id);
+  mc.setMesh(exec_mesh, "mesh");
+
+  std::array<BackendResult, 3> results;
+  axom::IndexType facet_begin = 0;
+  axom::IndexType node_begin = 0;
+  for(int field = 0; field < 3; ++field)
+  {
+    mc.setFunctionField(field_names[field]);
+    mc.computeIsocontour(0.0);
+    results[field] = extractBackendResult<DIM>(mc, facet_begin, node_begin);
+    if(use_bump && bump_blueprints != nullptr)
+    {
+      conduit::Node bump_blueprint_exec;
+      mc.populateContourMeshBlueprint(bump_blueprint_exec);
+      copyBlueprintToHost((*bump_blueprints)[field], bump_blueprint_exec);
+    }
+    facet_begin = mc.getContourFacetCount();
+    node_begin = mc.getContourNodeCount();
+  }
+  return results;
+}
+
 //---------------------------------------------------------------------------
-// E2 support: two-sided Hausdorff check via a spatial hash.
-//
-// Deliberately NOT quantize-and-compare: binning to a grid has a boundary
-// problem where two points 1e-12 apart straddle a bin edge and compare
-// unequal.  Hashing into cells of side `tol` and probing the 3^3 neighborhood
-// finds any partner within `tol` regardless of where the bin edges fall.
+// Two-sided Hausdorff comparison. Search adjacent hash cells so nearby points
+// still match when they straddle a cell boundary.
 //---------------------------------------------------------------------------
 
 using CellKey = std::int64_t;
 
 CellKey cellKey(std::int64_t i, std::int64_t j, std::int64_t k)
 {
-  // Small mixing hash; the coordinate range here is [0,1] so the cell indices
-  // are bounded by 1/tol and collisions are handled by the bucket vector.
+  // Hash collisions remain in the bucket and are resolved by distance checks
   const std::int64_t h = (i * 73856093) ^ (j * 19349663) ^ (k * 83492791);
   return h;
 }
@@ -548,8 +430,7 @@ private:
   std::unordered_map<CellKey, std::vector<std::size_t>> m_buckets;
 };
 
-//! @brief One-sided Hausdorff: max over @a from of the distance to the nearest
-//!   point of @a to.  Returns the max and the index attaining it.
+//! @brief Return the one-sided Hausdorff distance and its source point index
 double oneSidedHausdorff(const std::vector<axom::primal::Point<double, 3>>& from,
                          const PointLocator& to,
                          std::size_t& argMax)
@@ -569,23 +450,9 @@ double oneSidedHausdorff(const std::vector<axom::primal::Point<double, 3>>& from
 }
 
 //---------------------------------------------------------------------------
-// E3 support 1/2. Ambiguous cells.
-//
-// Two reasons the case tables can legitimately triangulate the same vertex set
-// differently:
-//
-//   Face ambiguity. A face has the checkerboard sign pattern. Its diagonal
-//   pairs match internally and disagree with each other.
-//
-//   Body-diagonal ambiguity. The minority sign class is exactly a body-diagonal
-//   pair. This is classic case 4. It has no ambiguous face, so a face-only
-//   detector misses it.
-//
-// Expressed in corner SIGNS only, so it is independent of either backend's
-// table indexing convention.  Corner n is (i,j,k) with i fastest: n = i+2j+4k.
-//
-// Exhaustively self-tested below (ambiguity_detector_selftest). A detector
-// without a negative control is not much use.
+// Ambiguous cells. Case tables can triangulate the same vertices differently
+// for a checkerboard face or a body-diagonal minority pair. The latter is case
+// 4 and has no ambiguous face. Corner n is (i,j,k), with n = i + 2j + 4k.
 //---------------------------------------------------------------------------
 
 //! Cyclic corner order of each of the 6 faces.
@@ -641,7 +508,7 @@ bool cellIsAmbiguous3D(const bool s[8])
   return cellHasFaceAmbiguity3D(s) || cellHasBodyDiagonalAmbiguity3D(s);
 }
 
-//! 2D: corners cyclic 0,1,3,2 (same n = i+2j convention).  Only the two
+//! 2D corners are cyclic 0,1,3,2. Only the two
 //! checkerboard patterns are ambiguous.
 bool cellIsAmbiguous2D(const bool s[4])
 {
@@ -651,11 +518,7 @@ bool cellIsAmbiguous2D(const bool s[4])
 /*!
  * @brief Count ambiguous cells.
  *
- * @note The corner test uses `>=`, matching MarchingCubesImpl::computeCrossingCase
- *   and (after the isoValueForBump nudge) the bump backend.  Using `>` here was a
- *   bug in the first version: it disagreed with the code under test at exactly
- *   the nodes where the tie convention matters, so the detector could classify a
- *   different cell set than either backend actually cut.
+ * @note The corner test uses `>=` to match MarchingCubesImpl::computeCrossingCase and the adjusted Bump isovalue
  */
 template <int DIM, typename Field>
 axom::IndexType countAmbiguousCells(int n, const Field& f, double contourVal)
@@ -700,20 +563,9 @@ axom::IndexType countAmbiguousCells(int n, const Field& f, double contourVal)
 }
 
 //---------------------------------------------------------------------------
-// E3 support 2/2. Fan-triangulation sensitivity.
-//
-// The quest adaptor fan-triangulates bump's polygonal cut faces from local
-// corner 0 (MarchingCubesBumpAdaptor.hpp, adaptCutFieldOutputViews).  For a
-// planar polygon every fan gives the same area. For a non-planar polygon the
-// area depends on which corner the fan starts from, so the reported surface
-// area is partly an artifact of an arbitrary choice. On a high-curvature field
-// the cut polygons can be markedly non-planar. That, not table ambiguity, is
-// what makes a total-area comparison against a differently triangulated backend
-// questionable.
-//
-// Measure it instead of guessing. Re-fan each polygon from corner 1 and report
-// the relative spread. Zero spread means every polygon is planar, or already a
-// triangle. In that case E3 is a fair comparison.
+// Fan-triangulation sensitivity. The adaptor fans each Bump polygon from corner 0.
+// For a non-planar polygon, area depends on the fan origin. Compare fans from corners 0 and 1
+// and use their relative spread as the measure tolerance.
 //---------------------------------------------------------------------------
 
 struct FanSensitivity
@@ -751,7 +603,7 @@ double polygonFanArea(const std::vector<axom::primal::Point<double, 3>>& v, int 
   return area;
 }
 
-//! @brief Measure how much bump's polygonal output's area depends on the fan origin.
+//! Measure how much the Bump polygon area depends on the fan origin.
 FanSensitivity measureFanSensitivity(const conduit::Node& contourDom)
 {
   FanSensitivity fs;
@@ -803,42 +655,18 @@ FanSensitivity measureFanSensitivity(const conduit::Node& contourDom)
 }
 
 //---------------------------------------------------------------------------
-// The comparison itself
+// Backend comparison
 //---------------------------------------------------------------------------
 
-template <int DIM, typename Field>
-void compareBackends(int n,
-                     const Field& f,
-                     double contourVal,
-                     RuntimePolicy policy,
-                     const std::string& label,
-                     double vertexTol = 1.0e-5,
-                     // bump's FieldIntersector interpolates edge crossings in
-                     // float (FieldType == float), so contour vertices carry
-                     // ~1e-7 relative error and the measure inherits it.  An
-                     // initial 1e-9 here was a TEST bug, not a code defect: it
-                     // is below what single-precision interpolation can deliver.
-                     // Measured relDiff on the passing cases is 5e-9 to 3e-6.
-                     double measureRelTol = 1.0e-5)
+template <int DIM>
+void compareBackendResults(const BackendResult& legacy,
+                           const BackendResult& bump,
+                           const std::string& label,
+                           axom::IndexType ambiguous,
+                           const FanSensitivity& fan = {},
+                           double vertex_tolerance = 1.0e-5,
+                           double measure_relative_tolerance = 1.0e-5)
 {
-  const std::string fieldName = "fcn";
-  conduit::Node mesh;
-  buildStructured<DIM>(mesh, n, f, fieldName);
-
-  conduit::Node info;
-  ASSERT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
-
-  const auto legacy = runBackend<DIM>(mesh, fieldName, contourVal, policy, /*useBump=*/false);
-  conduit::Node bumpBp;
-  const auto bump = runBackend<DIM>(mesh, fieldName, contourVal, policy, /*useBump=*/true, &bumpBp);
-
-  const auto ambiguous = countAmbiguousCells<DIM>(n, f, contourVal);
-  FanSensitivity fan;
-  if(DIM == 3 && bumpBp.number_of_children() > 0)
-  {
-    fan = measureFanSensitivity(bumpBp.child(0));
-  }
-
   SLIC_INFO(axom::fmt::format(
     "[{}] legacy: {} facets / {} nodes / {} cells; bump: {} facets / {} nodes / {} cells; "
     "ambiguous cells: {}",
@@ -854,111 +682,97 @@ void compareBackends(int n,
   ASSERT_GT(legacy.facetCount, 0) << "[" << label << "] legacy produced an empty contour";
   ASSERT_GT(bump.facetCount, 0) << "[" << label << "] bump produced an empty contour";
 
-  // E1. crossing-cell set
-  {
-    std::vector<axom::IndexType> onlyLegacy, onlyBump;
-    std::set_difference(legacy.crossingCells.begin(),
-                        legacy.crossingCells.end(),
-                        bump.crossingCells.begin(),
-                        bump.crossingCells.end(),
-                        std::back_inserter(onlyLegacy));
-    std::set_difference(bump.crossingCells.begin(),
-                        bump.crossingCells.end(),
-                        legacy.crossingCells.begin(),
-                        legacy.crossingCells.end(),
-                        std::back_inserter(onlyBump));
+  std::vector<axom::IndexType> only_legacy;
+  std::vector<axom::IndexType> only_bump;
+  std::set_difference(legacy.crossingCells.begin(),
+                      legacy.crossingCells.end(),
+                      bump.crossingCells.begin(),
+                      bump.crossingCells.end(),
+                      std::back_inserter(only_legacy));
+  std::set_difference(bump.crossingCells.begin(),
+                      bump.crossingCells.end(),
+                      legacy.crossingCells.begin(),
+                      legacy.crossingCells.end(),
+                      std::back_inserter(only_bump));
 
-    EXPECT_TRUE(onlyLegacy.empty())
-      << "E1 [" << label << "]: " << onlyLegacy.size()
-      << " cells produce facets in legacy but not bump (first: " << onlyLegacy.front()
-      << "). A cell dropped by the bump crossing pre-filter is the likely cause.";
-    EXPECT_TRUE(onlyBump.empty()) << "E1 [" << label << "]: " << onlyBump.size()
-                                  << " cells produce facets in bump but not legacy (first: "
-                                  << (onlyBump.empty() ? -1 : onlyBump.front()) << ").";
-  }
+  EXPECT_TRUE(only_legacy.empty()) << "E1 [" << label << "]: " << only_legacy.size()
+                                   << " cells produce facets in legacy but not bump (first: "
+                                   << (only_legacy.empty() ? -1 : only_legacy.front()) << ").";
+  EXPECT_TRUE(only_bump.empty()) << "E1 [" << label << "]: " << only_bump.size()
+                                 << " cells produce facets in bump but not legacy (first: "
+                                 << (only_bump.empty() ? -1 : only_bump.front()) << ").";
 
-  // E2. vertex set (table-independent; see file header)
-  {
-    const PointLocator legacyLoc(legacy.vertices, vertexTol);
-    const PointLocator bumpLoc(bump.vertices, vertexTol);
+  const PointLocator legacy_locator(legacy.vertices, vertex_tolerance);
+  const PointLocator bump_locator(bump.vertices, vertex_tolerance);
+  std::size_t arg_max = 0;
+  const double bump_to_legacy = oneSidedHausdorff(bump.vertices, legacy_locator, arg_max);
+  EXPECT_LT(bump_to_legacy, vertex_tolerance)
+    << "E2 [" << label << "]: a bump contour vertex has no legacy counterpart within tolerance"
+    << " (worst distance " << bump_to_legacy << " at bump vertex " << arg_max << ").";
 
-    std::size_t argMax = 0;
-    const double bumpToLegacy = oneSidedHausdorff(bump.vertices, legacyLoc, argMax);
-    EXPECT_LT(bumpToLegacy, vertexTol)
-      << "E2 [" << label << "]: a bump contour vertex has no legacy counterpart within tolerance"
-      << " (worst distance " << bumpToLegacy << " at bump vertex " << argMax << ").";
+  const double legacy_to_bump = oneSidedHausdorff(legacy.vertices, bump_locator, arg_max);
+  EXPECT_LT(legacy_to_bump, vertex_tolerance)
+    << "E2 [" << label << "]: a legacy contour vertex has no bump counterpart within tolerance"
+    << " (worst distance " << legacy_to_bump << " at legacy vertex " << arg_max << ").";
 
-    const double legacyToBump = oneSidedHausdorff(legacy.vertices, bumpLoc, argMax);
-    EXPECT_LT(legacyToBump, vertexTol)
-      << "E2 [" << label << "]: a legacy contour vertex has no bump counterpart within tolerance"
-      << " (worst distance " << legacyToBump << " at legacy vertex " << argMax << ").";
-  }
-
-  // E2b. welding happened
-  // Legacy stores DIM nodes per facet with no sharing; bump welds.  On a
-  // surface with shared edges the welded count must be strictly smaller.
   EXPECT_LT(bump.nodeCount, legacy.nodeCount)
     << "[" << label << "]: bump node count is not smaller than legacy's. Welding regressed.";
 
-  // E3. measure (assert only when unambiguous)
-  const double relDiff = std::abs(bump.measure - legacy.measure) / std::max(legacy.measure, 1.0e-300);
-  SLIC_INFO(axom::fmt::format("[{}] measure legacy={:.12g} bump={:.12g} relDiff={:.3e}",
-                              label,
-                              legacy.measure,
-                              bump.measure,
-                              relDiff));
-  SLIC_INFO(axom::fmt::format(
-    "[{}] fan sensitivity: {} polygons, max {} corners, area(fan@0)={:.12g} area(fan@1)={:.12g} "
-    "relSpread={:.3e} maxPolyRelSpread={:.3e}",
-    label,
-    fan.polygonCount,
-    fan.maxCorners,
-    fan.areaFan0,
-    fan.areaFan1,
-    fan.relSpread,
-    fan.maxPolyRelSpread));
-
-  // E3 tolerance.
-  //
-  // Do not gate the check on fan spread. That creates cliffs where a tiny change
-  // in resolution flips the assertion on and off. Instead fold the measured fan
-  // spread into the tolerance. bump's reported area is only stable within that
-  // spread. Differences below it do not say much. Differences above it do.
-  const double e3Tol = std::max(measureRelTol, fan.relSpread);
+  const double relative_difference =
+    std::abs(bump.measure - legacy.measure) / std::max(legacy.measure, 1.0e-300);
+  const double measure_tolerance = std::max(measure_relative_tolerance, fan.relSpread);
   EXPECT_LT(fan.relSpread, 0.1)
-    << "[" << label << "]: fan-origin spread is so large that E3 is nearly vacuous; bump's "
-    << "polygons are extremely non-planar at this resolution.";
+    << "[" << label << "]: fan-origin spread is too large for a useful measure comparison.";
   if(ambiguous == 0)
   {
-    EXPECT_LT(relDiff, e3Tol)
-      << "E3 [" << label << "]: contour measure differs by more than the fan-origin ambiguity ("
-      << fan.relSpread << ") can explain, and there are no ambiguous cells, so the two backends "
-      << "disagree on the triangulation of an identical vertex set.";
+    EXPECT_LT(relative_difference, measure_tolerance)
+      << "E3 [" << label << "]: contour measure differs without an ambiguous cell to explain it";
   }
-  else
+}
+
+template <int DIM, typename Field>
+void compareBackends(int n,
+                     const Field& f,
+                     double contourVal,
+                     RuntimePolicy policy,
+                     const std::string& label,
+                     double vertexTol = 1.0e-5,
+                     // Bump interpolates edge crossings in float.
+                     // Passing cases have measured relative errors from 5e-9 to 3e-6.
+                     double measureRelTol = 1.0e-5)
+{
+  const std::string fieldName = "fcn";
+  conduit::Node mesh;
+  mctest::buildStructured<DIM>(mesh, n, f, fieldName);
+
+  conduit::Node info;
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
+
+  const auto legacy = runBackend<DIM>(mesh, fieldName, contourVal, policy, /*useBump=*/false);
+  conduit::Node bumpBp;
+  const auto bump = runBackend<DIM>(mesh, fieldName, contourVal, policy, /*useBump=*/true, &bumpBp);
+
+  const auto ambiguous = countAmbiguousCells<DIM>(n, f, contourVal);
+  FanSensitivity fan;
+  if(DIM == 3 && bumpBp.number_of_children() > 0)
   {
-    SLIC_INFO(axom::fmt::format(
-      "[{}] E3 not asserted: {} ambiguous cells, where the two case tables may legitimately "
-      "triangulate the same vertex set differently and no principled tolerance exists.",
-      label,
-      ambiguous));
+    fan = measureFanSensitivity(bumpBp.child(0));
   }
+
+  compareBackendResults<DIM>(legacy, bump, label, ambiguous, fan, vertexTol, measureRelTol);
 }
 
 /*!
  * @brief An isovalue outside the data range is valid input, not an error.
  *
- * Before the fix, runExtraction() allocated m_output before dispatching and left
- * it non-null-but-EMPTY on the no-crossing path.  hasContourMeshBlueprint() then
- * reported true, populateContourMeshBlueprint passed its guard, and
- * triangulateBlueprintMesh reached fetch_existing("topologies") on an empty node.
+ * This covers Blueprint population and relinquishment after an extraction with no crossing cells.
  */
 void test_empty_contour(RuntimePolicy policy)
 {
   namespace quest = axom::quest;
   conduit::Node mesh;
-  RoundField f {0.5, 0.5, 0.5, 0.25};
-  buildStructured<3>(mesh, 6, f, "fcn");
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
+  mctest::buildStructured<3>(mesh, 6, f, "fcn");
 
   const int allocatorID = axom::policyToDefaultAllocatorID(policy);
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
@@ -982,28 +796,19 @@ void test_empty_contour(RuntimePolicy policy)
 }
 
 /*!
- * @brief Uniform and rectilinear input must work, and must agree with the
- *   explicit-structured mesh describing the same geometry.
+ * @brief Compare uniform and rectilinear input with equivalent explicit input.
  *
- * setDomain() accepts "uniform" and "rectilinear" and the sphinx/RELEASE-NOTES
- * advertise them, but every m_isStructured path constructed MeshViewUtil, which
- * requires a "structured" topology AND an "explicit" coordset and SLIC_ERRORs
- * otherwise. That used to hard-error inside the crossing pre-filter.
- *
- * The legacy backend cannot read uniform or rectilinear input, so there is no
- * direct legacy reference. Instead compare bump-on-uniform and
- * bump-on-rectilinear against bump-on-structured-explicit. The tests above
- * already pin bump-on-structured-explicit to the legacy backend. All three
- * describe the same box, so the results must be identical.
+ * The legacy backend cannot read uniform or rectilinear meshes, so the explicit
+ * Bump result is the reference for all three representations of the same box.
  */
 void test_uniform_and_rectilinear(RuntimePolicy policy)
 {
   const int n = 8;  // power of two: see buildUniform3D's note on coordinate agreement
-  RoundField f {0.5, 0.5, 0.5, 0.25};
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
   const std::string fieldName = "fcn";
 
   conduit::Node structured, uniform, rectilinear;
-  buildStructured<3>(structured, n, f, fieldName);
+  mctest::buildStructured<3>(structured, n, f, fieldName);
   buildUniform3D(uniform, n, f, fieldName);
   buildRectilinear3D(rectilinear, n, f, fieldName);
 
@@ -1041,24 +846,20 @@ void test_uniform_and_rectilinear(RuntimePolicy policy)
 }
 
 /*!
- * @brief A float32 function field must be rejected, not silently misread.
+ * @brief Check that MarchingCubes rejects a float32 function field.
  *
- * The structured pre-filter reads the field via
- * MeshViewUtil::getConstFieldView<double>(), which assumes the values are
- * double and does not check. A float32 field was reinterpreted as float64, so
- * the pre-filter selected a garbage cell set while bump's extractor read the
- * field correctly. That is a wrong answer with no error. The minimum bar here
- * is a loud rejection that names the dtype.
+ * The structured pre-filter requires float64 values.
+ * Reinterpreting float32 values as float64 produces an invalid crossing-cell set.
  */
 void test_float32_field_rejected(RuntimePolicy policy)
 {
   namespace quest = axom::quest;
   const int n = 6;
-  RoundField f {0.5, 0.5, 0.5, 0.25};
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
   conduit::Node mesh;
-  buildStructured<3>(mesh, n, f, "fcn");
+  mctest::buildStructured<3>(mesh, n, f, "fcn");
 
-  // Re-write the function field as float32, keeping the same values.
+  // Rewrite the function field as float32, keeping the same values
   {
     const conduit::Node& n_old = mesh.fetch_existing("fields/fcn/values");
     const auto acc = n_old.as_double_accessor();
@@ -1076,10 +877,7 @@ void test_float32_field_rejected(RuntimePolicy policy)
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
   mc.setUseBumpBackend(true);
 
-  // SLIC's default handler aborts, so this is a death test.  SimpleLogger writes
-  // to stdout while gtest's death test captures only stderr, so the message must
-  // be routed to stderr INSIDE the forked child or the regex has nothing to
-  // match (an empty "Actual msg" is the symptom).
+  // Route SLIC output to stderr in the child so gtest can match the diagnostic
   EXPECT_DEATH_IF_SUPPORTED(
     {
       axom::slic::addStreamToAllMsgLevels(
@@ -1113,25 +911,22 @@ void expectBumpFieldLayoutRejected(const conduit::Node& mesh,
 }
 
 /*!
- * @brief Unsupported strided function-field layouts must be rejected rather
- *   than silently indexed with the topology's compact zone numbering.
+ * @brief Check that MarchingCubes rejects unsupported strided field layouts.
  *
- * A permuted field is not i-fastest.  A separately padded field can remain
- * i-fastest, but its offsets and strides differ from those of the topology.
- * bump's flat field view cannot represent either case correctly.
+ * Bump's flat field view cannot represent a permuted field or one whose offsets
+ * and strides differ from the topology.
  */
 void test_invalid_field_layouts_rejected(RuntimePolicy policy)
 {
   constexpr int n = 6;
   constexpr int pad = 2;
   constexpr int nnPad = n + 1 + 2 * pad;
-  RoundField f {0.5, 0.5, 0.5, 0.25};
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
 
   conduit::Node permuted;
   buildStridedStructured3D(permuted, n, pad, f, "fcn");
   permuted["fields/fcn/strides"].set(std::vector<conduit::int32> {nnPad * nnPad, nnPad, 1});
-  // FieldIntersector::initialize now performs this validation through validateVertexFieldIndexing.
-  // Match Bump's diagnostic, which reports both layouts.
+  // The diagnostic reports both the field and topology layouts.
   expectBumpFieldLayoutRejected(permuted, policy, "but its topology has strides");
 
   conduit::Node mismatched;
@@ -1141,28 +936,22 @@ void test_invalid_field_layouts_rejected(RuntimePolicy policy)
 }
 
 /*!
- * @brief An input mesh already carrying a field named "originalElements" must
- *   not hijack the reported parent cell ids.
+ * @brief Preserve parent ids when the input has an "originalElements" field.
  *
- * bump's TableBasedExtractor::makeOriginalElements branches on whether the INPUT
- * mesh has a field of the configured name and, if so, maps those values forward
- * instead of writing zone indices.  Any mesh produced by a prior bump operation
- * carries exactly that field, and the empty "fields" option does not suppress
- * the branch.  MarchingCubes therefore requests a private name and renames the
- * result back before anyone sees it.
+ * TableBasedExtractor otherwise propagates the input field instead of writing
+ * source zone indices. MarchingCubes uses a private field name to avoid this collision.
  */
 void test_original_elements_collision(RuntimePolicy policy)
 {
   const int n = 8;
-  RoundField f {0.5, 0.5, 0.5, 0.25};
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
   const std::string fieldName = "fcn";
 
   conduit::Node clean, poisoned;
-  buildStructured<3>(clean, n, f, fieldName);
+  mctest::buildStructured<3>(clean, n, f, fieldName);
   poisoned.set(clean);
 
-  // Plant a decoy: an element field of the colliding name whose values are
-  // deliberately nothing like zone indices.
+  // Use negative decoy values that cannot be valid zone indices
   {
     const conduit::index_t nCells = static_cast<conduit::index_t>(n) * n * n;
     conduit::Node& fld = poisoned["fields/originalElements"];
@@ -1191,50 +980,27 @@ void test_original_elements_collision(RuntimePolicy policy)
 }
 
 /*!
- * @brief Strided-structured input works with the bump backend.
+ * @brief Compare strided and compact representations of the same mesh.
  *
- * This directly covers the native strided path. Earlier example-driver
- * compaction hid it by densifying coordinates and stripping metadata before
- * MarchingCubes saw the mesh.
- *
- * Static reading says it should work. dispatch_only_structured_topology routes
- * elements/dims/{offsets,strides} to make_strided_structured_topology, and
- * StridedStructuredIndexing::indexToLogicalIndex uses the LOCAL zone dims, so
- * bump's zone index space is compact and i-fastest. That matches quest's
- * MDMapping(cellShape, COLUMN). This test settles it empirically.
- *
- * Oracle. Use the same geometry as a dense structured mesh, which the tests
- * above already pin to the legacy backend. Ghost values are poisoned, so an
- * implementation that ignores the offsets cannot accidentally agree.
+ * Ghost values continue the field outside the real zone range,
+ * so ignoring the topology offsets produces extra facets.
  */
 void test_strided_structured(RuntimePolicy policy)
 {
   const int n = 8;
   const int pad = 2;  // ghost layers
-  RoundField f {0.5, 0.5, 0.5, 0.25};
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
   const std::string fieldName = "fcn";
 
   conduit::Node compact, strided;
-  buildStructured<3>(compact, n, f, fieldName);
+  mctest::buildStructured<3>(compact, n, f, fieldName);
   buildStridedStructured3D(strided, n, pad, f, fieldName);
 
   conduit::Node info;
   ASSERT_TRUE(conduit::blueprint::mesh::verify(strided, info)) << info.to_yaml();
 
-  /*
-    Three-way agreement on ghost-padded input.
-
-    This faulted before the dispatch-path fix in dispatch_structured_topology.hpp:
-    the strided predicate probed topo.has_path("offsets") instead of
-    "elements/dims/offsets", so a padded mesh was read as compact and makeTopology
-    walked off the end of the coordset.
-
-    Legacy-on-compact is the reference (pinned to bump-on-compact by the tests
-    above).  Legacy-on-strided shows the padded fixture is well formed, so a
-    bump-only failure cannot be blamed on the fixture.  Bump-on-strided is the
-    claim.  The parent-id range check catches a ghost leak, which is the failure
-    mode a facet count alone would miss.
-  */
+  // Legacy results establish that the compact and strided fixtures agree.
+  // Parent-id bounds catch ghost cells even when facet counts happen to match.
   const auto legacyCompact = runBackend<3>(compact, fieldName, 0.0, policy, /*useBump=*/false);
   const auto legacyStrided = runBackend<3>(strided, fieldName, 0.0, policy, /*useBump=*/false);
   const auto bumpStrided = runBackend<3>(strided, fieldName, 0.0, policy, /*useBump=*/true);
@@ -1247,12 +1013,10 @@ void test_strided_structured(RuntimePolicy policy)
 
   ASSERT_GT(legacyCompact.facetCount, 0);
   ASSERT_EQ(legacyStrided.crossingCells, legacyCompact.crossingCells)
-    << "the legacy backend disagrees between strided and compact input, so the padded fixture "
-    << "is malformed. Fix the fixture before reading anything into the bump result";
+    << "legacy results differ between strided and compact input";
 
   EXPECT_EQ(bumpStrided.crossingCells, legacyCompact.crossingCells)
-    << "bump on strided-structured input cut a different cell set than the equivalent compact "
-    << "mesh: a ghost leak or a zone-numbering mismatch";
+    << "Bump strided input cut a different cell set than compact input";
 
   const axom::IndexType nCells = static_cast<axom::IndexType>(n) * n * n;
   for(const auto id : bumpStrided.crossingCells)
@@ -1268,63 +1032,86 @@ void test_strided_structured(RuntimePolicy policy)
 
 void test_planar_3d(RuntimePolicy policy)
 {
-  // Plane z = 0.5. An axis-aligned planar field has no saddle cells, so E3 is
-  // safe to assert here. This is the strictest case.
-  PlanarField f {0.0, 0.0, 1.0, 0.5};
+  // An axis-aligned plane has no ambiguous cells, so compare its area
+  PlanarField f {{0.0, 0.0, 1.0}, 0.5};
   compareBackends<3>(8, f, 0.0, policy, "planar3d");
 }
 
 void test_oblique_planar_3d(RuntimePolicy policy)
 {
-  // Oblique plane: still no saddles, but every case-table entry gets exercised
-  // rather than just the axis-aligned ones.
+  // An oblique plane exercises more case-table entries without ambiguity
   const double s = 1.0 / std::sqrt(1.0 + 0.16 + 1.44);
-  PlanarField f {1.0 * s, 0.4 * s, 1.2 * s, 1.3 * s};
+  PlanarField f {{1.0 * s, 0.4 * s, 1.2 * s}, 1.3 * s};
   compareBackends<3>(8, f, 0.0, policy, "oblique_planar3d");
 }
 
 void test_round_3d(RuntimePolicy policy)
 {
-  RoundField f {0.5, 0.5, 0.5, 0.25};
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
   compareBackends<3>(12, f, 0.0, policy, "round3d");
 }
 
 void test_gyroid_3d(RuntimePolicy policy)
 {
-  // Chosen to produce strongly non-planar polygons. E3 remains asserted, with
-  // its tolerance widened by the independently measured fan-origin spread.
+  // Use the measured fan-origin spread as the area tolerance
   GyroidField f {3.0 * M_PI};
   compareBackends<3>(10, f, 0.0, policy, "gyroid3d");
 }
 
 void test_planar_2d(RuntimePolicy policy)
 {
-  PlanarField f {0.0, 1.0, 0.0, 0.5};
+  PlanarField f {{0.0, 1.0, 0.0}, 0.5};
   compareBackends<2>(8, f, 0.0, policy, "planar2d");
 }
 
 void test_round_2d(RuntimePolicy policy)
 {
-  RoundField f {0.5, 0.5, 0.0, 0.25};
+  RoundField f {{0.5, 0.5, 0.0}, 0.25};
   compareBackends<2>(12, f, 0.0, policy, "round2d");
 }
 
+template <int DIM>
+void test_accumulated_fields(RuntimePolicy policy)
+{
+  constexpr int n = 12;
+  PlanarField plane {{0.47, 0.43, 0.39}, {1.0, 0.4, 1.2}};
+  RoundField round {{0.5, 0.5, DIM == 3 ? 0.5 : 0.0}, 0.27};
+  GyroidField gyroid {{3.0, 3.0, DIM == 3 ? 1.5 : 0.0}};
+  const std::array<std::string, 3> field_names {{"plane", "round", "gyroid"}};
+
+  conduit::Node mesh;
+  mctest::buildStructured<DIM>(mesh, n, plane, field_names[0]);
+  mctest::addVertexField<DIM>(mesh, round, field_names[1]);
+  mctest::addVertexField<DIM>(mesh, gyroid, field_names[2]);
+
+  const auto legacy = runAccumulatedBackend<DIM>(mesh, field_names, policy, false);
+  std::array<conduit::Node, 3> bump_blueprints;
+  const auto bump = runAccumulatedBackend<DIM>(mesh, field_names, policy, true, &bump_blueprints);
+  const std::array<axom::IndexType, 3> ambiguous {{countAmbiguousCells<DIM>(n, plane, 0.0),
+                                                   countAmbiguousCells<DIM>(n, round, 0.0),
+                                                   countAmbiguousCells<DIM>(n, gyroid, 0.0)}};
+
+  for(int field = 0; field < 3; ++field)
+  {
+    FanSensitivity fan;
+    if constexpr(DIM == 3)
+    {
+      ASSERT_EQ(bump_blueprints[field].number_of_children(), 1);
+      fan = measureFanSensitivity(bump_blueprints[field].child(0));
+    }
+    compareBackendResults<DIM>(legacy[field],
+                               bump[field],
+                               "accumulated_" + field_names[field],
+                               ambiguous[field],
+                               fan);
+  }
+}
+
 /*!
- * @brief Falsification control for E1.
+ * @brief Compare float and double classification near the isovalue.
  *
- * The bump crossing pre-filter classifies corners in double
- * (`fcnView(...) > m_contourVal`) while bump's FieldIntersector classifies in
- * float (`FieldIntersector::FieldType == float`).  Since float() is monotone,
- * bump's positive set is always a subset of the pre-filter's, and the dangerous
- * direction is a cell whose corners are ALL strictly above the isovalue in
- * double but where at least one rounds to exactly float(isovalue): the
- * pre-filter excludes the cell as non-crossing, while bump would have emitted a
- * fragment.
- *
- * This test constructs exactly that cell.  It is expected to FAIL on the branch
- * as-is, and to pass once the pre-filter compares in the intersector's type.
- * A regression test that has never been observed to fail is not evidence; this
- * one demonstrates that E1 can detect the specific defect.
+ * Values just above the isovalue in double can round to the isovalue in float.
+ * Structured and unstructured forms of the same mesh must still select the same crossing cells.
  */
 void test_float_ulp_band_falsification(RuntimePolicy policy)
 {
@@ -1333,12 +1120,10 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
   const double contourVal = 1.0;
 
   conduit::Node mesh;
-  PlanarField f {0.0, 0.0, 1.0, 0.5};
-  buildStructured<3>(mesh, n, f, fieldName);
+  PlanarField f {{0.0, 0.0, 1.0}, 0.5};
+  mctest::buildStructured<3>(mesh, n, f, fieldName);
 
-  // Overwrite the field: put every node strictly above the isovalue in double,
-  // then pull one cell's corners into the band [contourVal, contourVal+ulp)
-  // where float rounds them down onto float(contourVal).
+  // Put one cell's corners just above the isovalue in double but equal to it after conversion to float
   auto* fv = mesh["fields/" + fieldName + "/values"].as_float64_ptr();
   const conduit::index_t N = mesh["fields/" + fieldName + "/values"].dtype().number_of_elements();
   const int nn = n + 1;
@@ -1347,10 +1132,7 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
   {
     fv[i] = contourVal + 1.0;
   }
-  // Put a genuine contour in the upper part of the mesh.  Without it the entire
-  // field sits above the isovalue, both paths report zero facets, and the
-  // comparison below passes as 0 == 0. That would not catch a regression that
-  // breaks both paths together.
+  // Add a separate contour so equal empty results cannot pass the test
   for(int k = 3; k <= n; ++k)
   {
     for(int j = 0; j < nn; ++j)
@@ -1361,28 +1143,20 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
       }
     }
   }
-  // Cell (0,0,0): seven corners well above, one corner just barely above in
-  // double but equal to contourVal after rounding to float.
+  // Four corners of cell (0,0,0) lie in the double-to-float rounding gap
   const double tiny = std::nextafter(contourVal, 2.0) - contourVal;  // one double ULP
   fv[nodeAt(0, 0, 0)] = contourVal + tiny;
   fv[nodeAt(1, 0, 0)] = contourVal + tiny;
   fv[nodeAt(0, 1, 0)] = contourVal + tiny;
   fv[nodeAt(1, 1, 0)] = contourVal + tiny;
 
-  // Sanity: in double every corner is strictly above; in float the perturbed
-  // ones are not.  If this fails, the platform's float rounding differs and the
-  // test premise is void.
+  // Confirm the rounding behavior required by the test
   ASSERT_GT(fv[nodeAt(0, 0, 0)], contourVal);
   ASSERT_FALSE(static_cast<float>(fv[nodeAt(0, 0, 0)]) > static_cast<float>(contourVal))
-    << "premise void: the perturbed value does not collapse onto float(contourVal)";
+    << "perturbed value did not round to float(contourVal)";
 
-  // Build the SAME geometry as an unstructured hex topology.  This is the
-  // control that makes the test discriminating: the unstructured path's
-  // pre-filter calls intersectorView.determineTableCase() (i.e. bump's own
-  // float classification), while the structured path re-implements the
-  // classification in double. Same nodes, same field, same cells. Any
-  // difference isolates the defect to the structured pre-filter rather than
-  // resting on an unverified claim about what bump "would" emit.
+  // Reuse the coordinates and field with an unstructured hex topology.
+  // Its pre-filter uses Bump's float classification.
   conduit::Node unstructuredMesh;
   unstructuredMesh.set(mesh);
   {
@@ -1425,17 +1199,11 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
     structuredRun.facetCount,
     unstructuredRun.facetCount));
 
-  ASSERT_GT(structuredRun.facetCount, 0)
-    << "the comparison below would be vacuous: this mesh must carry a real contour";
+  ASSERT_GT(structuredRun.facetCount, 0) << "test mesh must contain a contour";
   EXPECT_EQ(structuredRun.crossingCells, unstructuredRun.crossingCells)
     << "the two paths cut different cell sets on identical geometry";
   EXPECT_EQ(structuredRun.facetCount, unstructuredRun.facetCount)
-    << "E1 falsification: the bump backend gives different answers for the same geometry "
-    << "depending on whether the topology is structured or unstructured.  The structured "
-    << "crossing pre-filter classifies corners in double (fcnView(...) > m_contourVal) while "
-    << "the unstructured path delegates to intersectorView.determineTableCase(), which "
-    << "classifies in FieldIntersector::FieldType (float).  Fix: make the structured "
-    << "pre-filter compare in the intersector's type.";
+    << "structured and unstructured paths disagree near the float isovalue";
 }
 
 }  // namespace
@@ -1445,15 +1213,8 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
 //---------------------------------------------------------------------------
 // Self-test for the ambiguity detector.
 //
-// A detector used to gate an assertion needs its own negative controls, or a
-// silently-always-false detector would make E3 look permanently trustworthy.
-// Expected counts were derived independently (by enumeration outside this
-// file) before being written here:
-//   - 120 of 256 sign patterns have an ambiguous face;
-//   -   8 of 256 are the body-diagonal (case 4) pattern and its complement;
-//   - the two classes are disjoint. Case 4 has no ambiguous face, which is
-//     exactly why a face-only detector misses it;
-//   - 128 of 256 total, i.e. exactly half, and complement-symmetric.
+// Of the 256 sign patterns, 120 have face ambiguity and 8 have body-diagonal ambiguity.
+// The classes are disjoint and invariant under sign reversal.
 //---------------------------------------------------------------------------
 TEST(quest_marching_cubes_equivalence, ambiguity_detector_selftest)
 {
@@ -1492,7 +1253,7 @@ TEST(quest_marching_cubes_equivalence, ambiguity_detector_selftest)
   EXPECT_EQ(nBoth, 0) << "face and body-diagonal ambiguity should be disjoint classes";
   EXPECT_EQ(nAny, 128);
 
-  // Named configurations.  Corner n is (i,j,k) with i fastest: n = i + 2j + 4k.
+  // Named configurations. Corner n is (i,j,k), with n = i + 2j + 4k.
   auto mk = [&](std::initializer_list<int> on, bool s[8]) {
     for(int i = 0; i < 8; ++i)
     {
@@ -1518,9 +1279,7 @@ TEST(quest_marching_cubes_equivalence, ambiguity_detector_selftest)
   mk({0, 3}, s);
   EXPECT_TRUE(cellHasFaceAmbiguity3D(s)) << "case 3 (face diagonal) is face-ambiguous";
   mk({0, 7}, s);
-  EXPECT_FALSE(cellHasFaceAmbiguity3D(s))
-    << "case 4 (body diagonal) has no ambiguous face. This is why a face-only "
-       "detector misses it, and why cellHasBodyDiagonalAmbiguity3D exists";
+  EXPECT_FALSE(cellHasFaceAmbiguity3D(s)) << "case 4 has no ambiguous face";
   EXPECT_TRUE(cellHasBodyDiagonalAmbiguity3D(s)) << "case 4 (body diagonal)";
   EXPECT_TRUE(cellIsAmbiguous3D(s));
 
@@ -1547,6 +1306,14 @@ TEST(quest_marching_cubes_equivalence, round_3d_seq) { test_round_3d(RuntimePoli
 TEST(quest_marching_cubes_equivalence, gyroid_3d_seq) { test_gyroid_3d(RuntimePolicy::seq); }
 TEST(quest_marching_cubes_equivalence, planar_2d_seq) { test_planar_2d(RuntimePolicy::seq); }
 TEST(quest_marching_cubes_equivalence, round_2d_seq) { test_round_2d(RuntimePolicy::seq); }
+TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_seq)
+{
+  test_accumulated_fields<2>(RuntimePolicy::seq);
+}
+TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_seq)
+{
+  test_accumulated_fields<3>(RuntimePolicy::seq);
+}
 TEST(quest_marching_cubes_equivalence, uniform_and_rectilinear_seq)
 {
   test_uniform_and_rectilinear(RuntimePolicy::seq);
@@ -1581,16 +1348,52 @@ TEST(quest_marching_cubes_equivalence, planar_3d_omp) { test_planar_3d(RuntimePo
 TEST(quest_marching_cubes_equivalence, round_3d_omp) { test_round_3d(RuntimePolicy::omp); }
 TEST(quest_marching_cubes_equivalence, gyroid_3d_omp) { test_gyroid_3d(RuntimePolicy::omp); }
 TEST(quest_marching_cubes_equivalence, round_2d_omp) { test_round_2d(RuntimePolicy::omp); }
+TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_omp)
+{
+  test_accumulated_fields<2>(RuntimePolicy::omp);
+}
+TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_omp)
+{
+  test_accumulated_fields<3>(RuntimePolicy::omp);
+}
+TEST(quest_marching_cubes_equivalence, strided_structured_omp)
+{
+  test_strided_structured(RuntimePolicy::omp);
+}
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(quest_marching_cubes_equivalence, round_3d_cuda) { test_round_3d(RuntimePolicy::cuda); }
 TEST(quest_marching_cubes_equivalence, gyroid_3d_cuda) { test_gyroid_3d(RuntimePolicy::cuda); }
+TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_cuda)
+{
+  test_accumulated_fields<2>(RuntimePolicy::cuda);
+}
+TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_cuda)
+{
+  test_accumulated_fields<3>(RuntimePolicy::cuda);
+}
+TEST(quest_marching_cubes_equivalence, strided_structured_cuda)
+{
+  test_strided_structured(RuntimePolicy::cuda);
+}
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(quest_marching_cubes_equivalence, round_3d_hip) { test_round_3d(RuntimePolicy::hip); }
 TEST(quest_marching_cubes_equivalence, gyroid_3d_hip) { test_gyroid_3d(RuntimePolicy::hip); }
+TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_hip)
+{
+  test_accumulated_fields<2>(RuntimePolicy::hip);
+}
+TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_hip)
+{
+  test_accumulated_fields<3>(RuntimePolicy::hip);
+}
+TEST(quest_marching_cubes_equivalence, strided_structured_hip)
+{
+  test_strided_structured(RuntimePolicy::hip);
+}
 #endif
 
 int main(int argc, char** argv)

@@ -88,13 +88,13 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
 
 endif()
 
-if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE)
+if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_BUMP)
     axom_add_executable(
         NAME        quest_marching_cubes_test
         HEADERS     quest_marching_cubes_testing_helpers.hpp
         SOURCES     quest_marching_cubes.cpp
         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_tests_depends} conduit::conduit
+        DEPENDS_ON  ${quest_tests_depends} conduit::conduit bump
         FOLDER      axom/quest/tests
         )
 
@@ -339,6 +339,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
     axom_add_executable(
         NAME        quest_marching_cubes_bump_test
         SOURCES     quest_marching_cubes_bump.cpp
+                    quest_marching_cubes_testing_helpers.hpp
         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
         DEPENDS_ON  ${quest_mc_bump_depends}
         FOLDER      axom/quest/tests
@@ -358,6 +359,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
     axom_add_executable(
         NAME        quest_marching_cubes_equivalence_test
         SOURCES     quest_marching_cubes_equivalence.cpp
+                    quest_marching_cubes_testing_helpers.hpp
         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
         DEPENDS_ON  ${quest_mc_bump_depends}
         FOLDER      axom/quest/tests
