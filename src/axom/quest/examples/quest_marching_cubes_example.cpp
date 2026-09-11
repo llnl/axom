@@ -6,13 +6,9 @@
 
 /*!
  * \file marching_cubes_example.cpp
- * \brief Driver and test for a marching cubes isocontour generation
+ * \brief Driver for marching cubes isocontour generation
  *
- *  The test can generate planar and round contours.
- *  Planar contours can be checked to machine-zero accuracy,
- *  but it doesn't test a great variety of contour-mesh intersection types.
- *  Round contours can check more intersection types but requires a tolerance
- *  since the function is nonlinear
+ * Generates planar, round, and gyroid scalar fields and extracts their contours.
  */
 
 #include "axom/config.hpp"
@@ -59,6 +55,7 @@
 #include <vector>
 #include <cmath>
 #include <limits>
+#include <functional>
 #include <memory>
 #include <type_traits>
 #include <variant>
@@ -910,26 +907,58 @@ static void addToStackArray(axom::StackArray<T, DIM>& a, U b)
 }
 
 /*!
- * @brief Strategy pattern for supporting a variety of contour types.
+ * @brief Analytic scalar field and its Blueprint field name.
  *
- * The strategy encapsulates the scalar functions and things related to it.
+ * std::function supports fields selected at run time. The example evaluates it
+ * only in host loops.
  */
 template <int DIM>
 struct ContourTestStrategy
 {
   using PointType = axom::primal::Point<double, DIM>;
 
-  //!@brief Return test name.
-  virtual std::string testName() const = 0;
-
-  //!@brief Return field name for storing nodal function.
-  virtual std::string functionName() const = 0;
-
-  //!@brief Return the analytical value of the scalar field.
-  virtual double valueAt(const PointType& pt) const = 0;
-
-  virtual ~ContourTestStrategy() { }
+  std::string testName;
+  std::string functionName;
+  std::function<double(const PointType&)> valueAt;
 };
+
+//! @brief Create a signed-distance field for a plane.
+template <int DIM>
+ContourTestStrategy<DIM> makePlanarStrategy(const axom::primal::Vector<double, DIM>& perpDir,
+                                            const axom::primal::Point<double, DIM>& inPlane)
+{
+  const axom::primal::Plane<double, DIM> plane(perpDir.unitVector(), inPlane);
+  return {"planar", "dist_to_plane", [plane](const axom::primal::Point<double, DIM>& pt) {
+            return plane.signedDistance(pt);
+          }};
+}
+
+//! @brief Create the distance-to-center field used for round contours.
+template <int DIM>
+ContourTestStrategy<DIM> makeRoundStrategy(const axom::primal::Point<double, DIM>& center)
+{
+  const axom::primal::Sphere<double, DIM> sphere(center, 0.0);
+  return {"round", "dist_to_center", [sphere](const axom::primal::Point<double, DIM>& pt) {
+            return sphere.computeSignedDistance(pt);
+          }};
+}
+
+//! @brief Create a gyroid field shifted by @a offset.
+template <int DIM>
+ContourTestStrategy<DIM> makeGyroidStrategy(const axom::primal::Point<double, DIM>& scale,
+                                            double offset)
+{
+  return {"gyroid", "gyroid_fcn", [scale, offset](const axom::primal::Point<double, DIM>& pt) {
+            if(DIM == 3)
+            {
+              return sin(pt[0] * scale[0]) * cos(pt[1] * scale[1]) +
+                sin(pt[1] * scale[1]) * cos(pt[2] * scale[2]) +
+                sin(pt[2] * scale[2]) * cos(pt[0] * scale[0]) + offset;
+            }
+            // Evaluate the 3D function at z = 0.
+            return sin(pt[0] * scale[0]) * cos(pt[1] * scale[1]) + sin(pt[1] * scale[1]) + offset;
+          }};
+}
 
 template <int DIM, typename ExecSpace>
 struct ContourTestBase
@@ -942,16 +971,14 @@ struct ContourTestBase
     , m_parentCellIdField("parentCellIds")
     , m_domainIdField("domainIdField")
   { }
-  virtual ~ContourTestBase() { }
-
-  void addTestStrategy(const std::shared_ptr<ContourTestStrategy<DIM>>& testStrategy)
+  void addTestStrategy(const ContourTestStrategy<DIM>& testStrategy)
   {
     m_testStrategies.push_back(testStrategy);
-    SLIC_INFO(axom::fmt::format("Add test {}.", testStrategy->testName()));
+    SLIC_INFO(axom::fmt::format("Add test {}.", testStrategy.testName));
   }
 
   const Input& m_params;
-  axom::Array<std::shared_ptr<ContourTestStrategy<DIM>>> m_testStrategies;
+  axom::Array<ContourTestStrategy<DIM>> m_testStrategies;
   const std::string m_parentCellIdField;
   const std::string m_domainIdField;
 
@@ -980,7 +1007,7 @@ struct ContourTestBase
       umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
       for(const auto& strategy : m_testStrategies)
       {
-        const std::string dataPath = axom::fmt::format("fields/{}/values", strategy->functionName());
+        const std::string dataPath = axom::fmt::format("fields/{}/values", strategy.functionName);
         void* dataPtr = computationalMesh.domain(0).fetch_existing(dataPath).data_ptr();
         bool dataFromUmpire = rm.hasAllocator(dataPtr);
         if(dataFromUmpire)
@@ -1067,7 +1094,7 @@ struct ContourTestBase
         mc.clearOutput();
         for(const auto& strategy : m_testStrategies)
         {
-          mc.setFunctionField(strategy->functionName());
+          mc.setFunctionField(strategy.functionName);
           for(int iMask = 0; iMask < m_params.maskCount; ++iMask)
           {
             mc.setMaskValue(iMask);
@@ -1226,7 +1253,7 @@ struct ContourTestBase
       auto domainView = bpMesh.getDomainView<DIM>(domId);
 
       // Create nodal function data with ghosts like node coords.
-      domainView.createField(strat.functionName(),
+      domainView.createField(strat.functionName,
                              "vertex",
                              conduit::DataType::float64(domainView.getCoordsCountWithGhosts()),
                              domainView.getCoordsStrides(),
@@ -1243,7 +1270,7 @@ struct ContourTestBase
       auto domainView = bpMesh.getDomainView<DIM>(domId);
       const auto coordsViews = domainView.getConstCoordsViews(false);
       axom::ArrayView<double, DIM> fieldView =
-        domainView.template getFieldView<double>(strat.functionName(), false);
+        domainView.template getFieldView<double>(strat.functionName, false);
       for(int d = 0; d < DIM; ++d)
       {
         SLIC_ASSERT(coordsViews[d].shape() == fieldView.shape());
@@ -1254,7 +1281,7 @@ struct ContourTestBase
 
   void computeNodalDistanceFlat(conduit::Node& dom, ContourTestStrategy<DIM>& strat)
   {
-    conduit::Node& fieldNode = dom["fields/" + strat.functionName()];
+    conduit::Node& fieldNode = dom["fields/" + strat.functionName];
     fieldNode["association"] = "vertex";
     fieldNode["topology"] = "mesh";
 
@@ -1402,66 +1429,9 @@ struct ContourTestBase
   {
     for(auto& strategy : m_testStrategies)
     {
-      computeNodalDistance(bpMesh, *strategy);
+      computeNodalDistance(bpMesh, strategy);
     }
   }
-};
-
-template <int DIM>
-struct PlanarTestStrategy : public ContourTestStrategy<DIM>
-{
-  using PointType = axom::primal::Point<double, DIM>;
-  PlanarTestStrategy(const axom::primal::Vector<double, DIM>& perpDir, const PointType& inPlane)
-    : ContourTestStrategy<DIM>()
-    , _plane(perpDir.unitVector(), inPlane)
-  { }
-  virtual std::string testName() const override { return std::string("planar"); }
-  virtual std::string functionName() const override { return std::string("dist_to_plane"); }
-  virtual double valueAt(const PointType& pt) const override { return _plane.signedDistance(pt); }
-  const axom::primal::Plane<double, DIM> _plane;
-};
-
-template <int DIM>
-struct RoundTestStrategy : public ContourTestStrategy<DIM>
-{
-  using PointType = axom::primal::Point<double, DIM>;
-  RoundTestStrategy(const PointType& center) : ContourTestStrategy<DIM>(), _sphere(center, 0.0) { }
-  virtual std::string testName() const override { return std::string("round"); }
-  virtual std::string functionName() const override { return std::string("dist_to_center"); }
-  virtual double valueAt(const PointType& pt) const override
-  {
-    return _sphere.computeSignedDistance(pt);
-  }
-  const axom::primal::Sphere<double, DIM> _sphere;
-};
-
-template <int DIM>
-struct GyroidTestStrategy : public ContourTestStrategy<DIM>
-{
-  using PointType = axom::primal::Point<double, DIM>;
-  GyroidTestStrategy(const PointType& scale, double offset)
-    : ContourTestStrategy<DIM>()
-    , _scale(scale)
-    , _offset(offset)
-  { }
-  virtual std::string testName() const override { return std::string("gyroid"); }
-  virtual std::string functionName() const override { return std::string("gyroid_fcn"); }
-  virtual double valueAt(const PointType& pt) const override
-  {
-    if(DIM == 3)
-    {
-      return sin(pt[0] * _scale[0]) * cos(pt[1] * _scale[1]) +
-        sin(pt[1] * _scale[1]) * cos(pt[2] * _scale[2]) +
-        sin(pt[2] * _scale[2]) * cos(pt[0] * _scale[0]) + _offset;
-    }
-    else
-    {
-      // Use the 3D function, with z=0.
-      return sin(pt[0] * _scale[0]) * cos(pt[1] * _scale[1]) + sin(pt[1] * _scale[1]) + _offset;
-    }
-  }
-  const PointType _scale;
-  const double _offset;
 };
 
 ///
@@ -1719,30 +1689,23 @@ int main(int argc, char** argv)
       constexpr int DIM = Instance::DIM;
       using ExecSpace = typename Instance::ExecSpace;
 
-      std::shared_ptr<PlanarTestStrategy<DIM>> planarStrat;
-      std::shared_ptr<RoundTestStrategy<DIM>> roundStrat;
-      std::shared_ptr<GyroidTestStrategy<DIM>> gyroidStrat;
-
       ContourTestBase<DIM, ExecSpace> contourTest(params);
 
       if(params.usingPlanar())
       {
-        planarStrat = std::make_shared<PlanarTestStrategy<DIM>>(params.planeNormal<DIM>(),
-                                                                params.inplanePoint<DIM>());
-        contourTest.addTestStrategy(planarStrat);
+        contourTest.addTestStrategy(
+          makePlanarStrategy<DIM>(params.planeNormal<DIM>(), params.inplanePoint<DIM>()));
       }
 
       if(params.usingRound())
       {
-        roundStrat = std::make_shared<RoundTestStrategy<DIM>>(params.roundContourCenter<DIM>());
-        contourTest.addTestStrategy(roundStrat);
+        contourTest.addTestStrategy(makeRoundStrategy<DIM>(params.roundContourCenter<DIM>()));
       }
 
       if(params.usingGyroid())
       {
-        gyroidStrat = std::make_shared<GyroidTestStrategy<DIM>>(params.gyroidScaleFactor<DIM>(),
-                                                                params.contourVal);
-        contourTest.addTestStrategy(gyroidStrat);
+        contourTest.addTestStrategy(
+          makeGyroidStrategy<DIM>(params.gyroidScaleFactor<DIM>(), params.contourVal));
       }
 
       contourTest.computeNodalDistance(computationalMesh);
