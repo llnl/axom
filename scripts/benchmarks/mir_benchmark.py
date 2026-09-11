@@ -21,15 +21,15 @@ runs = {
   "build-rzwhippet-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-gcc@13.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-intel-oneapi-compilers@2025.2.0-release" : {"policies":["seq", "omp"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzadams-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-tioga-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
+  "build-rzvernal-toss_4_x86_64_ib_cray-cce@21.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.3_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@7.2.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzadams-toss_4_x86_64_ib_cray-cce@21.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.3_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@7.2.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-cce@21.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.3_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@7.2.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
 }
 
 # Generate size arguments for the driver program.
@@ -545,6 +545,9 @@ def get_params():
 
   if params["driver"] == "mir_concentric_circles":
     params["extra_arguments"] = ["--numcircles", "5"]
+  elif params["driver"] == "mir_heavily_mixed":
+    # Lower the default number of materials / refinement
+    params["extra_arguments"] = ["--materials", "20", "--refinement", "20"]
   else:
     params["extra_arguments"] = []
 
