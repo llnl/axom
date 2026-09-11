@@ -167,7 +167,6 @@ public:
     {
       validateFieldIsFloat64(axom::fmt::format("fields/{}/values", m_fcnFieldName),
                              "function field");
-      validateFieldStrideOrder(axom::fmt::format("fields/{}", m_fcnFieldName));
     }
     if(topoType == "unstructured")
     {
@@ -203,116 +202,7 @@ public:
     {
       validateFieldIsFloat64(axom::fmt::format("fields/{}/values", m_fcnFieldName),
                              "function field");
-      validateFieldStrideOrder(axom::fmt::format("fields/{}", m_fcnFieldName));
     }
-  }
-
-  /*!
-   * @brief Validate the function field layout used by bump's flat field view.
-   *
-   * bump's FieldIntersector reads the field with a flat make_array_view,
-   * ignoring the field's Blueprint offsets/strides. That is only correct for a compact i-fastest layout,
-   * or a ghost-padded i-fastest layout whose offsets and strides match the structured topology.
-   * Reject independently strided fields and topology arrays cases.
-   *
-   * i-fastest is characterised by strides[0] == 1 and non-decreasing strides.
-   *
-   * @note Uniform, rectilinear, and unstructured topologies use compact node
-   *   numbering, so field offsets/strides are not supported on those paths.
-   */
-  void validateFieldStrideOrder(const std::string& fieldPath) const
-  {
-    if(m_dom == nullptr || !m_dom->has_path(fieldPath))
-    {
-      return;
-    }
-    const conduit::Node& n_field = m_dom->fetch_existing(fieldPath);
-    const bool hasFieldOffsets = n_field.has_child("offsets");
-    const bool hasFieldStrides = n_field.has_child("strides");
-
-    const conduit::Node& n_topo =
-      m_dom->fetch_existing(axom::fmt::format("topologies/{}", m_topologyName));
-    const bool hasTopoOffsets = n_topo.has_path("elements/dims/offsets");
-    const bool hasTopoStrides = n_topo.has_path("elements/dims/strides");
-
-    if(!hasFieldOffsets && !hasFieldStrides && !hasTopoOffsets && !hasTopoStrides)
-    {
-      return;
-    }
-    if(!m_useMeshViewUtilPath)
-    {
-      SLIC_ERROR(axom::fmt::format(
-        "MarchingCubes (bump backend) does not support function-field offsets/strides "
-        "on topology '{}'; bump indexes this field with compact topology node ids.",
-        m_topologyName));
-      return;
-    }
-
-    axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
-    const auto nodeShape = mvu.getNodeShape();
-    axom::StackArray<axom::IndexType, DIM> fieldOffsets {};
-    axom::StackArray<axom::IndexType, DIM> topoOffsets {};
-    axom::StackArray<axom::IndexType, DIM> fieldStrides {};
-    axom::StackArray<axom::IndexType, DIM> topoStrides {};
-
-    axom::IndexType compactStride = 1;
-    for(int d = 0; d < DIM; ++d)
-    {
-      fieldStrides[d] = compactStride;
-      topoStrides[d] = compactStride;
-      compactStride *= nodeShape[d];
-    }
-
-    auto readMetadata = [](const conduit::Node& node, const std::string& path, auto& values) {
-      if(!node.has_path(path))
-      {
-        return true;
-      }
-      const conduit::Node& metadata = node.fetch_existing(path);
-      if(metadata.dtype().number_of_elements() != DIM)
-      {
-        SLIC_ERROR(axom::fmt::format("MarchingCubes metadata '{}' has {} values; expected {}.",
-                                     path,
-                                     metadata.dtype().number_of_elements(),
-                                     DIM));
-        return false;
-      }
-      // The input mesh can reside in device memory. Copy its small metadata
-      // array to the host before inspecting it.
-      axom::bump::utilities::fillFromNode(node, path, values, true);
-      return true;
-    };
-
-    if(!readMetadata(n_field, "offsets", fieldOffsets) ||
-       !readMetadata(n_field, "strides", fieldStrides) ||
-       !readMetadata(n_topo, "elements/dims/offsets", topoOffsets) ||
-       !readMetadata(n_topo, "elements/dims/strides", topoStrides))
-    {
-      return;
-    }
-
-    bool iFastest = fieldStrides[0] == 1;
-    for(int d = 1; d < DIM; ++d)
-    {
-      iFastest = iFastest && (fieldStrides[d] >= fieldStrides[d - 1]);
-    }
-    if(!iFastest)
-    {
-      SLIC_ERROR(
-        axom::fmt::format("MarchingCubes (bump backend) requires an i-fastest function field: bump "
-                          "reads field values as a flat array and does not honor Blueprint field "
-                          "strides, so a permuted layout is silently transposed. Field '{}' has "
-                          "strides that are not i-fastest.",
-                          fieldPath));
-      return;
-    }
-
-    SLIC_ERROR_IF(
-      fieldOffsets != topoOffsets || fieldStrides != topoStrides,
-      axom::fmt::format("MarchingCubes (bump backend) requires function field '{}' to use the "
-                        "same offsets and strides as its structured topology. bump indexes "
-                        "field values directly with topology node ids.",
-                        fieldPath));
   }
 
   //! @brief Require a float64 Blueprint array, naming the offending type if not.
