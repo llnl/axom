@@ -67,9 +67,9 @@ protected:
   static void conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1);
 
   bool m_handler;
-  axom::StackArray<int, 3> m_dims;
+  axom::StackArray<conduit::index_t, 3> m_dims;
   int m_numMaterials;
-  int m_refinement;
+  conduit::index_t m_refinement;
   int m_numTrials;
   bool m_writeFiles;
   bool m_cleanMesh;

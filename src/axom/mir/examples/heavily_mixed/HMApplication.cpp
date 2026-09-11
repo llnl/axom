@@ -32,39 +32,42 @@ namespace detail
  * \param nmats The number of materials to make.
  */
 void heavily_mixed_matset(const std::string& topoName,
-                          int dims[3],
-                          int refinement,
+                          const conduit::index_t dims[3],
+                          conduit::index_t refinement,
                           conduit::Node& n_coarse,
                           const conduit::Node& n_field,
                           int nmats)
 {
+  AXOM_ANNOTATE_SCOPE("heavily_mixed_matset");
+
   const auto fine = n_field.as_float64_accessor();
-  int nzones = dims[0] * dims[1] * dims[2];
-  int nslots = nzones * nmats;
+  const conduit::index_t nzones = dims[0] * dims[1] * dims[2];
+  const conduit::index_t nslots = nzones * nmats;
   std::vector<double> vfs(nslots, 0.);
 
   // break the data range into nmats parts.
   const double matSize = 1000. / nmats;  //fine.max() / nmats;
 
-  const int rdims[] = {dims[0] * refinement, dims[1] * refinement, dims[2] * refinement};
+  const conduit::index_t rdims[] = {dims[0] * refinement, dims[1] * refinement, dims[2] * refinement};
 
-  for(int k = 0; k < dims[2]; k++)
+  for(conduit::index_t k = 0; k < dims[2]; k++)
   {
-    for(int j = 0; j < dims[1]; j++)
+    for(conduit::index_t j = 0; j < dims[1]; j++)
     {
-      for(int i = 0; i < dims[0]; i++)
+      for(conduit::index_t i = 0; i < dims[0]; i++)
       {
-        const int zoneIndex = k * dims[1] * dims[0] + j * dims[0] + i;
-        const int kr = k * refinement;
-        const int jr = j * refinement;
-        const int ir = i * refinement;
-        for(int jj = 0; jj < refinement; jj++)
-          for(int ii = 0; ii < refinement; ii++)
+        const conduit::index_t zoneIndex = k * dims[1] * dims[0] + j * dims[0] + i;
+        const conduit::index_t kr = k * refinement;
+        const conduit::index_t jr = j * refinement;
+        const conduit::index_t ir = i * refinement;
+        for(conduit::index_t jj = 0; jj < refinement; jj++)
+          for(conduit::index_t ii = 0; ii < refinement; ii++)
           {
-            const int fine_index = (kr * rdims[0] * rdims[1]) + ((jr + jj) * rdims[0]) + (ir + ii);
+            const conduit::index_t fine_index =
+              (kr * rdims[0] * rdims[1]) + ((jr + jj) * rdims[0]) + (ir + ii);
             const int matid =
               axom::utilities::clampVal(static_cast<int>(fine[fine_index] / matSize), 0, nmats - 1);
-            const int matslot = zoneIndex * nmats + matid;
+            const conduit::index_t matslot = zoneIndex * nmats + matid;
             vfs[matslot] += 1. / (refinement * refinement);
           }
       }
@@ -76,19 +79,19 @@ void heavily_mixed_matset(const std::string& topoName,
   std::vector<int> indices;
   std::vector<int> sizes;
   std::vector<int> offsets;
-  for(int k = 0; k < dims[2]; k++)
+  for(conduit::index_t k = 0; k < dims[2]; k++)
   {
-    for(int j = 0; j < dims[1]; j++)
+    for(conduit::index_t j = 0; j < dims[1]; j++)
     {
-      for(int i = 0; i < dims[0]; i++)
+      for(conduit::index_t i = 0; i < dims[0]; i++)
       {
-        const int zoneIndex = k * dims[0] * dims[1] + j * dims[0] + i;
+        const conduit::index_t zoneIndex = k * dims[0] * dims[1] + j * dims[0] + i;
 
         int size = 0;
         offsets.push_back(indices.size());
         for(int m = 0; m < nmats; m++)
         {
-          int matslot = zoneIndex * nmats + m;
+          const conduit::index_t matslot = zoneIndex * nmats + m;
           if(vfs[matslot] > 0)
           {
             indices.push_back(material_ids.size());
@@ -106,7 +109,7 @@ void heavily_mixed_matset(const std::string& topoName,
   conduit::Node& n_material_map = n_matset["material_map"];
   for(int i = 0; i < nmats; i++)
   {
-    int matno = i + 1;
+    const int matno = i + 1;
     const std::string name = axom::fmt::format("mat{:02d}", matno);
     n_material_map[name] = matno;
   }
@@ -122,9 +125,15 @@ void heavily_mixed_matset(const std::string& topoName,
 }
 
 template <typename CPUExecSpace>
-void heavily_mixed(conduit::Node& n_mesh, int dims[3], int refinement, int nmats)
+void heavily_mixed(conduit::Node& n_mesh,
+                   const conduit::index_t dims[3],
+                   conduit::index_t refinement,
+                   int nmats)
 {
-  const int rdims[] = {refinement * dims[0], refinement * dims[1], refinement * dims[2]};
+  AXOM_ANNOTATE_SCOPE("heavily_mixed");
+
+  // Use Conduit's index type for dimension products and flattened indices.
+  const conduit::index_t rdims[] = {refinement * dims[0], refinement * dims[1], refinement * dims[2]};
 
   // Default window
   const conduit::float64 x_min = -0.6;
@@ -134,14 +143,26 @@ void heavily_mixed(conduit::Node& n_mesh, int dims[3], int refinement, int nmats
   const conduit::float64 c_re = -0.5125;
   const conduit::float64 c_im = 0.5213;
 
-  conduit::blueprint::mesh::examples::julia(dims[0], dims[1], x_min, x_max, y_min, y_max, c_re, c_im, n_mesh);
+  {
+    AXOM_ANNOTATE_SCOPE("julia_dims");
+    conduit::blueprint::mesh::examples::julia(dims[0],
+                                              dims[1],
+                                              x_min,
+                                              x_max,
+                                              y_min,
+                                              y_max,
+                                              c_re,
+                                              c_im,
+                                              n_mesh);
+  }
+
   if(dims[2] > 1)
   {
     // Add another dimension to the coordset.
     const conduit::float64 z_min = 0.;
     const conduit::float64 z_max = x_max - x_min;
     std::vector<conduit::float64> z;
-    for(int i = 0; i <= dims[2]; i++)
+    for(conduit::index_t i = 0; i <= dims[2]; i++)
     {
       const auto t = static_cast<conduit::float64>(i) / dims[2];
       const auto zc = axom::utilities::lerp(z_min, z_max, t);
@@ -157,25 +178,34 @@ void heavily_mixed(conduit::Node& n_mesh, int dims[3], int refinement, int nmats
     const conduit::float64 y1_max = y_max * s;
 
     conduit::Node n_field;
-    n_field.set(conduit::DataType::int32(rdims[0] * rdims[1] * rdims[2]));
-    conduit::int32* destPtr = n_field.as_int32_ptr();
-    axom::for_all<CPUExecSpace>(rdims[2], [&](int k) {
-      const auto t = static_cast<conduit::float64>(k) / (dims[2] - 1);
-      // Interpolate the window
-      const conduit::float64 x0 = axom::utilities::lerp(x_min, x1_min, t);
-      const conduit::float64 x1 = axom::utilities::lerp(x_max, x1_max, t);
-      const conduit::float64 y0 = axom::utilities::lerp(y_min, y1_min, t);
-      const conduit::float64 y1 = axom::utilities::lerp(y_max, y1_max, t);
-      conduit::Node n_rmesh;
-      conduit::blueprint::mesh::examples::julia(rdims[0], rdims[1], x0, x1, y0, y1, c_re, c_im, n_rmesh);
-      const conduit::Node& n_src_field = n_rmesh["fields/iters/values"];
-      const conduit::int32* srcPtr = n_src_field.as_int32_ptr();
-      conduit::int32* currentDestPtr = destPtr + k * rdims[0] * rdims[1];
-      axom::copy(currentDestPtr, srcPtr, rdims[0] * rdims[1] * sizeof(conduit::int32));
+    {
+      AXOM_ANNOTATE_SCOPE("julia_rdims");
+      const conduit::index_t sliceSize = rdims[0] * rdims[1];
+      const conduit::index_t volumeSize = sliceSize * rdims[2];
+      n_field.set(conduit::DataType::int32(volumeSize));
+      conduit::int32* destPtr = n_field.as_int32_ptr();
+      axom::for_all<CPUExecSpace>(rdims[2], [&](conduit::index_t k) {
+        const auto t = static_cast<conduit::float64>(k) / (dims[2] - 1);
+        // Interpolate the window
+        const conduit::float64 x0 = axom::utilities::lerp(x_min, x1_min, t);
+        const conduit::float64 x1 = axom::utilities::lerp(x_max, x1_max, t);
+        const conduit::float64 y0 = axom::utilities::lerp(y_min, y1_min, t);
+        const conduit::float64 y1 = axom::utilities::lerp(y_max, y1_max, t);
+        conduit::Node n_rmesh;
+        conduit::blueprint::mesh::examples::julia(rdims[0], rdims[1], x0, x1, y0, y1, c_re, c_im, n_rmesh);
+
+        const conduit::Node& n_src_field = n_rmesh["fields/iters/values"];
+        const conduit::int32* srcPtr = n_src_field.as_int32_ptr();
+        conduit::int32* currentDestPtr = destPtr + k * sliceSize;
+        memcpy(currentDestPtr, srcPtr, static_cast<size_t>(sliceSize) * sizeof(conduit::int32));
 #ifndef AXOM_DEVICE_CODE
-      SLIC_INFO(axom::fmt::format("Made slice {}/{}", k + 1, rdims[2]));
+        if(k % 10 == 0)
+        {
+          SLIC_INFO(axom::fmt::format("Made slice {}/{}", k + 1, rdims[2]));
+        }
 #endif
-    });
+      });
+    }
 
     // Make a matset based on the higher resolution julia field.
     heavily_mixed_matset("topo", dims, refinement, n_mesh, n_field, nmats);
@@ -184,15 +214,18 @@ void heavily_mixed(conduit::Node& n_mesh, int dims[3], int refinement, int nmats
   {
     // Generate the same julia set at higher resolution to use as materials.
     conduit::Node n_rmesh;
-    conduit::blueprint::mesh::examples::julia(rdims[0],
-                                              rdims[1],
-                                              x_min,
-                                              x_max,
-                                              y_min,
-                                              y_max,
-                                              c_re,
-                                              c_im,
-                                              n_rmesh);
+    {
+      AXOM_ANNOTATE_SCOPE("julia_rdims");
+      conduit::blueprint::mesh::examples::julia(rdims[0],
+                                                rdims[1],
+                                                x_min,
+                                                x_max,
+                                                y_min,
+                                                y_max,
+                                                c_re,
+                                                c_im,
+                                                n_rmesh);
+    }
 
     // Make a matset based on the higher resolution julia field.
     const conduit::Node& n_field = n_rmesh["fields/iters/values"];
@@ -225,7 +258,7 @@ int HMApplication::initialize(int argc, char** argv)
     ->description("Install a custom error handler that loops forever.")
     ->capture_default_str();
 
-  std::vector<int> dims;
+  std::vector<conduit::index_t> dims;
   app.add_option("--dims", dims, "Dimensions in x,y,z (z optional)")
     ->expected(2, 3)
     ->check(axom::CLI::PositiveNumber);
@@ -341,13 +374,8 @@ int HMApplication::runMIR()
   conduit::Node mesh;
   {
     AXOM_ANNOTATE_SCOPE("generate");
-    int dims[3];
-    // NOTE: Use axom::copy to copy m_dims into dims. This way, the Umpire resource
-    //       manager gets created now so by the time we have multiple threads using
-    //       axom::copy, there is no race condition.
-    axom::copy(dims, m_dims, sizeof(int) * 3);
 
-    SLIC_INFO(axom::fmt::format("dims: {},{},{}", dims[0], dims[1], dims[2]));
+    SLIC_INFO(axom::fmt::format("dims: {},{},{}", m_dims[0], m_dims[1], m_dims[2]));
     SLIC_INFO(axom::fmt::format("refinement: {}", m_refinement));
     SLIC_INFO(axom::fmt::format("numMaterials: {}", m_numMaterials));
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_OPENMP)
@@ -355,7 +383,7 @@ int HMApplication::runMIR()
 #else
     using CPUExecSpace = axom::SEQ_EXEC;
 #endif
-    detail::heavily_mixed<CPUExecSpace>(mesh, dims, m_refinement, m_numMaterials);
+    detail::heavily_mixed<CPUExecSpace>(mesh, m_dims, m_refinement, m_numMaterials);
   }
   timer.stop();
   SLIC_INFO("Mesh init time: " << timer.elapsedTimeInMilliSec() << " ms.");
