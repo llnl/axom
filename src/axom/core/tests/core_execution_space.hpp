@@ -118,6 +118,30 @@ TEST(core_execution_space, check_invalid)
   check_invalid<InvalidSpace>();
 }
 
+//------------------------------------------------------------------------------
+TEST(core_execution_space, check_default_host_allocator)
+{
+  int expected_host_allocator = axom::MALLOC_ALLOCATOR_ID;
+  auto expected_host_memory_space = axom::MemorySpace::Malloc;
+#if defined(AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST)
+  expected_host_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  expected_host_memory_space = axom::MemorySpace::Host;
+#endif
+
+  EXPECT_EQ(expected_host_memory_space, axom::execution_space<axom::SEQ_EXEC>::memory_space);
+  EXPECT_EQ(expected_host_allocator, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+
+#if defined(AXOM_USE_UMPIRE)
+  EXPECT_EQ(axom::getUmpireResourceAllocatorID(umpire::resource::Host),
+            axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+#endif
+
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+  EXPECT_EQ(expected_host_allocator, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+  EXPECT_EQ(expected_host_memory_space, axom::execution_space<axom::OMP_EXEC>::memory_space);
+#endif
+}
+
 //==============================================================================
 // The following tests require RAJA and UMPIRE
 //==============================================================================
@@ -130,7 +154,7 @@ TEST(core_execution_space, check_seq_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   check_execution_mappings<axom::SEQ_EXEC,
   #if RAJA_VERSION_MAJOR > 2022
                            RAJA::seq_exec,
@@ -153,7 +177,7 @@ TEST(core_execution_space, check_omp_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::execution_space<axom::OMP_EXEC>::allocatorID();
   check_execution_mappings<axom::OMP_EXEC,
                            RAJA::omp_parallel_for_exec,
                            RAJA::omp_reduce,

@@ -59,6 +59,13 @@ dane-gcc_13_3_1-werror-src:
     EXTRA_CMAKE_OPTIONS: "-DENABLE_WARNINGS_AS_ERRORS:BOOL=ON"
   extends: .src_build_on_dane
 
+dane-gcc_13_3_1-umpire_host_default-werror-src:
+  variables:
+    COMPILER: "gcc@13.3.1"
+    HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
+    EXTRA_CMAKE_OPTIONS: "-DENABLE_WARNINGS_AS_ERRORS:BOOL=ON -DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST"
+  extends: .src_build_on_dane
+
 dane-sanitizers-gcc_13_3_1-src:
   variables:
     COMPILER: "gcc@13.3.1"

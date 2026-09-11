@@ -423,6 +423,11 @@ Axom build options, compiler support, and parallelism
 |                               |         | the Slic macros independently of       |
 |                               |         | ``AXOM_DEBUG``.                        |
 +-------------------------------+---------+----------------------------------------+
+| AXOM_DEFAULT_HOST_ALLOCATOR   | MALLOC  | Controls the allocator used by default |
+|                               |         | for host execution spaces. Valid       |
+|                               |         | values are `MALLOC` and `UMPIRE_HOST`. |
+|                               |         | `UMPIRE_HOST` requires Umpire.         |
++------------------------------+---------+----------------------------------------+
 | ENABLE_ALL_WARNINGS           | ON      | Enable extra compiler warnings         |
 |                               |         | in all build targets                   |
 +-------------------------------+---------+----------------------------------------+
