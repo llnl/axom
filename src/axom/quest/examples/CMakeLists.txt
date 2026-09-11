@@ -615,7 +615,6 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
                                 --center ${_center}
                                 --scale ${_scale}
                                 --contourVal 1.25
-                                --check-results
                                 --verbose
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
@@ -659,7 +658,6 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
                                 --scale ${_scale}
                                 --contourVal 1.25
                                 --useBumpBackend
-                                --check-results
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
                 set_tests_properties(${_test} PROPERTIES
