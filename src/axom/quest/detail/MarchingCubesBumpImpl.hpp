@@ -465,80 +465,7 @@ private:
   template <typename FuncType>
   static void dispatchCoordset(const conduit::Node& n_coords, FuncType&& func)
   {
-    namespace bumpviews = axom::bump::views;
-
-    const std::string cstype = n_coords.fetch_existing("type").as_string();
-    if(cstype == "uniform")
-    {
-      auto coordsetView = bumpviews::make_uniform_coordset<DIM>::view(n_coords);
-      func(coordsetView);
-    }
-    else if(cstype == "rectilinear")
-    {
-      const conduit::Node& values = n_coords.fetch_existing("values");
-      if constexpr(DIM == 2)
-      {
-        SLIC_ERROR_IF(values.number_of_children() != 2,
-                      "2D rectilinear coordsets require 2 component arrays.");
-        bumpviews::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
-          bumpviews::RectilinearCoordsetView2<typename decltype(xView)::value_type> coordsetView(
-            xView,
-            yView);
-          func(coordsetView);
-        });
-      }
-      else
-      {
-        SLIC_ERROR_IF(values.number_of_children() != 3,
-                      "3D rectilinear coordsets require 3 component arrays.");
-        bumpviews::floatNodeToArrayViewSame(
-          values[0],
-          values[1],
-          values[2],
-          [&](auto xView, auto yView, auto zView) {
-            bumpviews::RectilinearCoordsetView3<typename decltype(xView)::value_type> coordsetView(
-              xView,
-              yView,
-              zView);
-            func(coordsetView);
-          });
-      }
-    }
-    else if(cstype == "explicit")
-    {
-      const conduit::Node& values = n_coords.fetch_existing("values");
-      if constexpr(DIM == 2)
-      {
-        SLIC_ERROR_IF(values.number_of_children() != 2,
-                      "2D explicit coordsets require 2 component arrays.");
-        bumpviews::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
-          bumpviews::ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordsetView(
-            xView,
-            yView);
-          func(coordsetView);
-        });
-      }
-      else
-      {
-        SLIC_ERROR_IF(values.number_of_children() != 3,
-                      "3D explicit coordsets require 3 component arrays.");
-        bumpviews::floatNodeToArrayViewSame(
-          values[0],
-          values[1],
-          values[2],
-          [&](auto xView, auto yView, auto zView) {
-            bumpviews::ExplicitCoordsetView<typename decltype(xView)::value_type, 3> coordsetView(
-              xView,
-              yView,
-              zView);
-            func(coordsetView);
-          });
-      }
-    }
-    else
-    {
-      SLIC_ERROR(axom::fmt::format("Unsupported coordset type '{}'.", cstype));
-    }
+    axom::bump::views::dispatch_coordset<SelectedDimensions>(n_coords, std::forward<FuncType>(func));
   }
 
   /*! @brief Dispatch a topology view restricted to MarchingCubes-supported shapes. */
@@ -1063,11 +990,18 @@ private:
     // Restrict the unstructured shape set to {quad, hex} as requested, to bound template instantiation.
     // Structured dimensions restricted to DIM. Dispatch coordset, then topology, building the matching views
     // and running CutField.  The double dispatch yields the concrete (CoordView, TopoView) pair at compile time.
+    // `dispatched` says a (coordset, topology) view pair was built; `extracted`
+    // says CutField actually ran.  They differ: an empty crossing set returns
+    // early with dispatched=true, while a coordset/topology bump declines to
+    // view leaves both false.  Conflating them would report a malformed mesh as
+    // a legitimately empty contour.
+    bool dispatched = false;
     bool extracted = false;
     dispatchCoordset(n_coords, [&](auto coordsetView) {
       using CoordsetView = decltype(coordsetView);
       dispatchTopology(n_topo, [&](const std::string& AXOM_UNUSED_PARAM(shape), auto topologyView) {
         using TopologyView = decltype(topologyView);
+        dispatched = true;
 
         // --- Phase 6 robustness seam --------------------------------------
         // The intersector policy is the single point that determines per-cell topology + crossing precision.
@@ -1143,6 +1077,16 @@ private:
         extracted = true;
       });
     });
+
+    SLIC_ERROR_IF(
+      !dispatched,
+      axom::fmt::format("MarchingCubes (bump backend) could not build views for topology '{}' "
+                        "(type '{}') with coordset '{}' (type '{}') in {}D.",
+                        m_topologyName,
+                        n_topo.fetch_existing("type").as_string(),
+                        coordsetName,
+                        n_coords.fetch_existing("type").as_string(),
+                        DIM));
 
     if(!extracted)
     {
