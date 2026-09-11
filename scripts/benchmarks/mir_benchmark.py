@@ -32,6 +32,16 @@ runs = {
   "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
 }
 
+# Generate size arguments for the driver program.
+def size_arguments(params, s):
+  args = []
+  dimension = params["dimension"]
+  if params["driver"] == "mir_concentric_circles":
+    args = ["--gridsize", str(s), "--dimension", str(dimension)]
+  elif params["driver"] == "mir_heavily_mixed":
+    args = ["--dims"] + [str(s)]*dimension
+  return args
+
 def generate(params):
   """
   Generate scripts to run the program to create timings.
@@ -53,22 +63,25 @@ def generate(params):
     f.write("export OMP_PROC_BIND=spread\n")
     f.write("export OMP_DYNAMIC=FALSE\n")
 
+    extra_args = " ".join(params["extra_arguments"])
+
     dimension = params["dimension"]
     trials = params["trials"]
     for s in params["sizes"]:
       f.write(f"# Size {s}\n")
+      size_args = " ".join(size_arguments(params, s))
       if len(params["parallel"]) > 0:
         # parallel
         for np in params["parallel"]:
           launch = runs[r]["launch"](np)
           for policy in runs[r]["policies"]:
-            f.write(f'echo "Running {launch} $DRIVER_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
-            f.write(f'{launch} $DRIVER_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
+            f.write(f'echo "Running {launch} $DRIVER_MPI {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write"\n')
+            f.write(f'{launch} $DRIVER_MPI {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
       else:
         # serial
         for policy in runs[r]["policies"]:
-          f.write(f'echo "Running $DRIVER --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
-          f.write(f'$DRIVER --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
+          f.write(f'echo "Running $DRIVER {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write"\n')
+          f.write(f'$DRIVER {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
 
     f.close()
     os.chmod(filename, 0o700)
@@ -529,6 +542,11 @@ def get_params():
     params["driver"] = args.driver
   else:
     params["driver"] = "mir_concentric_circles"
+
+  if params["driver"] == "mir_concentric_circles":
+    params["extra_arguments"] = ["--numcircles", "5"]
+  else:
+    params["extra_arguments"] = []
 
   if args.method is not None:
     params["method"] = args.method
