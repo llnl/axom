@@ -1130,12 +1130,14 @@ void test_invalid_field_layouts_rejected(RuntimePolicy policy)
   conduit::Node permuted;
   buildStridedStructured3D(permuted, n, pad, f, "fcn");
   permuted["fields/fcn/strides"].set(std::vector<conduit::int32> {nnPad * nnPad, nnPad, 1});
-  expectBumpFieldLayoutRejected(permuted, policy, "i-fastest");
+  // FieldIntersector::initialize now performs this validation through validateVertexFieldIndexing.
+  // Match Bump's diagnostic, which reports both layouts.
+  expectBumpFieldLayoutRejected(permuted, policy, "but its topology has strides");
 
   conduit::Node mismatched;
   buildStridedStructured3D(mismatched, n, pad, f, "fcn");
   mismatched["fields/fcn/offsets"].set(std::vector<conduit::int32> {pad + 1, pad, pad});
-  expectBumpFieldLayoutRejected(mismatched, policy, "same offsets and strides");
+  expectBumpFieldLayoutRejected(mismatched, policy, "but its topology has offsets");
 }
 
 /*!
