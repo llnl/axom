@@ -57,11 +57,13 @@ mark_as_advanced(AXOM_DEBUG_DEFINE_STRING)
 set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "")
 
 string(TOUPPER "${AXOM_ENABLE_SLIC_DEBUG_MACROS}" _axom_slic_debug_macros_upper)
-if(_axom_slic_debug_macros_upper MATCHES "ON|TRUE")
+if("${_axom_slic_debug_macros_upper}" MATCHES "ON|TRUE")
   set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "AXOM_ENABLE_SLIC_DEBUG_MACROS=1")
-elseif(_axom_slic_debug_macros_upper MATCHES "OFF|FALSE")
+elseif("${_axom_slic_debug_macros_upper}" MATCHES "OFF|FALSE")
   set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "AXOM_ENABLE_SLIC_DEBUG_MACROS=0")
-elseif(NOT _axom_slic_debug_macros_upper STREQUAL "DEFAULT")
+elseif("${_axom_slic_debug_macros_upper}" MATCHES "DEFAULT")
+  # no-op
+else()
   message(FATAL_ERROR
     "Invalid value for AXOM_ENABLE_SLIC_DEBUG_MACROS. Must be 'DEFAULT', 'ON' or 'OFF'; was '${AXOM_ENABLE_SLIC_DEBUG_MACROS}'")
 endif()
