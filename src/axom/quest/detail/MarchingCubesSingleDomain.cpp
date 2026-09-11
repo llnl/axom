@@ -21,8 +21,6 @@
 #endif
 #include "axom/fmt.hpp"
 
-#include <type_traits>
-
 namespace axom::quest::detail::marching_cubes
 {
 MarchingCubesSingleDomain::MarchingCubesSingleDomain(MarchingCubes& mc)
@@ -129,26 +127,8 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> make_impl_leaf(
 #if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
   if(useBumpBackend)
   {
-  #if defined(_WIN32)
-    constexpr bool supportsBumpExec = std::is_same<ExecSpace, axom::SEQ_EXEC>::value;
-  #else
-    constexpr bool supportsBumpExec = true;
-  #endif
-    if constexpr(supportsBumpExec)
-    {
-      return std::unique_ptr<MarchingCubesSingleDomain::ImplBase>(
-        new axom::quest::detail::marching_cubes::MarchingCubesBumpImpl<DIM, ExecSpace>(allocatorID));
-    }
-    else
-    {
-      SLIC_ERROR(
-        "MarchingCubes bump backend is not enabled for this runtime policy "
-        "on Windows shared-library builds.");
-      // With a non-aborting error handler for SLIC_ERROR, we could
-      // fall through to the common return below and silently hand back the
-      // structured-only legacy kernel for what may be an unstructured mesh.
-      return nullptr;
-    }
+    return std::unique_ptr<MarchingCubesSingleDomain::ImplBase>(
+      new axom::quest::detail::marching_cubes::MarchingCubesBumpImpl<DIM, ExecSpace>(allocatorID));
   }
 #else
   SLIC_ERROR_IF(useBumpBackend,

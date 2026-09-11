@@ -56,6 +56,7 @@
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
 #include "axom/bump/views/dispatch_topology.hpp"
+#include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #include "axom/bump/views/Shapes.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
@@ -105,8 +106,9 @@ class MarchingCubesBumpImpl : public MarchingCubesSingleDomain::ImplBase
 public:
   static constexpr auto MemorySpace = execution_space<ExecSpace>::memory_space;
   static constexpr int SelectedDimensions = axom::bump::views::select_dimensions(DIM);
-  static constexpr int ShapeTypes =
-    (DIM == 3) ? (1 << axom::bump::views::Hex_ShapeID) : (1 << axom::bump::views::Quad_ShapeID);
+  static constexpr int ShapeTypes = (DIM == 3)
+    ? axom::bump::views::select_shapes(axom::bump::views::Hex_ShapeID)
+    : axom::bump::views::select_shapes(axom::bump::views::Quad_ShapeID);
 
   MarchingCubesBumpImpl(int allocatorID) : m_allocatorID(allocatorID) { }
 
@@ -358,74 +360,17 @@ private:
     axom::bump::views::dispatch_coordset<SelectedDimensions>(n_coords, std::forward<FuncType>(func));
   }
 
-  /*! @brief Dispatch a topology view restricted to MarchingCubes-supported shapes. */
+  /*!
+   * @brief Dispatch a topology in the template's spatial dimension.
+   *
+   * Unstructured meshes are limited to quads in 2D and hexes in 3D.
+   */
   template <typename FuncType>
   static void dispatchTopology(const conduit::Node& n_topo, FuncType&& func)
   {
-    namespace bumpviews = axom::bump::views;
-
-#if defined(_WIN32)
-    // Windows shared-library builds auto-export template instantiations from
-    // axom_quest.dll.  Keep this opt-in bump path narrow enough to link there,
-    // while preserving the generic bump dispatcher on other platforms.
-    const std::string topoType = n_topo.fetch_existing("type").as_string();
-    if(topoType == "unstructured")
-    {
-      const std::string shape = n_topo.fetch_existing("elements/shape").as_string();
-      if constexpr(DIM == 3)
-      {
-        SLIC_ERROR_IF(shape != "hex",
-                      axom::fmt::format("MarchingCubes bump backend expected "
-                                        "unstructured hex topology, but got '{}'.",
-                                        shape));
-        using ShapeType = bumpviews::HexShape<axom::IndexType>;
-        auto topologyView =
-          bumpviews::make_unstructured_single_shape_topology<ShapeType>::view(n_topo);
-        func(shape, topologyView);
-      }
-      else
-      {
-        SLIC_ERROR_IF(shape != "quad",
-                      axom::fmt::format("MarchingCubes bump backend expected "
-                                        "unstructured quad topology, but got '{}'.",
-                                        shape));
-        using ShapeType = bumpviews::QuadShape<axom::IndexType>;
-        auto topologyView =
-          bumpviews::make_unstructured_single_shape_topology<ShapeType>::view(n_topo);
-        func(shape, topologyView);
-      }
-    }
-    else if(topoType == "uniform" || topoType == "rectilinear" || topoType == "structured")
-    {
-      SLIC_ERROR_IF(
-        n_topo.has_path("elements/dims/offsets") || n_topo.has_path("elements/dims/strides"),
-        "MarchingCubes bump backend does not support strided structured topology "
-        "on Windows shared-library builds.");
-
-      const std::string shape = (DIM == 3) ? "hex" : "quad";
-      bumpviews::StructuredTopologyView<bumpviews::StructuredIndexing<axom::IndexType, DIM>> topologyView;
-      if(topoType == "uniform")
-      {
-        topologyView = bumpviews::make_uniform_topology<DIM>::view(n_topo);
-      }
-      else if(topoType == "rectilinear")
-      {
-        topologyView = bumpviews::make_rectilinear_topology<DIM>::view(n_topo);
-      }
-      else
-      {
-        topologyView = bumpviews::make_structured_topology<DIM>::view(n_topo);
-      }
-      func(shape, topologyView);
-    }
-    else
-    {
-      SLIC_ERROR(axom::fmt::format("Unsupported topology type '{}'.", topoType));
-    }
-#else
-    bumpviews::dispatch_topology<SelectedDimensions, ShapeTypes>(n_topo,
-                                                                 std::forward<FuncType>(func));
-#endif
+    axom::bump::views::dispatch_topology<SelectedDimensions, ShapeTypes>(
+      n_topo,
+      std::forward<FuncType>(func));
   }
 
   void attachSelectedZonesOption(conduit::Node& n_options,
