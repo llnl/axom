@@ -481,6 +481,12 @@ private:
     attachSelectedZonesOption(n_options, selectedZones);
   }
 
+  /*!
+   * @brief Restrict extraction to zones with the requested mask value.
+   *
+   * The topology view maps compact zone indices to mask field indices.
+   * This accounts for padding in strided structured fields.
+   */
   template <typename TopologyView>
   void addMaskSelectedZonesOption(const TopologyView& topologyView,
                                   conduit::Node& n_options,
@@ -498,56 +504,18 @@ private:
       m_dom->fetch_existing(axom::fmt::format("fields/{}", m_maskFieldName));
     const conduit::Node& n_maskValues = n_mask.fetch_existing("values");
 
-    // Copy mask value to a local so the device predicates below capture it by value.
-    // AXOM_LAMBDA is [=]; capturing the m_maskVal *member* would instead capture `this`,
-    // and dereferencing a host `this` pointer inside a CUDA/HIP kernel is undefined behavior.
-    // (Compiles and passes on seq/omp regardless, which is why this must be a local, not the member.)
+    // Copy the member so the device predicate does not capture and dereference the host `this` pointer
     const int maskVal = m_maskVal;
 
-    if(m_useMeshViewUtilPath)
-    {
-      // Structured + explicit: read the mask through MeshViewUtil so any
-      // ghost offsets/strides on the field are honored.
-      axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
-      const auto maskView = mvu.template getConstFieldView<int>(m_maskFieldName, false);
-      const axom::MDMapping<DIM> topoMap(mvu.getCellShape(), axom::ArrayStrideOrder::COLUMN);
-
-      buildSelectedZonesFromMask(
-        nZones,
-        [topoMap, maskView, maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
-          const auto zoneIdx = topoMap.toMultiIndex(zoneIndex);
-          if constexpr(DIM == 2)
-          {
-            return maskView(zoneIdx[0], zoneIdx[1]) == maskVal;
-          }
-          else
-          {
-            return maskView(zoneIdx[0], zoneIdx[1], zoneIdx[2]) == maskVal;
-          }
-        },
-        n_options,
-        selectedZones);
-    }
-    else
-    {
-      // Everything else (unstructured, uniform, rectilinear): the mask values
-      // are a flat array in the topology's zone order, which matches bump's
-      // zone numbering.  That is only true without per-field offsets/strides,
-      // so reject those explicitly rather than silently misindexing.
-      SLIC_ERROR_IF(n_mask.has_child("offsets") || n_mask.has_child("strides"),
-                    "MarchingCubes (bump backend) does not support a mask field with "
-                    "Blueprint offsets/strides on a non-structured-explicit topology.");
-      auto maskView = bputils::make_array_view<int>(n_maskValues);
-      SLIC_ERROR_IF(maskView.size() < nZones,
-                    "MarchingCubes mask field has fewer values than topology zones.");
-      buildSelectedZonesFromMask(
-        nZones,
-        [maskView, maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
-          return maskView[zoneIndex] == maskVal;
-        },
-        n_options,
-        selectedZones);
-    }
+    auto maskView = bputils::make_array_view<int>(n_maskValues);
+    const TopologyView deviceTopologyView(topologyView);
+    buildSelectedZonesFromMask(
+      nZones,
+      [maskView, maskVal, deviceTopologyView] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+        return maskView[deviceTopologyView.zoneFieldIndex(zoneIndex)] == maskVal;
+      },
+      n_options,
+      selectedZones);
   }
 
   template <typename TopologyView, typename CoordsetView>
