@@ -65,8 +65,7 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
   }
   else
   {
-    // Neither a single domain carrying the requested topology nor a valid multi-domain mesh.
-    // Error out here since wrapping it would defers the failure into an opaque fetch_existing() below.
+    // Report the invalid layout before a later fetch_existing() obscures the cause.
     SLIC_ERROR(
       axom::fmt::format("MarchingCubes::setMesh: the input mesh is neither a multi-domain "
                         "Blueprint mesh nor a single domain containing topology '{}'.",
@@ -123,7 +122,7 @@ void MarchingCubes::setUseBumpBackend(bool useBump)
 {
 #if !defined(AXOM_USE_BUMP)
   SLIC_ERROR_IF(useBump,
-                "MarchingCubes bump backend requires Axom to be configured "
+                "MarchingCubes Bump backend requires Axom to be configured "
                 "with the bump component.");
 #endif
   m_useBumpBackend = useBump;
@@ -133,12 +132,8 @@ void MarchingCubes::computeIsocontour(double contourVal)
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::computeIsoContour");
 
-  /*
-    NOTE: the accumulators are deliberately not reset here.
-    Successive computeIsocontour() calls accumulate into one facet buffer.
-    It calls clearOutput() once, then loops over function fields and mask values
-    calling computeIsocontour() for each, recording a running prefix sum of facet counts per strategy.
-  */
+  // Keep prior output so callers can append contours from several fields or isovalues.
+  // clearOutput() starts a new output mesh.
 
   // Mark and scan domains while adding up their
   // facet counts to get the total facet counts.

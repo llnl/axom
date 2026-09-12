@@ -48,10 +48,7 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
   SLIC_ASSERT_MSG(!conduit::blueprint::mesh::is_multi_domain(dom),
                   "Internal error.  Attempt to set a multi-domain mesh in "
                   "MarchingCubesSingleDomain.");
-  // The legacy backend supports only structured topologies.
-  // The bump backend additionally supports unstructured single-shape quad/hex;
-  // it validates the topology type itself in its own setDomain(),
-  // so we only enforce the structured requirement here when using the legacy backend.
+  // The Bump implementation validates its supported topology types
   if(!m_mc.m_useBumpBackend)
   {
     SLIC_ASSERT(dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string() ==
@@ -79,10 +76,7 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
     dom.fetch_existing(axom::fmt::format("topologies/{}", m_topologyName)));
   SLIC_ASSERT(m_ndim >= 2 && m_ndim <= 3);
 
-  // The legacy backend reads coordinates through strided component views and
-  // requires a contiguous (non-interleaved) layout.  The bump backend wraps the
-  // coordset via bump's coordset views; if a given layout is unsupported there,
-  // bump's dispatch reports it.  So enforce contiguity only for the legacy path.
+  // The Bump coordset dispatcher validates its supported layouts
   if(!m_mc.m_useBumpBackend)
   {
     SLIC_ASSERT_MSG(
@@ -103,17 +97,13 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
 namespace
 {
 /*!
- * @brief Construct the single-domain impl leaf for a concrete (DIM, ExecSpace),
- * choosing the bump-backed implementation when requested/available, else the
- * legacy hand-written marching cubes kernel.
+ * @brief Construct the implementation for one dimension and execution space.
  *
- * Centralizing the bump-vs-legacy choice here keeps the (policy x dim) matrix
- * in newMarchingCubesImpl() from having to repeat the branch in every leaf.
+ * Choose Bump when requested and available. Otherwise use the legacy kernel.
  *
  * @tparam DIM Spatial dimension.
  * @tparam ExecSpace Compute execution space.
- * @tparam SeqExec The sequential exec space the legacy kernel uses for its
- *   (intentionally serial) scan phase; unused by the bump backend.
+ * @tparam SeqExec Execution space for the legacy kernel's serial scan phase.
  */
 template <int DIM, typename ExecSpace, typename SeqExec>
 std::unique_ptr<MarchingCubesSingleDomain::ImplBase> make_impl_leaf(
@@ -132,7 +122,7 @@ std::unique_ptr<MarchingCubesSingleDomain::ImplBase> make_impl_leaf(
   }
 #else
   SLIC_ERROR_IF(useBumpBackend,
-                "MarchingCubes bump backend requires Axom to be configured "
+                "MarchingCubes Bump backend requires Axom to be configured "
                 "with the bump component.");
 #endif
   return std::unique_ptr<MarchingCubesSingleDomain::ImplBase>(

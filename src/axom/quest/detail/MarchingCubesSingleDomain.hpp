@@ -9,8 +9,7 @@
 /*!
  * \file MarchingCubesSingleDomain.hpp
  *
- * \brief Consists of classes implementing marching cubes algorithm to
- * compute isocontour from a scalar field in a blueprint mesh.
+ * \brief Implements Marching Cubes for one Blueprint domain.
  */
 
 #include "axom/config.hpp"
@@ -37,10 +36,9 @@ template <int DIM, typename ExecSpace, typename SequentialLoopPolicy>
 class MarchingCubesImpl;
 
 /*!
- * \@brief Class implementing marching cubes algorithm for a single domain.
+ * @brief Applies Marching Cubes to one Blueprint domain.
  *
- * This class is an internal detail for multi-domain implementation
- * MarchinCubes class, and should not be used outside it.
+ * MarchingCubes uses this internal class for each local domain.
  *
  * \sa MarchingCubes
  */
@@ -48,32 +46,30 @@ class MarchingCubesSingleDomain
 {
 public:
   using RuntimePolicy = axom::runtime_policy::Policy;
-  //! \brief Constructor for applying algorithm in a single domain.
+  //! \brief Construct a single-domain worker for \a mc.
   MarchingCubesSingleDomain(MarchingCubes& mc);
 
   ~MarchingCubesSingleDomain() = default;
 
   /*!
-   * @brief Intitialize object to a domain.
+   * @brief Set the Blueprint domain.
    * \param [in] dom Blueprint single-domain mesh containing scalar field.
    * \param [in] topologyName Name of Blueprint topology to use in \a dom
-   * \param [in] maskField Cell-based std::int32_t mask field.  If provided,
-   *             cells where this field evaluates to false are skipped.
+   * \param [in] maskField Optional cell-based std::int32_t mask field.
+   *             Cells whose values differ from the current mask value are skipped.
    *
-   * Array data in \a dom must be accessible in the the \a runtimePolicy environment
-   * in the constructor.  It's an error if not, e.g., using CPU memory with a GPU policy.
+   * Array data in \a dom must be accessible to the runtime policy passed to
+   * the MarchingCubes constructor.
    *
-   * Some data from \a dom may be cached by the constructor.
-   * Any change to it without re-initialization leads to undefined behavior.
+   * This object retains references to data in \a dom. Do not modify or destroy
+   * that data until setDomain() is called again or this object is destroyed.
    *
-   * The mesh coordinates should be stored contiguously.  See
-   * conduit::blueprint::is_contiguous().  In the future, this
-   * requirement may be relaxed, possibly at the cost of a
-   * transformation and storage of the temporary contiguous layout.
+   * The legacy backend requires non-interleaved coordinates.
+   * The Bump backend accepts any layout supported by its coordset views.
    */
   void setDomain(const conduit::Node& dom,
                  const std::string& topologyName,
-                 const std::string& maskfield);
+                 const std::string& maskField);
 
   int spatialDimension() const { return m_ndim; }
 
@@ -136,21 +132,16 @@ public:
   axom::IndexType getContourNodeCount() const { return m_impl->getContourNodeCount(); }
 
   /*!
-   * @brief Base class for implementations templated on dimension DIM
-   * and execution space ExecSpace.
+   * @brief Runtime interface for implementations templated on dimension and execution space.
    *
-   * Implementation details templated on DIM and ExecSpace cannot
-   * be in MarchingCubesSingleDomain so should live in this class.
-   *
-   * This class allows m_impl to refer to any implementation used at runtime.
+   * This interface lets \c m_impl hold the implementation chosen at runtime.
    */
   struct ImplBase
   {
     /*!
      * @brief Prepare internal data for operating on the given domain.
      *
-     * Put in here codes that can't be in MarchingCubesSingleDomain
-     * due to template use (DIM and ExecSpace).
+     * Implementations use the compile-time dimension and execution space.
      */
     virtual void setDomain(const conduit::Node& dom,
                            const std::string& topologyName,
@@ -161,10 +152,9 @@ public:
     virtual void setMaskValue(int maskVal) = 0;
 
     /*!
-     * @brief Set the isosurface robustness policy (bump backend only).
+     * @brief Set the Bump isosurface robustness policy.
      *
-     * No-op default so the legacy backend (which has no intersector concept) is unaffected.
-     * The bump backend overrides this.
+     * The legacy implementation keeps this no-op default.
      */
     virtual void setRobustnessPolicy(MarchingCubesRobustnessPolicy) { }
 
@@ -195,11 +185,11 @@ public:
     //! @brief Return number of contour mesh nodes generated.
     virtual axom::IndexType getContourNodeCount() const = 0;
 
-    /*! @brief Whether this implementation has a richer Blueprint contour. */
+    //! @brief Whether this implementation has a Blueprint contour.
     virtual bool hasContourMeshBlueprint() const { return false; }
 
     /*!
-     * @brief Copy the implementation's richer Blueprint contour, if any.
+     * @brief Copy the implementation's Blueprint contour.
      *
      * The legacy backend does not provide this representation; callers should
      * check hasContourMeshBlueprint() before invoking this method.
@@ -211,7 +201,7 @@ public:
     }
 
     /*!
-     * @brief Move the implementation's richer Blueprint contour, if any.
+     * @brief Move the implementation's Blueprint contour.
      *
      * The legacy backend does not provide this representation; callers should
      * check hasContourMeshBlueprint() before invoking this method.
