@@ -66,7 +66,8 @@ public:
    * This object retains references to data in \a dom. Do not modify or destroy
    * that data until setDomain() is called again or this object is destroyed.
    *
-   * The topology must be structured, and its coordinates must not be interleaved.
+   * The legacy backend requires non-interleaved coordinates.
+   * The Bump backend accepts any layout supported by its coordset views.
    */
   void setDomain(const conduit::Node& dom,
                  const std::string& topologyName,
@@ -156,10 +157,9 @@ public:
     virtual void setMaskValue(int maskVal) = 0;
 
     /*!
-     * @brief Set the isosurface robustness policy (bump backend only).
+     * @brief Set the Bump isosurface robustness policy.
      *
-     * No-op default so the legacy backend (which has no intersector concept) is unaffected.
-     * The bump backend overrides this.
+     * The legacy implementation keeps this no-op default.
      */
     virtual void setRobustnessPolicy(MarchingCubesRobustnessPolicy) { }
 
@@ -189,11 +189,11 @@ public:
     //! @brief Return the number of generated contour nodes.
     virtual axom::IndexType getContourNodeCount() const = 0;
 
-    /*! @brief Whether this implementation has a richer Blueprint contour. */
+    //! @brief Whether this implementation has a Blueprint contour.
     virtual bool hasContourMeshBlueprint() const { return false; }
 
     /*!
-     * @brief Copy the implementation's richer Blueprint contour, if any.
+     * @brief Copy the implementation's Blueprint contour.
      *
      * The legacy backend does not provide this representation; callers should
      * check hasContourMeshBlueprint() before invoking this method.
@@ -205,7 +205,7 @@ public:
     }
 
     /*!
-     * @brief Move the implementation's richer Blueprint contour, if any.
+     * @brief Move the implementation's Blueprint contour.
      *
      * The legacy backend does not provide this representation; callers should
      * check hasContourMeshBlueprint() before invoking this method.

@@ -7,26 +7,17 @@
 /*!
  * @file MarchingCubesBumpImpl.hpp
  *
- * @brief A MarchingCubesSingleDomain::ImplBase implementation
- * that delegates isocontour extraction to axom::bump::extraction::CutField.
+ * @brief Implements single-domain isocontouring with \c axom::bump::extraction::CutField.
  *
- * Unlike the legacy MarchingCubesImpl (which contains a hand-written marching cubes kernel over structured data),
- * this implementation wraps the bump CutField extractor.
- * CutField is templated on <ExecSpace, TopologyView, CoordsetView>, so it transparently supports:
- *   - structured (uniform / rectilinear / explicit-structured) topologies, and
- *   - unstructured *single-shape* quad (2D) and hex (3D) topologies,
- * on all execution spaces (seq, omp, cuda, hip), via the bump view dispatch.
+ * Bump dispatches uniform, rectilinear, and explicit structured meshes.
+ * It also dispatches single-shape quad meshes in 2D and hex meshes in 3D.
+ * The selected execution space may be sequential, OpenMP, CUDA, or HIP.
  *
- * Design notes:
- *  - CutField is a Blueprint-in / Blueprint-out operation.
- *    We run it once per domain in computeFacets();
- *    markCrossings()/scanCrossings() do the cheap bookkeeping the parent MarchingCubes orchestration expects.
- *  - The phased ImplBase interface (mark/scan/compute) was designed around the legacy kernel.
- *    bump does everything in one execute() call, so we run the extractor lazily and cache its result,
- *    then satisfy the count queries from the cached result.
- *  - bump produces a welded, topologically-connected surface (blend-group uniquification).
- *    The 3D output may be polygonal (tri/quad/poly5..8), and the 2D output is line segments.
- *    The adaptor can optionally triangulate the polygon.
+ * CutField performs extraction in one call, while ImplBase separates marking,
+ * scanning, and facet generation. scanCrossings() therefore runs CutField and
+ * caches its Blueprint output. computeFacets() copies that output into the
+ * parent MarchingCubes buffers. The adaptor can fan-triangulate Bump's welded
+ * polygonal faces when the caller requests legacy triangle output.
  */
 
 #pragma once
@@ -49,7 +40,7 @@
 #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
 #include "axom/quest/detail/MarchingCubesBumpAdaptor.hpp"
 
-// bump extraction + views
+// Bump extraction and views.
 #include "axom/bump/extraction/CutField.hpp"
 #include "axom/bump/extraction/FieldIntersector.hpp"
 #include "axom/bump/SelectedZones.hpp"
@@ -93,10 +84,9 @@ axom::IndexType computeTriangulatedFacetCountView(SizesView sizes)
  * @tparam DIM Spatial dimension (2 or 3).
  * @tparam ExecSpace Axom execution space (SEQ_EXEC, OMP_EXEC, CUDA_EXEC<>, HIP_EXEC<>).
  *
- * This object holds a reference to a single Blueprint domain and, on
- * computeFacets(), invokes bump's CutField extractor to produce the isocontour.
- * It then adapts the bump Blueprint output into the legacy output buffers
- * supplied by the parent MarchingCubes via setOutputBuffers().
+ * This object retains a reference to one Blueprint domain. scanCrossings()
+ * runs CutField and caches its Blueprint output. computeFacets() then copies
+ * that output into the buffers supplied by MarchingCubes.
  */
 template <int DIM, typename ExecSpace>
 class MarchingCubesBumpImpl : public MarchingCubesSingleDomain::ImplBase
@@ -113,8 +103,7 @@ public:
   /*!
    * @brief Cache the domain and topology/mask names.
    *
-   * We do not build views here because CutField needs the field name and
-   * contour value too; we defer all heavy work to computeFacets().
+   * Extraction waits until scanCrossings(), after the field and isovalue have been set.
    */
   void setDomain(const conduit::Node& dom,
                  const std::string& topologyName,
@@ -136,16 +125,13 @@ public:
                     "MarchingCubes mask field values must be int32.");
     }
 
-    // Validate that this is a topology bump+MarchingCubes supports: a DIM-dimensional structured topology,
-    // or an unstructured single-shape quad (DIM==2) / hex (DIM==3) topology.  Mixed/polyhedral are rejected here.
+    // Accept structured topologies and single-shape quads or hexes.
     const conduit::Node& n_topo =
       dom.fetch_existing(axom::fmt::format("topologies/{}", topologyName));
     const std::string topoType = n_topo.fetch_existing("type").as_string();
 
-    // MeshViewUtil::isValid() requires both a "structured" topology and an explicit coordset
-    // Gating those paths on m_isStructured meant a uniform/rectilinear mesh passed setDomain()'s validation,
-    // and then hard-errored deep inside the crossing pre-filter.
-    // bump handles uniform and rectilinear, so use bump's views rather than MeshViewUtil.
+    // MeshViewUtil supports only structured topologies with explicit
+    // coordsets. Use it for the crossing prefilter only in that case.
 
     const std::string coordsetTypeForPath =
       dom
@@ -155,10 +141,8 @@ public:
         .as_string();
     m_useMeshViewUtilPath = (topoType == "structured") && (coordsetTypeForPath == "explicit");
 
-    // Strided-structured (ghost-padded) input needs no special handling here.
-    // adaptCutFieldOutputViews() reads bump's blended output coordset with make_array_view<double>,
-    // which errors late and opaquely on a float32 coordset.
-    // Catch it here instead, where the path can be named.
+    // The output adaptor reads coordinates as double. Validate the input here
+    // so an error names the offending path.
     const std::string csPath =
       axom::fmt::format("coordsets/{}/values", n_topo.fetch_existing("coordset").as_string());
     for(const char* comp : {"x", "y", "z"})
@@ -175,7 +159,7 @@ public:
       const std::string shape = n_topo.fetch_existing("elements/shape").as_string();
       const char* expected = (DIM == 3) ? "hex" : "quad";
       SLIC_ERROR_IF(shape != expected,
-                    axom::fmt::format("MarchingCubes (bump backend) supports unstructured "
+                    axom::fmt::format("MarchingCubes (Bump backend) supports unstructured "
                                       "single-shape '{}' in {}D, but got shape '{}'.",
                                       expected,
                                       DIM,
@@ -185,7 +169,7 @@ public:
     {
       SLIC_ERROR_IF(
         topoType != "uniform" && topoType != "rectilinear" && topoType != "structured",
-        axom::fmt::format("MarchingCubes (bump backend) does not support topology type '{}'.",
+        axom::fmt::format("MarchingCubes (Bump backend) does not support topology type '{}'.",
                           topoType));
     }
   }
@@ -193,9 +177,7 @@ public:
   /*!
    * @brief Set the nodal function field, validating its type.
    *
-   * The structured pre-filter reads the field through MeshViewUtil::getConstFieldView<double>(),
-   * which assumes that the values are `double`. Check the type here, and provide an error
-   * message with the actual type when necessary.
+   * MarchingCubes requires a float64 function field.
    */
   void setFunctionField(const std::string& fcnFieldName) override
   {
@@ -216,7 +198,7 @@ public:
     }
     const conduit::Node& n = m_dom->fetch_existing(path);
     SLIC_ERROR_IF(!n.dtype().is_float64(),
-                  axom::fmt::format("MarchingCubes (bump backend) requires a float64 {} at '{}', "
+                  axom::fmt::format("MarchingCubes (Bump backend) requires a float64 {} at '{}', "
                                     "but found '{}'.",
                                     what,
                                     path,
@@ -228,39 +210,33 @@ public:
   void setMaskValue(int maskVal) override { m_maskVal = maskVal; }
 
   /*!
-   * @brief Record the requested robustness policy (Phase 6 seam).
+   * @brief Store the requested robustness policy.
    *
-   * Currently advisory: `standard` and `robust` both run bump's default intersector + tables.
-   * When a robust (double-precision, +/-/0-aware) intersector is available,
-   * runExtraction() will select it for `robust` with no change to the calling code.
+   * Both policies currently use Bump's default intersector and tables.
    */
   void setRobustnessPolicy(MarchingCubesRobustnessPolicy policy) override
   {
     m_robustnessPolicy = policy;
   }
 
-  // The data-parallelism knob is a legacy-kernel concept; bump manages its own
-  // parallelism.  We accept and ignore it (kept for API compatibility).
+  // This setting controls only the legacy backend. Keep the value for the
+  // shared interface, but do not use it here.
   void setDataParallelism(MarchingCubesDataParallelism dataPar) override
   {
     m_dataParallelism = dataPar;
   }
 
-  // ---- Phased interface (mark/scan/compute) -------------------------------
-  // bump does extraction in a single execute() call.
-  // We run it lazily in runExtraction() and have the phase methods drive/observe that.
+  // CutField performs all extraction in one call, so the phases share a cached result.
 
-  //! @brief No-op for the bump backend (extraction is deferred).
-  void markCrossings() override { /* no-op: deferred to computeFacets */ }
+  //! @brief No-op for the Bump backend. scanCrossings() performs extraction.
+  void markCrossings() override { /* no-op: deferred to scanCrossings */ }
 
   /*!
-   * @brief Run the bump extraction so the facet count is known.
+   * @brief Run the Bump extraction so the facet count is known.
    *
-   * The parent MarchingCubes allocates the shared output buffers after the scan phase
-   * (it needs per-domain counts to size them) and before the compute phase.
-   *
-   * bump cannot give us a count without doing the full extraction, so we perform extraction here and cache the result.
-   * The count then becomes available to the parent, and computeFacets() copies cached data into the buffers the parent allocated.
+   * MarchingCubes needs each domain's facet count before it allocates the
+   * shared output buffers. CutField cannot provide that count without running,
+   * so this phase performs and caches the extraction.
    */
   void scanCrossings() override
   {
@@ -268,7 +244,7 @@ public:
     runExtraction();
   }
 
-  //! @brief Copy cached bump output into the parent-allocated output buffers.
+  //! @brief Copy cached Bump output into the parent-allocated output buffers.
   void computeFacets() override { fillLegacyOutputBuffers(); }
 
   axom::IndexType getContourCellCount() const override { return m_facetCount; }
@@ -301,7 +277,7 @@ public:
   void copyContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const override
   {
     SLIC_ERROR_IF(!m_extractionRan,
-                  "MarchingCubes bump backend has no Blueprint contour output. "
+                  "MarchingCubes Bump backend has no Blueprint contour output. "
                   "Call computeIsocontour() before requesting it.");
     if(m_output == nullptr)
     {
@@ -318,7 +294,7 @@ public:
   void relinquishContourMeshBlueprint(conduit::Node& bpMesh) override
   {
     SLIC_ERROR_IF(!m_extractionRan,
-                  "MarchingCubes bump backend has no Blueprint contour output. "
+                  "MarchingCubes Bump backend has no Blueprint contour output. "
                   "Call computeIsocontour() before requesting it.");
     bpMesh.reset();
     if(m_output != nullptr)
@@ -341,7 +317,7 @@ public:
 private:
 #endif
   /*!
-   * @brief Convert the requested isovalue to bump's field type while preserving
+   * @brief Convert the requested isovalue to Bump's field type while matching
    * the legacy backend's greater-than-or-equal corner classification.
    */
   template <typename FieldType>
@@ -528,8 +504,8 @@ private:
    * @brief Fast structured crossing pre-filter.
    *
    * @param isoForBump Threshold in the intersector's field type; see isoValueForBump().
-   *   The corner test below MUST be the same expression bump's FieldIntersector uses,
-   *   or this pre-filter can exclude a zone that bump would have cut (silently dropping facets).
+   *   This prefilter must use the same corner test as Bump's FieldIntersector.
+   *   Otherwise it can discard a zone that FieldIntersector would cut.
    */
   template <typename IsoFieldType>
   bool attachStructuredCrossingSelectedZonesOption(IsoFieldType isoForBump,
@@ -553,15 +529,11 @@ private:
     if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
     {
       /*
-        Iterate the logical index space directly rather than deriving it from a flat zone index.
+        Iterate over logical indices. Calling topoMap.toMultiIndex() for every zone
+        costs DIM integer divisions, while nested loops update the flat index by addition.
 
-        topoMap.toMultiIndex(zoneIndex) costs DIM integer divisions per zone,
-        and this loop runs over EVERY zone, not just crossing ones.
-        Nested loops make the flat index incremental and the divisions disappear.
-
-        Node signs are also hoisted: adjacent zones share four (2D) or eight (3D) corners,
-        so classifying each NODE once into a byte array and combining bytes per zone
-        replaces 2^DIM strided double reads per zone with 2^DIM byte reads.
+        Cache each node's sign in a byte. Adjacent zones share corners, so this
+        avoids repeated strided reads of the double field.
       */
       crossingZones = axom::Array<axom::IndexType>(0, 0, m_allocatorID);
       crossingZones.reserve(nZones);
@@ -740,15 +712,10 @@ private:
   }
 
   /*!
-   * @brief Instantiate CutField for (DIM, ExecSpace, this domain's view types)
-   * and run it, storing the Blueprint output.
+   * @brief Run CutField and store its Blueprint output.
    *
-   * Uses bump's dispatch_topology / dispatch_coordset to turn the runtime
-   * Blueprint topology+coordset into compile-time view types, then instantiates
-   * CutField<ExecSpace, TopoView, CoordView> and calls execute().
-   *
-   * NOTE: The input domain arrays must already be in a memory space compatible
-   * with ExecSpace (the same precondition the legacy backend has).
+   * Bump dispatch converts the Blueprint topology and coordset to the view
+   * types required by CutField. Input arrays must be accessible from \c ExecSpace.
    */
   void runExtraction()
   {
@@ -768,24 +735,17 @@ private:
     conduit::Node n_options;
     n_options["field"] = m_fcnFieldName;
     n_options["value"] = m_contourVal;
-    // Ask bump to record each output facet's originating input zone, which we
-    // map onto the legacy "parent cell id" output.
+    // Ask Bump to record the input zone that produced each output element
     n_options["originalElementsField"] = kOriginalElementsField;
-    // MarchingCubes only consumes the generated originalElements field from CutField.
-    // An explicit empty fields map avoids blending/slicing all input fields by default.
+    // Do not interpolate other input fields into the contour
     n_options["fields"].set(conduit::DataType::object());
 
     m_output = std::make_unique<conduit::Node>();
     conduit::Node& n_out = *m_output;
 
-    // Restrict the unstructured shape set to {quad, hex} as requested, to bound template instantiation.
-    // Structured dimensions restricted to DIM. Dispatch coordset, then topology, building the matching views
-    // and running CutField.  The double dispatch yields the concrete (CoordView, TopoView) pair at compile time.
-    // `dispatched` says a (coordset, topology) view pair was built; `extracted`
-    // says CutField actually ran.  They differ: an empty crossing set returns
-    // early with dispatched=true, while a coordset/topology bump declines to
-    // view leaves both false.  Conflating them would report a malformed mesh as
-    // a legitimately empty contour.
+    // Dispatch only this dimension and the supported unstructured shapes.
+    // A valid view pair sets dispatched. CutField sets extracted only when selected zones
+    // cross the isovalue, so an empty contour is distinct from an unsupported mesh.
     bool dispatched = false;
     bool extracted = false;
     dispatchCoordset(n_coords, [&](auto coordsetView) {
@@ -794,15 +754,8 @@ private:
         using TopologyView = decltype(topologyView);
         dispatched = true;
 
-        // --- Phase 6 robustness seam --------------------------------------
-        // The intersector policy is the single point that determines per-cell topology + crossing precision.
-        // bump's default FieldIntersector is float-precision and two-label (no +/-/0).
-        // When a robust intersector (double precision, +/-/0 / asymptotic-decider aware) is added to bump,
-        // alias `Cut` to CutField<..., RobustIntersector> in the `robust` branch below;
-        // no other quest code changes.  Until then both branches use the default, and selecting `robust` emits a one-time note.
+        // Both policies currently use Bump's single-precision, two-label FieldIntersector
         using StandardCut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
-        // using RobustCut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView,
-        //   axom::bump::extraction::RobustFieldIntersector<ExecSpace, TopologyView, CoordsetView>>;
         using Cut = StandardCut;
 
         if(m_robustnessPolicy == MarchingCubesRobustnessPolicy::robust)
@@ -812,8 +765,8 @@ private:
           {
             warnedOnce = true;
             SLIC_INFO(
-              "MarchingCubes: robust isosurface policy requested, but a robust "
-              "bump intersector is not yet available; using the standard "
+              "MarchingCubes: robust isosurface policy requested, but no robust "
+              "Bump intersector is implemented; using the standard "
               "(single-precision, two-label) intersector.");
           }
         }
@@ -821,10 +774,9 @@ private:
         Cut iso(topologyView, coordsetView);
         iso.setAllocatorID(m_allocatorID);
 
-        // --- Corner-classification convention ------------------------------
-        // Reconcile bump's strict corner test with the legacy kernel's `>=`.
-        // Both the value handed to bump AND the structured pre-filter's own
-        // test must use this, or the pre-filter and the extractor disagree.
+        // Shift the threshold so Bump's strict comparison matches the legacy
+        // kernel's greater-than-or-equal comparison. The prefilter and
+        // extractor must use the same shifted value.
         using IsoFieldType =
           typename bumpx::FieldIntersector<ExecSpace, TopologyView, CoordsetView>::FieldType;
         const IsoFieldType isoForBump = isoValueForBump<IsoFieldType>(m_contourVal);
@@ -857,8 +809,8 @@ private:
           AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::CutField::execute");
           iso.execute(*m_dom, execOptions, n_out);
 
-          // Restore the public field name before the adaptor or any caller sees the output.
-          // The private request name prevents bump from forwarding a same-named field from the input mesh.
+          // Rename the field before exposing the result. The private request
+          // name prevents an input field from replacing the parent-zone ids.
           const std::string privateField = axom::fmt::format("fields/{}", kOriginalElementsField);
           if(n_out.has_path(privateField))
           {
@@ -871,7 +823,7 @@ private:
 
     SLIC_ERROR_IF(
       !dispatched,
-      axom::fmt::format("MarchingCubes (bump backend) could not build views for topology '{}' "
+      axom::fmt::format("MarchingCubes (Bump backend) could not build views for topology '{}' "
                         "(type '{}') with coordset '{}' (type '{}') in {}D.",
                         m_topologyName,
                         n_topo.fetch_existing("type").as_string(),
@@ -881,16 +833,13 @@ private:
 
     if(!extracted)
     {
-      // An out-of-range isovalue or an empty mask is valid and produces an available, empty contour
-      // rather than an empty Blueprint node.
+      // No selected zone crosses the isovalue, so the contour is empty
       m_output.reset();
       m_facetCount = 0;
       return;
     }
 
-    // Determine the facet count from the bump output.  After fan-triangulation (see fillLegacyOutputBuffers)
-    // the legacy facet count is the number of triangles/segments, not the number of bump polygons;
-    // compute it from the output element sizes.
+    // Count the segments or fan-triangulated polygons that the fixed-stride output will contain
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::computeTriangulatedFacetCount");
       m_facetCount = computeTriangulatedFacetCount(n_out);
@@ -898,10 +847,10 @@ private:
   }
 
   /*!
-   * @brief Number of (DIM-cornered) facets after fan-triangulating bump output.
+   * @brief Count fixed-stride facets after fan-triangulating Bump output.
    *
-   * For DIM==2 the bump output elements are 2-node segments -> 1 facet each.
-   * For DIM==3 a p-gon fans into (p-2) triangles.
+   * In 2D, each two-node segment is one facet.
+   * In 3D, a polygon with \c p corners produces \c p-2 triangles.
    */
   axom::IndexType computeTriangulatedFacetCount(const conduit::Node& n_out) const
   {
@@ -921,15 +870,16 @@ private:
     }
 
     SLIC_ERROR(axom::fmt::format(
-      "MarchingCubes bump backend: cut output topology '{}' has no 'sizes' array. "
-      "The adaptor requires explicit sizes on bump's cut output.",
+      "MarchingCubes Bump backend: cut output topology '{}' has no 'sizes' array. "
+      "The adaptor requires explicit sizes on Bump's cut output.",
       newTopoName));
     return 0;
   }
 
   /*!
-   * @brief Fill the parent-allocated legacy output buffers from cached bump output,
-   * triangulating the polygons while reusing bump's welded vertex coordinates.
+   * @brief Fill the parent-allocated fixed-stride buffers from cached Bump output.
+   *
+   * Polygonal faces are fan-triangulated and reuse Bump's welded vertices.
    */
   void fillLegacyOutputBuffers()
   {
@@ -950,7 +900,7 @@ private:
                                         m_allocatorID);
   }
 
-  //! @brief Return the (single) topology name present in a bump output node.
+  //! @brief Return the single topology name in a Bump output node.
   static std::string onlyTopologyName(const conduit::Node& n_out)
   {
     const conduit::Node& n_topos = n_out.fetch_existing("topologies");
@@ -971,7 +921,7 @@ private:
   //! @brief Whether the MeshViewUtil fast paths apply (structured + explicit only).
   bool m_useMeshViewUtilPath {false};
 
-  //! @brief Cached bump CutField output (Blueprint mesh).
+  //! @brief Cached Bump CutField output (Blueprint mesh).
   std::unique_ptr<conduit::Node> m_output;
 
   //! @brief Legacy facet count (post fan-triangulation).

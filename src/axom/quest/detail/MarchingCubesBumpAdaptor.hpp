@@ -7,10 +7,10 @@
 /*!
  * @file MarchingCubesBumpAdaptor.hpp
  *
- * @brief Adapts a bump::extraction::CutField Blueprint output mesh into
- * the legacy quest::MarchingCubes fixed-stride output buffers.
+ * @brief Converts Bump CutField output to fixed-stride MarchingCubes arrays.
  *
- * bump's CutField output is a welded, mixed-shape unstructured Blueprint topology:
+ * CutField produces a welded, mixed-shape Blueprint mesh with the following structure:
+ *
  *   <bp_root>
  *    ├── topologies
  *    │   └── <t>
@@ -30,18 +30,9 @@
  *        └──  originalElements
  *             └─• values              (element-assoc, input zone per fragment)
  *
- * The legacy MarchingCubes output is composed of triangles (3D) or segments (2D):
- *   m_facetNodeCoords : (nodeCount, DIM)         vertices of the mesh
- *   m_facetNodeIds    : (facetCount, DIM)        indices of each facet, where
- *                       the ids index into m_facetNodeCoords and are offset by
- *                       the domain's nodeIndexOffset (the parent concatenates domains)
- *   m_facetParentIds  : (facetCount)             parent-cell id per facet
- *
- * Conversion, all in ExecSpace memory:
- *   1. For DIM==2: each welded segment (Line_ShapeID, size 2) is one facet.
- *      For DIM==3: each welded polygon of p corners fan-triangulates into (p-2) triangles (corners {0,k,k+1}).
- *   2. Reuse bump's welded vertex coordinates and write only triangle/segment connectivity.
- *   3. Parent id per facet := originalElements[srcZone].
+ * In 2D, each segment becomes one facet.
+ * In 3D, a polygon with \c p corners becomes \c p-2 triangles.
+ * The conversion reuses the welded coordinates and copies each source zone id to its output facets.
  */
 
 #pragma once
@@ -78,32 +69,26 @@
 namespace axom::quest::detail::marching_cubes
 {
 /*!
- * @brief Private name for the parent-zone field requested from bump.
+ * @brief Private name used to request parent-zone ids from Bump.
  *
- * Not bump's default: TableBasedExtractor::makeOriginalElements branches on
- * whether the input mesh already carries a field of the configured name
- * and, if so, maps those values forward instead of writing zone indices.
- * Any mesh produced by a prior bump operation contains that field,
- * and the empty "fields" option does not suppress the branch,
- * so a plausible input silently redefines what a parent cell id means.
+ * CutField forwards an existing input field when its name matches the
+ * requested output field. A private name prevents an input
+ * \c originalElements field from replacing the zone indices.
  */
 constexpr const char* kOriginalElementsField = "__axom_mc_originalElements";
 
 /*!
- * @brief Name the parent-zone field carries on the PUBLIC Blueprint output.
+ * @brief Public name for the parent-zone field.
  *
- * populateContourMeshBlueprint() hands the mesh to the caller and
- * quest_marching_cubes_bump.cpp asserts on this name, so it is an API contract.
- * bump's output is renamed from the private request name to this immediately
- * after extraction, keeping the private name confined to the request.
+ * MarchingCubes renames Bump's private output field before returning the mesh.
  */
 constexpr const char* kPublicOriginalElementsField = "originalElements";
 
 /*!
- * @brief Number of legacy facets a bump zone of \a nCorners contributes.
+ * @brief Number of fixed-stride facets a Bump zone contributes.
  *
- * 2D: segment -> 1.
- * 3D: p-gon fans into (p-2) triangles (0 if degenerate).
+ * A 2D segment contributes one facet. In 3D, a polygon with \a nCorners
+ * contributes \c nCorners-2 triangles, or zero if it is degenerate.
  */
 template <int DIM>
 AXOM_HOST_DEVICE inline axom::IndexType facetsPerZone(axom::IndexType nCorners)
@@ -281,12 +266,12 @@ void triangulateBlueprintMeshViews(conduit::Node& n_output,
 }
 
 /*!
- * @brief Convert a bump CutField Blueprint domain from polygonal surface
+ * @brief Convert a Bump CutField Blueprint domain from polygonal surface
  * elements to a welded triangle mesh in place.
  *
- * This rewrites only topology connectivity and element-associated fields.  The
- * coordset is left untouched, and generated triangles reference the existing
- * welded vertex ids.
+ * This rewrites only topology connectivity and element-associated fields.
+ * The coordset remains unchanged, and generated triangles reference the
+ * existing welded vertex ids.
  */
 template <int DIM, typename ExecSpace>
 void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
@@ -301,7 +286,7 @@ void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
 
   if(!n_output.has_child("topologies"))
   {
-    return;  // empty contour (isovalue outside the data range): nothing to triangulate
+    return;  // An isovalue outside the data range produces no topology.
   }
   const conduit::Node& n_topos = n_output.fetch_existing("topologies");
   SLIC_ASSERT(n_topos.number_of_children() == 1);
@@ -315,7 +300,7 @@ void triangulateBlueprintMesh(conduit::Node& n_output, int allocatorID)
 
   SLIC_ERROR_IF(
     n_offsets.dtype().id() != n_sizes.dtype().id() || n_conn.dtype().id() != n_sizes.dtype().id(),
-    "MarchingCubes bump Blueprint triangulation expects connectivity, "
+    "MarchingCubes Bump Blueprint triangulation expects connectivity, "
     "sizes, and offsets to use the same integer type.");
 
   auto triangulateViews = [&](auto sizesView, auto offsetsView, auto connView) {
@@ -372,7 +357,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   axom::for_all<ExecSpace>(numNodes, [=] AXOM_HOST_DEVICE(axom::IndexType n) {
     facetNodeCoords(nodeIndexOffset + n, 0) = xView[n];
     facetNodeCoords(nodeIndexOffset + n, 1) = yView[n];
-    // Avoid first-capture in constexpr-if context error
+    // Reference zView before if constexpr so CUDA captures it correctly
     (void)zView;
     if constexpr(DIM == 3)
     {
@@ -380,10 +365,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
     }
   });
 
-  // --- Per-zone facet offset (exclusive scan of facetsPerZone) -----------
-  // We need, for each bump zone, the index of its first facet within this
-  // domain so kernels can write without atomics.
-  // Use the object's allocator, not the execution space default.
+  // Compute each Bump zone's first facet index so kernels need no atomics
   const int allocatorID = objectAllocatorID;
   axom::Array<axom::IndexType> zoneFacetCounts(numZones, numZones, allocatorID);
   auto zoneFacetCountsView = zoneFacetCounts.view();
@@ -395,9 +377,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   auto zoneFacetOffsetsView = zoneFacetOffsets.view();
   axom::exclusive_scan<ExecSpace>(zoneFacetCountsView, zoneFacetOffsetsView);
 
-  // --- The fan-triangulation kernel -------------------------------------
-  // One thread per bump zone.  Each zone writes facetsPerZone facets;
-  // each facet reuses bump's welded coordset vertex ids.
+  // Each thread triangulates one Bump zone and reuses its welded vertex ids
   axom::for_all<ExecSpace>(numZones, [=] AXOM_HOST_DEVICE(axom::IndexType z) {
     const axom::IndexType nCorners = static_cast<axom::IndexType>(sizesView[z]);
     const axom::IndexType nFacets = facetsPerZone<DIM>(nCorners);
@@ -446,22 +426,21 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
 }
 
 /*!
- * @brief Convert one bump CutField output (single domain) into the
- * fixed-corners-per-facet output buffers supplied by the parent MarchingCubes.
+ * @brief Convert one Bump CutField output domain into the
+ * fixed-corners-per-facet buffers supplied by the parent MarchingCubes.
  *
  * @tparam DIM Spatial dimension (2 or 3).
  * @tparam ExecSpace Axom execution space.
  *
- * @param n_output The bump CutField output Blueprint mesh (in ExecSpace memory).
- * @param facetNodeIds [out] view, shape (totalFacetCount, DIM).
- * @param facetNodeCoords [out] view, shape (totalNodeCount, DIM).
- * @param facetParentIds [out] view, shape (totalFacetCount).
- * @param facetIndexOffset This domain's first facet index in the concatenated
+ * @param[in] n_output Bump CutField output in \c ExecSpace memory.
+ * @param[out] facetNodeIds View with shape \c (totalFacetCount,DIM).
+ * @param[out] facetNodeCoords View with shape \c (totalNodeCount,DIM).
+ * @param[out] facetParentIds View with shape \c (totalFacetCount).
+ * @param[in] facetIndexOffset This domain's first facet index in the concatenated
  *   output (the parent's m_facetIndexOffsets[d]).
- * @param nodeIndexOffset This domain's first node index in the concatenated output.
- * @param thisDomainFacetCount Number of facets this domain produces (already
- *   computed by the caller; equals sum of facetsPerZone over the bump zones).
- * @param objectAllocatorID Allocator used for temporary arrays.
+ * @param[in] nodeIndexOffset This domain's first node index in the concatenated output.
+ * @param[in] thisDomainFacetCount Number of facets produced by this domain.
+ * @param[in] objectAllocatorID Allocator used for temporary arrays.
  *
  * @pre All output views and \a n_output live in ExecSpace's memory space.
  */
@@ -483,12 +462,12 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
     return;
   }
 
-  // --- Locate the single output topology + coordset ------------------------
+  // Read the single output topology and coordset
   const conduit::Node& n_topos = n_output.fetch_existing("topologies");
   SLIC_ASSERT(n_topos.number_of_children() == 1);
   const conduit::Node& n_topo = n_topos.child(0);
 
-  // bump always emits explicit sizes/offsets/connectivity for cut output.
+  // Bump emits explicit sizes, offsets, and connectivity for cut output
   const conduit::Node& n_elems = n_topo.fetch_existing("elements");
   const conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
   const conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
@@ -498,14 +477,14 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   const conduit::Node& n_coords =
     n_output.fetch_existing(axom::fmt::format("coordsets/{}", coordsetName));
 
-  // originalElements: element-associated, one entry per output zone (fragment).
+  // One parent-zone id per output zone
   const conduit::Node& n_orig =
     n_output.fetch_existing(axom::fmt::format("fields/{}/values", kPublicOriginalElementsField));
 
   SLIC_ERROR_IF(n_offsets.dtype().id() != n_sizes.dtype().id() ||
                   n_conn.dtype().id() != n_sizes.dtype().id() ||
                   n_orig.dtype().id() != n_sizes.dtype().id(),
-                "MarchingCubes bump adaptor expects connectivity, sizes, "
+                "MarchingCubes Bump adaptor expects connectivity, sizes, "
                 "offsets, and originalElements to use the same integer type.");
 
   auto adaptViews = [&](auto sizesView, auto offsetsView, auto connView, auto origView) {

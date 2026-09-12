@@ -110,7 +110,7 @@ public:
   // Use the bump CutField backend (supports unstructured quad/hex) vs legacy.
   bool useBumpBackend {false};
 
-  // Bump-backend isosurface robustness policy (Phase 6 seam).
+  // Bump isosurface robustness policy.
   quest::MarchingCubesRobustnessPolicy robustnessPolicy =
     quest::MarchingCubesRobustnessPolicy::standard;
 
@@ -141,39 +141,33 @@ public:
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_option("-p, --policy", policy)
-      ->description("Set runtime policy for point query method")
+      ->description("Set the runtime policy for contour extraction")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
     app.add_option("--dataParallelism", dataParallelism)
       ->description(
-        "Set full or partial data-parallelism, or by-policy, for the legacy backend "
+        "Select the scan mode for the legacy backend "
         "(ignored by --useBumpBackend)")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validImplChoices));
 
     app.add_flag("--useBumpBackend", useBumpBackend)
-      ->description(
-        "Use the bump CutField backend (adds unstructured quad/hex support) "
-        "instead of the legacy structured-only marching cubes kernel")
+      ->description("Use the Bump CutField backend instead of the legacy structured-only backend")
       ->capture_default_str();
 
     app.add_option("--robustnessPolicy", robustnessPolicy)
-      ->description(
-        "Bump-backend isosurface robustness: 'standard' (default) or 'robust' "
-        "(reserved; currently behaves as standard)")
+      ->description("Select the Bump robustness policy; 'robust' currently matches 'standard'")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validRobustnessPolicies));
 
     app.add_option("-m,--mesh-file", meshFile)
-      ->description(
-        "Path to multidomain computational mesh following conduit blueprint convention.")
+      ->description("Path to a Conduit Blueprint computational mesh")
       ->check(axom::CLI::ExistingFile);
 
     app.add_option("--blueprint-contour-file", blueprintContourFile)
       ->description(
-        "Write the bump backend's welded polygonal contour to this Blueprint file "
-        "as Blueprint output. Requires --useBumpBackend.")
+        "Write Bump's welded polygonal contour to a Blueprint file; requires --useBumpBackend")
       ->capture_default_str();
 
     app.add_option("-s,--fields-file", fieldsFile)
@@ -219,17 +213,15 @@ public:
     app.add_option("--contourVal", contourVal)->description("Contour value")->capture_default_str();
 
     app.add_option("--objectReps", objectRepCount)
-      ->description("Number of MarchingCube object repetitions to run")
+      ->description("Number of setMesh and extraction batches to run")
       ->capture_default_str();
 
     app.add_option("--contourGenReps", contourGenCount)
-      ->description("Number of contour repetitions to run for each MarchingCubes object")
+      ->description("Number of contour extractions after each setMesh call")
       ->capture_default_str();
 
     app.add_option("--maskCount", maskCount)
-      ->description(
-        "Group the cells using this many masking groups to test masking "
-        "(default to 1).")
+      ->description("Assign cells cyclically to this many mask values")
       ->capture_default_str()
       ->check(axom::CLI::Range(1, std::numeric_limits<int>::max()));
 
@@ -909,8 +901,8 @@ static void addToStackArray(axom::StackArray<T, DIM>& a, U b)
 /*!
  * @brief Analytic scalar field and its Blueprint field name.
  *
- * std::function supports fields selected at run time. The example evaluates it
- * only in host loops.
+ * Command-line options select fields at run time, so \c valueAt uses \c std::function.
+ * Only host loops call it.
  */
 template <int DIM>
 struct ContourTestStrategy
@@ -1169,7 +1161,7 @@ struct ContourTestBase
     extractTimer.stop();
     printTimingStats(extractTimer, "extract");
 
-    // Demonstrate the bump backend's native output: a welded, connected, polygonal contour mesh.
+    // Optionally write Bump's welded polygonal contour.
     if(!m_params.blueprintContourFile.empty())
     {
       if(!m_params.useBumpBackend)

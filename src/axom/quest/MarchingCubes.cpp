@@ -64,8 +64,7 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
   }
   else
   {
-    // Neither a single domain carrying the requested topology nor a valid multi-domain mesh.
-    // Error out here since wrapping it would defers the failure into an opaque fetch_existing() below.
+    // Report the invalid layout before a later fetch_existing() obscures the cause.
     SLIC_ERROR(
       axom::fmt::format("MarchingCubes::setMesh: the input mesh is neither a multi-domain "
                         "Blueprint mesh nor a single domain containing topology '{}'.",
@@ -117,7 +116,7 @@ void MarchingCubes::setUseBumpBackend(bool useBump)
 {
 #if !defined(AXOM_USE_BUMP)
   SLIC_ERROR_IF(useBump,
-                "MarchingCubes bump backend requires Axom to be configured "
+                "MarchingCubes Bump backend requires Axom to be configured "
                 "with the bump component.");
 #endif
   m_useBumpBackend = useBump;

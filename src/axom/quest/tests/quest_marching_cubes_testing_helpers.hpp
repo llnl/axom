@@ -127,7 +127,7 @@ struct RoundField
 /*!
  * @brief A gyroid.
  *
- * Its curvature produces many differently shaped cut cells.
+ * Its curvature produces non-planar cut polygons for triangulation tests.
  */
 struct GyroidField
 {
