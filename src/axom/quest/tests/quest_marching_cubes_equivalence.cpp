@@ -7,7 +7,7 @@
 /*!
  * @file quest_marching_cubes_equivalence.cpp
  *
- * @brief Compares the legacy and bump MarchingCubes backends on structured meshes.
+ * @brief Compares the legacy and Bump MarchingCubes backends on structured meshes.
  *
  * Legacy output duplicates vertices by facet.
  * Bump output welds vertices and can contain polygons that the adaptor triangulates.
@@ -354,8 +354,8 @@ std::array<BackendResult, 3> runAccumulatedBackend(const conduit::Node& mesh,
 }
 
 //---------------------------------------------------------------------------
-// Two-sided Hausdorff comparison. Search adjacent hash cells so nearby points
-// still match when they straddle a cell boundary.
+// Check each point set against the other within a fixed tolerance.
+// Search adjacent hash cells so nearby points still match across a cell boundary.
 //---------------------------------------------------------------------------
 
 using CellKey = std::int64_t;
@@ -518,7 +518,8 @@ bool cellIsAmbiguous2D(const bool s[4])
 /*!
  * @brief Count ambiguous cells.
  *
- * @note The corner test uses `>=` to match MarchingCubesImpl::computeCrossingCase and the adjusted Bump isovalue
+ * @note The corner test uses \c >= to match MarchingCubesImpl::computeCrossingCase
+ *       and the adjusted Bump isovalue.
  */
 template <int DIM, typename Field>
 axom::IndexType countAmbiguousCells(int n, const Field& f, double contourVal)
@@ -848,8 +849,8 @@ void test_uniform_and_rectilinear(RuntimePolicy policy)
 /*!
  * @brief Check that MarchingCubes rejects a float32 function field.
  *
- * The structured pre-filter requires float64 values.
- * Reinterpreting float32 values as float64 produces an invalid crossing-cell set.
+ * The structured prefilter reads a double view and must reject float32
+ * rather than reinterpret its storage.
  */
 void test_float32_field_rejected(RuntimePolicy policy)
 {
@@ -889,7 +890,7 @@ void test_float32_field_rejected(RuntimePolicy policy)
     "float64");
 }
 
-//! @brief Run the bump backend in a death-test child and require a field-layout error.
+//! @brief Run the Bump backend in a death-test child and require a field-layout error.
 void expectBumpFieldLayoutRejected(const conduit::Node& mesh,
                                    RuntimePolicy policy,
                                    const char* expectedMessage)

@@ -9,8 +9,9 @@
  *
  * @brief Tests the Bump backend of quest::MarchingCubes.
  *
- * The tests cover structured/unstructured quad/hex meshes on each enabled execution space
- * and check analytic field values, parent cells, crossing cells, and edge manifoldness of the welded output.
+ * The tests cover structured and unstructured quad or hex meshes in each
+ * enabled execution space. They check analytic field values, parent cells,
+ * crossing cells, and edge incidence in the welded output.
  */
 
 #include "axom/config.hpp"
@@ -571,7 +572,7 @@ void runAndVerify(conduit::Node& mesh,
                             mask_field_name,
                             mask_value);
 
-  // Check edge manifoldness on the welded Blueprint output
+  // Check edge incidence on the welded Blueprint output
   if(DIM == 3)
   {
     const auto em = checkBlueprintEdgeManifold3D(contourDom);
@@ -590,6 +591,7 @@ void runAndVerify(conduit::Node& mesh,
   ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(relinquishedBp));
   ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(relinquishedBp), 1);
   EXPECT_EQ(mc.getContourCellCount(), 0);
+  EXPECT_EQ(mc.getContourNodeCount(), 0);
 }
 
 //---------------------------------------------------------------------------
@@ -696,7 +698,7 @@ void test_unstructured_hex_round_warped(RuntimePolicy policy)
 }
 
 // The robust policy currently aliases the standard policy
-void test_robustness_seam(RuntimePolicy policy)
+void test_robustness_policy(RuntimePolicy policy)
 {
   namespace quest = axom::quest;
   RoundField f {{0.5, 0.5, 0.5}, 0.25};
@@ -891,6 +893,8 @@ void test_multidomain_planar(RuntimePolicy policy)
   axom::Array<axom::IndexType, 1> facetParentIds;
   axom::Array<axom::IndexType> facetDomainIds;
   mc.relinquishContourData(facetNodeIds, facetNodeCoords, facetParentIds, facetDomainIds);
+  EXPECT_EQ(mc.getContourCellCount(), 0);
+  EXPECT_EQ(mc.getContourNodeCount(), 0);
 
   // Copy policy-allocated output to the host for validation
   const axom::Array<axom::IndexType, 2> ids(facetNodeIds, hostAllocatorID());
@@ -949,9 +953,9 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_seq)
 {
   test_unstructured_hex_round_warped(RuntimePolicy::seq);
 }
-TEST(quest_marching_cubes_bump, robustness_seam_nfc_seq)
+TEST(quest_marching_cubes_bump, robust_matches_standard_seq)
 {
-  test_robustness_seam(RuntimePolicy::seq);
+  test_robustness_policy(RuntimePolicy::seq);
 }
 TEST(quest_marching_cubes_bump, multidomain_planar_2d_seq)
 {

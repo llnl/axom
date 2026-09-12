@@ -9,8 +9,8 @@
  *
  * @brief Shared setup for the quest::MarchingCubes test suites.
  *
- * The Bump and equivalence suites share analytic fields,
- * Blueprint memory copies, and a structured mesh builder. Each suite keeps its own validation.
+ * The Bump and equivalence suites share analytic fields, Blueprint memory copies,
+ * and a structured mesh builder. Each suite defines its own checks.
  */
 
 #ifndef QUEST_MARCHING_CUBES_TESTING_HELPERS_HPP_
@@ -45,9 +45,9 @@ using RuntimePolicy = axom::runtime_policy::Policy;
 inline int hostAllocatorID() { return axom::execution_space<axom::SEQ_EXEC>::allocatorID(); }
 
 /*!
- * @brief Copy a Blueprint tree into memory the given runtime policy can read.
+ * @brief Copy a Blueprint tree into memory accessible to a runtime policy.
  *
- * Tests build meshes on the host, then copy them into policy-compatible memory before calling MarchingCubes.
+ * Tests build meshes on the host, then copy them before calling MarchingCubes.
  */
 inline void copyBlueprintToPolicy(conduit::Node& dst,
                                   const conduit::Node& src,
@@ -134,7 +134,7 @@ struct RoundField
 /*!
  * @brief A gyroid.
  *
- * Its curvature produces non-planar cut polygons for tests that are sensitive to triangulation
+ * Its curvature produces non-planar cut polygons for triangulation tests.
  */
 struct GyroidField
 {
@@ -163,10 +163,10 @@ struct NoWarp
 };
 
 /*!
- * @brief A smooth sinusoidal shear.
+ * @brief A smooth sinusoidal coordinate warp.
  *
- * The small displacement keeps the hexes valid while making them curvilinear.
- * The outer edges and corners remain fixed.
+ * The displacement vanishes on the outer edges and corners.
+ * Tests use a small amplitude so the hexahedra remain valid.
  */
 struct SinusoidalWarp
 {
