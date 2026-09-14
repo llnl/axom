@@ -12,7 +12,6 @@
 // Axom includes
 #include "axom/config.hpp"
 #include "axom/core.hpp"
-#include "axom/core/NumericLimits.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
@@ -36,19 +35,372 @@
 #include "mpi.h"
 
 // C/C++ includes
+#include <algorithm>
 #include <string>
-#include <map>
+#include <memory>
 #include <vector>
 #include <cmath>
+#include <cinttypes>
+#include <cstdio>
+#include <cstdint>
+#include <fstream>
+#include <atomic>
+#include <chrono>
+#include <thread>
+#include <variant>
+#if defined(__GLIBC__)
+  #include <malloc.h>  // mallinfo2 / mallinfo / malloc_trim
+#endif
+
+namespace
+{
+
+#if defined(AXOM_NO_INT64_T)
+using ByteCount = std::uint32_t;
+constexpr ByteCount INVALID_BYTES = axom::numeric_limits<ByteCount>::max();
+  #define AXOM_DCP_SCN_BYTE_COUNT SCNu32
+#else
+using ByteCount = std::int64_t;
+constexpr ByteCount INVALID_BYTES = -1;
+  #define AXOM_DCP_SCN_BYTE_COUNT SCNd64
+#endif
+
+constexpr ByteCount BYTES_PER_KIB = 1024;
+
+template <typename T>
+T allReduce(T localValue, MPI_Op op, MPI_Comm comm)
+{
+  T result {};
+  MPI_Allreduce(&localValue, &result, 1, axom::mpi_traits<T>::type, op, comm);
+  return result;
+}
+
+template <typename T>
+void allReduceMinMaxSum(T localValue, T& minValue, T& maxValue, T& sumValue, MPI_Comm comm)
+{
+  minValue = allReduce(localValue, MPI_MIN, comm);
+  maxValue = allReduce(localValue, MPI_MAX, comm);
+  sumValue = allReduce(localValue, MPI_SUM, comm);
+}
+
+struct ProcRss
+{
+  ByteCount current {INVALID_BYTES};
+  ByteCount peak {INVALID_BYTES};
+};
+
+struct ReducedBytes
+{
+  ByteCount maxValue {INVALID_BYTES};
+  ByteCount sumValue {INVALID_BYTES};
+  int maxRank {-1};
+};
+
+struct MemorySnapshot
+{
+  ProcRss rss;
+  ByteCount mallocLive {INVALID_BYTES};
+  ByteCount mallocArena {INVALID_BYTES};
+  ByteCount umpireCurrent {INVALID_BYTES};
+  ByteCount umpireHighWatermark {INVALID_BYTES};
+};
+
+/// Read current (VmRSS) and peak (VmHWM) resident set size in bytes.
+ProcRss readProcRss()
+{
+  ProcRss result;
+#if defined(__linux__)
+  std::ifstream status("/proc/self/status");
+  std::string line;
+  while(std::getline(status, line))
+  {
+    ByteCount kb = 0;
+    if(std::sscanf(line.c_str(), "VmRSS: %" AXOM_DCP_SCN_BYTE_COUNT " kB", &kb) == 1)
+    {
+      result.current = kb * BYTES_PER_KIB;
+    }
+    else if(std::sscanf(line.c_str(), "VmHWM: %" AXOM_DCP_SCN_BYTE_COUNT " kB", &kb) == 1)
+    {
+      result.peak = kb * BYTES_PER_KIB;
+    }
+
+    if(result.current != INVALID_BYTES && result.peak != INVALID_BYTES)
+    {
+      break;
+    }
+  }
+#endif
+  return result;
+}
+
+/// Reset VmHWM so the next RSS-peak read reflects only the following phase.
+void resetPeakRss()
+{
+#if defined(__linux__)
+  std::ofstream clear("/proc/self/clear_refs");
+  if(clear)
+  {
+    clear << "5\n";
+  }
+#endif
+}
+
+std::string humanBytes(ByteCount bytes)
+{
+  if(bytes == INVALID_BYTES)
+  {
+    return "n/a";
+  }
+
+  const char* units[] = {"B", "KiB", "MiB", "GiB", "TiB"};
+  double value = static_cast<double>(bytes);
+  int unitIdx = 0;
+  while(value >= 1024.0 && unitIdx < 4)
+  {
+    value /= 1024.0;
+    ++unitIdx;
+  }
+
+  return axom::fmt::format("{:.2f} {}", value, units[unitIdx]);
+}
+
+/// Reduce a per-rank byte count to the communicator total and hottest rank.
+ReducedBytes reduceBytes(ByteCount localValue, MPI_Comm comm, int rank, int commSize)
+{
+  const bool hasLocalValue = localValue != INVALID_BYTES;
+  ByteCount localMax = hasLocalValue ? localValue : 0;
+  ByteCount localSum = hasLocalValue ? localValue : 0;
+  int localCount = hasLocalValue ? 1 : 0;
+
+  ReducedBytes result;
+  result.maxValue = allReduce(localMax, MPI_MAX, comm);
+
+  int candidateRank = (hasLocalValue && localValue == result.maxValue) ? rank : commSize;
+  result.maxRank = allReduce(candidateRank, MPI_MIN, comm);
+
+  const int validCount = allReduce(localCount, MPI_SUM, comm);
+  result.sumValue = allReduce(localSum, MPI_SUM, comm);
+
+  if(validCount == 0)
+  {
+    result = ReducedBytes {};
+  }
+  else if(validCount != commSize)
+  {
+    result.sumValue = INVALID_BYTES;
+  }
+
+  return result;
+}
+
+MemorySnapshot takeMemorySnapshot(int umpireAllocatorId)
+{
+  MemorySnapshot snapshot;
+  snapshot.rss = readProcRss();
+
+#if defined(__GLIBC__)
+  #if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 33)
+  struct mallinfo2 mi = mallinfo2();  // size_t fields: safe above 2 GiB
+  snapshot.mallocLive = static_cast<ByteCount>(mi.uordblks) + static_cast<ByteCount>(mi.hblkhd);
+  snapshot.mallocArena = static_cast<ByteCount>(mi.arena);
+  #else
+  struct mallinfo mi = mallinfo();  // NOTE: int fields saturate above ~2 GiB
+  snapshot.mallocLive = static_cast<ByteCount>(mi.uordblks) + static_cast<ByteCount>(mi.hblkhd);
+  snapshot.mallocArena = static_cast<ByteCount>(mi.arena);
+  #endif
+#endif
+
+#if defined(AXOM_USE_UMPIRE)
+  if(umpireAllocatorId >= 0)
+  {
+    auto& rm = umpire::ResourceManager::getInstance();
+    umpire::Allocator alloc = rm.getAllocator(umpireAllocatorId);
+    snapshot.umpireCurrent = static_cast<ByteCount>(alloc.getCurrentSize());
+    snapshot.umpireHighWatermark = static_cast<ByteCount>(alloc.getHighWatermark());
+  }
+#else
+  AXOM_UNUSED_VAR(umpireAllocatorId);
+#endif
+
+  return snapshot;
+}
+
+bool trimMallocArena()
+{
+#if defined(__GLIBC__)
+  ::malloc_trim(0);
+  return true;
+#else
+  return false;
+#endif
+}
+
+/*!
+ * \brief Opt-in per-run memory probe for the closest-point query.
+ *
+ * Reports RSS, peak RSS, glibc live/arena bytes, and Umpire current/high-water bytes when available.
+ * Values are reduced across the given communicator as a total and a hottest-rank maximum.
+ * The optional sampler captures transient RSS spikes during the query phase.
+ */
+class MemoryProbe
+{
+public:
+  MemoryProbe(bool enabled, int sampleMs, MPI_Comm comm, int umpireAllocatorId = -1)
+    : m_enabled(enabled)
+    , m_sampleMs(sampleMs)
+    , m_comm(comm)
+    , m_umpireAllocatorId(umpireAllocatorId)
+  {
+    MPI_Comm_rank(m_comm, &m_rank);
+    MPI_Comm_size(m_comm, &m_commSize);
+  }
+
+  ~MemoryProbe() { stopSamplerThread(); }
+
+  void resetPeak()
+  {
+    if(m_enabled)
+    {
+      resetPeakRss();
+    }
+  }
+
+  void startSampler()
+  {
+    if(!m_enabled || m_sampleMs <= 0 || m_samplerThread.joinable())
+    {
+      return;
+    }
+
+    m_samplerPeak = INVALID_BYTES;
+    m_stopSampler.store(false, std::memory_order_relaxed);
+    m_samplerThread = std::thread([this]() {
+      while(!m_stopSampler.load(std::memory_order_relaxed))
+      {
+        recordSamplerValue(readProcRss().current);
+        std::this_thread::sleep_for(std::chrono::milliseconds(m_sampleMs));
+      }
+    });
+  }
+
+  void stopSampler(const std::string& label)
+  {
+    if(!m_enabled || m_sampleMs <= 0 || !m_samplerThread.joinable())
+    {
+      return;
+    }
+
+    stopSamplerThread();
+    recordSamplerValue(readProcRss().current);
+
+    const ReducedBytes sampled = reduceBytes(m_samplerPeak, m_comm, m_rank, m_commSize);
+    if(m_rank == 0)
+    {
+      SLIC_INFO(axom::fmt::format(
+        "[mem] {}: peak RSS during phase (sampled @ {} ms): max/rank={} (rank {}), total={}",
+        label,
+        m_sampleMs,
+        humanBytes(sampled.maxValue),
+        sampled.maxRank,
+        humanBytes(sampled.sumValue)));
+    }
+  }
+
+  void report(const std::string& label)
+  {
+    if(!m_enabled)
+    {
+      return;
+    }
+
+    const MemorySnapshot snapshot = takeMemorySnapshot(m_umpireAllocatorId);
+    const ReducedBytes rss = reduceBytes(snapshot.rss.current, m_comm, m_rank, m_commSize);
+    const ReducedBytes peakRss = reduceBytes(snapshot.rss.peak, m_comm, m_rank, m_commSize);
+    const ReducedBytes mallocLive = reduceBytes(snapshot.mallocLive, m_comm, m_rank, m_commSize);
+    const ReducedBytes mallocArena = reduceBytes(snapshot.mallocArena, m_comm, m_rank, m_commSize);
+    const ReducedBytes umpireCurrent =
+      reduceBytes(snapshot.umpireCurrent, m_comm, m_rank, m_commSize);
+    const ReducedBytes umpireHighWatermark =
+      reduceBytes(snapshot.umpireHighWatermark, m_comm, m_rank, m_commSize);
+
+    if(m_rank == 0)
+    {
+      std::string msg = axom::fmt::format(
+        "[mem] {}  (total over {} ranks | max on one rank)\n"
+        "         RSS           : {:>11} | {:>11} (rank {})\n"
+        "         RSS peak      : {:>11} | {:>11} (rank {})\n"
+        "         malloc live   : {:>11} | {:>11} (rank {})\n"
+        "         malloc arena  : {:>11} | {:>11} (rank {})",
+        label,
+        m_commSize,
+        humanBytes(rss.sumValue),
+        humanBytes(rss.maxValue),
+        rss.maxRank,
+        humanBytes(peakRss.sumValue),
+        humanBytes(peakRss.maxValue),
+        peakRss.maxRank,
+        humanBytes(mallocLive.sumValue),
+        humanBytes(mallocLive.maxValue),
+        mallocLive.maxRank,
+        humanBytes(mallocArena.sumValue),
+        humanBytes(mallocArena.maxValue),
+        mallocArena.maxRank);
+#if defined(AXOM_USE_UMPIRE)
+      if(umpireHighWatermark.maxValue >= 0)
+      {
+        msg += axom::fmt::format(
+          "\n         umpire current: {:>11} | {:>11} (rank {})"
+          "\n         umpire hi-water: {:>10} | {:>11} (rank {})",
+          humanBytes(umpireCurrent.sumValue),
+          humanBytes(umpireCurrent.maxValue),
+          umpireCurrent.maxRank,
+          humanBytes(umpireHighWatermark.sumValue),
+          humanBytes(umpireHighWatermark.maxValue),
+          umpireHighWatermark.maxRank);
+      }
+#endif
+      SLIC_INFO(msg);
+    }
+  }
+
+private:
+  void stopSamplerThread()
+  {
+    if(m_samplerThread.joinable())
+    {
+      m_stopSampler.store(true, std::memory_order_relaxed);
+      m_samplerThread.join();
+    }
+  }
+
+  void recordSamplerValue(ByteCount bytes)
+  {
+    if(bytes != INVALID_BYTES && (m_samplerPeak == INVALID_BYTES || bytes > m_samplerPeak))
+    {
+      m_samplerPeak = bytes;
+    }
+  }
+
+  bool m_enabled {false};
+  int m_sampleMs {0};
+  MPI_Comm m_comm {MPI_COMM_NULL};
+  int m_rank {-1};
+  int m_commSize {-1};
+  int m_umpireAllocatorId {-1};
+  std::atomic<bool> m_stopSampler {false};
+  std::thread m_samplerThread;
+  ByteCount m_samplerPeak {INVALID_BYTES};
+};
+
+}  // namespace
+
+#undef AXOM_DCP_SCN_BYTE_COUNT
 
 namespace quest = axom::quest;
 namespace slic = axom::slic;
 namespace sidre = axom::sidre;
 namespace slam = axom::slam;
-namespace spin = axom::spin;
 namespace primal = axom::primal;
-namespace mint = axom::mint;
-namespace numerics = axom::numerics;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
@@ -59,33 +411,35 @@ int my_rank = -1, num_ranks = -1;
 // padded on both sides with '=' symbols
 std::string banner(const std::string& str) { return axom::fmt::format("{:=^80}", str); }
 
+void broadcastString(std::string& value, int root, MPI_Comm comm)
+{
+  int length = static_cast<int>(value.size());
+  MPI_Bcast(&length, 1, MPI_INT, root, comm);
+  value.resize(length);
+  if(length > 0)
+  {
+    MPI_Bcast(value.data(), length, MPI_CHAR, root, comm);
+  }
+}
+
 /// Struct to parse and store the input parameters
 struct Input
 {
 public:
   std::string meshFile;
   std::string distanceFile {"cp_coords"};
-  std::string objectFile {"object_mesh"};
+  std::string objectMeshFile;
 
-  double circleRadius {1.0};
-  std::vector<double> circleCenter {0.0, 0.0};
-  int longPointCount {100};
-
-  // Latitudinal direction of object mesh
-  std::vector<double> latRange {-90.0, 90.0};
-  int latPointCount {20};
+  // Memory instrumentation (all off by default).
+  bool trackMemory {false};     // report RSS / malloc / umpire at phase boundaries
+  bool trimAfterQuery {false};  // malloc_trim(0) after the query, then re-report
+  int sampleMemoryMs {0};       // if > 0, background-sample peak RSS during the query
 
   RuntimePolicy policy {RuntimePolicy::seq};
 
   double distThreshold {axom::numeric_limits<double>::max()};
 
   bool dynamicDistanceFiltering {true};
-
-  bool checkResults {false};
-
-  bool randomSpacing {true};
-
-  std::vector<unsigned int> objDomainCountRange {1, 1};
 
 private:
   bool m_verboseOutput {false};
@@ -127,40 +481,36 @@ public:
       ->description("Name of output mesh file containing closest distance.")
       ->capture_default_str();
 
-    app.add_option("-o,--object-file", objectFile)
-      ->description("Name of output file containing object mesh.")
+    app.add_option("--object-mesh-file", objectMeshFile)
+      ->description(
+        "Path to a conduit blueprint point mesh root file. "
+        "Generate this mesh with src/tools/gen-multidom-point-mesh.py.")
+      ->check(axom::CLI::ExistingFile)
+      ->required();
+
+    app.add_flag("--track-memory", trackMemory)
+      ->description(
+        "Report RSS, glibc malloc live/arena bytes (and Umpire high-water when available) "
+        "before/after BVH build and before/after the closest-point query, reduced across ranks.")
+      ->capture_default_str();
+
+    app.add_flag("--trim-after-query", trimAfterQuery)
+      ->description(
+        "After the query, call malloc_trim(0) and report memory again. "
+        "If RSS drops here (while malloc-live was already back at baseline), "
+        "the memory was arena retention, not a leak.  Implies --track-memory.")
+      ->capture_default_str();
+
+    app.add_option("--sample-memory-ms", sampleMemoryMs)
+      ->description(
+        "If > 0, run a background thread sampling RSS at this interval (ms) "
+        "during the query and report the peak.  Useful for observing in-flight "
+        "send-buffer accumulation.  Implies --track-memory.")
+      ->check(axom::CLI::NonNegativeNumber)
       ->capture_default_str();
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
       ->description("Enable/disable verbose output")
-      ->capture_default_str();
-
-    app.add_option("-r,--radius", circleRadius)->description("Radius for sphere")->capture_default_str();
-
-    auto* object_options =
-      app.add_option_group("sphere", "Options for setting up object points on the sphere");
-    object_options->add_option("--center", circleCenter)
-      ->description("Center for object (x,y[,z])")
-      ->expected(2, 3);
-
-    object_options->add_option("--obj-domain-count-range", objDomainCountRange)
-      ->description("Range of object domain counts per rank (min, max)")
-      ->expected(2);
-
-    object_options->add_flag("--random-spacing,!--no-random-spacing", randomSpacing)
-      ->description("Enable/disable random spacing of object points")
-      ->capture_default_str();
-
-    object_options->add_option("-n,--long-point-count", longPointCount)
-      ->description("Number of points around the longitudinal direction")
-      ->capture_default_str();
-
-    object_options->add_option("--lat-range", latRange)
-      ->description("Latitude range in degrees from the equator (3D only)")
-      ->expected(2);
-
-    object_options->add_option("--lat-point-count", latPointCount)
-      ->description("Number of points in the latitudinal direction (3D only)")
       ->capture_default_str();
 
     app.add_option("-d,--dist-threshold", distThreshold)
@@ -178,10 +528,6 @@ public:
       ->description("Set runtime policy for point query method")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
-
-    app.add_flag("-c,--check-results,!--no-check-results", checkResults)
-      ->description("Enable/disable checking results against analytical solution")
-      ->capture_default_str();
 
     app.get_formatter()->column_width(60);
 
@@ -250,7 +596,8 @@ public:
   /// Gets the parent group for the blueprint fields
   sidre::Group* fields_group(axom::IndexType groupIdx) const
   {
-    return domain_group(groupIdx)->getGroup("fields");
+    auto* domain = domain_group(groupIdx);
+    return domain->hasGroup("fields") ? domain->getGroup("fields") : domain->createGroup("fields");
   }
 
   const std::string& getTopologyName() const { return m_topologyName; }
@@ -286,6 +633,9 @@ public:
   }
 
   int dimension() const { return m_dimension; }
+  bool hasVerification() const { return m_hasVerification; }
+  const conduit::Node& verification() const { return m_verification; }
+  const std::string& description() const { return m_description; }
 
   /*!
     @brief Read a blueprint mesh and store it internally in m_group.
@@ -300,19 +650,47 @@ public:
 
     conduit::Node mdMesh;
     conduit::relay::mpi::io::blueprint::load_mesh(meshFilename, mdMesh, MPI_COMM_WORLD);
-    assert(conduit::blueprint::mesh::is_multi_domain(mdMesh));
+    if(!conduit::blueprint::mesh::is_multi_domain(mdMesh) && mdMesh.number_of_children() > 0)
+    {
+      conduit::Node singleDomainMesh;
+      singleDomainMesh.update(mdMesh);
+      mdMesh.reset();
+      conduit::blueprint::mesh::to_multi_domain(singleDomainMesh, mdMesh);
+    }
     conduit::index_t domCount = conduit::blueprint::mesh::number_of_domains(mdMesh);
 
-    if(domCount > 0)
+    m_hasVerification = false;
+    m_verification.reset();
+    m_description.clear();
+    for(conduit::index_t d = 0; d < domCount; ++d)
     {
-      m_coordsAreStrided =
-        mdMesh[0].fetch_existing("topologies/mesh/elements/dims").has_child("strides");
-      if(m_coordsAreStrided)
+      const conduit::Node& domain = mdMesh.child(d);
+      if(m_description.empty() && domain.has_path("state/description"))
       {
-        SLIC_WARNING(
-          axom::fmt::format("Mesh '{}' is strided.  Stride support is under development.",
-                            meshFilename));
+        m_description = domain.fetch_existing("state/description").as_string();
       }
+      if(!m_hasVerification && domain.has_path("state/verification"))
+      {
+        m_verification.update(domain.fetch_existing("state/verification"));
+        m_hasVerification = true;
+      }
+    }
+
+    int verificationRank = m_hasVerification ? m_rank : m_nranks;
+    verificationRank = allReduce(verificationRank, MPI_MIN, MPI_COMM_WORLD);
+    if(verificationRank < m_nranks)
+    {
+      std::string description = m_rank == verificationRank ? m_description : std::string {};
+      std::string verificationYaml =
+        m_rank == verificationRank ? m_verification.to_yaml() : std::string {};
+
+      broadcastString(description, verificationRank, MPI_COMM_WORLD);
+      broadcastString(verificationYaml, verificationRank, MPI_COMM_WORLD);
+
+      m_description = description;
+      m_verification.reset();
+      m_verification.parse(verificationYaml, "yaml");
+      m_hasVerification = true;
     }
 
     if(domCount > 0)
@@ -324,13 +702,26 @@ public:
       }
       auto topologyPath = axom::fmt::format("topologies/{}", m_topologyName);
 
+      // Detect strided structured coordinates.
+      // Structured topologies have elements/dims, but points and unstructured topology don't.
+      // Guard the probe use the resolved topology name rather than a hardcoded "mesh" topology.
+      const std::string dimsPath = topologyPath + "/elements/dims";
+      m_coordsAreStrided =
+        mdMesh[0].has_path(dimsPath) && mdMesh[0].fetch_existing(dimsPath).has_child("strides");
+      if(m_coordsAreStrided)
+      {
+        SLIC_WARNING(
+          axom::fmt::format("Mesh '{}' is strided.  Stride support is under development.",
+                            meshFilename));
+      }
+
       m_coordsetName = mdMesh[0].fetch_existing(topologyPath + "/coordset").as_string();
       const conduit::Node coordsetNode =
         mdMesh[0].fetch_existing("coordsets").fetch_existing(m_coordsetName);
       m_dimension = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
 
-    MPI_Allreduce(MPI_IN_PLACE, &m_dimension, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    m_dimension = allReduce(m_dimension, MPI_MAX, MPI_COMM_WORLD);
     SLIC_ASSERT(m_dimension > 0);
 
     if(domCount > 0)
@@ -460,16 +851,10 @@ public:
                                 numPoints(),
                                 domain_count()));
 
-    auto getIntMinMax = [](int inVal, int& minVal, int& maxVal, int& sumVal) {
-      MPI_Allreduce(&inVal, &minVal, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &maxVal, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &sumVal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    };
-
     // Output some global mesh size stats
     {
       int mn, mx, sum;
-      getIntMinMax(numPoints(), mn, mx, sum);
+      allReduceMinMaxSum(numPoints(), mn, mx, sum, MPI_COMM_WORLD);
       SLIC_INFO(axom::fmt::format("{} has {{min:{}, max:{}, sum:{}, avg:{}}} points",
                                   meshLabel,
                                   mn,
@@ -479,7 +864,7 @@ public:
     }
     {
       int mn, mx, sum;
-      getIntMinMax(domain_count(), mn, mx, sum);
+      allReduceMinMaxSum(static_cast<int>(domain_count()), mn, mx, sum, MPI_COMM_WORLD);
       SLIC_INFO(axom::fmt::format("{} has {{min:{}, max:{}, sum:{}, avg:{}}} domains",
                                   meshLabel,
                                   mn,
@@ -527,6 +912,20 @@ public:
         fld->copyView(strides);
       }
 
+      if(SZ == 0)
+      {
+        fld->createViewAndAllocate("values/x", sidre::detail::SidreTT<T>::id, 0);
+        if(DIM > 1)
+        {
+          fld->createViewAndAllocate("values/y", sidre::detail::SidreTT<T>::id, 0);
+        }
+        if(DIM > 2)
+        {
+          fld->createViewAndAllocate("values/z", sidre::detail::SidreTT<T>::id, 0);
+        }
+        continue;
+      }
+
       // create views into a shared buffer for the coordinates, with stride DIM
       auto* buf = domain_group(dIdx)
                     ->getDataStore()
@@ -554,13 +953,13 @@ public:
   {
     auto* domain = m_group->getGroup(domainIdx);
     auto* fields = domain->getGroup("fields");
-    auto has = fields->hasGroup(fieldName);
-    return has;
+    return fields != nullptr && fields->hasGroup(fieldName);
   }
 
   bool hasVectorField(const std::string& fieldName, int domainIdx = 0) const
   {
-    return m_group->getGroup(domainIdx)->getGroup("fields")->hasGroup(fieldName);
+    auto* fields = m_group->getGroup(domainIdx)->getGroup("fields");
+    return fields != nullptr && fields->hasGroup(fieldName);
   }
 
   template <typename T>
@@ -574,7 +973,7 @@ public:
 
     auto* domain = m_group->getGroup(domainIdx);
     auto* fields = domain->getGroup("fields");
-    auto* field = fields->getGroup(fieldName);
+    auto* field = fields != nullptr ? fields->getGroup(fieldName) : nullptr;
     T* data = field ? static_cast<T*>(field->getView("values")->getVoidPtr()) : nullptr;
 
     return field ? axom::ArrayView<T>(data, numPoints(domainIdx)) : axom::ArrayView<T>();
@@ -595,11 +994,11 @@ public:
     // need to modify this implementation accordingly.
     T* data = nullptr;
     axom::IndexType npts = 0;
-    bool has = m_group->getGroup(domainIdx)->getGroup("fields")->hasGroup(fieldName);
+    auto* fields = m_group->getGroup(domainIdx)->getGroup("fields");
+    bool has = fields != nullptr && fields->hasGroup(fieldName);
     if(has)
     {
-      auto xView =
-        m_group->getGroup(domainIdx)->getGroup("fields")->getGroup(fieldName)->getView("values/x");
+      auto xView = fields->getGroup(fieldName)->getView("values/x");
       data = static_cast<T*>(xView->getVoidPtr());
       npts = xView->getNumElements();
     }
@@ -634,8 +1033,8 @@ public:
   sidre::Group* getDomain(axom::IndexType domain) { return m_group->getGroup(domain); }
   sidre::Group* getFields(axom::IndexType domainIdx)
   {
-    auto* fields = m_group->getGroup(domainIdx)->getGroup("fields");
-    return fields;
+    auto* domain = m_group->getGroup(domainIdx);
+    return domain->hasGroup("fields") ? domain->getGroup("fields") : domain->createGroup("fields");
   }
 
   /// Checks whether the blueprint is valid and prints diagnostics
@@ -699,8 +1098,11 @@ private:
 private:
   //!@brief Whether stride/offsets are given for blueprint mesh coordinates data.
   bool m_coordsAreStrided = false;
+  bool m_hasVerification = false;
   std::string m_topologyName;
   std::string m_coordsetName;
+  std::string m_description;
+  conduit::Node m_verification;
   /// Parent group for the entire mesh
   sidre::Group* m_group;
 
@@ -716,9 +1118,14 @@ private:
 class ObjectMeshWrapper
 {
 public:
-  ObjectMeshWrapper(sidre::Group* group) : m_objectMesh(group, "mesh", "coords")
+  //!@brief Construct by reading a blueprint object mesh from disk.
+  //! Uses the topology/coordset names found in the file, exactly like the
+  //! query mesh reader.  (The empty-topology BlueprintParticleMesh ctor lets
+  //! read_blueprint_mesh pick the file's actual topology.)
+  ObjectMeshWrapper(sidre::Group* group, const std::string& meshFilename) : m_objectMesh(group)
   {
     SLIC_ASSERT(group != nullptr);
+    m_objectMesh.read_blueprint_mesh(meshFilename);
   }
 
   BlueprintParticleMesh& getParticleMesh() { return m_objectMesh; }
@@ -728,20 +1135,12 @@ public:
 
   std::string getTopologyName() const { return m_objectMesh.getTopologyName(); }
   std::string getCoordsetName() const { return m_objectMesh.getCoordsetName(); }
-
-  void setVerbosity(bool verbose) { m_verbose = verbose; }
-
-  /// Outputs the object mesh to disk
-  void saveMesh(const std::string& filename = "object_mesh")
-  {
-    SLIC_INFO(banner(axom::fmt::format("Saving object mesh '{}' to disk", filename)));
-
-    m_objectMesh.saveMesh(filename);
-  }
+  bool hasVerification() const { return m_objectMesh.hasVerification(); }
+  const conduit::Node& verification() const { return m_objectMesh.verification(); }
+  const std::string& description() const { return m_objectMesh.description(); }
 
 private:
   BlueprintParticleMesh m_objectMesh;
-  bool m_verbose {false};
 };
 
 class QueryMeshWrapper
@@ -793,17 +1192,16 @@ public:
   {
     sidre::Group* dstDomains = m_queryMesh.root_group();
     bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(node);
-    if(!isMultidomain)
-    {
-      SLIC_ASSERT(!isMultidomain || dstDomains->getNumGroups() == node.number_of_children());
-    }
     const int domainCount = dstDomains->getNumGroups();
+    const int srcDomainCount = static_cast<int>(conduit::blueprint::mesh::number_of_domains(node));
+    SLIC_ASSERT(domainCount == srcDomainCount);
     for(int d = 0; d < domainCount; ++d)
     {
       sidre::Group& domGroup = *dstDomains->getGroup(d);
       const conduit::Node& domNode = isMultidomain ? node.child(d) : node;
 
-      sidre::Group& dstFieldsGroup = *domGroup.getGroup("fields");
+      sidre::Group& dstFieldsGroup =
+        *(domGroup.hasGroup("fields") ? domGroup.getGroup("fields") : domGroup.createGroup("fields"));
       const conduit::Node& srcFieldsNode = domNode.fetch_existing("fields");
       {
         if(!m_queryMesh.hasScalarField("cp_rank"))
@@ -849,10 +1247,17 @@ public:
         int dim = srcNode.fetch_existing("values").number_of_children();
         for(int d = 0; d < dim; ++d)
         {
-          conduit::float64_array dst = dstGroup->getGroup("values")->getView(d)->getArray();
-          const conduit::float64_array src = srcNode.fetch_existing("values").child(d).value();
-          SLIC_ASSERT(src.number_of_elements() == dst.number_of_elements());
-          int nPts = src.number_of_elements();
+          auto* dstView = dstGroup->getGroup("values")->getView(d);
+          const auto& srcComponent = srcNode.fetch_existing("values").child(d);
+          int nPts = srcComponent.dtype().number_of_elements();
+          SLIC_ASSERT(nPts == dstView->getNumElements());
+          if(nPts == 0)
+          {
+            continue;
+          }
+
+          conduit::float64_array dst = dstView->getArray();
+          const conduit::float64_array src = srcComponent.value();
           for(int i = 0; i < nPts; ++i)
           {
             dst[i] = src[i];
@@ -862,267 +1267,9 @@ public:
     }
   }
 
-  /**
-   * Check for error in the search.
-   * - check that points within threshold have a closest point
-   *   on the object.
-   * - check that found closest-point is near its corresponding
-   *   closest point on the sphere (within tolerance)
-   *
-   * Return number of errors found on the local mesh partition.
-   * Populate "error_flag" field with the number of errors, for
-   * visualization.
-   *
-   * Randomizing points (--random-spacing switch) can cause false
-   * positives, so when it's on, distance inaccuracy is a warning (not
-   * an error) for the purpose of checking.
-   */
-  template <int DIM>
-  int checkClosestPoints(const axom::primal::Sphere<double, DIM>& sphere, const Input& params)
-  {
-    using PointType = axom::primal::Point<double, DIM>;
-
-    m_queryMesh.registerNodalScalarField<axom::IndexType>("error_flag");
-
-    int sumErrCount = 0;
-    int sumWarningCount = 0;
-    for(axom::IndexType dIdx = 0; dIdx < m_queryMesh.domain_count(); ++dIdx)
-    {
-      auto queryPts = m_queryMesh.getPoints<DIM>(dIdx);
-
-      axom::ArrayView<PointType> cpCoords =
-        m_queryMesh.getNodalVectorField<PointType>("cp_coords", dIdx);
-      SLIC_INFO(axom::fmt::format("Closest points ({}):", cpCoords.size()));
-
-      axom::ArrayView<axom::IndexType> cpIndices =
-        m_queryMesh.getNodalScalarField<axom::IndexType>("cp_index", dIdx);
-
-      axom::ArrayView<axom::IndexType> errorFlag =
-        m_queryMesh.getNodalScalarField<axom::IndexType>("error_flag", dIdx);
-
-      SLIC_ASSERT(queryPts.size() == cpCoords.size());
-      SLIC_ASSERT(queryPts.size() == cpIndices.size());
-
-      if(params.isVerbose())
-      {
-        SLIC_INFO(axom::fmt::format("Closest points ({}):", cpCoords.size()));
-      }
-
-      /*
-        Allowable slack is half the arclength between 2 adjacent object
-        points.  A query point on the object can correctly have that
-        closest-distance, even though the analytical distance is zero.
-        If spacing is random, distance between adjacent points is not
-        predictable, leading to false positives.  We don't claim errors
-        for this in when using random.
-      */
-      const double longSpacing = 2 * M_PI * params.circleRadius / params.longPointCount;
-      const double latSpacing = params.circleRadius * M_PI / 180 *
-        (params.latRange[1] - params.latRange[0]) / params.latPointCount;
-      const double avgObjectRes =
-        DIM == 2 ? longSpacing : std::sqrt(longSpacing * longSpacing + latSpacing * latSpacing);
-      const double allowableSlack = avgObjectRes / 2;
-
-      using IndexSet = slam::PositionSet<>;
-      for(auto i : IndexSet(queryPts.size()))
-      {
-        bool errf = false;
-
-        const auto& qPt = queryPts[i];
-        const auto& cpCoord = cpCoords[i];
-        double analyticalDist = std::fabs(sphere.computeSignedDistance(qPt));
-        const bool closestPointFound = (cpIndices[i] == -1);
-        if(closestPointFound)
-        {
-          if(analyticalDist < params.distThreshold - allowableSlack)
-          {
-            errf = true;
-            SLIC_INFO(
-              axom::fmt::format("***Error: Query point {} ({}) is within "
-                                "threshold by {} but lacks closest point.",
-                                i,
-                                qPt,
-                                params.distThreshold - analyticalDist));
-          }
-        }
-        else
-        {
-          if(analyticalDist >= params.distThreshold + allowableSlack)
-          {
-            errf = true;
-            SLIC_INFO(
-              axom::fmt::format("***Error: Query point {} ({}) is outside "
-                                "threshold by {} but has closest point at {}.",
-                                i,
-                                qPt,
-                                analyticalDist - params.distThreshold,
-                                cpCoord));
-          }
-
-          if(!axom::utilities::isNearlyEqual(sphere.computeSignedDistance(cpCoord), 0.0))
-          {
-            errf = true;
-            SLIC_INFO(
-              axom::fmt::format("***Error: Closest point ({}) for index {} "
-                                "({}) is not on the sphere.",
-                                cpCoords[i],
-                                i,
-                                qPt));
-          }
-
-          double dist = sqrt(primal::squared_distance(qPt, cpCoord));
-          if(!axom::utilities::isNearlyEqual(dist, analyticalDist, allowableSlack))
-          {
-            if(params.randomSpacing)
-            {
-              ++sumWarningCount;
-              SLIC_INFO(
-                axom::fmt::format("***Warning: Closest distance for {} (index "
-                                  "{}, cp {}) is {}, off by {}.",
-                                  qPt,
-                                  i,
-                                  cpCoords[i],
-                                  dist,
-                                  dist - analyticalDist));
-            }
-            else
-            {
-              errf = true;
-              SLIC_INFO(
-                axom::fmt::format("***Warning: Closest distance for {} (index "
-                                  "{}, cp {}) is {}, off by {}.",
-                                  qPt,
-                                  i,
-                                  cpCoords[i],
-                                  dist,
-                                  dist - analyticalDist));
-            }
-          }
-        }
-        errorFlag[i] = errf;
-        sumErrCount += errf;
-      }
-    }
-
-    SLIC_INFO(
-      axom::fmt::format("Local partition has {} errors, {} warnings in closest distance results.",
-                        sumErrCount,
-                        sumWarningCount));
-
-    return sumErrCount;
-  }
-
 private:
   BlueprintParticleMesh m_queryMesh;
 };
-
-/**
- * Generates points on a sphere, partitioned into multiple domains.
- * Point spacing in the longitudinal direction can be random (default) or uniform.
- * 3D points cover the given latitude range.
- */
-void generateObjectPoints(BlueprintParticleMesh& particleMesh,
-                          int spatialDimension,
-                          const std::vector<double>& center,
-                          double radius,
-                          int longPointCount,
-                          int localDomainCount,
-                          bool randomSpacing = true,
-                          double minLatitude = 0.0,
-                          double maxLatitude = 0.0,
-                          int latPointCount = 1)
-{
-  using axom::utilities::random_real;
-
-  int rank = particleMesh.getRank();
-  int nranks = particleMesh.getNumRanks();
-
-  // rank scan to sum longPointCount and determine local range of longitudinal angles.
-  axom::Array<int> sums(nranks, nranks);
-  {
-    axom::Array<int> indivDomainCounts(nranks, nranks);
-    indivDomainCounts.fill(-1);
-    MPI_Allgather(&localDomainCount, 1, MPI_INT, indivDomainCounts.data(), 1, MPI_INT, MPI_COMM_WORLD);
-
-    SLIC_DEBUG_IF(
-      params.isVerbose(),
-      axom::fmt::format("After all gather: [{}]", axom::fmt::join(indivDomainCounts, ",")));
-
-    sums[0] = indivDomainCounts[0];
-    for(int i = 1; i < nranks; ++i)
-    {
-      sums[i] = sums[i - 1] + indivDomainCounts[i];
-    }
-    // If no rank has any domains, force last one to have 1 domain.
-    if(sums[nranks - 1] == 0)
-    {
-      sums[nranks - 1] = 1;
-      if(rank == nranks - 1)
-      {
-        localDomainCount = 1;
-      }
-    }
-  }
-
-  SLIC_DEBUG_IF(params.isVerbose(),
-                axom::fmt::format("After scan: [{}]", axom::fmt::join(sums, ",")));
-
-  int globalDomainCount = sums[nranks - 1];
-  longPointCount = std::max(longPointCount, globalDomainCount);
-  int longPtsPerDomain = longPointCount / globalDomainCount;
-  int domainsWithExtraPt = longPointCount % globalDomainCount;
-
-  int myDomainBegin = rank == 0 ? 0 : sums[rank - 1];
-  int myDomainEnd = sums[rank];
-  SLIC_ASSERT(myDomainEnd - myDomainBegin == localDomainCount);
-
-  if(spatialDimension == 2)
-  {
-    minLatitude = 0.0;
-    maxLatitude = 0.0;
-    latPointCount = 1;
-  }
-  minLatitude *= M_PI / 180;
-  maxLatitude *= M_PI / 180;
-  const double longSpacing = 2. * M_PI / longPointCount;
-  const double latSpacing =
-    latPointCount < 2 || latPointCount == 1 ? 0 : (maxLatitude - minLatitude) / (latPointCount - 1);
-
-  for(int di = myDomainBegin; di < myDomainEnd; ++di)
-  {
-    int pBegin = di * longPtsPerDomain + std::min(di, domainsWithExtraPt);
-    int pEnd = (di + 1) * longPtsPerDomain + std::min((di + 1), domainsWithExtraPt);
-    int domainPointCount = pEnd - pBegin;
-    domainPointCount *= latPointCount;
-    axom::Array<double, 2> pts(domainPointCount, spatialDimension);
-    axom::IndexType iPts = 0;
-
-    for(int li = 0; li < latPointCount; ++li)
-    {
-      double latAngle = minLatitude + li * latSpacing;
-      double xyRadius = radius * std::cos(latAngle);  // Project radius onto x-y plane.
-      double z = spatialDimension == 2 ? 0 : center[2] + radius * std::sin(latAngle);
-      for(int pi = pBegin; pi < pEnd; ++pi)
-      {
-        const double ang =
-          randomSpacing ? random_real(longSpacing * pBegin, longSpacing * pEnd) : pi * longSpacing;
-        const double rsinT = center[1] + xyRadius * std::sin(ang);
-        const double rcosT = center[0] + xyRadius * std::cos(ang);
-        pts[iPts][0] = rcosT;
-        pts[iPts][1] = rsinT;
-        if(spatialDimension > 2)
-        {
-          pts[iPts][2] = z;
-        }
-        ++iPts;
-      }
-    }
-    particleMesh.setPoints(di, pts);
-  }
-
-  axom::slic::flushStreams();
-  SLIC_ASSERT(particleMesh.isValid());
-}
 
 //---------------------------------------------------------------------------
 // Transform closest points to distances and directions
@@ -1164,6 +1311,343 @@ void computeDistancesAndDirections(BlueprintParticleMesh& queryMesh,
       directions[ptIdx] = PointType(has_cp ? (cp - qPt).array() : nowhere.array());
     }
   }
+}
+
+std::vector<double> conduitVector(const conduit::Node& node)
+{
+  conduit::Node tmp;
+  const conduit::Node* src = &node;
+  if(!node.dtype().is_float64())
+  {
+    node.to_float64_array(tmp);
+    src = &tmp;
+  }
+
+  conduit::float64_array values = src->as_float64_array();
+  std::vector<double> result(values.number_of_elements());
+  for(conduit::index_t i = 0; i < values.number_of_elements(); ++i)
+  {
+    result[i] = values[i];
+  }
+  return result;
+}
+
+double conduitDouble(const conduit::Node& node, const std::string& path, double defaultValue)
+{
+  return node.has_path(path) ? node.fetch_existing(path).to_double() : defaultValue;
+}
+
+template <int DIM>
+primal::Point<double, DIM> pointFromVector(const std::vector<double>& values)
+{
+  primal::Point<double, DIM> result(0.0);
+  for(int d = 0; d < DIM && d < static_cast<int>(values.size()); ++d)
+  {
+    result[d] = values[d];
+  }
+  return result;
+}
+
+template <int DIM>
+primal::Vector<double, DIM> vectorFromVector(const std::vector<double>& values)
+{
+  primal::Vector<double, DIM> result(0.0);
+  for(int d = 0; d < DIM && d < static_cast<int>(values.size()); ++d)
+  {
+    result[d] = values[d];
+  }
+  return result;
+}
+
+template <int DIM>
+struct AnalyticTorus
+{
+  using PointType = primal::Point<double, DIM>;
+
+  PointType center;
+  double majorRadius {0.0};
+  double minorRadius {0.0};
+
+  double computeSignedDistance(const PointType& pt) const
+  {
+    if constexpr(DIM == 2)
+    {
+      const double radialDistance = std::sqrt(primal::squared_distance(pt, center));
+      return std::fabs(radialDistance - majorRadius) - minorRadius;
+    }
+    else
+    {
+      primal::Point<double, 2> pt_xy({pt[0], pt[1]});
+      primal::Point<double, 2> center_xy({center[0], center[1]});
+      const double radialDistance =
+        std::sqrt(primal::squared_distance(pt_xy, center_xy)) - majorRadius;
+      const double axialDistance = pt[2] - center[2];
+      return std::sqrt(radialDistance * radialDistance + axialDistance * axialDistance) - minorRadius;
+    }
+  }
+};
+
+template <int DIM>
+using AnalyticPrimitive =
+  std::variant<std::monostate, primal::Sphere<double, DIM>, primal::Plane<double, DIM>, AnalyticTorus<DIM>>;
+
+template <int DIM>
+bool hasPrimitive(const AnalyticPrimitive<DIM>& primitive)
+{
+  return !std::holds_alternative<std::monostate>(primitive);
+}
+
+template <int DIM>
+bool supportsDistanceEnvelope(const AnalyticPrimitive<DIM>& primitive)
+{
+  return hasPrimitive(primitive) && !std::holds_alternative<primal::Plane<double, DIM>>(primitive);
+}
+
+template <int DIM>
+double signedDistance(const std::monostate&, const primal::Point<double, DIM>&)
+{
+  return axom::numeric_limits<double>::max();
+}
+
+template <int DIM>
+double signedDistance(const primal::Sphere<double, DIM>& sphere, const primal::Point<double, DIM>& pt)
+{
+  return sphere.computeSignedDistance(pt);
+}
+
+template <int DIM>
+double signedDistance(const primal::Plane<double, DIM>& plane, const primal::Point<double, DIM>& pt)
+{
+  return plane.signedDistance(pt);
+}
+
+template <int DIM>
+double signedDistance(const AnalyticTorus<DIM>& torus, const primal::Point<double, DIM>& pt)
+{
+  return torus.computeSignedDistance(pt);
+}
+
+template <int DIM>
+double analyticDistance(const AnalyticPrimitive<DIM>& primitive, const primal::Point<double, DIM>& pt)
+{
+  return std::visit([&](const auto& shape) { return std::fabs(signedDistance<DIM>(shape, pt)); },
+                    primitive);
+}
+
+struct AnalyticVerification
+{
+  std::string shapeName;
+  std::string description;
+  int dimension {-1};
+  std::vector<double> center;
+  std::vector<double> normal;
+  double radius {0.0};
+  double majorRadius {0.0};
+  double minorRadius {0.0};
+  double innerRadius {0.0};
+  double outerRadius {0.0};
+  double surfaceTolerance {1.0e-8};
+  double distanceTolerance {0.0};
+
+  template <int DIM>
+  AnalyticPrimitive<DIM> makePrimitive() const
+  {
+    if(dimension != DIM)
+    {
+      return std::monostate {};
+    }
+
+    const auto c = pointFromVector<DIM>(center);
+    if((shapeName == "circle" || shapeName == "sphere") && radius > 0.0)
+    {
+      return primal::Sphere<double, DIM>(c, radius);
+    }
+
+    if(shapeName == "plane")
+    {
+      const auto n = vectorFromVector<DIM>(normal);
+      return n.is_zero() ? AnalyticPrimitive<DIM> {std::monostate {}}
+                         : AnalyticPrimitive<DIM> {primal::Plane<double, DIM>(n, c)};
+    }
+
+    if constexpr(DIM == 2)
+    {
+      if(shapeName == "annulus" && outerRadius > innerRadius && innerRadius > 0.0)
+      {
+        return AnalyticTorus<DIM> {c,
+                                   0.5 * (innerRadius + outerRadius),
+                                   0.5 * (outerRadius - innerRadius)};
+      }
+    }
+    else if constexpr(DIM == 3)
+    {
+      if(shapeName == "torus" && majorRadius > 0.0 && minorRadius > 0.0)
+      {
+        return AnalyticTorus<DIM> {c, majorRadius, minorRadius};
+      }
+    }
+
+    return std::monostate {};
+  }
+
+  static AnalyticVerification fromNode(const conduit::Node& node, const std::string& description)
+  {
+    AnalyticVerification result;
+    result.description = description;
+    if(!node.has_path("shape"))
+    {
+      return result;
+    }
+
+    result.shapeName = node.fetch_existing("shape").as_string();
+    result.dimension = node.has_path("dimension") ? node.fetch_existing("dimension").to_int32() : -1;
+    if(node.has_path("center"))
+    {
+      result.center = conduitVector(node.fetch_existing("center"));
+    }
+    if(node.has_path("normal"))
+    {
+      result.normal = conduitVector(node.fetch_existing("normal"));
+    }
+    result.radius = conduitDouble(node, "radius", result.radius);
+    result.majorRadius = conduitDouble(node, "major_radius", result.majorRadius);
+    result.minorRadius = conduitDouble(node, "minor_radius", result.minorRadius);
+    result.innerRadius = conduitDouble(node, "inner_radius", result.innerRadius);
+    result.outerRadius = conduitDouble(node, "outer_radius", result.outerRadius);
+    result.surfaceTolerance = conduitDouble(node, "surface_tolerance", result.surfaceTolerance);
+    result.distanceTolerance = conduitDouble(node, "distance_tolerance", result.distanceTolerance);
+    return result;
+  }
+};
+
+template <int DIM>
+int verifyAnalyticClosestPoints(BlueprintParticleMesh& queryMesh,
+                                const AnalyticVerification& verification,
+                                double distThreshold)
+{
+  SLIC_ASSERT(queryMesh.dimension() == DIM);
+
+  using PointType = primal::Point<double, DIM>;
+  using IndexSet = slam::PositionSet<>;
+
+  const AnalyticPrimitive<DIM> primitive = verification.makePrimitive<DIM>();
+  if(!hasPrimitive(primitive))
+  {
+    SLIC_WARNING(
+      axom::fmt::format("Skipping unsupported analytic verification '{}'", verification.shapeName));
+    return 0;
+  }
+  const bool checkDistanceEnvelope = supportsDistanceEnvelope(primitive);
+
+  queryMesh.registerNodalScalarField<axom::IndexType>("verification_error");
+
+  int localErrCount = 0;
+  int localLogCount = 0;
+  constexpr int MAX_LOCAL_LOGS = 8;
+  const double distTol = std::max(verification.distanceTolerance, 1.0e-10);
+  const double surfaceTol = std::max(verification.surfaceTolerance, 1.0e-10);
+
+  auto logError = [&](const std::string& message) {
+    if(localLogCount < MAX_LOCAL_LOGS)
+    {
+      SLIC_INFO(message);
+    }
+    ++localLogCount;
+  };
+
+  for(axom::IndexType di = 0; di < queryMesh.domain_count(); ++di)
+  {
+    auto cpCoords = queryMesh.getNodalVectorField<PointType>("cp_coords", di);
+    auto cpIndices = queryMesh.getNodalScalarField<axom::IndexType>("cp_index", di);
+    auto errorFlag = queryMesh.getNodalScalarField<axom::IndexType>("verification_error", di);
+    axom::Array<double, 2> qPts = queryMesh.getVertexPositions(di);
+
+    for(auto ptIdx : IndexSet(queryMesh.numPoints(di)))
+    {
+      const PointType qPt(&qPts[ptIdx][0]);
+      const double analyticDist = analyticDistance(primitive, qPt);
+      const bool hasCp = cpIndices[ptIdx] >= 0;
+      bool err = false;
+
+      if(hasCp)
+      {
+        const PointType& cp = cpCoords[ptIdx];
+        const double cpDist = std::sqrt(primal::squared_distance(qPt, cp));
+        const double surfaceResidual = analyticDistance(primitive, cp);
+        const double eps = 1.0e-10 * (1.0 + std::max(cpDist, analyticDist));
+
+        if(surfaceResidual > surfaceTol)
+        {
+          err = true;
+          logError(axom::fmt::format(
+            "***Error: Closest point {} on domain {} has analytic residual {} for '{}'.",
+            cp,
+            di,
+            surfaceResidual,
+            verification.shapeName));
+        }
+
+        if(cpDist + eps < analyticDist)
+        {
+          err = true;
+          logError(axom::fmt::format(
+            "***Error: Discrete closest distance {} is below analytic distance {} at {}.",
+            cpDist,
+            analyticDist,
+            qPt));
+        }
+
+        if(checkDistanceEnvelope)
+        {
+          if(cpDist > analyticDist + distTol + eps)
+          {
+            err = true;
+            logError(axom::fmt::format(
+              "***Error: Discrete closest distance {} exceeds analytic distance {} "
+              "plus sampling tolerance {} at {}.",
+              cpDist,
+              analyticDist,
+              distTol,
+              qPt));
+          }
+
+          if(analyticDist > distThreshold + distTol + eps)
+          {
+            err = true;
+            logError(
+              axom::fmt::format("***Error: Query point {} is analytically outside threshold by {} "
+                                "but has closest point {}.",
+                                qPt,
+                                analyticDist - distThreshold,
+                                cp));
+          }
+        }
+      }
+      else if(checkDistanceEnvelope && analyticDist < distThreshold - distTol)
+      {
+        err = true;
+        logError(
+          axom::fmt::format("***Error: Query point {} is analytically inside threshold by {} "
+                            "but lacks a closest point.",
+                            qPt,
+                            distThreshold - analyticDist));
+      }
+
+      errorFlag[ptIdx] = err ? 1 : 0;
+      localErrCount += err ? 1 : 0;
+    }
+  }
+
+  int globalErrCount = allReduce(localErrCount, MPI_SUM, MPI_COMM_WORLD);
+  int globalLogCount = allReduce(localLogCount, MPI_SUM, MPI_COMM_WORLD);
+  SLIC_INFO(
+    axom::fmt::format("Analytic verification for '{}' found {} errors "
+                      "({} detailed messages{}).",
+                      verification.shapeName,
+                      globalErrCount,
+                      globalLogCount,
+                      globalLogCount > MAX_LOCAL_LOGS * num_ranks ? " shown partly" : ""));
+  return globalErrCount;
 }
 
 void make_coords_contiguous(conduit::Node& coordValues)
@@ -1253,15 +1737,6 @@ int main(int argc, char** argv)
     exit(retval);
   }
 
-  // Issue warning about result-checking requiring good resolution.
-  if(params.checkResults && params.randomSpacing)
-  {
-    SLIC_INFO(
-      axom::fmt::format("***Warning: Result-checking may yield false positive (warnings) when "
-                        "sphere points have random spacing.  High resolution helps limit this."
-                        "We recommend at least 500 points for each radius length unit."));
-  }
-
 #if defined(AXOM_USE_UMPIRE)
   //---------------------------------------------------------------------------
   // Memory resource.  For testing, choose device memory if appropriate.
@@ -1303,31 +1778,26 @@ int main(int argc, char** argv)
   slic::flushStreams();
 
   const size_t spatialDim = queryMeshWrapper.getParticleMesh().dimension();
-  SLIC_ASSERT(params.circleCenter.size() == spatialDim);
 
   //---------------------------------------------------------------------------
-  // Generate object mesh
+  // Object (second) mesh
   //---------------------------------------------------------------------------
 
-  ObjectMeshWrapper objectMeshWrapper(dataStore.getRoot()->createGroup("object_mesh", true));
-  objectMeshWrapper.setVerbosity(params.isVerbose());
+  ObjectMeshWrapper objectMeshWrapper(dataStore.getRoot()->createGroup("object_mesh", true),
+                                      params.objectMeshFile);
 
+  AnalyticVerification analyticVerification;
+  const bool hasAnalyticVerification = objectMeshWrapper.hasVerification();
+  if(hasAnalyticVerification)
   {
-    SLIC_ASSERT(params.objDomainCountRange[1] >= params.objDomainCountRange[0]);
-    const unsigned int omin = params.objDomainCountRange[0];
-    const unsigned int omax = params.objDomainCountRange[1];
-    const double prob = axom::utilities::random_real(0., 1.);
-    int localDomainCount = omin + int(0.5 + prob * (omax - omin));
-    generateObjectPoints(objectMeshWrapper.getParticleMesh(),
-                         spatialDim,
-                         params.circleCenter,
-                         params.circleRadius,
-                         params.longPointCount,
-                         localDomainCount,
-                         params.randomSpacing,
-                         params.latRange.size() > 0 ? params.latRange[0] : 0.0,
-                         params.latRange.size() > 1 ? params.latRange[1] : 0.0,
-                         params.latPointCount);
+    analyticVerification = AnalyticVerification::fromNode(objectMeshWrapper.verification(),
+                                                          objectMeshWrapper.description());
+    if(my_rank == 0)
+    {
+      SLIC_INFO(axom::fmt::format("Loaded analytic verification metadata for '{}': {}",
+                                  analyticVerification.shapeName,
+                                  objectMeshWrapper.description()));
+    }
   }
 
   if(params.isVerbose())
@@ -1336,15 +1806,15 @@ int main(int argc, char** argv)
   }
   slic::flushStreams();
 
-  objectMeshWrapper.saveMesh(params.objectFile);
-  slic::flushStreams();
-
   //---------------------------------------------------------------------------
   // Initialize spatial index for object points, and run query
   //---------------------------------------------------------------------------
 
+  int globalObjectPointCount =
+    allReduce(objectMeshWrapper.getParticleMesh().numPoints(), MPI_SUM, MPI_COMM_WORLD);
+
   auto init_str =
-    banner(axom::fmt::format("Initializing BVH tree over {} points", params.longPointCount));
+    banner(axom::fmt::format("Initializing BVH tree over {} object points", globalObjectPointCount));
 
   axom::utilities::Timer initTimer(false);
   axom::utilities::Timer queryTimer(false);
@@ -1360,25 +1830,6 @@ int main(int argc, char** argv)
   conduit::Node queryMeshNode;
   queryMeshWrapper.getBlueprintGroup()->createNativeLayout(queryMeshNode);
 
-  // To test with contiguous and interleaved coordinate storage,
-  // make half them contiguous.
-  for(int di = 0; di < objectMeshNode.number_of_children(); ++di)
-  {
-    auto& dom = objectMeshNode.child(di);
-    if((my_rank + di) % 2 == 1)
-    {
-      make_coords_contiguous(dom.fetch_existing("coordsets/coords/values"));
-    }
-  }
-  for(int di = 0; di < queryMeshNode.number_of_children(); ++di)
-  {
-    auto& dom = queryMeshNode.child(di);
-    if((my_rank + di) % 2 == 1)
-    {
-      make_coords_contiguous(dom.fetch_existing("coordsets/coords/values"));
-    }
-  }
-
   // Create distributed closest point query object and set some parameters
   quest::DistributedClosestPoint query;
   query.setRuntimePolicy(params.policy);
@@ -1393,6 +1844,15 @@ int main(int argc, char** argv)
   query.setObjectMesh(objectMeshNode.number_of_children() == 1 ? objectMeshNode[0] : objectMeshNode,
                       objectMeshWrapper.getTopologyName());
 
+  // Optional memory instrumentation around the index build and the query.
+  int memUmpireId = -1;
+#if defined(AXOM_USE_UMPIRE)
+  memUmpireId = umpireAllocator.getId();
+#endif
+  const bool trackMem = params.trackMemory || params.trimAfterQuery || params.sampleMemoryMs > 0;
+  MemoryProbe memProbe(trackMem, params.sampleMemoryMs, MPI_COMM_WORLD, memUmpireId);
+  memProbe.report("baseline (meshes read, before BVH)");
+
   // Build the spatial index over the object on each rank
   SLIC_INFO(init_str);
   slic::flushStreams();
@@ -1400,28 +1860,45 @@ int main(int argc, char** argv)
   query.generateBVHTree();
   initTimer.stop();
 
+  memProbe.report("after generateBVHTree (object index built)");
+
   // Run the distributed closest point query over the nodes of the computational mesh
   // To test support for single-domain format, use single-domain when possible.
   slic::flushStreams();
+  memProbe.resetPeak();  // make the post-query VmHWM reflect only the query phase
+  memProbe.startSampler();
   queryTimer.start();
   query.computeClosestPoints(
     queryMeshNode.number_of_children() == 1 ? queryMeshNode[0] : queryMeshNode,
     queryMeshWrapper.getTopologyName());
   queryTimer.stop();
+  memProbe.stopSampler("computeClosestPoints");
 
-  auto getDoubleMinMax = [](double inVal, double& minVal, double& maxVal, double& sumVal) {
-    MPI_Allreduce(&inVal, &minVal, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &maxVal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &sumVal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  };
+  memProbe.report("after computeClosestPoints");
+
+  // Optionally return free arena memory to the OS and re-measure.
+  // If RSS drops here while "malloc live" was already back at baseline,
+  // the retained memory was glibc arena, not a leak.
+  // (This is a diagnostic; the library-side fix would trim inside computeClosestPoints after releasing transfer buffers.)
+  if(params.trimAfterQuery)
+  {
+    if(trimMallocArena())
+    {
+      memProbe.report("after malloc_trim(0)");
+    }
+    else
+    {
+      SLIC_WARNING("--trim-after-query requested but malloc_trim is glibc-only; skipping.");
+    }
+  }
 
   // Output some timing stats
   {
     double minInit, maxInit, sumInit;
-    getDoubleMinMax(initTimer.elapsedTimeInSec(), minInit, maxInit, sumInit);
+    allReduceMinMaxSum(initTimer.elapsedTimeInSec(), minInit, maxInit, sumInit, MPI_COMM_WORLD);
 
     double minQuery, maxQuery, sumQuery;
-    getDoubleMinMax(queryTimer.elapsedTimeInSec(), minQuery, maxQuery, sumQuery);
+    allReduceMinMaxSum(queryTimer.elapsedTimeInSec(), minQuery, maxQuery, sumQuery, MPI_COMM_WORLD);
 
     SLIC_INFO(
       axom::fmt::format("Initialization with policy {} took {{avg:{}, min:{}, max:{}}} seconds",
@@ -1437,25 +1914,6 @@ int main(int argc, char** argv)
   }
   slic::flushStreams();
   queryMeshWrapper.update_closest_points(queryMeshNode);
-
-  int errCount = 0;
-  int localErrCount = 0;
-  if(params.checkResults)
-  {
-    if(spatialDim == 2)
-    {
-      primal::Point<double, 2> center(params.circleCenter.data());
-      primal::Sphere<double, 2> sphere(center, params.circleRadius);
-      localErrCount = queryMeshWrapper.checkClosestPoints(sphere, params);
-    }
-    else if(spatialDim == 3)
-    {
-      primal::Point<double, 3> center(params.circleCenter.data());
-      primal::Sphere<double, 3> sphere(center, params.circleRadius);
-      localErrCount = queryMeshWrapper.checkClosestPoints(sphere, params);
-    }
-  }
-  MPI_Allreduce(&localErrCount, &errCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   if(spatialDim == 2)
   {
@@ -1474,22 +1932,32 @@ int main(int argc, char** argv)
                                      "direction");
   }
 
+  int globalVerificationErrors = 0;
+  if(hasAnalyticVerification)
+  {
+    if(spatialDim == 2)
+    {
+      globalVerificationErrors = verifyAnalyticClosestPoints<2>(queryMeshWrapper.getParticleMesh(),
+                                                                analyticVerification,
+                                                                params.distThreshold);
+    }
+    else if(spatialDim == 3)
+    {
+      globalVerificationErrors = verifyAnalyticClosestPoints<3>(queryMeshWrapper.getParticleMesh(),
+                                                                analyticVerification,
+                                                                params.distThreshold);
+    }
+  }
+
   // queryMeshNode.print();
   queryMeshNode.reset();
 
   queryMeshWrapper.saveMesh(params.distanceFile);
 
-  if(errCount)
-  {
-    SLIC_INFO(axom::fmt::format(" Error exit: {} errors found.", errCount));
-  }
-  else
-  {
-    SLIC_INFO("Normal exit.");
-  }
+  SLIC_INFO("Normal exit.");
 
   finalizeLogger();
   MPI_Finalize();
 
-  return errCount != 0;
+  return globalVerificationErrors == 0 ? 0 : 1;
 }
