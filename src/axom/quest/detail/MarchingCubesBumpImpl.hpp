@@ -9,8 +9,8 @@
  *
  * @brief Implements single-domain isocontouring with \c axom::bump::extraction::CutField.
  *
- * Bump dispatches uniform, rectilinear, and explicit structured meshes.
- * It also dispatches single-shape quad meshes in 2D and hex meshes in 3D.
+ * Bump accepts uniform, rectilinear, and explicit structured meshes,
+ * plus single-shape quad meshes in 2D and hex meshes in 3D.
  * The selected execution space may be sequential, OpenMP, CUDA, or HIP.
  *
  * CutField performs extraction in one call, while ImplBase separates marking,
@@ -101,9 +101,9 @@ public:
   MarchingCubesBumpImpl(int allocatorID) : m_allocatorID(allocatorID) { }
 
   /*!
-   * @brief Cache the domain and topology/mask names.
+   * @brief Cache and validate the input domain.
    *
-   * Extraction waits until scanCrossings(), after the field and isovalue have been set.
+   * Extraction waits until scanCrossings(), after the field and isovalue are set.
    */
   void setDomain(const conduit::Node& dom,
                  const std::string& topologyName,
@@ -189,7 +189,7 @@ public:
     }
   }
 
-  //! @brief Require a float64 Blueprint array, naming the offending type if not.
+  //! @brief Validate that an existing Blueprint array is float64.
   void validateFieldIsFloat64(const std::string& path, const std::string& what) const
   {
     if(m_dom == nullptr || !m_dom->has_path(path))
@@ -219,17 +219,14 @@ public:
     m_robustnessPolicy = policy;
   }
 
-  // This setting controls only the legacy backend. Keep the value for the
-  // shared interface, but do not use it here.
+  // Retain the value for the shared interface; only the legacy backend reads it.
   void setDataParallelism(MarchingCubesDataParallelism dataPar) override
   {
     m_dataParallelism = dataPar;
   }
 
-  // CutField performs all extraction in one call, so the phases share a cached result.
-
   //! @brief No-op for the Bump backend. scanCrossings() performs extraction.
-  void markCrossings() override { /* no-op: deferred to scanCrossings */ }
+  void markCrossings() override { }
 
   /*!
    * @brief Run the Bump extraction so the facet count is known.
@@ -430,6 +427,11 @@ private:
       selectedZones);
   }
 
+  /*!
+   * @brief Filter the current zone selection to cells that cross the isovalue.
+   *
+   * This generic path uses FieldIntersector when MeshViewUtil cannot supply structured indexing.
+   */
   template <typename TopologyView, typename CoordsetView>
   bool attachCrossingSelectedZonesOption(const TopologyView& topologyView,
                                          const CoordsetView& coordsetView,
@@ -735,17 +737,17 @@ private:
     conduit::Node n_options;
     n_options["field"] = m_fcnFieldName;
     n_options["value"] = m_contourVal;
-    // Ask Bump to record the input zone that produced each output element
+    // Ask Bump to record the input zone that produced each output element.
     n_options["originalElementsField"] = kOriginalElementsField;
-    // Do not interpolate other input fields into the contour
+    // Do not interpolate other input fields into the contour.
     n_options["fields"].set(conduit::DataType::object());
 
     m_output = std::make_unique<conduit::Node>();
     conduit::Node& n_out = *m_output;
 
     // Dispatch only this dimension and the supported unstructured shapes.
-    // A valid view pair sets dispatched. CutField sets extracted only when selected zones
-    // cross the isovalue, so an empty contour is distinct from an unsupported mesh.
+    // A valid view pair sets dispatched. The callback sets extracted only after
+    // CutField runs, distinguishing an empty contour from an unsupported mesh.
     bool dispatched = false;
     bool extracted = false;
     dispatchCoordset(n_coords, [&](auto coordsetView) {
@@ -754,7 +756,7 @@ private:
         using TopologyView = decltype(topologyView);
         dispatched = true;
 
-        // Both policies currently use Bump's single-precision, two-label FieldIntersector
+        // Both policies currently use Bump's single-precision, two-label FieldIntersector.
         using StandardCut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
         using Cut = StandardCut;
 
@@ -833,13 +835,13 @@ private:
 
     if(!extracted)
     {
-      // No selected zone crosses the isovalue, so the contour is empty
+      // No selected zone crosses the isovalue, so the contour is empty.
       m_output.reset();
       m_facetCount = 0;
       return;
     }
 
-    // Count the segments or fan-triangulated polygons that the fixed-stride output will contain
+    // Count the facets in the fixed-stride output after polygon triangulation.
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::computeTriangulatedFacetCount");
       m_facetCount = computeTriangulatedFacetCount(n_out);
@@ -918,13 +920,13 @@ private:
 
   MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
-  //! @brief Whether the MeshViewUtil fast paths apply (structured + explicit only).
+  //! @brief Whether the structured-explicit crossing prefilter is available.
   bool m_useMeshViewUtilPath {false};
 
   //! @brief Cached Bump CutField output (Blueprint mesh).
   std::unique_ptr<conduit::Node> m_output;
 
-  //! @brief Legacy facet count (post fan-triangulation).
+  //! @brief Fixed-stride facet count after fan triangulation.
   axom::IndexType m_facetCount {};
 
   //! @brief Whether extraction ran, distinguishing unavailable from empty output.

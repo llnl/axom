@@ -91,9 +91,7 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
   {
     SLIC_ERROR_IF(
       conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
-      axom::fmt::format("MarchingCubes requires a contiguous coordinate layout, "
-                        "but '{}' is interleaved.",
-                        coordsetPath));
+      "The legacy MarchingCubes backend requires a contiguous coordinate layout.");
   }
 
   m_impl = newMarchingCubesImpl();

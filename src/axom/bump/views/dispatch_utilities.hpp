@@ -15,13 +15,11 @@ namespace bump
 namespace views
 {
 /// \name Dimension selection utilities
-/// \brief \ref select_dimensions converts dimension indices to flags and uses
-/// \ref encode_dimensions to combine them into a mask; \ref dimension_selected
-/// queries the resulting mask.
+/// \brief Helpers for constructing and querying compile-time dimension masks.
 /// @{
 
 /*!
- * \brief Combines encoded dimension flags into a single bit mask.
+ * \brief Combine encoded dimension flags into a bit mask.
  *
  * \tparam Dimensions The types of the encoded dimension flags.
  *
@@ -36,11 +34,10 @@ constexpr int encode_dimensions(Dimensions... dims)
 }
 
 /*!
- * \brief Encodes a list of selected spatial dimensions as a bit mask.
+ * \brief Encode spatial dimension indices as a bit mask.
  *
- * The bit at each supplied dimension index is set in the returned mask. The
- * mask can be passed as a template argument to limit which dimensions a view
- * dispatcher instantiates.
+ * The returned mask can be passed to a view dispatcher as a template argument
+ * to limit which dimensions it instantiates.
  *
  * \tparam Dimensions The types of the dimension indices.
  *
@@ -55,7 +52,7 @@ constexpr int select_dimensions(Dimensions... dims)
 }
 
 /*!
- * \brief Determines whether a dimension is present in an encoded dimension mask.
+ * \brief Determine whether a dimension is present in an encoded mask.
  *
  * \param[in] encoded_dims A bit mask returned by \ref select_dimensions.
  * \param[in] dim The dimension index to query.

@@ -9,7 +9,7 @@
  *
  * @brief Converts Bump CutField output to fixed-stride MarchingCubes arrays.
  *
- * CutField produces a welded, mixed-shape Blueprint mesh with the following structure:
+ * CutField produces a welded, mixed-shape Blueprint mesh with this structure:
  *
  *   <bp_root>
  *    ├── topologies
@@ -22,17 +22,18 @@
  *    │             └─• shapes         (per-zone Blueprint ShapeID)
  *    ├── coordsets
  *    │   └── <c>
- *    │        └──  values             (explicit, blended/welded points)
+ *    │        └──  values             (explicit, welded points)
  *    │             ├─•  x
  *    │             ├─•  y
  *    │             └─• [z]
  *    └── fields
  *        └──  originalElements
- *             └─• values              (element-assoc, input zone per fragment)
+ *             └─• values              (element-associated, input zone per fragment)
  *
  * In 2D, each segment becomes one facet.
  * In 3D, a polygon with \c p corners becomes \c p-2 triangles.
- * The conversion reuses the welded coordinates and copies each source zone id to its output facets.
+ * The conversion reuses welded coordinates and copies each source zone id
+ * to the corresponding output facets.
  */
 
 #pragma once
@@ -80,7 +81,7 @@ constexpr const char* kOriginalElementsField = "__axom_mc_originalElements";
 /*!
  * @brief Public name for the parent-zone field.
  *
- * MarchingCubes renames Bump's private output field before returning the mesh.
+ * MarchingCubes renames Bump's private output field before exposing the mesh.
  */
 constexpr const char* kPublicOriginalElementsField = "originalElements";
 
@@ -343,7 +344,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   const conduit::Node& n_y = n_coords.fetch_existing("values/y");
   auto xView = bputils::make_array_view<double>(n_x);
   auto yView = bputils::make_array_view<double>(n_y);
-  // z only in 3D.
+  // The z coordinate exists only in 3D.
   axom::ArrayView<double> zView;
   if constexpr(DIM == 3)
   {
@@ -357,7 +358,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   axom::for_all<ExecSpace>(numNodes, [=] AXOM_HOST_DEVICE(axom::IndexType n) {
     facetNodeCoords(nodeIndexOffset + n, 0) = xView[n];
     facetNodeCoords(nodeIndexOffset + n, 1) = yView[n];
-    // Reference zView before if constexpr so CUDA captures it correctly
+    // Reference zView before if constexpr so CUDA captures it correctly.
     (void)zView;
     if constexpr(DIM == 3)
     {
@@ -365,7 +366,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
     }
   });
 
-  // Compute each Bump zone's first facet index so kernels need no atomics
+  // Compute each Bump zone's first facet index so kernels need no atomics.
   const int allocatorID = objectAllocatorID;
   axom::Array<axom::IndexType> zoneFacetCounts(numZones, numZones, allocatorID);
   auto zoneFacetCountsView = zoneFacetCounts.view();
@@ -377,7 +378,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
   auto zoneFacetOffsetsView = zoneFacetOffsets.view();
   axom::exclusive_scan<ExecSpace>(zoneFacetCountsView, zoneFacetOffsetsView);
 
-  // Each thread triangulates one Bump zone and reuses its welded vertex ids
+  // Each thread triangulates one Bump zone and reuses its welded vertex ids.
   axom::for_all<ExecSpace>(numZones, [=] AXOM_HOST_DEVICE(axom::IndexType z) {
     const axom::IndexType nCorners = static_cast<axom::IndexType>(sizesView[z]);
     const axom::IndexType nFacets = facetsPerZone<DIM>(nCorners);
@@ -442,7 +443,7 @@ void adaptCutFieldOutputViews(const conduit::Node& n_coords,
  * @param[in] thisDomainFacetCount Number of facets produced by this domain.
  * @param[in] objectAllocatorID Allocator used for temporary arrays.
  *
- * @pre All output views and \a n_output live in ExecSpace's memory space.
+ * @pre The arrays referenced by the output views and \a n_output are accessible from \c ExecSpace.
  */
 template <int DIM, typename ExecSpace>
 void adaptCutFieldOutput(const conduit::Node& n_output,
@@ -462,12 +463,12 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
     return;
   }
 
-  // Read the single output topology and coordset
+  // Read the single output topology and coordset.
   const conduit::Node& n_topos = n_output.fetch_existing("topologies");
   SLIC_ASSERT(n_topos.number_of_children() == 1);
   const conduit::Node& n_topo = n_topos.child(0);
 
-  // Bump emits explicit sizes, offsets, and connectivity for cut output
+  // Bump emits explicit sizes, offsets, and connectivity for cut output.
   const conduit::Node& n_elems = n_topo.fetch_existing("elements");
   const conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
   const conduit::Node& n_sizes = n_elems.fetch_existing("sizes");
@@ -477,7 +478,7 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   const conduit::Node& n_coords =
     n_output.fetch_existing(axom::fmt::format("coordsets/{}", coordsetName));
 
-  // One parent-zone id per output zone
+  // Bump records one parent-zone id per output zone.
   const conduit::Node& n_orig =
     n_output.fetch_existing(axom::fmt::format("fields/{}/values", kPublicOriginalElementsField));
 

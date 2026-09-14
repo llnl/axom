@@ -256,8 +256,8 @@ void addCellField(conduit::Node& mesh, const CellFunction& g, const std::string&
  * @brief Build a single-domain structured mesh with an explicit coordset on
  *        [0,1]^DIM with @a n cells per side.
  *
- * Nodes use i-fastest order to match bump's StructuredIndexing. If a @a warp is supplied,
- * the function is evaluated at the warped coordinates.
+ * Nodes use i-fastest order to match Bump's StructuredIndexing.
+ * If @a warp is supplied, the function is evaluated at the warped coordinates.
  */
 template <int DIM, typename Field, typename Warp = NoWarp>
 void buildStructured(conduit::Node& mesh,

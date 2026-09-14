@@ -106,7 +106,7 @@ void buildUniform3D(conduit::Node& mesh, int n, const Field& f, const std::strin
   }
 }
 
-//! Build the same box with a rectilinear coordset and topology
+//! @brief Build the same box with a rectilinear coordset and topology.
 template <typename Field>
 void buildRectilinear3D(conduit::Node& mesh, int n, const Field& f, const std::string& fieldName)
 {
@@ -151,7 +151,7 @@ void buildRectilinear3D(conduit::Node& mesh, int n, const Field& f, const std::s
 /*!
  * @brief Build a strided-structured (ghost-padded) version of the same box.
  *
- * The coordset and field arrays cover a padded (n+2*g)^3 window.
+ * The coordset and field arrays cover a padded (n+1+2*g)^3 node window.
  * Topology offsets and strides select the n^3 real zones.
  */
 template <typename Field>
@@ -184,7 +184,7 @@ void buildStridedStructured3D(conduit::Node& mesh,
   fld["offsets"].set(std::vector<conduit::int32> {g, g, g});
   fld["strides"].set(std::vector<conduit::int32> {1, nnPad, nnPad * nnPad});
 
-  // Continue the field into ghost nodes so a ghost leak produces extra facets
+  // Continue the field into ghost nodes so a ghost leak produces extra facets.
   conduit::index_t idx = 0;
   for(int k = 0; k < nnPad; ++k)
   {
@@ -362,7 +362,7 @@ using CellKey = std::int64_t;
 
 CellKey cellKey(std::int64_t i, std::int64_t j, std::int64_t k)
 {
-  // Hash collisions remain in the bucket and are resolved by distance checks
+  // Resolve hash collisions by checking the points stored in each bucket.
   const std::int64_t h = (i * 73856093) ^ (j * 19349663) ^ (k * 83492791);
   return h;
 }
@@ -430,7 +430,7 @@ private:
   std::unordered_map<CellKey, std::vector<std::size_t>> m_buckets;
 };
 
-//! @brief Return the one-sided Hausdorff distance and its source point index
+//! @brief Return the one-sided Hausdorff distance and its source point index.
 double oneSidedHausdorff(const std::vector<axom::primal::Point<double, 3>>& from,
                          const PointLocator& to,
                          std::size_t& argMax)
@@ -565,8 +565,8 @@ axom::IndexType countAmbiguousCells(int n, const Field& f, double contourVal)
 
 //---------------------------------------------------------------------------
 // Fan-triangulation sensitivity. The adaptor fans each Bump polygon from corner 0.
-// For a non-planar polygon, area depends on the fan origin. Compare fans from corners 0 and 1
-// and use their relative spread as the measure tolerance.
+// For a non-planar polygon, area depends on the fan origin. Compare fans from corners 0 and 1,
+// then use their relative spread as the measure tolerance.
 //---------------------------------------------------------------------------
 
 struct FanSensitivity
@@ -604,7 +604,7 @@ double polygonFanArea(const std::vector<axom::primal::Point<double, 3>>& v, int 
   return area;
 }
 
-//! Measure how much the Bump polygon area depends on the fan origin.
+//! @brief Measure how much the Bump polygon area depends on the fan origin.
 FanSensitivity measureFanSensitivity(const conduit::Node& contourDom)
 {
   FanSensitivity fs;
@@ -860,7 +860,7 @@ void test_float32_field_rejected(RuntimePolicy policy)
   conduit::Node mesh;
   mctest::buildStructured<3>(mesh, n, f, "fcn");
 
-  // Rewrite the function field as float32, keeping the same values
+  // Rewrite the function field as float32 while preserving its values.
   {
     const conduit::Node& n_old = mesh.fetch_existing("fields/fcn/values");
     const auto acc = n_old.as_double_accessor();
@@ -878,7 +878,7 @@ void test_float32_field_rejected(RuntimePolicy policy)
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
   mc.setUseBumpBackend(true);
 
-  // Route SLIC output to stderr in the child so gtest can match the diagnostic
+  // Route SLIC output to stderr in the child so gtest can match the diagnostic.
   EXPECT_DEATH_IF_SUPPORTED(
     {
       axom::slic::addStreamToAllMsgLevels(
@@ -952,7 +952,7 @@ void test_original_elements_collision(RuntimePolicy policy)
   mctest::buildStructured<3>(clean, n, f, fieldName);
   poisoned.set(clean);
 
-  // Use negative decoy values that cannot be valid zone indices
+  // Use negative decoy values that cannot be valid zone indices.
   {
     const conduit::index_t nCells = static_cast<conduit::index_t>(n) * n * n;
     conduit::Node& fld = poisoned["fields/originalElements"];
@@ -1033,14 +1033,14 @@ void test_strided_structured(RuntimePolicy policy)
 
 void test_planar_3d(RuntimePolicy policy)
 {
-  // An axis-aligned plane has no ambiguous cells, so compare its area
+  // An axis-aligned plane has no ambiguous cells, so compare its area.
   PlanarField f {{0.0, 0.0, 1.0}, 0.5};
   compareBackends<3>(8, f, 0.0, policy, "planar3d");
 }
 
 void test_oblique_planar_3d(RuntimePolicy policy)
 {
-  // An oblique plane exercises more case-table entries without ambiguity
+  // An oblique plane exercises more case-table entries without ambiguity.
   const double s = 1.0 / std::sqrt(1.0 + 0.16 + 1.44);
   PlanarField f {{1.0 * s, 0.4 * s, 1.2 * s}, 1.3 * s};
   compareBackends<3>(8, f, 0.0, policy, "oblique_planar3d");
@@ -1054,7 +1054,7 @@ void test_round_3d(RuntimePolicy policy)
 
 void test_gyroid_3d(RuntimePolicy policy)
 {
-  // Use the measured fan-origin spread as the area tolerance
+  // Use the measured fan-origin spread as the area tolerance.
   GyroidField f {3.0 * M_PI};
   compareBackends<3>(10, f, 0.0, policy, "gyroid3d");
 }
@@ -1112,7 +1112,8 @@ void test_accumulated_fields(RuntimePolicy policy)
  * @brief Compare float and double classification near the isovalue.
  *
  * Values just above the isovalue in double can round to the isovalue in float.
- * Structured and unstructured forms of the same mesh must still select the same crossing cells.
+ * Structured and unstructured forms of the same mesh must still select the
+ * same crossing cells.
  */
 void test_float_ulp_band_falsification(RuntimePolicy policy)
 {
@@ -1124,7 +1125,7 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
   PlanarField f {{0.0, 0.0, 1.0}, 0.5};
   mctest::buildStructured<3>(mesh, n, f, fieldName);
 
-  // Put one cell's corners just above the isovalue in double but equal to it after conversion to float
+  // Put one cell's corners just above the isovalue in double but equal to it in float.
   auto* fv = mesh["fields/" + fieldName + "/values"].as_float64_ptr();
   const conduit::index_t N = mesh["fields/" + fieldName + "/values"].dtype().number_of_elements();
   const int nn = n + 1;
@@ -1133,7 +1134,7 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
   {
     fv[i] = contourVal + 1.0;
   }
-  // Add a separate contour so equal empty results cannot pass the test
+  // Add a separate contour so equal empty results cannot pass the test.
   for(int k = 3; k <= n; ++k)
   {
     for(int j = 0; j < nn; ++j)
@@ -1144,14 +1145,14 @@ void test_float_ulp_band_falsification(RuntimePolicy policy)
       }
     }
   }
-  // Four corners of cell (0,0,0) lie in the double-to-float rounding gap
+  // Four corners of cell (0,0,0) lie in the double-to-float rounding gap.
   const double tiny = std::nextafter(contourVal, 2.0) - contourVal;  // one double ULP
   fv[nodeAt(0, 0, 0)] = contourVal + tiny;
   fv[nodeAt(1, 0, 0)] = contourVal + tiny;
   fv[nodeAt(0, 1, 0)] = contourVal + tiny;
   fv[nodeAt(1, 1, 0)] = contourVal + tiny;
 
-  // Confirm the rounding behavior required by the test
+  // Confirm the rounding behavior required by the test.
   ASSERT_GT(fv[nodeAt(0, 0, 0)], contourVal);
   ASSERT_FALSE(static_cast<float>(fv[nodeAt(0, 0, 0)]) > static_cast<float>(contourVal))
     << "perturbed value did not round to float(contourVal)";

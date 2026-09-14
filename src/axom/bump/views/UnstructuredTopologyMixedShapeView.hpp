@@ -154,10 +154,10 @@ public:
   AXOM_HOST_DEVICE inline IndexType numberOfZones() const { return m_sizes.size(); }
 
   /*!
-   * \brief Return the element-associated field index for a zone.
+   * \brief Return the array index for a zone in an element-associated field.
    *
    * \param zoneIndex The zone index.
-   * \return The zone index. Identity in this case; other views use compact indexing.
+   * \return \a zoneIndex because unstructured element fields are stored in zone order.
    */
   AXOM_HOST_DEVICE inline IndexType zoneFieldIndex(IndexType zoneIndex) const { return zoneIndex; }
 

@@ -11,14 +11,14 @@ Isosurface detection
 ********************
 
 Quest generates isocontours from node-centered scalar fields on Conduit Blueprint meshes.
-The fixed-stride output contains line segments in 2D or triangles in 3D
-and records the input cell and domain for each element.
+Its array and Mint outputs contain line segments in 2D or triangles in 3D
+and record the input cell and domain for each element.
 
 .. Note::
 
    The legacy backend implements the original algorithm:
 
-   William E. Lorensen,  and Harvey E. Cline (1 August 1987).
+   William E. Lorensen and Harvey E. Cline (1 August 1987).
    "Marching cubes: A high resolution 3D surface construction algorithm".
    *ACM SIGGRAPH Computer Graphics*. 21 (**4**): 163-169
 
@@ -36,8 +36,6 @@ and records the input cell and domain for each element.
    :math:`g(\mathbf{r}) = |\textbf{r} - \textbf{r}_0|`, respectively.
    Colors denote domain indices in the multi-domain cubic mesh.
 
-The algorithm is implemented in the class ``quest::MarchingCubes``.
-
 The inputs are:
 
 #. The mesh containing the scalar field, in `Conduit Blueprint format
@@ -46,7 +44,7 @@ The inputs are:
 #. The name of the scalar field data within the input mesh.
 #. The contour value.
 
-The following example shows usage of the ``MarchingCubes`` class.
+The snippets below show how to use ``quest::MarchingCubes``.
 A complete example is in ``src/axom/quest/examples/quest_marching_cubes_example.cpp``.
 
 Relevant header files:
@@ -93,7 +91,7 @@ Bump backend
 
 The Bump backend welds contour vertices, so adjacent facets share vertex IDs.
 ``populateContourMeshBlueprint`` and ``relinquishContourDataBlueprint``
-return this representation. In 3D, Bump's native ``CutField`` output may contain
+provide this representation. In 3D, Bump's native ``CutField`` output may contain
 triangles, quadrilaterals, or polygons with more than four vertices.
 The fixed-stride array and Mint APIs require triangles, so the adaptor
 fan-triangulates each polygonal face for those outputs.
@@ -139,7 +137,7 @@ Run the algorithm:
    double contourValue = 0.5;
    mc.computeIsocontour(contourValue);
 
-Place the isocontour in an output ``axom::mint::UnstructuredMesh`` object:
+Copy the isocontour to an ``axom::mint::UnstructuredMesh`` object.
 
 ``MarchingCubes`` generates the isocontour mesh in an internal format.
 Use ``populateContourMesh`` to copy it to an
@@ -152,17 +150,14 @@ Repeated calls to ``computeIsocontour`` append to the array and Mint outputs.
 The Blueprint methods return only the most recent extraction for each input
 domain. Call ``clearOutput`` before computing a replacement contour.
 
-``populateContourMesh`` provides two scalar fields for the generated
-mesh:
+When requested, ``populateContourMesh`` adds two scalar fields to the generated mesh:
 
-#. the ID of the cell from the input mesh that generated the
-   isocontour cell.
-#. the ID of the domain from the input mesh that generated the
-   isocontour cell.
+#. The flat ID of the input cell that generated each isocontour cell.
+#. The input domain's ``state/domain_id``, or its local iteration index when
+   that value is absent.
 
-The names of these fields are user-specified.  Use empty strings if
-you don't need these fields.  This example puts cell IDs in
-"cellIds" and domain IDs in "domainIds".
+The caller chooses the field names. Pass empty strings to omit the fields.
+This example uses ``cellIds`` and ``domainIds``.
 
 .. sourcecode:: C++
 
@@ -170,12 +165,10 @@ you don't need these fields.  This example puts cell IDs in
      contourMesh(3, axom::mint::TRIANGLE);
    mc.populateContourMesh(contourMesh, "cellIds", "domainIds");
 
-After putting the isosurface in the ``UnstructuredMesh`` object,
-the ``MarchingCubes`` object is no longer needed.
-
 MPI-parallel runs
 -----------------
 
-Each MPI rank passes its local domains to ``MarchingCubes``. Extraction does
-not communicate between ranks, and output node and cell IDs are unique only
-within a rank. Applications that need globally unique IDs must renumber them.
+Each MPI rank passes its local domains to ``MarchingCubes`` and extraction is on-rank.
+Array and Mint output combine a rank's local domains,
+while Blueprint output keeps domain-local connectivity.
+Applications that need globally unique node or cell IDs must assign them.

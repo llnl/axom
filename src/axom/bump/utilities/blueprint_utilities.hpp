@@ -30,23 +30,17 @@ namespace utilities
 std::vector<std::string> coordsetAxes(const conduit::Node& n_input);
 
 /*!
- * \brief Verify that topology node ids can index a vertex-associated field.
+ * \brief Validate a vertex field's indexing layout against its topology.
  *
  * \param[in] n_topology The Conduit node containing the topology.
  * \param[in] n_field    The Conduit node containing the vertex-associated field.
  * \param[in] fieldName  The field's name, used only in diagnostics.
  *
- * Bump kernels read a vertex field as a flat array indexed by the node ids from \c TopologyView::zone().
- * When a field supplies Blueprint \c offsets or \c strides, each array must match
- * the corresponding topology array under \c elements/dims.
+ * Bump kernels index flat vertex fields with the node ids returned by \c TopologyView::zone().
+ * A field's Blueprint \c offsets and \c strides needs to match the topology metadata in \c elements/dims.
+ * \c StructuredTopologyView::zone() also requires an i-stride of 1.
  *
- * Bump does not support fields with independent layout metadata.
- * This function reports mismatches before a kernel reads the wrong values.
- *
- * \c StructuredTopologyView::zone() assumes an i-stride of 1 when it constructs adjacent corner ids,
- * so this function rejects other values.
- *
- * \note A field with neither offsets nor strides passes this check to preserve existing behavior.
+ * \note Without field layout metadata, Bump assumes that topology node ids directly index the field values.
  */
 void validateVertexFieldIndexing(const conduit::Node& n_topology,
                                  const conduit::Node& n_field,

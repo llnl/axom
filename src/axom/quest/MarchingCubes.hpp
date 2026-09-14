@@ -128,7 +128,7 @@ public:
    * @param [in] dataParallelism Data-parallel implementation choice for the legacy backend.
    *             The Bump backend accepts but ignores this setting because
    *             Bump manages its own parallelism.
-  */
+   */
   MarchingCubes(RuntimePolicy runtimePolicy,
                 int allocatorId,
                 MarchingCubesDataParallelism dataParallelism);
@@ -224,7 +224,8 @@ public:
    *  The method creates the requested fields when they do not exist.
    *
    *  mint::UnstructuredMesh supports only host memory, so this method always
-   *  deep-copies data to the host. Use the array output methods to avoid that copy.
+   *  deep-copies data to the host. Use the array or Blueprint output methods
+   *  to avoid that copy.
    *
    *  Bump may produce polygonal faces in 3D. This method fan-triangulates
    *  those faces and reuses Bump's welded vertices.
@@ -245,7 +246,7 @@ public:
    *
    * Arrays in \a bpMesh use the allocator supplied to the constructor.
    * Callers must copy device data to host before reading it on the host.
-   * The mesh contains only the most recent computeIsocontour() call for each input domain.
+   * The mesh contains only the most recent computeIsocontour() result for each input domain.
    */
   void populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate = false) const;
 

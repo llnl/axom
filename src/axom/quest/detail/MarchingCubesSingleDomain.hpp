@@ -252,7 +252,7 @@ private:
    */
   void setDomain(const conduit::Node& dom);
 
-  //! @brief Create the implementation selected at runtime.
+  //! @brief Create the backend implementation selected at runtime.
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
   std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 2>);
   std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 3>);
