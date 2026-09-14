@@ -40,18 +40,21 @@ jobs:
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'yes'
+          do_wheel: 'yes'
         - job_name: gcc@13.3.1, shared, 32bit
           host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_USE_64BIT_INDEXTYPE:BOOL=OFF -DAXOM_NO_INT64_T=1'
           do_build: 'yes'
           do_benchmarks: 'no'
+          do_wheel: 'no'
         - job_name: llvm@19.0.0, shared, benchmarks, quest regression
           host_config: llvm@19.0.0.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'yes'
+          do_wheel: 'no'
         include:
         - build_type: Debug
           config:
@@ -61,6 +64,7 @@ jobs:
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
+            do_wheel: 'no'
         - build_type: Debug
           config:
             job_name: llvm@19.0.0, shared, no umpire
@@ -69,6 +73,7 @@ jobs:
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -U UMPIRE_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
+            do_wheel: 'no'
         - build_type: Debug
           config:
             job_name: llvm@19.0.0, shared, no raja and umpire
@@ -77,6 +82,7 @@ jobs:
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
+            do_wheel: 'no'
         - build_type: Debug
           config:
             job_name: llvm@19.0.0, shared, no profiling
@@ -85,6 +91,7 @@ jobs:
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -U CALIPER_DIR -U ADIAK_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
+            do_wheel: 'no'
     name: ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
     container:
       image: ${{ matrix.config.compiler_image }}
@@ -113,6 +120,18 @@ jobs:
           CMAKE_EXTRA_FLAGS=" ${{ matrix.config.cmake_opts }} -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=${{ contains(matrix.config.job_name, 'quest regression') && 'ON' || 'OFF' }} " \
           BUILD_TYPE=${{ matrix.build_type }} \
           ./scripts/github-actions/linux-build_and_test.sh
+      - name: Build and test the Python wheel - ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
+        # Builds Python wheel (src/python) against the Axom that the step above just installed; one build type is enough.
+        if: matrix.config.do_wheel == 'yes' && matrix.build_type == 'Release'
+        shell: bash
+        timeout-minutes: 40
+        run: |
+          # Find the installation path
+          AXOM_INSTALL=$(awk -F= '/^CMAKE_INSTALL_PREFIX:PATH=/{print $2}' builddir/CMakeCache.txt)
+          # Run the wheels test
+          HOST_CONFIG=host-configs/docker/${{ matrix.config.host_config }} \
+          AXOM_INSTALL="${AXOM_INSTALL}" \
+          ./scripts/github-actions/linux-wheel_and_test.sh
       - name: Upload Test Results
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
