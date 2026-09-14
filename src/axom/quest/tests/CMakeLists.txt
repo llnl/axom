@@ -312,8 +312,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
 endif()
 
 #------------------------------------------------------------------------------
-# Bump-backed MarchingCubes tests (structured + unstructured quad/hex).
-# Requires the bump component; the unstructured-conversion path needs Sidre.
+# MarchingCubes tests for the Bump backend on structured meshes and
+# single-shape unstructured hex meshes. Fixture conversion requires Sidre.
 #------------------------------------------------------------------------------
 if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
     set(quest_mc_bump_depends ${quest_tests_depends} conduit::conduit RAJA)
@@ -328,8 +328,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
         FOLDER      axom/quest/tests
         )
 
-    # The gtest cases self-select the enabled execution spaces internally,
-    # so a single registration runs all compiled-in policies.
+    # The test binary exercises every enabled execution policy, so register it once.
     axom_add_test(
         NAME    quest_marching_cubes_bump
         COMMAND quest_marching_cubes_bump_test
@@ -337,8 +336,8 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
         )
     set_tests_properties(quest_marching_cubes_bump PROPERTIES PROCESSORS 1)
 
-    # Compares native MC vs. bump-based MC backend on the structured/explicit meshes.
-    # Builds its meshes in memory, so it doesn't depend on HDF5.
+    # Compare the legacy and Bump backends on structured meshes with explicit coordinates.
+    # The fixtures are built in memory and do not require HDF5.
     axom_add_executable(
         NAME        quest_marching_cubes_equivalence_test
         SOURCES     quest_marching_cubes_equivalence.cpp

@@ -112,10 +112,14 @@ public:
   };
 
   /*!
-   * \brief Initialize the object from options.
-   * \param n_options The node that contains the options.
-   * \param n_topology The node that contains the topology.
-   * \param n_fields The node that contains fields.
+   * \brief Initialize the intersector from the input mesh and options.
+   *
+   * \param[in] topologyView (unused) View of the input topology.
+   * \param[in] coordsetView (unused) View of the input coordset.
+   * \param[in] n_options Node containing the extraction options.
+   * \param[in] n_topology Node containing the input topology.
+   * \param[in] n_coordset (unused) Node containing the input coordset.
+   * \param[in] n_fields Node containing the input fields.
    */
   void initialize(const TopologyView& AXOM_UNUSED_PARAM(topologyView),
                   const CoordsetView& AXOM_UNUSED_PARAM(coordsetView),
@@ -136,7 +140,7 @@ public:
     const conduit::Node& n_field_values = n_field["values"];
     SLIC_ASSERT(n_field["association"].as_string() == "vertex");
 
-    // Reject field layouts that do not match the topology's node indexing.
+    // A mismatched padded layout would make topology node ids address the wrong values.
     utils::validateVertexFieldIndexing(n_topology, n_field, opts.field());
 
     SLIC_ASSERT(!n_field_values.dtype().is_object());

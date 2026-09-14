@@ -85,7 +85,7 @@ public:
                            const std::string& topologyName,
                            const std::string& maskFieldName) override
   {
-    // Time this due to potentially slow memory allocation
+    // Include potentially expensive memory allocation in the initialization timing.
     AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::initialize");
     clearDomain();
 
@@ -120,9 +120,9 @@ public:
   }
 
   /*!
-    @brief Set the scale field name
-    @param fcnFieldName Name of nodal function is in dom
-  */
+   * @brief Select the nodal scalar field to contour.
+   * @param[in] fcnFieldName Name of the vertex-associated scalar field.
+   */
   void setFunctionField(const std::string& fcnFieldName) override
   {
     m_fcnView = m_mvu.template getConstFieldView<double>(fcnFieldName, false);
@@ -501,7 +501,7 @@ public:
     axom::for_all<ExecSpace>(0, m_crossingCount, gen_for_parent_cell);
   }
 
-  //! @brief Device-copyable state used by computeFacets()
+  //! @brief Device-copyable state used by computeFacets().
   struct ComputeFacets_Util
   {
     double contourVal;

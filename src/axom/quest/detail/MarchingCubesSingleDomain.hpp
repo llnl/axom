@@ -16,7 +16,7 @@
 
 // Implementation requires Conduit.
 #ifndef AXOM_USE_CONDUIT
-  #error "MarchingCubesSingleDomain.cpp requires conduit"
+  #error "MarchingCubesSingleDomain.hpp requires conduit"
 #endif
 
 // Axom includes
@@ -53,8 +53,8 @@ public:
 
   /*!
    * @brief Set the Blueprint domain.
-   * \param [in] dom Blueprint single-domain mesh containing scalar field.
-   * \param [in] topologyName Name of Blueprint topology to use in \a dom
+   * \param [in] dom Blueprint single-domain mesh containing the scalar field.
+   * \param [in] topologyName Name of the Blueprint topology to use in \a dom.
    * \param [in] maskField Optional cell-based std::int32_t mask field.
    *             Cells whose values differ from the current mask value are skipped.
    *
@@ -74,8 +74,8 @@ public:
   int spatialDimension() const { return m_ndim; }
 
   /*!
-   * @brief Specify the field containing the nodal scalar function in the input mesh.
-   * @param [in] fcnField Name of node-based scalar function values.
+   * @brief Select the nodal scalar field to contour.
+   * @param [in] fcnField Name of the vertex-associated scalar field.
   */
   void setFunctionField(const std::string& fcnField)
   {
@@ -119,16 +119,13 @@ public:
   void scanCrossings() { m_impl->scanCrossings(); }
   void computeFacets() { m_impl->computeFacets(); }
 
-  /*!
-   * @brief Get the Blueprint domain id specified in \a state/domain_id
-   * if it is provided, or use the given default if not provided.
-   */
+  //! @brief Return \c state/domain_id, or \a defaultId when the domain omits it.
   int32_t getDomainId(int32_t defaultId) const;
 
-  //!@brief Get number of cells in the generated contour mesh.
+  //! @brief Return the number of cells in the generated contour mesh.
   axom::IndexType getContourCellCount() const { return m_impl->getContourCellCount(); }
 
-  //!@brief Get number of nodes in the generated contour mesh.
+  //! @brief Return the number of nodes in the generated contour mesh.
   axom::IndexType getContourNodeCount() const { return m_impl->getContourNodeCount(); }
 
   /*!
@@ -164,25 +161,24 @@ public:
     //! @name Distinct phases in contour generation.
 
     /*!
-     * @brief Compute the contour mesh.
      * @brief Mark parent cells that cross the contour value.
      */
     virtual void markCrossings() = 0;
 
-    //!@brief Scan operations to determine counts and offsets.
+    //! @brief Determine output counts and offsets.
     virtual void scanCrossings() = 0;
 
-    //!@brief Compute contour data.
+    //! @brief Generate the contour data.
     virtual void computeFacets() = 0;
     ///@}
 
     ///@{
     //!@name Output methods
 
-    //! @brief Return number of contour mesh facets generated.
+    //! @brief Return the number of generated contour facets.
     virtual axom::IndexType getContourCellCount() const = 0;
 
-    //! @brief Return number of contour mesh nodes generated.
+    //! @brief Return the number of generated contour nodes.
     virtual axom::IndexType getContourNodeCount() const = 0;
 
     //! @brief Whether this implementation has a Blueprint contour.
@@ -242,17 +238,17 @@ public:
 
 private:
   /*!
-   * \brief Set the blueprint single-domain mesh.
+   * \brief Cache a Blueprint single-domain mesh.
    *
-   * Some data from \a dom may be cached.
+   * The implementation retains references to data in \a dom.
    */
   void setDomain(const conduit::Node& dom);
 
-  /// @brief Allocate MarchingCubesImpl object
+  //! @brief Create the backend implementation selected at runtime.
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
 
 private:
-  //! @brief Multi-domain implementation this object is under.
+  //! @brief Owning multi-domain MarchingCubes object.
   MarchingCubes& m_mc;
 
   RuntimePolicy m_runtimePolicy;
@@ -261,7 +257,7 @@ private:
   //! @brief Choice of full or partial data-parallelism, or byPolicy.
   MarchingCubesDataParallelism m_dataParallelism {MarchingCubesDataParallelism::byPolicy};
 
-  //! \brief Computational mesh as a conduit::Node.
+  //! \brief Nonowning pointer to the input Blueprint domain.
   const conduit::Node* m_dom;
   int m_ndim;
 

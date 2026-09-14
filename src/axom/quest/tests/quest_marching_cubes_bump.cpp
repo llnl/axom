@@ -9,8 +9,8 @@
  *
  * @brief Tests the Bump backend of quest::MarchingCubes.
  *
- * The tests cover structured and unstructured quad or hex meshes in each
- * enabled execution space. They check analytic field values, parent cells,
+ * The tests cover structured meshes and single-shape unstructured hex meshes
+ * in each enabled execution space. They check analytic residuals, parent-cell IDs,
  * crossing cells, and edge incidence in the welded output.
  */
 
@@ -70,7 +70,7 @@ using QuantizedPoint3D = axom::primal::Point<std::int64_t, 3>;
 // Edge-manifold checks
 //---------------------------------------------------------------------------
 
-/// Count how many triangles use each edge after welding coincident vertices with a quantized hash
+/// Summary of edge incidence in a welded surface mesh.
 struct EdgeManifoldResult
 {
   int maxMultiplicity = 0;
@@ -79,6 +79,7 @@ struct EdgeManifoldResult
   axom::IndexType interiorEdges = 0;  // used exactly twice
 };
 
+/// Count triangle incidence after welding coincident coordinates with a quantized hash.
 EdgeManifoldResult checkEdgeManifold3D(const axom::ArrayView<const double, 2>& nodeCoords,
                                        const axom::ArrayView<const axom::IndexType, 2>& facetCorners,
                                        double weldTol)
@@ -148,6 +149,7 @@ EdgeManifoldResult checkEdgeManifold3D(const axom::ArrayView<const double, 2>& n
   return res;
 }
 
+/// Count edge incidence directly from a welded Blueprint contour.
 EdgeManifoldResult checkBlueprintEdgeManifold3D(const conduit::Node& contourDom)
 {
   // Blueprint output is already welded, so count its connectivity directly.
@@ -214,7 +216,7 @@ void addStructuredMask3D(conduit::Node& mesh,
   auto* values = mask["values"].as_int32_ptr();
 
   // Build an element-associated mask that selects the lower half of the
-  // structured mesh in k. The masked test below then verifies that bump's
+  // structured mesh in k. The masked test below verifies that Bump's
   // selectedZones path emits contour facets only from cells with this value.
   conduit::index_t idx = 0;
   for(int k = 0; k < n; ++k)
@@ -497,7 +499,7 @@ void runAndVerify(conduit::Node& mesh,
   mc.populateContourMeshBlueprint(contourBpExec);
   conduit::Node contourBp;
   copyBlueprintToHost(contourBp, contourBpExec);
-  // Check the welded Blueprint output and the fixed-stride compatibility arrays
+  // Check the welded Blueprint output and the fixed-stride compatibility arrays.
   ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(contourBp));
   ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(contourBp), 1);
   const conduit::Node& contourDom = contourBp.child(0);
@@ -572,7 +574,7 @@ void runAndVerify(conduit::Node& mesh,
                             mask_field_name,
                             mask_value);
 
-  // Check edge incidence on the welded Blueprint output
+  // Check edge incidence on the welded Blueprint output.
   if(DIM == 3)
   {
     const auto em = checkBlueprintEdgeManifold3D(contourDom);
@@ -668,7 +670,7 @@ void test_unstructured_hex_round(RuntimePolicy policy)
                   5.0e-3);
 }
 
-// Exercise physical-edge interpolation on a curvilinear hex mesh
+// Exercise physical-edge interpolation on a curvilinear hex mesh.
 void test_unstructured_hex_round_warped(RuntimePolicy policy)
 {
   axom::sidre::DataStore ds;
@@ -687,7 +689,7 @@ void test_unstructured_hex_round_warped(RuntimePolicy policy)
   meshGrp->createNativeLayout(unstructured);
 
   ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
-  // Cell distortion increases the piecewise-linear contour's residual
+  // Cell distortion increases the piecewise-linear contour's residual.
   runAndVerify<3>(unstructured,
                   f,
                   0.0,
@@ -697,7 +699,7 @@ void test_unstructured_hex_round_warped(RuntimePolicy policy)
                   2.0e-2);
 }
 
-// The robust policy currently aliases the standard policy
+// The robust policy currently aliases the standard policy.
 void test_robustness_policy(RuntimePolicy policy)
 {
   namespace quest = axom::quest;
@@ -834,7 +836,7 @@ void test_multidomain_planar(RuntimePolicy policy)
 {
   namespace quest = axom::quest;
 
-  // Different plane heights reveal facets stored at the wrong domain offset
+  // Different plane heights reveal facets stored at the wrong domain offset.
   PlanarField f0 {{0.5, 0.5, DIM == 3 ? 0.5 : 0.0},
                   {0.0, DIM == 2 ? 1.0 : 0.0, DIM == 3 ? 1.0 : 0.0}};
   PlanarField f1 {{0.5, 0.3, DIM == 3 ? 0.3 : 0.0},
@@ -852,7 +854,7 @@ void test_multidomain_planar(RuntimePolicy policy)
   const std::array<const PlanarField*, 2> fields {{&f0, &f1}};
   const std::array<axom::IndexType, 2> domain_ids {{7, 19}};
 
-  // Get reference counts without multi-domain offsets
+  // Get reference counts without multi-domain offsets.
   axom::IndexType separate_facet_count = 0;
   axom::IndexType separate_node_count = 0;
   for(const conduit::Node* domain : domains)
@@ -869,7 +871,7 @@ void test_multidomain_planar(RuntimePolicy policy)
   }
   ASSERT_GT(separate_facet_count, 0);
 
-  // Run both domains through one MarchingCubes instance
+  // Run both domains through one MarchingCubes instance.
   conduit::Node mdMesh;
   mdMesh.append().set_external(dom0);
   mdMesh.append().set_external(dom1);
@@ -896,7 +898,7 @@ void test_multidomain_planar(RuntimePolicy policy)
   EXPECT_EQ(mc.getContourCellCount(), 0);
   EXPECT_EQ(mc.getContourNodeCount(), 0);
 
-  // Copy policy-allocated output to the host for validation
+  // Copy policy-allocated output to the host for validation.
   const axom::Array<axom::IndexType, 2> ids(facetNodeIds, hostAllocatorID());
   const axom::Array<double, 2> coords(facetNodeCoords, hostAllocatorID());
   const axom::Array<axom::IndexType> parents(facetParentIds, hostAllocatorID());
@@ -1073,7 +1075,7 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_hip)
 }
 #endif
 
-// Test the edge-manifold helper without MarchingCubes
+// Test the edge-manifold helper without MarchingCubes.
 TEST(quest_marching_cubes_bump, edge_manifold_helper_selftest)
 {
   // Two triangles sharing edge (0,0,0)-(1,0,0): a manifold pair.

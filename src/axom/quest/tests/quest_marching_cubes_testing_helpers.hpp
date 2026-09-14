@@ -13,8 +13,7 @@
  * and a structured mesh builder. Each suite defines its own checks.
  */
 
-#ifndef QUEST_MARCHING_CUBES_TESTING_HELPERS_HPP_
-#define QUEST_MARCHING_CUBES_TESTING_HELPERS_HPP_
+#pragma once
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -27,13 +26,7 @@
 #include <cmath>
 #include <string>
 
-namespace axom
-{
-namespace quest
-{
-namespace testing
-{
-namespace marching_cubes
+namespace axom::quest::testing::marching_cubes
 {
 
 using RuntimePolicy = axom::runtime_policy::Policy;
@@ -104,7 +97,7 @@ struct PlanarField
   //! @brief The plane through @a origin with the given @a normal.
   PlanarField(const PointType& origin, const VectorType& normal) : plane(normal, origin) { }
 
-  //! @brief The plane {p : normal . p == offset}.  @a normal need not be unit.
+  //! @brief The plane \f$normal \cdot p = offset\f$. @a normal need not be unit.
   PlanarField(const VectorType& normal, double offset) : plane(normal, offset) { }
 
   double operator()(double x, double y, double z) const
@@ -217,8 +210,8 @@ void addVertexField(conduit::Node& mesh, const Field& f, const std::string& fiel
  * @brief Build a single-domain structured mesh with an explicit coordset on
  *        [0,1]^DIM with @a n cells per side.
  *
- * Nodes use i-fastest order to match bump's StructuredIndexing. If a @a warp is supplied,
- * the function is evaluated at the warped coordinates.
+ * Nodes use i-fastest order to match Bump's StructuredIndexing.
+ * If @a warp is supplied, the function is evaluated at the warped coordinates.
  */
 template <int DIM, typename Field, typename Warp = NoWarp>
 void buildStructured(conduit::Node& mesh,
@@ -283,9 +276,4 @@ void buildStructured(conduit::Node& mesh,
   addVertexField<DIM>(mesh, f, fieldName);
 }
 
-}  // namespace marching_cubes
-}  // namespace testing
-}  // namespace quest
-}  // namespace axom
-
-#endif  // QUEST_MARCHING_CUBES_TESTING_HELPERS_HPP_
+}  // namespace axom::quest::testing::marching_cubes

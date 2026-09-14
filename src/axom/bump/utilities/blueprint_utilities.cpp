@@ -45,7 +45,11 @@ namespace
 {
 
 /*!
- * \brief Read an integer metadata array from \a path. The input may reside in device memory.
+ * \brief Copy an integer metadata array from \a path into host memory.
+ *
+ * \param[in] n Node to query.
+ * \param[in] path Path to the metadata array within \a n.
+ * \param[out] values Host vector that receives the values.
  *
  * \return true when \a path exists. In that case, the function fills \a values.
  */
@@ -55,7 +59,7 @@ bool readIndexMetadata(const conduit::Node& n, const std::string& path, std::vec
   {
     return false;
   }
-  // Copy the small metadata array to the host before using an accessor.
+  // The Conduit node may refer to device memory, but the accessor below runs on the host.
   conduit::Node hostNode;
   axom::bump::utilities::copy<axom::SEQ_EXEC>(hostNode, n.fetch_existing(path));
 
@@ -102,7 +106,7 @@ void validateVertexFieldIndexing(const conduit::Node& n_topology,
 
   if(!hasFieldOffsets && !hasFieldStrides)
   {
-    // Fields without layout metadata use topology node ids. Preserve support for this case.
+    // Without field-specific layout metadata, topology node ids index the values directly.
     return;
   }
 
