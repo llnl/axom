@@ -48,7 +48,7 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
   SLIC_ASSERT_MSG(!conduit::blueprint::mesh::is_multi_domain(dom),
                   "Internal error.  Attempt to set a multi-domain mesh in "
                   "MarchingCubesSingleDomain.");
-  // The Bump implementation validates its supported topology types
+  // The Bump implementation validates its supported topology types.
   if(!m_mc.m_useBumpBackend)
   {
     SLIC_ASSERT(dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string() ==
@@ -76,12 +76,12 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
     dom.fetch_existing(axom::fmt::format("topologies/{}", m_topologyName)));
   SLIC_ASSERT(m_ndim >= 2 && m_ndim <= 3);
 
-  // The Bump coordset dispatcher validates its supported layouts
+  // The Bump coordset dispatcher validates its supported layouts.
   if(!m_mc.m_useBumpBackend)
   {
     SLIC_ASSERT_MSG(
       !conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
-      "MarchingCubes currently requires contiguous coordinates layout.");
+      "The legacy MarchingCubes backend requires a contiguous coordinate layout.");
   }
 
   m_impl = newMarchingCubesImpl();
@@ -90,16 +90,12 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
   m_impl->setDataParallelism(m_dataParallelism);
 }
 
-/*!
-  @brief Allocate a MarchingCubesImpl object, template-specialized
-  for caller-specified runtime policy and physical dimension.
-*/
 namespace
 {
 /*!
  * @brief Construct the implementation for one dimension and execution space.
  *
- * Choose Bump when requested and available. Otherwise use the legacy kernel.
+ * Select Bump when requested; otherwise, select the legacy implementation.
  *
  * @tparam DIM Spatial dimension.
  * @tparam ExecSpace Compute execution space.

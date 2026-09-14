@@ -171,11 +171,12 @@ TEST(bump_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 // Check the indexing contract between a topology and its vertex fields.
 //
 // Bump indexes a flat field with the node ids from TopologyView::zone().
-// For a strided structured topology, the field and topology must use the same padded layout.
+// For a strided structured topology, any field-specific offsets and strides
+// must match the topology.
 //------------------------------------------------------------------------------
 TEST(bump_utilities, validate_vertex_field_indexing_compact)
 {
-  // This compact mesh has no offset or stride metadata
+  // This compact mesh has no offset or stride metadata.
   conduit::Node mesh;
   conduit::blueprint::mesh::examples::braid("hexs", 4, 4, 4, mesh);
 
@@ -185,7 +186,7 @@ TEST(bump_utilities, validate_vertex_field_indexing_compact)
 
 TEST(bump_utilities, validate_vertex_field_indexing_strided_matching)
 {
-  // Conduit's strided_structured example assigns the same layout to the field and topology
+  // Conduit's strided_structured example gives the field and topology the same layout.
   conduit::Node mesh;
   axom::blueprint::testing::data::strided_structured<2>(mesh);
 
@@ -215,8 +216,9 @@ TEST(bump_utilities, validate_vertex_field_indexing_rejects_mismatch)
     }
     perturbed["fields/vert_vals/offsets"].set(shifted);
 
-    // SLIC's default handler aborts. SimpleLogger writes to stdout, but GTest death tests
-    // capture stderr. Add an stderr stream inside the child process so the regex can match the error.
+    // SLIC's default handler aborts.
+    // SimpleLogger writes to stdout, while GTest death tests capture stderr,
+    // so add a stream inside the child.
     EXPECT_DEATH_IF_SUPPORTED(
       {
         axom::slic::addStreamToAllMsgLevels(

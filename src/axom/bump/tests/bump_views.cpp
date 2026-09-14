@@ -609,7 +609,7 @@ TEST(bump_views, strided_structured_any_dispatch)
 }
 
 //------------------------------------------------------------------------------
-// Test dispatch_coordset dimension filtering
+// Check dispatch_coordset dimension filtering.
 //------------------------------------------------------------------------------
 template <int SelectedDimensions>
 struct dispatch_coordset_probe
@@ -626,7 +626,7 @@ struct dispatch_coordset_probe
   }
 };
 
-/// Run every (coordset type x mesh dimension x selected dimension) combination.
+/// Check 2D and 3D filtering for one coordset type.
 void test_dispatch_coordset_dimensions(const std::string& braidType, const std::string& coordsetName)
 {
   conduit::Node mesh2d, mesh3d;
@@ -636,7 +636,7 @@ void test_dispatch_coordset_dimensions(const std::string& braidType, const std::
   const conduit::Node& cs2d = mesh2d.fetch_existing("coordsets/" + coordsetName);
   const conduit::Node& cs3d = mesh3d.fetch_existing("coordsets/" + coordsetName);
 
-  // Default (all dimensions selected) behaves exactly as before this parameter existed.
+  // Selecting both dimensions dispatches both inputs.
   {
     dispatch_coordset_probe<views::select_dimensions(1, 2, 3)> p2, p3;
     p2.run(cs2d);
@@ -654,15 +654,15 @@ void test_dispatch_coordset_dimensions(const std::string& braidType, const std::
     p3.run(cs3d);
     EXPECT_EQ(p2.calls, 1);
     EXPECT_EQ(p2.dimensionSeen, 2);
-    EXPECT_EQ(p3.calls, 0) << "a 3D coordset dispatched even though only 2D was selected";
+    EXPECT_EQ(p3.calls, 0) << "A 3D coordset dispatched when only 2D was selected";
   }
 
-  // Selecting only 3D: the mirror image.
+  // Selecting only 3D dispatches only the 3D input.
   {
     dispatch_coordset_probe<views::select_dimensions(3)> p2, p3;
     p2.run(cs2d);
     p3.run(cs3d);
-    EXPECT_EQ(p2.calls, 0) << "a 2D coordset dispatched even though only 3D was selected";
+    EXPECT_EQ(p2.calls, 0) << "A 2D coordset dispatched when only 3D was selected";
     EXPECT_EQ(p3.calls, 1);
     EXPECT_EQ(p3.dimensionSeen, 3);
   }
@@ -693,7 +693,7 @@ TEST(bump_views, zone_field_index_strided_structured)
   const conduit::Node& n_vals = mesh.fetch_existing("fields/ele_vals/values");
   const conduit::double_accessor vals = n_vals.as_double_accessor();
 
-  // Padding makes an identity mapping point into the array but at the wrong zone.
+  // A compact zone index addresses a padding entry or a different zone.
   ASSERT_GT(vals.number_of_elements(), nzones);
 
   bool anyDiffers = false;
@@ -753,7 +753,7 @@ TEST(bump_views, dispatch_coordset_dimensions_explicit)
   dispatch_coordset_probe<views::select_dimensions(3)> p2, p3;
   p2.run(mesh2d.fetch_existing("coordsets/coords"));
   p3.run(mesh3d.fetch_existing("coordsets/coords"));
-  EXPECT_EQ(p2.calls, 0) << "a 2D explicit coordset dispatched even though only 3D was selected";
+  EXPECT_EQ(p2.calls, 0) << "A 2D explicit coordset dispatched when only 3D was selected";
   EXPECT_EQ(p3.calls, 1);
   EXPECT_EQ(p3.dimensionSeen, 3);
 }

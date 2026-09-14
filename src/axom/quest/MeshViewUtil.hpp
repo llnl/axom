@@ -786,6 +786,8 @@ private:
   template <typename T>
   MdIndices conduitIndexPointerToStackArray(const T* ptr) const
   {
+    // Layout metadata can reside in device memory. Stage its few entries on
+    // the host before constructing the host-side StackArray.
     T hostVals[DIM];
     axom::copy(hostVals, ptr, sizeof(T) * DIM);
     return internal::makeStackArray<axom::IndexType, DIM>(hostVals);

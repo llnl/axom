@@ -76,13 +76,13 @@ public:
   AXOM_HOST_DEVICE inline IndexType numberOfZones() const { return size(); }
 
   /*!
-   * \brief Return the element-associated field index for a zone.
+   * \brief Return the array index for a zone in an element-associated field.
    *
-   * \param zoneIndex The zone index.
-   * \return The index of the zone's value in an element-associated field.
+   * \param zoneIndex The compact zone index.
+   * \return The field index corresponding to \a zoneIndex.
    *
-   * \note Strided structured fields can include padding, so their field indices may differ
-   *       from compact zone indices. The indexing policy supplies the correct mapping
+   * \note A strided structured field can contain padding, so its array index
+   *       may differ from the compact zone index.
    */
   AXOM_HOST_DEVICE inline IndexType zoneFieldIndex(IndexType zoneIndex) const
   {

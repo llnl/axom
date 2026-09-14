@@ -235,7 +235,7 @@ if(NANOBIND_FOUND)
     endif()
 
     #--------------------------------------------------------------------------
-    # Python utilities for generating Blueprint mesh inputs.
+    # Copy Blueprint mesh generators to the build and install bin directories.
     #--------------------------------------------------------------------------
     foreach(_mesh_gen_script gen-multidom-structured-mesh.py)
         axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/${_mesh_gen_script}"

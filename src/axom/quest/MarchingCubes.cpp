@@ -47,7 +47,7 @@ MarchingCubes::MarchingCubes(RuntimePolicy runtimePolicy,
   , m_facetDomainIds(0, 0, m_allocatorID)
 { }
 
-// Set the object up for a blueprint mesh state.
+// Configure the object for a Blueprint mesh.
 void MarchingCubes::setMesh(const conduit::Node& bpMesh,
                             const std::string& topologyName,
                             const std::string& maskField)
@@ -76,13 +76,8 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
   m_topologyName = topologyName;
   m_maskFieldName = maskField;
 
-  /*
-    To avoid slow memory allocations (especially on GPUs) keep the
-    single-domain objects around and just re-initialize them.  Arrays
-    will be cleared, but not deallocated.  The actual number of
-    domains is m_domainCount, not m_singles.size().  To *really*
-    deallocate memory, deallocate the MarchingCubes object.
-  */
+  // Reuse workers and their allocation capacity across setMesh() calls.
+  // m_domainCount identifies the active prefix of m_singles.
   auto newDomainCount = conduit::blueprint::mesh::number_of_domains(*mdMesh);
 
   if(m_singles.size() < newDomainCount)
@@ -135,8 +130,7 @@ void MarchingCubes::computeIsocontour(double contourVal)
   // Keep prior output so callers can append contours from several fields or isovalues.
   // clearOutput() starts a new output mesh.
 
-  // Mark and scan domains while adding up their
-  // facet counts to get the total facet counts.
+  // Mark and scan each domain, accumulating output offsets and totals.
   m_facetIndexOffsets.resize(m_singles.size());
   m_nodeIndexOffsets.resize(m_singles.size());
   for(axom::IndexType d = 0; d < m_domainCount; ++d)
@@ -155,7 +149,7 @@ void MarchingCubes::computeIsocontour(double contourVal)
 
   allocateOutputBuffers();
 
-  // Tell singles where to put contour data.
+  // Give each worker its slice of the shared output arrays.
   auto facetNodeIdsView = m_facetNodeIds.view();
   auto facetNodeCoordsView = m_facetNodeCoords.view();
   auto facetParentIdsView = m_facetParentIds.view();
@@ -205,7 +199,7 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
   AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMesh");
   if(!cellIdField.empty() && !mesh.hasField(cellIdField, axom::mint::CELL_CENTERED))
   {
-    // Create cellId field, currently the multidimensional index of the parent cell.
+    // Create the optional flat parent-cell ID field.
     mesh.createField<axom::IndexType>(cellIdField, axom::mint::CELL_CENTERED);
   }
 

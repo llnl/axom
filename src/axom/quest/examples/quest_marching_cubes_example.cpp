@@ -6,19 +6,19 @@
 
 /*!
  * \file marching_cubes_example.cpp
- * \brief Driver for marching cubes isocontour generation
+ * \brief Driver for Marching Cubes isocontour generation
  *
  * Generates planar, round, and gyroid scalar fields and extracts their contours.
  */
 
 #include "axom/config.hpp"
 
-// This example requires Conduit and bump
+// This example requires Conduit and Bump
 #ifndef AXOM_USE_CONDUIT
-  #error "MarchingCubesFullParallel.hpp requires conduit"
+  #error "quest_marching_cubes_example.cpp requires Conduit"
 #endif
 #ifndef AXOM_USE_BUMP
-  #error "quest_marching_cubes_example.cpp requires bump"
+  #error "quest_marching_cubes_example.cpp requires Bump"
 #endif
 
 // Axom includes
@@ -86,7 +86,7 @@ struct Input
 public:
   std::string meshFile;
   std::string fieldsFile {"fields"};
-  //! @brief Also emit bump's welded polygonal contour as a Blueprint mesh.
+  //! @brief Optional file for Bump's welded Blueprint contour.
   std::string blueprintContourFile {};
 
   // Center of round contour function
@@ -107,16 +107,16 @@ public:
 
   quest::MarchingCubesDataParallelism dataParallelism = quest::MarchingCubesDataParallelism::byPolicy;
 
-  // Use the bump CutField backend (supports unstructured quad/hex) vs legacy.
+  // Use Bump's CutField backend instead of the legacy backend.
   bool useBumpBackend {false};
 
   // Bump isosurface robustness policy.
   quest::MarchingCubesRobustnessPolicy robustnessPolicy =
     quest::MarchingCubesRobustnessPolicy::standard;
 
-  // Distinct MarchingCubes objects count.
+  // Number of distinct MarchingCubes objects.
   int objectRepCount {1};
-  // Contour generation count for each MarchingCubes objects.
+  // Number of contour extractions per MarchingCubes object.
   int contourGenCount {1};
   // Number of masking cycles.
   int maskCount {1};
@@ -166,12 +166,11 @@ public:
       ->check(axom::CLI::ExistingFile);
 
     app.add_option("--blueprint-contour-file", blueprintContourFile)
-      ->description(
-        "Write Bump's welded polygonal contour to a Blueprint file; requires --useBumpBackend")
+      ->description("Write Bump's welded contour to a Blueprint file; requires --useBumpBackend")
       ->capture_default_str();
 
     app.add_option("-s,--fields-file", fieldsFile)
-      ->description("Name of output mesh file with all its fields.")
+      ->description("Write the input mesh and generated fields to this file")
       ->capture_default_str();
 
     app.add_flag("-v,--verbose,!--no-verbose", _verboseOutput)
@@ -179,31 +178,26 @@ public:
       ->capture_default_str();
 
     auto* distanceFunctionOption =
-      app.add_option_group("distanceFunctionOption", "Options for specifying a distance function.");
+      app.add_option_group("distanceFunctionOption", "Scalar-field options");
 
-    auto* distFromPtOption = distanceFunctionOption->add_option_group(
-      "distFromPtOption",
-      "Options for setting up distance-from-point function");
+    auto* distFromPtOption =
+      distanceFunctionOption->add_option_group("distFromPtOption", "Distance from a point");
     distFromPtOption->add_option("--center", fcnCenter)
-      ->description("Center for distance-from-point function (x,y[,z])")
+      ->description("Center of the circle or sphere field (x,y[,z])")
       ->expected(2, 3);
 
-    auto* gyroidOption =
-      distanceFunctionOption->add_option_group("gyroidOption",
-                                               "Options for setting up gyroid function");
+    auto* gyroidOption = distanceFunctionOption->add_option_group("gyroidOption", "Gyroid field");
     gyroidOption->add_option("--scale", gyroidScale)
-      ->description("Scaling factor for gyroid function (x,y[,z])")
+      ->description("Gyroid scale factors (x,y[,z])")
       ->expected(2, 3);
 
-    auto* distFromPlaneOption = distanceFunctionOption->add_option_group(
-      "distFromPlaneOption",
-      "Options for setting up distance-from-plane function");
-    auto* perpDirOption =
-      distFromPlaneOption->add_option("--dir", perpDir)
-        ->description("Positive direction for distance-from-plane function (x,y[,z])")
-        ->expected(2, 3);
+    auto* distFromPlaneOption =
+      distanceFunctionOption->add_option_group("distFromPlaneOption", "Distance from a plane");
+    auto* perpDirOption = distFromPlaneOption->add_option("--dir", perpDir)
+                            ->description("Plane normal direction (x,y[,z])")
+                            ->expected(2, 3);
     distFromPlaneOption->add_option("--inPlane", inPlane)
-      ->description("In-plane point for distance-from-plane function (x,y[,z])")
+      ->description("Point on the plane (x,y[,z])")
       ->expected(2, 3)
       ->needs(perpDirOption);
 
@@ -228,7 +222,7 @@ public:
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
       ->description(
-        "caliper annotation mode. Valid options include 'none' and 'report'. "
+        "Caliper annotation mode. Valid options include 'none' and 'report'. "
         "Use 'help' to see full list.")
       ->capture_default_str()
       ->check(axom::utilities::ValidCaliperMode);
@@ -236,7 +230,6 @@ public:
 
     app.get_formatter()->column_width(60);
 
-    // could throw an exception
     app.parse(argc, argv);
 
     slic::setLoggingMsgLevel(_verboseOutput ? slic::message::Debug : slic::message::Info);
@@ -246,9 +239,9 @@ public:
                       (inPlane.empty() || inPlane.size() == ndim) &&
                       (perpDir.empty() || perpDir.size() == ndim) &&
                       (gyroidScale.empty() || gyroidScale.size() == ndim),
-                    "fcnCenter, inPlane and perpDir must have consistent sizes if specified.");
+                    "--center, --inPlane, --dir, and --scale must have matching dimensions.");
 
-    // inPlane defaults to origin if omitted.
+    // The plane passes through the origin when --inPlane is omitted.
     if(usingPlanar() && inPlane.empty())
     {
       inPlane.insert(inPlane.begin(), ndim, 0.0);
@@ -324,7 +317,7 @@ bool verifyBlueprintMesh(const conduit::Node& mesh, conduit::Node& info)
 
 int myRank = -1, numRanks = -1;  // MPI stuff, set in main().
 
-/// \brief Generic computational mesh, to hold cell and node data.
+/// \brief Host-side access to the example's Blueprint mesh and derived sizes.
 struct BlueprintStructuredMesh
 {
 public:
@@ -354,16 +347,16 @@ public:
     _maxSpacing = maxSpacing();
   }
 
-  /// Return the blueprint mesh in a conduit::Node
+  /// Return the Blueprint mesh.
   conduit::Node& asConduitNode() { return _mdMesh; }
 
-  /// Get number of domains in the multidomain mesh
+  /// Return the number of local domains.
   axom::IndexType domainCount() const { return _domCount; }
 
-  //// Whether mesh is empty locally.
+  /// Return whether this rank has no domains.
   bool empty() const { return _domCount == 0; }
 
-  /// Get domain group.
+  /// Return one local domain.
   conduit::Node& domain(axom::IndexType domainIdx)
   {
     SLIC_ASSERT(domainIdx >= 0 && domainIdx < _domCount);
@@ -389,10 +382,10 @@ public:
   }
 
   /*!
-   * @brief Get the number of cells in each direction of a blueprint single domain.
+   * @brief Return the logical cell dimensions of a structured Blueprint domain.
    *
-   * @param domId Index of domain
-   * @param lengths Space for dimension() numbers.
+   * @param[in] domId Local domain index.
+   * @param[out] lengths Buffer for dimension() values.
    */
   void domainLengths(axom::IndexType domId, axom::IndexType* lengths) const
   {
@@ -417,7 +410,7 @@ public:
     return rval;
   }
 
-  /// Returns the number of cells in a domain
+  /// Return the number of cells in a domain.
   int cellCount(axom::IndexType domId) const
   {
     if(isStructured(domId))
@@ -434,7 +427,7 @@ public:
       conduit::blueprint::mesh::topology::length(domain(domId).fetch_existing(_topologyPath)));
   }
 
-  /// Returns the number of cells in all mesh domains
+  /// Return the number of cells in all local domains.
   int cellCount() const
   {
     int rval = 0;
@@ -445,7 +438,7 @@ public:
     return rval;
   }
 
-  /// Returns the number of nodes in a domain
+  /// Return the number of nodes in a domain.
   int nodeCount(axom::IndexType domId) const
   {
     if(isStructured(domId))
@@ -462,7 +455,7 @@ public:
       conduit::blueprint::mesh::coordset::length(domain(domId).fetch_existing(_coordsetPath)));
   }
 
-  /// Returns the number of nodes in all mesh domains
+  /// Return the number of nodes in all local domains.
   int nodeCount() const
   {
     int rval = 0;
@@ -491,10 +484,10 @@ public:
   }
 
   /*!
-   * @brief Whether this domain's field arrays can be indexed as a flat, compact array of node values.
+   * @brief Whether this domain uses compact field indexing.
    *
-   * This is false only for strided structured topologies whose fields live in a ghost padded window
-   * and must be indexed through the field offsets and strides.
+   * Strided structured fields occupy a padded window and require their offsets
+   * and strides. Other supported fields use flat node indices.
    */
   bool useFlatFields(axom::IndexType domId) const { return !isStridedStructured(domId); }
 
@@ -517,9 +510,9 @@ public:
   }
 
   /*!
-   * @return largest mesh spacing.
+   * @return The maximum cell-edge length across all ranks.
    *
-   * Compute only once, because after that, coordinates data may be moved to devices.
+   * The constructor caches this value before the coordinate data may move to a device.
    */
   double maxSpacing() const
   {
@@ -544,9 +537,10 @@ public:
   }
 
   /*!
-   * @return largest mesh spacing in a domain.
+   * @return The maximum cell-edge length in one domain.
    *
-   * This method takes shortcuts by assuming the mesh is structured and cartesian, with explicit coordinates.
+   * The compact structured and unstructured paths inspect every edge.
+   * The strided structured path samples one edge per axis and assumes Cartesian coordinates.
    */
   double maxSpacing1(axom::IndexType domId) const
   {
@@ -654,7 +648,7 @@ public:
   /*!
    * @brief Longest cell edge over an unstructured single-shape topology.
    *
-   * This uses bump's shape traits for edge connectivity.
+   * This uses Bump's shape traits for edge connectivity.
    */
   template <typename ShapeTraits>
   double maxEdgeLengthForTraits(const conduit::Node& topo, const conduit::Node& coords) const
@@ -706,7 +700,7 @@ public:
     return 0.0;
   }
 
-  /// Checks whether the blueprint is valid and prints diagnostics
+  /// Check the Blueprint mesh and print diagnostics when validation fails.
   bool isValid() const
   {
     conduit::Node info;
@@ -761,7 +755,7 @@ private:
     return defaultValue;
   }
 
-  //! @brief Read a blueprint mesh into conduit::Node _mdMesh.
+  //! @brief Read a Blueprint mesh and normalize it to a multi-domain node.
   void readBlueprintMesh(const std::string& meshFilename)
   {
     SLIC_ASSERT(!meshFilename.empty());
@@ -769,9 +763,8 @@ private:
     conduit::Node loadedMesh;
     loadBlueprintMesh(meshFilename, loadedMesh);
     // Normalize to a multi-domain node. MarchingCubes::setMesh() performs the
-    // equivalent normalization for its own input; this wrapper still needs its own
-    // copy because domainLengths(), cellCount(), and the coordset helpers below
-    // operate on it independently of the query object.
+    // equivalent normalization for its input. This wrapper needs its own copy
+    // because its size and coordset helpers operate independently of MarchingCubes.
     _mdMesh.reset();
     if(conduit::blueprint::mesh::is_multi_domain(loadedMesh))
     {
@@ -966,7 +959,7 @@ struct ContourTestBase
   void addTestStrategy(const ContourTestStrategy<DIM>& testStrategy)
   {
     m_testStrategies.push_back(testStrategy);
-    SLIC_INFO(axom::fmt::format("Add test {}.", testStrategy.testName));
+    SLIC_INFO(axom::fmt::format("Added contour field '{}'.", testStrategy.testName));
   }
 
   const Input& m_params;
@@ -1161,7 +1154,7 @@ struct ContourTestBase
     extractTimer.stop();
     printTimingStats(extractTimer, "extract");
 
-    // Optionally write Bump's welded polygonal contour.
+    // Optionally write Bump's welded Blueprint contour.
     if(!m_params.blueprintContourFile.empty())
     {
       if(!m_params.useBumpBackend)
@@ -1192,7 +1185,7 @@ struct ContourTestBase
     }
     AXOM_ANNOTATE_END("convert to mint mesh");
 
-    // We allReduce this in main so all ranks return the same exit code.
+    // main() reduces this value so all ranks return the same exit code.
     const int localErrCount = 0;
 
 #if defined(AXOM_MINT_USE_SIDRE)
@@ -1244,7 +1237,7 @@ struct ContourTestBase
 
       auto domainView = bpMesh.getDomainView<DIM>(domId);
 
-      // Create nodal function data with ghosts like node coords.
+      // Match the field's padded layout to the coordset so node ids remain valid.
       domainView.createField(strat.functionName,
                              "vertex",
                              conduit::DataType::float64(domainView.getCoordsCountWithGhosts()),

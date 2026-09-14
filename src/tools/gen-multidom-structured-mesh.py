@@ -8,8 +8,8 @@
 
 # Write a multidomain Blueprint mesh for testing.
 #
-# You need Conduit's Python module available on PYTHONPATH.
-# Axom's build tree usually provides `bin/run_python_with_axom.sh` for that.
+# Conduit's Python module must be available on PYTHONPATH. A Python-enabled
+# Axom build provides `bin/run_python_with_axom.sh` to set the required paths.
 #
 # The generated Blueprint hierarchy is:
 #   <bp_root>
@@ -28,7 +28,7 @@
 #    │    ├── coordsets
 #    │    │   └── coords
 #    │    │        ├─• type        == "explicit"
-#    │    │        └── values      i-fastest node ordering, ghost padded for --strided
+#    │    │        └── values      i-fastest node order; padded with --strided
 #    │    │             ├─• x
 #    │    │             ├─• y
 #    │    │             └─• [z]
@@ -37,7 +37,7 @@
 #    │        │    ├─• association == "element"
 #    │        │    ├─• topology    == "mesh"
 #    │        │    └─• values
-#    │        └── <fieldName>                  Only with --field. Nodal for MarchingCubes
+#    │        └── <fieldName>                  Vertex field added by --field
 #    │             ├─• association == "vertex"
 #    │             ├─• topology    == "mesh"
 #    │             └─• values
@@ -74,7 +74,9 @@ def parse_component_list(values, cast):
 def parse_args():
     ps = ArgumentParser(description='Write a multidomain Blueprint mesh.',
                         formatter_class=ArgumentDefaultsHelpFormatter)
-    ps.add_argument('--useList', action='store_true', help='Put domains in a list instead of a map')
+    ps.add_argument('--useList',
+                    action='store_true',
+                    help='Store domains in a list instead of a map')
     ps.add_argument('-ml',
                     '--min',
                     dest='ml',
@@ -92,28 +94,30 @@ def parse_args():
                     dest='ms',
                     nargs='+',
                     default=('3', '3'),
-                    help='Logical size of mesh (cells), space- or comma-separated')
+                    help='Mesh size in cells, space- or comma-separated')
     ps.add_argument('-dc',
                     '--domains',
                     dest='dc',
                     nargs='+',
                     default=('1', '1'),
-                    help='Domain counts in each index direction, space- or comma-separated')
+                    help='Domain counts by index direction, space- or comma-separated')
     ps.add_argument('-o', '--output', type=str, default='mdmesh', help='Output file base name')
-    ps.add_argument('--strided', action='store_true', help='Use strided_structured (has ghosts)')
+    ps.add_argument('--strided', action='store_true', help='Use a padded strided-structured layout')
     ps.add_argument(
         '--topology',
         choices=('structured', 'unstructured'),
         default='structured',
-        help='Topology type. "unstructured" emits single-shape quad or hex connectivity '
-        'over the same nodes. Incompatible with --strided.')
-    ps.add_argument(
-        '--field',
-        choices=('none', 'sphere', 'plane'),
-        default='none',
-        help='Add an analytic nodal field, which MarchingCubes needs. The Conduit example '
-        'field is element-associated.')
-    ps.add_argument('--fieldName', type=str, default='fcn', help='Name of the analytic nodal field')
+        help='Topology type. Unstructured output uses single-shape quad or hex connectivity '
+        'and cannot be combined with --strided.')
+    ps.add_argument('--field',
+                    choices=('none', 'sphere', 'plane'),
+                    default='none',
+                    help='Add a vertex-associated analytic field. The Conduit example field is '
+                    'element-associated.')
+    ps.add_argument('--fieldName',
+                    type=str,
+                    default='fcn',
+                    help='Name of the field added by --field')
     ps.add_argument('--center',
                     nargs='+',
                     default=None,
@@ -131,8 +135,11 @@ def parse_args():
     ps.add_argument('--protocol',
                     choices=('hdf5', 'json', 'yaml'),
                     default='hdf5',
-                    help='Conduit relay output protocol. json/yaml let readers run without HDF5.')
-    ps.add_argument('-v', '--verbose', action='store_true', help='Print additional info')
+                    help='Conduit Relay output protocol. JSON and YAML do not require HDF5.')
+    ps.add_argument('-v',
+                    '--verbose',
+                    action='store_true',
+                    help='Print options and the generated mesh')
 
     opts, unkn = ps.parse_known_args()
     opts.ml = parse_component_list(opts.ml, float)
@@ -152,23 +159,25 @@ def validated_mesh_options(opts):
     dim = len(opts.dc)
 
     if dim not in (2, 3) or len(opts.ms) != dim or len(opts.ml) != dim or len(opts.mu) != dim:
-        raise RuntimeError('dc, ms, ml and mu options must have the same dimensions (2 or 3)')
+        raise RuntimeError(
+            '--domains, --res, --min, and --max must have the same number of components (2 or 3)')
 
     if any(s <= 0 for s in opts.ms):
-        raise RuntimeError(f'ms ({opts.ms}) entries must be positive')
+        raise RuntimeError(f'--res entries must be positive (got {opts.ms})')
     if any(d <= 0 for d in opts.dc):
-        raise RuntimeError(f'dc ({opts.dc}) entries must be positive')
+        raise RuntimeError(f'--domains entries must be positive (got {opts.dc})')
 
-    # Must have enough cells for requested partitioning.
     if any(opts.ms[i] < opts.dc[i] for i in range(dim)):
-        raise RuntimeError(f'ms ({opts.ms}) must be >= dc ({opts.dc}) in all directions.')
+        raise RuntimeError(
+            f'--res ({opts.ms}) must be at least --domains ({opts.dc}) in every direction')
 
     mesh_size = np.array(opts.ms, dtype=int)
     mesh_lower = np.array(opts.ml, dtype=float)
     mesh_upper = np.array(opts.mu, dtype=float)
     mesh_extent = mesh_upper - mesh_lower
     if np.any(mesh_extent <= 0.0):
-        raise RuntimeError(f'mu ({opts.mu}) must be greater than ml ({opts.ml}) in all directions')
+        raise RuntimeError(
+            f'--max ({opts.mu}) must be greater than --min ({opts.ml}) in every direction')
 
     domain_counts = opts.dc if dim == 3 else (*opts.dc, 1)
     domain_counts = np.array(domain_counts, dtype=int)
@@ -177,9 +186,8 @@ def validated_mesh_options(opts):
     domain_size_remainder = mesh_size % domain_counts[:dim]
 
     if opts.topology == 'unstructured' and opts.strided:
-        raise RuntimeError(
-            '--topology unstructured is incompatible with --strided. The ghost padded '
-            'coordset does not have compact node numbering to build connectivity over.')
+        raise RuntimeError('--topology unstructured cannot be combined with --strided because the '
+                           'conversion requires compact node numbering')
 
     mesh_center = 0.5 * (mesh_lower + mesh_upper)
     if opts.center is None:
@@ -227,7 +235,10 @@ def validated_mesh_options(opts):
 
 
 def domain_index_begin(context, di, dj, dk=None):
-    '''Compute first cell index of the domain with multi-dimensional index (di, dj, dk).'''
+    '''Return the first global cell index for domain (di, dj[, dk]).
+
+    Remainder cells are assigned one apiece to the lowest domain indices.
+    '''
     dim = context['dim']
     ds = (di, dj) if dim == 2 else (di, dj, dk)
     idx = np.array(ds)
@@ -248,7 +259,7 @@ def domain_node(md_mesh, opts, di, dj, dk):
 
 
 def generate_topology(dom, opts, context, point_counts, cell_start, cell_end):
-    '''Generate a structured Blueprint topology and seed matching example data.'''
+    '''Generate Conduit's structured example mesh for one domain.'''
     dim = context['dim']
     npnl = context['num_phony_nodes_left']
     npnr = context['num_phony_nodes_right']
@@ -295,7 +306,7 @@ def generate_coordset(dom, context, start_coord, end_coord):
         coords = dom['coordsets/coords/values'][d]
         coords = np.reshape(coords, np.flip(coord_array_lens))
 
-        # real_coords excludes the ghost layers.
+        # Exclude padded entries when deriving the affine coordinate transform.
         if ndim == 2:
             real_coords = coords[npnl:, npnl:] if npnr == 0 else coords[npnl:-npnr, npnl:-npnr]
         else:
@@ -309,7 +320,7 @@ def generate_coordset(dom, context, start_coord, end_coord):
 
 
 def add_analytic_nodal_field(dom, opts, context):
-    '''Add a nodal scalar field sampled at every coordset node. The implementation is vectorized'''
+    '''Add a scalar vertex field sampled at every coordset node.'''
 
     if opts.field == 'none':
         return
@@ -333,11 +344,10 @@ def add_analytic_nodal_field(dom, opts, context):
 
 
 def structured_to_unstructured(dom, context):
-    '''Rewrite the structured topology as single-shape quad/hex connectivity.
+    '''Replace the structured topology with single-shape quad or hex connectivity.
 
-    This uses numpy broadcasting instead of a per-cell Python loop. Node order
-    within a cell matches Blueprint's quad/hex convention. Node ids follow the
-    coordset's i-fastest numbering, so the coordset stays as-is.
+    Node order follows Blueprint's quad and hex conventions. Node ids use the
+    coordset's i-fastest numbering, so the coordset and fields remain unchanged.
     '''
     dim = context['dim']
     topo = dom['topologies/mesh']
@@ -358,6 +368,7 @@ def structured_to_unstructured(dom, context):
         pij = pts[0] * pts[1]
         offs = [0, 1, 1 + pts[0], pts[0], pij, pij + 1, pij + 1 + pts[0], pij + pts[0]]
 
+    # Add the local corner offsets to every cell's first node.
     conn = (base[:, None] + np.array(offs, dtype=np.int64)[None, :]).ravel()
 
     topo.remove_child('elements')
@@ -367,7 +378,7 @@ def structured_to_unstructured(dom, context):
 
 
 def generate_fields(dom, opts, context):
-    '''Keep Conduit's example element field and ensure it references the generated topology.'''
+    '''Point Conduit's example element field at the generated topology.'''
     del opts, context
     if dom.has_path('fields/field'):
         dom['fields/field/topology'] = 'mesh'
@@ -391,8 +402,6 @@ def generate_domain(md_mesh, opts, context, di, dj, dk):
     dom_upper = mesh_lower[:dim] + cell_end * cell_physical_size[:dim]
     generate_coordset(dom, context, dom_lower, dom_upper)
     generate_fields(dom, opts, context)
-    # Sample the field before rewriting the topology. The unstructured rewrite drops
-    # elements/dims, and we still need those to size the coordset.
     add_analytic_nodal_field(dom, opts, context)
     if opts.topology == 'unstructured':
         structured_to_unstructured(dom, context)
@@ -426,7 +435,7 @@ def main():
 
     info = conduit.Node()
     if not conduit.blueprint.mesh.verify(md_mesh, info):
-        print("Mesh failed blueprint verification. Info:")
+        print("Blueprint mesh verification failed:")
         print(info)
         return 2
 
