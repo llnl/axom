@@ -111,26 +111,24 @@ public:
     axom::ReduceSum<ExecSpace, int> connSizeReduce(0);
     axom::ReduceBitOr<ExecSpace, int> zoneTypeReduce(0);
     constexpr int ErrorBit = 1 << ((sizeof(int) * 8) - 1);
-    axom::for_all<ExecSpace>(
-      m_topologyView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zi) {
-        const auto zone = topoView.zone(zi);
-        switch(zone.id())
-        {
-        case views::Tri_ShapeID:
-          zoneTypeReduce |= static_cast<int>(1 << views::Wedge_ShapeID);
-          connSizeReduce += 6;
-          break;
-        case views::Quad_ShapeID:
-          zoneTypeReduce |= static_cast<int>(1 << views::Hex_ShapeID);
-          connSizeReduce += 8;
-          break;
-        default:
-          SLIC_ASSERT("Unsupported zone type");
-          // For release builds
-          zoneTypeReduce |= ErrorBit;
-        }
-      });
+    axom::for_all<ExecSpace>(m_topologyView.numberOfZones(), [=] AXOM_HOST_DEVICE(axom::IndexType zi) {
+      const auto zone = topoView.zone(zi);
+      switch(zone.id())
+      {
+      case views::Tri_ShapeID:
+        zoneTypeReduce |= static_cast<int>(1 << views::Wedge_ShapeID);
+        connSizeReduce += 6;
+        break;
+      case views::Quad_ShapeID:
+        zoneTypeReduce |= static_cast<int>(1 << views::Hex_ShapeID);
+        connSizeReduce += 8;
+        break;
+      default:
+        SLIC_ASSERT("Unsupported zone type");
+        // For release builds
+        zoneTypeReduce |= ErrorBit;
+      }
+    });
     AXOM_ANNOTATE_END("counts");
     const auto shapes = zoneTypeReduce.get();
     if(m_topologyView.numberOfZones() > 0 && shapes == 0)
@@ -173,16 +171,14 @@ public:
     {
       auto tz = static_cast<value_type>(z) / static_cast<value_type>(nz - 1);
       value_type zc = z0 + tz * (z1 - z0);
-      axom::for_all<ExecSpace>(
-        coordsetView.numberOfNodes(),
-        AXOM_LAMBDA(int srcNodeIndex) {
-          const auto destNodeIndex = z * nnodes + srcNodeIndex;
-          const auto pt = coordsetView[srcNodeIndex];
+      axom::for_all<ExecSpace>(coordsetView.numberOfNodes(), [=] AXOM_HOST_DEVICE(int srcNodeIndex) {
+        const auto destNodeIndex = z * nnodes + srcNodeIndex;
+        const auto pt = coordsetView[srcNodeIndex];
 
-          values[0][destNodeIndex] = pt[0];
-          values[1][destNodeIndex] = pt[1];
-          values[2][destNodeIndex] = zc;
-        });
+        values[0][destNodeIndex] = pt[0];
+        values[1][destNodeIndex] = pt[1];
+        values[2][destNodeIndex] = zc;
+      });
     }
     AXOM_ANNOTATE_END("coordset");
 
@@ -236,27 +232,25 @@ public:
     axom::IndexType zOffset = 0;
     for(int i = 0; i < nz - 1; i++)
     {
-      axom::for_all<ExecSpace>(
-        topoView.numberOfZones(),
-        AXOM_LAMBDA(axom::IndexType zi) {
-          const auto zone = topoView.zone(zi);
-          const auto destIndex = zOffset + zi;
-          switch(zone.id())
-          {
-          case views::Tri_ShapeID:
-          {
-            shapesView[destIndex] = views::Wedge_ShapeID;
-            sizesView[destIndex] = 6;
-          }
+      axom::for_all<ExecSpace>(topoView.numberOfZones(), [=] AXOM_HOST_DEVICE(axom::IndexType zi) {
+        const auto zone = topoView.zone(zi);
+        const auto destIndex = zOffset + zi;
+        switch(zone.id())
+        {
+        case views::Tri_ShapeID:
+        {
+          shapesView[destIndex] = views::Wedge_ShapeID;
+          sizesView[destIndex] = 6;
+        }
+        break;
+        case views::Quad_ShapeID:
+          shapesView[destIndex] = views::Hex_ShapeID;
+          sizesView[destIndex] = 8;
           break;
-          case views::Quad_ShapeID:
-            shapesView[destIndex] = views::Hex_ShapeID;
-            sizesView[destIndex] = 8;
-            break;
-          default:
-            SLIC_ASSERT("Unsupported zone type");
-          }
-        });
+        default:
+          SLIC_ASSERT("Unsupported zone type");
+        }
+      });
       zOffset += topoView.numberOfZones();
     }
     if(count <= 1)
@@ -269,39 +263,37 @@ public:
     zOffset = 0;
     for(int i = 0; i < nz - 1; i++)
     {
-      axom::for_all<ExecSpace>(
-        topoView.numberOfZones(),
-        AXOM_LAMBDA(axom::IndexType zi) {
-          const auto zone = topoView.zone(zi);
-          const auto offset = offsetsView[zOffset + zi];
-          const auto lowNodeOffset = i * nnodes;
-          const auto highNodeOffset = lowNodeOffset + nnodes;
-          switch(zone.id())
-          {
-          case views::Tri_ShapeID:
-          {
-            connView[offset] = lowNodeOffset + zone.getId(0);
-            connView[offset + 1] = lowNodeOffset + zone.getId(1);
-            connView[offset + 2] = lowNodeOffset + zone.getId(2);
-            connView[offset + 3] = highNodeOffset + zone.getId(0);
-            connView[offset + 4] = highNodeOffset + zone.getId(1);
-            connView[offset + 5] = highNodeOffset + zone.getId(2);
-          }
+      axom::for_all<ExecSpace>(topoView.numberOfZones(), [=] AXOM_HOST_DEVICE(axom::IndexType zi) {
+        const auto zone = topoView.zone(zi);
+        const auto offset = offsetsView[zOffset + zi];
+        const auto lowNodeOffset = i * nnodes;
+        const auto highNodeOffset = lowNodeOffset + nnodes;
+        switch(zone.id())
+        {
+        case views::Tri_ShapeID:
+        {
+          connView[offset] = lowNodeOffset + zone.getId(0);
+          connView[offset + 1] = lowNodeOffset + zone.getId(1);
+          connView[offset + 2] = lowNodeOffset + zone.getId(2);
+          connView[offset + 3] = highNodeOffset + zone.getId(0);
+          connView[offset + 4] = highNodeOffset + zone.getId(1);
+          connView[offset + 5] = highNodeOffset + zone.getId(2);
+        }
+        break;
+        case views::Quad_ShapeID:
+          connView[offset] = lowNodeOffset + zone.getId(0);
+          connView[offset + 1] = lowNodeOffset + zone.getId(1);
+          connView[offset + 2] = lowNodeOffset + zone.getId(2);
+          connView[offset + 3] = lowNodeOffset + zone.getId(3);
+          connView[offset + 4] = highNodeOffset + zone.getId(0);
+          connView[offset + 5] = highNodeOffset + zone.getId(1);
+          connView[offset + 6] = highNodeOffset + zone.getId(2);
+          connView[offset + 7] = highNodeOffset + zone.getId(3);
           break;
-          case views::Quad_ShapeID:
-            connView[offset] = lowNodeOffset + zone.getId(0);
-            connView[offset + 1] = lowNodeOffset + zone.getId(1);
-            connView[offset + 2] = lowNodeOffset + zone.getId(2);
-            connView[offset + 3] = lowNodeOffset + zone.getId(3);
-            connView[offset + 4] = highNodeOffset + zone.getId(0);
-            connView[offset + 5] = highNodeOffset + zone.getId(1);
-            connView[offset + 6] = highNodeOffset + zone.getId(2);
-            connView[offset + 7] = highNodeOffset + zone.getId(3);
-            break;
-          default:
-            SLIC_ASSERT("Unsupported zone type");
-          }
-        });
+        default:
+          SLIC_ASSERT("Unsupported zone type");
+        }
+      });
       zOffset += topoView.numberOfZones();
     }
     AXOM_ANNOTATE_END("topology");
@@ -470,24 +462,22 @@ private:
     const auto nzones = srcSizesView.size();
     for(int z = 0; z < nz - 1; z++)
     {
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType zi) {
-          const auto idxSize = srcIndicesView.size();
-          const auto offset = srcOffsetsView[zi];
-          const auto destZone = z * nzones + zi;
-          sizesView[destZone] = srcSizesView[offset];
-          offsetsView[destZone] = z * idxSize + srcOffsetsView[offset];
-          using counter_type = typename decltype(srcSizesView)::value_type;
-          for(counter_type i = 0; i < srcSizesView[offset]; i++)
-          {
-            const auto idx = srcIndicesView[offset + i];
-            const auto outIdx = offsetsView[destZone] + i;
-            volumeFractionsView[outIdx] = srcVolumeFractionsView[idx];
-            materialIdsView[outIdx] = srcMaterialIdsView[idx];
-            indicesView[outIdx] = outIdx;
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zi) {
+        const auto idxSize = srcIndicesView.size();
+        const auto offset = srcOffsetsView[zi];
+        const auto destZone = z * nzones + zi;
+        sizesView[destZone] = srcSizesView[offset];
+        offsetsView[destZone] = z * idxSize + srcOffsetsView[offset];
+        using counter_type = typename decltype(srcSizesView)::value_type;
+        for(counter_type i = 0; i < srcSizesView[offset]; i++)
+        {
+          const auto idx = srcIndicesView[offset + i];
+          const auto outIdx = offsetsView[destZone] + i;
+          volumeFractionsView[outIdx] = srcVolumeFractionsView[idx];
+          materialIdsView[outIdx] = srcMaterialIdsView[idx];
+          indicesView[outIdx] = outIdx;
+        }
+      });
     }
   }
 

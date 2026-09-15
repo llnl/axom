@@ -81,23 +81,22 @@ public:
 
     // Use the Adaptor on device to compute area or volume.
     const Adaptor deviceAdaptor(m_adaptor);
-    axom::for_all<ExecSpace>(
-      deviceAdaptor.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto shape = deviceAdaptor.getShape(zoneIndex);
+    axom::for_all<ExecSpace>(deviceAdaptor.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto shape = deviceAdaptor.getShape(zoneIndex);
 
-        double value = 0.;
-        if constexpr(Adaptor::dimension() == 3)
-        {
-          value = shape.volume();
-        }
-        else if constexpr(Adaptor::dimension() == 2)
-        {
-          value = shape.area();
-        }
+                               double value = 0.;
+                               if constexpr(Adaptor::dimension() == 3)
+                               {
+                                 value = shape.volume();
+                               }
+                               else if constexpr(Adaptor::dimension() == 2)
+                               {
+                                 value = shape.area();
+                               }
 
-        valuesView[zoneIndex] = value;
-      });
+                               valuesView[zoneIndex] = value;
+                             });
   }
 
 private:

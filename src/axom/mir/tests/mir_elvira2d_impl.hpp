@@ -196,9 +196,9 @@ struct braid2d_mat_test
       auto arrView = arr.view();
       for(int i = 0; i < 2; i++)
       {
-        axom::for_all<ExecSpace>(
-          N,
-          AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
+        axom::for_all<ExecSpace>(N, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          arrView[index] = index * index;
+        });
       }
       axom::synchronize<ExecSpace>();
     }

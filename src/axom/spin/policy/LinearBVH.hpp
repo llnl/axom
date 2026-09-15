@@ -337,44 +337,42 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
   const auto bvh_inner_node_children = m_inner_node_children.view();
 
   AXOM_ANNOTATE_BEGIN("emit_bvh_parents");
-  for_all<ExecSpace>(
-    inner_size,
-    AXOM_LAMBDA(std::int32_t node) {
-      BoundingBoxType l_aabb, r_aabb;
+  for_all<ExecSpace>(inner_size, [=] AXOM_HOST_DEVICE(std::int32_t node) {
+    BoundingBoxType l_aabb, r_aabb;
 
-      std::int32_t lchild = lchildren_ptr[node];
-      if(lchild >= inner_size)
-      {
-        l_aabb = leaf_aabb_ptr[lchild - inner_size];
-        lchild = -(lchild - inner_size + 1);
-      }
-      else
-      {
-        l_aabb = inner_aabb_ptr[lchild];
-        // do the offset now
-        lchild *= 2;
-      }
+    std::int32_t lchild = lchildren_ptr[node];
+    if(lchild >= inner_size)
+    {
+      l_aabb = leaf_aabb_ptr[lchild - inner_size];
+      lchild = -(lchild - inner_size + 1);
+    }
+    else
+    {
+      l_aabb = inner_aabb_ptr[lchild];
+      // do the offset now
+      lchild *= 2;
+    }
 
-      std::int32_t rchild = rchildren_ptr[node];
-      if(rchild >= inner_size)
-      {
-        r_aabb = leaf_aabb_ptr[rchild - inner_size];
-        rchild = -(rchild - inner_size + 1);
-      }
-      else
-      {
-        r_aabb = inner_aabb_ptr[rchild];
-        // do the offset now
-        rchild *= 2;
-      }
+    std::int32_t rchild = rchildren_ptr[node];
+    if(rchild >= inner_size)
+    {
+      r_aabb = leaf_aabb_ptr[rchild - inner_size];
+      rchild = -(rchild - inner_size + 1);
+    }
+    else
+    {
+      r_aabb = inner_aabb_ptr[rchild];
+      // do the offset now
+      rchild *= 2;
+    }
 
-      const std::int32_t out_offset = node * 2;
-      bvh_inner_nodes[out_offset + 0] = l_aabb;
-      bvh_inner_nodes[out_offset + 1] = r_aabb;
+    const std::int32_t out_offset = node * 2;
+    bvh_inner_nodes[out_offset + 0] = l_aabb;
+    bvh_inner_nodes[out_offset + 1] = r_aabb;
 
-      bvh_inner_node_children[out_offset + 0] = lchild;
-      bvh_inner_node_children[out_offset + 1] = rchild;
-    });
+    bvh_inner_node_children[out_offset + 0] = lchild;
+    bvh_inner_node_children[out_offset + 1] = rchild;
+  });
   AXOM_ANNOTATE_END("emit_bvh_parents");
 
   m_leaf_nodes = std::move(radix_tree.m_leafs);
@@ -412,26 +410,24 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
   axom::ReduceSum<ExecSpace, IndexType> total_count_reduce(0);
 
   AXOM_ANNOTATE_BEGIN("PASS[1]:count_traversal");
-  for_all<ExecSpace>(
-    numObjs,
-    AXOM_LAMBDA(IndexType i) {
-      std::int32_t count = 0;
-      PrimitiveType primitive {objs[i]};
+  for_all<ExecSpace>(numObjs, [=] AXOM_HOST_DEVICE(IndexType i) {
+    std::int32_t count = 0;
+    PrimitiveType primitive {objs[i]};
 
-      auto leafAction = [&count](std::int32_t AXOM_UNUSED_PARAM(current_node),
-                                 const std::int32_t* AXOM_UNUSED_PARAM(leaf_nodes)) { count++; };
+    auto leafAction = [&count](std::int32_t AXOM_UNUSED_PARAM(current_node),
+                               const std::int32_t* AXOM_UNUSED_PARAM(leaf_nodes)) { count++; };
 
-      lbvh::bvh_traverse(inner_nodes,
-                         inner_node_children,
-                         leaf_nodes,
-                         primitive,
-                         predicate,
-                         leafAction,
-                         noTraversePref);
+    lbvh::bvh_traverse(inner_nodes,
+                       inner_node_children,
+                       leaf_nodes,
+                       primitive,
+                       predicate,
+                       leafAction,
+                       noTraversePref);
 
-      counts[i] = count;
-      total_count_reduce += count;
-    });
+    counts[i] = count;
+    total_count_reduce += count;
+  });
   AXOM_ANNOTATE_END("PASS[1]:count_traversal");
 
   // STEP 2: exclusive scan to get offsets in candidate array for each query
@@ -450,25 +446,23 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 
   // STEP 4: fill in candidates for each point
   AXOM_ANNOTATE_BEGIN("PASS[2]:fill_traversal");
-  for_all<ExecSpace>(
-    numObjs,
-    AXOM_LAMBDA(IndexType i) {
-      std::int32_t offset = offsets[i];
+  for_all<ExecSpace>(numObjs, [=] AXOM_HOST_DEVICE(IndexType i) {
+    std::int32_t offset = offsets[i];
 
-      PrimitiveType obj {objs[i]};
-      auto leafAction = [&offset, candidates_v](std::int32_t current_node, const std::int32_t* leafs) {
-        candidates_v[offset] = leafs[current_node];
-        offset++;
-      };
+    PrimitiveType obj {objs[i]};
+    auto leafAction = [&offset, candidates_v](std::int32_t current_node, const std::int32_t* leafs) {
+      candidates_v[offset] = leafs[current_node];
+      offset++;
+    };
 
-      lbvh::bvh_traverse(inner_nodes,
-                         inner_node_children,
-                         leaf_nodes,
-                         obj,
-                         predicate,
-                         leafAction,
-                         noTraversePref);
-    });
+    lbvh::bvh_traverse(inner_nodes,
+                       inner_node_children,
+                       leaf_nodes,
+                       obj,
+                       predicate,
+                       leafAction,
+                       noTraversePref);
+  });
   AXOM_ANNOTATE_END("PASS[2]:fill_traversal");
 
   return candidates;

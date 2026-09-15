@@ -332,20 +332,18 @@ protected:
     if(nodeSliceView.size() > 0)
     {
       // Pull out specific nodes from the input.
-      axom::for_all<ExecSpace>(
-        nodeSliceView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto sliceIndex = nodeSliceView[index];
-          compView[offset + index] = srcCompView[sliceIndex];
-        });
+      axom::for_all<ExecSpace>(nodeSliceView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto sliceIndex = nodeSliceView[index];
+        compView[offset + index] = srcCompView[sliceIndex];
+      });
       size = nodeSliceView.size();
     }
     else
     {
       // Pull out all nodes from the input.
-      axom::for_all<ExecSpace>(
-        srcCompView.size(),
-        AXOM_LAMBDA(axom::IndexType index) { compView[offset + index] = srcCompView[index]; });
+      axom::for_all<ExecSpace>(srcCompView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        compView[offset + index] = srcCompView[index];
+      });
       size = srcCompView.size();
     }
     return size;
@@ -460,7 +458,8 @@ protected:
   {
     using value_type = typename ViewType::value_type;
     axom::ReduceSum<ExecSpace, value_type> sum(0);
-    axom::for_all<ExecSpace>(view.size(), AXOM_LAMBDA(axom::IndexType index) { sum += view[index]; });
+    axom::for_all<ExecSpace>(view.size(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType index) { sum += view[index]; });
     const auto total = static_cast<axom::IndexType>(sum.get());
     if(view.size() > 0)
     {
@@ -1064,33 +1063,29 @@ protected:
       // Copy all zones from the input but map the nodes to new values.
       // The supplied nodeMap is assumed to be a mapping from the current
       // node connectivity to the merged node connectivity.
-      axom::for_all<ExecSpace>(
-        srcSizesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto destOffset = connOffset + actualOffsetsView[index];
-          const auto srcOffset = srcOffsetsView[index];
-          const value_type jmax = srcSizesView[index];
-          for(value_type j = 0; j < jmax; j++)
-          {
-            const auto nodeId = srcConnView[srcOffset + j];
-            const auto newNodeId = nodeMapView[nodeId];
-            connView[destOffset + j] = newNodeId;
-          }
-        });
+      axom::for_all<ExecSpace>(srcSizesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto destOffset = connOffset + actualOffsetsView[index];
+        const auto srcOffset = srcOffsetsView[index];
+        const value_type jmax = srcSizesView[index];
+        for(value_type j = 0; j < jmax; j++)
+        {
+          const auto nodeId = srcConnView[srcOffset + j];
+          const auto newNodeId = nodeMapView[nodeId];
+          connView[destOffset + j] = newNodeId;
+        }
+      });
     }
     else
     {
-      axom::for_all<ExecSpace>(
-        srcSizesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto destOffset = connOffset + actualOffsetsView[index];
-          const auto srcOffset = srcOffsetsView[index];
-          const value_type jmax = srcSizesView[index];
-          for(value_type j = 0; j < jmax; j++)
-          {
-            connView[destOffset + j] = coordOffset + srcConnView[srcOffset + j];
-          }
-        });
+      axom::for_all<ExecSpace>(srcSizesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto destOffset = connOffset + actualOffsetsView[index];
+        const auto srcOffset = srcOffsetsView[index];
+        const value_type jmax = srcSizesView[index];
+        for(value_type j = 0; j < jmax; j++)
+        {
+          connView[destOffset + j] = coordOffset + srcConnView[srcOffset + j];
+        }
+      });
     }
   }
 
@@ -1110,9 +1105,9 @@ protected:
                                 IntegerView sizesView,
                                 IntegerView srcSizesView) const
   {
-    axom::for_all<ExecSpace>(
-      srcSizesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { sizesView[sizesOffset + index] = srcSizesView[index]; });
+    axom::for_all<ExecSpace>(srcSizesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      sizesView[sizesOffset + index] = srcSizesView[index];
+    });
   }
 
   /*!
@@ -1127,9 +1122,9 @@ protected:
                                  IntegerView shapesView,
                                  IntegerView srcShapesView) const
   {
-    axom::for_all<ExecSpace>(
-      srcShapesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { shapesView[shapesOffset + index] = srcShapesView[index]; });
+    axom::for_all<ExecSpace>(srcShapesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      shapesView[shapesOffset + index] = srcShapesView[index];
+    });
   }
 
   /*!
@@ -1145,9 +1140,9 @@ protected:
                                     axom::IndexType nzones,
                                     int shapeId) const
   {
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType index) { shapesView[shapesOffset + index] = shapeId; });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      shapesView[shapesOffset + index] = shapeId;
+    });
   }
 
   /*!
@@ -1369,9 +1364,9 @@ protected:
                       DestView destView,
                       SrcView srcView) const
   {
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType index) { destView[offset + index] = srcView[index]; });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      destView[offset + index] = srcView[index];
+    });
   }
 
   /*!
@@ -1388,9 +1383,9 @@ protected:
   template <typename DestView>
   void fillValues(axom::IndexType nvalues, axom::IndexType offset, DestView destView) const
   {
-    axom::for_all<ExecSpace>(
-      nvalues,
-      AXOM_LAMBDA(axom::IndexType index) { destView[offset + index] = 0; });
+    axom::for_all<ExecSpace>(nvalues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      destView[offset + index] = 0;
+    });
   }
 
   /*!
@@ -1449,18 +1444,16 @@ protected:
   {
     if(nodeSliceView.empty())
     {
-      axom::for_all<ExecSpace>(
-        nnodes,
-        AXOM_LAMBDA(axom::IndexType index) { destView[offset + index] = srcView[index]; });
+      axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        destView[offset + index] = srcView[index];
+      });
     }
     else
     {
-      axom::for_all<ExecSpace>(
-        nodeSliceView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto nodeId = nodeSliceView[index];
-          destView[offset + index] = srcView[nodeId];
-        });
+      axom::for_all<ExecSpace>(nodeSliceView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto nodeId = nodeSliceView[index];
+        destView[offset + index] = srcView[nodeId];
+      });
     }
   }
 
@@ -1935,12 +1928,10 @@ private:
   axom::IndexType mergeMatset_count(MatsetView matsetView, axom::IndexType nzones) const
   {
     axom::ReduceSum<ExecSpace, axom::IndexType> matCount_reduce(0);
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto nmats = matsetView.numberOfMaterials(zoneIndex);
-        matCount_reduce += nmats;
-      });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto nmats = matsetView.numberOfMaterials(zoneIndex);
+      matCount_reduce += nmats;
+    });
     const auto count = matCount_reduce.get();
     if(nzones > 0)
     {
@@ -1967,11 +1958,9 @@ private:
                          axom::IndexType nzones,
                          axom::IndexType zOffset) const
   {
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        sizesView[zOffset + zoneIndex] = matsetView.numberOfMaterials(zoneIndex);
-      });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      sizesView[zOffset + zoneIndex] = matsetView.numberOfMaterials(zoneIndex);
+    });
   }
 
   /*!
@@ -1990,9 +1979,9 @@ private:
                           axom::IndexType nzones,
                           axom::IndexType zOffset) const
   {
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) { sizesView[zOffset + zoneIndex] = 1; });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      sizesView[zOffset + zoneIndex] = 1;
+    });
   }
 
   /*!
@@ -2008,9 +1997,9 @@ private:
   template <typename IntegerArrayView>
   void mergeMatset_indices(IntegerArrayView indicesView, axom::IndexType totalMatCount) const
   {
-    axom::for_all<ExecSpace>(
-      totalMatCount,
-      AXOM_LAMBDA(axom::IndexType index) { indicesView[index] = index; });
+    axom::for_all<ExecSpace>(totalMatCount, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      indicesView[index] = index;
+    });
   }
 
   /*!
@@ -2067,28 +2056,26 @@ private:
     const auto localView = local.view();
     const auto allView = all.view();
 
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        // Get this zone's materials.
-        auto zoneMat = matsetView.beginZone(zoneIndex);
-        const auto nmats = zoneMat.size();
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      // Get this zone's materials.
+      auto zoneMat = matsetView.beginZone(zoneIndex);
+      const auto nmats = zoneMat.size();
 
-        // Store the materials in the new material.
-        const auto zoneStart = offsetsView[zOffset + zoneIndex];
-        for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
-        {
-          const auto destIndex = zoneStart + mi;
-          volumeFractionsView[destIndex] = zoneMat.volume_fraction();
+      // Store the materials in the new material.
+      const auto zoneStart = offsetsView[zOffset + zoneIndex];
+      for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
+      {
+        const auto destIndex = zoneStart + mi;
+        volumeFractionsView[destIndex] = zoneMat.volume_fraction();
 
-          // Get the index of the material number in the local map.
-          const auto mapIndex = axom::utilities::binary_search(localView, zoneMat.material_id());
-          SLIC_ASSERT(mapIndex != -1);
-          // We'll store the all materials number.
-          const auto allMatno = allView[mapIndex];
-          materialIdsView[destIndex] = allMatno;
-        }
-      });
+        // Get the index of the material number in the local map.
+        const auto mapIndex = axom::utilities::binary_search(localView, zoneMat.material_id());
+        SLIC_ASSERT(mapIndex != -1);
+        // We'll store the all materials number.
+        const auto allMatno = allView[mapIndex];
+        materialIdsView[destIndex] = allMatno;
+      }
+    });
   }
 
   /*!
@@ -2113,13 +2100,11 @@ private:
                            axom::IndexType nzones,
                            axom::IndexType zOffset) const
   {
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zoneStart = offsetsView[zOffset + zoneIndex];
-        volumeFractionsView[zoneStart] = 1;
-        materialIdsView[zoneStart] = matno;
-      });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto zoneStart = offsetsView[zOffset + zoneIndex];
+      volumeFractionsView[zoneStart] = 1;
+      materialIdsView[zoneStart] = matno;
+    });
   }
 
   /*!
@@ -2313,22 +2298,20 @@ private:
                             axom::IndexType nzones,
                             axom::IndexType zOffset) const
   {
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        // Get this zone's materials.
-        auto zoneMat = srcMatsetView.beginZone(zoneIndex);
-        const auto nmats = zoneMat.size();
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      // Get this zone's materials.
+      auto zoneMat = srcMatsetView.beginZone(zoneIndex);
+      const auto nmats = zoneMat.size();
 
-        // Store the materials in the new material.
-        const auto zoneStart = offsetsView[zOffset + zoneIndex];
-        for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
-        {
-          const auto destIndex = zoneStart + mi;
-          // Copy the value for the zoneMat from the mixed field view into the output.
-          outputView[destIndex] = srcMixedFieldView.value(zoneMat);
-        }
-      });
+      // Store the materials in the new material.
+      const auto zoneStart = offsetsView[zOffset + zoneIndex];
+      for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
+      {
+        const auto destIndex = zoneStart + mi;
+        // Copy the value for the zoneMat from the mixed field view into the output.
+        outputView[destIndex] = srcMixedFieldView.value(zoneMat);
+      }
+    });
   }
 
   /*!
@@ -2345,12 +2328,10 @@ private:
                                axom::IndexType nzones,
                                axom::IndexType zOffset) const
   {
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zoneStart = offsetsView[zOffset + zoneIndex];
-        mixedFieldView[zoneStart] = 0;
-      });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto zoneStart = offsetsView[zOffset + zoneIndex];
+      mixedFieldView[zoneStart] = 0;
+    });
   }
 };
 

@@ -316,15 +316,15 @@ struct test_node_to_arrayview
     std::cout << axom::bump::views::array_view_traits<DataView>::name() << std::endl;
 
     // Make sure we can store values in dataView
-    axom::for_all<ExecSpace>(
-      n,
-      AXOM_LAMBDA(axom::IndexType index) { dataView[index] = static_cast<value_type>(index); });
+    axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      dataView[index] = static_cast<value_type>(index);
+    });
 
     // Read the values and sum them.
     axom::ReduceSum<ExecSpace, value_type> sumValues_reduce(0);
-    axom::for_all<ExecSpace>(
-      n,
-      AXOM_LAMBDA(axom::IndexType index) { sumValues_reduce += dataView[index]; });
+    axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      sumValues_reduce += dataView[index];
+    });
     return static_cast<int>(sumValues_reduce.get());
   }
 };
@@ -357,16 +357,14 @@ TEST(bump_views, node_to_arrayview_interleaved_seq)
   int sumValues = 0;
   axom::bump::views::nodeToArrayView(n_data, [&](auto dataView) {
     EXPECT_EQ(dataView.size(), n);
-    axom::for_all<seq_exec>(
-      n,
-      AXOM_HOST_LAMBDA(axom::IndexType index) {
-        dataView[index] = static_cast<double>((index + 1) * 100);
-      });
+    axom::for_all<seq_exec>(n, [=] AXOM_HOST(axom::IndexType index) {
+      dataView[index] = static_cast<double>((index + 1) * 100);
+    });
 
     axom::ReduceSum<seq_exec, double> sumValuesReduce(0.);
-    axom::for_all<seq_exec>(
-      n,
-      AXOM_HOST_LAMBDA(axom::IndexType index) { sumValuesReduce += dataView[index]; });
+    axom::for_all<seq_exec>(n, [=] AXOM_HOST(axom::IndexType index) {
+      sumValuesReduce += dataView[index];
+    });
     sumValues = static_cast<int>(sumValuesReduce.get());
   });
 
@@ -431,17 +429,16 @@ struct test_structured_topology_view_rectilinear
     // Execute the kernel for each zone (find max node number in zone).
     auto topoView =
       axom::bump::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
-    axom::for_all<ExecSpace>(
-      topoView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = topoView.zone(zoneIndex);
-        axom::IndexType m = -1;
-        for(const auto& id : zone.getIds())
-        {
-          m = axom::utilities::max(static_cast<axom::IndexType>(id), m);
-        }
-        resultsView[zoneIndex] = m;
-      });
+    axom::for_all<ExecSpace>(topoView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto zone = topoView.zone(zoneIndex);
+                               axom::IndexType m = -1;
+                               for(const auto& id : zone.getIds())
+                               {
+                                 m = axom::utilities::max(static_cast<axom::IndexType>(id), m);
+                               }
+                               resultsView[zoneIndex] = m;
+                             });
 
     // device->host
     axom::Array<axom::IndexType> hostResults(nzones,
@@ -529,25 +526,24 @@ struct test_strided_structured
     auto logicalNodesView = logicalNodes.view();
 
     // Traverse the zones in the mesh and gather node ids
-    axom::for_all<ExecSpace>(
-      topoView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = topoView.zone(zoneIndex);
-        const auto nodeIndexing = topoView.indexing().expand();
+    axom::for_all<ExecSpace>(topoView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto zone = topoView.zone(zoneIndex);
+                               const auto nodeIndexing = topoView.indexing().expand();
 
-        // Get node ids for zone.
-        const auto ids = zone.getIds();
-        for(axom::IndexType i = 0; i < ids.size(); i++)
-        {
-          actualNodesView[zoneIndex * 4 + i] = ids[i];
+                               // Get node ids for zone.
+                               const auto ids = zone.getIds();
+                               for(axom::IndexType i = 0; i < ids.size(); i++)
+                               {
+                                 actualNodesView[zoneIndex * 4 + i] = ids[i];
 
-          // Get the logical local id for the id.
-          const auto index = nodeIndexing.globalToLocal(ids[i]);
-          const auto logical = nodeIndexing.indexToLogicalIndex(index);
-          logicalNodesView[(zoneIndex * 4 + i) * 2 + 0] = logical[0];
-          logicalNodesView[(zoneIndex * 4 + i) * 2 + 1] = logical[1];
-        }
-      });
+                                 // Get the logical local id for the id.
+                                 const auto index = nodeIndexing.globalToLocal(ids[i]);
+                                 const auto logical = nodeIndexing.indexToLogicalIndex(index);
+                                 logicalNodesView[(zoneIndex * 4 + i) * 2 + 0] = logical[0];
+                                 logicalNodesView[(zoneIndex * 4 + i) * 2 + 1] = logical[1];
+                               }
+                             });
 
     for(axom::IndexType i = 0; i < n4; i++)
     {
@@ -708,34 +704,32 @@ struct test_braid2d_mat
 
     // Fill in resultsView on the device.
     constexpr int nResultsPerZone = 8;
-    axom::for_all<ExecSpace>(
-      nTestZones,
-      AXOM_LAMBDA(axom::IndexType index) {
-        if(index == 0)
-        {
-          // Compute number of zones here since some views need to look inside
-          // data to determine the number of zones.
-          resultsView[0] = matsetView.numberOfZones();
-        }
-        const int offset = 1 + nResultsPerZone * index;
-        // contains mat
-        resultsView[offset + 0] = matsetView.zoneContainsMaterial(zoneidsView[index], MATA) ? 1 : 0;
-        resultsView[offset + 1] = matsetView.zoneContainsMaterial(zoneidsView[index], MATB) ? 1 : 0;
-        resultsView[offset + 2] = matsetView.zoneContainsMaterial(zoneidsView[index], MATC) ? 1 : 0;
-        // nmats in zone
-        resultsView[offset + 3] = matsetView.numberOfMaterials(zoneidsView[index]);
+    axom::for_all<ExecSpace>(nTestZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      if(index == 0)
+      {
+        // Compute number of zones here since some views need to look inside
+        // data to determine the number of zones.
+        resultsView[0] = matsetView.numberOfZones();
+      }
+      const int offset = 1 + nResultsPerZone * index;
+      // contains mat
+      resultsView[offset + 0] = matsetView.zoneContainsMaterial(zoneidsView[index], MATA) ? 1 : 0;
+      resultsView[offset + 1] = matsetView.zoneContainsMaterial(zoneidsView[index], MATB) ? 1 : 0;
+      resultsView[offset + 2] = matsetView.zoneContainsMaterial(zoneidsView[index], MATC) ? 1 : 0;
+      // nmats in zone
+      resultsView[offset + 3] = matsetView.numberOfMaterials(zoneidsView[index]);
 
-        typename MatsetView::IDList ids {};
-        typename MatsetView::VFList vfs {};
-        // ids.size
-        matsetView.zoneMaterials(zoneidsView[index], ids, vfs);
-        resultsView[offset + 4] = ids.size();
-        // mats in zone
-        for(axom::IndexType i = 0; i < 3; i++)
-        {
-          resultsView[offset + 5 + i] = (i < ids.size()) ? static_cast<int>(ids[i]) : -1;
-        }
-      });
+      typename MatsetView::IDList ids {};
+      typename MatsetView::VFList vfs {};
+      // ids.size
+      matsetView.zoneMaterials(zoneidsView[index], ids, vfs);
+      resultsView[offset + 4] = ids.size();
+      // mats in zone
+      for(axom::IndexType i = 0; i < 3; i++)
+      {
+        resultsView[offset + 5 + i] = (i < ids.size()) ? static_cast<int>(ids[i]) : -1;
+      }
+    });
     // Get containsView data to the host and compare results
     std::vector<int> resultsHost(nResults);
     axom::copy(resultsHost.data(), resultsView.data(), sizeof(int) * nResults);
@@ -767,70 +761,68 @@ struct test_braid2d_mat
     // Bundle the views together for device access.
     ViewPackage<MatsetView, MatsetFieldView> deviceViews {matsetView, fieldView};
 
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType index) {
-        typename MatsetView::IDList ids {};
-        typename MatsetView::VFList vfs {};
-        deviceViews.matsetView.zoneMaterials(index, ids, vfs);
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      typename MatsetView::IDList ids {};
+      typename MatsetView::VFList vfs {};
+      deviceViews.matsetView.zoneMaterials(index, ids, vfs);
 
-        // Get the end iterator for the zone.
-        const auto end = deviceViews.matsetView.endZone(index);
+      // Get the end iterator for the zone.
+      const auto end = deviceViews.matsetView.endZone(index);
 
-        int eq_count = 0;
-        int count = 0;
+      int eq_count = 0;
+      int count = 0;
 
-        // Make sure the iterator is for the right zone.
-        eq_count += (end.zoneIndex() == static_cast<ZoneIndex>(index)) ? 1 : 0;
+      // Make sure the iterator is for the right zone.
+      eq_count += (end.zoneIndex() == static_cast<ZoneIndex>(index)) ? 1 : 0;
+      count++;
+
+      // Make sure incrementing the last iterator has no effect.
+      auto end2 = end;
+      end2++;
+      eq_count += (end == end2) ? 1 : 0;
+      count++;
+
+      // Make sure the iterator order is the same as for the values we got from zoneMaterials().
+      int i = 0;
+      for(auto it = deviceViews.matsetView.beginZone(index); it != end; it++, i++)
+      {
+        eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
         count++;
+      }
 
-        // Make sure incrementing the last iterator has no effect.
-        auto end2 = end;
-        end2++;
-        eq_count += (end == end2) ? 1 : 0;
-        count++;
-
-        // Make sure the iterator order is the same as for the values we got from zoneMaterials().
+      // If we passed in a mixed field view, make sure its field contains the same
+      // values as the volume fractions. That is how the dataset's fields are
+      // constructed.
+      if constexpr(!std::is_same_v<MatsetFieldView, NoMixedFields>)
+      {
         int i = 0;
         for(auto it = deviceViews.matsetView.beginZone(index); it != end; it++, i++)
         {
-          eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
+          const auto value = deviceViews.fieldView.value(it);
+          eq_count += (value == it.volume_fraction()) ? 1 : 0;
           count++;
         }
+      }
 
-        // If we passed in a mixed field view, make sure its field contains the same
-        // values as the volume fractions. That is how the dataset's fields are
-        // constructed.
-        if constexpr(!std::is_same_v<MatsetFieldView, NoMixedFields>)
-        {
-          int i = 0;
-          for(auto it = deviceViews.matsetView.beginZone(index); it != end; it++, i++)
-          {
-            const auto value = deviceViews.fieldView.value(it);
-            eq_count += (value == it.volume_fraction()) ? 1 : 0;
-            count++;
-          }
-        }
-
-        // Test ArrayView version of zoneMaterials().
-        using IndexType = typename MatsetView::IndexType;
-        using FloatType = typename MatsetView::FloatType;
-        constexpr int ARRAY_SIZE = 10;
-        IndexType idStorage[ARRAY_SIZE];
-        FloatType vfStorage[ARRAY_SIZE];
-        axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
-        axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
-        const auto nmats = deviceViews.matsetView.zoneMaterials(index, idView, vfView);
-        eq_count += (nmats == ids.size()) ? 1 : 0;
+      // Test ArrayView version of zoneMaterials().
+      using IndexType = typename MatsetView::IndexType;
+      using FloatType = typename MatsetView::FloatType;
+      constexpr int ARRAY_SIZE = 10;
+      IndexType idStorage[ARRAY_SIZE];
+      FloatType vfStorage[ARRAY_SIZE];
+      axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
+      axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
+      const auto nmats = deviceViews.matsetView.zoneMaterials(index, idView, vfView);
+      eq_count += (nmats == ids.size()) ? 1 : 0;
+      count++;
+      for(axom::IndexType j = 0; j < nmats; j++)
+      {
+        eq_count += (vfs[j] == vfView[j] && ids[j] == idView[j]) ? 1 : 0;
         count++;
-        for(axom::IndexType j = 0; j < nmats; j++)
-        {
-          eq_count += (vfs[j] == vfView[j] && ids[j] == idView[j]) ? 1 : 0;
-          count++;
-        }
+      }
 
-        resultsView[index] = (eq_count == count) ? 1 : 0;
-      });
+      resultsView[index] = (eq_count == count) ? 1 : 0;
+    });
 
     // Get containsView data to the host and compare results
     std::vector<int> resultsHost(nResults);

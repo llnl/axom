@@ -95,53 +95,49 @@ public:
     const BlendData deviceBlend(blend);
 
     // Copy over some original values to the start of the array.
-    axom::for_all<ExecSpace>(
-      origSize,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto srcIndex = deviceBlend.m_originalIdsView[index];
-        const auto pt = deviceView[srcIndex];
+    axom::for_all<ExecSpace>(origSize, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto srcIndex = deviceBlend.m_originalIdsView[index];
+      const auto pt = deviceView[srcIndex];
 
-        // Store the point into the Conduit component arrays.
-        for(int comp = 0; comp < PointType::DIMENSION; comp++)
-        {
-          compViews[comp][index] = pt[comp];
-        }
-      });
+      // Store the point into the Conduit component arrays.
+      for(int comp = 0; comp < PointType::DIMENSION; comp++)
+      {
+        compViews[comp][index] = pt[comp];
+      }
+    });
 
     // Append blended values to the end of the array.
-    axom::for_all<ExecSpace>(
-      blendSize,
-      AXOM_LAMBDA(axom::IndexType bgid) {
-        // Get the blend group index we want.
-        const auto selectedIndex = SelectionPolicy::selectedIndex(deviceBlend, bgid);
-        const auto start = deviceBlend.m_blendGroupStartView[selectedIndex];
-        const auto nValues = deviceBlend.m_blendGroupSizesView[selectedIndex];
-        const auto destIndex = bgid + origSize;
+    axom::for_all<ExecSpace>(blendSize, [=] AXOM_HOST_DEVICE(axom::IndexType bgid) {
+      // Get the blend group index we want.
+      const auto selectedIndex = SelectionPolicy::selectedIndex(deviceBlend, bgid);
+      const auto start = deviceBlend.m_blendGroupStartView[selectedIndex];
+      const auto nValues = deviceBlend.m_blendGroupSizesView[selectedIndex];
+      const auto destIndex = bgid + origSize;
 
-        VectorType blended {};
-        if(nValues == 1)
+      VectorType blended {};
+      if(nValues == 1)
+      {
+        const auto index = deviceBlend.m_blendIdsView[start];
+        blended = VectorType(deviceView[index]);
+      }
+      else
+      {
+        const auto end = start + deviceBlend.m_blendGroupSizesView[selectedIndex];
+        // Blend points for this blend group.
+        for(IndexType i = start; i < end; i++)
         {
-          const auto index = deviceBlend.m_blendIdsView[start];
-          blended = VectorType(deviceView[index]);
+          const auto index = deviceBlend.m_blendIdsView[i];
+          const auto weight = deviceBlend.m_blendCoeffView[i];
+          blended += (VectorType(deviceView[index]) * static_cast<value_type>(weight));
         }
-        else
-        {
-          const auto end = start + deviceBlend.m_blendGroupSizesView[selectedIndex];
-          // Blend points for this blend group.
-          for(IndexType i = start; i < end; i++)
-          {
-            const auto index = deviceBlend.m_blendIdsView[i];
-            const auto weight = deviceBlend.m_blendCoeffView[i];
-            blended += (VectorType(deviceView[index]) * static_cast<value_type>(weight));
-          }
-        }
+      }
 
-        // Store the point into the Conduit component arrays.
-        for(int comp = 0; comp < PointType::DIMENSION; comp++)
-        {
-          compViews[comp][destIndex] = blended[comp];
-        }
-      });
+      // Store the point into the Conduit component arrays.
+      for(int comp = 0; comp < PointType::DIMENSION; comp++)
+      {
+        compViews[comp][destIndex] = blended[comp];
+      }
+    });
   }
 };
 

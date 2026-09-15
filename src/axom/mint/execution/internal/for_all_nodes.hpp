@@ -53,13 +53,10 @@ inline void for_all_nodes_impl(xargs::ij, const StructuredMesh& m, KernelType&& 
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
 
   axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}};
-  axom::for_all<ExecPolicy>(
-    i_range,
-    j_range,
-    AXOM_LAMBDA(IndexType i, IndexType j) {
-      const IndexType nodeIdx = i + j * jp;
-      kernel(nodeIdx, i, j);
-    });
+  axom::for_all<ExecPolicy>(i_range, j_range, [=] AXOM_HOST_DEVICE(IndexType i, IndexType j) {
+    const IndexType nodeIdx = i + j * jp;
+    kernel(nodeIdx, i, j);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -86,14 +83,13 @@ inline void for_all_nodes_impl(xargs::ijk, const StructuredMesh& m, KernelType&&
   const IndexType Nk = m.getNodeResolution(K_DIRECTION);
 
   axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
-  axom::for_all<ExecPolicy>(
-    i_range,
-    j_range,
-    k_range,
-    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
-      const IndexType nodeIdx = i + j * jp + k * kp;
-      kernel(nodeIdx, i, j, k);
-    });
+  axom::for_all<ExecPolicy>(i_range,
+                            j_range,
+                            k_range,
+                            [=] AXOM_HOST_DEVICE(IndexType i, IndexType j, IndexType k) {
+                              const IndexType nodeIdx = i + j * jp + k * kp;
+                              kernel(nodeIdx, i, j, k);
+                            });
 }
 
 //------------------------------------------------------------------------------
@@ -116,13 +112,10 @@ inline void for_all_nodes_impl(xargs::x, const UniformMesh& m, KernelType&& kern
   const double x0 = m.getOrigin()[0];
   const double dx = m.getSpacing()[0];
 
-  for_all_nodes_impl<ExecPolicy>(
-    xargs::index(),
-    m,
-    AXOM_LAMBDA(IndexType nodeID) {
-      const double x = x0 + nodeID * dx;
-      kernel(nodeID, x);
-    });
+  for_all_nodes_impl<ExecPolicy>(xargs::index(), m, [=] AXOM_HOST_DEVICE(IndexType nodeID) {
+    const double x = x0 + nodeID * dx;
+    kernel(nodeID, x);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -145,10 +138,9 @@ inline void for_all_nodes_impl(xargs::x, const Mesh& m, KernelType&& kernel)
     on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
   auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
-  for_all_nodes_impl<ExecPolicy>(
-    xargs::index(),
-    m,
-    AXOM_LAMBDA(IndexType nodeID) { kernel(nodeID, x_vals_view[nodeID]); });
+  for_all_nodes_impl<ExecPolicy>(xargs::index(), m, [=] AXOM_HOST_DEVICE(IndexType nodeID) {
+    kernel(nodeID, x_vals_view[nodeID]);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -190,14 +182,13 @@ inline void for_all_nodes_impl(xargs::xy, const UniformMesh& m, KernelType&& ker
     on_device ? axom::Array<double>(spacing_h, device_allocator) : axom::Array<double>();
   auto spacing_view = on_device ? spacing_d.view() : spacing_h;
 
-  for_all_nodes_impl<ExecPolicy>(
-    xargs::ij(),
-    m,
-    AXOM_LAMBDA(IndexType nodeID, IndexType i, IndexType j) {
-      const double x = origin_view[0] + i * spacing_view[0];
-      const double y = origin_view[1] + j * spacing_view[1];
-      kernel(nodeID, x, y);
-    });
+  for_all_nodes_impl<ExecPolicy>(xargs::ij(),
+                                 m,
+                                 [=] AXOM_HOST_DEVICE(IndexType nodeID, IndexType i, IndexType j) {
+                                   const double x = origin_view[0] + i * spacing_view[0];
+                                   const double y = origin_view[1] + j * spacing_view[1];
+                                   kernel(nodeID, x, y);
+                                 });
 }
 
 //------------------------------------------------------------------------------
@@ -227,12 +218,11 @@ inline void for_all_nodes_impl(xargs::xy, const RectilinearMesh& m, KernelType&&
     on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
 
-  for_all_nodes_impl<ExecPolicy>(
-    xargs::ij(),
-    m,
-    AXOM_LAMBDA(IndexType nodeID, IndexType i, IndexType j) {
-      kernel(nodeID, x_vals_view[i], y_vals_view[j]);
-    });
+  for_all_nodes_impl<ExecPolicy>(xargs::ij(),
+                                 m,
+                                 [=] AXOM_HOST_DEVICE(IndexType nodeID, IndexType i, IndexType j) {
+                                   kernel(nodeID, x_vals_view[i], y_vals_view[j]);
+                                 });
 }
 
 //------------------------------------------------------------------------------
@@ -263,10 +253,9 @@ inline void for_all_nodes_impl(xargs::xy, const Mesh& m, KernelType&& kernel)
     on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
   auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
 
-  for_all_nodes_impl<ExecPolicy>(
-    xargs::index(),
-    m,
-    AXOM_LAMBDA(IndexType nodeID) { kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID]); });
+  for_all_nodes_impl<ExecPolicy>(xargs::index(), m, [=] AXOM_HOST_DEVICE(IndexType nodeID) {
+    kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID]);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -316,7 +305,7 @@ inline void for_all_nodes_impl(xargs::xyz, const UniformMesh& m, KernelType&& ke
   for_all_nodes_impl<ExecPolicy>(
     xargs::ijk(),
     m,
-    AXOM_LAMBDA(IndexType nodeID, IndexType i, IndexType j, IndexType k) {
+    [=] AXOM_HOST_DEVICE(IndexType nodeID, IndexType i, IndexType j, IndexType k) {
       const double x = origin_view[0] + i * spacing_view[0];
       const double y = origin_view[1] + j * spacing_view[1];
       const double z = origin_view[2] + k * spacing_view[2];
@@ -356,7 +345,7 @@ inline void for_all_nodes_impl(xargs::xyz, const RectilinearMesh& m, KernelType&
   for_all_nodes_impl<ExecPolicy>(
     xargs::ijk(),
     m,
-    AXOM_LAMBDA(IndexType nodeID, IndexType i, IndexType j, IndexType k) {
+    [=] AXOM_HOST_DEVICE(IndexType nodeID, IndexType i, IndexType j, IndexType k) {
       kernel(nodeID, x_vals_view[i], y_vals_view[j], z_vals_view[k]);
     });
 }
@@ -402,12 +391,9 @@ inline void for_all_nodes_impl(xargs::xyz, const Mesh& m, KernelType&& kernel)
     kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID], z_vals_view[nodeID]);
   });
 #else
-  for_all_nodes_impl<ExecPolicy>(
-    xargs::index(),
-    m,
-    AXOM_LAMBDA(IndexType nodeID) {
-      kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID], z_vals_view[nodeID]);
-    });
+  for_all_nodes_impl<ExecPolicy>(xargs::index(), m, [=] AXOM_HOST_DEVICE(IndexType nodeID) {
+    kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID], z_vals_view[nodeID]);
+  });
 #endif
 }
 

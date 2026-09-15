@@ -348,7 +348,7 @@ struct CandidateFinder<AccelType::ImplicitGrid, ExecSpace, FloatType>
     // Get the global bounding box.
     mint::for_all_nodes<ExecSpace, mint::xargs::xyz>(
       this->m_surfaceMesh,
-      AXOM_LAMBDA(IndexType, double x, double y, double z) {
+      [=] AXOM_HOST_DEVICE(IndexType, double x, double y, double z) {
         xmin.min(x);
         xmax.max(x);
         ymin.min(y);
@@ -443,7 +443,8 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
 
     axom::Array<IndexType, 1, Space> indices(this->m_aabbs.size());
     const auto indices_v = indices.view();
-    for_all<ExecSpace>(this->m_aabbs.size(), AXOM_LAMBDA(IndexType idx) { indices_v[idx] = idx; });
+    for_all<ExecSpace>(this->m_aabbs.size(),
+                       [=] AXOM_HOST_DEVICE(IndexType idx) { indices_v[idx] = idx; });
 
     using FlatStorage = spin::policy::FlatGridStorage<IndexType>;
 

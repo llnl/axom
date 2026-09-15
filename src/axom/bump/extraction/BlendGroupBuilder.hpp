@@ -120,12 +120,10 @@ public:
     axom::ReduceSum<ExecSpace, IndexType> blendGroupLen_sum(0);
     const auto localBlendGroupsView = m_state.m_blendGroupsView;
     const auto localBlendGroupsLenView = m_state.m_blendGroupsLenView;
-    axom::for_all<ExecSpace>(
-      m_state.m_nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        blendGroups_sum += localBlendGroupsView[zoneIndex];
-        blendGroupLen_sum += localBlendGroupsLenView[zoneIndex];
-      });
+    axom::for_all<ExecSpace>(m_state.m_nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      blendGroups_sum += localBlendGroupsView[zoneIndex];
+      blendGroupLen_sum += localBlendGroupsLenView[zoneIndex];
+    });
     bgSum = blendGroups_sum.get();
     bgLenSum = blendGroupLen_sum.get();
   }
@@ -465,14 +463,12 @@ public:
       auto maskView = mask.view();
       axom::ReduceSum<ExecSpace, int> mask_reduce(0);
       State deviceState(m_state);
-      axom::for_all<ExecSpace>(
-        nIndices,
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto uniqueIndex = deviceState.m_blendUniqueIndicesView[index];
-          const int m = (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
-          maskView[index] = static_cast<MaskType>(m);
-          mask_reduce += m;
-        });
+      axom::for_all<ExecSpace>(nIndices, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto uniqueIndex = deviceState.m_blendUniqueIndicesView[index];
+        const int m = (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
+        maskView[index] = static_cast<MaskType>(m);
+        mask_reduce += m;
+      });
       // If we need to filter, do it.
       const int mask_count = mask_reduce.get();
 
@@ -489,16 +485,14 @@ public:
 
         auto newUniqueNamesView = newUniqueNames.view();
         auto newUniqueIndicesView = newUniqueIndices.view();
-        axom::for_all<ExecSpace>(
-          nIndices,
-          AXOM_LAMBDA(axom::IndexType index) {
-            if(maskView[index] > 0)
-            {
-              const auto offset = offsetView[index];
-              newUniqueNamesView[offset] = deviceState.m_blendUniqueNamesView[index];
-              newUniqueIndicesView[offset] = deviceState.m_blendUniqueIndicesView[index];
-            }
-          });
+        axom::for_all<ExecSpace>(nIndices, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          if(maskView[index] > 0)
+          {
+            const auto offset = offsetView[index];
+            newUniqueNamesView[offset] = deviceState.m_blendUniqueNamesView[index];
+            newUniqueIndicesView[offset] = deviceState.m_blendUniqueIndicesView[index];
+          }
+        });
 
         // Replace the unique names/indices.
         m_state.m_blendUniqueNamesView = newUniqueNamesView;

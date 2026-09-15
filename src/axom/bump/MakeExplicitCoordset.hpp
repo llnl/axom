@@ -95,15 +95,13 @@ private:
     }
 
     // Copy data from the view into the new coordinate array views.
-    axom::for_all<ExecSpace>(
-      coordsetView.size(),
-      AXOM_LAMBDA(axom::IndexType i) {
-        const auto pt = coordsetView[i];
-        for(int c = 0; c < coordsetView.dimension(); c++)
-        {
-          comps[c][i] = pt[c];
-        }
-      });
+    axom::for_all<ExecSpace>(coordsetView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      const auto pt = coordsetView[i];
+      for(int c = 0; c < coordsetView.dimension(); c++)
+      {
+        comps[c][i] = pt[c];
+      }
+    });
   }
 };
 

@@ -332,20 +332,18 @@ void DiscreteShape::createRepresentationOfHex()
   axom::Array<axom::IndexType, 2> connectivity(tetCount, 4);
   auto connectivityView = connectivity.view();
   // NOTE: This is not much computation, so just run on host.
-  axom::for_all<axom::SEQ_EXEC>(
-    tetCount,
-    AXOM_LAMBDA(axom::IndexType iTet) {
-      const auto& tet = tets[iTet];
-      for(int i = 0; i < 4; ++i)
-      {
-        axom::IndexType iNode = iTet * 4 + i;
-        const auto& coords = tet[i];
-        nodeCoordsView[iNode][0] = coords[0];
-        nodeCoordsView[iNode][1] = coords[1];
-        nodeCoordsView[iNode][2] = coords[2];
-        connectivityView[iTet][i] = iNode;
-      }
-    });
+  axom::for_all<axom::SEQ_EXEC>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+    const auto& tet = tets[iTet];
+    for(int i = 0; i < 4; ++i)
+    {
+      axom::IndexType iNode = iTet * 4 + i;
+      const auto& coords = tet[i];
+      nodeCoordsView[iNode][0] = coords[0];
+      nodeCoordsView[iNode][1] = coords[1];
+      nodeCoordsView[iNode][2] = coords[2];
+      connectivityView[iTet][i] = iNode;
+    }
+  });
 
   TetMesh* tetMesh = nullptr;
   if(m_sidreGroup != nullptr)
@@ -423,20 +421,18 @@ void DiscreteShape::createRepresentationOfPlane()
   axom::Array<axom::IndexType, 2> connectivity(tetCount, 4);
   auto connectivityView = connectivity.view();
   // NOTE: This is not much computation, so just run on host.
-  axom::for_all<axom::SEQ_EXEC>(
-    tetCount,
-    AXOM_LAMBDA(axom::IndexType iTet) {
-      const auto& tet = tets[iTet];
-      for(int i = 0; i < 4; ++i)
-      {
-        axom::IndexType iNode = iTet * 4 + i;
-        const auto& coords = tet[i];
-        nodeCoordsView[iNode][0] = coords[0];
-        nodeCoordsView[iNode][1] = coords[1];
-        nodeCoordsView[iNode][2] = coords[2];
-        connectivityView[iTet][i] = iNode;
-      }
-    });
+  axom::for_all<axom::SEQ_EXEC>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+    const auto& tet = tets[iTet];
+    for(int i = 0; i < 4; ++i)
+    {
+      axom::IndexType iNode = iTet * 4 + i;
+      const auto& coords = tet[i];
+      nodeCoordsView[iNode][0] = coords[0];
+      nodeCoordsView[iNode][1] = coords[1];
+      nodeCoordsView[iNode][2] = coords[2];
+      connectivityView[iTet][i] = iNode;
+    }
+  });
 
   TetMesh* tetMesh = nullptr;
   if(m_sidreGroup != nullptr)

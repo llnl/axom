@@ -107,18 +107,16 @@ public:
     // Select the nodes we want in the output.
     const CoordsetView deviceView(m_coordsetView);
     const auto deviceIndicesView = slice.m_indicesView;
-    axom::for_all<ExecSpace>(
-      outputSize,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto srcIndex = deviceIndicesView[index];
-        const auto pt = deviceView[srcIndex];
+    axom::for_all<ExecSpace>(outputSize, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto srcIndex = deviceIndicesView[index];
+      const auto pt = deviceView[srcIndex];
 
-        // Store the point into the Conduit component arrays.
-        for(int comp = 0; comp < PointType::DIMENSION; comp++)
-        {
-          compViews[comp][index] = pt[comp];
-        }
-      });
+      // Store the point into the Conduit component arrays.
+      for(int comp = 0; comp < PointType::DIMENSION; comp++)
+      {
+        compViews[comp][index] = pt[comp];
+      }
+    });
   }
 
 private:

@@ -666,83 +666,81 @@ void addConcentricCircleMaterial(const TopoView& topoView,
   // Use the uniform sampling method to generate volume fractions for each material
   // Note: Assumes that the cell is a parallelogram. This could be modified via biliear interpolation
   const TopoView deviceTopologyView(topoView);
-  axom::for_all<axom::SEQ_EXEC>(
-    topoView.numberOfZones(),
-    AXOM_LAMBDA(axom::IndexType eID) {
-      const auto zone = deviceTopologyView.zone(eID);
+  axom::for_all<axom::SEQ_EXEC>(topoView.numberOfZones(), [=] AXOM_HOST_DEVICE(axom::IndexType eID) {
+    const auto zone = deviceTopologyView.zone(eID);
 
-      const auto v0 = coordsetView[zone.getId(0)];
-      const auto v1 = coordsetView[zone.getId(1)];
-      const auto v2 = coordsetView[zone.getId(2)];
+    const auto v0 = coordsetView[zone.getId(0)];
+    const auto v1 = coordsetView[zone.getId(1)];
+    const auto v2 = coordsetView[zone.getId(2)];
 
-      // Run the uniform sampling to determine how much of the current cell is composed of each material
-      float delta_x = axom::utilities::abs(v1[0] - v0[0]) / (float)(numSamples - 1);
-      float delta_y = axom::utilities::abs(v2[1] - v1[1]) / (float)(numSamples - 1);
+    // Run the uniform sampling to determine how much of the current cell is composed of each material
+    float delta_x = axom::utilities::abs(v1[0] - v0[0]) / (float)(numSamples - 1);
+    float delta_y = axom::utilities::abs(v2[1] - v1[1]) / (float)(numSamples - 1);
 
-      // If the corners are all in the same circle then we can skip checking for mix.
-      int circle = defaultMaterialID;
-      bool sameCircles = true;
-      for(int c = 0; c < 4; c++)
+    // If the corners are all in the same circle then we can skip checking for mix.
+    int circle = defaultMaterialID;
+    bool sameCircles = true;
+    for(int c = 0; c < 4; c++)
+    {
+      const auto corner = coordsetView[zone.getId(c)];
+      const auto dist2 = primal::squared_distance(corner, circleCenter);
+      // Check which circle the point is in.
+      int currentCircle = defaultMaterialID;
+      for(int cID = 0; cID < numCircles; ++cID)
       {
-        const auto corner = coordsetView[zone.getId(c)];
-        const auto dist2 = primal::squared_distance(corner, circleCenter);
-        // Check which circle the point is in.
-        int currentCircle = defaultMaterialID;
-        for(int cID = 0; cID < numCircles; ++cID)
+        if(dist2 < circleRadii2View[cID])
         {
-          if(dist2 < circleRadii2View[cID])
-          {
-            currentCircle = cID;
-            break;
-          }
+          currentCircle = cID;
+          break;
         }
-        if(c > 0)
-        {
-          sameCircles &= circle == currentCircle;
-        }
-        circle = currentCircle;
       }
+      if(c > 0)
+      {
+        sameCircles &= circle == currentCircle;
+      }
+      circle = currentCircle;
+    }
 
-      if(sameCircles)
+    if(sameCircles)
+    {
+      // All of the points were found to be in circle.
+      matvfViews[circle][eID] = 1.;
+    }
+    else
+    {
+      // There was variation along the edge path so the element is mixed.
+      for(int y = 0; y < numSamples; ++y)
       {
-        // All of the points were found to be in circle.
-        matvfViews[circle][eID] = 1.;
-      }
-      else
-      {
-        // There was variation along the edge path so the element is mixed.
-        for(int y = 0; y < numSamples; ++y)
+        const float yc = static_cast<float>(delta_y * y + v0[1]);
+        for(int x = 0; x < numSamples; ++x)
         {
-          const float yc = static_cast<float>(delta_y * y + v0[1]);
-          for(int x = 0; x < numSamples; ++x)
+          const float xc = static_cast<float>(delta_x * x + v0[0]);
+          bool isPointSampled = false;
+          const auto dist2 = primal::squared_distance(MeshTester::Point2({xc, yc}), circleCenter);
+          for(int cID = 0; cID < numCircles && !isPointSampled; ++cID)
           {
-            const float xc = static_cast<float>(delta_x * x + v0[0]);
-            bool isPointSampled = false;
-            const auto dist2 = primal::squared_distance(MeshTester::Point2({xc, yc}), circleCenter);
-            for(int cID = 0; cID < numCircles && !isPointSampled; ++cID)
+            if(dist2 < circleRadii2View[cID])
             {
-              if(dist2 < circleRadii2View[cID])
-              {
-                matvfViews[cID][eID] += 1.;
-                isPointSampled = true;
-              }
-            }
-            if(!isPointSampled)
-            {
-              // The point was not within any of the circles, so increment the count for the default material
-              matvfViews[defaultMaterialID][eID] += 1.;
+              matvfViews[cID][eID] += 1.;
+              isPointSampled = true;
             }
           }
-        }
-
-        // Assign the element volume fractions based on the count of the samples in each circle
-        const axom::float64 ns2 = static_cast<axom::float64>(numSamples * numSamples);
-        for(int matID = 0; matID < numMaterials; ++matID)
-        {
-          matvfViews[matID][eID] /= ns2;
+          if(!isPointSampled)
+          {
+            // The point was not within any of the circles, so increment the count for the default material
+            matvfViews[defaultMaterialID][eID] += 1.;
+          }
         }
       }
-    });
+
+      // Assign the element volume fractions based on the count of the samples in each circle
+      const axom::float64 ns2 = static_cast<axom::float64>(numSamples * numSamples);
+      for(int matID = 0; matID < numMaterials; ++matID)
+      {
+        matvfViews[matID][eID] /= ns2;
+      }
+    }
+  });
 
   addMaterial(topoView.numberOfZones(), numMaterials, materialVolumeFractionsData, mesh);
 }
