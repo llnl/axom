@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/config.hpp"                  // for compile-time definitions
 #include "axom/core/memory_management.hpp"  // alloc() / free() methods
-#include "axom/core/Macros.hpp"             // for AXOM_LAMBDA
+#include "axom/core/Macros.hpp"             // for AXOM_HOST_DEVICE
 
 // RAJA includes
 #include "RAJA/RAJA.hpp"  // for RAJA

@@ -23,7 +23,7 @@
   __GNUC_MINOR__ == 1
   #define MESH_TESTER_MUTABLE_LAMBDA [&]
 #else
-  #define MESH_TESTER_MUTABLE_LAMBDA AXOM_LAMBDA
+  #define MESH_TESTER_MUTABLE_LAMBDA [=] AXOM_HOST_DEVICE
 #endif
 
 namespace axom

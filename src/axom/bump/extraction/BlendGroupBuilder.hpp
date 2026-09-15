@@ -420,7 +420,7 @@ public:
    *
    * \param zoneIndex The zone whose blend groups we want to edit.
    *
-   * \note This method must be marked const because we can call it from an AXOM_LAMBDA.
+   * \note This method must be marked const because we can call it from host/device lambdas.
    *       we pass a non-const State reference to the zone_blend_groups that we construct
    *       so we can write into the blend group data.
    */
