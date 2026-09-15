@@ -6,11 +6,11 @@
 "spack_url": "https://github.com/spack/spack.git",
 "spack_commit": "3e19345b6e12f5ff1b874f4059622fc6a1fd804a",
 "spack_configs_path": "scripts/spack/configs",
-"spack_packages_commit": "4b6b842d494ab86ebef5304e6bfe766aa421a66b",
+"spack_packages_commit": "1689e8fdfcaa23f1016109ccd2004cd5ee9935f3",
 "spack_packages_path": "scripts/spack/packages",
 "spack_concretizer": "clingo",
 "vcpkg_url": "https://github.com/microsoft/vcpkg",
-"vcpkg_commit": "ce613c41372b23b1f51333815feb3edd87ef8a8b",
+"vcpkg_commit": "4334d8b4c8916018600212ab4dd4bbdc343065d1",
 "vcpkg_triplet": "x64-windows",
 "vcpkg_ports_path": "scripts/vcpkg_ports"
 }

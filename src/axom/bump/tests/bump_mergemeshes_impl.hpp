@@ -4,19 +4,25 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "gtest/gtest.h"
+#pragma once
+
+/*! 
+ * \file bump_mergemeshes_impl.hpp
+ * \brief Implementation shared by the MergeMeshes execution-policy tests.
+ */
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/bump.hpp"
 
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
-#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 
+#include <conduit/conduit.hpp>
 #include <conduit/conduit_relay_io_blueprint.hpp>
 
 #include <iostream>
 #include <algorithm>
+#include <iostream>
 
 // NOTE: Conduit 0.9.6 and later has macros but Axom is not quite on that version yet.
 #include "conduit/conduit_config.h"
@@ -28,9 +34,19 @@
 namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
+namespace
+{
+void conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
+{
+  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
+  // This is on purpose.
+  while(1);
+}
+}  // namespace
+
 //#define AXOM_DEBUG_MERGE_MESHES_TEST
 #ifdef AXOM_DEBUG_MERGE_MESHES_TEST
-void saveMesh(const conduit::Node& n_mesh, const std::string& fileRoot)
+inline void saveMesh(const conduit::Node& n_mesh, const std::string& fileRoot)
 {
   #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
   const std::string protocol("hdf5");
@@ -472,73 +488,3 @@ fields:
     }
   }
 };
-
-TEST(bump_mergemeshes, mergemeshes_seq) { test_mergemeshes<seq_exec>::test(); }
-#if defined(AXOM_USE_OPENMP)
-TEST(bump_mergemeshes, mergemeshes_omp) { test_mergemeshes<omp_exec>::test(); }
-#endif
-#if defined(AXOM_USE_CUDA)
-TEST(bump_mergemeshes, mergemeshes_cuda) { test_mergemeshes<cuda_exec>::test(); }
-#endif
-#if defined(AXOM_USE_HIP)
-TEST(bump_mergemeshes, mergemeshes_hip) { test_mergemeshes<hip_exec>::test(); }
-#endif
-
-//------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
-{
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1);
-}
-
-//------------------------------------------------------------------------------
-int main(int argc, char* argv[])
-{
-  int result = 0;
-  ::testing::InitGoogleTest(&argc, argv);
-
-  axom::CLI::App app;
-#if defined(AXOM_USE_CALIPER)
-  std::string annotationMode("none");
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
-#endif
-  bool handlerEnabled = false;
-  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
-
-  // Parse command line options.
-  try
-  {
-    app.parse(argc, argv);
-
-#if defined(AXOM_USE_CALIPER)
-    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
-#endif
-
-    axom::slic::SimpleLogger logger;  // create & initialize test logger,
-    if(handlerEnabled)
-    {
-      conduit::utils::set_error_handler(conduit_debug_err_handler);
-    }
-
-    result = RUN_ALL_TESTS();
-  }
-  catch(axom::CLI::CallForHelp& e)
-  {
-    std::cout << app.help() << std::endl;
-    result = 0;
-  }
-  catch(axom::CLI::ParseError& e)
-  {
-    // Handle other parsing errors
-    std::cerr << e.what() << std::endl;
-    result = app.exit(e);
-  }
-
-  return result;
-}

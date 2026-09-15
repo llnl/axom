@@ -106,8 +106,17 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string>
-    availableShapes {"tetmesh", "cupmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
+  const std::set<std::string> availableShapes {"tetmesh",
+#ifdef AXOM_DATA_DIR
+                                               "cupmesh",
+#endif
+                                               "sphere",
+                                               "cyl",
+                                               "cone",
+                                               "sor",
+                                               "tet",
+                                               "hex",
+                                               "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -633,6 +642,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   return tetMeshGeometry;
 }
 
+#ifdef AXOM_DATA_DIR
 axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string& geomName)
 {
   // Shape a tetrahedal mesh.
@@ -674,6 +684,7 @@ axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string&
 
   return tetMeshGeometry;
 }
+#endif
 
 /*
  * Utility function to make a SOR geometry from the specifications in the arguments.
@@ -1258,10 +1269,12 @@ int main(int argc, char** argv)
     {
       strat = make_clipper_strategy(createGeom_TetMesh(ds, name), name);
     }
+#ifdef AXOM_DATA_DIR
     else if(tg == "cupmesh")
     {
       strat = make_clipper_strategy(createGeom_CupMesh(ds, name), name);
     }
+#endif
     else if(tg == "tet")
     {
       strat = make_clipper_strategy(createGeom_Tet(name), name);

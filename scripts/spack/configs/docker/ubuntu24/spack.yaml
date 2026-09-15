@@ -120,7 +120,7 @@ spack:
     curl:
       buildable: false
       externals:
-      - spec: curl@7.81.0
+      - spec: curl@8.5.0
         prefix: /usr
     diffutils:
       buildable: false
@@ -180,11 +180,10 @@ spack:
 
     # Globally lock in version of devtools
     cmake:
-      version: [3.24.2]
       buildable: false
       externals:
-      - spec: cmake@3.24.2
-        prefix: /usr/local
+      - spec: cmake@3.28.3
+        prefix: /usr
     doxygen:
       version: [1.9.1]
       buildable: false

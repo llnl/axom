@@ -19,7 +19,9 @@ int installAllocator([[maybe_unused]] size_t initialPoolSizeBytes)
   int allocator_id = axom::execution_space<ExecSpace>::allocatorID();
 #if defined(AXOM_USE_UMPIRE)
   auto& rm = umpire::ResourceManager::getInstance();
-  umpire::Allocator allocator = rm.getAllocator(allocator_id);
+  umpire::Allocator allocator = allocator_id == axom::MALLOC_ALLOCATOR_ID
+    ? rm.getAllocator(umpire::resource::Host)
+    : rm.getAllocator(allocator_id);
 
   const std::string newName = allocator.getName() + "_POOL";
   SLIC_INFO(
@@ -141,7 +143,9 @@ int runMIR(const conduit::Node& hostMesh, const conduit::Node& options, conduit:
     try
     {
       auto& rm = umpire::ResourceManager::getInstance();
-      umpire::Allocator allocator = rm.getAllocator(allocator_id);
+      umpire::Allocator allocator = allocator_id == axom::MALLOC_ALLOCATOR_ID
+        ? rm.getAllocator(umpire::resource::Host)
+        : rm.getAllocator(allocator_id);
       SLIC_INFO("Allocator Information:");
       SLIC_INFO(axom::fmt::format("\tname: {}", allocator.getName()));
       SLIC_INFO(axom::fmt::format("\thighwatermark: {}", allocator.getHighWatermark()));

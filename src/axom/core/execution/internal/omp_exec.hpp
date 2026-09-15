@@ -16,11 +16,6 @@
   #error OMP_EXEC requires an OpenMP enabled RAJA
 #endif
 
-// Umpire includes
-#ifdef AXOM_USE_UMPIRE
-  #include "umpire/Umpire.hpp"
-#endif
-
 namespace axom
 {
 /*!
@@ -41,10 +36,10 @@ struct execution_space<OMP_EXEC>
   using atomic_policy = RAJA::omp_atomic;
   using sync_policy = RAJA::omp_synchronize;
 
-#ifdef AXOM_USE_UMPIRE
+#ifdef AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST
   static constexpr MemorySpace memory_space = MemorySpace::Host;
 #else
-  static constexpr MemorySpace memory_space = MemorySpace::Dynamic;
+  static constexpr MemorySpace memory_space = MemorySpace::Malloc;
 #endif
 
   AXOM_HOST_DEVICE static constexpr bool async() noexcept { return false; }
@@ -52,14 +47,7 @@ struct execution_space<OMP_EXEC>
   AXOM_HOST_DEVICE static constexpr bool onDevice() noexcept { return false; }
   AXOM_HOST_DEVICE static constexpr char* name() noexcept { return (char*)"[OMP_EXEC]"; }
 
-  static int allocatorID() noexcept
-  {
-#ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-    return axom::getDefaultAllocatorID();
-#endif
-  }
+  static int allocatorID() noexcept { return axom::detail::getDefaultHostAllocatorID(); }
   AXOM_HOST_DEVICE static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::omp;

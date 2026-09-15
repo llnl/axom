@@ -81,6 +81,7 @@
  * Compiler defines for library capabilities
  */
 #cmakedefine AXOM_USE_UMPIRE_SHARED_MEMORY
+#cmakedefine AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST
 
 /*
  * Compiler defines for third-party executables

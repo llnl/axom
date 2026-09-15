@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_coupled3d_impl.hpp
+ *  \brief Implementation shared by the coupled MIR 3D execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -20,14 +26,14 @@
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
-std::string baselineDirectory()
+inline std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_coupled3d");
 }
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
+extern axom::blueprint::testing::TestApplication TestApp;
 
 /// Spacing on left and right of real zones.
 constexpr int NLEFT = 2;
@@ -42,10 +48,10 @@ constexpr int NRIGHT = 1;
  * \param extents The mesh coordinate extents {xmin, xmax, ymin, ymax, zmin, zmax}.
  * \param dims The total number of NODES in each dimension.
  */
-void make_explicit_coordset(conduit::Node& n_mesh,
-                            const std::string& coordsetName,
-                            double extents[6],
-                            int dims[3])
+inline void make_explicit_coordset(conduit::Node& n_mesh,
+                                   const std::string& coordsetName,
+                                   double extents[6],
+                                   int dims[3])
 {
   SLIC_ASSERT(dims[0] > 0 && dims[1] > 0 && dims[2] > 0);
   const int nnodes = dims[0] * dims[1] * dims[2];
@@ -89,10 +95,10 @@ void make_explicit_coordset(conduit::Node& n_mesh,
  *
  * \note extents and dims include phonies.
  */
-void make_mesh(conduit::Node& n_mesh,
-               const std::string& topoName,
-               const std::string& coordsetName,
-               const int dims[3])
+inline void make_mesh(conduit::Node& n_mesh,
+                      const std::string& topoName,
+                      const std::string& coordsetName,
+                      const int dims[3])
 {
   SLIC_ASSERT(dims[0] > 0 && dims[1] > 0 && dims[2] > 0);
   const int real_zone_dims[] = {dims[0] - 1 - NLEFT - NRIGHT,
@@ -131,14 +137,14 @@ void make_mesh(conduit::Node& n_mesh,
  * \param ballRadius The radius of the ball.
  * \param wallX The X value above which zones are filled with CU.
  */
-void make_matset(conduit::Node& n_mesh,
-                 const std::string& topologyName,
-                 const std::string& matsetName,
-                 const double extents[6],
-                 const int dims[3],
-                 const double ballCenter[3],
-                 double ballRadius,
-                 const double wallX)
+inline void make_matset(conduit::Node& n_mesh,
+                        const std::string& topologyName,
+                        const std::string& matsetName,
+                        const double extents[6],
+                        const int dims[3],
+                        const double ballCenter[3],
+                        double ballRadius,
+                        const double wallX)
 {
   /// Sample a zone and determine vfCU and vfAIR, returning number of materials 1 or 2.
   auto ballVF = [&](const double zExt[6], double& vfCU, double& vfAIR) -> int {
@@ -277,7 +283,10 @@ void make_matset(conduit::Node& n_mesh,
  * \param[out] total_dims The total number of node dimensions, including phonies.
  * \param[out] total_extents The box that defines the extents for all zones, including phonies.
  */
-void adjust_sizes(int real_dims[3], double real_extents[6], int total_dims[3], double total_extents[6])
+inline void adjust_sizes(int real_dims[3],
+                         double real_extents[6],
+                         int total_dims[3],
+                         double total_extents[6])
 {
   // Size of single zone.
   const double dx = (real_extents[1] - real_extents[0]) / (real_dims[0] - 1);
@@ -303,7 +312,7 @@ void adjust_sizes(int real_dims[3], double real_extents[6], int total_dims[3], d
  * \param real_extents The box that defines the extents for the real nodes.
  * \param real_dims The number of real nodes in each dimension.
  */
-void make_coarse(conduit::Node& n_mesh, double real_extents[6], int real_dims[3])
+inline void make_coarse(conduit::Node& n_mesh, double real_extents[6], int real_dims[3])
 {
   SLIC_ASSERT(real_dims[0] > 0 && real_dims[1] > 0 && real_dims[2] > 0);
 
@@ -332,7 +341,10 @@ void make_coarse(conduit::Node& n_mesh, double real_extents[6], int real_dims[3]
  * \param real_dims The number of real nodes in each dimension.
  * \param refinement The refinement ration in each dimension.
  */
-void make_fine(conduit::Node& n_mesh, double real_extents[6], int real_dims[3], int refinement[3])
+inline void make_fine(conduit::Node& n_mesh,
+                      double real_extents[6],
+                      int real_dims[3],
+                      int refinement[3])
 {
   SLIC_ASSERT(real_dims[0] > 0 && real_dims[1] > 0 && real_dims[2] > 0);
   SLIC_ASSERT(refinement[0] > 0 && refinement[1] > 0 && refinement[2] > 0);
@@ -499,38 +511,3 @@ private:
     mapper.execute(n_src, n_opts, n_target);
   }
 };
-
-//------------------------------------------------------------------------------
-TEST(mir_coupling, coupling_3d_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_3d_seq");
-  test_coupling<seq_exec>::test("coupling_3d");
-}
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coupling, coupling_3d_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_3d_omp");
-  test_coupling<omp_exec>::test("coupling_3d");
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coupling, coupling_3d_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_3d_cuda");
-  test_coupling<cuda_exec>::test("coupling_3d");
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coupling, coupling_3d_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_3d_hip");
-  test_coupling<hip_exec>::test("coupling_3d");
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char* argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
-}

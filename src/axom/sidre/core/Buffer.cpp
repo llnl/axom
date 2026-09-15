@@ -11,6 +11,7 @@
 #include <algorithm>
 
 // Sidre project headers
+#include "ConduitMemory.hpp"
 #include "Group.hpp"
 #include "View.hpp"
 
@@ -22,15 +23,26 @@ namespace sidre
 {
 /*!
  * \brief Helper function. If allocatorID is a valid umpire allocator ID then
- *  return it. Otherwise return the ID of the default allocator.
+ *  return it. Otherwise return the ID of the configured default host allocator.
  */
 int getValidAllocatorID(int allocID)
 {
   if(allocID == INVALID_ALLOCATOR_ID)
   {
-    allocID = getDefaultAllocatorID();
+    allocID = axom::detail::getDefaultHostAllocatorID();
   }
   return allocID;
+}
+
+int getBufferAllocatorID(const Node& node, void* data_ptr)
+{
+  if(data_ptr != nullptr)
+  {
+    return axom::getAllocatorIDFromPointer(data_ptr);
+  }
+
+  const int allocID = ConduitMemory::conduitAllocIdToAxom(node.allocator());
+  return getValidAllocatorID(allocID);
 }
 
 /*
@@ -82,7 +94,9 @@ Buffer* Buffer::allocate(int allocID)
 
   if(data != nullptr)
   {
-    m_node.set_external(DataType(m_node.dtype()), data);
+    DataType dtype(m_node.dtype());
+    m_node.set_allocator(ConduitMemory::axomAllocIdToConduit(allocID));
+    m_node.set_external(dtype, data);
   }
   return this;
 }
@@ -134,15 +148,17 @@ Buffer* Buffer::reallocate(IndexType num_elems)
   }
 
   void* old_data_ptr = getVoidPtr();
+  const int allocID = getBufferAllocatorID(m_node, old_data_ptr);
 
   DataType dtype(m_node.dtype());
   dtype.set_number_of_elements(num_elems);
   IndexType new_size = dtype.strided_bytes();
-  void* new_data_ptr = axom::reallocate(static_cast<std::uint8_t*>(old_data_ptr), new_size);
+  void* new_data_ptr = axom::reallocate(static_cast<std::uint8_t*>(old_data_ptr), new_size, allocID);
 
   if(num_elems == 0 || new_data_ptr != nullptr)
   {
     m_node.reset();
+    m_node.set_allocator(ConduitMemory::axomAllocIdToConduit(allocID));
     m_node.set_external(dtype, new_data_ptr);
   }
   else

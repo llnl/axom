@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_equiz3d_impl.hpp
+ *  \brief Implementation shared by the EquiZ 3D execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -16,11 +22,14 @@
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
-std::string baselineDirectory() { return pjoin(dataDirectory(), "mir", "regression", "mir_equiz"); }
+inline std::string baselineDirectory()
+{
+  return pjoin(dataDirectory(), "mir", "regression", "mir_equiz");
+}
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
+extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -83,42 +92,4 @@ void braid3d_mat_test(const std::string& type, const std::string& mattype, const
   // Handle baseline comparison.
   constexpr double tolerance = 1.7e-6;
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
-}
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, equiz_hex_unibuffer_seq)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_explicit_hex_seq");
-  braid3d_mat_test<seq_exec>("hexs", "unibuffer", "equiz_hex_unibuffer");
-}
-
-#if defined(AXOM_USE_OPENMP)
-TEST(mir_equiz, equiz_hex_unibuffer_omp)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_hex_unibuffer_omp");
-  braid3d_mat_test<omp_exec>("hexs", "unibuffer", "equiz_hex_unibuffer");
-}
-#endif
-
-#if defined(AXOM_USE_CUDA)
-TEST(mir_equiz, equiz_hex_unibuffer_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_hex_unibuffer_cuda");
-  braid3d_mat_test<cuda_exec>("hexs", "unibuffer", "equiz_hex_unibuffer");
-}
-#endif
-
-#if defined(AXOM_USE_HIP)
-TEST(mir_equiz, equiz_hex_unibuffer_hip)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_hex_unibuffer_hip");
-  braid3d_mat_test<hip_exec>("hexs", "unibuffer", "equiz_hex_unibuffer");
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char* argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
 }

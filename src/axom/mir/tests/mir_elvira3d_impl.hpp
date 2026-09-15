@@ -4,6 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_elvira3d_impl.hpp
+ *  \brief Shared implementation and registrations for the Elvira 3D
+ *         execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -17,14 +24,14 @@ namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
-std::string baselineDirectory()
+inline std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_elvira3d");
 }
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
+extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -325,143 +332,3 @@ struct test_Elvira3D
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_elvira3d, elvira3d_unibuffer_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_seq");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_seq");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_seq");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_seq");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-
-#if defined(AXOM_USE_OPENMP)
-TEST(mir_elvira3d, elvira3d_unibuffer_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_omp");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_omp");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_omp");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_omp");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-#endif
-
-#if defined(AXOM_USE_CUDA)
-TEST(mir_elvira3d, elvira3d_unibuffer_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_cuda");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_cuda");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_cuda");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_cuda");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-#endif
-
-#if defined(AXOM_USE_HIP)
-TEST(mir_elvira3d, elvira3d_unibuffer_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_hip");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_hip");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_hip");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_hip");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char* argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
-}
