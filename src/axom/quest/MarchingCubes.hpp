@@ -52,24 +52,6 @@ enum class MarchingCubesDataParallelism
 };
 
 /*!
- * @brief Specifies a Bump isosurface robustness policy.
- *
- * Both values currently select \c axom::bump::extraction::FieldIntersector.
- * It classifies a corner as inside when its value is greater than the
- * isovalue, computes edge crossings in single precision, and uses one fixed
- * triangulation per case. Each saddle case therefore has one fixed topology,
- * which may differ from the bilinear or trilinear interpolant. The intersector
- * does not distinguish negative, zero, and positive values or use an asymptotic decider.
- *
- * \c standard selects this implementation. \c robust currently behaves the same as \c standard.
- */
-enum class MarchingCubesRobustnessPolicy
-{
-  standard = 0,
-  robust = 1
-};
-
-/*!
  * @brief Extracts a contour mesh from a scalar field.
  *
  * The legacy backend implements the original 1987 algorithm:
@@ -182,15 +164,6 @@ public:
    *       legacy backend's scan strategy. Bump ignores it.
    */
   void setUseBumpBackend(bool useBump);
-
-  /*!
-   * @brief Select the isosurface robustness policy for the Bump backend.
-   * @param [in] policy A value from MarchingCubesRobustnessPolicy.
-   *
-   * The default is \c MarchingCubesRobustnessPolicy::standard. The legacy
-   * backend ignores this setting. Bump currently treats \c robust as \c standard.
-   */
-  void setRobustnessPolicy(MarchingCubesRobustnessPolicy policy) { m_robustnessPolicy = policy; }
 
   /*!
    * @brief Compute the isocontour.
@@ -393,9 +366,6 @@ private:
 
   //! @brief Whether to use the Bump CutField backend.
   bool m_useBumpBackend {false};
-
-  //! @brief Isosurface robustness policy for the Bump backend.
-  MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   //! @brief First facet index from each parent domain.
   axom::Array<axom::IndexType> m_facetIndexOffsets;

@@ -117,8 +117,6 @@ Bump classifies a corner with a strict ``>``, while the legacy backend uses
 Bump the next lower ``float`` value. A direct
 ``axom::bump::extraction::CutField`` call does not apply this adjustment.
 
-``MarchingCubesRobustnessPolicy::robust`` currently behaves the same as ``standard``.
-
 .. sourcecode:: C++
 
    conduit::Node blueprintMesh = blueprint_mesh_from_user();

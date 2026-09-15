@@ -110,10 +110,6 @@ public:
   // Use Bump's CutField backend instead of the legacy backend.
   bool useBumpBackend {false};
 
-  // Bump isosurface robustness policy.
-  quest::MarchingCubesRobustnessPolicy robustnessPolicy =
-    quest::MarchingCubesRobustnessPolicy::standard;
-
   // Number of distinct MarchingCubes objects.
   int objectRepCount {1};
   // Number of contour extractions per MarchingCubes object.
@@ -130,10 +126,6 @@ private:
     {"byPolicy", quest::MarchingCubesDataParallelism::byPolicy},
     {"hybridParallel", quest::MarchingCubesDataParallelism::hybridParallel},
     {"fullParallel", quest::MarchingCubesDataParallelism::fullParallel}};
-
-  const std::map<std::string, quest::MarchingCubesRobustnessPolicy> s_validRobustnessPolicies {
-    {"standard", quest::MarchingCubesRobustnessPolicy::standard},
-    {"robust", quest::MarchingCubesRobustnessPolicy::robust}};
 
 public:
   bool isVerbose() const { return _verboseOutput; }
@@ -155,11 +147,6 @@ public:
     app.add_flag("--useBumpBackend", useBumpBackend)
       ->description("Use the Bump CutField backend instead of the legacy structured-only backend")
       ->capture_default_str();
-
-    app.add_option("--robustnessPolicy", robustnessPolicy)
-      ->description("Select the Bump robustness policy; 'robust' currently matches 'standard'")
-      ->capture_default_str()
-      ->transform(axom::CLI::CheckedTransformer(s_validRobustnessPolicies));
 
     app.add_option("-m,--mesh-file", meshFile)
       ->description("Path to a Conduit Blueprint computational mesh")
@@ -1053,7 +1040,6 @@ struct ContourTestBase
                                                        s_allocatorId,
                                                        m_params.dataParallelism);
         mcPtr->setUseBumpBackend(m_params.useBumpBackend);
-        mcPtr->setRobustnessPolicy(m_params.robustnessPolicy);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
         initializationTimer.stop();
       }
