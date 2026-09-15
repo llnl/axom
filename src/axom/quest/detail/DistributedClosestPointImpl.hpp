@@ -361,7 +361,7 @@ public:
       xferNode.metadata.numPoints += qPtCount;
     }
 
-    xferNode.Allocate(xferNode.metadata.numPoints, m_mpiAllocatorID);
+    xferNode.Allocate(xferNode.metadata.numPoints, m_allocatorID);
 
     axom::IndexType pointOffset = 0;
     for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
@@ -502,13 +502,15 @@ public:
   }
 
   /// Wait for some non-blocking sends (if any) to finish.
-  void check_send_requests(std::list<conduit::relay::mpi::Request>& isendRequests, bool atLeastOne) const
+  template <typename TransferNode>
+  void check_send_requests(std::deque<std::pair<TransferNode, MPI_Request>>& isendRequests,
+                           bool atLeastOne) const
   {
     std::vector<MPI_Request> reqs;
     reqs.reserve(isendRequests.size());
     for(auto const& isr : isendRequests)
     {
-      reqs.push_back(isr.m_request);
+      reqs.push_back(isr.second);
     }
 
     int inCount = static_cast<int>(reqs.size());
@@ -621,16 +623,37 @@ private:
 
     axom::Array<std::uint8_t> buffer;
 
-    void Allocate(IndexType numPoints, int allocatorID)
+    TransferNode(const TransferNode& from, int allocatorID)
+      : metadata(from.metadata)
+      , buffer(from.buffer, allocatorID)
+    {
+      UpdateView();
+    }
+
+    TransferNode(TransferNode&&) noexcept = default;
+    TransferNode& operator=(TransferNode&&) noexcept = default;
+
+    IndexType computeSize(IndexType numPoints) const
     {
       constexpr IndexType PerNodeSize = sizeof(Metadata);
       constexpr IndexType PerPointSize =
-        sizeof(PointType) + 2 * sizeof(double) + 3 * sizeof(IndexType);
+        sizeof(PointType) * 2 + sizeof(double) + 3 * sizeof(IndexType);
 
-      const IndexType total_size = PerNodeSize + PerPointSize * numPoints;
+      return PerNodeSize + PerPointSize * numPoints;
+    }
+
+    void Allocate(IndexType numPoints, int allocatorID)
+    {
+      IndexType total_size = computeSize(numPoints);
       buffer = axom::Array<std::uint8_t>(total_size, total_size, allocatorID);
+      UpdateView();
+    }
 
-      auto* data = buffer.data() + PerNodeSize;
+    void UpdateView()
+    {
+      int numPoints = metadata.numPoints;
+
+      auto* data = buffer.data() + sizeof(Metadata);
       points = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
       data += sizeof(PointType) * numPoints;
 
@@ -646,13 +669,37 @@ private:
       cp_rank = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
       data += sizeof(IndexType) * numPoints;
 
-      cp_domain_index =
-        axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+      cp_domain_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+    }
+
+    void Isend(int dst, int tag, MPI_Comm comm, MPI_Request& request)
+    {
+      IndexType total_size = computeSize(metadata.numPoints);
+      axom::copy(buffer.data(), reinterpret_cast<std::uint8_t*>(&metadata), sizeof(Metadata));
+
+      const int mpi_err =
+        MPI_Isend(buffer.data(), static_cast<int>(total_size), MPI_BYTE, dst, tag, comm, &request);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
+    }
+
+    void Irecv(int src, int tag, MPI_Comm comm, MPI_Request& request)
+    {
+      const int mpi_err =
+        MPI_Irecv(buffer.data(), static_cast<int>(buffer.size()), MPI_BYTE, src, tag, comm, &request);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
+    }
+
+    void UpdateMetadataFromBuffer()
+    {
+      axom::copy(reinterpret_cast<std::uint8_t*>(&metadata), buffer.data(), sizeof(Metadata));
+      UpdateView();
     }
 
     TransferNode() = default;
     TransferNode(const TransferNode&) = delete;
-    TransferNode& operator= (const TransferNode&) = delete;
+    TransferNode& operator=(const TransferNode&) = delete;
   };
 
 public:
@@ -822,10 +869,11 @@ public:
     // MPI guarantees MPI_TAG_UB is at least 32767, so use a tag below that
     constexpr int tag = 9873;
 
+    int maxParticlesToRecv = 0;
     int remainingRecvs = 0;
     int fullXferRecvs = 0;
 
-    std::list<conduit::relay::mpi::Request> isendRequests;
+    std::deque<std::pair<TransferNode, MPI_Request>> isendRequests;
 
     {
       // create conduit Node containing data that has to xfer between ranks.
@@ -837,6 +885,14 @@ public:
       xferNode.metadata.aabb = myQueryBb;
       BoxArray allQueryBbs;
       gatherBoundingBoxes(myQueryBb, allQueryBbs);
+
+      // Get maximum number of particles from any query rank.
+      // This allows us to pre-alloocate the required receive buffer size,
+      // which may allow corresponding MPI_Sends to be performed "eagerly."
+      maxParticlesToRecv = xferNode.metadata.numPoints;
+      int mpi_err = MPI_Allreduce(MPI_IN_PLACE, &maxParticlesToRecv, 1, MPI_INT, MPI_MAX, m_mpiComm);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
 
       double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
@@ -871,11 +927,20 @@ public:
       }
       else
       {
-        isendRequests.emplace_back(conduit::relay::mpi::Request());
+        if(xferNode.buffer.getAllocatorID() == m_mpiAllocatorID)
+        {
+          // Transfer node is allocated in MPI communication space, don't allocate
+          // a staging buffer.
+          isendRequests.emplace_back(std::move(xferNode), MPI_Request {});
+        }
+        else
+        {
+          // Copy node to selected MPI memory pool, then do the MPI communication.
+          TransferNode sendNode(xferNode, m_mpiAllocatorID);
+          isendRequests.emplace_back(std::move(sendNode), MPI_Request {});
+        }
         auto& req = isendRequests.back();
-        conduit::Node sendNode;
-        transfer_node_to_conduit(xferNode, sendNode);
-        relay::mpi::isend_using_schema(sendNode, firstRecipForMyQuery, tag, m_mpiComm, &req);
+        req.first.Isend(firstRecipForMyQuery, tag, m_mpiComm, req.second);
         ++remainingRecvs;
       }
     }
@@ -900,18 +965,37 @@ public:
       }
 
       // Receive the next xferNode
-      conduit::Node recvXferNode;
-      conduit::relay::mpi::recv_using_schema(recvXferNode, MPI_ANY_SOURCE, tag, m_mpiComm);
+      TransferNode recvXferNode;
+      recvXferNode.Allocate(maxParticlesToRecv, m_mpiAllocatorID);
+
+      MPI_Request recv_req;
+      recvXferNode.Irecv(MPI_ANY_SOURCE, tag, m_mpiComm, recv_req);
+      {
+        int mpi_err = MPI_Wait(&recv_req, MPI_STATUS_IGNORE);
+        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+        AXOM_UNUSED_VAR(mpi_err);
+      }
+      recvXferNode.UpdateMetadataFromBuffer();
 
       --remainingRecvs;
-      const int homeRank = recvXferNode.fetch_existing("home_rank").as_int();
+      const int homeRank = recvXferNode.metadata.homeRank;
       if(homeRank < 0)
       {
         continue;
       }
 
       TransferNode xferNode;
-      transfer_node_from_conduit(recvXferNode, xferNode);
+      if(xferNode.buffer.getAllocatorID() == m_allocatorID)
+      {
+        // Received node in execution space memory. Just move the transfer node.
+        xferNode = std::move(recvXferNode);
+      }
+      else
+      {
+        // We need to copy the received node from MPI memory into the desired
+        // allocator pool.
+        xferNode = TransferNode(recvXferNode, m_allocatorID);
+      }
       ++fullXferRecvs;
       if(homeRank == m_rank)
       {
@@ -923,11 +1007,20 @@ public:
 
         int nextRecipient = next_recipient(xferNode, currentMaxSqDistance, tag, isendRequests);
         SLIC_ASSERT(nextRecipient != -1);
-        isendRequests.emplace_back(conduit::relay::mpi::Request());
-        auto& isendRequest = isendRequests.back();
-        conduit::Node sendNode;
-        transfer_node_to_conduit(xferNode, sendNode);
-        relay::mpi::isend_using_schema(sendNode, nextRecipient, tag, m_mpiComm, &isendRequest);
+        if(m_mpiAllocatorID == m_allocatorID)
+        {
+          // Transfer node is allocated in MPI communication space, don't allocate
+          // a staging buffer.
+          isendRequests.emplace_back(std::move(xferNode), MPI_Request {});
+        }
+        else
+        {
+          // Copy node to selected MPI memory pool, then do the MPI communication.
+          TransferNode sendNode(xferNode, m_mpiAllocatorID);
+          isendRequests.emplace_back(std::move(sendNode), MPI_Request {});
+        }
+        auto& req = isendRequests.back();
+        req.first.Isend(nextRecipient, tag, m_mpiComm, req.second);
 
         // Check non-blocking sends to free memory.
         check_send_requests(isendRequests, false);
@@ -943,59 +1036,6 @@ public:
 
     MPI_Barrier(m_mpiComm);
     slic::flushStreams();
-  }
-
-  void transfer_node_to_conduit(const TransferNode& xferNode, conduit::Node& node) const
-  {
-    node["home_rank"].set(xferNode.metadata.homeRank);
-    node["is_first"].set(static_cast<int>(xferNode.metadata.isFirst));
-    node["dims"].set(xferNode.metadata.dims);
-    node["num_points"].set(xferNode.metadata.numPoints);
-    node["interleaved_points"].set(reinterpret_cast<const double*>(xferNode.points.data()),
-                                    xferNode.points.size() * DIM);
-    node["cp_coords"].set(xferNode.cp_coords.data(), xferNode.cp_coords.size());
-    node["cp_distance"].set(xferNode.cp_distance.data(), xferNode.cp_distance.size());
-    node["cp_index"].set(xferNode.cp_index.data(), xferNode.cp_index.size());
-    node["cp_rank"].set(xferNode.cp_rank.data(), xferNode.cp_rank.size());
-    node["cp_domain_index"].set(xferNode.cp_domain_index.data(), xferNode.cp_domain_index.size());
-    node["aabb/min"].set(xferNode.metadata.aabb.getMin().data(), DIM);
-    node["aabb/max"].set(xferNode.metadata.aabb.getMax().data(), DIM);
-  }
-
-  void transfer_node_from_conduit(conduit::Node& node, TransferNode& xferNode) const
-  {
-    xferNode.metadata.homeRank = node.fetch_existing("home_rank").as_int();
-    xferNode.metadata.isFirst = node.fetch_existing("is_first").as_int() != 0;
-    xferNode.metadata.dims = node.fetch_existing("dims").as_int();
-    xferNode.metadata.numPoints = node.fetch_existing("num_points").as_int();
-    xferNode.Allocate(xferNode.metadata.numPoints, m_mpiAllocatorID);
-
-    auto copy_field = [](auto* destination, auto* source, IndexType count) {
-      axom::copy(destination, source, count * sizeof(*destination));
-    };
-    copy_field(reinterpret_cast<double*>(xferNode.points.data()),
-               internal::getPointer<double>(node.fetch_existing("interleaved_points")),
-               xferNode.points.size() * DIM);
-    copy_field(xferNode.cp_coords.data(),
-               internal::getPointer<double>(node.fetch_existing("cp_coords")),
-               xferNode.cp_coords.size());
-    copy_field(xferNode.cp_distance.data(),
-               internal::getPointer<double>(node.fetch_existing("cp_distance")),
-               xferNode.cp_distance.size());
-    copy_field(xferNode.cp_index.data(),
-               internal::getPointer<IndexType>(node.fetch_existing("cp_index")),
-               xferNode.cp_index.size());
-    copy_field(xferNode.cp_rank.data(),
-               internal::getPointer<IndexType>(node.fetch_existing("cp_rank")),
-               xferNode.cp_rank.size());
-    copy_field(xferNode.cp_domain_index.data(),
-               internal::getPointer<IndexType>(node.fetch_existing("cp_domain_index")),
-               xferNode.cp_domain_index.size());
-
-    auto& min = node.fetch_existing("aabb/min");
-    auto& max = node.fetch_existing("aabb/max");
-    xferNode.metadata.aabb =
-      BoxType(PointType(internal::getPointer<double>(min)), PointType(internal::getPointer<double>(max)), false);
   }
 
   /*!
@@ -1024,14 +1064,18 @@ public:
   /*!
    * \brief Send a minimal message indicating this rank has no query data for the destination rank.
    */
-  void send_skip_token(int dest, int tag, std::list<conduit::relay::mpi::Request>& isendRequests) const
+  void send_skip_token(int dest,
+                       int tag,
+                       std::deque<std::pair<TransferNode, MPI_Request>>& isendRequests) const
   {
-    conduit::Node skipToken;
-    skipToken["home_rank"] = -1;
+    TransferNode skipToken;
+    skipToken.metadata.homeRank = -1;
+    skipToken.metadata.dims = DIM;
+    skipToken.Allocate(0, m_mpiAllocatorID);
 
-    isendRequests.emplace_back(conduit::relay::mpi::Request());
+    isendRequests.emplace_back(std::move(skipToken), MPI_Request {});
     auto& req = isendRequests.back();
-    relay::mpi::isend_using_schema(skipToken, dest, tag, m_mpiComm, &req);
+    req.first.Isend(dest, tag, m_mpiComm, req.second);
   }
 
   /*!
@@ -1043,7 +1087,7 @@ public:
   int next_recipient(const TransferNode& xferNode,
                      double currentMaxSqDistance,
                      int tag,
-                     std::list<conduit::relay::mpi::Request>& isendRequests) const
+                     std::deque<std::pair<TransferNode, MPI_Request>>& isendRequests) const
   {
     int homeRank = xferNode.metadata.homeRank;
     const BoxType& bb = xferNode.metadata.aabb;
