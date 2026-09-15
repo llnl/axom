@@ -175,14 +175,14 @@ Do this:
 
   .. code-block:: cpp
 
-      axom::for_all<ExecSpace>(n, AXOM_LAMBDA(axom::IndexType index) { /* body */});
+      axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType index) { /* body */});
 
 
 Do NOT do this:
 
   .. code-block:: cpp
 
-      axom::for_all<ExecSpace>(n, AXOM_LAMBDA(auto index) { /* body */});
+      axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(auto index) { /* body */});
 
 
 **Pass ArrayView by value**. Data in Axom is often contained in useful containers such as ``axom::Array``.
@@ -201,7 +201,7 @@ Do this:
       template <typename ExecSpace>
       void doSomething(axom::ArrayView<int> dataView)
       {
-        axom::for_all<ExecSpace>(dataView.size(), AXOM_LAMBDA(axom::IndexType index)
+        axom::for_all<ExecSpace>(dataView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index)
         {
           /* body uses dataView[index] */
         });
@@ -214,7 +214,7 @@ Do NOT do this:
       template <typename ExecSpace>
       void doSomething(axom::ArrayView<int> &dataView)
       {
-        axom::for_all<ExecSpace>(dataView.size(), AXOM_LAMBDA(axom::IndexType index)
+        axom::for_all<ExecSpace>(dataView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index)
         {
           /* body uses dataView[index] */
           /* It will crash on GPU devices because the host reference was
@@ -245,7 +245,7 @@ Do this:
       #endif
         void helperMethod()
         {
-          axom::for_all<ExecSpace>(n, AXOM_LAMBDA(axom::IndexType index) { /* body */});
+          axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType index) { /* body */});
         }
       };
 
@@ -260,7 +260,7 @@ Do NOT do this:
       private:
         void helperMethod()
         {
-          axom::for_all<ExecSpace>(n, AXOM_LAMBDA(axom::IndexType index) { /* body */});
+          axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType index) { /* body */});
         }
       };
 
@@ -290,7 +290,7 @@ Do this:
         void handleData(DataView dataView)
         {
           // Call the kernel here in the member method
-          axom::for_all<ExecSpace>(AXOM_LAMBDA(axom::IndexType) { /* body */ });
+          axom::for_all<ExecSpace>([=] AXOM_HOST_DEVICE(axom::IndexType) { /* body */ });
         }
       };
 
@@ -308,14 +308,14 @@ Do NOT do this:
           Node_to_ArrayView(data, [&](auto dataView)
           {
             // nvcc will not compile this
-            axom::for_all<ExecSpace>(AXOM_LAMBDA(axom::IndexType) { /* body */ });
+            axom::for_all<ExecSpace>([=] AXOM_HOST_DEVICE(axom::IndexType) { /* body */ });
           });
         }
       };
 
 **Avoid calling lambdas from kernels.** This can work on some systems and not on others.
 For best odds at a portable algorithm, design your kernel so it is "one level deep",
-and does not result in calling other functions that are also marked ``AXOM_LAMBDA``.
+and does not result in calling other host/device lambdas.
 
 **Specialize templates outside other classes.** It is necessary to extract
 a nested class/struct from the containing class before specializing it.
@@ -492,7 +492,7 @@ General, Rough Porting Tips
 
       axom::for_all<cuda_exec>(
       100,
-      AXOM_LAMBDA(int idx) {
+      [=] AXOM_HOST_DEVICE(int idx) {
         // Set values on device
         tris_view[idx] = Triangle();
         totalArea = 0;
@@ -504,7 +504,7 @@ General, Rough Porting Tips
 
       axom::for_all<cuda_exec>(
       100,
-      AXOM_LAMBDA(int idx) {
+      [=] AXOM_HOST_DEVICE(int idx) {
         tris_view[idx] = Triangle();
         totalArea = 0;
 
@@ -532,10 +532,10 @@ General, Rough Porting Tips
     own or rewrite the code to not use standard library.
 
   * It may not be possible to remove all such warnings on some platforms that support
-    both CPU/GPU backends since AXOM_LAMBDA will expand to ``__host__ __device__`` and then
-    the compiler will issue warnings about host functions such as RAJA::ReduceSum::~ReduceSum
-    for the OpenMP backend being called from ``__host__ __device__`` code. This warning
-    can be ignored.
+    both CPU/GPU backends since host/device lambdas will use ``__host__ __device__`` and
+    then the compiler will issue warnings about host functions such as
+    RAJA::ReduceSum::~ReduceSum for the OpenMP backend being called from
+    ``__host__ __device__`` code. This warning can be ignored.
 
 * With no more decorating complaints from the compiler, write the logically
   correct kernel:
@@ -545,7 +545,7 @@ General, Rough Porting Tips
       // Computes the total area of a 100 triangles
       axom::for_all<cuda_exec>(
         100,
-        AXOM_LAMBDA(int idx) {
+        [=] AXOM_HOST_DEVICE(int idx) {
           totalArea += tris_view[idx].area();
       });
 
