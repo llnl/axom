@@ -1156,68 +1156,39 @@ public:
 
     double currentMaxSqDistance = -1.0;
 
-      // --- Set up arrays and views in the execution space
-      // Arrays are initialized in that execution space the first time
-      // they are processed and are copied in during subsequent
-      // processing
-
+    {
       // Check dimension and extract the number of points
       SLIC_ASSERT(xferNode.metadata.dims == DIM);
       const int qPtCount = xferNode.metadata.numPoints;
 
-      /// Extract fields from the input node as ArrayViews
-      auto queryPts = xferNode.points;
-      auto cpIndexes = xferNode.cp_index;
-      auto cpDomainIndexes = xferNode.cp_domain_index;
-      auto cpRanks = xferNode.cp_rank;
-      auto cpCoords = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(xferNode.cp_coords.data()),
-                                                  qPtCount);
-
-      /// Create ArrayViews in ExecSpace that are compatible with fields
-      // This deep-copies host memory in xferDom to device memory.
-      // TODO: Avoid copying arrays (here and at the end) if both are on the host
-      auto cp_idx = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-                             : axom::Array<axom::IndexType>(cpIndexes, m_allocatorID);
-      auto cp_domidx = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-                                : axom::Array<axom::IndexType>(cpDomainIndexes, m_allocatorID);
-      auto cp_rank = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-                              : axom::Array<axom::IndexType>(cpRanks, m_allocatorID);
-
-      /// PROBLEM: The striding does not appear to be retained by conduit relay
-      ///          We might need to transform it? or to use a single array w/ pointers into it?
-      auto cp_pos = is_first ? axom::Array<PointType>(qPtCount, qPtCount, m_allocatorID)
-                             : axom::Array<PointType>(cpCoords, m_allocatorID);
+      // Extract fields from the input node as ArrayViews
+      // These are allocated with the user-specified allocator ID, which is expected
+      // to be accessible from the requested execution space.
+      SLIC_ASSERT(xferNode.buffer.getAllocatorID() == m_allocatorID);
+      auto query_pts = xferNode.points;
+      auto query_inds = xferNode.cp_index;
+      auto query_doms = xferNode.cp_domain_index;
+      auto query_ranks = xferNode.cp_rank;
+      auto query_pos =
+        axom::ArrayView<PointType>(reinterpret_cast<PointType*>(xferNode.cp_coords.data()), qPtCount);
 
       // DEBUG
       const bool has_cp_distance = true;
-      auto minDist = xferNode.cp_distance;
-
-      auto cp_dist = has_cp_distance
-        ? (is_first ? axom::Array<double>(qPtCount, qPtCount, m_allocatorID)
-                    : axom::Array<double>(minDist, m_allocatorID))
-        : axom::Array<double>(0, 0, m_allocatorID);
+      auto query_min_dist = xferNode.cp_distance;
       // END DEBUG
 
       if(is_first)
       {
-        cp_rank.fill(-1);
-        cp_idx.fill(-1);
-        cp_domidx.fill(-1);
+        query_ranks.fill(-1);
+        query_inds.fill(-1);
+        query_doms.fill(-1);
         const PointType nowhere(axom::numeric_limits<double>::signaling_NaN());
-        cp_pos.fill(nowhere);
-        cp_dist.fill(axom::numeric_limits<double>::signaling_NaN());
+        query_pos.fill(nowhere);
+        query_min_dist.fill(axom::numeric_limits<double>::signaling_NaN());
       }
-      auto query_inds = cp_idx.view();
-      auto query_doms = cp_domidx.view();
-      auto query_ranks = cp_rank.view();
-      auto query_pos = cp_pos.view();
-      auto query_min_dist = cp_dist.view();
 
       if(hasObjectPoints)
       {
-        /// Create an ArrayView in ExecSpace that is compatible with queryPts
-        PointArray execPoints(queryPts, m_allocatorID);
-        auto query_pts = execPoints.view();
         auto query_order = mortonSortQueryPoints(query_pts);
         auto query_order_view = query_order.view();
         const double sqDistThreshold = m_sqDistanceThreshold;
@@ -1344,19 +1315,8 @@ public:
           });
         }
       }
+    }
 
-      axom::copy(cpIndexes.data(), query_inds.data(), cpIndexes.size() * sizeof(axom::IndexType));
-      axom::copy(cpDomainIndexes.data(),
-                 query_doms.data(),
-                 cpDomainIndexes.size() * sizeof(axom::IndexType));
-      axom::copy(cpRanks.data(), query_ranks.data(), cpRanks.size() * sizeof(axom::IndexType));
-      axom::copy(cpCoords.data(), query_pos.data(), cpCoords.size() * sizeof(PointType));
-
-      // DEBUG
-      if(has_cp_distance)
-      {
-        axom::copy(minDist.data(), query_min_dist.data(), minDist.size() * sizeof(double));
-      }
     // Data has now been initialized
     if(is_first)
     {
