@@ -211,16 +211,6 @@ public:
 
   void setMaskValue(int maskVal) override { m_maskVal = maskVal; }
 
-  /*!
-   * @brief Store the requested robustness policy.
-   *
-   * Both policies currently use Bump's default intersector and tables.
-   */
-  void setRobustnessPolicy(MarchingCubesRobustnessPolicy policy) override
-  {
-    m_robustnessPolicy = policy;
-  }
-
   // Retain the value for the shared interface; only the legacy backend reads it.
   void setDataParallelism(MarchingCubesDataParallelism dataPar) override
   {
@@ -768,22 +758,7 @@ private:
         using TopologyView = decltype(topologyView);
         dispatched = true;
 
-        // Both policies currently use Bump's single-precision, two-label FieldIntersector.
-        using StandardCut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
-        using Cut = StandardCut;
-
-        if(m_robustnessPolicy == MarchingCubesRobustnessPolicy::robust)
-        {
-          static bool warnedOnce = false;
-          if(!warnedOnce)
-          {
-            warnedOnce = true;
-            SLIC_INFO(
-              "MarchingCubes: robust isosurface policy requested, but no robust "
-              "Bump intersector is implemented; using the standard "
-              "(single-precision, two-label) intersector.");
-          }
-        }
+        using Cut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
 
         Cut iso(topologyView, coordsetView);
         iso.setAllocatorID(m_allocatorID);
@@ -929,8 +904,6 @@ private:
   std::string m_topologyName;
   std::string m_fcnFieldName;
   std::string m_maskFieldName;
-
-  MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   //! @brief Whether the structured-explicit crossing prefilter is available.
   bool m_useMeshViewUtilPath {false};

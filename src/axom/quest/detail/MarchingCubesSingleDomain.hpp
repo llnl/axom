@@ -105,15 +105,6 @@ public:
     }
   }
 
-  void setRobustnessPolicy(MarchingCubesRobustnessPolicy policy)
-  {
-    m_robustnessPolicy = policy;
-    if(m_impl)
-    {
-      m_impl->setRobustnessPolicy(m_robustnessPolicy);
-    }
-  }
-
   // Methods trivially delegated to implementation.
   void markCrossings() { m_impl->markCrossings(); }
   void scanCrossings() { m_impl->scanCrossings(); }
@@ -147,13 +138,6 @@ public:
     virtual void setFunctionField(const std::string& fcnFieldName) = 0;
     virtual void setContourValue(double contourVal) = 0;
     virtual void setMaskValue(int maskVal) = 0;
-
-    /*!
-     * @brief Set the Bump isosurface robustness policy.
-     *
-     * The legacy implementation keeps this no-op default.
-     */
-    virtual void setRobustnessPolicy(MarchingCubesRobustnessPolicy) { }
 
     virtual void setDataParallelism(MarchingCubesDataParallelism dataPar) = 0;
 
@@ -274,7 +258,6 @@ private:
 
   double m_contourVal {0.0};
   int m_maskVal {1};
-  MarchingCubesRobustnessPolicy m_robustnessPolicy {MarchingCubesRobustnessPolicy::standard};
 
   std::unique_ptr<ImplBase> m_impl;
 };
