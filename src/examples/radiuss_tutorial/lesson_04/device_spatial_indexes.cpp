@@ -338,26 +338,24 @@ axom::Array<IndexPair> findIntersectionsBVH(const TriangleMesh& triMesh,
                                  kernel_allocator);
     auto is_valid_v = is_valid_d.view();
 
-    axom::for_all<ExecSpace>(
-      totalTriangles,
-      AXOM_LAMBDA(axom::IndexType i) { is_valid_v[i] = !tris_v[i].degenerate(); });
+    axom::for_all<ExecSpace>(totalTriangles, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      is_valid_v[i] = !tris_v[i].degenerate();
+    });
 
     // Keep pairs of valid triangles whose bounding boxes overlap
-    axom::for_all<ExecSpace>(
-      totalTriangles,
-      AXOM_LAMBDA(axom::IndexType i) {
-        for(int j = 0; j < counts_v[i]; j++)
+    axom::for_all<ExecSpace>(totalTriangles, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      for(int j = 0; j < counts_v[i]; j++)
+      {
+        const axom::IndexType potential = candidates_v[offsets_v[i] + j];
+        if(i < potential && is_valid_v[i] && is_valid_v[potential])
         {
-          const axom::IndexType potential = candidates_v[offsets_v[i] + j];
-          if(i < potential && is_valid_v[i] && is_valid_v[potential])
-          {
-            const auto idx =
-              axom::atomicAdd<axom::auto_atomic>(numValidCandidates_p, axom::IndexType {1});
-            indices_v[idx] = i;
-            validCandidates_v[idx] = potential;
-          }
+          const auto idx =
+            axom::atomicAdd<axom::auto_atomic>(numValidCandidates_p, axom::IndexType {1});
+          indices_v[idx] = i;
+          validCandidates_v[idx] = potential;
         }
-      });
+      }
+    });
 
     axom::copy(&numCandidates, numValidCandidates_p, sizeof(axom::IndexType));
   }
@@ -383,20 +381,17 @@ axom::Array<IndexPair> findIntersectionsBVH(const TriangleMesh& triMesh,
     auto validCandidates_v = validCandidates_d.view();
 
     // Perform triangle-triangle tests
-    axom::for_all<ExecSpace>(
-      numCandidates,
-      AXOM_LAMBDA(axom::IndexType i) {
-        constexpr bool includeBoundaries = false;
-        const auto index = indices_v[i];
-        const auto candidate = validCandidates_v[i];
-        if(axom::primal::intersect(tris_v[index], tris_v[candidate], includeBoundaries, tol))
-        {
-          const auto idx =
-            axom::atomicAdd<axom::auto_atomic>(numIntersections_p, axom::IndexType {1});
-          intersect1_v[idx] = index;
-          intersect2_v[idx] = candidate;
-        }
-      });
+    axom::for_all<ExecSpace>(numCandidates, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      constexpr bool includeBoundaries = false;
+      const auto index = indices_v[i];
+      const auto candidate = validCandidates_v[i];
+      if(axom::primal::intersect(tris_v[index], tris_v[candidate], includeBoundaries, tol))
+      {
+        const auto idx = axom::atomicAdd<axom::auto_atomic>(numIntersections_p, axom::IndexType {1});
+        intersect1_v[idx] = index;
+        intersect2_v[idx] = candidate;
+      }
+    });
 
     axom::copy(&numIntersections, numIntersections_p, sizeof(axom::IndexType));
   }
