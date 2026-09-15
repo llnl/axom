@@ -37,9 +37,11 @@
 #    │        │    ├─• association == "element"
 #    │        │    ├─• topology    == "mesh"
 #    │        │    └─• values
-#    │        └── <fieldName>                  Vertex field added by --field
+#    │        └── <fieldName>                  Vertex field(s) added by --field
 #    │             ├─• association == "vertex"
 #    │             ├─• topology    == "mesh"
+#    │             ├─• [offsets]               Present with --strided
+#    │             ├─• [strides]               Present with --strided
 #    │             └─• values
 #    └── ...
 
@@ -110,19 +112,21 @@ def parse_args():
         help='Topology type. Unstructured output uses single-shape quad or hex connectivity '
         'and cannot be combined with --strided.')
     ps.add_argument('--field',
-                    choices=('none', 'sphere', 'plane'),
+                    choices=('none', 'sphere', 'plane', 'gyroid', 'all'),
                     default='none',
-                    help='Add a vertex-associated analytic field. The Conduit example field is '
+                    help='Add a vertex-associated analytic field. "all" adds dist_to_plane, '
+                    'dist_to_center, and gyroid_fcn. The Conduit example field is '
                     'element-associated.')
     ps.add_argument('--fieldName',
                     type=str,
                     default='fcn',
-                    help='Name of the field added by --field')
+                    help='Name of the field added by --field, except with --field all')
     ps.add_argument('--center',
                     nargs='+',
                     default=None,
                     help='Center for --field sphere, or point on plane for --field plane. '
-                    'Defaults to the mesh center.')
+                    'With --field all, this is the center for dist_to_center and the plane '
+                    'passes through the origin. Defaults to the mesh center.')
     ps.add_argument(
         '--radius',
         type=float,
@@ -131,7 +135,17 @@ def parse_args():
     ps.add_argument('--normal',
                     nargs='+',
                     default=None,
-                    help='Normal direction for --field plane. Defaults to +y in 2D and +z in 3D.')
+                    help='Normal direction for --field plane or all. '
+                    'Defaults to +y in 2D and +z in 3D.')
+    ps.add_argument('--scale',
+                    nargs='+',
+                    default=None,
+                    help='Scale factors for --field gyroid or all, space- or comma-separated. '
+                    'Defaults to one in each direction.')
+    ps.add_argument('--offset',
+                    type=float,
+                    default=0.0,
+                    help='Value added to --field gyroid or all')
     ps.add_argument('--protocol',
                     choices=('hdf5', 'json', 'yaml'),
                     default='hdf5',
@@ -208,19 +222,26 @@ def validated_mesh_options(opts):
         normal = np.array((0.0, 1.0) if dim == 2 else (0.0, 0.0, 1.0), dtype=float)
     else:
         normal = np.array(parse_component_list(opts.normal, float), dtype=float)
+    if opts.scale is None:
+        scale = np.ones(dim, dtype=float)
+    else:
+        scale = np.array(parse_component_list(opts.scale, float), dtype=float)
+        if len(scale) < dim:
+            raise RuntimeError(f'--scale ({opts.scale}) needs at least {dim} components')
     if opts.field != 'none':
-        if opts.field == 'plane' and len(normal) < dim:
+        if opts.field in ('plane', 'all') and len(normal) < dim:
             raise RuntimeError(f'--normal ({opts.normal}) needs at least {dim} components')
-        if opts.field == 'plane':
+        if opts.field in ('plane', 'all'):
             normal_norm = float(np.linalg.norm(normal[:dim]))
             if normal_norm == 0.0:
-                raise RuntimeError('--normal must be nonzero for --field plane')
+                raise RuntimeError('--normal must be nonzero for --field plane or all')
             normal = normal / normal_norm
 
     return {
         'center': center,
         'normal': normal,
         'radius': radius,
+        'scale': scale,
         'dim': dim,
         'domain_counts': domain_counts,
         'mesh_size': mesh_size,
@@ -319,28 +340,78 @@ def generate_coordset(dom, context, start_coord, end_coord):
         dom['coordsets/coords/values'][xyz[d]] = coords
 
 
-def add_analytic_nodal_field(dom, opts, context):
-    '''Add a scalar vertex field sampled at every coordset node.'''
+def add_nodal_field(dom, name, values):
+    '''Add a scalar vertex field, preserving a strided vertex layout when present.'''
+
+    field = dom[f'fields/{name}']
+    field['topology'] = 'mesh'
+    field['association'] = 'vertex'
+    for layout in ('offsets', 'strides'):
+        source = f'fields/vert_vals/{layout}'
+        if dom.has_path(source):
+            field[layout].set(dom[source])
+    field['values'] = values
+
+
+def gyroid_values(points, scale, offset):
+    '''Evaluate the legacy Marching Cubes gyroid function at 2D or 3D points.'''
+
+    scaled = points * scale
+    if points.shape[1] == 3:
+        return (np.sin(scaled[:, 0]) * np.cos(scaled[:, 1]) +
+                np.sin(scaled[:, 1]) * np.cos(scaled[:, 2]) +
+                np.sin(scaled[:, 2]) * np.cos(scaled[:, 0]) + offset)
+    return np.sin(scaled[:, 0]) * np.cos(scaled[:, 1]) + np.sin(scaled[:, 1]) + offset
+
+
+def vertex_storage_indices(dom, dim):
+    '''Return the storage indices of logical vertices, excluding strided padding.'''
+
+    values = dom['coordsets/coords/values/x']
+    if not dom.has_path('fields/vert_vals/offsets'):
+        return np.arange(np.asarray(values).size, dtype=np.int64)
+
+    dims = dom['topologies/mesh/elements/dims']
+    point_counts = np.array([dims[d] for d in 'ijk'[:dim]], dtype=np.int64) + 1
+    offsets = np.asarray(dom['fields/vert_vals/offsets'], dtype=np.int64)
+    strides = np.asarray(dom['fields/vert_vals/strides'], dtype=np.int64)
+    logical_indices = np.indices(tuple(point_counts), dtype=np.int64).reshape(dim, -1)
+    return np.sum((logical_indices + offsets[:, None]) * strides[:, None], axis=0)
+
+
+def add_analytic_nodal_fields(dom, opts, context):
+    '''Add scalar vertex fields sampled at every logical coordset node.'''
 
     if opts.field == 'none':
         return
 
     dim = context['dim']
     vals = dom['coordsets/coords/values']
-    comps = [np.asarray(vals[c], dtype=np.float64) for c in 'xyz'[:dim]]
-    pts = np.stack(comps, axis=1)
+    indices = vertex_storage_indices(dom, dim)
+    components = [np.asarray(vals[c], dtype=np.float64) for c in 'xyz'[:dim]]
+    points = np.stack([component[indices] for component in components], axis=1)
+
+    def add_field(name, sampled_values):
+        values = np.zeros(components[0].size, dtype=np.float64)
+        values[indices] = sampled_values
+        add_nodal_field(dom, name, values)
 
     center = np.array(context['center'][:dim], dtype=np.float64)
     if opts.field == 'sphere':
-        values = np.linalg.norm(pts - center, axis=1) - context['radius']
-    else:
+        add_field(opts.fieldName, np.linalg.norm(points - center, axis=1) - context['radius'])
+    elif opts.field == 'plane':
         normal = np.array(context['normal'][:dim], dtype=np.float64)
-        values = (pts - center) @ normal
+        add_field(opts.fieldName, (points - center) @ normal)
+    elif opts.field == 'gyroid':
+        scale = np.array(context['scale'][:dim], dtype=np.float64)
+        add_field(opts.fieldName, gyroid_values(points, scale, opts.offset))
+    elif opts.field == 'all':
+        normal = np.array(context['normal'][:dim], dtype=np.float64)
+        add_field('dist_to_plane', points @ normal)
+        add_field('dist_to_center', np.linalg.norm(points - center, axis=1))
 
-    field = dom[f'fields/{opts.fieldName}']
-    field['topology'] = 'mesh'
-    field['association'] = 'vertex'
-    field['values'] = values
+        scale = np.array(context['scale'][:dim], dtype=np.float64)
+        add_field('gyroid_fcn', gyroid_values(points, scale, opts.offset))
 
 
 def structured_to_unstructured(dom, context):
@@ -402,7 +473,7 @@ def generate_domain(md_mesh, opts, context, di, dj, dk):
     dom_upper = mesh_lower[:dim] + cell_end * cell_physical_size[:dim]
     generate_coordset(dom, context, dom_lower, dom_upper)
     generate_fields(dom, opts, context)
-    add_analytic_nodal_field(dom, opts, context)
+    add_analytic_nodal_fields(dom, opts, context)
     if opts.topology == 'unstructured':
         structured_to_unstructured(dom, context)
 
