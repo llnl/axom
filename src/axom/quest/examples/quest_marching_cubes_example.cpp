@@ -26,6 +26,7 @@
 #include "axom/slic.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
 
@@ -37,6 +38,7 @@
 #include "conduit_relay_io_blueprint.hpp"
 #ifdef AXOM_USE_MPI
   #include "conduit_blueprint_mpi.hpp"
+  #include "conduit_relay_mpi.hpp"
   #include "conduit_relay_mpi_io_blueprint.hpp"
 #endif
 
@@ -48,12 +50,16 @@
 #endif
 
 // C/C++ includes
+#include <algorithm>
+#include <cmath>
 #include <string>
 #include <map>
 #include <limits>
 #include <memory>
+#include <set>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
 namespace quest = axom::quest;
 namespace slic = axom::slic;
@@ -78,6 +84,7 @@ struct Input
 public:
   std::string meshFile;
   std::string fieldName;
+  bool listFields {false};
   //! @brief Optional file for Bump's welded Blueprint contour.
   std::string blueprintContourFile {};
 
@@ -134,8 +141,13 @@ public:
       ->required();
 
     app.add_option("-f,--field", fieldName)
-      ->description("Name of the vertex-associated scalar field to contour")
-      ->required();
+      ->description(
+        "Name of the vertex-associated scalar field to contour; "
+        "required unless --list-fields is used");
+
+    app.add_flag("--list-fields", listFields)
+      ->description("List scalar vertex fields and exit")
+      ->capture_default_str();
 
     app.add_option("--blueprint-contour-file", blueprintContourFile)
       ->description("Write Bump's welded contour to a Blueprint file; requires --useBumpBackend")
@@ -173,6 +185,11 @@ public:
 
     app.parse(argc, argv);
 
+    if(fieldName.empty() && !listFields)
+    {
+      throw axom::CLI::RequiredError("--field");
+    }
+
     slic::setLoggingMsgLevel(_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
 };
@@ -180,17 +197,53 @@ public:
 //!@brief Our allocator id, based on execution policy.
 static int s_allocatorId = axom::INVALID_ALLOCATOR_ID;  // Set in main.
 
-void getIntMinMax(int inVal, int& minVal, int& maxVal, int& sumVal)
+namespace
+{
+enum class ReductionOperation
+{
+  Min,
+  Max,
+  Sum,
+  LogicalAnd
+};
+
+template <typename T>
+T allReduce(T value, ReductionOperation operation)
 {
 #ifdef AXOM_USE_MPI
-  MPI_Allreduce(&inVal, &minVal, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&inVal, &maxVal, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&inVal, &sumVal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Op mpiOperation = MPI_OP_NULL;
+  switch(operation)
+  {
+  case ReductionOperation::Min:
+    mpiOperation = MPI_MIN;
+    break;
+  case ReductionOperation::Max:
+    mpiOperation = MPI_MAX;
+    break;
+  case ReductionOperation::Sum:
+    mpiOperation = MPI_SUM;
+    break;
+  case ReductionOperation::LogicalAnd:
+    mpiOperation = MPI_LAND;
+    break;
+  }
+  SLIC_ASSERT(mpiOperation != MPI_OP_NULL);
+
+  T result {};
+  MPI_Allreduce(&value, &result, 1, axom::mpi_traits<T>::type, mpiOperation, MPI_COMM_WORLD);
+  return result;
 #else
-  minVal = inVal;
-  maxVal = inVal;
-  sumVal = inVal;
+  AXOM_UNUSED_VAR(operation);
+  return value;
 #endif
+}
+}  // namespace
+
+void getIntMinMax(int inVal, int& minVal, int& maxVal, int& sumVal)
+{
+  minVal = allReduce(inVal, ReductionOperation::Min);
+  maxVal = allReduce(inVal, ReductionOperation::Max);
+  sumVal = allReduce(inVal, ReductionOperation::Sum);
 }
 
 void loadBlueprintMesh(const std::string& meshFilename, conduit::Node& mesh)
@@ -468,33 +521,247 @@ private:
       const conduit::Node coordsetNode = _mdMesh[0].fetch_existing(_coordsetPath);
       _ndims = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
-#ifdef AXOM_USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &_ndims, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-#endif
+    _ndims = allReduce(_ndims, ReductionOperation::Max);
     SLIC_ASSERT(_ndims > 0);
 
     SLIC_ASSERT(isValid());
   }
 };  // BlueprintStructuredMesh
 
-/// Output some timing stats
-void printTimingStats(axom::utilities::Timer& t, const std::string& description)
+namespace
 {
-  auto getDoubleMinMax = [](double inVal, double& minVal, double& maxVal, double& sumVal) {
+
+std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
+{
+  // lambda that sends rank 0's fields to the other ranks and checks that they're all present
+  // It's a no-op when not using MPI
+  const auto fieldNamesAgree = [](const std::vector<std::string>& fieldNames) {
 #ifdef AXOM_USE_MPI
-    MPI_Allreduce(&inVal, &minVal, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &maxVal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &sumVal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    conduit::Node rootFieldNamesNode;
+    if(myRank == 0)
+    {
+      rootFieldNamesNode.set(conduit::DataType::list());
+      for(const auto& fieldName : fieldNames)
+      {
+        rootFieldNamesNode.append() = fieldName;
+      }
+    }
+    conduit::relay::mpi::broadcast_using_schema(rootFieldNamesNode, 0, MPI_COMM_WORLD);
+
+    std::vector<std::string> rootFieldNames;
+    rootFieldNames.reserve(rootFieldNamesNode.number_of_children());
+    for(const conduit::Node& fieldName : rootFieldNamesNode.children())
+    {
+      rootFieldNames.push_back(fieldName.as_string());
+    }
+
+    return allReduce(fieldNames == rootFieldNames ? 1 : 0, ReductionOperation::LogicalAnd) != 0;
 #else
-    minVal = inVal;
-    maxVal = inVal;
-    sumVal = inVal;
+    AXOM_UNUSED_VAR(fieldNames);
+    return true;
 #endif
   };
 
+  // collect the sorted list of field names on this rank
+  std::vector<std::string> fieldNames;
+  if(!mesh.empty() && mesh.domain(0).has_child("fields"))
   {
-    double minCompute, maxCompute, sumCompute;
-    getDoubleMinMax(t.elapsedTimeInSec(), minCompute, maxCompute, sumCompute);
+    fieldNames = mesh.domain(0).fetch_existing("fields").child_names();
+    std::sort(fieldNames.begin(), fieldNames.end());
+  }
+
+  SLIC_ERROR_IF(!fieldNamesAgree(fieldNames),
+                "Field names must agree with the field names on MPI rank 0.");
+  return fieldNames;
+}
+
+// A one-dimensional bounding box represents the minimum and maximum of a scalar range.
+using ScalarRange = axom::primal::BoundingBox<double, 1>;
+
+struct FieldSummary
+{
+  int presentDomains {0};
+  int vertexDomains {0};
+  int numericDomains {0};
+  int float64Domains {0};
+  int topologyDomains {0};
+  int hasNan {0};
+  ScalarRange valueRange;
+  std::set<std::string> topologies;
+  std::set<std::string> types;
+};
+
+FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh,
+                                 const std::string& fieldName,
+                                 const std::string& topologyName)
+{
+  FieldSummary summary;
+  for(axom::IndexType domainIdx = 0; domainIdx < mesh.domainCount(); ++domainIdx)
+  {
+    const conduit::Node& domain = mesh.domain(domainIdx);
+    if(!domain.has_child("fields") || !domain.fetch_existing("fields").has_child(fieldName))
+    {
+      continue;
+    }
+
+    ++summary.presentDomains;
+    const conduit::Node& field = domain.fetch_existing("fields").child(fieldName);
+    const std::string association =
+      field.has_child("association") ? field.fetch_existing("association").as_string() : "<missing>";
+    const std::string topology =
+      field.has_child("topology") ? field.fetch_existing("topology").as_string() : "<missing>";
+    summary.topologies.insert(topology);
+    summary.topologyDomains += topology == topologyName ? 1 : 0;
+
+    if(association != "vertex")
+    {
+      continue;
+    }
+    ++summary.vertexDomains;
+
+    if(!field.has_child("values"))
+    {
+      summary.types.insert("<missing>");
+      continue;
+    }
+
+    const conduit::Node& values = field.fetch_existing("values");
+    summary.types.insert(values.dtype().name());
+    if(!values.dtype().is_number())
+    {
+      continue;
+    }
+
+    ++summary.numericDomains;
+    summary.float64Domains += values.dtype().is_float64() ? 1 : 0;
+    const auto accessor = values.as_double_accessor();
+    for(conduit::index_t valueIdx = 0; valueIdx < accessor.number_of_elements(); ++valueIdx)
+    {
+      const double value = accessor[valueIdx];
+      if(std::isnan(value))
+      {
+        summary.hasNan = 1;
+      }
+      else
+      {
+        summary.valueRange.addPoint(ScalarRange::PointType {value});
+      }
+    }
+  }
+  return summary;
+}
+
+void printFieldSummary(const BlueprintStructuredMesh& mesh, const std::string& topologyName)
+{
+  const auto fieldNames = getFieldNames(mesh);
+  const int globalDomainCount =
+    allReduce(static_cast<int>(mesh.domainCount()), ReductionOperation::Sum);
+
+  std::string output = axom::fmt::format("Scalar vertex fields across {} domain{}:\n",
+                                         globalDomainCount,
+                                         globalDomainCount == 1 ? "" : "s");
+  output += "Name | Topology | Type | Domain coverage | Global range | Marching Cubes\n";
+
+  int listedFieldCount = 0;
+  for(const auto& fieldName : fieldNames)
+  {
+    FieldSummary local = summarizeLocalField(mesh, fieldName, topologyName);
+    FieldSummary global;
+    global.presentDomains = allReduce(local.presentDomains, ReductionOperation::Sum);
+    global.vertexDomains = allReduce(local.vertexDomains, ReductionOperation::Sum);
+    global.numericDomains = allReduce(local.numericDomains, ReductionOperation::Sum);
+    global.float64Domains = allReduce(local.float64Domains, ReductionOperation::Sum);
+    global.topologyDomains = allReduce(local.topologyDomains, ReductionOperation::Sum);
+    global.hasNan = allReduce(local.hasNan, ReductionOperation::Max);
+
+    const int hasRange = allReduce(local.valueRange.isValid() ? 1 : 0, ReductionOperation::Max);
+    if(hasRange != 0)
+    {
+      global.valueRange.addPoint(
+        ScalarRange::PointType {allReduce(local.valueRange.getMin()[0], ReductionOperation::Min)});
+      global.valueRange.addPoint(
+        ScalarRange::PointType {allReduce(local.valueRange.getMax()[0], ReductionOperation::Max)});
+    }
+
+    const auto& topologies = local.topologies;
+    const auto& types = local.types;
+    if(global.numericDomains == 0)
+    {
+      continue;
+    }
+
+    ++listedFieldCount;
+    std::string range = "empty";
+    if(global.valueRange.isValid())
+    {
+      range = axom::fmt::format("[{:.17g}, {:.17g}]",
+                                global.valueRange.getMin()[0],
+                                global.valueRange.getMax()[0]);
+      if(global.hasNan != 0)
+      {
+        range += " (contains NaN)";
+      }
+    }
+    else if(global.hasNan != 0)
+    {
+      range = "NaN only";
+    }
+
+    std::vector<std::string> incompatibilities;
+    if(global.presentDomains != globalDomainCount)
+    {
+      incompatibilities.emplace_back("missing domains");
+    }
+    if(global.vertexDomains != global.presentDomains)
+    {
+      incompatibilities.emplace_back("association must be vertex");
+    }
+    if(global.numericDomains != global.vertexDomains)
+    {
+      incompatibilities.emplace_back("values must be numeric scalars");
+    }
+    if(global.float64Domains != global.numericDomains)
+    {
+      incompatibilities.emplace_back("type must be float64");
+    }
+    if(global.topologyDomains != global.presentDomains)
+    {
+      incompatibilities.emplace_back("topology must be " + topologyName);
+    }
+
+    const std::string compatibility = incompatibilities.empty()
+      ? "compatible"
+      : "incompatible: " + axom::fmt::format("{}", axom::fmt::join(incompatibilities, "; "));
+    output += axom::fmt::format("{} | {} | {} | {}/{} | {} | {}\n",
+                                fieldName,
+                                axom::fmt::join(topologies, ", "),
+                                axom::fmt::join(types, ", "),
+                                global.presentDomains,
+                                globalDomainCount,
+                                range,
+                                compatibility);
+  }
+
+  if(listedFieldCount == 0)
+  {
+    output += "(none)\n";
+  }
+
+  if(myRank == 0)
+  {
+    SLIC_INFO(output);
+  }
+}
+
+}  // namespace
+
+/// Output some timing stats
+void printTimingStats(axom::utilities::Timer& t, const std::string& description)
+{
+  {
+    const double minCompute = allReduce(t.elapsedTimeInSec(), ReductionOperation::Min);
+    const double maxCompute = allReduce(t.elapsedTimeInSec(), ReductionOperation::Max);
+    const double sumCompute = allReduce(t.elapsedTimeInSec(), ReductionOperation::Sum);
 
     const auto count = t.cycleCount();
     if(count > 1)
@@ -1079,6 +1346,13 @@ int main(int argc, char** argv)
   BlueprintStructuredMesh computationalMesh(params.meshFile, "mesh", params.isVerbose());
   AXOM_ANNOTATE_END("load mesh");
 
+  if(params.listFields)
+  {
+    printFieldSummary(computationalMesh, "mesh");
+    raii_logger.flush();
+    return 0;
+  }
+
   SLIC_INFO_IF(params.isVerbose(),
                axom::fmt::format("Computational mesh has {} cells in {} domains locally",
                                  computationalMesh.cellCount(),
@@ -1128,12 +1402,7 @@ int main(int argc, char** argv)
 
       int localErrCount = contourTest.runTest(computationalMesh);
 
-      int globalErrCount = 0;
-#ifdef AXOM_USE_MPI
-      MPI_Allreduce(&localErrCount, &globalErrCount, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-#else
-      globalErrCount = localErrCount;
-#endif
+      const int globalErrCount = allReduce(localErrCount, ReductionOperation::Sum);
 
       if(globalErrCount)
       {
