@@ -474,16 +474,13 @@ void runAndVerify(conduit::Node& mesh,
                   bool expect_closed_interior,
                   double surface_tolerance,
                   const std::string& mask_field_name = {},
-                  int mask_value = 1,
-                  axom::quest::MarchingCubesRobustnessPolicy robustness =
-                    axom::quest::MarchingCubesRobustnessPolicy::standard)
+                  int mask_value = 1)
 {
   namespace quest = axom::quest;
 
   const int allocatorID = axom::policyToDefaultAllocatorID(policy);
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
   mc.setUseBumpBackend(true);
-  mc.setRobustnessPolicy(robustness);
 
   conduit::Node execMesh;
   copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
@@ -697,33 +694,6 @@ void test_unstructured_hex_round_warped(RuntimePolicy policy)
                   "fcn",
                   /*expect_closed_interior=*/true,
                   2.0e-2);
-}
-
-// The robust policy currently aliases the standard policy.
-void test_robustness_policy(RuntimePolicy policy)
-{
-  namespace quest = axom::quest;
-  RoundField f {{0.5, 0.5, 0.5}, 0.25};
-
-  auto facetCountFor = [&](quest::MarchingCubesRobustnessPolicy rp) {
-    conduit::Node mesh;
-    mctest::buildStructured<3>(mesh, 16, f, "fcn");
-    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
-    conduit::Node execMesh;
-    copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
-    quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
-    mc.setUseBumpBackend(true);
-    mc.setRobustnessPolicy(rp);
-    mc.setMesh(execMesh, "mesh");
-    mc.setFunctionField("fcn");
-    mc.computeIsocontour(0.0);
-    return mc.getContourCellCount();
-  };
-
-  const auto stdCount = facetCountFor(quest::MarchingCubesRobustnessPolicy::standard);
-  const auto robustCount = facetCountFor(quest::MarchingCubesRobustnessPolicy::robust);
-  EXPECT_GT(stdCount, 0);
-  EXPECT_EQ(stdCount, robustCount) << "Robust and standard policies should currently match.";
 }
 
 template <int DIM>
@@ -954,10 +924,6 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_seq)
 TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_seq)
 {
   test_unstructured_hex_round_warped(RuntimePolicy::seq);
-}
-TEST(quest_marching_cubes_bump, robust_matches_standard_seq)
-{
-  test_robustness_policy(RuntimePolicy::seq);
 }
 TEST(quest_marching_cubes_bump, multidomain_planar_2d_seq)
 {
