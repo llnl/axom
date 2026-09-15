@@ -218,19 +218,15 @@ int discrSeg(const Point2D& a, const Point2D& b, int levels, axom::ArrayView<Oct
     // Of note, the child-level end-cap QSU is coplanar with parent-
     // level cap RTP, and vice versa.  Hence the preceding if-statement
     // with comment "the ends switch each level."
-    axom::for_all<ExecSpace>(
-      curr_lvl_count,
-      AXOM_LAMBDA(axom::IndexType i) mutable {
-        out[next_lvl + i * lvl_factor + 0] =
-          new_inscribed_prism(out[curr_lvl + i], Q, T, S, R, pa, pb);
-        out[next_lvl + i * lvl_factor + 1] =
-          new_inscribed_prism(out[curr_lvl + i], U, R, Q, P, pa, pb);
-        if(level == 0)
-        {
-          out[next_lvl + i * lvl_factor + 2] =
-            new_inscribed_prism(out[curr_lvl + i], S, P, U, T, pa, pb);
-        }
-      });
+    axom::for_all<ExecSpace>(curr_lvl_count, [=] AXOM_HOST_DEVICE(axom::IndexType i) mutable {
+      out[next_lvl + i * lvl_factor + 0] = new_inscribed_prism(out[curr_lvl + i], Q, T, S, R, pa, pb);
+      out[next_lvl + i * lvl_factor + 1] = new_inscribed_prism(out[curr_lvl + i], U, R, Q, P, pa, pb);
+      if(level == 0)
+      {
+        out[next_lvl + i * lvl_factor + 2] =
+          new_inscribed_prism(out[curr_lvl + i], S, P, U, T, pa, pb);
+      }
+    });
 
     curr_lvl = next_lvl;
     curr_lvl_count *= lvl_factor;

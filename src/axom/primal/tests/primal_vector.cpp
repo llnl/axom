@@ -29,12 +29,10 @@ void check_vector_policy()
 
   VectorType vec_host;
 
-  axom::for_all<ExecSpace>(
-    1,
-    AXOM_LAMBDA(int /*i*/) {
-      vec[0] = VectorType(-1.0);
-      vec[0].negate();
-    });
+  axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int /*i*/) {
+    vec[0] = VectorType(-1.0);
+    vec[0].negate();
+  });
 
   axom::copy(&vec_host, vec, sizeof(VectorType));
 

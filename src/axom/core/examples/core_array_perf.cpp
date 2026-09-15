@@ -234,7 +234,7 @@ public:
     m_testAccumulation += testAdd;
     auto count = array.size();
     auto* ptr = array.data();
-    axom::for_all<ExecSpace>(0, count, AXOM_LAMBDA(axom::IndexType i) { ptr[i] += testAdd; });
+    axom::for_all<ExecSpace>(0, count, [=] AXOM_HOST_DEVICE(axom::IndexType i) { ptr[i] += testAdd; });
   }
 
   /*!
@@ -248,10 +248,9 @@ public:
     auto testAdd = m_flatTestAdd;
     m_testAccumulation += testAdd;
     auto count = array.size();
-    axom::for_all<ExecSpace>(
-      0,
-      count,
-      AXOM_LAMBDA(axom::IndexType i) { array.flatIndex(i) += testAdd; });
+    axom::for_all<ExecSpace>(0, count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      array.flatIndex(i) += testAdd;
+    });
   }
 
   /*!
@@ -275,10 +274,9 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::for_all<ExecSpace>(
-      idxBegin[0],
-      idxEnd[0],
-      AXOM_LAMBDA(axom::IndexType i) { array[i] += testAdd; });
+    axom::for_all<ExecSpace>(idxBegin[0], idxEnd[0], [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      array[i] += testAdd;
+    });
   }
 
   template <int TDIM = DIM>
@@ -295,7 +293,7 @@ public:
     axom::for_all<ExecSpace>(
       jRange,
       iRange,
-      AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { array(i, j) += testAdd; });
+      [=] AXOM_HOST_DEVICE(axom::IndexType j, axom::IndexType i) { array(i, j) += testAdd; });
   }
 
   template <int TDIM = DIM>
@@ -314,7 +312,7 @@ public:
       kRange,
       jRange,
       iRange,
-      AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         array(i, j, k) += testAdd;
       });
   }
@@ -365,10 +363,9 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::for_all<ExecSpace>(
-      idxBegin[0],
-      idxEnd[0],
-      AXOM_LAMBDA(axom::IndexType i) { array[i] += testAdd; });
+    axom::for_all<ExecSpace>(idxBegin[0], idxEnd[0], [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      array[i] += testAdd;
+    });
   }
 
   template <int TDIM = DIM>
@@ -386,7 +383,7 @@ public:
     axom::for_all<ExecSpace>(
       iRange,
       jRange,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { array(i, j) += testAdd; });
+      [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j) { array(i, j) += testAdd; });
   }
 
   template <int TDIM = DIM>
@@ -406,7 +403,7 @@ public:
       iRange,
       jRange,
       kRange,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         array(i, j, k) += testAdd;
       });
   }
@@ -461,10 +458,9 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::for_all<ExecSpace>(
-      idxBegin[0],
-      idxEnd[0],
-      AXOM_LAMBDA(axom::IndexType i) { array[i] += testAdd; });
+    axom::for_all<ExecSpace>(idxBegin[0], idxEnd[0], [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      array[i] += testAdd;
+    });
   }
 
   template <int TDIM = DIM>
@@ -489,15 +485,14 @@ public:
                                                        idxEnd[slowestDirs[1]]};
     axom::StackArray<axom::IndexType, 2> nRange {{begins[1], ends[1]}};
     axom::StackArray<axom::IndexType, 2> mRange {{begins[0], ends[0]}};
-    axom::for_all<ExecSpace>(
-      nRange,
-      mRange,
-      AXOM_LAMBDA(axom::IndexType n, axom::IndexType m) {
-        axom::StackArray<axom::IndexType, DIM> idx {m, n};
-        auto i = idx[invSlowestDirs[0]];
-        auto j = idx[invSlowestDirs[1]];
-        array(i, j) += testAdd;
-      });
+    axom::for_all<ExecSpace>(nRange,
+                             mRange,
+                             [=] AXOM_HOST_DEVICE(axom::IndexType n, axom::IndexType m) {
+                               axom::StackArray<axom::IndexType, DIM> idx {m, n};
+                               auto i = idx[invSlowestDirs[0]];
+                               auto j = idx[invSlowestDirs[1]];
+                               array(i, j) += testAdd;
+                             });
   }
 
   template <int TDIM = DIM>
@@ -530,7 +525,7 @@ public:
       oRange,
       nRange,
       mRange,
-      AXOM_LAMBDA(axom::IndexType o, axom::IndexType n, axom::IndexType m) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType o, axom::IndexType n, axom::IndexType m) {
         axom::StackArray<axom::IndexType, DIM> idx {m, n, o};
         auto i = idx[invSlowestDirs[0]];
         auto j = idx[invSlowestDirs[1]];
@@ -650,9 +645,9 @@ public:
 
     auto count = array.size();
     auto baseFactor = m_baseFactor;
-    axom::for_all<ExecSpace>(
-      count,
-      AXOM_LAMBDA(axom::IndexType i) { array.flatIndex(i) = Element_t(i * baseFactor); });
+    axom::for_all<ExecSpace>(count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      array.flatIndex(i) = Element_t(i * baseFactor);
+    });
 
     /*
       Warm-up: The first rep can be a slow outlier.  Since we are

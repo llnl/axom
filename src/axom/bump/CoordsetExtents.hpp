@@ -40,28 +40,25 @@ struct ComputeCoordsetExtents
   {
     AXOM_ANNOTATE_SCOPE("computeExtents");
 
-    axom::for_all<ExecSpace>(
-      CoordsetView::dimension(),
-      AXOM_LAMBDA(axom::IndexType dim) {
-        double& minValue = extentsView[2 * dim];
-        double& maxValue = extentsView[2 * dim + 1];
-        minValue = axom::numeric_limits<double>::max();
-        maxValue = -axom::numeric_limits<double>::max();
-      });
+    axom::for_all<ExecSpace>(CoordsetView::dimension(), [=] AXOM_HOST_DEVICE(axom::IndexType dim) {
+      double& minValue = extentsView[2 * dim];
+      double& maxValue = extentsView[2 * dim + 1];
+      minValue = axom::numeric_limits<double>::max();
+      maxValue = -axom::numeric_limits<double>::max();
+    });
 
-    axom::for_all<ExecSpace>(
-      coordsetView.numberOfNodes(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto pt = coordsetView[index];
-        for(int d = 0; d < CoordsetView::dimension(); d++)
-        {
-          double* minValue = extentsView.data() + 2 * d;
-          double* maxValue = minValue + 1;
-          const auto value = static_cast<double>(pt[d]);
-          axom::atomicMin<ExecSpace>(minValue, value);
-          axom::atomicMax<ExecSpace>(maxValue, value);
-        }
-      });
+    axom::for_all<ExecSpace>(coordsetView.numberOfNodes(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+                               const auto pt = coordsetView[index];
+                               for(int d = 0; d < CoordsetView::dimension(); d++)
+                               {
+                                 double* minValue = extentsView.data() + 2 * d;
+                                 double* maxValue = minValue + 1;
+                                 const auto value = static_cast<double>(pt[d]);
+                                 axom::atomicMin<ExecSpace>(minValue, value);
+                                 axom::atomicMax<ExecSpace>(maxValue, value);
+                               }
+                             });
   }
 };
 
@@ -83,13 +80,11 @@ struct ComputeCoordsetExtents<ExecSpace, axom::bump::views::UniformCoordsetView<
   static void computeExtents(CoordsetView coordsetView, axom::ArrayView<double> extentsView)
   {
     AXOM_ANNOTATE_SCOPE("computeExtentsUniform");
-    axom::for_all<ExecSpace>(
-      NDIMS,
-      AXOM_LAMBDA(axom::IndexType d) {
-        const auto n = coordsetView.indexing().logicalDimensions()[d] - 1;
-        extentsView[2 * d] = coordsetView.origin()[d];
-        extentsView[2 * d + 1] = coordsetView.origin()[d] + coordsetView.spacing()[d] * n;
-      });
+    axom::for_all<ExecSpace>(NDIMS, [=] AXOM_HOST_DEVICE(axom::IndexType d) {
+      const auto n = coordsetView.indexing().logicalDimensions()[d] - 1;
+      extentsView[2 * d] = coordsetView.origin()[d];
+      extentsView[2 * d + 1] = coordsetView.origin()[d] + coordsetView.spacing()[d] * n;
+    });
   }
 };
 
@@ -121,13 +116,11 @@ public:
   static void computeExtents(CoordsetView coordsetView, axom::ArrayView<double> extentsView)
   {
     AXOM_ANNOTATE_SCOPE("computeExtentsRectilinear");
-    axom::for_all<ExecSpace>(
-      NDIMS,
-      AXOM_LAMBDA(axom::IndexType d) {
-        const auto coordsView = coordsetView.getCoordinates(d);
-        extentsView[2 * d] = coordsView[0];
-        extentsView[2 * d + 1] = coordsView[coordsView.size() - 1];
-      });
+    axom::for_all<ExecSpace>(NDIMS, [=] AXOM_HOST_DEVICE(axom::IndexType d) {
+      const auto coordsView = coordsetView.getCoordinates(d);
+      extentsView[2 * d] = coordsView[0];
+      extentsView[2 * d + 1] = coordsView[coordsView.size() - 1];
+    });
   }
 };
 
@@ -198,9 +191,9 @@ public:
   void computeExtents(axom::ArrayView<double> extentsView) const
   {
     AXOM_ANNOTATE_SCOPE("CoordsetExtents");
-    axom::for_all<ExecSpace>(
-      extentsView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { extentsView[index] = 0.; });
+    axom::for_all<ExecSpace>(extentsView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      extentsView[index] = 0.;
+    });
     // Use the appropriate specialization to compute the extents.
     using Implementation = detail::ComputeCoordsetExtents<ExecSpace,
                                                           CoordsetView,

@@ -118,9 +118,9 @@ struct test_device_quadrature
 
     // Use the rule in a lambda to integrate the volume under std::sin(pi * x) on [0, 1]
     axom::ReduceSum<ExecSpace, double> quadrature_sum(0.0);
-    axom::for_all<ExecSpace>(
-      npts,
-      AXOM_LAMBDA(axom::IndexType i) { quadrature_sum += rule.weight(i) * sin(rule.node(i)); });
+    axom::for_all<ExecSpace>(npts, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      quadrature_sum += rule.weight(i) * sin(rule.node(i));
+    });
 
     EXPECT_NEAR(quadrature_sum.get(), 0.459697694132, 1e-6);
   }

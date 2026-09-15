@@ -101,7 +101,7 @@ public:
     const ShapeView deviceShapeView {m_topologyView, m_coordsetView};
     axom::for_all<ExecSpace>(
       m_topologyView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
         const auto shape = deviceShapeView.getShape(zoneIndex);
 
         // Get the area or volume of the target shape (depends on the dimension).

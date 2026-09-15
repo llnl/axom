@@ -361,15 +361,13 @@ DataView filter(conduit::Node& n_src,
   n_values.set(conduit::DataType(utils::cpp2conduit<value_type>::id, newSize));
   auto valuesView = utils::make_array_view<value_type>(n_values);
   const auto nValues = maskView.size();
-  axom::for_all<ExecSpace>(
-    nValues,
-    AXOM_LAMBDA(axom::IndexType index) {
-      if(maskView[index] > 0)
-      {
-        const auto destIndex = maskOffsetsView[index];
-        valuesView[destIndex] = srcView[index];
-      }
-    });
+  axom::for_all<ExecSpace>(nValues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+    if(maskView[index] > 0)
+    {
+      const auto destIndex = maskOffsetsView[index];
+      valuesView[destIndex] = srcView[index];
+    }
+  });
 
   n_src.swap(n_values);
   return utils::make_array_view<value_type>(n_src);
@@ -495,13 +493,11 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
     auto maskOffsetsView = maskOffsets.view();
     axom::ReduceSum<ExecSpace, axom::IndexType> mask_reduce(0);
     const axom::ArrayView<ConnectivityType> deviceSizesView = sizesView;
-    axom::for_all<ExecSpace>(
-      nz,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const int ival = (deviceSizesView[index] > 0) ? 1 : 0;
-        maskView[index] = static_cast<MaskType>(ival);
-        mask_reduce += ival;
-      });
+    axom::for_all<ExecSpace>(nz, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const int ival = (deviceSizesView[index] > 0) ? 1 : 0;
+      maskView[index] = static_cast<MaskType>(ival);
+      mask_reduce += ival;
+    });
     const axom::IndexType filteredZoneCount = mask_reduce.get();
 
     // Make offsets
@@ -557,41 +553,39 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
       AXOM_ANNOTATE_SCOPE("quadtri");
       const axom::IndexType numOutputZones = shapesView.size();
       axom::ReduceBitOr<ExecSpace, BitSet> shapesUsed_reduce(0);
-      axom::for_all<ExecSpace>(
-        numOutputZones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          if(shapesView[index] == views::Quad_ShapeID)
+      axom::for_all<ExecSpace>(numOutputZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        if(shapesView[index] == views::Quad_ShapeID)
+        {
+          const auto offset = offsetsView[index];
+          ConnectivityType pts[4];
+          int npts = 0;
+          for(int current = 0; current < 4; current++)
           {
-            const auto offset = offsetsView[index];
-            ConnectivityType pts[4];
-            int npts = 0;
-            for(int current = 0; current < 4; current++)
+            int next = (current + 1) % 4;
+            ConnectivityType curNode = connView[offset + current];
+            ConnectivityType nextNode = connView[offset + next];
+            if(curNode != nextNode)
             {
-              int next = (current + 1) % 4;
-              ConnectivityType curNode = connView[offset + current];
-              ConnectivityType nextNode = connView[offset + next];
-              if(curNode != nextNode)
-              {
-                pts[npts++] = curNode;
-              }
-            }
-
-            if(npts == 3)
-            {
-              shapesView[index] = views::Tri_ShapeID;
-              sizesView[index] = 3;
-              connView[offset] = pts[0];
-              connView[offset + 1] = pts[1];
-              connView[offset + 2] = pts[2];
-              // Repeat the last point (it won't be used though).
-              connView[offset + 3] = pts[2];
+              pts[npts++] = curNode;
             }
           }
 
-          BitSet shapeBit {};
-          axom::utilities::setBitOn(shapeBit, shapesView[index]);
-          shapesUsed_reduce |= shapeBit;
-        });
+          if(npts == 3)
+          {
+            shapesView[index] = views::Tri_ShapeID;
+            sizesView[index] = 3;
+            connView[offset] = pts[0];
+            connView[offset + 1] = pts[1];
+            connView[offset + 2] = pts[2];
+            // Repeat the last point (it won't be used though).
+            connView[offset + 3] = pts[2];
+          }
+        }
+
+        BitSet shapeBit {};
+        axom::utilities::setBitOn(shapeBit, shapesView[index]);
+        shapesUsed_reduce |= shapeBit;
+      });
       // We redid shapesUsed reduction in case triangles appeared.
       shapesUsed = shapesUsed_reduce.get();
     }
@@ -1127,17 +1121,15 @@ public:
 
       // Fill in sliceIndicesView.
       const auto selectedZonesView = selectedZones.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto zoneIndex = selectedZonesView[index];
-          const auto start = fragmentData.m_fragmentOffsetsView[index];
-          const int n = fragmentData.m_fragmentsView[index];
-          for(int i = 0; i < n; i++)
-          {
-            sliceIndicesView[start + i] = zoneIndex;
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto zoneIndex = selectedZonesView[index];
+        const auto start = fragmentData.m_fragmentOffsetsView[index];
+        const int n = fragmentData.m_fragmentsView[index];
+        for(int i = 0; i < n; i++)
+        {
+          sliceIndicesView[start + i] = zoneIndex;
+        }
+      });
       slice.m_indicesView = sliceIndicesView;
     }
 
@@ -1241,112 +1233,111 @@ private:
     auto blendGroupsLenView = builder.state().m_blendGroupsLenView;
 
     // Initialize nodeUsed data for nodes.
-    axom::for_all<ExecSpace>(
-      nodeData.m_nodeUsedView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { nodeData.m_nodeUsedView[index] = MaskType {0}; });
+    axom::for_all<ExecSpace>(nodeData.m_nodeUsedView.size(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+                               nodeData.m_nodeUsedView[index] = MaskType {0};
+                             });
 
     const auto deviceIntersector = m_intersector.view();
 
     const TopologyView deviceTopologyView(m_topologyView);
     const auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        // Avoid first-capture in constexpr-if context error
-        (void)selection;
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      // Avoid first-capture in constexpr-if context error
+      (void)selection;
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        // Get the case for the current zone.
-        const auto caseNumber = deviceIntersector.determineTableCase(zoneIndex, zone.getIds());
-        zoneData.m_caseNumbersView[szIndex] = caseNumber;
+      // Get the case for the current zone.
+      const auto caseNumber = deviceIntersector.determineTableCase(zoneIndex, zone.getIds());
+      zoneData.m_caseNumbersView[szIndex] = caseNumber;
 
-        // Iterate over the shapes in this case to determine the number of blend groups.
-        const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
-        const auto& ctView = tableViews[tableIndex];
+      // Iterate over the shapes in this case to determine the number of blend groups.
+      const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
+      const auto& ctView = tableViews[tableIndex];
 
-        int thisBlendGroups = 0;      // The number of blend groups produced in this case.
-        int thisBlendGroupLen = 0;    // The total length of the blend groups.
-        int thisFragments = 0;        // The number of zone fragments produced in this case.
-        int thisFragmentsNumIds = 0;  // The number of points used to make all the fragment zones.
-        BitSet ptused = 0;            // A bitset indicating which ST_XX nodes are used.
+      int thisBlendGroups = 0;      // The number of blend groups produced in this case.
+      int thisBlendGroupLen = 0;    // The total length of the blend groups.
+      int thisFragments = 0;        // The number of zone fragments produced in this case.
+      int thisFragmentsNumIds = 0;  // The number of points used to make all the fragment zones.
+      BitSet ptused = 0;            // A bitset indicating which ST_XX nodes are used.
 
-        auto it = ctView.begin(caseNumber);
-        const auto end = ctView.end(caseNumber);
-        for(; it != end; it++)
+      auto it = ctView.begin(caseNumber);
+      const auto end = ctView.end(caseNumber);
+      for(; it != end; it++)
+      {
+        // Get the current shape in the case.
+        const auto fragment = *it;
+        bool handleFragment = true;
+
+        // If the tables contain ST_PNT then handle them.
+        if constexpr(TableManagerType::generates_points())
         {
-          // Get the current shape in the case.
-          const auto fragment = *it;
-          bool handleFragment = true;
-
-          // If the tables contain ST_PNT then handle them.
-          if constexpr(TableManagerType::generates_points())
+          if(fragment[0] == ST_PNT)
           {
-            if(fragment[0] == ST_PNT)
+            if(detail::generatedPointIsSelected(fragment[2], selection))
             {
-              if(detail::generatedPointIsSelected(fragment[2], selection))
+              const int nIds = static_cast<int>(fragment[3]);
+
+              for(int ni = 0; ni < nIds; ni++)
               {
-                const int nIds = static_cast<int>(fragment[3]);
+                const auto pid = fragment[4 + ni];
 
-                for(int ni = 0; ni < nIds; ni++)
+                // Increase the blend size to include this center point.
+                if(pid <= P7)
                 {
-                  const auto pid = fragment[4 + ni];
-
-                  // Increase the blend size to include this center point.
-                  if(pid <= P7)
-                  {
-                    // corner point
-                    thisBlendGroupLen++;
-                  }
-                  else if(pid >= EA && pid <= EL)
-                  {
-                    // edge point
-                    thisBlendGroupLen += 2;
-                  }
+                  // corner point
+                  thisBlendGroupLen++;
                 }
-
-                // This center or face point counts as a blend group.
-                thisBlendGroups++;
-
-                // Mark the point used.
-                axom::utilities::setBitOn(ptused, N0 + fragment[1]);
+                else if(pid >= EA && pid <= EL)
+                {
+                  // edge point
+                  thisBlendGroupLen += 2;
+                }
               }
-              handleFragment = false;
-            }
-          }
-          if(handleFragment && detail::shapeIsSelected(fragment[1], selection))
-          {
-            thisFragments++;
-            const int nIdsThisFragment = fragment.size() - 2;
-            thisFragmentsNumIds += nIdsThisFragment;
 
-            // Mark the points this fragment used.
-            for(int i = 2; i < fragment.size(); i++)
-            {
-              axom::utilities::setBitOn(ptused, fragment[i]);
+              // This center or face point counts as a blend group.
+              thisBlendGroups++;
+
+              // Mark the point used.
+              axom::utilities::setBitOn(ptused, N0 + fragment[1]);
             }
+            handleFragment = false;
           }
         }
-
-        // Save the flags for the points that were used in this zone
-        zoneData.m_pointsUsedView[szIndex] = ptused;
-
-        const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
-        const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
-#if defined(AXOM_REDUCE_BLEND_GROUPS)
-        // NOTE: We are not going to emit blend groups for P0..P7 points.
-
-        // If the zone uses a node, set that node in nodeUsedView.
-        for(IndexType pid = P0; pid <= PMAX; pid++)
+        if(handleFragment && detail::shapeIsSelected(fragment[1], selection))
         {
-          if(axom::utilities::bitIsSet(ptused, pid))
-          {
-            const auto nodeId = zone.getId(pid);
+          thisFragments++;
+          const int nIdsThisFragment = fragment.size() - 2;
+          thisFragmentsNumIds += nIdsThisFragment;
 
-            // NOTE: Multiple threads may write to this node but they all write the same value.
-            nodeData.m_nodeUsedView[nodeId] = MaskType {1};
+          // Mark the points this fragment used.
+          for(int i = 2; i < fragment.size(); i++)
+          {
+            axom::utilities::setBitOn(ptused, fragment[i]);
           }
         }
+      }
+
+      // Save the flags for the points that were used in this zone
+      zoneData.m_pointsUsedView[szIndex] = ptused;
+
+      const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
+      const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
+#if defined(AXOM_REDUCE_BLEND_GROUPS)
+      // NOTE: We are not going to emit blend groups for P0..P7 points.
+
+      // If the zone uses a node, set that node in nodeUsedView.
+      for(IndexType pid = P0; pid <= PMAX; pid++)
+      {
+        if(axom::utilities::bitIsSet(ptused, pid))
+        {
+          const auto nodeId = zone.getId(pid);
+
+          // NOTE: Multiple threads may write to this node but they all write the same value.
+          nodeData.m_nodeUsedView[nodeId] = MaskType {1};
+        }
+      }
 #else
         // Count which points in the original cell are used.
         for(IndexType pid = P0; pid <= PMAX; pid++)
@@ -1358,23 +1349,23 @@ private:
         }
 #endif
 
-        // Count edges that are used.
-        for(IndexType pid = EA; pid <= EMAX; pid++)
-        {
-          const int incr = axom::utilities::bitIsSet(ptused, pid) ? 1 : 0;
+      // Count edges that are used.
+      for(IndexType pid = EA; pid <= EMAX; pid++)
+      {
+        const int incr = axom::utilities::bitIsSet(ptused, pid) ? 1 : 0;
 
-          thisBlendGroupLen += 2 * incr;  // {p0 p1}
-          thisBlendGroups += incr;
-        }
+        thisBlendGroupLen += 2 * incr;  // {p0 p1}
+        thisBlendGroups += incr;
+      }
 
-        // Save the results.
-        fragmentData.m_fragmentsView[szIndex] = thisFragments;
-        fragmentData.m_fragmentsSizeView[szIndex] = thisFragmentsNumIds;
+      // Save the results.
+      fragmentData.m_fragmentsView[szIndex] = thisFragments;
+      fragmentData.m_fragmentsSizeView[szIndex] = thisFragmentsNumIds;
 
-        // Set blend group sizes for this zone.
-        blendGroupsView[szIndex] = thisBlendGroups;
-        blendGroupsLenView[szIndex] = thisBlendGroupLen;
-      });  // for_selected_zones
+      // Set blend group sizes for this zone.
+      blendGroupsView[szIndex] = thisBlendGroups;
+      blendGroupsLenView[szIndex] = thisBlendGroupLen;
+    });  // for_selected_zones
 
 #if defined(AXOM_DEBUG_EXTRACTOR)
     SLIC_DEBUG("------------------------ computeSizes ------------------------");
@@ -1430,12 +1421,10 @@ private:
       axom::ReduceSum<ExecSpace, IndexType> fragment_nids_sum(0);
       const auto fragmentsView = fragmentData.m_fragmentsView;
       const auto fragmentsSizeView = fragmentData.m_fragmentsSizeView;
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          fragment_sum += fragmentsView[szIndex];
-          fragment_nids_sum += fragmentsSizeView[szIndex];
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+        fragment_sum += fragmentsView[szIndex];
+        fragment_nids_sum += fragmentsSizeView[szIndex];
+      });
 
       fragmentData.m_finalNumZones = fragment_sum.get();
       fragmentData.m_finalConnSize = fragment_nids_sum.get();
@@ -1463,9 +1452,9 @@ private:
     // Count the number of original nodes we'll use directly.
     axom::ReduceSum<ExecSpace, int> nUsed_reducer(0);
     const auto nodeUsedView = nodeData.m_nodeUsedView;
-    axom::for_all<ExecSpace>(
-      nodeUsedView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { nUsed_reducer += static_cast<int>(nodeUsedView[index]); });
+    axom::for_all<ExecSpace>(nodeUsedView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      nUsed_reducer += static_cast<int>(nodeUsedView[index]);
+    });
     return nUsed_reducer.get();
   }
 
@@ -1489,17 +1478,15 @@ private:
     axom::exclusive_scan<ExecSpace>(nodeData.m_nodeUsedView, nodeOffsetsView);
 
     // Make the compact node list and oldToNew map.
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType index) {
-        IndexType newId = 0;
-        if(nodeData.m_nodeUsedView[index] > 0)
-        {
-          nodeData.m_originalIdsView[nodeOffsetsView[index]] = index;
-          newId = nodeOffsetsView[index];
-        }
-        nodeData.m_oldNodeToNewNodeView[index] = newId;
-      });
+    axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      IndexType newId = 0;
+      if(nodeData.m_nodeUsedView[index] > 0)
+      {
+        nodeData.m_originalIdsView[nodeOffsetsView[index]] = index;
+        newId = nodeOffsetsView[index];
+      }
+      nodeData.m_oldNodeToNewNodeView[index] = newId;
+    });
 
   #if defined(AXOM_DEBUG_EXTRACTOR)
     SLIC_DEBUG(
@@ -1537,137 +1524,135 @@ private:
     const auto deviceIntersector = m_intersector.view();
     const TopologyView deviceTopologyView(m_topologyView);
     const auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        // Avoid first-capture in constexpr-if context error
-        (void)selection;
-        (void)deviceIntersector;
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      // Avoid first-capture in constexpr-if context error
+      (void)selection;
+      (void)deviceIntersector;
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        // Get the case for the current zone.
-        const auto caseNumber = zoneData.m_caseNumbersView[szIndex];
+      // Get the case for the current zone.
+      const auto caseNumber = zoneData.m_caseNumbersView[szIndex];
 
-        // Iterate over the shapes in this case to determine the number of blend groups.
-        const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
-        const auto& ctView = tableViews[tableIndex];
+      // Iterate over the shapes in this case to determine the number of blend groups.
+      const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
+      const auto& ctView = tableViews[tableIndex];
 
-        // These are the points used in this zone's fragments.
-        const BitSet ptused = zoneData.m_pointsUsedView[szIndex];
+      // These are the points used in this zone's fragments.
+      const BitSet ptused = zoneData.m_pointsUsedView[szIndex];
 
-        // Get the blend groups for this zone.
-        auto groups = builder.blendGroupsForZone(szIndex);
+      // Get the blend groups for this zone.
+      auto groups = builder.blendGroupsForZone(szIndex);
 
-        auto it = ctView.begin(caseNumber);
-        const auto end = ctView.end(caseNumber);
-        for(; it != end; it++)
+      auto it = ctView.begin(caseNumber);
+      const auto end = ctView.end(caseNumber);
+      for(; it != end; it++)
+      {
+        // Get the current shape in the case.
+        const auto fragment = *it;
+
+        // If the tables contain ST_PNT then handle them.
+        if constexpr(TableManagerType::generates_points())
         {
-          // Get the current shape in the case.
-          const auto fragment = *it;
-
-          // If the tables contain ST_PNT then handle them.
-          if constexpr(TableManagerType::generates_points())
+          if(fragment[0] == ST_PNT)
           {
-            if(fragment[0] == ST_PNT)
+            if(detail::generatedPointIsSelected(fragment[2], selection))
             {
-              if(detail::generatedPointIsSelected(fragment[2], selection))
+              const int nIds = static_cast<int>(fragment[3]);
+              const auto one_over_n = 1.f / static_cast<float>(nIds);
+
+              groups.beginGroup();
+              for(int ni = 0; ni < nIds; ni++)
               {
-                const int nIds = static_cast<int>(fragment[3]);
-                const auto one_over_n = 1.f / static_cast<float>(nIds);
+                const auto ptid = fragment[4 + ni];
 
-                groups.beginGroup();
-                for(int ni = 0; ni < nIds; ni++)
+                // Add the point to the blend group.
+                if(ptid <= P7)
                 {
-                  const auto ptid = fragment[4 + ni];
-
-                  // Add the point to the blend group.
-                  if(ptid <= P7)
-                  {
-                    // corner point.
-                    groups.add(zone.getId(ptid), one_over_n);
-                  }
-                  else if(ptid >= EA && ptid <= EL)
-                  {
-                    // edge point.
-                    const auto edgeIndex = ptid - EA;
-                    const auto edge = zone.getEdge(edgeIndex);
-                    const auto id0 = zone.getId(edge[0]);
-                    const auto id1 = zone.getId(edge[1]);
-
-                    // Figure out the blend for edge.
-                    const auto t = deviceIntersector.computeWeight(zoneIndex, id0, id1);
-
-                    groups.add(id0, one_over_n * (1.f - t));
-                    groups.add(id1, one_over_n * t);
-                  }
+                  // corner point.
+                  groups.add(zone.getId(ptid), one_over_n);
                 }
-                groups.endGroup();
+                else if(ptid >= EA && ptid <= EL)
+                {
+                  // edge point.
+                  const auto edgeIndex = ptid - EA;
+                  const auto edge = zone.getEdge(edgeIndex);
+                  const auto id0 = zone.getId(edge[0]);
+                  const auto id1 = zone.getId(edge[1]);
+
+                  // Figure out the blend for edge.
+                  const auto t = deviceIntersector.computeWeight(zoneIndex, id0, id1);
+
+                  groups.add(id0, one_over_n * (1.f - t));
+                  groups.add(id1, one_over_n * t);
+                }
               }
+              groups.endGroup();
             }
           }
         }
+      }
 
 #if !defined(AXOM_REDUCE_BLEND_GROUPS)
-        // Add blend group for each original point that was used.
-        // NOTE - this can add a lot of blend groups with 1 node.
-        const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
-        for(IndexType pid = P0; pid <= PMAX; pid++)
+      // Add blend group for each original point that was used.
+      // NOTE - this can add a lot of blend groups with 1 node.
+      const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
+      for(IndexType pid = P0; pid <= PMAX; pid++)
+      {
+        if(axom::utilities::bitIsSet(ptused, pid))
         {
-          if(axom::utilities::bitIsSet(ptused, pid))
-          {
-            groups.beginGroup();
-            groups.add(zone.getId(pid), 1.f);
-            groups.endGroup();
-          }
+          groups.beginGroup();
+          groups.add(zone.getId(pid), 1.f);
+          groups.endGroup();
         }
+      }
 #endif
-        // Add blend group for each edge point that was used.
-        const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
-        for(IndexType pid = EA; pid <= EMAX; pid++)
+      // Add blend group for each edge point that was used.
+      const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
+      for(IndexType pid = EA; pid <= EMAX; pid++)
+      {
+        if(axom::utilities::bitIsSet(ptused, pid))
         {
-          if(axom::utilities::bitIsSet(ptused, pid))
+          const auto edgeIndex = pid - EA;
+          const auto edge = zone.getEdge(edgeIndex);
+          const auto id0 = zone.getId(edge[0]);
+          const auto id1 = zone.getId(edge[1]);
+
+          // Figure out the blend for edge.
+          const auto t = deviceIntersector.computeWeight(zoneIndex, id0, id1);
+
+          groups.beginGroup();
+          if constexpr(AllowEdgePointConversion)
           {
-            const auto edgeIndex = pid - EA;
-            const auto edge = zone.getEdge(edgeIndex);
-            const auto id0 = zone.getId(edge[0]);
-            const auto id1 = zone.getId(edge[1]);
+            // We probably only want to do this for clipping fragments.
 
-            // Figure out the blend for edge.
-            const auto t = deviceIntersector.computeWeight(zoneIndex, id0, id1);
-
-            groups.beginGroup();
-            if constexpr(AllowEdgePointConversion)
+            // Close to the endpoints, just count the edge blend group
+            // as an endpoint to ensure better blend group matching later.
+            constexpr decltype(t) LOWER = 1.e-4;
+            constexpr decltype(t) UPPER = 1. - LOWER;
+            if(t < LOWER)
             {
-              // We probably only want to do this for clipping fragments.
-
-              // Close to the endpoints, just count the edge blend group
-              // as an endpoint to ensure better blend group matching later.
-              constexpr decltype(t) LOWER = 1.e-4;
-              constexpr decltype(t) UPPER = 1. - LOWER;
-              if(t < LOWER)
-              {
-                groups.add(id0, 1.f);
-              }
-              else if(t > UPPER)
-              {
-                groups.add(id1, 1.f);
-              }
-              else
-              {
-                groups.add(id0, 1.f - t);
-                groups.add(id1, t);
-              }
+              groups.add(id0, 1.f);
+            }
+            else if(t > UPPER)
+            {
+              groups.add(id1, 1.f);
             }
             else
             {
               groups.add(id0, 1.f - t);
               groups.add(id1, t);
             }
-            groups.endGroup();
           }
+          else
+          {
+            groups.add(id0, 1.f - t);
+            groups.add(id1, t);
+          }
+          groups.endGroup();
         }
-      });
+      }
+    });
   }
 
   /*!
@@ -1762,20 +1747,17 @@ private:
 #endif
 
     // Fill in connectivity values in case we leave empty slots later.
-    axom::for_all<ExecSpace>(
-      connView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { connView[index] = 0; });
+    axom::for_all<ExecSpace>(connView.size(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType index) { connView[index] = 0; });
 
 #if defined(AXOM_DEBUG_EXTRACTOR)
     // Initialize the values beforehand. For debugging.
-    axom::for_all<ExecSpace>(
-      shapesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        shapesView[index] = -2;
-        sizesView[index] = -3;
-        offsetsView[index] = -4;
-        colorView[index] = -5;
-      });
+    axom::for_all<ExecSpace>(shapesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      shapesView[index] = -2;
+      sizesView[index] = -3;
+      offsetsView[index] = -4;
+      colorView[index] = -5;
+    });
 #endif
     AXOM_ANNOTATE_END("allocation");
 
@@ -1796,25 +1778,46 @@ private:
 
       const TopologyView deviceTopologyView(m_topologyView);
       const auto selectedZonesView = selectedZones.view();
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          // If there are no fragments, return from lambda.
-          if(fragmentData.m_fragmentsView[szIndex] == 0) return;
+      axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+        // If there are no fragments, return from lambda.
+        if(fragmentData.m_fragmentsView[szIndex] == 0) return;
 
-          const auto zoneIndex = selectedZonesView[szIndex];
-          const auto zone = deviceTopologyView.zone(zoneIndex);
+        const auto zoneIndex = selectedZonesView[szIndex];
+        const auto zone = deviceTopologyView.zone(zoneIndex);
 
-          // Seek to the start of the blend groups for this zone.
-          auto groups = builder.blendGroupsForZone(szIndex);
+        // Seek to the start of the blend groups for this zone.
+        auto groups = builder.blendGroupsForZone(szIndex);
 
-          // Go through the points in the order they would have been added as blend
-          // groups, get their blendName, and then overall index of that blendName
-          // in uNames, the unique list of new dof names. That will be their index
-          // in the final points.
-          const BitSet ptused = zoneData.m_pointsUsedView[szIndex];
-          ConnectivityType point_2_new[N3 + 1];
-          for(BitSet pid = N0; pid <= N3; pid++)
+        // Go through the points in the order they would have been added as blend
+        // groups, get their blendName, and then overall index of that blendName
+        // in uNames, the unique list of new dof names. That will be their index
+        // in the final points.
+        const BitSet ptused = zoneData.m_pointsUsedView[szIndex];
+        ConnectivityType point_2_new[N3 + 1];
+        for(BitSet pid = N0; pid <= N3; pid++)
+        {
+          if(axom::utilities::bitIsSet(ptused, pid))
+          {
+            point_2_new[pid] = origSize + groups.uniqueBlendGroupIndex();
+            groups++;
+          }
+        }
+
+        const BitSet PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
+        const BitSet EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
+#if defined(AXOM_REDUCE_BLEND_GROUPS)
+        // For single nodes, we did not make a blend group. We look up the new
+        // node id from nodeData.m_oldNodeToNewNodeView.
+        for(BitSet pid = P0; pid <= PMAX; pid++)
+        {
+          if(axom::utilities::bitIsSet(ptused, pid))
+          {
+            const auto nodeId = zone.getId(pid);
+            point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId];
+          }
+        }
+#else
+          for(BitSet pid = P0; pid <= PMAX; pid++)
           {
             if(axom::utilities::bitIsSet(ptused, pid))
             {
@@ -1822,114 +1825,91 @@ private:
               groups++;
             }
           }
-
-          const BitSet PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
-          const BitSet EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
-#if defined(AXOM_REDUCE_BLEND_GROUPS)
-          // For single nodes, we did not make a blend group. We look up the new
-          // node id from nodeData.m_oldNodeToNewNodeView.
-          for(BitSet pid = P0; pid <= PMAX; pid++)
+#endif
+        for(BitSet pid = EA; pid <= EMAX; pid++)
+        {
+          if(axom::utilities::bitIsSet(ptused, pid))
           {
-            if(axom::utilities::bitIsSet(ptused, pid))
+#if defined(AXOM_REDUCE_BLEND_GROUPS)
+            // There is a chance that the edge blend group was emitted with a
+            // single node if the edge was really close to a corner node.
+            if(groups.size() == 1)
             {
-              const auto nodeId = zone.getId(pid);
+              const auto nodeId = groups.id(0);
               point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId];
             }
-          }
-#else
-          for(BitSet pid = P0; pid <= PMAX; pid++)
-          {
-            if(axom::utilities::bitIsSet(ptused, pid))
+            else
             {
               point_2_new[pid] = origSize + groups.uniqueBlendGroupIndex();
-              groups++;
             }
-          }
-#endif
-          for(BitSet pid = EA; pid <= EMAX; pid++)
-          {
-            if(axom::utilities::bitIsSet(ptused, pid))
-            {
-#if defined(AXOM_REDUCE_BLEND_GROUPS)
-              // There is a chance that the edge blend group was emitted with a
-              // single node if the edge was really close to a corner node.
-              if(groups.size() == 1)
-              {
-                const auto nodeId = groups.id(0);
-                point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId];
-              }
-              else
-              {
-                point_2_new[pid] = origSize + groups.uniqueBlendGroupIndex();
-              }
 #else
               point_2_new[pid] = origSize + groups.uniqueBlendGroupIndex();
 #endif
-              groups++;
-            }
+            groups++;
           }
+        }
 
-          // This is where the output fragment connectivity start for this zone
-          int outputIndex = fragmentData.m_fragmentSizeOffsetsView[szIndex];
-          // This is where the output fragment sizes/shapes start for this zone.
-          int sizeIndex = fragmentData.m_fragmentOffsetsView[szIndex];
+        // This is where the output fragment connectivity start for this zone
+        int outputIndex = fragmentData.m_fragmentSizeOffsetsView[szIndex];
+        // This is where the output fragment sizes/shapes start for this zone.
+        int sizeIndex = fragmentData.m_fragmentOffsetsView[szIndex];
 #if defined(AXOM_EXTRACTOR_DEGENERATES)
-          bool degenerates = false;
-          int thisFragments = 0;
+        bool degenerates = false;
+        int thisFragments = 0;
 #endif
-          // Iterate over the selected fragments and emit connectivity for them.
-          const auto caseNumber = zoneData.m_caseNumbersView[szIndex];
-          const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
-          const auto ctView = tableViews[tableIndex];
-          auto it = ctView.begin(caseNumber);
-          const auto end = ctView.end(caseNumber);
-          for(; it != end; it++)
-          {
-            // Get the current shape in the case.
-            const auto fragment = *it;
-            const auto fragmentShape = fragment[0];
+        // Iterate over the selected fragments and emit connectivity for them.
+        const auto caseNumber = zoneData.m_caseNumbersView[szIndex];
+        const auto tableIndex = detail::getTableIndex(zone.id(), zone.numberOfNodes());
+        const auto ctView = tableViews[tableIndex];
+        auto it = ctView.begin(caseNumber);
+        const auto end = ctView.end(caseNumber);
+        for(; it != end; it++)
+        {
+          // Get the current shape in the case.
+          const auto fragment = *it;
+          const auto fragmentShape = fragment[0];
 
-            if(fragmentShape != ST_PNT)
+          if(fragmentShape != ST_PNT)
+          {
+            if(detail::shapeIsSelected(fragment[1], selection))
             {
-              if(detail::shapeIsSelected(fragment[1], selection))
-              {
 #if defined(AXOM_EXTRACTOR_ADD_CASE_FIELD)
-                // Save the table index and table case into the "case" variable.
-                caseView[sizeIndex] = tableIndex * 10000 + caseNumber;
+              // Save the table index and table case into the "case" variable.
+              caseView[sizeIndex] = tableIndex * 10000 + caseNumber;
 #endif
 
-                [[maybe_unused]] const bool addedFragment =
-                  FragmentOps::addFragment(fragment,
-                                           connView,
-                                           sizesView[sizeIndex],
-                                           offsetsView[sizeIndex],
-                                           shapesView[sizeIndex],
-                                           colorView[sizeIndex],
-                                           point_2_new,
-                                           outputIndex);
-                sizeIndex++;
+              [[maybe_unused]] const bool addedFragment =
+                FragmentOps::addFragment(fragment,
+                                         connView,
+                                         sizesView[sizeIndex],
+                                         offsetsView[sizeIndex],
+                                         shapesView[sizeIndex],
+                                         colorView[sizeIndex],
+                                         point_2_new,
+                                         outputIndex);
+              sizeIndex++;
 
 #if defined(AXOM_EXTRACTOR_DEGENERATES)
-                thisFragments += addedFragment ? 1 : 0;
+              thisFragments += addedFragment ? 1 : 0;
 
-                // Record whether we have had any degenerates.
-                degenerates |= !addedFragment;
+              // Record whether we have had any degenerates.
+              degenerates |= !addedFragment;
 #endif
-              }
             }
           }
+        }
 
 #if defined(AXOM_EXTRACTOR_DEGENERATES)
-          // If there were degenerates then update the fragment count.
-          if(degenerates)
-          {
-            fragmentData.m_fragmentsView[szIndex] = thisFragments;
-          }
+        // If there were degenerates then update the fragment count.
+        if(degenerates)
+        {
+          fragmentData.m_fragmentsView[szIndex] = thisFragments;
+        }
 
-          // Reduce overall whether there are degenerates.
-          degenerates_reduce |= degenerates;
+        // Reduce overall whether there are degenerates.
+        degenerates_reduce |= degenerates;
 #endif
-        });  // for_selected_zones
+      });  // for_selected_zones
 
 #if defined(AXOM_DEBUG_EXTRACTOR)
       SLIC_DEBUG("------------------------ makeTopology ------------------------");
@@ -2042,12 +2022,10 @@ private:
 
     axom::ReduceBitOr<ExecSpace, BitSet> shapesUsed_reduce(0);
     const axom::IndexType nShapes = shapesView.size();
-    axom::for_all<ExecSpace>(
-      nShapes,
-      AXOM_LAMBDA(axom::IndexType index) {
-        BitSet shapeBit = 1 << shapesView[index];
-        shapesUsed_reduce |= shapeBit;
-      });
+    axom::for_all<ExecSpace>(nShapes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      BitSet shapeBit = 1 << shapesView[index];
+      shapesUsed_reduce |= shapeBit;
+    });
     BitSet shapesUsed = shapesUsed_reduce.get();
     return shapesUsed;
   }
@@ -2277,17 +2255,15 @@ private:
       n_values.set_allocator(conduitAllocatorID);
       n_values.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
       auto valuesView = utils::make_array_view<ConnectivityType>(n_values);
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
-          const int nFragments = fragmentData.m_fragmentsView[index];
-          const auto zoneIndex = selectedZonesView[index];
-          for(int i = 0; i < nFragments; i++)
-          {
-            valuesView[sizeIndex + i] = zoneIndex;
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
+        const int nFragments = fragmentData.m_fragmentsView[index];
+        const auto zoneIndex = selectedZonesView[index];
+        for(int i = 0; i < nFragments; i++)
+        {
+          valuesView[sizeIndex + i] = zoneIndex;
+        }
+      });
     }
   }
 
@@ -2311,17 +2287,15 @@ private:
   {
     const auto selectedZonesView = selectedZones.view();
     const auto nzones = selectedZonesView.size();
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
-        const int nFragments = fragmentData.m_fragmentsView[index];
-        const auto zoneIndex = selectedZonesView[index];
-        for(int i = 0; i < nFragments; i++)
-        {
-          valuesView[sizeIndex + i] = origValuesView[zoneIndex];
-        }
-      });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
+      const int nFragments = fragmentData.m_fragmentsView[index];
+      const auto zoneIndex = selectedZonesView[index];
+      for(int i = 0; i < nFragments; i++)
+      {
+        valuesView[sizeIndex + i] = origValuesView[zoneIndex];
+      }
+    });
   }
 
   /*!
@@ -2401,9 +2375,9 @@ private:
         auto valuesView = utils::make_array_view<Precision>(n_new_nodes_values);
 
         // Update values for the blend groups only.
-        axom::for_all<ExecSpace>(
-          blendSize,
-          AXOM_LAMBDA(axom::IndexType bgid) { valuesView[origSize + bgid] = one; });
+        axom::for_all<ExecSpace>(blendSize, [=] AXOM_HOST_DEVICE(axom::IndexType bgid) {
+          valuesView[origSize + bgid] = one;
+        });
       }
       else
       {
@@ -2420,9 +2394,9 @@ private:
 
         // Fill in values. Everything below origSize is an original node.
         // Everything above is a blended node.
-        axom::for_all<ExecSpace>(
-          outputSize,
-          AXOM_LAMBDA(axom::IndexType index) { valuesView[index] = (index < origSize) ? zero : one; });
+        axom::for_all<ExecSpace>(outputSize, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          valuesView[index] = (index < origSize) ? zero : one;
+        });
       }
     }
   }

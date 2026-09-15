@@ -328,8 +328,7 @@ axom::Array<IndexPair> naiveFindIntersections(const TriangleMesh& triMesh,
                                  timer.elapsedTimeInSec()));
 
   // lambda to check if two triangles w/ given indices intersect
-  auto trianglesIntersect = AXOM_LAMBDA(axom::IndexType idx1, axom::IndexType idx2)
-  {
+  auto trianglesIntersect = [=] AXOM_HOST_DEVICE(axom::IndexType idx1, axom::IndexType idx2) {
     constexpr bool includeBoundaries = false;  // only use triangle interiors
 
     return (!useBoundingBoxes || axom::primal::intersect(bbox_v[idx1], bbox_v[idx2])) &&
@@ -347,14 +346,13 @@ axom::Array<IndexPair> naiveFindIntersections(const TriangleMesh& triMesh,
 
   // Compute the number of intersections
   timer.start();
-  RAJA::kernel<KERNEL_POL>(
-    RAJA::make_tuple(col_range, row_range),
-    AXOM_LAMBDA(int col, int row) {
-      if(row < col && trianglesIntersect(valid_v[row], valid_v[col]))
-      {
-        numIntersect += 1;
-      }
-    });
+  RAJA::kernel<KERNEL_POL>(RAJA::make_tuple(col_range, row_range),
+                           [=] AXOM_HOST_DEVICE(int col, int row) {
+                             if(row < col && trianglesIntersect(valid_v[row], valid_v[col]))
+                             {
+                               numIntersect += 1;
+                             }
+                           });
   timer.stop();
   SLIC_INFO_IF(
     verboseOutput,
@@ -381,7 +379,7 @@ axom::Array<IndexPair> naiveFindIntersections(const TriangleMesh& triMesh,
     auto intersections_v = intersections_d.view();
     RAJA::kernel<KERNEL_POL>(
       RAJA::make_tuple(col_range, row_range),
-      AXOM_LAMBDA(int col, int row) {
+      [=] AXOM_HOST_DEVICE(int col, int row) {
         if(row < col && trianglesIntersect(valid_v[row], valid_v[col]))
         {
           const auto idx = axom::atomicAdd<axom::auto_atomic>(counter_p, axom::IndexType {2});

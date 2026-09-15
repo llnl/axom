@@ -119,7 +119,9 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
   // Initialize the bounding box for each cell
   mint::for_all_cells<ExecSpace, mint::xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx, axom::numerics::Matrix<double> & coords, const IndexType* nodeIds) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx,
+                         axom::numerics::Matrix<double> & coords,
+                         const IndexType* nodeIds) {
       AXOM_UNUSED_VAR(nodeIds);
       const int numNodes = coords.getNumColumns();
       BoxType aabb;
@@ -163,30 +165,28 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
   const auto v_offsets = offsets.view();
 
   // First pass: get number of bounding box collisions for each surface element
-  axom::for_all<ExecSpace>(
-    ncells,
-    AXOM_LAMBDA(IndexType icell) {
-      IndexType count = 0;
+  axom::for_all<ExecSpace>(ncells, [=] AXOM_HOST_DEVICE(IndexType icell) {
+    IndexType count = 0;
 
-      // Define a function that is called on every leaf node reached during
-      // traversal. The function below simply counts the number of candidate
-      // collisions with the given query object.
-      auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
-        AXOM_UNUSED_VAR(leafNodes);
-        if(currentNode > icell)
-        {
-          count++;
-        }
-      };
+    // Define a function that is called on every leaf node reached during
+    // traversal. The function below simply counts the number of candidate
+    // collisions with the given query object.
+    auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
+      AXOM_UNUSED_VAR(leafNodes);
+      if(currentNode > icell)
+      {
+        count++;
+      }
+    };
 
-      // Call traverse_tree() to run the counting query.
-      bvh_device.traverse_tree(v_aabbs[icell], countCollisions, bbIsect);
+    // Call traverse_tree() to run the counting query.
+    bvh_device.traverse_tree(v_aabbs[icell], countCollisions, bbIsect);
 
-      // Afterwards, we can store the number of collisions for each surface
-      // element, as well as an overall count of intersections.
-      v_counts[icell] = count;
-      total_count_reduce += count;
-    });
+    // Afterwards, we can store the number of collisions for each surface
+    // element, as well as an overall count of intersections.
+    v_counts[icell] = count;
+    total_count_reduce += count;
+  });
 
   // Generate offsets
   axom::exclusive_scan<ExecSpace>(counts, offsets);
@@ -205,24 +205,22 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
   const auto v_second_pair = secondPair.view();
 
   // Second pass: fill broad-phase collisions array
-  axom::for_all<ExecSpace>(
-    ncells,
-    AXOM_LAMBDA(IndexType icell) {
-      IndexType offset = v_offsets[icell];
+  axom::for_all<ExecSpace>(ncells, [=] AXOM_HOST_DEVICE(IndexType icell) {
+    IndexType offset = v_offsets[icell];
 
-      // Define a leaf node function that stores the intersection candidate.
-      auto fillCollisions = [&](std::int32_t currentNode, const std::int32_t* leafs) {
-        if(currentNode > icell)
-        {
-          v_first_pair[offset] = icell;
-          v_second_pair[offset] = leafs[currentNode];
-          offset++;
-        }
-      };
+    // Define a leaf node function that stores the intersection candidate.
+    auto fillCollisions = [&](std::int32_t currentNode, const std::int32_t* leafs) {
+      if(currentNode > icell)
+      {
+        v_first_pair[offset] = icell;
+        v_second_pair[offset] = leafs[currentNode];
+        offset++;
+      }
+    };
 
-      // Call traverse_tree() a second time to run the counting query.
-      bvh_device.traverse_tree(v_aabbs[icell], fillCollisions, bbIsect);
-    });
+    // Call traverse_tree() a second time to run the counting query.
+    bvh_device.traverse_tree(v_aabbs[icell], fillCollisions, bbIsect);
+  });
   // _bvh_traverse_second_pass_end
 }
 
@@ -258,7 +256,9 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
   // Create an array with our surface mesh's triangles
   mint::for_all_cells<ExecSpace, mint::xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx, axom::numerics::Matrix<double> & coords, const IndexType* nodeIds) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx,
+                         axom::numerics::Matrix<double> & coords,
+                         const IndexType* nodeIds) {
       AXOM_UNUSED_VAR(nodeIds);
       TriangleType tri;
 
@@ -291,21 +291,19 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
   const auto v_outSecondPair = outSecondPair.view();
 
   // For each candidate pair, we'll run a triangle-triangle intersection check.
-  axom::for_all<ExecSpace>(
-    ncandidates,
-    AXOM_LAMBDA(IndexType idx) {
-      IndexType firstIdx = v_inFirstPair[idx];
-      IndexType secondIdx = v_inSecondPair[idx];
-      if(primal::intersect(v_triangles[firstIdx], v_triangles[secondIdx], false))
-      {
-        auto outIdx = axom::atomicAdd<ExecSpace>(&v_counter[0], IndexType {1});
-        // Store actually-intersecting triangle pairs sequentially in output
-        // array.
-        v_outFirstPair[outIdx] = firstIdx;
-        v_outSecondPair[outIdx] = secondIdx;
-        total_count_reduce += 1;
-      }
-    });
+  axom::for_all<ExecSpace>(ncandidates, [=] AXOM_HOST_DEVICE(IndexType idx) {
+    IndexType firstIdx = v_inFirstPair[idx];
+    IndexType secondIdx = v_inSecondPair[idx];
+    if(primal::intersect(v_triangles[firstIdx], v_triangles[secondIdx], false))
+    {
+      auto outIdx = axom::atomicAdd<ExecSpace>(&v_counter[0], IndexType {1});
+      // Store actually-intersecting triangle pairs sequentially in output
+      // array.
+      v_outFirstPair[outIdx] = firstIdx;
+      v_outSecondPair[outIdx] = secondIdx;
+      total_count_reduce += 1;
+    }
+  });
 
   IndexType numValidIsects = total_count_reduce.get();
 

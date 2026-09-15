@@ -174,16 +174,16 @@ public:
     const auto order = m_caseIdsMDMapper.getStrideOrder();
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
     {
-      axom::for_all<ExecSpace>(
-        m_bShape,
-        AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { mcu.computeCaseId(i, j); });
+      axom::for_all<ExecSpace>(m_bShape, [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j) {
+        mcu.computeCaseId(i, j);
+      });
     }
     else
     {
       axom::StackArray<axom::IndexType, 2> shapeJI {{m_bShape[1], m_bShape[0]}};
-      axom::for_all<ExecSpace>(
-        shapeJI,
-        AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { mcu.computeCaseId(i, j); });
+      axom::for_all<ExecSpace>(shapeJI, [=] AXOM_HOST_DEVICE(axom::IndexType j, axom::IndexType i) {
+        mcu.computeCaseId(i, j);
+      });
     }
   }
 
@@ -199,7 +199,7 @@ public:
     {
       axom::for_all<ExecSpace>(
         m_bShape,
-        AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+        [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
           mcu.computeCaseId(i, j, k);
         });
     }
@@ -208,7 +208,7 @@ public:
       axom::StackArray<axom::IndexType, 3> shapeKJI {{m_bShape[2], m_bShape[1], m_bShape[0]}};
       axom::for_all<ExecSpace>(
         shapeKJI,
-        AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
+        [=] AXOM_HOST_DEVICE(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
           mcu.computeCaseId(i, j, k);
         });
     }
@@ -336,13 +336,10 @@ public:
     auto crossingFlagsView = m_crossingFlags.view();
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:set_flags");
-      axom::for_all<ExecSpace>(
-        0,
-        parentCellCount,
-        AXOM_LAMBDA(axom::IndexType parentCellId) {
-          auto numContourCells = num_contour_cells(caseIdsView.flatIndex(parentCellId));
-          crossingFlagsView[parentCellId] = bool(numContourCells);
-        });
+      axom::for_all<ExecSpace>(0, parentCellCount, [=] AXOM_HOST_DEVICE(axom::IndexType parentCellId) {
+        auto numContourCells = num_contour_cells(caseIdsView.flatIndex(parentCellId));
+        crossingFlagsView[parentCellId] = bool(numContourCells);
+      });
     }
 
     m_scannedFlags.fill(0, 1, 0);
@@ -369,8 +366,7 @@ public:
 
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:set_incrs");
-      auto loopBody = AXOM_LAMBDA(axom::IndexType parentCellId)
-      {
+      auto loopBody = [=] AXOM_HOST_DEVICE(axom::IndexType parentCellId) {
         if(scannedFlagsView[parentCellId] != scannedFlagsView[1 + parentCellId])
         {
           auto crossingId = scannedFlagsView[parentCellId];
@@ -412,9 +408,9 @@ public:
     const axom::IndexType parentCellCount = m_caseIds.size();
     auto caseIdsView = m_caseIds;
     axom::ReduceSum<ExecSpace, axom::IndexType> vsum(0);
-    axom::for_all<ExecSpace>(
-      parentCellCount,
-      AXOM_LAMBDA(axom::IndexType n) { vsum += bool(num_contour_cells(caseIdsView.flatIndex(n))); });
+    axom::for_all<ExecSpace>(parentCellCount, [=] AXOM_HOST_DEVICE(axom::IndexType n) {
+      vsum += bool(num_contour_cells(caseIdsView.flatIndex(n)));
+    });
     m_crossingCount = static_cast<axom::IndexType>(vsum.get());
 
     //
@@ -428,8 +424,7 @@ public:
     axom::IndexType* crossingId =
       axom::allocate<axom::IndexType>(1, axom::detail::getAllocatorID<MemorySpace>());
 
-    auto loopBody = AXOM_LAMBDA(axom::IndexType n)
-    {
+    auto loopBody = [=] AXOM_HOST_DEVICE(axom::IndexType n) {
       auto caseId = caseIdsView.flatIndex(n);
       auto ccc = num_contour_cells(caseId);
       if(ccc != 0)
@@ -483,8 +478,7 @@ public:
 
     ComputeFacets_Util cfu(m_contourVal, m_caseIdsMDMapper, m_fcnView, m_coordsViews);
 
-    auto gen_for_parent_cell = AXOM_LAMBDA(axom::IndexType crossingId)
-    {
+    auto gen_for_parent_cell = [=] AXOM_HOST_DEVICE(axom::IndexType crossingId) {
       auto parentCellId = crossingParentIdsView[crossingId];
       auto caseId = crossingCasesView[crossingId];
       Point cornerCoords[CELL_CORNER_COUNT];

@@ -58,7 +58,8 @@ void check_for_all_faces(int dimension)
 
   auto field_v = field_d.view();
 
-  for_all_faces<ExecPolicy>(test_mesh, AXOM_LAMBDA(IndexType faceID) { field_v[faceID] = faceID; });
+  for_all_faces<ExecPolicy>(test_mesh,
+                            [=] AXOM_HOST_DEVICE(IndexType faceID) { field_v[faceID] = faceID; });
 
   // Copy field back to host
   axom::Array<IndexType> field_h = axom::Array<IndexType>(field_d, host_allocator);
@@ -108,7 +109,7 @@ void check_for_all_face_nodes(int dimension)
 
   for_all_faces<ExecPolicy, xargs::nodeids>(
     test_mesh,
-    AXOM_LAMBDA(IndexType faceID, const IndexType* nodes, IndexType N) {
+    [=] AXOM_HOST_DEVICE(IndexType faceID, const IndexType* nodes, IndexType N) {
       for(int i = 0; i < N; ++i)
       {
         conn_v[faceID * MAX_FACE_NODES + i] = nodes[i];
@@ -172,7 +173,9 @@ void check_for_all_face_coords(int dimension)
 
   for_all_faces<ExecPolicy, xargs::coords>(
     test_mesh,
-    AXOM_LAMBDA(IndexType faceID, const numerics::Matrix<double>& coordsMatrix, const IndexType* nodes) {
+    [=] AXOM_HOST_DEVICE(IndexType faceID,
+                         const numerics::Matrix<double>& coordsMatrix,
+                         const IndexType* nodes) {
       const IndexType numNodes = coordsMatrix.getNumColumns();
       for(int i = 0; i < numNodes; ++i)
       {
@@ -252,7 +255,7 @@ void check_for_all_face_cells(int dimension)
 
   for_all_faces<ExecPolicy, xargs::cellids>(
     test_mesh,
-    AXOM_LAMBDA(IndexType faceID, IndexType cellIDOne, IndexType cellIDTwo) {
+    [=] AXOM_HOST_DEVICE(IndexType faceID, IndexType cellIDOne, IndexType cellIDTwo) {
       face_cells_v[2 * faceID + 0] = cellIDOne;
       face_cells_v[2 * faceID + 1] = cellIDTwo;
     });

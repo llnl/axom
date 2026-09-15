@@ -442,18 +442,15 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto tris_v = on_device ? tris_d.view() : tris_h.view();
 
   // Compute the number of intersections
-  axom::for_all<ExecSpace>(
-    col_range,
-    row_range,
-    AXOM_LAMBDA(int col, int row) {
-      if(row > col)
+  axom::for_all<ExecSpace>(col_range, row_range, [=] AXOM_HOST_DEVICE(int col, int row) {
+    if(row > col)
+    {
+      if(checkTT(tris_v[row], tris_v[col], EPS))
       {
-        if(checkTT(tris_v[row], tris_v[col], EPS))
-        {
-          numIntersect += 1;
-        }
+        numIntersect += 1;
       }
-    });
+    }
+  });
 
   // Allocation to hold intersection pairs and counter to know where to store
   axom::Array<int> intersections_d(numIntersect.get() * 2, numIntersect.get() * 2, device_allocator);
@@ -466,20 +463,17 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto counter_v = on_device ? counter_d.view() : counter_h.view();
 
   // Populate the intersections using Axom execution policies.
-  axom::for_all<ExecSpace>(
-    col_range,
-    row_range,
-    AXOM_LAMBDA(int col, int row) {
-      if(row > col)
+  axom::for_all<ExecSpace>(col_range, row_range, [=] AXOM_HOST_DEVICE(int col, int row) {
+    if(row > col)
+    {
+      if(checkTT(tris_v[row], tris_v[col], EPS))
       {
-        if(checkTT(tris_v[row], tris_v[col], EPS))
-        {
-          auto idx = axom::atomicAdd<ExecSpace>(counter_v.data(), 2);
-          intersections_v[idx] = row;
-          intersections_v[idx + 1] = col;
-        }
+        auto idx = axom::atomicAdd<ExecSpace>(counter_v.data(), 2);
+        intersections_v[idx] = row;
+        intersections_v[idx + 1] = col;
       }
-    });
+    }
+  });
 
   // Copy intersections to host
   axom::Array<int> intersections_h =

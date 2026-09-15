@@ -229,56 +229,54 @@ public:
 
     const ViewPackage deviceViews {m_topologyView, m_coordsetView};
 
-    axom::for_all<ExecSpace>(
-      numZones,
-      AXOM_LAMBDA(IndexType zoneIndex) {
-        const auto zone = deviceViews.topologyView.zone(zoneIndex);
-        IndexType pointIndex = zoneIndex * static_cast<IndexType>(npts);
+    axom::for_all<ExecSpace>(numZones, [=] AXOM_HOST_DEVICE(IndexType zoneIndex) {
+      const auto zone = deviceViews.topologyView.zone(zoneIndex);
+      IndexType pointIndex = zoneIndex * static_cast<IndexType>(npts);
 
-        for(int kz = 0; kz < (dim == 3 ? ruleZ.getNumPoints() : 1); ++kz)
+      for(int kz = 0; kz < (dim == 3 ? ruleZ.getNumPoints() : 1); ++kz)
+      {
+        const double zeta = dim == 3 ? ruleZ.node(kz) : 0.0;
+        const double wz = dim == 3 ? ruleZ.weight(kz) : 1.0;
+        for(int jy = 0; jy < ruleY.getNumPoints(); ++jy)
         {
-          const double zeta = dim == 3 ? ruleZ.node(kz) : 0.0;
-          const double wz = dim == 3 ? ruleZ.weight(kz) : 1.0;
-          for(int jy = 0; jy < ruleY.getNumPoints(); ++jy)
+          const double eta = ruleY.node(jy);
+          const double wy = ruleY.weight(jy);
+          for(int ix = 0; ix < ruleX.getNumPoints(); ++ix)
           {
-            const double eta = ruleY.node(jy);
-            const double wy = ruleY.weight(jy);
-            for(int ix = 0; ix < ruleX.getNumPoints(); ++ix)
+            const double xi = ruleX.node(ix);
+            const double wx = ruleX.weight(ix);
+
+            PointType pt;
+            double physicalMeasure = 0.;
+            if constexpr(CoordsetView::dimension() == 2)
             {
-              const double xi = ruleX.node(ix);
-              const double wx = ruleX.weight(ix);
-
-              PointType pt;
-              double physicalMeasure = 0.;
-              if constexpr(CoordsetView::dimension() == 2)
-              {
-                pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta);
-                physicalMeasure =
-                  detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta);
-              }
-              else
-              {
-                pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta, zeta);
-                physicalMeasure =
-                  detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta, zeta);
-              }
-
-              const double referenceWeight = wx * wy * wz;
-              for(int d = 0; d < dim; ++d)
-              {
-                coordViews[d][pointIndex] = pt[d];
-              }
-              connectivity[pointIndex] = pointIndex;
-              sizes[pointIndex] = 1;
-              offsets[pointIndex] = pointIndex;
-              originalElements[pointIndex] = zoneIndex;
-              quadratureWeights[pointIndex] = referenceWeight;
-              physicalQuadratureWeights[pointIndex] = referenceWeight * physicalMeasure;
-              ++pointIndex;
+              pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta);
+              physicalMeasure =
+                detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta);
             }
+            else
+            {
+              pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta, zeta);
+              physicalMeasure =
+                detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta, zeta);
+            }
+
+            const double referenceWeight = wx * wy * wz;
+            for(int d = 0; d < dim; ++d)
+            {
+              coordViews[d][pointIndex] = pt[d];
+            }
+            connectivity[pointIndex] = pointIndex;
+            sizes[pointIndex] = 1;
+            offsets[pointIndex] = pointIndex;
+            originalElements[pointIndex] = zoneIndex;
+            quadratureWeights[pointIndex] = referenceWeight;
+            physicalQuadratureWeights[pointIndex] = referenceWeight * physicalMeasure;
+            ++pointIndex;
           }
         }
-      });
+      }
+    });
   }
 
 #if !defined(__CUDACC__)

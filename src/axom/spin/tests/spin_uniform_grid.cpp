@@ -567,9 +567,8 @@ public:
     }
 
     const auto iota_v = m_iota.view();
-    axom::for_all<ExecSpace>(
-      this->m_numObjects,
-      AXOM_LAMBDA(axom::IndexType idx) { iota_v[idx] = idx; });
+    axom::for_all<ExecSpace>(this->m_numObjects,
+                             [=] AXOM_HOST_DEVICE(axom::IndexType idx) { iota_v[idx] = idx; });
   }
 
   std::unique_ptr<DynamicUniformGridType> constructUniformGridDynamic()
