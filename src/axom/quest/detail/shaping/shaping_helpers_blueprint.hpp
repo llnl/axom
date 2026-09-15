@@ -481,7 +481,7 @@ void sampleInOutField(const std::string& shapeName,
             fromPt[d] = coordsetPoint[d];
           }
 
-          const ToPoint queryPt = projector ? projector(fromPt) : ToPoint(fromPt.data());
+          const ToPoint queryPt = projector ? projector(fromPt) : ToPoint(fromPt.data(), FromDim);
           inoutValues[i] = checkInside(queryPt) ? 1. : 0.;
         }
       }
