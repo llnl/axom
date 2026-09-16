@@ -1056,7 +1056,7 @@ public:
         /// Create an ArrayView in ExecSpace that is compatible with queryPts
         PointArray execPoints(queryPts, m_allocatorID);
         auto query_pts = execPoints.view();
-        auto query_order = mortonSortQueryPoints(query_pts, qPtCount);
+        auto query_order = mortonSortQueryPoints(query_pts);
         auto query_order_view = query_order.view();
         const double sqDistThreshold = m_sqDistanceThreshold;
         auto it = m_bvh->getTraverser();
@@ -1207,11 +1207,10 @@ public:
                                                                      : m_sqDistanceThreshold;
   }
 
-private:
   /*! \brief Returns query point indices ordered by their Morton codes. */
-  axom::Array<axom::IndexType> mortonSortQueryPoints(const axom::ArrayView<PointType>& queryPoints,
-                                                     axom::IndexType queryPointCount) const
+  axom::Array<axom::IndexType> mortonSortQueryPoints(const axom::ArrayView<PointType>& queryPoints) const
   {
+    IndexType queryPointCount = queryPoints.size();
     axom::Array<axom::IndexType> queryOrder(queryPointCount, queryPointCount, m_allocatorID);
     if(queryPointCount == 0)
     {
