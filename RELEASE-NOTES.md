@@ -79,6 +79,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Adds support for lua-based input decks for shaping
 - Slam: Adds convenience aliases in `axom/slam/Aliases.hpp` for the most common set and relation configurations, 
   including `ArraySet`, `ArrayViewSet`, `VariableRelation`, `ConstantRelation` and their `View` forms.
+- Spin: Adds a new method `BVH::TraverserType::traverseTreeShared` to support device traversal with a shared-memory stack, which may improve traversal performance.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
