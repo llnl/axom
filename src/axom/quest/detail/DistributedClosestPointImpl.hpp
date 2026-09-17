@@ -503,44 +503,68 @@ public:
     }
   }
 
-  /// Wait for some non-blocking sends (if any) to finish.
+  /// Wait for a receive or one or more non-blocking sends to finish.
   template <typename TransferNode>
-  void check_send_requests(std::deque<std::pair<TransferNode, MPI_Request>>& isendRequests,
-                           bool atLeastOne) const
+  void wait_mpi_requests(std::deque<std::pair<TransferNode, MPI_Request>>& isendRequests,
+                         MPI_Request& irecvRequest) const
   {
+    AXOM_ANNOTATE_SCOPE("WaitMPIRequests");
     std::vector<MPI_Request> reqs;
-    reqs.reserve(isendRequests.size());
+    reqs.reserve(isendRequests.size() + 1);
+    reqs.push_back(irecvRequest);
     for(auto const& isr : isendRequests)
     {
       reqs.push_back(isr.second);
     }
 
     int inCount = static_cast<int>(reqs.size());
-    int outCount = 0;
-    std::vector<int> indices(reqs.size(), -1);
-    if(atLeastOne)
+    if(irecvRequest == MPI_REQUEST_NULL)
     {
-      MPI_Waitsome(inCount, reqs.data(), &outCount, indices.data(), MPI_STATUSES_IGNORE);
-    }
-    else
-    {
-      MPI_Testsome(inCount, reqs.data(), &outCount, indices.data(), MPI_STATUSES_IGNORE);
-    }
-    indices.resize(outCount);
-    // MPI does not guarantee indices are in order
-    std::sort(indices.begin(), indices.end());
+      // No outstanding receive requests, just wait on all completed sends.
+      const int mpi_err = MPI_Waitall(inCount, reqs.data(), MPI_STATUSES_IGNORE);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
 
-    auto reqIter = isendRequests.begin();
-    int reqIdx = 0;
-    for(const int idx : indices)
+      // Free all allocated send buffers.
+      isendRequests.clear();
+      return;
+    }
+
+    std::vector<int> finished_requests;
+    // Keep waiting until a query is received.
+    while(reqs[0] != MPI_REQUEST_NULL)
     {
-      while(reqIdx < idx)
+      std::vector<int> indices(reqs.size(), -1);
+      int outCount = 0;
+      const int mpi_err =
+        MPI_Waitsome(inCount, reqs.data(), &outCount, indices.data(), MPI_STATUSES_IGNORE);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
+
+      indices.resize(outCount);
+      finished_requests.insert(finished_requests.end(), indices.begin(), indices.end());
+    }
+
+    // MPI does not guarantee indices are in order.
+    // Removing in descending index order ensures that moving the last element
+    // cannot invalidate an index that remains to be processed.
+    std::sort(finished_requests.begin(), finished_requests.end(), std::greater<int>());
+
+    for(int request_index : finished_requests)
+    {
+      if(request_index == 0)
       {
-        ++reqIter;
-        ++reqIdx;
+        // Irecv special case: just set the irecv request to MPI_REQUEST_NULL
+        irecvRequest = MPI_REQUEST_NULL;
+        continue;
       }
-      reqIter = isendRequests.erase(reqIter);
-      ++reqIdx;
+      // Remove completed send requests to free memory
+      int completed_send_index = request_index - 1;
+      if(completed_send_index + 1 != isendRequests.size())
+      {
+        isendRequests[completed_send_index] = std::move(isendRequests.back());
+      }
+      isendRequests.pop_back();
     }
   }
 
@@ -861,8 +885,8 @@ public:
    *
    * We use non-blocking sends for performance and deadlock avoidance.
    * The worst case could incur nranks^2 sends.  To avoid excessive
-   * buffer usage, we occasionally check the sends for completion,
-   * using check_send_requests().
+   * buffer usage, we wait for receives and sends together, freeing send
+   * buffers as their requests complete.
    */
   void computeClosestPoints(conduit::Node& queryMesh, const std::string& topologyName) const override
   {
@@ -970,13 +994,11 @@ public:
       TransferNode recvXferNode;
       recvXferNode.Allocate(maxParticlesToRecv, m_mpiAllocatorID);
 
-      MPI_Request recv_req;
+      MPI_Request recv_req = MPI_REQUEST_NULL;
       recvXferNode.Irecv(MPI_ANY_SOURCE, tag, m_mpiComm, recv_req);
-      {
-        int mpi_err = MPI_Wait(&recv_req, MPI_STATUS_IGNORE);
-        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
-        AXOM_UNUSED_VAR(mpi_err);
-      }
+
+      // Wait for receive to complete
+      wait_mpi_requests(isendRequests, recv_req);
       recvXferNode.UpdateMetadataFromBuffer();
 
       --remainingRecvs;
@@ -1024,17 +1046,14 @@ public:
         auto& req = isendRequests.back();
         req.first.Isend(nextRecipient, tag, m_mpiComm, req.second);
 
-        // Check non-blocking sends to free memory.
-        check_send_requests(isendRequests, false);
       }
 
     }  // remainingRecvs loop
 
     // Complete remaining non-blocking sends.
-    while(!isendRequests.empty())
-    {
-      check_send_requests(isendRequests, true);
-    }
+    MPI_Request recv_req = MPI_REQUEST_NULL;
+    wait_mpi_requests(isendRequests, recv_req);
+    SLIC_ASSERT(isendRequests.empty());
 
     MPI_Barrier(m_mpiComm);
     slic::flushStreams();
