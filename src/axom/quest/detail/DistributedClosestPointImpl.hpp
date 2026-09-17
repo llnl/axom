@@ -433,9 +433,11 @@ public:
         auto& dst = fields["cp_coords"];
         dst.set_node(genericHeaders);
         auto& dstValues = dst["values"];
+
+        double* coords_data = reinterpret_cast<double*>(xferNode.cp_coords.data() + pointOffset);
+
         conduit::Node src;
-        src.set_external(xferNode.cp_coords.data() + pointOffset * xferNode.metadata.dims,
-                         qPtCount * xferNode.metadata.dims);
+        src.set_external(coords_data, qPtCount * xferNode.metadata.dims);
         copy_interleaved_to_components(src, dstValues);
       }
       pointOffset += qPtCount;
@@ -615,7 +617,7 @@ private:
     } metadata;
 
     axom::ArrayView<PointType> points;
-    axom::ArrayView<double> cp_coords;
+    axom::ArrayView<PointType> cp_coords;
     axom::ArrayView<double> cp_distance;
     axom::ArrayView<IndexType> cp_index;
     axom::ArrayView<IndexType> cp_rank;
@@ -657,8 +659,8 @@ private:
       points = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
       data += sizeof(PointType) * numPoints;
 
-      cp_coords = axom::ArrayView<double>(reinterpret_cast<double*>(data), DIM * numPoints);
-      data += sizeof(double) * DIM * numPoints;
+      cp_coords = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
+      data += sizeof(PointType) * numPoints;
 
       cp_distance = axom::ArrayView<double>(reinterpret_cast<double*>(data), numPoints);
       data += sizeof(double) * numPoints;
@@ -1169,8 +1171,7 @@ public:
       auto query_inds = xferNode.cp_index;
       auto query_doms = xferNode.cp_domain_index;
       auto query_ranks = xferNode.cp_rank;
-      auto query_pos =
-        axom::ArrayView<PointType>(reinterpret_cast<PointType*>(xferNode.cp_coords.data()), qPtCount);
+      auto query_pos = xferNode.cp_coords;
 
       // DEBUG
       const bool has_cp_distance = true;
