@@ -777,28 +777,28 @@ public:
 
     if(lev <= MAX_DENSE_LEV)
     {
-      SLIC_ASSERT(checkCast<DenseOctLevPtr>(m_leavesLevelMap[lev]));
-      return (*static_cast<DenseOctLevPtr>(m_leavesLevelMap[lev]))[pt];
+      SLIC_ASSERT(checkCast<const DenseOctLevType*>(m_leavesLevelMap[lev]));
+      return (*static_cast<const DenseOctLevType*>(m_leavesLevelMap[lev]))[pt];
     }
     else if(lev <= MAX_SPARSE16_LEV)
     {
-      SLIC_ASSERT(checkCast<Sparse16OctLevPtr>(m_leavesLevelMap[lev]));
-      return (*static_cast<Sparse16OctLevPtr>(m_leavesLevelMap[lev]))[pt];
+      SLIC_ASSERT(checkCast<const Sparse16OctLevType*>(m_leavesLevelMap[lev]));
+      return (*static_cast<const Sparse16OctLevType*>(m_leavesLevelMap[lev]))[pt];
     }
     else if(lev <= MAX_SPARSE32_LEV)
     {
-      SLIC_ASSERT(checkCast<Sparse32OctLevPtr>(m_leavesLevelMap[lev]));
-      return (*static_cast<Sparse32OctLevPtr>(m_leavesLevelMap[lev]))[pt];
+      SLIC_ASSERT(checkCast<const Sparse32OctLevType*>(m_leavesLevelMap[lev]));
+      return (*static_cast<const Sparse32OctLevType*>(m_leavesLevelMap[lev]))[pt];
     }
     else if(lev <= MAX_SPARSE64_LEV)
     {
-      SLIC_ASSERT(checkCast<Sparse64OctLevPtr>(m_leavesLevelMap[lev]));
-      return (*static_cast<Sparse64OctLevPtr>(m_leavesLevelMap[lev]))[pt];
+      SLIC_ASSERT(checkCast<const Sparse64OctLevType*>(m_leavesLevelMap[lev]));
+      return (*static_cast<const Sparse64OctLevType*>(m_leavesLevelMap[lev]))[pt];
     }
     else
     {
-      SLIC_ASSERT(checkCast<SparsePtOctLevPtr>(m_leavesLevelMap[lev]));
-      return (*static_cast<SparsePtOctLevPtr>(m_leavesLevelMap[lev]))[pt];
+      SLIC_ASSERT(checkCast<const SparsePtOctLevType*>(m_leavesLevelMap[lev]));
+      return (*static_cast<const SparsePtOctLevType*>(m_leavesLevelMap[lev]))[pt];
     }
   }
 
