@@ -33,6 +33,7 @@ DistributedClosestPoint::DistributedClosestPoint()
   : m_mpiComm(MPI_COMM_WORLD)
   , m_mpiCommIsPrivate(false)
   , m_allocatorID(axom::INVALID_ALLOCATOR_ID)
+  , m_mpiAllocatorID(axom::MALLOC_ALLOCATOR_ID)
   , m_sqDistanceThreshold(axom::numeric_limits<double>::max())
 {
   setDefaultAllocatorID();
@@ -97,6 +98,17 @@ void DistributedClosestPoint::setAllocatorID(int allocatorID)
   if(m_impl)
   {
     m_impl->setAllocatorID(m_allocatorID);
+  }
+}
+
+void DistributedClosestPoint::setMpiAllocatorID(int allocatorID)
+{
+  SLIC_ASSERT_MSG(allocatorID != axom::INVALID_ALLOCATOR_ID, "Invalid allocator id.");
+  m_mpiAllocatorID = allocatorID;
+
+  if(m_impl)
+  {
+    m_impl->setMpiAllocatorID(m_mpiAllocatorID);
   }
 }
 
@@ -273,6 +285,7 @@ void DistributedClosestPoint::allocateQueryInstance()
 {
   m_impl = std::make_unique<internal::DistributedClosestPointExec<DIM, ExecSpace>>(m_allocatorID,
                                                                                    m_isVerbose);
+  m_impl->setMpiAllocatorID(m_mpiAllocatorID);
 }
 
 bool DistributedClosestPoint::isValidBlueprint(const conduit::Node& mesh_node) const
