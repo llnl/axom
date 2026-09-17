@@ -1757,6 +1757,27 @@ int main(int argc, char** argv)
     ;
   auto& rm = umpire::ResourceManager::getInstance();
   umpire::Allocator umpireAllocator = rm.getAllocator(umpireResourceName);
+
+  #if defined(UMPIRE_ENABLE_PINNED)
+  const std::string mpiResourceName = "PINNED";
+  #else
+  const std::string mpiResourceName = "HOST";
+  #endif
+  umpire::Allocator mpiAllocator = rm.getAllocator(mpiResourceName);
+
+  // Check if GPU-aware MPI is supported (currently only supported for MPICH)
+  {
+    const char* mpich_gpu_aware = getenv("MPICH_GPU_SUPPORT_ENABLED");
+    if(mpich_gpu_aware && std::string(mpich_gpu_aware) == "1")
+    {
+      SLIC_INFO(
+        "Detected GPU-aware MPI support, will use GPU memory pool for "
+        "MPI buffers.");
+      // Use device allocator for MPI allocations
+      mpiAllocator = umpireAllocator;
+    }
+  }
+
 #endif
 
   // Storage for meshes.
@@ -1834,6 +1855,7 @@ int main(int argc, char** argv)
   query.setRuntimePolicy(params.policy);
 #if defined(AXOM_USE_UMPIRE)
   query.setAllocatorID(umpireAllocator.getId());
+  query.setMpiAllocatorID(mpiAllocator.getId());
 #endif
   query.setMpiCommunicator(MPI_COMM_WORLD, true);
   query.setVerbosity(params.isVerbose());

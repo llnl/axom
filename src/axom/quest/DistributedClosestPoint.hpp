@@ -86,6 +86,12 @@ public:
   */
   void setAllocatorID(int allocatorID);
 
+  /*!
+   * \brief Sets the allocator ID for MPI communication.
+   * If not explicitly set, the default is malloc'ed host memory.
+   */
+  void setMpiAllocatorID(int allocatorID);
+
   /**
    * \brief Set the MPI communicator.
    *
@@ -203,6 +209,7 @@ private:
   MPI_Comm m_mpiComm;
   bool m_mpiCommIsPrivate;
   int m_allocatorID;
+  int m_mpiAllocatorID;
   int m_dimension {-1};
   bool m_isVerbose {false};
   double m_sqDistanceThreshold;
