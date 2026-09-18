@@ -312,6 +312,51 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
 endif()
 
 #------------------------------------------------------------------------------
+# MarchingCubes tests for the Bump backend on structured meshes and
+# single-shape unstructured hex meshes. Fixture conversion requires Sidre.
+#------------------------------------------------------------------------------
+if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
+    set(quest_mc_bump_depends ${quest_tests_depends} conduit::conduit RAJA)
+    blt_list_append(TO quest_mc_bump_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
+
+    axom_add_executable(
+        NAME        quest_marching_cubes_bump_test
+        SOURCES     quest_marching_cubes_bump.cpp
+                    quest_marching_cubes_testing_helpers.hpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mc_bump_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    # The test binary exercises every enabled execution policy, so register it once.
+    axom_add_test(
+        NAME    quest_marching_cubes_bump
+        COMMAND quest_marching_cubes_bump_test
+        NUM_MPI_TASKS 1
+        )
+    set_tests_properties(quest_marching_cubes_bump PROPERTIES PROCESSORS 1)
+
+    # Compare the legacy and Bump backends on structured meshes with explicit coordinates.
+    # The fixtures are built in memory and do not require HDF5.
+    axom_add_executable(
+        NAME        quest_marching_cubes_equivalence_test
+        SOURCES     quest_marching_cubes_equivalence.cpp
+                    quest_marching_cubes_testing_helpers.hpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mc_bump_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_marching_cubes_equivalence
+        COMMAND quest_marching_cubes_equivalence_test
+        NUM_MPI_TASKS 1
+        )
+    set_tests_properties(quest_marching_cubes_equivalence PROPERTIES PROCESSORS 1)
+
+endif()
+
+#------------------------------------------------------------------------------
 # Regression tests for quest signed distance and inout queries
 #
 # Note: By default we only run a small subset of the quest regression tests.
