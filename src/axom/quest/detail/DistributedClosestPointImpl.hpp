@@ -909,30 +909,42 @@ public:
 
       BoxType myQueryBb = computeMeshBoundingBox(xferNode);
       xferNode.metadata.aabb = myQueryBb;
-      BoxArray allQueryBbs;
-      gatherBoundingBoxes(myQueryBb, allQueryBbs);
 
       // Get maximum number of particles from any query rank.
       // This allows us to pre-alloocate the required receive buffer size,
       // which may allow corresponding MPI_Sends to be performed "eagerly."
       maxParticlesToRecv = xferNode.metadata.numPoints;
-      int mpi_err = MPI_Allreduce(MPI_IN_PLACE, &maxParticlesToRecv, 1, MPI_INT, MPI_MAX, m_mpiComm);
-      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
-      AXOM_UNUSED_VAR(mpi_err);
+      {
+        int mpi_err =
+          MPI_Allreduce(MPI_IN_PLACE, &maxParticlesToRecv, 1, MPI_INT, MPI_MAX, m_mpiComm);
+        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+        AXOM_UNUSED_VAR(mpi_err);
+      }
 
       double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
-      const auto& myObjectBb = m_objectPartitionBbs[m_rank];
+      const auto myObjectBb = m_objectPartitionBbs[m_rank];
+      axom::Array<int> send_counts(m_nranks);
+      send_counts.fill(0);
       for(int r = 0; r < m_nranks; ++r)
       {
         if(r != m_rank)
         {
-          const auto& otherQueryBb = allQueryBbs[r];
-          if(is_statically_eligible(otherQueryBb, myObjectBb))
+          const auto& otherQueryBb = m_objectPartitionBbs[r];
+          if(is_statically_eligible(otherQueryBb, myQueryBb))
           {
-            ++remainingRecvs;
+            send_counts[r]++;
           }
         }
+      }
+
+      // We compute the receive counts by summing the send counts for a given
+      // object rank from all query processors.
+      {
+        int mpi_err =
+          MPI_Reduce_scatter_block(send_counts.data(), &remainingRecvs, 1, MPI_INT, MPI_SUM, m_mpiComm);
+        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+        AXOM_UNUSED_VAR(mpi_err);
       }
 
       /*
