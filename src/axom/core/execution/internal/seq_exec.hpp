@@ -46,6 +46,8 @@ struct execution_space<SEQ_EXEC>
 
   using sync_policy = void;
 
+  static constexpr int BlockSize = 1;
+
 #ifdef AXOM_DEFAULT_HOST_ALLOCATOR_USES_UMPIRE_HOST
   static constexpr MemorySpace memory_space = MemorySpace::Host;
 #else
