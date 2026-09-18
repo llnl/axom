@@ -971,6 +971,19 @@ public:
       }
     }
 
+#if defined(AXOM_USE_UMPIRE)
+    bool gpuAwareMpi =
+      axom::isDeviceAllocator(m_mpiAllocatorID) && axom::isDeviceAllocator(m_allocatorID);
+#else
+    bool gpuAwareMpi = false;
+#endif
+
+    // Allocate our receive node persistently. This may improve performance by
+    // avoiding repeated memory registrations in the MPI implementation.
+    // TODO: test this on the CPU
+    TransferNode recvXferNode;
+    recvXferNode.Allocate(maxParticlesToRecv, m_mpiAllocatorID);
+
     const int totalExpectedRecvs = remainingRecvs;
     while(remainingRecvs > 0)
     {
@@ -991,9 +1004,6 @@ public:
       }
 
       // Receive the next xferNode
-      TransferNode recvXferNode;
-      recvXferNode.Allocate(maxParticlesToRecv, m_mpiAllocatorID);
-
       MPI_Request recv_req = MPI_REQUEST_NULL;
       recvXferNode.Irecv(MPI_ANY_SOURCE, tag, m_mpiComm, recv_req);
 
@@ -1009,16 +1019,17 @@ public:
       }
 
       TransferNode xferNode;
-      if(xferNode.buffer.getAllocatorID() == m_allocatorID)
       {
-        // Received node in execution space memory. Just move the transfer node.
-        xferNode = std::move(recvXferNode);
-      }
-      else
-      {
-        // We need to copy the received node from MPI memory into the desired
-        // allocator pool.
+        AXOM_ANNOTATE_SCOPE("CopyQueryFromMPI");
+        // We need to copy the received node from the persistent MPI allocation
+        // into a temporary node.
         xferNode = TransferNode(recvXferNode, m_allocatorID);
+        if(gpuAwareMpi)
+        {
+          // Device-to-device copies are treated as asynchronous with respect to
+          // the host. Needed on HIP since we access metadata from the host.
+          axom::synchronize<ExecSpace>();
+        }
       }
       ++fullXferRecvs;
       if(homeRank == m_rank)
@@ -1031,7 +1042,7 @@ public:
 
         int nextRecipient = next_recipient(xferNode, currentMaxSqDistance, tag, isendRequests);
         SLIC_ASSERT(nextRecipient != -1);
-        if(m_mpiAllocatorID == m_allocatorID)
+        if(gpuAwareMpi)
         {
           // Transfer node is allocated in MPI communication space, don't allocate
           // a staging buffer.
@@ -1039,6 +1050,7 @@ public:
         }
         else
         {
+          AXOM_ANNOTATE_SCOPE("CopyQueryToMPI");
           // Copy node to selected MPI memory pool, then do the MPI communication.
           TransferNode sendNode(xferNode, m_mpiAllocatorID);
           isendRequests.emplace_back(std::move(sendNode), MPI_Request {});
