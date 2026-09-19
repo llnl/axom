@@ -36,7 +36,7 @@ namespace quest
 
 /// Helper function to set up the mesh and associated winding and inout fields.
 /// Uses an mfem::DataCollection to hold everything together.
-void setup_gwn_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder)
+inline void setup_gwn_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder)
 {
   AXOM_ANNOTATE_SCOPE("setup_mesh");
 
@@ -1105,7 +1105,7 @@ struct FieldStats
   double max {};
 };
 
-FieldStats compute_field_stats(const mfem::GridFunction& gf)
+inline FieldStats compute_field_stats(const mfem::GridFunction& gf)
 {
   FieldStats s {};
 
@@ -1135,7 +1135,7 @@ struct IntegralStats
   double domain_volume {};
 };
 
-IntegralStats compute_integrals(const mfem::GridFunction& gf)
+inline IntegralStats compute_integrals(const mfem::GridFunction& gf)
 {
   IntegralStats s {};
 
