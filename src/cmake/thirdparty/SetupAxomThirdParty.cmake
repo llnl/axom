@@ -52,12 +52,20 @@ endif()
 if (UMPIRE_DIR)
     axom_assert_is_directory(DIR_VARIABLE UMPIRE_DIR)
     find_dependency(umpire REQUIRED PATHS "${UMPIRE_DIR}" NO_SYSTEM_ENVIRONMENT_PATH)
-    axom_assert_find_succeeded(PROJECT_NAME Umpire
-                               TARGET       umpire::umpire
-                               DIR_VARIABLE UMPIRE_DIR)
+    if(TARGET umpire::umpire)
+        axom_assert_find_succeeded(PROJECT_NAME Umpire
+                                   TARGET       umpire::umpire
+                                   DIR_VARIABLE UMPIRE_DIR)
+        blt_convert_to_system_includes(TARGET umpire::umpire)
+    elseif(TARGET umpire)
+        # Backwards compatibility
+        axom_assert_find_succeeded(PROJECT_NAME Umpire
+                                   TARGET       umpire
+                                   DIR_VARIABLE UMPIRE_DIR)
+        blt_convert_to_system_includes(TARGET umpire)
+        add_library(umpire::umpire ALIAS umpire)
+    endif()
     set(UMPIRE_FOUND TRUE)
-
-    blt_convert_to_system_includes(TARGET umpire::umpire)
 
     # Check whether the Umpire defines symbols for shared memory
     blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
@@ -195,6 +203,16 @@ endif()
 # MFEM's exported target does not always propagate its MPI dependency.
 if(TARGET mfem AND MFEM_USE_MPI)
     blt_patch_target(NAME mfem DEPENDS_ON mpi)
+endif()
+
+# MFEM installations built with GNU Make list their static CAMP dependency
+# before Umpire in MFEM_EXT_LIBS.  Umpire references CAMP symbols, so append
+# the CAMP target to preserve the required static-library link order.
+if(TARGET mfem AND TARGET camp)
+    get_target_property(_mfem_libs mfem INTERFACE_LINK_LIBRARIES)
+    if("${_mfem_libs}" MATCHES "camp")
+        blt_patch_target(NAME mfem DEPENDS_ON camp)
+    endif()
 endif()
 
 # caliper-enabled mfem in device configs have extra dependencies which are not properly exported
