@@ -53,7 +53,46 @@ void generate_pro_e_file(fs::TempFile& file)
   file.close();
 }
 
+/*!
+ * \brief Generates a Pro/E file whose tetrahedron names a node the file does
+ *  not define.
+ * \param [in] file the temp file to generate.
+ */
+void generate_pro_e_file_with_bad_node_id(fs::TempFile& file)
+{
+  EXPECT_FALSE(file.getPath().empty());
+
+  file.open();
+  EXPECT_TRUE(file.is_open());
+
+  file << "4 1" << std::endl;
+  file << "1 -1.0 0.0 0.0" << std::endl;
+  file << "2 1.0 0.0 0.0" << std::endl;
+  file << "3 0.0 1.0 0.0" << std::endl;
+  file << "4 0.0 0.0 1.0" << std::endl;
+
+  // only four nodes exist, so node 5 is out of range
+  file << "1 1 2 3 5" << std::endl;
+
+  file.close();
+}
+
 } /* end anonymous namespace */
+
+//------------------------------------------------------------------------------
+TEST(quest_pro_e_reader, read_out_of_range_node_id)
+{
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file_with_bad_node_id(testFile);
+
+  axom::quest::ProEReader reader;
+  reader.setFileName(testFile.getPath());
+
+  int status = reader.read();
+  EXPECT_TRUE(status != 0);
+  EXPECT_EQ(reader.getNumNodes(), 0);
+  EXPECT_EQ(reader.getNumTets(), 0);
+}
 
 //------------------------------------------------------------------------------
 TEST(quest_pro_e_reader, read_missing_file)
