@@ -72,6 +72,7 @@ protected:
   int m_refinement;
   int m_numTrials;
   bool m_writeFiles;
+  bool m_cleanMesh;
   std::string m_outputFilePath;
   std::string m_method;
   axom::runtime_policy::Policy m_policy;

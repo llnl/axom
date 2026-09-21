@@ -372,7 +372,7 @@ template <typename ExecSpace>
 class test_coupling
 {
 public:
-  static void test(const std::string& name)
+  static void test(const std::string& name, bool cleanMesh)
   {
     // Make the input mesh.
     conduit::Node n_mesh;
@@ -383,13 +383,22 @@ public:
     utils::copy<ExecSpace>(n_dev, n_mesh);
 
     // Do MIR on the coarse mesh. The new objects will be added to n_mesh.
-    mir("coarse", n_dev, "postmir", n_dev);
+    {
+      AXOM_ANNOTATE_SCOPE("mir_coarse");
+      mir("coarse", n_dev, "postmir", n_dev, cleanMesh);
+    }
 
     // Map MIR output in n_mesh onto the fine mesh as a new matset.
-    mapping(n_dev, n_dev);
+    {
+      AXOM_ANNOTATE_SCOPE("mapping");
+      mapping(n_dev, n_dev);
+    }
 
     // As a check, run the generated fine matset through elvira again to make clean zones.
-    mir("fine", n_dev, "check", n_dev);
+    {
+      AXOM_ANNOTATE_SCOPE("mir_fine");
+      mir("fine", n_dev, "check", n_dev, true);
+    }
 
     // device->host
     conduit::Node hostResult;
@@ -426,7 +435,8 @@ private:
   static void mir(const std::string& input_prefix,
                   conduit::Node& n_input,
                   const std::string& output_prefix,
-                  conduit::Node& n_output)
+                  conduit::Node& n_output,
+                  bool cleanMesh)
   {
     SLIC_INFO(axom::fmt::format("mir {} to {}", input_prefix, output_prefix));
 
@@ -453,6 +463,7 @@ private:
     conduit::Node options;
     // Select that matset we'll operate on.
     options["matset"] = axom::fmt::format("{}_matset", input_prefix);
+    options["cleanmesh"] = cleanMesh ? 1 : 0;
 
     // Change the names of the topology, coordset, and matset in the output.
     options["topologyName"] = output_prefix;

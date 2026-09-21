@@ -15,7 +15,13 @@ axom::blueprint::testing::TestApplication TestApp;
 TEST(mir_coupled3d_hip, coupling_3d_hip)
 {
   AXOM_ANNOTATE_SCOPE("coupling_3d_hip");
-  test_coupling<hip_exec>::test("coupling_3d");
+  test_coupling<hip_exec>::test("coupling_3d", true);
+}
+
+TEST(mir_coupled3d_hip, coupling_3d_noclean_hip)
+{
+  AXOM_ANNOTATE_SCOPE("coupling_3d_noclean_hip");
+  test_coupling<hip_exec>::test("coupling_3d", false);
 }
 
 int main(int argc, char* argv[])

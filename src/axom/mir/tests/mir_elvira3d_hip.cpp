@@ -17,14 +17,33 @@ TEST(mir_elvira3d_hip, elvira3d_unibuffer_hip)
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_hip");
   const bool selectZones = false;
   const bool pointMesh = false;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
+  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer", selectZones, pointMesh, true);
 }
 TEST(mir_elvira3d_hip, elvira3d_unibuffer_sel_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_hip");
   const bool selectZones = true;
   const bool pointMesh = false;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
+  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh, true);
+}
+
+TEST(mir_elvira3d_hip, elvira3d_unibuffer_noclean_hip)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_noclean_hip");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_noclean", selectZones, pointMesh, false);
+}
+
+TEST(mir_elvira3d_hip, elvira3d_unibuffer_sel_noclean_hip)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_noclean_hip");
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel_noclean",
+                                selectZones,
+                                pointMesh,
+                                false);
 }
 
 TEST(mir_elvira3d_hip, elvira3d_unibuffer_pm_hip)
@@ -32,7 +51,7 @@ TEST(mir_elvira3d_hip, elvira3d_unibuffer_pm_hip)
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_hip");
   const bool selectZones = false;
   const bool pointMesh = true;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
+  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh, true);
 }
 
 TEST(mir_elvira3d_hip, elvira3d_unibuffer_sel_pm_hip)
@@ -40,7 +59,7 @@ TEST(mir_elvira3d_hip, elvira3d_unibuffer_sel_pm_hip)
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_hip");
   const bool selectZones = true;
   const bool pointMesh = true;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
+  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh, true);
 }
 
 int main(int argc, char* argv[])
