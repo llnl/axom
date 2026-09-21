@@ -135,6 +135,20 @@ if (CONDUIT_DIR)
     set(CONDUIT_FOUND TRUE)
 
     blt_convert_to_system_includes(TARGET conduit::conduit)
+
+    # Resolve CONDUIT_PYTHON_MODULE_DIR to an absolute path
+    # Preserve user-supplied cache values if present over the one from conduit's install
+    get_property(_axom_conduit_py_dir_cache
+                 CACHE CONDUIT_PYTHON_MODULE_DIR PROPERTY VALUE)
+    if(_axom_conduit_py_dir_cache)
+        set(CONDUIT_PYTHON_MODULE_DIR "${_axom_conduit_py_dir_cache}")
+    endif()
+    unset(_axom_conduit_py_dir_cache)
+
+    if(CONDUIT_PYTHON_MODULE_DIR AND NOT IS_ABSOLUTE "${CONDUIT_PYTHON_MODULE_DIR}")
+        get_filename_component(CONDUIT_PYTHON_MODULE_DIR
+                               "${CONDUIT_DIR}/${CONDUIT_PYTHON_MODULE_DIR}" ABSOLUTE)
+    endif()
 else()
     message(STATUS "Conduit support is OFF")
 endif()
