@@ -11,6 +11,13 @@ cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 if(NOT AXOM_FOUND)
 
+  # Preserve an explicit downstream override before loading Axom's configured value.
+  set(_AXOM_SLIC_DEBUG_MACROS_OVERRIDE_SET FALSE)
+  if(DEFINED AXOM_ENABLE_SLIC_DEBUG_MACROS)
+    set(_AXOM_SLIC_DEBUG_MACROS_OVERRIDE_SET TRUE)
+    set(_AXOM_SLIC_DEBUG_MACROS_OVERRIDE "${AXOM_ENABLE_SLIC_DEBUG_MACROS}")
+  endif()
+
   #----------------------------------------------------------------------------
   # Set version and paths
   #----------------------------------------------------------------------------
@@ -80,6 +87,30 @@ if(NOT AXOM_FOUND)
   set(AXOM_DEFAULT_HOST_ALLOCATOR "@AXOM_DEFAULT_HOST_ALLOCATOR@")
 
   # Component-specific options
+  set(_AXOM_INSTALLED_ENABLE_SLIC_DEBUG_MACROS "@AXOM_ENABLE_SLIC_DEBUG_MACROS@")
+  set(_AXOM_INSTALLED_SLIC_DEBUG_MACROS_DEFINE_STRING
+      "@AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING@")
+  if(_AXOM_SLIC_DEBUG_MACROS_OVERRIDE_SET)
+    set(AXOM_ENABLE_SLIC_DEBUG_MACROS "${_AXOM_SLIC_DEBUG_MACROS_OVERRIDE}")
+    set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "")
+
+    string(TOUPPER "${AXOM_ENABLE_SLIC_DEBUG_MACROS}" _AXOM_SLIC_DEBUG_MACROS_UPPER)
+    if("${_AXOM_SLIC_DEBUG_MACROS_UPPER}" MATCHES "ON|TRUE")
+      set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "AXOM_ENABLE_SLIC_DEBUG_MACROS=1")
+    elseif("${_AXOM_SLIC_DEBUG_MACROS_UPPER}" MATCHES "OFF|FALSE")
+      set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING "AXOM_ENABLE_SLIC_DEBUG_MACROS=0")
+    elseif("${_AXOM_SLIC_DEBUG_MACROS_UPPER}" MATCHES "DEFAULT")
+      # no-op
+    else()
+      message(FATAL_ERROR
+              "Invalid downstream value for AXOM_ENABLE_SLIC_DEBUG_MACROS. "
+              "Must be 'DEFAULT', 'ON' or 'OFF'; was '${AXOM_ENABLE_SLIC_DEBUG_MACROS}'")
+    endif()
+  else()
+    set(AXOM_ENABLE_SLIC_DEBUG_MACROS "${_AXOM_INSTALLED_ENABLE_SLIC_DEBUG_MACROS}")
+    set(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING
+        "${_AXOM_INSTALLED_SLIC_DEBUG_MACROS_DEFINE_STRING}")
+  endif()
   set(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING "@AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING@")
 
   #----------------------------------------------------------------------------
@@ -238,6 +269,23 @@ if(NOT AXOM_FOUND)
   include(${AXOM_CMAKE_CONFIG_DIR}/BLTSetupTargets.cmake)
   include(${AXOM_CMAKE_CONFIG_DIR}/axom-targets.cmake)
 
+  # Apply an explicit downstream Slic override to the imported target interface.
+  if(_AXOM_SLIC_DEBUG_MACROS_OVERRIDE_SET AND TARGET axom::slic)
+    get_target_property(_AXOM_SLIC_DEFINITIONS axom::slic INTERFACE_COMPILE_DEFINITIONS)
+    if(NOT _AXOM_SLIC_DEFINITIONS)
+      set(_AXOM_SLIC_DEFINITIONS "")
+    endif()
+    if(_AXOM_INSTALLED_SLIC_DEBUG_MACROS_DEFINE_STRING)
+      list(REMOVE_ITEM _AXOM_SLIC_DEFINITIONS
+           "${_AXOM_INSTALLED_SLIC_DEBUG_MACROS_DEFINE_STRING}")
+    endif()
+    if(AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING)
+      list(APPEND _AXOM_SLIC_DEFINITIONS "${AXOM_SLIC_DEBUG_MACROS_DEFINE_STRING}")
+    endif()
+    set_property(TARGET axom::slic PROPERTY
+                 INTERFACE_COMPILE_DEFINITIONS "${_AXOM_SLIC_DEFINITIONS}")
+  endif()
+
   # Create convenience target that bundles all Axom targets (axom)
   add_library(axom INTERFACE IMPORTED)
 
@@ -346,6 +394,13 @@ if(NOT AXOM_FOUND)
   #----------------------------------------------------------------------------
   # Indicate that Axom is correctly set up
   #----------------------------------------------------------------------------
+  unset(_AXOM_SLIC_DEBUG_MACROS_OVERRIDE_SET)
+  unset(_AXOM_SLIC_DEBUG_MACROS_OVERRIDE)
+  unset(_AXOM_INSTALLED_ENABLE_SLIC_DEBUG_MACROS)
+  unset(_AXOM_INSTALLED_SLIC_DEBUG_MACROS_DEFINE_STRING)
+  unset(_AXOM_SLIC_DEBUG_MACROS_UPPER)
+  unset(_AXOM_SLIC_DEFINITIONS)
+
   set(AXOM_FOUND TRUE)
 
 endif()

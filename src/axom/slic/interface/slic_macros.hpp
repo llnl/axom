@@ -298,8 +298,18 @@
 
 ///@}
 
+// An explicit Slic setting controls these macros directly. Without one, they
+// are enabled when AXOM_DEBUG is defined and disabled otherwise.
+#if defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
+  #define AXOM_SLIC_DEBUG_MACROS_ENABLED AXOM_ENABLE_SLIC_DEBUG_MACROS
+#elif defined(AXOM_DEBUG)
+  #define AXOM_SLIC_DEBUG_MACROS_ENABLED 1
+#else
+  #define AXOM_SLIC_DEBUG_MACROS_ENABLED 0
+#endif
+
 // Use complete debug macros when not on device
-#if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED && !defined(AXOM_DEVICE_CODE)
 
   //-----------------------------------------------------------------------------
   /// @{
@@ -324,7 +334,8 @@
  * \param [in] EXP user-supplied boolean expression.
  *
  * \warning This macro calls processAbort() iff EXP is false.
- * \note This macro is only active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -342,7 +353,8 @@
  * \param [in] msg user-supplied message
  *
  * \warning This macro calls processAbort() iff EXP is false.
- * \note This macro is only active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  * \see SLIC_ASSERT( EXP )
  *
  * Usage:
@@ -399,7 +411,8 @@
  *  application is not aborted.
  *
  * \param [in] EXP user-supplied boolean expression.
- * \note This macro is only active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -416,7 +429,8 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message
  *
- * \note This macro is only active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  * \see SLIC_DEBUG( EXP )
  *
  * Usage:
@@ -456,7 +470,7 @@
 // Use assert when on device (note that messages are omitted).
 // Device HIP assert() tested with rocm@6.1.2
 // (ROCm support for device assert() begins with version 5.1.0).
-#elif defined(AXOM_DEBUG) && defined(AXOM_DEVICE_CODE)
+#elif AXOM_SLIC_DEBUG_MACROS_ENABLED && defined(AXOM_DEVICE_CODE)
   #define SLIC_ASSERT(EXP) assert(EXP)
   #define SLIC_ASSERT_MSG(EXP, msg) assert(EXP)
   #define SLIC_CHECK(EXP) assert(EXP)
@@ -469,7 +483,7 @@
   #define SLIC_CHECK(ignore_EXP) ((void)0)
   #define SLIC_CHECK_MSG(ignore_EXP, ignore_msg) ((void)0)
 
-#endif /* END ifdef AXOM_DEBUG */
+#endif /* END if debug macros are enabled */
 
 /*!
  * \def SLIC_INFO( msg )
@@ -662,7 +676,7 @@
 #define SLIC_INFO_ROOT_IF_ONCE(EXP, msg) \
   SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, (EXP) && (axom::slic::isRoot()), msg)
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
 
   /*!
  * \def SLIC_DEBUG( msg )
@@ -670,7 +684,8 @@
  *
  * \param [in] msg user-supplied message
  *
- * \note The SLIC_Debug macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -686,7 +701,8 @@
  *
  * \param [in] msg user-supplied message
  *
- * \note The SLIC_DEBUG_ONCE macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -703,7 +719,8 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_IF macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -729,7 +746,8 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_IF_ONCE macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -745,7 +763,8 @@
  *
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -761,7 +780,8 @@
  *
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT_ONCE macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -779,7 +799,8 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT_IF macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -796,7 +817,8 @@
  * \param [in] EXP user-supplied boolean expression.
  * \param [in] msg user-supplied message.
  *
- * \note The SLIC_DEBUG_ROOT_IF_ONCE macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -815,7 +837,8 @@
  * \param [in] name The name of the container in the printed message.
  * \param [in] container The container (array, vector, view).
  *
- * \note The SLIC_DEBUG_PRINT_CONTAINER macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
@@ -840,7 +863,8 @@
  * \param [in] name The name of the container in the printed message.
  * \param [in] container The container (array, vector, view).
  *
- * \note The SLIC_DEBUG_PRINT_CONTAINER_ONCE macro is active when AXOM_DEBUG is defined.
+ * \note This macro is controlled by the AXOM_ENABLE_SLIC_DEBUG_MACROS CMake setting.
+ *       DEFAULT follows AXOM_DEBUG; ON and OFF explicitly enable or disable it.
  *
  * Usage:
  * \code
