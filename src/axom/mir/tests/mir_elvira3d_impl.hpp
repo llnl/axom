@@ -72,10 +72,7 @@ struct test_Elvira3D
     return static_cast<int>(selected.size());
   }
 
-  static void test(const std::string& name,
-                   bool selectedZones,
-                   bool pointMesh,
-                   bool cleanMesh)
+  static void test(const std::string& name, bool selectedZones, bool pointMesh, bool cleanMesh)
   {
     const double expectedVolume = gridSize * gridSize * gridSize;
     double mirExpectedVolume = expectedVolume;

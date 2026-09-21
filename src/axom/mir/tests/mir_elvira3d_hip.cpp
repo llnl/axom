@@ -40,10 +40,7 @@ TEST(mir_elvira3d_hip, elvira3d_unibuffer_sel_noclean_hip)
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_noclean_hip");
   const bool selectZones = true;
   const bool pointMesh = false;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel_noclean",
-                                selectZones,
-                                pointMesh,
-                                false);
+  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel_noclean", selectZones, pointMesh, false);
 }
 
 TEST(mir_elvira3d_hip, elvira3d_unibuffer_pm_hip)
