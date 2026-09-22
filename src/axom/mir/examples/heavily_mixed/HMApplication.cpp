@@ -276,7 +276,8 @@ int HMApplication::initialize(int argc, char** argv)
     ->description("The file path for HDF5/YAML output files");
   bool disable_write = !m_writeFiles;
   app.add_flag("--disable-write", disable_write)->description("Disable writing data files");
-  app.add_flag("--load-file", m_loadFile)->description("Attempt to read the input mesh from a file (if it exists).");
+  app.add_flag("--load-file", m_loadFile)
+    ->description("Attempt to read the input mesh from a file (if it exists).");
   app.add_option("--cleanmesh", m_cleanMesh)
     ->check(axom::CLI::IsMember({"on", "off"}))
     ->description("Enable or disable ELVIRA mesh cleanup (on/off).")
@@ -387,7 +388,8 @@ int HMApplication::runMIR()
     }
     else
     {
-      SLIC_INFO(axom::fmt::format("The mesh file {} could not be found so it will be generated.", meshRootWithExt));
+      SLIC_INFO(axom::fmt::format("The mesh file {} could not be found so it will be generated.",
+                                  meshRootWithExt));
     }
   }
   if(generate)
