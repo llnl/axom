@@ -85,6 +85,7 @@ public:
   std::string meshFile;
   std::string fieldName;
   bool listFields {false};
+  bool skipContourOutput {false};
   //! @brief Optional file for Bump's welded Blueprint contour.
   std::string blueprintContourFile {};
 
@@ -147,6 +148,10 @@ public:
 
     app.add_flag("--list-fields", listFields)
       ->description("List scalar vertex fields and exit")
+      ->capture_default_str();
+
+    app.add_flag("--skip-contour-output", skipContourOutput)
+      ->description("Skip conversion and file output of the contour mesh")
       ->capture_default_str();
 
     app.add_option("--blueprint-contour-file", blueprintContourFile)
@@ -945,20 +950,23 @@ struct ContourTestBase
           mc.setMaskValue(iMask);
           if(i == 0)
           {
+            axom::synchronize<ExecSpace>();
+            AXOM_ANNOTATE_BEGIN("MarchingCubes::firstContour");
             contourTimerM.start();
-          }
-          else
-          {
-            contourTimer.start();
-          }
-          mc.computeIsocontour(m_params.contourVal);
-          if(i == 0)
-          {
+            mc.computeIsocontour(m_params.contourVal);
+            axom::synchronize<ExecSpace>();
             contourTimerM.stop();
+            AXOM_ANNOTATE_END("MarchingCubes::firstContour");
           }
           else
           {
+            axom::synchronize<ExecSpace>();
+            AXOM_ANNOTATE_BEGIN("MarchingCubes::steadyContour");
+            contourTimer.start();
+            mc.computeIsocontour(m_params.contourVal);
+            axom::synchronize<ExecSpace>();
             contourTimer.stop();
+            AXOM_ANNOTATE_END("MarchingCubes::steadyContour");
           }
         }
       }
@@ -979,6 +987,11 @@ struct ContourTestBase
 
     auto& mc = *mcPtr;
     printRunStats(mc);
+
+    if(m_params.skipContourOutput)
+    {
+      return 0;
+    }
 
     // Return conduit data to host memory.
     if(s_allocatorId != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
