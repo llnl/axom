@@ -860,7 +860,7 @@ private:
    */
   void fillLegacyOutputBuffers()
   {
-    AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::fillLegacyOutputBuffers");
+    AXOM_ANNOTATE_SCOPE("MarchingCubesBumpImpl::triangulateAndAdapt");
     if(m_facetCount == 0)
     {
       return;
