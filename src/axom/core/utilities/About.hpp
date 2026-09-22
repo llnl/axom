@@ -28,7 +28,7 @@ void about();
  *
  * \param [in,out] oss the target stream where to append the Axom info
  */
-void about(std::ostream &oss);
+void about(std::ostream& oss);
 
 /*!
  * \brief Returns a string consisting of the Axom version.

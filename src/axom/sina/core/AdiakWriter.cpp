@@ -59,10 +59,10 @@ enum SinaType
 * harvests what it can and hands it off to the Record.
 **/
 template <typename T>
-void addDatum(const std::string &name,
+void addDatum(const std::string& name,
               T sina_safe_val,
-              const std::vector<std::string> &tags,
-              axom::sina::Record *record)
+              const std::vector<std::string>& tags,
+              axom::sina::Record* record)
 {
   axom::sina::Datum datum {sina_safe_val};
   datum.setTags(std::move(tags));
@@ -73,7 +73,7 @@ void addDatum(const std::string &name,
 * Add a axom::sina::File object to our current Record. Adiak stores paths,
 * which are essentially the same as Sina's idea of storing files.
 **/
-void addFile(const std::string &name, const std::string &uri, axom::sina::Record *record)
+void addFile(const std::string& name, const std::string& uri, axom::sina::Record* record)
 {
   // We don't care about type here, there's only one adiak type that acts as a file
   axom::sina::File file {uri};
@@ -84,7 +84,7 @@ void addFile(const std::string &name, const std::string &uri, axom::sina::Record
 /**
 * Given an Adiak type, return its corresponding Sina type.
 **/
-SinaType findSinaType(adiak_datatype_t *t)
+SinaType findSinaType(adiak_datatype_t* t)
 {
   switch(t->dtype)
   {
@@ -119,7 +119,7 @@ SinaType findSinaType(adiak_datatype_t *t)
 * Manage the conversions from various Adiak types to the final double
 * representation
 **/
-double toScalar(adiak_value_t *val, adiak_datatype_t *adiak_type)
+double toScalar(adiak_value_t* val, adiak_datatype_t* adiak_type)
 {
   switch(adiak_type->dtype)
   {
@@ -133,7 +133,7 @@ double toScalar(adiak_value_t *val, adiak_datatype_t *adiak_type)
     return val->v_double;
   case adiak_timeval:
   {
-    struct timeval *tval = static_cast<struct timeval *>(val->v_ptr);
+    struct timeval* tval = static_cast<struct timeval*>(val->v_ptr);
     return static_cast<double>(tval->tv_sec) + (static_cast<double>(tval->tv_usec) / 1000000.0);
   }
   // None of the rest of these should ever be reachable, so special error message
@@ -149,7 +149,7 @@ double toScalar(adiak_value_t *val, adiak_datatype_t *adiak_type)
   case adiak_type_unset:
   {
     std::string msg("Logic error, contact maintainer: Adiak-to-Sina double converter given ");
-    char *s = adiak_type_to_string(adiak_type, 1);
+    char* s = adiak_type_to_string(adiak_type, 1);
     msg += s;
     free(s);
     throw std::runtime_error(msg);
@@ -165,7 +165,7 @@ double toScalar(adiak_value_t *val, adiak_datatype_t *adiak_type)
 * Some Adiak types become what Sina views as a string.
 * Manage the conversions from various Adiak types to said string.
 **/
-std::string toString(adiak_value_t *val, adiak_datatype_t *adiak_type)
+std::string toString(adiak_value_t* val, adiak_datatype_t* adiak_type)
 {
   switch(adiak_type->dtype)
   {
@@ -173,7 +173,7 @@ std::string toString(adiak_value_t *val, adiak_datatype_t *adiak_type)
   {
     char datestr[512];
     signed long seconds_since_epoch = static_cast<signed long>(val->v_long);
-    struct tm *loc = localtime(&seconds_since_epoch);
+    struct tm* loc = localtime(&seconds_since_epoch);
     strftime(datestr, sizeof(datestr), "%a, %d %b %Y %T %z", loc);
     return static_cast<std::string>(datestr);
   }
@@ -181,7 +181,7 @@ std::string toString(adiak_value_t *val, adiak_datatype_t *adiak_type)
   case adiak_version:
   case adiak_string:
   case adiak_path:
-    return std::string(static_cast<char *>(val->v_ptr));
+    return std::string(static_cast<char*>(val->v_ptr));
   case adiak_long:
   case adiak_ulong:
   case adiak_int:
@@ -195,7 +195,7 @@ std::string toString(adiak_value_t *val, adiak_datatype_t *adiak_type)
   case adiak_type_unset:
   {
     std::string msg("Logic error, contact maintainer: Adiak-to-Sina string converter given ");
-    char *s = adiak_type_to_string(adiak_type, 1);
+    char* s = adiak_type_to_string(adiak_type, 1);
     msg += s;
     free(s);
     throw std::runtime_error(msg);
@@ -213,7 +213,7 @@ std::string toString(adiak_value_t *val, adiak_datatype_t *adiak_type)
 * or all strings. Manage conversions from various Adiak list types that
 * contain scalars to a simple list (vector) of scalars.
 **/
-std::vector<double> toScalarList(adiak_value_t *subvals, adiak_datatype_t *t)
+std::vector<double> toScalarList(adiak_value_t* subvals, adiak_datatype_t* t)
 {
   std::vector<double> sina_safe_list;
   for(int i = 0; i < t->num_elements; i++)
@@ -227,7 +227,7 @@ std::vector<double> toScalarList(adiak_value_t *subvals, adiak_datatype_t *t)
 * Partner method to toScalarList, invoked when the children of an adiak list
 * type are strings (according to Sina).
 **/
-std::vector<std::string> toStringList(adiak_value_t *subvals, adiak_datatype_t *t)
+std::vector<std::string> toStringList(adiak_value_t* subvals, adiak_datatype_t* t)
 {
   std::vector<std::string> sina_safe_list;
   for(int i = 0; i < t->num_elements; i++)
@@ -239,15 +239,15 @@ std::vector<std::string> toStringList(adiak_value_t *subvals, adiak_datatype_t *
 
 }  // namespace
 
-void adiakSinaCallback(const char *name,
+void adiakSinaCallback(const char* name,
                        adiak_category_t,
-                       const char *subcategory,
-                       adiak_value_t *val,
-                       adiak_datatype_t *adiak_type,
-                       void *void_record)
+                       const char* subcategory,
+                       adiak_value_t* val,
+                       adiak_datatype_t* adiak_type,
+                       void* void_record)
 {
   const SinaType sina_type = findSinaType(adiak_type);
-  axom::sina::Record *record = static_cast<axom::sina::Record *>(void_record);
+  axom::sina::Record* record = static_cast<axom::sina::Record*>(void_record);
   std::vector<std::string> tags;
   if(subcategory && subcategory[0] != '\0')
   {
@@ -260,7 +260,7 @@ void adiakSinaCallback(const char *name,
     throw std::runtime_error("Unknown Adiak type cannot be added to Sina record.");
   case sina_scalar:
   {
-    char *s = adiak_type_to_string(adiak_type, 1);
+    char* s = adiak_type_to_string(adiak_type, 1);
     tags.emplace_back(s);
     free(s);
     addDatum(name, toScalar(val, adiak_type), tags, record);
@@ -268,7 +268,7 @@ void adiakSinaCallback(const char *name,
   }
   case sina_string:
   {
-    char *s = adiak_type_to_string(adiak_type, 1);
+    char* s = adiak_type_to_string(adiak_type, 1);
     tags.emplace_back(s);
     free(s);
     addDatum(name, toString(val, adiak_type), tags, record);
@@ -283,9 +283,9 @@ void adiakSinaCallback(const char *name,
     // Further simplification: everything has to be the same type
     // Even further simplification: nothing nested. In the future, depth>1 lists
     // should be sent to user_defined
-    adiak_value_t *subvals = static_cast<adiak_value_t *>(val->v_ptr);
+    adiak_value_t* subvals = static_cast<adiak_value_t*>(val->v_ptr);
     SinaType list_type = findSinaType(adiak_type->subtype[0]);
-    char *s = adiak_type_to_string(adiak_type->subtype[0], 1);
+    char* s = adiak_type_to_string(adiak_type->subtype[0], 1);
     tags.emplace_back(s);
     free(s);
     switch(list_type)

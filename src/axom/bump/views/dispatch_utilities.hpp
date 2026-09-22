@@ -36,7 +36,7 @@ constexpr bool dimension_selected(int encoded_dims, int dim) { return encoded_di
  * \param protocol The name of the item to check in the mesh. If the string is empty,
  *                 \a obj node is treated as a mesh and it all gets checked.
  */
-void verify(const conduit::Node &obj, const std::string &protocol = std::string());
+void verify(const conduit::Node& obj, const std::string& protocol = std::string());
 
 }  // end namespace views
 }  // end namespace bump

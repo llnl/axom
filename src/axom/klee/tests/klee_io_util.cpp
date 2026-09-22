@@ -30,7 +30,7 @@ using test::AlmostEqPoint;
 using test::AlmostEqVector;
 using ::testing::ElementsAre;
 
-static std::unique_ptr<inlet::Reader> readYaml(const std::string &input)
+static std::unique_ptr<inlet::Reader> readYaml(const std::string& input)
 {
   auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
   reader->parseString(input);
@@ -41,7 +41,7 @@ class InletTestData
 {
 public:
   template <typename DefOp>
-  InletTestData(const std::string &input, DefOp defOp);
+  InletTestData(const std::string& input, DefOp defOp);
 
 private:
   sidre::DataStore m_store;
@@ -51,7 +51,7 @@ public:
 };
 
 template <typename DefOp>
-InletTestData::InletTestData(const std::string &input, DefOp defOp)
+InletTestData::InletTestData(const std::string& input, DefOp defOp)
   : m_store {}
   , doc {readYaml(input), m_store.getRoot()}
 {
@@ -66,11 +66,11 @@ InletTestData::InletTestData(const std::string &input, DefOp defOp)
   }
 }
 
-std::vector<double> parseDoubleVector(const std::string &vectorInput, Dimensions dims)
+std::vector<double> parseDoubleVector(const std::string& vectorInput, Dimensions dims)
 {
   std::string fullInput = "values: ";
   fullInput += vectorInput;
-  InletTestData data {fullInput, [](inlet::Container &c) { c.addDoubleArray("values"); }};
+  InletTestData data {fullInput, [](inlet::Container& c) { c.addDoubleArray("values"); }};
   return toDoubleVector(data.doc["values"], dims, "values");
 }
 
@@ -82,11 +82,11 @@ TEST(io_util, toDoubleVector)
   EXPECT_THROW(parseDoubleVector("[a, b]", Dimensions::Three), KleeError) << "Wrong type";
 }
 
-Dimensions defineAndParseDimension(const char *input)
+Dimensions defineAndParseDimension(const char* input)
 {
   std::string fullInput = "dims: ";
   fullInput += input;
-  InletTestData data {fullInput, [](inlet::Container &c) {
+  InletTestData data {fullInput, [](inlet::Container& c) {
                         defineDimensionsField(c, "dims", "some description");
                       }};
   return toDimensions(data.doc["dims"]);
@@ -105,7 +105,7 @@ TEST(io_util, defineAndConvertDimensions)
  *
  * @param container the Container on which to define the units fields
  */
-void defineUnitsSchemaWithDefaults(inlet::Container &container) { defineUnitsSchema(container); }
+void defineUnitsSchemaWithDefaults(inlet::Container& container) { defineUnitsSchema(container); }
 
 TEST(io_util, getOptionalStartAndEndUnits_nothingSpecified)
 {
@@ -171,16 +171,16 @@ TEST(io_util, getStartAndEndUnits_nothingSpecified)
 }
 
 template <typename T, typename Op>
-T parseArray(const char *value, Dimensions dims, Op op)
+T parseArray(const char* value, Dimensions dims, Op op)
 {
   std::string input = "value: ";
   input += value;
-  InletTestData data {input, [](inlet::Container &c) { c.addDoubleArray("value"); }};
+  InletTestData data {input, [](inlet::Container& c) { c.addDoubleArray("value"); }};
   return op(data.doc.getGlobalContainer(), "value", dims);
 }
 
 template <typename T, typename Op>
-T parseArray(const char *value, Dimensions dims, const T &defaultValue, Op op)
+T parseArray(const char* value, Dimensions dims, const T& defaultValue, Op op)
 {
   std::string input;
   if(value != nullptr)
@@ -193,43 +193,43 @@ T parseArray(const char *value, Dimensions dims, const T &defaultValue, Op op)
     // avoid warning about empty input
     input = "foo: bar";
   }
-  InletTestData data {input, [](inlet::Container &c) { c.addDoubleArray("value"); }};
+  InletTestData data {input, [](inlet::Container& c) { c.addDoubleArray("value"); }};
   return op(data.doc.getGlobalContainer(), "value", dims, defaultValue);
 }
 
-Point3D parsePoint(const char *value, Dimensions dims)
+Point3D parsePoint(const char* value, Dimensions dims)
 {
   return parseArray<Point3D>(
     value,
     dims,
-    static_cast<Point3D (*)(const inlet::Container &, char const *, Dimensions)>(toPoint));
+    static_cast<Point3D (*)(const inlet::Container&, char const*, Dimensions)>(toPoint));
 }
 
-Point3D parsePoint(const char *value, Dimensions dims, Point3D defaultValue)
+Point3D parsePoint(const char* value, Dimensions dims, Point3D defaultValue)
 {
   return parseArray<Point3D>(
     value,
     dims,
     defaultValue,
-    static_cast<Point3D (*)(const inlet::Container &, char const *, Dimensions, const Point3D &)>(
+    static_cast<Point3D (*)(const inlet::Container&, char const*, Dimensions, const Point3D&)>(
       toPoint));
 }
 
-Vector3D parseVector(const char *value, Dimensions dims)
+Vector3D parseVector(const char* value, Dimensions dims)
 {
   return parseArray<Vector3D>(
     value,
     dims,
-    static_cast<Vector3D (*)(const inlet::Container &, char const *, Dimensions)>(toVector));
+    static_cast<Vector3D (*)(const inlet::Container&, char const*, Dimensions)>(toVector));
 }
 
-Vector3D parseVector(const char *value, Dimensions dims, Vector3D defaultValue)
+Vector3D parseVector(const char* value, Dimensions dims, Vector3D defaultValue)
 {
   return parseArray<Vector3D>(
     value,
     dims,
     defaultValue,
-    static_cast<Vector3D (*)(const inlet::Container &, char const *, Dimensions, const Vector3D &)>(
+    static_cast<Vector3D (*)(const inlet::Container&, char const*, Dimensions, const Vector3D&)>(
       toVector));
 }
 
@@ -277,7 +277,7 @@ TEST(io_util, toVector_default)
 }  // namespace klee
 }  // namespace axom
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

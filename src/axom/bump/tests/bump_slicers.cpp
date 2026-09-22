@@ -79,7 +79,7 @@ struct test_matset_slice
                     utils::make_array_view<conduit::float64>(newHostMatset["volume_fractions"])));
   }
 
-  static void create(conduit::Node &matset)
+  static void create(conduit::Node& matset)
   {
     /*
       8-------9------10------11
@@ -92,7 +92,7 @@ struct test_matset_slice
       |       |       |       |
       0-------1-------2-------3
       */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 topology: mesh
 material_map:
   a: 1
@@ -125,7 +125,7 @@ TEST(bump_slicers, matsetslice_hip) { test_matset_slice<hip_exec>::test(); }
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace, typename Func>
-void test_coordsetslicer(const conduit::Node &hostCoordset, Func &&makeView)
+void test_coordsetslicer(const conduit::Node& hostCoordset, Func&& makeView)
 {
   axom::Array<axom::IndexType> ids {{0, 1, 2, 4, 5, 6}};
 
@@ -177,7 +177,7 @@ struct coordsetslicer_explicit
       |   |   |   |
       0---1---2---3
       */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 type: explicit
 values:
   x: [0., 1., 2., 3., 0., 1., 2., 3., 0., 1., 2., 3.]
@@ -187,7 +187,7 @@ values:
     conduit::Node coordset;
     coordset.parse(yaml);
 
-    auto makeView = [](const conduit::Node &deviceCoordset) {
+    auto makeView = [](const conduit::Node& deviceCoordset) {
       return axom::bump::views::make_explicit_coordset<conduit::float64, 2>::view(deviceCoordset);
     };
 
@@ -222,7 +222,7 @@ struct coordsetslicer_rectilinear
       |   |   |   |
       0---1---2---3
       */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 type: rectilinear
 values:
   x: [0., 1., 2., 3.]
@@ -232,7 +232,7 @@ values:
     conduit::Node coordset;
     coordset.parse(yaml);
 
-    auto makeView = [](const conduit::Node &deviceCoordset) {
+    auto makeView = [](const conduit::Node& deviceCoordset) {
       return axom::bump::views::make_rectilinear_coordset<conduit::float64, 2>::view(deviceCoordset);
     };
     test_coordsetslicer<ExecSpace>(coordset, makeView);
@@ -269,7 +269,7 @@ struct coordsetslicer_uniform
       |   |   |   |
       0---1---2---3
       */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 type: uniform
 dims:
   i: 4
@@ -279,7 +279,7 @@ dims:
     conduit::Node coordset;
     coordset.parse(yaml);
 
-    auto makeView = [](const conduit::Node &deviceCoordset) {
+    auto makeView = [](const conduit::Node& deviceCoordset) {
       return axom::bump::views::make_uniform_coordset<2>::view(deviceCoordset);
     };
     test_coordsetslicer<ExecSpace>(coordset, makeView);
@@ -358,9 +358,9 @@ struct test_fieldslicer
     }
   }
 
-  static void create(conduit::Node &fields)
+  static void create(conduit::Node& fields)
   {
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 fields:
   scalar: 
     topology: mesh
@@ -389,7 +389,7 @@ TEST(bump_slicers, fieldslicer_hip) { test_fieldslicer<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);

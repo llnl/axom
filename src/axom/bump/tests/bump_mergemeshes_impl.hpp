@@ -4,19 +4,25 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "gtest/gtest.h"
+#pragma once
+
+/*! 
+ * \file bump_mergemeshes_impl.hpp
+ * \brief Implementation shared by the MergeMeshes execution-policy tests.
+ */
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/bump.hpp"
 
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
-#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 
+#include <conduit/conduit.hpp>
 #include <conduit/conduit_relay_io_blueprint.hpp>
 
 #include <iostream>
 #include <algorithm>
+#include <iostream>
 
 // NOTE: Conduit 0.9.6 and later has macros but Axom is not quite on that version yet.
 #include "conduit/conduit_config.h"
@@ -28,9 +34,19 @@
 namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
+namespace
+{
+void conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
+{
+  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
+  // This is on purpose.
+  while(1);
+}
+}  // namespace
+
 //#define AXOM_DEBUG_MERGE_MESHES_TEST
 #ifdef AXOM_DEBUG_MERGE_MESHES_TEST
-void saveMesh(const conduit::Node &n_mesh, const std::string &fileRoot)
+inline void saveMesh(const conduit::Node& n_mesh, const std::string& fileRoot)
 {
   #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
   const std::string protocol("hdf5");
@@ -50,7 +66,7 @@ struct test_mergemeshes
   static void test()
   {
     std::vector<std::string> matsetTypes {"unibuffer", "element_dominant", "material_dominant"};
-    for(const auto &matsetType : matsetTypes)
+    for(const auto& matsetType : matsetTypes)
     {
       for(int matflags = 3; matflags >= 1; matflags--)
       {
@@ -60,7 +76,7 @@ struct test_mergemeshes
     }
   }
 
-  static void test(const std::string &matsetType, int matflags)
+  static void test(const std::string& matsetType, int matflags)
   {
     conduit::Node hostMesh;
     create(hostMesh, matsetType, matflags);
@@ -114,7 +130,7 @@ struct test_mergemeshes
     {
       success = compareConduit(expectedResult, hostResult, tolerance, info);
     }
-    catch(const conduit::Error &e)
+    catch(const conduit::Error& e)
     {
       e.print();
     }
@@ -126,9 +142,9 @@ struct test_mergemeshes
     EXPECT_TRUE(success);
   }
 
-  static void create(conduit::Node &mesh, const std::string &matsetType, int matflags)
+  static void create(conduit::Node& mesh, const std::string& matsetType, int matflags)
   {
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 domain0000:
   coordsets:
     coords:
@@ -232,27 +248,27 @@ domain0001:
   }
 
   /// Remove mixed field and matset on domains according to matflags. This tests merging domains that are missing materials/fields.
-  static void applyMatFlags(conduit::Node &mesh, int matflags)
+  static void applyMatFlags(conduit::Node& mesh, int matflags)
   {
     for(int dom = 0; dom < 2; dom++)
     {
       if(!axom::utilities::bitIsSet(matflags, dom))
       {
-        conduit::Node &domain = mesh[dom];
+        conduit::Node& domain = mesh[dom];
         domain["fields"].remove("zonal_mixed");
         domain.remove("matsets");
       }
     }
   }
 
-  static void changeMatsetType(conduit::Node &domain, const std::string &matsetType)
+  static void changeMatsetType(conduit::Node& domain, const std::string& matsetType)
   {
     // Change the material and field representations
     if(matsetType == "element_dominant")
     {
       conduit::Node domainCopy(domain);
-      conduit::Node &srcMatset = domainCopy["matsets/mat"];
-      conduit::Node &srcField = domainCopy["fields/zonal_mixed"];
+      conduit::Node& srcMatset = domainCopy["matsets/mat"];
+      conduit::Node& srcField = domainCopy["fields/zonal_mixed"];
 
       domain.remove("matsets/mat");
       domain.remove("fields/zonal_mixed");
@@ -280,8 +296,8 @@ domain0001:
     else if(matsetType == "material_dominant")
     {
       conduit::Node domainCopy(domain);
-      conduit::Node &srcMatset = domainCopy["matsets/mat"];
-      conduit::Node &srcField = domainCopy["fields/zonal_mixed"];
+      conduit::Node& srcMatset = domainCopy["matsets/mat"];
+      conduit::Node& srcField = domainCopy["fields/zonal_mixed"];
 
       domain.remove("matsets/mat");
       domain.remove("fields/zonal_mixed");
@@ -299,13 +315,13 @@ domain0001:
     }
   }
 
-  static void result(conduit::Node &mesh, int matflags)
+  static void result(conduit::Node& mesh, int matflags)
   {
     // NOTE: We pass back different baselines for different matflags. The fields and matset change.
     //       It is simpler to just have a totally separate baseline to parse.
 
     // Result for matflags=3 - both input domains had the material and the mixed field.
-    const char *yaml3 = R"xx(
+    const char* yaml3 = R"xx(
 coordsets: 
   coords: 
     type: "explicit"
@@ -355,7 +371,7 @@ fields:
 )xx";
 
     // Result for matflags=2 - domain 0 lacked the material and domain so we get default values where domain 0's data would be.
-    const char *yaml2 = R"xx(
+    const char* yaml2 = R"xx(
 coordsets: 
   coords: 
     type: "explicit"
@@ -405,7 +421,7 @@ fields:
 )xx";
 
     // Result for matflags=1 - domain 1 lacked the material and domain so we get default values where domain 1's data would be.
-    const char *yaml1 = R"xx(
+    const char* yaml1 = R"xx(
 coordsets: 
   coords: 
     type: "explicit"
@@ -472,73 +488,3 @@ fields:
     }
   }
 };
-
-TEST(bump_mergemeshes, mergemeshes_seq) { test_mergemeshes<seq_exec>::test(); }
-#if defined(AXOM_USE_OPENMP)
-TEST(bump_mergemeshes, mergemeshes_omp) { test_mergemeshes<omp_exec>::test(); }
-#endif
-#if defined(AXOM_USE_CUDA)
-TEST(bump_mergemeshes, mergemeshes_cuda) { test_mergemeshes<cuda_exec>::test(); }
-#endif
-#if defined(AXOM_USE_HIP)
-TEST(bump_mergemeshes, mergemeshes_hip) { test_mergemeshes<hip_exec>::test(); }
-#endif
-
-//------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
-{
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1);
-}
-
-//------------------------------------------------------------------------------
-int main(int argc, char *argv[])
-{
-  int result = 0;
-  ::testing::InitGoogleTest(&argc, argv);
-
-  axom::CLI::App app;
-#if defined(AXOM_USE_CALIPER)
-  std::string annotationMode("none");
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
-#endif
-  bool handlerEnabled = false;
-  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
-
-  // Parse command line options.
-  try
-  {
-    app.parse(argc, argv);
-
-#if defined(AXOM_USE_CALIPER)
-    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
-#endif
-
-    axom::slic::SimpleLogger logger;  // create & initialize test logger,
-    if(handlerEnabled)
-    {
-      conduit::utils::set_error_handler(conduit_debug_err_handler);
-    }
-
-    result = RUN_ALL_TESTS();
-  }
-  catch(axom::CLI::CallForHelp &e)
-  {
-    std::cout << app.help() << std::endl;
-    result = 0;
-  }
-  catch(axom::CLI::ParseError &e)
-  {
-    // Handle other parsing errors
-    std::cerr << e.what() << std::endl;
-    result = app.exit(e);
-  }
-
-  return result;
-}

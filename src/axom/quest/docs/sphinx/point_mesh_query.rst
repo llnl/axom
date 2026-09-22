@@ -67,11 +67,14 @@ We are now ready to initialize the query.
    :end-before: _quest_inout_interface_init_end
    :language: C++
 
-The variable ``fileName`` is a ``std::string`` that indicates a triangle 
-mesh file. Another overload of ``quest::inout_init()`` lets a user code pass 
-a reference to a ``mint::Mesh*`` to query meshes that were previously read in 
-or built up. If initialization succeeded (returned 
-``quest::QUEST_INOUT_SUCCESS``), the code can
+The variable ``fileName`` is a ``std::string`` that indicates a triangle  mesh file.
+Another overload of ``quest::inout_init()`` lets a user code pass  a reference
+to a ``mint::Mesh*`` to query meshes that were previously read in  or built up.
+The overloads that take an ``MPI_Comm`` are only declared when Axom is configured with MPI;
+the overloads without a communicator are available in every configuration 
+and behave as if ``MPI_COMM_SELF`` had been passed. 
+
+If initialization succeeded (returned ``quest::QUEST_INOUT_SUCCESS``), the code can
 
 - Query the mesh bounds with ``quest::inout_mesh_min_bounds(double[3])`` and 
   ``quest::inout_mesh_max_bounds(double[3])``.
@@ -129,7 +132,8 @@ Before initialization, a code can set some parameters for the distance query.
 The distance query must be initialized before use.  In this example,
 ``Arguments`` is a POD struct containing parameters to the executable.
 As with the in/out query, a user code may pass either a file name or a
-reference to a ``mint::Mesh *`` to ``quest::signed_distance_init()``.
+reference to a ``mint::Mesh *`` to ``quest::signed_distance_init()``,
+and the communicator-taking overloads are only declared when Axom is configured with MPI.
 
 .. literalinclude:: ../../examples/quest_signed_distance_interface.cpp
    :start-after: _quest_distance_interface_init_start

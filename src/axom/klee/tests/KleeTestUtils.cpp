@@ -12,7 +12,7 @@ namespace klee
 {
 namespace test
 {
-numerics::Matrix<double> affine(const std::array<std::array<double, 4>, 3> &values)
+numerics::Matrix<double> affine(const std::array<std::array<double, 4>, 3>& values)
 {
   numerics::Matrix<double> m(4, 4);
   m(3, 3) = 1;

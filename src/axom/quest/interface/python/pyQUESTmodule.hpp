@@ -21,7 +21,7 @@
 // splicer begin header.C_declaration
 // splicer end header.C_declaration
 
-extern PyObject *PY_error_obj;
+extern PyObject* PY_error_obj;
 
 #if PY_MAJOR_VERSION >= 3
 extern "C" PyMODINIT_FUNC PyInit_quest(void);

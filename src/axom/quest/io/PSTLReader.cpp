@@ -6,9 +6,7 @@
 
 #include "axom/quest/io/PSTLReader.hpp"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace
 {
@@ -20,10 +18,7 @@ constexpr int READER_FAILED = -1;
 PSTLReader::PSTLReader(MPI_Comm comm) : m_comm(comm) { MPI_Comm_rank(m_comm, &m_my_rank); }
 
 //------------------------------------------------------------------------------
-PSTLReader::~PSTLReader()
-{
-  // TODO Auto-generated destructor stub
-}
+PSTLReader::~PSTLReader() = default;
 
 //------------------------------------------------------------------------------
 int PSTLReader::read()
@@ -44,11 +39,11 @@ int PSTLReader::read()
     {
       MPI_Bcast(&m_num_nodes, 1, axom::mpi_traits<axom::IndexType>::type, 0, m_comm);
       MPI_Bcast(&m_nodes[0], m_num_nodes * 3, MPI_DOUBLE, 0, m_comm);
-    }  // END if
+    }
     else
     {
       MPI_Bcast(&rc, 1, MPI_INT, 0, m_comm);
-    }  // END else
+    }
     break;
 
   default:
@@ -65,11 +60,9 @@ int PSTLReader::read()
       m_nodes.resize(m_num_nodes * 3);
       MPI_Bcast(&m_nodes[0], m_num_nodes * 3, MPI_DOUBLE, 0, m_comm);
     }
-
-  }  // END switch
+  }
 
   return (rc);
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

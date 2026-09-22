@@ -35,7 +35,7 @@ struct SliceData
  * \return The number of values made from the SliceData.
  */
 AXOM_HOST_DEVICE
-inline axom::IndexType numberOfValues(const SliceData &slice) { return slice.m_indicesView.size(); }
+inline axom::IndexType numberOfValues(const SliceData& slice) { return slice.m_indicesView.size(); }
 
 /*!
  * \accelerated
@@ -58,7 +58,7 @@ public:
    * \brief Constructor
    * \param indexing An object used to transform node indices.
    */
-  FieldSlicer(const IndexingPolicy &indexing)
+  FieldSlicer(const IndexingPolicy& indexing)
     : m_indexing(indexing)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -92,21 +92,21 @@ public:
    *
    * \note We assume for now that n_input != n_output.
    */
-  void execute(const SliceData &slice, const conduit::Node &n_input, conduit::Node &n_output)
+  void execute(const SliceData& slice, const conduit::Node& n_input, conduit::Node& n_output)
   {
     n_output.reset();
     n_output["association"] = n_input["association"];
     n_output["topology"] = n_input["topology"];
 
-    const conduit::Node &n_input_values = n_input["values"];
-    conduit::Node &n_output_values = n_output["values"];
+    const conduit::Node& n_input_values = n_input["values"];
+    conduit::Node& n_output_values = n_output["values"];
     const conduit::index_t nc = n_input_values.number_of_children();
     if(nc > 0)
     {
       for(conduit::index_t i = 0; i < nc; i++)
       {
-        const conduit::Node &n_comp = n_input_values[i];
-        conduit::Node &n_out_comp = n_output_values[n_comp.name()];
+        const conduit::Node& n_comp = n_input_values[i];
+        conduit::Node& n_out_comp = n_output_values[n_comp.name()];
         sliceSingleComponent(slice, n_comp, n_out_comp);
       }
     }
@@ -128,9 +128,9 @@ private:
    * \param n_values The input values that we're slicing.
    * \param n_output_values The output node that will contain the new field.
    */
-  void sliceSingleComponent(const SliceData &slice,
-                            const conduit::Node &n_values,
-                            conduit::Node &n_output_values) const
+  void sliceSingleComponent(const SliceData& slice,
+                            const conduit::Node& n_values,
+                            conduit::Node& n_output_values) const
   {
     namespace utils = axom::bump::utilities;
     const auto output_size = slice.m_indicesView.size();
@@ -156,7 +156,7 @@ private:
    *       lambda.
    */
   template <typename ValuesView, typename OutputView>
-  void sliceSingleComponentImpl(const SliceData &slice,
+  void sliceSingleComponentImpl(const SliceData& slice,
                                 ValuesView values_view,
                                 OutputView output_view) const
   {

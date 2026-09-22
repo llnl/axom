@@ -17,8 +17,6 @@
 
 #ifdef AXOM_USE_MPI
   #include <mpi.h>
-#else
-using MPI_Comm = int;
 #endif
 
 // C/C++ includes
@@ -52,7 +50,9 @@ void run_batched_query(mint::UniformMesh*& mesh);
 //------------------------------------------------------------------------------
 // GLOBALS
 //------------------------------------------------------------------------------
+#ifdef AXOM_USE_MPI
 MPI_Comm global_comm;
+#endif
 int mpirank;
 int numranks;
 
@@ -214,7 +214,11 @@ int main(int argc, char** argv)
   quest::signed_distance_set_compute_signs(!args.ignore_signs);
   quest::signed_distance_set_execution_space(args.exec_space);
   // _quest_distance_interface_init_start
+#ifdef AXOM_USE_MPI
   int rc = quest::signed_distance_init(args.fileName, global_comm);
+#else
+  int rc = quest::signed_distance_init(args.fileName);
+#endif
   // _quest_distance_interface_init_end
   timer.stop();
 

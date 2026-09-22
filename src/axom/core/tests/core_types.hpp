@@ -18,9 +18,9 @@
 // C/C++ includes
 #include <type_traits>  // for std::is_same, std::is_integral, etc.
 
-#ifndef AXOM_USE_MPI
+#if !defined(AXOM_USE_MPI) && !defined(MPI_VERSION)
 
-// MPI definitions so that the tests work without MPI
+// MPI definitions so that the tests work without MPI headers
 using MPI_Datatype = int;
 constexpr int MPI_INT8_T = -1;
 constexpr int MPI_UINT8_T = -1;

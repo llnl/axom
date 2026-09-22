@@ -40,7 +40,7 @@ Relationship::Relationship(ID subject_, std::string predicate_, ID object_)
   , predicate {std::move(predicate_)}
 { }
 
-Relationship::Relationship(conduit::Node const &asNode)
+Relationship::Relationship(conduit::Node const& asNode)
   : subject {asNode, LOCAL_SUBJECT_KEY, GLOBAL_SUBJECT_KEY}
   , object {asNode, LOCAL_OBJECT_KEY, GLOBAL_OBJECT_KEY}
   , predicate {getRequiredString(PREDICATE_KEY, asNode, "Relationship")}

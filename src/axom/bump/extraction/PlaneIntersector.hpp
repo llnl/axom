@@ -69,7 +69,7 @@ public:
      */
     AXOM_HOST_DEVICE
     axom::IndexType determineTableCase(axom::IndexType AXOM_UNUSED_PARAM(zoneIndex),
-                                       const ConnectivityView &nodeIds) const
+                                       const ConnectivityView& nodeIds) const
     {
       axom::IndexType caseNumber = 0, numIds = nodeIds.size();
       for(IndexType i = 0; i < numIds; i++)
@@ -114,12 +114,12 @@ public:
    * \note This is a host-side initialization, though some array data in the n_options
    *       node may be on-device already.
    */
-  void initialize(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                  const CoordsetView &coordsetView,
-                  const conduit::Node &n_options,
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
-                  const conduit::Node &AXOM_UNUSED_PARAM(n_fields))
+  void initialize(const TopologyView& AXOM_UNUSED_PARAM(topologyView),
+                  const CoordsetView& coordsetView,
+                  const conduit::Node& n_options,
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_topology),
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_coordset),
+                  const conduit::Node& AXOM_UNUSED_PARAM(n_fields))
   {
     // Make a plane from the options.
     SLIC_ASSERT(n_options.has_child("origin"));
@@ -150,8 +150,8 @@ public:
    * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input),
-                              const conduit::Node &n_options) const
+  std::string getTopologyName(const conduit::Node& AXOM_UNUSED_PARAM(n_input),
+                              const conduit::Node& n_options) const
   {
     return n_options["topology"].as_string();
   }
@@ -174,7 +174,7 @@ private:
    * \param n The Conduit node with the data.
    * \param[out] values An output array of the data on the host, converted to value_type.
    */
-  void getArrayValues(const conduit::Node &n, value_type values[NDIMS]) const
+  void getArrayValues(const conduit::Node& n, value_type values[NDIMS]) const
   {
     SLIC_ERROR_IF(n.dtype().number_of_elements() != NDIMS, "Incompatible sizes.");
 

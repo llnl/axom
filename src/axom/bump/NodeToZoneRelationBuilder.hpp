@@ -285,16 +285,16 @@ public:
    * \param coordset The topology's coordset.
    * \param[out] The node that will contain the O2M relation.
    */
-  void execute(const conduit::Node &topo, const conduit::Node &coordset, conduit::Node &relation)
+  void execute(const conduit::Node& topo, const conduit::Node& coordset, conduit::Node& relation)
   {
     const std::string type = topo.fetch_existing("type").as_string();
 
     const auto conduitAllocatorID =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
-    conduit::Node &n_zones = relation["zones"];
-    conduit::Node &n_sizes = relation["sizes"];
-    conduit::Node &n_offsets = relation["offsets"];
+    conduit::Node& n_zones = relation["zones"];
+    conduit::Node& n_sizes = relation["sizes"];
+    conduit::Node& n_offsets = relation["offsets"];
     n_zones.set_allocator(conduitAllocatorID);
     n_sizes.set_allocator(conduitAllocatorID);
     n_offsets.set_allocator(conduitAllocatorID);
@@ -302,7 +302,7 @@ public:
     if(type == "unstructured")
     {
       conduit::blueprint::mesh::utils::ShapeType shape(topo);
-      const conduit::Node &n_connectivity = topo["elements/connectivity"];
+      const conduit::Node& n_connectivity = topo["elements/connectivity"];
       const std::string shapeType = topo["elements/shape"].as_string();
       const auto intTypeId = n_connectivity.dtype().id();
       const auto connSize = n_connectivity.dtype().number_of_elements();
@@ -320,8 +320,8 @@ public:
       }
       else if(shape.is_polygonal() || shapeType == "mixed")
       {
-        const conduit::Node &n_topo_sizes = topo["elements/sizes"];
-        const conduit::Node &n_topo_offsets = topo["elements/offsets"];
+        const conduit::Node& n_topo_sizes = topo["elements/sizes"];
+        const conduit::Node& n_topo_offsets = topo["elements/offsets"];
 
         const auto nzones = n_topo_sizes.dtype().number_of_elements();
 
@@ -416,9 +416,9 @@ private:
    */
   template <typename PHView>
   void handlePolyhedralView(PHView topoView,
-                            conduit::Node &n_zones,
-                            conduit::Node &n_sizes,
-                            conduit::Node &n_offsets,
+                            conduit::Node& n_zones,
+                            conduit::Node& n_sizes,
+                            conduit::Node& n_offsets,
                             axom::IndexType nnodes,
                             int intTypeId) const
   {
@@ -493,7 +493,7 @@ private:
    *       lambda.
    */
   template <typename TopologyView, typename IntegerView, typename OffsetsView>
-  void fillZonesPH(const TopologyView &topoView,
+  void fillZonesPH(const TopologyView& topoView,
                    IntegerView connectivityView,
                    IntegerView zonesView,
                    OffsetsView offsets_view) const

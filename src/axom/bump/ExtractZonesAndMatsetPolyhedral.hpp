@@ -50,9 +50,9 @@ public:
    * \param coordsetView The input coordset view.
    * \param matsetView The input matset view.
    */
-  ExtractZonesAndMatsetPolyhedral(const TopologyView &topoView,
-                                  const CoordsetView &coordsetView,
-                                  const MatsetView &matsetView)
+  ExtractZonesAndMatsetPolyhedral(const TopologyView& topoView,
+                                  const CoordsetView& coordsetView,
+                                  const MatsetView& matsetView)
     : ParentClass(topoView, coordsetView, matsetView)
   { }
 
@@ -80,12 +80,12 @@ protected:
    * \param n_newTopo A node to contain the new topology.
    */
   virtual void makeTopology(const SelectedZonesView selectedZonesView,
-                            const Sizes &AXOM_UNUSED_PARAM(dataSizes),
-                            const Sizes &AXOM_UNUSED_PARAM(extra),
-                            const axom::ArrayView<ConnectivityType> &old2newView,
-                            const conduit::Node &n_topo,
-                            const conduit::Node &AXOM_UNUSED_PARAM(n_options),
-                            conduit::Node &n_newTopo) const override
+                            const Sizes& AXOM_UNUSED_PARAM(dataSizes),
+                            const Sizes& AXOM_UNUSED_PARAM(extra),
+                            const axom::ArrayView<ConnectivityType>& old2newView,
+                            const conduit::Node& n_topo,
+                            const conduit::Node& AXOM_UNUSED_PARAM(n_options),
+                            conduit::Node& n_newTopo) const override
   {
     AXOM_ANNOTATE_SCOPE("makeTopology(polyhedral)");
     namespace utils = axom::bump::utilities;
@@ -201,34 +201,34 @@ protected:
     n_newTopo["elements/shape"] = "polyhedral";
     n_newTopo["subelements/shape"] = "polygonal";
 
-    conduit::Node &n_conn = n_newTopo["elements/connectivity"];
+    conduit::Node& n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(conduitAllocatorId);
     n_conn.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
     auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
-    conduit::Node &n_sizes = n_newTopo["elements/sizes"];
+    conduit::Node& n_sizes = n_newTopo["elements/sizes"];
     n_sizes.set_allocator(conduitAllocatorId);
     n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
-    conduit::Node &n_offsets = n_newTopo["elements/offsets"];
+    conduit::Node& n_offsets = n_newTopo["elements/offsets"];
     n_offsets.set_allocator(conduitAllocatorId);
     n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
-    conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
+    conduit::Node& n_se_conn = n_newTopo["subelements/connectivity"];
     n_se_conn.set_allocator(conduitAllocatorId);
     n_se_conn.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
     auto seConnView = utils::make_array_view<ConnectivityType>(n_se_conn);
 
-    conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
+    conduit::Node& n_se_sizes = n_newTopo["subelements/sizes"];
     n_se_sizes.set_allocator(conduitAllocatorId);
     n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seSizesView = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
-    conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
+    conduit::Node& n_se_offsets = n_newTopo["subelements/offsets"];
     n_se_offsets.set_allocator(conduitAllocatorId);
     n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seOffsetsView = utils::make_array_view<ConnectivityType>(n_se_offsets);

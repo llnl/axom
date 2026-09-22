@@ -36,8 +36,8 @@ int main(void)
   document.add(relationship);
 
   // Query for a list of records and relationships
-  auto &records = document.getRecords();
-  auto &relationships = document.getRelationships();
+  auto& records = document.getRecords();
+  auto& relationships = document.getRelationships();
 
   SLIC_ASSERT_MSG(records.size() == 2, "Unexpected number of records found.");
   std::cout << "Number of Records: " << records.size() << std::endl;

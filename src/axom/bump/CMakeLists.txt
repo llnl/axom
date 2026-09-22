@@ -67,6 +67,7 @@ set(bump_headers
     views/UnstructuredTopologySingleShapeView.hpp
     views/view_traits.hpp
     BlendData.hpp
+    ComputeMeasure.hpp
     CoordsetBlender.hpp
     CoordsetExtents.hpp
     CoordsetSlicer.hpp
@@ -75,14 +76,17 @@ set(bump_headers
     ExtrudeMesh.hpp
     FieldBlender.hpp
     FieldSlicer.hpp
+    GenerateQuadratureMesh.hpp
     HashNaming.hpp
     IndexingPolicies.hpp
+    MakeExplicitCoordset.hpp
     MakePointMesh.hpp
     MakePolyhedralTopology.hpp
     MakeUnstructured.hpp
     MakeZoneCenters.hpp
     MakeZoneVolumes.hpp
     MapBasedNaming.hpp
+    MappedZoneUtilities.hpp
     MatsetSlicer.hpp
     MergeCoordsetPoints.hpp
     MergeMeshes.hpp

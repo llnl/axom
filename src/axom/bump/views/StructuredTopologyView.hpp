@@ -56,7 +56,7 @@ public:
    *
    * \param indexing The indexing policy for the topology (num zones in each dimension).
    */
-  AXOM_HOST_DEVICE StructuredTopologyView(const IndexingPolicy &indexing)
+  AXOM_HOST_DEVICE StructuredTopologyView(const IndexingPolicy& indexing)
     : m_zoneIndexing(indexing)
     , m_nodeIndexing(indexing.expand())
   { }
@@ -95,7 +95,7 @@ public:
    *
    * \return The mesh logical dimensions.
    */
-  AXOM_HOST_DEVICE const LogicalIndex &logicalDimensions() const
+  AXOM_HOST_DEVICE const LogicalIndex& logicalDimensions() const
   {
     return m_zoneIndexing.logicalDimensions();
   }
@@ -105,14 +105,14 @@ public:
    *
    * \return The indexing object.
    */
-  AXOM_HOST_DEVICE inline IndexingPolicy &indexing() { return m_zoneIndexing; }
+  AXOM_HOST_DEVICE inline IndexingPolicy& indexing() { return m_zoneIndexing; }
 
   /*!
    * \brief Return indexing object.
    *
    * \return The indexing object.
    */
-  AXOM_HOST_DEVICE inline const IndexingPolicy &indexing() const { return m_zoneIndexing; }
+  AXOM_HOST_DEVICE inline const IndexingPolicy& indexing() const { return m_zoneIndexing; }
 
   /*!
    * \brief Return a zone.
@@ -133,7 +133,7 @@ public:
     const auto kp = m_nodeIndexing.kStride();
 
     Shape3D shape;
-    auto &data = shape.getIdsStorage();
+    auto& data = shape.getIdsStorage();
     data[0] = m_nodeIndexing.globalToGlobal(m_nodeIndexing.localToGlobal(localLogical));
     data[1] = data[0] + 1;
     data[2] = data[1] + jp;
@@ -164,7 +164,7 @@ public:
     const auto jp = m_nodeIndexing.jStride();
 
     Shape2D shape;
-    auto &data = shape.getIdsStorage();
+    auto& data = shape.getIdsStorage();
     data[0] = m_nodeIndexing.globalToGlobal(m_nodeIndexing.localToGlobal(localLogical));
     data[1] = data[0] + 1;
     data[2] = data[1] + jp;
@@ -190,7 +190,7 @@ public:
     const auto localLogical = m_zoneIndexing.indexToLogicalIndex(zoneIndex);
 
     Shape1D shape;
-    auto &data = shape.getIdsStorage();
+    auto& data = shape.getIdsStorage();
     data[0] = m_nodeIndexing.globalToGlobal(m_nodeIndexing.localToGlobal(localLogical));
     data[1] = data[0] + 1;
 

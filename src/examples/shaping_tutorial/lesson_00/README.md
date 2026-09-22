@@ -89,7 +89,7 @@ graph LR
 
 Let's get our feet wet with a first example that uses an installed version of Axom. Specifically, we will print the version of Axom and some of its configuration properties.
 
-> :information_source: Axom requires ``C++17`` or higher. This example uses the ``C++20`` standard.
+> :information_source: Axom requires ``C++20`` or higher. This example uses the ``C++20`` standard.
 
 > :memo: For details about configuring and installing Axom, see the [Zero-to-Axom Installation Guide](https://axom.readthedocs.io/en/develop/zero_to_axom/index.html)
 
@@ -167,15 +167,15 @@ std::cout << axom::fmt::format("Version: {}", axom::getVersion()) << "\n\n";
 This includes the major, minor and patch version of Axom as well as the git SHA (when available).
 The above command might produce something like:
 ```
-Version: v0.12.0-fd04d6d3d
+Version: v0.14.0-b26e10df2
 ```
 
 The version is also available as compiler defines in ``axom/config.hpp``. The following corresponds to the above version:
 ```cpp
 #define AXOM_VERSION_MAJOR 0
-#define AXOM_VERSION_MINOR 12
+#define AXOM_VERSION_MINOR 14
 #define AXOM_VERSION_PATCH 0
-#define AXOM_VERSION_FULL  "v0.12.0"
+#define AXOM_VERSION_FULL  "v0.14.0"
 ```
 
 ## Checking details about the Axom configuration
@@ -198,20 +198,18 @@ Its output should look something like:
 
 ```
 Axom information:
-  AXOM_VERSION_FULL: v0.12.0
+  AXOM_VERSION_FULL: v0.14.0
   AXOM_VERSION_MAJOR: 0
-  AXOM_VERSION_MINOR: 12
+  AXOM_VERSION_MINOR: 14
   AXOM_VERSION_PATCH: 0
-  AXOM_GIT_SHA: fd04d6d3d
+  AXOM_GIT_SHA: b26e10df2
 Compiler Settings: 
   C++ Standard: c++20
   Size of axom::IndexType: 8
-Active programming models:    { mpi;openmp }
-Available components:         { core;bump;inlet;klee;lumberjack;mint;mir;
-                                primal;quest;sidre;sina;slam;slic;spin }
+Active programming models: { mpi;openmp }
+Available components: { core;bump;inlet;klee;lumberjack;mint;mir;multimat;primal;quest;sidre;sina;slam;slic;spin }
 Active built-in dependencies: { CLI11;fmt;sol;sparsehash }
-Active external dependencies: { adiak;c2c;caliper;conduit;hdf5;lua;
-                                mfem;raja;scr;umpire }
+Active external dependencies: { adiak;c2c;caliper;conduit;hdf5;lua;mfem;opencascade;raja;scr;umpire }
 ```
 
 

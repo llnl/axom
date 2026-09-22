@@ -108,8 +108,9 @@ if ("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
 endif()
 
 if("${BLT_CXX_STD}" STREQUAL "c++98" OR "${BLT_CXX_STD}" STREQUAL "c++11"
-                                     OR "${BLT_CXX_STD}" STREQUAL "c++14" )
-    message(FATAL_ERROR "Axom requires BLT_CXX_STD to be 'c++17' or above.")
+                                     OR "${BLT_CXX_STD}" STREQUAL "c++14"
+                                     OR "${BLT_CXX_STD}" STREQUAL "c++17" )
+    message(FATAL_ERROR "Axom requires BLT_CXX_STD to be 'c++20' or above.")
 endif()
 
 include(${BLT_SOURCE_DIR}/SetupBLT.cmake)

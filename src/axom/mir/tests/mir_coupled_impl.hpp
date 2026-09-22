@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_coupled_impl.hpp
+ *  \brief Implementation shared by the coupled MIR execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -20,14 +26,14 @@
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
-std::string baselineDirectory()
+inline std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_coupled");
 }
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
+extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 /*!
@@ -119,7 +125,7 @@ fine - refines coarse with equal sized quads.
 
 */
 // NOTE: Coordinates were switched to explicit to play better with VisIt and strided-structured.
-const char *yaml = R"(
+inline const char* yaml = R"(
 coordsets:
   coarse_coords:
     type: explicit
@@ -158,7 +164,7 @@ topologies:
 )";
 
 // This matset is defined on all zones in the mesh.
-const char *coarse_matset_yaml = R"(
+inline const char* coarse_matset_yaml = R"(
 coarse_matset:
   topology: coarse
   material_map:
@@ -174,7 +180,7 @@ coarse_matset:
 )";
 
 // This matset is restricted to the valid zones in a strided structured mesh.
-const char *coarse_matset_ss_yaml = R"(
+inline const char* coarse_matset_ss_yaml = R"(
 coarse_strided_matset:
   topology: coarse_strided
   material_map:
@@ -199,7 +205,7 @@ template <typename ExecSpace>
 class test_coupling
 {
 public:
-  static void test2D(const std::string &name, bool selectedZones = false, bool stridedStructured = false)
+  static void test2D(const std::string& name, bool selectedZones = false, bool stridedStructured = false)
   {
     // Make the 2D input mesh.
     conduit::Node n_mesh;
@@ -233,7 +239,7 @@ public:
   }
 
 private:
-  static void initialize(bool stridedStructured, conduit::Node &n_mesh)
+  static void initialize(bool stridedStructured, conduit::Node& n_mesh)
   {
     // Make the 2D input mesh.
     n_mesh.parse(yaml);
@@ -255,15 +261,15 @@ private:
     }
   }
 
-  static void mir2D(const std::string &input_prefix,
-                    conduit::Node &n_input,
-                    const std::string &output_prefix,
-                    conduit::Node &n_output,
+  static void mir2D(const std::string& input_prefix,
+                    conduit::Node& n_input,
+                    const std::string& output_prefix,
+                    conduit::Node& n_output,
                     bool selectedZones,
                     bool stridedStructured)
   {
     // Wrap the coarse mesh in views.
-    const conduit::Node &n_topology = n_input[axom::fmt::format("topologies/{}", input_prefix)];
+    const conduit::Node& n_topology = n_input[axom::fmt::format("topologies/{}", input_prefix)];
 
     if(stridedStructured)
     {
@@ -279,18 +285,18 @@ private:
 
   template <typename TopologyView>
   static void mir2D(TopologyView topologyView,
-                    const std::string &input_prefix,
-                    conduit::Node &n_input,
-                    const std::string &output_prefix,
-                    conduit::Node &n_output,
+                    const std::string& input_prefix,
+                    conduit::Node& n_input,
+                    const std::string& output_prefix,
+                    conduit::Node& n_output,
                     bool selectedZones,
                     bool stridedStructured)
   {
     SLIC_INFO(axom::fmt::format("mir2D {} to {}", input_prefix, output_prefix));
 
     // Wrap the input mesh in views.
-    const conduit::Node &n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
-    const conduit::Node &n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
+    const conduit::Node& n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
+    const conduit::Node& n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
 
     auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
@@ -320,7 +326,7 @@ private:
   }
 
   /// Add a list of selected zones to the options going into 2D mir.
-  static void selectCoarseZones2D(bool stridedStructured, conduit::Node &n_options)
+  static void selectCoarseZones2D(bool stridedStructured, conduit::Node& n_options)
   {
     if(stridedStructured)
     {
@@ -333,10 +339,10 @@ private:
     }
   }
 
-  static void selectFineZones2D(bool stridedStructured, conduit::Node &n_options)
+  static void selectFineZones2D(bool stridedStructured, conduit::Node& n_options)
   {
     // These selected zones are on the fine mesh and are used for TopologyMapper.
-    conduit::Node &n_selectedZones = n_options["target/selectedZones"];
+    conduit::Node& n_selectedZones = n_options["target/selectedZones"];
 
     if(stridedStructured)
     {
@@ -352,17 +358,17 @@ private:
     }
   }
 
-  static void mapping2D(conduit::Node &n_src,
-                        conduit::Node &n_target,
+  static void mapping2D(conduit::Node& n_src,
+                        conduit::Node& n_target,
                         bool selectedZones,
                         bool stridedStructured)
   {
     SLIC_INFO("mapping2D postmir to fine");
 
     // Wrap the source mesh from (coarse MIR output).
-    const conduit::Node &n_src_coordset = n_src["coordsets/postmir_coords"];
-    const conduit::Node &n_src_topology = n_src["topologies/postmir"];
-    const conduit::Node &n_src_matset = n_src["matsets/postmir_matset"];
+    const conduit::Node& n_src_coordset = n_src["coordsets/postmir_coords"];
+    const conduit::Node& n_src_topology = n_src["topologies/postmir"];
+    const conduit::Node& n_src_matset = n_src["matsets/postmir_matset"];
 
     auto srcCoordsetView = views::make_explicit_coordset<double, 2>::view(n_src_coordset);
     using SrcCoordsetView = decltype(srcCoordsetView);
@@ -377,8 +383,8 @@ private:
     using SrcMatsetView = decltype(srcMatsetView);
 
     // Wrap the target mesh (fine)
-    const conduit::Node &n_target_coordset = n_target["coordsets/fine_coords"];
-    const conduit::Node &n_target_topology = n_target["topologies/fine"];
+    const conduit::Node& n_target_coordset = n_target["coordsets/fine_coords"];
+    const conduit::Node& n_target_topology = n_target["topologies/fine"];
 
     auto targetCoordsetView = views::make_explicit_coordset<double, 2>::view(n_target_coordset);
     using TargetCoordsetView = decltype(targetCoordsetView);
@@ -408,98 +414,3 @@ private:
     mapper.execute(n_src, n_opts, n_target);
   }
 };
-
-//------------------------------------------------------------------------------
-TEST(mir_coupled, coupling_2D_sz0_ss0_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_seq)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_seq");
-  test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coupled, coupling_2D_sz0_ss0_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_omp)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_omp");
-  test_coupling<omp_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coupled, coupling_2D_sz0_ss0_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_cuda");
-  test_coupling<cuda_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coupled, coupling_2D_sz0_ss0_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz0_ss0", false, false);
-}
-TEST(mir_coupled, coupling_2D_sz0_ss1_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz0_ss1", false, true);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss0_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz1_ss0", true, false);
-}
-TEST(mir_coupled, coupling_2D_sz1_ss1_hip)
-{
-  AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_hip");
-  test_coupling<hip_exec>::test2D("coupling_2D_sz1_ss1", true, true);
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char *argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
-}

@@ -110,7 +110,8 @@ public:
     AXOM_ANNOTATE_SCOPE("load stl");
     quest::STLReader reader;
     reader.setFileName(inputFile);
-    reader.read();
+    const int read_status = reader.read();
+    SLIC_ERROR_IF(read_status != 0, "Failed to load STL file '" << inputFile << "'.");
 
     // Create surface mesh
     m_surfaceMesh.reset(new UMesh(3, mint::TRIANGLE));

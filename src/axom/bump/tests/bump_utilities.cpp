@@ -146,7 +146,7 @@ struct test_copy_braid
     EXPECT_TRUE(emptyHostMesh.dtype().is_empty());
   }
 
-  static void create(conduit::Node &mesh)
+  static void create(conduit::Node& mesh)
   {
     const int d[3] = {10, 10, 10};
     conduit::blueprint::mesh::examples::braid("hexs", d[0], d[1], d[2], mesh);
@@ -166,7 +166,7 @@ TEST(bump_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);

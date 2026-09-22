@@ -115,9 +115,9 @@ public:
    * \param coordsetView The coordset view to use for the input data.
    * \param matsetView The matset view to use for the input data.
    */
-  ElviraAlgorithm(const TopologyView &topoView,
-                  const CoordsetView &coordsetView,
-                  const MatsetView &matsetView)
+  ElviraAlgorithm(const TopologyView& topoView,
+                  const CoordsetView& coordsetView,
+                  const MatsetView& matsetView)
     : axom::mir::MIRAlgorithm()
     , m_topologyView(topoView)
     , m_coordsetView(coordsetView)
@@ -168,15 +168,15 @@ protected:
    * \param[out] n_newMatset A Conduit node that will contain the new matset.
    * 
    */
-  virtual void executeDomain(const conduit::Node &n_topo,
-                             const conduit::Node &n_coordset,
-                             const conduit::Node &n_fields,
-                             const conduit::Node &n_matset,
-                             const conduit::Node &n_options,
-                             conduit::Node &n_newTopo,
-                             conduit::Node &n_newCoordset,
-                             conduit::Node &n_newFields,
-                             conduit::Node &n_newMatset) override
+  virtual void executeDomain(const conduit::Node& n_topo,
+                             const conduit::Node& n_coordset,
+                             const conduit::Node& n_fields,
+                             const conduit::Node& n_matset,
+                             const conduit::Node& n_options,
+                             conduit::Node& n_newTopo,
+                             conduit::Node& n_newCoordset,
+                             conduit::Node& n_newFields,
+                             conduit::Node& n_newMatset) override
   {
     namespace utils = axom::bump::utilities;
 
@@ -219,9 +219,9 @@ protected:
       n_root[localPath(n_coordset)].set_external(n_coordset);
       n_root[localPath(n_topo)].set_external(n_topo);
       n_root[localPath(n_matset)].set_external(n_matset);
-      conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
-      conduit::Node &n_root_topo = n_root[localPath(n_topo)];
-      conduit::Node &n_root_matset = n_root[localPath(n_matset)];
+      conduit::Node& n_root_coordset = n_root[localPath(n_coordset)];
+      conduit::Node& n_root_topo = n_root[localPath(n_topo)];
+      conduit::Node& n_root_matset = n_root[localPath(n_matset)];
       conduit::Node n_root_fields = n_root["fields"];
 
       // Make the clean mesh.
@@ -316,9 +316,9 @@ protected:
         n_root[localPath(n_coordset)].set_external(n_coordset);
         n_root[localPath(n_topo)].set_external(n_topo);
         n_root[localPath(n_matset)].set_external(n_matset);
-        conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
-        conduit::Node &n_root_topo = n_root[localPath(n_topo)];
-        conduit::Node &n_root_matset = n_root[localPath(n_matset)];
+        conduit::Node& n_root_coordset = n_root[localPath(n_coordset)];
+        conduit::Node& n_root_topo = n_root[localPath(n_topo)];
+        conduit::Node& n_root_matset = n_root[localPath(n_matset)];
         conduit::Node n_root_fields = n_root["fields"];
 
         conduit::Node n_cleanOutput;
@@ -350,10 +350,10 @@ protected:
    * \param n_mirOutput The mesh that contains the MIR output.
    * \param[out] n_merged The output node for the merged mesh.
    */
-  void merge(const std::string &topoName,
-             conduit::Node &n_cleanOutput,
-             conduit::Node &n_mirOutput,
-             conduit::Node &n_merged) const
+  void merge(const std::string& topoName,
+             conduit::Node& n_cleanOutput,
+             conduit::Node& n_mirOutput,
+             conduit::Node& n_merged) const
   {
     AXOM_ANNOTATE_SCOPE("merge");
 
@@ -391,9 +391,9 @@ protected:
    * \param selectedZonesView A view containing the values to store in the field.
    *
    */
-  void addOriginal(conduit::Node &n_field,
-                   const std::string &topoName,
-                   const std::string &association,
+  void addOriginal(conduit::Node& n_field,
+                   const std::string& topoName,
+                   const std::string& association,
                    axom::ArrayView<axom::IndexType> selectedZonesView) const
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
@@ -430,13 +430,13 @@ protected:
    *
    * \return The number of nodes in the clean mesh output.
    */
-  void makeCleanZones(const axom::ArrayView<axom::IndexType> &cleanZones,
-                      const conduit::Node &n_root,
-                      const conduit::Node &n_topology,
-                      const conduit::Node &n_coordset,
-                      const conduit::Node &n_matset,
-                      const conduit::Node &n_options,
-                      conduit::Node &n_cleanOutput) const
+  void makeCleanZones(const axom::ArrayView<axom::IndexType>& cleanZones,
+                      const conduit::Node& n_root,
+                      const conduit::Node& n_topology,
+                      const conduit::Node& n_coordset,
+                      const conduit::Node& n_matset,
+                      const conduit::Node& n_options,
+                      conduit::Node& n_cleanOutput) const
   {
     AXOM_ANNOTATE_SCOPE("makeCleanZones");
     namespace utils = axom::bump::utilities;
@@ -474,7 +474,7 @@ protected:
       n_ezopts["originalElementsField"] = opts.originalElementsField();
       // Forward some options involved in naming the objects.
       const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
-      for(const auto &key : keys)
+      for(const auto& key : keys)
       {
         if(n_options.has_path(key))
         {
@@ -519,15 +519,15 @@ protected:
    * 
    */
   void processMixedZones(const axom::ArrayView<axom::IndexType> mixedZonesView,
-                         const conduit::Node &n_topo,
-                         const conduit::Node &n_coordset,
-                         const conduit::Node &AXOM_UNUSED_PARAM(n_fields),
-                         const conduit::Node &n_matset,
-                         const conduit::Node &n_options,
-                         conduit::Node &n_newTopo,
-                         conduit::Node &n_newCoordset,
-                         conduit::Node &n_newFields,
-                         conduit::Node &n_newMatset)
+                         const conduit::Node& n_topo,
+                         const conduit::Node& n_coordset,
+                         const conduit::Node& AXOM_UNUSED_PARAM(n_fields),
+                         const conduit::Node& n_matset,
+                         const conduit::Node& n_options,
+                         conduit::Node& n_newTopo,
+                         conduit::Node& n_newCoordset,
+                         conduit::Node& n_newFields,
+                         conduit::Node& n_newMatset)
   {
     AXOM_ANNOTATE_SCOPE("processMixedZones");
     namespace utils = axom::bump::utilities;
@@ -571,7 +571,7 @@ protected:
 
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     // Let's output the normals
-    conduit::Node *n_result = new conduit::Node;
+    conduit::Node* n_result = new conduit::Node;
 #endif
 
     //--------------------------------------------------------------------------
@@ -621,7 +621,7 @@ protected:
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     if(!axom::execution_space<ExecSpace>::onDevice())
     {
-      conduit::Node &n_group1 = n_result->operator[]("group1");
+      conduit::Node& n_group1 = n_result->operator[]("group1");
       n_group1["mixedZones"].set(mixedZonesView.data(), mixedZonesView.size());
       n_group1["matZone"].set(matZoneView.data(), matZoneView.size());
       n_group1["matCount"].set(matCountView.data(), matCountView.size());
@@ -645,7 +645,7 @@ protected:
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     if(!axom::execution_space<ExecSpace>::onDevice())
     {
-      conduit::Node &n_group2 = n_result->operator[]("group2");
+      conduit::Node& n_group2 = n_result->operator[]("group2");
       n_group2["matZone"].set(matZoneView.data(), matZoneView.size());
       n_group2["matCount"].set(matCountView.data(), matCountView.size());
       n_group2["offsets"].set(matOffsetView.data(), matOffsetView.size());
@@ -673,7 +673,7 @@ protected:
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     if(!axom::execution_space<ExecSpace>::onDevice())
     {
-      conduit::Node &n_group3 = n_result->operator[]("group3");
+      conduit::Node& n_group3 = n_result->operator[]("group3");
       n_group3["xview"].set(xview.data(), xview.size());
       n_group3["yview"].set(yview.data(), yview.size());
       n_group3["zview"].set(zview.data(), zview.size());
@@ -789,7 +789,7 @@ protected:
     auto fragmentVectorsView = fragmentVectors.view();
 
 #if defined(AXOM_ELVIRA_GATHER_INFO)
-    conduit::Node *n_group4 = &(n_result->operator[]("group4"));
+    conduit::Node* n_group4 = &(n_result->operator[]("group4"));
 #endif
 
     axom::for_all<ExecSpace>(
@@ -804,14 +804,14 @@ protected:
         // Compute Jacobian here since we have coordinate stencil data.
         double jac[3][3];
         const auto coordIndex = szIndex * StencilSize;
-        const double *xcStencil = xcStencilView.data() + coordIndex;
-        const double *ycStencil = ycStencilView.data() + coordIndex;
-        const double *zcStencil = zcStencilView.data() + coordIndex;
+        const double* xcStencil = xcStencilView.data() + coordIndex;
+        const double* ycStencil = ycStencilView.data() + coordIndex;
+        const double* zcStencil = zcStencilView.data() + coordIndex;
         elvira::computeJacobian(xcStencil, ycStencil, zcStencil, NDIMS, jac);
 
         // The starting addresses for fragments in the current zone.
-        const double *fragmentVFStencilStart = fragmentVFStencilView.data() + offset * StencilSize;
-        double *fragmentVectorsStart = fragmentVectorsView.data() + offset * numVectorComponents;
+        const double* fragmentVFStencilStart = fragmentVFStencilView.data() + offset * StencilSize;
+        double* fragmentVectorsStart = fragmentVectorsView.data() + offset * numVectorComponents;
 
         // Produce normal for each material in this zone.
         int iskip = matCount - 1;
@@ -820,7 +820,7 @@ protected:
 #if defined(AXOM_ELVIRA_GATHER_INFO) && !defined(AXOM_DEVICE_CODE)
         // The selected zone index in the whole mesh.
         const auto zoneIndex = matZoneView[szIndex];
-        conduit::Node &n_thisZone = n_group4->append();
+        conduit::Node& n_thisZone = n_group4->append();
         n_thisZone["szIndex"] = szIndex;
         n_thisZone["zone"] = zoneIndex;
         n_thisZone["matCount"] = matCount;
@@ -829,12 +829,12 @@ protected:
         n_thisZone["ycStencil"].set(ycStencil, StencilSize);
         n_thisZone["zcStencil"].set(zcStencil, StencilSize);
         n_thisZone["jacobian"].set(&jac[0][0], 9);
-        conduit::Node &n_mats = n_thisZone["mats"];
-        const double *vf = fragmentVFStencilStart;
-        double *n = fragmentVectorsStart;
+        conduit::Node& n_mats = n_thisZone["mats"];
+        const double* vf = fragmentVFStencilStart;
+        double* n = fragmentVectorsStart;
         for(axom::IndexType m = 0; m < matCount; m++)
         {
-          conduit::Node &n_thismat = n_mats.append();
+          conduit::Node& n_thismat = n_mats.append();
           n_thismat["mat"] = sortedMaterialIdsView[offset + m];
           n_thismat["stencil"].set(vf, StencilSize);
           n_thismat["normal"].set(n, 3);
@@ -846,7 +846,7 @@ protected:
         // Transform the normals.
         for(axom::IndexType m = 0; m < matCount; m++)
         {
-          double *normal = fragmentVectorsView.data() + ((offset + m) * numVectorComponents);
+          double* normal = fragmentVectorsView.data() + ((offset + m) * numVectorComponents);
           elvira::transform(normal, jac);
 #if defined(AXOM_ELVIRA_GATHER_INFO) && !defined(AXOM_DEVICE_CODE)
           n_thisZone["mats"][m]["transformed_normal"].set(normal, 3);
@@ -988,7 +988,7 @@ protected:
           const auto fragmentIndex = offset + m;
           // Get this material fragment's normal and material id.
           const auto matId = sortedMaterialIdsView[fragmentIndex];
-          const double *normalPtr =
+          const double* normalPtr =
             fragmentVectorsView.data() + (fragmentIndex * numVectorComponents);
 
           // Compute the desired fragment volume.

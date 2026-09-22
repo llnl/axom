@@ -40,13 +40,13 @@ namespace utilities
  */
 /// @{
 template <typename T>
-inline axom::ArrayView<T> make_array_view(conduit::Node &n)
+inline axom::ArrayView<T> make_array_view(conduit::Node& n)
 {
   return detail::make_conduit_array_view<T>(n);
 }
 
 template <typename T>
-inline axom::ArrayView<T> make_array_view(const conduit::Node &n)
+inline axom::ArrayView<T> make_array_view(const conduit::Node& n)
 {
   return detail::make_conduit_array_view<T>(n);
 }
@@ -61,7 +61,7 @@ inline axom::ArrayView<T> make_array_view(const conduit::Node &n)
  *
  * \return True if the data looks device-allocated; false otherwise.
  */
-bool isDeviceAllocated(const conduit::Node &n);
+bool isDeviceAllocated(const conduit::Node& n);
 
 //------------------------------------------------------------------------------
 namespace internal
@@ -78,8 +78,8 @@ namespace internal
  * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
  */
 template <typename ExecSpace>
-void copyImpl(conduit::Node &dest,
-              const conduit::Node &src,
+void copyImpl(conduit::Node& dest,
+              const conduit::Node& src,
               int destAllocatorID,
               bool destAllocatorForDevice)
 {
@@ -143,8 +143,8 @@ void copyImpl(conduit::Node &dest,
  * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
  */
 template <typename ExecSpace>
-void copy(conduit::Node &dest,
-          const conduit::Node &src,
+void copy(conduit::Node& dest,
+          const conduit::Node& src,
           int destAllocatorID = axom::execution_space<ExecSpace>::allocatorID())
 {
   const bool destAllocatorForDevice = isDeviceAllocator(destAllocatorID);
@@ -163,7 +163,7 @@ void copy(conduit::Node &dest,
  * \param moveToHost Sometimes data are on device and need to be moved to host first.
  */
 template <typename ArrayType>
-bool fillFromNode(const conduit::Node &n, const std::string &key, ArrayType &arr, bool moveToHost = false)
+bool fillFromNode(const conduit::Node& n, const std::string& key, ArrayType& arr, bool moveToHost = false)
 {
   bool found = false;
   if((found = n.has_path(key)) == true)

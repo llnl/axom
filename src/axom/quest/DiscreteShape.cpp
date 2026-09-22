@@ -17,9 +17,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 // TODO: These were needed for linking - but why? They are constexpr.
@@ -117,11 +115,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                        axom::fmt::format(" '{}' format requires .stl file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
-#ifdef AXOM_USE_MPI
     const int rc = quest::internal::read_stl_mesh(shapePath, meshRep, m_comm);
-#else
-    const int rc = quest::internal::read_stl_mesh(shapePath, meshRep);
-#endif
     SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
                        axom::fmt::format("Failed to read STL shape '{}' from file '{}'.",
                                          m_shape.getName(),
@@ -137,11 +131,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                        axom::fmt::format(" '{}' format requires .proe file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
-#ifdef AXOM_USE_MPI
     const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep, m_comm);
-#else
-    const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep);
-#endif
     SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
                        axom::fmt::format("Failed to read Pro/E shape '{}' from file '{}'.",
                                          m_shape.getName(),
@@ -167,7 +157,6 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     int rc = quest::internal::READ_FAILED;
     try
     {
-  #ifdef AXOM_USE_MPI
       rc = quest::internal::read_c2c_mesh(shapePath,
                                           uniform,
                                           transform,
@@ -177,16 +166,6 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                                           meshRep,
                                           m_revolvedVolume,  // output arg
                                           m_comm);
-  #else
-      rc = quest::internal::read_c2c_mesh(shapePath,
-                                          uniform,
-                                          transform,
-                                          m_samplesPerKnotSpan,
-                                          m_vertexWeldThreshold,
-                                          m_percentError,
-                                          meshRep,
-                                          m_revolvedVolume);  // output arg
-  #endif
     }
     catch(const std::exception& e)
     {
@@ -765,5 +744,4 @@ void DiscreteShape::setParentGroup(axom::sidre::Group* parentGroup)
   }
 }
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

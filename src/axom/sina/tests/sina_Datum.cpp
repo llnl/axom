@@ -125,7 +125,7 @@ TEST(Datum, createFromJson_missingKeys)
     Datum datum1 {object1};
     FAIL() << "Should have gotten a value error";
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("value"));
   }
@@ -134,16 +134,16 @@ TEST(Datum, createFromJson_missingKeys)
 TEST(Datum, createFromJson_badListValue)
 {
   conduit::Node object1;
-  auto &mixed_scal = object1["value"].append();
+  auto& mixed_scal = object1["value"].append();
   mixed_scal.set(1.0);
-  auto &mixed_val = object1["value"].append();
+  auto& mixed_val = object1["value"].append();
   mixed_val.set("two");
   try
   {
     Datum datum1 {object1};
     FAIL() << "Should have gotten a value error";
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     std::string warning = "it must consist of only strings or only numbers";
     EXPECT_THAT(expected.what(), HasSubstr(warning));

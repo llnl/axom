@@ -66,7 +66,7 @@ TEST(Units, getLengthUnit)
     getLengthUnit("bad_units");
     FAIL() << "Should have thrown";
   }
-  catch(const std::invalid_argument &error)
+  catch(const std::invalid_argument& error)
   {
     EXPECT_NE(std::string::npos, std::string(error.what()).find("bad_units"));
   }

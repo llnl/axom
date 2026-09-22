@@ -39,8 +39,8 @@ public:
    * \param shape_values A view of sorted values used in the Conduit data.
    * \param shape_ids A view of shape ids that correspond to the values from Conduit.
    */
-  AXOM_HOST_DEVICE ShapeMap(const axom::ArrayView<IndexType> &shape_values,
-                            const axom::ArrayView<IndexType> &shape_ids)
+  AXOM_HOST_DEVICE ShapeMap(const axom::ArrayView<IndexType>& shape_values,
+                            const axom::ArrayView<IndexType>& shape_ids)
     : m_shape_values(shape_values)
     , m_shape_ids(shape_ids)
   { }
@@ -83,9 +83,9 @@ private:
  * \param[out] ids The Shape ids that correspond to the shape values.
  * \param allocatorID The allocator to use when creating the arrays.
  */
-ShapeMap buildShapeMap(const conduit::Node &n_topo,
-                       axom::Array<IndexType> &values,
-                       axom::Array<IndexType> &ids,
+ShapeMap buildShapeMap(const conduit::Node& n_topo,
+                       axom::Array<IndexType>& values,
+                       axom::Array<IndexType>& ids,
                        int allocatorID);
 /*!
  * \brief This class provides a view for Conduit/Blueprint mixed shape unstructured grids.
@@ -113,11 +113,11 @@ public:
    * \param offsets The offset to each zone in the connectivity.
    */
   AXOM_HOST_DEVICE
-  UnstructuredTopologyMixedShapeView(const ConnectivityView &conn,
-                                     const ConnectivityView &shapes,
-                                     const ConnectivityView &sizes,
-                                     const ConnectivityView &offsets,
-                                     const ShapeMap &shapemap)
+  UnstructuredTopologyMixedShapeView(const ConnectivityView& conn,
+                                     const ConnectivityView& shapes,
+                                     const ConnectivityView& sizes,
+                                     const ConnectivityView& offsets,
+                                     const ShapeMap& shapemap)
     : m_connectivity(conn)
     , m_shapes(shapes)
     , m_sizes(sizes)
@@ -165,7 +165,7 @@ public:
    *
    * \return The size of the connectivity.
    */
-  AXOM_HOST_DEVICE inline const IndexingPolicy &indexing() const { return m_indexing; }
+  AXOM_HOST_DEVICE inline const IndexingPolicy& indexing() const { return m_indexing; }
 
   /*!
    * \brief Return a zone.

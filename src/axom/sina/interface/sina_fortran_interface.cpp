@@ -14,7 +14,7 @@
 #include <cstring>
 
 std::vector<std::unique_ptr<axom::sina::Record>> sinaRecordsList;
-axom::sina::Document *sina_document;
+axom::sina::Document* sina_document;
 char default_record_type[25] = "fortran_code_output";
 
 // Helper function to check if modifications are allowed
@@ -29,7 +29,7 @@ inline bool can_modify_records()
   return true;
 }
 // Helper function to clean Fortran strings
-inline std::string fortran_to_cpp_string(const char *str, int str_len)
+inline std::string fortran_to_cpp_string(const char* str, int str_len)
 {
   if(!str || str_len <= 0) return "";
 
@@ -48,14 +48,14 @@ inline std::string fortran_to_cpp_string(const char *str, int str_len)
   return std::string(str, actual_len);
 }
 
-extern "C" void sina_set_default_record_type_(char *record_type)
+extern "C" void sina_set_default_record_type_(char* record_type)
 {
   strcpy(default_record_type, record_type);
 }
 
-extern "C" char *Get_File_Extension(char *input_fn)
+extern "C" char* Get_File_Extension(char* input_fn)
 {
-  char *ext = strrchr(input_fn, '.');
+  char* ext = strrchr(input_fn, '.');
   if(!ext)
   {
     return (new char[1] {'\0'});
@@ -63,7 +63,7 @@ extern "C" char *Get_File_Extension(char *input_fn)
   return (ext + 1);
 }
 
-extern "C" void sina_create_record_(char *recID, char *recType, int recId_length, int recType_length)
+extern "C" void sina_create_record_(char* recID, char* recType, int recId_length, int recType_length)
 {
   if(!can_modify_records()) return;
 
@@ -84,19 +84,19 @@ extern "C" void sina_create_record_(char *recID, char *recType, int recId_length
   sinaRecordsList.emplace_back(std::make_unique<axom::sina::Record>(id, type_str));
 }
 
-extern "C" axom::sina::Record *Sina_Get_Record(char *recId = NULL)
+extern "C" axom::sina::Record* Sina_Get_Record(char* recId = NULL)
 {
   if(recId == NULL || recId[0] == '\0')
   {
-    std::unique_ptr<axom::sina::Record> const &myRecord = sinaRecordsList.front();
+    std::unique_ptr<axom::sina::Record> const& myRecord = sinaRecordsList.front();
     return myRecord.get();
   }
   else
   {
     axom::sina::ID id {recId, axom::sina::IDType::Global};
-    for(const std::unique_ptr<axom::sina::Record> &myRecord : sinaRecordsList)
+    for(const std::unique_ptr<axom::sina::Record>& myRecord : sinaRecordsList)
     {
-      const char *current_id_str = myRecord->getId().getId().c_str();
+      const char* current_id_str = myRecord->getId().getId().c_str();
       // Compare the input C-string (recId) with the current record's C-string ID
       if(strcmp(recId, current_id_str) == 0)
       {
@@ -111,11 +111,11 @@ extern "C" axom::sina::Record *Sina_Get_Record(char *recId = NULL)
   return nullptr;
 }
 
-extern "C" void sina_add_logical_(char *key,
-                                  bool *value,
-                                  char *units,
-                                  char *tags,
-                                  char *recId,
+extern "C" void sina_add_logical_(char* key,
+                                  bool* value,
+                                  char* units,
+                                  char* tags,
+                                  char* recId,
                                   int key_len,
                                   int units_len,
                                   int tags_len,
@@ -124,7 +124,7 @@ extern "C" void sina_add_logical_(char *key,
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   std::string key_name = fortran_to_cpp_string(key, key_len);
 
@@ -146,11 +146,11 @@ extern "C" void sina_add_logical_(char *key,
   sina_record->add(key_name, datum);
 }
 
-extern "C" void sina_add_long_(char *key,
-                               long long int *value,
-                               char *units,
-                               char *tags,
-                               char *recId,
+extern "C" void sina_add_long_(char* key,
+                               long long int* value,
+                               char* units,
+                               char* tags,
+                               char* recId,
                                int key_len,
                                int units_len,
                                int tags_len,
@@ -159,7 +159,7 @@ extern "C" void sina_add_long_(char *key,
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   std::string key_name = fortran_to_cpp_string(key, key_len);
   axom::sina::Datum datum {static_cast<double>(*value)};
@@ -179,11 +179,11 @@ extern "C" void sina_add_long_(char *key,
   sina_record->add(key_name, datum);
 }
 
-extern "C" void sina_add_int_(char *key,
-                              int *value,
-                              char *units,
-                              char *tags,
-                              char *recId,
+extern "C" void sina_add_int_(char* key,
+                              int* value,
+                              char* units,
+                              char* tags,
+                              char* recId,
                               int key_len,
                               int units_len,
                               int tags_len,
@@ -192,7 +192,7 @@ extern "C" void sina_add_int_(char *key,
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   std::string key_name = fortran_to_cpp_string(key, key_len);
   axom::sina::Datum datum {static_cast<double>(*value)};
@@ -212,11 +212,11 @@ extern "C" void sina_add_int_(char *key,
   sina_record->add(key_name, datum);
 }
 
-extern "C" void sina_add_double_(char *key,
-                                 double *value,
-                                 char *units,
-                                 char *tags,
-                                 char *recId,
+extern "C" void sina_add_double_(char* key,
+                                 double* value,
+                                 char* units,
+                                 char* tags,
+                                 char* recId,
                                  int key_len,
                                  int units_len,
                                  int tags_len,
@@ -225,7 +225,7 @@ extern "C" void sina_add_double_(char *key,
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   std::string key_name = fortran_to_cpp_string(key, key_len);
   axom::sina::Datum datum {*value};
@@ -245,11 +245,11 @@ extern "C" void sina_add_double_(char *key,
   sina_record->add(key_name, datum);
 }
 
-extern "C" void sina_add_float_(char *key,
-                                float *value,
-                                char *units,
-                                char *tags,
-                                char *recId,
+extern "C" void sina_add_float_(char* key,
+                                float* value,
+                                char* units,
+                                char* tags,
+                                char* recId,
                                 int key_len,
                                 int units_len,
                                 int tags_len,
@@ -258,7 +258,7 @@ extern "C" void sina_add_float_(char *key,
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   std::string key_name = fortran_to_cpp_string(key, key_len);
   axom::sina::Datum datum {*value};
@@ -279,11 +279,11 @@ extern "C" void sina_add_float_(char *key,
 }
 
 // Fix for sina_add_string_ - remove value_len parameter since it's not in the header
-extern "C" void sina_add_string_(char *key,
-                                 char *value,
-                                 char *units,
-                                 char *tags,
-                                 char *recId,
+extern "C" void sina_add_string_(char* key,
+                                 char* value,
+                                 char* units,
+                                 char* tags,
+                                 char* recId,
                                  int key_len,
                                  int units_len,
                                  int tags_len,
@@ -295,7 +295,7 @@ extern "C" void sina_add_string_(char *key,
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   std::string key_name = fortran_to_cpp_string(key, key_len);
   // Since we don't have value_len, we need to figure out the length
@@ -321,9 +321,9 @@ extern "C" void sina_add_string_(char *key,
 }
 
 // Fix for sina_add_file_ - cast to non-const char*
-extern "C" void sina_add_file_(char *filename,
-                               char *mime_type,
-                               char *recId,
+extern "C" void sina_add_file_(char* filename,
+                               char* mime_type,
+                               char* recId,
                                int file_len,
                                int mime_len,
                                int recId_len)
@@ -331,7 +331,7 @@ extern "C" void sina_add_file_(char *filename,
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   std::string filename_str = fortran_to_cpp_string(filename, file_len);
   std::string mime_type_str = fortran_to_cpp_string(mime_type, mime_len);
@@ -346,7 +346,7 @@ extern "C" void sina_add_file_(char *filename,
   }
   else
   {
-    std::string ext = Get_File_Extension(const_cast<char *>(filename_str.c_str()));
+    std::string ext = Get_File_Extension(const_cast<char*>(filename_str.c_str()));
     my_file.setMimeType(ext);
   }
 
@@ -356,10 +356,10 @@ extern "C" void sina_add_file_(char *filename,
   }
 }
 
-extern "C" void sina_write_document_all_args_(char *input_fn,
-                                              int *protocol,
-                                              int *preserve,
-                                              int *mergeProtocol)
+extern "C" void sina_write_document_all_args_(char* input_fn,
+                                              int* protocol,
+                                              int* preserve,
+                                              int* mergeProtocol)
 {
   // Create the document if needed
   if(sina_document == nullptr)
@@ -367,7 +367,7 @@ extern "C" void sina_write_document_all_args_(char *input_fn,
     sina_document = new axom::sina::Document();
 
     // Move all records into the document
-    for(auto &uniquePtr : sinaRecordsList)
+    for(auto& uniquePtr : sinaRecordsList)
     {
       if(uniquePtr)
       {
@@ -393,7 +393,7 @@ extern "C" void sina_write_document_all_args_(char *input_fn,
   }
 }
 
-extern "C" void sina_write_document_noprotocol_nopreserve_nomerge_(char *input_fn)
+extern "C" void sina_write_document_noprotocol_nopreserve_nomerge_(char* input_fn)
 {
   int default_protocol = static_cast<int>(axom::sina::Protocol::AUTO_DETECT);
   int default_merge_protocol = 0;
@@ -402,7 +402,7 @@ extern "C" void sina_write_document_noprotocol_nopreserve_nomerge_(char *input_f
   sina_write_document_all_args_(input_fn, &default_protocol, &default_preserve, &default_merge_protocol);
 }
 
-extern "C" void sina_write_document_protocol_nopreserve_nomerge_(char *input_fn, int *protocol)
+extern "C" void sina_write_document_protocol_nopreserve_nomerge_(char* input_fn, int* protocol)
 {
   int default_merge_protocol = 0;
   int default_preserve = 0;
@@ -410,23 +410,23 @@ extern "C" void sina_write_document_protocol_nopreserve_nomerge_(char *input_fn,
   sina_write_document_all_args_(input_fn, protocol, &default_preserve, &default_merge_protocol);
 }
 
-extern "C" void sina_write_document_protocol_preserve_nomerge_(char *input_fn,
-                                                               int *protocol,
-                                                               int *preserve)
+extern "C" void sina_write_document_protocol_preserve_nomerge_(char* input_fn,
+                                                               int* protocol,
+                                                               int* preserve)
 {
   int default_merge_protocol = 0;
 
   sina_write_document_all_args_(input_fn, protocol, preserve, &default_merge_protocol);
 }
 
-extern "C" void sina_add_curveset_(char *name, char *recId, int name_len, int recId_len)
+extern "C" void sina_add_curveset_(char* name, char* recId, int name_len, int recId_len)
 {
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
   std::string name_str = fortran_to_cpp_string(name, name_len);
 
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
   if(sina_record)
   {
     axom::sina::CurveSet cs {name_str};
@@ -434,24 +434,24 @@ extern "C" void sina_add_curveset_(char *name, char *recId, int name_len, int re
   }
 }
 
-extern "C" void sina_add_curve_double_(char *curveset_name,
-                                       char *curve_name,
-                                       double *values,
-                                       int *n,
-                                       int *independent,
-                                       char *recId)
+extern "C" void sina_add_curve_double_(char* curveset_name,
+                                       char* curve_name,
+                                       double* values,
+                                       int* n,
+                                       int* independent,
+                                       char* recId)
 {
   if(!can_modify_records()) return;
 
   std::string recId_str(recId);
   std::string curveset_str(curveset_name);
   std::string curvename_str(curve_name);
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
 
   if(sina_record)
   {
     axom::sina::Curve curve {curvename_str, values, static_cast<size_t>(*n)};
-    auto &curvesets = sina_record->getCurveSets();
+    auto& curvesets = sina_record->getCurveSets();
     if(curvesets.find(curveset_str) == curvesets.end())
     {
       // Create curveset directly
@@ -483,12 +483,12 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
   }
 }
 
-extern "C" void sina_add_curve_float_(char *curveset_name,
-                                      char *curve_name,
-                                      float *values,
-                                      int *n,
-                                      int *independent,
-                                      char *recId)
+extern "C" void sina_add_curve_float_(char* curveset_name,
+                                      char* curve_name,
+                                      float* values,
+                                      int* n,
+                                      int* independent,
+                                      char* recId)
 {
   if(!can_modify_records()) return;
 
@@ -496,7 +496,7 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
   std::string curveset_str(curveset_name);
   std::string curvename_str(curve_name);
 
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
   if(sina_record)
   {
     std::vector<double> y(*n);
@@ -506,7 +506,7 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
     }
     axom::sina::Curve curve {curvename_str, y};
 
-    auto &curvesets = sina_record->getCurveSets();
+    auto& curvesets = sina_record->getCurveSets();
     if(curvesets.find(curveset_str) == curvesets.end())
     {
       // Create curveset directly
@@ -538,12 +538,12 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
   }
 }
 
-extern "C" void sina_add_curve_int_(char *curveset_name,
-                                    char *curve_name,
-                                    int *values,
-                                    int *n,
-                                    int *independent,
-                                    char *recId)
+extern "C" void sina_add_curve_int_(char* curveset_name,
+                                    char* curve_name,
+                                    int* values,
+                                    int* n,
+                                    int* independent,
+                                    char* recId)
 {
   if(!can_modify_records()) return;
 
@@ -551,7 +551,7 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
   std::string curveset_str(curveset_name);
   std::string curvename_str(curve_name);
 
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
   if(sina_record)
   {
     std::vector<double> y(*n);
@@ -561,7 +561,7 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
     }
     axom::sina::Curve curve {curvename_str, y};
 
-    auto &curvesets = sina_record->getCurveSets();
+    auto& curvesets = sina_record->getCurveSets();
     if(curvesets.find(curveset_str) == curvesets.end())
     {
       // Create curveset directly
@@ -593,12 +593,12 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
   }
 }
 
-extern "C" void sina_add_curve_long_(char *curveset_name,
-                                     char *curve_name,
-                                     long long int *values,
-                                     int *n,
-                                     int *independent,
-                                     char *recId)
+extern "C" void sina_add_curve_long_(char* curveset_name,
+                                     char* curve_name,
+                                     long long int* values,
+                                     int* n,
+                                     int* independent,
+                                     char* recId)
 {
   if(!can_modify_records()) return;
 
@@ -606,7 +606,7 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
   std::string curveset_str(curveset_name);
   std::string curvename_str(curve_name);
 
-  axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+  axom::sina::Record* sina_record = Sina_Get_Record(const_cast<char*>(recId_str.c_str()));
   if(sina_record)
   {
     std::vector<double> y(*n);
@@ -616,7 +616,7 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
     }
     axom::sina::Curve curve {curvename_str, y};
 
-    auto &curvesets = sina_record->getCurveSets();
+    auto& curvesets = sina_record->getCurveSets();
     if(curvesets.find(curveset_str) == curvesets.end())
     {
       // Create curveset directly
@@ -652,7 +652,7 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
 // Curve Ordering Functions
 //=============================================================================
 
-extern "C" void sina_set_curves_order_(int *curve_order)
+extern "C" void sina_set_curves_order_(int* curve_order)
 {
   axom::sina::CurveSet::CurveOrder order;
   switch(*curve_order)
@@ -677,9 +677,9 @@ extern "C" void sina_set_curves_order_(int *curve_order)
   return;
 }
 
-extern "C" void sina_set_record_curves_order_(char *recId, int *curve_order)
+extern "C" void sina_set_record_curves_order_(char* recId, int* curve_order)
 {
-  axom::sina::Record *sina_record = Sina_Get_Record(recId);
+  axom::sina::Record* sina_record = Sina_Get_Record(recId);
   if(!sina_record)
   {
     return;

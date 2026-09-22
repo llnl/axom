@@ -27,7 +27,7 @@ protected:
    *
    * \param n_mesh The mesh to modify.
    */
-  virtual void adjustMesh(conduit::Node &n_mesh) override
+  virtual void adjustMesh(conduit::Node& n_mesh) override
   {
     int rank = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -76,7 +76,7 @@ protected:
    * \param path The filepath where the file will be saved.
    * \param n_mesh The mesh to be saved.
    */
-  virtual void saveMesh(const conduit::Node &n_mesh, const std::string &path) override
+  virtual void saveMesh(const conduit::Node& n_mesh, const std::string& path) override
   {
 #if defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
     std::string protocol("hdf5");
@@ -88,7 +88,7 @@ protected:
   }
 };
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   MPI_Init(&argc, &argv);
 

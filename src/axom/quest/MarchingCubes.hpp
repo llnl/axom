@@ -138,15 +138,15 @@ public:
    * Some metadata from \a bpMesh may be cached.  Any change to it
    * after setMesh() leads to undefined behavior.
   */
-  void setMesh(const conduit::Node &bpMesh,
-               const std::string &topologyName,
-               const std::string &maskField = {});
+  void setMesh(const conduit::Node& bpMesh,
+               const std::string& topologyName,
+               const std::string& maskField = {});
 
   /*!
    * @brief Set the field containing the nodal function.
    * @param [in] fcnField Name of node-based scalar function values.
   */
-  void setFunctionField(const std::string &fcnField);
+  void setFunctionField(const std::string& fcnField);
 
   /*!
    * @brief Set the mask value.
@@ -194,9 +194,9 @@ public:
    *  data to host memory.  To access the data without deep-copying, see
    *  the other output methods in this name group.
   */
-  void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> &mesh,
-                           const std::string &cellIdField = {},
-                           const std::string &domainIdField = {}) const;
+  void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
+                           const std::string& cellIdField = {},
+                           const std::string& domainIdField = {}) const;
 
   /*!
    * @brief Return view of facet corner node indices (connectivity) Array.
@@ -258,10 +258,10 @@ public:
    *  @pre computeIsocontour() must have been called.
    *  @post outputs can no longer be accessed from object, as though clearOutput() has been called.
    */
-  void relinquishContourData(axom::Array<axom::IndexType, 2> &facetNodeIds,
-                             axom::Array<double, 2> &facetNodeCoords,
-                             axom::Array<axom::IndexType, 1> &facetParentIds,
-                             axom::Array<axom::IndexType> &facetDomainIds)
+  void relinquishContourData(axom::Array<axom::IndexType, 2>& facetNodeIds,
+                             axom::Array<double, 2>& facetNodeCoords,
+                             axom::Array<axom::IndexType, 1>& facetParentIds,
+                             axom::Array<axom::IndexType>& facetDomainIds)
   {
     facetNodeIds.clear();
     facetNodeCoords.clear();

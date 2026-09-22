@@ -57,7 +57,7 @@ namespace axom
  *
  */
 template <typename ExecSpace, typename Container1, typename Container2>
-inline void exclusive_scan(const Container1 &input, Container2 &&output)
+inline void exclusive_scan(const Container1& input, Container2&& output)
 {
   assert(input.size() == output.size());
   using OutContainer = std::remove_reference_t<Container2>;
@@ -108,7 +108,7 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
  *        type of data stored in the container.
  */
 template <typename ExecSpace, typename Container>
-inline void exclusive_scan_inplace(Container &&input)
+inline void exclusive_scan_inplace(Container&& input)
 {
 #if defined(AXOM_USE_RAJA)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
@@ -163,7 +163,7 @@ inline void exclusive_scan_inplace(Container &&input)
  *
  */
 template <typename ExecSpace, typename Container1, typename Container2>
-inline void inclusive_scan(const Container1 &input, Container2 &&output)
+inline void inclusive_scan(const Container1& input, Container2&& output)
 {
   assert(input.size() == output.size());
   using OutContainer = std::remove_reference_t<Container2>;
@@ -204,7 +204,7 @@ inline void inclusive_scan(const Container1 &input, Container2 &&output)
  *        type of data stored in the container.
  */
 template <typename ExecSpace, typename Container>
-inline void inclusive_scan_inplace(Container &&input)
+inline void inclusive_scan_inplace(Container&& input)
 {
 #if defined(AXOM_USE_RAJA)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;

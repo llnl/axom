@@ -131,17 +131,12 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
     endforeach()
 
     if(AXOM_ENABLE_MPI)
-        set(_sidre_spio_py_num_ranks 4)
-    else()
-        set(_sidre_spio_py_num_ranks 1)
+        axom_add_python_test( NAME sidre_spio_Py
+                              SOURCE sidre_spio_Py.py
+                              OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                              NUM_MPI_TASKS 4
+                              )
     endif()
-
-    axom_add_python_test( NAME sidre_spio_Py
-                          SOURCE sidre_spio_Py.py
-                          OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                          NUM_MPI_TASKS ${_sidre_spio_py_num_ranks}
-                          )
-    unset(_sidre_spio_py_num_ranks)
 endif()
 
 #------------------------------------------------------------------------------

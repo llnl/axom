@@ -49,7 +49,7 @@ public:
    * \param y The second coordinate component.
    */
   AXOM_HOST_DEVICE
-  ExplicitCoordsetView(const axom::ArrayView<DataType> &x, const axom::ArrayView<DataType> &y)
+  ExplicitCoordsetView(const axom::ArrayView<DataType>& x, const axom::ArrayView<DataType>& y)
     : m_coordinates {x, y}
   {
 #if !defined(AXOM_DEVICE_CODE)
@@ -127,9 +127,9 @@ public:
    * \param z The third coordinate component.
    */
   AXOM_HOST_DEVICE
-  ExplicitCoordsetView(const axom::ArrayView<DataType> &x,
-                       const axom::ArrayView<DataType> &y,
-                       const axom::ArrayView<DataType> &z)
+  ExplicitCoordsetView(const axom::ArrayView<DataType>& x,
+                       const axom::ArrayView<DataType>& y,
+                       const axom::ArrayView<DataType>& z)
     : m_coordinates {x, y, z}
   {
 #if !defined(AXOM_DEVICE_CODE)

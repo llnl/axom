@@ -50,7 +50,7 @@ namespace axom
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const IndexType &begin, const IndexType &end, KernelType &&kernel) noexcept
+inline void for_all(const IndexType& begin, const IndexType& end, KernelType&& kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
 
@@ -97,7 +97,7 @@ inline void for_all(const IndexType &begin, const IndexType &end, KernelType &&k
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const IndexType &N, KernelType &&kernel) noexcept
+inline void for_all(const IndexType& N, KernelType&& kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
   for_all<ExecSpace>(0, N, std::forward<KernelType>(kernel));
@@ -136,9 +136,9 @@ inline void for_all(const IndexType &N, KernelType &&kernel) noexcept
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
-                    const axom::StackArray<IndexType, 2> &jRange,
-                    KernelType &&kernel) noexcept
+inline void for_all(const axom::StackArray<IndexType, 2>& iRange,
+                    const axom::StackArray<IndexType, 2>& jRange,
+                    KernelType&& kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
   assert(iRange[1] >= iRange[0] && jRange[1] >= jRange[0]);
@@ -191,7 +191,7 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
  */
 
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&kernel) noexcept
+inline void for_all(const axom::StackArray<IndexType, 2>& shape, KernelType&& kernel) noexcept
 {
   for_all<ExecSpace>(axom::StackArray<IndexType, 2> {{0, shape[0]}},
                      axom::StackArray<IndexType, 2> {{0, shape[1]}},
@@ -234,10 +234,10 @@ inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&ke
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
-                    const axom::StackArray<IndexType, 2> &jRange,
-                    const axom::StackArray<IndexType, 2> &kRange,
-                    KernelType &&kernel) noexcept
+inline void for_all(const axom::StackArray<IndexType, 2>& iRange,
+                    const axom::StackArray<IndexType, 2>& jRange,
+                    const axom::StackArray<IndexType, 2>& kRange,
+                    KernelType&& kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
   assert(iRange[1] >= iRange[0] && jRange[1] >= jRange[0] && kRange[1] >= kRange[0]);
@@ -294,7 +294,7 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const StackArray<IndexType, 3> &shape, KernelType &&kernel) noexcept
+inline void for_all(const StackArray<IndexType, 3>& shape, KernelType&& kernel) noexcept
 {
   for_all<ExecSpace>(axom::StackArray<IndexType, 2> {{0, shape[0]}},
                      axom::StackArray<IndexType, 2> {{0, shape[1]}},

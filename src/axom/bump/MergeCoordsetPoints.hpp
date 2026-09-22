@@ -93,7 +93,7 @@ public:
    *
    * \param coordsetView The coordset view that wraps the coordset to be modified.
    */
-  MergeCoordsetPoints(const CoordsetView &coordsetView)
+  MergeCoordsetPoints(const CoordsetView& coordsetView)
     : m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -146,10 +146,10 @@ public:
    *
    * \return True if point merging happened; False if no point merging was needed.
    */
-  bool execute(conduit::Node &n_coordset,
-               const conduit::Node &n_options,
-               axom::Array<axom::IndexType> &selectedIds,
-               axom::Array<axom::IndexType> &old2new) const
+  bool execute(conduit::Node& n_coordset,
+               const conduit::Node& n_options,
+               axom::Array<axom::IndexType>& selectedIds,
+               axom::Array<axom::IndexType>& old2new) const
   {
     namespace utils = axom::bump::utilities;
     const axom::bump::Options opts(n_options);
@@ -297,7 +297,7 @@ public:
    * \param tolerance The tolerance used to merge points.
    */
   template <typename KeyType>
-  void createNames(axom::Array<KeyType> &coordNames, double tolerance) const
+  void createNames(axom::Array<KeyType>& coordNames, double tolerance) const
   {
     constexpr double smallTolerance = 1.e-6;
 
@@ -322,7 +322,7 @@ public:
    * \param tolerance The tolerance used to merge points.
    */
   template <typename KeyType, typename Precision>
-  void createNamesInner(axom::Array<KeyType> &coordNames, double tolerance) const
+  void createNamesInner(axom::Array<KeyType>& coordNames, double tolerance) const
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE(axom::fmt::format("createNames<{}>", utils::cpp2conduit<Precision>::name));
@@ -356,9 +356,9 @@ public:
         }
 
         // Make a name for this point
-        const void *tptr = static_cast<const void *>(truncated);
+        const void* tptr = static_cast<const void*>(truncated);
         coordNamesView[index] =
-          axom::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
+          axom::utilities::hash_bytes(static_cast<const std::uint8_t*>(tptr),
                                       sizeof(Precision) * CoordsetView::dimension());
       });
   }

@@ -64,3 +64,44 @@ If the user does **not** specify a host-config file, determine the best match by
 ```
 
 Use its output as the `-hc` argument (as shown in the examples above). If the user explicitly provides a host-config file/path, use that instead.
+
+### Symlinked directories in the sandbox
+
+If configure/build commands report that an existing path is missing, inaccessible, or outside the sandbox, check whether the source, build, install, host-config, or TPL paths include symlinks. Compare logical and physical paths with:
+
+```bash
+pwd -P
+readlink -f <path>
+```
+
+Prefer physical paths resolved by `readlink -f` when invoking `config-build.py` (for `-bp`, `-ip`, `-hc`, and any explicit source/TPL paths), or restart the sandbox from the resolved workspace path. A symlinked path may appear outside the sandbox policy even when its resolved target is visible.
+
+### MPI and Slurm in the sandbox
+
+To run MPI-enabled commands from the sandbox, launch Codex with the `--mpi` command-line argument. This starts a Flux instance when needed. MPI through the sandbox is single-node only. If MPI or Slurm commands fail because no Flux allocation is available, stop and ask the user to restart the sandbox with `--mpi`.
+
+On Slurm-based systems, run Slurm commands through the Flux wrapper instead of the system executable, for example:
+
+```bash
+/usr/global/tools/flux_wrappers/bin/srun -n 2 <command>
+```
+
+Loading the flux wrappers before launching the agent allows you to run the srun wrapper, e.g.
+```bash
+module load flux_wrappers
+srun -n 2 <command>
+```
+
+When configuring builds whose MPI tests use `srun`, override CMake's MPI launcher:
+
+```bash
+./config-build.py -hc "$(./skills/building/scripts/determine_host_config)" -DMPIEXEC_EXECUTABLE=/usr/global/tools/flux_wrappers/bin/srun
+```
+
+### Shroud in the sandbox
+
+If CMake configuration has trouble with Shroud in the sandbox, unset the cached Shroud executable at configure time:
+
+```bash
+./config-build.py -hc "$(./skills/building/scripts/determine_host_config)" -USHROUD_EXECUTABLE
+```

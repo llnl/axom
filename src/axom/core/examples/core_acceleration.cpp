@@ -35,8 +35,8 @@ constexpr int N = 1000;
 void demoMemoryManageBasic()
 {
   // _membasic_start
-  int *dynamic_memory_array;
-  int *dyn_array_dst;
+  int* dynamic_memory_array;
+  int* dyn_array_dst;
   int len = 20;
 
   //Allocation looks similar to use of malloc() in C -- just template
@@ -96,9 +96,9 @@ void demoAxomExecution()
   // _exebasic_start
   //This part of the code works regardless of Umpire's presence, allowing for generic
   //use of axom::allocate in C++ code.
-  int *A = axom::allocate<int>(N);
-  int *B = axom::allocate<int>(N);
-  int *C = axom::allocate<int>(N);
+  int* A = axom::allocate<int>(N);
+  int* B = axom::allocate<int>(N);
+  int* C = axom::allocate<int>(N);
 
   for(int i = 0; i < N; i++)
   {
@@ -175,7 +175,7 @@ void demoAxomExecution()
 
   //_gpu_atomic_start
 
-  int *sum = axom::allocate<int>(1, allocator_id);
+  int* sum = axom::allocate<int>(1, allocator_id);
   *sum = 0;
 
   // Increment sum 100 times
@@ -190,7 +190,7 @@ void demoAxomExecution()
 #endif
 }
 
-int main(int AXOM_UNUSED_PARAM(argc), char **AXOM_UNUSED_PARAM(argv))
+int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
 {
   demoMemoryManageBasic();
   demoAxomExecution();

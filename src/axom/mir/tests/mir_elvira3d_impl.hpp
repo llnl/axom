@@ -4,6 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_elvira3d_impl.hpp
+ *  \brief Shared implementation and registrations for the Elvira 3D
+ *         execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -17,14 +24,14 @@ namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
-std::string baselineDirectory()
+inline std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_elvira3d");
 }
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
+extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -33,7 +40,7 @@ struct test_Elvira3D
   static const int gridSize = 10;
   static const int numSpheres = 2;
 
-  static void initialize(conduit::Node &n_mesh)
+  static void initialize(conduit::Node& n_mesh)
   {
     AXOM_ANNOTATE_SCOPE("initialize");
     axom::bump::data::MeshTester M;
@@ -42,7 +49,7 @@ struct test_Elvira3D
   }
 
   // Select a chunk of zones.
-  static int selectZones(conduit::Node &n_options)
+  static int selectZones(conduit::Node& n_options)
   {
     std::vector<axom::IndexType> selected;
     for(int k = 0; k < gridSize; k++)
@@ -65,7 +72,7 @@ struct test_Elvira3D
     return static_cast<int>(selected.size());
   }
 
-  static void test(const std::string &name, bool selectedZones = false, bool pointMesh = false)
+  static void test(const std::string& name, bool selectedZones = false, bool pointMesh = false)
   {
     const double expectedVolume = gridSize * gridSize * gridSize;
     double mirExpectedVolume = expectedVolume;
@@ -81,9 +88,9 @@ struct test_Elvira3D
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
     //--------------------------------------------------------------------------
-    const conduit::Node &n_coordset = deviceMesh.fetch_existing("coordsets/coords");
-    const conduit::Node &n_topology = deviceMesh.fetch_existing("topologies/mesh");
-    const conduit::Node &n_matset = deviceMesh.fetch_existing("matsets/mat");
+    const conduit::Node& n_coordset = deviceMesh.fetch_existing("coordsets/coords");
+    const conduit::Node& n_topology = deviceMesh.fetch_existing("topologies/mesh");
+    const conduit::Node& n_matset = deviceMesh.fetch_existing("matsets/mat");
 
     // Make views.
     auto coordsetView = views::make_explicit_coordset<float, 3>::view(n_coordset);
@@ -133,7 +140,7 @@ struct test_Elvira3D
     }
   }
 
-  static void comparePointMesh(const std::string &name, const conduit::Node &deviceMIRMesh)
+  static void comparePointMesh(const std::string& name, const conduit::Node& deviceMIRMesh)
   {
     // device->host
     conduit::Node hostMIRMesh;
@@ -151,14 +158,14 @@ struct test_Elvira3D
   }
 
   template <typename TopologyView, typename CoordsetView>
-  static void compare(const std::string &name,
+  static void compare(const std::string& name,
                       bool selectedZones,
-                      conduit::Node &deviceMesh,
-                      const TopologyView &topologyView,
-                      const CoordsetView &coordsetView,
-                      const conduit::Node &n_topology,
-                      const conduit::Node &n_coordset,
-                      conduit::Node &deviceMIRMesh,
+                      conduit::Node& deviceMesh,
+                      const TopologyView& topologyView,
+                      const CoordsetView& coordsetView,
+                      const conduit::Node& n_topology,
+                      const conduit::Node& n_coordset,
+                      conduit::Node& deviceMIRMesh,
                       double expectedVolume,
                       double mirExpectedVolume)
   {
@@ -170,12 +177,12 @@ struct test_Elvira3D
 
     //--------------------------------------------------------------------------
     // Compute volumes for MIR mesh as a field.
-    conduit::Node &n_mir_coordset = deviceMIRMesh["coordsets/coords"];
+    conduit::Node& n_mir_coordset = deviceMIRMesh["coordsets/coords"];
     auto mirCoordsetView = views::make_explicit_coordset<float, 3>::view(n_mir_coordset);
     using MirCoordsetView = decltype(mirCoordsetView);
 
     // Make polyhedral topology view.
-    const conduit::Node &n_mir_topology = deviceMIRMesh["topologies/mesh"];
+    const conduit::Node& n_mir_topology = deviceMIRMesh["topologies/mesh"];
     auto mirTopoView =
       views::make_unstructured_polyhedral_topology<axom::IndexType>::view(n_mir_topology);
     using MirTopologyView = decltype(mirTopoView);
@@ -205,10 +212,10 @@ struct test_Elvira3D
     constexpr double tolerance = 2.6e-06;
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
 #endif
-    const conduit::Node &n_matset = deviceMesh["matsets/mat"];
+    const conduit::Node& n_matset = deviceMesh["matsets/mat"];
     auto matsetView = views::make_unibuffer_matset<int, float, 3>::view(n_matset);
 
-    const conduit::Node &n_mir_matset = deviceMIRMesh["matsets/mat"];
+    const conduit::Node& n_mir_matset = deviceMIRMesh["matsets/mat"];
     auto mirMatsetView = views::make_unibuffer_matset<int, float, 3>::view(n_mir_matset);
 
     //--------------------------------------------------------------------------
@@ -277,7 +284,7 @@ struct test_Elvira3D
   template <typename MatsetView>
   static std::vector<double> sumMaterialVolumes(MatsetView matsetView,
                                                 axom::ArrayView<double> zoneVolumes,
-                                                const views::MaterialInformation &matInfo)
+                                                const views::MaterialInformation& matInfo)
   {
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     AXOM_ANNOTATE_SCOPE("sumMaterialVolumes");
@@ -286,7 +293,7 @@ struct test_Elvira3D
     const int nmats = static_cast<int>(matInfo.size());
     axom::Array<int> sortedIdsHost(matInfo.size());
     int mi = 0;
-    for(const auto &mat : matInfo)
+    for(const auto& mat : matInfo)
     {
       sortedIdsHost[mi++] = mat.m_number;
     }
@@ -325,143 +332,3 @@ struct test_Elvira3D
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_elvira3d, elvira3d_unibuffer_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_seq");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_seq");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_seq");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_seq)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_seq");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-
-#if defined(AXOM_USE_OPENMP)
-TEST(mir_elvira3d, elvira3d_unibuffer_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_omp");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_omp");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_omp");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_omp)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_omp");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<omp_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-#endif
-
-#if defined(AXOM_USE_CUDA)
-TEST(mir_elvira3d, elvira3d_unibuffer_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_cuda");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_cuda");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_cuda");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_cuda");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<cuda_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-#endif
-
-#if defined(AXOM_USE_HIP)
-TEST(mir_elvira3d, elvira3d_unibuffer_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_hip");
-  const bool selectZones = false;
-  const bool pointMesh = false;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_hip");
-  const bool selectZones = true;
-  const bool pointMesh = false;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_pm_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_hip");
-  const bool selectZones = false;
-  const bool pointMesh = true;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
-}
-
-TEST(mir_elvira3d, elvira3d_unibuffer_sel_pm_hip)
-{
-  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_hip");
-  const bool selectZones = true;
-  const bool pointMesh = true;
-  test_Elvira3D<hip_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char *argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
-}

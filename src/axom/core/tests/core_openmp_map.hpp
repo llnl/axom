@@ -29,9 +29,9 @@ experimental::Map<Key, T, Hash, Policy> init(int N, int len)
 }
 
 template <typename Key, typename T, typename Hash, typename Policy>
-void test_storage(experimental::Map<Key, T, Hash, Policy> &test)
+void test_storage(experimental::Map<Key, T, Hash, Policy>& test)
 {
-  experimental::Map<Key, T, Hash, Policy> *test2 = &test;
+  experimental::Map<Key, T, Hash, Policy>* test2 = &test;
   axom::for_all<Policy>(0, test.max_size(), [=](IndexType idx) {
     Key key = idx;
     T value = key * 27;
@@ -49,9 +49,9 @@ void test_storage(experimental::Map<Key, T, Hash, Policy> &test)
 }
 
 template <typename Key, typename T, typename Hash, typename Policy>
-void test_subscript(experimental::Map<Key, T, Hash, Policy> &test)
+void test_subscript(experimental::Map<Key, T, Hash, Policy>& test)
 {
-  experimental::Map<Key, T, Hash, Policy> *test2 = &test;
+  experimental::Map<Key, T, Hash, Policy>* test2 = &test;
   axom::for_all<Policy>(0, test.size(), [=](IndexType idx) {
     Key key = idx;
     EXPECT_EQ(key * 27, (*test2)[key]);
@@ -59,9 +59,9 @@ void test_subscript(experimental::Map<Key, T, Hash, Policy> &test)
 }
 
 template <typename Key, typename T, typename Hash, typename Policy>
-void test_insert_assign(experimental::Map<Key, T, Hash, Policy> &test)
+void test_insert_assign(experimental::Map<Key, T, Hash, Policy>& test)
 {
-  experimental::Map<Key, T, Hash, Policy> *test2 = &test;
+  experimental::Map<Key, T, Hash, Policy>* test2 = &test;
   axom::for_all<Policy>(0, test.max_size(), [=](IndexType idx) {
     Key key = idx;
     T value = key * 27;
@@ -91,10 +91,10 @@ void test_insert_assign(experimental::Map<Key, T, Hash, Policy> &test)
 }
 
 template <typename Key, typename T, typename Hash, typename Policy>
-void test_remove(experimental::Map<Key, T, Hash, Policy> &test)
+void test_remove(experimental::Map<Key, T, Hash, Policy>& test)
 {
   std::size_t to_erase = test.size();
-  experimental::Map<Key, T, Hash, Policy> *test2 = &test;
+  experimental::Map<Key, T, Hash, Policy>* test2 = &test;
 
   axom::for_all<Policy>(0, to_erase, [=](IndexType idx) {
     Key key = (Key)idx;
@@ -110,10 +110,10 @@ void test_remove(experimental::Map<Key, T, Hash, Policy> &test)
 }
 
 template <typename Key, typename T, typename Hash, typename Policy>
-void test_rehash(experimental::Map<Key, T, Hash, Policy> &test, int num, int fact)
+void test_rehash(experimental::Map<Key, T, Hash, Policy>& test, int num, int fact)
 {
   auto original_size = test.size();
-  experimental::Map<Key, T, Hash, Policy> *test2 = &test;
+  experimental::Map<Key, T, Hash, Policy>* test2 = &test;
   test.rehash(num, fact);
 
   axom::for_all<Policy>(0, original_size, [=](IndexType idx) {

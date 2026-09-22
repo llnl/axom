@@ -20,6 +20,7 @@
 #include "core_execution_for_all.hpp"
 #include "core_execution_scans.hpp"
 #include "core_execution_space.hpp"
+#include "core_array_iterator.hpp"
 #include "core_map.hpp"
 #include "core_flatmap.hpp"
 #include "core_flatmap_for_all.hpp"

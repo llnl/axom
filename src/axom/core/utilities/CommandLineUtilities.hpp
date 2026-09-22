@@ -33,7 +33,7 @@ struct CaliperModeValidator : public axom::CLI::Validator
   CaliperModeValidator()
   {
     name_ = "MODE";
-    func_ = [](const std::string &str) {
+    func_ = [](const std::string& str) {
       if(str == "help")
       {
         return axom::fmt::format("Valid caliper modes are:\n{}\n",

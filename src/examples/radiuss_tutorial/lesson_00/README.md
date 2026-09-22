@@ -3,7 +3,7 @@
 In this lesson, we will develop a simple application that uses an installed version of Axom. 
 Specifically, we will print the version of Axom and some of its configuration properties.
 
-> :information_source: Our examples use the ``C++17`` standard since that's Axom's current version.
+> :information_source: Our examples use the ``C++20`` standard since that's Axom's current version.
 
 We will also be using the [fmt](https://fmt.dev/latest/index.html) library for string formatting, which Axom uses internally and vendors for its users.
 The vast majority of ``fmt`` has been included in recent C++ standards, starting with ``C++20``. See also the [fmt cheat sheet](https://hackingcpp.com/cpp/libs/fmt.html).
@@ -84,15 +84,15 @@ std::cout << axom::fmt::format("Version: {}", axom::getVersion()) << "\n\n";
 This includes the major, minor and patch version of Axom as well as the git SHA (when available).
 The above command might produce something like:
 ```
-Version: v0.9.0-f5b5b5d66
+Version: v0.14.0-b26e10df2
 ```
 
 The version is also available as compiler defines in ``axom/config.hpp``. The following corresponds to the above version:
 ```cpp
 #define AXOM_VERSION_MAJOR 0
-#define AXOM_VERSION_MINOR 9
+#define AXOM_VERSION_MINOR 14
 #define AXOM_VERSION_PATCH 0
-#define AXOM_VERSION_FULL  "v0.9.0"
+#define AXOM_VERSION_FULL  "v0.14.0"
 ```
 
 ## Checking details about the Axom configuration
@@ -114,18 +114,18 @@ We can run the application using:
 Its output should look something like:
 ```
 Axom information:
-  AXOM_VERSION_FULL: v0.9.0
+  AXOM_VERSION_FULL: v0.14.0
   AXOM_VERSION_MAJOR: 0
-  AXOM_VERSION_MINOR: 9
+  AXOM_VERSION_MINOR: 14
   AXOM_VERSION_PATCH: 0
-  AXOM_GIT_SHA: f5b5b5d66
+  AXOM_GIT_SHA: b26e10df2
 Compiler Settings: 
-  C++ Standard: c++17
-  Size of axom::IndexType: 4
+  C++ Standard: c++20
+  Size of axom::IndexType: 8
 Active programming models: { mpi;openmp }
-Available components: { core;inlet;klee;lumberjack;mint;primal;quest;sidre;slam;slic;spin }
+Available components: { core;bump;inlet;klee;lumberjack;mint;mir;multimat;primal;quest;sidre;sina;slam;slic;spin }
 Active built-in dependencies: { CLI11;fmt;sol;sparsehash }
-Active external dependencies: { adiak;caliper;conduit;hdf5;lua;mfem;raja;umpire }
+Active external dependencies: { adiak;caliper;conduit;hdf5;lua;mfem;opencascade;raja;scr;umpire }
 ```
 
 > :clapper: Run the example for this lesson

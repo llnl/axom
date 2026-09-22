@@ -45,7 +45,7 @@ enum class LengthUnit
  * \return the length unit
  * \throws std::invalid_argument if the string does not represent known units
  */
-LengthUnit getLengthUnit(const std::string &unit);
+LengthUnit getLengthUnit(const std::string& unit);
 
 /*!
  * Get the short name of a length unit.
@@ -86,10 +86,10 @@ double convert(double sourceValue, LengthUnit sourceUnits, LengthUnit targetUnit
  * \param targetUnits the units to convert to
  */
 template <typename T>
-void convertAll(T &values, LengthUnit sourceUnits, LengthUnit targetUnits)
+void convertAll(T& values, LengthUnit sourceUnits, LengthUnit targetUnits)
 {
   double factor = getConversionFactor(sourceUnits, targetUnits);
-  for(double &value : values)
+  for(double& value : values)
   {
     value *= factor;
   }

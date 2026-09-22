@@ -125,7 +125,7 @@ struct test_planeslice
     }
   }
 
-  static void initialize(conduit::Node &mesh)
+  static void initialize(conduit::Node& mesh)
   {
     const axom::IndexType N = 10;
     const axom::StackArray<axom::IndexType, 3> dims {N, N, (NDIMS > 2) ? N : 0};
@@ -160,7 +160,7 @@ TEST(bump_planeslice, planeslice_3D_hip) { test_planeslice<hip_exec, 3>::test();
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

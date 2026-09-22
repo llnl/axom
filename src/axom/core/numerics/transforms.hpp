@@ -231,7 +231,7 @@ Matrix<T> scale(T sx, T sy, int ndims = 3)
  * \return A 3x3 Matrix containing the scaling transform.
  */
 template <typename T = double>
-Matrix<T> scale(T sx, T sy, const axom::ArrayView<T> &center)
+Matrix<T> scale(T sx, T sy, const axom::ArrayView<T>& center)
 {
   assert(center.size() == 2);
   const T zero {0};
@@ -262,7 +262,7 @@ Matrix<T> scale(T sx, T sy, const axom::ArrayView<T> &center)
  * \return A 4x4 Matrix containing the scaling transform.
  */
 template <typename T = double>
-Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T> &center)
+Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T>& center)
 {
   assert(center.size() == 3);
   const T zero {0};

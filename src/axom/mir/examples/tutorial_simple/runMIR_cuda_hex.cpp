@@ -6,16 +6,16 @@
 #include "runMIR.hpp"
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
-int runMIR_cuda_hex(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
+int runMIR_cuda_hex(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result)
 {
   constexpr int CUDA_BLOCK_SIZE = 256;
   using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
   return runMIR_hex<cuda_exec>(mesh, options, result);
 }
 #else
-int runMIR_cuda_hex(const conduit::Node &AXOM_UNUSED_PARAM(mesh),
-                    const conduit::Node &AXOM_UNUSED_PARAM(options),
-                    conduit::Node &AXOM_UNUSED_PARAM(result))
+int runMIR_cuda_hex(const conduit::Node& AXOM_UNUSED_PARAM(mesh),
+                    const conduit::Node& AXOM_UNUSED_PARAM(options),
+                    conduit::Node& AXOM_UNUSED_PARAM(result))
 {
   return 0;
 }

@@ -31,11 +31,11 @@ namespace detail
  * \param n_field The field used for matset creation.
  * \param nmats The number of materials to make.
  */
-void heavily_mixed_matset(const std::string &topoName,
+void heavily_mixed_matset(const std::string& topoName,
                           int dims[3],
                           int refinement,
-                          conduit::Node &n_coarse,
-                          const conduit::Node &n_field,
+                          conduit::Node& n_coarse,
+                          const conduit::Node& n_field,
                           int nmats)
 {
   const auto fine = n_field.as_float64_accessor();
@@ -101,9 +101,9 @@ void heavily_mixed_matset(const std::string &topoName,
       }
     }
   }
-  conduit::Node &n_matset = n_coarse["matsets/mat"];
+  conduit::Node& n_matset = n_coarse["matsets/mat"];
   n_matset["topology"] = topoName;
-  conduit::Node &n_material_map = n_matset["material_map"];
+  conduit::Node& n_material_map = n_matset["material_map"];
   for(int i = 0; i < nmats; i++)
   {
     int matno = i + 1;
@@ -122,7 +122,7 @@ void heavily_mixed_matset(const std::string &topoName,
 }
 
 template <typename CPUExecSpace>
-void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats)
+void heavily_mixed(conduit::Node& n_mesh, int dims[3], int refinement, int nmats)
 {
   const int rdims[] = {refinement * dims[0], refinement * dims[1], refinement * dims[2]};
 
@@ -158,7 +158,7 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
 
     conduit::Node n_field;
     n_field.set(conduit::DataType::int32(rdims[0] * rdims[1] * rdims[2]));
-    conduit::int32 *destPtr = n_field.as_int32_ptr();
+    conduit::int32* destPtr = n_field.as_int32_ptr();
     axom::for_all<CPUExecSpace>(rdims[2], [&](int k) {
       const auto t = static_cast<conduit::float64>(k) / (dims[2] - 1);
       // Interpolate the window
@@ -168,9 +168,9 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
       const conduit::float64 y1 = axom::utilities::lerp(y_max, y1_max, t);
       conduit::Node n_rmesh;
       conduit::blueprint::mesh::examples::julia(rdims[0], rdims[1], x0, x1, y0, y1, c_re, c_im, n_rmesh);
-      const conduit::Node &n_src_field = n_rmesh["fields/iters/values"];
-      const conduit::int32 *srcPtr = n_src_field.as_int32_ptr();
-      conduit::int32 *currentDestPtr = destPtr + k * rdims[0] * rdims[1];
+      const conduit::Node& n_src_field = n_rmesh["fields/iters/values"];
+      const conduit::int32* srcPtr = n_src_field.as_int32_ptr();
+      conduit::int32* currentDestPtr = destPtr + k * rdims[0] * rdims[1];
       axom::copy(currentDestPtr, srcPtr, rdims[0] * rdims[1] * sizeof(conduit::int32));
 #ifndef AXOM_DEVICE_CODE
       SLIC_INFO(axom::fmt::format("Made slice {}/{}", k + 1, rdims[2]));
@@ -195,7 +195,7 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
                                               n_rmesh);
 
     // Make a matset based on the higher resolution julia field.
-    const conduit::Node &n_field = n_rmesh["fields/iters/values"];
+    const conduit::Node& n_field = n_rmesh["fields/iters/values"];
     heavily_mixed_matset("topo", dims, refinement, n_mesh, n_field, nmats);
   }
 }
@@ -217,7 +217,7 @@ HMApplication::HMApplication()
 { }
 
 //--------------------------------------------------------------------------------
-int HMApplication::initialize(int argc, char **argv)
+int HMApplication::initialize(int argc, char** argv)
 {
   axom::CLI::App app;
   app.add_flag("--handler", m_handler)
@@ -277,12 +277,12 @@ int HMApplication::initialize(int argc, char **argv)
     app.parse(argc, argv);
     m_writeFiles = !disable_write;
   }
-  catch(axom::CLI::CallForHelp &e)
+  catch(axom::CLI::CallForHelp& e)
   {
     std::cout << app.help() << std::endl;
     retval = -1;
   }
-  catch(axom::CLI::ParseError &e)
+  catch(axom::CLI::ParseError& e)
   {
     // Handle other parsing errors
     std::cerr << e.what() << std::endl;
@@ -315,12 +315,12 @@ int HMApplication::execute()
   {
     retval = runMIR();
   }
-  catch(std::invalid_argument const &e)
+  catch(std::invalid_argument const& e)
   {
     SLIC_WARNING("Bad input. " << e.what());
     retval = -2;
   }
-  catch(std::out_of_range const &e)
+  catch(std::out_of_range const& e)
   {
     SLIC_WARNING("Integer overflow. " << e.what());
     retval = -3;
@@ -434,10 +434,10 @@ size_t HMApplication::estimateMemoryPoolSize() const
 }
 
 //--------------------------------------------------------------------------------
-void HMApplication::adjustMesh(conduit::Node &) { }
+void HMApplication::adjustMesh(conduit::Node&) { }
 
 //--------------------------------------------------------------------------------
-void HMApplication::saveMesh(const conduit::Node &n_mesh, const std::string &path)
+void HMApplication::saveMesh(const conduit::Node& n_mesh, const std::string& path)
 {
 #if defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
   std::string protocol("hdf5");
@@ -448,7 +448,7 @@ void HMApplication::saveMesh(const conduit::Node &n_mesh, const std::string &pat
 }
 
 //--------------------------------------------------------------------------------
-void HMApplication::conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
+void HMApplication::conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
 {
   SLIC_ERROR(axom::fmt::format("Error from Conduit: s1={}, s2={}, i1={}", s1, s2, i1));
   // This is on purpose.

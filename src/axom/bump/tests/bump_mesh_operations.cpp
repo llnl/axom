@@ -58,7 +58,7 @@ struct test_make_unstructured
     EXPECT_TRUE(TestApp.test<ExecSpace>("unstructured", hostResult));
   }
 
-  static void create(conduit::Node &mesh)
+  static void create(conduit::Node& mesh)
   {
     std::vector<int> dims {4, 4};
     axom::blueprint::testing::data::braid("uniform", dims, mesh);
@@ -92,8 +92,8 @@ struct test_recenter_field
     conduit::Node deviceMesh;
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
     // _bump_utilities_recenterfield_begin
-    const conduit::Node &deviceTopo = deviceMesh["topologies/mesh"];
-    const conduit::Node &deviceCoordset = deviceMesh["coordsets/coords"];
+    const conduit::Node& deviceTopo = deviceMesh["topologies/mesh"];
+    const conduit::Node& deviceCoordset = deviceMesh["coordsets/coords"];
 
     // Make a node to zone relation on the device.
     conduit::Node deviceRelation;
@@ -129,7 +129,7 @@ struct test_recenter_field
     }
   }
 
-  static void create(conduit::Node &mesh)
+  static void create(conduit::Node& mesh)
   {
     /*
       8---9--10--11
@@ -282,7 +282,7 @@ struct test_extractzones
       utils::make_array_view<conduit::float64>(newHostMesh["matsets/mat1/volume_fractions"])));
   }
 
-  static void create(conduit::Node &hostMesh)
+  static void create(conduit::Node& hostMesh)
   {
     /*
       8-------9------10------11
@@ -295,7 +295,7 @@ struct test_extractzones
       |       |       |       |
       0-------1-------2-------3
       */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 coordsets:
   coords:
     type: explicit
@@ -356,7 +356,7 @@ TEST(bump_blueprint_utilities, extractzones_hip) { test_extractzones<hip_exec>::
 template <typename ExecSpace>
 struct test_extractzones_polyhedral
 {
-  static void test(const std::string &name, bool selectZones)
+  static void test(const std::string& name, bool selectZones)
   {
     constexpr int MAXMATERIALS = 5;
     const int gridSize = 7;
@@ -400,9 +400,9 @@ struct test_extractzones_polyhedral
                                                axom::execution_space<ExecSpace>::allocatorID());
     axom::copy(selectedZones.data(), ids.data(), nzones * sizeof(axom::IndexType));
 
-    const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-    const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
-    const conduit::Node &n_matset = deviceMesh["matsets/mat"];
+    const conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+    const conduit::Node& n_topology = deviceMesh["topologies/mesh"];
+    const conduit::Node& n_matset = deviceMesh["matsets/mat"];
 
     // Wrap the data in views.
     auto coordsetView = views::make_explicit_coordset<float, 3>::view(n_coordset);
@@ -434,7 +434,7 @@ struct test_extractzones_polyhedral
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, newHostMesh));
   }
 
-  static void create(int gridSize, int numCircles, conduit::Node &hostMesh)
+  static void create(int gridSize, int numCircles, conduit::Node& hostMesh)
   {
     AXOM_ANNOTATE_SCOPE("generate");
     axom::bump::data::MeshTester tester;
@@ -559,7 +559,7 @@ struct test_zonelistbuilder
                               utils::make_array_view<axom::IndexType>(hostData["mixed"])));
   }
 
-  static void create(conduit::Node &hostMesh)
+  static void create(conduit::Node& hostMesh)
   {
     /*
     20------21-------22-------23-------24
@@ -580,7 +580,7 @@ struct test_zonelistbuilder
     |z0     |z1      |z2      |z3      |
     0-------1--------2--------3--------4
     */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 coordsets:
   coords:
     type: rectilinear
@@ -649,11 +649,11 @@ struct test_makezonecenters
     conduit::Node deviceMesh;
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-    const conduit::Node &n_rmesh = deviceMesh["topologies/rmesh"];
+    const conduit::Node& n_rmesh = deviceMesh["topologies/rmesh"];
     auto rmeshView = views::make_rectilinear_topology<2>::view(n_rmesh);
     testTopo(deviceMesh, rmeshView, n_rmesh);
 
-    const conduit::Node &n_umesh = deviceMesh["topologies/umesh"];
+    const conduit::Node& n_umesh = deviceMesh["topologies/umesh"];
     views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::index_t>> umeshView(
       utils::make_array_view<conduit::index_t>(n_umesh["elements/connectivity"]),
       utils::make_array_view<conduit::index_t>(n_umesh["elements/sizes"]),
@@ -662,11 +662,11 @@ struct test_makezonecenters
   }
 
   template <typename TopologyView>
-  static void testTopo(const conduit::Node &deviceMesh,
-                       const TopologyView &topoView,
-                       const conduit::Node &n_topo)
+  static void testTopo(const conduit::Node& deviceMesh,
+                       const TopologyView& topoView,
+                       const conduit::Node& n_topo)
   {
-    const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
+    const conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
     auto coordsetView = views::make_rectilinear_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
@@ -692,7 +692,7 @@ struct test_makezonecenters
     }
   }
 
-  static void create(conduit::Node &hostMesh)
+  static void create(conduit::Node& hostMesh)
   {
     /*
     12------13-------14-------15
@@ -709,7 +709,7 @@ struct test_makezonecenters
     |z0     |z1      |z2      |
     0-------1--------2--------3
     */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 coordsets:
   coords:
     type: rectilinear
@@ -774,7 +774,7 @@ struct test_mergecoordsetpoints
     conduit::Node deviceMesh;
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-    conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
+    conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
     auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
@@ -818,7 +818,7 @@ struct test_mergecoordsetpoints
     }
   }
 
-  static void create(conduit::Node &hostMesh)
+  static void create(conduit::Node& hostMesh)
   {
     /*
     We have nodes that are given such that each zone corner is repeated and may have some
@@ -834,7 +834,7 @@ struct test_mergecoordsetpoints
     |z0     |z1      |
     0-------1--------2
     */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 coordsets:
   coords:
     type: explicit
@@ -887,8 +887,8 @@ struct test_makepointmesh
     conduit::Node deviceMesh;
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-    const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-    const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
+    const conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+    const conduit::Node& n_topology = deviceMesh["topologies/mesh"];
 
     // Wrap the data in views.
     auto coordsetView = views::make_explicit_coordset<conduit::float64, 2>::view(n_coordset);
@@ -954,12 +954,12 @@ struct test_makepointmesh
     }
   }
 
-  static void compare(const conduit::Node &n_mesh,
-                      const axom::Array<conduit::float64> &x,
-                      const axom::Array<conduit::float64> &y,
-                      const axom::Array<conduit::int64> &connectivity,
-                      const axom::Array<conduit::int64> &sizes,
-                      const axom::Array<conduit::int64> &offsets)
+  static void compare(const conduit::Node& n_mesh,
+                      const axom::Array<conduit::float64>& x,
+                      const axom::Array<conduit::float64>& y,
+                      const axom::Array<conduit::int64>& connectivity,
+                      const axom::Array<conduit::int64>& sizes,
+                      const axom::Array<conduit::int64>& offsets)
   {
     EXPECT_TRUE(
       compare_views(x.view(),
@@ -978,7 +978,7 @@ struct test_makepointmesh
       utils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/offsets"])));
   }
 
-  static void create(conduit::Node &hostMesh)
+  static void create(conduit::Node& hostMesh)
   {
     /*
       8-------9------10------11
@@ -991,7 +991,7 @@ struct test_makepointmesh
       |       |       |       |
       0-------1-------2-------3
       */
-    const char *yaml = R"xx(
+    const char* yaml = R"xx(
 coordsets:
   coords:
     type: explicit
@@ -1041,7 +1041,7 @@ TEST(bump_blueprint_utilities, makepointmesh_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

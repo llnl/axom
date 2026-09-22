@@ -25,7 +25,7 @@
  * \param hostResult A conduit node that will contain the MIR results.
  */
 template <typename ExecSpace>
-int runMIR_tri(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
+int runMIR_tri(const conduit::Node& hostMesh, const conduit::Node& options, conduit::Node& hostResult)
 {
   AXOM_ANNOTATE_SCOPE("runMIR_tri");
   namespace utils = axom::bump::utilities;
@@ -40,9 +40,9 @@ int runMIR_tri(const conduit::Node &hostMesh, const conduit::Node &options, cond
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
   }
 
-  conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-  conduit::Node &n_topo = deviceMesh["topologies/mesh"];
-  conduit::Node &n_matset = deviceMesh["matsets/mat"];
+  conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+  conduit::Node& n_topo = deviceMesh["topologies/mesh"];
+  conduit::Node& n_matset = deviceMesh["matsets/mat"];
   auto connView = utils::make_array_view<int>(n_topo["elements/connectivity"]);
 
   // Make matset view. (There's often 1 more material so add 1)
@@ -86,7 +86,7 @@ int runMIR_tri(const conduit::Node &hostMesh, const conduit::Node &options, cond
  * \param hostResult A conduit node that will contain the MIR results.
  */
 template <typename ExecSpace>
-int runMIR_quad(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
+int runMIR_quad(const conduit::Node& hostMesh, const conduit::Node& options, conduit::Node& hostResult)
 {
   AXOM_ANNOTATE_SCOPE("runMIR_quad");
   namespace utils = axom::bump::utilities;
@@ -100,9 +100,9 @@ int runMIR_quad(const conduit::Node &hostMesh, const conduit::Node &options, con
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
   }
 
-  conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-  conduit::Node &n_topo = deviceMesh["topologies/mesh"];
-  conduit::Node &n_matset = deviceMesh["matsets/mat"];
+  conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+  conduit::Node& n_topo = deviceMesh["topologies/mesh"];
+  conduit::Node& n_matset = deviceMesh["matsets/mat"];
   auto connView = utils::make_array_view<int>(n_topo["elements/connectivity"]);
 
   // Make matset view. (There's often 1 more material so add 1)
@@ -145,7 +145,7 @@ int runMIR_quad(const conduit::Node &hostMesh, const conduit::Node &options, con
  * \param hostResult A conduit node that will contain the MIR results.
  */
 template <typename ExecSpace>
-int runMIR_hex(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
+int runMIR_hex(const conduit::Node& hostMesh, const conduit::Node& options, conduit::Node& hostResult)
 {
   AXOM_ANNOTATE_SCOPE("runMIR_hex");
   namespace utils = axom::bump::utilities;
@@ -159,9 +159,9 @@ int runMIR_hex(const conduit::Node &hostMesh, const conduit::Node &options, cond
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
   }
 
-  conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-  conduit::Node &n_topo = deviceMesh["topologies/mesh"];
-  conduit::Node &n_matset = deviceMesh["matsets/mat"];
+  conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+  conduit::Node& n_topo = deviceMesh["topologies/mesh"];
+  conduit::Node& n_matset = deviceMesh["matsets/mat"];
   auto connView = utils::make_array_view<int>(n_topo["elements/connectivity"]);
 
   // Make matset view. (There's often 1 more material so add 1)
@@ -195,7 +195,7 @@ int runMIR_hex(const conduit::Node &hostMesh, const conduit::Node &options, cond
 }
 
 // Prototypes.
-int runMIR_seq(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_omp(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_cuda(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_hip(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
+int runMIR_seq(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result);
+int runMIR_omp(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result);
+int runMIR_cuda(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result);
+int runMIR_hip(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result);

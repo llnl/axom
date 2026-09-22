@@ -192,6 +192,11 @@ else()
     message(STATUS "MFEM support is OFF")
 endif()
 
+# MFEM's exported target does not always propagate its MPI dependency.
+if(TARGET mfem AND MFEM_USE_MPI)
+    blt_patch_target(NAME mfem DEPENDS_ON mpi)
+endif()
+
 # caliper-enabled mfem in device configs have extra dependencies which are not properly exported
 if(TARGET mfem)
     # check if mfem depends on caliper
@@ -303,7 +308,7 @@ if(EXISTS ${Python_EXECUTABLE})
       set(DEV_MODULE Development.Module)
     endif()
 
-    find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+    find_package(Python 3.9 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
 
     # Debug print the paths to the found Python artifacts
     message(STATUS "Python version: ${Python_VERSION}")
@@ -436,7 +441,7 @@ if(nanobind_ROOT
    AND NOT AXOM_ENABLE_UBSAN)
 
     axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
-    find_package(nanobind CONFIG REQUIRED)
+    find_package(nanobind 2.10 CONFIG REQUIRED)
     message(STATUS "Nanobind support is ON")
     set(NANOBIND_FOUND TRUE)
 else()

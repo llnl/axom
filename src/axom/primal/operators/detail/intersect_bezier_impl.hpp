@@ -62,10 +62,10 @@ namespace detail
  * \sa intersect_bezier
  */
 template <typename T>
-bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
-                             const BezierCurve<T, 2> &c2,
-                             axom::Array<T> &sp,
-                             axom::Array<T> &tp,
+bool intersect_bezier_curves(const BezierCurve<T, 2>& c1,
+                             const BezierCurve<T, 2>& c2,
+                             axom::Array<T>& sp,
+                             axom::Array<T>& tp,
                              double sq_tol,
                              int order1,
                              int order2,
@@ -101,12 +101,12 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
  * \note This function does not properly handle collinear lines
  */
 template <typename T>
-bool intersect_2d_linear(const Point<T, 2> &a,
-                         const Point<T, 2> &b,
-                         const Point<T, 2> &c,
-                         const Point<T, 2> &d,
-                         T &s,
-                         T &t);
+bool intersect_2d_linear(const Point<T, 2>& a,
+                         const Point<T, 2>& b,
+                         const Point<T, 2>& c,
+                         const Point<T, 2>& d,
+                         T& s,
+                         T& t);
 
 /*!
  * \brief Recursive function to find intersections between a ray and a Bezier curve
@@ -137,10 +137,10 @@ bool intersect_2d_linear(const Point<T, 2> &a,
  * \sa intersect_bezier
  */
 template <typename T>
-bool intersect_ray_bezier(const Ray<T, 2> &r,
-                          const BezierCurve<T, 2> &c,
-                          axom::Array<T> &rp,
-                          axom::Array<T> &cp,
+bool intersect_ray_bezier(const Ray<T, 2>& r,
+                          const BezierCurve<T, 2>& c,
+                          axom::Array<T>& rp,
+                          axom::Array<T>& cp,
                           double sq_tol,
                           double EPS,
                           int order,
@@ -177,10 +177,10 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \sa intersect_bezier
  */
 template <typename T>
-bool intersect_circle_bezier(const Sphere<T, 2> &circle,
-                             const BezierCurve<T, 2> &curve,
-                             axom::Array<T> &circle_params,
-                             axom::Array<T> &curve_params,
+bool intersect_circle_bezier(const Sphere<T, 2>& circle,
+                             const BezierCurve<T, 2>& curve,
+                             axom::Array<T>& circle_params,
+                             axom::Array<T>& curve_params,
                              double sq_tol,
                              double EPS,
                              int order,
@@ -201,21 +201,21 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
  *   of Bezier curves.
  */
 template <typename T>
-bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
-                              const Point<T, 2> &a,
-                              const Point<T, 2> &b,
-                              T &c1,
-                              T &c2,
-                              T &t1,
-                              T &t2,
+bool intersect_2d_circle_line(const Sphere<T, 2>& circ,
+                              const Point<T, 2>& a,
+                              const Point<T, 2>& b,
+                              T& c1,
+                              T& c2,
+                              T& t1,
+                              T& t2,
                               double EPS);
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
 template <typename T>
-bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
-                             const BezierCurve<T, 2> &c2,
-                             axom::Array<T> &sp,
-                             axom::Array<T> &tp,
+bool intersect_bezier_curves(const BezierCurve<T, 2>& c1,
+                             const BezierCurve<T, 2>& c2,
+                             axom::Array<T>& sp,
+                             axom::Array<T>& tp,
                              double sq_tol,
                              int order1,
                              int order2,
@@ -280,12 +280,12 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
 }
 
 template <typename T>
-bool intersect_2d_linear(const Point<T, 2> &a,
-                         const Point<T, 2> &b,
-                         const Point<T, 2> &c,
-                         const Point<T, 2> &d,
-                         T &s,
-                         T &t)
+bool intersect_2d_linear(const Point<T, 2>& a,
+                         const Point<T, 2>& b,
+                         const Point<T, 2>& c,
+                         const Point<T, 2>& d,
+                         T& s,
+                         T& t)
 {
   // Implementation inspired by Section 5.1.9.1 of
   // C. Ericson's Real-Time Collision Detection book
@@ -322,10 +322,10 @@ bool intersect_2d_linear(const Point<T, 2> &a,
 }
 
 template <typename T>
-bool intersect_ray_bezier(const Ray<T, 2> &r,
-                          const BezierCurve<T, 2> &c,
-                          axom::Array<T> &rp,
-                          axom::Array<T> &cp,
+bool intersect_ray_bezier(const Ray<T, 2>& r,
+                          const BezierCurve<T, 2>& c,
+                          axom::Array<T>& rp,
+                          axom::Array<T>& cp,
                           double sq_tol,
                           double EPS,
                           int order,
@@ -391,10 +391,10 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
 }
 
 template <typename T>
-bool intersect_circle_bezier(const Sphere<T, 2> &circle,
-                             const BezierCurve<T, 2> &curve,
-                             axom::Array<T> &circle_p,
-                             axom::Array<T> &curve_p,
+bool intersect_circle_bezier(const Sphere<T, 2>& circle,
+                             const BezierCurve<T, 2>& curve,
+                             axom::Array<T>& circle_p,
+                             axom::Array<T>& curve_p,
                              double sq_tol,
                              double EPS,
                              int order,
@@ -457,13 +457,13 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
 }
 
 template <typename T>
-bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
-                              const Point<T, 2> &a,
-                              const Point<T, 2> &b,
-                              T &c1,
-                              T &c2,
-                              T &t1,
-                              T &t2,
+bool intersect_2d_circle_line(const Sphere<T, 2>& circ,
+                              const Point<T, 2>& a,
+                              const Point<T, 2>& b,
+                              T& c1,
+                              T& c2,
+                              T& t1,
+                              T& t2,
                               double EPS)
 {
   T dx = b[0] - a[0];
@@ -541,10 +541,10 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
 }
 
 template <typename T>
-bool intersect_nurbscurves(const NURBSCurve<T, 2> &n1,
-                           const NURBSCurve<T, 2> &n2,
-                           axom::Array<T> &p1,
-                           axom::Array<T> &p2,
+bool intersect_nurbscurves(const NURBSCurve<T, 2>& n1,
+                           const NURBSCurve<T, 2>& n2,
+                           axom::Array<T>& p1,
+                           axom::Array<T>& p2,
                            double tol)
 {
   // Decompose both NURBS curves into Bezier segments

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 // Release library allocated memory.
-void QUEST_SHROUD_memory_destructor(QUEST_SHROUD_capsule_data *cap)
+void QUEST_SHROUD_memory_destructor(QUEST_SHROUD_capsule_data* cap)
 {
   cap->addr = nullptr;
   cap->idtor = 0;  // avoid deleting again
