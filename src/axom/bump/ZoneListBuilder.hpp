@@ -87,30 +87,29 @@ public:
     AXOM_ANNOTATE_BEGIN("nMatsPerNode");
     axom::Array<int> nMatsPerNode(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto nMatsPerNodeView = nMatsPerNode.view();
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType nodeIndex) { nMatsPerNodeView[nodeIndex] = 1; });
+    axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType nodeIndex) {
+      nMatsPerNodeView[nodeIndex] = 1;
+    });
 
     // Determine max number of materials a node might touch.
     MatsetView deviceMatsetView(m_matsetView);
     const TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      m_topologyView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const int nmats = deviceMatsetView.numberOfMaterials(zoneIndex);
-        if(nmats > 1)
-        {
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-          const auto nnodesThisZone = zone.numberOfNodes();
-          int* nodeData = nMatsPerNodeView.data();
-          for(axom::IndexType i = 0; i < nnodesThisZone; i++)
-          {
-            const auto nodeId = zone.getId(i);
-            int* nodePtr = nodeData + nodeId;
-            axom::atomicMax<ExecSpace>(nodePtr, nmats);
-          }
-        }
-      });
+    axom::for_all<ExecSpace>(m_topologyView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const int nmats = deviceMatsetView.numberOfMaterials(zoneIndex);
+                               if(nmats > 1)
+                               {
+                                 const auto zone = deviceTopologyView.zone(zoneIndex);
+                                 const auto nnodesThisZone = zone.numberOfNodes();
+                                 int* nodeData = nMatsPerNodeView.data();
+                                 for(axom::IndexType i = 0; i < nnodesThisZone; i++)
+                                 {
+                                   const auto nodeId = zone.getId(i);
+                                   int* nodePtr = nodeData + nodeId;
+                                   axom::atomicMax<ExecSpace>(nodePtr, nmats);
+                                 }
+                               }
+                             });
     axom::synchronize<ExecSpace>();
     AXOM_ANNOTATE_END("nMatsPerNode");
 
@@ -119,22 +118,20 @@ public:
     const auto nzones = m_topologyView.numberOfZones();
     axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        MaskType clean {1};
-        const axom::IndexType nnodesThisZone = zone.numberOfNodes();
-        const auto& zoneNodeIds = zone.getIdsStorage();
-        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
-        {
-          const auto nodeId = zoneNodeIds[i];
-          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
-        }
+      MaskType clean {1};
+      const axom::IndexType nnodesThisZone = zone.numberOfNodes();
+      const auto& zoneNodeIds = zone.getIdsStorage();
+      for(axom::IndexType i = 0; i < nnodesThisZone; i++)
+      {
+        const auto nodeId = zoneNodeIds[i];
+        clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
+      }
 
-        maskView[zoneIndex] = clean;
-      });
+      maskView[zoneIndex] = clean;
+    });
     AXOM_ANNOTATE_END("mask");
 
     axom::IndexType nClean = 0;
@@ -147,11 +144,9 @@ public:
       {
         // On device, use a reduction on maskView to count clean zones.
         axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-        axom::for_all<ExecSpace>(
-          nzones,
-          AXOM_LAMBDA(axom::IndexType zoneIndex) {
-            mask_reduce += static_cast<int>(maskView[zoneIndex]);
-          });
+        axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+          mask_reduce += static_cast<int>(maskView[zoneIndex]);
+        });
         nClean = mask_reduce.get();
       }
       else
@@ -185,36 +180,30 @@ public:
       cleanIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nClean, nClean, allocatorID);
       auto cleanIndicesView = cleanIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          if(maskView[index] > 0)
-          {
-            cleanIndicesView[maskOffsetsView[index]] = index;
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        if(maskView[index] > 0)
+        {
+          cleanIndicesView[maskOffsetsView[index]] = index;
+        }
+      });
       AXOM_ANNOTATE_END("cleanIndices");
 
       // Make the mixedIndices array.
       AXOM_ANNOTATE_BEGIN("mixedIndices");
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          maskView[index] = (maskView[index] == MaskType {1}) ? MaskType {0} : MaskType {1};
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        maskView[index] = (maskView[index] == MaskType {1}) ? MaskType {0} : MaskType {1};
+      });
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
       const int nMixed = nzones - nClean;
       mixedIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nMixed, nMixed, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          if(maskView[index] > 0)
-          {
-            mixedIndicesView[maskOffsetsView[index]] = index;
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        if(maskView[index] > 0)
+        {
+          mixedIndicesView[maskOffsetsView[index]] = index;
+        }
+      });
       AXOM_ANNOTATE_END("mixedIndices");
     }
     else
@@ -226,9 +215,9 @@ public:
       mixedIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) { mixedIndicesView[index] = index; });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        mixedIndicesView[index] = index;
+      });
     }
   }
 
@@ -260,31 +249,29 @@ public:
     AXOM_ANNOTATE_BEGIN("nMatsPerNode");
     axom::Array<int> nMatsPerNode(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto nMatsPerNodeView = nMatsPerNode.view();
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType nodeIndex) { nMatsPerNodeView[nodeIndex] = 1; });
+    axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType nodeIndex) {
+      nMatsPerNodeView[nodeIndex] = 1;
+    });
 
     // Determine max number of materials a node might touch.
     MatsetView deviceMatsetView(m_matsetView);
     const TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const int nmats = deviceMatsetView.numberOfMaterials(zoneIndex);
-        if(nmats > 1)
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const int nmats = deviceMatsetView.numberOfMaterials(zoneIndex);
+      if(nmats > 1)
+      {
+        const auto zone = deviceTopologyView.zone(zoneIndex);
+        const auto nnodesThisZone = zone.numberOfNodes();
+        int* nodeData = nMatsPerNodeView.data();
+        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
         {
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-          const auto nnodesThisZone = zone.numberOfNodes();
-          int* nodeData = nMatsPerNodeView.data();
-          for(axom::IndexType i = 0; i < nnodesThisZone; i++)
-          {
-            const auto nodeId = zone.getId(i);
-            int* nodePtr = nodeData + nodeId;
-            axom::atomicMax<ExecSpace>(nodePtr, nmats);
-          }
+          const auto nodeId = zone.getId(i);
+          int* nodePtr = nodeData + nodeId;
+          axom::atomicMax<ExecSpace>(nodePtr, nmats);
         }
-      });
+      }
+    });
     AXOM_ANNOTATE_END("nMatsPerNode");
 
     // Now, mark all selected zones that have 1 mat per node as clean.
@@ -292,22 +279,20 @@ public:
     const auto nzones = selectedZonesView.size();
     axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        MaskType clean {1};
-        const axom::IndexType nnodesThisZone = zone.numberOfNodes();
-        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
-        {
-          const auto nodeId = zone.getId(i);
-          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
-        }
+      MaskType clean {1};
+      const axom::IndexType nnodesThisZone = zone.numberOfNodes();
+      for(axom::IndexType i = 0; i < nnodesThisZone; i++)
+      {
+        const auto nodeId = zone.getId(i);
+        clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
+      }
 
-        maskView[szIndex] = clean;
-      });
+      maskView[szIndex] = clean;
+    });
     AXOM_ANNOTATE_END("mask");
 
     axom::IndexType nClean = 0;
@@ -320,11 +305,9 @@ public:
       {
         // On device, use a reduction on maskView to count clean zones.
         axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-        axom::for_all<ExecSpace>(
-          nzones,
-          AXOM_LAMBDA(axom::IndexType szIndex) {
-            mask_reduce += static_cast<int>(maskView[szIndex]);
-          });
+        axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+          mask_reduce += static_cast<int>(maskView[szIndex]);
+        });
         nClean = mask_reduce.get();
       }
       else
@@ -358,36 +341,30 @@ public:
       cleanIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nClean, nClean, allocatorID);
       auto cleanIndicesView = cleanIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          if(maskView[index] > 0)
-          {
-            cleanIndicesView[maskOffsetsView[index]] = selectedZonesView[index];
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        if(maskView[index] > 0)
+        {
+          cleanIndicesView[maskOffsetsView[index]] = selectedZonesView[index];
+        }
+      });
       AXOM_ANNOTATE_END("cleanIndices");
 
       // Make the mixedIndices array.
       AXOM_ANNOTATE_BEGIN("mixedIndices");
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          maskView[index] = (maskView[index] == MaskType {1}) ? MaskType {0} : MaskType {1};
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        maskView[index] = (maskView[index] == MaskType {1}) ? MaskType {0} : MaskType {1};
+      });
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
       const int nMixed = nzones - nClean;
       mixedIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nMixed, nMixed, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          if(maskView[index] > 0)
-          {
-            mixedIndicesView[maskOffsetsView[index]] = selectedZonesView[index];
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        if(maskView[index] > 0)
+        {
+          mixedIndicesView[maskOffsetsView[index]] = selectedZonesView[index];
+        }
+      });
       AXOM_ANNOTATE_END("mixedIndices");
     }
     else
@@ -399,9 +376,9 @@ public:
       mixedIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) { mixedIndicesView[index] = selectedZonesView[index]; });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        mixedIndicesView[index] = selectedZonesView[index];
+      });
     }
   }
 
@@ -429,17 +406,15 @@ public:
     auto maskView = mask.view();
     axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     const MatsetView deviceMatsetView(m_matsetView);
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto matZoneIndex = zoneIndex;
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto matZoneIndex = zoneIndex;
 
-        // clean zone == 1, mixed zone = 0
-        const int ival = (deviceMatsetView.numberOfMaterials(matZoneIndex) == 1) ? 1 : 0;
-        maskView[szIndex] = static_cast<MaskType>(ival);
-        mask_reduce += ival;
-      });
+      // clean zone == 1, mixed zone = 0
+      const int ival = (deviceMatsetView.numberOfMaterials(matZoneIndex) == 1) ? 1 : 0;
+      maskView[szIndex] = static_cast<MaskType>(ival);
+      mask_reduce += ival;
+    });
     AXOM_ANNOTATE_END("mask");
 
     const axom::IndexType numCleanZones = mask_reduce.get();
@@ -458,15 +433,13 @@ public:
                                                   numCleanZones,
                                                   allocatorID);
       auto cleanIndicesView = cleanIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          if(maskView[szIndex] > 0)
-          {
-            cleanIndicesView[maskOffsetsView[szIndex]] = selectedZonesView[szIndex];
-          }
-          maskView[szIndex] = (maskView[szIndex] > 0) ? MaskType {0} : MaskType {1};
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+        if(maskView[szIndex] > 0)
+        {
+          cleanIndicesView[maskOffsetsView[szIndex]] = selectedZonesView[szIndex];
+        }
+        maskView[szIndex] = (maskView[szIndex] > 0) ? MaskType {0} : MaskType {1};
+      });
 
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
 
@@ -476,14 +449,12 @@ public:
                                                   numMixedZones,
                                                   allocatorID);
       auto mixedIndicesView = mixedIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          if(maskView[szIndex] > 0)
-          {
-            mixedIndicesView[maskOffsetsView[szIndex]] = selectedZonesView[szIndex];
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+        if(maskView[szIndex] > 0)
+        {
+          mixedIndicesView[maskOffsetsView[szIndex]] = selectedZonesView[szIndex];
+        }
+      });
     }
     else if(numCleanZones > 0)
     {
@@ -493,9 +464,9 @@ public:
       cleanIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto cleanIndicesView = cleanIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) { cleanIndicesView[index] = selectedZonesView[index]; });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        cleanIndicesView[index] = selectedZonesView[index];
+      });
 
       mixedIndices = axom::Array<axom::IndexType>();
     }
@@ -509,9 +480,9 @@ public:
       mixedIndices =
         axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType index) { mixedIndicesView[index] = selectedZonesView[index]; });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        mixedIndicesView[index] = selectedZonesView[index];
+      });
     }
   }
 

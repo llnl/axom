@@ -390,7 +390,7 @@ void run_batched_query(mint::UniformMesh*& mesh)
   // Fill the coordinate arrays
   mint::for_all_nodes<ExecPolicy, mint::xargs::xyz>(
     mesh,
-    AXOM_LAMBDA(axom::IndexType idx, double xx, double yy, double zz) {
+    [=] AXOM_HOST_DEVICE(axom::IndexType idx, double xx, double yy, double zz) {
       x[idx] = xx;
       y[idx] = yy;
       z[idx] = zz;

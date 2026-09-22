@@ -162,13 +162,11 @@ private:
   {
     IndexingPolicy device_indexing(m_indexing);
     SliceData device_slice(slice);
-    axom::for_all<ExecSpace>(
-      output_view.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto zone_index = device_slice.m_indicesView[index];
-        const auto transformed_index = device_indexing[zone_index];
-        output_view[index] = values_view[transformed_index];
-      });
+    axom::for_all<ExecSpace>(output_view.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto zone_index = device_slice.m_indicesView[index];
+      const auto transformed_index = device_indexing[zone_index];
+      output_view[index] = values_view[transformed_index];
+    });
   }
 
 // The following members are private (unless using CUDA)

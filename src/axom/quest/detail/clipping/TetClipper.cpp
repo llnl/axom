@@ -132,65 +132,61 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 
   auto toUnitTet = m_toUnitTet;
 
-  axom::for_all<ExecSpace>(
-    vertCount,
-    AXOM_LAMBDA(axom::IndexType vertId) {
-      // vh is the heights of the vertex in the space of the unit tet.
-      // See comment on m_toUnitTet.
-      axom::NumericArray<double, 4> vh({vX[vertId], vY[vertId], vZ[vertId], 0});
-      toUnitTet.transform(vh[0], vh[1], vh[2]);
-      vh[3] = 1 - vh[0] - vh[1] - vh[2];
+  axom::for_all<ExecSpace>(vertCount, [=] AXOM_HOST_DEVICE(axom::IndexType vertId) {
+    // vh is the heights of the vertex in the space of the unit tet.
+    // See comment on m_toUnitTet.
+    axom::NumericArray<double, 4> vh({vX[vertId], vY[vertId], vZ[vertId], 0});
+    toUnitTet.transform(vh[0], vh[1], vh[2]);
+    vh[3] = 1 - vh[0] - vh[1] - vh[2];
 
-      for(int p = 0; p < 4; ++p)
-      {
-        belowView[p][vertId] = vh[p] < 0;
-        aboveView[p][vertId] = vh[p] > 1;
-      }
-    });
+    for(int p = 0; p < 4; ++p)
+    {
+      belowView[p][vertId] = vh[p] < 0;
+      aboveView[p][vertId] = vh[p] > 1;
+    }
+  });
 
   constexpr double EPS = 1e-10;
 
   /*
    * Compute whether mesh cells are above/below the tet.
    */
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
-      {
-        cellLabels[cellId] = LabelType::LABEL_OUT;
-        return;
-      }
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
+    {
+      cellLabels[cellId] = LabelType::LABEL_OUT;
+      return;
+    }
 
-      LabelType& cellLabel = cellLabels[cellId];
-      auto cellVertIds = connView[cellId];
+    LabelType& cellLabel = cellLabels[cellId];
+    auto cellVertIds = connView[cellId];
 
-      cellLabel = LabelType::LABEL_ON;
-      bool vertsAreOnTetSideOfAllPlanes = true;
-      for(IndexType p = 0; p < 4; ++p)
+    cellLabel = LabelType::LABEL_ON;
+    bool vertsAreOnTetSideOfAllPlanes = true;
+    for(IndexType p = 0; p < 4; ++p)
+    {
+      bool allVertsBelow = true;
+      bool allVertsAbove = true;
+      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
       {
-        bool allVertsBelow = true;
-        bool allVertsAbove = true;
-        for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
-        {
-          int vertId = cellVertIds[vi];
-          auto vertIsBelow = belowView[p][vertId];
-          auto vertIsAbove = aboveView[p][vertId];
-          allVertsBelow &= vertIsBelow;
-          allVertsAbove &= vertIsAbove;
-          vertsAreOnTetSideOfAllPlanes &= !vertIsBelow;
-        }
-        if(allVertsBelow || allVertsAbove)
-        {
-          cellLabel = LabelType::LABEL_OUT;
-          break;
-        }
+        int vertId = cellVertIds[vi];
+        auto vertIsBelow = belowView[p][vertId];
+        auto vertIsAbove = aboveView[p][vertId];
+        allVertsBelow &= vertIsBelow;
+        allVertsAbove &= vertIsAbove;
+        vertsAreOnTetSideOfAllPlanes &= !vertIsBelow;
       }
-      if(cellLabel != LabelType::LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
+      if(allVertsBelow || allVertsAbove)
       {
-        cellLabel = LabelType::LABEL_IN;
+        cellLabel = LabelType::LABEL_OUT;
+        break;
       }
-    });
+    }
+    if(cellLabel != LabelType::LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
+    {
+      cellLabel = LabelType::LABEL_IN;
+    }
+  });
 
   return;
 }
@@ -263,65 +259,63 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   auto toUnitTet = m_toUnitTet;
   constexpr double EPS = 1e-10;
 
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType ci) {
-      axom::IndexType cellId = cellIds[ci];
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
+    axom::IndexType cellId = cellIds[ci];
 
-      const TetrahedronType* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
+    const TetrahedronType* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
 
-      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+    for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+    {
+      const TetrahedronType& cellTet = tetsForCell[ti];
+      LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+      const axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+
+      if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
       {
-        const TetrahedronType& cellTet = tetsForCell[ti];
-        LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
-        const axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+        tetLabel = LabelType::LABEL_OUT;
+        continue;
+      }
 
-        if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+      tetLabel = LabelType::LABEL_ON;
+
+      bool allVertsBelow = true;
+      bool allVertsAbove = true;
+      bool vertsAreOnTetSideOfAllPlanes = true;
+
+      for(IndexType vi = 0; vi < 4; ++vi)
+      {
+        const auto& vert = cellTet[vi];
+
+        // vh is the heights of vert in the space of the unit tet.
+        // See comment on m_toUnitTet.
+        axom::NumericArray<double, 4> vh({vert[0], vert[1], vert[2], 0});
+        toUnitTet.transform(vh[0], vh[1], vh[2]);
+        vh[3] = 1 - vh[0] - vh[1] - vh[2];
+
+        // Where vertex vi is w.r.t. the tet resting on side pj.
+        for(int pj = 0; pj < 4; ++pj)
+        {
+          bool vertIsBelow = vh[pj] < 0;
+          bool vertIsAbove = vh[pj] > 1;
+
+          allVertsBelow &= vertIsBelow;
+          allVertsAbove &= vertIsAbove;
+          vertsAreOnTetSideOfAllPlanes &= !vertIsBelow;
+        }
+
+        if(allVertsBelow || allVertsAbove)
         {
           tetLabel = LabelType::LABEL_OUT;
-          continue;
-        }
-
-        tetLabel = LabelType::LABEL_ON;
-
-        bool allVertsBelow = true;
-        bool allVertsAbove = true;
-        bool vertsAreOnTetSideOfAllPlanes = true;
-
-        for(IndexType vi = 0; vi < 4; ++vi)
-        {
-          const auto& vert = cellTet[vi];
-
-          // vh is the heights of vert in the space of the unit tet.
-          // See comment on m_toUnitTet.
-          axom::NumericArray<double, 4> vh({vert[0], vert[1], vert[2], 0});
-          toUnitTet.transform(vh[0], vh[1], vh[2]);
-          vh[3] = 1 - vh[0] - vh[1] - vh[2];
-
-          // Where vertex vi is w.r.t. the tet resting on side pj.
-          for(int pj = 0; pj < 4; ++pj)
-          {
-            bool vertIsBelow = vh[pj] < 0;
-            bool vertIsAbove = vh[pj] > 1;
-
-            allVertsBelow &= vertIsBelow;
-            allVertsAbove &= vertIsAbove;
-            vertsAreOnTetSideOfAllPlanes &= !vertIsBelow;
-          }
-
-          if(allVertsBelow || allVertsAbove)
-          {
-            tetLabel = LabelType::LABEL_OUT;
-            break;
-          }
-        }
-
-        if(tetLabel != LabelType::LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
-        {
-          tetLabel = LabelType::LABEL_IN;
+          break;
         }
       }
-    });
+
+      if(tetLabel != LabelType::LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
+      {
+        tetLabel = LabelType::LABEL_IN;
+      }
+    }
+  });
 
   return;
 }

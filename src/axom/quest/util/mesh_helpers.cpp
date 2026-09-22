@@ -383,22 +383,20 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
 
   const axom::StackArray<const axom::StackArray<axom::IndexType, DIM>, 8> cornerOffsets {
     {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}}};
-  axom::for_all<ExecSpace>(
-    cCount,
-    AXOM_LAMBDA(axom::IndexType iCell) {
-      axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
-      for(int n = 0; n < 8; ++n)
+  axom::for_all<ExecSpace>(cCount, [=] AXOM_HOST_DEVICE(axom::IndexType iCell) {
+    axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
+    for(int n = 0; n < 8; ++n)
+    {
+      const auto& cornerOffset = cornerOffsets[n];
+      axom::StackArray<axom::IndexType, DIM> vIdx;
+      for(int d = 0; d < DIM; ++d)
       {
-        const auto& cornerOffset = cornerOffsets[n];
-        axom::StackArray<axom::IndexType, DIM> vIdx;
-        for(int d = 0; d < DIM; ++d)
-        {
-          vIdx[d] = cIdx[d] + cornerOffset[d];
-        }
-        axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
-        connArrayView(iCell, n) = iVert;
+        vIdx[d] = cIdx[d] + cornerOffset[d];
       }
-    });
+      axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
+      connArrayView(iCell, n) = iVert;
+    }
+  });
 
   const bool addExtraDataForMint = true;
   if(addExtraDataForMint)
@@ -509,22 +507,20 @@ void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::
 
   const axom::StackArray<const axom::StackArray<axom::IndexType, DIM>, NUM_VERTS_PER_QUAD> cornerOffsets {
     {{0, 0}, {1, 0}, {1, 1}, {0, 1}}};
-  axom::for_all<ExecSpace>(
-    cCount,
-    AXOM_LAMBDA(axom::IndexType iCell) {
-      axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
-      for(int n = 0; n < NUM_VERTS_PER_QUAD; ++n)
+  axom::for_all<ExecSpace>(cCount, [=] AXOM_HOST_DEVICE(axom::IndexType iCell) {
+    axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
+    for(int n = 0; n < NUM_VERTS_PER_QUAD; ++n)
+    {
+      const auto& cornerOffset = cornerOffsets[n];
+      axom::StackArray<axom::IndexType, DIM> vIdx;
+      for(int d = 0; d < DIM; ++d)
       {
-        const auto& cornerOffset = cornerOffsets[n];
-        axom::StackArray<axom::IndexType, DIM> vIdx;
-        for(int d = 0; d < DIM; ++d)
-        {
-          vIdx[d] = cIdx[d] + cornerOffset[d];
-        }
-        axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
-        connArrayView(iCell, n) = iVert;
+        vIdx[d] = cIdx[d] + cornerOffset[d];
       }
-    });
+      axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
+      connArrayView(iCell, n) = iVert;
+    }
+  });
 
   const bool addExtraDataForMint = true;
   if(addExtraDataForMint)
@@ -679,7 +675,7 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
   {
     axom::for_all<ExecSpace>(
       shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
         zView(i, j, k) = domainBox.getMin()[2] + k * dz;
@@ -694,7 +690,7 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
 
     axom::for_all<ExecSpace>(
       shapeKJI,
-      AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
         zView(i, j, k) = domainBox.getMin()[2] + k * dz;
@@ -731,24 +727,20 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
-    axom::for_all<ExecSpace>(
-      shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
-        xView(i, j) = domainBox.getMin()[0] + i * dx;
-        yView(i, j) = domainBox.getMin()[1] + j * dy;
-      });
+    axom::for_all<ExecSpace>(shape, [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j) {
+      xView(i, j) = domainBox.getMin()[0] + i * dx;
+      yView(i, j) = domainBox.getMin()[1] + j * dy;
+    });
   }
   else
   {
     axom::StackArray<axom::IndexType, 2> shapeJI;
     shapeJI[0] = shape[1];
     shapeJI[1] = shape[0];
-    axom::for_all<ExecSpace>(
-      shapeJI,
-      AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) {
-        xView(i, j) = domainBox.getMin()[0] + i * dx;
-        yView(i, j) = domainBox.getMin()[1] + j * dy;
-      });
+    axom::for_all<ExecSpace>(shapeJI, [=] AXOM_HOST_DEVICE(axom::IndexType j, axom::IndexType i) {
+      xView(i, j) = domainBox.getMin()[0] + i * dx;
+      yView(i, j) = domainBox.getMin()[1] + j * dy;
+    });
   }
 }
 

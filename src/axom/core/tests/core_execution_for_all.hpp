@@ -36,15 +36,15 @@ struct utility<ExecSpace, 1>
   static axom::IndexType numValues(axom::IndexType N) { return N; }
   static void initialize(int* array, axom::IndexType N, int value)
   {
-    axom::for_all<ExecSpace>(
-      N,
-      AXOM_LAMBDA(axom::IndexType index) { array[index] = static_cast<int>(index + value); });
+    axom::for_all<ExecSpace>(N, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      array[index] = static_cast<int>(index + value);
+    });
   }
   static void modify(int* array, axom::IndexType N, int value)
   {
-    axom::for_all<ExecSpace>(
-      N,
-      AXOM_LAMBDA(axom::IndexType index) { array[index] -= static_cast<int>(index + value); });
+    axom::for_all<ExecSpace>(N, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      array[index] -= static_cast<int>(index + value);
+    });
   }
 };
 
@@ -57,22 +57,18 @@ struct utility<ExecSpace, 2>
   static void initialize(int* array, axom::IndexType N, int value)
   {
     axom::StackArray<axom::IndexType, 2> shape {{N, N}};
-    axom::for_all<ExecSpace>(
-      shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
-        const auto index = j * N + i;
-        array[index] = static_cast<int>(index + value);
-      });
+    axom::for_all<ExecSpace>(shape, [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j) {
+      const auto index = j * N + i;
+      array[index] = static_cast<int>(index + value);
+    });
   }
   static void modify(int* array, axom::IndexType N, int value)
   {
     axom::StackArray<axom::IndexType, 2> shape {{N, N}};
-    axom::for_all<ExecSpace>(
-      shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
-        const auto index = j * N + i;
-        array[index] -= static_cast<int>(index + value);
-      });
+    axom::for_all<ExecSpace>(shape, [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j) {
+      const auto index = j * N + i;
+      array[index] -= static_cast<int>(index + value);
+    });
   }
 };
 
@@ -87,7 +83,7 @@ struct utility<ExecSpace, 3>
     axom::StackArray<axom::IndexType, 3> shape {{N, N, N}};
     axom::for_all<ExecSpace>(
       shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         const auto index = (k * N * N) + (j * N) + i;
         array[index] = static_cast<int>(index + value);
       });
@@ -97,7 +93,7 @@ struct utility<ExecSpace, 3>
     axom::StackArray<axom::IndexType, 3> shape {{N, N, N}};
     axom::for_all<ExecSpace>(
       shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         const auto index = (k * N * N) + (j * N) + i;
         array[index] -= static_cast<int>(index + value);
       });

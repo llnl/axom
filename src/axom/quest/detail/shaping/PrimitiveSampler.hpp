@@ -136,9 +136,9 @@ public:
     // Print out the total volume of all the tetrahedra
     auto prim_view = m_primitives.view();
     axom::ReduceSum<ExecSpace, double> total_tet_vol(0.0);
-    axom::for_all<ExecSpace>(
-      num_cells,
-      AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += prim_view[i].volume(); });
+    axom::for_all<ExecSpace>(num_cells, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      total_tet_vol += prim_view[i].volume();
+    });
 
     SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
                                      "Total volume of all generated tetrahedra is {:.2Lf}",
@@ -214,9 +214,9 @@ public:
       AXOM_ANNOTATE_SCOPE("project query points");
       projected_qpts.resize(nq);
       auto proj_pts_v = projected_qpts.view();
-      axom::for_all<ExecSpace>(
-        nq,
-        AXOM_LAMBDA(axom::IndexType i) { proj_pts_v[i] = projector(orig_qpts_v[i]); });
+      axom::for_all<ExecSpace>(nq, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        proj_pts_v[i] = projector(orig_qpts_v[i]);
+      });
     }
     // We need to reinterpret_cast since the compiler can't rule out that FromPoint is a different type from ToPoint
     // in the else case, despite our SLIC_ERROR above that checks for this.
@@ -226,7 +226,7 @@ public:
       : axom::ArrayView<ToPoint>(reinterpret_cast<ToPoint*>(pos_coef->HostReadWrite()), nq);
 
     axom::ArrayView<double> inout_view(const_cast<double*>(inout->HostRead()), nq);
-    axom::for_all<ExecSpace>(nq, AXOM_LAMBDA(axom::IndexType i) { inout_view[i] = 0.; });
+    axom::for_all<ExecSpace>(nq, [=] AXOM_HOST_DEVICE(axom::IndexType i) { inout_view[i] = 0.; });
 
     axom::Array<IndexType> offsets(nq, nq);
     axom::Array<IndexType> counts(nq, nq);
@@ -242,21 +242,19 @@ public:
     AXOM_UNUSED_VAR(aabbs_view);
 
     AXOM_ANNOTATE_BEGIN("checking containment");
-    axom::for_all<ExecSpace>(
-      nq,
-      AXOM_LAMBDA(axom::IndexType i) {
-        for(int j = 0; j < counts_view[i]; j++)
+    axom::for_all<ExecSpace>(nq, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      for(int j = 0; j < counts_view[i]; j++)
+      {
+        const auto shapeIdx = candidates_view[offsets_view[i] + j];
+
+        SLIC_ASSERT(aabbs_view[shapeIdx].scale(1.05).contains(query_view[i]));
+
+        if(prims_view[shapeIdx].contains(query_view[i]))
         {
-          const auto shapeIdx = candidates_view[offsets_view[i] + j];
-
-          SLIC_ASSERT(aabbs_view[shapeIdx].scale(1.05).contains(query_view[i]));
-
-          if(prims_view[shapeIdx].contains(query_view[i]))
-          {
-            inout_view[i] = 1.;
-          }
+          inout_view[i] = 1.;
         }
-      });
+      }
+    });
     AXOM_ANNOTATE_END("checking containment");
 
     timer.stop();

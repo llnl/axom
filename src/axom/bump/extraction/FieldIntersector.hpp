@@ -186,11 +186,9 @@ private:
   void copyValues(DataView src_view)
   {
     auto clip_field_view = m_fieldData.view();
-    axom::for_all<ExecSpace>(
-      src_view.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        clip_field_view[index] = static_cast<FieldType>(src_view[index]);
-      });
+    axom::for_all<ExecSpace>(src_view.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      clip_field_view[index] = static_cast<FieldType>(src_view[index]);
+    });
   }
 
   axom::Array<FieldType> m_fieldData {};

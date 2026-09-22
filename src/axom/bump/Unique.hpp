@@ -128,12 +128,10 @@ struct Unique
     axom::Array<axom::IndexType> indices(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto keys_view = keys.view();
     auto indices_view = indices.view();
-    axom::for_all<ExecSpace>(
-      n,
-      AXOM_LAMBDA(axom::IndexType i) {
-        keys_view[i] = keys_orig_view[i];
-        indices_view[i] = i;
-      });
+    axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      keys_view[i] = keys_orig_view[i];
+      indices_view[i] = i;
+    });
 #if defined(AXOM_DEBUG_UNIQUE)
     // Input values
     detail::printContainer<ExecSpace>("keys", keys_view);
@@ -147,15 +145,12 @@ struct Unique
     axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto mask_view = mask.view();
     axom::ReduceSum<ExecSpace, axom::IndexType> mask_sum(0);
-    axom::for_all<ExecSpace>(
-      n,
-      AXOM_LAMBDA(axom::IndexType i) {
-        const MaskType m = (i >= 1)
-          ? ((keys_view[i] != keys_view[i - 1]) ? MaskType {1} : MaskType {0})
-          : MaskType {1};
-        mask_view[i] = m;
-        mask_sum += static_cast<axom::IndexType>(m);
-      });
+    axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      const MaskType m =
+        (i >= 1) ? ((keys_view[i] != keys_view[i - 1]) ? MaskType {1} : MaskType {0}) : MaskType {1};
+      mask_view[i] = m;
+      mask_sum += static_cast<axom::IndexType>(m);
+    });
 
     // Do a scan on the mask array to build an offset array.
     axom::Array<axom::IndexType> offsets(n, n, allocatorID);
@@ -180,15 +175,13 @@ struct Unique
     // offset in the new array.
     auto skeys_view = skeys.view();
     auto sindices_view = sindices.view();
-    axom::for_all<ExecSpace>(
-      n,
-      AXOM_LAMBDA(axom::IndexType i) {
-        if(mask_view[i])
-        {
-          skeys_view[offsets_view[i]] = keys_view[i];
-          sindices_view[offsets_view[i]] = indices_view[i];
-        }
-      });
+    axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      if(mask_view[i])
+      {
+        skeys_view[offsets_view[i]] = keys_view[i];
+        sindices_view[offsets_view[i]] = indices_view[i];
+      }
+    });
 
 #if defined(AXOM_DEBUG_UNIQUE)
     // Output values

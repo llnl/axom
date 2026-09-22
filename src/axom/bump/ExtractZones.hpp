@@ -215,10 +215,9 @@ protected:
         axom::copy(view.data(),
                    selectedZonesView.data(),
                    sizeof(axom::IndexType) * selectedZonesView.size());
-        axom::for_all<ExecSpace>(
-          selectedZonesView.size(),
-          n,
-          AXOM_LAMBDA(axom::IndexType index) { view[index] = 0; });
+        axom::for_all<ExecSpace>(selectedZonesView.size(),
+                                 n,
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType index) { view[index] = 0; });
       }
       view = m_zoneSlice.view();
     }
@@ -290,13 +289,12 @@ protected:
     {
       axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
       const TopologyView deviceTopologyView(m_topologyView);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          const auto zoneIndex = selectedZonesView[szIndex];
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-          connsize_reduce += zone.numberOfNodes();
-        });
+      axom::for_all<ExecSpace>(selectedZonesView.size(),
+                               [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                 const auto zoneIndex = selectedZonesView[szIndex];
+                                 const auto zone = deviceTopologyView.zone(zoneIndex);
+                                 connsize_reduce += zone.numberOfNodes();
+                               });
       newConnSize = connsize_reduce.get();
     }
     if(!selectedZonesView.empty())
@@ -315,11 +313,9 @@ protected:
                                              nodeSliceSize,
                                              allocatorID);
     auto nodeSliceView = nodeSlice.view();
-    axom::for_all<ExecSpace>(
-      nodeSliceSize,
-      AXOM_LAMBDA(axom::IndexType index) {
-        nodeSliceView[index] = (index < sizes.nodes) ? index : 0;
-      });
+    axom::for_all<ExecSpace>(nodeSliceSize, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      nodeSliceView[index] = (index < sizes.nodes) ? index : 0;
+    });
 
     return sizes;
   }
@@ -359,19 +355,17 @@ protected:
     // Mark all the selected zones' nodes as 1. Multiple threads may write 1 to the same node.
     axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
     TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const axom::IndexType nids = zone.numberOfNodes();
-        for(axom::IndexType i = 0; i < nids; i++)
-        {
-          const auto nodeId = zone.getId(i);
-          maskView[nodeId] = 1;
-        }
-        connsize_reduce += nids;
-      });
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto zone = deviceTopologyView.zone(zoneIndex);
+      const axom::IndexType nids = zone.numberOfNodes();
+      for(axom::IndexType i = 0; i < nids; i++)
+      {
+        const auto nodeId = zone.getId(i);
+        maskView[nodeId] = 1;
+      }
+      connsize_reduce += nids;
+    });
     const auto newConnSize = connsize_reduce.get();
     if(!selectedZonesView.empty())
     {
@@ -388,9 +382,9 @@ protected:
     if constexpr(axom::execution_space<ExecSpace>::onDevice())
     {
       axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-      axom::for_all<ExecSpace>(
-        nnodes,
-        AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
+      axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        mask_reduce += maskView[index];
+      });
       newNumNodes = mask_reduce.get();
     }
     else
@@ -411,21 +405,19 @@ protected:
                                              allocatorID);
     auto old2newView = old2new.view();
     auto nodeSliceView = nodeSlice.view();
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType index) {
-        if(maskView[index] > 0)
-        {
-          nodeSliceView[maskOffsetsView[index]] = index;
-          old2newView[index] = maskOffsetsView[index];
-        }
-      });
+    axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      if(maskView[index] > 0)
+      {
+        nodeSliceView[maskOffsetsView[index]] = index;
+        old2newView[index] = maskOffsetsView[index];
+      }
+    });
     if(extra.nodes > 0)
     {
       axom::for_all<ExecSpace>(
         nnodes,
         nnodes + extra.nodes,
-        AXOM_LAMBDA(axom::IndexType index) { nodeSliceView[index] = 0; });
+        [=] AXOM_HOST_DEVICE(axom::IndexType index) { nodeSliceView[index] = 0; });
     }
 
     Sizes sizes {};
@@ -496,20 +488,19 @@ protected:
 
       // Fill sizes, offsets
       const TopologyView deviceTopologyView(m_topologyView);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          const auto zoneIndex = selectedZonesView[szIndex];
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-          sizesView[szIndex] = zone.numberOfNodes();
-        });
+      axom::for_all<ExecSpace>(selectedZonesView.size(),
+                               [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                 const auto zoneIndex = selectedZonesView[szIndex];
+                                 const auto zone = deviceTopologyView.zone(zoneIndex);
+                                 sizesView[szIndex] = zone.numberOfNodes();
+                               });
 
       if(extra.zones > 0)
       {
         axom::for_all<ExecSpace>(
           dataSizes.zones,
           dataSizes.zones + extra.zones,
-          AXOM_LAMBDA(axom::IndexType index) { sizesView[index] = 0; });
+          [=] AXOM_HOST_DEVICE(axom::IndexType index) { sizesView[index] = 0; });
       }
       axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
 
@@ -517,45 +508,43 @@ protected:
       if(compact(n_options))
       {
         const axom::ArrayView<ConnectivityType> deviceOld2NewView(old2newView);
-        axom::for_all<ExecSpace>(
-          selectedZonesView.size(),
-          AXOM_LAMBDA(axom::IndexType szIndex) {
-            const auto zoneIndex = selectedZonesView[szIndex];
-            const auto zone = deviceTopologyView.zone(zoneIndex);
+        axom::for_all<ExecSpace>(selectedZonesView.size(),
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                   const auto zoneIndex = selectedZonesView[szIndex];
+                                   const auto zone = deviceTopologyView.zone(zoneIndex);
 
-            const int size = static_cast<int>(sizesView[szIndex]);
-            const auto offset = offsetsView[szIndex];
-            for(int i = 0; i < size; i++)
-            {
-              const auto oldNodeId = zone.getId(i);
-              // When compact, we map node ids to the compact node ids.
-              const auto newNodeId = deviceOld2NewView[oldNodeId];
-              connView[offset + i] = newNodeId;
-            }
-          });
+                                   const int size = static_cast<int>(sizesView[szIndex]);
+                                   const auto offset = offsetsView[szIndex];
+                                   for(int i = 0; i < size; i++)
+                                   {
+                                     const auto oldNodeId = zone.getId(i);
+                                     // When compact, we map node ids to the compact node ids.
+                                     const auto newNodeId = deviceOld2NewView[oldNodeId];
+                                     connView[offset + i] = newNodeId;
+                                   }
+                                 });
       }
       else
       {
-        axom::for_all<ExecSpace>(
-          selectedZonesView.size(),
-          AXOM_LAMBDA(axom::IndexType szIndex) {
-            const auto zoneIndex = selectedZonesView[szIndex];
-            const auto zone = deviceTopologyView.zone(zoneIndex);
+        axom::for_all<ExecSpace>(selectedZonesView.size(),
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                   const auto zoneIndex = selectedZonesView[szIndex];
+                                   const auto zone = deviceTopologyView.zone(zoneIndex);
 
-            const int size = static_cast<int>(sizesView[szIndex]);
-            const auto offset = offsetsView[szIndex];
-            for(int i = 0; i < size; i++)
-            {
-              connView[offset + i] = zone.getId(i);
-            }
-          });
+                                   const int size = static_cast<int>(sizesView[szIndex]);
+                                   const auto offset = offsetsView[szIndex];
+                                   for(int i = 0; i < size; i++)
+                                   {
+                                     connView[offset + i] = zone.getId(i);
+                                   }
+                                 });
       }
       if(extra.connectivity > 0)
       {
         axom::for_all<ExecSpace>(
           dataSizes.connectivity,
           dataSizes.connectivity + extra.connectivity,
-          AXOM_LAMBDA(axom::IndexType index) { connView[index] = 0; });
+          [=] AXOM_HOST_DEVICE(axom::IndexType index) { connView[index] = 0; });
       }
 
       // Handle shapes, if present.
@@ -571,17 +560,15 @@ protected:
         auto newShapesView = utils::make_array_view<ConnectivityType>(n_newShapes);
 
         const SelectedZonesView deviceSelectedZonesView(selectedZonesView);
-        axom::for_all<ExecSpace>(
-          dataSizes.zones,
-          AXOM_LAMBDA(axom::IndexType index) {
-            newShapesView[index] = shapesView[deviceSelectedZonesView[index]];
-          });
+        axom::for_all<ExecSpace>(dataSizes.zones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          newShapesView[index] = shapesView[deviceSelectedZonesView[index]];
+        });
         if(extra.zones > 0)
         {
           axom::for_all<ExecSpace>(
             dataSizes.zones,
             dataSizes.zones + extra.zones,
-            AXOM_LAMBDA(axom::IndexType index) { newShapesView[index] = 0; });
+            [=] AXOM_HOST_DEVICE(axom::IndexType index) { newShapesView[index] = 0; });
         }
       }
     }

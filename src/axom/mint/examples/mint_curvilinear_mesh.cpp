@@ -42,7 +42,7 @@ int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
   // STEP 2: fill in the coordinates
   mint::for_all_nodes<axom::SEQ_EXEC, xargs::ij>(
     &mesh,
-    AXOM_LAMBDA(IndexType nodeIdx, IndexType i, IndexType j) {
+    [=] AXOM_HOST_DEVICE(IndexType nodeIdx, IndexType i, IndexType j) {
       const double xx = h * i;
       const double yy = h * j;
       const double alpha = yy + R;

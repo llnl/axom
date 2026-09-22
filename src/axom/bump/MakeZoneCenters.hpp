@@ -86,9 +86,9 @@ public:
     // Select all zones.
     axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
     auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(
-      numZones,
-      AXOM_LAMBDA(axom::IndexType index) { selectedZonesView[index] = index; });
+    axom::for_all<ExecSpace>(numZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      selectedZonesView[index] = index;
+    });
     // Make the zone centers.
     execute(selectedZonesView, n_topology, n_coordset, n_outputField);
   }
@@ -152,29 +152,27 @@ public:
     const CoordsetView deviceCoordsetView(m_coordsetView);
 
     // Blend the nodes in each zone to make a center point.
-    axom::for_all<ExecSpace>(
-      outputSize,
-      AXOM_LAMBDA(axom::IndexType zi) {
-        const auto zoneIndex = selectedZonesView[zi];
-        const auto zone = deviceTopoView.zone(zoneIndex);
-        const axom::IndexType nnodes = zone.numberOfNodes();
+    axom::for_all<ExecSpace>(outputSize, [=] AXOM_HOST_DEVICE(axom::IndexType zi) {
+      const auto zoneIndex = selectedZonesView[zi];
+      const auto zone = deviceTopoView.zone(zoneIndex);
+      const axom::IndexType nnodes = zone.numberOfNodes();
 
-        VectorType blended {};
+      VectorType blended {};
 
-        // Blend points for this zone.
-        for(IndexType i = 0; i < nnodes; i++)
-        {
-          const auto index = zone.getId(i);
-          blended += VectorType(deviceCoordsetView[index]);
-        }
-        blended = blended / static_cast<value_type>(nnodes);
+      // Blend points for this zone.
+      for(IndexType i = 0; i < nnodes; i++)
+      {
+        const auto index = zone.getId(i);
+        blended += VectorType(deviceCoordsetView[index]);
+      }
+      blended = blended / static_cast<value_type>(nnodes);
 
-        // Store the point into the Conduit component arrays.
-        for(int comp = 0; comp < PointType::DIMENSION; comp++)
-        {
-          compViews[comp][zi] = blended[comp];
-        }
-      });
+      // Store the point into the Conduit component arrays.
+      for(int comp = 0; comp < PointType::DIMENSION; comp++)
+      {
+        compViews[comp][zi] = blended[comp];
+      }
+    });
   }
 
 private:

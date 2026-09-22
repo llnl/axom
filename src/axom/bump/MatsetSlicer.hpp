@@ -107,23 +107,19 @@ public:
     if constexpr(axom::execution_space<ExecSpace>::onDevice())
     {
       axom::ReduceSum<ExecSpace, MatsetIndex> size_reduce(0);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
-          sizesView[index] = nmats;
-          size_reduce += nmats;
-        });
+      axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
+        sizesView[index] = nmats;
+        size_reduce += nmats;
+      });
       totalSize = size_reduce.get();
     }
     else
     {
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
-          sizesView[index] = nmats;
-        });
+      axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
+        sizesView[index] = nmats;
+      });
     }
     AXOM_ANNOTATE_END("size");
 
@@ -165,21 +161,19 @@ public:
 
     // Fill in the matset data with the zones we're keeping.
     AXOM_ANNOTATE_BEGIN("copy");
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto size = static_cast<int>(sizesView[index]);
-        const auto offset = offsetsView[index];
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto size = static_cast<int>(sizesView[index]);
+      const auto offset = offsetsView[index];
 
-        auto zoneMat = deviceMatsetView.beginZone(deviceSelectedZonesView[index]);
-        for(int i = 0; i < size; i++, zoneMat++)
-        {
-          const auto destIndex = offset + i;
-          materialIdsView[destIndex] = zoneMat.material_id();
-          volumeFractionsView[destIndex] = zoneMat.volume_fraction();
-          indicesView[destIndex] = destIndex;
-        }
-      });
+      auto zoneMat = deviceMatsetView.beginZone(deviceSelectedZonesView[index]);
+      for(int i = 0; i < size; i++, zoneMat++)
+      {
+        const auto destIndex = offset + i;
+        materialIdsView[destIndex] = zoneMat.material_id();
+        volumeFractionsView[destIndex] = zoneMat.volume_fraction();
+        indicesView[destIndex] = destIndex;
+      }
+    });
     AXOM_ANNOTATE_END("copy");
   }
 

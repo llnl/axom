@@ -22,6 +22,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
   `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
   allocator-ID arguments.
+- Removed `AXOM_LAMBDA` macros and migrated call sites to `[=] AXOM_HOST_DEVICE(...)` or `[=] AXOM_HOST(...)`.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 

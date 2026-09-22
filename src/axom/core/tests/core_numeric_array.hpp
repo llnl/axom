@@ -24,12 +24,10 @@ void check_numeric_array_policy()
 
   double coords_host[DIM];
 
-  axom::for_all<ExecSpace>(
-    1,
-    AXOM_LAMBDA(int /*i*/) {
-      NumericArrayType ones(1.0);
-      ones.to_array(coords);
-    });
+  axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int /*i*/) {
+    NumericArrayType ones(1.0);
+    ones.to_array(coords);
+  });
 
   axom::copy(&coords_host, coords, DIM * sizeof(double));
 

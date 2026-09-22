@@ -687,7 +687,7 @@ void BM_FlatMap_Find_Hit_ExecSpace(benchmark::State& state)
   axom::Array<KeyType> exec_lookup_keys = copy_to_allocator(lookup_keys, allocator_id);
   axom::Array<ValueType> exec_results(lookup_keys.size(), lookup_keys.size(), allocator_id);
 
-  // Note: Using explicit [=] AXOM_HOST_DEVICE instead of AXOM_LAMBDA to avoid
+  // Note: Using explicit [=] AXOM_HOST_DEVICE to avoid
   // RAJA privatizer issues on HIP with non-trivial types in capture
   auto map_view = map.view();
   auto lookup_keys_view = exec_lookup_keys.view();
@@ -738,7 +738,7 @@ void BM_FlatMap_Find_Miss_ExecSpace(benchmark::State& state)
   axom::Array<KeyType> exec_miss_keys = copy_to_allocator(miss_keys, allocator_id);
   axom::Array<int> exec_misses(miss_keys.size(), miss_keys.size(), allocator_id);
 
-  // Note: Using explicit [=] AXOM_HOST_DEVICE instead of AXOM_LAMBDA to avoid
+  // Note: Using explicit [=] AXOM_HOST_DEVICE to avoid
   // RAJA privatizer issues on HIP with non-trivial types in capture
   auto map_view = map.view();
   auto miss_keys_view = exec_miss_keys.view();

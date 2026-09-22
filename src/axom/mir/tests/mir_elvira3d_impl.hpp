@@ -268,7 +268,8 @@ struct test_Elvira3D
   static double variableSum(axom::ArrayView<double> var)
   {
     axom::ReduceSum<ExecSpace, double> reduceVar(0.);
-    axom::for_all<ExecSpace>(var.size(), AXOM_LAMBDA(axom::IndexType i) { reduceVar += var[i]; });
+    axom::for_all<ExecSpace>(var.size(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType i) { reduceVar += var[i]; });
     return reduceVar.get();
   }
 
@@ -305,23 +306,22 @@ struct test_Elvira3D
     // Compute the total volumes for each material.
     axom::Array<double> totalVolume(nmats, nmats, allocatorID);
     auto totalVolumeView = totalVolume.view();
-    axom::for_all<ExecSpace>(nmats, AXOM_LAMBDA(axom::IndexType i) { totalVolumeView[i] = 0.; });
-    axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zi) {
-        // Add the material volumes to the total volumes.
-        const auto end = matsetView.endZone(zi);
-        for(auto zoneMat = matsetView.beginZone(zi); zoneMat != end; zoneMat++)
-        {
-          auto index = axom::utilities::binary_search(sortedIdsView, zoneMat.material_id());
-          // RelWithDebInfo workaround - "sortedIdsView.size()" substitutes lambda capture device failure for "nmats"
-          SLIC_ASSERT(index >= 0 && index < sortedIdsView.size());
+    axom::for_all<ExecSpace>(nmats,
+                             [=] AXOM_HOST_DEVICE(axom::IndexType i) { totalVolumeView[i] = 0.; });
+    axom::for_all<ExecSpace>(matsetView.numberOfZones(), [=] AXOM_HOST_DEVICE(axom::IndexType zi) {
+      // Add the material volumes to the total volumes.
+      const auto end = matsetView.endZone(zi);
+      for(auto zoneMat = matsetView.beginZone(zi); zoneMat != end; zoneMat++)
+      {
+        auto index = axom::utilities::binary_search(sortedIdsView, zoneMat.material_id());
+        // RelWithDebInfo workaround - "sortedIdsView.size()" substitutes lambda capture device failure for "nmats"
+        SLIC_ASSERT(index >= 0 && index < sortedIdsView.size());
 
-          // Use an atomic to sum the value.
-          axom::atomicAdd<ExecSpace>(totalVolumeView.data() + index,
-                                     zoneVolumes[zi] * zoneMat.volume_fraction());
-        }
-      });
+        // Use an atomic to sum the value.
+        axom::atomicAdd<ExecSpace>(totalVolumeView.data() + index,
+                                   zoneVolumes[zi] * zoneMat.volume_fraction());
+      }
+    });
 
     // Move results back to host.
     std::vector<double> hostVolumes(nmats, 0.);

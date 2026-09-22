@@ -96,7 +96,7 @@ int main(int argc, char** argv)
   // loop over the nodes and evaluate Himmelblaus Function
   mint::for_all_nodes<ExecPolicy, xargs::xy>(
     mesh,
-    AXOM_LAMBDA(IndexType nodeIdx, double x, double y) {
+    [=] AXOM_HOST_DEVICE(IndexType nodeIdx, double x, double y) {
       const double x_2 = x * x;
       const double y_2 = y * y;
       const double A = x_2 + y - 11.0;
@@ -112,7 +112,9 @@ int main(int argc, char** argv)
   // loop over cells and compute cell centers
   mint::for_all_cells<ExecPolicy, xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx, const numerics::Matrix<double>& coords, const IndexType* nodeIds) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx,
+                         const numerics::Matrix<double>& coords,
+                         const IndexType* nodeIds) {
       // NOTE: A column vector of the coords matrix corresponds to a nodes coords
 
       // Sum the cell's nodal coordinates
@@ -214,7 +216,7 @@ mint::Mesh* getUnstructuredMesh()
   // fill coordinates from uniform mesh
   mint::for_all_nodes<ExecPolicy, xargs::xy>(
     umesh,
-    AXOM_LAMBDA(IndexType nodeIdx, double nx, double ny) {
+    [=] AXOM_HOST_DEVICE(IndexType nodeIdx, double nx, double ny) {
       x[nodeIdx] = nx;
       y[nodeIdx] = ny;
     });
@@ -222,7 +224,9 @@ mint::Mesh* getUnstructuredMesh()
   // loop over cells, compute cell centers and fill connectivity
   mint::for_all_cells<ExecPolicy, xargs::coords>(
     umesh,
-    AXOM_LAMBDA(IndexType cellIdx, const numerics::Matrix<double>& coords, const IndexType* nodeIds) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx,
+                         const numerics::Matrix<double>& coords,
+                         const IndexType* nodeIds) {
       // NOTE: A column vector of the coords matrix corresponds to a nodes coords
 
       // Sum the cell's nodal coordinates

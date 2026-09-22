@@ -60,7 +60,8 @@ void check_for_all_cells_idx(int dimension)
 
   auto field_v = field_d.view();
 
-  for_all_cells<ExecPolicy>(test_mesh, AXOM_LAMBDA(IndexType cellID) { field_v[cellID] = cellID; });
+  for_all_cells<ExecPolicy>(test_mesh,
+                            [=] AXOM_HOST_DEVICE(IndexType cellID) { field_v[cellID] = cellID; });
 
   // Copy field back to host
   axom::Array<IndexType> field_h = axom::Array<IndexType>(field_d, host_allocator);
@@ -107,7 +108,7 @@ void check_for_all_cells_ij()
 
   for_all_cells<ExecPolicy, xargs::ij>(
     test_mesh,
-    AXOM_LAMBDA(IndexType cellIdx, IndexType i, IndexType j) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx, IndexType i, IndexType j) {
       icoords_v[cellIdx] = i;
       jcoords_v[cellIdx] = j;
     });
@@ -169,7 +170,7 @@ void check_for_all_cells_ijk()
 
   for_all_cells<ExecPolicy, xargs::ijk>(
     test_mesh,
-    AXOM_LAMBDA(IndexType cellIdx, IndexType i, IndexType j, IndexType k) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx, IndexType i, IndexType j, IndexType k) {
       icoords_v[cellIdx] = i;
       jcoords_v[cellIdx] = j;
       kcoords_v[cellIdx] = k;
@@ -240,7 +241,7 @@ void check_for_all_cell_nodes(int dimension)
 
   for_all_cells<ExecPolicy, xargs::nodeids>(
     test_mesh,
-    AXOM_LAMBDA(IndexType cellID, const IndexType* nodes, IndexType N) {
+    [=] AXOM_HOST_DEVICE(IndexType cellID, const IndexType* nodes, IndexType N) {
       for(int i = 0; i < N; ++i)
       {
         conn_v[cellID * MAX_CELL_NODES + i] = nodes[i];
@@ -305,7 +306,9 @@ void check_for_all_cell_coords(int dimension)
 
   for_all_cells<ExecPolicy, xargs::coords>(
     test_mesh,
-    AXOM_LAMBDA(IndexType cellID, const numerics::Matrix<double>& coordsMatrix, const IndexType* nodes) {
+    [=] AXOM_HOST_DEVICE(IndexType cellID,
+                         const numerics::Matrix<double>& coordsMatrix,
+                         const IndexType* nodes) {
       const IndexType numNodes = coordsMatrix.getNumColumns();
       for(int i = 0; i < numNodes; ++i)
       {
@@ -387,7 +390,7 @@ void check_for_all_cell_faces(int dimension)
 
   for_all_cells<ExecPolicy, xargs::faceids>(
     test_mesh,
-    AXOM_LAMBDA(IndexType cellID, const IndexType* faces, IndexType N) {
+    [=] AXOM_HOST_DEVICE(IndexType cellID, const IndexType* faces, IndexType N) {
       for(int i = 0; i < N; ++i)
       {
         cell_faces_v[cellID * MAX_CELL_FACES + i] = faces[i];

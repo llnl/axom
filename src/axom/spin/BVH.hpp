@@ -445,21 +445,19 @@ int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
     boxesptr = axom::allocate<BoxType>(numBoxes, m_AllocatorID);
 
     // copy first box and add a fake 2nd box
-    for_all<ExecSpace>(
-      2,
-      AXOM_LAMBDA(IndexType i) {
-        if(copyFirst && i == 0)
-        {
-          boxesptr[i] = boxes[i];
-        }
-        else
-        {
-          BoxType empty_box;
-          // Make the box invalid.
-          empty_box.clear();
-          boxesptr[i] = empty_box;
-        }
-      });
+    for_all<ExecSpace>(2, [=] AXOM_HOST_DEVICE(IndexType i) {
+      if(copyFirst && i == 0)
+      {
+        boxesptr[i] = boxes[i];
+      }
+      else
+      {
+        BoxType empty_box;
+        // Make the box invalid.
+        empty_box.clear();
+        boxesptr[i] = empty_box;
+      }
+    });
     m_bvh->buildImpl(boxesptr, numBoxes, m_scaleFactor, m_AllocatorID);
   }
   else

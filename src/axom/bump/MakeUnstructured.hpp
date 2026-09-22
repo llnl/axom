@@ -119,19 +119,18 @@ private:
                                axom::ArrayView<conduit::index_t> offsetsView)
   {
     // Fill in the new connectivity.
-    axom::for_all<ExecSpace>(
-      topoView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = topoView.zone(zoneIndex);
+    axom::for_all<ExecSpace>(topoView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto zone = topoView.zone(zoneIndex);
 
-        const auto start = zoneIndex * ptsPerZone;
-        for(int i = 0; i < ptsPerZone; i++)
-        {
-          connView[start + i] = static_cast<conduit::index_t>(zone.getId(i));
-        }
-        sizesView[zoneIndex] = ptsPerZone;
-        offsetsView[zoneIndex] = start;
-      });
+                               const auto start = zoneIndex * ptsPerZone;
+                               for(int i = 0; i < ptsPerZone; i++)
+                               {
+                                 connView[start + i] = static_cast<conduit::index_t>(zone.getId(i));
+                               }
+                               sizesView[zoneIndex] = ptsPerZone;
+                               offsetsView[zoneIndex] = start;
+                             });
   }
 };
 

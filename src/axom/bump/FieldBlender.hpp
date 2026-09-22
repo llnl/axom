@@ -192,42 +192,38 @@ private:
     const BlendData device_blend(blend);
 
     // Copy over some original values to the start of the array.
-    axom::for_all<ExecSpace>(
-      orig_size,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto src_index = device_blend.m_originalIdsView[index];
-        out_view[index] = comp_view[src_index];
-      });
+    axom::for_all<ExecSpace>(orig_size, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto src_index = device_blend.m_originalIdsView[index];
+      out_view[index] = comp_view[src_index];
+    });
 
     // Append blended values to the end of the array.
-    axom::for_all<ExecSpace>(
-      blend_size,
-      AXOM_LAMBDA(axom::IndexType bgid) {
-        // Get the blend group index we want.
-        const auto selected_index = SelectionPolicy::selectedIndex(device_blend, bgid);
-        const auto start = device_blend.m_blendGroupStartView[selected_index];
-        const auto n_values = device_blend.m_blendGroupSizesView[selected_index];
-        const auto dest_index = orig_size + bgid;
-        if(n_values == 1)
+    axom::for_all<ExecSpace>(blend_size, [=] AXOM_HOST_DEVICE(axom::IndexType bgid) {
+      // Get the blend group index we want.
+      const auto selected_index = SelectionPolicy::selectedIndex(device_blend, bgid);
+      const auto start = device_blend.m_blendGroupStartView[selected_index];
+      const auto n_values = device_blend.m_blendGroupSizesView[selected_index];
+      const auto dest_index = orig_size + bgid;
+      if(n_values == 1)
+      {
+        const auto index = device_blend.m_blendIdsView[start];
+        const auto src_index = device_indexing[index];
+        out_view[dest_index] = comp_view[src_index];
+      }
+      else
+      {
+        const auto end = start + n_values;
+        accum_type blended = 0;
+        for(IndexType i = start; i < end; i++)
         {
-          const auto index = device_blend.m_blendIdsView[start];
+          const auto index = device_blend.m_blendIdsView[i];
+          const auto weight = device_blend.m_blendCoeffView[i];
           const auto src_index = device_indexing[index];
-          out_view[dest_index] = comp_view[src_index];
+          blended += static_cast<accum_type>(comp_view[src_index]) * weight;
         }
-        else
-        {
-          const auto end = start + n_values;
-          accum_type blended = 0;
-          for(IndexType i = start; i < end; i++)
-          {
-            const auto index = device_blend.m_blendIdsView[i];
-            const auto weight = device_blend.m_blendCoeffView[i];
-            const auto src_index = device_indexing[index];
-            blended += static_cast<accum_type>(comp_view[src_index]) * weight;
-          }
-          out_view[dest_index] = static_cast<value_type>(blended);
-        }
-      });
+        out_view[dest_index] = static_cast<value_type>(blended);
+      }
+    });
   }
 
 // The following members are private (unless using CUDA)

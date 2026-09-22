@@ -20,35 +20,33 @@ void test_matset_traversal(MatsetView matsetView)
   {
     AXOM_ANNOTATE_SCOPE("zoneMaterials");
     axom::ReduceSum<ExecSpace, double> vfSum(0.);
-    axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        typename MatsetView::IDList ids;
-        typename MatsetView::VFList vfs;
-        matsetView.zoneMaterials(zoneIndex, ids, vfs);
-        double sum = 0.;
-        for(axom::IndexType i = 0; i < vfs.size(); i++)
-        {
-          sum += vfs[i];
-        }
-        vfSum += sum;
-      });
+    axom::for_all<ExecSpace>(matsetView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               typename MatsetView::IDList ids;
+                               typename MatsetView::VFList vfs;
+                               matsetView.zoneMaterials(zoneIndex, ids, vfs);
+                               double sum = 0.;
+                               for(axom::IndexType i = 0; i < vfs.size(); i++)
+                               {
+                                 sum += vfs[i];
+                               }
+                               vfSum += sum;
+                             });
     vf1 = vfSum.get();
   }
   {
     AXOM_ANNOTATE_SCOPE("iterators");
     axom::ReduceSum<ExecSpace, double> vfSum(0.);
-    axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto end = matsetView.endZone(zoneIndex);
-        double sum = 0.;
-        for(auto it = matsetView.beginZone(zoneIndex); it != end; it++)
-        {
-          sum += it.volume_fraction();
-        }
-        vfSum += sum;
-      });
+    axom::for_all<ExecSpace>(matsetView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto end = matsetView.endZone(zoneIndex);
+                               double sum = 0.;
+                               for(auto it = matsetView.beginZone(zoneIndex); it != end; it++)
+                               {
+                                 sum += it.volume_fraction();
+                               }
+                               vfSum += sum;
+                             });
     vf2 = vfSum.get();
   }
 

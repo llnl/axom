@@ -105,9 +105,9 @@ void generate_aabbs(const mint::Mesh* mesh,
   using exec_policy = axom::SEQ_EXEC;
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx,
-                numerics::Matrix<double> & coords,
-                const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx,
+                         numerics::Matrix<double> & coords,
+                         const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       primal::BoundingBox<double, NDIMS> range;
 
       for(IndexType inode = 0; inode < nodes_per_dim; ++inode)
@@ -159,9 +159,9 @@ void generate_aabbs_and_centroids(const mint::Mesh* mesh,
   using exec_policy = axom::SEQ_EXEC;
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx,
-                numerics::Matrix<double> & coords,
-                const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
+    [=] AXOM_HOST_DEVICE(IndexType cellIdx,
+                         numerics::Matrix<double> & coords,
+                         const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       BoxType range;
       PointType sum;
 
@@ -352,9 +352,9 @@ void check_find_bounding_boxes3d()
   // flag cells that are found by the bounding box ID
   int* iblank = mesh.createField<int>("iblank", mint::CELL_CENTERED);
   using mint_exec_policy = axom::SEQ_EXEC;
-  mint::for_all_cells<mint_exec_policy>(
-    &mesh,
-    AXOM_LAMBDA(IndexType cellIdx) { iblank[cellIdx] = -1; });
+  mint::for_all_cells<mint_exec_policy>(&mesh, [=] AXOM_HOST_DEVICE(IndexType cellIdx) {
+    iblank[cellIdx] = -1;
+  });
 
   for(int i = 0; i < N; ++i)
   {
@@ -480,9 +480,9 @@ void check_find_bounding_boxes2d()
   // flag cells that are found by the bounding box ID
   int* iblank = mesh.createField<int>("iblank", mint::CELL_CENTERED);
   using mint_exec_policy = axom::SEQ_EXEC;
-  mint::for_all_cells<mint_exec_policy>(
-    &mesh,
-    AXOM_LAMBDA(IndexType cellIdx) { iblank[cellIdx] = -1; });
+  mint::for_all_cells<mint_exec_policy>(&mesh, [=] AXOM_HOST_DEVICE(IndexType cellIdx) {
+    iblank[cellIdx] = -1;
+  });
 
   for(int i = 0; i < N; ++i)
   {
@@ -593,9 +593,9 @@ void check_find_rays3d()
   // flag cells that are found by the ray ID
   int* iblank = mesh.createField<int>("iblank", mint::CELL_CENTERED);
   using mint_exec_policy = axom::SEQ_EXEC;
-  mint::for_all_cells<mint_exec_policy>(
-    &mesh,
-    AXOM_LAMBDA(IndexType cellIdx) { iblank[cellIdx] = -1; });
+  mint::for_all_cells<mint_exec_policy>(&mesh, [=] AXOM_HOST_DEVICE(IndexType cellIdx) {
+    iblank[cellIdx] = -1;
+  });
 
   for(int i = 0; i < N; ++i)
   {
@@ -734,9 +734,9 @@ void check_find_rays2d()
   // flag cells that are found by the ray ID
   int* iblank = mesh.createField<int>("iblank", mint::CELL_CENTERED);
   using mint_exec_policy = axom::SEQ_EXEC;
-  mint::for_all_cells<mint_exec_policy>(
-    &mesh,
-    AXOM_LAMBDA(IndexType cellIdx) { iblank[cellIdx] = -1; });
+  mint::for_all_cells<mint_exec_policy>(&mesh, [=] AXOM_HOST_DEVICE(IndexType cellIdx) {
+    iblank[cellIdx] = -1;
+  });
 
   for(int i = 0; i < N; ++i)
   {
@@ -1489,37 +1489,35 @@ void bvh_compute_point_distances_2d(BVHType& bvh,
   axom::Array<PointType> query_pts_device = axom::Array<PointType>(query_pts, deviceAllocatorID);
   axom::ArrayView<PointType> query_pts_device_view = query_pts_device.view();
   npts = query_pts.size();
-  axom::for_all<ExecSpace>(
-    npts,
-    AXOM_LAMBDA(std::int32_t idx) mutable {
-      // Get the current query point.
-      auto qpt = query_pts_device_view[idx];
-      MinCandidate curr_min;
+  axom::for_all<ExecSpace>(npts, [=] AXOM_HOST_DEVICE(std::int32_t idx) mutable {
+    // Get the current query point.
+    auto qpt = query_pts_device_view[idx];
+    MinCandidate curr_min;
 
-      auto checkMinDist = [&](std::int32_t current_node, const std::int32_t* leaf_nodes) {
-        int candidate_idx = leaf_nodes[current_node];
-        const PointType candidate_pt = points_device_view[candidate_idx];
-        const double sq_dist = squared_distance(qpt, candidate_pt);
+    auto checkMinDist = [&](std::int32_t current_node, const std::int32_t* leaf_nodes) {
+      int candidate_idx = leaf_nodes[current_node];
+      const PointType candidate_pt = points_device_view[candidate_idx];
+      const double sq_dist = squared_distance(qpt, candidate_pt);
 
-        if(sq_dist < curr_min.minSqDist)
-        {
-          curr_min.minSqDist = sq_dist;
-          curr_min.minElem = candidate_idx;
-        }
-      };
+      if(sq_dist < curr_min.minSqDist)
+      {
+        curr_min.minSqDist = sq_dist;
+        curr_min.minElem = candidate_idx;
+      }
+    };
 
-      // Borrowed from DistributedClosestPoint.
-      auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
-        auto sqDist = squared_distance(p, bb);
-        return sqDist <= curr_min.minSqDist;
-      };
+    // Borrowed from DistributedClosestPoint.
+    auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
+      auto sqDist = squared_distance(p, bb);
+      return sqDist <= curr_min.minSqDist;
+    };
 
-      // Traverse the tree, searching for the point with minimum distance.
-      it.traverse_tree(qpt, checkMinDist, traversePredicate);
+    // Traverse the tree, searching for the point with minimum distance.
+    it.traverse_tree(qpt, checkMinDist, traversePredicate);
 
-      // Save the index of the minElem.
-      results_view[idx] = curr_min.minElem;
-    });
+    // Save the index of the minElem.
+    results_view[idx] = curr_min.minElem;
+  });
 
   // Copy results back to host
   axom::Array<int> results = axom::Array<int>(results_device, hostAllocatorID);
@@ -1602,8 +1600,7 @@ void check_reduce_tree_point_counts_2d()
 
   // Reduce the BVH into a field that counts points per node.
   const auto traverser = bvh.getTraverser();
-  auto leafToOne = AXOM_LAMBDA(std::int32_t, const std::int32_t*)->CountType
-  {
+  auto leafToOne = [=] AXOM_HOST_DEVICE(std::int32_t, const std::int32_t*) -> CountType {
     return static_cast<CountType>(1);
   };
 
@@ -2098,10 +2095,9 @@ AXOM_CUDA_TEST(spin_bvh, use_pool_allocator)
 
   // single bounding box in [0,1] x [0,1] x [0,1]
   BoxType* boxes = axom::allocate<BoxType>(1, allocID);
-  axom::for_all<exec>(
-    0,
-    1,
-    AXOM_LAMBDA(axom::IndexType idx) { boxes[idx] = BoxType {PointType(0.), PointType(1.)}; });
+  axom::for_all<exec>(0, 1, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    boxes[idx] = BoxType {PointType(0.), PointType(1.)};
+  });
 
   // construct a BVH with a single box
   spin::BVH<NDIMS, exec, FloatType> bvh;
@@ -2115,10 +2111,9 @@ AXOM_CUDA_TEST(spin_bvh, use_pool_allocator)
   // Should return one and only one candidate that corresponds to the
   // single bounding box.
   PointType* centroid = axom::allocate<PointType>(NUM_BOXES, allocID);
-  axom::for_all<exec>(
-    0,
-    1,
-    AXOM_LAMBDA(axom::IndexType idx) { centroid[idx] = PointType {0.5, 0.5, 0.5}; });
+  axom::for_all<exec>(0, 1, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    centroid[idx] = PointType {0.5, 0.5, 0.5};
+  });
 
   axom::Array<IndexType> offsets(NUM_BOXES, NUM_BOXES, allocID);
   axom::Array<IndexType> counts(NUM_BOXES, NUM_BOXES, allocID);

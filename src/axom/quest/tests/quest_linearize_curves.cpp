@@ -31,9 +31,9 @@ double totalSegmentLength(const SegmentMesh* mesh)
   axom::ReduceSum<ExecPolicy, double> totalSegmentLength(0.);
   axom::mint::for_all_cells<ExecPolicy, axom::mint::xargs::coords>(
     mesh,
-    AXOM_LAMBDA(axom::IndexType AXOM_UNUSED_PARAM(cellID),
-                const axom::numerics::Matrix<double>& coordsMatrix,
-                const axom::IndexType* AXOM_UNUSED_PARAM(nodes)) {
+    [=] AXOM_HOST_DEVICE(axom::IndexType AXOM_UNUSED_PARAM(cellID),
+                         const axom::numerics::Matrix<double>& coordsMatrix,
+                         const axom::IndexType* AXOM_UNUSED_PARAM(nodes)) {
       constexpr int xdim = 0;
       constexpr int ydim = 1;
       const double dx = coordsMatrix(xdim, 1) - coordsMatrix(xdim, 0);
