@@ -488,6 +488,13 @@ def get_params():
     )
 
   parser.add_argument(
+    "--cleanmesh",
+    choices=("on", "off"),
+    help="Set ELVIRA mesh cleanup for the mir_heavily_mixed driver",
+    required=False
+    )
+
+  parser.add_argument(
     "--dimension",
     type=int,
     help="Mesh dimension to generate (2 or 3)",
@@ -548,6 +555,8 @@ def get_params():
   elif params["driver"] == "mir_heavily_mixed":
     # Lower the default number of materials / refinement
     params["extra_arguments"] = ["--materials", "20", "--refinement", "20"]
+    if args.cleanmesh is not None:
+      params["extra_arguments"].extend(["--cleanmesh", args.cleanmesh])
   else:
     params["extra_arguments"] = []
 
