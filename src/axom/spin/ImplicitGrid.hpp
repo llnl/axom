@@ -274,35 +274,33 @@ public:
       maxBlkBins[i] = m_maxBlockBin[i].data();
     }
 
-    for_all<ExecSpace>(
-      nelems,
-      AXOM_LAMBDA(axom::IndexType ibox) {
-        const IndexType elemIdx = startIdx + static_cast<IndexType>(ibox);
+    for_all<ExecSpace>(nelems, [=] AXOM_HOST_DEVICE(axom::IndexType ibox) {
+      const IndexType elemIdx = startIdx + static_cast<IndexType>(ibox);
 
-        SpatialBoundingBox scaledBox = bboxes[ibox];
-        // Note: We slightly inflate the bbox of the objects.
-        //       This effectively ensures that objects on grid boundaries are added
-        //       in all nearby grid cells.
-        scaledBox.expand(expansionFactor);
+      SpatialBoundingBox scaledBox = bboxes[ibox];
+      // Note: We slightly inflate the bbox of the objects.
+      //       This effectively ensures that objects on grid boundaries are added
+      //       in all nearby grid cells.
+      scaledBox.expand(expansionFactor);
 
-        const GridCell lowerCell = lattice.gridCell(scaledBox.getMin());
-        const GridCell upperCell = lattice.gridCell(scaledBox.getMax());
+      const GridCell lowerCell = lattice.gridCell(scaledBox.getMin());
+      const GridCell upperCell = lattice.gridCell(scaledBox.getMax());
 
-        for(int idim = 0; idim < NDIMS; idim++)
+      for(int idim = 0; idim < NDIMS; idim++)
+      {
+        const IndexType lower = axom::utilities::clampLower(lowerCell[idim], IndexType());
+        const IndexType upper = axom::utilities::clampUpper(upperCell[idim], highestBins[idim]);
+
+        const IndexType word = elemIdx / BitsetType::BitsPerWord;
+
+        for(IndexType j = lower; j <= upper; ++j)
         {
-          const IndexType lower = axom::utilities::clampLower(lowerCell[idim], IndexType());
-          const IndexType upper = axom::utilities::clampUpper(upperCell[idim], highestBins[idim]);
-
-          const IndexType word = elemIdx / BitsetType::BitsPerWord;
-
-          for(IndexType j = lower; j <= upper; ++j)
-          {
-            binData[idim][j].atomicSet(static_cast<typename BitsetType::Index>(elemIdx));
-            axom::atomicMin<ExecSpace>(&minBlkBins[idim][j], word);
-            axom::atomicMax<ExecSpace>(&maxBlkBins[idim][j], word);
-          }
+          binData[idim][j].atomicSet(static_cast<typename BitsetType::Index>(elemIdx));
+          axom::atomicMin<ExecSpace>(&minBlkBins[idim][j], word);
+          axom::atomicMax<ExecSpace>(&maxBlkBins[idim][j], word);
         }
-      });
+      }
+    });
   }
 
   /*!
@@ -814,12 +812,10 @@ void ImplicitGrid<NDIMS, ExecSpace, IndexType>::getCandidatesAsArray(
 #ifdef AXOM_USE_RAJA
   axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
   // Step 1: count number of candidate intersections for each point
-  for_all<ExecSpace>(
-    qsize,
-    AXOM_LAMBDA(IndexType i) {
-      outCounts[i] = gridQuery.countCandidates(queryObjs[i]);
-      totalCountReduce += outCounts[i];
-    });
+  for_all<ExecSpace>(qsize, [=] AXOM_HOST_DEVICE(IndexType i) {
+    outCounts[i] = gridQuery.countCandidates(queryObjs[i]);
+    totalCountReduce += outCounts[i];
+  });
 
   // Step 2: exclusive scan for offsets in candidate array
   axom::exclusive_scan<ExecSpace>(outCounts, outOffsets);
@@ -831,19 +827,17 @@ void ImplicitGrid<NDIMS, ExecSpace, IndexType>::getCandidatesAsArray(
   const auto candidates_v = outCandidates.view();
 
   // Step 4: fill candidate array for each query box
-  for_all<ExecSpace>(
-    qsize,
-    AXOM_LAMBDA(IndexType i) {
-      int startIdx = outOffsets[i];
-      int currCount = 0;
-      auto onCandidate = [&](int candidateIdx) -> bool {
-        candidates_v[startIdx] = candidateIdx;
-        currCount++;
-        startIdx++;
-        return currCount >= outCounts[i];
-      };
-      gridQuery.visitCandidates(queryObjs[i], onCandidate);
-    });
+  for_all<ExecSpace>(qsize, [=] AXOM_HOST_DEVICE(IndexType i) {
+    int startIdx = outOffsets[i];
+    int currCount = 0;
+    auto onCandidate = [&](int candidateIdx) -> bool {
+      candidates_v[startIdx] = candidateIdx;
+      currCount++;
+      startIdx++;
+      return currCount >= outCounts[i];
+    };
+    gridQuery.visitCandidates(queryObjs[i], onCandidate);
+  });
 #else
   outOffsets[0] = 0;
   for(int i = 0; i < qsize; i++)

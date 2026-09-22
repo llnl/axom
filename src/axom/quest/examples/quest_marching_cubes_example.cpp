@@ -1130,10 +1130,9 @@ struct ContourTestBase
                              fastestDirs);
       auto maskView = domainView.template getFieldView<int>(maskFieldName);
       int maskCount = params.maskCount;
-      axom::for_all<axom::SEQ_EXEC>(
-        0,
-        cellCount,
-        AXOM_LAMBDA(axom::IndexType cellId) { maskView.flatIndex(cellId) = (cellId % maskCount); });
+      axom::for_all<axom::SEQ_EXEC>(0, cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+        maskView.flatIndex(cellId) = (cellId % maskCount);
+      });
     }
   }
 

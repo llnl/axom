@@ -28,16 +28,14 @@ void check_bb_policy()
   BoundingBoxType* box =
     axom::allocate<BoundingBoxType>(1, axom::execution_space<ExecSpace>::allocatorID());
 
-  axom::for_all<ExecSpace>(
-    1,
-    AXOM_LAMBDA(int i) {
-      box[i] = BoundingBoxType(PointType::zero(), PointType::ones());
-      box[i].expand(4.5);
-      box[i].dimension();
-      box[i].getLongestDimension();
-      box[i].shift(VectorType(4.5));
-      box[i].isValid();
-    });
+  axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int i) {
+    box[i] = BoundingBoxType(PointType::zero(), PointType::ones());
+    box[i].expand(4.5);
+    box[i].dimension();
+    box[i].getLongestDimension();
+    box[i].shift(VectorType(4.5));
+    box[i].isValid();
+  });
 
   BoundingBoxType box_host;
   axom::copy(&box_host, box, sizeof(BoundingBoxType));

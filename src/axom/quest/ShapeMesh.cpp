@@ -459,7 +459,7 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
 template <typename T>
 void ShapeMesh::fillNImpl(axom::ArrayView<T> a, const T& val) const
 {
-  auto kern = AXOM_LAMBDA(axom::IndexType i) { a[i] = val; };
+  auto kern = [=] AXOM_HOST_DEVICE(axom::IndexType i) { a[i] = val; };
 
   // Zero the new data for use as VF accumulation space.
   switch(m_runtimePolicy)
@@ -492,7 +492,7 @@ void ShapeMesh::elementwiseAddImpl(const axom::ArrayView<T> a,
                                    const axom::ArrayView<T> b,
                                    axom::ArrayView<T> result) const
 {
-  auto kern = AXOM_LAMBDA(axom::IndexType i) { result[i] = a[i] + b[i]; };
+  auto kern = [=] AXOM_HOST_DEVICE(axom::IndexType i) { result[i] = a[i] + b[i]; };
 
   switch(m_runtimePolicy)
   {
@@ -524,7 +524,9 @@ void ShapeMesh::elementwiseComplementImpl(const axom::ArrayView<T> a,
                                           const T& val,
                                           axom::ArrayView<T> results) const
 {
-  auto kern = AXOM_LAMBDA(axom::IndexType i) { results[i] = val >= a[i] ? val - a[i] : 0.0; };
+  auto kern = [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    results[i] = val >= a[i] ? val - a[i] : 0.0;
+  };
 
   switch(m_runtimePolicy)
   {
@@ -786,29 +788,27 @@ void ShapeMesh::computeCellsAsHexesImpl()
   SLIC_ASSERT(cellsAsHexesView.data() == m_cellsAsHexes.data());
 
   const auto zeroThreshold = m_zeroThreshold;
-  axom::for_all<ExecSpace>(
-    m_cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      auto& hex = cellsAsHexesView[cellId];
+  axom::for_all<ExecSpace>(m_cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    auto& hex = cellsAsHexesView[cellId];
 
-      for(int vi = 0; vi < NUM_VERTS_PER_HEX; ++vi)
+    for(int vi = 0; vi < NUM_VERTS_PER_HEX; ++vi)
+    {
+      axom::IndexType vertIndex = connView(cellId, vi);
+      primal::Point3D vCoords(
+        axom::NumericArray<double, NDIM> {vX[vertIndex], vY[vertIndex], vZ[vertIndex]});
+
+      // Snap coordinates to zero.
+      for(int d = 0; d < NDIM; ++d)
       {
-        axom::IndexType vertIndex = connView(cellId, vi);
-        primal::Point3D vCoords(
-          axom::NumericArray<double, NDIM> {vX[vertIndex], vY[vertIndex], vZ[vertIndex]});
-
-        // Snap coordinates to zero.
-        for(int d = 0; d < NDIM; ++d)
+        if(axom::utilities::isNearlyEqual(vCoords[d], 0.0, zeroThreshold))
         {
-          if(axom::utilities::isNearlyEqual(vCoords[d], 0.0, zeroThreshold))
-          {
-            vCoords[d] = 0;
-          }
+          vCoords[d] = 0;
         }
-
-        hex[vi] = vCoords;
       }
-    });  // end of loop to initialize hexahedral elements and bounding boxes
+
+      hex[vi] = vCoords;
+    }
+  });  // end of loop to initialize hexahedral elements and bounding boxes
 }
 
 template <typename ExecSpace>
@@ -824,13 +824,11 @@ void ShapeMesh::computeCellsAsTetsImpl()
 
   auto cellsAsHexesView = getCellsAsHexes();
 
-  axom::for_all<ExecSpace>(
-    m_cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      const auto& hex = cellsAsHexesView[cellId];
-      auto* firstTetPtr = &cellsAsTetsView[cellId * NUM_TETS_PER_HEX];
-      hexToTets(hex, firstTetPtr);
-    });
+  axom::for_all<ExecSpace>(m_cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    const auto& hex = cellsAsHexesView[cellId];
+    auto* firstTetPtr = &cellsAsTetsView[cellId * NUM_TETS_PER_HEX];
+    hexToTets(hex, firstTetPtr);
+  });
 }
 
 template <typename ExecSpace>
@@ -842,9 +840,9 @@ void ShapeMesh::computeHexVolumesImpl()
   auto cellsAsHexes = getCellsAsHexes();
 
   auto hexVolumesView = m_hexVolumes.view();
-  axom::for_all<ExecSpace>(
-    m_cellCount,
-    AXOM_LAMBDA(axom::IndexType i) { hexVolumesView[i] = cellsAsHexes[i].volume(); });
+  axom::for_all<ExecSpace>(m_cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    hexVolumesView[i] = cellsAsHexes[i].volume();
+  });
 }
 
 template <typename ExecSpace>
@@ -856,9 +854,9 @@ void ShapeMesh::computeTetVolumesImpl()
   auto cellsAsTets = getCellsAsTets();
 
   auto tetVolumesView = m_tetVolumes.view();
-  axom::for_all<ExecSpace>(
-    tetCount,
-    AXOM_LAMBDA(axom::IndexType i) { tetVolumesView[i] = cellsAsTets[i].volume(); });
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    tetVolumesView[i] = cellsAsTets[i].volume();
+  });
 }
 
 template <typename ExecSpace>
@@ -870,11 +868,9 @@ void ShapeMesh::computeHexBbsImpl()
   auto cellsAsHexes = getCellsAsHexes();
 
   auto hexBbsView = m_hexBbs.view();
-  axom::for_all<ExecSpace>(
-    m_cellCount,
-    AXOM_LAMBDA(axom::IndexType i) {
-      hexBbsView[i] = primal::compute_bounding_box<double, 3>(cellsAsHexes[i]);
-    });
+  axom::for_all<ExecSpace>(m_cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    hexBbsView[i] = primal::compute_bounding_box<double, 3>(cellsAsHexes[i]);
+  });
 }
 
 template <typename ExecSpace>
@@ -886,9 +882,9 @@ void ShapeMesh::computeCellLengthsImpl()
   auto cellBbs = getCellBoundingBoxes();
 
   auto lengthsView = m_cellLengths.view();
-  axom::for_all<ExecSpace>(
-    m_cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) { lengthsView[cellId] = cellBbs[cellId].range().norm(); });
+  axom::for_all<ExecSpace>(m_cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    lengthsView[cellId] = cellBbs[cellId].range().norm();
+  });
 }
 
 template <typename ExecSpace>
@@ -902,9 +898,9 @@ void ShapeMesh::computeVertPointsImpl()
   const auto& vZ = vertCoords[2];
 
   auto vertPointsView = m_vertPoints3D.view();
-  axom::for_all<ExecSpace>(
-    m_vertexCount,
-    AXOM_LAMBDA(axom::IndexType vi) { vertPointsView[vi] = Point3DType {vX[vi], vY[vi], vZ[vi]}; });
+  axom::for_all<ExecSpace>(m_vertexCount, [=] AXOM_HOST_DEVICE(axom::IndexType vi) {
+    vertPointsView[vi] = Point3DType {vX[vi], vY[vi], vZ[vi]};
+  });
 }
 
 template <typename ExecSpace, typename T>
@@ -913,9 +909,9 @@ void ShapeMesh::elementwiseDivideImpl(const T* numerator,
                                       T* quotient,
                                       axom::IndexType n)
 {
-  axom::for_all<ExecSpace>(
-    n,
-    AXOM_LAMBDA(axom::IndexType i) { quotient[i] = numerator[i] / denominator[i]; });
+  axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    quotient[i] = numerator[i] / denominator[i];
+  });
 }
 
 conduit::Node& ShapeMesh::getMeshConduitPath(conduit::Node& node,

@@ -2606,44 +2606,42 @@ void check_plane_bb_intersect()
                  ? axom::allocate<bool>(4, rm.getAllocator(umpire::resource::Unified).getId())
                  : axom::allocate<bool>(4));
 
-  axom::for_all<ExecSpace>(
-    4,
-    AXOM_LAMBDA(int i) {
-      unitBB[0] = BoundingBoxType(PointType::zero(), PointType::ones());
-      VectorType normal;
-      double offset;
+  axom::for_all<ExecSpace>(4, [=] AXOM_HOST_DEVICE(int i) {
+    unitBB[0] = BoundingBoxType(PointType::zero(), PointType::ones());
+    VectorType normal;
+    double offset;
 
-      // bottom face
-      if(i == 0)
-      {
-        normal = VectorType {0.0, 1.0, 0.0};
-        offset = 0.0;
-      }
+    // bottom face
+    if(i == 0)
+    {
+      normal = VectorType {0.0, 1.0, 0.0};
+      offset = 0.0;
+    }
 
-      // top face
-      if(i == 1)
-      {
-        normal = VectorType {0.0, -1.0, 0.0};
-        offset = -1.0;
-      }
+    // top face
+    if(i == 1)
+    {
+      normal = VectorType {0.0, -1.0, 0.0};
+      offset = -1.0;
+    }
 
-      // center
-      if(i == 2)
-      {
-        normal = VectorType {1.0, 1.0, 1.0};
-        offset = 0.5;
-      }
+    // center
+    if(i == 2)
+    {
+      normal = VectorType {1.0, 1.0, 1.0};
+      offset = 0.5;
+    }
 
-      // non-intersect
-      if(i == 3)
-      {
-        normal = VectorType {1.0, 1.0, 1.0};
-        offset = -0.5;
-      }
+    // non-intersect
+    if(i == 3)
+    {
+      normal = VectorType {1.0, 1.0, 1.0};
+      offset = -0.5;
+    }
 
-      planes[i] = PlaneType(normal, offset);
-      res[i] = axom::primal::intersect(planes[i], unitBB[0]);
-    });
+    planes[i] = PlaneType(normal, offset);
+    res[i] = axom::primal::intersect(planes[i], unitBB[0]);
+  });
 
   EXPECT_TRUE(res[0]);
   EXPECT_TRUE(res[1]);
@@ -2690,46 +2688,44 @@ void check_plane_seg_intersect()
                  ? axom::allocate<bool>(4, rm.getAllocator(umpire::resource::Unified).getId())
                  : axom::allocate<bool>(4));
 
-  axom::for_all<ExecSpace>(
-    4,
-    AXOM_LAMBDA(int i) {
-      VectorType normal;
-      double offset;
-      PointType A(0.0, 3);
-      PointType B(1.0, 3);
-      segments[0] = SegmentType(A, B);
+  axom::for_all<ExecSpace>(4, [=] AXOM_HOST_DEVICE(int i) {
+    VectorType normal;
+    double offset;
+    PointType A(0.0, 3);
+    PointType B(1.0, 3);
+    segments[0] = SegmentType(A, B);
 
-      // intersect A
-      if(i == 0)
-      {
-        normal = VectorType {0.0, 1.0, 0.0};
-        offset = 0.0;
-      }
+    // intersect A
+    if(i == 0)
+    {
+      normal = VectorType {0.0, 1.0, 0.0};
+      offset = 0.0;
+    }
 
-      // intersect midpoint
-      if(i == 1)
-      {
-        normal = VectorType {0.0, 1.0, 0.0};
-        offset = 0.5;
-      }
+    // intersect midpoint
+    if(i == 1)
+    {
+      normal = VectorType {0.0, 1.0, 0.0};
+      offset = 0.5;
+    }
 
-      // intersect B
-      if(i == 2)
-      {
-        normal = VectorType {0.0, 1.0, 0.0};
-        offset = 1.0;
-      }
+    // intersect B
+    if(i == 2)
+    {
+      normal = VectorType {0.0, 1.0, 0.0};
+      offset = 1.0;
+    }
 
-      // non-intersect
-      if(i == 3)
-      {
-        normal = VectorType {1.0, 1.0, 1.0};
-        offset = -0.5;
-      }
+    // non-intersect
+    if(i == 3)
+    {
+      normal = VectorType {1.0, 1.0, 1.0};
+      offset = -0.5;
+    }
 
-      planes[i] = PlaneType(normal, offset);
-      res[i] = axom::primal::intersect(planes[i], segments[0], lerp_val[i]);
-    });
+    planes[i] = PlaneType(normal, offset);
+    res[i] = axom::primal::intersect(planes[i], segments[0], lerp_val[i]);
+  });
 
   EXPECT_TRUE(res[0]);
   EXPECT_TRUE(res[1]);
@@ -2772,56 +2768,54 @@ void check_segment_segment_intersect_policy()
   PointType* intersections = axom::allocate<PointType>(6, result_allocator);
   bool* res = axom::allocate<bool>(6, result_allocator);
 
-  axom::for_all<ExecSpace>(
-    6,
-    AXOM_LAMBDA(int i) {
-      SegmentType P;
-      SegmentType Q;
+  axom::for_all<ExecSpace>(6, [=] AXOM_HOST_DEVICE(int i) {
+    SegmentType P;
+    SegmentType Q;
 
-      // Proper crossing at an interior point of both segments.
-      if(i == 0)
-      {
-        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 1., 0.});
-        Q = SegmentType(PointType {0., 1., 0.}, PointType {1., 0., 0.});
-      }
+    // Proper crossing at an interior point of both segments.
+    if(i == 0)
+    {
+      P = SegmentType(PointType {0., 0., 0.}, PointType {1., 1., 0.});
+      Q = SegmentType(PointType {0., 1., 0.}, PointType {1., 0., 0.});
+    }
 
-      // An endpoint of segment 1 coincides with an endpoint of segment 2.
-      if(i == 1)
-      {
-        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
-        Q = SegmentType(PointType {1., 0., 0.}, PointType {1., 1., 0.});
-      }
+    // An endpoint of segment 1 coincides with an endpoint of segment 2.
+    if(i == 1)
+    {
+      P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
+      Q = SegmentType(PointType {1., 0., 0.}, PointType {1., 1., 0.});
+    }
 
-      // Overlap case: partial overlap b/w the segments.
-      if(i == 2)
-      {
-        P = SegmentType(PointType {0., 0., 0.}, PointType {2., 0., 0.});
-        Q = SegmentType(PointType {1., 0., 0.}, PointType {3., 0., 0.});
-      }
+    // Overlap case: partial overlap b/w the segments.
+    if(i == 2)
+    {
+      P = SegmentType(PointType {0., 0., 0.}, PointType {2., 0., 0.});
+      Q = SegmentType(PointType {1., 0., 0.}, PointType {3., 0., 0.});
+    }
 
-      // Collinear segments that only touch at one endpoint.
-      if(i == 3)
-      {
-        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
-        Q = SegmentType(PointType {1., 0., 0.}, PointType {3., 0., 0.});
-      }
+    // Collinear segments that only touch at one endpoint.
+    if(i == 3)
+    {
+      P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
+      Q = SegmentType(PointType {1., 0., 0.}, PointType {3., 0., 0.});
+    }
 
-      // Parallel but non-collinear segments in the same plane.
-      if(i == 4)
-      {
-        P = SegmentType(PointType {0., 0., 0.}, PointType {2., 0., 0.});
-        Q = SegmentType(PointType {0., 1., 0.}, PointType {2., 1., 0.});
-      }
+    // Parallel but non-collinear segments in the same plane.
+    if(i == 4)
+    {
+      P = SegmentType(PointType {0., 0., 0.}, PointType {2., 0., 0.});
+      Q = SegmentType(PointType {0., 1., 0.}, PointType {2., 1., 0.});
+    }
 
-      // Skew segments in different planes.
-      if(i == 5)
-      {
-        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
-        Q = SegmentType(PointType {0.5, -1., 1.}, PointType {0.5, 1., 1.});
-      }
+    // Skew segments in different planes.
+    if(i == 5)
+    {
+      P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
+      Q = SegmentType(PointType {0.5, -1., 1.}, PointType {0.5, 1., 1.});
+    }
 
-      res[i] = axom::primal::intersect(P, Q, intersections[i]);
-    });
+    res[i] = axom::primal::intersect(P, Q, intersections[i]);
+  });
 
   EXPECT_TRUE(res[0]);
   EXPECT_TRUE(res[1]);

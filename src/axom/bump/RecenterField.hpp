@@ -141,21 +141,19 @@ private:
     using Precision = typename DataView::value_type;
     using AccumType = typename axom::bump::utilities::accumulation_traits<Precision>::type;
     const auto rel_size = sizes_view.size();
-    axom::for_all<ExecSpace>(
-      rel_size,
-      AXOM_LAMBDA(axom::IndexType rel_index) {
-        const auto n = static_cast<axom::IndexType>(sizes_view[rel_index]);
-        const auto offset = offsets_view[rel_index];
+    axom::for_all<ExecSpace>(rel_size, [=] AXOM_HOST_DEVICE(axom::IndexType rel_index) {
+      const auto n = static_cast<axom::IndexType>(sizes_view[rel_index]);
+      const auto offset = offsets_view[rel_index];
 
-        AccumType sum {};
-        for(axom::IndexType i = 0; i < n; i++)
-        {
-          const auto id = rel_view[offset + i];
-          sum += static_cast<AccumType>(comp_view[id]);
-        }
+      AccumType sum {};
+      for(axom::IndexType i = 0; i < n; i++)
+      {
+        const auto id = rel_view[offset + i];
+        sum += static_cast<AccumType>(comp_view[id]);
+      }
 
-        out_view[rel_index] = static_cast<Precision>(sum / n);
-      });
+      out_view[rel_index] = static_cast<Precision>(sum / n);
+    });
   }
 
 private:

@@ -84,7 +84,7 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType&
   for_all_nodes(
     ExecPolicy(),
     m,
-    AXOM_LAMBDA(IndexType objectID, const IndexType* nodeIDs, IndexType numNodes) {
+    [=] AXOM_HOST_DEVICE(IndexType objectID, const IndexType* nodeIDs, IndexType numNodes) {
       AXOM_UNUSED_VAR(numNodes);
       assert(numNodes == NNODES);
 

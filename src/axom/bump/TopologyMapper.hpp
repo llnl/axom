@@ -596,15 +596,13 @@ public:
     {
       SLIC_ASSERT(nSrcZones == srcSelectionView.size());
     }
-    axom::for_all<ExecSpace>(
-      nSrcZones,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto zi = srcSelectionView[index];
-        srcBoundingBoxesView[index] = srcView.getBoundingBox(zi);
+    axom::for_all<ExecSpace>(nSrcZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto zi = srcSelectionView[index];
+      srcBoundingBoxesView[index] = srcView.getBoundingBox(zi);
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-        std::cout << "source zone " << zi << ": bbox=" << srcBoundingBoxesView[index] << std::endl;
+      std::cout << "source zone " << zi << ": bbox=" << srcBoundingBoxesView[index] << std::endl;
 #endif
-      });
+    });
     AXOM_ANNOTATE_END("bbox");
 
     // -------------------------------------------------------------------------
@@ -669,15 +667,14 @@ public:
     auto sizes = utils::make_array_view<MatIntType>(n_sizes);
     auto offsets = utils::make_array_view<MatIntType>(n_offsets);
     // Initialize the expected values.
-    axom::for_all<ExecSpace>(
-      numMaterialSlots * nTargetZones,
-      AXOM_LAMBDA(axom::IndexType index) {
-        volume_fractions[index] = MatFloatType {0};
-        material_ids[index] = MaterialEmpty;
-      });
-    axom::for_all<ExecSpace>(
-      nTargetZones,
-      AXOM_LAMBDA(axom::IndexType index) { sizes[index] = MatIntType {0}; });
+    axom::for_all<ExecSpace>(numMaterialSlots * nTargetZones,
+                             [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+                               volume_fractions[index] = MatFloatType {0};
+                               material_ids[index] = MaterialEmpty;
+                             });
+    axom::for_all<ExecSpace>(nTargetZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      sizes[index] = MatIntType {0};
+    });
     AXOM_ANNOTATE_END("allocation");
 
     // -------------------------------------------------------------------------
@@ -685,109 +682,105 @@ public:
     AXOM_ANNOTATE_BEGIN("intersection");
     const SrcMatsetView srcMatsetView(m_srcMatsetView);
     const auto bvh_device = bvh.getTraverser();
-    axom::for_all<ExecSpace>(
-      targetSelectionView.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        // Get the target zone as a primal shape.
-        const axom::IndexType zi = targetSelectionView[index];
-        AXOM_TM_ASSERT_OR_RETURN(zi >= 0 && zi < targetView.numberOfZones());
+    axom::for_all<ExecSpace>(targetSelectionView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      // Get the target zone as a primal shape.
+      const axom::IndexType zi = targetSelectionView[index];
+      AXOM_TM_ASSERT_OR_RETURN(zi >= 0 && zi < targetView.numberOfZones());
 
-        const auto targetBBox = targetView.getBoundingBox(zi);
-        const auto targetShape = targetView.getShape(zi);
+      const auto targetBBox = targetView.getBoundingBox(zi);
+      const auto targetShape = targetView.getShape(zi);
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-        std::cout << "-------------------------------\ntarget zone " << zi << ": " << targetShape
-                  << ", bbox=" << targetBBox << std::endl;
+      std::cout << "-------------------------------\ntarget zone " << zi << ": " << targetShape
+                << ", bbox=" << targetBBox << std::endl;
 #endif
-        // Get the area or volume of the target shape (depends on the dimension).
-        double targetAmount =
-          utils::ComputeShapeAmount<TargetCoordsetView::dimension()>::execute(targetShape);
+      // Get the area or volume of the target shape (depends on the dimension).
+      double targetAmount =
+        utils::ComputeShapeAmount<TargetCoordsetView::dimension()>::execute(targetShape);
 
-        // Handle intersection in-depth of the bounding boxes intersected.
-        auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
-          const auto srcBboxIndex = leafNodes[currentNode];
+      // Handle intersection in-depth of the bounding boxes intersected.
+      auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
+        const auto srcBboxIndex = leafNodes[currentNode];
 
-          // This should not happen but check that we're not given bad values.
-          AXOM_TM_ASSERT_OR_RETURN(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
+        // This should not happen but check that we're not given bad values.
+        AXOM_TM_ASSERT_OR_RETURN(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
 
-          const auto srcZone = srcSelectionView[srcBboxIndex];
-          AXOM_TM_ASSERT_OR_RETURN(srcZone >= 0 && srcZone < srcView.numberOfZones());
+        const auto srcZone = srcSelectionView[srcBboxIndex];
+        AXOM_TM_ASSERT_OR_RETURN(srcZone >= 0 && srcZone < srcView.numberOfZones());
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-          std::cout << "handleIntersection: targetZone=" << zi << ", srcZone=" << srcZone
-                    << std::endl;
+        std::cout << "handleIntersection: targetZone=" << zi << ", srcZone=" << srcZone << std::endl;
 #endif
-          // Get the current zone as a primal shape.
-          const auto srcShape = srcView.getShape(srcZone);
+        // Get the current zone as a primal shape.
+        const auto srcShape = srcView.getShape(srcZone);
 
-          // Determine the overlap of the src and target shapes.
-          constexpr double eps = 1.e-6;
-          const double srcOverlapsTarget = detail::shapeOverlap(srcShape, targetShape, eps);
+        // Determine the overlap of the src and target shapes.
+        constexpr double eps = 1.e-6;
+        const double srcOverlapsTarget = detail::shapeOverlap(srcShape, targetShape, eps);
 
-          if(srcOverlapsTarget > 0.)
+        if(srcOverlapsTarget > 0.)
+        {
+          MatFloatType vf = srcOverlapsTarget / targetAmount;
+
+          // Get the src material - there should just be one because we assume
+          // that a clean matset is being mapped.
+          auto zoneMat = srcMatsetView.beginZone(srcZone);
+          SLIC_ASSERT(zoneMat.size() == 1);
+          const auto mat = zoneMat.material_id();
+
+#if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
+          std::cout << "\tintersection:" << std::endl
+                    << "\t\ttargetShape=" << targetShape << std::endl
+                    << "\t\tsrcShape=" << srcShape << std::endl
+                    << "\t\tmat=" << mat << std::endl
+                    << "\t\tsrcOverlapsTarget=" << srcOverlapsTarget << std::endl
+                    << "\t\ttargetAmount=" << targetAmount << std::endl
+                    << "\t\tvf=" << vf << std::endl;
+#endif
+
+          // Add the src material contribution into the target material.
+          MatIntType* matids = material_ids.data() + zi * numMaterialSlots;
+          MatFloatType* vfs = volume_fractions.data() + zi * numMaterialSlots;
+          for(int m = 0; m < nmats; m++)
           {
-            MatFloatType vf = srcOverlapsTarget / targetAmount;
-
-            // Get the src material - there should just be one because we assume
-            // that a clean matset is being mapped.
-            auto zoneMat = srcMatsetView.beginZone(srcZone);
-            SLIC_ASSERT(zoneMat.size() == 1);
-            const auto mat = zoneMat.material_id();
-
-#if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-            std::cout << "\tintersection:" << std::endl
-                      << "\t\ttargetShape=" << targetShape << std::endl
-                      << "\t\tsrcShape=" << srcShape << std::endl
-                      << "\t\tmat=" << mat << std::endl
-                      << "\t\tsrcOverlapsTarget=" << srcOverlapsTarget << std::endl
-                      << "\t\ttargetAmount=" << targetAmount << std::endl
-                      << "\t\tvf=" << vf << std::endl;
-#endif
-
-            // Add the src material contribution into the target material.
-            MatIntType* matids = material_ids.data() + zi * numMaterialSlots;
-            MatFloatType* vfs = volume_fractions.data() + zi * numMaterialSlots;
-            for(int m = 0; m < nmats; m++)
+            if(matids[m] == mat)
             {
-              if(matids[m] == mat)
-              {
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-                std::cout << "\t\tAdded " << vf << " to slot " << m << std::endl;
+              std::cout << "\t\tAdded " << vf << " to slot " << m << std::endl;
 #endif
-                vfs[m] += vf;
-                break;
-              }
-              else if(matids[m] == MaterialEmpty)
-              {
+              vfs[m] += vf;
+              break;
+            }
+            else if(matids[m] == MaterialEmpty)
+            {
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-                std::cout << "\t\tAdded new slot " << m << ", mat=" << mat << ", vf=" << vf
-                          << std::endl;
+              std::cout << "\t\tAdded new slot " << m << ", mat=" << mat << ", vf=" << vf
+                        << std::endl;
 #endif
-                matids[m] = mat;
-                vfs[m] = vf;
-                sizes[zi]++;
-                break;
-              }
+              matids[m] = mat;
+              vfs[m] = vf;
+              sizes[zi]++;
+              break;
             }
           }
+        }
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-          else
-          {
-            std::cout << "\tno intersection" << std::endl;
-          }
+        else
+        {
+          std::cout << "\tno intersection" << std::endl;
+        }
 #endif
-        };
+      };
 
-        // This predicate determines whether 2 bboxes intersect.
-        auto bbIsect = [](const SrcBoundingBox& queryBbox, const SrcBoundingBox& bvhBbox) -> bool {
-          bool rv = queryBbox.intersectsWith(bvhBbox);
+      // This predicate determines whether 2 bboxes intersect.
+      auto bbIsect = [](const SrcBoundingBox& queryBbox, const SrcBoundingBox& bvhBbox) -> bool {
+        bool rv = queryBbox.intersectsWith(bvhBbox);
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
-          std::cout << "bbIsect: rv=" << rv << ", q=" << queryBbox << ", bvh=" << bvhBbox
-                    << std::endl;
+        std::cout << "bbIsect: rv=" << rv << ", q=" << queryBbox << ", bvh=" << bvhBbox << std::endl;
 #endif
-          return rv;
-        };
-        // Traverse BVH, looking for bboxes that intersect the current target bbox.
-        bvh_device.traverse_tree(targetBBox, handleIntersection, bbIsect);
-      });  // axom::for_all
+        return rv;
+      };
+      // Traverse BVH, looking for bboxes that intersect the current target bbox.
+      bvh_device.traverse_tree(targetBBox, handleIntersection, bbIsect);
+    });  // axom::for_all
     AXOM_ANNOTATE_END("intersection");
 
     // -------------------------------------------------------------------------
@@ -798,27 +791,25 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("sizes");
       axom::ReduceSum<ExecSpace, int> reduceSize(0), emptyCount(0);
-      axom::for_all<ExecSpace>(
-        nTargetZones,
-        AXOM_LAMBDA(axom::IndexType index) {
-          // Sum the material within the zone.
-          MatFloatType* vfs = volume_fractions.data() + index * numMaterialSlots;
-          MatFloatType vfSum(0);
-          for(MatIntType m = 0; m < sizes[index]; m++)
-          {
-            vfSum += vfs[m];
-          }
-          // If the zone was not completely covered by other materials, increment
-          // its size to include the empty material and set its VF.
-          constexpr MatFloatType MatTolerance = 1.e-6;
-          if(sizes[index] == 0 || (MatFloatType {1} - vfSum) > MatTolerance)
-          {
-            vfs[sizes[index]] = MatFloatType {1} - vfSum;
-            sizes[index]++;
-            emptyCount += 1;
-          }
-          reduceSize += sizes[index];
-        });
+      axom::for_all<ExecSpace>(nTargetZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        // Sum the material within the zone.
+        MatFloatType* vfs = volume_fractions.data() + index * numMaterialSlots;
+        MatFloatType vfSum(0);
+        for(MatIntType m = 0; m < sizes[index]; m++)
+        {
+          vfSum += vfs[m];
+        }
+        // If the zone was not completely covered by other materials, increment
+        // its size to include the empty material and set its VF.
+        constexpr MatFloatType MatTolerance = 1.e-6;
+        if(sizes[index] == 0 || (MatFloatType {1} - vfSum) > MatTolerance)
+        {
+          vfs[sizes[index]] = MatFloatType {1} - vfSum;
+          sizes[index]++;
+          emptyCount += 1;
+        }
+        reduceSize += sizes[index];
+      });
       if(emptyCount.get() > 0)
       {
         // Add an empty material entry to the material map in case some of the slots did
@@ -847,19 +838,17 @@ public:
     n_new_material_ids.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, totalSize));
     auto new_volume_fractions = utils::make_array_view<MatFloatType>(n_new_volume_fractions);
     auto new_material_ids = utils::make_array_view<MatIntType>(n_new_material_ids);
-    axom::for_all<ExecSpace>(
-      nTargetZones,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto destOffset = offsets[index];
-        for(MatIntType m = 0; m < sizes[index]; m++)
-        {
-          const auto destIndex = destOffset + m;
-          const auto srcIndex = index * numMaterialSlots + m;
-          new_volume_fractions[destIndex] = volume_fractions[srcIndex];
-          new_material_ids[destIndex] = material_ids[srcIndex];
-          indices[destIndex] = destIndex;
-        }
-      });
+    axom::for_all<ExecSpace>(nTargetZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto destOffset = offsets[index];
+      for(MatIntType m = 0; m < sizes[index]; m++)
+      {
+        const auto destIndex = destOffset + m;
+        const auto srcIndex = index * numMaterialSlots + m;
+        new_volume_fractions[destIndex] = volume_fractions[srcIndex];
+        new_material_ids[destIndex] = material_ids[srcIndex];
+        indices[destIndex] = destIndex;
+      }
+    });
     // Move the reorganized data into the output.
     n_volume_fractions.move(n_new_volume_fractions);
     n_material_ids.move(n_new_material_ids);
