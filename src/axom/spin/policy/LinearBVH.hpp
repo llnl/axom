@@ -422,7 +422,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
     auto leafAction = [&count](std::int32_t AXOM_UNUSED_PARAM(current_node),
                                const std::int32_t* AXOM_UNUSED_PARAM(leaf_nodes)) { count++; };
 
-      tree_view.traverse_tree(primitive, leafAction, predicate);
+    tree_view.traverse_tree(primitive, leafAction, predicate);
 
     counts[i] = count;
     total_count_reduce += count;
@@ -454,7 +454,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
       offset++;
     };
 
-      tree_view.traverse_tree(obj, leafAction, predicate);
+    tree_view.traverse_tree(obj, leafAction, predicate);
   });
   AXOM_ANNOTATE_END("PASS[2]:fill_traversal");
 
