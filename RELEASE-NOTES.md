@@ -23,7 +23,16 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
   `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
   allocator-ID arguments.
+
+### Removed
+
+### Deprecated
+
+### Changed
+- Removed `AXOM_LAMBDA` macros and migrated call sites to `[=] AXOM_HOST_DEVICE(...)` or `[=] AXOM_HOST(...)`.
 - Mir: The `axom::mir::ElviraAlgorithm` can now accept an integer "cleanmesh" option via its `conduit::Node` options that can turn off the algorithm phase for cleaning up the 3D mesh output so it can skip merging vertices and mesh faces.
+
+### Fixed
 
 ## [Version 0.15.0] - Release date 2026-08-28
 

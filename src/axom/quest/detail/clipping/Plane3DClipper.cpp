@@ -214,13 +214,11 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsInsideView.getAllocatorID()));
 
   auto plane = m_plane;
-  axom::for_all<ExecSpace>(
-    vertCount,
-    AXOM_LAMBDA(axom::IndexType vertId) {
-      primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
-      double signedDist = plane.signedDistance(vert);
-      vertIsInsideView[vertId] = signedDist > 0;
-    });
+  axom::for_all<ExecSpace>(vertCount, [=] AXOM_HOST_DEVICE(axom::IndexType vertId) {
+    primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
+    double signedDist = plane.signedDistance(vert);
+    vertIsInsideView[vertId] = signedDist > 0;
+  });
 
   /*
    * Label cell by whether it has vertices inside, outside or both.
@@ -228,28 +226,26 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL_3D);
 
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS))
-      {
-        labels[cellId] = LabelType::LABEL_OUT;
-        return;
-      }
-      auto cellVertIds = connView[cellId];
-      bool hasIn = vertIsInsideView[cellVertIds[0]];
-      bool hasOut = !hasIn;
-      for(int vi = 0; vi < NUM_VERTS_PER_CELL_3D; ++vi)
-      {
-        int vertId = cellVertIds[vi];
-        bool isIn = vertIsInsideView[vertId];
-        hasIn |= isIn;
-        hasOut |= !isIn;
-      }
-      labels[cellId] = !hasOut ? LabelType::LABEL_IN
-        : !hasIn               ? LabelType::LABEL_OUT
-                               : LabelType::LABEL_ON;
-    });
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS))
+    {
+      labels[cellId] = LabelType::LABEL_OUT;
+      return;
+    }
+    auto cellVertIds = connView[cellId];
+    bool hasIn = vertIsInsideView[cellVertIds[0]];
+    bool hasOut = !hasIn;
+    for(int vi = 0; vi < NUM_VERTS_PER_CELL_3D; ++vi)
+    {
+      int vertId = cellVertIds[vi];
+      bool isIn = vertIsInsideView[vertId];
+      hasIn |= isIn;
+      hasOut |= !isIn;
+    }
+    labels[cellId] = !hasOut ? LabelType::LABEL_IN
+      : !hasIn               ? LabelType::LABEL_OUT
+                             : LabelType::LABEL_ON;
+  });
 
   return;
 }
@@ -271,39 +267,37 @@ void Plane3DClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
    * Label tet by whether it has vertices inside, outside or both.
    * Degenerate tets as outside, because they contribute no volume.
    */
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType ci) {
-      axom::IndexType cellId = cellIds[ci];
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
+    axom::IndexType cellId = cellIds[ci];
 
-      const TetrahedronType* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
-      const double* tetVolumesForCell = &meshTetVolumes[cellId * NUM_TETS_PER_HEX];
+    const TetrahedronType* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
+    const double* tetVolumesForCell = &meshTetVolumes[cellId * NUM_TETS_PER_HEX];
 
-      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+    for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+    {
+      const auto& tet = tetsForCell[ti];
+      LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+
+      if(axom::utilities::isNearlyEqual(tetVolumesForCell[ti], 0.0, EPS))
       {
-        const auto& tet = tetsForCell[ti];
-        LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
-
-        if(axom::utilities::isNearlyEqual(tetVolumesForCell[ti], 0.0, EPS))
-        {
-          tetLabel = LabelType::LABEL_OUT;
-          continue;
-        }
-
-        bool hasIn = false;
-        bool hasOut = false;
-        for(int vi = 0; vi < TetrahedronType::NUM_VERTS; ++vi)
-        {
-          const auto& vert = tet[vi];
-          double signedDist = plane.signedDistance(vert);
-          hasIn |= signedDist > 0;
-          hasOut |= signedDist < 0;
-        }
-        tetLabel = !hasOut ? LabelType::LABEL_IN
-          : !hasIn         ? LabelType::LABEL_OUT
-                           : LabelType::LABEL_ON;
+        tetLabel = LabelType::LABEL_OUT;
+        continue;
       }
-    });
+
+      bool hasIn = false;
+      bool hasOut = false;
+      for(int vi = 0; vi < TetrahedronType::NUM_VERTS; ++vi)
+      {
+        const auto& vert = tet[vi];
+        double signedDist = plane.signedDistance(vert);
+        hasIn |= signedDist > 0;
+        hasOut |= signedDist < 0;
+      }
+      tetLabel = !hasOut ? LabelType::LABEL_IN
+        : !hasIn         ? LabelType::LABEL_OUT
+                         : LabelType::LABEL_ON;
+    }
+  });
 
   return;
 }
@@ -316,7 +310,8 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
   axom::IndexType cellCount = shapeMesh.getCellCount();
   axom::Array<IndexType> cellIds(cellCount, cellCount, shapeMesh.getAllocatorID());
   auto cellIdsView = cellIds.view();
-  axom::for_all<ExecSpace>(cellCount, AXOM_LAMBDA(axom::IndexType i) { cellIdsView[i] = i; });
+  axom::for_all<ExecSpace>(cellCount,
+                           [=] AXOM_HOST_DEVICE(axom::IndexType i) { cellIdsView[i] = i; });
   specializedClipCellsImpl<ExecSpace>(shapeMesh, ovlap, cellIds, statistics);
 }
 
@@ -333,28 +328,26 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
 
   axom::ReduceSum<ExecSpace, std::int64_t> missSum {0};
 
-  axom::for_all<ExecSpace>(
-    cellIds.size(),
-    AXOM_LAMBDA(axom::IndexType i) {
-      axom::IndexType cellId = cellIds[i];
-      const TetrahedronType* tetsInHex = cellsAsTets.data() + cellId * NUM_TETS_PER_HEX;
-      double vol = 0.0;
-      for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+  axom::for_all<ExecSpace>(cellIds.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    axom::IndexType cellId = cellIds[i];
+    const TetrahedronType* tetsInHex = cellsAsTets.data() + cellId * NUM_TETS_PER_HEX;
+    double vol = 0.0;
+    for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+    {
+      const auto& tet = tetsInHex[ti];
+      primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
+      if(overlap.numVertices() >= 4)
       {
-        const auto& tet = tetsInHex[ti];
-        primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
-        if(overlap.numVertices() >= 4)
-        {
-          auto volume = overlap.volume();
-          vol += volume;
-        }
-        else
-        {
-          missSum += 1;
-        }
+        auto volume = overlap.volume();
+        vol += volume;
       }
-      ovlap[cellId] = vol;
-    });
+      else
+      {
+        missSum += 1;
+      }
+    }
+    ovlap[cellId] = vol;
+  });
 
   statistics["clipsOn"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
   statistics["clipsSum"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
@@ -373,16 +366,14 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
   IndexType tetCount = tetIds.size();
   auto plane = m_plane;
 
-  axom::for_all<ExecSpace>(
-    tetCount,
-    AXOM_LAMBDA(axom::IndexType ti) {
-      axom::IndexType tetId = tetIds[ti];
-      axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
-      const auto& tet = meshTets[tetId];
-      primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
-      double vol = overlap.volume();
-      axom::atomicAdd<ExecSpace>(ovlap.data() + cellId, vol);
-    });
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
+    axom::IndexType tetId = tetIds[ti];
+    axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
+    const auto& tet = meshTets[tetId];
+    primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
+    double vol = overlap.volume();
+    axom::atomicAdd<ExecSpace>(ovlap.data() + cellId, vol);
+  });
 
   // Because the tet screening is perfect, all tets in tetIds are on the plane.
   statistics["onSum"].set_int64(tetCount);

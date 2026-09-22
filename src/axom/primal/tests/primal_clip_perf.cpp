@@ -38,7 +38,7 @@ template <typename ExecSpace>
 double array_sum(axom::ArrayView<double> v)
 {
   axom::ReduceSum<ExecSpace, double> sum(0);
-  axom::for_all<ExecSpace>(v.size(), AXOM_LAMBDA(axom::IndexType i) { sum += v[i]; });
+  axom::for_all<ExecSpace>(v.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) { sum += v[i]; });
   double rval = sum.get();
   return rval;
 }
@@ -74,12 +74,10 @@ void time_repeat_clips(const Primal3D::TetrahedronType& a,
   auto volsView = vols.view();
 
   AXOM_ANNOTATE_BEGIN(timerName);
-  axom::for_all<ExecSpace>(
-    count,
-    AXOM_LAMBDA(axom::IndexType i) {
-      auto poly = axom::primal::clip(asView[i], bsView[i], EPS, tryFixOrientation);
-      volsView[i] = poly.volume();
-    });
+  axom::for_all<ExecSpace>(count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    auto poly = axom::primal::clip(asView[i], bsView[i], EPS, tryFixOrientation);
+    volsView[i] = poly.volume();
+  });
   AXOM_ANNOTATE_END(timerName);
 
   // Verify correctness.

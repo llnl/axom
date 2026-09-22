@@ -113,9 +113,9 @@ public:
                                             axom::execution_space<ExecSpace>::allocatorID());
     auto aabbsView = aabbs.view();
     const auto contourCaches = m_contourCaches;
-    axom::for_all<ExecSpace>(
-      geometrySize,
-      AXOM_LAMBDA(axom::IndexType i) { aabbsView[i] = contourCaches[i].boundingBox(); });
+    axom::for_all<ExecSpace>(geometrySize, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      aabbsView[i] = contourCaches[i].boundingBox();
+    });
 
     // Initialize the BVH using the bounding boxes.
     m_bvh.initialize(aabbs, aabbs.size());
@@ -185,15 +185,13 @@ public:
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<ToPoint> queryPoints(numQueryPoints, numQueryPoints, allocatorID);
     auto queryPointsView = queryPoints.view();
-    axom::for_all<ExecSpace>(
-      numQueryPoints,
-      AXOM_LAMBDA(axom::IndexType qpi) {
-        const int i = static_cast<int>(qpi / nq);
-        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
+    axom::for_all<ExecSpace>(numQueryPoints, [=] AXOM_HOST_DEVICE(axom::IndexType qpi) {
+      const int i = static_cast<int>(qpi / nq);
+      const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
 
-        const double* coords = &pos(0, p, i);
-        queryPointsView[qpi] = projector ? projector(FromPoint(coords, dim)) : ToPoint(coords, dim);
-      });
+      const double* coords = &pos(0, p, i);
+      queryPointsView[qpi] = projector ? projector(FromPoint(coords, dim)) : ToPoint(coords, dim);
+    });
     AXOM_ANNOTATE_END("Create query points");
 
     // Look up all of the query points. This will allocate the candidates array.
@@ -212,29 +210,25 @@ public:
     auto inOutResultView = inOutResult.view();
     const auto candidatesView = candidates.view();
     const auto contourCaches = m_contourCaches;
-    axom::for_all<ExecSpace>(
-      numQueryPoints,
-      AXOM_LAMBDA(axom::IndexType qpi) {
-        // Check whether the current query point is inside candidate shapes.
-        bool in = false;
-        const auto numCandidates = sizesView[qpi];
-        const auto& queryPoint = queryPointsView[qpi];
-        for(axom::IndexType ci = 0; ci < numCandidates && in == false; ci++)
-        {
-          const auto candidateIndex = candidatesView[offsetsView[qpi] + ci];
-          in |= detail::checkInside(contourCaches[candidateIndex], queryPoint);
-        }
-        inOutResultView[qpi] = in;
-      });
+    axom::for_all<ExecSpace>(numQueryPoints, [=] AXOM_HOST_DEVICE(axom::IndexType qpi) {
+      // Check whether the current query point is inside candidate shapes.
+      bool in = false;
+      const auto numCandidates = sizesView[qpi];
+      const auto& queryPoint = queryPointsView[qpi];
+      for(axom::IndexType ci = 0; ci < numCandidates && in == false; ci++)
+      {
+        const auto candidateIndex = candidatesView[offsetsView[qpi] + ci];
+        in |= detail::checkInside(contourCaches[candidateIndex], queryPoint);
+      }
+      inOutResultView[qpi] = in;
+    });
 
     // Store the results back into the MFEM quad function.
-    axom::for_all<ExecSpace>(
-      numQueryPoints,
-      AXOM_LAMBDA(axom::IndexType qpi) {
-        const int i = static_cast<int>(qpi / nq);
-        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
-        inout_vals(p, i) = inOutResultView[qpi] ? 1. : 0.;
-      });
+    axom::for_all<ExecSpace>(numQueryPoints, [=] AXOM_HOST_DEVICE(axom::IndexType qpi) {
+      const int i = static_cast<int>(qpi / nq);
+      const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
+      inout_vals(p, i) = inOutResultView[qpi] ? 1. : 0.;
+    });
     AXOM_ANNOTATE_END("InOut tests");
     timer.stop();
 

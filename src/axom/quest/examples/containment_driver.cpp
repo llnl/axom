@@ -240,7 +240,7 @@ public:
     // Fill the coordinate arrays
     mint::for_all_nodes<ExecPolicy, mint::xargs::xy>(
       umesh,
-      AXOM_LAMBDA(axom::IndexType idx, double xx, double yy) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType idx, double xx, double yy) {
         x[idx] = xx;
         y[idx] = yy;
       });
@@ -276,7 +276,7 @@ public:
     // Fill the coordinate arrays
     mint::for_all_nodes<ExecPolicy, mint::xargs::xyz>(
       umesh,
-      AXOM_LAMBDA(axom::IndexType idx, double xx, double yy, double zz) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType idx, double xx, double yy, double zz) {
         x[idx] = xx;
         y[idx] = yy;
         z[idx] = zz;

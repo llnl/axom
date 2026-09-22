@@ -314,13 +314,11 @@ public:
       const auto dev_x = m_view.m_x;
       const auto dev_y = m_view.m_y;
       const auto dev_connectivity = m_view.m_connectivity;
-      axom::for_all<ExecSpace>(
-        numCoordValues,
-        AXOM_LAMBDA(axom::IndexType index) {
-          dev_x[index] = CoordType(0);
-          dev_y[index] = CoordType(0);
-          dev_connectivity[index] = ConnectivityType(0);
-        });
+      axom::for_all<ExecSpace>(numCoordValues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        dev_x[index] = CoordType(0);
+        dev_y[index] = CoordType(0);
+        dev_connectivity[index] = ConnectivityType(0);
+      });
     }
 
     conduit::Node& n_sizes = n_topology["elements/sizes"];
@@ -388,9 +386,9 @@ public:
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
     {
       const auto dev_mat_sizes = m_view.m_mat_sizes;
-      axom::for_all<ExecSpace>(
-        numFragments,
-        AXOM_LAMBDA(axom::IndexType index) { dev_mat_sizes[index] = MaterialID(0); });
+      axom::for_all<ExecSpace>(numFragments, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        dev_mat_sizes[index] = MaterialID(0);
+      });
     }
 
     conduit::Node& n_mat_offsets = n_matset["offsets"];
@@ -604,13 +602,11 @@ public:
       const auto dev_x = m_view.m_x;
       const auto dev_y = m_view.m_y;
       const auto dev_z = m_view.m_z;
-      axom::for_all<ExecSpace>(
-        numCoordValues,
-        AXOM_LAMBDA(axom::IndexType index) {
-          dev_x[index] = CoordType(0);
-          dev_y[index] = CoordType(0);
-          dev_z[index] = CoordType(0);
-        });
+      axom::for_all<ExecSpace>(numCoordValues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        dev_x[index] = CoordType(0);
+        dev_y[index] = CoordType(0);
+        dev_z[index] = CoordType(0);
+      });
     }
 
     // elements (zone definitions)
@@ -628,9 +624,9 @@ public:
       m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
       {
         const auto dev_connectivity = m_view.m_connectivity;
-        axom::for_all<ExecSpace>(
-          numConnValues,
-          AXOM_LAMBDA(axom::IndexType index) { dev_connectivity[index] = UnusedValue; });
+        axom::for_all<ExecSpace>(numConnValues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          dev_connectivity[index] = UnusedValue;
+        });
       }
       conduit::Node& n_sizes = n_topology["elements/sizes"];
       n_sizes.set_allocator(conduitAllocatorId);
@@ -654,9 +650,9 @@ public:
       m_view.m_subelement_connectivity = utils::make_array_view<ConnectivityType>(n_se_conn);
       {
         const auto dev_subelement_connectivity = m_view.m_subelement_connectivity;
-        axom::for_all<ExecSpace>(
-          seConnSize,
-          AXOM_LAMBDA(axom::IndexType index) { dev_subelement_connectivity[index] = UnusedValue; });
+        axom::for_all<ExecSpace>(seConnSize, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          dev_subelement_connectivity[index] = UnusedValue;
+        });
       }
       conduit::Node& n_se_sizes = n_topology["subelements/sizes"];
       n_se_sizes.set_allocator(conduitAllocatorId);
@@ -673,12 +669,11 @@ public:
       {
         const auto dev_subelement_sizes = m_view.m_subelement_sizes;
         const auto dev_subelement_offsets = m_view.m_subelement_offsets;
-        axom::for_all<ExecSpace>(
-          numFragments * m_view.m_maxFacesPerFragment,
-          AXOM_LAMBDA(axom::IndexType index) {
-            dev_subelement_sizes[index] = ConnectivityType {0};
-            dev_subelement_offsets[index] = UnusedValue;
-          });
+        axom::for_all<ExecSpace>(numFragments * m_view.m_maxFacesPerFragment,
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+                                   dev_subelement_sizes[index] = ConnectivityType {0};
+                                   dev_subelement_offsets[index] = UnusedValue;
+                                 });
       }
     }
 
@@ -741,9 +736,9 @@ public:
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
     {
       const auto dev_mat_sizes = m_view.m_mat_sizes;
-      axom::for_all<ExecSpace>(
-        numFragments,
-        AXOM_LAMBDA(axom::IndexType index) { dev_mat_sizes[index] = MaterialID(0); });
+      axom::for_all<ExecSpace>(numFragments, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        dev_mat_sizes[index] = MaterialID(0);
+      });
     }
 
     conduit::Node& n_mat_offsets = n_matset["offsets"];
@@ -983,17 +978,15 @@ public:
       const auto se_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
       const auto se_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
       auto old2newView = old2new.view();
-      axom::for_all<ExecSpace>(
-        se_sizes.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto size = se_sizes[index];
-          const auto offset = se_offsets[index];
-          for(ConnectivityType i = 0; i < size; i++)
-          {
-            const auto nodeId = se_conn[offset + i];
-            se_conn[offset + i] = old2newView[nodeId];
-          }
-        });
+      axom::for_all<ExecSpace>(se_sizes.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto size = se_sizes[index];
+        const auto offset = se_offsets[index];
+        for(ConnectivityType i = 0; i < size; i++)
+        {
+          const auto nodeId = se_conn[offset + i];
+          se_conn[offset + i] = old2newView[nodeId];
+        }
+      });
     }
 
     // Now merge any faces that can be merged.

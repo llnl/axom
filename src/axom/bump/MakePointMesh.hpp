@@ -80,9 +80,9 @@ struct MakePointMesh
     // Select all zones.
     axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
     auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(
-      numZones,
-      AXOM_LAMBDA(axom::IndexType index) { selectedZonesView[index] = index; });
+    axom::for_all<ExecSpace>(numZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      selectedZonesView[index] = index;
+    });
     // Make the point mesh.
     execute(selectedZonesView, n_topology, n_coordset, n_options, n_output);
   }
@@ -147,12 +147,10 @@ struct MakePointMesh
 
     // Build the point mesh
     AXOM_ANNOTATE_BEGIN("build");
-    axom::for_all<ExecSpace>(
-      numPoints,
-      AXOM_LAMBDA(axom::IndexType index) {
-        connectivity[index] = index;
-        sizes[index] = 1;
-      });
+    axom::for_all<ExecSpace>(numPoints, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      connectivity[index] = index;
+      sizes[index] = 1;
+    });
     axom::exclusive_scan<ExecSpace>(sizes, offsets);
     AXOM_ANNOTATE_END("build");
   }

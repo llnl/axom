@@ -110,22 +110,20 @@ public:
     auto zoneFaceSizesView = zoneFaceSizes.view();
     auto zoneFaceOffsetsView = zoneFaceOffsets.view();
     const TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const auto numFaces = zone.numberOfFaces();
-        elem_sizes[zoneIndex] = numFaces;
-        reduceTotalFaces += numFaces;
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto zone = deviceTopologyView.zone(zoneIndex);
+      const auto numFaces = zone.numberOfFaces();
+      elem_sizes[zoneIndex] = numFaces;
+      reduceTotalFaces += numFaces;
 
-        axom::IndexType faceStorage = 0;
-        for(axom::IndexType fi = 0; fi < numFaces; fi++)
-        {
-          faceStorage += zone.numberOfNodesInFace(fi);
-        }
-        zoneFaceSizesView[zoneIndex] = faceStorage;
-        reduceTotalFaceStorage += faceStorage;
-      });
+      axom::IndexType faceStorage = 0;
+      for(axom::IndexType fi = 0; fi < numFaces; fi++)
+      {
+        faceStorage += zone.numberOfNodesInFace(fi);
+      }
+      zoneFaceSizesView[zoneIndex] = faceStorage;
+      reduceTotalFaceStorage += faceStorage;
+    });
     const axom::IndexType totalFaces = reduceTotalFaces.get();
     const axom::IndexType totalFaceStorage = reduceTotalFaceStorage.get();
     if(nzones > 0)
@@ -148,9 +146,9 @@ public:
     n_elem_conn.set_allocator(conduitAllocatorId);
     n_elem_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
     auto elem_conn = utils::make_array_view<ConnectivityType>(n_elem_conn);
-    axom::for_all<ExecSpace>(
-      totalFaces,
-      AXOM_LAMBDA(axom::IndexType faceIndex) { elem_conn[faceIndex] = faceIndex; });
+    axom::for_all<ExecSpace>(totalFaces, [=] AXOM_HOST_DEVICE(axom::IndexType faceIndex) {
+      elem_conn[faceIndex] = faceIndex;
+    });
     AXOM_ANNOTATE_END("elements");
 
     //--------------------------------------------------------------------------
@@ -172,27 +170,25 @@ public:
     auto se_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
     // Populate subelement connectivity and make names for the faces.
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        // This where the zone's faces begin in se_conn. We'll update it as we add faces.
-        auto offset = zoneFaceOffsetsView[zoneIndex];
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto zone = deviceTopologyView.zone(zoneIndex);
+      // This where the zone's faces begin in se_conn. We'll update it as we add faces.
+      auto offset = zoneFaceOffsetsView[zoneIndex];
 
-        for(axom::IndexType fi = 0; fi < zone.numberOfFaces(); fi++)
-        {
-          // Where this face begins in se_conn.
-          auto faceIds = se_conn.data() + offset;
-          // Load the face's ids into faceIds in se_conn.
-          axom::IndexType numFaceIds = 0;
-          zone.getFace(fi, faceIds, numFaceIds);
-          offset += numFaceIds;
+      for(axom::IndexType fi = 0; fi < zone.numberOfFaces(); fi++)
+      {
+        // Where this face begins in se_conn.
+        auto faceIds = se_conn.data() + offset;
+        // Load the face's ids into faceIds in se_conn.
+        axom::IndexType numFaceIds = 0;
+        zone.getFace(fi, faceIds, numFaceIds);
+        offset += numFaceIds;
 
-          // Store the size of this face.
-          const auto thisFaceIndex = elem_offsets[zoneIndex] + fi;
-          se_sizes[thisFaceIndex] = numFaceIds;
-        }
-      });
+        // Store the size of this face.
+        const auto thisFaceIndex = elem_offsets[zoneIndex] + fi;
+        se_sizes[thisFaceIndex] = numFaceIds;
+      }
+    });
     axom::exclusive_scan<ExecSpace>(se_sizes, se_offsets);
     AXOM_ANNOTATE_END("subelements");
   }

@@ -119,9 +119,9 @@ protected:
       // Select all zones.
       m_selectedZones = axom::Array<axom::IndexType>(nzones, nzones, m_allocator_id);
       auto sz_view = m_selectedZonesView = m_selectedZones.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType zone_index) { sz_view[zone_index] = zone_index; });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zone_index) {
+        sz_view[zone_index] = zone_index;
+      });
     }
   }
 
@@ -143,18 +143,16 @@ protected:
     m_selectedZones =
       axom::Array<axom::IndexType>(zones_view.size(), zones_view.size(), m_allocator_id);
     auto sz_view = m_selectedZonesView = m_selectedZones.view();
-    axom::for_all<ExecSpace>(
-      sz_view.size(),
-      AXOM_LAMBDA(axom::IndexType index) { sz_view[index] = zones_view[index]; });
+    axom::for_all<ExecSpace>(sz_view.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      sz_view[index] = zones_view[index];
+    });
 
     // Check that the selected zone values are in range.
     axom::ReduceSum<ExecSpace, int> err_reduce(0);
-    axom::for_all<ExecSpace>(
-      sz_view.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const int err = (sz_view[index] < 0 || sz_view[index] >= nzones) ? 1 : 0;
-        err_reduce += err;
-      });
+    axom::for_all<ExecSpace>(sz_view.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const int err = (sz_view[index] < 0 || sz_view[index] >= nzones) ? 1 : 0;
+      err_reduce += err;
+    });
 
     if(m_sorted)
     {

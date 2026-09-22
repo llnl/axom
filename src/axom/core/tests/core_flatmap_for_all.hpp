@@ -158,23 +158,21 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_find)
   const auto values_out_bracket = values_vec_bracket.view();
 
   // Read values out in a captured lambda.
-  axom::for_all<ExecSpaceType>(
-    NUM_ELEMS + EXTRA_THREADS,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      const auto key = static_cast<KeyTypeLocal>(idx);
-      auto it = test_map_view.find(key);
-      if(it != test_map_view.end())
-      {
-        keys_out[idx] = it->first;
-        values_out[idx] = it->second;
-        valid_out[idx] = true;
-      }
-      else
-      {
-        valid_out[idx] = false;
-      }
-      values_out_bracket[idx] = test_map_view[key];
-    });
+  axom::for_all<ExecSpaceType>(NUM_ELEMS + EXTRA_THREADS, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    const auto key = static_cast<KeyTypeLocal>(idx);
+    auto it = test_map_view.find(key);
+    if(it != test_map_view.end())
+    {
+      keys_out[idx] = it->first;
+      values_out[idx] = it->second;
+      valid_out[idx] = true;
+    }
+    else
+    {
+      valid_out[idx] = false;
+    }
+    values_out_bracket[idx] = test_map_view[key];
+  });
 
   axom::Array<int> valid_host(valid_vec, this->getHostAllocatorID());
   axom::Array<int> keys_host(keys_vec, this->getHostAllocatorID());
@@ -224,15 +222,13 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_modify)
   // Write new values into the flat map, where existing keys are.
   // This should work from a map view because we are not inserting
   // existing keys, which would potentially trigger rehashes.
-  axom::for_all<ExecSpaceType>(
-    NUM_ELEMS + EXTRA_THREADS,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      auto it = test_map_view.find(static_cast<KeyTypeLocal>(idx));
-      if(it != test_map_view.end())
-      {
-        it->second = static_cast<ValueTypeLocal>(idx * 11.0 + 7.0);
-      }
-    });
+  axom::for_all<ExecSpaceType>(NUM_ELEMS + EXTRA_THREADS, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    auto it = test_map_view.find(static_cast<KeyTypeLocal>(idx));
+    if(it != test_map_view.end())
+    {
+      it->second = static_cast<ValueTypeLocal>(idx * 11.0 + 7.0);
+    }
+  });
 
   test_map = MapTypeLocal(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
 

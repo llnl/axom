@@ -767,42 +767,40 @@ void check_polygon_policy()
   axom::Array<Vector3D> normal_3d_device(1, 1, kernel_allocator);
   auto normal_3d_view = normal_3d_device.view();
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      // Initialize to empty polygons
-      poly_3d_view[i] = Polygon3D();
-      poly_2d_view[i] = Polygon2D();
-      poly_3d_view[i].clear();
-      poly_2d_view[i].clear();
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    // Initialize to empty polygons
+    poly_3d_view[i] = Polygon3D();
+    poly_2d_view[i] = Polygon2D();
+    poly_3d_view[i].clear();
+    poly_2d_view[i].clear();
 
-      // Initialize to triangles
-      poly_3d_view[i] =
-        Polygon3D({Point3D({0.0, 0.0, 0.0}), Point3D({1.0, 0.0, 0.0}), Point3D({1.0, 1.0, 0.0})});
-      poly_2d_view[i] = Polygon2D({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0})});
+    // Initialize to triangles
+    poly_3d_view[i] =
+      Polygon3D({Point3D({0.0, 0.0, 0.0}), Point3D({1.0, 0.0, 0.0}), Point3D({1.0, 1.0, 0.0})});
+    poly_2d_view[i] = Polygon2D({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0})});
 
-      // Add a vertex to make squares
-      (poly_3d_view[i]).addVertex(Point3D({0.0, 1.0, 0.0}));
-      (poly_2d_view[i]).addVertex(Point2D({0.0, 1.0}));
+    // Add a vertex to make squares
+    (poly_3d_view[i]).addVertex(Point3D({0.0, 1.0, 0.0}));
+    (poly_2d_view[i]).addVertex(Point2D({0.0, 1.0}));
 
-      // Collect info about squares
-      vertex_mean_3d_view[i] = poly_3d_view[i].vertexMean();
-      vertex_mean_2d_view[i] = poly_2d_view[i].vertexMean();
-      area_3d_view[i] = poly_3d_view[i].area();
-      area_2d_view[i] = poly_2d_view[i].area();
-      normal_3d_view[i] = poly_3d_view[i].normal();
+    // Collect info about squares
+    vertex_mean_3d_view[i] = poly_3d_view[i].vertexMean();
+    vertex_mean_2d_view[i] = poly_2d_view[i].vertexMean();
+    area_3d_view[i] = poly_3d_view[i].area();
+    area_2d_view[i] = poly_2d_view[i].area();
+    normal_3d_view[i] = poly_3d_view[i].normal();
 
-      //Sanity check - functions are callable on device
-      poly_3d_view[i].numVertices();
-      poly_3d_view[i].isValid();
-      poly_2d_view[i].numVertices();
-      poly_2d_view[i].isValid();
+    //Sanity check - functions are callable on device
+    poly_3d_view[i].numVertices();
+    poly_3d_view[i].isValid();
+    poly_2d_view[i].numVertices();
+    poly_2d_view[i].isValid();
 
-      poly_2d_view[i].reverseOrientation();
-      poly_2d_view[i].reverseOrientation();
-      poly_3d_view[i].reverseOrientation();
-      poly_3d_view[i].reverseOrientation();
-    });
+    poly_2d_view[i].reverseOrientation();
+    poly_2d_view[i].reverseOrientation();
+    poly_3d_view[i].reverseOrientation();
+    poly_3d_view[i].reverseOrientation();
+  });
 
   // Copy polygons and data back to host
   axom::Array<Polygon3D> poly_3d_host = axom::Array<Polygon3D>(poly_3d_device, host_allocator);

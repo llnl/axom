@@ -49,21 +49,17 @@ void check_zip_points_3d()
   bool* valid = axom::allocate<bool>(N);
   bool valid_host[N];
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      x[idx] = (idx % 2) + 1;
-      y[idx] = ((idx / 2) % 2) + 1;
-      z[idx] = (idx / 4) + 1;
-    });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    x[idx] = (idx % 2) + 1;
+    y[idx] = ((idx / 2) % 2) + 1;
+    z[idx] = (idx / 4) + 1;
+  });
 
   ZipType it {{x, y, z}};
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PrimitiveType {x[idx], y[idx], z[idx]}); });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    valid[idx] = (it[idx] == PrimitiveType {x[idx], y[idx], z[idx]});
+  });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -97,20 +93,16 @@ void check_zip_points_2d_from_3d()
   bool* valid = axom::allocate<bool>(N);
   bool valid_host[N];
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      x[idx] = (idx % 2) + 1;
-      y[idx] = (idx / 2) + 1;
-    });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    x[idx] = (idx % 2) + 1;
+    y[idx] = (idx / 2) + 1;
+  });
 
   ZipType it = {{x, y, z}};
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PointType {x[idx], y[idx]}); });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    valid[idx] = (it[idx] == PointType {x[idx], y[idx]});
+  });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -143,20 +135,16 @@ void check_zip_vectors_2d_from_3d()
   bool* valid = axom::allocate<bool>(N);
   bool valid_host[N];
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      x[idx] = (idx % 2) + 1;
-      y[idx] = (idx / 2) + 1;
-    });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    x[idx] = (idx % 2) + 1;
+    y[idx] = (idx / 2) + 1;
+  });
 
   ZipType it {{x, y, z}};
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PointType {x[idx], y[idx]}); });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    valid[idx] = (it[idx] == PointType {x[idx], y[idx]});
+  });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -194,30 +182,24 @@ void check_zip_bbs_3d()
   bool* valid = axom::allocate<bool>(N);
   bool valid_host[N];
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      xmin[idx] = (idx % 2) + 1;
-      ymin[idx] = ((idx / 2) % 2) + 1;
-      zmin[idx] = (idx / 4) + 1;
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    xmin[idx] = (idx % 2) + 1;
+    ymin[idx] = ((idx / 2) % 2) + 1;
+    zmin[idx] = (idx / 4) + 1;
 
-      xmax[idx] = xmin[idx] + 1.0;
-      ymax[idx] = ymin[idx] + 1.0;
-      zmax[idx] = zmin[idx] + 1.0;
-    });
+    xmax[idx] = xmin[idx] + 1.0;
+    ymax[idx] = ymin[idx] + 1.0;
+    zmax[idx] = zmin[idx] + 1.0;
+  });
 
   ZipType it {{xmin, ymin, zmin}, {xmax, ymax, zmax}};
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      BoxType actual;
-      actual.addPoint(PointType {xmin[idx], ymin[idx], zmin[idx]});
-      actual.addPoint(PointType {xmax[idx], ymax[idx], zmax[idx]});
-      valid[idx] = (it[idx] == actual);
-    });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    BoxType actual;
+    actual.addPoint(PointType {xmin[idx], ymin[idx], zmin[idx]});
+    actual.addPoint(PointType {xmax[idx], ymax[idx], zmax[idx]});
+    valid[idx] = (it[idx] == actual);
+  });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -261,28 +243,22 @@ void check_zip_bbs_2d_from_3d()
   bool* valid = axom::allocate<bool>(N);
   bool valid_host[N];
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      xmin[idx] = (idx % 2) + 1;
-      ymin[idx] = (idx / 2) + 1;
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    xmin[idx] = (idx % 2) + 1;
+    ymin[idx] = (idx / 2) + 1;
 
-      xmax[idx] = xmin[idx] + 1.0;
-      ymax[idx] = ymin[idx] + 1.0;
-    });
+    xmax[idx] = xmin[idx] + 1.0;
+    ymax[idx] = ymin[idx] + 1.0;
+  });
 
   ZipType it {{xmin, ymin, zmin}, {xmax, ymax, zmax}};
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      BoxType actual;
-      actual.addPoint(PointType {xmin[idx], ymin[idx]});
-      actual.addPoint(PointType {xmax[idx], ymax[idx]});
-      valid[idx] = (it[idx] == actual);
-    });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    BoxType actual;
+    actual.addPoint(PointType {xmin[idx], ymin[idx]});
+    actual.addPoint(PointType {xmax[idx], ymax[idx]});
+    valid[idx] = (it[idx] == actual);
+  });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -325,41 +301,34 @@ void check_zip_rays_3d()
   bool* valid = axom::allocate<bool>(N);
   bool valid_host[N];
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      if(idx < 2)
-      {
-        xo[idx] = yo[idx] = zo[idx] = 1.0;
-      }
-      else
-      {
-        xo[idx] = yo[idx] = zo[idx] = -1.0;
-      }
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    if(idx < 2)
+    {
+      xo[idx] = yo[idx] = zo[idx] = 1.0;
+    }
+    else
+    {
+      xo[idx] = yo[idx] = zo[idx] = -1.0;
+    }
 
-      if(idx % 2 == 0)
-      {
-        xd[idx] = yd[idx] = zd[idx] = 1.0;
-      }
-      else
-      {
-        xd[idx] = yd[idx] = zd[idx] = -1.0;
-      }
-    });
+    if(idx % 2 == 0)
+    {
+      xd[idx] = yd[idx] = zd[idx] = 1.0;
+    }
+    else
+    {
+      xd[idx] = yd[idx] = zd[idx] = -1.0;
+    }
+  });
 
   ZipType it {{xo, yo, zo}, {xd, yd, zd}};
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      PointType orig {xo[idx], yo[idx], zo[idx]};
-      VectorType dir {xd[idx], yd[idx], zd[idx]};
-      RayType actual(orig, dir);
-      valid[idx] =
-        (it[idx].origin() == actual.origin()) && (it[idx].direction() == actual.direction());
-    });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    PointType orig {xo[idx], yo[idx], zo[idx]};
+    VectorType dir {xd[idx], yd[idx], zd[idx]};
+    RayType actual(orig, dir);
+    valid[idx] = (it[idx].origin() == actual.origin()) && (it[idx].direction() == actual.direction());
+  });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -404,41 +373,34 @@ void check_zip_rays_2d_from_3d()
   bool* valid = axom::allocate<bool>(N);
   bool valid_host[N];
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      if(idx < 2)
-      {
-        xo[idx] = yo[idx] = 1.0;
-      }
-      else
-      {
-        xo[idx] = yo[idx] = -1.0;
-      }
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    if(idx < 2)
+    {
+      xo[idx] = yo[idx] = 1.0;
+    }
+    else
+    {
+      xo[idx] = yo[idx] = -1.0;
+    }
 
-      if(idx % 2 == 0)
-      {
-        xd[idx] = yd[idx] = 1.0;
-      }
-      else
-      {
-        xd[idx] = yd[idx] = -1.0;
-      }
-    });
+    if(idx % 2 == 0)
+    {
+      xd[idx] = yd[idx] = 1.0;
+    }
+    else
+    {
+      xd[idx] = yd[idx] = -1.0;
+    }
+  });
 
   ZipType it {{xo, yo, zo}, {xd, yd, zd}};
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(int idx) {
-      PointType orig {xo[idx], yo[idx]};
-      VectorType dir {xd[idx], yd[idx]};
-      RayType actual(orig, dir);
-      valid[idx] =
-        (it[idx].origin() == actual.origin()) && (it[idx].direction() == actual.direction());
-    });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(int idx) {
+    PointType orig {xo[idx], yo[idx]};
+    VectorType dir {xd[idx], yd[idx]};
+    RayType actual(orig, dir);
+    valid[idx] = (it[idx].origin() == actual.origin()) && (it[idx].direction() == actual.direction());
+  });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 

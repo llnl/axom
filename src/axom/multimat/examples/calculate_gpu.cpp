@@ -124,15 +124,13 @@ void avgDensityCompactFlat(mmat::MultiMat& mm)
   axom::Array<double> densityAvg(ncells, ncells, allocator_id);
   const auto densityAvg_view = densityAvg.view();
 
-  axom::for_all<ExecSpace>(
-    nthreads,
-    AXOM_LAMBDA(int flatid) {
-      int cell_id = relationSet->flatToFirstIndex(flatid);
+  axom::for_all<ExecSpace>(nthreads, [=] AXOM_HOST_DEVICE(int flatid) {
+    int cell_id = relationSet->flatToFirstIndex(flatid);
 
-      double density_avg_slot = density[flatid] * vf[flatid];
+    double density_avg_slot = density[flatid] * vf[flatid];
 
-      axom::atomicAdd<ExecSpace>(&densityAvg_view[cell_id], density_avg_slot / vol[cell_id]);
-    });
+    axom::atomicAdd<ExecSpace>(&densityAvg_view[cell_id], density_avg_slot / vol[cell_id]);
+  });
 }
 
 template <typename ExecSpace>
@@ -149,19 +147,17 @@ void avgDensityCompactSubmap(mmat::MultiMat& mm)
   axom::Array<double> densityAvg(ncells, ncells, allocator_id);
   const auto densityAvg_view = densityAvg.view();
 
-  axom::for_all<ExecSpace>(
-    ncells,
-    AXOM_LAMBDA(int cellid) {
-      double density_avg = 0.0;
-      auto density_row = density(cellid);
-      auto volfrac_row = vf(cellid);
+  axom::for_all<ExecSpace>(ncells, [=] AXOM_HOST_DEVICE(int cellid) {
+    double density_avg = 0.0;
+    auto density_row = density(cellid);
+    auto volfrac_row = vf(cellid);
 
-      for(int slotid = 0; slotid < volfrac_row.size(); slotid++)
-      {
-        density_avg += density_row(slotid) * volfrac_row(slotid);
-      }
-      densityAvg_view[cellid] = density_avg / vol[cellid];
-    });
+    for(int slotid = 0; slotid < volfrac_row.size(); slotid++)
+    {
+      density_avg += density_row(slotid) * volfrac_row(slotid);
+    }
+    densityAvg_view[cellid] = density_avg / vol[cellid];
+  });
 }
 
 template <typename ExecSpace>
@@ -179,17 +175,15 @@ void avgDensityDirect(mmat::MultiMat& mm)
   axom::Array<double> densityAvg(ncells, ncells, allocator_id);
   const auto densityAvg_view = densityAvg.view();
 
-  axom::for_all<ExecSpace>(
-    ncells,
-    AXOM_LAMBDA(int cellid) {
-      double density_avg = 0.0;
+  axom::for_all<ExecSpace>(ncells, [=] AXOM_HOST_DEVICE(int cellid) {
+    double density_avg = 0.0;
 
-      for(int matid = 0; matid < nmats; matid++)
-      {
-        density_avg += density(cellid, matid) * vf(cellid, matid);
-      }
-      densityAvg_view[cellid] = density_avg / vol[cellid];
-    });
+    for(int matid = 0; matid < nmats; matid++)
+    {
+      density_avg += density(cellid, matid) * vf(cellid, matid);
+    }
+    densityAvg_view[cellid] = density_avg / vol[cellid];
+  });
 }
 
 template <typename ExecSpace>
@@ -207,19 +201,17 @@ void avgDensitySubmap(mmat::MultiMat& mm)
   axom::Array<double> densityAvg(ncells, ncells, allocator_id);
   const auto densityAvg_view = densityAvg.view();
 
-  axom::for_all<ExecSpace>(
-    ncells,
-    AXOM_LAMBDA(int cellid) {
-      double density_avg = 0.0;
-      auto density_row = density(cellid);
-      auto volfrac_row = vf(cellid);
+  axom::for_all<ExecSpace>(ncells, [=] AXOM_HOST_DEVICE(int cellid) {
+    double density_avg = 0.0;
+    auto density_row = density(cellid);
+    auto volfrac_row = vf(cellid);
 
-      for(int matid = 0; matid < nmats; matid++)
-      {
-        density_avg += density_row(matid) * volfrac_row(matid);
-      }
-      densityAvg_view[cellid] = density_avg / vol[cellid];
-    });
+    for(int matid = 0; matid < nmats; matid++)
+    {
+      density_avg += density_row(matid) * volfrac_row(matid);
+    }
+    densityAvg_view[cellid] = density_avg / vol[cellid];
+  });
 }
 
 template <typename ExecSpace>
@@ -236,25 +228,23 @@ void avgDensityIter(mmat::MultiMat& mm)
   axom::Array<double> densityAvg(ncells, ncells, allocator_id);
   const auto densityAvg_view = densityAvg.view();
 
-  axom::for_all<ExecSpace>(
-    ncells,
-    AXOM_LAMBDA(int cellid) {
-      double density_avg = 0.0;
+  axom::for_all<ExecSpace>(ncells, [=] AXOM_HOST_DEVICE(int cellid) {
+    double density_avg = 0.0;
 
-      auto density_it = density.begin(cellid);
-      auto volfrac_it = vf.begin(cellid);
+    auto density_it = density.begin(cellid);
+    auto volfrac_it = vf.begin(cellid);
 
-      auto density_end = density.end(cellid);
+    auto density_end = density.end(cellid);
 
-      while(density_it != density_end)
-      {
-        density_avg += (*density_it) * (*volfrac_it);
-        ++density_it;
-        ++volfrac_it;
-      }
+    while(density_it != density_end)
+    {
+      density_avg += (*density_it) * (*volfrac_it);
+      ++density_it;
+      ++volfrac_it;
+    }
 
-      densityAvg_view[cellid] = density_avg / vol[cellid];
-    });
+    densityAvg_view[cellid] = density_avg / vol[cellid];
+  });
 }
 
 template <typename ExecSpace>

@@ -422,9 +422,9 @@ protected:
     n_field["values"].set_allocator(conduitAllocatorID);
     n_field["values"].set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nvalues));
     auto view = utils::make_array_view<ConnectivityType>(n_field["values"]);
-    axom::for_all<ExecSpace>(
-      nvalues,
-      AXOM_LAMBDA(axom::IndexType index) { view[index] = static_cast<ConnectivityType>(index); });
+    axom::for_all<ExecSpace>(nvalues, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      view[index] = static_cast<ConnectivityType>(index);
+    });
   }
 
   /*!
@@ -509,9 +509,9 @@ protected:
     axom::Array<int> maskOffset(numOutputNodes, numOutputNodes, allocatorID);
     auto maskOffsetsView = maskOffset.view();
     axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-    axom::for_all<ExecSpace>(
-      numOutputNodes,
-      AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
+    axom::for_all<ExecSpace>(numOutputNodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      mask_reduce += maskView[index];
+    });
     const auto numNewNodes = mask_reduce.get();
 
     // Make offsets.
@@ -520,30 +520,26 @@ protected:
     // Make a list of indices that we need to slice out of the node arrays.
     nodeSlice = axom::Array<axom::IndexType>(numNewNodes, numNewNodes, allocatorID);
     auto nodeSliceView = nodeSlice.view();
-    axom::for_all<ExecSpace>(
-      numOutputNodes,
-      AXOM_LAMBDA(axom::IndexType index) {
-        if(maskView[index] > 0)
-        {
-          nodeSliceView[maskOffsetsView[index]] = index;
-        }
-      });
+    axom::for_all<ExecSpace>(numOutputNodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      if(maskView[index] > 0)
+      {
+        nodeSliceView[maskOffsetsView[index]] = index;
+      }
+    });
 
     // Make a node map for mapping mixed connectivity into combined node numbering.
     nodeMap = axom::Array<axom::IndexType>(numOutputNodes, numOutputNodes, allocatorID);
     auto nodeMapView = nodeMap.view();
-    axom::for_all<ExecSpace>(
-      numOutputNodes,
-      AXOM_LAMBDA(axom::IndexType index) {
-        if(maskView[index] == 0)
-        {
-          nodeMapView[index] = static_cast<axom::IndexType>(outputOrigNodesView[index]);
-        }
-        else
-        {
-          nodeMapView[index] = numCleanNodes + maskOffsetsView[index];
-        }
-      });
+    axom::for_all<ExecSpace>(numOutputNodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      if(maskView[index] == 0)
+      {
+        nodeMapView[index] = static_cast<axom::IndexType>(outputOrigNodesView[index]);
+      }
+      else
+      {
+        nodeMapView[index] = numCleanNodes + maskOffsetsView[index];
+      }
+    });
 
     // Remove fields that are no longer needed.
     n_newFields.remove(originalNodesFieldName());
@@ -843,13 +839,12 @@ protected:
 
         // Fill the zonal field from the matset.
         MatsetView deviceMatsetView(m_matsetView);
-        axom::for_all<ExecSpace>(
-          m_topologyView.numberOfZones(),
-          AXOM_LAMBDA(axom::IndexType zoneIndex) {
-            typename MatsetView::FloatType vf {};
-            deviceMatsetView.zoneContainsMaterial(zoneIndex, matNumber, vf);
-            zonalFieldView[zoneIndex] = static_cast<MaterialVF>(vf);
-          });
+        axom::for_all<ExecSpace>(m_topologyView.numberOfZones(),
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                                   typename MatsetView::FloatType vf {};
+                                   deviceMatsetView.zoneContainsMaterial(zoneIndex, matNumber, vf);
+                                   zonalFieldView[zoneIndex] = static_cast<MaterialVF>(vf);
+                                 });
       }
     }
 
@@ -912,9 +907,9 @@ protected:
     auto zonalIDFieldView = utils::make_array_view<MaterialID>(n_zonalIDField["values"]);
 
     // Fill all zones with NULL_MATERIAL.
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType nodeIndex) { zonalIDFieldView[nodeIndex] = NULL_MATERIAL; });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType nodeIndex) {
+      zonalIDFieldView[nodeIndex] = NULL_MATERIAL;
+    });
 
     // Fill in the clean zones.
     using FloatType = typename MatsetView::FloatType;
@@ -922,15 +917,13 @@ protected:
     for(const auto& mat : cleanMats)
     {
       const int matNumber = mat.m_number;
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType zoneIndex) {
-          FloatType vf {};
-          if(deviceMatsetView.zoneContainsMaterial(zoneIndex, matNumber, vf))
-          {
-            zonalIDFieldView[zoneIndex] = matNumber;
-          }
-        });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+        FloatType vf {};
+        if(deviceMatsetView.zoneContainsMaterial(zoneIndex, matNumber, vf))
+        {
+          zonalIDFieldView[zoneIndex] = matNumber;
+        }
+      });
     }
   }
 
@@ -1120,15 +1113,13 @@ protected:
         n_newFields.fetch_existing(zonalMaterialIDName() + "/values");
       auto zonalMaterialID = utils::make_array_view<MaterialID>(n_zonalMaterialID);
       const int currentMatNumber = currentMat.m_number;
-      axom::for_all<ExecSpace>(
-        nzonesNew,
-        AXOM_LAMBDA(axom::IndexType zoneIndex) {
-          // Color the part we want with the current material.
-          if(colorView[zoneIndex] == 1)
-          {
-            zonalMaterialID[zoneIndex] = currentMatNumber;
-          }
-        });
+      axom::for_all<ExecSpace>(nzonesNew, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+        // Color the part we want with the current material.
+        if(colorView[zoneIndex] == 1)
+        {
+          zonalMaterialID[zoneIndex] = currentMatNumber;
+        }
+      });
     }
 
 #if defined(AXOM_EQUIZ_DEBUG)
@@ -1215,15 +1206,13 @@ protected:
     auto indices_view = utils::make_array_view<MIntType>(n_indices);
 
     // Fill in the new matset data arrays.
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        material_ids_view[zoneIndex] = static_cast<MIntType>(zonalMaterialID[zoneIndex]);
-        volume_fractions_view[zoneIndex] = 1;
-        sizes_view[zoneIndex] = 1;
-        offsets_view[zoneIndex] = static_cast<MIntType>(zoneIndex);
-        indices_view[zoneIndex] = static_cast<MIntType>(zoneIndex);
-      });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      material_ids_view[zoneIndex] = static_cast<MIntType>(zonalMaterialID[zoneIndex]);
+      volume_fractions_view[zoneIndex] = 1;
+      sizes_view[zoneIndex] = 1;
+      offsets_view[zoneIndex] = static_cast<MIntType>(zoneIndex);
+      indices_view[zoneIndex] = static_cast<MIntType>(zoneIndex);
+    });
   }
 
 private:

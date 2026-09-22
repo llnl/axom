@@ -71,22 +71,6 @@
   #define AXOM_HOST_DEVICE
   #define AXOM_HOST
 #endif
-
-/*!
- * \def AXOM_LAMBDA
- *
- * \brief Convenience macro used for lambda capture by value.
- * \note When CUDA or HIP is used, the macro always expands to a host/device lambda.
- */
-#if defined(AXOM_USE_CUDA) || defined(AXOM_USE_HIP)
-  #define AXOM_LAMBDA [=] AXOM_HOST_DEVICE
-  #define AXOM_DEVICE_LAMBDA [=] AXOM_DEVICE
-  #define AXOM_HOST_LAMBDA [=] AXOM_HOST
-#else
-  #define AXOM_LAMBDA [=]
-  #define AXOM_DEVICE_LAMBDA [=]
-  #define AXOM_HOST_LAMBDA [=]
-#endif
 // _decorating_macros_end
 
 /*!

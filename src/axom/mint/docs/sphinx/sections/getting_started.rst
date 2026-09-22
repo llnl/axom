@@ -186,7 +186,7 @@ mesh :ref:`Nodes` and evaluate `Himmelblau's Function`_ at each node:
 
   #. A pointer to the mesh object, and
   #. The *kernel* that defines the *per-node* operations, encapsulated within a
-     `Lambda Expression`_, using the convenience :ref:`axomLambdaMacro`.
+     host/device `Lambda Expression`_.
 
 * In addition, the ``for_all_nodes()`` function has two template arguments:
 
@@ -230,7 +230,7 @@ The second kernel employs the ``for_all_cells()`` traversal function of the
 
   #. A pointer to the mesh object, and
   #. The *kernel* that defines the *per-cell* operations, encapsulated within a
-     `Lambda Expression`_, using the convenience :ref:`axomLambdaMacro`.
+     host/device `Lambda Expression`_.
 
 * In addition, the ``for_all_cells()`` function has two template arguments:
 

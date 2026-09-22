@@ -58,19 +58,17 @@ void check_static_array_policy()
   axom::Array<StaticArrayType> sizes_device(1, 1, kernel_allocator);
   auto sizes_view = sizes_device.view();
 
-  axom::for_all<ExecSpace>(
-    MAX_SIZE,
-    AXOM_LAMBDA(int i) {
-      // Sanity check - function is callable on device
-      s_arrays_view[i].clear();
+  axom::for_all<ExecSpace>(MAX_SIZE, [=] AXOM_HOST_DEVICE(int i) {
+    // Sanity check - function is callable on device
+    s_arrays_view[i].clear();
 
-      for(int idx = 0; idx <= i; idx++)
-      {
-        s_arrays_view[i].push_back(idx);
-      }
+    for(int idx = 0; idx <= i; idx++)
+    {
+      s_arrays_view[i].push_back(idx);
+    }
 
-      sizes_view[0][i] = static_cast<int>(s_arrays_view[i].size());
-    });
+    sizes_view[0][i] = static_cast<int>(s_arrays_view[i].size());
+  });
 
   if(axom::execution_space<ExecSpace>::async())
   {
@@ -106,22 +104,20 @@ void check_static_array_nonpod_assignment_policy()
   axom::Array<StaticArrayType> arrays_device(1, 1, kernel_allocator);
   auto arrays_view = arrays_device.view();
 
-  axom::for_all<ExecSpace>(
-    1,
-    AXOM_LAMBDA(int i) {
-      AXOM_UNUSED_VAR(i);
+  axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int i) {
+    AXOM_UNUSED_VAR(i);
 
-      StaticArrayType source;
-      source.push_back(DevicePair(1));
-      source.push_back(DevicePair(2));
+    StaticArrayType source;
+    source.push_back(DevicePair(1));
+    source.push_back(DevicePair(2));
 
-      StaticArrayType target;
-      target.push_back(DevicePair(-1));
-      target = source;
-      target.push_back(DevicePair(3));
+    StaticArrayType target;
+    target.push_back(DevicePair(-1));
+    target = source;
+    target.push_back(DevicePair(3));
 
-      arrays_view[0] = target;
-    });
+    arrays_view[0] = target;
+  });
 
   if(axom::execution_space<ExecSpace>::async())
   {
