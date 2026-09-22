@@ -15,13 +15,15 @@ axom::blueprint::testing::TestApplication TestApp;
 TEST(mir_coupled3d_seq, coupling_3d_seq)
 {
   AXOM_ANNOTATE_SCOPE("coupling_3d_seq");
-  test_coupling<seq_exec>::test("coupling_3d", true);
+  const bool cleanMesh = true;
+  test_coupling<seq_exec>::test("coupling_3d", cleanMesh);
 }
 
 TEST(mir_coupled3d_seq, coupling_3d_noclean_seq)
 {
   AXOM_ANNOTATE_SCOPE("coupling_3d_noclean_seq");
-  test_coupling<seq_exec>::test("coupling_3d", false);
+  const bool cleanMesh = false;
+  test_coupling<seq_exec>::test("coupling_3d", cleanMesh);
 }
 
 int main(int argc, char* argv[])
