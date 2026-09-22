@@ -29,6 +29,7 @@
 
 // C++ includes
 #include <string>
+#include <type_traits>
 
 namespace axom::quest::detail::marching_cubes
 {
@@ -230,6 +231,20 @@ private:
 
   //! @brief Create the backend implementation selected at runtime.
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
+  std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 2>);
+  std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 3>);
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  std::unique_ptr<ImplBase> newMarchingCubesOpenMPImpl(std::integral_constant<int, 2>);
+  std::unique_ptr<ImplBase> newMarchingCubesOpenMPImpl(std::integral_constant<int, 3>);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  std::unique_ptr<ImplBase> newMarchingCubesCudaImpl(std::integral_constant<int, 2>);
+  std::unique_ptr<ImplBase> newMarchingCubesCudaImpl(std::integral_constant<int, 3>);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  std::unique_ptr<ImplBase> newMarchingCubesHipImpl(std::integral_constant<int, 2>);
+  std::unique_ptr<ImplBase> newMarchingCubesHipImpl(std::integral_constant<int, 3>);
+#endif
 
 private:
   //! @brief Owning multi-domain MarchingCubes object.

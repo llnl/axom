@@ -148,6 +148,31 @@ if(CONDUIT_FOUND)
         ELEMENTS MarchingCubes.cpp
                  detail/MarchingCubesSingleDomain.cpp)
 
+    function(add_marching_cubes_policy_source policy_name policy_definition)
+        set(${policy_definition} ON)
+        foreach(dimension 2 3)
+            unset(AXOM_MARCHING_CUBES_DIMENSION_2)
+            unset(AXOM_MARCHING_CUBES_DIMENSION_3)
+            set(AXOM_MARCHING_CUBES_DIMENSION_${dimension} ON)
+            set(policy_source
+                ${CMAKE_CURRENT_BINARY_DIR}/detail/MarchingCubesSingleDomain${policy_name}${dimension}D.cpp)
+            configure_file(detail/MarchingCubesSingleDomainPolicy.cpp.in ${policy_source} @ONLY)
+            list(APPEND quest_sources ${policy_source})
+        endforeach()
+        set(quest_sources ${quest_sources} PARENT_SCOPE)
+    endfunction()
+
+    add_marching_cubes_policy_source(Seq AXOM_MARCHING_CUBES_POLICY_SEQ)
+    if(AXOM_ENABLE_OPENMP)
+        add_marching_cubes_policy_source(OpenMP AXOM_MARCHING_CUBES_POLICY_OPENMP)
+    endif()
+    if(AXOM_ENABLE_CUDA)
+        add_marching_cubes_policy_source(Cuda AXOM_MARCHING_CUBES_POLICY_CUDA)
+    endif()
+    if(AXOM_ENABLE_HIP)
+        add_marching_cubes_policy_source(Hip AXOM_MARCHING_CUBES_POLICY_HIP)
+    endif()
+
     if(AXOM_ENABLE_BUMP)
         blt_list_append(
             TO       quest_headers
