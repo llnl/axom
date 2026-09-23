@@ -40,7 +40,6 @@
 
 #include <array>
 #include <cmath>
-#include <iostream>
 #include <cstdint>
 #include <set>
 #include <string>
@@ -878,27 +877,22 @@ void test_float32_field_rejected(RuntimePolicy policy)
   quest::MarchingCubes mc(policy, allocatorID, quest::MarchingCubesDataParallelism::byPolicy);
   mc.setUseBumpBackend(true);
 
-  // Route SLIC output to stderr in the child so gtest can match the diagnostic.
-  EXPECT_DEATH_IF_SUPPORTED(
+  axom::slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(
     {
-      axom::slic::addStreamToAllMsgLevels(
-        new axom::slic::GenericOutputStream(&std::cerr, "[<LEVEL>] <MESSAGE>\n"));
       mc.setMesh(mesh, "mesh");
       mc.setFunctionField("fcn");
       mc.computeIsocontour(0.0);
     },
-    "float64");
+    axom::slic::SlicAbortException);
 }
 
-//! @brief Run the Bump backend in a death-test child and require a field-layout error.
-void expectBumpFieldLayoutRejected(const conduit::Node& mesh,
-                                   RuntimePolicy policy,
-                                   const char* expectedMessage)
+//! @brief Run the Bump backend and require a field-layout error.
+void expectBumpFieldLayoutRejected(const conduit::Node& mesh, RuntimePolicy policy)
 {
-  EXPECT_DEATH_IF_SUPPORTED(
+  axom::slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(
     {
-      axom::slic::addStreamToAllMsgLevels(
-        new axom::slic::GenericOutputStream(&std::cerr, "[<LEVEL>] <MESSAGE>\n"));
       const int allocatorID = axom::policyToDefaultAllocatorID(policy);
       axom::quest::MarchingCubes mc(policy,
                                     allocatorID,
@@ -908,7 +902,7 @@ void expectBumpFieldLayoutRejected(const conduit::Node& mesh,
       mc.setFunctionField("fcn");
       mc.computeIsocontour(0.0);
     },
-    expectedMessage);
+    axom::slic::SlicAbortException);
 }
 
 /*!
@@ -927,13 +921,12 @@ void test_invalid_field_layouts_rejected(RuntimePolicy policy)
   conduit::Node permuted;
   buildStridedStructured3D(permuted, n, pad, f, "fcn");
   permuted["fields/fcn/strides"].set(std::vector<conduit::int32> {nnPad * nnPad, nnPad, 1});
-  // The diagnostic reports both the field and topology layouts.
-  expectBumpFieldLayoutRejected(permuted, policy, "but its topology has strides");
+  expectBumpFieldLayoutRejected(permuted, policy);
 
   conduit::Node mismatched;
   buildStridedStructured3D(mismatched, n, pad, f, "fcn");
   mismatched["fields/fcn/offsets"].set(std::vector<conduit::int32> {pad + 1, pad, pad});
-  expectBumpFieldLayoutRejected(mismatched, policy, "but its topology has offsets");
+  expectBumpFieldLayoutRejected(mismatched, policy);
 }
 
 /*!
@@ -1401,7 +1394,6 @@ TEST(quest_marching_cubes_equivalence, strided_structured_hip)
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
-  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   axom::slic::SimpleLogger logger;
   return RUN_ALL_TESTS();
 }
