@@ -463,12 +463,6 @@ private:
       m_dom->fetch_existing(axom::fmt::format("fields/{}", m_maskFieldName));
     const conduit::Node& n_maskValues = n_mask.fetch_existing("values");
 
-    // Copy mask value to a local so the device predicates below capture it by value.
-    // AXOM_LAMBDA is [=]; capturing the m_maskVal *member* would instead capture `this`,
-    // and dereferencing a host `this` pointer inside a CUDA/HIP kernel is undefined behavior.
-    // (Compiles and passes on seq/omp regardless, which is why this must be a local, not the member.)
-    const int maskVal = m_maskVal;
-
     if(m_isStructured)
     {
       axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
@@ -477,7 +471,7 @@ private:
 
       buildSelectedZonesFromMask(
         nZones,
-        [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+        [maskView, topoMap, maskVal = m_maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
           const auto zoneIdx = topoMap.toMultiIndex(zoneIndex);
           if constexpr(DIM == 2)
           {
@@ -498,7 +492,9 @@ private:
                     "MarchingCubes mask field has fewer values than topology zones.");
       buildSelectedZonesFromMask(
         nZones,
-        [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) { return maskView[zoneIndex] == maskVal; },
+        [maskView, maskVal = m_maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+          return maskView[zoneIndex] == maskVal;
+        },
         n_options,
         selectedZones);
     }
