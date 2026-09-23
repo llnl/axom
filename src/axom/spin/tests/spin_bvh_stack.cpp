@@ -86,7 +86,7 @@ void check_shared_stack_chunk_save_and_restore()
   axom::Array<int> device_results(num_threads, num_threads, device_allocator);
 
   auto results = device_results.view();
-  axom::for_all<ExecSpace>(num_threads, [=] AXOM_HOST_DEVICE(axom::IndexType thread_idx) {
+  axom::for_all<ExecSpace>(num_threads, [=] AXOM_DEVICE(axom::IndexType thread_idx) {
     SharedStack stack;
     typename SharedStack::LocalStack local_stack;
     stack.setLocalStack(local_stack);

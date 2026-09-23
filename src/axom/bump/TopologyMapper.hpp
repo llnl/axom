@@ -31,7 +31,7 @@
     {                                         \
       if(!(CONDITION))                        \
       {                                       \
-        return;                               \
+        abort();                              \
       }                                       \
     } while(false)
 #else
