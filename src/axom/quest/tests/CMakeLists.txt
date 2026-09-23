@@ -274,6 +274,27 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
         FOLDER      axom/quest/tests
         )
 
+    if(ENABLE_BENCHMARKS AND ENABLE_GBENCHMARK)
+        set(_mesh_clipper_benchmark_num_threads)
+        if(AXOM_ENABLE_OPENMP)
+            set(_mesh_clipper_benchmark_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
+        axom_add_executable(
+            NAME        quest_mesh_clipper_benchmark
+            SOURCES     quest_mesh_clipper_benchmark.cpp
+            OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON  ${quest_mesh_clipper_depends} gbenchmark
+            FOLDER      axom/quest/benchmarks
+            )
+
+        blt_add_benchmark(
+            NAME            quest_mesh_clipper_benchmark
+            COMMAND         quest_mesh_clipper_benchmark --benchmark_min_time=0.0001s
+            NUM_OMP_THREADS ${_mesh_clipper_benchmark_num_threads}
+            )
+    endif()
+
     # 3D shaping tests.  No 2D shaping in this feature, at least for now.
     set(_nranks 1)
 
