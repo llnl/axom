@@ -201,6 +201,8 @@ TEST(bump_utilities, validate_vertex_field_indexing_strided_matching)
 
 TEST(bump_utilities, validate_vertex_field_indexing_rejects_mismatch)
 {
+  axom::slic::ScopedAbortToThrow abort_guard;
+
   conduit::Node mesh;
   axom::blueprint::testing::data::strided_structured<2>(mesh);
 
@@ -217,18 +219,10 @@ TEST(bump_utilities, validate_vertex_field_indexing_rejects_mismatch)
     }
     perturbed["fields/vert_vals/offsets"].set(shifted);
 
-    // SLIC's default handler aborts.
-    // SimpleLogger writes to stdout, while GTest death tests capture stderr,
-    // so add a stream inside the child.
-    EXPECT_DEATH_IF_SUPPORTED(
-      {
-        axom::slic::addStreamToAllMsgLevels(
-          new axom::slic::GenericOutputStream(&std::cerr, "[<LEVEL>] <MESSAGE>\n"));
-        utils::validateVertexFieldIndexing(perturbed["topologies/mesh"],
-                                           perturbed["fields/vert_vals"],
-                                           "vert_vals");
-      },
-      "but its topology has offsets");
+    EXPECT_THROW(utils::validateVertexFieldIndexing(perturbed["topologies/mesh"],
+                                                    perturbed["fields/vert_vals"],
+                                                    "vert_vals"),
+                 axom::slic::SlicAbortException);
   }
 
   // Reject field layout metadata on a compact topology.
@@ -238,15 +232,10 @@ TEST(bump_utilities, validate_vertex_field_indexing_rejects_mismatch)
     compact["fields/braid/offsets"].set(std::vector<int> {1, 0, 0});
     compact["fields/braid/strides"].set(std::vector<int> {1, 4, 16});
 
-    EXPECT_DEATH_IF_SUPPORTED(
-      {
-        axom::slic::addStreamToAllMsgLevels(
-          new axom::slic::GenericOutputStream(&std::cerr, "[<LEVEL>] <MESSAGE>\n"));
-        utils::validateVertexFieldIndexing(compact["topologies/mesh"],
-                                           compact["fields/braid"],
-                                           "braid");
-      },
-      "its topology does not");
+    EXPECT_THROW(utils::validateVertexFieldIndexing(compact["topologies/mesh"],
+                                                    compact["fields/braid"],
+                                                    "braid"),
+                 axom::slic::SlicAbortException);
   }
 }
 
