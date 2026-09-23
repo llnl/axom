@@ -422,13 +422,11 @@ private:
     auto maskFlagsView = maskFlags.view();
 
     axom::ReduceSum<ExecSpace, axom::IndexType> selectedCountReduce(0);
-    axom::for_all<ExecSpace>(
-      nZones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const axom::IndexType selected = isSelected(zoneIndex) ? 1 : 0;
-        maskFlagsView[zoneIndex] = selected;
-        selectedCountReduce += selected;
-      });
+    axom::for_all<ExecSpace>(nZones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const axom::IndexType selected = isSelected(zoneIndex) ? 1 : 0;
+      maskFlagsView[zoneIndex] = selected;
+      selectedCountReduce += selected;
+    });
 
     const axom::IndexType selectedCount = selectedCountReduce.get();
     selectedZones = axom::Array<axom::IndexType>(selectedCount, selectedCount, m_allocatorID);
@@ -438,14 +436,12 @@ private:
     axom::exclusive_scan<ExecSpace>(maskFlagsView, selectedOffsetsView);
 
     auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(
-      nZones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        if(maskFlagsView[zoneIndex] != 0)
-        {
-          selectedZonesView[selectedOffsetsView[zoneIndex]] = zoneIndex;
-        }
-      });
+    axom::for_all<ExecSpace>(nZones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      if(maskFlagsView[zoneIndex] != 0)
+      {
+        selectedZonesView[selectedOffsetsView[zoneIndex]] = zoneIndex;
+      }
+    });
 
     attachSelectedZonesOption(n_options, selectedZones);
   }
@@ -467,12 +463,6 @@ private:
       m_dom->fetch_existing(axom::fmt::format("fields/{}", m_maskFieldName));
     const conduit::Node& n_maskValues = n_mask.fetch_existing("values");
 
-    // Copy mask value to a local so the device predicates below capture it by value.
-    // AXOM_LAMBDA is [=]; capturing the m_maskVal *member* would instead capture `this`,
-    // and dereferencing a host `this` pointer inside a CUDA/HIP kernel is undefined behavior.
-    // (Compiles and passes on seq/omp regardless, which is why this must be a local, not the member.)
-    const int maskVal = m_maskVal;
-
     if(m_isStructured)
     {
       axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
@@ -481,7 +471,7 @@ private:
 
       buildSelectedZonesFromMask(
         nZones,
-        AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        [maskView, topoMap, maskVal = m_maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
           const auto zoneIdx = topoMap.toMultiIndex(zoneIndex);
           if constexpr(DIM == 2)
           {
@@ -502,7 +492,9 @@ private:
                     "MarchingCubes mask field has fewer values than topology zones.");
       buildSelectedZonesFromMask(
         nZones,
-        AXOM_LAMBDA(axom::IndexType zoneIndex) { return maskView[zoneIndex] == maskVal; },
+        [maskView, maskVal = m_maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+          return maskView[zoneIndex] == maskVal;
+        },
         n_options,
         selectedZones);
     }
