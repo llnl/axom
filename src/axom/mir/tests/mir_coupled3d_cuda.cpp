@@ -15,7 +15,15 @@ axom::blueprint::testing::TestApplication TestApp;
 TEST(mir_coupled3d_cuda, coupling_3d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("coupling_3d_cuda");
-  test_coupling<cuda_exec>::test("coupling_3d");
+  const bool cleanMesh = true;
+  test_coupling<cuda_exec>::test("coupling_3d", cleanMesh);
+}
+
+TEST(mir_coupled3d_cuda, coupling_3d_noclean_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("coupling_3d_noclean_cuda");
+  const bool cleanMesh = false;
+  test_coupling<cuda_exec>::test("coupling_3d", cleanMesh);
 }
 
 int main(int argc, char* argv[])

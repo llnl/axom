@@ -210,6 +210,7 @@ HMApplication::HMApplication()
   , m_refinement(40)
   , m_numTrials(1)
   , m_writeFiles(true)
+  , m_cleanMesh(true)
   , m_outputFilePath("output")
   , m_method("elvira")
   , m_policy(RuntimePolicy::seq)
@@ -241,6 +242,10 @@ int HMApplication::initialize(int argc, char** argv)
     ->description("The file path for HDF5/YAML output files");
   bool disable_write = !m_writeFiles;
   app.add_flag("--disable-write", disable_write)->description("Disable writing data files");
+  app.add_option("--cleanmesh", m_cleanMesh)
+    ->check(axom::CLI::IsMember({"on", "off"}))
+    ->description("Enable or disable ELVIRA mesh cleanup (on/off).")
+    ->default_str("on");
   app.add_option("--trials", m_numTrials)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of MIR trials to run on the mesh.");
@@ -368,6 +373,7 @@ int HMApplication::runMIR()
   options["matset"] = "mat";
   options["method"] = m_method;  // pass method via options.
   options["trials"] = m_numTrials;
+  options["cleanmesh"] = m_cleanMesh ? 1 : 0;
 
   const int dimension = (m_dims[2] > 1) ? 3 : 2;
   int retval = 0;

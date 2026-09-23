@@ -50,6 +50,12 @@ public:
    * \return True if the output should be a point mesh, false otherwise.
    */
   bool pointmesh() const { return flagValue("pointmesh", false); }
+
+  /**
+   * \brief Get whether like coordinates and faces should be merged to make a better mesh.
+   * \return True if we should clean the mesh, false otherwise.
+   */
+  bool cleanMesh() const { return flagValue("cleanmesh", true); }
 };
 
 namespace detail

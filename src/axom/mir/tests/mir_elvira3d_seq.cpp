@@ -17,14 +17,34 @@ TEST(mir_elvira3d_seq, elvira3d_unibuffer_seq)
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_seq");
   const bool selectZones = false;
   const bool pointMesh = false;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer", selectZones, pointMesh);
+  const bool cleanMesh = true;
+  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer", selectZones, pointMesh, cleanMesh);
 }
 TEST(mir_elvira3d_seq, elvira3d_unibuffer_sel_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_seq");
   const bool selectZones = true;
   const bool pointMesh = false;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh);
+  const bool cleanMesh = true;
+  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel", selectZones, pointMesh, cleanMesh);
+}
+
+TEST(mir_elvira3d_seq, elvira3d_unibuffer_noclean_seq)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_noclean_seq");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  const bool cleanMesh = false;
+  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_noclean", selectZones, pointMesh, cleanMesh);
+}
+
+TEST(mir_elvira3d_seq, elvira3d_unibuffer_sel_noclean_seq)
+{
+  AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_noclean_seq");
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  const bool cleanMesh = false;
+  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel_noclean", selectZones, pointMesh, cleanMesh);
 }
 
 TEST(mir_elvira3d_seq, elvira3d_unibuffer_pm_seq)
@@ -32,7 +52,8 @@ TEST(mir_elvira3d_seq, elvira3d_unibuffer_pm_seq)
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_pm_seq");
   const bool selectZones = false;
   const bool pointMesh = true;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh);
+  const bool cleanMesh = true;
+  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_pm", selectZones, pointMesh, cleanMesh);
 }
 
 TEST(mir_elvira3d_seq, elvira3d_unibuffer_sel_pm_seq)
@@ -40,7 +61,8 @@ TEST(mir_elvira3d_seq, elvira3d_unibuffer_sel_pm_seq)
   AXOM_ANNOTATE_SCOPE("elvira3d_unibuffer_sel_pm_seq");
   const bool selectZones = true;
   const bool pointMesh = true;
-  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh);
+  const bool cleanMesh = true;
+  test_Elvira3D<seq_exec>::test("elvira3d_unibuffer_sel_pm", selectZones, pointMesh, cleanMesh);
 }
 
 int main(int argc, char* argv[])

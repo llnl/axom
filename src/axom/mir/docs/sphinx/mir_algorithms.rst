@@ -159,6 +159,13 @@ that are specific to ELVIRA.
 +---------------------------------+------------------------------------------------------+
 | Option                          | Description                                          |
 +=================================+======================================================+
+|``cleanmesh: 0 | 1``             | The ``cleanmesh`` option is set to 1 by default and  |
+|                                 | it is used during MIR for 3D meshes to enable a phase|
+|                                 | where the algorithm merges like vertices and merges  |
+|                                 | like polyhedral faces. The ``cleanmesh`` option can  |
+|                                 | be set to 0 to disable these operations, saving time |
+|                                 | when these de-duplications are not necessary.        |
++---------------------------------+------------------------------------------------------|
 |``plane: 0 | 1``                 | If ``plane`` is set to 1 then the MIR output will    |
 |                                 | contain "normal" and "offset" fields that            |
 |                                 | contain the normal and offset, respectively, for the |
