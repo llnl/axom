@@ -86,28 +86,26 @@ void check_shared_stack_chunk_save_and_restore()
   axom::Array<int> device_results(num_threads, num_threads, device_allocator);
 
   auto results = device_results.view();
-  axom::for_all<ExecSpace>(
-    num_threads,
-    AXOM_LAMBDA(axom::IndexType thread_idx) {
-      SharedStack stack;
-      typename SharedStack::LocalStack local_stack;
-      stack.setLocalStack(local_stack);
+  axom::for_all<ExecSpace>(num_threads, [=] AXOM_HOST_DEVICE(axom::IndexType thread_idx) {
+    SharedStack stack;
+    typename SharedStack::LocalStack local_stack;
+    stack.setLocalStack(local_stack);
 
-      bool passed = stack.pop() == SharedStack::BARRIER;
-      const int seed = static_cast<int>(thread_idx) * stack_depth;
-      for(int i = 0; i < stack_depth; ++i)
-      {
-        // At full shared capacity, push() saves its oldest Chunk to g_stack.
-        stack.push(seed + i);
-      }
-      for(int i = stack_depth - 1; i >= 0; --i)
-      {
-        // Once shared storage is empty, pop() restores a Chunk from g_stack.
-        passed = passed && stack.pop() == seed + i;
-      }
-      passed = passed && stack.pop() == SharedStack::BARRIER;
-      results[thread_idx] = passed ? 1 : 0;
-    });
+    bool passed = stack.pop() == SharedStack::BARRIER;
+    const int seed = static_cast<int>(thread_idx) * stack_depth;
+    for(int i = 0; i < stack_depth; ++i)
+    {
+      // At full shared capacity, push() saves its oldest Chunk to g_stack.
+      stack.push(seed + i);
+    }
+    for(int i = stack_depth - 1; i >= 0; --i)
+    {
+      // Once shared storage is empty, pop() restores a Chunk from g_stack.
+      passed = passed && stack.pop() == seed + i;
+    }
+    passed = passed && stack.pop() == SharedStack::BARRIER;
+    results[thread_idx] = passed ? 1 : 0;
+  });
 
   axom::Array<int> host_results(device_results, host_allocator);
   for(axom::IndexType i = 0; i < host_results.size(); ++i)
