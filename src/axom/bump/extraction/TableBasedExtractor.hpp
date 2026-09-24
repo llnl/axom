@@ -871,14 +871,18 @@ public:
 
     const std::string newTopologyName = n_newTopo.name();
     // Reset the output nodes just in case they've been reused.
+    AXOM_ANNOTATE_BEGIN("TableBasedExtractor::outputReset");
     n_newTopo = conduit::Node();
     n_newCoordset = conduit::Node();
     n_newFields = conduit::Node();
+    AXOM_ANNOTATE_END("TableBasedExtractor::outputReset");
 
     // Make the selected zones and get the size.
+    AXOM_ANNOTATE_BEGIN("TableBasedExtractor::selectionSetup");
     ExtractorOptions opts(n_options);
     SelectedZones selectedZones(m_topologyView.numberOfZones(), n_options, "selectedZones", allocatorID);
     const auto nzones = selectedZones.view().size();
+    AXOM_ANNOTATE_END("TableBasedExtractor::selectionSetup");
 
     // Give the intersector a chance to further initialize.
     {
@@ -887,9 +891,11 @@ public:
     }
 
     // Load table data and make views.
+    AXOM_ANNOTATE_BEGIN("TableBasedExtractor::tableSetup");
     m_tableManager.load(m_topologyView.dimension());
     TableViews tableViews;
     createTableViews(tableViews, m_topologyView.dimension());
+    AXOM_ANNOTATE_END("TableBasedExtractor::tableSetup");
 
     // Allocate some memory and store views in ZoneData, FragmentData.
     AXOM_ANNOTATE_BEGIN("allocation");
@@ -976,8 +982,10 @@ public:
     // Compute original node count that we're preserving, make node maps.
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
     const int compactSize = countOriginalNodes(nodeData);
+    AXOM_ANNOTATE_BEGIN("nodeMapAllocation");
     axom::Array<IndexType> compactNodes(compactSize, compactSize, allocatorID);
     axom::Array<IndexType> oldNodeToNewNode(nnodes, nnodes, allocatorID);
+    AXOM_ANNOTATE_END("nodeMapAllocation");
     nodeData.m_originalIdsView = compactNodes.view();
     nodeData.m_oldNodeToNewNodeView = oldNodeToNewNode.view();
     createNodeMaps(nodeData);
