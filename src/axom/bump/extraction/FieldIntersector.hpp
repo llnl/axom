@@ -153,10 +153,14 @@ public:
     {
       // Convert to FieldType.
       const IndexType n = static_cast<IndexType>(n_field_values.dtype().number_of_elements());
+      AXOM_ANNOTATE_BEGIN("FieldIntersector::fieldAllocation");
       m_fieldData = axom::Array<FieldType>(axom::ArrayOptions::Uninitialized(), n, n, allocator_id);
+      AXOM_ANNOTATE_END("FieldIntersector::fieldAllocation");
       m_view.m_fieldView = m_fieldData.view();
+      AXOM_ANNOTATE_BEGIN("FieldIntersector::fieldConversion");
       views::nodeToArrayView(n_field_values,
                              [&](auto clip_field_view_src) { copyValues(clip_field_view_src); });
+      AXOM_ANNOTATE_END("FieldIntersector::fieldConversion");
     }
   }
 
