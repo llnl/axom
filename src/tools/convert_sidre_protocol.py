@@ -4,11 +4,12 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 """
-Convert a Sidre datastore from the sidre_hdf5 protocol to another protocol.
+Convert a Sidre datastore or Conduit Blueprint mesh to another protocol.
 
-Users must supply a path to a sidre_hdf5 rootfile and base name for
-the output datastores. Optional command line arguments include
-a ``--protocol`` option (the default is ``json``)
+Users must supply a path to an input rootfile and base name for the output.
+Sidre datastore conversion remains the default. Use ``--input-type blueprint``
+to convert Conduit Blueprint meshes, including HDF5 Blueprint root files.
+Optional command line arguments include a ``--protocol`` option (the default is ``json``)
 and a ``--strip`` option to truncate the array data to at most N elements.
 The strip option also prepends each array with its original size, the new
 size and a filler entry of 0 for integer arrays or nan for floating point
@@ -16,9 +17,13 @@ arrays. E.g. if the array had 6 entries [1.01, 2.02, 3.03, 4.04, 5.05, 6.06]
 and the user passed in ``--strip 3``, the array would be converted to
 [6, 3, nan, 1.01, 2.02, 3.03].
 
-The strip option is intended as a temporary solution to truncating
-a dataset to allow easier debugging. In the future, the conversion and
-truncation/display functionality may be separated into distinct utilities.
+For Blueprint meshes, ``--strip`` applies to numeric array leaves with more than
+one element and leaves scalar/string metadata intact.
+A ``state/Note`` node is added to each output domain to record that the mesh was stripped.
+
+The resulting stripped output is intended for debugging, not for use as a valid mesh.
+In the future, the conversion and truncation/display functionality may be
+separated into distinct utilities.
 """
 
 from __future__ import annotations
@@ -31,7 +36,7 @@ from pathlib import Path
 import numpy as np
 import axom.sidre as sidre
 
-VALID_PROTOCOLS = (
+SIDRE_PROTOCOLS = (
     "json",
     "sidre_hdf5",
     "sidre_conduit_json",
@@ -41,27 +46,44 @@ VALID_PROTOCOLS = (
     "conduit_json",
 )
 
+BLUEPRINT_PROTOCOLS = (
+    "hdf5",
+    "json",
+    "yaml",
+    "conduit_bin",
+    "conduit_hdf5",
+    "conduit_json",
+)
+
+VALID_PROTOCOLS = tuple(dict.fromkeys(SIDRE_PROTOCOLS + BLUEPRINT_PROTOCOLS))
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Sidre protocol converter")
+    parser = argparse.ArgumentParser(description="Sidre/Blueprint protocol converter")
     parser.add_argument(
         "-i",
         "--input",
         required=True,
-        help="Filename of input sidre-hdf5 datastore",
+        help="Filename of input sidre-hdf5 datastore or Blueprint mesh root file",
     )
     parser.add_argument(
         "-o",
         "--output",
         required=True,
-        help="Filename of output datastore (without extension)",
+        help="Filename of output datastore/mesh (without extension)",
+    )
+    parser.add_argument(
+        "--input-type",
+        choices=("sidre", "blueprint"),
+        default="sidre",
+        help="Type of input file to convert",
     )
     parser.add_argument(
         "-p",
         "--protocol",
         default="json",
         choices=VALID_PROTOCOLS,
-        help="Desired protocol for output datastore",
+        help="Desired output protocol; valid protocols depend on --input-type",
     )
     parser.add_argument(
         "-s",
@@ -77,6 +99,25 @@ def parse_args() -> argparse.Namespace:
         help="Sets output to verbose",
     )
     return parser.parse_args()
+
+
+def initialize_mpi() -> tuple[object | None, bool, int, int]:
+    if not sidre.AXOM_ENABLE_MPI:
+        return None, False, 1, 0
+
+    try:
+        from mpi4py import MPI
+    except ImportError as exc:
+        raise RuntimeError(
+            "convert_sidre_protocol.py requires mpi4py when Axom is built with MPI support",
+        ) from exc
+
+    initialized_mpi = False
+    if not MPI.Is_initialized():
+        MPI.Init()
+        initialized_mpi = True
+
+    return MPI, initialized_mpi, MPI.COMM_WORLD.Get_size(), MPI.COMM_WORLD.Get_rank()
 
 
 #
@@ -191,26 +232,159 @@ def truncate_bulk_data(group: sidre.Group, max_size: int, verbose: bool) -> None
         truncate_bulk_data(child, max_size, verbose)
 
 
-def main() -> int:
-    args = parse_args()
+def blueprint_protocol(protocol: str) -> str:
+    if protocol == "conduit_hdf5":
+        return "hdf5"
+    if protocol in BLUEPRINT_PROTOCOLS:
+        return protocol
 
+    valid = ", ".join(BLUEPRINT_PROTOCOLS)
+    raise RuntimeError(
+        f"Protocol '{protocol}' is not valid for Blueprint mesh output. "
+        f"Use one of: {valid}", )
+
+
+def sidre_protocol(protocol: str) -> str:
+    if protocol in SIDRE_PROTOCOLS:
+        return protocol
+
+    valid = ", ".join(SIDRE_PROTOCOLS)
+    raise RuntimeError(
+        f"Protocol '{protocol}' is not valid for Sidre datastore output. "
+        f"Use one of: {valid}", )
+
+
+def blueprint_domain_count(mesh) -> int:
+    if mesh.has_path("coordsets") and mesh.has_path("topologies"):
+        return 1
+    return mesh.number_of_children()
+
+
+def strip_note(data_kind: str, max_size: int) -> str:
+    return (f"This {data_kind} was created by axom's 'convert_sidre_protocol' utility "
+            f"with option '--strip {max_size}'. To simplify debugging, the bulk "
+            f"data in this {data_kind} has been truncated to have at most {max_size} "
+            "original values per array. Three values have been prepended to each array: "
+            "the size of the original array, the number of retained elements and a zero/Nan.")
+
+
+def add_blueprint_strip_note(mesh, note: str) -> None:
+    if mesh.has_path("coordsets") and mesh.has_path("topologies"):
+        mesh["state/Note"] = note
+        return
+
+    for child_idx in range(mesh.number_of_children()):
+        domain = mesh.child(child_idx)
+        if domain.has_path("coordsets") and domain.has_path("topologies"):
+            domain["state/Note"] = note
+
+
+def truncate_conduit_numeric_array(node, max_size: int, verbose: bool) -> int:
+    dtype = node.dtype()
+    original_size = dtype.number_of_elements()
+    if not dtype.is_number() or original_size <= 1:
+        return 0
+
+    retained_size = min(max_size, original_size)
+    values = np.asarray(node.value()).reshape(-1)
+    retained = values[:retained_size].copy()
+
+    new_values = np.empty(retained_size + 3, dtype=values.dtype)
+    np.copyto(new_values[:2], np.asarray([original_size, retained_size]), casting="unsafe")
+    new_values[2] = math.nan if np.issubdtype(new_values.dtype, np.floating) else 0
+    if retained_size > 0:
+        np.copyto(new_values[3:], retained, casting="unsafe")
+
+    if verbose:
+        print(f"Truncating node {node.path()} from {original_size} to {retained_size}")
+
+    node.reset()
+    node.set(new_values)
+    return 1
+
+
+def truncate_conduit_bulk_data(node, max_size: int, verbose: bool) -> int:
+    if node.number_of_children() == 0:
+        return truncate_conduit_numeric_array(node, max_size, verbose)
+
+    truncated_count = 0
+    for child_idx in range(node.number_of_children()):
+        truncated_count += truncate_conduit_bulk_data(node.child(child_idx), max_size, verbose)
+    return truncated_count
+
+
+def convert_blueprint_mesh(args: argparse.Namespace, MPI: object | None, comm_size: int,
+                           rank: int) -> int:
+    import conduit
+    import conduit.blueprint
+    import conduit.relay.io.blueprint
+
+    input_path = Path(args.input)
+    protocol = blueprint_protocol(args.protocol)
+    mesh = conduit.Node()
+
+    if MPI is not None and comm_size > 1:
+        import conduit.blueprint.mpi.mesh
+        import conduit.relay.mpi.io.blueprint
+
+        comm = MPI.COMM_WORLD.py2f()
+        if rank == 0:
+            print(f"Loading Blueprint mesh from {input_path} on {comm_size} MPI rank(s)", )
+        conduit.relay.mpi.io.blueprint.load_mesh(mesh, str(input_path), comm)
+
+        info = conduit.Node()
+        valid = conduit.blueprint.mpi.mesh.verify(mesh, info, comm)
+        local_domains = blueprint_domain_count(mesh)
+        total_domains = MPI.COMM_WORLD.allreduce(local_domains)
+        if rank == 0:
+            print(f"Input Blueprint mesh layout: {total_domains} domain(s)")
+        if not valid:
+            raise RuntimeError(f"Input Blueprint mesh failed verification:\n{info.to_yaml()}")
+
+        if args.strip is not None:
+            if rank == 0:
+                print(f"Truncating numeric Blueprint arrays to at most {args.strip} elements.")
+            local_truncated = truncate_conduit_bulk_data(mesh, args.strip, args.verbose)
+            total_truncated = MPI.COMM_WORLD.allreduce(local_truncated)
+            if rank == 0:
+                print(f"Truncated {total_truncated} numeric Blueprint array(s).")
+            add_blueprint_strip_note(mesh, strip_note("Blueprint mesh", args.strip))
+
+        if rank == 0:
+            print(
+                f"Writing out Blueprint mesh in '{protocol}' protocol to file(s) "
+                f"with base name {args.output}", )
+        conduit.relay.mpi.io.blueprint.save_mesh(mesh, args.output, comm, protocol)
+    else:
+        print(f"Loading Blueprint mesh from {input_path}")
+        conduit.relay.io.blueprint.load_mesh(mesh, str(input_path))
+
+        info = conduit.Node()
+        valid = conduit.blueprint.mesh.verify(mesh, info)
+        domains = blueprint_domain_count(mesh)
+        print(f"Input Blueprint mesh layout: {domains} domain(s)")
+        if not valid:
+            raise RuntimeError(f"Input Blueprint mesh failed verification:\n{info.to_yaml()}")
+
+        if args.strip is not None:
+            print(f"Truncating numeric Blueprint arrays to at most {args.strip} elements.")
+            truncated_count = truncate_conduit_bulk_data(mesh, args.strip, args.verbose)
+            print(f"Truncated {truncated_count} numeric Blueprint array(s).")
+            add_blueprint_strip_note(mesh, strip_note("Blueprint mesh", args.strip))
+
+        print(
+            f"Writing out Blueprint mesh in '{protocol}' protocol to file(s) "
+            f"with base name {args.output}", )
+        conduit.relay.io.blueprint.save_mesh(mesh, args.output, protocol)
+
+    return 0
+
+
+def convert_sidre_datastore(args: argparse.Namespace, comm_size: int) -> int:
     if not sidre.AXOM_ENABLE_MPI:
         raise RuntimeError("sidre.IOManager bindings require an MPI-enabled Axom build")
 
-    try:
-        from mpi4py import MPI
-    except ImportError as exc:
-        raise RuntimeError(
-            "convert_sidre_protocol.py requires mpi4py when Axom is built with MPI support",
-        ) from exc
-
-    initialized_mpi = False
-    if not MPI.Is_initialized():
-        MPI.Init()
-        initialized_mpi = True
-
-    comm_size = MPI.COMM_WORLD.Get_size()
-
+    protocol = sidre_protocol(args.protocol)
     input_path = Path(args.input)
     manager = sidre.IOManager()
     datastore = sidre.DataStore()
@@ -254,23 +428,28 @@ def main() -> int:
     if args.strip is not None:
         print(f"Truncating views to at most {args.strip} elements.")
         truncate_bulk_data(root, args.strip, args.verbose)
-        note = ("This datastore was created by axom's 'convert_sidre_protocol' utility "
-                f"with option '--strip {args.strip}'. To simplify debugging, the bulk "
-                f"data in this datastore has been truncated to have at most {args.strip} "
-                "original values per array. Three values have been prepended to each "
-                "array: the size of the original array, the number of retained elements "
-                "and a zero/Nan.")
-        root.createViewString("Note", note)
+        root.createViewString("Note", strip_note("datastore", args.strip))
 
     print(
-        f"Writing out datastore in '{args.protocol}' protocol to file(s) with base name {args.output}",
-    )
-    manager.write(root, num_files, args.output, args.protocol)
-
-    if initialized_mpi and not MPI.Is_finalized():
-        MPI.Finalize()
+        f"Writing out datastore in '{protocol}' protocol to file(s) with base name {args.output}", )
+    manager.write(root, num_files, args.output, protocol)
 
     return 0
+
+
+def main() -> int:
+    args = parse_args()
+    if args.strip is not None and args.strip < 0:
+        raise RuntimeError("--strip must be nonnegative")
+
+    MPI, initialized_mpi, comm_size, rank = initialize_mpi()
+    try:
+        if args.input_type == "blueprint":
+            return convert_blueprint_mesh(args, MPI, comm_size, rank)
+        return convert_sidre_datastore(args, comm_size)
+    finally:
+        if MPI is not None and initialized_mpi and not MPI.Is_finalized():
+            MPI.Finalize()
 
 
 if __name__ == "__main__":
