@@ -627,7 +627,10 @@ private:
     axom::IndexType crossingCountValue = 0;
     {
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingFlagAllocation");
-      axom::Array<axom::IndexType> crossingFlags(nZones, nZones, m_allocatorID);
+      axom::Array<axom::IndexType> crossingFlags(axom::ArrayOptions::Uninitialized(),
+                                                 nZones,
+                                                 nZones,
+                                                 m_allocatorID);
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingFlagAllocation");
       auto crossingFlagsView = crossingFlags.view();
 
@@ -695,12 +698,17 @@ private:
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingClassification");
 
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingZoneAllocation");
-      crossingZones =
-        axom::Array<axom::IndexType>(crossingCountValue, crossingCountValue, m_allocatorID);
+      crossingZones = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
+                                                   crossingCountValue,
+                                                   crossingCountValue,
+                                                   m_allocatorID);
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingZoneAllocation");
 
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingOffsetAllocation");
-      axom::Array<axom::IndexType> crossingOffsets(nZones, nZones, m_allocatorID);
+      axom::Array<axom::IndexType> crossingOffsets(axom::ArrayOptions::Uninitialized(),
+                                                   nZones,
+                                                   nZones,
+                                                   m_allocatorID);
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingOffsetAllocation");
       auto crossingOffsetsView = crossingOffsets.view();
 

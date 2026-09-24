@@ -983,8 +983,14 @@ public:
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
     const int compactSize = countOriginalNodes(nodeData);
     AXOM_ANNOTATE_BEGIN("nodeMapAllocation");
-    axom::Array<IndexType> compactNodes(compactSize, compactSize, allocatorID);
-    axom::Array<IndexType> oldNodeToNewNode(nnodes, nnodes, allocatorID);
+    axom::Array<IndexType> compactNodes(axom::ArrayOptions::Uninitialized(),
+                                        compactSize,
+                                        compactSize,
+                                        allocatorID);
+    axom::Array<IndexType> oldNodeToNewNode(axom::ArrayOptions::Uninitialized(),
+                                            nnodes,
+                                            nnodes,
+                                            allocatorID);
     AXOM_ANNOTATE_END("nodeMapAllocation");
     nodeData.m_originalIdsView = compactNodes.view();
     nodeData.m_oldNodeToNewNodeView = oldNodeToNewNode.view();
