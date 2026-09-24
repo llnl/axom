@@ -31,6 +31,7 @@ set( spin_headers
      UniformGrid.hpp
 
      ## internal
+     internal/linear_bvh/BVHNode.hpp
      internal/linear_bvh/RadixTree.hpp
      internal/linear_bvh/build_radix_tree.hpp
      internal/linear_bvh/bvh_traverse.hpp
