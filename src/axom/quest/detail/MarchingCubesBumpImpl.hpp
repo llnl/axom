@@ -406,11 +406,14 @@ private:
       m_dom->fetch_existing(axom::fmt::format("fields/{}", m_maskFieldName));
     const conduit::Node& n_maskValues = n_mask.fetch_existing("values");
 
+    // Copy the member so the device predicate does not dereference the host `this` pointer.
+    const int maskVal = m_maskVal;
+
     auto maskView = bputils::make_array_view<int>(n_maskValues);
     const TopologyView deviceTopologyView(topologyView);
     buildSelectedZonesFromMask(
       nZones,
-      [maskView, deviceTopologyView, maskVal = m_maskVal] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      [maskView, maskVal, deviceTopologyView] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
         return maskView[deviceTopologyView.zoneFieldIndex(zoneIndex)] == maskVal;
       },
       n_options,
