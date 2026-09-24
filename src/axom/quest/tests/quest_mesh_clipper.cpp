@@ -27,7 +27,9 @@
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
-#include "axom/quest.hpp"
+#include "axom/quest/MeshClipper.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
+#include "axom/quest/ShapeMesh.hpp"
 #include "axom/quest/detail/clipping/HexClipper.hpp"
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
 #include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
@@ -35,7 +37,9 @@
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+#include "axom/quest/io/ProEReader.hpp"
 #include "axom/quest/util/make_clipper_strategy.hpp"
+#include "axom/quest/util/mesh_helpers.hpp"
 #include "axom/core/utilities/FileUtilities.hpp"
 
 #include "axom/fmt.hpp"
@@ -48,6 +52,8 @@
 #include <math.h>
 
 #ifdef AXOM_USE_MPI
+  #include "conduit_blueprint_mpi.hpp"
+  #include "conduit_relay_mpi_io_blueprint.hpp"
   #include "mpi.h"
 #endif
 
@@ -65,6 +71,7 @@ namespace sidre = axom::sidre;
 //------------------------------------------------------------------------------
 
 using RuntimePolicy = axom::runtime_policy::Policy;
+using Point3D = axom::primal::Point<double, 3>;
 
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
 [[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
