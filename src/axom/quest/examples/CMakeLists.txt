@@ -613,10 +613,12 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
                                         --mesh-file ${quest_data_dir}/${_mesh}.root
                                         --field ${_field}
                                         --contourVal 1.25
+                                        --contour-file ${_test}.contour
                                         ${_backend_args}
                             NUM_MPI_TASKS ${_mc_nranks}
                             NUM_OMP_THREADS ${_num_threads}
                             )
+
                         set_tests_properties(${_test}
                             PROPERTIES REQUIRED_FILES "${quest_data_dir}/${_mesh}.root"
                                        PASS_REGULAR_EXPRESSION "Contour mesh has")
@@ -668,7 +670,8 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
                             --mesh-file ${_mc_unstructured_mesh}
                             --field fcn
                             --contourVal 0
-                            --blueprint-contour-file ${_test}.contour
+                            --blueprint-contour-file ${_test}.blueprint_contour
+                            --contour-file ${_test}.mint_contour
                 NUM_MPI_TASKS 1
                 )
             set_tests_properties(${_test}
