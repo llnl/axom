@@ -982,16 +982,18 @@ public:
     // Compute original node count that we're preserving, make node maps.
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
     const int compactSize = countOriginalNodes(nodeData);
-    AXOM_ANNOTATE_BEGIN("nodeMapAllocation");
+    AXOM_ANNOTATE_BEGIN("compactNodeAllocation");
     axom::Array<IndexType> compactNodes(axom::ArrayOptions::Uninitialized(),
                                         compactSize,
                                         compactSize,
                                         allocatorID);
+    AXOM_ANNOTATE_END("compactNodeAllocation");
+    AXOM_ANNOTATE_BEGIN("oldToNewNodeAllocation");
     axom::Array<IndexType> oldNodeToNewNode(axom::ArrayOptions::Uninitialized(),
                                             nnodes,
                                             nnodes,
                                             allocatorID);
-    AXOM_ANNOTATE_END("nodeMapAllocation");
+    AXOM_ANNOTATE_END("oldToNewNodeAllocation");
     nodeData.m_originalIdsView = compactNodes.view();
     nodeData.m_oldNodeToNewNodeView = oldNodeToNewNode.view();
     createNodeMaps(nodeData);
@@ -1007,12 +1009,29 @@ public:
     builder.computeBlendGroupOffsets();
 
     // Allocate memory for blend groups.
-    AXOM_ANNOTATE_BEGIN("allocation2");
-    axom::Array<KeyType> blendNames(blendGroupsSize, blendGroupsSize, allocatorID);
-    axom::Array<IndexType> blendGroupSizes(blendGroupsSize, blendGroupsSize, allocatorID);
-    axom::Array<IndexType> blendGroupStart(blendGroupsSize, blendGroupsSize, allocatorID);
-    axom::Array<IndexType> blendIds(blendGroupLenSize, blendGroupLenSize, allocatorID);
-    axom::Array<float> blendCoeff(blendGroupLenSize, blendGroupLenSize, allocatorID);
+    AXOM_ANNOTATE_BEGIN("blendMetadataAllocation");
+    axom::Array<KeyType> blendNames(axom::ArrayOptions::Uninitialized(),
+                                    blendGroupsSize,
+                                    blendGroupsSize,
+                                    allocatorID);
+    axom::Array<IndexType> blendGroupSizes(axom::ArrayOptions::Uninitialized(),
+                                           blendGroupsSize,
+                                           blendGroupsSize,
+                                           allocatorID);
+    axom::Array<IndexType> blendGroupStart(axom::ArrayOptions::Uninitialized(),
+                                           blendGroupsSize,
+                                           blendGroupsSize,
+                                           allocatorID);
+    AXOM_ANNOTATE_END("blendMetadataAllocation");
+    AXOM_ANNOTATE_BEGIN("blendPayloadAllocation");
+    axom::Array<IndexType> blendIds(axom::ArrayOptions::Uninitialized(),
+                                    blendGroupLenSize,
+                                    blendGroupLenSize,
+                                    allocatorID);
+    axom::Array<float> blendCoeff(axom::ArrayOptions::Uninitialized(),
+                                  blendGroupLenSize,
+                                  blendGroupLenSize,
+                                  allocatorID);
 
     // Make the blend groups.
     builder.setBlendViews(blendNames.view(),
@@ -1020,7 +1039,7 @@ public:
                           blendGroupStart.view(),
                           blendIds.view(),
                           blendCoeff.view());
-    AXOM_ANNOTATE_END("allocation2");
+    AXOM_ANNOTATE_END("blendPayloadAllocation");
     makeBlendGroups(tableViews, builder, zoneData, opts, selectedZones);
 
     // Make the blend groups unique
@@ -1480,27 +1499,26 @@ private:
   void createNodeMaps(NodeData nodeData) const
   {
     AXOM_ANNOTATE_SCOPE("createNodeMaps");
-    const int allocatorID = getAllocatorID();
 
-    // Make offsets into a compact array.
     const auto nnodes = nodeData.m_nodeUsedView.size();
-    axom::Array<axom::IndexType> nodeOffsets(axom::ArrayOptions::Uninitialized(),
-                                             nnodes,
-                                             nnodes,
-                                             allocatorID);
-    auto nodeOffsetsView = nodeOffsets.view();
-    axom::exclusive_scan<ExecSpace>(nodeData.m_nodeUsedView, nodeOffsetsView);
+    AXOM_ANNOTATE_BEGIN("createNodeMaps::mapScan");
+    axom::exclusive_scan<ExecSpace>(nodeData.m_nodeUsedView, nodeData.m_oldNodeToNewNodeView);
+    AXOM_ANNOTATE_END("createNodeMaps::mapScan");
 
     // Make the compact node list and oldToNew map.
+    AXOM_ANNOTATE_BEGIN("createNodeMaps::mapBuild");
     axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
-      IndexType newId = 0;
       if(nodeData.m_nodeUsedView[index] > 0)
       {
-        nodeData.m_originalIdsView[nodeOffsetsView[index]] = index;
-        newId = nodeOffsetsView[index];
+        const IndexType newId = nodeData.m_oldNodeToNewNodeView[index];
+        nodeData.m_originalIdsView[newId] = index;
       }
-      nodeData.m_oldNodeToNewNodeView[index] = newId;
+      else
+      {
+        nodeData.m_oldNodeToNewNodeView[index] = 0;
+      }
     });
+    AXOM_ANNOTATE_END("createNodeMaps::mapBuild");
 
   #if defined(AXOM_DEBUG_EXTRACTOR)
     SLIC_DEBUG(
