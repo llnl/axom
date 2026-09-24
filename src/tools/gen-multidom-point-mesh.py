@@ -6,43 +6,43 @@
 # The generated Blueprint hierarchy is:
 #   <bp_root>                         (single-domain output)
 #   <bp_root>/<domainName>            (multidomain output)
-#    |-- state
-#    |   `-- domain_id                == <global domain id>
-#    |   `-- description              (analytic/input description string; stored in state
-#    |                                  so Blueprint relay preserves it)
-#    |   `-- command_line             (sanitized command line used to generate this mesh)
-#    |   `-- verification             (optional analytic verification metadata; stored in state)
-#    |        |-- shape               == "circle", "sphere", "torus", "plane", or "annulus"
-#    |        |-- dimension           == 2 or 3
-#    |        |-- center              (float64, dimension)
-#    |        |-- normal              (float64, dimension; plane only)
-#    |        |-- radius              (circle/sphere)
-#    |        |-- {major,minor}_radius (torus)
-#    |        |-- {inner,outer}_radius (annulus)
-#    |        |-- surface_tolerance   (float64 residual tolerance for shape membership)
-#    |        `-- distance_tolerance  (float64 sampling slack for DCP checks)
-#    |-- topologies
-#    |   `-- <topologyName>
-#    |        |-- coordset            == <coordsetName>
-#    |        |-- type                == "points", "structured", or "unstructured"
-#    |        `-- elements            (present for structured/unstructured)
-#    |             |-- dims/{i,j,[k]}  (structured cell dimensions)
-#    |             |-- shape          (unstructured "point", "quad", or "hex")
-#    |             |-- connectivity   (unstructured int32 connectivity)
-#    |             |-- sizes          (unstructured point meshes only)
-#    |             `-- offsets        (unstructured point meshes only)
-#    |-- coordsets
-#    |   `-- <coordsetName>
-#    |        |-- type                == "explicit"
-#    |        `-- values              (i-fastest node ordering for grids)
-#    |             |-- x              (float64, point_count)
-#    |             |-- y              (float64, point_count)
-#    |             `-- [z]            (float64, point_count, present in 3D)
-#    `-- fields                       (optional; omitted when there are no fields)
-#        `-- global_id                (only with --id-field)
-#             |-- topology            == <topologyName>
-#             |-- association         == "vertex"
-#             `-- values              (int64, point_count)
+#    ├── state
+#    │   ├─• domain_id                == <global domain id>
+#    │   ├─• description              (analytic/input description string; stored in state
+#    │                                  so Blueprint relay preserves it)
+#    │   ├─• command_line             (sanitized command line used to generate this mesh)
+#    │   └── verification             (optional analytic verification metadata; stored in state)
+#    │        ├─• shape               == "circle", "sphere", "torus", "plane", or "annulus"
+#    │        ├─• dimension           == 2 or 3
+#    │        ├─• center              (float64, dimension)
+#    │        ├─• normal              (float64, dimension; plane only)
+#    │        ├─• radius              (circle/sphere)
+#    │        ├─• {major,minor}_radius (torus)
+#    │        ├─• {inner,outer}_radius (annulus)
+#    │        ├─• surface_tolerance   (float64 residual tolerance for shape membership)
+#    │        └─• distance_tolerance  (float64 sampling slack for DCP checks)
+#    ├── topologies
+#    │   └── <topologyName>
+#    │        ├─• coordset            == <coordsetName>
+#    │        ├─• type                == "points", "structured", or "unstructured"
+#    │        └── elements            (present for structured/unstructured)
+#    │             ├─• dims/{i,j,[k]}  (structured cell dimensions)
+#    │             ├─• shape          (unstructured "point", "quad", or "hex")
+#    │             ├─• connectivity   (unstructured int32 connectivity)
+#    │             ├─• sizes          (unstructured point meshes only)
+#    │             └─• offsets        (unstructured point meshes only)
+#    ├── coordsets
+#    │   └── <coordsetName>
+#    │        ├─• type                == "explicit"
+#    │        └── values              (i-fastest node ordering for grids)
+#    │             ├─• x              (float64, point_count)
+#    │             ├─• y              (float64, point_count)
+#    │             └─• [z]            (float64, point_count, present in 3D)
+#    └── fields                       (optional; omitted when there are no fields)
+#        └── global_id                (only with --id-field)
+#             ├─• topology            == <topologyName>
+#             ├─• association         == "vertex"
+#             └─• values              (int64, point_count)
 #
 # Usage examples:
 #   # 2D circle object mesh split over N MPI ranks, with some empty domains:
