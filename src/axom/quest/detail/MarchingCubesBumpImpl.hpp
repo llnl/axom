@@ -624,83 +624,103 @@ private:
       return !crossingZones.empty();
     }
 
-    axom::Array<axom::IndexType> crossingFlags(nZones, nZones, m_allocatorID);
-    auto crossingFlagsView = crossingFlags.view();
+    axom::IndexType crossingCountValue = 0;
+    {
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingFlagAllocation");
+      axom::Array<axom::IndexType> crossingFlags(nZones, nZones, m_allocatorID);
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingFlagAllocation");
+      auto crossingFlagsView = crossingFlags.view();
 
-    // Copy member values to locals so the device lambda captures values rather than `this`.
-    const IsoFieldType isoVal = isoForBump;
-    const int maskVal = m_maskVal;
-    axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
-    axom::for_all<ExecSpace>(
-      nZones,
-      [topoMap, maskView, fcnView, isoVal, maskVal, crossingFlagsView, crossingCount] AXOM_HOST_DEVICE(
-        axom::IndexType zoneIndex) {
-        const auto idx = topoMap.toMultiIndex(zoneIndex);
-        bool useZone = maskView.empty();
-        if(!useZone)
+      // Copy member values to locals so the device lambda captures values rather than `this`.
+      const IsoFieldType isoVal = isoForBump;
+      const int maskVal = m_maskVal;
+      axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingClassification");
+      axom::for_all<ExecSpace>(
+        nZones,
+        [topoMap, maskView, fcnView, isoVal, maskVal, crossingFlagsView, crossingCount] AXOM_HOST_DEVICE(
+          axom::IndexType zoneIndex) {
+          const auto idx = topoMap.toMultiIndex(zoneIndex);
+          bool useZone = maskView.empty();
+          if(!useZone)
+          {
+            if constexpr(DIM == 2)
+            {
+              useZone = (maskView(idx[0], idx[1]) == maskVal);
+            }
+            else
+            {
+              useZone = (maskView(idx[0], idx[1], idx[2]) == maskVal);
+            }
+          }
+
+          bool hasPositive = false;
+          bool hasNonPositive = false;
+          if(useZone)
+          {
+            if constexpr(DIM == 2)
+            {
+              const bool p0 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1])) > isoVal;
+              const bool p1 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1])) > isoVal;
+              const bool p2 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1)) > isoVal;
+              const bool p3 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1)) > isoVal;
+              hasPositive = p0 || p1 || p2 || p3;
+              hasNonPositive = !p0 || !p1 || !p2 || !p3;
+            }
+            else
+            {
+              const bool p0 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1], idx[2])) > isoVal;
+              const bool p1 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1], idx[2])) > isoVal;
+              const bool p2 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1, idx[2])) > isoVal;
+              const bool p3 =
+                static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1, idx[2])) > isoVal;
+              const bool p4 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1], idx[2] + 1)) > isoVal;
+              const bool p5 =
+                static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1], idx[2] + 1)) > isoVal;
+              const bool p6 =
+                static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1, idx[2] + 1)) > isoVal;
+              const bool p7 =
+                static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1, idx[2] + 1)) > isoVal;
+              hasPositive = p0 || p1 || p2 || p3 || p4 || p5 || p6 || p7;
+              hasNonPositive = !p0 || !p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7;
+            }
+          }
+
+          const axom::IndexType crosses = (hasPositive && hasNonPositive) ? 1 : 0;
+          crossingFlagsView[zoneIndex] = crosses;
+          crossingCount += crosses;
+        });
+
+      crossingCountValue = crossingCount.get();
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingClassification");
+
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingZoneAllocation");
+      crossingZones =
+        axom::Array<axom::IndexType>(crossingCountValue, crossingCountValue, m_allocatorID);
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingZoneAllocation");
+
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingOffsetAllocation");
+      axom::Array<axom::IndexType> crossingOffsets(nZones, nZones, m_allocatorID);
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingOffsetAllocation");
+      auto crossingOffsetsView = crossingOffsets.view();
+
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingScan");
+      axom::exclusive_scan<ExecSpace>(crossingFlagsView, crossingOffsetsView);
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingScan");
+
+      auto crossingZonesView = crossingZones.view();
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingCompaction");
+      axom::for_all<ExecSpace>(nZones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+        if(crossingFlagsView[zoneIndex] != 0)
         {
-          if constexpr(DIM == 2)
-          {
-            useZone = (maskView(idx[0], idx[1]) == maskVal);
-          }
-          else
-          {
-            useZone = (maskView(idx[0], idx[1], idx[2]) == maskVal);
-          }
+          crossingZonesView[crossingOffsetsView[zoneIndex]] = zoneIndex;
         }
-
-        bool hasPositive = false;
-        bool hasNonPositive = false;
-        if(useZone)
-        {
-          if constexpr(DIM == 2)
-          {
-            const bool p0 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1])) > isoVal;
-            const bool p1 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1])) > isoVal;
-            const bool p2 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1)) > isoVal;
-            const bool p3 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1)) > isoVal;
-            hasPositive = p0 || p1 || p2 || p3;
-            hasNonPositive = !p0 || !p1 || !p2 || !p3;
-          }
-          else
-          {
-            const bool p0 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1], idx[2])) > isoVal;
-            const bool p1 = static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1], idx[2])) > isoVal;
-            const bool p2 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1, idx[2])) > isoVal;
-            const bool p3 =
-              static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1, idx[2])) > isoVal;
-            const bool p4 = static_cast<IsoFieldType>(fcnView(idx[0], idx[1], idx[2] + 1)) > isoVal;
-            const bool p5 =
-              static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1], idx[2] + 1)) > isoVal;
-            const bool p6 =
-              static_cast<IsoFieldType>(fcnView(idx[0], idx[1] + 1, idx[2] + 1)) > isoVal;
-            const bool p7 =
-              static_cast<IsoFieldType>(fcnView(idx[0] + 1, idx[1] + 1, idx[2] + 1)) > isoVal;
-            hasPositive = p0 || p1 || p2 || p3 || p4 || p5 || p6 || p7;
-            hasNonPositive = !p0 || !p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7;
-          }
-        }
-
-        const axom::IndexType crosses = (hasPositive && hasNonPositive) ? 1 : 0;
-        crossingFlagsView[zoneIndex] = crosses;
-        crossingCount += crosses;
       });
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingCompaction");
 
-    const axom::IndexType crossingCountValue = crossingCount.get();
-    crossingZones =
-      axom::Array<axom::IndexType>(crossingCountValue, crossingCountValue, m_allocatorID);
-
-    axom::Array<axom::IndexType> crossingOffsets(nZones, nZones, m_allocatorID);
-    auto crossingOffsetsView = crossingOffsets.view();
-    axom::exclusive_scan<ExecSpace>(crossingFlagsView, crossingOffsetsView);
-
-    auto crossingZonesView = crossingZones.view();
-    axom::for_all<ExecSpace>(nZones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
-      if(crossingFlagsView[zoneIndex] != 0)
-      {
-        crossingZonesView[crossingOffsetsView[zoneIndex]] = zoneIndex;
-      }
-    });
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingScratchRelease");
+    }
+    AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingScratchRelease");
 
     attachSelectedZonesOption(n_options, crossingZones);
     return crossingCountValue > 0;
