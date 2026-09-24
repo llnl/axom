@@ -86,6 +86,7 @@ public:
   std::string fieldName;
   bool listFields {false};
   bool skipContourOutput {false};
+  std::string contourFile {"contour_mesh"};
   //! @brief Optional file for Bump's welded Blueprint contour.
   std::string blueprintContourFile {};
 
@@ -152,6 +153,10 @@ public:
 
     app.add_flag("--skip-contour-output", skipContourOutput)
       ->description("Skip conversion and file output of the contour mesh")
+      ->capture_default_str();
+
+    app.add_option("-o,--contour-file", contourFile)
+      ->description("Set the basename for converted Mint contour output")
       ->capture_default_str();
 
     app.add_option("--blueprint-contour-file", blueprintContourFile)
@@ -1065,9 +1070,8 @@ struct ContourTestBase
     {
       assert(contourMesh.getSidreGroup() == meshGroup);
       // Write contour mesh to file.
-      std::string outputName = "contour_mesh";
-      saveMesh(*contourMesh.getSidreGroup(), outputName);
-      SLIC_INFO(axom::fmt::format("Wrote contour mesh to {}", outputName));
+      saveMesh(*contourMesh.getSidreGroup(), m_params.contourFile);
+      SLIC_INFO(axom::fmt::format("Wrote contour mesh to {}", m_params.contourFile));
     }
     objectDS.getRoot()->destroyGroupAndData(sidreGroupName);
 #endif
