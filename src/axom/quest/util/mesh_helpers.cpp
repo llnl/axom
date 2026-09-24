@@ -19,11 +19,7 @@
 #endif
 #include <iostream>
 
-namespace axom
-{
-namespace quest
-{
-namespace util
+namespace axom::quest::util
 {
 #if defined(AXOM_USE_SIDRE)
 
@@ -740,6 +736,4 @@ void convert_blueprint_structured_explicit_to_unstructured(conduit::Node& n_mesh
 }
 #endif
 
-}  // namespace util
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest::util

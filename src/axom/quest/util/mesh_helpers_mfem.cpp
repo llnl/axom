@@ -6,11 +6,7 @@
 
 #include "mesh_helpers.hpp"
 
-namespace axom
-{
-namespace quest
-{
-namespace util
+namespace axom::quest::util
 {
 mfem::Mesh* make_cartesian_mfem_mesh_2D(const primal::BoundingBox<double, 2>& bbox,
                                         const NumericArray<int, 2>& res,
@@ -79,6 +75,4 @@ mfem::Mesh* make_cartesian_mfem_mesh_3D(const primal::BoundingBox<double, 3>& bb
   return mesh;
 }
 
-}  // namespace util
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest::util
