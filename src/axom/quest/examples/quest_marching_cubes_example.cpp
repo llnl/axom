@@ -99,6 +99,8 @@ public:
   // Use Bump's CutField backend instead of the legacy backend.
   bool useBumpBackend {false};
 
+  bool useDevicePool {false};
+
   // Number of distinct MarchingCubes objects.
   int objectRepCount {1};
   // Number of contour extractions per MarchingCubes object.
@@ -136,6 +138,12 @@ public:
     app.add_flag("--useBumpBackend", useBumpBackend)
       ->description("Use the Bump CutField backend instead of the legacy structured-only backend")
       ->capture_default_str();
+
+#if defined(AXOM_USE_UMPIRE)
+    app.add_flag("--useDevicePool", useDevicePool)
+      ->description("Use an Umpire QuickPool for MarchingCubes allocations")
+      ->capture_default_str();
+#endif
 
     app.add_option("-m,--mesh-file", meshFile)
       ->description("Path to a Conduit Blueprint computational mesh")
@@ -206,6 +214,26 @@ public:
 
 //!@brief Our allocator id, based on execution policy.
 static int s_allocatorId = axom::INVALID_ALLOCATOR_ID;  // Set in main.
+
+#if defined(AXOM_USE_UMPIRE)
+int makeMarchingCubesPoolAllocator(int allocatorId)
+{
+  constexpr std::size_t initialPoolSize = 1;
+  constexpr std::size_t nextPoolSize = 1 << 20;
+  constexpr std::size_t alignment = 256;
+
+  auto& resourceManager = umpire::ResourceManager::getInstance();
+  auto allocator = resourceManager.getAllocator(allocatorId);
+  const std::string poolName = allocator.getName() + "_MC_POOL";
+  auto pool = resourceManager.makeAllocator<umpire::strategy::QuickPool>(poolName,
+                                                                         allocator,
+                                                                         initialPoolSize,
+                                                                         nextPoolSize,
+                                                                         alignment);
+  SLIC_INFO(axom::fmt::format("Using MarchingCubes pool allocator {}", pool.getId()));
+  return pool.getId();
+}
+#endif
 
 namespace
 {
@@ -894,6 +922,15 @@ struct ContourTestBase
     }
 #endif
 
+    int marchingCubesAllocatorId = s_allocatorId;
+#if defined(AXOM_USE_UMPIRE)
+    if(m_params.useDevicePool)
+    {
+      AXOM_ANNOTATE_SCOPE("create MarchingCubes device pool");
+      marchingCubesAllocatorId = makeMarchingCubesPoolAllocator(s_allocatorId);
+    }
+#endif
+
     // One-time initializations
     axom::utilities::Timer initializationTimer(false);
 
@@ -923,7 +960,7 @@ struct ContourTestBase
         AXOM_ANNOTATE_SCOPE("MCInit");
         initializationTimer.start();
         mcPtr = std::make_unique<quest::MarchingCubes>(m_params.policy,
-                                                       s_allocatorId,
+                                                       marchingCubesAllocatorId,
                                                        m_params.dataParallelism);
         mcPtr->setUseBumpBackend(m_params.useBumpBackend);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
