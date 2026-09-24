@@ -153,7 +153,7 @@ public:
     {
       // Convert to FieldType.
       const IndexType n = static_cast<IndexType>(n_field_values.dtype().number_of_elements());
-      m_fieldData = axom::Array<FieldType>(n, n, allocator_id);
+      m_fieldData = axom::Array<FieldType>(axom::ArrayOptions::Uninitialized(), n, n, allocator_id);
       m_view.m_fieldView = m_fieldData.view();
       views::nodeToArrayView(n_field_values,
                              [&](auto clip_field_view_src) { copyValues(clip_field_view_src); });
