@@ -38,7 +38,7 @@ program spio_basic_write_read
 
   call mpi_init(mpierr)
 
-  ds1 = SidreDataStore()
+  ds1 = datastore_new()
   root1 = ds1%get_root()
 
   flds1 = root1%create_group("fields")
@@ -55,7 +55,7 @@ program spio_basic_write_read
 
   call writer%write(root1, num_files, "F_out_spio_basic_write_read", protocol )
 
-  ds2 = SidreDataStore()
+  ds2 = datastore_new()
 
   reader = IOManager(MPI_COMM_WORLD)
 

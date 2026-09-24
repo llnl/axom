@@ -65,7 +65,7 @@ program spio_preserve_write_read
 !
 ! the views are filled with repeatable nonsense data that will vary based
 ! on rank.
-  ds1 = SidreDataStore()
+  ds1 = datastore_new()
   root1 = ds1%get_root()
 
   flds = root1%create_group("fields")
@@ -91,7 +91,7 @@ program spio_preserve_write_read
 
   ! Extra stuff to exercise preserve_contents option
   call mpi_barrier(MPI_COMM_WORLD, mpierr)
-  dsextra = SidreDataStore()
+  dsextra = datastore_new()
   extra_root = dsextra%get_root()
   extra = extra_root%create_group("extra")
   view = extra%create_View_Scalar("dval", 1.1d0)
@@ -105,7 +105,7 @@ program spio_preserve_write_read
   call mpi_barrier(MPI_COMM_WORLD, mpierr)
 
   ! create another datastore that holds nothing but the root group.
-  ds2 = SidreDataStore()
+  ds2 = datastore_new()
 
   ! read from the files that were written above.
   reader = IOManager(MPI_COMM_WORLD)
@@ -189,4 +189,3 @@ program spio_preserve_write_read
      call exit(1)
   endif
 end program spio_preserve_write_read
-
