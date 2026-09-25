@@ -290,6 +290,174 @@ TEST(sidre_datacollection, dc_reload_gf)
   EXPECT_TRUE(sdc_reader.verifyMeshBlueprint());
 }
 
+#ifdef AXOM_USE_ZFPOLY
+
+namespace axom
+{
+namespace sidre
+{
+// Internal helpers from MFEMSidreDataCollection.cpp. Load() can't reconstruct
+// a compressed field yet, so decompress through these directly for now.
+void decompressL2ToGridFunction(mfem::GridFunction* gf,
+                                mfem::Mesh* mesh,
+                                Group* compression_grp);
+void decompressH1ToGridFunction(mfem::GridFunction* gf,
+                                mfem::Mesh* mesh,
+                                Group* compression_grp);
+}  // namespace sidre
+}  // namespace axom
+
+TEST(sidre_datacollection, dc_zfpoly_roundtrip_l2)
+{
+  const std::string field_name = "zfpoly_field";
+  const int order = 3;
+  auto* mesh = new mfem::Mesh(
+    mfem::Mesh::MakeCartesian2D(8, 8, mfem::Element::QUADRILATERAL));
+  auto* fec = new mfem::L2_FECollection(order, mesh->Dimension());
+  auto* fes = new mfem::FiniteElementSpace(mesh, fec);
+
+  const bool owns_mesh_data = true;
+  MFEMSidreDataCollection sdc_writer(testName(), mesh, owns_mesh_data);
+  auto* gf_write = new mfem::GridFunction(fes, nullptr);
+  gf_write->MakeOwner(fec);
+
+  sdc_writer.RegisterField(field_name, gf_write);
+  ASSERT_TRUE(sdc_writer.HasField(field_name));
+
+  mfem::FunctionCoefficient smooth(
+    [](const mfem::Vector& x) { return std::sin(x(0)) * std::cos(x(1)); });
+  gf_write->ProjectCoefficient(smooth);
+
+  // Save() drops the 'values' view when it compresses, so copy first.
+  mfem::Vector original_values(gf_write->Size());
+  for(int i = 0; i < gf_write->Size(); ++i) { original_values[i] = (*gf_write)[i]; }
+
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  sdc_writer.SetComm(MPI_COMM_WORLD);
+#endif
+
+  sdc_writer.SetCompression(zfpoly_config_accuracy(1e-8));
+  sdc_writer.SetCycle(0);
+  sdc_writer.Save();
+
+  Group* fields_grp = sdc_writer.GetBPGroup()->getGroup("fields");
+  ASSERT_NE(fields_grp, nullptr);
+  Group* field_grp = fields_grp->getGroup(field_name);
+  ASSERT_NE(field_grp, nullptr);
+  ASSERT_TRUE(field_grp->hasGroup("compression"));
+
+  Group* comp_grp = field_grp->getGroup("compression");
+  ASSERT_TRUE(comp_grp->hasView("enabled"));
+  EXPECT_EQ(comp_grp->getView("type")->getString(), std::string("zfpoly_l2"));
+  const auto original_size =
+    comp_grp->getView("original_size")->getData<std::int64_t>();
+  const auto compressed_size =
+    comp_grp->getView("compressed_size")->getData<std::int64_t>();
+  EXPECT_GT(original_size, 0);
+  EXPECT_LT(compressed_size, original_size * static_cast<std::int64_t>(sizeof(double)));
+
+  mfem::GridFunction gf_read(fes);
+  gf_read = 0.0;
+  axom::sidre::decompressL2ToGridFunction(&gf_read, mesh, comp_grp);
+
+  mfem::Vector diff(original_values);
+  diff -= gf_read;
+  EXPECT_LT(diff.Normlinf(), EPSILON);
+}
+
+// order 2, 2D: covers vertex, edge-interior, and element-interior DOFs.
+TEST(sidre_datacollection, dc_zfpoly_roundtrip_h1_edges)
+{
+  const std::string field_name = "zfpoly_field";
+  const int order = 2;
+  auto* mesh = new mfem::Mesh(
+    mfem::Mesh::MakeCartesian2D(4, 4, mfem::Element::QUADRILATERAL));
+  auto* fec = new mfem::H1_FECollection(order, mesh->Dimension());
+  auto* fes = new mfem::FiniteElementSpace(mesh, fec);
+  ASSERT_GT(fes->GetNEDofs(), 0);
+
+  const bool owns_mesh_data = true;
+  MFEMSidreDataCollection sdc_writer(testName(), mesh, owns_mesh_data);
+  auto* gf_write = new mfem::GridFunction(fes, nullptr);
+  gf_write->MakeOwner(fec);
+
+  sdc_writer.RegisterField(field_name, gf_write);
+
+  mfem::FunctionCoefficient coef(
+    [](const mfem::Vector& x) { return x(0) * x(0) + x(1) * x(1); });
+  gf_write->ProjectCoefficient(coef);
+
+  mfem::Vector original_values(gf_write->Size());
+  for(int i = 0; i < gf_write->Size(); ++i) { original_values[i] = (*gf_write)[i]; }
+
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  sdc_writer.SetComm(MPI_COMM_WORLD);
+#endif
+
+  sdc_writer.SetCompression(zfpoly_config_accuracy(1e-8));
+  sdc_writer.SetCycle(0);
+  sdc_writer.Save();
+
+  Group* comp_grp =
+    sdc_writer.GetBPGroup()->getGroup("fields")->getGroup(field_name)->getGroup("compression");
+  EXPECT_EQ(comp_grp->getView("type")->getString(), std::string("zfpoly_h1"));
+
+  mfem::GridFunction gf_read(fes);
+  gf_read = 0.0;
+  axom::sidre::decompressH1ToGridFunction(&gf_read, mesh, comp_grp);
+
+  mfem::Vector diff(original_values);
+  diff -= gf_read;
+  EXPECT_LT(diff.Normlinf(), EPSILON);
+}
+
+// order 3, 3D hex: adds face-interior DOFs on top of vertex/edge/element.
+TEST(sidre_datacollection, dc_zfpoly_roundtrip_h1_faces)
+{
+  const std::string field_name = "zfpoly_field";
+  const int order = 3;
+  auto* mesh = new mfem::Mesh(
+    mfem::Mesh::MakeCartesian3D(2, 2, 2, mfem::Element::HEXAHEDRON));
+  auto* fec = new mfem::H1_FECollection(order, mesh->Dimension());
+  auto* fes = new mfem::FiniteElementSpace(mesh, fec);
+  ASSERT_GT(fes->GetNFDofs(), 0);
+
+  const bool owns_mesh_data = true;
+  MFEMSidreDataCollection sdc_writer(testName(), mesh, owns_mesh_data);
+  auto* gf_write = new mfem::GridFunction(fes, nullptr);
+  gf_write->MakeOwner(fec);
+
+  sdc_writer.RegisterField(field_name, gf_write);
+
+  mfem::FunctionCoefficient coef(
+    [](const mfem::Vector& x) { return x(0) + x(1) + x(2); });
+  gf_write->ProjectCoefficient(coef);
+
+  mfem::Vector original_values(gf_write->Size());
+  for(int i = 0; i < gf_write->Size(); ++i) { original_values[i] = (*gf_write)[i]; }
+
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  sdc_writer.SetComm(MPI_COMM_WORLD);
+#endif
+
+  sdc_writer.SetCompression(zfpoly_config_accuracy(1e-8));
+  sdc_writer.SetCycle(0);
+  sdc_writer.Save();
+
+  Group* comp_grp =
+    sdc_writer.GetBPGroup()->getGroup("fields")->getGroup(field_name)->getGroup("compression");
+  EXPECT_EQ(comp_grp->getView("type")->getString(), std::string("zfpoly_h1"));
+
+  mfem::GridFunction gf_read(fes);
+  gf_read = 0.0;
+  axom::sidre::decompressH1ToGridFunction(&gf_read, mesh, comp_grp);
+
+  mfem::Vector diff(original_values);
+  diff -= gf_read;
+  EXPECT_LT(diff.Normlinf(), EPSILON);
+}
+#endif  // AXOM_USE_ZFPOLY
+
 TEST(sidre_datacollection, dc_reload_gf_vdim)
 {
   const std::string field_name = "test_field";

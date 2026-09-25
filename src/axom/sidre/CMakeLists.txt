@@ -108,6 +108,7 @@ set(sidre_depends
 
 blt_list_append(TO sidre_depends ELEMENTS hdf5 IF HDF5_FOUND)
 blt_list_append(TO sidre_depends ELEMENTS sparsehash IF SPARSEHASH_FOUND)
+blt_list_append(TO sidre_depends ELEMENTS zfpoly IF ZFPOLY_FOUND)
 if(MFEM_FOUND)
     blt_list_append(TO sidre_depends ELEMENTS mfem)
     blt_list_append(TO sidre_depends ELEMENTS fmt)

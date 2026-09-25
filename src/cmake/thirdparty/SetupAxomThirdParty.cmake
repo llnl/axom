@@ -230,6 +230,24 @@ if(TARGET mfem)
 endif()
 
 #------------------------------------------------------------------------------
+# ZFPoly
+#------------------------------------------------------------------------------
+if (ZFPOLY_DIR)
+    axom_assert_is_directory(DIR_VARIABLE ZFPOLY_DIR)
+    include(cmake/thirdparty/FindZFPoly.cmake)
+    blt_import_library(
+        NAME          zfpoly
+        INCLUDES      ${ZFPOLY_INCLUDE_DIRS}
+        LIBRARIES     ${ZFPOLY_LIBRARY}
+        TREAT_INCLUDES_AS_SYSTEM ON
+        EXPORTABLE    ON)
+    blt_list_append(TO TPL_DEPS ELEMENTS zfpoly)
+else()
+    message(STATUS "ZFPoly support is OFF")
+    set(ZFPOLY_FOUND FALSE)
+endif()
+
+#------------------------------------------------------------------------------
 # Adiak
 #------------------------------------------------------------------------------
 if(ADIAK_DIR)
