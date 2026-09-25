@@ -54,7 +54,7 @@ program spio_external_write_read
   ! the views are filled with repeatable nonsense data that will vary based
   ! on rank.
 
-  ds1 = SidreDataStore()
+  ds1 = datastore_new()
   root1 = ds1%get_root()
 
   flds = root1%create_group("fields")
@@ -73,7 +73,7 @@ program spio_external_write_read
   call writer%write(root1, num_files, "F_out_spio_external_write_read", "sidre_hdf5")
 
   ! create another datastore than holds nothing but the root group.
-  ds2 = SidreDataStore()
+  ds2 = datastore_new()
   root2 = ds2%get_root()
 
   ! read from the files that were written above.
@@ -120,4 +120,3 @@ program spio_external_write_read
      call exit(1)
   endif
 end program spio_external_write_read
-
