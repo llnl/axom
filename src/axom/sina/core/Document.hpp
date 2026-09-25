@@ -240,10 +240,11 @@ public:
      *
      * \return the contents of the document as a JSON string
      */
-  std::string toJson(conduit::index_t indent = 0,
+  std::string toJson(conduit::index_t indent,
                      conduit::index_t depth = 0,
                      const std::string &pad = "",
                      const std::string &eoe = "") const;
+  std::string toJson() const;
 
   /**
     * \brief Get the list of file types currently supported by the implementation.
