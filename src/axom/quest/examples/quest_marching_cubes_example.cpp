@@ -100,6 +100,7 @@ public:
   bool useBumpBackend {false};
 
   bool useDevicePool {false};
+  int devicePoolInitialSizeGiB {0};
 
   // Number of distinct MarchingCubes objects.
   int objectRepCount {1};
@@ -143,6 +144,12 @@ public:
     app.add_flag("--useDevicePool", useDevicePool)
       ->description("Use an Umpire QuickPool for MarchingCubes allocations")
       ->capture_default_str();
+
+    app.add_option("--devicePoolInitialSizeGiB", devicePoolInitialSizeGiB)
+      ->description("Set the initial MarchingCubes device pool size in GiB")
+      ->capture_default_str()
+      ->check(axom::CLI::NonNegativeNumber);
+
 #endif
 
     app.add_option("-m,--mesh-file", meshFile)
@@ -216,11 +223,12 @@ public:
 static int s_allocatorId = axom::INVALID_ALLOCATOR_ID;  // Set in main.
 
 #if defined(AXOM_USE_UMPIRE)
-int makeMarchingCubesPoolAllocator(int allocatorId)
+int makeMarchingCubesPoolAllocator(int allocatorId, int initialPoolSizeGiB)
 {
-  constexpr std::size_t initialPoolSize = 1;
   constexpr std::size_t nextPoolSize = 1 << 20;
   constexpr std::size_t alignment = 256;
+  const std::size_t initialPoolSize =
+    initialPoolSizeGiB > 0 ? static_cast<std::size_t>(initialPoolSizeGiB) << 30 : 1;
 
   auto& resourceManager = umpire::ResourceManager::getInstance();
   auto allocator = resourceManager.getAllocator(allocatorId);
@@ -230,7 +238,9 @@ int makeMarchingCubesPoolAllocator(int allocatorId)
                                                                          initialPoolSize,
                                                                          nextPoolSize,
                                                                          alignment);
-  SLIC_INFO(axom::fmt::format("Using MarchingCubes pool allocator {}", pool.getId()));
+  SLIC_INFO(axom::fmt::format("Using MarchingCubes pool allocator {} with {} initial bytes",
+                              pool.getId(),
+                              initialPoolSize));
   return pool.getId();
 }
 #endif
@@ -927,7 +937,8 @@ struct ContourTestBase
     if(m_params.useDevicePool)
     {
       AXOM_ANNOTATE_SCOPE("create MarchingCubes device pool");
-      marchingCubesAllocatorId = makeMarchingCubesPoolAllocator(s_allocatorId);
+      marchingCubesAllocatorId =
+        makeMarchingCubesPoolAllocator(s_allocatorId, m_params.devicePoolInitialSizeGiB);
     }
 #endif
 
