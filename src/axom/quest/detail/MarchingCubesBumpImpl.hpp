@@ -644,12 +644,16 @@ private:
         axom::for_all<ExecSpace>(cellShape, [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j) {
           const axom::IndexType zoneIndex = i + cellShape[0] * j;
           const bool useZone = maskView.empty() || maskView(i, j) == maskVal;
-          const bool p0 = static_cast<IsoFieldType>(fcnView(i, j)) > isoVal;
-          const bool p1 = static_cast<IsoFieldType>(fcnView(i + 1, j)) > isoVal;
-          const bool p2 = static_cast<IsoFieldType>(fcnView(i + 1, j + 1)) > isoVal;
-          const bool p3 = static_cast<IsoFieldType>(fcnView(i, j + 1)) > isoVal;
+          unsigned int caseMask = 0;
+          if(useZone)
+          {
+            caseMask |= (static_cast<IsoFieldType>(fcnView(i, j)) > isoVal) << 0;
+            caseMask |= (static_cast<IsoFieldType>(fcnView(i + 1, j)) > isoVal) << 1;
+            caseMask |= (static_cast<IsoFieldType>(fcnView(i + 1, j + 1)) > isoVal) << 2;
+            caseMask |= (static_cast<IsoFieldType>(fcnView(i, j + 1)) > isoVal) << 3;
+          }
           const axom::IndexType crosses =
-            useZone && ((p0 || p1 || p2 || p3) && (!p0 || !p1 || !p2 || !p3));
+            (caseMask != 0 && caseMask != 0xF) ? axom::IndexType {1} : axom::IndexType {};
           crossingFlagsView[zoneIndex] = crosses;
           crossingCount += crosses;
         });
@@ -661,17 +665,20 @@ private:
           [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
             const axom::IndexType zoneIndex = i + cellShape[0] * (j + cellShape[1] * k);
             const bool useZone = maskView.empty() || maskView(i, j, k) == maskVal;
-            const bool p0 = static_cast<IsoFieldType>(fcnView(i, j, k)) > isoVal;
-            const bool p1 = static_cast<IsoFieldType>(fcnView(i + 1, j, k)) > isoVal;
-            const bool p2 = static_cast<IsoFieldType>(fcnView(i, j + 1, k)) > isoVal;
-            const bool p3 = static_cast<IsoFieldType>(fcnView(i + 1, j + 1, k)) > isoVal;
-            const bool p4 = static_cast<IsoFieldType>(fcnView(i, j, k + 1)) > isoVal;
-            const bool p5 = static_cast<IsoFieldType>(fcnView(i + 1, j, k + 1)) > isoVal;
-            const bool p6 = static_cast<IsoFieldType>(fcnView(i, j + 1, k + 1)) > isoVal;
-            const bool p7 = static_cast<IsoFieldType>(fcnView(i + 1, j + 1, k + 1)) > isoVal;
-            const axom::IndexType crosses = useZone &&
-              ((p0 || p1 || p2 || p3 || p4 || p5 || p6 || p7) &&
-               (!p0 || !p1 || !p2 || !p3 || !p4 || !p5 || !p6 || !p7));
+            unsigned int caseMask = 0;
+            if(useZone)
+            {
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i, j, k)) > isoVal) << 0;
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i + 1, j, k)) > isoVal) << 1;
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i, j + 1, k)) > isoVal) << 2;
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i + 1, j + 1, k)) > isoVal) << 3;
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i, j, k + 1)) > isoVal) << 4;
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i + 1, j, k + 1)) > isoVal) << 5;
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i, j + 1, k + 1)) > isoVal) << 6;
+              caseMask |= (static_cast<IsoFieldType>(fcnView(i + 1, j + 1, k + 1)) > isoVal) << 7;
+            }
+            const axom::IndexType crosses =
+              (caseMask != 0 && caseMask != 0xFF) ? axom::IndexType {1} : axom::IndexType {};
             crossingFlagsView[zoneIndex] = crosses;
             crossingCount += crosses;
           });
@@ -759,9 +766,12 @@ private:
         using TopologyView = decltype(topologyView);
         dispatched = true;
 
-        using Cut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
+        using Intersector = bumpx::FieldIntersector<ExecSpace, TopologyView, CoordsetView>;
+        using Cut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView, Intersector>;
 
-        Cut iso(topologyView, coordsetView);
+        Intersector intersector;
+        intersector.setAllocatorID(m_allocatorID);
+        Cut iso(topologyView, coordsetView, intersector);
         iso.setAllocatorID(m_allocatorID);
 
         // Shift the threshold so Bump's strict comparison matches the legacy
