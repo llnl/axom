@@ -34,6 +34,7 @@
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/execution/reductions.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/core/MDMapping.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
@@ -636,7 +637,6 @@ private:
       // Copy member values to locals so the device lambda captures values rather than `this`.
       const IsoFieldType isoVal = isoForBump;
       const int maskVal = m_maskVal;
-      axom::ReduceSum<ExecSpace, axom::IndexType> crossingCount(0);
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingClassification");
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingClassificationKernel");
       if constexpr(DIM == 2)
@@ -655,7 +655,6 @@ private:
           const axom::IndexType crosses =
             (caseMask != 0 && caseMask != 0xF) ? axom::IndexType {1} : axom::IndexType {};
           crossingFlagsView[zoneIndex] = crosses;
-          crossingCount += crosses;
         });
       }
       else
@@ -680,15 +679,23 @@ private:
             const axom::IndexType crosses =
               (caseMask != 0 && caseMask != 0xFF) ? axom::IndexType {1} : axom::IndexType {};
             crossingFlagsView[zoneIndex] = crosses;
-            crossingCount += crosses;
           });
       }
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingClassificationKernel");
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingClassification");
+
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingScan");
+      axom::inclusive_scan_inplace<ExecSpace>(crossingFlagsView);
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingScan");
 
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingCountReadback");
-      crossingCountValue = crossingCount.get();
+      if(nZones > 0)
+      {
+        axom::copy(&crossingCountValue,
+                   crossingFlagsView.data() + nZones - 1,
+                   sizeof(crossingCountValue));
+      }
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingCountReadback");
-      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingClassification");
 
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingZoneAllocation");
       crossingZones = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
@@ -697,20 +704,15 @@ private:
                                                    m_allocatorID);
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingZoneAllocation");
 
-      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingScan");
-      axom::exclusive_scan_inplace<ExecSpace>(crossingFlagsView);
-      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingScan");
-
       auto crossingZonesView = crossingZones.view();
       AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingCompaction");
       axom::for_all<ExecSpace>(nZones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
-        const auto crossingOffset = crossingFlagsView[zoneIndex];
-        const bool crosses = zoneIndex + 1 < nZones
-          ? crossingOffset != crossingFlagsView[zoneIndex + 1]
-          : crossingOffset != crossingCountValue;
+        const auto crossingEnd = crossingFlagsView[zoneIndex];
+        const bool crosses =
+          zoneIndex == 0 ? crossingEnd != 0 : crossingEnd != crossingFlagsView[zoneIndex - 1];
         if(crosses)
         {
-          crossingZonesView[crossingOffset] = zoneIndex;
+          crossingZonesView[crossingEnd - 1] = zoneIndex;
         }
       });
       AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingCompaction");
