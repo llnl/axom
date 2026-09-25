@@ -986,7 +986,7 @@ public:
 
     // Compute original node count that we're preserving, make node maps.
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
-    const int compactSize = countOriginalNodes(nodeData);
+    const IndexType compactSize = countOriginalNodes(nodeData);
     AXOM_ANNOTATE_BEGIN("compactNodeAllocation");
     axom::Array<IndexType> compactNodes(axom::ArrayOptions::Uninitialized(),
                                         compactSize,
@@ -994,7 +994,7 @@ public:
                                         allocatorID);
     AXOM_ANNOTATE_END("compactNodeAllocation");
     nodeData.m_originalIdsView = compactNodes.view();
-    createNodeMaps(nodeData, compactSize);
+    createNodeMaps(nodeData);
 #endif
 
     // Further initialize the blend group builder.
@@ -1466,21 +1466,25 @@ private:
 
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
   /*!
-   * \brief Counts the number of original nodes used by the selected fragments.
+   * \brief Scans the original-node use flags and returns the number in use.
    *
    * \param nodeData The node data (passed by value on purpose)
    * \return The number of original nodes used by selected fragments.
    */
-  int countOriginalNodes(NodeData nodeData) const
+  IndexType countOriginalNodes(NodeData nodeData) const
   {
     AXOM_ANNOTATE_SCOPE("countOriginalNodes");
-    // Count the number of original nodes we'll use directly.
-    axom::ReduceSum<ExecSpace, int> nUsed_reducer(0);
-    const auto nodeUsedView = nodeData.m_oldNodeToNewNodeView;
-    axom::for_all<ExecSpace>(nodeUsedView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
-      nUsed_reducer += static_cast<int>(nodeUsedView[index]);
-    });
-    return nUsed_reducer.get();
+    axom::inclusive_scan_inplace<ExecSpace>(nodeData.m_oldNodeToNewNodeView);
+
+    IndexType compactSize = 0;
+    const auto nnodes = nodeData.m_oldNodeToNewNodeView.size();
+    if(nnodes > 0)
+    {
+      axom::copy(&compactSize,
+                 nodeData.m_oldNodeToNewNodeView.data() + nnodes - 1,
+                 sizeof(compactSize));
+    }
+    return compactSize;
   }
 
   /*!
@@ -1488,24 +1492,20 @@ private:
    *
    * \param nodeData The node data that contains views where the node data is stored.
    */
-  void createNodeMaps(NodeData nodeData, IndexType compactSize) const
+  void createNodeMaps(NodeData nodeData) const
   {
     AXOM_ANNOTATE_SCOPE("createNodeMaps");
 
     const auto nnodes = nodeData.m_oldNodeToNewNodeView.size();
-    AXOM_ANNOTATE_BEGIN("createNodeMaps::mapScan");
-    axom::exclusive_scan_inplace<ExecSpace>(nodeData.m_oldNodeToNewNodeView);
-    AXOM_ANNOTATE_END("createNodeMaps::mapScan");
-
     // Make the compact node list and oldToNew map.
     AXOM_ANNOTATE_BEGIN("createNodeMaps::mapBuild");
     axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
-      const IndexType newId = nodeData.m_oldNodeToNewNodeView[index];
-      const bool used = index + 1 < nnodes ? newId != nodeData.m_oldNodeToNewNodeView[index + 1]
-                                           : newId != compactSize;
+      const IndexType nodeEnd = nodeData.m_oldNodeToNewNodeView[index];
+      const bool used =
+        index == 0 ? nodeEnd != 0 : nodeEnd != nodeData.m_oldNodeToNewNodeView[index - 1];
       if(used)
       {
-        nodeData.m_originalIdsView[newId] = index;
+        nodeData.m_originalIdsView[nodeEnd - 1] = index;
       }
     });
     AXOM_ANNOTATE_END("createNodeMaps::mapBuild");
@@ -1834,7 +1834,7 @@ private:
           if(axom::utilities::bitIsSet(ptused, pid))
           {
             const auto nodeId = zone.getId(pid);
-            point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId];
+            point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId] - 1;
           }
         }
 #else
@@ -1857,7 +1857,7 @@ private:
             if(groups.size() == 1)
             {
               const auto nodeId = groups.id(0);
-              point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId];
+              point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId] - 1;
             }
             else
             {
