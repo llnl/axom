@@ -316,10 +316,10 @@ void MarchingCubes::allocateOutputBuffers()
   if(!m_singles.empty())
   {
     int ndim = m_singles[0]->spatialDimension();
-    m_facetNodeIds.resize(axom::StackArray<axom::IndexType, 2> {m_facetCount, ndim}, 0);
-    m_facetNodeCoords.resize(axom::StackArray<axom::IndexType, 2> {m_nodeCount, ndim}, 0.0);
-    m_facetParentIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
-    m_facetDomainIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
+    m_facetNodeIds.resize(axom::ArrayOptions::Uninitialized {}, m_facetCount, ndim);
+    m_facetNodeCoords.resize(axom::ArrayOptions::Uninitialized {}, m_nodeCount, ndim);
+    m_facetParentIds.resize(axom::ArrayOptions::Uninitialized {}, m_facetCount);
+    m_facetDomainIds.resize(axom::ArrayOptions::Uninitialized {}, m_facetCount);
   }
 }
 
