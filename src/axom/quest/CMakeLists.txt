@@ -103,7 +103,7 @@ set( quest_sources
 if(MFEM_FOUND)
     list(APPEND quest_headers io/MFEMReader.hpp)
     list(APPEND quest_headers GWNMethods.hpp)
-    list(APPEND quest_sources io/MFEMReader.cpp)
+    list(APPEND quest_sources io/MFEMReader.cpp util/mesh_helpers_mfem.cpp)
 endif()
 
 
