@@ -9,7 +9,6 @@
 
 #ifdef AXOM_USE_MFEM
 
-  #include <fstream>
   #include <string>
   #include <iomanip>      // for setw, setfill
   #include <cstdio>       // for snprintf()
@@ -45,12 +44,6 @@ const std::string MFEMSidreDataCollection::s_coordset_name = "coords";
 
 namespace detail
 {
-void dumpNodeToYamlFile(const conduit::Node& node, const std::string& file_name)
-{
-  std::ofstream out(file_name);
-  out << node.to_yaml();
-}
-
 IndexType getRequiredBufferSize(const View* view)
 {
   SLIC_ASSERT_MSG(view != nullptr && view->isDescribed(), "Expected a described view");
@@ -918,11 +911,7 @@ bool MFEMSidreDataCollection::verifyMeshBlueprint()
   m_bp_grp->createNativeLayout(mesh_node);
 
   conduit::Node verify_info;
-  bool result = conduit::blueprint::mesh::verify(mesh_node, verify_info);
-  SLIC_WARNING_IF(!result,
-                  "MFEMSidreDataCollection blueprint verification failed:\n"
-                    << verify_info.to_yaml());
-  return result;
+  return conduit::blueprint::mesh::verify(mesh_node, verify_info);
 }
 
 bool MFEMSidreDataCollection::HasBoundaryMesh() const
@@ -2669,23 +2658,8 @@ void MFEMSidreDataCollection::reconstructMesh()
   m_bp_grp->createNativeLayout(mesh_node);
 
   conduit::Node verify_info;
-  const bool verify_ok = conduit::blueprint::mesh::verify(mesh_node, verify_info);
-  if(!verify_ok)
-  {
-    const std::string dump_base =
-      fmt::format("{}_reconstructMesh_verify_failure_rank{:06d}", name, myid);
-    const std::string mesh_dump_file = dump_base + "_mesh.yaml";
-    const std::string verify_dump_file = dump_base + "_verify_info.yaml";
-
-    detail::dumpNodeToYamlFile(mesh_node, mesh_dump_file);
-    detail::dumpNodeToYamlFile(verify_info, verify_dump_file);
-
-    SLIC_ERROR(fmt::format("Cannot reconstruct mesh, data does not satisfy Conduit Blueprint. "
-                           "Wrote in-memory blueprint dump to '{}' and verify info to '{}'.\n{}",
-                           mesh_dump_file,
-                           verify_dump_file,
-                           verify_info.to_yaml()));
-  }
+  SLIC_ERROR_IF(!conduit::blueprint::mesh::verify(mesh_node, verify_info),
+                "Cannot reconstruct mesh, data does not satisfy Conduit Blueprint");
 
   SLIC_ERROR_IF(!m_bp_grp->hasView("coordsets/coords/values/x"),
                 "Cannot reconstruct a mesh without a Cartesian coordinate set");

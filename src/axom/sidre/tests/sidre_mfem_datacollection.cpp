@@ -19,9 +19,7 @@
 
 #include "conduit_blueprint.hpp"
 
-#include <cmath>
 #include <iostream>
-#include <limits>
 #include <memory>
 #include <vector>
 
@@ -946,109 +944,6 @@ struct MFEMCopyTemporaryParFieldCopy
   std::unique_ptr<mfem::ParGridFunction> grid_function;
 };
 
-static void logMFEMCopyTestStep(const std::string& message)
-{
-  int rank = -1;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  std::cout << "[dc_par_reload_mfem_copies][rank " << rank << "] " << message
-            << std::endl;
-}
-
-static void logMFEMCopyDiagnostic(const std::string& message)
-{
-  int rank = -1;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  std::cout << "[dc_par_reload_mfem_copies][rank " << rank << "][diag] " << message
-            << std::endl;
-}
-
-static void logMeshVertexDiagnostics(const mfem::Mesh& mesh)
-{
-  const int dim = mesh.SpaceDimension();
-  double min_vals[3] = {std::numeric_limits<double>::infinity(),
-                        std::numeric_limits<double>::infinity(),
-                        std::numeric_limits<double>::infinity()};
-  double max_vals[3] = {-std::numeric_limits<double>::infinity(),
-                        -std::numeric_limits<double>::infinity(),
-                        -std::numeric_limits<double>::infinity()};
-  int first_bad_vertex = -1;
-  int first_bad_dim = -1;
-  double first_bad_value = 0.0;
-
-  for(int vi = 0; vi < mesh.GetNV(); ++vi)
-  {
-    const double* vertex = mesh.GetVertex(vi);
-    for(int d = 0; d < dim; ++d)
-    {
-      const double value = vertex[d];
-      if(!std::isfinite(value) && first_bad_vertex < 0)
-      {
-        first_bad_vertex = vi;
-        first_bad_dim = d;
-        first_bad_value = value;
-      }
-      min_vals[d] = std::min(min_vals[d], value);
-      max_vals[d] = std::max(max_vals[d], value);
-    }
-  }
-
-  if(first_bad_vertex >= 0)
-  {
-    logMFEMCopyDiagnostic(axom::fmt::format("non-finite vertex component at vertex {} dim {}: {}",
-                                            first_bad_vertex,
-                                            first_bad_dim,
-                                            first_bad_value));
-  }
-  else
-  {
-    logMFEMCopyDiagnostic(axom::fmt::format("mesh vertices finite; bounds x=[{}, {}] y=[{}, {}] z=[{}, {}]",
-                                            min_vals[0],
-                                            max_vals[0],
-                                            min_vals[1],
-                                            max_vals[1],
-                                            min_vals[2],
-                                            max_vals[2]));
-  }
-}
-
-static void logGridFunctionDiagnostics(const std::string& name, const mfem::GridFunction& gf)
-{
-  const double* data = gf.GetData();
-  const int size = gf.Size();
-  int first_bad_index = -1;
-  double first_bad_value = 0.0;
-  double min_value = std::numeric_limits<double>::infinity();
-  double max_value = -std::numeric_limits<double>::infinity();
-
-  for(int i = 0; i < size; ++i)
-  {
-    const double value = data[i];
-    if(!std::isfinite(value) && first_bad_index < 0)
-    {
-      first_bad_index = i;
-      first_bad_value = value;
-    }
-    min_value = std::min(min_value, value);
-    max_value = std::max(max_value, value);
-  }
-
-  if(first_bad_index >= 0)
-  {
-    logMFEMCopyDiagnostic(axom::fmt::format("{} has non-finite coefficient at {}: {}",
-                                            name,
-                                            first_bad_index,
-                                            first_bad_value));
-  }
-  else
-  {
-    logMFEMCopyDiagnostic(axom::fmt::format("{} coefficients finite; size={} min={} max={}",
-                                            name,
-                                            size,
-                                            min_value,
-                                            max_value));
-  }
-}
-
 static std::unique_ptr<mfem::ParMesh> getParMesh(const mfem::ParGridFunction& source_field)
 {
   const auto* source_fes = source_field.FESpace();
@@ -1314,12 +1209,15 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
   EXPECT_TRUE(sdc_reader.verifyMeshBlueprint());
 }
 
+// This reproduces a user-observed restart pattern that saves GridFunctions
+// copied onto a copied ParMesh. Building this case first exposed test setup
+// issues around temporary GridFunction storage, then a sidre_hdf5 reload bug
+// for external strided coord/vector views that back reconstructed MFEM objects.
 TEST(sidre_datacollection, dc_par_reload_mfem_copies)
 {
   const std::string scalar_field_name = "test_scalar_field";
   const std::string vector_field_name = "test_vector_field";
 
-  logMFEMCopyTestStep("constructing source ParMesh and finite element spaces");
   auto mesh = mfem::Mesh::MakeCartesian3D(2, 2, 2, mfem::Element::TETRAHEDRON);
   mfem::ParMesh source_parmesh(MPI_COMM_WORLD, mesh);
 
@@ -1330,7 +1228,6 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
   mfem::ParGridFunction scalar_field(&scalar_parfes);
   mfem::ParGridFunction vector_field(&vector_parfes);
 
-  logMFEMCopyTestStep("projecting source field coefficients");
   mfem::ConstantCoefficient scalar_value(3.5);
   scalar_field.ProjectCoefficient(scalar_value);
 
@@ -1345,7 +1242,6 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
   std::vector<std::unique_ptr<MFEMCopyTemporaryParFieldCopy>> temporary_copies;
 
   {
-    logMFEMCopyTestStep("copying source ParMesh");
     temporary_mesh_copy = getParMesh(scalar_field);
     ASSERT_NE(temporary_mesh_copy, nullptr);
 
@@ -1354,7 +1250,6 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
     dc.SetPrefixPath("");
     dc.SetCycle(0);
 
-    logMFEMCopyTestStep("copying ParGridFunctions onto copied ParMesh");
     auto* scalar_copy =
       copyIntoParGridFunction(scalar_field, *temporary_mesh_copy, temporary_copies);
     auto* vector_copy =
@@ -1363,7 +1258,6 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
     ASSERT_NE(scalar_copy, nullptr);
     ASSERT_NE(vector_copy, nullptr);
 
-    logMFEMCopyTestStep("registering copied fields and saving collection");
     dc.RegisterField(scalar_field_name, scalar_copy);
     dc.RegisterField(vector_field_name, vector_copy);
     dc.Save();
@@ -1378,28 +1272,22 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
   MFEMSidreDataCollection dc(testName(), nullptr);
   dc.SetComm(MPI_COMM_WORLD);
   dc.SetPrefixPath("");
-  logMFEMCopyTestStep("loading collection");
   dc.Load();
 
-  logMFEMCopyTestStep("validating loaded mesh and fields");
   ASSERT_NE(dc.GetMesh(), nullptr);
-  logMeshVertexDiagnostics(*dc.GetMesh());
 
   auto* scalar_read = dc.GetField(scalar_field_name);
   ASSERT_NE(scalar_read, nullptr);
   EXPECT_TRUE(dynamic_cast<mfem::ParGridFunction*>(scalar_read));
-  logGridFunctionDiagnostics(scalar_field_name, *scalar_read);
   EXPECT_LT(scalar_read->ComputeL2Error(scalar_value), EPSILON);
 
   auto* vector_read = dc.GetField(vector_field_name);
   ASSERT_NE(vector_read, nullptr);
   EXPECT_TRUE(dynamic_cast<mfem::ParGridFunction*>(vector_read));
-  logGridFunctionDiagnostics(vector_field_name, *vector_read);
   EXPECT_LT(vector_read->ComputeL2Error(vector_value), EPSILON);
 
   EXPECT_TRUE(dynamic_cast<mfem::ParMesh*>(dc.GetMesh()));
   EXPECT_TRUE(dc.verifyMeshBlueprint());
-  logMFEMCopyTestStep("completed validation");
 }
 
 TEST(sidre_datacollection, dc_par_reload_multi_datastore)
