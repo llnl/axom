@@ -33,6 +33,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Mir: The `axom::mir::ElviraAlgorithm` can now accept an integer "cleanmesh" option via its `conduit::Node` options that can turn off the algorithm phase for cleaning up the 3D mesh output so it can skip merging vertices and mesh faces.
 
 ### Fixed
+- Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
