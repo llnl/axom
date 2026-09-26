@@ -240,6 +240,14 @@ public:
   IndexType numberOfZones() const { return m_data.m_element_sizes.size(); }
 
   /*!
+   * \brief Return the array index for a zone in an element-associated field.
+   *
+   * \param zoneIndex The zone index.
+   * \return \a zoneIndex because unstructured element fields are stored in zone order.
+   */
+  AXOM_HOST_DEVICE inline IndexType zoneFieldIndex(IndexType zoneIndex) const { return zoneIndex; }
+
+  /*!
    * \brief Return the size of the connectivity.
    *
    * \return The size of the connectivity.

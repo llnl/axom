@@ -1,0 +1,86 @@
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+#include "axom/config.hpp"
+
+#cmakedefine AXOM_MARCHING_CUBES_POLICY_SEQ
+#cmakedefine AXOM_MARCHING_CUBES_POLICY_OPENMP
+#cmakedefine AXOM_MARCHING_CUBES_POLICY_CUDA
+#cmakedefine AXOM_MARCHING_CUBES_POLICY_HIP
+
+#cmakedefine AXOM_MARCHING_CUBES_DIMENSION_2
+#cmakedefine AXOM_MARCHING_CUBES_DIMENSION_3
+
+#if defined(AXOM_MARCHING_CUBES_DIMENSION_2)
+  #define AXOM_MARCHING_CUBES_DIMENSION 2
+#elif defined(AXOM_MARCHING_CUBES_DIMENSION_3)
+  #define AXOM_MARCHING_CUBES_DIMENSION 3
+#else
+  #error "A Marching Cubes dimension must be selected"
+#endif
+
+#include "axom/quest/detail/MarchingCubesImpl.hpp"
+
+#if defined(AXOM_USE_BUMP)
+  #include "axom/quest/detail/MarchingCubesBumpImpl.hpp"
+#endif
+
+#include <type_traits>
+
+namespace axom::quest::detail::marching_cubes
+{
+namespace
+{
+#if defined(AXOM_MARCHING_CUBES_POLICY_SEQ)
+using ExecSpace = axom::SEQ_EXEC;
+using SequentialExecSpace = axom::SEQ_EXEC;
+#elif defined(AXOM_MARCHING_CUBES_POLICY_OPENMP)
+using ExecSpace = axom::OMP_EXEC;
+using SequentialExecSpace = axom::SEQ_EXEC;
+#elif defined(AXOM_MARCHING_CUBES_POLICY_CUDA)
+using ExecSpace = axom::CUDA_EXEC<256>;
+using SequentialExecSpace = axom::CUDA_EXEC<1>;
+#elif defined(AXOM_MARCHING_CUBES_POLICY_HIP)
+using ExecSpace = axom::HIP_EXEC<256>;
+using SequentialExecSpace = axom::HIP_EXEC<1>;
+#else
+  #error "A Marching Cubes execution policy must be selected"
+#endif
+
+}  // namespace
+
+#if defined(AXOM_MARCHING_CUBES_POLICY_SEQ)
+std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::newMarchingCubesSeqImpl(
+  std::integral_constant<int, AXOM_MARCHING_CUBES_DIMENSION>)
+#elif defined(AXOM_MARCHING_CUBES_POLICY_OPENMP)
+std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::newMarchingCubesOpenMPImpl(
+  std::integral_constant<int, AXOM_MARCHING_CUBES_DIMENSION>)
+#elif defined(AXOM_MARCHING_CUBES_POLICY_CUDA)
+std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::newMarchingCubesCudaImpl(
+  std::integral_constant<int, AXOM_MARCHING_CUBES_DIMENSION>)
+#elif defined(AXOM_MARCHING_CUBES_POLICY_HIP)
+std::unique_ptr<MarchingCubesSingleDomain::ImplBase> MarchingCubesSingleDomain::newMarchingCubesHipImpl(
+  std::integral_constant<int, AXOM_MARCHING_CUBES_DIMENSION>)
+#endif
+{
+  constexpr int DIM = AXOM_MARCHING_CUBES_DIMENSION;
+  static_assert(DIM == 2 || DIM == 3);
+#if defined(AXOM_USE_BUMP)
+  if(m_mc.m_useBumpBackend)
+  {
+    return std::make_unique<MarchingCubesBumpImpl<DIM, ExecSpace>>(m_mc.m_allocatorID);
+  }
+#endif
+
+  return std::make_unique<MarchingCubesImpl<DIM, ExecSpace, SequentialExecSpace>>(
+    m_mc.m_allocatorID,
+    m_mc.m_caseIdsFlat,
+    m_mc.m_crossingFlags,
+    m_mc.m_scannedFlags,
+    m_mc.m_facetIncrs);
+}
+
+}  // namespace axom::quest::detail::marching_cubes

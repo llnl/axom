@@ -33,15 +33,12 @@ namespace detail
 namespace marching_cubes
 {
 /*!
-  @brief Computations for MarchingCubesSingleDomain
-
-  Spatial dimension and execution space are here as template
-  parameters, to keep out of higher level classes MarchingCubes and
-  MarchingCubesSingleDomain.
-
-  ExecSpace is the general execution space, like axom::SEQ_EXEC and
-  axom::CUDA_EXEC<256>.
-*/
+ * @brief Implements the legacy backend for one dimension and execution space.
+ *
+ * @tparam DIM Spatial dimension.
+ * @tparam ExecSpace Execution space for parallel work.
+ * @tparam SequentialExecSpace Execution space for the serial scan.
+ */
 template <int DIM, typename ExecSpace, typename SequentialExecSpace>
 class MarchingCubesImpl : public MarchingCubesSingleDomain::ImplBase
 {
@@ -77,23 +74,18 @@ public:
   }
 
   /*!
-    @brief Initialize data to a blueprint domain.
-    @param dom Blueprint structured mesh domain
-    @param topologyName Name of mesh topology (see blueprint
-           mesh documentation)
-    @param maskFieldName Name of integer cell mask function is in dom
-
-    Set up views to domain data and allocate other data to work on the
-    given domain.
-
-    The above data from the domain MUST be in a memory space
-    compatible with ExecSpace.
-  */
+   * @brief Prepare views and scratch arrays for a Blueprint domain.
+   * @param[in] dom Blueprint structured-mesh domain.
+   * @param[in] topologyName Name of the mesh topology in \a dom.
+   * @param[in] maskFieldName Name of the optional integer cell-mask field.
+   *
+   * Arrays in \a dom must be accessible from \c ExecSpace.
+   */
   AXOM_HOST void setDomain(const conduit::Node& dom,
                            const std::string& topologyName,
                            const std::string& maskFieldName) override
   {
-    // Time this due to potentially slow memory allocation
+    // Include potentially expensive memory allocation in the initialization timing.
     AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::initialize");
     clearDomain();
 
@@ -128,9 +120,9 @@ public:
   }
 
   /*!
-    @brief Set the scale field name
-    @param fcnFieldName Name of nodal function is in dom
-  */
+   * @brief Select the nodal scalar field to contour.
+   * @param[in] fcnFieldName Name of the vertex-associated scalar field.
+   */
   void setFunctionField(const std::string& fcnFieldName) override
   {
     m_fcnView = m_mvu.template getConstFieldView<double>(fcnFieldName, false);
@@ -214,11 +206,7 @@ public:
     }
   }
 
-  /*!
-    @brief Implementation used by MarchingCubesImpl::markCrossings_dim()
-    containing just the objects needed for that part, to be made available
-    on devices.
-  */
+  //! @brief Device-copyable state used by markCrossings_dim().
   struct MarkCrossings_Util
   {
     axom::ArrayView<std::uint16_t, DIM, MemorySpace> caseIdsView;
@@ -463,6 +451,8 @@ public:
     // m_firstFacetIds.resize(m_crossingCount);
   }
 
+  axom::IndexType getContourNodeCount() const override { return DIM * getContourCellCount(); }
+
   void computeFacets() override
   {
     AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::computeFacets");
@@ -475,6 +465,7 @@ public:
     axom::ArrayView<double, 2> facetNodeCoordsView = m_facetNodeCoords;
     axom::ArrayView<axom::IndexType> facetParentIdsView = m_facetParentIds;
     const axom::IndexType facetIndexOffset = m_facetIndexOffset;
+    const axom::IndexType nodeIndexOffset = m_nodeIndexOffset;
 
     ComputeFacets_Util cfu(m_contourVal, m_caseIdsMDMapper, m_fcnView, m_coordsViews);
 
@@ -490,8 +481,9 @@ public:
 
       for(axom::IndexType fId = 0; fId < additionalFacets; ++fId)
       {
+        const axom::IndexType localFacetId = firstFacetIdsView[crossingId] + fId;
         axom::IndexType newFacetId = firstFacetId + fId;
-        axom::IndexType firstCornerId = newFacetId * DIM;
+        axom::IndexType firstCornerId = nodeIndexOffset + localFacetId * DIM;
 
         facetParentIdsView[newFacetId] = parentCellId;
 
@@ -509,11 +501,7 @@ public:
     axom::for_all<ExecSpace>(0, m_crossingCount, gen_for_parent_cell);
   }
 
-  /*!
-    @brief Implementation used by MarchingCubesImpl::computeFacets().
-    containing just the objects needed for that part, to be made available
-    on devices.
-  */
+  //! @brief Device-copyable state used by computeFacets().
   struct ComputeFacets_Util
   {
     double contourVal;
@@ -758,10 +746,7 @@ public:
     return index;
   }
 
-  /*!
-    @brief Constructor.
-  */
-  MarchingCubesImpl() { }
+  MarchingCubesImpl() = default;
 
   /*!
     @brief Clear computed data (without deallocating memory).

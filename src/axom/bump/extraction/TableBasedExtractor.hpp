@@ -871,14 +871,18 @@ public:
 
     const std::string newTopologyName = n_newTopo.name();
     // Reset the output nodes just in case they've been reused.
+    AXOM_ANNOTATE_BEGIN("TableBasedExtractor::outputReset");
     n_newTopo = conduit::Node();
     n_newCoordset = conduit::Node();
     n_newFields = conduit::Node();
+    AXOM_ANNOTATE_END("TableBasedExtractor::outputReset");
 
     // Make the selected zones and get the size.
+    AXOM_ANNOTATE_BEGIN("TableBasedExtractor::selectionSetup");
     ExtractorOptions opts(n_options);
     SelectedZones selectedZones(m_topologyView.numberOfZones(), n_options, "selectedZones", allocatorID);
     const auto nzones = selectedZones.view().size();
+    AXOM_ANNOTATE_END("TableBasedExtractor::selectionSetup");
 
     // Give the intersector a chance to further initialize.
     {
@@ -887,9 +891,11 @@ public:
     }
 
     // Load table data and make views.
+    AXOM_ANNOTATE_BEGIN("TableBasedExtractor::tableSetup");
     m_tableManager.load(m_topologyView.dimension());
     TableViews tableViews;
     createTableViews(tableViews, m_topologyView.dimension());
+    AXOM_ANNOTATE_END("TableBasedExtractor::tableSetup");
 
     // Allocate some memory and store views in ZoneData, FragmentData.
     AXOM_ANNOTATE_BEGIN("allocation");
@@ -910,8 +916,13 @@ public:
     NodeData nodeData;
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
     const auto nnodes = m_coordsetView.numberOfNodes();
-    axom::Array<MaskType> nodeUsed(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
-    nodeData.m_nodeUsedView = nodeUsed.view();
+    AXOM_ANNOTATE_BEGIN("oldToNewNodeAllocation");
+    axom::Array<IndexType> oldNodeToNewNode(axom::ArrayOptions::Uninitialized(),
+                                            nnodes,
+                                            nnodes,
+                                            allocatorID);
+    AXOM_ANNOTATE_END("oldToNewNodeAllocation");
+    nodeData.m_oldNodeToNewNodeView = oldNodeToNewNode.view();
 #endif
 
     // Allocate some memory and store views in FragmentData.
@@ -975,15 +986,15 @@ public:
 
     // Compute original node count that we're preserving, make node maps.
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
-    const int compactSize = countOriginalNodes(nodeData);
-    axom::Array<IndexType> compactNodes(compactSize, compactSize, allocatorID);
-    axom::Array<IndexType> oldNodeToNewNode(nnodes, nnodes, allocatorID);
+    const IndexType compactSize = countOriginalNodes(nodeData);
+    AXOM_ANNOTATE_BEGIN("compactNodeAllocation");
+    axom::Array<IndexType> compactNodes(axom::ArrayOptions::Uninitialized(),
+                                        compactSize,
+                                        compactSize,
+                                        allocatorID);
+    AXOM_ANNOTATE_END("compactNodeAllocation");
     nodeData.m_originalIdsView = compactNodes.view();
-    nodeData.m_oldNodeToNewNodeView = oldNodeToNewNode.view();
     createNodeMaps(nodeData);
-
-    nodeUsed.clear();
-    nodeData.m_nodeUsedView = axom::ArrayView<MaskType>();
 #endif
 
     // Further initialize the blend group builder.
@@ -993,12 +1004,29 @@ public:
     builder.computeBlendGroupOffsets();
 
     // Allocate memory for blend groups.
-    AXOM_ANNOTATE_BEGIN("allocation2");
-    axom::Array<KeyType> blendNames(blendGroupsSize, blendGroupsSize, allocatorID);
-    axom::Array<IndexType> blendGroupSizes(blendGroupsSize, blendGroupsSize, allocatorID);
-    axom::Array<IndexType> blendGroupStart(blendGroupsSize, blendGroupsSize, allocatorID);
-    axom::Array<IndexType> blendIds(blendGroupLenSize, blendGroupLenSize, allocatorID);
-    axom::Array<float> blendCoeff(blendGroupLenSize, blendGroupLenSize, allocatorID);
+    AXOM_ANNOTATE_BEGIN("blendMetadataAllocation");
+    axom::Array<KeyType> blendNames(axom::ArrayOptions::Uninitialized(),
+                                    blendGroupsSize,
+                                    blendGroupsSize,
+                                    allocatorID);
+    axom::Array<IndexType> blendGroupSizes(axom::ArrayOptions::Uninitialized(),
+                                           blendGroupsSize,
+                                           blendGroupsSize,
+                                           allocatorID);
+    axom::Array<IndexType> blendGroupStart(axom::ArrayOptions::Uninitialized(),
+                                           blendGroupsSize,
+                                           blendGroupsSize,
+                                           allocatorID);
+    AXOM_ANNOTATE_END("blendMetadataAllocation");
+    AXOM_ANNOTATE_BEGIN("blendPayloadAllocation");
+    axom::Array<IndexType> blendIds(axom::ArrayOptions::Uninitialized(),
+                                    blendGroupLenSize,
+                                    blendGroupLenSize,
+                                    allocatorID);
+    axom::Array<float> blendCoeff(axom::ArrayOptions::Uninitialized(),
+                                  blendGroupLenSize,
+                                  blendGroupLenSize,
+                                  allocatorID);
 
     // Make the blend groups.
     builder.setBlendViews(blendNames.view(),
@@ -1006,7 +1034,7 @@ public:
                           blendGroupStart.view(),
                           blendIds.view(),
                           blendCoeff.view());
-    AXOM_ANNOTATE_END("allocation2");
+    AXOM_ANNOTATE_END("blendPayloadAllocation");
     makeBlendGroups(tableViews, builder, zoneData, opts, selectedZones);
 
     // Make the blend groups unique
@@ -1145,8 +1173,6 @@ public:
 private:
 #endif
   using FragmentData = detail::FragmentData;
-  using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
-
   /*!
    * \brief Contains some per-zone data that we want to hold onto between methods.
    */
@@ -1161,7 +1187,6 @@ private:
    */
   struct NodeData
   {
-    axom::ArrayView<MaskType> m_nodeUsedView {};
     axom::ArrayView<IndexType> m_oldNodeToNewNodeView {};
     axom::ArrayView<IndexType> m_originalIdsView {};
   };
@@ -1232,10 +1257,10 @@ private:
     auto blendGroupsView = builder.state().m_blendGroupsView;
     auto blendGroupsLenView = builder.state().m_blendGroupsLenView;
 
-    // Initialize nodeUsed data for nodes.
-    axom::for_all<ExecSpace>(nodeData.m_nodeUsedView.size(),
+    // Initialize node-use flags in the old-to-new map.
+    axom::for_all<ExecSpace>(nodeData.m_oldNodeToNewNodeView.size(),
                              [=] AXOM_HOST_DEVICE(axom::IndexType index) {
-                               nodeData.m_nodeUsedView[index] = MaskType {0};
+                               nodeData.m_oldNodeToNewNodeView[index] = IndexType {0};
                              });
 
     const auto deviceIntersector = m_intersector.view();
@@ -1327,7 +1352,7 @@ private:
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
       // NOTE: We are not going to emit blend groups for P0..P7 points.
 
-      // If the zone uses a node, set that node in nodeUsedView.
+      // If the zone uses a node, mark it in the old-to-new map.
       for(IndexType pid = P0; pid <= PMAX; pid++)
       {
         if(axom::utilities::bitIsSet(ptused, pid))
@@ -1335,7 +1360,7 @@ private:
           const auto nodeId = zone.getId(pid);
 
           // NOTE: Multiple threads may write to this node but they all write the same value.
-          nodeData.m_nodeUsedView[nodeId] = MaskType {1};
+          nodeData.m_oldNodeToNewNodeView[nodeId] = IndexType {1};
         }
       }
 #else
@@ -1441,21 +1466,25 @@ private:
 
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
   /*!
-   * \brief Counts the number of original nodes used by the selected fragments.
+   * \brief Scans the original-node use flags and returns the number in use.
    *
    * \param nodeData The node data (passed by value on purpose)
    * \return The number of original nodes used by selected fragments.
    */
-  int countOriginalNodes(NodeData nodeData) const
+  IndexType countOriginalNodes(NodeData nodeData) const
   {
     AXOM_ANNOTATE_SCOPE("countOriginalNodes");
-    // Count the number of original nodes we'll use directly.
-    axom::ReduceSum<ExecSpace, int> nUsed_reducer(0);
-    const auto nodeUsedView = nodeData.m_nodeUsedView;
-    axom::for_all<ExecSpace>(nodeUsedView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
-      nUsed_reducer += static_cast<int>(nodeUsedView[index]);
-    });
-    return nUsed_reducer.get();
+    axom::inclusive_scan_inplace<ExecSpace>(nodeData.m_oldNodeToNewNodeView);
+
+    IndexType compactSize = 0;
+    const auto nnodes = nodeData.m_oldNodeToNewNodeView.size();
+    if(nnodes > 0)
+    {
+      axom::copy(&compactSize,
+                 nodeData.m_oldNodeToNewNodeView.data() + nnodes - 1,
+                 sizeof(compactSize));
+    }
+    return compactSize;
   }
 
   /*!
@@ -1466,33 +1495,25 @@ private:
   void createNodeMaps(NodeData nodeData) const
   {
     AXOM_ANNOTATE_SCOPE("createNodeMaps");
-    const int allocatorID = getAllocatorID();
 
-    // Make offsets into a compact array.
-    const auto nnodes = nodeData.m_nodeUsedView.size();
-    axom::Array<axom::IndexType> nodeOffsets(axom::ArrayOptions::Uninitialized(),
-                                             nnodes,
-                                             nnodes,
-                                             allocatorID);
-    auto nodeOffsetsView = nodeOffsets.view();
-    axom::exclusive_scan<ExecSpace>(nodeData.m_nodeUsedView, nodeOffsetsView);
-
+    const auto nnodes = nodeData.m_oldNodeToNewNodeView.size();
     // Make the compact node list and oldToNew map.
+    AXOM_ANNOTATE_BEGIN("createNodeMaps::mapBuild");
     axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
-      IndexType newId = 0;
-      if(nodeData.m_nodeUsedView[index] > 0)
+      const IndexType nodeEnd = nodeData.m_oldNodeToNewNodeView[index];
+      const bool used =
+        index == 0 ? nodeEnd != 0 : nodeEnd != nodeData.m_oldNodeToNewNodeView[index - 1];
+      if(used)
       {
-        nodeData.m_originalIdsView[nodeOffsetsView[index]] = index;
-        newId = nodeOffsetsView[index];
+        nodeData.m_originalIdsView[nodeEnd - 1] = index;
       }
-      nodeData.m_oldNodeToNewNodeView[index] = newId;
     });
+    AXOM_ANNOTATE_END("createNodeMaps::mapBuild");
 
   #if defined(AXOM_DEBUG_EXTRACTOR)
     SLIC_DEBUG(
       "---------------------------- createNodeMaps "
       "----------------------------");
-    SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_nodeUsedView", nodeData.m_nodeUsedView);
     SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_originalIdsView", nodeData.m_originalIdsView);
     SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_oldNodeToNewNodeView", nodeData.m_oldNodeToNewNodeView);
     SLIC_DEBUG(
@@ -1813,7 +1834,7 @@ private:
           if(axom::utilities::bitIsSet(ptused, pid))
           {
             const auto nodeId = zone.getId(pid);
-            point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId];
+            point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId] - 1;
           }
         }
 #else
@@ -1836,7 +1857,7 @@ private:
             if(groups.size() == 1)
             {
               const auto nodeId = groups.id(0);
-              point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId];
+              point_2_new[pid] = nodeData.m_oldNodeToNewNodeView[nodeId] - 1;
             }
             else
             {

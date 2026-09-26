@@ -431,7 +431,7 @@ struct dispatch_any_structured_topology<true, 3, FuncType>
    */
   static void execute(const conduit::Node& topo, FuncType&& func)
   {
-    const std::string offsetsKey("offsets"), stridesKey("strides");
+    const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
     const std::string type = topo.fetch_existing("type").as_string();
     const std::string shape("hex");
 
@@ -470,7 +470,7 @@ struct dispatch_any_structured_topology<true, 2, FuncType>
    */
   static void execute(const conduit::Node& topo, FuncType&& func)
   {
-    const std::string offsetsKey("offsets"), stridesKey("strides");
+    const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
     const std::string type = topo.fetch_existing("type").as_string();
     const std::string shape("quad");
     if(type == "structured" && topo.has_path(offsetsKey) && topo.has_path(stridesKey))
@@ -527,13 +527,14 @@ struct dispatch_any_structured_topology<true, 1, FuncType>
 }  // end namespace internal
 
 /*!
- * \brief Creates a topology view compatible with structured topologies and passes that view to the supplied function.
+ * \brief Create a structured topology view and pass it to a callable.
  *
- * \tparam FuncType The function/lambda type to invoke on the view.
- * \tparam SelectedDimensions  An integer whose bits indicate which dimensions are set. dimension
+ * \tparam SelectedDimensions A mask returned by \ref select_dimensions.
+ *                            Only selected dimensions are instantiated.
+ * \tparam FuncType Callable type that accepts a shape name and topology view.
  *
- * \param topo     The node that contains the rectilinear topology.
- * \param func     The function to invoke using the view. It should accept a string with the shape name and an auto parameter for the view.
+ * \param topo The node containing the structured topology.
+ * \param func The callable to invoke with the shape name and topology view.
  */
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_structured_topology(const conduit::Node& topo, FuncType&& func)
@@ -566,15 +567,16 @@ void dispatch_structured_topology(const conduit::Node& topo, FuncType&& func)
 }
 
 /*!
- * \brief Creates a topology view compatible with various logically "structured" topologies (uniform, rectilinear, structured) and passes that view to the supplied function.
+ * \brief Create a view for a logically structured topology and pass it to a callable.
  *
- * \tparam FuncType The function/lambda type to invoke on the view.
- * \tparam SelectedDimensions  An integer whose bits indicate which dimensions are set. dimension
+ * This dispatcher accepts uniform, rectilinear, and structured Blueprint topologies.
  *
- * \param topo     The node that contains the topology.
- * \param func     The function to invoke using the view. It should accept a string with the shape name and an auto parameter for the view.
+ * \tparam SelectedDimensions A mask returned by \ref select_dimensions.
+ *                            Only selected dimensions are instantiated.
+ * \tparam FuncType Callable type that accepts a shape name and topology view.
  *
- * \note We try to initialize the topoView for each dimension and share the dispatch.
+ * \param topo The node containing the topology.
+ * \param func The callable to invoke with the shape name and topology view.
  */
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_structured_topologies(const conduit::Node& topo, FuncType&& func)
