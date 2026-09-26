@@ -110,7 +110,8 @@ ExternalDoubleViewLoadPlan makeExternalDoubleViewLoadPlan(View* view, View* name
 
 void prepareExternalDoubleViewForLoad(ExternalDoubleViewLoadPlan& plan)
 {
-  SLIC_ASSERT_MSG(plan.view != nullptr && plan.named_buffer_view != nullptr, "Views must not be null");
+  SLIC_ASSERT_MSG(plan.view != nullptr && plan.named_buffer_view != nullptr,
+                  "Views must not be null");
   SLIC_ASSERT_MSG(plan.view->isDescribed(), "Expected a described blueprint view");
   SLIC_ASSERT_MSG(plan.named_buffer_view->hasBuffer() && plan.named_buffer_view->isApplied(),
                   "Expected an allocated named buffer view");
@@ -132,7 +133,8 @@ void prepareExternalDoubleViewForLoad(ExternalDoubleViewLoadPlan& plan)
 
 void finalizeExternalDoubleViewAfterLoad(ExternalDoubleViewLoadPlan& plan)
 {
-  SLIC_ASSERT_MSG(plan.view != nullptr && plan.named_buffer_view != nullptr, "Views must not be null");
+  SLIC_ASSERT_MSG(plan.view != nullptr && plan.named_buffer_view != nullptr,
+                  "Views must not be null");
   SLIC_ASSERT_MSG(plan.named_buffer_view->hasBuffer() && plan.named_buffer_view->isApplied(),
                   "Expected an allocated named buffer view");
 

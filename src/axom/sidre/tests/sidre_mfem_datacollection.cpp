@@ -988,11 +988,10 @@ static mfem::ParGridFunction* copyIntoParGridFunction(
 
   auto copied_field = std::make_unique<MFEMCopyTemporaryParFieldCopy>();
   copied_field->fespace = std::make_unique<mfem::ParFiniteElementSpace>(&destination_mesh,
-                                                                         source_fes->FEColl(),
-                                                                         source_fes->GetVDim(),
-                                                                         source_fes->GetOrdering());
-  copied_field->grid_function =
-    std::make_unique<mfem::ParGridFunction>(copied_field->fespace.get());
+                                                                        source_fes->FEColl(),
+                                                                        source_fes->GetVDim(),
+                                                                        source_fes->GetOrdering());
+  copied_field->grid_function = std::make_unique<mfem::ParGridFunction>(copied_field->fespace.get());
   EXPECT_EQ(copied_field->grid_function->Size(), source_field.Size());
   *copied_field->grid_function = source_field;
 
@@ -1250,10 +1249,8 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
     dc.SetPrefixPath("");
     dc.SetCycle(0);
 
-    auto* scalar_copy =
-      copyIntoParGridFunction(scalar_field, *temporary_mesh_copy, temporary_copies);
-    auto* vector_copy =
-      copyIntoParGridFunction(vector_field, *temporary_mesh_copy, temporary_copies);
+    auto* scalar_copy = copyIntoParGridFunction(scalar_field, *temporary_mesh_copy, temporary_copies);
+    auto* vector_copy = copyIntoParGridFunction(vector_field, *temporary_mesh_copy, temporary_copies);
 
     ASSERT_NE(scalar_copy, nullptr);
     ASSERT_NE(vector_copy, nullptr);
