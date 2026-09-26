@@ -93,7 +93,6 @@ struct ExternalDoubleViewLoadPlan
 {
   View* view {nullptr};
   View* named_buffer_view {nullptr};
-  TypeID type {DOUBLE_ID};
   IndexType num_elements {0};
   IndexType offset {0};
   IndexType stride {1};
@@ -117,7 +116,6 @@ void prepareExternalDoubleViewForLoad(ExternalDoubleViewLoadPlan& plan)
                   "Expected an allocated named buffer view");
   SLIC_ASSERT_MSG(plan.view->getTypeID() == DOUBLE_ID, "Expected a double-valued blueprint view");
 
-  plan.type = plan.view->getTypeID();
   plan.num_elements = plan.view->getNumElements();
   plan.offset = plan.view->getOffset();
   plan.stride = plan.view->getStride();
@@ -146,7 +144,7 @@ void finalizeExternalDoubleViewAfterLoad(ExternalDoubleViewLoadPlan& plan)
 
   plan.view->clear();
   plan.view->attachBuffer(plan.named_buffer_view->getBuffer());
-  plan.view->apply(plan.type, plan.num_elements, plan.offset, plan.stride);
+  plan.view->apply(DOUBLE_ID, plan.num_elements, plan.offset, plan.stride);
 }
 
 void prepareCoordsetViewsForLoad(Group* bp_grp,
