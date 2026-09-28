@@ -411,7 +411,8 @@ void SamplingShaper::computeVolumeFractionsForMaterial(const std::string& matFie
                                                matField,
                                                m_volfracOrder,
                                                m_samplingResolution,
-                                               m_quadratureType);
+                                               m_quadratureType,
+                                               m_execPolicy);
     return;
   }
 #endif
