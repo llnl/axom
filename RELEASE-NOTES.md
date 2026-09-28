@@ -23,6 +23,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
   `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
   allocator-ID arguments.
+- Slic: Adds the `AXOM_ENABLE_SLIC_DEBUG_MACROS` CMake setting with `DEFAULT`,
+  `ON`, and `OFF` values to control the `SLIC_ASSERT`, `SLIC_CHECK`, and
+  `SLIC_DEBUG` macro families independently of `AXOM_DEBUG`. Downstream CMake
+  projects can override the setting exported by Axom. With `DEFAULT`, the
+  macros are enabled when `AXOM_DEBUG` is defined and compiled to no-ops
+  otherwise.
 
 ### Removed
 
