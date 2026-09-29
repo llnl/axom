@@ -21,9 +21,7 @@
 #include <cassert>
 #include <optional>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class ProductSet
@@ -334,5 +332,4 @@ private:
   RowSet<void, typename BaseType::SubsetType> m_rowSet;
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

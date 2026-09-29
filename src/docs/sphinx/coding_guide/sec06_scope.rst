@@ -140,7 +140,7 @@ kernel launches.
            void helperMethod()
            {
              axom::for_all<ExecSpace>(100,
-               AXOM_LAMBDA(axom::IndexType index)
+               [=] AXOM_HOST_DEVICE(axom::IndexType index)
                {
                  // do something
                });

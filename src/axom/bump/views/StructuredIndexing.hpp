@@ -53,7 +53,7 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  StructuredIndexing(const LogicalIndex &dims) : m_dimensions(dims)
+  StructuredIndexing(const LogicalIndex& dims) : m_dimensions(dims)
   {
 #if !defined(AXOM_DEVICE_CODE)
     for(int d = 0; d < NDIMS; d++)
@@ -85,7 +85,7 @@ public:
    * \return The logical dimensions.
    */
   AXOM_HOST_DEVICE
-  const LogicalIndex &logicalDimensions() const { return m_dimensions; }
+  const LogicalIndex& logicalDimensions() const { return m_dimensions; }
 
   /*!
    * \brief Return the j stride.
@@ -115,7 +115,7 @@ public:
    * \return The global index.
    */
   AXOM_HOST_DEVICE
-  inline IndexType globalToGlobal(const LogicalIndex &global) const
+  inline IndexType globalToGlobal(const LogicalIndex& global) const
   {
     return logicalIndexToIndex(global);
   }
@@ -134,7 +134,7 @@ public:
    * \return Same as the input in this case.
    */
   AXOM_HOST_DEVICE
-  inline LogicalIndex globalToLocal(const LogicalIndex &index) const { return index; }
+  inline LogicalIndex globalToLocal(const LogicalIndex& index) const { return index; }
 
   /*!
    * \brief Turn global index to local index. no-op.
@@ -150,7 +150,7 @@ public:
    * \return Same as the input in this case.
    */
   AXOM_HOST_DEVICE
-  inline LogicalIndex localToGlobal(const LogicalIndex &index) const { return index; }
+  inline LogicalIndex localToGlobal(const LogicalIndex& index) const { return index; }
 
   /*!
    * \brief Turn local index to global index. no-op.
@@ -214,21 +214,21 @@ public:
   /// @{
   template <int _ndims = NDIMS>
   AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, IndexType>::type logicalIndexToIndex(
-    const LogicalIndex &logical) const
+    const LogicalIndex& logical) const
   {
     return logical[0];
   }
 
   template <int _ndims = NDIMS>
   AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, IndexType>::type logicalIndexToIndex(
-    const LogicalIndex &logical) const
+    const LogicalIndex& logical) const
   {
     return logical[1] * m_dimensions[0] + logical[0];
   }
 
   template <int _ndims = NDIMS>
   AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, IndexType>::type logicalIndexToIndex(
-    const LogicalIndex &logical) const
+    const LogicalIndex& logical) const
   {
     return (logical[2] * m_dimensions[1] * m_dimensions[0]) + (logical[1] * m_dimensions[0]) +
       logical[0];
@@ -244,7 +244,7 @@ public:
    * \return True if the logical index is within the index, false otherwise.
    */
   AXOM_HOST_DEVICE
-  bool contains(const LogicalIndex &logical) const
+  bool contains(const LogicalIndex& logical) const
   {
     bool retval = true;
     for(int i = 0; i < dimension(); i++)
@@ -291,7 +291,7 @@ public:
    */
   /// @{
   AXOM_HOST_DEVICE
-  LogicalIndex clamp(const LogicalIndex &logical) const
+  LogicalIndex clamp(const LogicalIndex& logical) const
   {
     LogicalIndex retval;
     const IndexType lower(0);

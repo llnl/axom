@@ -129,6 +129,25 @@ if(MFEM_FOUND)
     endif()
 endif()
 
+#------------------------------------------------------------------------------
+# Blueprint SamplingShaper tests require Conduit, Bump, Sidre, and Klee
+#------------------------------------------------------------------------------
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
+    axom_add_executable(
+        NAME        quest_sampling_shaper_blueprint_test
+        SOURCES     quest_sampling_shaper_blueprint.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_tests_depends} conduit::conduit
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_sampling_shaper_blueprint
+        COMMAND quest_sampling_shaper_blueprint_test
+        NUM_MPI_TASKS 1
+        )
+endif()
+
 
 #------------------------------------------------------------------------------
 # Tests that use MPI when available
@@ -259,7 +278,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
     set(_nranks 1)
 
     # Run the geometry clipping test on with each enabled policy
-    set(_testgeoms "plane" "tet" "hex" "sphere" "tetmesh" "cupmesh" "sor" "cyl" "cone" "plane,hex,tetmesh")
+    set(_testgeoms "plane" "tet" "hex" "sphere" "tetmesh" "sor" "cyl" "cone" "plane,hex,tetmesh")
+    blt_list_append(TO _testgeoms IF AXOM_DATA_DIR ELEMENTS "cupmesh")
     set(_meshTypes "bpSidre" "bpConduit")
     foreach(_meshType ${_meshTypes})
       foreach(_policy ${AXOM_EXECUTION_POLICIES})

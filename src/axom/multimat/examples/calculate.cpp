@@ -7,8 +7,7 @@
 /**
  * \file calculate.cpp
  *
- * \brief Examples using MultiMat to do some calculation common in physics
- * simulation.
+ * \brief Examples using MultiMat to do some calculation common in physics simulation.
  */
 
 #include "axom/multimat/multimat.hpp"
@@ -39,6 +38,7 @@ using Field2DT = MultiMat::Field2D<double, B>;
 template <DataLayout D, typename B>
 using Field2DTempT = MultiMat::Field2DTemplated<double, D, B>;
 
+// ArrayView indirection over the example's position type
 using ArrayViewIndirection = slam::policies::ArrayViewIndirection<slam::DefaultPositionType, double>;
 
 template <typename B>
@@ -192,11 +192,7 @@ struct FieldGetter<MMFieldMethod::SlamTmplStrideField, typename MultiMat::Produc
 {
   using VirtualBSet = typename MultiMat::ProductSetType;
   using BSet = ConcreteProdSet;
-  using SlamBMap = BiVarMapT<BSet>;
-  using Stride = slam::policies::StrideOne<int>;
-  using Ind = typename SlamBMap::IndirectionPolicy;
-
-  using SlamBMapStrided = slam::BivariateMap<double, BSet, Ind, Stride>;
+  using SlamBMapStrided = slam::BivariateMap<double, BSet, ArrayViewIndirection>;
 
   static SlamBMapStrided get(MultiMat& mm, const std::string& fieldName)
   {
@@ -218,11 +214,7 @@ struct FieldGetter<MMFieldMethod::SlamTmplField, typename MultiMat::RelationSetT
 {
   using VirtualBSet = typename MultiMat::RelationSetType;
   using BSet = ConcreteRelationSet;
-  using SlamBMap = BiVarMapT<BSet>;
-  using Stride = slam::policies::StrideOne<int>;
-  using Ind = typename SlamBMap::IndirectionPolicy;
-
-  using SlamBMapStrided = slam::BivariateMap<double, BSet, Ind, Stride>;
+  using SlamBMapStrided = slam::BivariateMap<double, BSet, ArrayViewIndirection>;
 
   static SlamBMapStrided get(MultiMat& mm, const std::string& fieldName)
   {

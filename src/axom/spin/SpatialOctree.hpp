@@ -35,8 +35,9 @@ public:
   using CoordType = typename GridPt::CoordType;
 
   using BlockIndex = typename BaseOctree::BlockIndex;
+  using OctreeLevels = typename BaseOctree::OctreeLevels;
 
-  using SpaceVectorLevelMap = slam::Map<SpaceVector>;
+  using SpaceVectorLevelMap = slam::Map<SpaceVector, OctreeLevels>;
 
 public:
   /**

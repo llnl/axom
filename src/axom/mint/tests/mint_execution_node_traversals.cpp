@@ -60,9 +60,9 @@ void check_for_all_nodes_idx(int dimension)
 
   auto field_v = field_d.view();
 
-  for_all_nodes<ExecPolicy>(
-    test_mesh,
-    AXOM_LAMBDA(IndexType nodeIdx) { field_v[nodeIdx] = MAGIC_VAL; });
+  for_all_nodes<ExecPolicy>(test_mesh, [=] AXOM_HOST_DEVICE(IndexType nodeIdx) {
+    field_v[nodeIdx] = MAGIC_VAL;
+  });
 
   // Copy data back to host
   axom::Array<int> field_h = axom::Array<int>(field_d, host_allocator);
@@ -110,7 +110,7 @@ void check_for_all_nodes_ij()
 
   for_all_nodes<ExecPolicy, xargs::ij>(
     test_mesh,
-    AXOM_LAMBDA(IndexType nodeIdx, IndexType i, IndexType j) {
+    [=] AXOM_HOST_DEVICE(IndexType nodeIdx, IndexType i, IndexType j) {
       icoords_v[nodeIdx] = i;
       jcoords_v[nodeIdx] = j;
     });
@@ -168,7 +168,7 @@ void check_for_all_nodes_ijk()
 
   for_all_nodes<ExecPolicy, xargs::ijk>(
     test_mesh,
-    AXOM_LAMBDA(IndexType nodeIdx, IndexType i, IndexType j, IndexType k) {
+    [=] AXOM_HOST_DEVICE(IndexType nodeIdx, IndexType i, IndexType j, IndexType k) {
       icoords_v[nodeIdx] = i;
       jcoords_v[nodeIdx] = j;
       kcoords_v[nodeIdx] = k;
@@ -233,7 +233,7 @@ void check_for_all_nodes_xyz()
 
   for_all_nodes<ExecPolicy, xargs::xyz>(
     test_mesh,
-    AXOM_LAMBDA(IndexType idx, double xx, double yy, double zz) {
+    [=] AXOM_HOST_DEVICE(IndexType idx, double xx, double yy, double zz) {
       x_v[idx] = xx;
       y_v[idx] = yy;
       z_v[idx] = zz;
@@ -289,12 +289,11 @@ void check_for_all_nodes_xy()
   auto x_v = x_d.view();
   auto y_v = y_d.view();
 
-  for_all_nodes<ExecPolicy, xargs::xy>(
-    test_mesh,
-    AXOM_LAMBDA(IndexType idx, double xx, double yy) {
-      x_v[idx] = xx;
-      y_v[idx] = yy;
-    });
+  for_all_nodes<ExecPolicy, xargs::xy>(test_mesh,
+                                       [=] AXOM_HOST_DEVICE(IndexType idx, double xx, double yy) {
+                                         x_v[idx] = xx;
+                                         y_v[idx] = yy;
+                                       });
 
   // Copy data back to host
   axom::Array<double> x_h = axom::Array<double>(x_d, host_allocator);
@@ -346,9 +345,9 @@ void check_for_all_nodes_x()
   axom::Array<double> x_d(numNodes, numNodes, device_allocator);
   auto x_v = x_d.view();
 
-  for_all_nodes<ExecPolicy, xargs::x>(
-    test_mesh,
-    AXOM_LAMBDA(IndexType idx, double xx) { x_v[idx] = xx; });
+  for_all_nodes<ExecPolicy, xargs::x>(test_mesh, [=] AXOM_HOST_DEVICE(IndexType idx, double xx) {
+    x_v[idx] = xx;
+  });
 
   // Copy data back to host
   axom::Array<double> x_h = axom::Array<double>(x_d, host_allocator);

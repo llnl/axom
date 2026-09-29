@@ -6,9 +6,7 @@
 
 #include "axom/quest/io/PProEReader.hpp"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace
 {
@@ -20,10 +18,7 @@ constexpr int READER_FAILED = -1;
 PProEReader::PProEReader(MPI_Comm comm) : m_comm(comm) { MPI_Comm_rank(m_comm, &m_my_rank); }
 
 //------------------------------------------------------------------------------
-PProEReader::~PProEReader()
-{
-  // Auto-generated destructor stub
-}
+PProEReader::~PProEReader() = default;
 
 //------------------------------------------------------------------------------
 int PProEReader::read()
@@ -46,11 +41,11 @@ int PProEReader::read()
       MPI_Bcast(&m_num_tets, 1, axom::mpi_traits<axom::IndexType>::type, 0, m_comm);
       MPI_Bcast(&m_nodes[0], m_num_nodes * 3, MPI_DOUBLE, 0, m_comm);
       MPI_Bcast(&m_tets[0], m_num_tets * 4, MPI_INT, 0, m_comm);
-    }  // END if
+    }
     else
     {
       MPI_Bcast(&rc, 1, axom::mpi_traits<axom::IndexType>::type, 0, m_comm);
-    }  // END else
+    }
     break;
 
   default:
@@ -69,11 +64,9 @@ int PProEReader::read()
       MPI_Bcast(&m_nodes[0], m_num_nodes * 3, MPI_DOUBLE, 0, m_comm);
       MPI_Bcast(&m_tets[0], m_num_tets * 4, MPI_INT, 0, m_comm);
     }
-
-  }  // END switch
+  }
 
   return (rc);
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

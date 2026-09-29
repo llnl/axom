@@ -26,7 +26,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  FieldOptions(const conduit::Node &options) : axom::bump::extraction::ExtractorOptions(options) { }
+  FieldOptions(const conduit::Node& options) : axom::bump::extraction::ExtractorOptions(options) { }
 
   /**
    * \brief Return the name of the field used for clipping.

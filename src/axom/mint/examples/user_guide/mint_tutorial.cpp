@@ -69,13 +69,11 @@ void node_traversals()
 
     double* vmag = mesh.getFieldPtr<double>("vmag", mint::NODE_CENTERED);
 
-    mint::for_all_nodes<exec_policy>(
-      &mesh,
-      AXOM_LAMBDA(IndexType nodeIdx) {
-        const double vx2 = vx[nodeIdx] * vx[nodeIdx];
-        const double vy2 = vy[nodeIdx] * vy[nodeIdx];
-        vmag[nodeIdx] = sqrt(vx2 + vy2);
-      });
+    mint::for_all_nodes<exec_policy>(&mesh, [=] AXOM_HOST_DEVICE(IndexType nodeIdx) {
+      const double vx2 = vx[nodeIdx] * vx[nodeIdx];
+      const double vy2 = vy[nodeIdx] * vy[nodeIdx];
+      vmag[nodeIdx] = sqrt(vx2 + vy2);
+    });
 
     // sphinx_tutorial_for_all_nodes_index_end
   }
@@ -89,7 +87,7 @@ void node_traversals()
     IndexType* ID = mesh.getFieldPtr<IndexType>("ID", mint::NODE_CENTERED);
     mint::for_all_nodes<exec_policy, mint::xargs::ij>(
       &mesh,
-      AXOM_LAMBDA(IndexType nodeIdx, IndexType i, IndexType j) { ID[nodeIdx] = i + j * jp; });
+      [=] AXOM_HOST_DEVICE(IndexType nodeIdx, IndexType i, IndexType j) { ID[nodeIdx] = i + j * jp; });
 
     // sphinx_tutorial_for_all_nodes_ij_end
   }
@@ -108,7 +106,7 @@ void node_traversals()
 
     mint::for_all_nodes<exec_policy, mint::xargs::xy>(
       &mesh,
-      AXOM_LAMBDA(IndexType nodeIdx, double x, double y) {
+      [=] AXOM_HOST_DEVICE(IndexType nodeIdx, double x, double y) {
         vx[nodeIdx] = (x - xold[nodeIdx]) * invdt;
         vy[nodeIdx] = (y - yold[nodeIdx]) * invdt;
       });
@@ -150,9 +148,9 @@ void cell_traversals()
 
     double* den = mesh.getFieldPtr<double>("den", mint::CELL_CENTERED);
 
-    mint::for_all_cells<exec_policy>(
-      &mesh,
-      AXOM_LAMBDA(IndexType cellIdx) { den[cellIdx] = mass[cellIdx] / vol[cellIdx]; });
+    mint::for_all_cells<exec_policy>(&mesh, [=] AXOM_HOST_DEVICE(IndexType cellIdx) {
+      den[cellIdx] = mass[cellIdx] / vol[cellIdx];
+    });
 
     // sphinx_tutorial_for_all_cells_index_end
   }
@@ -166,7 +164,7 @@ void cell_traversals()
     IndexType* ID = mesh.getFieldPtr<IndexType>("ID", mint::CELL_CENTERED);
     mint::for_all_cells<exec_policy, mint::xargs::ij>(
       &mesh,
-      AXOM_LAMBDA(IndexType cellIdx, IndexType i, IndexType j) { ID[cellIdx] = i + j * jp; });
+      [=] AXOM_HOST_DEVICE(IndexType cellIdx, IndexType i, IndexType j) { ID[cellIdx] = i + j * jp; });
 
     // sphinx_tutorial_for_all_cells_ij_end
   }
@@ -183,7 +181,7 @@ void cell_traversals()
 
     mint::for_all_cells<exec_policy, mint::xargs::nodeids>(
       &mesh,
-      AXOM_LAMBDA(IndexType cellIdx, const IndexType* nodeIDs, IndexType N) {
+      [=] AXOM_HOST_DEVICE(IndexType cellIdx, const IndexType* nodeIDs, IndexType N) {
         // sum nodal contributions
         cell_vx[cellIdx] = 0.0;
         cell_vy[cellIdx] = 0.0;
@@ -211,9 +209,9 @@ void cell_traversals()
 
     mint::for_all_cells<exec_policy, mint::xargs::coords>(
       &mesh,
-      AXOM_LAMBDA(IndexType cellIdx,
-                  const numerics::Matrix<double>& coords,
-                  const IndexType* AXOM_UNUSED_PARAM(nodeIdx)) {
+      [=] AXOM_HOST_DEVICE(IndexType cellIdx,
+                           const numerics::Matrix<double>& coords,
+                           const IndexType* AXOM_UNUSED_PARAM(nodeIdx)) {
         // sum nodal coordinates
         double xsum = 0.0;
         double ysum = 0.0;
@@ -243,7 +241,7 @@ void cell_traversals()
 
     mint::for_all_cells<exec_policy, mint::xargs::faceids>(
       &mesh,
-      AXOM_LAMBDA(IndexType cellIdx, const IndexType* faceIDs, IndexType N) {
+      [=] AXOM_HOST_DEVICE(IndexType cellIdx, const IndexType* faceIDs, IndexType N) {
         perimeter[cellIdx] = 0.0;
         for(IndexType iface = 0; iface < N; ++iface)
         {
@@ -288,15 +286,13 @@ void face_traversals()
     const double* w = mesh.getFieldPtr<double>("w", mint::FACE_CENTERED);
 
     double* temp = mesh.getFieldPtr<double>("temp", mint::FACE_CENTERED);
-    mint::for_all_faces<exec_policy>(
-      &mesh,
-      AXOM_LAMBDA(IndexType faceIdx) {
-        const double wf = w[faceIdx];
-        const double a = t1[faceIdx];
-        const double b = t2[faceIdx];
+    mint::for_all_faces<exec_policy>(&mesh, [=] AXOM_HOST_DEVICE(IndexType faceIdx) {
+      const double wf = w[faceIdx];
+      const double a = t1[faceIdx];
+      const double b = t2[faceIdx];
 
-        temp[faceIdx] = wf * a + (1. - wf) * b;
-      });
+      temp[faceIdx] = wf * a + (1. - wf) * b;
+    });
 
     // sphinx_tutorial_for_all_faces_index_end
   }
@@ -313,7 +309,7 @@ void face_traversals()
 
     mint::for_all_faces<exec_policy, mint::xargs::nodeids>(
       &mesh,
-      AXOM_LAMBDA(IndexType faceIdx, const IndexType* nodeIDs, IndexType N) {
+      [=] AXOM_HOST_DEVICE(IndexType faceIdx, const IndexType* nodeIDs, IndexType N) {
         // sum constituent face node contributions
         face_vx[faceIdx] = 0.0;
         face_vy[faceIdx] = 0.0;
@@ -341,9 +337,9 @@ void face_traversals()
 
     mint::for_all_faces<exec_policy, mint::xargs::coords>(
       &mesh,
-      AXOM_LAMBDA(IndexType faceIdx,
-                  const numerics::Matrix<double>& coords,
-                  const IndexType* AXOM_UNUSED_PARAM(nodeIdx)) {
+      [=] AXOM_HOST_DEVICE(IndexType faceIdx,
+                           const numerics::Matrix<double>& coords,
+                           const IndexType* AXOM_UNUSED_PARAM(nodeIdx)) {
         // sum nodal coordinates
         double xsum = 0.0;
         double ysum = 0.0;
@@ -375,7 +371,7 @@ void face_traversals()
 
     mint::for_all_faces<exec_policy, mint::xargs::cellids>(
       &mesh,
-      AXOM_LAMBDA(IndexType faceIdx, IndexType AXOM_UNUSED_PARAM(c1), IndexType c2) {
+      [=] AXOM_HOST_DEVICE(IndexType faceIdx, IndexType AXOM_UNUSED_PARAM(c1), IndexType c2) {
         boundary[faceIdx] = (c2 == -1) ? ON_BOUNDARY : INTERIOR;
       });
 

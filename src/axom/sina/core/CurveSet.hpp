@@ -82,21 +82,21 @@ public:
      * \param name the name of the CurveSet
      * \param node the Conduit node representing the CurveSet
      */
-  CurveSet(std::string name, conduit::Node const &node);
+  CurveSet(std::string name, conduit::Node const& node);
 
   /**
      * \brief Get the name of the this CurveSet.
      *
      * \return the curve set's name
      */
-  std::string const &getName() const { return name; }
+  std::string const& getName() const { return name; }
 
   /**
    * Get the insertion order of this curveset's independents.
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getOrderedIndependentCurveNames()
+  std::vector<std::string> const& getOrderedIndependentCurveNames()
   {
     return orderedIndependentCurveNames;
   }
@@ -106,7 +106,7 @@ public:
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getOrderedDependentCurveNames()
+  std::vector<std::string> const& getOrderedDependentCurveNames()
   {
     return orderedDependentCurveNames;
   }
@@ -148,14 +148,14 @@ public:
      *
      * \return a map of all the independent curves
      */
-  CurveMap const &getIndependentCurves() const { return independentCurves; }
+  CurveMap const& getIndependentCurves() const { return independentCurves; }
 
   /**
      * \brief Get a map of all the dependent curves.
      *
      * \return a map of all the dependent curves
      */
-  CurveMap const &getDependentCurves() const { return dependentCurves; }
+  CurveMap const& getDependentCurves() const { return dependentCurves; }
 
   /**
      * \brief Convert this CurveSet to a Conduit node.

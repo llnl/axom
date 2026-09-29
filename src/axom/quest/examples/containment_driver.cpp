@@ -110,7 +110,8 @@ public:
     AXOM_ANNOTATE_SCOPE("load stl");
     quest::STLReader reader;
     reader.setFileName(inputFile);
-    reader.read();
+    const int read_status = reader.read();
+    SLIC_ERROR_IF(read_status != 0, "Failed to load STL file '" << inputFile << "'.");
 
     // Create surface mesh
     m_surfaceMesh.reset(new UMesh(3, mint::TRIANGLE));
@@ -239,7 +240,7 @@ public:
     // Fill the coordinate arrays
     mint::for_all_nodes<ExecPolicy, mint::xargs::xy>(
       umesh,
-      AXOM_LAMBDA(axom::IndexType idx, double xx, double yy) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType idx, double xx, double yy) {
         x[idx] = xx;
         y[idx] = yy;
       });
@@ -275,7 +276,7 @@ public:
     // Fill the coordinate arrays
     mint::for_all_nodes<ExecPolicy, mint::xargs::xyz>(
       umesh,
-      AXOM_LAMBDA(axom::IndexType idx, double xx, double yy, double zz) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType idx, double xx, double yy, double zz) {
         x[idx] = xx;
         y[idx] = yy;
         z[idx] = zz;

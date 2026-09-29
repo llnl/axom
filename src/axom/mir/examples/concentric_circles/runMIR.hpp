@@ -20,35 +20,33 @@ void test_matset_traversal(MatsetView matsetView)
   {
     AXOM_ANNOTATE_SCOPE("zoneMaterials");
     axom::ReduceSum<ExecSpace, double> vfSum(0.);
-    axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        typename MatsetView::IDList ids;
-        typename MatsetView::VFList vfs;
-        matsetView.zoneMaterials(zoneIndex, ids, vfs);
-        double sum = 0.;
-        for(axom::IndexType i = 0; i < vfs.size(); i++)
-        {
-          sum += vfs[i];
-        }
-        vfSum += sum;
-      });
+    axom::for_all<ExecSpace>(matsetView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               typename MatsetView::IDList ids;
+                               typename MatsetView::VFList vfs;
+                               matsetView.zoneMaterials(zoneIndex, ids, vfs);
+                               double sum = 0.;
+                               for(axom::IndexType i = 0; i < vfs.size(); i++)
+                               {
+                                 sum += vfs[i];
+                               }
+                               vfSum += sum;
+                             });
     vf1 = vfSum.get();
   }
   {
     AXOM_ANNOTATE_SCOPE("iterators");
     axom::ReduceSum<ExecSpace, double> vfSum(0.);
-    axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto end = matsetView.endZone(zoneIndex);
-        double sum = 0.;
-        for(auto it = matsetView.beginZone(zoneIndex); it != end; it++)
-        {
-          sum += it.volume_fraction();
-        }
-        vfSum += sum;
-      });
+    axom::for_all<ExecSpace>(matsetView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto end = matsetView.endZone(zoneIndex);
+                               double sum = 0.;
+                               for(auto it = matsetView.beginZone(zoneIndex); it != end; it++)
+                               {
+                                 sum += it.volume_fraction();
+                               }
+                               vfSum += sum;
+                             });
     vf2 = vfSum.get();
   }
 
@@ -66,8 +64,10 @@ int installAllocator([[maybe_unused]] size_t initialPoolSizeBytes)
 {
   int allocator_id = axom::execution_space<ExecSpace>::allocatorID();
 #if defined(AXOM_USE_UMPIRE)
-  auto &rm = umpire::ResourceManager::getInstance();
-  umpire::Allocator allocator = rm.getAllocator(allocator_id);
+  auto& rm = umpire::ResourceManager::getInstance();
+  umpire::Allocator allocator = allocator_id == axom::MALLOC_ALLOCATOR_ID
+    ? rm.getAllocator(umpire::resource::Host)
+    : rm.getAllocator(allocator_id);
 
   const std::string newName = allocator.getName() + "_POOL";
   SLIC_INFO(
@@ -89,7 +89,7 @@ int installAllocator([[maybe_unused]] size_t initialPoolSizeBytes)
 
 //--------------------------------------------------------------------------------
 template <typename ExecSpace, int NDIMS>
-int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
+int runMIR(const conduit::Node& hostMesh, const conduit::Node& options, conduit::Node& hostResult)
 {
   AXOM_ANNOTATE_SCOPE("runMIR");
 
@@ -141,9 +141,9 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     utils::copy<ExecSpace>(deviceMesh, hostMesh, allocator_id);
   }
 
-  const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-  const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
-  const conduit::Node &n_matset = deviceMesh["matsets/mat"];
+  const conduit::Node& n_coordset = deviceMesh["coordsets/coords"];
+  const conduit::Node& n_topology = deviceMesh["topologies/mesh"];
+  const conduit::Node& n_matset = deviceMesh["matsets/mat"];
   conduit::Node deviceResult;
   for(int trial = 0; trial < trials; trial++)
   {
@@ -210,8 +210,10 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 #if defined(AXOM_USE_UMPIRE)
     try
     {
-      auto &rm = umpire::ResourceManager::getInstance();
-      umpire::Allocator allocator = rm.getAllocator(allocator_id);
+      auto& rm = umpire::ResourceManager::getInstance();
+      umpire::Allocator allocator = allocator_id == axom::MALLOC_ALLOCATOR_ID
+        ? rm.getAllocator(umpire::resource::Host)
+        : rm.getAllocator(allocator_id);
       SLIC_INFO("Allocator Information:");
       SLIC_INFO(axom::fmt::format("\tname: {}", allocator.getName()));
       SLIC_INFO(axom::fmt::format("\thighwatermark: {}", allocator.getHighWatermark()));
@@ -231,18 +233,18 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
 // Prototypes.
 int runMIR_seq(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result);
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result);
 int runMIR_omp(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result);
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result);
 int runMIR_cuda(int dimension,
-                const conduit::Node &mesh,
-                const conduit::Node &options,
-                conduit::Node &result);
+                const conduit::Node& mesh,
+                const conduit::Node& options,
+                conduit::Node& result);
 int runMIR_hip(int dimension,
-               const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result);
+               const conduit::Node& mesh,
+               const conduit::Node& options,
+               conduit::Node& result);

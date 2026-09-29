@@ -271,7 +271,7 @@ TEST(sidre_native_layout, export_import_conduit)
     std::string viewName = "array_view";
 
     // Simple lambda to return the expected value at an index
-    auto expValue = AXOM_HOST_LAMBDA(int i) { return SZ - i; };
+    auto expValue = [=] AXOM_HOST(int i) { return SZ - i; };
 
     // Create datastore with an array view and export to conduit node
     {
@@ -402,10 +402,9 @@ TEST(sidre_native_layout, import_conduit_and_verify_protocol)
     conduit::Node node1, node2;
 
     // Simple lambda to get/check expected value at index (i,j)
-    auto expValue = AXOM_HOST_LAMBDA(int i, int j) { return j * SZ + (SZ - i); };
+    auto expValue = [=] AXOM_HOST(int i, int j) { return j * SZ + (SZ - i); };
     // Simple lambda to get the name of the i^th component group
-    auto viewName = AXOM_HOST_LAMBDA(int j)
-    {
+    auto viewName = [=] AXOM_HOST(int j) {
       return std::string(1, 'a' + j);  // i.e. 'a', 'b', 'c', ...
     };
 

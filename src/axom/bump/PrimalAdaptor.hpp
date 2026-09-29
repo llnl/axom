@@ -27,19 +27,19 @@ struct PolyhedralFaces
   static constexpr int MAX_PLANES = 64;
 
   AXOM_HOST_DEVICE inline int size() const { return m_planes.size(); }
-  AXOM_HOST_DEVICE inline const PlaneType &operator[](size_t i) const { return m_planes[i]; }
-  AXOM_HOST_DEVICE inline PlaneType &operator[](size_t i) { return m_planes[i]; }
-  AXOM_HOST_DEVICE inline void push_back(const PlaneType &plane) { m_planes.push_back(plane); }
+  AXOM_HOST_DEVICE inline const PlaneType& operator[](size_t i) const { return m_planes[i]; }
+  AXOM_HOST_DEVICE inline PlaneType& operator[](size_t i) { return m_planes[i]; }
+  AXOM_HOST_DEVICE inline void push_back(const PlaneType& plane) { m_planes.push_back(plane); }
   AXOM_HOST_DEVICE axom::ArrayView<PlaneType> getFaces() const
   {
-    return axom::ArrayView<PlaneType>(const_cast<PlaneType *>(m_planes.data()), m_planes.size());
+    return axom::ArrayView<PlaneType>(const_cast<PlaneType*>(m_planes.data()), m_planes.size());
   }
 
   axom::StaticArray<PlaneType, MAX_PLANES> m_planes;
 };
 
 template <typename T>
-std::ostream &operator<<(std::ostream &os, const PolyhedralFaces<T> &obj)
+std::ostream& operator<<(std::ostream& os, const PolyhedralFaces<T>& obj)
 {
   os << "PolyhedralFaces\n";
   for(int i = 0; i < obj.size(); i++)
@@ -66,7 +66,7 @@ struct AveragePoints
    *
    * \param pt The point to add.
    */
-  AXOM_HOST_DEVICE inline void add(const PointType &pt)
+  AXOM_HOST_DEVICE inline void add(const PointType& pt)
   {
     sum += VectorType(pt);
     numPoints++;
@@ -120,8 +120,8 @@ struct AdaptPolyhedron
    *
    * \return A representation of the polyhedral zone.
    */
-  AXOM_HOST_DEVICE static PolyhedralRepresentation convert(const TopologyView &topologyView,
-                                                           const CoordsetView &coordsetView,
+  AXOM_HOST_DEVICE static PolyhedralRepresentation convert(const TopologyView& topologyView,
+                                                           const CoordsetView& coordsetView,
                                                            size_t zoneIndex)
   {
     const auto zone = topologyView.zone(zoneIndex);
@@ -235,8 +235,8 @@ struct AdaptPolyhedron<TopologyView, CoordsetView, true>
    *
    * \return A representation of the polyhedral zone.
    */
-  AXOM_HOST_DEVICE static PolyhedralRepresentation convert(const TopologyView &topologyView,
-                                                           const CoordsetView &coordsetView,
+  AXOM_HOST_DEVICE static PolyhedralRepresentation convert(const TopologyView& topologyView,
+                                                           const CoordsetView& coordsetView,
                                                            size_t zoneIndex)
   {
     PolyhedralRepresentation faces;
@@ -325,13 +325,16 @@ struct PrimalAdaptor
     typename AdaptPolyhedron<TopologyView, CoordsetView, makeFaces>::PolyhedralRepresentation;
   using BoundingBox = axom::primal::BoundingBox<value_type, CoordsetView::dimension()>;
 
+  /// Return the dimension of the shape
+  static constexpr int dimension() { return CoordsetView::dimension(); }
+
   /*!
    * \brief Constructor
    *
    * \param topologyView The topology view to use for initialization.
    * \param coordsetView The coordset view to use for initialization.
    */
-  AXOM_HOST_DEVICE PrimalAdaptor(const TopologyView &topologyView, const CoordsetView &coordsetView)
+  AXOM_HOST_DEVICE PrimalAdaptor(const TopologyView& topologyView, const CoordsetView& coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
   { }

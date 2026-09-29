@@ -60,12 +60,10 @@ public:
      * and zero for cells outside geometry.
      * Cells on boundary are zeroed for accumulating by clipping process.
     */
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        auto& l = labels[i];
-        ovlap[i] = l == LabelType::LABEL_IN ? cellVolumes[i] : 0.0;
-      });
+    axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      auto& l = labels[i];
+      ovlap[i] = l == LabelType::LABEL_IN ? cellVolumes[i] : 0.0;
+    });
 
     return;
   }
@@ -87,21 +85,19 @@ public:
 
     SLIC_ASSERT(tetLabels.size() == NUM_TETS_PER_HEX * hexCount);
 
-    axom::for_all<ExecSpace>(
-      hexCount,
-      AXOM_LAMBDA(axom::IndexType ih) {
-        const axom::IndexType hexId = cellsOnBdry[ih];
-        const LabelType* tetLabelsForHex = &tetLabels[NUM_TETS_PER_HEX * ih];
-        for(int it = 0; it < NUM_TETS_PER_HEX; ++it)
+    axom::for_all<ExecSpace>(hexCount, [=] AXOM_HOST_DEVICE(axom::IndexType ih) {
+      const axom::IndexType hexId = cellsOnBdry[ih];
+      const LabelType* tetLabelsForHex = &tetLabels[NUM_TETS_PER_HEX * ih];
+      for(int it = 0; it < NUM_TETS_PER_HEX; ++it)
+      {
+        if(tetLabelsForHex[it] == LabelType::LABEL_IN)
         {
-          if(tetLabelsForHex[it] == LabelType::LABEL_IN)
-          {
-            const axom::IndexType tetId = hexId * NUM_TETS_PER_HEX + it;
-            const auto& tet = meshTets[tetId];
-            ovlap[hexId] += tet.volume();
-          }
+          const axom::IndexType tetId = hexId * NUM_TETS_PER_HEX + it;
+          const auto& tet = meshTets[tetId];
+          ovlap[hexId] += tet.volume();
         }
-      });
+      }
+    });
   }
 
   /*!
@@ -141,13 +137,11 @@ public:
     tmpLabels.fill(0, 1, 0);
     auto tmpLabelsView = tmpLabels.view();
     axom::ReduceSum<ExecSpace, IndexType> onCountReduce {0};
-    axom::for_all<ExecSpace>(
-      labelCount,
-      AXOM_LAMBDA(axom::IndexType ci) {
-        bool isOn = labels[ci] == LabelType::LABEL_ON;
-        tmpLabelsView[1 + ci] = isOn;
-        onCountReduce += isOn;
-      });
+    axom::for_all<ExecSpace>(labelCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
+      bool isOn = labels[ci] == LabelType::LABEL_ON;
+      tmpLabelsView[1 + ci] = isOn;
+      onCountReduce += isOn;
+    });
 
     axom::inclusive_scan_inplace<ExecSpace>(tmpLabelsView);
 
@@ -162,15 +156,12 @@ public:
     }
 
     auto onIndicesView = onIndices.view();
-    axom::for_all<ExecSpace>(
-      1,
-      1 + labelCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        if(tmpLabelsView[i] != tmpLabelsView[i - 1])
-        {
-          onIndicesView[tmpLabelsView[i] - 1] = i - 1;
-        }
-      });
+    axom::for_all<ExecSpace>(1, 1 + labelCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      if(tmpLabelsView[i] != tmpLabelsView[i - 1])
+      {
+        onIndicesView[tmpLabelsView[i] - 1] = i - 1;
+      }
+    });
   }
 
   void remapTetIndices(axom::ArrayView<const axom::IndexType> cellIndices,
@@ -181,16 +172,14 @@ public:
       return;
     }
 
-    axom::for_all<ExecSpace>(
-      tetIndices.size(),
-      AXOM_LAMBDA(axom::IndexType i) {
-        auto tetIdIn = tetIndices[i];
-        auto cellIdFake = tetIdIn / NUM_TETS_PER_HEX;
-        auto cellIdTrue = cellIndices[cellIdFake];
-        auto tetIdInCell = tetIdIn % NUM_TETS_PER_HEX;
-        auto tetIdOut = cellIdTrue * NUM_TETS_PER_HEX + tetIdInCell;
-        tetIndices[i] = tetIdOut;
-      });
+    axom::for_all<ExecSpace>(tetIndices.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      auto tetIdIn = tetIndices[i];
+      auto cellIdFake = tetIdIn / NUM_TETS_PER_HEX;
+      auto cellIdTrue = cellIndices[cellIdFake];
+      auto tetIdInCell = tetIdIn % NUM_TETS_PER_HEX;
+      auto tetIdOut = cellIdTrue * NUM_TETS_PER_HEX + tetIdInCell;
+      tetIndices[i] = tetIdOut;
+    });
   }
 
   // Work space for clip counters.
@@ -229,7 +218,8 @@ public:
                                       0,
                                       shapeMesh.getAllocatorID());
     auto tetIndicesView = tetIndices.view();
-    axom::for_all<ExecSpace>(tetCount, AXOM_LAMBDA(IndexType ti) { tetIndicesView[ti] = ti; });
+    axom::for_all<ExecSpace>(tetCount,
+                             [=] AXOM_HOST_DEVICE(IndexType ti) { tetIndicesView[ti] = ti; });
     computeClipVolumes3DTets(tetIndicesView, ovlap, statistics);
   }
 
@@ -252,17 +242,15 @@ public:
                                       0,
                                       shapeMesh.getAllocatorID());
     auto tetIndicesView = tetIndices.view();
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(IndexType ic) {
-        const IndexType cellId = cellIndices[ic];
-        const IndexType tetIdStart = cellId * ShapeMesh::NUM_TETS_PER_HEX;
-        const IndexType itStart = ic * ShapeMesh::NUM_TETS_PER_HEX;
-        for(int j = 0; j < ShapeMesh::NUM_TETS_PER_HEX; ++j)
-        {
-          tetIndicesView[itStart + j] = tetIdStart + j;
-        }
-      });
+    axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(IndexType ic) {
+      const IndexType cellId = cellIndices[ic];
+      const IndexType tetIdStart = cellId * ShapeMesh::NUM_TETS_PER_HEX;
+      const IndexType itStart = ic * ShapeMesh::NUM_TETS_PER_HEX;
+      for(int j = 0; j < ShapeMesh::NUM_TETS_PER_HEX; ++j)
+      {
+        tetIndicesView[itStart + j] = tetIdStart + j;
+      }
+    });
     computeClipVolumes3DTets(tetIndicesView, ovlap, statistics);
   }
 
@@ -306,14 +294,12 @@ public:
     const axom::IndexType tetCount = tetIndices.size();
     axom::Array<BoundingBoxType> tetBbs(tetCount, tetCount, allocId);
     axom::ArrayView<BoundingBoxType> tetBbsView = tetBbs.view();
-    axom::for_all<ExecSpace>(
-      tetCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        auto& tetBb = tetBbsView[i];
-        axom::IndexType tetId = tetIndices[i];
-        const auto& tet = meshTets[tetId];
-        for(int j = 0; j < 4; ++j) tetBb.addPoint(tet[j]);
-      });
+    axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      auto& tetBb = tetBbsView[i];
+      axom::IndexType tetId = tetIndices[i];
+      const auto& tet = meshTets[tetId];
+      for(int j = 0; j < 4; ++j) tetBb.addPoint(tet[j]);
+    });
 
     axom::Array<IndexType> counts(tetCount, tetCount, allocId);
     axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
@@ -337,37 +323,35 @@ public:
      * with the BVH leaves.  Populate the counts array.
      */
     axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
-    axom::for_all<ExecSpace>(
-      tetCount,
-      AXOM_LAMBDA(axom::IndexType iTet) {
-        axom::IndexType count = 0;
-        auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
-          // countCollisions is only called at the leaves.
-          auto& tetId = tetIndices[iTet];
-          const auto& meshTet = meshTets[tetId];
+    axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+      axom::IndexType count = 0;
+      auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
+        // countCollisions is only called at the leaves.
+        auto& tetId = tetIndices[iTet];
+        const auto& meshTet = meshTets[tetId];
 
-          auto pieceId = leafNodes[currentNode];
-          if(useTets)
+        auto pieceId = leafNodes[currentNode];
+        if(useTets)
+        {
+          const auto& piece = geomTetsView[pieceId];
+          if(tetTetCollision(meshTet, piece))
           {
-            const auto& piece = geomTetsView[pieceId];
-            if(tetTetCollision(meshTet, piece))
-            {
-              ++count;
-            }
+            ++count;
           }
-          else
+        }
+        else
+        {
+          const auto& piece = geomOctsView[pieceId];
+          if(tetOctCollision(meshTet, piece))
           {
-            const auto& piece = geomOctsView[pieceId];
-            if(tetOctCollision(meshTet, piece))
-            {
-              ++count;
-            }
+            ++count;
           }
-        };
-        bvhTraverser.traverse_tree(iTet, countCollisions, traversePredTetId);
-        countsView[iTet] = count;
-        totalCountReduce += count;
-      });
+        }
+      };
+      bvhTraverser.traverse_tree(iTet, countCollisions, traversePredTetId);
+      countsView[iTet] = count;
+      totalCountReduce += count;
+    });
 
     // Compute the offsets array using a prefix scan of counts.
     axom::exclusive_scan<ExecSpace>(counts, offsets);
@@ -387,46 +371,44 @@ public:
     /*
      * Second pass: Populate tet-candidate piece collision arrays.
      */
-    axom::for_all<ExecSpace>(
-      tetCount,
-      AXOM_LAMBDA(axom::IndexType iTet) {
-        auto offset = offsetsView[iTet];
+    axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+      auto offset = offsetsView[iTet];
 
-        /*
+      /*
          * Record indices of the tet and the candidate that collided.
          * Unless tet and candidate can be shown not to collide.
          */
-        auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
-          auto& tetId = tetIndices[iTet];
-          const auto& meshTet = meshTets[tetId];
-          auto pieceId = leafs[currentNode];
-          bool record = false;
-          if(useTets)
+      auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
+        auto& tetId = tetIndices[iTet];
+        const auto& meshTet = meshTets[tetId];
+        auto pieceId = leafs[currentNode];
+        bool record = false;
+        if(useTets)
+        {
+          const auto& piece = geomTetsView[pieceId];
+          if(tetTetCollision(meshTet, piece))
           {
-            const auto& piece = geomTetsView[pieceId];
-            if(tetTetCollision(meshTet, piece))
-            {
-              record = true;
-            }
+            record = true;
           }
-          else
+        }
+        else
+        {
+          const auto& piece = geomOctsView[pieceId];
+          if(tetOctCollision(meshTet, piece))
           {
-            const auto& piece = geomOctsView[pieceId];
-            if(tetOctCollision(meshTet, piece))
-            {
-              record = true;
-            }
+            record = true;
           }
-          if(record)
-          {
-            candToTetIdIdView[offset] = iTet;
-            candidatesView[offset] = pieceId;
-            ++offset;
-          }
-        };
+        }
+        if(record)
+        {
+          candToTetIdIdView[offset] = iTet;
+          candidatesView[offset] = pieceId;
+          ++offset;
+        }
+      };
 
-        bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
-      });
+      bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
+    });
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     SLIC_DEBUG(axom::fmt::format(
@@ -445,39 +427,27 @@ public:
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop");
     if(useTets)
     {
-      axom::for_all<ExecSpace>(
-        candidates.size(),
-        AXOM_LAMBDA(axom::IndexType iCand) {
-          auto tetIdId = candToTetIdIdView[iCand];
-          auto tetId = tetIndices[tetIdId];
-          auto cellId = tetId / NUM_TETS_PER_HEX;
-          auto pieceId = candidatesView[iCand];
-          const auto& meshTet = meshTets[tetId];
-          const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         clipStats,
-                                         screenLevel);
-        });
+      axom::for_all<ExecSpace>(candidates.size(), [=] AXOM_HOST_DEVICE(axom::IndexType iCand) {
+        auto tetIdId = candToTetIdIdView[iCand];
+        auto tetId = tetIndices[tetIdId];
+        auto cellId = tetId / NUM_TETS_PER_HEX;
+        auto pieceId = candidatesView[iCand];
+        const auto& meshTet = meshTets[tetId];
+        const TetrahedronType& geomPiece = geomTetsView[pieceId];
+        computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+      });
     }
     else  // useOcts
     {
-      axom::for_all<ExecSpace>(
-        candidates.size(),
-        AXOM_LAMBDA(axom::IndexType iCand) {
-          auto tetIdId = candToTetIdIdView[iCand];
-          auto tetId = tetIndices[tetIdId];
-          auto cellId = tetId / NUM_TETS_PER_HEX;
-          auto pieceId = candidatesView[iCand];
-          const auto& meshTet = meshTets[tetId];
-          const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         clipStats,
-                                         screenLevel);
-        });
+      axom::for_all<ExecSpace>(candidates.size(), [=] AXOM_HOST_DEVICE(axom::IndexType iCand) {
+        auto tetIdId = candToTetIdIdView[iCand];
+        auto tetId = tetIndices[tetIdId];
+        auto cellId = tetId / NUM_TETS_PER_HEX;
+        auto pieceId = candidatesView[iCand];
+        const auto& meshTet = meshTets[tetId];
+        const OctahedronType& geomPiece = geomOctsView[pieceId];
+        computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+      });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop");
 
@@ -538,23 +508,19 @@ public:
     if(useTets)
     {
       auto geomTetsView = geomAsTets.view();
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          if(!geomTetsView[i].degenerate())
-          {
-            pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
-          }
-        });
+      axom::for_all<ExecSpace>(pieceBbsView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        if(!geomTetsView[i].degenerate())
+        {
+          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+        }
+      });
     }
     else
     {
       auto geomOctsView = geomAsOcts.view();
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
-        });
+      axom::for_all<ExecSpace>(pieceBbsView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
+      });
     }
 
     bvh.setAllocatorID(allocId);
@@ -899,23 +865,21 @@ public:
     axom::ReduceSum<ExecSpace, IndexType> inSum(0);
     axom::ReduceSum<ExecSpace, IndexType> onSum(0);
     axom::ReduceSum<ExecSpace, IndexType> outSum(0);
-    axom::for_all<ExecSpace>(
-      labels.size(),
-      AXOM_LAMBDA(axom::IndexType cellId) {
-        const auto& label = labels[cellId];
-        if(label == LabelType::LABEL_OUT)
-        {
-          outSum += 1;
-        }
-        else if(label == LabelType::LABEL_IN)
-        {
-          inSum += 1;
-        }
-        else
-        {
-          onSum += 1;
-        }
-      });
+    axom::for_all<ExecSpace>(labels.size(), [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+      const auto& label = labels[cellId];
+      if(label == LabelType::LABEL_OUT)
+      {
+        outSum += 1;
+      }
+      else if(label == LabelType::LABEL_IN)
+      {
+        inSum += 1;
+      }
+      else
+      {
+        onSum += 1;
+      }
+    });
     inCount = inSum.get();
     onCount = onSum.get();
     outCount = outSum.get();

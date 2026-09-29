@@ -1,0 +1,33 @@
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+#include "gtest/gtest.h"
+
+#include "axom/slic.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
+#include "axom/mir/tests/mir_coupled3d_impl.hpp"
+
+axom::blueprint::testing::TestApplication TestApp;
+
+TEST(mir_coupled3d_seq, coupling_3d_seq)
+{
+  AXOM_ANNOTATE_SCOPE("coupling_3d_seq");
+  const bool cleanMesh = true;
+  test_coupling<seq_exec>::test("coupling_3d", cleanMesh);
+}
+
+TEST(mir_coupled3d_seq, coupling_3d_noclean_seq)
+{
+  AXOM_ANNOTATE_SCOPE("coupling_3d_noclean_seq");
+  const bool cleanMesh = false;
+  test_coupling<seq_exec>::test("coupling_3d", cleanMesh);
+}
+
+int main(int argc, char* argv[])
+{
+  ::testing::InitGoogleTest(&argc, argv);
+  return TestApp.execute(argc, argv);
+}

@@ -25,7 +25,7 @@
 #endif
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Line(const std::string &policyName, RuntimePolicy policy)
+void dynamicRefinementTest_Line(const std::string& policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -59,7 +59,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Cone(const std::string &policyName, RuntimePolicy policy)
+void dynamicRefinementTest_Cone(const std::string& policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(3cm,2cm))
 )";
@@ -93,7 +93,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Spline(const std::string &policyName, RuntimePolicy policy)
+void dynamicRefinementTest_Spline(const std::string& policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = rz(units=cm,
   rz=2 0
@@ -132,7 +132,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Circle(const std::string &policyName, RuntimePolicy policy)
+void dynamicRefinementTest_Circle(const std::string& policyName, RuntimePolicy policy)
 {
   const std::string contour =
     R"(piece = circle(origin=(0cm,0cm), radius=8cm, start=0deg, end=180deg)
@@ -168,7 +168,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_LineTranslate(const std::string &policyName, RuntimePolicy policy)
+void dynamicRefinementTest_LineTranslate(const std::string& policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -206,7 +206,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_LineScale(const std::string &policyName, RuntimePolicy policy)
+void dynamicRefinementTest_LineScale(const std::string& policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -244,7 +244,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_LineRotate(const std::string &policyName, RuntimePolicy policy)
+void dynamicRefinementTest_LineRotate(const std::string& policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -449,7 +449,7 @@ TEST(IntersectionShaperTest, line_rotate_hip)
 #endif
 
 //---------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
 #ifdef AXOM_USE_MPI

@@ -103,6 +103,14 @@ public:
    */
   void setDistanceThreshold(double threshold);
 
+  /**
+   * \brief Enables dynamic filtering of object ranks based on current closest distances.
+   *
+   * When enabled, transferred query batches skip object ranks whose partition
+   * bounding box cannot improve any current result. Enabled by default.
+   */
+  void setDynamicDistanceFiltering(bool on);
+
   /*!
     @brief Set what fields to output.
 
@@ -198,6 +206,7 @@ private:
   int m_dimension {-1};
   bool m_isVerbose {false};
   double m_sqDistanceThreshold;
+  bool m_dynamicDistanceFiltering {true};
 
   bool m_outputRank = true;
   bool m_outputIndex = true;

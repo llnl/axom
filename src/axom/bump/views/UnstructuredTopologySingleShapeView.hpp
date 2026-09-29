@@ -39,7 +39,7 @@ public:
    * \param conn The mesh connectivity.
    */
   AXOM_HOST_DEVICE
-  UnstructuredTopologySingleShapeView(const ConnectivityView &conn)
+  UnstructuredTopologySingleShapeView(const ConnectivityView& conn)
     : m_connectivityView(conn)
     , m_sizesView()
     , m_offsetsView()
@@ -57,9 +57,9 @@ public:
    * \param offsets The offset to each zone in the connectivity.
    */
   AXOM_HOST_DEVICE
-  UnstructuredTopologySingleShapeView(const ConnectivityView &conn,
-                                      const ConnectivityView &sizes,
-                                      const ConnectivityView &offsets)
+  UnstructuredTopologySingleShapeView(const ConnectivityView& conn,
+                                      const ConnectivityView& sizes,
+                                      const ConnectivityView& offsets)
     : m_connectivityView(conn)
     , m_sizesView(sizes)
     , m_offsetsView(offsets)
@@ -111,7 +111,7 @@ public:
    *
    * \return The size of the connectivity.
    */
-  AXOM_HOST_DEVICE inline const IndexingPolicy &indexing() const { return m_indexing; }
+  AXOM_HOST_DEVICE inline const IndexingPolicy& indexing() const { return m_indexing; }
 
   /*!
    * \brief Return a zone.

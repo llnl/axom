@@ -1103,11 +1103,12 @@ int main(int argc, char** argv)
     constexpr bool extract_trimmed_surface = true;
 
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
-    stepReader.getTriangleMesh(&mesh,
-                               deflection,
-                               angular_deflection,
-                               relative_deflection,
-                               extract_trimmed_surface);
+    const int triangulation_status = stepReader.getTriangleMesh(&mesh,
+                                                                deflection,
+                                                                angular_deflection,
+                                                                relative_deflection,
+                                                                extract_trimmed_surface);
+    SLIC_ERROR_IF(triangulation_status != 0, "Failed to triangulate the trimmed STEP model.");
 
 #ifdef AXOM_USE_MPI
     if(validate_model && !validate_triangle_mesh(mesh))
@@ -1129,7 +1130,8 @@ int main(int argc, char** argv)
       else
       {
         axom::quest::STLWriter writer(output_file, true);
-        writer.write(&mesh);
+        const int write_status = writer.write(&mesh);
+        SLIC_ERROR_IF(write_status != 0, "Failed to write STL file '" << output_file << "'.");
       }
 
       SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
@@ -1154,11 +1156,12 @@ int main(int argc, char** argv)
     constexpr bool extract_trimmed_surface = false;
 
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
-    stepReader.getTriangleMesh(&mesh,
-                               deflection,
-                               angular_deflection,
-                               relative_deflection,
-                               extract_trimmed_surface);
+    const int triangulation_status = stepReader.getTriangleMesh(&mesh,
+                                                                deflection,
+                                                                angular_deflection,
+                                                                relative_deflection,
+                                                                extract_trimmed_surface);
+    SLIC_ERROR_IF(triangulation_status != 0, "Failed to triangulate the untrimmed STEP model.");
 
 #ifdef AXOM_USE_MPI
     if(validate_model && !validate_triangle_mesh(mesh))
@@ -1180,7 +1183,8 @@ int main(int argc, char** argv)
       else
       {
         axom::quest::STLWriter writer(output_file, true);
-        writer.write(&mesh);
+        const int write_status = writer.write(&mesh);
+        SLIC_ERROR_IF(write_status != 0, "Failed to write STL file '" << output_file << "'.");
       }
 
       SLIC_INFO(

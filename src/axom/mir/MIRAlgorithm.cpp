@@ -18,9 +18,9 @@ namespace axom
 {
 namespace mir
 {
-void MIRAlgorithm::execute(const conduit::Node &n_input,
-                           const conduit::Node &n_options,
-                           conduit::Node &n_output)
+void MIRAlgorithm::execute(const conduit::Node& n_input,
+                           const conduit::Node& n_options,
+                           conduit::Node& n_output)
 {
   const auto domains = conduit::blueprint::mesh::domains(n_input);
   if(domains.size() > 1)
@@ -30,14 +30,14 @@ void MIRAlgorithm::execute(const conduit::Node &n_input,
   else if(domains.size() > 0)
   {
     // Handle single domain
-    const conduit::Node &n_domain = *domains[0];
+    const conduit::Node& n_domain = *domains[0];
     executeSetup(n_domain, n_options, n_output);
   }
 }
 
-void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
-                                const conduit::Node &n_options,
-                                conduit::Node &n_newDomain)
+void MIRAlgorithm::executeSetup(const conduit::Node& n_domain,
+                                const conduit::Node& n_options,
+                                conduit::Node& n_newDomain)
 {
   axom::bump::Options options(n_options);
 
@@ -45,14 +45,14 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   const std::string matset = options.matset();
 
   // Which topology is that matset defined on?
-  const conduit::Node &n_matsets = n_domain.fetch_existing("matsets");
-  const conduit::Node &n_matset = n_matsets.fetch_existing(matset);
-  const conduit::Node *n_topo =
+  const conduit::Node& n_matsets = n_domain.fetch_existing("matsets");
+  const conduit::Node& n_matset = n_matsets.fetch_existing(matset);
+  const conduit::Node* n_topo =
     conduit::blueprint::mesh::utils::find_reference_node(n_matset, "topology");
   SLIC_ASSERT(n_topo != nullptr);
 
   // Which coordset is used by that topology?
-  const conduit::Node *n_coordset =
+  const conduit::Node* n_coordset =
     conduit::blueprint::mesh::utils::find_reference_node(*n_topo, "coordset");
   SLIC_ASSERT(n_coordset != nullptr);
 
@@ -62,12 +62,12 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   const std::string newMatsetName = options.matsetName(matset);
 
   // Make some new nodes in the output.
-  conduit::Node &newCoordset = n_newDomain["coordsets/" + newCoordsetName];
-  conduit::Node &newTopo = n_newDomain["topologies/" + newTopoName];
+  conduit::Node& newCoordset = n_newDomain["coordsets/" + newCoordsetName];
+  conduit::Node& newTopo = n_newDomain["topologies/" + newTopoName];
   newTopo["coordset"] = newCoordsetName;
-  conduit::Node &newMatset = n_newDomain["matsets/" + newMatsetName];
+  conduit::Node& newMatset = n_newDomain["matsets/" + newMatsetName];
   newMatset["topology"] = newTopoName;
-  conduit::Node &newFields = n_newDomain["fields"];
+  conduit::Node& newFields = n_newDomain["fields"];
 
   // Execute the algorithm on the domain.
   if(n_domain.has_path("state"))
@@ -100,7 +100,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   {
     // There are no input fields, but make sure n_fields has a name.
     conduit::Node tmp;
-    conduit::Node &n_fields = tmp["fields"];
+    conduit::Node& n_fields = tmp["fields"];
     executeDomain(*n_topo,
                   *n_coordset,
                   n_fields,
@@ -123,16 +123,16 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   }
 }
 
-void MIRAlgorithm::updateNames(const std::string &origTopoName,
-                               const std::string &newTopoName,
-                               const std::string &origCoordsetName,
-                               const std::string &newCoordsetName,
-                               const std::string &AXOM_UNUSED_PARAM(origMatsetName),
-                               const std::string &AXOM_UNUSED_PARAM(newMatsetName),
-                               conduit::Node &n_newTopo,
-                               conduit::Node &AXOM_UNUSED_PARAM(n_newCoordset),
-                               conduit::Node &n_newFields,
-                               conduit::Node &n_newMatset)
+void MIRAlgorithm::updateNames(const std::string& origTopoName,
+                               const std::string& newTopoName,
+                               const std::string& origCoordsetName,
+                               const std::string& newCoordsetName,
+                               const std::string& AXOM_UNUSED_PARAM(origMatsetName),
+                               const std::string& AXOM_UNUSED_PARAM(newMatsetName),
+                               conduit::Node& n_newTopo,
+                               conduit::Node& AXOM_UNUSED_PARAM(n_newCoordset),
+                               conduit::Node& n_newFields,
+                               conduit::Node& n_newMatset)
 {
   // If the coordset was renamed in the output, make sure it the new topology references that new name.
   if(origCoordsetName != newCoordsetName)
@@ -146,7 +146,7 @@ void MIRAlgorithm::updateNames(const std::string &origTopoName,
 
     for(conduit::index_t i = 0; i < n_newFields.number_of_children(); i++)
     {
-      conduit::Node &n_field = n_newFields[i];
+      conduit::Node& n_field = n_newFields[i];
       if(n_field["topology"].as_string() == origTopoName)
       {
         n_field["topology"] = newTopoName;
@@ -155,13 +155,13 @@ void MIRAlgorithm::updateNames(const std::string &origTopoName,
   }
 }
 
-void MIRAlgorithm::copyState(const conduit::Node &srcState, conduit::Node &destState) const
+void MIRAlgorithm::copyState(const conduit::Node& srcState, conduit::Node& destState) const
 {
   for(conduit::index_t i = 0; i < srcState.number_of_children(); i++)
     destState[srcState[i].name()].set(srcState[i]);
 }
 
-void MIRAlgorithm::printNode(const conduit::Node &n) const
+void MIRAlgorithm::printNode(const conduit::Node& n) const
 {
   conduit::Node options;
   options["num_children_threshold"] = 10000;
@@ -173,7 +173,7 @@ void MIRAlgorithm::printNode(const conduit::Node &n) const
   n_host.to_summary_string_stream(std::cout, options);
 }
 
-void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const
+void MIRAlgorithm::saveMesh(const conduit::Node& n_mesh, const std::string& filebase) const
 {
   // Make sure data are on host.
   conduit::Node n_mesh_host;
@@ -192,7 +192,7 @@ void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &file
 #endif
 }
 
-std::string MIRAlgorithm::localPath(const conduit::Node &obj) const
+std::string MIRAlgorithm::localPath(const conduit::Node& obj) const
 {
   std::string path(obj.path());
   const auto dpos = path.find("domain");

@@ -58,7 +58,7 @@ program spio_irregularWriteRead
 !
 ! the views are filled with repeatable nonsense data that will vary based
 ! on rank.
-  ds1 = SidreDataStore()
+  ds1 = datastore_new()
   root1 = ds1%get_root()
 
   num_fields = my_rank + 2
@@ -92,7 +92,7 @@ program spio_irregularWriteRead
   call writer%write(root1, num_files, "F_out_spio_irregular_write_read", protocol )
 
   ! create another datastore that holds nothing but the root group.
-  ds2 = SidreDataStore()
+  ds2 = datastore_new()
 
   ! read from the files that were written above.
   reader = IOManager(MPI_COMM_WORLD)
@@ -154,4 +154,3 @@ program spio_irregularWriteRead
      call exit(1)
   endif
 end program spio_irregularWriteRead
-

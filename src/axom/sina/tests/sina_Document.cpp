@@ -291,13 +291,13 @@ std::string long_json = R"(
 )";
 
 // Helper function to convert Conduit Node array to std::vector<double> for HDF5 assertion
-std::vector<double> node_to_double_vector(const conduit::Node &node)
+std::vector<double> node_to_double_vector(const conduit::Node& node)
 {
   std::vector<double> result;
 
   if(node.dtype().is_number())
   {
-    const double *intArray = node.as_double_ptr();
+    const double* intArray = node.as_double_ptr();
     conduit::index_t numElements = node.dtype().number_of_elements();
     for(conduit::index_t i = 0; i < numElements; ++i)
     {
@@ -327,7 +327,7 @@ TEST(Document, create_fromNode_wrongRecordsType)
     Document document {recordsAsNodes, loader};
     FAIL() << "Should not have been able to parse records. Have " << document.getRecords().size();
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_RECORDS_KEY));
   }
@@ -347,14 +347,14 @@ TEST(Document, create_fromNode_withRecords)
   documentAsNode[EXPECTED_RECORDS_KEY] = recordsAsNodes;
 
   RecordLoader loader;
-  loader.addTypeLoader("IntTestRecord", [](conduit::Node const &asNode) {
+  loader.addTypeLoader("IntTestRecord", [](conduit::Node const& asNode) {
     return std::make_unique<TestRecord<int>>(asNode);
   });
 
   Document document {documentAsNode, loader};
-  auto &records = document.getRecords();
+  auto& records = document.getRecords();
   ASSERT_EQ(1u, records.size());
-  auto testRecord = dynamic_cast<TestRecord<int> const *>(records[0].get());
+  auto testRecord = dynamic_cast<TestRecord<int> const*>(records[0].get());
   ASSERT_NE(nullptr, testRecord);
   ASSERT_EQ(123, testRecord->getValue());
 }
@@ -373,7 +373,7 @@ TEST(Document, create_fromNode_withRelationships)
   documentAsNode[EXPECTED_RELATIONSHIPS_KEY] = relationshipsAsNodes;
 
   Document document {documentAsNode, RecordLoader {}};
-  auto &relationships = document.getRelationships();
+  auto& relationships = document.getRelationships();
   ASSERT_EQ(1u, relationships.size());
   EXPECT_EQ("the subject", relationships[0].getSubject().getId());
   EXPECT_EQ(IDType::Global, relationships[0].getSubject().getType());
@@ -413,7 +413,7 @@ TEST(Document, toNode_records)
   ASSERT_EQ(numRecords, record_nodes.number_of_children());
   for(auto i = 0; i < record_nodes.number_of_children(); ++i)
   {
-    auto &actualNode = record_nodes[i];
+    auto& actualNode = record_nodes[i];
     EXPECT_EQ(expectedIds[i], actualNode["id"].as_string());
     EXPECT_EQ(TEST_RECORD_TYPE, actualNode["type"].as_string());
     EXPECT_EQ(expectedValues[i], actualNode[TEST_RECORD_VALUE_KEY].as_string());
@@ -443,7 +443,7 @@ TEST(Document, toNode_relationships)
   ASSERT_EQ(numRecords, relationship_nodes.number_of_children());
   for(auto i = 0; i < relationship_nodes.number_of_children(); ++i)
   {
-    auto &actualRelationship = relationship_nodes[i];
+    auto& actualRelationship = relationship_nodes[i];
     EXPECT_EQ(expectedSubjects[i], actualRelationship["subject"].as_string());
     EXPECT_EQ(expectedObjects[i], actualRelationship["object"].as_string());
     EXPECT_EQ(expectedPredicates[i], actualRelationship["predicate"].as_string());
@@ -467,7 +467,7 @@ TEST(Document, create_fromJson_full_json)
 {
   axom::sina::Document myDocument = Document(long_json, createRecordLoaderWithAllKnownTypes());
   EXPECT_EQ(2, myDocument.getRelationships().size());
-  auto &records1 = myDocument.getRecords();
+  auto& records1 = myDocument.getRecords();
   EXPECT_EQ(4, records1.size());
 }
 
@@ -475,10 +475,10 @@ TEST(Document, create_fromJson_value_check_json)
 {
   axom::sina::Document myDocument = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
   EXPECT_EQ(2, myDocument.getRelationships().size());
-  auto &records1 = myDocument.getRecords();
+  auto& records1 = myDocument.getRecords();
   EXPECT_EQ(1, records1.size());
   EXPECT_EQ(records1[0]->getType(), "run");
-  auto &data1 = records1[0]->getData();
+  auto& data1 = records1[0]->getData();
   EXPECT_EQ(data1.at("int").getScalar(), 500.0);
   std::vector<std::string> expected_string_vals = {"z", "o", "o"};
   EXPECT_EQ(data1.at("str/ings").getStringArray(), expected_string_vals);
@@ -499,7 +499,7 @@ TEST(Document, saveDocument_json)
 
   ASSERT_TRUE(readContents[EXPECTED_RECORDS_KEY].dtype().is_list());
   EXPECT_EQ(1, readContents[EXPECTED_RECORDS_KEY].number_of_children());
-  auto &readRecord = readContents[EXPECTED_RECORDS_KEY][0];
+  auto& readRecord = readContents[EXPECTED_RECORDS_KEY][0];
   EXPECT_EQ("the id", readRecord["id"].as_string());
   EXPECT_EQ("the type", readRecord["type"].as_string());
 }
@@ -515,7 +515,7 @@ TEST(Document, load_specifiedRecordLoader)
   tempfile.write(originalDocument.toNode().to_json());
 
   RecordLoader loader;
-  loader.addTypeLoader("my type", [](conduit::Node const &asNode) {
+  loader.addTypeLoader("my type", [](conduit::Node const& asNode) {
     return std::make_unique<RecordType>(
       getRequiredString("id", asNode, "Test type"),
       getRequiredString("type", asNode, "Test type"),
@@ -523,7 +523,7 @@ TEST(Document, load_specifiedRecordLoader)
   });
   Document loadedDocument = loadDocument(tempfile.getPath(), loader);
   ASSERT_EQ(1u, loadedDocument.getRecords().size());
-  auto loadedRecord = dynamic_cast<RecordType const *>(loadedDocument.getRecords()[0].get());
+  auto loadedRecord = dynamic_cast<RecordType const*>(loadedDocument.getRecords()[0].get());
   ASSERT_NE(nullptr, loadedRecord);
   EXPECT_EQ(123, loadedRecord->getValue());
 }
@@ -540,7 +540,7 @@ TEST(Document, load_defaultRecordLoaders)
 
   Document loadedDocument = loadDocument(tempfile.getPath());
   ASSERT_EQ(1u, loadedDocument.getRecords().size());
-  auto loadedRun = dynamic_cast<axom::sina::Run const *>(loadedDocument.getRecords()[0].get());
+  auto loadedRun = dynamic_cast<axom::sina::Run const*>(loadedDocument.getRecords()[0].get());
   EXPECT_NE(nullptr, loadedRun);
 }
 
@@ -656,8 +656,8 @@ TEST(Document, test_validate_append_valid)
 }
 
 void doEveryErrorTest(
-  const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc,
+  const std::string& protocol,
+  std::function<conduit::Node(const std::string&, const sina::Document&, int, bool, bool)> appendDocumentFunc,
   bool skipValidation = false,
   bool overwriteCurves = false)
 {
@@ -694,8 +694,8 @@ TEST(Document, test_appendErrorCodepathsHDF5) { doEveryErrorTest("hdf5", appendD
 
 // Appending into an empty document
 void doSimpleAppendTest(
-  const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
+  const std::string& protocol,
+  std::function<conduit::Node(const std::string&, const sina::Document&, int, bool, bool)> appendDocumentFunc)
 {
   std::string empty_file = "test." + protocol;
   axom::sina::Document empty_doc =
@@ -727,8 +727,8 @@ TEST(Document, test_simpleAppendDocumentToHDF5)
 
 // One unchanged, one merged
 void doFullAppendTest(
-  const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
+  const std::string& protocol,
+  std::function<conduit::Node(const std::string&, const sina::Document&, int, bool, bool)> appendDocumentFunc)
 {
   std::string filePath = "test." + protocol;
   sina::Document testDoc = Document(MULTI_REC_DOCUMENT, createRecordLoaderWithAllKnownTypes());
@@ -747,7 +747,7 @@ void doFullAppendTest(
   // One record should be unchanged, but loading it into a document means we
   // don't guarantee data order except where important (curve set order). Spot check shared val.
   std::vector<double> expected = {1.0, 2.0};
-  const conduit::Node &rec1 = root["records"].child(1);
+  const conduit::Node& rec1 = root["records"].child(1);
   auto actual = node_to_double_vector(rec1["curve_sets"]["set_1"]["dependent"]["0"]["value"]);
   EXPECT_EQ(expected, actual);
   // The hard one, now a blend of the prior and new record
@@ -775,7 +775,7 @@ void doFullAppendTest(
   EXPECT_EQ(expected, actual);
   EXPECT_EQ(expected, actual);
   // Relationships are easy, we just need the union (no duplicates)
-  const conduit::Node &rels = root["relationships"];
+  const conduit::Node& rels = root["relationships"];
   EXPECT_EQ(rels.number_of_children(), 3);
   EXPECT_EQ(rels.to_string(),
             "\n- \n  predicate: \"knows\"\n  local_subject: \"bar1\"\n  object: \"something\"\n- "
@@ -792,8 +792,8 @@ TEST(Document, test_appendDocumentToHDF5) { doFullAppendTest("hdf5", appendDocum
 
 // Making sure we respect curve order (Records are in charge of ordering their curves, not documents)
 void doAppendOrderedCurveTest(
-  const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
+  const std::string& protocol,
+  std::function<conduit::Node(const std::string&, const sina::Document&, int, bool, bool)> appendDocumentFunc)
 {
   std::string curvedump_file = "test_curve." + protocol;
   axom::sina::Document ordered_curves =
@@ -835,8 +835,8 @@ TEST(Document, test_appendOrderedCurvesToHDF5)
 
 // Making sure that we overwrite instead of appending when receiving "full" curves
 void doAppendOverwriteCurveTest(
-  const std::string &protocol,
-  std::function<conduit::Node(const std::string &, const sina::Document &, int, bool, bool)> appendDocumentFunc)
+  const std::string& protocol,
+  std::function<conduit::Node(const std::string&, const sina::Document&, int, bool, bool)> appendDocumentFunc)
 {
   std::string overwrite_file = "test_overwrite." + protocol;
   axom::sina::Document overwritten_doc =
@@ -896,7 +896,7 @@ TEST(Document, create_fromJson_full_hdf5)
   saveDocument(myDocument, "long_json.hdf5", Protocol::HDF5);
   Document loadedDocument = loadDocument("long_json.hdf5", Protocol::HDF5);
   EXPECT_EQ(2, loadedDocument.getRelationships().size());
-  auto &records2 = loadedDocument.getRecords();
+  auto& records2 = loadedDocument.getRecords();
   EXPECT_EQ(4, records2.size());
 }
 
@@ -907,10 +907,10 @@ TEST(Document, create_fromJson_value_check_hdf5)
   saveDocument(myDocument, "data_json.hdf5", Protocol::HDF5);
   Document loadedDocument = loadDocument("data_json.hdf5", Protocol::HDF5);
   EXPECT_EQ(2, loadedDocument.getRelationships().size());
-  auto &records2 = loadedDocument.getRecords();
+  auto& records2 = loadedDocument.getRecords();
   EXPECT_EQ(1, records2.size());
   EXPECT_EQ(records2[0]->getType(), "run");
-  auto &data2 = records2[0]->getData();
+  auto& data2 = records2[0]->getData();
   EXPECT_EQ(data2.at("int").getScalar(), 500.0);
   EXPECT_EQ(data2.at("str/ings").getStringArray(), expected_string_vals);
   EXPECT_EQ(records2[0]->getFiles().count(File {"test/test.png"}), 1);
@@ -930,7 +930,7 @@ TEST(Document, saveDocument_hdf5)
 
   ASSERT_TRUE(readContents[EXPECTED_RECORDS_KEY].dtype().is_list());
   EXPECT_EQ(1, readContents[EXPECTED_RECORDS_KEY].number_of_children());
-  auto &readRecord = readContents[EXPECTED_RECORDS_KEY][0];
+  auto& readRecord = readContents[EXPECTED_RECORDS_KEY][0];
   EXPECT_EQ("the id", readRecord["id"].as_string());
   EXPECT_EQ("the type", readRecord["type"].as_string());
 }

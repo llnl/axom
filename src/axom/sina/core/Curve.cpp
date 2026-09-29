@@ -40,14 +40,14 @@ Curve::Curve(std::string name_, std::vector<double> values_)
   , tags {}
 { }
 
-Curve::Curve(std::string name_, double const *values_, std::size_t numValues)
+Curve::Curve(std::string name_, double const* values_, std::size_t numValues)
   : name {std::move(name_)}
   , values {values_, values_ + numValues}
   , units {}
   , tags {}
 { }
 
-Curve::Curve(std::string name_, conduit::Node const &curveAsNode)
+Curve::Curve(std::string name_, conduit::Node const& curveAsNode)
   : name {std::move(name_)}
   , values {}
   , units {}
@@ -55,7 +55,7 @@ Curve::Curve(std::string name_, conduit::Node const &curveAsNode)
 {
   std::string const curve_type_name {CURVE_TYPE_NAME};
   std::string const values_key {VALUES_KEY};
-  conduit::Node const &valuesAsNode = getRequiredField(values_key, curveAsNode, curve_type_name);
+  conduit::Node const& valuesAsNode = getRequiredField(values_key, curveAsNode, curve_type_name);
   values = toDoubleVector(valuesAsNode, values_key);
 
   units = getOptionalString(UNITS_KEY, curveAsNode, CURVE_TYPE_NAME);

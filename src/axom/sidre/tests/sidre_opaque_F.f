@@ -102,7 +102,7 @@ contains
 
     call set_case_name("basic_inout")
 
-    ds = SidreDataStore()
+    ds = datastore_new()
     root = ds%get_root()
 
     problem_gp = root%create_group("problem")
@@ -183,7 +183,7 @@ contains
 
     call set_case_name("meshvar_test")
 
-    ds   = SidreDataStore()
+    ds   = datastore_new()
     root = ds%get_root()
 
     problem_gp = root%create_group("problem")
@@ -284,4 +284,3 @@ program fortran_test
      call exit(1)
   endif
 end program fortran_test
-

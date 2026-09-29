@@ -309,32 +309,30 @@ void check_volume()
   axom::Array<PointType> centroid_device(1, 1, kernel_allocator);
   auto centroid_view = centroid_device.view();
 
-  axom::for_all<ExecSpace>(
-    1,
-    AXOM_LAMBDA(int i) {
-      PolyhedronType poly;
-      poly.addVertex({0, 0, 0});
-      poly.addVertex({1, 0, 0});
-      poly.addVertex({1, 1, 0});
-      poly.addVertex({0, 1, 0});
-      poly.addVertex({0, 0, 1});
-      poly.addVertex({1, 0, 1});
-      poly.addVertex({1, 1, 1});
-      poly.addVertex({0, 1, 1});
+  axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int i) {
+    PolyhedronType poly;
+    poly.addVertex({0, 0, 0});
+    poly.addVertex({1, 0, 0});
+    poly.addVertex({1, 1, 0});
+    poly.addVertex({0, 1, 0});
+    poly.addVertex({0, 0, 1});
+    poly.addVertex({1, 0, 1});
+    poly.addVertex({1, 1, 1});
+    poly.addVertex({0, 1, 1});
 
-      poly.addNeighbors(0, {1, 4, 3});
-      poly.addNeighbors(1, {5, 0, 2});
-      poly.addNeighbors(2, {3, 6, 1});
-      poly.addNeighbors(3, {7, 2, 0});
-      poly.addNeighbors(4, {5, 7, 0});
-      poly.addNeighbors(5, {1, 6, 4});
-      poly.addNeighbors(6, {2, 7, 5});
-      poly.addNeighbors(7, {4, 6, 3});
+    poly.addNeighbors(0, {1, 4, 3});
+    poly.addNeighbors(1, {5, 0, 2});
+    poly.addNeighbors(2, {3, 6, 1});
+    poly.addNeighbors(3, {7, 2, 0});
+    poly.addNeighbors(4, {5, 7, 0});
+    poly.addNeighbors(5, {1, 6, 4});
+    poly.addNeighbors(6, {2, 7, 5});
+    poly.addNeighbors(7, {4, 6, 3});
 
-      volume_view[i] = poly.volume();
+    volume_view[i] = poly.volume();
 
-      centroid_view[i] = poly.centroid();
-    });
+    centroid_view[i] = poly.centroid();
+  });
 
   // Copy volume and centroid back to host
   axom::Array<double> volume_host = axom::Array<double>(volume_device, host_allocator);

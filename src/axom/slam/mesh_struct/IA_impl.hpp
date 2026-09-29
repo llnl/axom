@@ -27,9 +27,7 @@
 #include <memory>
 #include <cstddef>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * Helper function on std::vectors
@@ -1281,5 +1279,4 @@ bool IAMesh<TDIM, SDIM, P>::isConforming(bool verboseOutput) const
   return valid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

@@ -90,7 +90,7 @@ TEST(Relationship, create_fromNode_missingSubect)
     Relationship relationship {asNode};
     FAIL() << "Should have gotten an exception about a missing subject";
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_LOCAL_SUBJECT_ID_KEY));
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_GLOBAL_SUBJECT_ID_KEY));
@@ -108,7 +108,7 @@ TEST(Relationship, create_fromNode_missingObject)
     Relationship relationship {asNode};
     FAIL() << "Should have gotten an exception about a missing object";
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_LOCAL_OBJECT_ID_KEY));
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_GLOBAL_OBJECT_ID_KEY));
@@ -126,7 +126,7 @@ TEST(Relationship, create_fromNode_missingPredicate)
     Relationship relationship {asNode};
     FAIL() << "Should have gotten an exception about a missing predicate";
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr(EXPECTED_PREDICATE_KEY));
     EXPECT_THAT(expected.what(), HasSubstr("Relationship"));

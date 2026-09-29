@@ -28,7 +28,7 @@ contains
 
     call set_case_name("create_external_view")
 
-    ds = SidreDataStore()
+    ds = datastore_new()
     root = ds%get_root()
 
     allocate(idata(len))
@@ -78,7 +78,7 @@ contains
 
     call set_case_name("save_load_external_view")
 
-    ds = SidreDataStore()
+    ds = datastore_new()
     root = ds%get_root()
 
     allocate(idata(len))
@@ -105,7 +105,7 @@ contains
     call ds%print()
 
 
-    ds2 = SidreDataStore()
+    ds2 = datastore_new()
     root2 = ds2%get_root()
 
 ! TODO - fix wrapping change to datastore load call

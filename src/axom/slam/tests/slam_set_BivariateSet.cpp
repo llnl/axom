@@ -35,7 +35,12 @@ constexpr int SET_OFFSET_2 = 2;
 // Template aliases to simplify specifying some sets and relations
 template <typename P, typename E, typename FromSet, typename ToSet>
 using RelType =
-  slam::StaticRelation<P, E, policies::VariableCardinality<E>, policies::STLVectorIndirection<P, E>, FromSet, ToSet>;
+  slam::StaticRelation<P,
+                       E,
+                       policies::VariableCardinality<P, policies::ArrayIndirection<P, P>>,
+                       policies::ArrayIndirection<P, E>,
+                       FromSet,
+                       ToSet>;
 
 template <typename SetType>
 using PositionSetType =
@@ -71,6 +76,8 @@ public:
   using ElementType = typename BSet::ElementType;
 
   using Vec = std::vector<PositionType>;
+  using PositionArray = axom::Array<PositionType>;
+  using ElementArray = axom::Array<ElementType>;
   using RelationType = ::RelType<PositionType, ElementType, FirstSetType, SecondSetType>;
 
   using PSet1 = ::PositionSetType<FirstSetType>;
@@ -187,7 +194,7 @@ private:
     for(int i = 0; i < m_set1->size(); ++i)
     {
       auto outer = m_set1->at(i);
-      relationBegins.push_back(relationIndices.size());
+      relationBegins.push_back(static_cast<PositionType>(relationIndices.size()));
 
       for(int j = 0; j < m_set2->size(); ++j)
       {
@@ -198,7 +205,7 @@ private:
         }
       }
     }
-    relationBegins.push_back(relationIndices.size());
+    relationBegins.push_back(static_cast<PositionType>(relationIndices.size()));
 
     // Construct the relation using this data
     using RelationBuilder = typename RelationType::RelationBuilder;
@@ -286,8 +293,8 @@ protected:
   Vec setIndices1;
   Vec setIndices2;
 
-  Vec relationBegins;
-  Vec relationIndices;
+  PositionArray relationBegins;
+  ElementArray relationIndices;
   RelationType modRelation;
 };
 

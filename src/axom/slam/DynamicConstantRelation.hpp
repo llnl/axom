@@ -31,9 +31,7 @@
 
 #include <vector>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class DynamicConstantRelation
@@ -569,5 +567,4 @@ bool DynamicConstantRelation<PosType, ElemType, CardinalityPolicy>::isValid(bool
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

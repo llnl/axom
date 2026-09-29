@@ -9,11 +9,7 @@
 #include "axom/slam/BivariateSet.hpp"
 #include "axom/slam/policies/InterfacePolicies.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 namespace detail
 {
@@ -138,6 +134,4 @@ template <typename InterfacePolicy, typename FromSet, typename ToSet>
 using BivariateSetInterface =
   typename detail::BSetInterfaceSelector<InterfacePolicy, FromSet, ToSet>::Type;
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam::policies

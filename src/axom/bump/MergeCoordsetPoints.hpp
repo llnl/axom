@@ -93,7 +93,7 @@ public:
    *
    * \param coordsetView The coordset view that wraps the coordset to be modified.
    */
-  MergeCoordsetPoints(const CoordsetView &coordsetView)
+  MergeCoordsetPoints(const CoordsetView& coordsetView)
     : m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -146,12 +146,13 @@ public:
    *
    * \return True if point merging happened; False if no point merging was needed.
    */
-  bool execute(conduit::Node &n_coordset,
-               const conduit::Node &n_options,
-               axom::Array<axom::IndexType> &selectedIds,
-               axom::Array<axom::IndexType> &old2new) const
+  bool execute(conduit::Node& n_coordset,
+               const conduit::Node& n_options,
+               axom::Array<axom::IndexType>& selectedIds,
+               axom::Array<axom::IndexType>& old2new) const
   {
     namespace utils = axom::bump::utilities;
+    const axom::bump::Options opts(n_options);
     const int allocatorID = getAllocatorID();
 
     // If the coordset is not explicit then there is nothing to do.
@@ -204,20 +205,18 @@ public:
     if(merged)
     {
       // There are fewer nodes in the selectedIds so we are able to combine nodes.
-      SLIC_INFO(axom::fmt::format("Merged {} nodes into {} nodes.", nnodes, selectedIds.size()));
+      SLIC_INFO_IF(opts.verbose(),
+                   axom::fmt::format("Merged {} nodes into {} nodes.", nnodes, selectedIds.size()));
 
       AXOM_ANNOTATE_BEGIN("old2new");
       // Make a map of nodes in the old coordset to nodes in the new coordset. We
       // do it by looking up the old node name in the new coordset unique names.
-      axom::for_all<ExecSpace>(
-        nnodes,
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto newNodeId =
-            axom::utilities::binary_search(uniqueNamesView, coordNamesView[index]);
-          // RelWithDebInfo workaround - "old2newView.size() substitutes lambda capture device failure for "nnodes"
-          SLIC_ASSERT(newNodeId >= 0 && newNodeId < old2newView.size());
-          old2newView[index] = newNodeId;
-        });
+      axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto newNodeId = axom::utilities::binary_search(uniqueNamesView, coordNamesView[index]);
+        // RelWithDebInfo workaround - "old2newView.size() substitutes lambda capture device failure for "nnodes"
+        SLIC_ASSERT(newNodeId >= 0 && newNodeId < old2newView.size());
+        old2newView[index] = newNodeId;
+      });
       AXOM_ANNOTATE_END("old2new");
 
       //--------------------------------------------------------------------------
@@ -277,12 +276,10 @@ public:
       AXOM_ANNOTATE_BEGIN("old2new");
 
       auto selectedIdsView = selectedIds.view();
-      axom::for_all<ExecSpace>(
-        nnodes,
-        AXOM_LAMBDA(axom::IndexType index) {
-          selectedIdsView[index] = index;
-          old2newView[index] = index;
-        });
+      axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        selectedIdsView[index] = index;
+        old2newView[index] = index;
+      });
     }
 
     return merged;
@@ -295,7 +292,7 @@ public:
    * \param tolerance The tolerance used to merge points.
    */
   template <typename KeyType>
-  void createNames(axom::Array<KeyType> &coordNames, double tolerance) const
+  void createNames(axom::Array<KeyType>& coordNames, double tolerance) const
   {
     constexpr double smallTolerance = 1.e-6;
 
@@ -320,7 +317,7 @@ public:
    * \param tolerance The tolerance used to merge points.
    */
   template <typename KeyType, typename Precision>
-  void createNamesInner(axom::Array<KeyType> &coordNames, double tolerance) const
+  void createNamesInner(axom::Array<KeyType>& coordNames, double tolerance) const
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE(axom::fmt::format("createNames<{}>", utils::cpp2conduit<Precision>::name));
@@ -332,33 +329,31 @@ public:
     coordNames = axom::Array<KeyType>(nnodes, nnodes, allocatorID);
     auto coordNamesView = coordNames.view();
     const auto deviceCoordsetView = m_coordsetView;
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType index) {
-        // Get the current point.
-        const auto pt = deviceCoordsetView[index];
+    axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      // Get the current point.
+      const auto pt = deviceCoordsetView[index];
 
-        // Truncate the point components using the tolerance so we can eliminate
-        // precision beyond what we want with the tolerance. The idea is that points
-        // that are close enough will hash to the same name.
-        Precision truncated[CoordsetView::dimension()];
-        for(int d = 0; d < CoordsetView::dimension(); d++)
+      // Truncate the point components using the tolerance so we can eliminate
+      // precision beyond what we want with the tolerance. The idea is that points
+      // that are close enough will hash to the same name.
+      Precision truncated[CoordsetView::dimension()];
+      for(int d = 0; d < CoordsetView::dimension(); d++)
+      {
+        const Precision pointValue = static_cast<Precision>(pt[d]);
+        Precision value = detail::Rounder<Precision>::execute(pointValue / tolerance) * tolerance;
+        if(value > neg_tolerance && value < tolerance)
         {
-          const Precision pointValue = static_cast<Precision>(pt[d]);
-          Precision value = detail::Rounder<Precision>::execute(pointValue / tolerance) * tolerance;
-          if(value > neg_tolerance && value < tolerance)
-          {
-            value = Precision {0};
-          }
-          truncated[d] = value;
+          value = Precision {0};
         }
+        truncated[d] = value;
+      }
 
-        // Make a name for this point
-        const void *tptr = static_cast<const void *>(truncated);
-        coordNamesView[index] =
-          axom::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
-                                      sizeof(Precision) * CoordsetView::dimension());
-      });
+      // Make a name for this point
+      const void* tptr = static_cast<const void*>(truncated);
+      coordNamesView[index] =
+        axom::utilities::hash_bytes(static_cast<const std::uint8_t*>(tptr),
+                                    sizeof(Precision) * CoordsetView::dimension());
+    });
   }
 
   CoordsetView m_coordsetView;

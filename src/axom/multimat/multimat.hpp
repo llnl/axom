@@ -66,22 +66,25 @@ class MMField2DTemplated;
 class MultiMat
 {
 protected:
-  // SLAM Set type definitions
+  // Slam Set type definitions
   using SetPosType = slam::DefaultPositionType;
   using SetElemType = slam::DefaultPositionType;
   using SetType = slam::Set<SetPosType, SetElemType>;
   using RangeSetType = slam::RangeSet<SetPosType, SetElemType>::ConcreteSet;
 
 public:
-  // SLAM Bivariate set type definitions
+  // Slam Bivariate set type definitions
   using BivariateSetType = slam::BivariateSet<RangeSetType, RangeSetType>;
   using ProductSetType = slam::ProductSet<RangeSetType, RangeSetType>;
 
 private:
-  // SLAM Relation typedef
+  // Slam Relation typedef
   using IndBufferType = axom::Array<SetPosType>;
   template <typename T>
   using IndViewPolicy = slam::policies::ArrayViewIndirection<SetPosType, T>;
+
+  // Multi-component fields have a runtime stride
+  using MapStrideType = slam::policies::RuntimeStride<SetPosType>;
 
   using VariableCardinality =
     slam::policies::MappedVariableCardinality<SetPosType, IndViewPolicy<SetElemType>>;
@@ -90,24 +93,22 @@ private:
 
   using DynamicVariableRelationType = slam::DynamicVariableRelation<RangeSetType, RangeSetType>;
 
-  // SLAM Map type
-  using MapStrideType = slam::policies::RuntimeStride<SetPosType>;
-
+  // A field over a single set, viewing an externally-managed buffer, with runtime stride.
   template <typename T>
-  using MapType = typename slam::Map<T, RangeSetType, IndViewPolicy<T>, MapStrideType>::ConcreteMap;
+  using MapType = slam::Map<T, RangeSetType, IndViewPolicy<T>, MapStrideType>;
 
+  // A field over a bivariate set, viewing an externally-managed buffer, with runtime stride.
   template <typename T, typename BSet = BivariateSetType>
-  using BivariateMapType =  //this one has runtime stride
-    typename slam::BivariateMap<T, BSet, IndViewPolicy<T>, MapStrideType>::ConcreteMap;
+  using BivariateMapType = slam::BivariateMap<T, BSet, IndViewPolicy<T>, MapStrideType>;
 
+  // As above, but with compile-time stride 1 (Slam's default stride policy).
   template <typename T, typename BSet = BivariateSetType>
-  using BivariateMapTypeStrideOne =  //this one has compile time stride 1
-    typename slam::BivariateMap<T, BSet, IndViewPolicy<T>>::ConcreteMap;
+  using BivariateMapTypeStrideOne = slam::BivariateMap<T, BSet, IndViewPolicy<T>>;
 
 public:
   using SparseRelationType = StaticVariableRelationType;
 
-  // SLAM RelationSet for the set of non-zero cell to mat variables
+  // Slam RelationSet for the set of non-zero cell to mat variables
   using RelationSetType = slam::RelationSet<StaticVariableRelationType>;  //, RangeSetType
   using RelationSetDynType = slam::RelationSet<DynamicVariableRelationType>;
 
@@ -117,9 +118,6 @@ public:
   using Field1D = MapType<T>;
 
   //2D Field
-  //old
-  //template <typename T, typename BSet = BivariateSetType>
-  //using Field2D = BivariateMapType<T,BSet>;
   template <typename T, typename BSet = BivariateSetType>
   using Field2D = MMField2D<T, BSet>;
   //special

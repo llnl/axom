@@ -48,7 +48,7 @@ public:
    *
    * \param n_topology The topology to modify.
    */
-  static void execute(conduit::Node &n_topo,
+  static void execute(conduit::Node& n_topo,
                       int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     SLIC_ASSERT(n_topo.fetch_existing("elements/shape").as_string() == "polyhedral");
@@ -59,12 +59,12 @@ public:
     const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
 
     // Get the data from the topology and make views.
-    conduit::Node &n_elem_conn = n_topo["elements/connectivity"];
-    conduit::Node &n_elem_sizes = n_topo["elements/sizes"];
-    conduit::Node &n_elem_offsets = n_topo["elements/offsets"];
-    conduit::Node &n_se_conn = n_topo["subelements/connectivity"];
-    conduit::Node &n_se_sizes = n_topo["subelements/sizes"];
-    conduit::Node &n_se_offsets = n_topo["subelements/offsets"];
+    conduit::Node& n_elem_conn = n_topo["elements/connectivity"];
+    conduit::Node& n_elem_sizes = n_topo["elements/sizes"];
+    conduit::Node& n_elem_offsets = n_topo["elements/offsets"];
+    conduit::Node& n_se_conn = n_topo["subelements/connectivity"];
+    conduit::Node& n_se_sizes = n_topo["subelements/sizes"];
+    conduit::Node& n_se_offsets = n_topo["subelements/offsets"];
     auto elem_conn = utils::make_array_view<ConnectivityType>(n_elem_conn);
     auto elem_sizes = utils::make_array_view<ConnectivityType>(n_elem_sizes);
     auto elem_offsets = utils::make_array_view<ConnectivityType>(n_elem_offsets);
@@ -76,9 +76,9 @@ public:
     AXOM_ANNOTATE_BEGIN("maxnode");
     // NOTE: the se_conn array may have gap values (typically -1).
     axom::ReduceMax<ExecSpace, ConnectivityType> reduceMaxNodeId(0);
-    axom::for_all<ExecSpace>(
-      se_conn.size(),
-      AXOM_LAMBDA(axom::IndexType index) { reduceMaxNodeId.max(se_conn[index]); });
+    axom::for_all<ExecSpace>(se_conn.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      reduceMaxNodeId.max(se_conn[index]);
+    });
     const auto maxNodeId = reduceMaxNodeId.get();
     if(se_conn.size() > 0 && maxNodeId == 0)
     {
@@ -99,30 +99,28 @@ public:
     const axom::IndexType totalFaces = se_sizes.size();
     axom::Array<KeyType> faceNames(totalFaces, totalFaces, allocatorID);
     auto faceNamesView = faceNames.view();
-    axom::for_all<ExecSpace>(
-      totalFaces,
-      AXOM_LAMBDA(axom::IndexType faceIndex) {
-        // Get size for current face.
-        const auto faceSize = static_cast<int>(se_sizes[faceIndex]);
-        // RelWithDebInfo workaround - "16" substitutes lambda capture device failure for "MaxPointsPerFace"
-        SLIC_ASSERT(faceSize <= 16);
+    axom::for_all<ExecSpace>(totalFaces, [=] AXOM_HOST_DEVICE(axom::IndexType faceIndex) {
+      // Get size for current face.
+      const auto faceSize = static_cast<int>(se_sizes[faceIndex]);
+      // RelWithDebInfo workaround - "16" substitutes lambda capture device failure for "MaxPointsPerFace"
+      SLIC_ASSERT(faceSize <= 16);
 
-        KeyType faceName {};
-        if(faceSize > 0)
-        {
-          // Get offset for current face.
-          const auto faceOffset = static_cast<axom::IndexType>(se_offsets[faceIndex]);
-          SLIC_ASSERT(faceOffset < se_conn.size());
+      KeyType faceName {};
+      if(faceSize > 0)
+      {
+        // Get offset for current face.
+        const auto faceOffset = static_cast<axom::IndexType>(se_offsets[faceIndex]);
+        SLIC_ASSERT(faceOffset < se_conn.size());
 
-          // Get the ids for the current face.
-          const auto faceIds = se_conn.data() + faceOffset;
+        // Get the ids for the current face.
+        const auto faceIds = se_conn.data() + faceOffset;
 
-          // Make a name for the current face.
-          faceName = namingView.makeName(faceIds, faceSize);
-        }
+        // Make a name for the current face.
+        faceName = namingView.makeName(faceIds, faceSize);
+      }
 
-        faceNamesView[faceIndex] = faceName;
-      });
+      faceNamesView[faceIndex] = faceName;
+    });
     AXOM_ANNOTATE_END("naming");
 
     //--------------------------------------------------------------------------
@@ -158,13 +156,11 @@ public:
 
     // Copy the sizes of the selected faces into new_se_sizes and make new_se_offsets
     axom::ReduceSum<ExecSpace, axom::IndexType> reduceNewSizes(0);
-    axom::for_all<ExecSpace>(
-      selectedFaces.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto size = se_sizes[selectedFacesView[index]];
-        new_se_sizes[index] = size;
-        reduceNewSizes += size;
-      });
+    axom::for_all<ExecSpace>(selectedFaces.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto size = se_sizes[selectedFacesView[index]];
+      new_se_sizes[index] = size;
+      reduceNewSizes += size;
+    });
     const axom::IndexType newSEConnSize = reduceNewSizes.get();
     if(selectedFaces.size() > 0)
     {
@@ -179,17 +175,15 @@ public:
     auto new_se_conn = utils::make_array_view<ConnectivityType>(n_new_se_conn);
 
     // Copy the selected faces into new_se_conn.
-    axom::for_all<ExecSpace>(
-      selectedFaces.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto numFaceIds = new_se_sizes[index];
-        const auto destOffset = new_se_offsets[index];
-        const auto srcOffset = se_offsets[selectedFacesView[index]];
-        for(ConnectivityType i = 0; i < numFaceIds; i++)
-        {
-          new_se_conn[destOffset + i] = se_conn[srcOffset + i];
-        }
-      });
+    axom::for_all<ExecSpace>(selectedFaces.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto numFaceIds = new_se_sizes[index];
+      const auto destOffset = new_se_offsets[index];
+      const auto srcOffset = se_offsets[selectedFacesView[index]];
+      for(ConnectivityType i = 0; i < numFaceIds; i++)
+      {
+        new_se_conn[destOffset + i] = se_conn[srcOffset + i];
+      }
+    });
 
     // Move the "new" nodes into the Blueprint hierarchy.
     n_se_conn.move(n_new_se_conn);
@@ -203,9 +197,9 @@ public:
 
     // Sum the element sizes so we can check for gaps to eliminate.
     axom::ReduceSum<ExecSpace, axom::IndexType> reduceConnSize(0);
-    axom::for_all<ExecSpace>(
-      elem_sizes.size(),
-      AXOM_LAMBDA(axom::IndexType index) { reduceConnSize += elem_sizes[index]; });
+    axom::for_all<ExecSpace>(elem_sizes.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      reduceConnSize += elem_sizes[index];
+    });
     const auto totalConnSize = reduceConnSize.get();
     if(elem_sizes.size() > 0)
     {
@@ -216,20 +210,18 @@ public:
     {
       // The connectivity has no gaps.
 
-      axom::for_all<ExecSpace>(
-        elem_conn.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto originalFaceId = elem_conn[index];
+      axom::for_all<ExecSpace>(elem_conn.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto originalFaceId = elem_conn[index];
 
-          // Get the "name" of the old face.
-          const auto originalFaceKey = faceNamesView[originalFaceId];
+        // Get the "name" of the old face.
+        const auto originalFaceKey = faceNamesView[originalFaceId];
 
-          // Look for the index of the "name" in the new uniqueKeys.
-          // That will be its face index in the new faces.
-          const auto newId = axom::utilities::binary_search(uniqueKeysView, originalFaceKey);
-          SLIC_ASSERT(newId != -1);
-          elem_conn[index] = static_cast<ConnectivityType>(newId);
-        });
+        // Look for the index of the "name" in the new uniqueKeys.
+        // That will be its face index in the new faces.
+        const auto newId = axom::utilities::binary_search(uniqueKeysView, originalFaceKey);
+        SLIC_ASSERT(newId != -1);
+        elem_conn[index] = static_cast<ConnectivityType>(newId);
+      });
     }
     else
     {
@@ -248,26 +240,24 @@ public:
       auto new_elem_offsets = utils::make_array_view<ConnectivityType>(n_new_elem_offsets);
       axom::exclusive_scan<ExecSpace>(elem_sizes, new_elem_offsets);
 
-      axom::for_all<ExecSpace>(
-        elem_sizes.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto srcOffset = elem_offsets[index];
-          const auto destOffset = new_elem_offsets[index];
-          const auto size = elem_sizes[index];
-          for(ConnectivityType i = 0; i < size; i++)
-          {
-            const auto originalFaceId = elem_conn[srcOffset + i];
+      axom::for_all<ExecSpace>(elem_sizes.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto srcOffset = elem_offsets[index];
+        const auto destOffset = new_elem_offsets[index];
+        const auto size = elem_sizes[index];
+        for(ConnectivityType i = 0; i < size; i++)
+        {
+          const auto originalFaceId = elem_conn[srcOffset + i];
 
-            // Get the "name" of the old face.
-            const auto originalFaceKey = faceNamesView[originalFaceId];
+          // Get the "name" of the old face.
+          const auto originalFaceKey = faceNamesView[originalFaceId];
 
-            // Look for the index of the "name" in the new uniqueKeys.
-            // That will be its face index in the new faces.
-            const auto newId = axom::utilities::binary_search(uniqueKeysView, originalFaceKey);
-            SLIC_ASSERT(newId != -1);
-            new_elem_conn[destOffset + i] = static_cast<ConnectivityType>(newId);
-          }
-        });
+          // Look for the index of the "name" in the new uniqueKeys.
+          // That will be its face index in the new faces.
+          const auto newId = axom::utilities::binary_search(uniqueKeysView, originalFaceKey);
+          SLIC_ASSERT(newId != -1);
+          new_elem_conn[destOffset + i] = static_cast<ConnectivityType>(newId);
+        }
+      });
 
       n_elem_conn.move(n_new_elem_conn);
       n_elem_offsets.move(n_new_elem_offsets);

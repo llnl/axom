@@ -37,7 +37,8 @@ struct test_conduit_allocate
 
     // Make sure we can store some values into the data that were allocated.
     auto nview = utils::make_array_view<int>(n);
-    axom::for_all<ExecSpace>(nValues, AXOM_LAMBDA(axom::IndexType index) { nview[index] = index; });
+    axom::for_all<ExecSpace>(nValues,
+                             [=] AXOM_HOST_DEVICE(axom::IndexType index) { nview[index] = index; });
 
     EXPECT_EQ(n.dtype().number_of_elements(), nValues);
 
@@ -87,9 +88,9 @@ AXOM_CUDA_TEST(bump_utilities, make_array_view_interleaved_seq)
   auto view = utils::make_array_view<double>(n_data);
   EXPECT_EQ(view.size(), n);
 
-  axom::for_all<seq_exec>(
-    n,
-    AXOM_LAMBDA(axom::IndexType index) { view[index] = static_cast<double>((index + 1) * 100); });
+  axom::for_all<seq_exec>(n, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+    view[index] = static_cast<double>((index + 1) * 100);
+  });
 
   EXPECT_EQ(interleaved[0], -1.);
   EXPECT_EQ(interleaved[1], 100.);
@@ -146,7 +147,7 @@ struct test_copy_braid
     EXPECT_TRUE(emptyHostMesh.dtype().is_empty());
   }
 
-  static void create(conduit::Node &mesh)
+  static void create(conduit::Node& mesh)
   {
     const int d[3] = {10, 10, 10};
     conduit::blueprint::mesh::examples::braid("hexs", d[0], d[1], d[2], mesh);
@@ -166,7 +167,7 @@ TEST(bump_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);

@@ -44,14 +44,14 @@ public:
      *
      * @param asValue the record in its Node representation
      */
-  explicit TestRecord(conduit::Node const &asValue);
+  explicit TestRecord(conduit::Node const& asValue);
 
   /**
      * Get the record's value.
      *
      * @return the record's value
      */
-  const T &getValue() const noexcept { return value; }
+  const T& getValue() const noexcept { return value; }
 
   conduit::Node toNode(CurveSet::CurveOrder curveOrder = defaultCurveOrder) const override;
 
@@ -66,10 +66,10 @@ TestRecord<T>::TestRecord(std::string id, std::string type, T value_)
 { }
 
 template <>
-TestRecord<std::string>::TestRecord(conduit::Node const &asNode);
+TestRecord<std::string>::TestRecord(conduit::Node const& asNode);
 
 template <>
-TestRecord<int>::TestRecord(conduit::Node const &asJson);
+TestRecord<int>::TestRecord(conduit::Node const& asJson);
 
 template <typename T>
 conduit::Node TestRecord<T>::toNode(CurveSet::CurveOrder curveOrder) const

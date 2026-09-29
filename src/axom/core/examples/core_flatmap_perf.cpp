@@ -102,12 +102,10 @@ void test_flatmap_init_and_query(axom::IndexType num_elems, axom::IndexType rep_
     rnd += rand();
 
     // Generate random keys and values
-    axom::for_all<ExecPolicy>(
-      num_elems,
-      AXOM_LAMBDA(axom::IndexType index) {
-        keys[index] = static_cast<T>(SampleRNG(rnd, 2 * index));
-        values[index] = static_cast<T>(SampleRNG(rnd, 2 * index + 1));
-      });
+    axom::for_all<ExecPolicy>(num_elems, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      keys[index] = static_cast<T>(SampleRNG(rnd, 2 * index));
+      values[index] = static_cast<T>(SampleRNG(rnd, 2 * index + 1));
+    });
 
     // Construct a flat map in a single batch.
     initTimer.start();
@@ -120,16 +118,14 @@ void test_flatmap_init_and_query(axom::IndexType num_elems, axom::IndexType rep_
 
     findTimer.start();
     // Test use of FlatMap::find() within a kernel.
-    axom::for_all<ExecPolicy>(
-      num_elems,
-      AXOM_LAMBDA(axom::IndexType index) {
-        auto it = map_view.find(keys[index]);
-        if(it != map_view.end())
-        {
-          T value = it->second;
-          values[index] = value * 2;
-        }
-      });
+    axom::for_all<ExecPolicy>(num_elems, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      auto it = map_view.find(keys[index]);
+      if(it != map_view.end())
+      {
+        T value = it->second;
+        values[index] = value * 2;
+      }
+    });
     findTimer.stop();
 
     rehashTimer.start();

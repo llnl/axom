@@ -29,7 +29,7 @@ enum class InputFormat
  * \note This overload reads YAML for backward compatibility.
  * \throws KleeError if parsing, schema verification, or semantic validation fails
  */
-ShapeSet readShapeSet(std::istream &stream);
+ShapeSet readShapeSet(std::istream& stream);
 
 /**
  * Read a ShapeSet from an input stream.
@@ -39,7 +39,7 @@ ShapeSet readShapeSet(std::istream &stream);
  * \throws KleeError if parsing, schema verification, or semantic validation fails,
  *         or if the requested input format is unsupported by this build
  */
-ShapeSet readShapeSet(std::istream &stream, InputFormat format);
+ShapeSet readShapeSet(std::istream& stream, InputFormat format);
 
 /**
  * Read a ShapeSet from a specified file
@@ -51,7 +51,7 @@ ShapeSet readShapeSet(std::istream &stream, InputFormat format);
  * \throws KleeError if the extension is unsupported or if parsing,
  *         schema verification, or semantic validation fails
  */
-ShapeSet readShapeSet(const std::string &filePath);
+ShapeSet readShapeSet(const std::string& filePath);
 
 /**
  * Read a ShapeSet from a specified file using an explicit input format.
@@ -62,7 +62,7 @@ ShapeSet readShapeSet(const std::string &filePath);
  * \throws KleeError if parsing, schema verification, or semantic validation fails,
  *         or if the requested input format is unsupported by this build
  */
-ShapeSet readShapeSet(const std::string &filePath, InputFormat format);
+ShapeSet readShapeSet(const std::string& filePath, InputFormat format);
 
 }  // namespace klee
 }  // namespace axom

@@ -27,24 +27,24 @@
 
 // splicer begin C_definition
 // splicer end C_definition
-PyObject *PY_error_obj;
+PyObject* PY_error_obj;
 
 // splicer begin additional_functions
 // splicer end additional_functions
 
 #ifdef AXOM_USE_MPI
-static PyObject *PY_inout_init_mpi(PyObject *SHROUD_UNUSED(self), PyObject *args, PyObject *kwds)
+static PyObject* PY_inout_init_mpi(PyObject* SHROUD_UNUSED(self), PyObject* args, PyObject* kwds)
 {
   // splicer begin function.inout_init_mpi
-  char *fileName;
+  char* fileName;
   MPI_Fint comm;
-  const char *SHT_kwlist[] = {"fileName", "comm", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  const char* SHT_kwlist[] = {"fileName", "comm", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "sO:inout_init",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &fileName,
                                   &comm))
     return nullptr;
@@ -52,42 +52,42 @@ static PyObject *PY_inout_init_mpi(PyObject *SHROUD_UNUSED(self), PyObject *args
   MPI_Comm SH_comm = MPI_Comm_f2c(comm);
   int SHCXX_rv = axom::quest::inout_init(SH_fileName, SH_comm);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_init_mpi
 }
 #endif  // ifdef AXOM_USE_MPI
 
 #ifndef AXOM_USE_MPI
-static PyObject *PY_inout_init_serial(PyObject *SHROUD_UNUSED(self), PyObject *args, PyObject *kwds)
+static PyObject* PY_inout_init_serial(PyObject* SHROUD_UNUSED(self), PyObject* args, PyObject* kwds)
 {
   // splicer begin function.inout_init_serial
-  char *fileName;
-  const char *SHT_kwlist[] = {"fileName", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  char* fileName;
+  const char* SHT_kwlist[] = {"fileName", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
-  if(!PyArg_ParseTupleAndKeywords(args, kwds, "s:inout_init", const_cast<char **>(SHT_kwlist), &fileName))
+  if(!PyArg_ParseTupleAndKeywords(args, kwds, "s:inout_init", const_cast<char**>(SHT_kwlist), &fileName))
     return nullptr;
   const std::string SH_fileName(fileName);
   int SHCXX_rv = axom::quest::inout_init(SH_fileName);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_init_serial
 }
 #endif  // ifndef AXOM_USE_MPI
 
 static char PY_inout_initialized__doc__[] = "documentation";
 
-static PyObject *PY_inout_initialized(PyObject *SHROUD_UNUSED(self),
-                                      PyObject *SHROUD_UNUSED(args),
-                                      PyObject *SHROUD_UNUSED(kwds))
+static PyObject* PY_inout_initialized(PyObject* SHROUD_UNUSED(self),
+                                      PyObject* SHROUD_UNUSED(args),
+                                      PyObject* SHROUD_UNUSED(kwds))
 {
   // splicer begin function.inout_initialized
-  PyObject *SHTPy_rv = nullptr;
+  PyObject* SHTPy_rv = nullptr;
 
   bool SHCXX_rv = axom::quest::inout_initialized();
   SHTPy_rv = PyBool_FromLong(SHCXX_rv);
   if(SHTPy_rv == nullptr) goto fail;
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
 
 fail:
   Py_XDECREF(SHTPy_rv);
@@ -97,114 +97,114 @@ fail:
 
 static char PY_inout_set_dimension__doc__[] = "documentation";
 
-static PyObject *PY_inout_set_dimension(PyObject *SHROUD_UNUSED(self), PyObject *args, PyObject *kwds)
+static PyObject* PY_inout_set_dimension(PyObject* SHROUD_UNUSED(self), PyObject* args, PyObject* kwds)
 {
   // splicer begin function.inout_set_dimension
   int dim;
-  const char *SHT_kwlist[] = {"dim", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  const char* SHT_kwlist[] = {"dim", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "i:inout_set_dimension",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &dim))
     return nullptr;
   int SHCXX_rv = axom::quest::inout_set_dimension(dim);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_set_dimension
 }
 
 static char PY_inout_set_verbose__doc__[] = "documentation";
 
-static PyObject *PY_inout_set_verbose(PyObject *SHROUD_UNUSED(self), PyObject *args, PyObject *kwds)
+static PyObject* PY_inout_set_verbose(PyObject* SHROUD_UNUSED(self), PyObject* args, PyObject* kwds)
 {
   // splicer begin function.inout_set_verbose
   bool verbosity;
-  PyObject *SHPy_verbosity;
-  const char *SHT_kwlist[] = {"verbosity", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  PyObject* SHPy_verbosity;
+  const char* SHT_kwlist[] = {"verbosity", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "O!:inout_set_verbose",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &PyBool_Type,
                                   &SHPy_verbosity))
     return nullptr;
   verbosity = PyObject_IsTrue(SHPy_verbosity);
   int SHCXX_rv = axom::quest::inout_set_verbose(verbosity);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_set_verbose
 }
 
 static char PY_inout_set_vertex_weld_threshold__doc__[] = "documentation";
 
-static PyObject *PY_inout_set_vertex_weld_threshold(PyObject *SHROUD_UNUSED(self),
-                                                    PyObject *args,
-                                                    PyObject *kwds)
+static PyObject* PY_inout_set_vertex_weld_threshold(PyObject* SHROUD_UNUSED(self),
+                                                    PyObject* args,
+                                                    PyObject* kwds)
 {
   // splicer begin function.inout_set_vertex_weld_threshold
   double thresh;
-  const char *SHT_kwlist[] = {"thresh", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  const char* SHT_kwlist[] = {"thresh", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "d:inout_set_vertex_weld_threshold",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &thresh))
     return nullptr;
   int SHCXX_rv = axom::quest::inout_set_vertex_weld_threshold(thresh);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_set_vertex_weld_threshold
 }
 
 static char PY_inout_set_segments_per_knot_span__doc__[] = "documentation";
 
-static PyObject *PY_inout_set_segments_per_knot_span(PyObject *SHROUD_UNUSED(self),
-                                                     PyObject *args,
-                                                     PyObject *kwds)
+static PyObject* PY_inout_set_segments_per_knot_span(PyObject* SHROUD_UNUSED(self),
+                                                     PyObject* args,
+                                                     PyObject* kwds)
 {
   // splicer begin function.inout_set_segments_per_knot_span
   int segmentsPerKnotSpan;
-  const char *SHT_kwlist[] = {"segmentsPerKnotSpan", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  const char* SHT_kwlist[] = {"segmentsPerKnotSpan", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "i:inout_set_segments_per_knot_span",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &segmentsPerKnotSpan))
     return nullptr;
   int SHCXX_rv = axom::quest::inout_set_segments_per_knot_span(segmentsPerKnotSpan);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_set_segments_per_knot_span
 }
 
 static char PY_inout_evaluate_1__doc__[] = "documentation";
 
-static PyObject *PY_inout_evaluate_1(PyObject *SHROUD_UNUSED(self), PyObject *args, PyObject *kwds)
+static PyObject* PY_inout_evaluate_1(PyObject* SHROUD_UNUSED(self), PyObject* args, PyObject* kwds)
 {
   // splicer begin function.inout_evaluate
   Py_ssize_t SH_nargs = 0;
   double x;
   double y;
   double z;
-  const char *SHT_kwlist[] = {"x", "y", "z", nullptr};
+  const char* SHT_kwlist[] = {"x", "y", "z", nullptr};
   bool SHCXX_rv;
-  PyObject *SHTPy_rv = nullptr;
+  PyObject* SHTPy_rv = nullptr;
 
   if(args != nullptr) SH_nargs += PyTuple_Size(args);
   if(kwds != nullptr) SH_nargs += PyDict_Size(args);
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "dd|d:inout_evaluate",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &x,
                                   &y,
                                   &z))
@@ -223,7 +223,7 @@ static PyObject *PY_inout_evaluate_1(PyObject *SHROUD_UNUSED(self), PyObject *ar
   }
   SHTPy_rv = PyBool_FromLong(SHCXX_rv);
   if(SHTPy_rv == nullptr) goto fail;
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
 
 fail:
   Py_XDECREF(SHTPy_rv);
@@ -233,49 +233,49 @@ fail:
 
 static char PY_inout_get_dimension__doc__[] = "documentation";
 
-static PyObject *PY_inout_get_dimension(PyObject *SHROUD_UNUSED(self),
-                                        PyObject *SHROUD_UNUSED(args),
-                                        PyObject *SHROUD_UNUSED(kwds))
+static PyObject* PY_inout_get_dimension(PyObject* SHROUD_UNUSED(self),
+                                        PyObject* SHROUD_UNUSED(args),
+                                        PyObject* SHROUD_UNUSED(kwds))
 {
   // splicer begin function.inout_get_dimension
-  PyObject *SHTPy_rv = nullptr;
+  PyObject* SHTPy_rv = nullptr;
 
   int SHCXX_rv = axom::quest::inout_get_dimension();
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_get_dimension
 }
 
 static char PY_inout_finalize__doc__[] = "documentation";
 
-static PyObject *PY_inout_finalize(PyObject *SHROUD_UNUSED(self),
-                                   PyObject *SHROUD_UNUSED(args),
-                                   PyObject *SHROUD_UNUSED(kwds))
+static PyObject* PY_inout_finalize(PyObject* SHROUD_UNUSED(self),
+                                   PyObject* SHROUD_UNUSED(args),
+                                   PyObject* SHROUD_UNUSED(kwds))
 {
   // splicer begin function.inout_finalize
-  PyObject *SHTPy_rv = nullptr;
+  PyObject* SHTPy_rv = nullptr;
 
   int SHCXX_rv = axom::quest::inout_finalize();
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.inout_finalize
 }
 
 #ifdef AXOM_USE_MPI
-static PyObject *PY_signed_distance_init_mpi(PyObject *SHROUD_UNUSED(self),
-                                             PyObject *args,
-                                             PyObject *kwds)
+static PyObject* PY_signed_distance_init_mpi(PyObject* SHROUD_UNUSED(self),
+                                             PyObject* args,
+                                             PyObject* kwds)
 {
   // splicer begin function.signed_distance_init_mpi
-  char *file;
+  char* file;
   MPI_Fint comm;
-  const char *SHT_kwlist[] = {"file", "comm", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  const char* SHT_kwlist[] = {"file", "comm", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "sO:signed_distance_init",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &file,
                                   &comm))
     return nullptr;
@@ -283,48 +283,48 @@ static PyObject *PY_signed_distance_init_mpi(PyObject *SHROUD_UNUSED(self),
   MPI_Comm SH_comm = MPI_Comm_f2c(comm);
   int SHCXX_rv = axom::quest::signed_distance_init(SH_file, SH_comm);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.signed_distance_init_mpi
 }
 #endif  // ifdef AXOM_USE_MPI
 
 #ifndef AXOM_USE_MPI
-static PyObject *PY_signed_distance_init_serial(PyObject *SHROUD_UNUSED(self),
-                                                PyObject *args,
-                                                PyObject *kwds)
+static PyObject* PY_signed_distance_init_serial(PyObject* SHROUD_UNUSED(self),
+                                                PyObject* args,
+                                                PyObject* kwds)
 {
   // splicer begin function.signed_distance_init_serial
-  char *file;
-  const char *SHT_kwlist[] = {"file", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  char* file;
+  const char* SHT_kwlist[] = {"file", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "s:signed_distance_init",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &file))
     return nullptr;
   const std::string SH_file(file);
   int SHCXX_rv = axom::quest::signed_distance_init(SH_file);
   SHTPy_rv = PyInt_FromLong(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.signed_distance_init_serial
 }
 #endif  // ifndef AXOM_USE_MPI
 
 static char PY_signed_distance_initialized__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_initialized(PyObject *SHROUD_UNUSED(self),
-                                                PyObject *SHROUD_UNUSED(args),
-                                                PyObject *SHROUD_UNUSED(kwds))
+static PyObject* PY_signed_distance_initialized(PyObject* SHROUD_UNUSED(self),
+                                                PyObject* SHROUD_UNUSED(args),
+                                                PyObject* SHROUD_UNUSED(kwds))
 {
   // splicer begin function.signed_distance_initialized
-  PyObject *SHTPy_rv = nullptr;
+  PyObject* SHTPy_rv = nullptr;
 
   bool SHCXX_rv = axom::quest::signed_distance_initialized();
   SHTPy_rv = PyBool_FromLong(SHCXX_rv);
   if(SHTPy_rv == nullptr) goto fail;
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
 
 fail:
   Py_XDECREF(SHTPy_rv);
@@ -334,18 +334,18 @@ fail:
 
 static char PY_signed_distance_set_dimension__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_set_dimension(PyObject *SHROUD_UNUSED(self),
-                                                  PyObject *args,
-                                                  PyObject *kwds)
+static PyObject* PY_signed_distance_set_dimension(PyObject* SHROUD_UNUSED(self),
+                                                  PyObject* args,
+                                                  PyObject* kwds)
 {
   // splicer begin function.signed_distance_set_dimension
   int dim;
-  const char *SHT_kwlist[] = {"dim", nullptr};
+  const char* SHT_kwlist[] = {"dim", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "i:signed_distance_set_dimension",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &dim))
     return nullptr;
   axom::quest::signed_distance_set_dimension(dim);
@@ -355,19 +355,19 @@ static PyObject *PY_signed_distance_set_dimension(PyObject *SHROUD_UNUSED(self),
 
 static char PY_signed_distance_set_closed_surface__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_set_closed_surface(PyObject *SHROUD_UNUSED(self),
-                                                       PyObject *args,
-                                                       PyObject *kwds)
+static PyObject* PY_signed_distance_set_closed_surface(PyObject* SHROUD_UNUSED(self),
+                                                       PyObject* args,
+                                                       PyObject* kwds)
 {
   // splicer begin function.signed_distance_set_closed_surface
   bool status;
-  PyObject *SHPy_status;
-  const char *SHT_kwlist[] = {"status", nullptr};
+  PyObject* SHPy_status;
+  const char* SHT_kwlist[] = {"status", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "O!:signed_distance_set_closed_surface",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &PyBool_Type,
                                   &SHPy_status))
     return nullptr;
@@ -379,19 +379,19 @@ static PyObject *PY_signed_distance_set_closed_surface(PyObject *SHROUD_UNUSED(s
 
 static char PY_signed_distance_set_compute_signs__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_set_compute_signs(PyObject *SHROUD_UNUSED(self),
-                                                      PyObject *args,
-                                                      PyObject *kwds)
+static PyObject* PY_signed_distance_set_compute_signs(PyObject* SHROUD_UNUSED(self),
+                                                      PyObject* args,
+                                                      PyObject* kwds)
 {
   // splicer begin function.signed_distance_set_compute_signs
   bool computeSign;
-  PyObject *SHPy_computeSign;
-  const char *SHT_kwlist[] = {"computeSign", nullptr};
+  PyObject* SHPy_computeSign;
+  const char* SHT_kwlist[] = {"computeSign", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "O!:signed_distance_set_compute_signs",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &PyBool_Type,
                                   &SHPy_computeSign))
     return nullptr;
@@ -403,18 +403,18 @@ static PyObject *PY_signed_distance_set_compute_signs(PyObject *SHROUD_UNUSED(se
 
 static char PY_signed_distance_set_allocator__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_set_allocator(PyObject *SHROUD_UNUSED(self),
-                                                  PyObject *args,
-                                                  PyObject *kwds)
+static PyObject* PY_signed_distance_set_allocator(PyObject* SHROUD_UNUSED(self),
+                                                  PyObject* args,
+                                                  PyObject* kwds)
 {
   // splicer begin function.signed_distance_set_allocator
   int allocatorID;
-  const char *SHT_kwlist[] = {"allocatorID", nullptr};
+  const char* SHT_kwlist[] = {"allocatorID", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "i:signed_distance_set_allocator",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &allocatorID))
     return nullptr;
   axom::quest::signed_distance_set_allocator(allocatorID);
@@ -424,19 +424,19 @@ static PyObject *PY_signed_distance_set_allocator(PyObject *SHROUD_UNUSED(self),
 
 static char PY_signed_distance_set_verbose__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_set_verbose(PyObject *SHROUD_UNUSED(self),
-                                                PyObject *args,
-                                                PyObject *kwds)
+static PyObject* PY_signed_distance_set_verbose(PyObject* SHROUD_UNUSED(self),
+                                                PyObject* args,
+                                                PyObject* kwds)
 {
   // splicer begin function.signed_distance_set_verbose
   bool status;
-  PyObject *SHPy_status;
-  const char *SHT_kwlist[] = {"status", nullptr};
+  PyObject* SHPy_status;
+  const char* SHT_kwlist[] = {"status", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "O!:signed_distance_set_verbose",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &PyBool_Type,
                                   &SHPy_status))
     return nullptr;
@@ -448,19 +448,19 @@ static PyObject *PY_signed_distance_set_verbose(PyObject *SHROUD_UNUSED(self),
 
 static char PY_signed_distance_use_shared_memory__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_use_shared_memory(PyObject *SHROUD_UNUSED(self),
-                                                      PyObject *args,
-                                                      PyObject *kwds)
+static PyObject* PY_signed_distance_use_shared_memory(PyObject* SHROUD_UNUSED(self),
+                                                      PyObject* args,
+                                                      PyObject* kwds)
 {
   // splicer begin function.signed_distance_use_shared_memory
   bool status;
-  PyObject *SHPy_status;
-  const char *SHT_kwlist[] = {"status", nullptr};
+  PyObject* SHPy_status;
+  const char* SHT_kwlist[] = {"status", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "O!:signed_distance_use_shared_memory",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &PyBool_Type,
                                   &SHPy_status))
     return nullptr;
@@ -472,18 +472,18 @@ static PyObject *PY_signed_distance_use_shared_memory(PyObject *SHROUD_UNUSED(se
 
 static char PY_signed_distance_set_shared_memory_size__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_set_shared_memory_size(PyObject *SHROUD_UNUSED(self),
-                                                           PyObject *args,
-                                                           PyObject *kwds)
+static PyObject* PY_signed_distance_set_shared_memory_size(PyObject* SHROUD_UNUSED(self),
+                                                           PyObject* args,
+                                                           PyObject* kwds)
 {
   // splicer begin function.signed_distance_set_shared_memory_size
   size_t minSegmentSize;
-  const char *SHT_kwlist[] = {"minSegmentSize", nullptr};
+  const char* SHT_kwlist[] = {"minSegmentSize", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "n:signed_distance_set_shared_memory_size",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &minSegmentSize))
     return nullptr;
   axom::quest::signed_distance_set_shared_memory_size(minSegmentSize);
@@ -493,18 +493,18 @@ static PyObject *PY_signed_distance_set_shared_memory_size(PyObject *SHROUD_UNUS
 
 static char PY_signed_distance_set_execution_space__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_set_execution_space(PyObject *SHROUD_UNUSED(self),
-                                                        PyObject *args,
-                                                        PyObject *kwds)
+static PyObject* PY_signed_distance_set_execution_space(PyObject* SHROUD_UNUSED(self),
+                                                        PyObject* args,
+                                                        PyObject* kwds)
 {
   // splicer begin function.signed_distance_set_execution_space
   int execSpace;
-  const char *SHT_kwlist[] = {"execSpace", nullptr};
+  const char* SHT_kwlist[] = {"execSpace", nullptr};
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "i:signed_distance_set_execution_space",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &execSpace))
     return nullptr;
   axom::quest::SignedDistExec SH_execSpace = static_cast<axom::quest::SignedDistExec>(execSpace);
@@ -513,34 +513,34 @@ static PyObject *PY_signed_distance_set_execution_space(PyObject *SHROUD_UNUSED(
   // splicer end function.signed_distance_set_execution_space
 }
 
-static PyObject *PY_signed_distance_evaluate_0(PyObject *SHROUD_UNUSED(self),
-                                               PyObject *args,
-                                               PyObject *kwds)
+static PyObject* PY_signed_distance_evaluate_0(PyObject* SHROUD_UNUSED(self),
+                                               PyObject* args,
+                                               PyObject* kwds)
 {
   // splicer begin function.signed_distance_evaluate_0
   double x;
   double y;
   double z;
-  const char *SHT_kwlist[] = {"x", "y", "z", nullptr};
-  PyObject *SHTPy_rv = nullptr;
+  const char* SHT_kwlist[] = {"x", "y", "z", nullptr};
+  PyObject* SHTPy_rv = nullptr;
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "ddd:signed_distance_evaluate",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &x,
                                   &y,
                                   &z))
     return nullptr;
   double SHCXX_rv = axom::quest::signed_distance_evaluate(x, y, z);
   SHTPy_rv = PyFloat_FromDouble(SHCXX_rv);
-  return (PyObject *)SHTPy_rv;
+  return (PyObject*)SHTPy_rv;
   // splicer end function.signed_distance_evaluate_0
 }
 
-static PyObject *PY_signed_distance_evaluate_1(PyObject *SHROUD_UNUSED(self),
-                                               PyObject *args,
-                                               PyObject *kwds)
+static PyObject* PY_signed_distance_evaluate_1(PyObject* SHROUD_UNUSED(self),
+                                               PyObject* args,
+                                               PyObject* kwds)
 {
   // splicer begin function.signed_distance_evaluate_1
   double x;
@@ -552,13 +552,13 @@ static PyObject *PY_signed_distance_evaluate_1(PyObject *SHROUD_UNUSED(self),
   double n_x;
   double n_y;
   double n_z;
-  const char *SHT_kwlist[] = {"x", "y", "z", "cp_x", "cp_y", "cp_z", "n_x", "n_y", "n_z", nullptr};
-  PyObject *SHTPy_rv = nullptr;  // return value object
+  const char* SHT_kwlist[] = {"x", "y", "z", "cp_x", "cp_y", "cp_z", "n_x", "n_y", "n_z", nullptr};
+  PyObject* SHTPy_rv = nullptr;  // return value object
 
   if(!PyArg_ParseTupleAndKeywords(args,
                                   kwds,
                                   "ddddddddd:signed_distance_evaluate",
-                                  const_cast<char **>(SHT_kwlist),
+                                  const_cast<char**>(SHT_kwlist),
                                   &x,
                                   &y,
                                   &z,
@@ -577,9 +577,9 @@ static PyObject *PY_signed_distance_evaluate_1(PyObject *SHROUD_UNUSED(self),
 
 static char PY_signed_distance_finalize__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_finalize(PyObject *SHROUD_UNUSED(self),
-                                             PyObject *SHROUD_UNUSED(args),
-                                             PyObject *SHROUD_UNUSED(kwds))
+static PyObject* PY_signed_distance_finalize(PyObject* SHROUD_UNUSED(self),
+                                             PyObject* SHROUD_UNUSED(args),
+                                             PyObject* SHROUD_UNUSED(kwds))
 {
   // splicer begin function.signed_distance_finalize
   axom::quest::signed_distance_finalize();
@@ -589,13 +589,13 @@ static PyObject *PY_signed_distance_finalize(PyObject *SHROUD_UNUSED(self),
 
 static char PY_inout_init__doc__[] = "documentation";
 
-static PyObject *PY_inout_init(PyObject *self, PyObject *args, PyObject *kwds)
+static PyObject* PY_inout_init(PyObject* self, PyObject* args, PyObject* kwds)
 {
   // splicer begin function.inout_init
   Py_ssize_t SHT_nargs = 0;
   if(args != nullptr) SHT_nargs += PyTuple_Size(args);
   if(kwds != nullptr) SHT_nargs += PyDict_Size(args);
-  PyObject *rvobj;
+  PyObject* rvobj;
 #ifdef AXOM_USE_MPI
   if(SHT_nargs == 2)
   {
@@ -633,13 +633,13 @@ static PyObject *PY_inout_init(PyObject *self, PyObject *args, PyObject *kwds)
 
 static char PY_signed_distance_init__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_init(PyObject *self, PyObject *args, PyObject *kwds)
+static PyObject* PY_signed_distance_init(PyObject* self, PyObject* args, PyObject* kwds)
 {
   // splicer begin function.signed_distance_init
   Py_ssize_t SHT_nargs = 0;
   if(args != nullptr) SHT_nargs += PyTuple_Size(args);
   if(kwds != nullptr) SHT_nargs += PyDict_Size(args);
-  PyObject *rvobj;
+  PyObject* rvobj;
 #ifdef AXOM_USE_MPI
   if(SHT_nargs == 2)
   {
@@ -677,13 +677,13 @@ static PyObject *PY_signed_distance_init(PyObject *self, PyObject *args, PyObjec
 
 static char PY_signed_distance_evaluate__doc__[] = "documentation";
 
-static PyObject *PY_signed_distance_evaluate(PyObject *self, PyObject *args, PyObject *kwds)
+static PyObject* PY_signed_distance_evaluate(PyObject* self, PyObject* args, PyObject* kwds)
 {
   // splicer begin function.signed_distance_evaluate
   Py_ssize_t SHT_nargs = 0;
   if(args != nullptr) SHT_nargs += PyTuple_Size(args);
   if(kwds != nullptr) SHT_nargs += PyDict_Size(args);
-  PyObject *rvobj;
+  PyObject* rvobj;
   if(SHT_nargs == 3)
   {
     rvobj = PY_signed_distance_evaluate_0(self, args, kwds);
@@ -798,24 +798,24 @@ static char PY__doc__[] = "library documentation";
 
 struct module_state
 {
-  PyObject *error;
+  PyObject* error;
 };
 
 #if PY_MAJOR_VERSION >= 3
-  #define GETSTATE(m) ((struct module_state *)PyModule_GetState(m))
+  #define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
 #else
   #define GETSTATE(m) (&_state)
 static struct module_state _state;
 #endif
 
 #if PY_MAJOR_VERSION >= 3
-static int quest_traverse(PyObject *m, visitproc visit, void *arg)
+static int quest_traverse(PyObject* m, visitproc visit, void* arg)
 {
   Py_VISIT(GETSTATE(m)->error);
   return 0;
 }
 
-static int quest_clear(PyObject *m)
+static int quest_clear(PyObject* m)
 {
   Py_CLEAR(GETSTATE(m)->error);
   return 0;
@@ -847,8 +847,8 @@ PyInit_quest(void)
 initquest(void)
 #endif
 {
-  PyObject *m = nullptr;
-  const char *error_name = "quest.Error";
+  PyObject* m = nullptr;
+  const char* error_name = "quest.Error";
 
   // splicer begin C_init_locals
   // splicer end C_init_locals
@@ -857,17 +857,17 @@ initquest(void)
 #if PY_MAJOR_VERSION >= 3
   m = PyModule_Create(&moduledef);
 #else
-  m = Py_InitModule4("quest", PY_methods, PY__doc__, (PyObject *)nullptr, PYTHON_API_VERSION);
+  m = Py_InitModule4("quest", PY_methods, PY__doc__, (PyObject*)nullptr, PYTHON_API_VERSION);
 #endif
   if(m == nullptr) return RETVAL;
-  struct module_state *st = GETSTATE(m);
+  struct module_state* st = GETSTATE(m);
 
   // enum axom::quest::SignedDistExec
   PyModule_AddIntConstant(m, "CPU", static_cast<int>(axom::quest::SignedDistExec::CPU));
   PyModule_AddIntConstant(m, "OpenMP", static_cast<int>(axom::quest::SignedDistExec::OpenMP));
   PyModule_AddIntConstant(m, "GPU", static_cast<int>(axom::quest::SignedDistExec::GPU));
 
-  PY_error_obj = PyErr_NewException((char *)error_name, nullptr, nullptr);
+  PY_error_obj = PyErr_NewException((char*)error_name, nullptr, nullptr);
   if(PY_error_obj == nullptr) return RETVAL;
   st->error = PY_error_obj;
   PyModule_AddObject(m, "Error", st->error);

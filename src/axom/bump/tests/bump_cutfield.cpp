@@ -110,7 +110,7 @@ struct test_cutfield
     EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_gyroid", hostResult));
   }
 
-  static void initialize(conduit::Node &mesh)
+  static void initialize(conduit::Node& mesh)
   {
     const axom::IndexType N = 20;
     const axom::StackArray<axom::IndexType, 3> dims {N, N, (NDIMS > 2) ? N : 0};
@@ -186,10 +186,10 @@ struct test_cutfield
     EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_gyroid", hostResult));
   }
 
-  static void initialize_polygonal(conduit::Node &n_mesh)
+  static void initialize_polygonal(conduit::Node& n_mesh)
   {
     // This is a tile definition for a tile that contains polygons with 3-8 sides.
-    static const char *tile = R"(
+    static const char* tile = R"(
 coordsets:
   coords:
     type: explicit
@@ -321,7 +321,7 @@ TEST(bump_cutfield, cutfield_3D_hip) { test_cutfield<hip_exec, 3>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

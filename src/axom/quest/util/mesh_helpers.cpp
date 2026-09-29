@@ -13,84 +13,14 @@
 #if defined(AXOM_USE_CONDUIT)
   #include <conduit/conduit_blueprint_mesh.hpp>
 #endif
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+  #include "axom/bump/MakeExplicitCoordset.hpp"
+  #include "axom/bump/MakeUnstructured.hpp"
+#endif
 #include <iostream>
 
-namespace axom
+namespace axom::quest::util
 {
-namespace quest
-{
-namespace util
-{
-#ifdef AXOM_USE_MFEM
-mfem::Mesh* make_cartesian_mfem_mesh_2D(const primal::BoundingBox<double, 2>& bbox,
-                                        const NumericArray<int, 2>& res,
-                                        int polynomial_order,
-                                        bool reorder_space_filling)
-{
-  constexpr int DIM = 2;
-  const auto range = bbox.range();
-
-  auto* mesh = new mfem::Mesh(mfem::Mesh::MakeCartesian2D(res[0],
-                                                          res[1],
-                                                          mfem::Element::QUADRILATERAL,
-                                                          true,
-                                                          range[0],
-                                                          range[1],
-                                                          reorder_space_filling));
-
-  // Offset the mesh to lie w/in the bounding box
-  const int NV = mesh->GetNV();
-  for(int i = 0; i < NV; ++i)
-  {
-    double* v = mesh->GetVertex(i);
-    for(int d = 0; d < DIM; ++d)
-    {
-      v[d] += bbox.getMin()[d];
-    }
-  }
-
-  // Ensure that mesh has high order nodes
-  mesh->SetCurvature(polynomial_order);
-
-  return mesh;
-}
-
-mfem::Mesh* make_cartesian_mfem_mesh_3D(const primal::BoundingBox<double, 3>& bbox,
-                                        const NumericArray<int, 3>& res,
-                                        int polynomial_order,
-                                        bool reorder_space_filling)
-{
-  constexpr int DIM = 3;
-  const auto range = bbox.range();
-
-  auto* mesh = new mfem::Mesh(mfem::Mesh::MakeCartesian3D(res[0],
-                                                          res[1],
-                                                          res[2],
-                                                          mfem::Element::HEXAHEDRON,
-                                                          range[0],
-                                                          range[1],
-                                                          range[2],
-                                                          reorder_space_filling));
-
-  // Offset the mesh to lie w/in the bounding box
-  const int NV = mesh->GetNV();
-  for(int i = 0; i < NV; ++i)
-  {
-    double* v = mesh->GetVertex(i);
-    for(int d = 0; d < DIM; ++d)
-    {
-      v[d] += bbox.getMin()[d];
-    }
-  }
-
-  // Ensure that mesh has high order nodes
-  mesh->SetCurvature(polynomial_order);
-
-  return mesh;
-}
-
-#endif  // AXOM_USE_MFEM
-
 #if defined(AXOM_USE_SIDRE)
 
 axom::sidre::Group* make_structured_blueprint_box_mesh_3d(axom::sidre::Group* meshGrp,
@@ -343,7 +273,10 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
   axom::sidre::View* ugTopoTypeView =
     ugTopoGrp == topoGrp ? ugTopoGrp->getView("type") : ugTopoGrp->createView("type");
   ugTopoTypeView->setString("unstructured");
-  axom::sidre::View* shapeView = ugTopoGrp->createView("elements/shape");
+  axom::sidre::View* shapeView = ugTopoGrp->hasView("elements/shape")
+    ? ugTopoGrp->getView("elements/shape")
+    : ugTopoGrp->createView("elements/shape");
+  SLIC_ASSERT(shapeView != nullptr);
   shapeView->setString("hex");
 
   axom::sidre::Group* topoElemGrp = topoGrp->getGroup("elements");
@@ -376,22 +309,20 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
 
   const axom::StackArray<const axom::StackArray<axom::IndexType, DIM>, 8> cornerOffsets {
     {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}, {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}}};
-  axom::for_all<ExecSpace>(
-    cCount,
-    AXOM_LAMBDA(axom::IndexType iCell) {
-      axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
-      for(int n = 0; n < 8; ++n)
+  axom::for_all<ExecSpace>(cCount, [=] AXOM_HOST_DEVICE(axom::IndexType iCell) {
+    axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
+    for(int n = 0; n < 8; ++n)
+    {
+      const auto& cornerOffset = cornerOffsets[n];
+      axom::StackArray<axom::IndexType, DIM> vIdx;
+      for(int d = 0; d < DIM; ++d)
       {
-        const auto& cornerOffset = cornerOffsets[n];
-        axom::StackArray<axom::IndexType, DIM> vIdx;
-        for(int d = 0; d < DIM; ++d)
-        {
-          vIdx[d] = cIdx[d] + cornerOffset[d];
-        }
-        axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
-        connArrayView(iCell, n) = iVert;
+        vIdx[d] = cIdx[d] + cornerOffset[d];
       }
-    });
+      axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
+      connArrayView(iCell, n) = iVert;
+    }
+  });
 
   const bool addExtraDataForMint = true;
   if(addExtraDataForMint)
@@ -466,7 +397,11 @@ void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::
   axom::sidre::View* topoTypeView = topoGrp->getView("type");
   SLIC_ASSERT(std::string(topoTypeView->getString()) == "structured");
   topoTypeView->setString("unstructured");
-  topoGrp->createView("elements/shape")->setString("quad");
+  axom::sidre::View* shapeView = topoGrp->hasView("elements/shape")
+    ? topoGrp->getView("elements/shape")
+    : topoGrp->createView("elements/shape");
+  SLIC_ASSERT(shapeView != nullptr);
+  shapeView->setString("quad");
 
   axom::sidre::Group* topoElemGrp = topoGrp->getGroup("elements");
   axom::sidre::Group* topoDimsGrp = topoElemGrp->getGroup("dims");
@@ -498,22 +433,20 @@ void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::
 
   const axom::StackArray<const axom::StackArray<axom::IndexType, DIM>, NUM_VERTS_PER_QUAD> cornerOffsets {
     {{0, 0}, {1, 0}, {1, 1}, {0, 1}}};
-  axom::for_all<ExecSpace>(
-    cCount,
-    AXOM_LAMBDA(axom::IndexType iCell) {
-      axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
-      for(int n = 0; n < NUM_VERTS_PER_QUAD; ++n)
+  axom::for_all<ExecSpace>(cCount, [=] AXOM_HOST_DEVICE(axom::IndexType iCell) {
+    axom::StackArray<axom::IndexType, DIM> cIdx = cIdMapping.toMultiIndex(iCell);
+    for(int n = 0; n < NUM_VERTS_PER_QUAD; ++n)
+    {
+      const auto& cornerOffset = cornerOffsets[n];
+      axom::StackArray<axom::IndexType, DIM> vIdx;
+      for(int d = 0; d < DIM; ++d)
       {
-        const auto& cornerOffset = cornerOffsets[n];
-        axom::StackArray<axom::IndexType, DIM> vIdx;
-        for(int d = 0; d < DIM; ++d)
-        {
-          vIdx[d] = cIdx[d] + cornerOffset[d];
-        }
-        axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
-        connArrayView(iCell, n) = iVert;
+        vIdx[d] = cIdx[d] + cornerOffset[d];
       }
-    });
+      axom::IndexType iVert = vIdMapping.toFlatIndex(vIdx);
+      connArrayView(iCell, n) = iVert;
+    }
+  });
 
   const bool addExtraDataForMint = true;
   if(addExtraDataForMint)
@@ -668,7 +601,7 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
   {
     axom::for_all<ExecSpace>(
       shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
         zView(i, j, k) = domainBox.getMin()[2] + k * dz;
@@ -683,7 +616,7 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
 
     axom::for_all<ExecSpace>(
       shapeKJI,
-      AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
         zView(i, j, k) = domainBox.getMin()[2] + k * dz;
@@ -720,27 +653,87 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
-    axom::for_all<ExecSpace>(
-      shape,
-      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
-        xView(i, j) = domainBox.getMin()[0] + i * dx;
-        yView(i, j) = domainBox.getMin()[1] + j * dy;
-      });
+    axom::for_all<ExecSpace>(shape, [=] AXOM_HOST_DEVICE(axom::IndexType i, axom::IndexType j) {
+      xView(i, j) = domainBox.getMin()[0] + i * dx;
+      yView(i, j) = domainBox.getMin()[1] + j * dy;
+    });
   }
   else
   {
     axom::StackArray<axom::IndexType, 2> shapeJI;
     shapeJI[0] = shape[1];
     shapeJI[1] = shape[0];
-    axom::for_all<ExecSpace>(
-      shapeJI,
-      AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) {
-        xView(i, j) = domainBox.getMin()[0] + i * dx;
-        yView(i, j) = domainBox.getMin()[1] + j * dy;
-      });
+    axom::for_all<ExecSpace>(shapeJI, [=] AXOM_HOST_DEVICE(axom::IndexType j, axom::IndexType i) {
+      xView(i, j) = domainBox.getMin()[0] + i * dx;
+      yView(i, j) = domainBox.getMin()[1] + j * dy;
+    });
   }
 }
 
-}  // namespace util
-}  // namespace quest
-}  // namespace axom
+#if defined(AXOM_USE_CONDUIT)
+  #if defined(AXOM_USE_BUMP)
+/// Convert a Blueprint topology and coordset stored as conduit::Node to unstructured+explicit
+template <typename ExecSpace>
+void convert_to_unstructured_impl(conduit::Node& n_topo,
+                                  conduit::Node& n_coordset,
+                                  const std::string& topologyName)
+{
+  // Make sure the coordset is explicit, or do nothing if it is already explicit.
+  axom::bump::MakeExplicitCoordset<ExecSpace>::execute(n_coordset);
+
+  if(n_topo["type"].as_string() != "unstructured")
+  {
+    // Make an unstructured version of the topology.
+    conduit::Node newMesh;
+    axom::bump::MakeUnstructured<ExecSpace>::execute(n_topo, n_coordset, topologyName, newMesh);
+
+    // Swap topology definitions so we keep the converted one.
+    conduit::Node& n_new_topo = newMesh.fetch_existing("topologies/" + topologyName);
+    n_topo.swap(n_new_topo);
+  }
+}
+  #endif
+
+void convert_blueprint_structured_explicit_to_unstructured(conduit::Node& n_mesh,
+                                                           const std::string& topologyName,
+                                                           axom::runtime_policy::Policy runtimePolicy)
+{
+  #if defined(AXOM_USE_BUMP)
+  SLIC_ERROR_IF(!n_mesh.has_path("topologies/" + topologyName), "Cannot find topology");
+  conduit::Node& n_topo = n_mesh.fetch_existing("topologies/" + topologyName);
+  conduit::Node* n_coordset = const_cast<conduit::Node*>(
+    conduit::blueprint::mesh::utils::find_reference_node(n_topo, "coordset"));
+  SLIC_ERROR_IF(n_coordset == nullptr, "Cannot find coordset");
+
+  if(runtimePolicy == axom::runtime_policy::Policy::seq)
+  {
+    convert_to_unstructured_impl<axom::SEQ_EXEC>(n_topo, *n_coordset, topologyName);
+  }
+    #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  if(runtimePolicy == axom::runtime_policy::Policy::omp)
+  {
+    convert_to_unstructured_impl<axom::OMP_EXEC>(n_topo, *n_coordset, topologyName);
+  }
+    #endif
+    #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  if(runtimePolicy == axom::runtime_policy::Policy::cuda)
+  {
+    convert_to_unstructured_impl<axom::CUDA_EXEC<256>>(n_topo, *n_coordset, topologyName);
+  }
+    #endif
+    #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  if(runtimePolicy == axom::runtime_policy::Policy::hip)
+  {
+    convert_to_unstructured_impl<axom::HIP_EXEC<256>>(n_topo, *n_coordset, topologyName);
+  }
+    #endif
+  #else
+  AXOM_UNUSED_VAR(n_mesh);
+  AXOM_UNUSED_VAR(topologyName);
+  AXOM_UNUSED_VAR(runtimePolicy);
+  SLIC_ERROR("convert_blueprint_structured_explicit_to_unstructured requires Bump.");
+  #endif
+}
+#endif
+
+}  // namespace axom::quest::util

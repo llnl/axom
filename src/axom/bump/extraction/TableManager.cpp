@@ -16,7 +16,7 @@ TableManager::TableManager() { m_allocator_id = axom::getDefaultAllocatorID(); }
 
 void TableManager::setAllocatorID(int allocatorID) { m_allocator_id = allocatorID; }
 
-Table &TableManager::operator[](size_t shape)
+Table& TableManager::operator[](size_t shape)
 {
   const size_t index = shapeToIndex(shape);
   SLIC_ASSERT(shape < ST_MAX);

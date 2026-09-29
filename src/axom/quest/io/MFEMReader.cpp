@@ -42,12 +42,12 @@ namespace internal
  *
  * \return 0 on success; non-zero on failure.
  */
-int read_mfem(const std::string &fileName,
-              std::map<int, axom::Array<primal::NURBSCurve<double, 2>>> &curvemap)
+int read_mfem(const std::string& fileName,
+              std::map<int, axom::Array<primal::NURBSCurve<double, 2>>>& curvemap)
 {
   if(!axom::utilities::filesystem::pathExists(fileName))
   {
-    SLIC_WARNING(axom::fmt::format("Cannot open the provided MFEM mesh file '{}'", fileName));
+    SLIC_WARNING_ROOT(axom::fmt::format("Cannot open the provided MFEM mesh file '{}'", fileName));
     return MFEMReader::READ_FAILED;
   }
 
@@ -59,7 +59,7 @@ int read_mfem(const std::string &fileName,
 
   if(mesh->Dimension() != 1 || mesh->SpaceDimension() != 2)
   {
-    SLIC_WARNING(
+    SLIC_WARNING_ROOT(
       axom::fmt::format("Mesh must have dimension 1 and spatial dimension 2. The supplied mesh "
                         "is dimension {} with spatial dimension {}.",
                         mesh->Dimension(),
@@ -67,12 +67,12 @@ int read_mfem(const std::string &fileName,
     return MFEMReader::READ_FAILED;
   }
 
-  const auto *nodes = mesh->GetNodes();
-  const auto *fes = nodes != nullptr ? nodes->FESpace() : nullptr;
-  const auto *fec = fes != nullptr ? fes->FEColl() : nullptr;
+  const auto* nodes = mesh->GetNodes();
+  const auto* fes = nodes != nullptr ? nodes->FESpace() : nullptr;
+  const auto* fec = fes != nullptr ? fes->FEColl() : nullptr;
   if(nodes == nullptr || fes == nullptr || fec == nullptr)
   {
-    SLIC_WARNING("Mesh does not have a valid nodes grid function");
+    SLIC_WARNING_ROOT("Mesh does not have a valid nodes grid function");
     return MFEMReader::READ_FAILED;
   }
 
@@ -105,7 +105,7 @@ int read_mfem(const std::string &fileName,
     mesh->NURBSext->GetPatchDofs(patchId, dofs);
     if(dofs.Size() <= 0)
     {
-      SLIC_WARNING(
+      SLIC_WARNING_ROOT(
         axom::fmt::format("MFEM patch {} has no DOFs; cannot extract NURBS curve.", patchId));
       return {};
     }
@@ -161,14 +161,14 @@ int read_mfem(const std::string &fileName,
   };
 
   auto get_element_degree = [fes, &mesh](int elemId) -> int {
-    const mfem::Array<int> &orders = mesh->NURBSext->GetOrders();
+    const mfem::Array<int>& orders = mesh->NURBSext->GetOrders();
     // MFEM calls this "order"; in Axom terminology this is the polynomial degree.
     return (elemId < orders.Size()) ? orders[elemId] : fes->GetOrder(elemId);
   };
 #endif
 
   // lambda to check if the weights correspond to a rational curve. If they are all equal it is not rational
-  auto is_rational = [](const axom::Array<double> &weights) -> bool {
+  auto is_rational = [](const axom::Array<double>& weights) -> bool {
     const int sz = weights.size();
     if(sz == 0)
     {
@@ -189,7 +189,7 @@ int read_mfem(const std::string &fileName,
 
   // Examine the mesh attributes and group all of the related curves w/ same attribute
   // Assumption is that they're part of the same contour
-  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection *>(fec) != nullptr;
+  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
   if(isNURBS)
   {
 #if MFEM_VERSION >= AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
@@ -201,19 +201,19 @@ int read_mfem(const std::string &fileName,
     {
       const int attribute = mesh->GetPatchAttribute(patchId);
 
-      mfem::Array<const mfem::KnotVector *> kvs;
+      mfem::Array<const mfem::KnotVector*> kvs;
       mesh->NURBSext->GetPatchKnotVectors(patchId, kvs);
       if(kvs.Size() < 1 || kvs[0] == nullptr)
       {
-        SLIC_WARNING(
+        SLIC_WARNING_ROOT(
           axom::fmt::format("MFEM patch {} has no valid knot vector; cannot extract NURBS curve.",
                             patchId));
         return MFEMReader::READ_FAILED;
       }
-      const mfem::KnotVector &kv0 = *kvs[0];
+      const mfem::KnotVector& kv0 = *kvs[0];
       if(kv0.Size() <= 0)
       {
-        SLIC_WARNING(
+        SLIC_WARNING_ROOT(
           axom::fmt::format("MFEM patch {} has an empty knot vector; cannot extract NURBS curve.",
                             patchId));
         return MFEMReader::READ_FAILED;
@@ -224,7 +224,8 @@ int read_mfem(const std::string &fileName,
       const primal::KnotVector<double> kv(knots_view, kv0.GetOrder(), SkipTag {});
       if(!kv.isValid(true))
       {
-        SLIC_WARNING(axom::fmt::format("MFEM patch {} has an invalid knot vector: {}", patchId, kv));
+        SLIC_WARNING_ROOT(
+          axom::fmt::format("MFEM patch {} has an invalid knot vector: {}", patchId, kv));
         return MFEMReader::READ_FAILED;
       }
 
@@ -259,10 +260,10 @@ int read_mfem(const std::string &fileName,
   }
   else
   {
-    const bool is_bernstein = dynamic_cast<const mfem::H1Pos_FECollection *>(fec) != nullptr;
+    const bool is_bernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
     if(!is_bernstein)
     {
-      SLIC_WARNING(axom::fmt::format(
+      SLIC_WARNING_ROOT(axom::fmt::format(
         "Non-NURBS meshes must define their nodes in the positive Bernstein basis "
         "(mfem::H1Pos_FECollection). Got FECollection '{}'.",
         fec->Name()));
@@ -298,17 +299,17 @@ int read_mfem(const std::string &fileName,
   return MFEMReader::READ_SUCCESS;
 }
 
-}  // end namespace internal
+}  // namespace internal
 
-int MFEMReader::read(CurveArray &curves)
+int MFEMReader::read(CurveArray& curves)
 {
   axom::Array<int> attributes;
   return read(curves, attributes);
 }
 
-int MFEMReader::read(CurveArray &curves, axom::Array<int> &attributes)
+int MFEMReader::read(CurveArray& curves, axom::Array<int>& attributes)
 {
-  SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
+  SLIC_WARNING_ROOT_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
   curves.clear();
   attributes.clear();
@@ -316,9 +317,9 @@ int MFEMReader::read(CurveArray &curves, axom::Array<int> &attributes)
   const int ret = internal::read_mfem(m_fileName, curvemap);
   if(ret == READ_SUCCESS)
   {
-    for(auto &[attribute, nurbs] : curvemap)
+    for(auto& [attribute, nurbs] : curvemap)
     {
-      for(const auto &curve : nurbs)
+      for(const auto& curve : nurbs)
       {
         curves.push_back(curve);
         attributes.push_back(attribute);
@@ -329,15 +330,15 @@ int MFEMReader::read(CurveArray &curves, axom::Array<int> &attributes)
   return ret;
 }
 
-int MFEMReader::read(CurvedPolygonArray &curvedPolygons)
+int MFEMReader::read(CurvedPolygonArray& curvedPolygons)
 {
   axom::Array<int> attributes;
   return read(curvedPolygons, attributes);
 }
 
-int MFEMReader::read(CurvedPolygonArray &curvedPolygons, axom::Array<int> &attributes)
+int MFEMReader::read(CurvedPolygonArray& curvedPolygons, axom::Array<int>& attributes)
 {
-  SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
+  SLIC_WARNING_ROOT_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
   curvedPolygons.clear();
   attributes.clear();
@@ -349,11 +350,11 @@ int MFEMReader::read(CurvedPolygonArray &curvedPolygons, axom::Array<int> &attri
     attributes.resize(curvemap.size());
 
     int polygon_index = 0;
-    for(auto &[attribute, nurbs] : curvemap)
+    for(auto& [attribute, nurbs] : curvemap)
     {
       attributes[polygon_index] = attribute;
-      auto &poly = curvedPolygons[polygon_index];
-      for(auto &cur : nurbs)
+      auto& poly = curvedPolygons[polygon_index];
+      for(auto& cur : nurbs)
       {
         poly.addEdge(cur);
       }
@@ -363,4 +364,4 @@ int MFEMReader::read(CurvedPolygonArray &curvedPolygons, axom::Array<int> &attri
   return ret;
 }
 
-}  // end namespace axom::quest
+}  // namespace axom::quest

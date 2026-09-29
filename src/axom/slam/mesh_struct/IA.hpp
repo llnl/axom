@@ -34,9 +34,7 @@
 
 #include <array>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class IA
@@ -443,7 +441,6 @@ constexpr int IAMesh<TDIM, SDIM, P>::COORDS_PER_VERT;
 template <int TDIM, int SDIM, typename P>
 constexpr int IAMesh<TDIM, SDIM, P>::VERTS_PER_ELEM;
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam
 
 #include "axom/slam/mesh_struct/IA_impl.hpp"

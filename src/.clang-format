@@ -1,26 +1,26 @@
-# requires clang 14
-# https://releases.llvm.org/14.0.0/tools/clang/docs/ClangFormatStyleOptions.html
+# requires clang 19
+# https://releases.llvm.org/19.1.0/tools/clang/docs/ClangFormatStyleOptions.html
 
 BasedOnStyle: Google
 Language: Cpp
-Standard: Cpp11
+Standard: c++20
+LineEnding: LF
 
 AccessModifierOffset: -2
 AllowAllArgumentsOnNextLine: false
-AllowAllConstructorInitializersOnNextLine: false
 AllowAllParametersOfDeclarationOnNextLine: false
-AlwaysBreakTemplateDeclarations: true
 AlwaysBreakBeforeMultilineStrings: true
 
 BinPackArguments: false
 BinPackParameters: false
 BreakConstructorInitializers: BeforeComma
+BreakTemplateDeclarations: Yes
 
 BreakBeforeBraces: Custom
 BraceWrapping:
   AfterCaseLabel:  true
   AfterClass:      true
-  AfterControlStatement: true
+  AfterControlStatement: Always
   AfterEnum:       true
   AfterFunction:   true
   AfterNamespace:  true
@@ -36,10 +36,12 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth: 2
 ContinuationIndentWidth: 2
 ColumnLimit: 100
+PackConstructorInitializers: CurrentLine
+
+DerivePointerAlignment: false
 
 FixNamespaceComments: true
 
@@ -48,10 +50,12 @@ IndentPPDirectives: BeforeHash
 IndentWidth: 2
 
 PenaltyExcessCharacter: 10
+PointerAlignment: Left
 
+ReferenceAlignment: Left
 ReflowComments: false
 
-SortIncludes: false
+SortIncludes: Never
 SpaceAfterTemplateKeyword: true
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeCpp11BracedList: true
@@ -60,13 +64,10 @@ SpaceBeforeInheritanceColon: true
 SpaceBeforeParens: Never
 SpaceBeforeRangeBasedForLoopColon: true
 SpaceInEmptyBlock: true
-SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 2
-SpacesInAngles: false
-SpacesInCStyleCastParentheses: false
+SpacesInAngles: Never
 SpacesInContainerLiterals: false
-SpacesInConditionalStatement: false
-SpacesInParentheses: false
+SpacesInParens: Never
 SpacesInSquareBrackets: false
 
 UseTab: Never
@@ -74,6 +75,6 @@ UseTab: Never
 ## Possible changes
 
 # Axom defaults for alignment -- consider changing
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
-AlignOperands: false
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignOperands: DontAlign

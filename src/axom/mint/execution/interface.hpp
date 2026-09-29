@@ -36,7 +36,7 @@
  *  object and the loop body encapsulated in a lambda expression, conforming to
  *  the following template:
  *  \code
- *     for_all_[entity]< [exec_policy], [xargs] >( meshPtr, AXOM_LAMBDA(...) {
+ *     for_all_[entity]< [exec_policy], [xargs] >( meshPtr, [=] AXOM_HOST_DEVICE(...) {
  *          // loop body
  *     } );
  *  \endcode
@@ -55,8 +55,8 @@
  *     currently supported execution policies and a brief description is given
  *     in execution_space.hpp
  *
- *   * <b> [AXOM_LAMBDA()] </b> <br />
- *     The AXOM_LAMBDA argument encapsulates the loop body, i.e., the kernel
+ *   * <b> [=] AXOM_HOST_DEVICE(...) </b> <br />
+ *     The lambda argument encapsulates the loop body, i.e., the kernel
  *     that is to be executed at each mesh entity. By default, the lambda
  *     expression takes the ID of the corresponding mesh entity as an argument.
  *     Additional lambda arguments may be specified by supplying the
@@ -99,27 +99,27 @@ namespace mint
  * \code
  *
  *  for_all_nodes< exec >( m,
- *    AXOM_LAMBDA( IndexType nodeID )
+ *    [=] AXOM_HOST_DEVICE( IndexType nodeID )
  *    { ... }
  *  );
  *
  *  for_all_nodes< exec, xargs::ij >( m,
- *    AXOM_LAMBDA( IndexType nodeID, IndexType i, IndexType j )
+ *    [=] AXOM_HOST_DEVICE( IndexType nodeID, IndexType i, IndexType j )
  *    { ... }
  *  );
  *
  *  for_all_nodes< exec, xargs::ijk >( m,
- *    AXOM_LAMDA( IndexType nodeIdx, IndexType i, IndexType j, IndexType k)
+ *    [=] AXOM_HOST_DEVICE( IndexType nodeIdx, IndexType i, IndexType j, IndexType k)
  *    { ... }
  *  );
  *
  *  for_all_nodes< exec, xargs::xy >( m,
- *    AXOM_LAMBA( IndexType nodeIdx, double x, double y)
+ *    [=] AXOM_HOST_DEVICE( IndexType nodeIdx, double x, double y)
  *    { ... }
  *  );
  *
  *  for_all_nodes< exec, xargs::xyz >( m,
- *    AXOM_LAMBA( IndexType nodeIdx, double x, double y, double z)
+ *    [=] AXOM_HOST_DEVICE( IndexType nodeIdx, double x, double y, double z)
  *    { ... }
  *  );
  *
@@ -182,33 +182,33 @@ inline void for_all_nodes(const Mesh* m, KernelType&& kernel)
  * \code
  *
  *  for_all_cells< exec >( m,
- *    AXOM_LAMBDA( IndexType cellID )
+ *    [=] AXOM_HOST_DEVICE( IndexType cellID )
  *    { ... }
  *  );
  *
  *  for_all_cells< exec, xargs::ij >( m,
- *    AXOM_LAMBDA( IndexType cellID, IndexType i, IndexType j )
+ *    [=] AXOM_HOST_DEVICE( IndexType cellID, IndexType i, IndexType j )
  *    { ... }
  *  );
  *
  *  for_all_cells< exec, xargs::ijk >( m,
- *    AXOM_LAMBDA( IndexType cellID, IndexType i, IndexType j, IndexType k )
+ *    [=] AXOM_HOST_DEVICE( IndexType cellID, IndexType i, IndexType j, IndexType k )
  *    { ... }
  *  );
  *
  *  for_all_cells< exec, xargs::nodeids >( m,
- *    AXOM_LAMBDA( IndexType cellID, const IndexType* nodeIDs, IndexType N )
+ *    [=] AXOM_HOST_DEVICE( IndexType cellID, const IndexType* nodeIDs, IndexType N )
  *    { ... }
  *  );
  *
  *  for_all_cells< exec, xargs::coords >( m,
- *    AXOM_LAMBDA( IndexType cellID, numerics::Matrix<double>& coords,
+ *    [=] AXOM_HOST_DEVICE( IndexType cellID, numerics::Matrix<double>& coords,
  *                 const IndexType * nodeIDs )
  *    { ... }
  *  );
  *
  *  for_all_cells< exec, xargs::faceids >( m,
- *    AXOM_LAMBDA( IndexType cellID, const IndexType* faceIDs, IndexType N )
+ *    [=] AXOM_HOST_DEVICE( IndexType cellID, const IndexType* faceIDs, IndexType N )
  *    { ... }
  *  );
  *
@@ -272,23 +272,23 @@ inline void for_all_cells(const Mesh* m, KernelType&& kernel)
  * \code
  *
  *   for_all_faces< exec >( m,
- *    AXOM_LAMBDA( IndexType faceID )
+ *    [=] AXOM_HOST_DEVICE( IndexType faceID )
  *    { ... }
  *  );
  *
  *  for_all_faces< exec, xargs::nodeids >( m,
- *    AXOM_LAMBDA( IndexType faceID, const IndexType* nodeIDs, IndexType N )
+ *    [=] AXOM_HOST_DEVICE( IndexType faceID, const IndexType* nodeIDs, IndexType N )
  *    { ... }
  *  );
  *
  *  for_all_faces< exec, xargs::coords >( m,
- *    AXOM_LAMBDA( IndexType faceID, numerics::Matrix<double>& coords,
+ *    [=] AXOM_HOST_DEVICE( IndexType faceID, numerics::Matrix<double>& coords,
  *                 const IndexType * nodeIDs )
  *    { ... }
  *  );
  *
  *  for_all_faces< exec, xargs::cellids >( m,
- *    AXOM_LAMBDA( IndexType faceID, IndexType cellIDOne, IndexType cellIDTwo )
+ *    [=] AXOM_HOST_DEVICE( IndexType faceID, IndexType cellIDOne, IndexType cellIDTwo )
  *    { ... }
  *  );
  *

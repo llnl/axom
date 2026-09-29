@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#pragma once
+
+/*! \file mir_equiz2d_impl.hpp
+ *  \brief Implementation shared by the EquiZ 2D execution-policy tests.
+ */
+
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
@@ -17,44 +23,20 @@ namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 namespace bump = axom::bump;
 
-std::string baselineDirectory() { return pjoin(dataDirectory(), "mir", "regression", "mir_equiz"); }
+inline std::string baselineDirectory()
+{
+  return pjoin(dataDirectory(), "mir", "regression", "mir_equiz");
+}
 
 //------------------------------------------------------------------------------
 // Global test application object.
-axom::blueprint::testing::TestApplication TestApp;
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, miralgorithm)
-{
-  axom::mir::MIRAlgorithm *m = nullptr;
-  EXPECT_EQ(m, nullptr);
-}
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, materialinformation)
-{
-  conduit::Node matset;
-  matset["material_map/a"] = 1;
-  matset["material_map/b"] = 2;
-  matset["material_map/c"] = 0;
-
-  auto mi = axom::bump::views::materials(matset);
-  EXPECT_EQ(mi.size(), 3);
-  EXPECT_EQ(mi[0].m_number, 1);
-  EXPECT_EQ(mi[0].m_name, "a");
-
-  EXPECT_EQ(mi[1].m_number, 2);
-  EXPECT_EQ(mi[1].m_name, "b");
-
-  EXPECT_EQ(mi[2].m_number, 0);
-  EXPECT_EQ(mi[2].m_name, "c");
-}
+extern axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void braid2d_mat_test(const std::string &type,
-                      const std::string &mattype,
-                      const std::string &name,
+void braid2d_mat_test(const std::string& type,
+                      const std::string& mattype,
+                      const std::string& name,
                       int nDomains,
                       bool selectedZones,
                       bool cleanMats)
@@ -67,7 +49,7 @@ void braid2d_mat_test(const std::string &type,
   for(int dom = 0; dom < nDomains; dom++)
   {
     const std::string domainName = axom::fmt::format("domain_{:07}", dom);
-    conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
+    conduit::Node& hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
     axom::blueprint::testing::data::braid(type, dims, hostDomain);
     const bool makeMixedField = false;  // for now
     axom::blueprint::testing::data::make_matset(mattype,
@@ -85,7 +67,7 @@ void braid2d_mat_test(const std::string &type,
   for(int dom = 0; dom < nDomains; dom++)
   {
     const std::string domainName = axom::fmt::format("domain_{:07}", dom);
-    conduit::Node &deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
+    conduit::Node& deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
 
     // Make views.
     auto coordsetView = views::make_uniform_coordset<2>::view(deviceDomain["coordsets/coords"]);
@@ -163,7 +145,7 @@ public:
   static constexpr conduit::index_t NLEVELS = 4;
   static constexpr int MAX_MATERIALS = NLEVELS + 1;
 
-  static void test(const std::string &name)
+  static void test(const std::string& name)
   {
     // Make the 2D input mesh.
     conduit::Node n_mesh;
@@ -188,14 +170,14 @@ public:
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostResult));
   }
 
-  static void initialize(conduit::Node &n_mesh)
+  static void initialize(conduit::Node& n_mesh)
   {
     // Make polygonal geometry
     const conduit::index_t nz = 1;
     conduit::blueprint::mesh::examples::polytess(NLEVELS, nz, n_mesh);
 
     // Make a matset from the level field.
-    conduit::Node &n_matset = n_mesh["matsets/mat"];
+    conduit::Node& n_matset = n_mesh["matsets/mat"];
     n_matset["topology"] = "topo";
     for(int mat = 1; mat <= NLEVELS; mat++)
     {
@@ -226,13 +208,13 @@ public:
     make_target2(n_mesh);
   }
 
-  static void make_target2(conduit::Node &n_mesh)
+  static void make_target2(conduit::Node& n_mesh)
   {
     const auto x = n_mesh["coordsets/coords/values/x"].as_float64_accessor();
     const auto y = n_mesh["coordsets/coords/values/y"].as_float64_accessor();
 
     // Make a rotated copy of the input topo mesh.
-    conduit::Node &target2_coords = n_mesh["coordsets/target2_coords"];
+    conduit::Node& target2_coords = n_mesh["coordsets/target2_coords"];
     target2_coords["type"] = "explicit";
     target2_coords["values/x"].set(conduit::DataType::float64(x.number_of_elements()));
     target2_coords["values/y"].set(conduit::DataType::float64(y.number_of_elements()));
@@ -253,19 +235,19 @@ public:
     n_mesh["topologies/target2/coordset"] = "target2_coords";
   }
 
-  static void mapping_target2(conduit::Node &n_dev)
+  static void mapping_target2(conduit::Node& n_dev)
   {
     // Wrap polygonal mesh in views.
     auto srcCoordset = views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
     using SrcCoordsetView = decltype(srcCoordset);
 
-    const conduit::Node &n_srcTopo = n_dev["topologies/topo"];
+    const conduit::Node& n_srcTopo = n_dev["topologies/topo"];
     auto srcTopo =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
-    const conduit::Node &n_srcMatset = n_dev["matsets/mat"];
+    const conduit::Node& n_srcMatset = n_dev["matsets/mat"];
     auto srcMatset = views::make_unibuffer_matset<int, float, MAX_MATERIALS>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
@@ -274,7 +256,7 @@ public:
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/target2_coords"]);
     using TargetCoordsetView = decltype(targetCoordset);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/target2"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/target2"];
     auto targetTopo =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_targetTopo);
@@ -297,20 +279,20 @@ public:
     mapper.execute(n_dev, n_opts, n_dev);
   }
 
-  static void mir_target2(conduit::Node &n_dev)
+  static void mir_target2(conduit::Node& n_dev)
   {
     // Wrap target2 mesh in views.
     auto coordsetView =
       views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/target2_coords"]);
     using CoordsetView = decltype(coordsetView);
 
-    const conduit::Node &n_targetTopo = n_dev["topologies/target2"];
+    const conduit::Node& n_targetTopo = n_dev["topologies/target2"];
     auto topologyView =
       views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
         n_targetTopo);
     using TopologyView = decltype(topologyView);
 
-    const conduit::Node &n_targetMatset = n_dev["matsets/target2_matset"];
+    const conduit::Node& n_targetMatset = n_dev["matsets/target2_matset"];
     auto matsetView = views::make_unibuffer_matset<int, float, MAX_MATERIALS>::view(n_targetMatset);
     using MatsetView = decltype(matsetView);
 
@@ -334,7 +316,7 @@ public:
     n_dev["fields/originalElements/topology"] = "mir";
   }
 
-  static int countBadMaterialZones(const conduit::Node &matset, double eps = 1.e-4)
+  static int countBadMaterialZones(const conduit::Node& matset, double eps = 1.e-4)
   {
     const auto volume_fractions = utils::make_array_view<float>(matset["volume_fractions"]);
     //const auto material_ids = utils::make_array_view<int>(matset["material_ids"]);
@@ -416,73 +398,4 @@ void test_equiz_uniform_unibuffer()
                                 selectedZones,
                                 cleanMats);
   }
-}
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, equiz_uniform_unibuffer_seq)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_seq");
-  test_equiz_uniform_unibuffer<seq_exec>();
-}
-
-#if defined(AXOM_USE_OPENMP)
-TEST(mir_equiz, equiz_uniform_unibuffer_omp)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_omp");
-  test_equiz_uniform_unibuffer<omp_exec>();
-}
-#endif
-
-#if defined(AXOM_USE_CUDA)
-TEST(mir_equiz, equiz_uniform_unibuffer_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_cuda");
-  test_equiz_uniform_unibuffer<cuda_exec>();
-}
-#endif
-
-#if defined(AXOM_USE_HIP)
-TEST(mir_equiz, equiz_uniform_unibuffer_hip)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_hip");
-  test_equiz_uniform_unibuffer<hip_exec>();
-}
-#endif
-
-//------------------------------------------------------------------------------
-TEST(mir_equiz, equiz_polygonal_unibuffer_seq)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_seq");
-  test_Polygonal_MIR<seq_exec>::test("equiz_polygonal_unibuffer");
-}
-
-#if defined(AXOM_USE_OPENMP)
-TEST(mir_equiz, equiz_polygonal_unibuffer_omp)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_omp");
-  test_Polygonal_MIR<omp_exec>::test("equiz_polygonal_unibuffer");
-}
-#endif
-
-#if defined(AXOM_USE_CUDA)
-TEST(mir_equiz, equiz_polygonal_unibuffer_cuda)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_cuda");
-  test_Polygonal_MIR<cuda_exec>::test("equiz_polygonal_unibuffer");
-}
-#endif
-
-#if defined(AXOM_USE_HIP)
-TEST(mir_equiz, equiz_polygonal_unibuffer_hip)
-{
-  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_hip");
-  test_Polygonal_MIR<hip_exec>::test("equiz_polygonal_unibuffer");
-}
-#endif
-
-//------------------------------------------------------------------------------
-int main(int argc, char *argv[])
-{
-  ::testing::InitGoogleTest(&argc, argv);
-  return TestApp.execute(argc, argv);
 }

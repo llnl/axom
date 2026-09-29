@@ -16,9 +16,7 @@
 #include "axom/slic.hpp"
 #include "axom/slam/Set.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class NullSet
@@ -88,5 +86,4 @@ inline bool operator!=(NullSet const&, NullSet const&)
 }
 #endif
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

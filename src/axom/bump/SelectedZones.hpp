@@ -43,8 +43,8 @@ public:
    * \endcode
    */
   SelectedZones(axom::IndexType nzones,
-                const conduit::Node &n_options,
-                const std::string &selection_key = std::string("selectedZones"),
+                const conduit::Node& n_options,
+                const std::string& selection_key = std::string("selectedZones"),
                 int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
     : m_selectionKey(selection_key)
     , m_selectedZones()
@@ -76,7 +76,7 @@ public:
    *
    * \return The name of the key in the options that this class looks for.
    */
-  const std::string &selectionKey() const { return m_selectionKey; }
+  const std::string& selectionKey() const { return m_selectionKey; }
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
@@ -96,7 +96,7 @@ protected:
    *       strided-structured indexing are the [0..n) zone numbers that exist only
    *       within the selected window.
    */
-  void buildSelectedZones(axom::IndexType nzones, const conduit::Node &n_options)
+  void buildSelectedZones(axom::IndexType nzones, const conduit::Node& n_options)
   {
     if(n_options.has_path(m_selectionKey))
     {
@@ -119,9 +119,9 @@ protected:
       // Select all zones.
       m_selectedZones = axom::Array<axom::IndexType>(nzones, nzones, m_allocator_id);
       auto sz_view = m_selectedZonesView = m_selectedZones.view();
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType zone_index) { sz_view[zone_index] = zone_index; });
+      axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zone_index) {
+        sz_view[zone_index] = zone_index;
+      });
     }
   }
 
@@ -143,18 +143,16 @@ protected:
     m_selectedZones =
       axom::Array<axom::IndexType>(zones_view.size(), zones_view.size(), m_allocator_id);
     auto sz_view = m_selectedZonesView = m_selectedZones.view();
-    axom::for_all<ExecSpace>(
-      sz_view.size(),
-      AXOM_LAMBDA(axom::IndexType index) { sz_view[index] = zones_view[index]; });
+    axom::for_all<ExecSpace>(sz_view.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      sz_view[index] = zones_view[index];
+    });
 
     // Check that the selected zone values are in range.
     axom::ReduceSum<ExecSpace, int> err_reduce(0);
-    axom::for_all<ExecSpace>(
-      sz_view.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const int err = (sz_view[index] < 0 || sz_view[index] >= nzones) ? 1 : 0;
-        err_reduce += err;
-      });
+    axom::for_all<ExecSpace>(sz_view.size(), [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const int err = (sz_view[index] < 0 || sz_view[index] >= nzones) ? 1 : 0;
+      err_reduce += err;
+    });
 
     if(m_sorted)
     {

@@ -174,7 +174,8 @@ struct FlatGridStorage
   {
     axom::exclusive_scan<ExecSpace>(binSizes, m_binOffsets);
     axom::ReduceSum<ExecSpace, IndexType> total_elems(0);
-    for_all<ExecSpace>(binSizes.size(), AXOM_LAMBDA(IndexType idx) { total_elems += binSizes[idx]; });
+    for_all<ExecSpace>(binSizes.size(),
+                       [=] AXOM_HOST_DEVICE(IndexType idx) { total_elems += binSizes[idx]; });
     m_binData.resize(total_elems.get());
   }
 

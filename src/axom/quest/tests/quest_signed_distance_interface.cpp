@@ -61,27 +61,27 @@ constexpr bool USE_SHARED_MEMORY = false;
 //       serial versions of these functions.
 #if defined(AXOM_USE_MPI)
 // Parallel versions
-int comm_rank(MPI_Comm comm)
+using TestComm = MPI_Comm;
+const TestComm TEST_COMM_WORLD = MPI_COMM_WORLD;
+const TestComm TEST_COMM_SELF = MPI_COMM_SELF;
+
+int comm_rank(TestComm comm)
 {
   int rank = 0;
   MPI_Comm_rank(comm, &rank);
   return rank;
 }
-void barrier(MPI_Comm comm) { MPI_Barrier(comm); }
-void bcast_int(int& value, MPI_Comm comm) { MPI_Bcast(&value, 1, MPI_INT, 0, comm); }
+void barrier(TestComm comm) { MPI_Barrier(comm); }
+void bcast_int(int& value, TestComm comm) { MPI_Bcast(&value, 1, MPI_INT, 0, comm); }
 #else
 // Serial versions
-constexpr int MPI_COMM_WORLD = -1;
+using TestComm = int;
+constexpr TestComm TEST_COMM_WORLD = -1;
+constexpr TestComm TEST_COMM_SELF = -1;
 
-int comm_rank(MPI_Comm) { return 0; }
-void barrier(MPI_Comm)
-{
-  // no-op
-}
-void bcast_int(int&, MPI_Comm)
-{
-  // no-op
-}
+int comm_rank(TestComm) { return 0; }
+void barrier(TestComm) { /* no-op */ }
+void bcast_int(int&, TestComm) { /* no-op */ }
 #endif
 
 /*!
@@ -93,7 +93,7 @@ void bcast_int(int&, MPI_Comm)
  * \pre file.empty() == false.
  * \note Used primarily for debugging.
  */
-void generate_planar_mesh_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
+void generate_planar_mesh_stl_file(const std::string& file, TestComm comm = TEST_COMM_SELF)
 {
   int rank = comm_rank(comm);
   if(rank == 0)
@@ -156,7 +156,7 @@ void generate_planar_mesh_stl_file(const std::string& file, MPI_Comm comm = MPI_
  *
  * \note Used primarily for debugging.
  */
-void generate_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
+void generate_stl_file(const std::string& file, TestComm comm = TEST_COMM_SELF)
 {
   int rank = comm_rank(comm);
   if(rank == 0)
@@ -189,7 +189,7 @@ void generate_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
  *
  * \return 0 on success; non-zero otherwise.
  */
-int removeFile(const std::string& fileName, MPI_Comm comm = MPI_COMM_WORLD)
+int removeFile(const std::string& fileName, TestComm comm = TEST_COMM_WORLD)
 {
   int retval = 0;
   int rank = comm_rank(comm);
@@ -254,7 +254,7 @@ void getUniformMesh(const UnstructuredMesh* mesh, mint::UniformMesh*& umesh)
  */
 void check_analytic_plane(const std::string& file,
                           bool use_shared = false,
-                          MPI_Comm comm = MPI_COMM_SELF)
+                          TestComm comm = TEST_COMM_SELF)
 {
   // STEP 0: construct uniform box mesh
   constexpr int NDIMS = 3;
@@ -276,7 +276,11 @@ void check_analytic_plane(const std::string& file,
   // STEP 2: initialize the signed distance
   quest::signed_distance_use_shared_memory(use_shared);
   quest::signed_distance_set_closed_surface(false);
+#if defined(AXOM_USE_MPI)
   quest::signed_distance_init(file, comm);
+#else
+  quest::signed_distance_init(file);
+#endif
   EXPECT_TRUE(quest::signed_distance_initialized());
 
   axom::IndexType nnodes = mesh.getNumberOfNodes();
@@ -423,7 +427,7 @@ TEST(quest_signed_distance_interface, initialize)
 
   // generate a temp STL file
   const std::string fileName = "test_triangle.stl";
-  generate_stl_file(fileName, MPI_COMM_WORLD);
+  generate_stl_file(fileName, TEST_COMM_WORLD);
 
   // test valid initialization
   quest::signed_distance_set_dimension(3);
@@ -437,7 +441,7 @@ TEST(quest_signed_distance_interface, initialize)
 
   // remove temp STL file
 #ifdef REMOVE_FILES
-  EXPECT_EQ(removeFile(fileName, MPI_COMM_WORLD), 0);
+  EXPECT_EQ(removeFile(fileName, TEST_COMM_WORLD), 0);
 #endif
 }
 
@@ -483,13 +487,13 @@ TEST(quest_signed_distance_interface, analytic_plane)
 {
   // Serial test - called independently on each rank. In order to avoid problems
   //               writing/reading the STL file, we pass a unique name for each rank.
-  int rank = comm_rank(MPI_COMM_WORLD);
+  int rank = comm_rank(TEST_COMM_WORLD);
   check_analytic_plane(axom::fmt::format("plane{}.stl", rank));
 
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   // We are using shared memory that we want to coordinate among ranks in
   // MPI_COMM_WORLD so pass that communicator.
-  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, TEST_COMM_WORLD);
 #endif
 }
 
@@ -499,8 +503,8 @@ TEST(quest_signed_distance_interface, call_twice_using_shared_memory)
 {
   // We are using shared memory that we want to coordinate among ranks in
   // MPI_COMM_WORLD so pass that communicator.
-  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
-  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, TEST_COMM_WORLD);
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, TEST_COMM_WORLD);
 }
 
 TEST(quest_signed_distance_interface, shared_memory_released_on_finalize)
@@ -508,7 +512,7 @@ TEST(quest_signed_distance_interface, shared_memory_released_on_finalize)
   // Use a single file name coordinated among ranks so we exercise the
   // read_stl_mesh_shared path.
   const std::string fileName = "plane_release.stl";
-  generate_planar_mesh_stl_file(fileName, MPI_COMM_WORLD);
+  generate_planar_mesh_stl_file(fileName, TEST_COMM_WORLD);
 
   auto& rm = umpire::ResourceManager::getInstance();
   auto shared_alloc = rm.getAllocator(axom::getSharedMemoryAllocatorID());
@@ -530,13 +534,13 @@ TEST(quest_signed_distance_interface, shared_memory_released_on_finalize)
   EXPECT_FALSE(quest::signed_distance_initialized());
 
   // Ensure all ranks have released their reference to the named allocation.
-  barrier(MPI_COMM_WORLD);
+  barrier(TEST_COMM_WORLD);
 
   EXPECT_EQ(shared_alloc.getCurrentSize(), baseline_current);
   EXPECT_EQ(shared_alloc.getActualSize(), baseline_actual);
 
   #ifdef REMOVE_FILES
-  EXPECT_EQ(removeFile(fileName, MPI_COMM_WORLD), 0);
+  EXPECT_EQ(removeFile(fileName, TEST_COMM_WORLD), 0);
   #endif
 }
 #endif

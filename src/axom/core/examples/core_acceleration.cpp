@@ -35,8 +35,8 @@ constexpr int N = 1000;
 void demoMemoryManageBasic()
 {
   // _membasic_start
-  int *dynamic_memory_array;
-  int *dyn_array_dst;
+  int* dynamic_memory_array;
+  int* dyn_array_dst;
   int len = 20;
 
   //Allocation looks similar to use of malloc() in C -- just template
@@ -96,9 +96,9 @@ void demoAxomExecution()
   // _exebasic_start
   //This part of the code works regardless of Umpire's presence, allowing for generic
   //use of axom::allocate in C++ code.
-  int *A = axom::allocate<int>(N);
-  int *B = axom::allocate<int>(N);
-  int *C = axom::allocate<int>(N);
+  int* A = axom::allocate<int>(N);
+  int* B = axom::allocate<int>(N);
+  int* C = axom::allocate<int>(N);
 
   for(int i = 0; i < N; i++)
   {
@@ -108,7 +108,7 @@ void demoAxomExecution()
   }
 
   //Axom provides an API for the most basic usage of RAJA, the for_all loop.
-  axom::for_all<axom::SEQ_EXEC>(0, N, AXOM_LAMBDA(axom::IndexType i) { C[i] = A[i] + B[i]; });
+  axom::for_all<axom::SEQ_EXEC>(0, N, [=] AXOM_HOST_DEVICE(axom::IndexType i) { C[i] = A[i] + B[i]; });
 
   std::cout << "Sums: " << std::endl;
   for(int i = 0; i < N; i++)
@@ -149,7 +149,7 @@ void demoAxomExecution()
   using ExecSpace = axom::SEQ_EXEC;
   #endif
 
-  axom::for_all<ExecSpace>(0, N, AXOM_LAMBDA(axom::IndexType i) { C[i] = A[i] + B[i]; });
+  axom::for_all<ExecSpace>(0, N, [=] AXOM_HOST_DEVICE(axom::IndexType i) { C[i] = A[i] + B[i]; });
 
   std::cout << "\nSums (" << axom::execution_space<ExecSpace>::name() << ") :" << std::endl;
   for(int i = 0; i < N; i++)
@@ -167,7 +167,7 @@ void demoAxomExecution()
   axom::ReduceSum<ExecSpace, axom::IndexType> totalSum(0);
 
   // Sum integers [0,99]
-  axom::for_all<ExecSpace>(100, AXOM_LAMBDA(axom::IndexType i) { totalSum += i; });
+  axom::for_all<ExecSpace>(100, [=] AXOM_HOST_DEVICE(axom::IndexType i) { totalSum += i; });
 
   std::cout << "\nTotal Reduction Sum (" << axom::execution_space<ExecSpace>::name()
             << ") :" << totalSum.get() << std::endl;
@@ -175,11 +175,13 @@ void demoAxomExecution()
 
   //_gpu_atomic_start
 
-  int *sum = axom::allocate<int>(1, allocator_id);
+  int* sum = axom::allocate<int>(1, allocator_id);
   *sum = 0;
 
   // Increment sum 100 times
-  axom::for_all<ExecSpace>(100, AXOM_LAMBDA(axom::IndexType) { axom::atomicAdd<ExecSpace>(sum, 1); });
+  axom::for_all<ExecSpace>(100, [=] AXOM_HOST_DEVICE(axom::IndexType) {
+    axom::atomicAdd<ExecSpace>(sum, 1);
+  });
 
   std::cout << "\nTotal Atomic Sum (" << axom::execution_space<ExecSpace>::name() << ") :" << sum[0]
             << std::endl;
@@ -190,7 +192,7 @@ void demoAxomExecution()
 #endif
 }
 
-int main(int AXOM_UNUSED_PARAM(argc), char **AXOM_UNUSED_PARAM(argv))
+int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
 {
   demoMemoryManageBasic();
   demoAxomExecution();

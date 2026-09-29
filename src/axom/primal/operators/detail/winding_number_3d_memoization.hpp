@@ -431,38 +431,29 @@ public:
 
     // Make the first cache
     nurbs_caches_view[0].resize(patches.size());
-    axom::for_all<axom::OMP_EXEC>(
-      patches.size(),
-      AXOM_HOST_LAMBDA(axom::IndexType i) {
-        nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
-      });
+    axom::for_all<axom::OMP_EXEC>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
+      nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
+    });
 
     // If we didn't comptue normals in NURBSCache constructor,
     //  need to get them from the moments
     if(!mustComputeNormal)
     {
-      axom::for_all<axom::OMP_EXEC>(
-        patches.size(),
-        AXOM_HOST_LAMBDA(axom::IndexType i) {
-          nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
-        });
+      axom::for_all<axom::OMP_EXEC>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
+        nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
+      });
     }
 
     // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(
-      1,
-      nt,
-      AXOM_HOST_LAMBDA(axom::IndexType t) {
-        nurbs_caches_view[t].resize(nurbs_caches_view[0].size());
-      });
-    axom::for_all<axom::OMP_EXEC>(
-      patches.size(),
-      AXOM_HOST_LAMBDA(axom::IndexType i) {
-        for(int t = 0; t < nt; t++)
-        {
-          nurbs_caches_view[t][i] = nurbs_caches_view[0][i];
-        }
-      });
+    axom::for_all<axom::OMP_EXEC>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
+      nurbs_caches_view[t].resize(nurbs_caches_view[0].size());
+    });
+    axom::for_all<axom::OMP_EXEC>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
+      for(int t = 0; t < nt; t++)
+      {
+        nurbs_caches_view[t][i] = nurbs_caches_view[0][i];
+      }
+    });
   }
 
   /// A view of the manager object.

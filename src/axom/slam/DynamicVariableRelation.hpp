@@ -27,9 +27,7 @@
 #include <sstream>
 #include <iterator>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 template <typename FirstSetType = slam::Set<>, typename SecondSetType = slam::Set<>>
 class DynamicVariableRelation
@@ -307,5 +305,4 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(bool verboseO
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

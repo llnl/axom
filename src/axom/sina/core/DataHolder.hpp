@@ -71,26 +71,26 @@ public:
   /**
      * Copy constructor that disallows this constructor type.
      */
-  DataHolder(DataHolder const &) = delete;
+  DataHolder(DataHolder const&) = delete;
 
   /**
      * Disable copy assignment.
      */
-  DataHolder &operator=(DataHolder const &) = delete;
+  DataHolder& operator=(DataHolder const&) = delete;
 
   /**
      * \brief Construct a DataHolder from its conduit Node representation.
      *
      * \param asNode the DataHolder as a Node
      */
-  explicit DataHolder(conduit::Node const &asNode);
+  explicit DataHolder(conduit::Node const& asNode);
 
   /**
      * \brief Get the DataHolder's data.
      *
      * \return the DataHolder's data
      */
-  DatumMap const &getData() const noexcept { return data; }
+  DatumMap const& getData() const noexcept { return data; }
 
   /**
      * \brief Add a Datum to this DataHolder.
@@ -112,7 +112,7 @@ public:
      *
      * \return the dataholder's curve sets
      */
-  CurveSetMap const &getCurveSets() const noexcept { return curveSets; }
+  CurveSetMap const& getCurveSets() const noexcept { return curveSets; }
 
   /**
      * \brief Add a new library to this DataHolder.
@@ -123,14 +123,14 @@ public:
      * \return a pointer to a new DataHolder for a library
      *         of the given name.
      */
-  std::shared_ptr<DataHolder> addLibraryData(std::string const &name);
+  std::shared_ptr<DataHolder> addLibraryData(std::string const& name);
 
   /**
      * \brief Add a new library to this DataHolder with existing library data.
      *
      * \return a pointer to a new DataHolder for a library of the given name.
      */
-  std::shared_ptr<DataHolder> addLibraryData(std::string const &name,
+  std::shared_ptr<DataHolder> addLibraryData(std::string const& name,
                                              conduit::Node existingLibraryData);
 
   /**
@@ -138,14 +138,14 @@ public:
      *
      * \return the dataholder's library data
      */
-  LibraryDataMap const &getLibraryData() const noexcept { return libraryData; }
+  LibraryDataMap const& getLibraryData() const noexcept { return libraryData; }
 
   /**
      * \brief Get a specific library associated with this DataHolder.
      *
      * \return the dataholder's library data
      */
-  std::shared_ptr<DataHolder> getLibraryData(std::string const &libraryName)
+  std::shared_ptr<DataHolder> getLibraryData(std::string const& libraryName)
   {
     return libraryData.at(libraryName);
   }
@@ -155,7 +155,7 @@ public:
      *
      * \return the dataholder's library data
      */
-  std::shared_ptr<DataHolder> const getLibraryData(std::string const &libraryName) const
+  std::shared_ptr<DataHolder> const getLibraryData(std::string const& libraryName) const
   {
     return libraryData.at(libraryName);
   }
@@ -165,14 +165,14 @@ public:
      *
      * \return the user-defined content
      */
-  conduit::Node const &getUserDefinedContent() const noexcept { return userDefined; }
+  conduit::Node const& getUserDefinedContent() const noexcept { return userDefined; }
 
   /**
      * \brief Get the user-defined content of the object.
      *
      * \return the user-defined content
      */
-  conduit::Node &getUserDefinedContent() noexcept { return userDefined; }
+  conduit::Node& getUserDefinedContent() noexcept { return userDefined; }
 
   /**
      * \brief Set the user-defined content of the object.

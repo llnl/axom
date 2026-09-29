@@ -693,41 +693,37 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
 
   EXPECT_EQ(m.stride(), stride);
   SLIC_INFO("\nSetting the elements.");
-  axom::for_all<ExecSpace>(
-    m.firstSetSize(),
-    AXOM_LAMBDA(int idx1) {
-      for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+  axom::for_all<ExecSpace>(m.firstSetSize(), [=] AXOM_HOST_DEVICE(int idx1) {
+    for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+    {
+      for(auto comp = 0; comp < stride; comp++)
       {
-        for(auto comp = 0; comp < stride; comp++)
-        {
-          m(idx1, idx2, comp) = getVal<double>(idx1, idx2, comp);
-        }
+        m(idx1, idx2, comp) = getVal<double>(idx1, idx2, comp);
       }
-    });
+    }
+  });
 
   int totalSize = prodSet.size() * stride;
   axom::Array<int> isValid(totalSize, totalSize, m_unifiedAllocatorId);
   const auto isValid_view = isValid.data();
 
   SLIC_INFO("\nChecking the elements with findValue().");
-  axom::for_all<ExecSpace>(
-    m.firstSetSize(),
-    AXOM_LAMBDA(int idx1) {
-      for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+  axom::for_all<ExecSpace>(m.firstSetSize(), [=] AXOM_HOST_DEVICE(int idx1) {
+    for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+    {
+      for(auto comp = 0; comp < stride; comp++)
       {
-        for(auto comp = 0; comp < stride; comp++)
-        {
-          int flatIdx = idx1 * m.secondSetSize() * stride;
-          flatIdx += idx2 * stride;
-          flatIdx += comp;
+        int flatIdx = idx1 * m.secondSetSize() * stride;
+        flatIdx += idx2 * stride;
+        flatIdx += comp;
 
-          double* ptr = m.findValue(idx1, idx2, comp);
-          bool hasValue = (ptr != nullptr);
-          hasValue = hasValue && (*ptr == getVal<double>(idx1, idx2, comp));
-          isValid_view[flatIdx] = hasValue;
-        }
+        double* ptr = m.findValue(idx1, idx2, comp);
+        bool hasValue = (ptr != nullptr);
+        hasValue = hasValue && (*ptr == getVal<double>(idx1, idx2, comp));
+        isValid_view[flatIdx] = hasValue;
       }
-    });
+    }
+  });
 
   for(int validEntry : isValid)
   {
@@ -735,24 +731,22 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
   }
 
   SLIC_INFO("\nChecking the elements with SubMap.");
-  axom::for_all<ExecSpace>(
-    m.firstSetSize(),
-    AXOM_LAMBDA(int idx1) {
-      auto submap = m(idx1);
-      for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+  axom::for_all<ExecSpace>(m.firstSetSize(), [=] AXOM_HOST_DEVICE(int idx1) {
+    auto submap = m(idx1);
+    for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+    {
+      for(auto comp = 0; comp < stride; comp++)
       {
-        for(auto comp = 0; comp < stride; comp++)
-        {
-          int flatIdx = idx1 * m.secondSetSize() * stride;
-          flatIdx += idx2 * stride;
-          flatIdx += comp;
+        int flatIdx = idx1 * m.secondSetSize() * stride;
+        flatIdx += idx2 * stride;
+        flatIdx += comp;
 
-          double value = submap(idx2, comp);
-          bool hasValue = (value == getVal<double>(idx1, idx2, comp));
-          isValid_view[flatIdx] = hasValue;
-        }
+        double value = submap(idx2, comp);
+        bool hasValue = (value == getVal<double>(idx1, idx2, comp));
+        isValid_view[flatIdx] = hasValue;
       }
-    });
+    }
+  });
 
   for(int validEntry : isValid)
   {
@@ -792,24 +786,22 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
 
   EXPECT_EQ(m.stride(), flatStride);
   SLIC_INFO("\nSetting the elements.");
-  axom::for_all<ExecSpace>(
-    m.firstSetSize(),
-    AXOM_LAMBDA(int idx1) {
-      for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+  axom::for_all<ExecSpace>(m.firstSetSize(), [=] AXOM_HOST_DEVICE(int idx1) {
+    for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+    {
+      for(int i = 0; i < shape[0]; i++)
       {
-        for(int i = 0; i < shape[0]; i++)
+        for(int j = 0; j < shape[1]; j++)
         {
-          for(int j = 0; j < shape[1]; j++)
+          for(int k = 0; k < shape[2]; k++)
           {
-            for(int k = 0; k < shape[2]; k++)
-            {
-              int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
-              m(idx1, idx2, i, j, k) = getVal<double>(idx1, idx2, flatCompIdx);
-            }
+            int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
+            m(idx1, idx2, i, j, k) = getVal<double>(idx1, idx2, flatCompIdx);
           }
         }
       }
-    });
+    }
+  });
 
   SLIC_INFO("\nChecking the elements with findValue().");
   for(int idx1 = 0; idx1 < m.firstSetSize(); idx1++)
@@ -924,55 +916,51 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
 
   EXPECT_EQ(m.stride(), stride);
   SLIC_INFO("\nSetting the elements.");
-  axom::for_all<ExecSpace>(
-    m.firstSetSize(),
-    AXOM_LAMBDA(int idx1) {
-      auto relSubset = (*relPtr)[idx1];
-      for(auto slot = 0; slot < relSubset.size(); slot++)
+  axom::for_all<ExecSpace>(m.firstSetSize(), [=] AXOM_HOST_DEVICE(int idx1) {
+    auto relSubset = (*relPtr)[idx1];
+    for(auto slot = 0; slot < relSubset.size(); slot++)
+    {
+      auto idx2 = relSubset[slot];
+      for(auto comp = 0; comp < stride; comp++)
       {
-        auto idx2 = relSubset[slot];
-        for(auto comp = 0; comp < stride; comp++)
-        {
-          double* valPtr = m.findValue(idx1, idx2, comp);
+        double* valPtr = m.findValue(idx1, idx2, comp);
 #ifndef AXOM_DEVICE_CODE
-          EXPECT_NE(valPtr, nullptr);
+        EXPECT_NE(valPtr, nullptr);
 #endif
-          *valPtr = getVal<double>(idx1, idx2, comp);
-        }
+        *valPtr = getVal<double>(idx1, idx2, comp);
       }
-    });
+    }
+  });
 
   SLIC_INFO("\nChecking the elements with findValue().");
   {
     axom::ReduceSum<ExecSpace, int> numIncorrect(0);
 
-    axom::for_all<ExecSpace>(
-      m.firstSetSize(),
-      AXOM_LAMBDA(int idx1) {
-        auto relSubset = (*relPtr)[idx1];
-        auto relIndex = 0;
-        for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+    axom::for_all<ExecSpace>(m.firstSetSize(), [=] AXOM_HOST_DEVICE(int idx1) {
+      auto relSubset = (*relPtr)[idx1];
+      auto relIndex = 0;
+      for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
+      {
+        bool inRelation = relSubset.size() > relIndex && relSubset[relIndex] == idx2;
+        for(auto comp = 0; comp < stride; comp++)
         {
-          bool inRelation = relSubset.size() > relIndex && relSubset[relIndex] == idx2;
-          for(auto comp = 0; comp < stride; comp++)
-          {
-            double* ptr = m.findValue(idx1, idx2, comp);
-            if(inRelation)
-            {
-              numIncorrect += (ptr == nullptr);
-              numIncorrect += (*ptr != getVal<double>(idx1, idx2, comp));
-            }
-            else
-            {
-              numIncorrect += (ptr != nullptr);
-            }
-          }
+          double* ptr = m.findValue(idx1, idx2, comp);
           if(inRelation)
           {
-            relIndex++;
+            numIncorrect += (ptr == nullptr);
+            numIncorrect += (*ptr != getVal<double>(idx1, idx2, comp));
+          }
+          else
+          {
+            numIncorrect += (ptr != nullptr);
           }
         }
-      });
+        if(inRelation)
+        {
+          relIndex++;
+        }
+      }
+    });
 
     EXPECT_EQ(numIncorrect.get(), 0);
   }
@@ -1034,26 +1022,24 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
   const MapType m(relSet, realBacking.view(), shape);
 
   EXPECT_EQ(m.stride(), flatStride);
-  axom::for_all<ExecSpace>(
-    m.firstSetSize(),
-    AXOM_LAMBDA(int idx1) {
-      auto submap = m(idx1);
-      for(auto slot = 0; slot < submap.size(); slot++)
+  axom::for_all<ExecSpace>(m.firstSetSize(), [=] AXOM_HOST_DEVICE(int idx1) {
+    auto submap = m(idx1);
+    for(auto slot = 0; slot < submap.size(); slot++)
+    {
+      for(int i = 0; i < shape[0]; i++)
       {
-        for(int i = 0; i < shape[0]; i++)
+        for(int j = 0; j < shape[1]; j++)
         {
-          for(int j = 0; j < shape[1]; j++)
+          for(int k = 0; k < shape[2]; k++)
           {
-            for(int k = 0; k < shape[2]; k++)
-            {
-              int idx2 = submap.index(slot);
-              int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
-              submap(slot, i, j, k) = getVal<double>(idx1, idx2, flatCompIdx);
-            }
+            int idx2 = submap.index(slot);
+            int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
+            submap(slot, i, j, k) = getVal<double>(idx1, idx2, flatCompIdx);
           }
         }
       }
-    });
+    }
+  });
 
   SLIC_INFO("\nChecking the elements with findValue().");
   for(int idx1 = 0; idx1 < m.firstSetSize(); idx1++)

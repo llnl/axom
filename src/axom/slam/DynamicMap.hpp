@@ -16,9 +16,7 @@
 #include "axom/slam/DynamicSet.hpp"
 #include "axom/slam/Map.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class DynamicMap
@@ -246,5 +244,4 @@ bool DynamicMap<SetType, DataType>::isValid(bool verboseOutput) const
   return bValid;
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

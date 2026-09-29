@@ -147,7 +147,7 @@ device kernels to obtain zone information.
 .. code-block:: cpp
 
     auto topologyView = ...
-    axom::for_all<ExecSpace>(topologyView.numberOfZones(), AXOM_LAMBDA(axom::IndexType zoneIndex)
+    axom::for_all<ExecSpace>(topologyView.numberOfZones(), [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex)
     {
       // Get the current zone.
       const auto zone = topologyView.zone(zoneIndex);

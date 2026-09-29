@@ -75,7 +75,7 @@ TEST(IDField, createFromNode_missingKeys)
     internal::IDField field {object, "local id key", "global id key"};
     FAIL() << "Should have gotten a value error";
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("local id key"));
     EXPECT_THAT(expected.what(), HasSubstr("global id key"));

@@ -55,7 +55,7 @@ In this phase, we filter out these duplicates, as well as any pairs containing a
 
     axom::for_all<ExecSpace>(
       totalTriangles,
-      AXOM_LAMBDA(axom::IndexType i) { is_valid_v[i] = !tris_v[i].degenerate(); });
+      [=] AXOM_HOST_DEVICE(axom::IndexType i) { is_valid_v[i] = !tris_v[i].degenerate(); });
 ```
 
 Note that our input is a CSR-like array, which is not generally a great representation for GPU-like processors. As we iterate through this representation, we generate a more performant representation for our output in the form of a pair of corresponding arrays, in which each potential candidate pair is represented at position ``idx`` of the ``indices`` and ``validCandidates`` arrays. 
@@ -76,7 +76,7 @@ Our kernel therefore has the following implementation:
     // Keep pairs of valid triangles whose bounding boxes overlap
     axom::for_all<ExecSpace>(
       triMesh.numTriangles(),
-      AXOM_LAMBDA(axom::IndexType i) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType i) {
         for(int j = 0; j < counts_v[i]; j++)
         {
           const axom::IndexType potential = candidates_v[offsets_v[i] + j];
@@ -118,7 +118,7 @@ At this point, we have a pair of corresponding arrays, allowing us to run a fair
     // Perform triangle-triangle tests
     axom::for_all<ExecSpace>(
       numCandidates,
-      AXOM_LAMBDA(axom::IndexType i) {
+      [=] AXOM_HOST_DEVICE(axom::IndexType i) {
         constexpr bool includeBoundaries = false;
         const auto index = indices_v[i];
         const auto candidate = validCandidates_v[i];

@@ -87,6 +87,7 @@ private:
 public:
   using OctreeBaseType = spin::OctreeBase<DIM, InOutBlockData>;
   using SpatialOctreeType = spin::SpatialOctree<DIM, InOutBlockData>;
+  using OctreeLevels = typename OctreeBaseType::OctreeLevels;
 
   using GeometricBoundingBox = typename SpatialOctreeType::GeometricBoundingBox;
   using SpacePt = typename SpatialOctreeType::SpacePt;
@@ -124,23 +125,18 @@ public:
 
   // Type aliases for the Relations from Gray leaf blocks to mesh entities
   static const int MAX_VERTS_PER_BLOCK = 1;
-  using VertexBlockMap = slam::Map<BlockIndex>;
-  using STLIndirection = slam::policies::STLVectorIndirection<VertexIndex, VertexIndex>;
+  using VertexBlockMap = slam::Map<BlockIndex, MeshVertexSet>;
 
   using GrayLeafSet = slam::PositionSet<>;
-  using BVStride = slam::policies::CompileTimeStride<VertexIndex, MAX_VERTS_PER_BLOCK>;
-  using ConstantCardinality = slam::policies::ConstantCardinality<VertexIndex, BVStride>;
   using GrayLeafVertexRelation =
-    slam::StaticRelation<VertexIndex, VertexIndex, ConstantCardinality, STLIndirection, GrayLeafSet, MeshVertexSet>;
+    slam::ConstantRelation<GrayLeafSet, MeshVertexSet, MAX_VERTS_PER_BLOCK>;
 
-  using VariableCardinality = slam::policies::VariableCardinality<VertexIndex, STLIndirection>;
-  using GrayLeafElementRelation =
-    slam::StaticRelation<VertexIndex, VertexIndex, VariableCardinality, STLIndirection, GrayLeafSet, MeshElementSet>;
+  using GrayLeafElementRelation = slam::VariableRelation<GrayLeafSet, MeshElementSet>;
   using CellIndexSet = typename GrayLeafElementRelation::RelationSubset;
 
-  using GrayLeafsLevelMap = slam::Map<GrayLeafSet>;
-  using GrayLeafVertexRelationLevelMap = slam::Map<GrayLeafVertexRelation>;
-  using GrayLeafElementRelationLevelMap = slam::Map<GrayLeafElementRelation>;
+  using GrayLeafsLevelMap = slam::Map<GrayLeafSet, OctreeLevels>;
+  using GrayLeafVertexRelationLevelMap = slam::Map<GrayLeafVertexRelation, OctreeLevels>;
+  using GrayLeafElementRelationLevelMap = slam::Map<GrayLeafElementRelation, OctreeLevels>;
 
 public:
   /**

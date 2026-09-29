@@ -33,7 +33,7 @@ namespace internal
  * \return A LengthUnit containing the unit type.
  * \throws KleeError if the unit string is invalid
  */
-LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy);
+LengthUnit parseLengthUnits(const inlet::Proxy& unitsAsProxy);
 
 }  // namespace internal
 }  // namespace klee

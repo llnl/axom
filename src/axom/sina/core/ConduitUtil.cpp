@@ -41,9 +41,9 @@ namespace
  * @return the avlue of the field
  * @throws std::invalid_argument if the field is not a string
  */
-std::string getExpectedString(conduit::Node const &field,
-                              std::string const &fieldName,
-                              std::string const &parentType)
+std::string getExpectedString(conduit::Node const& field,
+                              std::string const& fieldName,
+                              std::string const& parentType)
 {
   if(!field.dtype().is_string())
   {
@@ -56,9 +56,9 @@ std::string getExpectedString(conduit::Node const &field,
 }
 }  // namespace
 
-conduit::Node const &getRequiredField(std::string const &fieldName,
-                                      conduit::Node const &parent,
-                                      std::string const &parentType)
+conduit::Node const& getRequiredField(std::string const& fieldName,
+                                      conduit::Node const& parent,
+                                      std::string const& parentType)
 {
   if(!parent.has_child(fieldName))
   {
@@ -70,17 +70,17 @@ conduit::Node const &getRequiredField(std::string const &fieldName,
   return parent.child(fieldName);
 }
 
-std::string getRequiredString(std::string const &fieldName,
-                              conduit::Node const &parent,
-                              std::string const &parentType)
+std::string getRequiredString(std::string const& fieldName,
+                              conduit::Node const& parent,
+                              std::string const& parentType)
 {
-  conduit::Node const &field = getRequiredField(fieldName, parent, parentType);
+  conduit::Node const& field = getRequiredField(fieldName, parent, parentType);
   return getExpectedString(field, fieldName, parentType);
 }
 
-std::string getOptionalString(std::string const &fieldName,
-                              conduit::Node const &parent,
-                              std::string const &parentType)
+std::string getOptionalString(std::string const& fieldName,
+                              conduit::Node const& parent,
+                              std::string const& parentType)
 {
   if(!parent.has_child(fieldName) || parent.child(fieldName).dtype().is_empty())
   {
@@ -89,11 +89,11 @@ std::string getOptionalString(std::string const &fieldName,
   return getExpectedString(parent.child(fieldName), fieldName, parentType);
 }
 
-double getRequiredDouble(std::string const &fieldName,
-                         conduit::Node const &parent,
-                         std::string const &parentType)
+double getRequiredDouble(std::string const& fieldName,
+                         conduit::Node const& parent,
+                         std::string const& parentType)
 {
-  auto &ref = getRequiredField(fieldName, parent, parentType);
+  auto& ref = getRequiredField(fieldName, parent, parentType);
   if(!ref.dtype().is_number())
   {
     std::ostringstream message;
@@ -104,15 +104,15 @@ double getRequiredDouble(std::string const &fieldName,
   return ref.as_double();
 }
 
-void addStringsToNode(conduit::Node &parent,
-                      std::string const &child_name,
-                      std::vector<std::string> const &string_values)
+void addStringsToNode(conduit::Node& parent,
+                      std::string const& child_name,
+                      std::vector<std::string> const& string_values)
 {
   // If the child already exists, add_child returns it
-  conduit::Node &child_node = parent.add_child(child_name);
-  for(auto &value : string_values)
+  conduit::Node& child_node = parent.add_child(child_name);
+  for(auto& value : string_values)
   {
-    auto &list_entry = child_node.append();
+    auto& list_entry = child_node.append();
     list_entry.set(value);
   }
 
@@ -125,7 +125,7 @@ void addStringsToNode(conduit::Node &parent,
   }
 }
 
-std::vector<double> toDoubleVector(conduit::Node const &node, std::string const &name)
+std::vector<double> toDoubleVector(conduit::Node const& node, std::string const& name)
 {
   if(node.dtype().is_list() && node.dtype().number_of_elements() == 0)
   {
@@ -136,19 +136,19 @@ std::vector<double> toDoubleVector(conduit::Node const &node, std::string const 
   {
     node.to_double_array(asDoubles);
   }
-  catch(conduit::Error const &err)
+  catch(conduit::Error const& err)
   {
     std::ostringstream errStream;
     errStream << "Error trying to convert node \"" << name << "\" into a list of doubles"
               << err.what();
     throw std::invalid_argument(errStream.str());
   }
-  double const *start = asDoubles.as_double_ptr();
+  double const* start = asDoubles.as_double_ptr();
   auto count = static_cast<std::vector<double>::size_type>(asDoubles.dtype().number_of_elements());
   return std::vector<double> {start, start + count};
 }
 
-std::vector<std::string> toStringVector(conduit::Node const &node, std::string const &name)
+std::vector<std::string> toStringVector(conduit::Node const& node, std::string const& name)
 {
   std::vector<std::string> converted;
   if(!node.dtype().is_list())
@@ -160,7 +160,7 @@ std::vector<std::string> toStringVector(conduit::Node const &node, std::string c
   }
   for(auto iter = node.children(); iter.has_next();)
   {
-    auto &child = iter.next();
+    auto& child = iter.next();
     if(child.dtype().is_string())
     {
       converted.emplace_back(child.as_string());

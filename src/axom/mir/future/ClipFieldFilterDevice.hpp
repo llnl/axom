@@ -39,17 +39,17 @@ public:
    *
    * \note The clipField field must currently be vertex-associated.
    */
-  void execute(const conduit::Node &n_input, const conduit::Node &n_options, conduit::Node &n_output)
+  void execute(const conduit::Node& n_input, const conduit::Node& n_options, conduit::Node& n_output)
   {
     ClipOptions opts(n_options);
     const std::string clipFieldName = opts.clipField();
 
-    const conduit::Node &n_fields = n_input.fetch_existing("fields");
-    const conduit::Node &n_clipField = n_fields.fetch_existing(clipFieldName);
-    const std::string &topoName = n_clipField["topology"].as_string();
-    const conduit::Node &n_topo = n_input.fetch_existing("topologies/" + topoName);
-    const std::string &coordsetName = n_topo["coordset"].as_string();
-    const conduit::Node &n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
+    const conduit::Node& n_fields = n_input.fetch_existing("fields");
+    const conduit::Node& n_clipField = n_fields.fetch_existing(clipFieldName);
+    const std::string& topoName = n_clipField["topology"].as_string();
+    const conduit::Node& n_topo = n_input.fetch_existing("topologies/" + topoName);
+    const std::string& coordsetName = n_topo["coordset"].as_string();
+    const conduit::Node& n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
 
     execute(n_topo,
             n_coordset,
@@ -89,13 +89,13 @@ public:
    *
    * \note The clipField field must currently be vertex-associated. Also, the output topology will be an unstructured topology with mixed shape types.
    */
-  void execute(const conduit::Node &n_topo,
-               const conduit::Node &n_coordset,
-               const conduit::Node &n_fields,
-               const conduit::Node &n_options,
-               conduit::Node &n_newTopo,
-               conduit::Node &n_newCoordset,
-               conduit::Node &n_newFields)
+  void execute(const conduit::Node& n_topo,
+               const conduit::Node& n_coordset,
+               const conduit::Node& n_fields,
+               const conduit::Node& n_options,
+               conduit::Node& n_newTopo,
+               conduit::Node& n_newCoordset,
+               conduit::Node& n_newFields)
   {
 #if 0
     // NOTE - there are 2 dispatches here so we can get coordset and topology views.

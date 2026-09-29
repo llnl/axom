@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/config.hpp"                  // for compile-time definitions
 #include "axom/core/memory_management.hpp"  // alloc() / free() methods
-#include "axom/core/Macros.hpp"             // for AXOM_LAMBDA
+#include "axom/core/Macros.hpp"             // for AXOM_HOST_DEVICE
 
 // RAJA includes
 #include "RAJA/RAJA.hpp"  // for RAJA
@@ -30,15 +30,14 @@ void raja_basic_usage_test()
   int* c = axom::allocate<int>(N);
 
   // initialize
-  RAJA::forall<execution_policy>(
-    RAJA::RangeSegment(0, N),
-    AXOM_LAMBDA(int i) {
-      a[i] = b[i] = 1;
-      c[i] = 0;
-    });
+  RAJA::forall<execution_policy>(RAJA::RangeSegment(0, N), [=] AXOM_HOST_DEVICE(int i) {
+    a[i] = b[i] = 1;
+    c[i] = 0;
+  });
 
   // add vectors
-  RAJA::forall<execution_policy>(RAJA::RangeSegment(0, N), AXOM_LAMBDA(int i) { c[i] = a[i] + b[i]; });
+  RAJA::forall<execution_policy>(RAJA::RangeSegment(0, N),
+                                 [=] AXOM_HOST_DEVICE(int i) { c[i] = a[i] + b[i]; });
 
   // check result in serial
   for(int i = 0; i < N; ++i)

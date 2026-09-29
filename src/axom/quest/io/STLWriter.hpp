@@ -13,9 +13,7 @@
 
 #include <string>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /*!
  * \class STLWriter
@@ -70,7 +68,7 @@ public:
    * \pre path to input file has been set by calling `setFileName()`
    * \return status set to zero on success; set to a non-zero value otherwise.
    */
-  int write(const mint::Mesh* mesh);
+  [[nodiscard]] int write(const mint::Mesh* mesh);
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
@@ -105,7 +103,6 @@ protected:
  *
  * \return 0 on success; non-zero otherwise.
  */
-int write_stl(const mint::Mesh* mesh, const std::string& filename, bool binary = false);
+[[nodiscard]] int write_stl(const mint::Mesh* mesh, const std::string& filename, bool binary = false);
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

@@ -51,7 +51,7 @@ if(AXOM_ENABLE_QUEST)
         quest
         )
 
-    blt_list_append(TO mesh_tester_depends ELEMENTS umpire IF UMPIRE_FOUND)
+    blt_list_append(TO mesh_tester_depends ELEMENTS umpire::umpire IF UMPIRE_FOUND)
     blt_list_append(TO mesh_tester_depends ELEMENTS RAJA IF RAJA_FOUND)
 
     axom_add_executable(
@@ -263,6 +263,24 @@ if(NANOBIND_FOUND)
 
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Writing out datastore")
+
+            set(_testname "convert_sidre_protocol_py_blueprint")
+            set(mesh_dir "${AXOM_DATA_DIR}/quest/mdmesh.2x1.root")
+
+            axom_add_python_test(
+              NAME ${_testname}
+              COMMAND ${Python_EXECUTABLE}
+                      ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
+                      --input ${mesh_dir}
+                      --input-type blueprint
+                      --output csp_blueprint_output
+                      --protocol json
+                      --strip 4
+              NUM_MPI_TASKS 2
+            )
+
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Truncated [0-9]+ numeric Blueprint array")
         else()
             axom_add_python_test(
               NAME ${_testname}
@@ -272,7 +290,7 @@ if(NANOBIND_FOUND)
             )
 
             set_tests_properties(${_testname} PROPERTIES
-                PASS_REGULAR_EXPRESSION  "Sidre protocol converter")
+                PASS_REGULAR_EXPRESSION  "Sidre/Blueprint protocol converter")
         endif()
     endif()
 endif()

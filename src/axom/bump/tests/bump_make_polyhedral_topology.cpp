@@ -29,13 +29,13 @@ axom::blueprint::testing::TestApplication TestApp;
 template <typename ExecSpace>
 struct make_polyhedral
 {
-  static void initialize(const std::string &type, conduit::Node &n_mesh)
+  static void initialize(const std::string& type, conduit::Node& n_mesh)
   {
     axom::StackArray<axom::IndexType, 3> dims {4, 4, 4};
     axom::blueprint::testing::data::braid(type, dims, n_mesh);
   }
 
-  static void test(const std::string &type, const std::string &name)
+  static void test(const std::string& type, const std::string& name)
   {
     // Create the data
     conduit::Node hostMesh, deviceMesh;
@@ -45,8 +45,8 @@ struct make_polyhedral
 
     //_bump_utilities_makepolyhedraltopology_begin
     // Run the algorithm
-    const conduit::Node &n_input = deviceMesh["topologies/mesh"];
-    conduit::Node &n_output = deviceMesh["topologies/polymesh"];
+    const conduit::Node& n_input = deviceMesh["topologies/mesh"];
+    conduit::Node& n_output = deviceMesh["topologies/polymesh"];
     if(type == "uniform")
     {
       auto topologyView = views::make_uniform_topology<3>::view(n_input);
@@ -247,7 +247,7 @@ TEST(bump_make_polyhedral_topology, hexs_hip)
 #endif
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   return TestApp.execute(argc, argv);

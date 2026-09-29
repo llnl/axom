@@ -224,9 +224,9 @@ void check_intersection_volumes(const Input& params)
 
   axom::ReduceSum<ExecSpace, double> total_tet_vol(0.0);
 
-  axom::for_all<ExecSpace>(
-    NUM_TETS,
-    AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += tets_view[i].volume(); });
+  axom::for_all<ExecSpace>(NUM_TETS, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    total_tet_vol += tets_view[i].volume();
+  });
 
   SLIC_INFO(axom::fmt::format(
     "{:-^80}",
@@ -243,25 +243,19 @@ void check_intersection_volumes(const Input& params)
   // every pair of hexahedron and tetrahedron indices.
   if(NUM_HEXES > NUM_TETS)
   {
-    axom::for_all<ExecSpace>(
-      NUM_HEXES * NUM_TETS,
-      AXOM_LAMBDA(axom::IndexType i) {
-        total_intersect_vol += intersection_volume(hexes_view[i / NUM_TETS],
-                                                   tets_view[i % NUM_TETS],
-                                                   EPS,
-                                                   tryFixOrientation);
-      });
+    axom::for_all<ExecSpace>(NUM_HEXES * NUM_TETS, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      total_intersect_vol +=
+        intersection_volume(hexes_view[i / NUM_TETS], tets_view[i % NUM_TETS], EPS, tryFixOrientation);
+    });
   }
   else
   {
-    axom::for_all<ExecSpace>(
-      NUM_HEXES * NUM_TETS,
-      AXOM_LAMBDA(axom::IndexType i) {
-        total_intersect_vol += intersection_volume(hexes_view[i % NUM_HEXES],
-                                                   tets_view[i / NUM_HEXES],
-                                                   EPS,
-                                                   tryFixOrientation);
-      });
+    axom::for_all<ExecSpace>(NUM_HEXES * NUM_TETS, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      total_intersect_vol += intersection_volume(hexes_view[i % NUM_HEXES],
+                                                 tets_view[i / NUM_HEXES],
+                                                 EPS,
+                                                 tryFixOrientation);
+    });
   }
 
   SLIC_INFO(axom::fmt::format("{:-^80}",

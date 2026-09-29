@@ -20,7 +20,7 @@ extern "C" {
 // helper char_len_trim
 // Returns the length of character string src with length nsrc,
 // ignoring any trailing blanks.
-static int ShroudCharLenTrim(const char *src, int nsrc)
+static int ShroudCharLenTrim(const char* src, int nsrc)
 {
   int i;
 
@@ -39,7 +39,7 @@ static int ShroudCharLenTrim(const char *src, int nsrc)
 // splicer end C_definitions
 
 #ifdef AXOM_USE_MPI
-int QUEST_inout_init_mpi(const char *fileName, MPI_Fint comm)
+int QUEST_inout_init_mpi(const char* fileName, MPI_Fint comm)
 {
   // splicer begin function.inout_init_mpi
   const std::string SHC_fileName_cxx(fileName);
@@ -51,7 +51,7 @@ int QUEST_inout_init_mpi(const char *fileName, MPI_Fint comm)
 #endif  // ifdef AXOM_USE_MPI
 
 #ifdef AXOM_USE_MPI
-int QUEST_inout_init_mpi_bufferify(char *fileName, int SHT_fileName_len, MPI_Fint comm)
+int QUEST_inout_init_mpi_bufferify(char* fileName, int SHT_fileName_len, MPI_Fint comm)
 {
   // splicer begin function.inout_init_mpi_bufferify
   int SHC_fileName_trim = ShroudCharLenTrim(fileName, SHT_fileName_len);
@@ -64,7 +64,7 @@ int QUEST_inout_init_mpi_bufferify(char *fileName, int SHT_fileName_len, MPI_Fin
 #endif  // ifdef AXOM_USE_MPI
 
 #ifndef AXOM_USE_MPI
-int QUEST_inout_init_serial(const char *fileName)
+int QUEST_inout_init_serial(const char* fileName)
 {
   // splicer begin function.inout_init_serial
   const std::string SHC_fileName_cxx(fileName);
@@ -75,7 +75,7 @@ int QUEST_inout_init_serial(const char *fileName)
 #endif  // ifndef AXOM_USE_MPI
 
 #ifndef AXOM_USE_MPI
-int QUEST_inout_init_serial_bufferify(char *fileName, int SHT_fileName_len)
+int QUEST_inout_init_serial_bufferify(char* fileName, int SHT_fileName_len)
 {
   // splicer begin function.inout_init_serial_bufferify
   int SHC_fileName_trim = ShroudCharLenTrim(fileName, SHT_fileName_len);
@@ -142,7 +142,7 @@ bool QUEST_inout_evaluate_1(double x, double y, double z)
   // splicer end function.inout_evaluate_1
 }
 
-int QUEST_inout_mesh_min_bounds(double *coords)
+int QUEST_inout_mesh_min_bounds(double* coords)
 {
   // splicer begin function.inout_mesh_min_bounds
   int SHC_rv = axom::quest::inout_mesh_min_bounds(coords);
@@ -150,7 +150,7 @@ int QUEST_inout_mesh_min_bounds(double *coords)
   // splicer end function.inout_mesh_min_bounds
 }
 
-int QUEST_inout_mesh_max_bounds(double *coords)
+int QUEST_inout_mesh_max_bounds(double* coords)
 {
   // splicer begin function.inout_mesh_max_bounds
   int SHC_rv = axom::quest::inout_mesh_max_bounds(coords);
@@ -158,7 +158,7 @@ int QUEST_inout_mesh_max_bounds(double *coords)
   // splicer end function.inout_mesh_max_bounds
 }
 
-int QUEST_inout_mesh_center_of_mass(double *coords)
+int QUEST_inout_mesh_center_of_mass(double* coords)
 {
   // splicer begin function.inout_mesh_center_of_mass
   int SHC_rv = axom::quest::inout_mesh_center_of_mass(coords);
@@ -183,7 +183,7 @@ int QUEST_inout_finalize(void)
 }
 
 #ifdef AXOM_USE_MPI
-int QUEST_signed_distance_init_mpi(const char *file, MPI_Fint comm)
+int QUEST_signed_distance_init_mpi(const char* file, MPI_Fint comm)
 {
   // splicer begin function.signed_distance_init_mpi
   const std::string SHC_file_cxx(file);
@@ -195,7 +195,7 @@ int QUEST_signed_distance_init_mpi(const char *file, MPI_Fint comm)
 #endif  // ifdef AXOM_USE_MPI
 
 #ifdef AXOM_USE_MPI
-int QUEST_signed_distance_init_mpi_bufferify(char *file, int SHT_file_len, MPI_Fint comm)
+int QUEST_signed_distance_init_mpi_bufferify(char* file, int SHT_file_len, MPI_Fint comm)
 {
   // splicer begin function.signed_distance_init_mpi_bufferify
   int SHC_file_trim = ShroudCharLenTrim(file, SHT_file_len);
@@ -208,7 +208,7 @@ int QUEST_signed_distance_init_mpi_bufferify(char *file, int SHT_file_len, MPI_F
 #endif  // ifdef AXOM_USE_MPI
 
 #ifndef AXOM_USE_MPI
-int QUEST_signed_distance_init_serial(const char *file)
+int QUEST_signed_distance_init_serial(const char* file)
 {
   // splicer begin function.signed_distance_init_serial
   const std::string SHC_file_cxx(file);
@@ -219,7 +219,7 @@ int QUEST_signed_distance_init_serial(const char *file)
 #endif  // ifndef AXOM_USE_MPI
 
 #ifndef AXOM_USE_MPI
-int QUEST_signed_distance_init_serial_bufferify(char *file, int SHT_file_len)
+int QUEST_signed_distance_init_serial_bufferify(char* file, int SHT_file_len)
 {
   // splicer begin function.signed_distance_init_serial_bufferify
   int SHC_file_trim = ShroudCharLenTrim(file, SHT_file_len);
@@ -238,7 +238,7 @@ bool QUEST_signed_distance_initialized(void)
   // splicer end function.signed_distance_initialized
 }
 
-void QUEST_signed_distance_get_mesh_bounds(double *lo, double *hi)
+void QUEST_signed_distance_get_mesh_bounds(double* lo, double* hi)
 {
   // splicer begin function.signed_distance_get_mesh_bounds
   axom::quest::signed_distance_get_mesh_bounds(lo, hi);
@@ -321,12 +321,12 @@ double QUEST_signed_distance_evaluate_0(double x, double y, double z)
 double QUEST_signed_distance_evaluate_1(double x,
                                         double y,
                                         double z,
-                                        double *cp_x,
-                                        double *cp_y,
-                                        double *cp_z,
-                                        double *n_x,
-                                        double *n_y,
-                                        double *n_z)
+                                        double* cp_x,
+                                        double* cp_y,
+                                        double* cp_z,
+                                        double* n_x,
+                                        double* n_y,
+                                        double* n_z)
 {
   // splicer begin function.signed_distance_evaluate_1
   double SHC_rv =

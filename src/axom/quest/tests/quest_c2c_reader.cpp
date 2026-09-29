@@ -135,7 +135,7 @@ TEST(quest_c2c_reader, basic_read)
   quest::C2CReader reader;
   reader.setFileName(fileName);
 
-  reader.read();
+  ASSERT_EQ(0, reader.read());
   reader.log();
 }
 
@@ -147,7 +147,7 @@ TEST(quest_c2c_reader, interpolate_circle)
   quest::C2CReader reader;
   reader.setFileName(fileName);
 
-  reader.read();
+  ASSERT_EQ(0, reader.read());
   reader.log();
 
   constexpr int DIM = 2;
@@ -224,7 +224,7 @@ TEST(quest_c2c_reader, interpolate_square)
   quest::C2CReader reader;
   reader.setFileName(fileName);
 
-  reader.read();
+  ASSERT_EQ(0, reader.read());
   reader.log();
 
   constexpr int DIM = 2;
@@ -261,7 +261,7 @@ TEST(quest_c2c_reader, interpolate_spline)
   quest::C2CReader reader;
   reader.setFileName(fileName);
 
-  reader.read();
+  ASSERT_EQ(0, reader.read());
   reader.log();
 
   constexpr int DIM = 2;

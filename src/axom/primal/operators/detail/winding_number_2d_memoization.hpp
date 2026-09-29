@@ -327,17 +327,14 @@ public:
 
     // Make the first one
     nurbs_caches_view[0].resize(curves.size());
-    axom::for_all<axom::OMP_EXEC>(
-      curves.size(),
-      AXOM_HOST_LAMBDA(axom::IndexType i) {
-        nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
-      });
+    axom::for_all<axom::OMP_EXEC>(curves.size(), [=] AXOM_HOST(axom::IndexType i) {
+      nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
+    });
 
     // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(
-      1,
-      nt,
-      AXOM_HOST_LAMBDA(axom::IndexType t) { nurbs_caches_view[t] = nurbs_caches_view[0]; });
+    axom::for_all<axom::OMP_EXEC>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
+      nurbs_caches_view[t] = nurbs_caches_view[0];
+    });
   }
 
   /// A view of the manager object.

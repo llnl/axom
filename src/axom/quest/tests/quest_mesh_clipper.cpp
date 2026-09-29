@@ -27,7 +27,9 @@
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
-#include "axom/quest.hpp"
+#include "axom/quest/MeshClipper.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
+#include "axom/quest/ShapeMesh.hpp"
 #include "axom/quest/detail/clipping/HexClipper.hpp"
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
 #include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
@@ -35,7 +37,9 @@
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+#include "axom/quest/io/ProEReader.hpp"
 #include "axom/quest/util/make_clipper_strategy.hpp"
+#include "axom/quest/util/mesh_helpers.hpp"
 #include "axom/core/utilities/FileUtilities.hpp"
 
 #include "axom/fmt.hpp"
@@ -48,6 +52,8 @@
 #include <math.h>
 
 #ifdef AXOM_USE_MPI
+  #include "conduit_blueprint_mpi.hpp"
+  #include "conduit_relay_mpi_io_blueprint.hpp"
   #include "mpi.h"
 #endif
 
@@ -65,6 +71,7 @@ namespace sidre = axom::sidre;
 //------------------------------------------------------------------------------
 
 using RuntimePolicy = axom::runtime_policy::Policy;
+using Point3D = axom::primal::Point<double, 3>;
 
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
 [[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
@@ -106,8 +113,17 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string>
-    availableShapes {"tetmesh", "cupmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
+  const std::set<std::string> availableShapes {"tetmesh",
+#ifdef AXOM_DATA_DIR
+                                               "cupmesh",
+#endif
+                                               "sphere",
+                                               "cyl",
+                                               "cone",
+                                               "sor",
+                                               "tet",
+                                               "hex",
+                                               "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -575,9 +591,9 @@ void fitTetMeshInsideMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>
   primal::experimental::CoordinateTransformer<double> trans(start, dest);
 
   // Transform every tetMesh vertex.
-  axom::for_all<axom::SEQ_EXEC>(
-    vertCount,
-    AXOM_LAMBDA(axom::IndexType vi) { trans.transform(coords[0][vi], coords[1][vi], coords[2][vi]); });
+  axom::for_all<axom::SEQ_EXEC>(vertCount, [=] AXOM_HOST_DEVICE(axom::IndexType vi) {
+    trans.transform(coords[0][vi], coords[1][vi], coords[2][vi]);
+  });
 }
 
 axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string& geomName)
@@ -633,6 +649,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   return tetMeshGeometry;
 }
 
+#ifdef AXOM_DATA_DIR
 axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string& geomName)
 {
   // Shape a tetrahedal mesh.
@@ -674,6 +691,7 @@ axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string&
 
   return tetMeshGeometry;
 }
+#endif
 
 /*
  * Utility function to make a SOR geometry from the specifications in the arguments.
@@ -965,53 +983,47 @@ axom::sidre::View* getElementVolumes(
                                     XS::allocatorID());
     auto vertCoordsView = vertCoords.view();
 
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(axom::IndexType cellIdx) {
-        // Get the indices of this element's vertices
-        auto verts = conn[cellIdx];
+    axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellIdx) {
+      // Get the indices of this element's vertices
+      auto verts = conn[cellIdx];
 
-        // Get the coordinates for the vertices
-        for(int j = 0; j < NUM_VERTS_PER_HEX; ++j)
+      // Get the coordinates for the vertices
+      for(int j = 0; j < NUM_VERTS_PER_HEX; ++j)
+      {
+        int vertIdx = cellIdx * NUM_VERTS_PER_HEX + j;
+        for(int k = 0; k < NUM_COMPS_PER_VERT; k++)
         {
-          int vertIdx = cellIdx * NUM_VERTS_PER_HEX + j;
-          for(int k = 0; k < NUM_COMPS_PER_VERT; k++)
-          {
-            vertCoordsView[vertIdx][k] = coordArrays[k][verts[j]];
-            // vertCoordsView[vertIdx][k] = mesh.getNodeCoordinate(verts[j], k);
-          }
+          vertCoordsView[vertIdx][k] = coordArrays[k][verts[j]];
+          // vertCoordsView[vertIdx][k] = mesh.getNodeCoordinate(verts[j], k);
         }
-      });
+      }
+    });
 
     // Set vertex coords to zero if within threshold.
     // (I don't know why we do this.  I'm following examples.)
     axom::ArrayView<double> flatCoordsView((double*)vertCoords.data(),
                                            vertCoords.size() * Point3D::dimension());
     assert(flatCoordsView.size() == cellCount * NUM_VERTS_PER_HEX * 3);
-    axom::for_all<ExecSpace>(
-      cellCount * 3,
-      AXOM_LAMBDA(axom::IndexType i) {
-        if(axom::utilities::isNearlyEqual(flatCoordsView[i], 0.0, ZERO_THRESHOLD))
-        {
-          flatCoordsView[i] = 0.0;
-        }
-      });
+    axom::for_all<ExecSpace>(cellCount * 3, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      if(axom::utilities::isNearlyEqual(flatCoordsView[i], 0.0, ZERO_THRESHOLD))
+      {
+        flatCoordsView[i] = 0.0;
+      }
+    });
 
     // Initialize hexahedral elements.
     axom::Array<HexahedronType> hexes(cellCount, cellCount, meshGrp->getDefaultAllocatorID());
     auto hexesView = hexes.view();
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(axom::IndexType cellIdx) {
-        // Set each hexahedral element vertices
-        hexesView[cellIdx] = HexahedronType();
-        for(int j = 0; j < NUM_VERTS_PER_HEX; ++j)
-        {
-          int vertIndex = (cellIdx * NUM_VERTS_PER_HEX) + j;
-          auto& hex = hexesView[cellIdx];
-          hex[j] = vertCoordsView[vertIndex];
-        }
-      });  // end of loop to initialize hexahedral elements and bounding boxes
+    axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellIdx) {
+      // Set each hexahedral element vertices
+      hexesView[cellIdx] = HexahedronType();
+      for(int j = 0; j < NUM_VERTS_PER_HEX; ++j)
+      {
+        int vertIndex = (cellIdx * NUM_VERTS_PER_HEX) + j;
+        auto& hex = hexesView[cellIdx];
+        hex[j] = vertCoordsView[vertIndex];
+      }
+    });  // end of loop to initialize hexahedral elements and bounding boxes
 
     // Allocate and populate cell volumes.
     axom::sidre::Group* fieldGrp = meshGrp->createGroup(fieldPath);
@@ -1023,9 +1035,9 @@ axom::sidre::View* getElementVolumes(
     axom::IndexType shape2d[] = {cellCount, 1};
     volSidreView->reshapeArray(2, shape2d);
     axom::ArrayView<double> volView(volSidreView->getData(), volSidreView->getNumElements());
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(axom::IndexType cellIdx) { volView[cellIdx] = hexesView[cellIdx].volume(); });
+    axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellIdx) {
+      volView[cellIdx] = hexesView[cellIdx].volume();
+    });
   }
 
   return volSidreView;
@@ -1061,9 +1073,9 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
   axom::ArrayView<double> volFracView(volFrac->getArray(), cellCount);
 
   axom::ReduceSum<ExecSpace, double> localVol(0);
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    localVol += volFracView[i] * elementVolsView[i];
+  });
 
   double globalVol = localVol.get();
 #ifdef AXOM_USE_MPI
@@ -1112,28 +1124,26 @@ void fillSidreViewData(axom::sidre::View* view, const T& value)
   case RuntimePolicy::cuda:
     axom::for_all<axom::CUDA_EXEC<256>>(
       view->getNumElements(),
-      AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
+      [=] AXOM_HOST_DEVICE(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
 #if defined(AXOM_USE_HIP)
   case RuntimePolicy::hip:
     axom::for_all<axom::HIP_EXEC<256>>(
       view->getNumElements(),
-      AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
+      [=] AXOM_HOST_DEVICE(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
 #if defined(AXOM_USE_OMP)
   case RuntimePolicy::omp:
-    axom::for_all<axom::OMP_EXEC>(
-      view->getNumElements(),
-      AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
+    axom::for_all<axom::OMP_EXEC>(view->getNumElements(),
+                                  [=] AXOM_HOST_DEVICE(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
   case RuntimePolicy::seq:
   default:
-    axom::for_all<axom::SEQ_EXEC>(
-      view->getNumElements(),
-      AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
+    axom::for_all<axom::SEQ_EXEC>(view->getNumElements(),
+                                  [=] AXOM_HOST_DEVICE(axom::IndexType i) { valuesPtr[i] = value; });
     break;
   }
 }
@@ -1258,10 +1268,12 @@ int main(int argc, char** argv)
     {
       strat = make_clipper_strategy(createGeom_TetMesh(ds, name), name);
     }
+#ifdef AXOM_DATA_DIR
     else if(tg == "cupmesh")
     {
       strat = make_clipper_strategy(createGeom_CupMesh(ds, name), name);
     }
+#endif
     else if(tg == "tet")
     {
       strat = make_clipper_strategy(createGeom_Tet(name), name);
@@ -1374,9 +1386,9 @@ int main(int argc, char** argv)
     }
     auto ovlapView = ovlap.view();
     axom::ReduceSum<axom::SEQ_EXEC, double> ovlapSumReduce(0.0);
-    axom::for_all<axom::SEQ_EXEC>(
-      ovlap.size(),
-      AXOM_LAMBDA(axom::IndexType i) { ovlapSumReduce += ovlapView[i]; });
+    axom::for_all<axom::SEQ_EXEC>(ovlap.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      ovlapSumReduce += ovlapView[i];
+    });
     double computedOverlapVol = ovlapSumReduce.get();
     double exactGeomVol = exactGeomVols[geomName];
 

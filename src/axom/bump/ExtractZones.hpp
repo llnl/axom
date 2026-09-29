@@ -41,7 +41,7 @@ public:
    * \param topoView The input topology view.
    * \param coordsetView The input coordset view.
    */
-  ExtractZones(const TopologyView &topoView, const CoordsetView &coordsetView)
+  ExtractZones(const TopologyView& topoView, const CoordsetView& coordsetView)
     : m_topologyView(topoView)
     , m_coordsetView(coordsetView)
     , m_zoneSlice()
@@ -101,10 +101,10 @@ public:
    * 3 integer values for extra allocation to be made for nodes, zones, and connectivity.
    * This extra space can be filled in later by the application.
    */
-  void execute(const SelectedZonesView &selectedZonesView,
-               const conduit::Node &n_input,
-               const conduit::Node &n_options,
-               conduit::Node &n_output)
+  void execute(const SelectedZonesView& selectedZonesView,
+               const conduit::Node& n_input,
+               const conduit::Node& n_options,
+               conduit::Node& n_output)
   {
     AXOM_ANNOTATE_SCOPE("ExtractZones");
     namespace utils = axom::bump::utilities;
@@ -126,20 +126,20 @@ public:
     Options opts(n_options);
 
     // Make a new output topology.
-    const conduit::Node &n_topologies = n_input.fetch_existing("topologies");
+    const conduit::Node& n_topologies = n_input.fetch_existing("topologies");
     const std::string topoName = topologyName(n_input, n_options);
-    const conduit::Node &n_topo = n_topologies.fetch_existing(topoName);
+    const conduit::Node& n_topo = n_topologies.fetch_existing(topoName);
     const std::string newTopoName = opts.topologyName(topoName);
-    conduit::Node &n_newTopo = n_output["topologies/" + newTopoName];
+    conduit::Node& n_newTopo = n_output["topologies/" + newTopoName];
     makeTopology(selectedZonesView, dataSizes, extra, old2new.view(), n_topo, n_options, n_newTopo);
 
     // Make a new coordset.
     SliceData nSlice;
     nSlice.m_indicesView = nodeSlice.view();
     const std::string coordsetName = n_topo.fetch_existing("coordset").as_string();
-    const conduit::Node &n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
+    const conduit::Node& n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
     const std::string newCoordsetName = opts.coordsetName(coordsetName);
-    conduit::Node &n_newCoordset = n_output["coordsets/" + newCoordsetName];
+    conduit::Node& n_newCoordset = n_output["coordsets/" + newCoordsetName];
     makeCoordset(nSlice, n_coordset, n_newCoordset);
 
     // Update the coordset name in the topo.
@@ -149,8 +149,8 @@ public:
     bool makeOriginalZones = true;
     if(n_input.has_child("fields"))
     {
-      const conduit::Node &n_fields = n_input.fetch_existing("fields");
-      conduit::Node &n_newFields = n_output["fields"];
+      const conduit::Node& n_fields = n_input.fetch_existing("fields");
+      conduit::Node& n_newFields = n_output["fields"];
       SliceData zSlice;
       zSlice.m_indicesView = zoneSliceView(selectedZonesView, extra);
       makeOriginalZones = !n_fields.has_child(opts.originalElementsField());
@@ -163,8 +163,8 @@ public:
       const auto conduitAllocatorId =
         axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
-      conduit::Node &n_outFields = n_output["fields"];
-      conduit::Node &n_origElements = n_outFields[opts.originalElementsField()];
+      conduit::Node& n_outFields = n_output["fields"];
+      conduit::Node& n_origElements = n_outFields[opts.originalElementsField()];
       n_origElements["topology"] = newTopoName;
       n_origElements["association"] = "element";
       n_origElements["values"].set_allocator(conduitAllocatorId);
@@ -198,8 +198,8 @@ protected:
    *
    * \return An array view containing the zone slice.
    */
-  axom::ArrayView<axom::IndexType> zoneSliceView(const SelectedZonesView &selectedZonesView,
-                                                 const Sizes &extra)
+  axom::ArrayView<axom::IndexType> zoneSliceView(const SelectedZonesView& selectedZonesView,
+                                                 const Sizes& extra)
   {
     axom::ArrayView<axom::IndexType> view;
     if(extra.zones > 0)
@@ -215,10 +215,9 @@ protected:
         axom::copy(view.data(),
                    selectedZonesView.data(),
                    sizeof(axom::IndexType) * selectedZonesView.size());
-        axom::for_all<ExecSpace>(
-          selectedZonesView.size(),
-          n,
-          AXOM_LAMBDA(axom::IndexType index) { view[index] = 0; });
+        axom::for_all<ExecSpace>(selectedZonesView.size(),
+                                 n,
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType index) { view[index] = 0; });
       }
       view = m_zoneSlice.view();
     }
@@ -236,7 +235,7 @@ protected:
    *
    * \return A Sizes object that contains extra sizes. Values not present in the options will be 0.
    */
-  Sizes getExtra(const conduit::Node &n_options) const
+  Sizes getExtra(const conduit::Node& n_options) const
   {
     Sizes extra {};
     if(n_options.has_path("extra/nodes"))
@@ -269,10 +268,10 @@ protected:
    *
    * \note old2new is not used in this method.
    */
-  Sizes nodeMap(const SelectedZonesView &selectedZonesView,
-                const Sizes &extra,
-                axom::Array<ConnectivityType> &AXOM_UNUSED_PARAM(old2new),
-                axom::Array<axom::IndexType> &nodeSlice) const
+  Sizes nodeMap(const SelectedZonesView& selectedZonesView,
+                const Sizes& extra,
+                axom::Array<ConnectivityType>& AXOM_UNUSED_PARAM(old2new),
+                axom::Array<axom::IndexType>& nodeSlice) const
   {
     AXOM_ANNOTATE_SCOPE("nodeMap");
     const int allocatorID = getAllocatorID();
@@ -290,13 +289,12 @@ protected:
     {
       axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
       const TopologyView deviceTopologyView(m_topologyView);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          const auto zoneIndex = selectedZonesView[szIndex];
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-          connsize_reduce += zone.numberOfNodes();
-        });
+      axom::for_all<ExecSpace>(selectedZonesView.size(),
+                               [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                 const auto zoneIndex = selectedZonesView[szIndex];
+                                 const auto zone = deviceTopologyView.zone(zoneIndex);
+                                 connsize_reduce += zone.numberOfNodes();
+                               });
       newConnSize = connsize_reduce.get();
     }
     if(!selectedZonesView.empty())
@@ -315,11 +313,9 @@ protected:
                                              nodeSliceSize,
                                              allocatorID);
     auto nodeSliceView = nodeSlice.view();
-    axom::for_all<ExecSpace>(
-      nodeSliceSize,
-      AXOM_LAMBDA(axom::IndexType index) {
-        nodeSliceView[index] = (index < sizes.nodes) ? index : 0;
-      });
+    axom::for_all<ExecSpace>(nodeSliceSize, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      nodeSliceView[index] = (index < sizes.nodes) ? index : 0;
+    });
 
     return sizes;
   }
@@ -338,9 +334,9 @@ protected:
    *         (excluding extra) for the output mesh.
    */
   Sizes compactNodeMap(const SelectedZonesView selectedZonesView,
-                       const Sizes &extra,
-                       axom::Array<ConnectivityType> &old2new,
-                       axom::Array<axom::IndexType> &nodeSlice) const
+                       const Sizes& extra,
+                       axom::Array<ConnectivityType>& old2new,
+                       axom::Array<axom::IndexType>& nodeSlice) const
   {
     AXOM_ANNOTATE_SCOPE("compactNodeMap");
     const int allocatorID = getAllocatorID();
@@ -359,19 +355,17 @@ protected:
     // Mark all the selected zones' nodes as 1. Multiple threads may write 1 to the same node.
     axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
     TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const axom::IndexType nids = zone.numberOfNodes();
-        for(axom::IndexType i = 0; i < nids; i++)
-        {
-          const auto nodeId = zone.getId(i);
-          maskView[nodeId] = 1;
-        }
-        connsize_reduce += nids;
-      });
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto zone = deviceTopologyView.zone(zoneIndex);
+      const axom::IndexType nids = zone.numberOfNodes();
+      for(axom::IndexType i = 0; i < nids; i++)
+      {
+        const auto nodeId = zone.getId(i);
+        maskView[nodeId] = 1;
+      }
+      connsize_reduce += nids;
+    });
     const auto newConnSize = connsize_reduce.get();
     if(!selectedZonesView.empty())
     {
@@ -388,9 +382,9 @@ protected:
     if constexpr(axom::execution_space<ExecSpace>::onDevice())
     {
       axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-      axom::for_all<ExecSpace>(
-        nnodes,
-        AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
+      axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        mask_reduce += maskView[index];
+      });
       newNumNodes = mask_reduce.get();
     }
     else
@@ -411,21 +405,19 @@ protected:
                                              allocatorID);
     auto old2newView = old2new.view();
     auto nodeSliceView = nodeSlice.view();
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType index) {
-        if(maskView[index] > 0)
-        {
-          nodeSliceView[maskOffsetsView[index]] = index;
-          old2newView[index] = maskOffsetsView[index];
-        }
-      });
+    axom::for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      if(maskView[index] > 0)
+      {
+        nodeSliceView[maskOffsetsView[index]] = index;
+        old2newView[index] = maskOffsetsView[index];
+      }
+    });
     if(extra.nodes > 0)
     {
       axom::for_all<ExecSpace>(
         nnodes,
         nnodes + extra.nodes,
-        AXOM_LAMBDA(axom::IndexType index) { nodeSliceView[index] = 0; });
+        [=] AXOM_HOST_DEVICE(axom::IndexType index) { nodeSliceView[index] = 0; });
     }
 
     Sizes sizes {};
@@ -448,12 +440,12 @@ protected:
    * \param n_newTopo A node to contain the new topology.
    */
   virtual void makeTopology(const SelectedZonesView selectedZonesView,
-                            const Sizes &dataSizes,
-                            const Sizes &extra,
-                            const axom::ArrayView<ConnectivityType> &old2newView,
-                            const conduit::Node &n_topo,
-                            const conduit::Node &n_options,
-                            conduit::Node &n_newTopo) const
+                            const Sizes& dataSizes,
+                            const Sizes& extra,
+                            const axom::ArrayView<ConnectivityType>& old2newView,
+                            const conduit::Node& n_topo,
+                            const conduit::Node& n_options,
+                            conduit::Node& n_newTopo) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
     namespace utils = axom::bump::utilities;
@@ -476,19 +468,19 @@ protected:
       n_newTopo["coordset"] = n_topo["coordset"].as_string();
       n_newTopo["elements/shape"] = outputShape(n_topo);
 
-      conduit::Node &n_conn = n_newTopo["elements/connectivity"];
+      conduit::Node& n_conn = n_newTopo["elements/connectivity"];
       n_conn.set_allocator(conduitAllocatorId);
       n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                    dataSizes.connectivity + extra.connectivity));
       auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
-      conduit::Node &n_sizes = n_newTopo["elements/sizes"];
+      conduit::Node& n_sizes = n_newTopo["elements/sizes"];
       n_sizes.set_allocator(conduitAllocatorId);
       n_sizes.set(
         conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
       auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
-      conduit::Node &n_offsets = n_newTopo["elements/offsets"];
+      conduit::Node& n_offsets = n_newTopo["elements/offsets"];
       n_offsets.set_allocator(conduitAllocatorId);
       n_offsets.set(
         conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
@@ -496,20 +488,19 @@ protected:
 
       // Fill sizes, offsets
       const TopologyView deviceTopologyView(m_topologyView);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          const auto zoneIndex = selectedZonesView[szIndex];
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-          sizesView[szIndex] = zone.numberOfNodes();
-        });
+      axom::for_all<ExecSpace>(selectedZonesView.size(),
+                               [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                 const auto zoneIndex = selectedZonesView[szIndex];
+                                 const auto zone = deviceTopologyView.zone(zoneIndex);
+                                 sizesView[szIndex] = zone.numberOfNodes();
+                               });
 
       if(extra.zones > 0)
       {
         axom::for_all<ExecSpace>(
           dataSizes.zones,
           dataSizes.zones + extra.zones,
-          AXOM_LAMBDA(axom::IndexType index) { sizesView[index] = 0; });
+          [=] AXOM_HOST_DEVICE(axom::IndexType index) { sizesView[index] = 0; });
       }
       axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
 
@@ -517,71 +508,67 @@ protected:
       if(compact(n_options))
       {
         const axom::ArrayView<ConnectivityType> deviceOld2NewView(old2newView);
-        axom::for_all<ExecSpace>(
-          selectedZonesView.size(),
-          AXOM_LAMBDA(axom::IndexType szIndex) {
-            const auto zoneIndex = selectedZonesView[szIndex];
-            const auto zone = deviceTopologyView.zone(zoneIndex);
+        axom::for_all<ExecSpace>(selectedZonesView.size(),
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                   const auto zoneIndex = selectedZonesView[szIndex];
+                                   const auto zone = deviceTopologyView.zone(zoneIndex);
 
-            const int size = static_cast<int>(sizesView[szIndex]);
-            const auto offset = offsetsView[szIndex];
-            for(int i = 0; i < size; i++)
-            {
-              const auto oldNodeId = zone.getId(i);
-              // When compact, we map node ids to the compact node ids.
-              const auto newNodeId = deviceOld2NewView[oldNodeId];
-              connView[offset + i] = newNodeId;
-            }
-          });
+                                   const int size = static_cast<int>(sizesView[szIndex]);
+                                   const auto offset = offsetsView[szIndex];
+                                   for(int i = 0; i < size; i++)
+                                   {
+                                     const auto oldNodeId = zone.getId(i);
+                                     // When compact, we map node ids to the compact node ids.
+                                     const auto newNodeId = deviceOld2NewView[oldNodeId];
+                                     connView[offset + i] = newNodeId;
+                                   }
+                                 });
       }
       else
       {
-        axom::for_all<ExecSpace>(
-          selectedZonesView.size(),
-          AXOM_LAMBDA(axom::IndexType szIndex) {
-            const auto zoneIndex = selectedZonesView[szIndex];
-            const auto zone = deviceTopologyView.zone(zoneIndex);
+        axom::for_all<ExecSpace>(selectedZonesView.size(),
+                                 [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+                                   const auto zoneIndex = selectedZonesView[szIndex];
+                                   const auto zone = deviceTopologyView.zone(zoneIndex);
 
-            const int size = static_cast<int>(sizesView[szIndex]);
-            const auto offset = offsetsView[szIndex];
-            for(int i = 0; i < size; i++)
-            {
-              connView[offset + i] = zone.getId(i);
-            }
-          });
+                                   const int size = static_cast<int>(sizesView[szIndex]);
+                                   const auto offset = offsetsView[szIndex];
+                                   for(int i = 0; i < size; i++)
+                                   {
+                                     connView[offset + i] = zone.getId(i);
+                                   }
+                                 });
       }
       if(extra.connectivity > 0)
       {
         axom::for_all<ExecSpace>(
           dataSizes.connectivity,
           dataSizes.connectivity + extra.connectivity,
-          AXOM_LAMBDA(axom::IndexType index) { connView[index] = 0; });
+          [=] AXOM_HOST_DEVICE(axom::IndexType index) { connView[index] = 0; });
       }
 
       // Handle shapes, if present.
       if(n_topo.has_path("elements/shapes"))
       {
-        const conduit::Node &n_shapes = n_topo.fetch_existing("elements/shapes");
+        const conduit::Node& n_shapes = n_topo.fetch_existing("elements/shapes");
         auto shapesView = utils::make_array_view<ConnectivityType>(n_shapes);
 
-        conduit::Node &n_newShapes = n_newTopo["elements/shapes"];
+        conduit::Node& n_newShapes = n_newTopo["elements/shapes"];
         n_newShapes.set_allocator(conduitAllocatorId);
         n_newShapes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                           dataSizes.zones + extra.zones));
         auto newShapesView = utils::make_array_view<ConnectivityType>(n_newShapes);
 
         const SelectedZonesView deviceSelectedZonesView(selectedZonesView);
-        axom::for_all<ExecSpace>(
-          dataSizes.zones,
-          AXOM_LAMBDA(axom::IndexType index) {
-            newShapesView[index] = shapesView[deviceSelectedZonesView[index]];
-          });
+        axom::for_all<ExecSpace>(dataSizes.zones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          newShapesView[index] = shapesView[deviceSelectedZonesView[index]];
+        });
         if(extra.zones > 0)
         {
           axom::for_all<ExecSpace>(
             dataSizes.zones,
             dataSizes.zones + extra.zones,
-            AXOM_LAMBDA(axom::IndexType index) { newShapesView[index] = 0; });
+            [=] AXOM_HOST_DEVICE(axom::IndexType index) { newShapesView[index] = 0; });
         }
       }
     }
@@ -594,9 +581,9 @@ protected:
    * \param n_coordset The input coordset, which is passed for metadata.
    * \param[out] n_newCoordset The new coordset.
    */
-  void makeCoordset(const SliceData &nodeSlice,
-                    const conduit::Node &n_coordset,
-                    conduit::Node &n_newCoordset) const
+  void makeCoordset(const SliceData& nodeSlice,
+                    const conduit::Node& n_coordset,
+                    conduit::Node& n_newCoordset) const
   {
     AXOM_ANNOTATE_SCOPE("makeCoordset");
     // _bump_utilities_coordsetslicer_begin
@@ -616,11 +603,11 @@ protected:
    * \param n_fields The input fields.
    * \param n_newFields The output fields.
    */
-  void makeFields(const SliceData &nodeSlice,
-                  const SliceData &zoneSlice,
-                  const std::string &newTopoName,
-                  const conduit::Node &n_fields,
-                  conduit::Node &n_newFields) const
+  void makeFields(const SliceData& nodeSlice,
+                  const SliceData& zoneSlice,
+                  const std::string& newTopoName,
+                  const conduit::Node& n_fields,
+                  conduit::Node& n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeFields");
 
@@ -628,9 +615,9 @@ protected:
 
     for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
     {
-      const conduit::Node &n_field = n_fields[i];
+      const conduit::Node& n_field = n_fields[i];
       const std::string association = n_field["association"].as_string();
-      conduit::Node &n_newField = n_newFields[n_field.name()];
+      conduit::Node& n_newField = n_newFields[n_field.name()];
       axom::bump::FieldSlicer<ExecSpace> fs;
       fs.setAllocatorID(getAllocatorID());
       if(association == "element")
@@ -653,7 +640,7 @@ protected:
    *
    * \return Returns the options topology name, if present. Otherwise, it returns the first topology name.
    */
-  std::string topologyName(const conduit::Node &n_input, const conduit::Node &n_options) const
+  std::string topologyName(const conduit::Node& n_input, const conduit::Node& n_options) const
   {
     std::string name;
     if(n_options.has_path("topology"))
@@ -662,7 +649,7 @@ protected:
     }
     else
     {
-      const conduit::Node &n_topologies = n_input.fetch_existing("topologies");
+      const conduit::Node& n_topologies = n_input.fetch_existing("topologies");
       name = n_topologies[0].name();
     }
     return name;
@@ -675,7 +662,7 @@ protected:
    *
    * \return True if compaction is on (the default), false otherwise.
    */
-  bool compact(const conduit::Node &n_options) const
+  bool compact(const conduit::Node& n_options) const
   {
     bool retval = true;
     if(n_options.has_path("compact"))
@@ -692,7 +679,7 @@ protected:
    *
    * \return The name of the output shape.
    */
-  std::string outputShape(const conduit::Node &n_topo) const
+  std::string outputShape(const conduit::Node& n_topo) const
   {
     std::string shape;
     if(n_topo["type"].as_string() == "unstructured")
@@ -747,9 +734,9 @@ public:
    * \param coordsetView The input coordset view.
    * \param matsetView The input matset view.
    */
-  ExtractZonesAndMatset(const TopologyView &topoView,
-                        const CoordsetView &coordsetView,
-                        const MatsetView &matsetView)
+  ExtractZonesAndMatset(const TopologyView& topoView,
+                        const CoordsetView& coordsetView,
+                        const MatsetView& matsetView)
     : ExtractZones<ExecSpace, TopologyView, CoordsetView>(topoView, coordsetView)
     , m_matsetView(matsetView)
   { }
@@ -770,10 +757,10 @@ public:
    * \note The \a n_options node contains a "topology" string that is selects the
    *       name of the topology to extract.
    */
-  void execute(const SelectedZonesView &selectedZonesView,
-               const conduit::Node &n_input,
-               const conduit::Node &n_options,
-               conduit::Node &n_output)
+  void execute(const SelectedZonesView& selectedZonesView,
+               const conduit::Node& n_input,
+               const conduit::Node& n_options,
+               conduit::Node& n_output)
   {
     AXOM_ANNOTATE_SCOPE("ExtractZonesAndMatset");
 
@@ -791,11 +778,11 @@ public:
     std::string mname = matsetName(n_input, topoName);
     if(!mname.empty())
     {
-      const conduit::Node &n_matset = n_input.fetch_existing("matsets/" + mname);
+      const conduit::Node& n_matset = n_input.fetch_existing("matsets/" + mname);
       axom::bump::Options opts(n_options);
 
       const std::string newMatsetName = opts.matsetName(mname);
-      conduit::Node &n_newMatset = n_output["matsets/" + newMatsetName];
+      conduit::Node& n_newMatset = n_output["matsets/" + newMatsetName];
       makeMatset(selectedZonesView, n_matset, n_newMatset);
 
       // Update the topology name in the matset.
@@ -817,15 +804,15 @@ protected:
    *
    * \return The name of the matset for the topology or an empty string if no matset was found.
    */
-  std::string matsetName(const conduit::Node &n_input, const std::string &topoName) const
+  std::string matsetName(const conduit::Node& n_input, const std::string& topoName) const
   {
     std::string matset;
     if(n_input.has_child("matsets"))
     {
-      const conduit::Node &n_matsets = n_input.fetch_existing("matsets");
+      const conduit::Node& n_matsets = n_input.fetch_existing("matsets");
       for(conduit::index_t i = 0; i < n_matsets.number_of_children(); i++)
       {
-        const conduit::Node &n_matset = n_matsets[i];
+        const conduit::Node& n_matset = n_matsets[i];
         if(n_matset["topology"].as_string() == topoName)
         {
           matset = n_matset.name();
@@ -844,8 +831,8 @@ protected:
    * \param n_newMatset A node that will contain the new matset.
    */
   void makeMatset(const SelectedZonesView selectedZonesView,
-                  const conduit::Node &n_matset,
-                  conduit::Node &n_newMatset) const
+                  const conduit::Node& n_matset,
+                  conduit::Node& n_newMatset) const
   {
     AXOM_ANNOTATE_SCOPE("makeMatset");
     // _bump_utilities_matsetslicer_begin

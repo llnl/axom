@@ -46,7 +46,7 @@ public:
    * \brief Copy Constructor
    * \param obj The object to be copied.
    */
-  AXOM_HOST_DEVICE StaticArray(const StaticArray &obj) : StackArray<T, N>(obj), m_size(obj.m_size)
+  AXOM_HOST_DEVICE StaticArray(const StaticArray& obj) : StackArray<T, N>(obj), m_size(obj.m_size)
   {
     for(axom::IndexType i = 0; i < obj.m_size; i++)
     {
@@ -63,7 +63,7 @@ public:
    * \brief Copy assignment operator.
    * \param obj The object to be copied.
    */
-  AXOM_HOST_DEVICE StaticArray &operator=(const StaticArray &obj)
+  AXOM_HOST_DEVICE StaticArray& operator=(const StaticArray& obj)
   {
     if(this == &obj)
     {
@@ -106,7 +106,7 @@ public:
    *       will not modify the static array.
    */
   AXOM_HOST_DEVICE
-  void push_back(const T &obj)
+  void push_back(const T& obj)
   {
     assert(m_size < capacity());
     if(m_size < capacity())
@@ -149,9 +149,9 @@ public:
    * \param fill_value The fill value.
    */
   AXOM_HOST_DEVICE
-  void fill(const T &fill_value)
+  void fill(const T& fill_value)
   {
-    for(T &datum : StackArray<T, N>::m_data)
+    for(T& datum : StackArray<T, N>::m_data)
     {
       datum = fill_value;
     }

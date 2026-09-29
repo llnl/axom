@@ -25,6 +25,11 @@
  *   auto s = slam::make_indirection_set(view);  // -> ArrayViewIndirectionSet<.., double>
  * \endcode
  *
+ * These helpers return sets that view a buffer managed elsewhere: 
+ * overloads that receive an \c axom::ArrayView or \c axom::Array return an
+ * \c ArrayViewIndirectionSet (holding an \c axom::ArrayView by value). 
+ * To make a set that manages its own \c axom::Array, construct \c ArrayIndirectionSet directly.
+ *
  * \note On CTAD vs. helpers. A class-template-argument deduction guide cannot
  *  recover a set's policy stack from a SetBuilder argument: a guide parameter of
  *  the form `typename OrderedSet<P,...>::SetBuilder` is a non-deduced context
@@ -98,6 +103,9 @@ ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::ArrayView<T> view
  * \brief Make an indirection set whose elements indirect through an std::vector.
  *
  * The element type is deduced from \a vec. The set's size matches the vector.
+ * This host-only overload is retained for std::vector interop.
+ * Prefer the \c axom::Array/axom::ArrayView overloads for new Axom code.
+ *
  * \param vec the backing vector (must outlive the set)
  * \return a VectorIndirectionSet<PosType, T>
  */
@@ -111,8 +119,9 @@ VectorIndirectionSet<PosType, T> make_indirection_set(std::vector<T>& vec)
 /*!
  * \brief Make an indirection set whose elements indirect through an axom::Array's flat storage.
  *
- * The element type is deduced from \a arr; the set is device-capable because it 
- * stores an ArrayView over the array's flat storage. The set's size matches the array.
+ * The element type is deduced from \a arr.
+ * The returned set holds an \c axom::ArrayView over the array's flat storage
+ * (so \a arr must outlive the set). The set's size matches the array.
  *
  * The set exposes the array in `flatIndex` order: element \c i resolves to
  * `arr.data()[i * arr.minStride()]`, matching axom::Array's own flat-index contract
@@ -137,6 +146,9 @@ ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPA
 
 /*!
  * \brief Make an indirection set whose elements indirect through a C array.
+ *
+ * This low-level overload is retained for raw-pointer interop.
+ * Prefer passing an \c axom::ArrayView when the buffer can be described as a view.
  *
  * \param data pointer to the backing buffer (must outlive the set)
  * \param size the number of elements

@@ -46,7 +46,7 @@ program spio_blueprint_index
   node_count = 12
   elt_count = 2
 
-  cds = SidreDataStore()
+  cds = datastore_new()
   cdroot = cds%get_root()
   mroot = cdroot%create_group("domain_data/domain")
   coords = mroot%create_group("mesh/coordsets/coords")
@@ -104,8 +104,8 @@ program spio_blueprint_index
   evals = eltgrp%create_view_and_allocate("values", SIDRE_DOUBLE_ID, elt_count)
 
   call evals%get_data(elt_vals)
-  elt_vals(1) = 2.65;
-  elt_vals(2) = 1.96;
+  elt_vals(1) = 2.65_C_DOUBLE;
+  elt_vals(2) = 1.96_C_DOUBLE;
 
   writer = IOManager(MPI_COMM_WORLD)
 
@@ -120,5 +120,4 @@ program spio_blueprint_index
   endif
 
 end program spio_blueprint_index
-
 

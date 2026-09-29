@@ -911,7 +911,7 @@ struct DeviceStagingBuffer
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     if(m_deviceStage)
     {
-      int allocator_id = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
+      int allocator_id = axom::detail::getDefaultHostAllocatorID();
       m_staging_buf = axom::allocate<T>(nelems, allocator_id);
       if(read_from_data)
       {
@@ -1018,13 +1018,15 @@ public:
     if constexpr(std::is_default_constructible_v<T>)
     {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-      if(space != MemorySpace::Host)
+      if(space != MemorySpace::Host && space != MemorySpace::Malloc)
       {
         if constexpr(std::is_trivially_default_constructible_v<T>)
         {
           // Object is trivially default-constructible, so default-construct
           // the object on the device.
-          for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+          for_all<ExecSpace>(begin, begin + nelems, [=] AXOM_HOST_DEVICE(IndexType i) {
+            new(&data[i]) T();
+          });
           return;
         }
         else if constexpr(std::is_trivially_copyable_v<T>)
@@ -1032,10 +1034,9 @@ public:
           // Object is not trivially default-constructible, but is trivially-
           // copyable. Copy-construct instances on the device.
           T object {};
-          for_all<ExecSpace>(
-            begin,
-            begin + nelems,
-            AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
+          for_all<ExecSpace>(begin, begin + nelems, [=] AXOM_HOST_DEVICE(IndexType i) {
+            new(&data[i]) T(object);
+          });
           return;
         }
       }
@@ -1062,12 +1063,13 @@ public:
   void fill(T* array, IndexType begin, IndexType nelems, const T& value)
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-    if(space != MemorySpace::Host)
+    if(space != MemorySpace::Host && space != MemorySpace::Malloc)
     {
       if constexpr(std::is_trivially_copyable_v<T>)
       {
         // Trivially-copyable objects can be copied on the device.
-        for_all<ExecSpace>(nelems, AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
+        for_all<ExecSpace>(nelems,
+                           [=] AXOM_HOST_DEVICE(IndexType i) { new(&array[i + begin]) T(value); });
         return;
       }
     }

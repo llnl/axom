@@ -17,8 +17,10 @@
 
 #include "axom/fmt.hpp"
 
-#include "mfem.hpp"
-#include "mfem/linalg/dtensor.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
+  #include "mfem/linalg/dtensor.hpp"
+#endif
 
 #include <cmath>
 
@@ -28,9 +30,6 @@ namespace quest
 {
 namespace shaping
 {
-
-using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
-using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 
 namespace detail
 {
@@ -114,14 +113,15 @@ public:
                                             axom::execution_space<ExecSpace>::allocatorID());
     auto aabbsView = aabbs.view();
     const auto contourCaches = m_contourCaches;
-    axom::for_all<ExecSpace>(
-      geometrySize,
-      AXOM_LAMBDA(axom::IndexType i) { aabbsView[i] = contourCaches[i].boundingBox(); });
+    axom::for_all<ExecSpace>(geometrySize, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      aabbsView[i] = contourCaches[i].boundingBox();
+    });
 
     // Initialize the BVH using the bounding boxes.
     m_bvh.initialize(aabbs, aabbs.size());
   }
 
+#if defined(AXOM_USE_MFEM)
   /*!
    * \brief Samples the inout field over the indexed geometry, possibly using a
    * callback function to project the input points (from the computational mesh)
@@ -129,14 +129,9 @@ public:
    * 
    * \tparam FromDim The dimension of points from the input mesh
    * \tparam ToDim The dimension of points on the indexed shape
-   * \param [in] dc The data collection containing the mesh and associated query points
-   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
-   * inout samples
-   * \param [in] sampleRes The sampling resolution in each logical direction.
-   * For custom quadrature families, these values specify the per-direction
-   * sample counts directly, which in turn determine the quadrature rule used
-   * in each logical direction.
-   * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
+   * \param [in] mfemState The MFEMState object that contains the data collection containing
+   *                       the mesh and associated query points. It also contains a collection of
+   *                       quadrature functions for the shape and material inout samples.
    * \param [in] projector A callback function to apply to points from the input mesh
    * before querying them on the spatial index
    * 
@@ -145,10 +140,7 @@ public:
    * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
-                                                        shaping::QFunctionCollection& inoutQFuncs,
-                                                        axom::ArrayView<int> sampleRes,
-                                                        int quadratureType,
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::MFEMState& mfemState,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     static_assert(axom::execution_space<ExecSpace>::onDevice() == false,
@@ -162,16 +154,13 @@ public:
     SLIC_ERROR_IF(FromDim != ToDim && !projector,
                   "A projector callback function is required when FromDim != ToDim");
 
-    auto* mesh = dc->GetMesh();
+    auto* mesh = mfemState.m_dc->GetMesh();
     SLIC_ASSERT(mesh != nullptr);
     const int NE = mesh->GetNE();
     const int dim = mesh->Dimension();
 
-    // Generate a Quadrature Function with the geometric positions, if not already available
-    if(!inoutQFuncs.Has("positions"))
-    {
-      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
-    }
+    auto& inoutQFuncs = mfemState.m_inoutShapeQFuncs;
+    SLIC_ASSERT(inoutQFuncs.Has("positions"));
 
     // Access the positions QFunc and associated QuadratureSpace
     mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
@@ -184,7 +173,7 @@ public:
 
     // Sample the in/out field at each point
     // store in QField which we register with the QFunc collection
-    const std::string inoutName = axom::fmt::format("inout_{}", m_shapeName);
+    const std::string inoutName = shaping::shapeInOutFieldName(m_shapeName);
     const int vdim = 1;
     auto* inout = new mfem::QuadratureFunction(sp, vdim);
     inoutQFuncs.Register(inoutName, inout, true);
@@ -196,15 +185,13 @@ public:
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<ToPoint> queryPoints(numQueryPoints, numQueryPoints, allocatorID);
     auto queryPointsView = queryPoints.view();
-    axom::for_all<ExecSpace>(
-      numQueryPoints,
-      AXOM_LAMBDA(axom::IndexType qpi) {
-        const int i = static_cast<int>(qpi / nq);
-        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
+    axom::for_all<ExecSpace>(numQueryPoints, [=] AXOM_HOST_DEVICE(axom::IndexType qpi) {
+      const int i = static_cast<int>(qpi / nq);
+      const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
 
-        const double* coords = &pos(0, p, i);
-        queryPointsView[qpi] = projector ? projector(FromPoint(coords, dim)) : ToPoint(coords, dim);
-      });
+      const double* coords = &pos(0, p, i);
+      queryPointsView[qpi] = projector ? projector(FromPoint(coords, dim)) : ToPoint(coords, dim);
+    });
     AXOM_ANNOTATE_END("Create query points");
 
     // Look up all of the query points. This will allocate the candidates array.
@@ -223,29 +210,25 @@ public:
     auto inOutResultView = inOutResult.view();
     const auto candidatesView = candidates.view();
     const auto contourCaches = m_contourCaches;
-    axom::for_all<ExecSpace>(
-      numQueryPoints,
-      AXOM_LAMBDA(axom::IndexType qpi) {
-        // Check whether the current query point is inside candidate shapes.
-        bool in = false;
-        const auto numCandidates = sizesView[qpi];
-        const auto& queryPoint = queryPointsView[qpi];
-        for(axom::IndexType ci = 0; ci < numCandidates && in == false; ci++)
-        {
-          const auto candidateIndex = candidatesView[offsetsView[qpi] + ci];
-          in |= detail::checkInside(contourCaches[candidateIndex], queryPoint);
-        }
-        inOutResultView[qpi] = in;
-      });
+    axom::for_all<ExecSpace>(numQueryPoints, [=] AXOM_HOST_DEVICE(axom::IndexType qpi) {
+      // Check whether the current query point is inside candidate shapes.
+      bool in = false;
+      const auto numCandidates = sizesView[qpi];
+      const auto& queryPoint = queryPointsView[qpi];
+      for(axom::IndexType ci = 0; ci < numCandidates && in == false; ci++)
+      {
+        const auto candidateIndex = candidatesView[offsetsView[qpi] + ci];
+        in |= detail::checkInside(contourCaches[candidateIndex], queryPoint);
+      }
+      inOutResultView[qpi] = in;
+    });
 
     // Store the results back into the MFEM quad function.
-    axom::for_all<ExecSpace>(
-      numQueryPoints,
-      AXOM_LAMBDA(axom::IndexType qpi) {
-        const int i = static_cast<int>(qpi / nq);
-        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
-        inout_vals(p, i) = inOutResultView[qpi] ? 1. : 0.;
-      });
+    axom::for_all<ExecSpace>(numQueryPoints, [=] AXOM_HOST_DEVICE(axom::IndexType qpi) {
+      const int i = static_cast<int>(qpi / nq);
+      const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
+      inout_vals(p, i) = inOutResultView[qpi] ? 1. : 0.;
+    });
     AXOM_ANNOTATE_END("InOut tests");
     timer.stop();
 
@@ -263,10 +246,7 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
-                                                        shaping::QFunctionCollection&,
-                                                        axom::ArrayView<int> AXOM_UNUSED_PARAM(sampleRes),
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::MFEMState&,
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -280,7 +260,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* dc,
+    shaping::MFEMState& mfemState,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -298,7 +278,7 @@ public:
       return inside;
     };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
-                                                            dc,
+                                                            mfemState,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -310,7 +290,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+    shaping::MFEMState& AXOM_UNUSED_PARAM(mfemState),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
@@ -318,6 +298,41 @@ public:
                   "Do not call this function -- it only exists to appease the compiler!"
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
+#endif
+
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+  template <int FromDim, int ToDim = DIM>
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::BlueprintState& bpState,
+                                                        PointProjector<FromDim, ToDim> projector = {})
+  {
+    AXOM_ANNOTATE_SCOPE("sampleInOutField");
+    const auto contourCaches = m_contourCaches;
+    auto checkInside = [=](const PointType& pt) -> bool {
+      bool inside = false;
+      for(axom::IndexType i = 0; i < contourCaches.size() && !inside; i++)
+      {
+        inside |= detail::checkInside(contourCaches[i], pt);
+      }
+      return inside;
+    };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, bpState, checkInside, projector);
+  }
+
+  template <int FromDim, int ToDim>
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::BlueprintState&,
+                                                        PointProjector<FromDim, ToDim>)
+  {
+    static_assert(ToDim != DIM,
+                  "Do not call this function -- it only exists to appease the compiler!"
+                  "Projector's return dimension (ToDim), must match class dimension (DIM)");
+  }
+
+  template <int FromDim, int ToDim = DIM>
+  void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                                      int AXOM_UNUSED_PARAM(outputOrder),
+                                      PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
+  { }
+#endif
 
 private:
   DISABLE_COPY_AND_ASSIGNMENT(WindingNumberSampler);

@@ -17,7 +17,7 @@ contains
 
     call set_case_name("create_datastore")
 
-    ds = SidreDataStore()
+    ds = datastore_new()
     call ds%delete()
 
     call assert_true(.true.)
@@ -33,7 +33,7 @@ contains
 
     call set_case_name("valid_invalid")
 
-    ds = SidreDataStore()
+    ds = datastore_new()
 
     idx = 3;
     call assert_true(idx /= invalid_index, "invalid_index does not compare")
@@ -76,4 +76,3 @@ program fortran_test
      call exit(1)
   endif
 end program fortran_test
-

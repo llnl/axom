@@ -51,7 +51,7 @@ public:
    * \param spacing The spacing inbetween points.
    */
   AXOM_HOST_DEVICE
-  UniformCoordsetView(const LogicalIndex &dims, const ExtentsType &origin, const ExtentsType &spacing)
+  UniformCoordsetView(const LogicalIndex& dims, const ExtentsType& origin, const ExtentsType& spacing)
     : m_indexing(dims)
     , m_origin(origin)
     , m_spacing(spacing)
@@ -76,21 +76,21 @@ public:
    * \return The indexing that contains the mesh logical sizes.
    */
   AXOM_HOST_DEVICE
-  const StructuredIndexing<IndexType, NDIMS> &indexing() const { return m_indexing; }
+  const StructuredIndexing<IndexType, NDIMS>& indexing() const { return m_indexing; }
 
   /*!
    * \brief Return the coordset origin.
    * \return The coordset origin.
    */
   AXOM_HOST_DEVICE
-  const ExtentsType &origin() const { return m_origin; }
+  const ExtentsType& origin() const { return m_origin; }
 
   /*!
    * \brief Return the coordset spacing.
    * \return The coordset spacing.
    */
   AXOM_HOST_DEVICE
-  const ExtentsType &spacing() const { return m_spacing; }
+  const ExtentsType& spacing() const { return m_spacing; }
 
   /*!
    * \brief Return the requested point from the coordset.
@@ -100,7 +100,7 @@ public:
    * \return A point that corresponds to \a vertex_index.
    */
   AXOM_HOST_DEVICE
-  PointType getPoint(const LogicalIndex &vertex_index) const
+  PointType getPoint(const LogicalIndex& vertex_index) const
   {
     PointType pt;
     for(int i = 0; i < NDIMS; i++) pt[i] = m_origin[i] + vertex_index[i] * m_spacing[i];
@@ -115,7 +115,7 @@ public:
    * \return A point that corresponds to \a vertex_index.
    */
   AXOM_HOST_DEVICE
-  PointType operator[](const LogicalIndex &vertex_index) const { return getPoint(vertex_index); }
+  PointType operator[](const LogicalIndex& vertex_index) const { return getPoint(vertex_index); }
 
   /*!
    * \brief Return the requested point from the coordset.

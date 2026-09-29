@@ -17,7 +17,7 @@ namespace bump
 namespace views
 {
 
-static bool needToPerformCheck(const conduit::Node &obj, const std::string &protocol)
+static bool needToPerformCheck(const conduit::Node& obj, const std::string& protocol)
 {
   bool performCheck = true;
 
@@ -27,7 +27,7 @@ static bool needToPerformCheck(const conduit::Node &obj, const std::string &prot
 
   if(protocol == "topology")
   {
-    const conduit::Node &n_topo = obj;
+    const conduit::Node& n_topo = obj;
     if(n_topo["type"].as_string() == "unstructured" && n_topo.has_path("elements/shape"))
     {
       if(n_topo["elements/shape"].as_string() == "mixed" && n_topo.has_path("elements/shapes"))
@@ -40,7 +40,7 @@ static bool needToPerformCheck(const conduit::Node &obj, const std::string &prot
   return performCheck;
 }
 
-void verify(const conduit::Node &obj, const std::string &protocol)
+void verify(const conduit::Node& obj, const std::string& protocol)
 {
   conduit::Node info;
 

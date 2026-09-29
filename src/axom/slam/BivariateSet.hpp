@@ -25,9 +25,7 @@
 #include <optional>
 #include <type_traits>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 template <typename BivariateSetType>
 struct BivariateSetIterator;
@@ -451,5 +449,4 @@ private:
   }
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

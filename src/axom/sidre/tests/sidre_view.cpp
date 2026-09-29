@@ -2440,9 +2440,59 @@ TEST_P(UmpireTest, allocate_default)
 }
 
 //------------------------------------------------------------------------------
+TEST_P(UmpireTest, allocate_default_host_allocator)
+{
+  // In this test:
+  //
+  // allocID is an Umpire allocator ID used to change Umpire's default via
+  // axom::setDefaultAllocator(allocID).
+  //
+  // defaultHostAllocatorID is the configured Axom host default allocator
+  //
+  // Thus, a new Datastore root Group ignores the Umpire default and uses the
+  // configured host default instead.
+  //
+  // In general, allocID is not tied to the Axom configured default host allocator:
+  //
+  //  - When AXOM_DEFAULT_HOST_ALLOCATOR=MALLOC, defaultHostAllocatorID == axom::MALLOC_ALLOCATOR_ID,
+  //    and allocID is an Umpire allocator ID.
+  //  - When AXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST, they match only when allocID is Umpire Host.
+  //    They differ for Pinned, Device, Unified, etc. in GPU-enabled builds
+
+  axom::setDefaultAllocator(allocID);
+
+  DataStore dsPrime;
+  Group* rootPrime = dsPrime.getRoot();
+
+  const int defaultHostAllocatorID = axom::detail::getDefaultHostAllocatorID();
+
+  {
+    View* view = rootPrime->createView("v");
+    view->allocate(INT_ID, SIZE);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+
+  {
+    View* view = rootPrime->createView("v");
+    DataType dtype = conduit::DataType::default_dtype(INT_ID);
+    dtype.set_number_of_elements(SIZE);
+    view->allocate(dtype);
+
+    ASSERT_EQ(defaultHostAllocatorID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
+    rootPrime->destroyViewAndData("v");
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST_P(UmpireTest, reallocate)
 {
   #if defined(AXOM_USE_GPU) && defined(UMPIRE_ENABLE_CONST)
+  // Constant memory is meant for read-only GPU constant storage and generally
+  // cannot support the same runtime reallocation/write semantics as ordinary memory.
+  // So we return early and skip the test in this case instead of asserting
+  // behavior that Sidre cannot promise.
   if(allocID == axom::getUmpireResourceAllocatorID(umpire::resource::Constant))
   {
     return;
@@ -2488,7 +2538,7 @@ TEST_P(UmpireTest, reallocate_zero)
     view->reallocate(0);
     view->reallocate(SIZE);
 
-    ASSERT_EQ(axom::getDefaultAllocatorID(), rm.getAllocator(view->getVoidPtr()).getId());
+    ASSERT_EQ(allocID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
 
     root->destroyViewAndData("v");
   }
@@ -2501,7 +2551,7 @@ TEST_P(UmpireTest, reallocate_zero)
     view->reallocate(0);
     view->reallocate(SIZE);
 
-    ASSERT_EQ(axom::getDefaultAllocatorID(), rm.getAllocator(view->getVoidPtr()).getId());
+    ASSERT_EQ(allocID, axom::getAllocatorIDFromPointer(view->getVoidPtr()));
 
     root->destroyViewAndData("v");
   }

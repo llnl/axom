@@ -75,9 +75,9 @@ conduit::Node Record::toNode(CurveSet::CurveOrder curveOrder) const
   if(!files.empty())
   {
     conduit::Node fileRef;
-    for(auto &file : files)
+    for(auto& file : files)
     {
-      auto &n = fileRef.add_child(file.getUri());
+      auto& n = fileRef.add_child(file.getUri());
       n.set(file.toNode());
       asNode[FILES_FIELD] = fileRef;
     }
@@ -87,7 +87,7 @@ conduit::Node Record::toNode(CurveSet::CurveOrder curveOrder) const
 
 conduit::Node Record::toNode() const { return toNode(getDefaultCurveOrder()); }
 
-Record::Record(conduit::Node const &asNode)
+Record::Record(conduit::Node const& asNode)
   : DataHolder {asNode}
   , id {asNode, LOCAL_ID_FIELD, GLOBAL_ID_FIELD}
   , type {getRequiredString(TYPE_FIELD, asNode, "record")}
@@ -97,13 +97,13 @@ Record::Record(conduit::Node const &asNode)
     auto filesIter = asNode[FILES_FIELD].children();
     while(filesIter.has_next())
     {
-      auto &namedFile = filesIter.next();
+      auto& namedFile = filesIter.next();
       files.insert(File(filesIter.name(), namedFile));
     }
   }
 }
 
-void Record::remove(File const &file) { files.erase(file); }
+void Record::remove(File const& file) { files.erase(file); }
 
 void Record::add(File file)
 {
@@ -111,11 +111,11 @@ void Record::add(File file)
   files.insert(std::move(file));
 }
 
-void Record::addRecordAsLibraryData(Record const &childRecord, std::string const &name)
+void Record::addRecordAsLibraryData(Record const& childRecord, std::string const& name)
 {
   if(!childRecord.files.empty())
   {
-    for(auto &file : childRecord.files)
+    for(auto& file : childRecord.files)
     {
       add(file);
     }
@@ -129,12 +129,12 @@ void Record::addRecordAsLibraryData(Record const &childRecord, std::string const
   newLibData->add(LIBRARY_DATA_TYPE_DATUM, Datum {childRecord.type});
 }
 
-void RecordLoader::addTypeLoader(std::string const &type, TypeLoader loader)
+void RecordLoader::addTypeLoader(std::string const& type, TypeLoader loader)
 {
   typeLoaders[type] = std::move(loader);
 }
 
-std::unique_ptr<Record> RecordLoader::load(conduit::Node const &recordAsNode) const
+std::unique_ptr<Record> RecordLoader::load(conduit::Node const& recordAsNode) const
 {
   auto loaderIter = typeLoaders.find(recordAsNode[TYPE_FIELD].as_string());
   if(loaderIter != typeLoaders.end())
@@ -144,7 +144,7 @@ std::unique_ptr<Record> RecordLoader::load(conduit::Node const &recordAsNode) co
   return std::make_unique<Record>(recordAsNode);
 }
 
-bool RecordLoader::canLoad(std::string const &type) const { return typeLoaders.count(type) > 0; }
+bool RecordLoader::canLoad(std::string const& type) const { return typeLoaders.count(type) > 0; }
 
 RecordLoader createRecordLoaderWithAllKnownTypes()
 {

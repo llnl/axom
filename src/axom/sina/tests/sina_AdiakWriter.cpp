@@ -50,22 +50,22 @@ protected:
 
   void SetUp() override { current_test = this; }
 
-  static void callbackWrapper(const char *name,
+  static void callbackWrapper(const char* name,
                               adiak_category_t category,
-                              const char *subcategory,
-                              adiak_value_t *val,
-                              adiak_datatype_t *adiak_type,
-                              void *adiakwriter)
+                              const char* subcategory,
+                              adiak_value_t* val,
+                              adiak_datatype_t* adiak_type,
+                              void* adiakwriter)
   {
-    auto test = static_cast<AdiakWriterTest **>(adiakwriter);
+    auto test = static_cast<AdiakWriterTest**>(adiakwriter);
     adiakSinaCallback(name, category, subcategory, val, adiak_type, &((*test)->record));
   }
 
   axom::sina::Record record {axom::sina::ID {"test_run", axom::sina::IDType::Local}, "test_type"};
-  static AdiakWriterTest *current_test;
+  static AdiakWriterTest* current_test;
 };
 
-AdiakWriterTest *AdiakWriterTest::current_test;
+AdiakWriterTest* AdiakWriterTest::current_test;
 
 TEST_F(AdiakWriterTest, basic_assignment)
 {

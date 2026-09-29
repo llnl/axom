@@ -26,13 +26,17 @@ source code under ``src/axom/mint/examples/user_guide/mint_getting_started.cpp``
 
 .. _axomLambdaMacro:
 
-AXOM_LAMBDA Macro
-^^^^^^^^^^^^^^^^^
+Host/Device Lambdas
+^^^^^^^^^^^^^^^^^^^
 
-The ``AXOM_LAMBDA`` convenience macro expands to:
+Use explicit capture and Axom's host/device annotation for portable kernels:
 
- * ``[=]`` capture by value when the `Axom Toolkit`_ is compiled without CUDA.
- * ``[=] __host__ __device__`` when the `Axom Toolkit`_ is compiled with CUDA
+.. code-block:: C++
+
+   [=] AXOM_HOST_DEVICE(axom::IndexType idx)
+   {
+     // kernel body
+   }
 
 .. _rawSidreData:
 

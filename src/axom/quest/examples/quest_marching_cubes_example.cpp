@@ -1130,10 +1130,9 @@ struct ContourTestBase
                              fastestDirs);
       auto maskView = domainView.template getFieldView<int>(maskFieldName);
       int maskCount = params.maskCount;
-      axom::for_all<axom::SEQ_EXEC>(
-        0,
-        cellCount,
-        AXOM_LAMBDA(axom::IndexType cellId) { maskView.flatIndex(cellId) = (cellId % maskCount); });
+      axom::for_all<axom::SEQ_EXEC>(0, cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+        maskView.flatIndex(cellId) = (cellId % maskCount);
+      });
     }
   }
 
@@ -1611,10 +1610,9 @@ int allocatorIdToTest(axom::runtime_policy::Policy policy)
   //---------------------------------------------------------------------------
   // Memory resource.  For testing, choose device memory if appropriate.
   //---------------------------------------------------------------------------
-  int allocatorID =
-    policy == RuntimePolicy::seq ? axom::detail::getAllocatorID<axom::MemorySpace::Host>() :
+  int allocatorID = policy == RuntimePolicy::seq ? axom::detail::getDefaultHostAllocatorID() :
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-    policy == RuntimePolicy::omp ? axom::detail::getAllocatorID<axom::MemorySpace::Host>()
+    policy == RuntimePolicy::omp ? axom::detail::getDefaultHostAllocatorID()
     :
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)

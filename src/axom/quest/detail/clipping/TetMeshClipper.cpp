@@ -167,71 +167,69 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   const double EPS = 1e-12;
 
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_labels");
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      LabelType& label = labels[cellId];
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    LabelType& label = labels[cellId];
 
+    {
+      // Label cell as ON boundary if it's bounding box intersects the boundary.
+      const auto& hexBb = hexBbs[cellId];
+      auto candidateCount = bbCountsView[cellId];
+      auto candidateOffset = bbOffsetsView[cellId];
+      auto* candidateIds = bbCandidatesView.data() + candidateOffset;
+      for(int ci = 0; ci < candidateCount; ++ci)
       {
-        // Label cell as ON boundary if it's bounding box intersects the boundary.
-        const auto& hexBb = hexBbs[cellId];
-        auto candidateCount = bbCountsView[cellId];
-        auto candidateOffset = bbOffsetsView[cellId];
-        auto* candidateIds = bbCandidatesView.data() + candidateOffset;
-        for(int ci = 0; ci < candidateCount; ++ci)
+        axom::IndexType candidateId = candidateIds[ci];
+        const Triangle3DType& candidate = surfTrisView[candidateId];
+        bool intersects = axom::primal::intersect(candidate, hexBb);
+        if(intersects)
         {
-          axom::IndexType candidateId = candidateIds[ci];
-          const Triangle3DType& candidate = surfTrisView[candidateId];
-          bool intersects = axom::primal::intersect(candidate, hexBb);
-          if(intersects)
-          {
-            label = LabelType::LABEL_ON;
-            return;
-          }
+          label = LabelType::LABEL_ON;
+          return;
         }
       }
+    }
 
-      /*
+    /*
        * At this point, the cell must be IN or OUT.  No need to account
        * for the possibility that it's ON.
        */
 
+    {
+      const Ray3DType& hexRay = hexRaysView[cellId];
+      auto candidateCount = rayCountsView[cellId];
+      auto candidateOffset = rayOffsetsView[cellId];
+      auto* candidateIds = rayCandidatesView.data() + candidateOffset;
+      axom::IndexType surfaceCrossingCount = 0;
+      for(int ci = 0; ci < candidateCount; ++ci)
       {
-        const Ray3DType& hexRay = hexRaysView[cellId];
-        auto candidateCount = rayCountsView[cellId];
-        auto candidateOffset = rayOffsetsView[cellId];
-        auto* candidateIds = rayCandidatesView.data() + candidateOffset;
-        axom::IndexType surfaceCrossingCount = 0;
-        for(int ci = 0; ci < candidateCount; ++ci)
+        axom::IndexType candidateId = candidateIds[ci];
+        Triangle3DType candidate = surfTrisView[candidateId];
+        double contactT;
+        Point3DType contactPt;  // contact point in unnormalized barycentric coordinates.
+        bool touches = axom::primal::intersect(candidate, hexRay, contactT, contactPt);
+        if(touches)
         {
-          axom::IndexType candidateId = candidateIds[ci];
-          Triangle3DType candidate = surfTrisView[candidateId];
-          double contactT;
-          Point3DType contactPt;  // contact point in unnormalized barycentric coordinates.
-          bool touches = axom::primal::intersect(candidate, hexRay, contactT, contactPt);
-          if(touches)
-          {
-            /*
+          /*
              * Grazing contact requires more logic and computation to
              * determine if the ray crosses the boundary.  Label the
              * hex as ON the boundary to have the clipping computation
              * handle this edge case.
              */
-            contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2];  // Normalize
-            bool grazing = axom::utilities::isNearlyEqual(contactPt[0], EPS) ||
-              axom::utilities::isNearlyEqual(contactPt[1], EPS) ||
-              axom::utilities::isNearlyEqual(contactPt[2], EPS);
-            if(grazing)
-            {
-              label = LabelType::LABEL_ON;
-              return;
-            }
-            ++surfaceCrossingCount;
+          contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2];  // Normalize
+          bool grazing = axom::utilities::isNearlyEqual(contactPt[0], EPS) ||
+            axom::utilities::isNearlyEqual(contactPt[1], EPS) ||
+            axom::utilities::isNearlyEqual(contactPt[2], EPS);
+          if(grazing)
+          {
+            label = LabelType::LABEL_ON;
+            return;
           }
+          ++surfaceCrossingCount;
         }
-        label = surfaceCrossingCount % 2 == 0 ? LabelType::LABEL_OUT : LabelType::LABEL_IN;
       }
-    });
+      label = surfaceCrossingCount % 2 == 0 ? LabelType::LABEL_OUT : LabelType::LABEL_IN;
+    }
+  });
   AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
 }
 
@@ -299,80 +297,78 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   const double EPS = 1e-12;
 
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_labels");
-  axom::for_all<ExecSpace>(
-    tetCount,
-    AXOM_LAMBDA(axom::IndexType ti) {
-      LabelType& label = tetLabels[ti];
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
+    LabelType& label = tetLabels[ti];
 
-      axom::IndexType ci = ti / NUM_TETS_PER_HEX;
-      axom::IndexType tii = ti % NUM_TETS_PER_HEX;
-      axom::IndexType tetId = ci * NUM_TETS_PER_HEX + tii;
-      if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
-      {
-        label = LabelType::LABEL_OUT;
-        return;
-      }
+    axom::IndexType ci = ti / NUM_TETS_PER_HEX;
+    axom::IndexType tii = ti % NUM_TETS_PER_HEX;
+    axom::IndexType tetId = ci * NUM_TETS_PER_HEX + tii;
+    if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+    {
+      label = LabelType::LABEL_OUT;
+      return;
+    }
 
+    {
+      // Label tet as ON boundary if it's near the boundary.
+      const auto& tetBb = tetBbsView[ti];
+      auto candidateCount = bbCountsView[ti];
+      auto candidateOffset = bbOffsetsView[ti];
+      auto* candidateIds = bbCandidatesView.data() + candidateOffset;
+      for(int ci = 0; ci < candidateCount; ++ci)
       {
-        // Label tet as ON boundary if it's near the boundary.
-        const auto& tetBb = tetBbsView[ti];
-        auto candidateCount = bbCountsView[ti];
-        auto candidateOffset = bbOffsetsView[ti];
-        auto* candidateIds = bbCandidatesView.data() + candidateOffset;
-        for(int ci = 0; ci < candidateCount; ++ci)
+        axom::IndexType candidateId = candidateIds[ci];
+        const Triangle3DType& candidate = surfTrisView[candidateId];
+        bool intersects = axom::primal::intersect(candidate, tetBb);
+        if(intersects)
         {
-          axom::IndexType candidateId = candidateIds[ci];
-          const Triangle3DType& candidate = surfTrisView[candidateId];
-          bool intersects = axom::primal::intersect(candidate, tetBb);
-          if(intersects)
-          {
-            label = LabelType::LABEL_ON;
-            return;
-          }
+          label = LabelType::LABEL_ON;
+          return;
         }
       }
+    }
 
-      /*
+    /*
        * At this point, the cell must be IN or OUT.  No need to account
        * for the possibility that it's ON.
        */
 
+    {
+      const Ray3DType& tetRay = tetRaysView[ti];
+      auto candidateCount = rayCountsView[ti];
+      auto candidateOffset = rayOffsetsView[ti];
+      auto* candidateIds = rayCandidatesView.data() + candidateOffset;
+      axom::IndexType surfaceCrossingCount = 0;
+      for(int ci = 0; ci < candidateCount; ++ci)
       {
-        const Ray3DType& tetRay = tetRaysView[ti];
-        auto candidateCount = rayCountsView[ti];
-        auto candidateOffset = rayOffsetsView[ti];
-        auto* candidateIds = rayCandidatesView.data() + candidateOffset;
-        axom::IndexType surfaceCrossingCount = 0;
-        for(int ci = 0; ci < candidateCount; ++ci)
+        axom::IndexType candidateId = candidateIds[ci];
+        Triangle3DType candidate = surfTrisView[candidateId];
+        double contactT;
+        Point3DType contactPt;  // contact point in unnormalized barycentric coordinates.
+        bool touches = axom::primal::intersect(candidate, tetRay, contactT, contactPt);
+        if(touches)
         {
-          axom::IndexType candidateId = candidateIds[ci];
-          Triangle3DType candidate = surfTrisView[candidateId];
-          double contactT;
-          Point3DType contactPt;  // contact point in unnormalized barycentric coordinates.
-          bool touches = axom::primal::intersect(candidate, tetRay, contactT, contactPt);
-          if(touches)
-          {
-            /*
+          /*
              * Grazing contact requires more logic and computation to
              * determine if the ray crosses the boundary.  Label the
              * tet as ON the boundary so the clipping computation
              * will handle this edge case.
              */
-            contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2];  // Normalize
-            bool grazing = axom::utilities::isNearlyEqual(contactPt[0], EPS) ||
-              axom::utilities::isNearlyEqual(contactPt[1], EPS) ||
-              axom::utilities::isNearlyEqual(contactPt[2], EPS);
-            if(grazing)
-            {
-              label = LabelType::LABEL_ON;
-              return;
-            }
-            ++surfaceCrossingCount;
+          contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2];  // Normalize
+          bool grazing = axom::utilities::isNearlyEqual(contactPt[0], EPS) ||
+            axom::utilities::isNearlyEqual(contactPt[1], EPS) ||
+            axom::utilities::isNearlyEqual(contactPt[2], EPS);
+          if(grazing)
+          {
+            label = LabelType::LABEL_ON;
+            return;
           }
+          ++surfaceCrossingCount;
         }
-        label = surfaceCrossingCount % 2 == 0 ? LabelType::LABEL_OUT : LabelType::LABEL_IN;
       }
-    });
+      label = surfaceCrossingCount % 2 == 0 ? LabelType::LABEL_OUT : LabelType::LABEL_IN;
+    }
+  });
   AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
 }
 
@@ -392,32 +388,30 @@ void TetMeshClipper::computeHexRays(quest::experimental::ShapeMesh& shapeMesh,
   auto cellCount = shapeMesh.getCellCount();
   hexRays = axom::Array<Ray3DType>(cellCount, 0, shapeMesh.getAllocatorID());
   auto hexRaysView = hexRays.view();
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellIdx) {
-      TetrahedronType cellTets[ShapeMesh::NUM_TETS_PER_HEX];
-      ShapeMesh::hexToTets(meshHexes[cellIdx], cellTets);
-      IndexType iMaxTetVol = 0;
-      double maxTetVol = cellTets[iMaxTetVol].signedVolume();
-      for(IndexType i = 1; i < ShapeMesh::NUM_TETS_PER_HEX; ++i)
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellIdx) {
+    TetrahedronType cellTets[ShapeMesh::NUM_TETS_PER_HEX];
+    ShapeMesh::hexToTets(meshHexes[cellIdx], cellTets);
+    IndexType iMaxTetVol = 0;
+    double maxTetVol = cellTets[iMaxTetVol].signedVolume();
+    for(IndexType i = 1; i < ShapeMesh::NUM_TETS_PER_HEX; ++i)
+    {
+      double tmpTetVol = cellTets[i].signedVolume();
+      if(maxTetVol < tmpTetVol)
       {
-        double tmpTetVol = cellTets[i].signedVolume();
-        if(maxTetVol < tmpTetVol)
-        {
-          maxTetVol = tmpTetVol;
-          iMaxTetVol = i;
-        }
+        maxTetVol = tmpTetVol;
+        iMaxTetVol = i;
       }
-      const auto& bigTet = cellTets[iMaxTetVol];
-      Point3DType hexInterior(
-        (bigTet[0].array() + bigTet[1].array() + bigTet[2].array() + bigTet[3].array()) / 4.0);
-      Vector3DType direction(geomCenter, hexInterior);
-      if(geomCenter == hexInterior)
-      {
-        direction = Vector3DType({1.0, 0.0, 0.0});
-      }
-      hexRaysView[cellIdx] = Ray3DType(hexInterior, direction);
-    });
+    }
+    const auto& bigTet = cellTets[iMaxTetVol];
+    Point3DType hexInterior(
+      (bigTet[0].array() + bigTet[1].array() + bigTet[2].array() + bigTet[3].array()) / 4.0);
+    Vector3DType direction(geomCenter, hexInterior);
+    if(geomCenter == hexInterior)
+    {
+      direction = Vector3DType({1.0, 0.0, 0.0});
+    }
+    hexRaysView[cellIdx] = Ray3DType(hexInterior, direction);
+  });
 }
 
 template <typename ExecSpace>
@@ -441,25 +435,22 @@ void TetMeshClipper::computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
   tetRays = axom::Array<Ray3DType>(axom::ArrayOptions::Uninitialized(), tetCount, 0, allocId);
   auto tetRaysView = tetRays.view();
   const auto meshTets = shapeMesh.getCellsAsTets();
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType ci) {
-      auto cellId = cellIds[ci];
-      auto* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
-      for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
+    auto cellId = cellIds[ci];
+    auto* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
+    for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+    {
+      const auto& tet = tetsForCell[ti];
+      Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array() + tet[3].array()) / 4.0);
+      Vector3DType direction(geomCenter, tetCenter);
+      if(geomCenter == tetCenter)
       {
-        const auto& tet = tetsForCell[ti];
-        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array() + tet[3].array()) /
-                              4.0);
-        Vector3DType direction(geomCenter, tetCenter);
-        if(geomCenter == tetCenter)
-        {
-          direction = Vector3DType({1.0, 0.0, 0.0});
-        }
-        tetRaysView[ci * NUM_TETS_PER_HEX + ti] = Ray3DType(tetCenter, direction);
-        tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType {tet[0], tet[1], tet[2]};
+        direction = Vector3DType({1.0, 0.0, 0.0});
       }
-    });
+      tetRaysView[ci * NUM_TETS_PER_HEX + ti] = Ray3DType(tetCenter, direction);
+      tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType {tet[0], tet[1], tet[2]};
+    }
+  });
 }
 
 template <typename ExecSpace>
@@ -482,12 +473,10 @@ void TetMeshClipper::computeSurfaceTrianglesAndBVH(int allocId,
   axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId);
   auto surfTrisAsBbsView = surfTrisAsBbs.view();
 
-  axom::for_all<ExecSpace>(
-    surfTris.size(),
-    AXOM_LAMBDA(axom::IndexType fi) {
-      const auto& surfTri = surfTrisView[fi];
-      surfTrisAsBbsView[fi] = axom::primal::compute_bounding_box(surfTri);
-    });
+  axom::for_all<ExecSpace>(surfTris.size(), [=] AXOM_HOST_DEVICE(axom::IndexType fi) {
+    const auto& surfTri = surfTrisView[fi];
+    surfTrisAsBbsView[fi] = axom::primal::compute_bounding_box(surfTri);
+  });
 
   bvh.initialize(surfTrisAsBbsView, surfTrisAsBbsView.size());
   AXOM_ANNOTATE_END("TetMeshClipper::make_surf_bvh");
@@ -517,24 +506,22 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& sha
   }
   auto labelsView = labels.view();
 
-  axom::for_all<ExecSpace>(
-    shapeMesh.getCellCount(),
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      auto cellVertIds = hexConnView[cellId];
+  axom::for_all<ExecSpace>(shapeMesh.getCellCount(), [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    auto cellVertIds = hexConnView[cellId];
 
-      bool hasIn = vertIsInside[cellVertIds[0]];
-      bool hasOut = !hasIn;
-      for(int vi = 1; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
-      {
-        int vertId = cellVertIds[vi];
-        bool isIn = vertIsInside[vertId];
-        hasIn |= isIn;
-        hasOut |= !isIn;
-      }
-      labelsView[cellId] = !hasOut ? LabelType::LABEL_IN
-        : !hasIn                   ? LabelType::LABEL_OUT
-                                   : LabelType::LABEL_ON;
-    });
+    bool hasIn = vertIsInside[cellVertIds[0]];
+    bool hasOut = !hasIn;
+    for(int vi = 1; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+    {
+      int vertId = cellVertIds[vi];
+      bool isIn = vertIsInside[vertId];
+      hasIn |= isIn;
+      hasOut |= !isIn;
+    }
+    labelsView[cellId] = !hasOut ? LabelType::LABEL_IN
+      : !hasIn                   ? LabelType::LABEL_OUT
+                                 : LabelType::LABEL_ON;
+  });
 
   return;
 }
@@ -613,16 +600,14 @@ void TetMeshClipper::computeTets(axom::ArrayView<TetrahedronType> tetsView)
   auto ys = bumpUtils::make_array_view<double>(coordsNode["values/y"]);
   auto zs = bumpUtils::make_array_view<double>(coordsNode["values/z"]);
 
-  axom::for_all<ExecSpace>(
-    m_tetCount,
-    AXOM_LAMBDA(IndexType ti) {
-      auto vertices = tetVertConnView[ti];
-      Point3DType a({xs[vertices[0]], ys[vertices[0]], zs[vertices[0]]});
-      Point3DType b({xs[vertices[1]], ys[vertices[1]], zs[vertices[1]]});
-      Point3DType c({xs[vertices[2]], ys[vertices[2]], zs[vertices[2]]});
-      Point3DType d({xs[vertices[3]], ys[vertices[3]], zs[vertices[3]]});
-      tetsView[ti] = TetrahedronType(a, b, c, d);
-    });
+  axom::for_all<ExecSpace>(m_tetCount, [=] AXOM_HOST_DEVICE(IndexType ti) {
+    auto vertices = tetVertConnView[ti];
+    Point3DType a({xs[vertices[0]], ys[vertices[0]], zs[vertices[0]]});
+    Point3DType b({xs[vertices[1]], ys[vertices[1]], zs[vertices[1]]});
+    Point3DType c({xs[vertices[2]], ys[vertices[2]], zs[vertices[2]]});
+    Point3DType d({xs[vertices[3]], ys[vertices[3]], zs[vertices[3]]});
+    tetsView[ti] = TetrahedronType(a, b, c, d);
+  });
 }
 
 void TetMeshClipper::extractClipperInfo()
@@ -686,12 +671,12 @@ void TetMeshClipper::extractClipperInfo()
     if(connNode.dtype().id() == bump::utilities::cpp2conduit<std::int32_t>::id)
     {
       auto curPtr = connNode.as_int32_ptr();
-      axom::for_all<HOST_EXEC>(connLen, AXOM_LAMBDA(IndexType i) { newPtr[i] = curPtr[i]; });
+      axom::for_all<HOST_EXEC>(connLen, [=] AXOM_HOST_DEVICE(IndexType i) { newPtr[i] = curPtr[i]; });
     }
     else if(connNode.dtype().id() == bump::utilities::cpp2conduit<std::int64_t>::id)
     {
       auto curPtr = connNode.as_int64_ptr();
-      axom::for_all<HOST_EXEC>(connLen, AXOM_LAMBDA(IndexType i) { newPtr[i] = curPtr[i]; });
+      axom::for_all<HOST_EXEC>(connLen, [=] AXOM_HOST_DEVICE(IndexType i) { newPtr[i] = curPtr[i]; });
     }
     else
     {
@@ -720,28 +705,26 @@ void TetMeshClipper::checkTetOrientations(conduit::Node& connNode,
   axom::ArrayView<const double> z(coordSet.fetch_existing("values/z").as_double_ptr(), pointCount);
 
   constexpr double eps = 1e-12;
-  axom::for_all<ExecSpace>(
-    tetCount,
-    AXOM_LAMBDA(IndexType iTet) {
-      Point3DType verts[4];
-      for(int vi = 0; vi < 4; ++vi)
-      {
-        int iPoint = connArray(iTet, vi);
-        verts[vi] = Point3DType {axom::NumericArray<double, 3> {x[iPoint], y[iPoint], z[iPoint]}};
-      }
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(IndexType iTet) {
+    Point3DType verts[4];
+    for(int vi = 0; vi < 4; ++vi)
+    {
+      int iPoint = connArray(iTet, vi);
+      verts[vi] = Point3DType {axom::NumericArray<double, 3> {x[iPoint], y[iPoint], z[iPoint]}};
+    }
 
-      TetrahedronType tet(verts[0], verts[1], verts[2], verts[3]);
-      const auto signedVol = tet.signedVolume();
-      if(signedVol < -eps)
+    TetrahedronType tet(verts[0], verts[1], verts[2], verts[3]);
+    const auto signedVol = tet.signedVolume();
+    if(signedVol < -eps)
+    {
+      if(fixOrientation)
       {
-        if(fixOrientation)
-        {
-          axom::utilities::swap(connArray(iTet, 2), connArray(iTet, 3));
-        }
-        else
-        {
+        axom::utilities::swap(connArray(iTet, 2), connArray(iTet, 3));
+      }
+      else
+      {
 #if defined(AXOM_DEVICE_CODE)
-          SLIC_ASSERT(!(signedVol < -eps));
+        SLIC_ASSERT(!(signedVol < -eps));
 #else
           SLIC_ERROR(axom::fmt::format(
             "TetMeshClipper: input tet[{}] is inverted, with volume {}.  Please fix or add "
@@ -749,9 +732,9 @@ void TetMeshClipper::checkTetOrientations(conduit::Node& connNode,
             iTet,
             signedVol));
 #endif
-        }
       }
-    });
+    }
+  });
 }
 
 bool TetMeshClipper::isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const
@@ -858,19 +841,17 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   axom::Array<Ray3DType> faceRays(faceCount, faceCount, allocId);
   auto faceTrisView = faceTris.view();
   auto faceRaysView = faceRays.view();
-  axom::for_all<ExecSpace>(
-    faceCount,
-    AXOM_LAMBDA(axom::IndexType faceIdx) {
-      axom::IndexType* vertIds = faceVertsView.data() + faceIdx * VERTS_PER_FACE;
-      auto vId0 = vertIds[0];
-      auto vId1 = vertIds[1];
-      auto vId2 = vertIds[2];
-      Point3DType v0 {xs[vId0], ys[vId0], zs[vId0]};
-      Point3DType v1 {xs[vId1], ys[vId1], zs[vId1]};
-      Point3DType v2 {xs[vId2], ys[vId2], zs[vId2]};
-      auto& faceTri = faceTrisView[faceIdx] = Triangle3DType(v0, v1, v2);
-      faceRaysView[faceIdx] = Ray3DType(faceTri.centroid(), faceTri.normal());
-    });
+  axom::for_all<ExecSpace>(faceCount, [=] AXOM_HOST_DEVICE(axom::IndexType faceIdx) {
+    axom::IndexType* vertIds = faceVertsView.data() + faceIdx * VERTS_PER_FACE;
+    auto vId0 = vertIds[0];
+    auto vId1 = vertIds[1];
+    auto vId2 = vertIds[2];
+    Point3DType v0 {xs[vId0], ys[vId0], zs[vId0]};
+    Point3DType v1 {xs[vId1], ys[vId1], zs[vId1]};
+    Point3DType v2 {xs[vId2], ys[vId2], zs[vId2]};
+    auto& faceTri = faceTrisView[faceIdx] = Triangle3DType(v0, v1, v2);
+    faceRaysView[faceIdx] = Ray3DType(faceTri.centroid(), faceTri.normal());
+  });
 
   /*
    * Compute whether faces have tets on each side.
@@ -881,47 +862,43 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   hasCellOnBackSide.fill(false);
   auto hasCellOnFrontSideView = hasCellOnFrontSide.view();
   auto hasCellOnBackSideView = hasCellOnBackSide.view();
-  axom::for_all<ExecSpace>(
-    m_tetCount,
-    AXOM_LAMBDA(IndexType tetId) {
-      Point3DType cellCentroid({0.0, 0.0, 0.0});
-      axom::IndexType* vertIdxs = tetVertConnView.data() + tetId * VERTS_PER_TET;
-      TetrahedronType tet;
-      for(int vi = 0; vi < VERTS_PER_TET; ++vi)
-      {
-        axom::IndexType vIdx = vertIdxs[vi];
-        Point3DType vertCoords {xs[vIdx], ys[vIdx], zs[vIdx]};
-        cellCentroid.array() += vertCoords.array();
-        tet[vi] = vertCoords;
-      }
-      cellCentroid.array() /= VERTS_PER_TET;
+  axom::for_all<ExecSpace>(m_tetCount, [=] AXOM_HOST_DEVICE(IndexType tetId) {
+    Point3DType cellCentroid({0.0, 0.0, 0.0});
+    axom::IndexType* vertIdxs = tetVertConnView.data() + tetId * VERTS_PER_TET;
+    TetrahedronType tet;
+    for(int vi = 0; vi < VERTS_PER_TET; ++vi)
+    {
+      axom::IndexType vIdx = vertIdxs[vi];
+      Point3DType vertCoords {xs[vIdx], ys[vIdx], zs[vIdx]};
+      cellCentroid.array() += vertCoords.array();
+      tet[vi] = vertCoords;
+    }
+    cellCentroid.array() /= VERTS_PER_TET;
 
-      for(int fi = 0; fi < FACES_PER_TET; ++fi)
-      {
-        axom::IndexType faceIdx = polyElemFaceView[tetId * FACES_PER_TET + fi];
-        const auto& faceTri = faceTrisView[faceIdx];
-        Ray3DType faceRay(faceTri.centroid(), faceTri.normal());
-        const Vector3DType& faceDir = faceRay.direction();
-        auto cellToFace = cellCentroid.array() - faceRay.origin().array();
-        double distParam =
-          faceDir[0] * cellToFace[0] + faceDir[1] * cellToFace[1] + faceDir[2] * cellToFace[2];
-        bool& hasCell =
-          distParam >= 0 ? hasCellOnFrontSideView[faceIdx] : hasCellOnBackSideView[faceIdx];
-        hasCell = true;
-      }
-    });
+    for(int fi = 0; fi < FACES_PER_TET; ++fi)
+    {
+      axom::IndexType faceIdx = polyElemFaceView[tetId * FACES_PER_TET + fi];
+      const auto& faceTri = faceTrisView[faceIdx];
+      Ray3DType faceRay(faceTri.centroid(), faceTri.normal());
+      const Vector3DType& faceDir = faceRay.direction();
+      auto cellToFace = cellCentroid.array() - faceRay.origin().array();
+      double distParam =
+        faceDir[0] * cellToFace[0] + faceDir[1] * cellToFace[1] + faceDir[2] * cellToFace[2];
+      bool& hasCell =
+        distParam >= 0 ? hasCellOnFrontSideView[faceIdx] : hasCellOnBackSideView[faceIdx];
+      hasCell = true;
+    }
+  });
 
   /*
    * Mark faces touching only 1 cell.
    */
   axom::Array<axom::IndexType> hasCellOnOneSide(ArrayOptions::Uninitialized(), faceCount, 0, allocId);
   auto hasCellOnOneSideView = hasCellOnOneSide.view();
-  axom::for_all<ExecSpace>(
-    faceCount,
-    AXOM_LAMBDA(IndexType faceId) {
-      hasCellOnOneSideView[faceId] =
-        (hasCellOnFrontSideView[faceId] + hasCellOnBackSideView[faceId]) == 1;
-    });
+  axom::for_all<ExecSpace>(faceCount, [=] AXOM_HOST_DEVICE(IndexType faceId) {
+    hasCellOnOneSideView[faceId] =
+      (hasCellOnFrontSideView[faceId] + hasCellOnBackSideView[faceId]) == 1;
+  });
 
   /*
    * Get running total of surface triangle count using prefix-sum scan.
@@ -940,16 +917,14 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   axom::Array<Triangle3DType> surfTris(surfFaceCount, 0, allocId);
   auto surfFaceIdsView = surfFaceIds.view();
   auto surfTrisView = surfTris.view();
-  axom::for_all<ExecSpace>(
-    faceCount,
-    AXOM_LAMBDA(axom::IndexType faceIdx) {
-      if(prefixSumView[faceIdx] != prefixSumView[faceIdx + 1])
-      {
-        auto runningTotal = prefixSumView[faceIdx];
-        surfFaceIdsView[runningTotal] = faceIdx;
-        surfTrisView[runningTotal] = faceTrisView[faceIdx];
-      }
-    });
+  axom::for_all<ExecSpace>(faceCount, [=] AXOM_HOST_DEVICE(axom::IndexType faceIdx) {
+    if(prefixSumView[faceIdx] != prefixSumView[faceIdx + 1])
+    {
+      auto runningTotal = prefixSumView[faceIdx];
+      surfFaceIdsView[runningTotal] = faceIdx;
+      surfTrisView[runningTotal] = faceTrisView[faceIdx];
+    }
+  });
 
   return surfTris;
 }

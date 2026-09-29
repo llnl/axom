@@ -25,6 +25,8 @@ option(AXOM_ENABLE_SPARSEHASH "Enables Sparsehash." ON)
 option(AXOM_ENABLE_ALL_COMPONENTS "Enables all components by default" ON)
 option(AXOM_USE_64BIT_INDEXTYPE "Use 64-bit integers for axom::IndexType" ON)
 
+set(AXOM_DEFAULT_HOST_ALLOCATOR "MALLOC" CACHE STRING "Default host allocator: MALLOC or UMPIRE_HOST")
+set_property(CACHE AXOM_DEFAULT_HOST_ALLOCATOR PROPERTY STRINGS "MALLOC" "UMPIRE_HOST")
 
 # When enabled (default), Sidre will serialize tuple views of size 1 with state="SCALAR" 
 # in its I/O metadata for compatibility with downstream readers (e.g. VisIt's Blueprint database plugin). 

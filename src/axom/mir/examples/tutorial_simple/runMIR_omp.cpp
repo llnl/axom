@@ -8,11 +8,11 @@
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_OPENMP)
 
 // Prototypes
-int runMIR_omp_tri(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_omp_quad(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_omp_hex(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
+int runMIR_omp_tri(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result);
+int runMIR_omp_quad(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result);
+int runMIR_omp_hex(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result);
 
-int runMIR_omp(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
+int runMIR_omp(const conduit::Node& mesh, const conduit::Node& options, conduit::Node& result)
 {
   std::string shape = mesh["topologies/mesh/elements/shape"].as_string();
   int retval = 0;
@@ -25,9 +25,9 @@ int runMIR_omp(const conduit::Node &mesh, const conduit::Node &options, conduit:
   return retval;
 }
 #else
-int runMIR_omp(const conduit::Node &AXOM_UNUSED_PARAM(mesh),
-               const conduit::Node &AXOM_UNUSED_PARAM(options),
-               conduit::Node &AXOM_UNUSED_PARAM(result))
+int runMIR_omp(const conduit::Node& AXOM_UNUSED_PARAM(mesh),
+               const conduit::Node& AXOM_UNUSED_PARAM(options),
+               conduit::Node& AXOM_UNUSED_PARAM(result))
 {
   return 0;
 }

@@ -339,7 +339,7 @@ TEST(quest_mesh_tester, surfacemesh_self_intersection_ondisk)
       // read in the test file into a Mesh
       quest::STLReader reader;
       reader.setFileName(tfname);
-      reader.read();
+      ASSERT_EQ(reader.read(), 0);
 
       // Get surface mesh
       UMesh* surface_mesh = new UMesh(3, mint::TRIANGLE);
@@ -463,7 +463,7 @@ TEST(quest_mesh_tester, surfacemesh_watertight_ondisk)
         // Read in the test file into a Mesh
         quest::STLReader reader;
         reader.setFileName(tfname);
-        reader.read();
+        ASSERT_EQ(reader.read(), 0);
 
         // Get surface mesh
         UMesh* surface_mesh = new UMesh(3, mint::TRIANGLE);

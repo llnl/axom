@@ -12,9 +12,7 @@
 
 #include <optional>
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class RelationSet
@@ -333,5 +331,4 @@ private:
   RelationType* m_relation;  //the relation that this set is based off of
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

@@ -15,9 +15,9 @@ extern "C" {
 #endif
 
 // Release library allocated memory.
-void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data *cap)
+void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data* cap)
 {
-  void *ptr = cap->addr;
+  void* ptr = cap->addr;
   switch(cap->idtor)
   {
   case 0:  // --none--
@@ -27,7 +27,7 @@ void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data *cap)
   }
   case 1:  // axom::sidre::IOManager
   {
-    axom::sidre::IOManager *cxx_ptr = reinterpret_cast<axom::sidre::IOManager *>(ptr);
+    axom::sidre::IOManager* cxx_ptr = reinterpret_cast<axom::sidre::IOManager*>(ptr);
     delete cxx_ptr;
     break;
   }
@@ -43,7 +43,7 @@ void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data *cap)
 }
 
 // axom::sidre::IOManager = axom::sidre::IOManager
-void SPIO_IOManager_assign_IOManager(SPIO_IOManager *lhs_capsule, SPIO_IOManager *rhs_capsule)
+void SPIO_IOManager_assign_IOManager(SPIO_IOManager* lhs_capsule, SPIO_IOManager* rhs_capsule)
 {
   if(lhs_capsule->addr == nullptr)
   {
@@ -68,7 +68,7 @@ void SPIO_IOManager_assign_IOManager(SPIO_IOManager *lhs_capsule, SPIO_IOManager
     // Replace LHS with a null pointer.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SPIO_SHROUD_memory_destructor((SPIO_SHROUD_capsule_data *)lhs_capsule);
+      SPIO_SHROUD_memory_destructor((SPIO_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = nullptr;
     lhs_capsule->idtor = 0;
@@ -84,7 +84,7 @@ void SPIO_IOManager_assign_IOManager(SPIO_IOManager *lhs_capsule, SPIO_IOManager
     // Move-assign and delete the transient data.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SPIO_SHROUD_memory_destructor((SPIO_SHROUD_capsule_data *)lhs_capsule);
+      SPIO_SHROUD_memory_destructor((SPIO_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;
@@ -95,7 +95,7 @@ void SPIO_IOManager_assign_IOManager(SPIO_IOManager *lhs_capsule, SPIO_IOManager
     // RHS shouldn't be deleted, alias to LHS.
     if(lhs_capsule->cmemflags & SWIG_MEM_OWN)
     {
-      SPIO_SHROUD_memory_destructor((SPIO_SHROUD_capsule_data *)lhs_capsule);
+      SPIO_SHROUD_memory_destructor((SPIO_SHROUD_capsule_data*)lhs_capsule);
     }
     lhs_capsule->addr = rhs_capsule->addr;
     lhs_capsule->idtor = rhs_capsule->idtor;

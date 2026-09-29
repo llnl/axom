@@ -99,6 +99,10 @@ void about(std::ostream &oss)
     comps.push_back("mir");
 #endif
 
+#ifdef AXOM_USE_MULTIMAT
+    comps.push_back("multimat");
+#endif
+
 #ifdef AXOM_USE_PRIMAL
     comps.push_back("primal");
 #endif

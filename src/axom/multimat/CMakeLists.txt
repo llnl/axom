@@ -32,7 +32,7 @@ set(multimat_sources
 set(multimat_depends_on slam)
 
 blt_list_append( TO multimat_depends_on ELEMENTS RAJA IF RAJA_FOUND )
-blt_list_append( TO multimat_depends_on ELEMENTS umpire IF UMPIRE_FOUND )
+blt_list_append( TO multimat_depends_on ELEMENTS umpire::umpire IF UMPIRE_FOUND )
 
 #------------------------------------------------------------------------------
 # Build and install the library

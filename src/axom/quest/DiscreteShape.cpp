@@ -17,9 +17,7 @@
 #include <algorithm>
 #include <utility>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 // TODO: These were needed for linking - but why? They are constexpr.
@@ -117,11 +115,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                        axom::fmt::format(" '{}' format requires .stl file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
-#ifdef AXOM_USE_MPI
     const int rc = quest::internal::read_stl_mesh(shapePath, meshRep, m_comm);
-#else
-    const int rc = quest::internal::read_stl_mesh(shapePath, meshRep);
-#endif
     SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
                        axom::fmt::format("Failed to read STL shape '{}' from file '{}'.",
                                          m_shape.getName(),
@@ -137,11 +131,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                        axom::fmt::format(" '{}' format requires .proe file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
-#ifdef AXOM_USE_MPI
     const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep, m_comm);
-#else
-    const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep);
-#endif
     SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
                        axom::fmt::format("Failed to read Pro/E shape '{}' from file '{}'.",
                                          m_shape.getName(),
@@ -167,7 +157,6 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     int rc = quest::internal::READ_FAILED;
     try
     {
-  #ifdef AXOM_USE_MPI
       rc = quest::internal::read_c2c_mesh(shapePath,
                                           uniform,
                                           transform,
@@ -177,16 +166,6 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                                           meshRep,
                                           m_revolvedVolume,  // output arg
                                           m_comm);
-  #else
-      rc = quest::internal::read_c2c_mesh(shapePath,
-                                          uniform,
-                                          transform,
-                                          m_samplesPerKnotSpan,
-                                          m_vertexWeldThreshold,
-                                          m_percentError,
-                                          meshRep,
-                                          m_revolvedVolume);  // output arg
-  #endif
     }
     catch(const std::exception& e)
     {
@@ -353,20 +332,18 @@ void DiscreteShape::createRepresentationOfHex()
   axom::Array<axom::IndexType, 2> connectivity(tetCount, 4);
   auto connectivityView = connectivity.view();
   // NOTE: This is not much computation, so just run on host.
-  axom::for_all<axom::SEQ_EXEC>(
-    tetCount,
-    AXOM_LAMBDA(axom::IndexType iTet) {
-      const auto& tet = tets[iTet];
-      for(int i = 0; i < 4; ++i)
-      {
-        axom::IndexType iNode = iTet * 4 + i;
-        const auto& coords = tet[i];
-        nodeCoordsView[iNode][0] = coords[0];
-        nodeCoordsView[iNode][1] = coords[1];
-        nodeCoordsView[iNode][2] = coords[2];
-        connectivityView[iTet][i] = iNode;
-      }
-    });
+  axom::for_all<axom::SEQ_EXEC>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+    const auto& tet = tets[iTet];
+    for(int i = 0; i < 4; ++i)
+    {
+      axom::IndexType iNode = iTet * 4 + i;
+      const auto& coords = tet[i];
+      nodeCoordsView[iNode][0] = coords[0];
+      nodeCoordsView[iNode][1] = coords[1];
+      nodeCoordsView[iNode][2] = coords[2];
+      connectivityView[iTet][i] = iNode;
+    }
+  });
 
   TetMesh* tetMesh = nullptr;
   if(m_sidreGroup != nullptr)
@@ -444,20 +421,18 @@ void DiscreteShape::createRepresentationOfPlane()
   axom::Array<axom::IndexType, 2> connectivity(tetCount, 4);
   auto connectivityView = connectivity.view();
   // NOTE: This is not much computation, so just run on host.
-  axom::for_all<axom::SEQ_EXEC>(
-    tetCount,
-    AXOM_LAMBDA(axom::IndexType iTet) {
-      const auto& tet = tets[iTet];
-      for(int i = 0; i < 4; ++i)
-      {
-        axom::IndexType iNode = iTet * 4 + i;
-        const auto& coords = tet[i];
-        nodeCoordsView[iNode][0] = coords[0];
-        nodeCoordsView[iNode][1] = coords[1];
-        nodeCoordsView[iNode][2] = coords[2];
-        connectivityView[iTet][i] = iNode;
-      }
-    });
+  axom::for_all<axom::SEQ_EXEC>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+    const auto& tet = tets[iTet];
+    for(int i = 0; i < 4; ++i)
+    {
+      axom::IndexType iNode = iTet * 4 + i;
+      const auto& coords = tet[i];
+      nodeCoordsView[iNode][0] = coords[0];
+      nodeCoordsView[iNode][1] = coords[1];
+      nodeCoordsView[iNode][2] = coords[2];
+      connectivityView[iTet][i] = iNode;
+    }
+  });
 
   TetMesh* tetMesh = nullptr;
   if(m_sidreGroup != nullptr)
@@ -765,5 +740,4 @@ void DiscreteShape::setParentGroup(axom::sidre::Group* parentGroup)
   }
 }
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

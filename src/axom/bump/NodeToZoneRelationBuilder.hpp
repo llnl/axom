@@ -70,7 +70,9 @@ struct BuildRelationImpl
     auto keysView = keys.view();
     {
       AXOM_ANNOTATE_SCOPE("init");
-      axom::for_all<ExecSpace>(n, AXOM_LAMBDA(axom::IndexType i) { keysView[i] = nodesView[i]; });
+      axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        keysView[i] = nodesView[i];
+      });
     }
 
     // Sort the keys, zones in place. This sorts the zonesView which we want for output.
@@ -83,12 +85,10 @@ struct BuildRelationImpl
     auto maskView = mask.view();
     {
       AXOM_ANNOTATE_SCOPE("mask");
-      axom::for_all<ExecSpace>(
-        n,
-        AXOM_LAMBDA(axom::IndexType i) {
-          maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? MaskType {1} : MaskType {0})
-                                 : MaskType {1};
-        });
+      axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? MaskType {1} : MaskType {0})
+                               : MaskType {1};
+      });
     }
 
     // Do a scan on the mask array to build an offset array.
@@ -101,17 +101,14 @@ struct BuildRelationImpl
     // Build the offsets to each node's zone ids.
     {
       AXOM_ANNOTATE_SCOPE("offsets");
-      axom::for_all<ExecSpace>(
-        offsetsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) { offsetsView[i] = 0; });
-      axom::for_all<ExecSpace>(
-        n,
-        AXOM_LAMBDA(axom::IndexType i) {
-          if(maskView[i])
-          {
-            offsetsView[dest_offsetsView[i]] = i;
-          }
-        });
+      axom::for_all<ExecSpace>(offsetsView.size(),
+                               [=] AXOM_HOST_DEVICE(axom::IndexType i) { offsetsView[i] = 0; });
+      axom::for_all<ExecSpace>(n, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        if(maskView[i])
+        {
+          offsetsView[dest_offsetsView[i]] = i;
+        }
+      });
     }
 
     // Compute sizes from offsets.
@@ -119,12 +116,10 @@ struct BuildRelationImpl
       AXOM_ANNOTATE_SCOPE("sizes");
       const value_type totalSize = nodesView.size();
       const auto offsetsViewSize_minus_1 = offsetsView.size() - 1;
-      axom::for_all<ExecSpace>(
-        offsetsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          sizesView[i] = (i < offsetsViewSize_minus_1) ? (offsetsView[i + 1] - offsetsView[i])
-                                                       : (totalSize - offsetsView[i]);
-        });
+      axom::for_all<ExecSpace>(offsetsView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        sizesView[i] = (i < offsetsViewSize_minus_1) ? (offsetsView[i + 1] - offsetsView[i])
+                                                     : (totalSize - offsetsView[i]);
+      });
     }
   }
 };
@@ -285,16 +280,16 @@ public:
    * \param coordset The topology's coordset.
    * \param[out] The node that will contain the O2M relation.
    */
-  void execute(const conduit::Node &topo, const conduit::Node &coordset, conduit::Node &relation)
+  void execute(const conduit::Node& topo, const conduit::Node& coordset, conduit::Node& relation)
   {
     const std::string type = topo.fetch_existing("type").as_string();
 
     const auto conduitAllocatorID =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
-    conduit::Node &n_zones = relation["zones"];
-    conduit::Node &n_sizes = relation["sizes"];
-    conduit::Node &n_offsets = relation["offsets"];
+    conduit::Node& n_zones = relation["zones"];
+    conduit::Node& n_sizes = relation["sizes"];
+    conduit::Node& n_offsets = relation["offsets"];
     n_zones.set_allocator(conduitAllocatorID);
     n_sizes.set_allocator(conduitAllocatorID);
     n_offsets.set_allocator(conduitAllocatorID);
@@ -302,7 +297,7 @@ public:
     if(type == "unstructured")
     {
       conduit::blueprint::mesh::utils::ShapeType shape(topo);
-      const conduit::Node &n_connectivity = topo["elements/connectivity"];
+      const conduit::Node& n_connectivity = topo["elements/connectivity"];
       const std::string shapeType = topo["elements/shape"].as_string();
       const auto intTypeId = n_connectivity.dtype().id();
       const auto connSize = n_connectivity.dtype().number_of_elements();
@@ -320,8 +315,8 @@ public:
       }
       else if(shape.is_polygonal() || shapeType == "mixed")
       {
-        const conduit::Node &n_topo_sizes = topo["elements/sizes"];
-        const conduit::Node &n_topo_offsets = topo["elements/offsets"];
+        const conduit::Node& n_topo_sizes = topo["elements/sizes"];
+        const conduit::Node& n_topo_offsets = topo["elements/offsets"];
 
         const auto nzones = n_topo_sizes.dtype().number_of_elements();
 
@@ -416,9 +411,9 @@ private:
    */
   template <typename PHView>
   void handlePolyhedralView(PHView topoView,
-                            conduit::Node &n_zones,
-                            conduit::Node &n_sizes,
-                            conduit::Node &n_offsets,
+                            conduit::Node& n_zones,
+                            conduit::Node& n_sizes,
+                            conduit::Node& n_offsets,
                             axom::IndexType nnodes,
                             int intTypeId) const
   {
@@ -433,14 +428,13 @@ private:
     // Run through the topology once to do a count of each zone's unique node ids.
     axom::ReduceSum<ExecSpace, axom::IndexType> count(0);
     const PHView deviceTopologyView(topoView);
-    axom::for_all<ExecSpace>(
-      topoView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const auto uniqueIds = zone.getUniqueIds();
-        sizes_view[zoneIndex] = uniqueIds.size();
-        count += uniqueIds.size();
-      });
+    axom::for_all<ExecSpace>(topoView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto zone = deviceTopologyView.zone(zoneIndex);
+                               const auto uniqueIds = zone.getUniqueIds();
+                               sizes_view[zoneIndex] = uniqueIds.size();
+                               count += uniqueIds.size();
+                             });
     const auto connSize = count.get();
     if(topoView.numberOfZones() > 0)
     {
@@ -493,25 +487,24 @@ private:
    *       lambda.
    */
   template <typename TopologyView, typename IntegerView, typename OffsetsView>
-  void fillZonesPH(const TopologyView &topoView,
+  void fillZonesPH(const TopologyView& topoView,
                    IntegerView connectivityView,
                    IntegerView zonesView,
                    OffsetsView offsets_view) const
   {
     // Run through the data one more time to build the nodes and zones arrays.
     const TopologyView deviceTopologyView(topoView);
-    axom::for_all<ExecSpace>(
-      topoView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const auto uniqueIds = zone.getUniqueIds();
-        auto destIdx = offsets_view[zoneIndex];
-        for(axom::IndexType i = 0; i < uniqueIds.size(); i++, destIdx++)
-        {
-          connectivityView[destIdx] = uniqueIds[i];
-          zonesView[destIdx] = zoneIndex;
-        }
-      });
+    axom::for_all<ExecSpace>(topoView.numberOfZones(),
+                             [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+                               const auto zone = deviceTopologyView.zone(zoneIndex);
+                               const auto uniqueIds = zone.getUniqueIds();
+                               auto destIdx = offsets_view[zoneIndex];
+                               for(axom::IndexType i = 0; i < uniqueIds.size(); i++, destIdx++)
+                               {
+                                 connectivityView[destIdx] = uniqueIds[i];
+                                 zonesView[destIdx] = zoneIndex;
+                               }
+                             });
   }
 
   /*!
@@ -533,12 +526,10 @@ private:
                       IntegerView offsetsView) const
   {
     using DataType = typename decltype(zonesView)::value_type;
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        for(DataType i = 0; i < sizesView[zoneIndex]; i++)
-          zonesView[offsetsView[zoneIndex] + i] = zoneIndex;
-      });
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      for(DataType i = 0; i < sizesView[zoneIndex]; i++)
+        zonesView[offsetsView[zoneIndex] + i] = zoneIndex;
+    });
   }
 
   /*!
@@ -555,9 +546,9 @@ private:
   template <typename IntegerView>
   void fillZones(IntegerView zonesView, axom::IndexType connSize, axom::IndexType nodesPerShape) const
   {
-    axom::for_all<ExecSpace>(
-      connSize,
-      AXOM_LAMBDA(axom::IndexType index) { zonesView[index] = index / nodesPerShape; });
+    axom::for_all<ExecSpace>(connSize, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      zonesView[index] = index / nodesPerShape;
+    });
   }
 
 private:

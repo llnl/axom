@@ -17,9 +17,7 @@
 
 #include "mpi.h"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 
 /*
@@ -53,7 +51,7 @@ public:
    * \param validate_model When true, runs OpenCascade BRep validation on rank 0
    * \return 0 on success on all ranks, non-zero otherwise
    */
-  int read(bool validate_model) override;
+  [[nodiscard]] int read(bool validate_model) override;
 
   /*!
   * \brief Generates a triangulated representation of the STEP file as a Mint unstructured triangle mesh.
@@ -72,11 +70,11 @@ public:
   *
   * The mesh is constructed on rank 0 and is then broadcast to the other ranks.
   */
-  int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
-                      double linear_deflection = 0.1,
-                      double angular_deflection = 0.5,
-                      bool is_relative = false,
-                      bool trimmed = true) override;
+  [[nodiscard]] int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
+                                    double linear_deflection = 0.1,
+                                    double angular_deflection = 0.5,
+                                    bool is_relative = false,
+                                    bool trimmed = true) override;
 
 private:
   /// MPI broadcasts an integer from rank 0 and returns the value to all ranks
@@ -158,16 +156,16 @@ private:
     {
       // handles 1D or 2D array of primal::Point
       // since the data is contiguous, we cast the values to a 1D ArrayView<double>
-      constexpr static int POINT_DIM = value_type::DIMENSION;
+      static constexpr int POINT_DIM = value_type::DIMENSION;
       const int numVals = arr.size() * POINT_DIM;
       double* dataPtr = nullptr;
       if constexpr(ARR_DIM == 1)  // 1D array of points
       {
-        dataPtr = (arr.size() > 0) ? arr[0].data() : nullptr;
+        dataPtr = !arr.empty() ? arr[0].data() : nullptr;
       }
       else if constexpr(ARR_DIM == 2)  // 2D array of points
       {
-        dataPtr = (arr.size() > 0) ? &arr(0, 0)[0] : nullptr;
+        dataPtr = !arr.empty() ? &arr(0, 0)[0] : nullptr;
       }
       axom::ArrayView<double> flatView(dataPtr, numVals);
       bcast_data(flatView);
@@ -187,5 +185,4 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(PSTEPReader);
 };
 
-}  // namespace quest
-}  // namespace axom
+}  // namespace axom::quest

@@ -38,7 +38,7 @@ template <typename ExecSpace>
 double array_sum(axom::ArrayView<double> v)
 {
   axom::ReduceSum<ExecSpace, double> sum(0);
-  axom::for_all<ExecSpace>(v.size(), AXOM_LAMBDA(axom::IndexType i) { sum += v[i]; });
+  axom::for_all<ExecSpace>(v.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) { sum += v[i]; });
   double rval = sum.get();
   return rval;
 }
@@ -48,10 +48,10 @@ constexpr bool tryFixOrientation = false;
 constexpr axom::IndexType repCount = 10000;  // For reliable timings, try 1e6.
 
 template <typename ExecSpace>
-void time_repeat_clips(const Primal3D::TetrahedronType &a,
-                       const Primal3D::TetrahedronType &b,
+void time_repeat_clips(const Primal3D::TetrahedronType& a,
+                       const Primal3D::TetrahedronType& b,
                        axom::IndexType count,
-                       const std::string &caseName)
+                       const std::string& caseName)
 {
   using namespace Primal3D;
   const std::string timerName = caseName + axom::execution_space<ExecSpace>::name();
@@ -74,12 +74,10 @@ void time_repeat_clips(const Primal3D::TetrahedronType &a,
   auto volsView = vols.view();
 
   AXOM_ANNOTATE_BEGIN(timerName);
-  axom::for_all<ExecSpace>(
-    count,
-    AXOM_LAMBDA(axom::IndexType i) {
-      auto poly = axom::primal::clip(asView[i], bsView[i], EPS, tryFixOrientation);
-      volsView[i] = poly.volume();
-    });
+  axom::for_all<ExecSpace>(count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    auto poly = axom::primal::clip(asView[i], bsView[i], EPS, tryFixOrientation);
+    volsView[i] = poly.volume();
+  });
   AXOM_ANNOTATE_END(timerName);
 
   // Verify correctness.
@@ -87,10 +85,10 @@ void time_repeat_clips(const Primal3D::TetrahedronType &a,
   EXPECT_NEAR(avgVol, singleVol, EPS);
 }
 
-void time_repeat_clips_all(const Primal3D::TetrahedronType &a,
-                           const Primal3D::TetrahedronType &b,
+void time_repeat_clips_all(const Primal3D::TetrahedronType& a,
+                           const Primal3D::TetrahedronType& b,
                            axom::IndexType count,
-                           const std::string &caseName)
+                           const std::string& caseName)
 {
   time_repeat_clips<axom::SEQ_EXEC>(a, b, count, caseName);
 
@@ -284,7 +282,7 @@ TEST(primal_clip, eight_point5)
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

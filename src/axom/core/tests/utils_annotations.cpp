@@ -95,7 +95,7 @@ TEST(utils_annotations, print_adiak_metadata)
     if(my_rank == 0)
     {
       std::cout << "Adiak metadata: \n";
-      for(const auto &kv : updated_metadata)
+      for(const auto& kv : updated_metadata)
       {
         std::cout << axom::fmt::format("- {}: {}\n", kv.first, kv.second);
       }
@@ -110,7 +110,7 @@ TEST(utils_annotations, check_modes)
 {
   EXPECT_TRUE(axom::utilities::annotations::detail::is_mode_valid("none"));
 
-  for(const auto &m : {"counts", "file", "trace", "report", "gputx", "nvprof", "nvtx", "roctx"})
+  for(const auto& m : {"counts", "file", "trace", "report", "gputx", "nvprof", "nvtx", "roctx"})
   {
 #ifdef AXOM_USE_CALIPER
     EXPECT_TRUE(axom::utilities::annotations::detail::is_mode_valid(m));
@@ -174,7 +174,7 @@ TEST(utils_annotations, print_help)
   SUCCEED();
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
 

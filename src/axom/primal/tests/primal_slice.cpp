@@ -80,12 +80,10 @@ void check_slice_policy()
   axom::Array<double> areas_device(1, 1, kernel_allocator);
   auto areas_view = areas_device.view();
 
-  axom::for_all<ExecSpace>(
-    1,
-    AXOM_LAMBDA(int i) {
-      polys_view[i] = primal::slice<double, primal::PolygonArray::Static, 4>(tet, plane);
-      areas_view[i] = polys_view[i].area();
-    });
+  axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int i) {
+    polys_view[i] = primal::slice<double, primal::PolygonArray::Static, 4>(tet, plane);
+    areas_view[i] = polys_view[i].area();
+  });
 
   axom::Array<PolygonType> polys_host(polys_device, host_allocator);
   axom::Array<double> areas_host(areas_device, host_allocator);
@@ -120,33 +118,31 @@ void check_slice_degenerate_policy()
   axom::Array<double> areas_device(3, 3, kernel_allocator);
   auto areas_view = areas_device.view();
 
-  axom::for_all<ExecSpace>(
-    3,
-    AXOM_LAMBDA(int i) {
-      PlaneType plane;
+  axom::for_all<ExecSpace>(3, [=] AXOM_HOST_DEVICE(int i) {
+    PlaneType plane;
 
-      // Edge case: the plane intersects the tet on a vertex.
-      if(i == 0)
-      {
-        plane = PlaneType({1., 1., 1.}, 0.);
-      }
+    // Edge case: the plane intersects the tet on a vertex.
+    if(i == 0)
+    {
+      plane = PlaneType({1., 1., 1.}, 0.);
+    }
 
-      // Edge case: the plane intersects the tet on an edge, here the edge from
-      // (0,0,0) to (1,0,0).
-      if(i == 1)
-      {
-        plane = PlaneType({0., 1., 1.}, 0.);
-      }
+    // Edge case: the plane intersects the tet on an edge, here the edge from
+    // (0,0,0) to (1,0,0).
+    if(i == 1)
+    {
+      plane = PlaneType({0., 1., 1.}, 0.);
+    }
 
-      // Edge case: the plane intersects the tet on a face, here the face z = 0.
-      if(i == 2)
-      {
-        plane = PlaneType({0., 0., 1.}, 0.);
-      }
+    // Edge case: the plane intersects the tet on a face, here the face z = 0.
+    if(i == 2)
+    {
+      plane = PlaneType({0., 0., 1.}, 0.);
+    }
 
-      polys_view[i] = primal::slice<double, primal::PolygonArray::Static, 4>(tet, plane);
-      areas_view[i] = polys_view[i].area();
-    });
+    polys_view[i] = primal::slice<double, primal::PolygonArray::Static, 4>(tet, plane);
+    areas_view[i] = polys_view[i].area();
+  });
 
   axom::Array<PolygonType> polys_host(polys_device, host_allocator);
   axom::Array<double> areas_host(areas_device, host_allocator);

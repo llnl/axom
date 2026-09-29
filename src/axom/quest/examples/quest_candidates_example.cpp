@@ -386,29 +386,27 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
   hexMesh.m_hexBoundingBoxes = BBoxArray(numCells, numCells, kernel_allocator);
   auto m_hexBoundingBoxes_v = (hexMesh.m_hexBoundingBoxes).view();
 
-  axom::for_all<ExecSpace>(
-    numCells,
-    AXOM_LAMBDA(axom::IndexType icell) {
-      HexMesh::Hexahedron hex;
-      HexMesh::Point hexPoints[HEX_OFFSET];
-      for(int j = 0; j < HEX_OFFSET; j++)
-      {
-        int offset = icell * HEX_OFFSET;
-        hexPoints[j] = HexMesh::Point({x_vals_view[connectivity_view[offset + j]],
-                                       y_vals_view[connectivity_view[offset + j]],
-                                       z_vals_view[connectivity_view[offset + j]]});
-      }
-      hex = HexMesh::Hexahedron(hexPoints[0],
-                                hexPoints[1],
-                                hexPoints[2],
-                                hexPoints[3],
-                                hexPoints[4],
-                                hexPoints[5],
-                                hexPoints[6],
-                                hexPoints[7]);
-      m_hexes_v[icell] = hex;
-      m_hexBoundingBoxes_v[icell] = axom::primal::compute_bounding_box(hex);
-    });
+  axom::for_all<ExecSpace>(numCells, [=] AXOM_HOST_DEVICE(axom::IndexType icell) {
+    HexMesh::Hexahedron hex;
+    HexMesh::Point hexPoints[HEX_OFFSET];
+    for(int j = 0; j < HEX_OFFSET; j++)
+    {
+      int offset = icell * HEX_OFFSET;
+      hexPoints[j] = HexMesh::Point({x_vals_view[connectivity_view[offset + j]],
+                                     y_vals_view[connectivity_view[offset + j]],
+                                     z_vals_view[connectivity_view[offset + j]]});
+    }
+    hex = HexMesh::Hexahedron(hexPoints[0],
+                              hexPoints[1],
+                              hexPoints[2],
+                              hexPoints[3],
+                              hexPoints[4],
+                              hexPoints[5],
+                              hexPoints[6],
+                              hexPoints[7]);
+    m_hexes_v[icell] = hex;
+    m_hexBoundingBoxes_v[icell] = axom::primal::compute_bounding_box(hex);
+  });
 
   // Initialize mesh's bounding box on the host
   BBoxArray hexBoundingBoxes_h =
@@ -513,18 +511,16 @@ std::vector<IndexPair> findCandidatesBVH(const HexMesh& insertMesh, const HexMes
   auto first_pair_v = firstPair_d.view();
   auto second_pair_v = secondPair_d.view();
 
-  axom::for_all<ExecSpace>(
-    query_bbox_v.size(),
-    AXOM_LAMBDA(axom::IndexType icell) {
-      axom::IndexType offset = offsets_v[icell];
+  axom::for_all<ExecSpace>(query_bbox_v.size(), [=] AXOM_HOST_DEVICE(axom::IndexType icell) {
+    axom::IndexType offset = offsets_v[icell];
 
-      for(int j = 0; j < counts_v[icell]; j++)
-      {
-        int pair_index = offset + j;
-        first_pair_v[pair_index] = icell;
-        second_pair_v[pair_index] = candidates_v[pair_index];
-      }
-    });
+    for(int j = 0; j < counts_v[icell]; j++)
+    {
+      int pair_index = offset + j;
+      first_pair_v[pair_index] = icell;
+      second_pair_v[pair_index] = candidates_v[pair_index];
+    }
+  });
 
   SLIC_INFO(axom::fmt::format("2: Initialized candidate pairs (on device)."));
   AXOM_ANNOTATE_END("write candidate pairs");
@@ -622,28 +618,26 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
   // First pass: get number of bounding box candidates for each query bounding
   // box. Logic here mirrors the quest_bvh_two_pass.cpp example. See also
   // the "Device Traversal API" for BVH.
-  axom::for_all<ExecSpace>(
-    queryMesh.numHexes(),
-    AXOM_LAMBDA(int icell) {
-      int count = 0;
+  axom::for_all<ExecSpace>(queryMesh.numHexes(), [=] AXOM_HOST_DEVICE(int icell) {
+    int count = 0;
 
-      // Define a function that is called on every candidate reached during
-      // traversal. The function below simply counts the number of candidates
-      // that intersect with the given query bounding box.
-      auto isBBIntersect = [&](int candidateIdx) {
-        if(axom::primal::intersect(insert_bbox_v[candidateIdx], query_bbox_v[icell]))
-        {
-          count++;
-        }
-      };
+    // Define a function that is called on every candidate reached during
+    // traversal. The function below simply counts the number of candidates
+    // that intersect with the given query bounding box.
+    auto isBBIntersect = [&](int candidateIdx) {
+      if(axom::primal::intersect(insert_bbox_v[candidateIdx], query_bbox_v[icell]))
+      {
+        count++;
+      }
+    };
 
-      // Call visitCandidates to iterate through the candidates
-      grid_device.visitCandidates(query_bbox_v[icell], isBBIntersect);
+    // Call visitCandidates to iterate through the candidates
+    grid_device.visitCandidates(query_bbox_v[icell], isBBIntersect);
 
-      // Store the number of intersections for each query bounding box
-      counts_v[icell] = count;
-      totalCandidatePairs += count;
-    });
+    // Store the number of intersections for each query bounding box
+    counts_v[icell] = count;
+    totalCandidatePairs += count;
+  });
 
   SLIC_INFO(axom::fmt::format("1: Queried candidate bounding boxes."));
   AXOM_ANNOTATE_END("query candidates");
@@ -663,23 +657,21 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
   auto second_pair_v = secondPair_d.view();
 
   // Second pass: fill candidates array pairs on device
-  axom::for_all<ExecSpace>(
-    queryMesh.numHexes(),
-    AXOM_LAMBDA(axom::IndexType icell) {
-      axom::IndexType offset = offsets_v[icell];
+  axom::for_all<ExecSpace>(queryMesh.numHexes(), [=] AXOM_HOST_DEVICE(axom::IndexType icell) {
+    axom::IndexType offset = offsets_v[icell];
 
-      // Store the intersection candidate
-      auto fillCandidates = [&](int candidateIdx) {
-        if(axom::primal::intersect(insert_bbox_v[candidateIdx], query_bbox_v[icell]))
-        {
-          first_pair_v[offset] = icell;
-          second_pair_v[offset] = candidateIdx;
-          offset++;
-        }
-      };
+    // Store the intersection candidate
+    auto fillCandidates = [&](int candidateIdx) {
+      if(axom::primal::intersect(insert_bbox_v[candidateIdx], query_bbox_v[icell]))
+      {
+        first_pair_v[offset] = icell;
+        second_pair_v[offset] = candidateIdx;
+        offset++;
+      }
+    };
 
-      grid_device.visitCandidates(query_bbox_v[icell], fillCandidates);
-    });
+    grid_device.visitCandidates(query_bbox_v[icell], fillCandidates);
+  });
 
   SLIC_INFO(axom::fmt::format("2: Initialized candidate pairs (on device)."));
   AXOM_ANNOTATE_END("write candidate pairs");

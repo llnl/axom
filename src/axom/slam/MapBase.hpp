@@ -18,9 +18,7 @@
 
 #include "axom/slam/Set.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class   MapBase
@@ -61,5 +59,4 @@ private:
   virtual void verifyPosition(SetPosition) const = 0;
 };
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

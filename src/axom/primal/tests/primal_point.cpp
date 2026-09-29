@@ -25,12 +25,10 @@ void check_point_policy()
 
   double coords_host[DIM];
 
-  axom::for_all<ExecSpace>(
-    1,
-    AXOM_LAMBDA(int /*i*/) {
-      PointType ones = PointType::ones();
-      ones.to_array(coords);
-    });
+  axom::for_all<ExecSpace>(1, [=] AXOM_HOST_DEVICE(int /*i*/) {
+    PointType ones = PointType::ones();
+    ones.to_array(coords);
+  });
 
   axom::copy(&coords_host, coords, DIM * sizeof(double));
 

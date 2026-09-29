@@ -24,7 +24,7 @@ namespace io
  *
  * \note This function currently handles only unstructured topos with explicit coordsets.
  */
-void save_vtk(const conduit::Node &node, const std::string &path);
+void save_vtk(const conduit::Node& node, const std::string& path);
 
 }  // end namespace io
 }  // end namespace bump

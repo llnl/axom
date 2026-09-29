@@ -120,7 +120,7 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_QUEST)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS RAJA IF RAJA_FOUND)
-    blt_list_append(TO radiuss_tutorial_deps ELEMENTS umpire IF umpire_FOUND)
+    blt_list_append(TO radiuss_tutorial_deps ELEMENTS umpire::umpire IF umpire_FOUND)
 
     set(_examples lesson_00:check_axom_configuration.cpp
                   lesson_01:load_stl_mesh.cpp

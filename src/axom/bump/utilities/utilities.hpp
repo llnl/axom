@@ -89,7 +89,7 @@ template <>
 struct ComputeShapeAmount<2>
 {
   template <typename ShapeType>
-  static inline AXOM_HOST_DEVICE double execute(const ShapeType &shape)
+  static inline AXOM_HOST_DEVICE double execute(const ShapeType& shape)
   {
     return shape.area();
   }
@@ -102,7 +102,7 @@ template <>
 struct ComputeShapeAmount<3>
 {
   template <typename ShapeType>
-  static inline AXOM_HOST_DEVICE double execute(const ShapeType &shape)
+  static inline AXOM_HOST_DEVICE double execute(const ShapeType& shape)
   {
     return shape.volume();
   }

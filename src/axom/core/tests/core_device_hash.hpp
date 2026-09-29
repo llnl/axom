@@ -52,9 +52,9 @@ AXOM_TYPED_TEST(core_device_hash, hash_int)
   HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
-  axom::for_all<ExecSpaceType>(
-    NUM_HASHES,
-    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+  axom::for_all<ExecSpaceType>(NUM_HASHES, [=] AXOM_HOST_DEVICE(int i) {
+    computed_hashes[i] = device_hasher(things_to_hash[i]);
+  });
 
   // Copy back to host.
   HashResult computed_hashes_host[NUM_HASHES];
@@ -90,9 +90,9 @@ AXOM_TYPED_TEST(core_device_hash, hash_float)
   HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
-  axom::for_all<ExecSpaceType>(
-    NUM_HASHES,
-    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+  axom::for_all<ExecSpaceType>(NUM_HASHES, [=] AXOM_HOST_DEVICE(int i) {
+    computed_hashes[i] = device_hasher(things_to_hash[i]);
+  });
 
   // Copy back to host.
   HashResult computed_hashes_host[NUM_HASHES];
@@ -172,9 +172,9 @@ AXOM_TYPED_TEST(core_device_hash, hash_enum)
   HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
-  axom::for_all<ExecSpaceType>(
-    NUM_HASHES,
-    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+  axom::for_all<ExecSpaceType>(NUM_HASHES, [=] AXOM_HOST_DEVICE(int i) {
+    computed_hashes[i] = device_hasher(things_to_hash[i]);
+  });
 
   // Copy back to host.
   HashResult computed_hashes_host[NUM_HASHES];
@@ -250,9 +250,9 @@ AXOM_TYPED_TEST(core_device_hash, hash_user_defined)
   HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
-  axom::for_all<ExecSpaceType>(
-    NUM_HASHES,
-    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+  axom::for_all<ExecSpaceType>(NUM_HASHES, [=] AXOM_HOST_DEVICE(int i) {
+    computed_hashes[i] = device_hasher(things_to_hash[i]);
+  });
 
   // Copy back to host.
   HashResult computed_hashes_host[NUM_HASHES];
@@ -287,9 +287,9 @@ AXOM_TYPED_TEST(core_device_hash, hash_uint64_distinguishes_high_bits)
   int allocatorID = axom::execution_space<ExecSpaceType>::allocatorID();
   HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
-  axom::for_all<ExecSpaceType>(
-    NUM_HASHES,
-    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+  axom::for_all<ExecSpaceType>(NUM_HASHES, [=] AXOM_HOST_DEVICE(int i) {
+    computed_hashes[i] = device_hasher(things_to_hash[i]);
+  });
 
   HashResult computed_hashes_host[NUM_HASHES];
   axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
@@ -313,9 +313,9 @@ AXOM_TYPED_TEST(core_device_hash, hash_fractional_float_device)
   int allocatorID = axom::execution_space<ExecSpaceType>::allocatorID();
   HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
-  axom::for_all<ExecSpaceType>(
-    NUM_HASHES,
-    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+  axom::for_all<ExecSpaceType>(NUM_HASHES, [=] AXOM_HOST_DEVICE(int i) {
+    computed_hashes[i] = device_hasher(things_to_hash[i]);
+  });
 
   HashResult computed_hashes_host[NUM_HASHES];
   axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
@@ -347,9 +347,9 @@ AXOM_TYPED_TEST(core_device_hash, hash_fractional_double_device)
   int allocatorID = axom::execution_space<ExecSpaceType>::allocatorID();
   HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
-  axom::for_all<ExecSpaceType>(
-    NUM_HASHES,
-    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+  axom::for_all<ExecSpaceType>(NUM_HASHES, [=] AXOM_HOST_DEVICE(int i) {
+    computed_hashes[i] = device_hasher(things_to_hash[i]);
+  });
 
   HashResult computed_hashes_host[NUM_HASHES];
   axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);

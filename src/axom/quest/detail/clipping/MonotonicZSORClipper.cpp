@@ -206,22 +206,20 @@ void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& s
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
-      {
-        labels[cellId] = LabelType::LABEL_OUT;
-        return;
-      }
-      auto cellHex = meshHexes[cellId];
-      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
-      {
-        invTransformer.transform(cellHex[vi].array());
-      }
-      BoundingBox2DType cellBbInRz = estimateBoundingBoxInRz(cellHex);
-      labels[cellId] = rzBbToLabel(cellBbInRz, bbOnView, bbUnderView);
-    });
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
+    {
+      labels[cellId] = LabelType::LABEL_OUT;
+      return;
+    }
+    auto cellHex = meshHexes[cellId];
+    for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+    {
+      invTransformer.transform(cellHex[vi].array());
+    }
+    BoundingBox2DType cellBbInRz = estimateBoundingBoxInRz(cellHex);
+    labels[cellId] = rzBbToLabel(cellBbInRz, bbOnView, bbUnderView);
+  });
 }
 
 template <typename ExecSpace>
@@ -241,34 +239,32 @@ void MonotonicZSORClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& sh
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType ci) {
-      axom::IndexType cellId = cellIds[ci];
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
+    axom::IndexType cellId = cellIds[ci];
 
-      HexahedronType hex = meshHexes[cellId];
-      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+    HexahedronType hex = meshHexes[cellId];
+    for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+    {
+      invTransformer.transform(hex[vi].array());
+    }
+
+    TetrahedronType cellTets[NUM_TETS_PER_HEX];
+    ShapeMesh::hexToTets(hex, cellTets);
+
+    for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+    {
+      axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+      LabelType& tetLabel = labels[ci * NUM_TETS_PER_HEX + ti];
+      if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
       {
-        invTransformer.transform(hex[vi].array());
+        tetLabel = LabelType::LABEL_OUT;
+        continue;
       }
-
-      TetrahedronType cellTets[NUM_TETS_PER_HEX];
-      ShapeMesh::hexToTets(hex, cellTets);
-
-      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
-      {
-        axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
-        LabelType& tetLabel = labels[ci * NUM_TETS_PER_HEX + ti];
-        if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
-        {
-          tetLabel = LabelType::LABEL_OUT;
-          continue;
-        }
-        const TetrahedronType& tet = cellTets[ti];
-        BoundingBox2DType bbInRz = estimateBoundingBoxInRz(tet);
-        tetLabel = rzBbToLabel(bbInRz, bbOnView, bbUnderView);
-      }
-    });
+      const TetrahedronType& tet = cellTets[ti];
+      BoundingBox2DType bbInRz = estimateBoundingBoxInRz(tet);
+      tetLabel = rzBbToLabel(bbInRz, bbOnView, bbUnderView);
+    }
+  });
 }
 
 /*
@@ -376,9 +372,9 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
   axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
 
   axom::ReduceSum<ExecSpace, double> sumCharLength(0.0);
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    sumCharLength += cellLengths[cellId];
+  });
   double avgCharLength = sumCharLength.get() / cellCount;
 
   /*
@@ -407,17 +403,15 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
   auto bbOnView = bbOn.view();
   auto bbUnderView = bbUnder.view();
 
-  axom::for_all<ExecSpace>(
-    segCount,
-    AXOM_LAMBDA(axom::IndexType i) {
-      BoundingBox2DType& on = bbOnView[i];
-      BoundingBox2DType& under = bbUnderView[i];
-      on.addPoint(sorCurveView[i]);
-      on.addPoint(sorCurveView[i + 1]);
-      Point2DType underMin {on.getMin()[0], 0.0};
-      Point2DType underMax {on.getMax()[0], on.getMin()[1]};
-      under = BoundingBox2DType(underMin, underMax);
-    });
+  axom::for_all<ExecSpace>(segCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    BoundingBox2DType& on = bbOnView[i];
+    BoundingBox2DType& under = bbUnderView[i];
+    on.addPoint(sorCurveView[i]);
+    on.addPoint(sorCurveView[i + 1]);
+    Point2DType underMin {on.getMin()[0], 0.0};
+    Point2DType underMax {on.getMax()[0], on.getMin()[1]};
+    under = BoundingBox2DType(underMin, underMax);
+  });
 
   axom::Array<BoundingBox2DType> endCaps(2, 2);
   endCaps[0].addPoint(m_sorCurve.front());
@@ -536,9 +530,9 @@ bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh&
   // Compute an average characteristic length for the mesh cells.
   axom::ArrayView<const double> cellVolumes = shapeMesh.getCellVolumes();
   axom::ReduceSum<ExecSpace, double> sumVolume(0.0);
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) { sumVolume += cellVolumes[cellId]; });
+  axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+    sumVolume += cellVolumes[cellId];
+  });
   double avgVolume = sumVolume.get() / cellCount;
   double avgCharLength = pow(avgVolume, 1. / 3);
 
@@ -561,15 +555,13 @@ bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh&
 
   auto transformer = m_transformer;
   auto octsView = octs.view();
-  axom::for_all<ExecSpace>(
-    octCount,
-    AXOM_LAMBDA(axom::IndexType iOct) {
-      OctahedronType& oct = octsView[iOct];
-      for(int iVert = 0; iVert < OctahedronType::NUM_VERTS; ++iVert)
-      {
-        transformer.transform(oct[iVert].array());
-      }
-    });
+  axom::for_all<ExecSpace>(octCount, [=] AXOM_HOST_DEVICE(axom::IndexType iOct) {
+    OctahedronType& oct = octsView[iOct];
+    for(int iVert = 0; iVert < OctahedronType::NUM_VERTS; ++iVert)
+    {
+      transformer.transform(oct[iVert].array());
+    }
+  });
 
   SLIC_DEBUG(axom::fmt::format(
     "MonotonicZSORClipper '{}' {}-level refinement got {} geometry octs from {} curve points.",

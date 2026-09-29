@@ -55,7 +55,7 @@ public:
      * \return The name that describes the array of ids.
      */
     AXOM_HOST_DEVICE
-    KeyType makeName(const IndexType *p, int n) const
+    KeyType makeName(const IndexType* p, int n) const
     {
       std::set<IndexType> ids;
       for(int i = 0; i < n; i++)
@@ -80,13 +80,13 @@ public:
     AXOM_HOST_DEVICE
     void setMaxId(IndexType) { }
 
-    MapType *m_map_ptr {nullptr};
+    MapType* m_map_ptr {nullptr};
   };
 
   // Host-callable methods
 
   /// Make a name from the array of ids.
-  KeyType makeName(const IndexType *p, int n) const { return m_view.makeName(p, n); }
+  KeyType makeName(const IndexType* p, int n) const { return m_view.makeName(p, n); }
 
   /*!
    * \brief Set the max number of nodes, which can help with id packing/narrowing.

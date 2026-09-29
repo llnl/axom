@@ -17,6 +17,10 @@
   #error Shaping functionality requires Axom to be configured with the Klee component
 #endif
 
+#ifndef AXOM_USE_SIDRE
+  #error Shaping functionality requires Axom to be configured with the Sidre component
+#endif
+
 #if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
   #error Shaping functionality requires Axom to be configured with Conduit or MFEM
 #endif
@@ -25,6 +29,7 @@
 #include "axom/klee.hpp"
 #include "axom/mint.hpp"
 #include "axom/quest/DiscreteShape.hpp"
+#include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
 
 #if defined(AXOM_USE_MFEM)
@@ -33,17 +38,17 @@
 #if defined(AXOM_USE_CONDUIT)
   #include "conduit_node.hpp"
 #endif
+#if defined(AXOM_USE_MPI)
+  #include <mpi.h>
+#endif
 
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
-
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 /**
  * Abstract base class for shaping material volume fractions
  *
- * Shaper requires Axom to be configured with Conduit or MFEM or both.
+ * Shaper requires Axom to be configured with Sidre and with Conduit or MFEM
+ * or both.
  */
 class Shaper
 {
@@ -58,6 +63,7 @@ public:
          sidre::MFEMSidreDataCollection* dc);
 #endif
 
+#if defined(AXOM_USE_CONDUIT)
   /*!
    * @brief Construct Shaper to operate on a blueprint-formatted mesh
    * stored in a sidre Group.
@@ -71,17 +77,13 @@ public:
   /*!
    * @brief Construct Shaper to operate on a blueprint-formatted mesh
    * stored in a conduit Node.
-   * 
-   * Because \c conduit::Node doesn't support application-specified
-   * allocator id for (only) arrays, the incoming \c bpNode must have
-   * all arrays pre-allocated in a space accessible by the runtime
-   * policy.  Any needed-but-missing space would lead to an exception.
   */
   Shaper(RuntimePolicy execPolicy,
          int allocatorId,
          const klee::ShapeSet& shapeSet,
          conduit::Node& bpNode,
          const std::string& topo = "");
+#endif
 
   virtual ~Shaper();
 
@@ -122,8 +124,19 @@ public:
   bool isVerbose() const { return m_verboseOutput; }
 
 #ifdef AXOM_USE_MFEM
-  sidre::MFEMSidreDataCollection* getDC() { return m_dc; }
-  const sidre::MFEMSidreDataCollection* getDC() const { return m_dc; }
+  sidre::MFEMSidreDataCollection* getDC()
+  {
+    return m_mfem_state != nullptr ? m_mfem_state->m_dc : nullptr;
+  }
+  const sidre::MFEMSidreDataCollection* getDC() const
+  {
+    return m_mfem_state != nullptr ? m_mfem_state->m_dc : nullptr;
+  }
+#endif
+
+#if defined(AXOM_USE_CONDUIT)
+  /// \brief Return the active Blueprint state, if this shaper is using Blueprint input.
+  shaping::BlueprintState* getBlueprintState() { return m_bp_state.get(); }
 #endif
 
   /*!
@@ -166,6 +179,13 @@ public:
   virtual void adjustVolumeFractions() = 0;
 
   ///@}
+
+  /*!
+   * \brief Save the shaping results to disk.
+   *
+   * \param extra Save extra data when available.
+   */
+  virtual void saveResults(bool extra);
 
   /*!
    * \brief Helper to apply a parallel sum reduction to a quantity
@@ -230,6 +250,43 @@ protected:
    */
   int getRank() const;
 
+  /*!
+   * \brief Backend-specific input-mesh validation hook.
+   *
+   * Derived shapers may support different Blueprint mesh representations, so
+   * the validation policy lives with the concrete backend.
+   */
+  virtual bool verifyInputMeshImpl(std::string& whyBad) const = 0;
+
+#if defined(AXOM_USE_CONDUIT)
+  /*!
+   * \brief Helper for Blueprint meshes supported directly by sampling or by
+   *        lazy conversion in the intersection backend.
+   *
+   * This helper verifies the internal Blueprint mesh uses a structured or
+   * unstructured quad/hex topology over an explicit coordset.
+   */
+  bool verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& whyBad) const;
+
+  /*!
+   * \brief Converts a structured explicit Blueprint quad/hex mesh to an
+   *        unstructured working representation if needed.
+   */
+  void ensureBlueprintMeshIsUnstructured();
+#endif
+
+  /*!
+   * \brief Get the protocol to use for Blueprint output.
+   *
+   * \return "hdf5" when possible, otherwise "yaml".
+   */
+  std::string outputProtocol() const;
+
+#if defined(AXOM_USE_MFEM)
+  //! \brief MFEM meshes currently have no additional validation here.
+  bool verifyMFEMInputMesh(std::string& whyBad) const;
+#endif
+
 protected:
   RuntimePolicy m_execPolicy;
   int m_allocatorId;
@@ -243,21 +300,13 @@ protected:
   std::string m_prefixPath;
 
 #if defined(AXOM_USE_MFEM)
-  // For mesh represented as MFEMSidreDataCollection
-  sidre::MFEMSidreDataCollection* m_dc {nullptr};
+  std::unique_ptr<shaping::MFEMState> m_mfem_state;
 #endif
-
 #if defined(AXOM_USE_CONDUIT)
-  //! @brief Version of the mesh for computations.
-  axom::sidre::Group* m_bpGrp {nullptr};
-  const std::string m_bpTopo;
-  //! @brief Mesh in an external Node, when provided as a Node.
-  conduit::Node* m_bpNodeExt {nullptr};
-  //! @brief Initial copy of mesh in an internal Node storage.
-  conduit::Node m_bpNodeInt;
+  std::unique_ptr<shaping::BlueprintState> m_bp_state;
 #endif
 
-  //! @brief Number of cells in computational mesh (m_dc or m_bpGrp).
+  //! @brief Number of cells in the computational mesh.
   axom::IndexType m_cellCount;
 
   std::shared_ptr<mint::Mesh> m_surfaceMesh;
@@ -268,8 +317,9 @@ protected:
   double m_vertexWeldThreshold {DEFAULT_VERTEX_WELD_THRESHOLD};
   bool m_verboseOutput {false};
 
+#if defined(AXOM_USE_MPI)
   MPI_Comm m_comm {MPI_COMM_SELF};
+#endif
 };
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest

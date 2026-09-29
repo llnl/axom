@@ -93,29 +93,27 @@ AXOM_TYPED_TEST(slam_set_bivariate_optional_device, std_optional_in_kernel)
   auto results_v = results.view();
   auto consistent_v = consistent.view();
 
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(int i) {
-      std::optional<axom::IndexType> opt;
-      if(i % 2 == 0)
-      {
-        opt = std::optional<axom::IndexType>(static_cast<axom::IndexType>(i * 10));
-      }
+  axom::for_all<ExecSpace>(N, [=] AXOM_HOST_DEVICE(int i) {
+    std::optional<axom::IndexType> opt;
+    if(i % 2 == 0)
+    {
+      opt = std::optional<axom::IndexType>(static_cast<axom::IndexType>(i * 10));
+    }
 
-      const bool has = opt.has_value();
-      const bool asBool = static_cast<bool>(opt);
-      const axom::IndexType viaValueOr = opt.value_or(SENTINEL);
+    const bool has = opt.has_value();
+    const bool asBool = static_cast<bool>(opt);
+    const axom::IndexType viaValueOr = opt.value_or(SENTINEL);
 
-      axom::IndexType decoded = SENTINEL;
-      if(has)
-      {
-        decoded = *opt;
-      }
-      results_v[i] = decoded;
+    axom::IndexType decoded = SENTINEL;
+    if(has)
+    {
+      decoded = *opt;
+    }
+    results_v[i] = decoded;
 
-      const bool ok = (has == asBool) && (has ? (viaValueOr == decoded) : (viaValueOr == SENTINEL));
-      consistent_v[i] = ok ? 1 : 0;
-    });
+    const bool ok = (has == asBool) && (has ? (viaValueOr == decoded) : (viaValueOr == SENTINEL));
+    consistent_v[i] = ok ? 1 : 0;
+  });
 
   for(int i = 0; i < N; ++i)
   {
@@ -158,18 +156,16 @@ AXOM_TYPED_TEST(slam_set_bivariate_optional_device, product_set_flat_index_optio
   axom::Array<int> ok(totalSize, totalSize, allocatorId);
   auto ok_v = ok.view();
 
-  axom::for_all<ExecSpace>(
-    prodSet.firstSetSize(),
-    AXOM_LAMBDA(int i) {
-      const auto sz2 = prodSet.secondSetSize();
-      for(int j = 0; j < sz2; ++j)
-      {
-        const std::optional<SetPosition> flat = prodSet.findElementFlatIndexOptional(i, j);
-        const SetPosition expected = sz2 * i + j;
-        const bool good = flat.has_value() && (*flat == expected);
-        ok_v[i * sz2 + j] = good ? 1 : 0;
-      }
-    });
+  axom::for_all<ExecSpace>(prodSet.firstSetSize(), [=] AXOM_HOST_DEVICE(int i) {
+    const auto sz2 = prodSet.secondSetSize();
+    for(int j = 0; j < sz2; ++j)
+    {
+      const std::optional<SetPosition> flat = prodSet.findElementFlatIndexOptional(i, j);
+      const SetPosition expected = sz2 * i + j;
+      const bool good = flat.has_value() && (*flat == expected);
+      ok_v[i * sz2 + j] = good ? 1 : 0;
+    }
+  });
 
   for(int idx = 0; idx < totalSize; ++idx)
   {

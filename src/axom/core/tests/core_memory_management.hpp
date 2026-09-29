@@ -536,18 +536,22 @@ TEST(core_memory_management, interspace_reallocation)
     for(auto dstAllocId : allocIds)
     {
       std::cout << "Testing allocator ids " << srcAllocId << " and " << dstAllocId << std::endl;
-      // For each combination of srcAllocId and dstAllocId,
-      // allocate src, reallocate to dst, reallocate back to src.
+      // For each combination of srcAllocId and dstAllocId, allocate src, then
+      // reallocate while passing dstAllocId. For non-null pointers, reallocate
+      // preserves the current allocation space and ignores the allocator id.
 
       int* src = axom::allocate<int>(N, srcAllocId);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(src), srcAllocId);
       axom::copy(src, origOnHost, N * sizeof(int));
 
       int* dst = axom::reallocate(src, K, dstAllocId);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dst), srcAllocId);
       axom::copy(tempOnHost, dst, N * sizeof(int));
       diffCount = countDiffs();
       EXPECT_EQ(diffCount, 0);
 
       src = axom::reallocate(dst, N, srcAllocId);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(src), srcAllocId);
       axom::copy(tempOnHost, src, N * sizeof(int));
       diffCount = countDiffs();
       EXPECT_EQ(diffCount, 0);

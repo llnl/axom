@@ -1,7 +1,6 @@
 {
   "name": "raja",
-  "$comment":"TODO: We're planning to update to release 2026.0?.* when it is available",
-  "version-string": "develop-commit-6e4fe62d810711a0af9020d4e94c6c41c9a6117b",
+  "version-string": "2026.07.0",
   "homepage": "https://github.com/llnl/raja",
   "description": "RAJA Performance Portability Layer (C++)",
   "dependencies": [

@@ -100,11 +100,9 @@ AXOM_CUDA_TEST(core_array_for_all, capture_test)
       KernelArray arr(N);
 
       // Capture of axom::Array should fail.
-      axom::for_all<ExecSpace>(
-        N,
-        AXOM_LAMBDA(axom::IndexType idx) {
-          if(arr[0]) return;
-        });
+      axom::for_all<ExecSpace>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+        if(arr[0]) return;
+      });
 
       // handles synchronization, if necessary
       if(axom::execution_space<ExecSpace>::async())
@@ -130,7 +128,9 @@ AXOM_TYPED_TEST(core_array_for_all, explicit_ArrayView)
 
   // Modify array using lambda and ArrayView
   KernelArrayViewType arr_view(arr);
-  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_view[idx] = N - idx;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -160,7 +160,9 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView)
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
   EXPECT_FALSE(arr_view.empty());
-  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_view[idx] = N - idx;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -206,9 +208,9 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
 
   // First, modify array using lambda and KernelArray::ArrayView operator[] const
   auto arrData = arr.data();
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arrData[idx] = N - kernelSourceView[idx]; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arrData[idx] = N - kernelSourceView[idx];
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -231,9 +233,9 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
   auto kernelSourceConstView = kernelSourceCref.view();
   EXPECT_FALSE(kernelSourceConstView.empty());
 
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arrConstData[idx] = N - kernelSourceConstView[idx]; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arrConstData[idx] = N - kernelSourceConstView[idx];
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -280,7 +282,9 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array)
 
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
-  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_view[idx] = N - idx;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -312,9 +316,9 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_insert)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_v[idx] = idx - 5 * idx + 7;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -378,9 +382,9 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_insert)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_v[idx] = idx - 5 * idx + 7;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -445,9 +449,9 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_set)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_v[idx] = idx - 5 * idx + 7;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -537,7 +541,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpaceType>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) { arr_v[idx] = idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -711,9 +715,9 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_default_ctor_obj)
   const int MAGIC_PREFILL = 111;
   // Fill with placeholder value
   auto arr_view = arr.view();
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx].m_val = MAGIC_PREFILL; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_view[idx].m_val = MAGIC_PREFILL;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -772,9 +776,9 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_ctor_obj)
   const int MAGIC_FILL = 555;
   // Fill with placeholder value
   auto arr_view = arr.view();
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx].m_val = MAGIC_PREFILL; });
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+    arr_view[idx].m_val = MAGIC_PREFILL;
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())
@@ -914,9 +918,9 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
       IntArray values(arr.size(), arr.size(), kernelAllocID);
       const auto values_v = values.view();
       const auto arr_v = arr.view();
-      axom::for_all<ExecSpaceType>(
-        arr.size(),
-        AXOM_LAMBDA(axom::IndexType i) { values_v[i] = arr_v[i].m_val; });
+      axom::for_all<ExecSpaceType>(arr.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        values_v[i] = arr_v[i].m_val;
+      });
 
       // handles synchronization, if necessary
       if(axom::execution_space<ExecSpaceType>::async())
@@ -1020,9 +1024,9 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_emplace)
     IntArray arr_ints(arr.size(), arr.size(), kernelAllocID);
     const auto arr_v = arr.view();
     const auto arr_ints_v = arr_ints.view();
-    axom::for_all<ExecSpaceType>(
-      arr.size(),
-      AXOM_LAMBDA(axom::IndexType i) { arr_ints_v[i] = arr_v[i].m_val; });
+    axom::for_all<ExecSpaceType>(arr.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      arr_ints_v[i] = arr_v[i].m_val;
+    });
 
     // handles synchronization, if necessary
     if(axom::execution_space<ExecSpaceType>::async())
@@ -1146,25 +1150,23 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   EXPECT_EQ(arr_container[0].size(), 0);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
-  axom::for_all<ExecSpaceType>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) {
+  axom::for_all<ExecSpaceType>(N, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && !defined(AXOM_DEVICE_CODE)
-      if(omp_in_parallel())
-      {
+    if(omp_in_parallel())
+    {
   #pragma omp critical
-        {
-          arr_v[0].emplace_back_device(static_cast<int>(3 * idx + 5));
-        }
-      }
-      else
       {
         arr_v[0].emplace_back_device(static_cast<int>(3 * idx + 5));
       }
+    }
+    else
+    {
+      arr_v[0].emplace_back_device(static_cast<int>(3 * idx + 5));
+    }
 #else
       arr_v[0].emplace_back_device(static_cast<int>(3 * idx + 5));
 #endif
-    });
+  });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpaceType>::async())

@@ -20,9 +20,7 @@
 
 #include <string>
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 //------------------------------------------------------------------------------
 // INTERNAL DATA STRUCTURES
@@ -108,11 +106,13 @@ static std::string s_shared_memory_requirements(
 }  // end anonymous namespace
 
 //------------------------------------------------------------------------------
-// SIGNED DISTANCE QUERY INTERFACE IMPLEMENTATION
-//------------------------------------------------------------------------------
+namespace
+{
+/// Shared implementation of the quest::signed_distance_init() overloads
+int signed_distance_init_impl(const mint::Mesh* m, internal::CommHandle comm);
 
-//------------------------------------------------------------------------------
-int signed_distance_init(const std::string& file, MPI_Comm comm)
+/// Shared implementation of the quest::signed_distance_init() overloads
+int signed_distance_init_impl(const std::string& file, internal::CommHandle comm)
 {
   // STEP 0: initialize logger
   internal::logger_init(s_logger_is_initialized, s_must_finalize_logger, Parameters.verbose, comm);
@@ -128,6 +128,8 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
   // STEP 0: read the STL mesh
   int rc = INIT_FAILED;
 
+  // Note: AXOM_USE_UMPIRE_SHARED_MEMORY implies AXOM_USE_MPI, so CommHandle is
+  // an MPI_Comm in this branch (see SetupAxomThirdParty.cmake).
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   if(Parameters.use_shared_memory)
   {
@@ -155,7 +157,7 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
 
   // STEP 1: initialized the signed distance query
   s_must_delete_mesh = true;
-  rc = signed_distance_init(s_surface_mesh, comm);
+  rc = signed_distance_init_impl(s_surface_mesh, comm);
   if(rc != INIT_SUCCESS)
   {
     signed_distance_finalize();
@@ -164,7 +166,7 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
 }
 
 //------------------------------------------------------------------------------
-int signed_distance_init(const mint::Mesh* m, MPI_Comm comm)
+int signed_distance_init_impl(const mint::Mesh* m, internal::CommHandle comm)
 {
   internal::logger_init(s_logger_is_initialized, s_must_finalize_logger, Parameters.verbose, comm);
 
@@ -229,6 +231,35 @@ int signed_distance_init(const mint::Mesh* m, MPI_Comm comm)
 
   return INIT_SUCCESS;
 }
+
+}  // end anonymous namespace
+
+//------------------------------------------------------------------------------
+// SIGNED DISTANCE QUERY INTERFACE IMPLEMENTATION
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+int signed_distance_init(const std::string& file)
+{
+  return signed_distance_init_impl(file, internal::commSelf());
+}
+
+int signed_distance_init(const mint::Mesh* m)
+{
+  return signed_distance_init_impl(m, internal::commSelf());
+}
+
+#ifdef AXOM_USE_MPI
+int signed_distance_init(const std::string& file, MPI_Comm comm)
+{
+  return signed_distance_init_impl(file, comm);
+}
+
+int signed_distance_init(const mint::Mesh* m, MPI_Comm comm)
+{
+  return signed_distance_init_impl(m, comm);
+}
+#endif
 
 //------------------------------------------------------------------------------
 bool signed_distance_initialized()
@@ -517,5 +548,4 @@ void signed_distance_finalize()
 #endif
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // end namespace axom::quest

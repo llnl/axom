@@ -65,7 +65,7 @@ BounceData generateBounceData(double initialY,
   return data;
 }
 
-void addCurveSet(axom::sina::Record &record, BounceData bounceData, std::string curveName)
+void addCurveSet(axom::sina::Record& record, BounceData bounceData, std::string curveName)
 {
   // Create the curve set object
   axom::sina::CurveSet bounceCurveSet {curveName};

@@ -152,6 +152,7 @@ TEST(quest_initialize, immediate_ug_reserve)
   contourMesh.reserveCells(10);  // This may unexpectedly crash.
 }
   #endif
+
 #endif
 
 int main(int argc, char** argv)

@@ -13,9 +13,20 @@
 #include "axom/quest/Shaper.hpp"
 #include "axom/quest/DiscreteShape.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
-#include "conduit_blueprint_mesh.hpp"
 
 #include "axom/fmt.hpp"
+
+#if defined(AXOM_USE_CONDUIT)
+  #include "conduit_blueprint_mesh.hpp"
+  #include "conduit/conduit_relay_io.hpp"
+  #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+    #ifdef CONDUIT_RELAY_MPI_ENABLED
+      #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
+    #else
+      #include "conduit/conduit_relay_io_blueprint.hpp"
+    #endif
+  #endif
+#endif
 
 namespace axom
 {
@@ -38,23 +49,24 @@ Shaper::Shaper(RuntimePolicy execPolicy,
                     ? allocatorId
                     : axom::policyToDefaultAllocatorID(execPolicy))
   , m_shapeSet(shapeSet)
-  , m_dc(dc)
+  , m_mfem_state()
   #if defined(AXOM_USE_CONDUIT)
-  , m_bpGrp(nullptr)
-  , m_bpTopo()
-  , m_bpNodeExt(nullptr)
-  , m_bpNodeInt()
+  , m_bp_state()
   #endif
 {
+  m_mfem_state = std::make_unique<shaping::MFEMState>();
+  m_mfem_state->m_dc = dc;
+
   #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-  m_comm = m_dc->GetComm();
+  m_comm = m_mfem_state->m_dc->GetComm();
   #endif
-  m_cellCount = m_dc->GetMesh()->GetNE();
+  m_cellCount = m_mfem_state->m_dc->GetMesh()->GetNE();
 
   setFilePath(shapeSet.getPath());
 }
 #endif
 
+#if defined(AXOM_USE_CONDUIT)
 Shaper::Shaper(RuntimePolicy execPolicy,
                int allocatorId,
                const klee::ShapeSet& shapeSet,
@@ -65,27 +77,28 @@ Shaper::Shaper(RuntimePolicy execPolicy,
                     ? allocatorId
                     : axom::policyToDefaultAllocatorID(execPolicy))
   , m_shapeSet(shapeSet)
-#if defined(AXOM_USE_CONDUIT)
-  , m_bpGrp(bpGrp)
-  , m_bpTopo(topo.empty() ? bpGrp->getGroup("topologies")->getGroupName(0) : topo)
-  , m_bpNodeExt(nullptr)
-  , m_bpNodeInt()
-#endif
-#if defined(AXOM_USE_MPI)
+  #if defined(AXOM_USE_MFEM)
+  , m_mfem_state()
+  #endif
+  , m_bp_state()
+  #if defined(AXOM_USE_MPI)
   , m_comm(MPI_COMM_WORLD)
-#endif
+  #endif
 {
-  SLIC_ASSERT(m_bpTopo != sidre::InvalidName);
+  m_bp_state = std::make_unique<shaping::BlueprintState>();
+  bpGrp->setDefaultArrayAllocator(m_allocatorId);
+  m_bp_state->initialize(bpGrp, m_allocatorId, topo);
 
-  // This may take too long if there are repeated construction.
-  m_bpGrp->createNativeLayout(m_bpNodeInt);
+  SLIC_ASSERT(m_bp_state->isSidreBacked());
 
-  m_cellCount = conduit::blueprint::mesh::topology::length(
-    m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo));
+  m_bp_state->refreshBlueprintMeshNode();
+  m_cellCount = conduit::blueprint::mesh::topology::length(m_bp_state->getBlueprintTopologyNode());
 
   setFilePath(shapeSet.getPath());
 }
+#endif
 
+#if defined(AXOM_USE_CONDUIT)
 Shaper::Shaper(RuntimePolicy execPolicy,
                int allocatorId,
                const klee::ShapeSet& shapeSet,
@@ -96,55 +109,25 @@ Shaper::Shaper(RuntimePolicy execPolicy,
                     ? allocatorId
                     : axom::policyToDefaultAllocatorID(execPolicy))
   , m_shapeSet(shapeSet)
-#if defined(AXOM_USE_CONDUIT)
-  , m_bpGrp(nullptr)
-  , m_bpTopo(topo.empty() ? bpNode.fetch_existing("topologies").child(0).name() : topo)
-  , m_bpNodeExt(&bpNode)
-  , m_bpNodeInt()
-#endif
-#if defined(AXOM_USE_MPI)
+  #if defined(AXOM_USE_MFEM)
+  , m_mfem_state()
+  #endif
+  , m_bp_state()
+  #if defined(AXOM_USE_MPI)
   , m_comm(MPI_COMM_WORLD)
-#endif
+  #endif
 {
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
-  m_bpGrp = m_dataStore.getRoot()->createGroup("internalGrp");
-  m_bpGrp->setDefaultArrayAllocator(m_allocatorId);
-  m_bpGrp->importConduitTreeExternal(bpNode);
 
-  // We want unstructured topo but can accomodate structured.
-  const std::string topoType =
-    bpNode.fetch_existing("topologies").fetch_existing(m_bpTopo).fetch_existing("type").as_string();
+  m_bp_state = std::make_unique<shaping::BlueprintState>();
+  m_bp_state->initialize(&bpNode, m_allocatorId, topo);
 
-  if(topoType == "structured")
-  {
-    AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
-    const std::string shapeType = bpNode.fetch_existing("topologies/mesh/elements/shape").as_string();
-
-    if(shapeType == "hex")
-    {
-      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(m_bpGrp,
-                                                                                  m_bpTopo,
-                                                                                  m_execPolicy);
-    }
-    else if(shapeType == "quad")
-    {
-      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(m_bpGrp,
-                                                                                  m_bpTopo,
-                                                                                  m_execPolicy);
-    }
-    else
-    {
-      SLIC_ERROR("Axom Internal error: Unhandled shape type.");
-    }
-  }
-
-  m_bpGrp->createNativeLayout(m_bpNodeInt);
-
-  m_cellCount = conduit::blueprint::mesh::topology::length(
-    bpNode.fetch_existing("topologies").fetch_existing(m_bpTopo));
+  m_bp_state->refreshBlueprintMeshNode();
+  m_cellCount = conduit::blueprint::mesh::topology::length(m_bp_state->getBlueprintTopologyNode());
 
   setFilePath(shapeSet.getPath());
 }
+#endif
 
 Shaper::~Shaper() { }
 
@@ -257,50 +240,118 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
   revolvedVolume = discreteShape.getRevolvedVolume();
 }
 
-bool Shaper::verifyInputMesh(std::string& whyBad) const
+bool Shaper::verifyInputMesh(std::string& whyBad) const { return verifyInputMeshImpl(whyBad); }
+
+#if defined(AXOM_USE_CONDUIT)
+bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& whyBad) const
 {
   bool rval = true;
 
-#if defined(AXOM_USE_CONDUIT)
-  if(m_bpGrp != nullptr)
+  if(m_bp_state != nullptr)
   {
     conduit::Node info;
-    // Conduit's verify should work even if m_bpNodeInt has array data on
+    // Conduit's verify should work even if m_internal_node has array data on
     // devices. because the verification doesn't dereference array data.
     // If this changes in the future, more care must be taken.
-    rval = conduit::blueprint::mesh::verify(m_bpNodeInt, info);
+    rval = conduit::blueprint::mesh::verify(m_bp_state->getBlueprintMeshNode(), info);
     if(rval)
     {
-      std::string topoType = m_bpNodeInt.fetch("topologies")[m_bpTopo]["type"].as_string();
-      rval = topoType == "unstructured";
-      info[0].set_string("Topology is not unstructured.");
+      const std::string topoType = m_bp_state->topologyType();
+      rval = topoType == "unstructured" || topoType == "structured";
+      info[0].set_string("Topology is not structured or unstructured.");
     }
     if(rval)
     {
-      std::string elemShape =
-        m_bpNodeInt.fetch("topologies")[m_bpTopo]["elements"]["shape"].as_string();
+      const std::string elemShape = m_bp_state->cellShape();
       rval = (elemShape == "hex") || (elemShape == "quad");
       info[0].set_string("Topology elements are not hex or quad.");
     }
+    if(rval)
+    {
+      const std::string coordsetType =
+        m_bp_state->getBlueprintCoordsetNode().fetch_existing("type").as_string();
+      rval = coordsetType == "explicit";
+      info[0].set_string("Coordset is not explicit.");
+    }
     whyBad = info.to_summary_string();
   }
-#endif
-
-#if defined(AXOM_USE_MFEM)
-  if(m_dc != nullptr)
-  {
-    // No specific requirements for MFEM mesh.
-  }
-#endif
 
   return rval;
 }
 
+void Shaper::ensureBlueprintMeshIsUnstructured()
+{
+  if(m_bp_state == nullptr)
+  {
+    return;
+  }
+
+  AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
+  const std::string topoType = m_bp_state->topologyType();
+
+  if(topoType != "unstructured")
+  {
+    m_bp_state->ensureUnstructured(m_execPolicy);
+  }
+  m_cellCount = conduit::blueprint::mesh::topology::length(m_bp_state->getBlueprintTopologyNode());
+}
+#endif
+
+std::string Shaper::outputProtocol() const
+{
+#if defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
+  return "hdf5";
+#else
+  return "yaml";
+#endif
+}
+
+#if defined(AXOM_USE_MFEM)
+bool Shaper::verifyMFEMInputMesh(std::string& whyBad) const
+{
+  AXOM_UNUSED_VAR(whyBad);
+
+  if(getDC() != nullptr)
+  {
+    // No specific requirements for MFEM mesh.
+  }
+
+  return true;
+}
+#endif
+
+void Shaper::saveResults(bool AXOM_UNUSED_PARAM(extra))
+{
+#if defined(AXOM_USE_MFEM)
+  // If the target mesh was MFEM, save it.
+  if(getDC() != nullptr)
+  {
+    getDC()->Save();
+  }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+  // If the target mesh was Blueprint, save it.
+  if(m_bp_state != nullptr)
+  {
+    const std::string filename("shaping");
+  #if defined(CONDUIT_RELAY_MPI_ENABLED)
+    conduit::relay::mpi::io::blueprint::save_mesh(m_bp_state->getBlueprintMeshNode(),
+                                                  filename,
+                                                  outputProtocol(),
+                                                  m_comm);
+  #else
+    conduit::relay::io::blueprint::save_mesh(m_bp_state->getBlueprintMeshNode(),
+                                             filename,
+                                             outputProtocol());
+  #endif
+  }
+#endif
+}
 // ----------------------------------------------------------------------------
 
 int Shaper::getRank() const
 {
-#if defined(AXOM_USE_MPI)
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   int rank = -1;
   MPI_Comm_rank(m_comm, &rank);
   return rank;

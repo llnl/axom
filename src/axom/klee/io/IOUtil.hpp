@@ -38,9 +38,9 @@ namespace internal
  * @return the field as a std::vector<double>
  * @throws KleeError if the field does not have \a expectedDims entries
  */
-std::vector<double> toDoubleVector(inlet::Proxy const &field,
+std::vector<double> toDoubleVector(inlet::Proxy const& field,
                                    Dimensions expectedDims,
-                                   char const *fieldName);
+                                   char const* fieldName);
 
 /**
  * Convert the specified field to a Point3D, ensuring that it
@@ -52,7 +52,7 @@ std::vector<double> toDoubleVector(inlet::Proxy const &field,
  * @return the field as a primal::Point3D
  * @throws KleeError if the field does not have \a expectedDims entries
  */
-primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, Dimensions expectedDims);
+primal::Point3D toPoint(inlet::Container const& parent, char const* fieldName, Dimensions expectedDims);
 
 /**
  * Convert the specified field to a Point3D, ensuring that it
@@ -65,10 +65,10 @@ primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, D
  * @return the field as a primal::Point3D
  * @throws KleeError if the field is present and does not have \a expectedDims entries
  */
-primal::Point3D toPoint(inlet::Container const &parent,
-                        char const *fieldName,
+primal::Point3D toPoint(inlet::Container const& parent,
+                        char const* fieldName,
                         Dimensions expectedDims,
-                        const primal::Point3D &defaultValue);
+                        const primal::Point3D& defaultValue);
 
 /**
  * Convert the specified field to a Vector3D, ensuring that it
@@ -80,8 +80,8 @@ primal::Point3D toPoint(inlet::Container const &parent,
  * @return the field as a primal::Vector3D
  * @throws KleeError if the field does not have \a expectedDims entries
  */
-primal::Vector3D toVector(inlet::Container const &parent,
-                          char const *fieldName,
+primal::Vector3D toVector(inlet::Container const& parent,
+                          char const* fieldName,
                           Dimensions expectedDims);
 
 /**
@@ -96,10 +96,10 @@ primal::Vector3D toVector(inlet::Container const &parent,
  * @return the field as a primal::Vector3D
  * @throws KleeError if the field is present and does not have \a expectedDims entries
  */
-primal::Vector3D toVector(inlet::Container const &parent,
-                          char const *fieldName,
+primal::Vector3D toVector(inlet::Container const& parent,
+                          char const* fieldName,
                           Dimensions expectedDims,
-                          const primal::Vector3D &defaultValue);
+                          const primal::Vector3D& defaultValue);
 
 /**
  * Get the start and end units in a Container.
@@ -113,7 +113,7 @@ primal::Vector3D toVector(inlet::Container const &parent,
  * \return the start and end units
  * \throws KleeError if an invalid combination of fields is specified
  */
-std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container &container);
+std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container& container);
 
 /**
  * Get the start and end units in a Container.
@@ -127,7 +127,7 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Cont
  * \throws KleeError if an invalid combination of fields is
  * specified or if no units are specified.
  */
-std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container &container);
+std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container& container);
 
 /**
  * Define the schema for units. This is the schema that will be
@@ -138,10 +138,10 @@ std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container &c
  * @param startUnitsDescription the description of the "start_units" field
  * @param endUnitsDescription the description of the "end_units" field
  */
-void defineUnitsSchema(inlet::Container &container,
-                       const char *unitsDescription = "",
-                       const char *startUnitsDescription = "",
-                       const char *endUnitsDescription = "");
+void defineUnitsSchema(inlet::Container& container,
+                       const char* unitsDescription = "",
+                       const char* startUnitsDescription = "",
+                       const char* endUnitsDescription = "");
 
 /**
  * Define a field which can hold a number of dimensions
@@ -151,9 +151,9 @@ void defineUnitsSchema(inlet::Container &container,
  * @param description and optional description of the field
  * @return the field, which can have additional restrictions set on it
  */
-inlet::VerifiableScalar &defineDimensionsField(inlet::Container &parent,
-                                               const char *name,
-                                               const char *description = "");
+inlet::VerifiableScalar& defineDimensionsField(inlet::Container& parent,
+                                               const char* name,
+                                               const char* description = "");
 
 /**
  * Convert the given proxy to a Dimensions object. The field should have been
@@ -162,7 +162,7 @@ inlet::VerifiableScalar &defineDimensionsField(inlet::Container &parent,
  * @param dimProxy the proxy to the dimensions field
  * @return the value of the dimensions
  */
-Dimensions toDimensions(const inlet::Proxy &dimProxy);
+Dimensions toDimensions(const inlet::Proxy& dimProxy);
 
 }  // namespace internal
 }  // namespace klee

@@ -27,13 +27,13 @@ namespace bump
 struct SelectAllPolicy
 {
   AXOM_HOST_DEVICE
-  static inline IndexType size(const BlendData &blend)
+  static inline IndexType size(const BlendData& blend)
   {
     return blend.m_blendGroupSizesView.size();
   }
 
   AXOM_HOST_DEVICE
-  static inline IndexType selectedIndex(const BlendData & /*blend*/, IndexType index)
+  static inline IndexType selectedIndex(const BlendData& /*blend*/, IndexType index)
   {
     return index;
   }
@@ -45,13 +45,13 @@ struct SelectAllPolicy
 struct SelectSubsetPolicy
 {
   AXOM_HOST_DEVICE
-  static inline IndexType size(const BlendData &blend)
+  static inline IndexType size(const BlendData& blend)
   {
     return blend.m_selectedIndicesView.size();
   }
 
   AXOM_HOST_DEVICE
-  static inline IndexType selectedIndex(const BlendData &blend, IndexType index)
+  static inline IndexType selectedIndex(const BlendData& blend, IndexType index)
   {
     return blend.m_selectedIndicesView[index];
   }
@@ -78,7 +78,7 @@ public:
    * \brief Constructor
    * \param indexing An object used to transform node indices.
    */
-  FieldBlender(const IndexingPolicy &indexing)
+  FieldBlender(const IndexingPolicy& indexing)
     : m_indexing(indexing)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -110,21 +110,21 @@ public:
    * \param n_input The input field that we're blending.
    * \param n_output The output node that will contain the new field.
    */
-  void execute(const BlendData &blend, const conduit::Node &n_input, conduit::Node &n_output) const
+  void execute(const BlendData& blend, const conduit::Node& n_input, conduit::Node& n_output) const
   {
     n_output.reset();
     n_output["association"] = n_input["association"];
     n_output["topology"] = n_input["topology"];
 
-    const conduit::Node &n_input_values = n_input["values"];
-    conduit::Node &n_output_values = n_output["values"];
+    const conduit::Node& n_input_values = n_input["values"];
+    conduit::Node& n_output_values = n_output["values"];
     const conduit::index_t nc = n_input_values.number_of_children();
     if(nc > 0)
     {
       for(conduit::index_t i = 0; i < nc; i++)
       {
-        const conduit::Node &n_comp = n_input_values[i];
-        conduit::Node &n_out_comp = n_output_values[n_comp.name()];
+        const conduit::Node& n_comp = n_input_values[i];
+        conduit::Node& n_out_comp = n_output_values[n_comp.name()];
         blendSingleComponent(blend, n_comp, n_out_comp);
       }
     }
@@ -146,9 +146,9 @@ private:
    * \param n_values The input values that we're blending.
    * \param n_output_values The output node that will contain the new field.
    */
-  void blendSingleComponent(const BlendData &blend,
-                            const conduit::Node &n_values,
-                            conduit::Node &n_output_values) const
+  void blendSingleComponent(const BlendData& blend,
+                            const conduit::Node& n_values,
+                            conduit::Node& n_output_values) const
   {
     // We're allowing selectedIndicesView to be used to select specific blend
     // groups. If the user did not provide that, use all blend groups.
@@ -177,7 +177,7 @@ private:
    *       lambda.
    */
   template <typename SrcView, typename OutputView>
-  void blendSingleComponentImpl(const BlendData &blend, SrcView comp_view, OutputView out_view) const
+  void blendSingleComponentImpl(const BlendData& blend, SrcView comp_view, OutputView out_view) const
   {
     using value_type = typename decltype(comp_view)::value_type;
     using accum_type = typename utilities::accumulation_traits<value_type>::type;
@@ -192,42 +192,38 @@ private:
     const BlendData device_blend(blend);
 
     // Copy over some original values to the start of the array.
-    axom::for_all<ExecSpace>(
-      orig_size,
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto src_index = device_blend.m_originalIdsView[index];
-        out_view[index] = comp_view[src_index];
-      });
+    axom::for_all<ExecSpace>(orig_size, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      const auto src_index = device_blend.m_originalIdsView[index];
+      out_view[index] = comp_view[src_index];
+    });
 
     // Append blended values to the end of the array.
-    axom::for_all<ExecSpace>(
-      blend_size,
-      AXOM_LAMBDA(axom::IndexType bgid) {
-        // Get the blend group index we want.
-        const auto selected_index = SelectionPolicy::selectedIndex(device_blend, bgid);
-        const auto start = device_blend.m_blendGroupStartView[selected_index];
-        const auto n_values = device_blend.m_blendGroupSizesView[selected_index];
-        const auto dest_index = orig_size + bgid;
-        if(n_values == 1)
+    axom::for_all<ExecSpace>(blend_size, [=] AXOM_HOST_DEVICE(axom::IndexType bgid) {
+      // Get the blend group index we want.
+      const auto selected_index = SelectionPolicy::selectedIndex(device_blend, bgid);
+      const auto start = device_blend.m_blendGroupStartView[selected_index];
+      const auto n_values = device_blend.m_blendGroupSizesView[selected_index];
+      const auto dest_index = orig_size + bgid;
+      if(n_values == 1)
+      {
+        const auto index = device_blend.m_blendIdsView[start];
+        const auto src_index = device_indexing[index];
+        out_view[dest_index] = comp_view[src_index];
+      }
+      else
+      {
+        const auto end = start + n_values;
+        accum_type blended = 0;
+        for(IndexType i = start; i < end; i++)
         {
-          const auto index = device_blend.m_blendIdsView[start];
+          const auto index = device_blend.m_blendIdsView[i];
+          const auto weight = device_blend.m_blendCoeffView[i];
           const auto src_index = device_indexing[index];
-          out_view[dest_index] = comp_view[src_index];
+          blended += static_cast<accum_type>(comp_view[src_index]) * weight;
         }
-        else
-        {
-          const auto end = start + n_values;
-          accum_type blended = 0;
-          for(IndexType i = start; i < end; i++)
-          {
-            const auto index = device_blend.m_blendIdsView[i];
-            const auto weight = device_blend.m_blendCoeffView[i];
-            const auto src_index = device_indexing[index];
-            blended += static_cast<accum_type>(comp_view[src_index]) * weight;
-          }
-          out_view[dest_index] = static_cast<value_type>(blended);
-        }
-      });
+        out_view[dest_index] = static_cast<value_type>(blended);
+      }
+    });
   }
 
 // The following members are private (unless using CUDA)

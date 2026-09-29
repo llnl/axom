@@ -57,6 +57,17 @@ def sexe(cmd,
         return rcode
 
 
+def env_var_enabled(var_name, default=True):
+    """
+    Reads an ON/OFF-style boolean from the environment.
+    """
+    value = os.environ.get(var_name)
+    if value is None:
+        return default
+
+    return value.strip().upper() not in ("OFF", "FALSE", "NO", "0")
+
+
 def get_timestamp(t=None,sep="_"):
     """ Creates a timestamp that can easily be included in a filename. """
     if t is None:
@@ -325,7 +336,7 @@ def build_and_test_host_config(test_root, host_config,
     should_test_installed_cmake_example = True
     should_test_installed_blt_example = True
     should_test_installed_make_example = False
-    should_test_installed_tutorials = True
+    should_test_installed_tutorials = env_var_enabled("TEST_INSTALLED_TUTORIALS", True)
 
     if should_test_installed_cmake_example:
         install_example_dir = pjoin(install_dir, "examples", "axom", "using-with-cmake")
@@ -414,6 +425,8 @@ def build_and_test_host_config(test_root, host_config,
                 return local_res
 
         return 0
+    else:
+        print("[skipping installed tutorials because TEST_INSTALLED_TUTORIALS is OFF]")
 
 
     print(f"[SUCCESS: Build, test, and install for host-config: {host_config} complete]\n")

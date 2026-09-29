@@ -19,14 +19,12 @@
 //------------------------------------------------------------------------------
 //      ProEReader Implementation
 //------------------------------------------------------------------------------
-namespace axom
+namespace axom::quest
 {
-namespace quest
-{
-ProEReader::ProEReader() : m_fileName(""), m_num_nodes(0), m_num_tets(0) { }
+ProEReader::ProEReader() = default;
 
 //------------------------------------------------------------------------------
-ProEReader::~ProEReader() { this->clear(); }
+ProEReader::~ProEReader() = default;
 
 //------------------------------------------------------------------------------
 void ProEReader::clear()
@@ -53,7 +51,7 @@ int ProEReader::read()
 
   if(!ifs.is_open())
   {
-    SLIC_WARNING("Cannot open the provided Pro/E file [" << m_fileName << "]");
+    SLIC_WARNING_ROOT("Cannot open the provided Pro/E file [" << m_fileName << "]");
     return (-1);
   }
 
@@ -197,5 +195,4 @@ void ProEReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
   }
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

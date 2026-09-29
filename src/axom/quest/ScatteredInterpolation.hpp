@@ -271,8 +271,7 @@ private:
   using MortonIndexType = std::uint64_t;
 
   using VertexSet = typename DelaunayTriangulation::IAMeshType::VertexSet;
-  using VertexIndirectionSet =
-    slam::ArrayIndirectionSet<typename VertexSet::PositionType, axom::IndexType>;
+  using VertexIndirectionSet = slam::ArraySet<typename VertexSet::PositionType, axom::IndexType>;
 
 private:
   /**

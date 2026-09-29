@@ -23,7 +23,7 @@ struct test_coordset_extents
 
   static void test_uniform_2d()
   {
-    const char *yaml = R"(
+    const char* yaml = R"(
 coords:
   type: uniform
   dims:
@@ -55,7 +55,7 @@ coords:
 
   static void test_uniform_3d()
   {
-    const char *yaml = R"(
+    const char* yaml = R"(
 coords:
   type: uniform
   dims:
@@ -92,7 +92,7 @@ coords:
 
   static void test_rectilinear_2d()
   {
-    const char *yaml = R"(
+    const char* yaml = R"(
 coords:
   type: rectilinear
   values:
@@ -118,7 +118,7 @@ coords:
 
   static void test_rectilinear_3d()
   {
-    const char *yaml = R"(
+    const char* yaml = R"(
 coords:
   type: rectilinear
   values:
@@ -147,7 +147,7 @@ coords:
 
   static void test_explicit_2d()
   {
-    const char *yaml = R"(
+    const char* yaml = R"(
 coords:
   type: explicit
   values:
@@ -173,7 +173,7 @@ coords:
 
   static void test_explicit_3d()
   {
-    const char *yaml = R"(
+    const char* yaml = R"(
 coords:
   type: explicit
   values:
@@ -200,7 +200,7 @@ coords:
     EXPECT_NEAR(extents[5], expectedExtents[5], eps);
   }
 
-  static void initialize(const char *yaml, conduit::Node &n_device)
+  static void initialize(const char* yaml, conduit::Node& n_device)
   {
     conduit::Node n_coordset;
     n_coordset.parse(yaml);
@@ -377,7 +377,7 @@ TEST(bump_coordset_extents, explicit3d_hip)
 #endif
 
 //------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
+void conduit_debug_err_handler(const std::string& s1, const std::string& s2, int i1)
 {
   std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
   // This is on purpose.
@@ -386,7 +386,7 @@ void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int
 
 //------------------------------------------------------------------------------
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
@@ -422,12 +422,12 @@ int main(int argc, char *argv[])
 
     result = RUN_ALL_TESTS();
   }
-  catch(axom::CLI::CallForHelp &e)
+  catch(axom::CLI::CallForHelp& e)
   {
     std::cout << app.help() << std::endl;
     result = 0;
   }
-  catch(axom::CLI::ParseError &e)
+  catch(axom::CLI::ParseError& e)
   {
     // Handle other parsing errors
     std::cerr << e.what() << std::endl;

@@ -6,7 +6,7 @@
 
 #include "HMApplication.hpp"
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   HMApplication app;
   int retval = app.initialize(argc, argv);

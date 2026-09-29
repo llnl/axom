@@ -83,15 +83,15 @@ public:
    * \brief Access the state views.
    * \return A reference to the state.
    */
-  State &state() { return m_state; }
-  const State &state() const { return m_state; }
+  State& state() { return m_state; }
+  const State& state() const { return m_state; }
 
   /*!
    * \brief Provide a hint to the naming policy view so it can do narrowing.
    *
    * \param nnodes The number of nodes in the input mesh.
    */
-  void setNamingPolicy(const NamingPolicyView &view) { m_state.m_namingView = view; }
+  void setNamingPolicy(const NamingPolicyView& view) { m_state.m_namingView = view; }
 
   /*!
    * \brief Set the number of zones.
@@ -99,8 +99,8 @@ public:
    * \param blendGroupsView The view that holds the number of blend groups for each zone.
    * \param blendGroupsLenView The view that holds the size of the blend group data for each zone.
    */
-  void setBlendGroupSizes(const axom::ArrayView<IndexType> &blendGroupsView,
-                          const axom::ArrayView<IndexType> &blendGroupsLenView)
+  void setBlendGroupSizes(const axom::ArrayView<IndexType>& blendGroupsView,
+                          const axom::ArrayView<IndexType>& blendGroupsLenView)
   {
     m_state.m_nzones = blendGroupsView.size();
     m_state.m_blendGroupsView = blendGroupsView;
@@ -113,19 +113,17 @@ public:
    * \param[out] bgSum The total number of blend groups for all zones.
    * \param[out] bgLenSum The total size of blend group data for all zones.
    */
-  void computeBlendGroupSizes(IndexType &bgSum, IndexType &bgLenSum)
+  void computeBlendGroupSizes(IndexType& bgSum, IndexType& bgLenSum)
   {
     AXOM_ANNOTATE_SCOPE("computeBlendGroupSizes");
     axom::ReduceSum<ExecSpace, IndexType> blendGroups_sum(0);
     axom::ReduceSum<ExecSpace, IndexType> blendGroupLen_sum(0);
     const auto localBlendGroupsView = m_state.m_blendGroupsView;
     const auto localBlendGroupsLenView = m_state.m_blendGroupsLenView;
-    axom::for_all<ExecSpace>(
-      m_state.m_nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        blendGroups_sum += localBlendGroupsView[zoneIndex];
-        blendGroupLen_sum += localBlendGroupsLenView[zoneIndex];
-      });
+    axom::for_all<ExecSpace>(m_state.m_nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      blendGroups_sum += localBlendGroupsView[zoneIndex];
+      blendGroupLen_sum += localBlendGroupsLenView[zoneIndex];
+    });
     bgSum = blendGroups_sum.get();
     bgLenSum = blendGroupLen_sum.get();
   }
@@ -136,8 +134,8 @@ public:
    * \param blendOffsetView The offsets to each blend group for views sized: view[blendGroupSum].
    * \param blendGroupOffsetsView The offsets to each zone's blend groups data.
    */
-  void setBlendGroupOffsets(const axom::ArrayView<IndexType> &blendOffsetView,
-                            const axom::ArrayView<IndexType> &blendGroupOffsetsView)
+  void setBlendGroupOffsets(const axom::ArrayView<IndexType>& blendOffsetView,
+                            const axom::ArrayView<IndexType>& blendGroupOffsetsView)
   {
     m_state.m_blendOffsetView = blendOffsetView;
     m_state.m_blendGroupOffsetsView = blendGroupOffsetsView;
@@ -156,11 +154,11 @@ public:
   /*!
    * \brief Set the views that we'll use for blend groups.
    */
-  void setBlendViews(const axom::ArrayView<KeyType> &blendNames,
-                     const axom::ArrayView<IndexType> &blendGroupSizes,
-                     const axom::ArrayView<IndexType> &blendGroupStart,
-                     const axom::ArrayView<IndexType> &blendIds,
-                     const axom::ArrayView<float> &blendCoeff)
+  void setBlendViews(const axom::ArrayView<KeyType>& blendNames,
+                     const axom::ArrayView<IndexType>& blendGroupSizes,
+                     const axom::ArrayView<IndexType>& blendGroupStart,
+                     const axom::ArrayView<IndexType>& blendIds,
+                     const axom::ArrayView<float>& blendCoeff)
   {
     m_state.m_blendNamesView = blendNames;
     m_state.m_blendGroupSizesView = blendGroupSizes;
@@ -175,8 +173,8 @@ public:
    * \param uniqueNames A view containing unique, sorted blend group names.
    * \param uniqueIndices A view containing the original blend group index for each unique name.
    */
-  void setUniqueNames(const axom::ArrayView<KeyType> &uniqueNames,
-                      const axom::ArrayView<IndexType> &uniqueIndices)
+  void setUniqueNames(const axom::ArrayView<KeyType>& uniqueNames,
+                      const axom::ArrayView<IndexType>& uniqueIndices)
   {
     m_state.m_blendUniqueNamesView = uniqueNames;
     m_state.m_blendUniqueIndicesView = uniqueIndices;
@@ -186,7 +184,7 @@ public:
    * \brief Get the blend names view.
    * \return The blend names view.
    */
-  const axom::ArrayView<KeyType> &blendNames() const { return m_state.m_blendNamesView; }
+  const axom::ArrayView<KeyType>& blendNames() const { return m_state.m_blendNamesView; }
 
   /*!
    * \brief This class helps us manage blend group creation and usage for blend groups within a single zone.
@@ -351,7 +349,7 @@ public:
      * \brief Print the current blend group to a stream.
      * \param os The stream to which the blend group will print.
      */
-    void print(std::ostream &os) const
+    void print(std::ostream& os) const
     {
       const auto n = m_state->m_blendGroupSizesView[m_blendGroupId];
       const auto offset = m_state->m_blendGroupStartView[m_blendGroupId];
@@ -361,7 +359,7 @@ public:
       os << " size: " << n << std::endl;
       os << " offset: " << offset << std::endl;
 
-      const IndexType *ids = m_state->m_blendIdsView.data() + offset;
+      const IndexType* ids = m_state->m_blendIdsView.data() + offset;
       os << " ids: [";
       for(int bi = 0; bi < n; bi++)
       {
@@ -370,7 +368,7 @@ public:
       }
       os << "]";
       os << "\n";
-      const float *weights = m_state->m_blendCoeffView.data() + offset;
+      const float* weights = m_state->m_blendCoeffView.data() + offset;
       os << " weights: [";
       for(int bi = 0; bi < n; bi++)
       {
@@ -414,7 +412,7 @@ public:
     IndexType m_blendGroupId;  // The global blend group index within this current zone.
     IndexType m_startOffset;   // The data offset for the first ids/weights in this blend group.
     IndexType m_currentDataOffset;  // The current data offset.
-    State *m_state;                 // Pointer to the main state.
+    State* m_state;                 // Pointer to the main state.
   };
 
   /*!
@@ -422,7 +420,7 @@ public:
    *
    * \param zoneIndex The zone whose blend groups we want to edit.
    *
-   * \note This method must be marked const because we can call it from an AXOM_LAMBDA.
+   * \note This method must be marked const because we can call it from host/device lambdas.
    *       we pass a non-const State reference to the zone_blend_groups that we construct
    *       so we can write into the blend group data.
    */
@@ -438,7 +436,7 @@ public:
     // Global start
     groups.m_startOffset = groups.m_currentDataOffset = m_state.m_blendOffsetView[zoneIndex];
 
-    groups.m_state = const_cast<State *>(&m_state);
+    groups.m_state = const_cast<State*>(&m_state);
     return groups;
   }
 
@@ -449,8 +447,8 @@ public:
    * \param[out] newSelectedIndices An array that will contain the data for the
    *                                new selected indices, if we need to make it.
    */
-  void filterUnique(axom::Array<KeyType> &newUniqueNames,
-                    axom::Array<axom::IndexType> &newUniqueIndices)
+  void filterUnique(axom::Array<KeyType>& newUniqueNames,
+                    axom::Array<axom::IndexType>& newUniqueIndices)
   {
     AXOM_ANNOTATE_SCOPE("filterUnique");
     const auto nIndices = m_state.m_blendUniqueIndicesView.size();
@@ -465,14 +463,12 @@ public:
       auto maskView = mask.view();
       axom::ReduceSum<ExecSpace, int> mask_reduce(0);
       State deviceState(m_state);
-      axom::for_all<ExecSpace>(
-        nIndices,
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto uniqueIndex = deviceState.m_blendUniqueIndicesView[index];
-          const int m = (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
-          maskView[index] = static_cast<MaskType>(m);
-          mask_reduce += m;
-        });
+      axom::for_all<ExecSpace>(nIndices, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+        const auto uniqueIndex = deviceState.m_blendUniqueIndicesView[index];
+        const int m = (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
+        maskView[index] = static_cast<MaskType>(m);
+        mask_reduce += m;
+      });
       // If we need to filter, do it.
       const int mask_count = mask_reduce.get();
 
@@ -489,16 +485,14 @@ public:
 
         auto newUniqueNamesView = newUniqueNames.view();
         auto newUniqueIndicesView = newUniqueIndices.view();
-        axom::for_all<ExecSpace>(
-          nIndices,
-          AXOM_LAMBDA(axom::IndexType index) {
-            if(maskView[index] > 0)
-            {
-              const auto offset = offsetView[index];
-              newUniqueNamesView[offset] = deviceState.m_blendUniqueNamesView[index];
-              newUniqueIndicesView[offset] = deviceState.m_blendUniqueIndicesView[index];
-            }
-          });
+        axom::for_all<ExecSpace>(nIndices, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+          if(maskView[index] > 0)
+          {
+            const auto offset = offsetView[index];
+            newUniqueNamesView[offset] = deviceState.m_blendUniqueNamesView[index];
+            newUniqueIndicesView[offset] = deviceState.m_blendUniqueIndicesView[index];
+          }
+        });
 
         // Replace the unique names/indices.
         m_state.m_blendUniqueNamesView = newUniqueNamesView;

@@ -40,7 +40,7 @@ public:
    * \param topologyView The view for the input topology.
    * \param coordsetView The view for the input coordset.
    */
-  MakeZoneCenters(const TopologyView &topologyView, const CoordsetView &coordsetView)
+  MakeZoneCenters(const TopologyView& topologyView, const CoordsetView& coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
@@ -77,18 +77,18 @@ public:
    *       a view and the coordset node since the view may not be able to contain
    *       some coordset metadata and remain trivially copyable.
    */
-  void execute(const conduit::Node &n_topology,
-               const conduit::Node &n_coordset,
-               conduit::Node &n_outputField) const
+  void execute(const conduit::Node& n_topology,
+               const conduit::Node& n_coordset,
+               conduit::Node& n_outputField) const
   {
     const auto numZones = m_topologyView.numberOfZones();
     const int allocatorID = getAllocatorID();
     // Select all zones.
     axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
     auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(
-      numZones,
-      AXOM_LAMBDA(axom::IndexType index) { selectedZonesView[index] = index; });
+    axom::for_all<ExecSpace>(numZones, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      selectedZonesView[index] = index;
+    });
     // Make the zone centers.
     execute(selectedZonesView, n_topology, n_coordset, n_outputField);
   }
@@ -111,9 +111,9 @@ public:
    *       generate a field that is repurposed some other way.
    */
   void execute(axom::ArrayView<axom::IndexType> selectedZonesView,
-               const conduit::Node &n_topology,
-               const conduit::Node &n_coordset,
-               conduit::Node &n_outputField) const
+               const conduit::Node& n_topology,
+               const conduit::Node& n_coordset,
+               conduit::Node& n_outputField) const
   {
     using value_type = typename CoordsetView::value_type;
     using PointType = typename CoordsetView::PointType;
@@ -132,7 +132,7 @@ public:
     n_outputField.reset();
     n_outputField["association"] = "element";
     n_outputField["topology"] = n_topology.name();
-    conduit::Node &n_values = n_outputField["values"];
+    conduit::Node& n_values = n_outputField["values"];
 
     // Determine output size.
     const auto outputSize = selectedZonesView.size();
@@ -142,7 +142,7 @@ public:
     for(size_t i = 0; i < nComponents; i++)
     {
       // Allocate data in the Conduit node and make a view.
-      conduit::Node &comp = n_values[axes[i]];
+      conduit::Node& comp = n_values[axes[i]];
       comp.set_allocator(conduitAllocatorId);
       comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = utils::make_array_view<value_type>(comp);
@@ -152,29 +152,27 @@ public:
     const CoordsetView deviceCoordsetView(m_coordsetView);
 
     // Blend the nodes in each zone to make a center point.
-    axom::for_all<ExecSpace>(
-      outputSize,
-      AXOM_LAMBDA(axom::IndexType zi) {
-        const auto zoneIndex = selectedZonesView[zi];
-        const auto zone = deviceTopoView.zone(zoneIndex);
-        const axom::IndexType nnodes = zone.numberOfNodes();
+    axom::for_all<ExecSpace>(outputSize, [=] AXOM_HOST_DEVICE(axom::IndexType zi) {
+      const auto zoneIndex = selectedZonesView[zi];
+      const auto zone = deviceTopoView.zone(zoneIndex);
+      const axom::IndexType nnodes = zone.numberOfNodes();
 
-        VectorType blended {};
+      VectorType blended {};
 
-        // Blend points for this zone.
-        for(IndexType i = 0; i < nnodes; i++)
-        {
-          const auto index = zone.getId(i);
-          blended += VectorType(deviceCoordsetView[index]);
-        }
-        blended = blended / static_cast<value_type>(nnodes);
+      // Blend points for this zone.
+      for(IndexType i = 0; i < nnodes; i++)
+      {
+        const auto index = zone.getId(i);
+        blended += VectorType(deviceCoordsetView[index]);
+      }
+      blended = blended / static_cast<value_type>(nnodes);
 
-        // Store the point into the Conduit component arrays.
-        for(int comp = 0; comp < PointType::DIMENSION; comp++)
-        {
-          compViews[comp][zi] = blended[comp];
-        }
-      });
+      // Store the point into the Conduit component arrays.
+      for(int comp = 0; comp < PointType::DIMENSION; comp++)
+      {
+        compViews[comp][zi] = blended[comp];
+      }
+    });
   }
 
 private:

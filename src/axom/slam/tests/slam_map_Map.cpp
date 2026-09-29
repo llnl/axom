@@ -608,19 +608,18 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTestStride1)
 
   SLIC_INFO("\nSetting the elements.");
   const double multFac = 100.0001;
-  axom::for_all<ExecSpace>(this->m_set.size(), AXOM_LAMBDA(int index) { m(index) = index * multFac; });
+  axom::for_all<ExecSpace>(this->m_set.size(),
+                           [=] AXOM_HOST_DEVICE(int index) { m(index) = index * multFac; });
 
   SLIC_INFO("\nChecking the elements.");
   int totalSize = this->m_set.size() * stride;
   axom::Array<int> isValid(totalSize, totalSize, this->m_unifiedAllocatorId);
   const auto isValid_view = isValid.view();
 
-  axom::for_all<ExecSpace>(
-    this->m_set.size(),
-    AXOM_LAMBDA(int index) {
-      bool entryValid = (m(index) == index * multFac);
-      isValid_view[index] = entryValid;
-    });
+  axom::for_all<ExecSpace>(this->m_set.size(), [=] AXOM_HOST_DEVICE(int index) {
+    bool entryValid = (m(index) == index * multFac);
+    isValid_view[index] = entryValid;
+  });
 
   for(int validEntry : isValid)
   {
@@ -646,29 +645,25 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTestStride3)
   SLIC_INFO("\nSetting the elements.");
   const double multFac = 100.0001;
   const double multFac2 = 1.010;
-  axom::for_all<ExecSpace>(
-    this->m_set.size(),
-    AXOM_LAMBDA(int index) {
-      for(int comp = 0; comp < stride; comp++)
-      {
-        m(index, comp) = index * multFac + comp * multFac2;
-      }
-    });
+  axom::for_all<ExecSpace>(this->m_set.size(), [=] AXOM_HOST_DEVICE(int index) {
+    for(int comp = 0; comp < stride; comp++)
+    {
+      m(index, comp) = index * multFac + comp * multFac2;
+    }
+  });
 
   SLIC_INFO("\nChecking the elements.");
   int totalSize = this->m_set.size() * stride;
   axom::Array<int> isValid(totalSize, totalSize, this->m_unifiedAllocatorId);
   const auto isValid_view = isValid.data();
 
-  axom::for_all<ExecSpace>(
-    this->m_set.size(),
-    AXOM_LAMBDA(int index) {
-      for(int comp = 0; comp < stride; comp++)
-      {
-        bool entryValid = (m(index, comp) == index * multFac + comp * multFac2);
-        isValid_view[index * stride + comp] = entryValid;
-      }
-    });
+  axom::for_all<ExecSpace>(this->m_set.size(), [=] AXOM_HOST_DEVICE(int index) {
+    for(int comp = 0; comp < stride; comp++)
+    {
+      bool entryValid = (m(index, comp) == index * multFac + comp * multFac2);
+      isValid_view[index * stride + comp] = entryValid;
+    }
+  });
 
   for(int validEntry : isValid)
   {
@@ -697,17 +692,15 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest2DStride)
   const double multFac = 100.0001;
   const double multFac2 = 1.00100;
   const double multFac3 = 0.10010;
-  axom::for_all<ExecSpace>(
-    this->m_set.size(),
-    AXOM_LAMBDA(int index) {
-      for(int i = 0; i < shape[0]; i++)
+  axom::for_all<ExecSpace>(this->m_set.size(), [=] AXOM_HOST_DEVICE(int index) {
+    for(int i = 0; i < shape[0]; i++)
+    {
+      for(int j = 0; j < shape[1]; j++)
       {
-        for(int j = 0; j < shape[1]; j++)
-        {
-          m(index, i, j) = index * multFac + i * multFac2 + j * multFac3;
-        }
+        m(index, i, j) = index * multFac + i * multFac2 + j * multFac3;
       }
-    });
+    }
+  });
 
   SLIC_INFO("\nChecking the elements.");
 
@@ -769,20 +762,18 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
   const double multFac2 = 1.00100;
   const double multFac3 = 0.10010;
   const double multFac4 = 0.01001;
-  axom::for_all<ExecSpace>(
-    this->m_set.size(),
-    AXOM_LAMBDA(int index) {
-      for(int i = 0; i < shape[0]; i++)
+  axom::for_all<ExecSpace>(this->m_set.size(), [=] AXOM_HOST_DEVICE(int index) {
+    for(int i = 0; i < shape[0]; i++)
+    {
+      for(int j = 0; j < shape[1]; j++)
       {
-        for(int j = 0; j < shape[1]; j++)
+        for(int k = 0; k < shape[2]; k++)
         {
-          for(int k = 0; k < shape[2]; k++)
-          {
-            m(index, i, j, k) = index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
-          }
+          m(index, i, j, k) = index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
         }
       }
-    });
+    }
+  });
 
   SLIC_INFO("\nChecking the elements.");
 

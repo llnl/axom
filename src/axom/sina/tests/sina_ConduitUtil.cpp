@@ -34,7 +34,7 @@ TEST(ConduitUtil, getRequiredField_present)
   parent["fieldName"] = "field value";
   std::string const field_name {"fieldName"};
   std::string const parent_name {"parent name"};
-  conduit::Node const &field = getRequiredField(field_name, parent, parent_name);
+  conduit::Node const& field = getRequiredField(field_name, parent, parent_name);
   EXPECT_TRUE(field.dtype().is_string());
   EXPECT_EQ("field value", field.as_string());
 }
@@ -46,10 +46,10 @@ TEST(ConduitUtil, getRequiredField_missing)
   {
     std::string const field_name {"fieldName"};
     std::string const parent_name {"parent name"};
-    conduit::Node const &field = getRequiredField(field_name, parent, parent_name);
+    conduit::Node const& field = getRequiredField(field_name, parent, parent_name);
     FAIL() << "Should not have found field, but got " << field.name();
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -81,7 +81,7 @@ TEST(ConduitUtil, getRequiredString_missing)
     auto value = getRequiredString("fieldName", parent, "parent name");
     FAIL() << "Should not have found string, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -97,7 +97,7 @@ TEST(ConduitUtil, getRequiredString_wrongType)
     auto value = getRequiredString("fieldName", parent, "parent name");
     FAIL() << "Should not have found string, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -128,7 +128,7 @@ TEST(ConduitUtil, getRequiredDouble_missing)
     auto value = getRequiredDouble("fieldName", parent, "parent name");
     FAIL() << "Should not have found double, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -144,7 +144,7 @@ TEST(ConduitUtil, getRequiredDouble_wrongType)
     auto value = getRequiredDouble("fieldName", parent, "parent name");
     FAIL() << "Should not have found double, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -181,7 +181,7 @@ TEST(ConduitUtil, getOptionalString_wrongType)
     auto value = getOptionalString("fieldName", parent, "parent name");
     FAIL() << "Should not have found string, but got " << value;
   }
-  catch(std::invalid_argument const &expected)
+  catch(std::invalid_argument const& expected)
   {
     EXPECT_THAT(expected.what(), HasSubstr("fieldName"));
     EXPECT_THAT(expected.what(), HasSubstr("parent name"));
@@ -216,7 +216,7 @@ TEST(ConduitUtil, toDoubleVector_NotList)
     toDoubleVector(notList, "someName");
     FAIL() << "Should have thrown an exception";
   }
-  catch(std::invalid_argument const &ex)
+  catch(std::invalid_argument const& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("someName"));
   }
@@ -242,7 +242,7 @@ TEST(ConduitUtil, toStringVector_NotList)
     toStringVector(notList, "someName");
     FAIL() << "Should have thrown an exception.";
   }
-  catch(std::invalid_argument const &ex)
+  catch(std::invalid_argument const& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("someName"));
   }
@@ -256,7 +256,7 @@ TEST(ConduitUtil, toStringVector_NotListOfStrings)
     toStringVector(notList, "someName");
     FAIL() << "Should have thrown an exception.";
   }
-  catch(std::invalid_argument const &ex)
+  catch(std::invalid_argument const& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("someName"));
   }

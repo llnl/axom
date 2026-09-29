@@ -20,9 +20,7 @@
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/slam/Utilities.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 /**
  * \class Set
@@ -167,5 +165,4 @@ inline bool operator!=(const Set<P1, E1>& set1, const Set<P2, E2>& set2)
   return !(set1 == set2);
 }
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

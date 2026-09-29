@@ -460,21 +460,19 @@ bool SignedDistance<NDIMS, ExecSpace>::setMesh(const mint::Mesh* surfaceMesh, in
 
   axom::ReduceMax<ExecSpace, double> xmax(maxInit), ymax(maxInit), zmax(maxInit);
 
-  for_all<ExecSpace>(
-    nnodes,
-    AXOM_LAMBDA(axom::IndexType inode) {
-      xmin.min(xs[inode]);
-      xmax.max(xs[inode]);
+  for_all<ExecSpace>(nnodes, [=] AXOM_HOST_DEVICE(axom::IndexType inode) {
+    xmin.min(xs[inode]);
+    xmax.max(xs[inode]);
 
-      ymin.min(ys[inode]);
-      ymax.max(ys[inode]);
+    ymin.min(ys[inode]);
+    ymax.max(ys[inode]);
 
-      if(NDIMS == 3)
-      {
-        zmin.min(zs[inode]);
-        zmax.max(zs[inode]);
-      }
-    });
+    if(NDIMS == 3)
+    {
+      zmin.min(zs[inode]);
+      zmax.max(zs[inode]);
+    }
+  });
   PointType boxMin {xmin.get(), ymin.get(), zmin.get()};
   PointType boxMax {xmax.get(), ymax.get(), zmax.get()};
   m_boxDomain = BoxType {boxMin, boxMax};
@@ -488,11 +486,9 @@ bool SignedDistance<NDIMS, ExecSpace>::setMesh(const mint::Mesh* surfaceMesh, in
   // Initialize BVH with the surface elements.
 
   BoxType* boxes = axom::allocate<BoxType>(ncells, allocatorID);
-  for_all<ExecSpace>(
-    ncells,
-    AXOM_LAMBDA(axom::IndexType icell) {
-      boxes[icell] = getCellBoundingBox(icell, surfaceData, surfPts);
-    });
+  for_all<ExecSpace>(ncells, [=] AXOM_HOST_DEVICE(axom::IndexType icell) {
+    boxes[icell] = getCellBoundingBox(icell, surfaceData, surfPts);
+  });
 
   // Build bounding volume hierarchy
   m_bvh.setAllocatorID(allocatorID);
@@ -559,48 +555,46 @@ inline void SignedDistance<NDIMS, ExecSpace>::computeDistances(int npts,
   SLIC_CHECK_MSG(result, "Input mesh is not an unstructured surface mesh");
 
   AXOM_ANNOTATE_SCOPE("ComputeDistances");
-  for_all<ExecSpace>(
-    npts,
-    AXOM_LAMBDA(std::int32_t idx) {
-      PointType qpt = queryPts[idx];
+  for_all<ExecSpace>(npts, [=] AXOM_HOST_DEVICE(std::int32_t idx) {
+    PointType qpt = queryPts[idx];
 
-      MinCandidate curr_min {};
+    MinCandidate curr_min {};
 
-      auto searchMinDist = [&](std::int32_t current_node, const std::int32_t* leaf_nodes) {
-        int candidate_idx = leaf_nodes[current_node];
+    auto searchMinDist = [&](std::int32_t current_node, const std::int32_t* leaf_nodes) {
+      int candidate_idx = leaf_nodes[current_node];
 
-        checkCandidate(qpt, curr_min, candidate_idx, surfaceData, surf_pts, computeSigns);
-      };
+      checkCandidate(qpt, curr_min, candidate_idx, surfaceData, surf_pts, computeSigns);
+    };
 
-      auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
-        return axom::primal::squared_distance(p, bb) <= curr_min.minSqDist;
-      };
+    auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
+      return axom::primal::squared_distance(p, bb) <= curr_min.minSqDist;
+    };
 
-      // Traverse the tree, searching for the point with minimum distance.
-      it.traverse_tree(qpt, searchMinDist, traversePredicate);
+    // Traverse the tree, searching for the point with minimum distance.
+    it.traverse_tree(qpt, searchMinDist, traversePredicate);
 
-      double sgn = 1.0;
-      if(computeSigns)
+    double sgn = 1.0;
+    if(computeSigns)
+    {
+      // STEP 0: if point is outside the bounding box of the surface mesh, then
+      // it is outside, just return 1.0
+      if(!(watertightInput && !boxDomain.contains(curr_min.minPt)))
       {
-        // STEP 0: if point is outside the bounding box of the surface mesh, then
-        // it is outside, just return 1.0
-        if(!(watertightInput && !boxDomain.contains(curr_min.minPt)))
-        {
-          sgn = computeSign(qpt, curr_min);
-        }
+        sgn = computeSign(qpt, curr_min);
       }
+    }
 
-      outSgnDist[idx] = sqrt(curr_min.minSqDist) * sgn;
-      if(outClosestPts)
-      {
-        outClosestPts[idx] = curr_min.minPt;
-      }
+    outSgnDist[idx] = sqrt(curr_min.minSqDist) * sgn;
+    if(outClosestPts)
+    {
+      outClosestPts[idx] = curr_min.minPt;
+    }
 
-      if(outNormals)
-      {
-        outNormals[idx] = getSurfaceNormal(curr_min).unitVector();
-      }
-    });
+    if(outNormals)
+    {
+      outNormals[idx] = getSurfaceNormal(curr_min).unitVector();
+    }
+  });
 }
 
 //------------------------------------------------------------------------------

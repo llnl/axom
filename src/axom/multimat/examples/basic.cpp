@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-void addfields(axom::multimat::MultiMat &mm)
+void addfields(axom::multimat::MultiMat& mm)
 {
   // clang-format off
 
@@ -92,7 +92,7 @@ void addfields(axom::multimat::MultiMat &mm)
   // clang-format on
 }
 
-void multicomponent(axom::multimat::MultiMat &mm)
+void multicomponent(axom::multimat::MultiMat& mm)
 {
   // clang-format off
 
@@ -120,7 +120,7 @@ void multicomponent(axom::multimat::MultiMat &mm)
   // clang-format on
 }
 
-void introspection(axom::multimat::MultiMat &mm)
+void introspection(axom::multimat::MultiMat& mm)
 {
   //_multimat_using_fields_introspection_begin
 
@@ -143,7 +143,7 @@ void introspection(axom::multimat::MultiMat &mm)
   //_multimat_using_fields_introspection_end
 }
 
-void using_fields_index_sets(axom::multimat::MultiMat &mm)
+void using_fields_index_sets(axom::multimat::MultiMat& mm)
 {
   //_multimat_using_fields_index_sets_begin
   // CELL_DOM data (iterate over cells then materials)
@@ -153,7 +153,7 @@ void using_fields_index_sets(axom::multimat::MultiMat &mm)
   for(int i = 0; i < mm.getNumberOfCells(); i++)
   {
     std::cout << "\tcell " << i << " values: ";
-    for(const auto &idx : mm.getIndexingSetOfCell(i, axom::multimat::SparsityLayout::SPARSE))
+    for(const auto& idx : mm.getIndexingSetOfCell(i, axom::multimat::SparsityLayout::SPARSE))
     {
       std::cout << f[idx] << ", ";
     }
@@ -162,7 +162,7 @@ void using_fields_index_sets(axom::multimat::MultiMat &mm)
   //_multimat_using_fields_index_sets_end
 }
 
-void using_fields_1d(axom::multimat::MultiMat &mm)
+void using_fields_1d(axom::multimat::MultiMat& mm)
 {
   // _multimat_using_fields_1d_start
   // Sum all values in the field.
@@ -177,7 +177,7 @@ void using_fields_1d(axom::multimat::MultiMat &mm)
   SLIC_INFO(axom::fmt::format("sum={}", sum));
 }
 
-void using_fields_multi_component(axom::multimat::MultiMat &mm)
+void using_fields_multi_component(axom::multimat::MultiMat& mm)
 {
   // _multimat_using_fields_1dmc_start
   double sum = 0.;
@@ -194,7 +194,7 @@ void using_fields_multi_component(axom::multimat::MultiMat &mm)
   SLIC_INFO(axom::fmt::format("sum={}", sum));
 }
 
-void dynamic_mode(axom::multimat::MultiMat &mm)
+void dynamic_mode(axom::multimat::MultiMat& mm)
 {
   //_multimat_dynamic_mode_begin
   // mm is a MultiMat object.
@@ -221,7 +221,7 @@ void dynamic_mode(axom::multimat::MultiMat &mm)
  * \param mm The MultiMat object that contains the materials and fields.
  * \param mesh The node that contains the Blueprint mesh.
  */
-void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
+void multimat_to_blueprint(axom::multimat::MultiMat& mm, conduit::Node& mesh)
 {
   // Multimat to matset.
   const auto VF = mm.get2dField<double>("Volfrac");
@@ -268,14 +268,14 @@ void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
     auto mapping = mm.getFieldMapping(i);
     SLIC_ASSERT(mm.getFieldDataType(i) == axom::multimat::DataTypeSupported::TypeDouble);
 
-    conduit::Node &n_f = mesh["fields/" + name];
+    conduit::Node& n_f = mesh["fields/" + name];
     n_f["association"] = "element";
     n_f["topology"] = "main";
 
     if(mapping == axom::multimat::FieldMapping::PER_CELL)
     {
       auto f = mm.get1dField<double>(name);
-      double *dptr = &f[0];
+      double* dptr = &f[0];
 
       if(f.numComp() == 1)
       {
@@ -325,9 +325,9 @@ void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
         {
           const auto matsInCell = mm.getMatInCell(c);
           double avg = 0.;
-          for(auto &m : matsInCell)
+          for(auto& m : matsInCell)
           {
-            double *valptr = f.findValue(c, m);
+            double* valptr = f.findValue(c, m);
             if(valptr != nullptr)
             {
               matset_values.push_back(*valptr);
@@ -348,11 +348,11 @@ void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
         {
           const auto matsInCell = mm.getMatInCell(c);
           double avg[3] = {0., 0., 0.};
-          for(auto &m : matsInCell)
+          for(auto& m : matsInCell)
           {
             for(int comp = 0; comp < f.numComp(); comp++)
             {
-              double *valptr = f.findValue(c, m, comp);
+              double* valptr = f.findValue(c, m, comp);
               if(valptr != nullptr)
               {
                 matset_values[comp].push_back(*valptr);
@@ -382,9 +382,9 @@ void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
  *
  * \param mm The MultiMat object to save. It is compatible with the mesh in this routine.
  */
-void save_blueprint(axom::multimat::MultiMat &mm)
+void save_blueprint(axom::multimat::MultiMat& mm)
 {
-  const char *yaml = R"(
+  const char* yaml = R"(
 coordsets:
   coords:
     type: explicit
@@ -413,7 +413,7 @@ topologies:
 }
 #endif
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
   axom::CLI::App app;

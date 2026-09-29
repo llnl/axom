@@ -39,7 +39,7 @@ public:
    *
    * \param topologyView The topology view that wraps the input topology.
    */
-  MakePolyhedralTopology(const TopologyView &topologyView)
+  MakePolyhedralTopology(const TopologyView& topologyView)
     : m_topologyView(topologyView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
@@ -73,7 +73,7 @@ public:
    * \param[out] n_newTopo The node that will contain the new polyhedral topology.
    *
    */
-  void execute(const conduit::Node &n_topo, conduit::Node &n_newTopo) const
+  void execute(const conduit::Node& n_topo, conduit::Node& n_newTopo) const
   {
     AXOM_ANNOTATE_SCOPE("MakePolyhedralTopology");
     namespace utils = axom::bump::utilities;
@@ -90,12 +90,12 @@ public:
     n_newTopo["subelements/shape"] = "polygonal";
 
     // This node is the number of faces in each zone.
-    conduit::Node &n_elem_sizes = n_newTopo["elements/sizes"];
+    conduit::Node& n_elem_sizes = n_newTopo["elements/sizes"];
     n_elem_sizes.set_allocator(conduitAllocatorId);
     n_elem_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nzones));
     auto elem_sizes = utils::make_array_view<ConnectivityType>(n_elem_sizes);
 
-    conduit::Node &n_elem_offsets = n_newTopo["elements/offsets"];
+    conduit::Node& n_elem_offsets = n_newTopo["elements/offsets"];
     n_elem_offsets.set_allocator(conduitAllocatorId);
     n_elem_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nzones));
     auto elem_offsets = utils::make_array_view<ConnectivityType>(n_elem_offsets);
@@ -110,22 +110,20 @@ public:
     auto zoneFaceSizesView = zoneFaceSizes.view();
     auto zoneFaceOffsetsView = zoneFaceOffsets.view();
     const TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const auto numFaces = zone.numberOfFaces();
-        elem_sizes[zoneIndex] = numFaces;
-        reduceTotalFaces += numFaces;
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto zone = deviceTopologyView.zone(zoneIndex);
+      const auto numFaces = zone.numberOfFaces();
+      elem_sizes[zoneIndex] = numFaces;
+      reduceTotalFaces += numFaces;
 
-        axom::IndexType faceStorage = 0;
-        for(axom::IndexType fi = 0; fi < numFaces; fi++)
-        {
-          faceStorage += zone.numberOfNodesInFace(fi);
-        }
-        zoneFaceSizesView[zoneIndex] = faceStorage;
-        reduceTotalFaceStorage += faceStorage;
-      });
+      axom::IndexType faceStorage = 0;
+      for(axom::IndexType fi = 0; fi < numFaces; fi++)
+      {
+        faceStorage += zone.numberOfNodesInFace(fi);
+      }
+      zoneFaceSizesView[zoneIndex] = faceStorage;
+      reduceTotalFaceStorage += faceStorage;
+    });
     const axom::IndexType totalFaces = reduceTotalFaces.get();
     const axom::IndexType totalFaceStorage = reduceTotalFaceStorage.get();
     if(nzones > 0)
@@ -144,55 +142,53 @@ public:
 
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("elements");
-    conduit::Node &n_elem_conn = n_newTopo["elements/connectivity"];
+    conduit::Node& n_elem_conn = n_newTopo["elements/connectivity"];
     n_elem_conn.set_allocator(conduitAllocatorId);
     n_elem_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
     auto elem_conn = utils::make_array_view<ConnectivityType>(n_elem_conn);
-    axom::for_all<ExecSpace>(
-      totalFaces,
-      AXOM_LAMBDA(axom::IndexType faceIndex) { elem_conn[faceIndex] = faceIndex; });
+    axom::for_all<ExecSpace>(totalFaces, [=] AXOM_HOST_DEVICE(axom::IndexType faceIndex) {
+      elem_conn[faceIndex] = faceIndex;
+    });
     AXOM_ANNOTATE_END("elements");
 
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("subelements");
     // Allocate subelement connectivity
-    conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
+    conduit::Node& n_se_conn = n_newTopo["subelements/connectivity"];
     n_se_conn.set_allocator(conduitAllocatorId);
     n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaceStorage));
     auto se_conn = utils::make_array_view<ConnectivityType>(n_se_conn);
 
-    conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
+    conduit::Node& n_se_sizes = n_newTopo["subelements/sizes"];
     n_se_sizes.set_allocator(conduitAllocatorId);
     n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
     auto se_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
-    conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
+    conduit::Node& n_se_offsets = n_newTopo["subelements/offsets"];
     n_se_offsets.set_allocator(conduitAllocatorId);
     n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
     auto se_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
     // Populate subelement connectivity and make names for the faces.
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        // This where the zone's faces begin in se_conn. We'll update it as we add faces.
-        auto offset = zoneFaceOffsetsView[zoneIndex];
+    axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+      const auto zone = deviceTopologyView.zone(zoneIndex);
+      // This where the zone's faces begin in se_conn. We'll update it as we add faces.
+      auto offset = zoneFaceOffsetsView[zoneIndex];
 
-        for(axom::IndexType fi = 0; fi < zone.numberOfFaces(); fi++)
-        {
-          // Where this face begins in se_conn.
-          auto faceIds = se_conn.data() + offset;
-          // Load the face's ids into faceIds in se_conn.
-          axom::IndexType numFaceIds = 0;
-          zone.getFace(fi, faceIds, numFaceIds);
-          offset += numFaceIds;
+      for(axom::IndexType fi = 0; fi < zone.numberOfFaces(); fi++)
+      {
+        // Where this face begins in se_conn.
+        auto faceIds = se_conn.data() + offset;
+        // Load the face's ids into faceIds in se_conn.
+        axom::IndexType numFaceIds = 0;
+        zone.getFace(fi, faceIds, numFaceIds);
+        offset += numFaceIds;
 
-          // Store the size of this face.
-          const auto thisFaceIndex = elem_offsets[zoneIndex] + fi;
-          se_sizes[thisFaceIndex] = numFaceIds;
-        }
-      });
+        // Store the size of this face.
+        const auto thisFaceIndex = elem_offsets[zoneIndex] + fi;
+        se_sizes[thisFaceIndex] = numFaceIds;
+      }
+    });
     axom::exclusive_scan<ExecSpace>(se_sizes, se_offsets);
     AXOM_ANNOTATE_END("subelements");
   }

@@ -18,9 +18,7 @@
 #include "axom/slam/Set.hpp"
 #include "axom/slam/NullSet.hpp"
 
-namespace axom
-{
-namespace slam
+namespace axom::slam
 {
 template <typename PosType, typename ElemType>
 class NullSet;
@@ -83,5 +81,4 @@ public:
 template <typename PosType, typename ElemType>
 NullSet<PosType, ElemType> Relation<PosType, ElemType>::s_nullSet;
 
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam

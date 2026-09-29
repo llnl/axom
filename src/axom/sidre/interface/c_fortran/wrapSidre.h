@@ -55,9 +55,9 @@ typedef short SIDRE_TypeID;
 typedef int SIDRE_TypeIDint;
 // splicer end typedef.TypeIDint
 
-bool SIDRE_name_is_valid(const char *name);
+bool SIDRE_name_is_valid(const char* name);
 
-bool SIDRE_name_is_valid_bufferify(char *name, int SHT_name_len);
+bool SIDRE_name_is_valid_bufferify(char* name, int SHT_name_len);
 
 int SIDRE_get_invalid_allocator_id(void);
 

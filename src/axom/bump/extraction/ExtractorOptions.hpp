@@ -26,7 +26,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  ExtractorOptions(const conduit::Node &options) : axom::bump::Options(options) { }
+  ExtractorOptions(const conduit::Node& options) : axom::bump::Options(options) { }
 
   /**
    * \brief Return the name of the field used for clipping.
@@ -99,7 +99,7 @@ public:
 
 protected:
   /// Access the base class' options.
-  const conduit::Node &options() const { return this->m_options; }
+  const conduit::Node& options() const { return this->m_options; }
 };
 
 }  // end namespace extraction

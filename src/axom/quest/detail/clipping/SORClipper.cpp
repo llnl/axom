@@ -130,7 +130,8 @@ template <typename ExecSpace>
 void accumulateDataImpl(axom::ArrayView<double> a, axom::ArrayView<const double> b, double scale)
 {
   SLIC_ASSERT(a.size() == b.size());
-  axom::for_all<ExecSpace>(a.size(), AXOM_LAMBDA(axom::IndexType i) { a[i] += scale * b[i]; });
+  axom::for_all<ExecSpace>(a.size(),
+                           [=] AXOM_HOST_DEVICE(axom::IndexType i) { a[i] += scale * b[i]; });
 }
 
 void SORClipper::accumulateData(axom::ArrayView<double> a,

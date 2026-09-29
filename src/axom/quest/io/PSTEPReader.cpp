@@ -1,8 +1,6 @@
 #include "axom/quest/io/PSTEPReader.hpp"
 
-namespace axom
-{
-namespace quest
+namespace axom::quest
 {
 namespace
 {
@@ -321,5 +319,4 @@ bool PSTEPReader::bcast_bool(bool value)
   return static_cast<bool>(intValue);
 }
 
-}  // end namespace quest
-}  // end namespace axom
+}  // namespace axom::quest

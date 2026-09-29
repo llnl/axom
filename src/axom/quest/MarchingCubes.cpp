@@ -195,14 +195,8 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
       && internalMemorySpace != axom::MemorySpace::Host
 #endif
       ;
-    const int hostAllocatorId = hostAndInternalMemoriesAreSeparate
-      ?
-#ifdef AXOM_USE_UMPIRE
-      axom::detail::getAllocatorID<axom::MemorySpace::Host>()
-#else
-      axom::detail::getAllocatorID<axom::MemorySpace::Dynamic>()
-#endif
-      : m_allocatorID;
+    const int hostAllocatorId =
+      hostAndInternalMemoriesAreSeparate ? axom::detail::getDefaultHostAllocatorID() : m_allocatorID;
 
     if(hostAndInternalMemoriesAreSeparate)
     {

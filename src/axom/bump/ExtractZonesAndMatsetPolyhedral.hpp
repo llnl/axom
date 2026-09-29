@@ -50,9 +50,9 @@ public:
    * \param coordsetView The input coordset view.
    * \param matsetView The input matset view.
    */
-  ExtractZonesAndMatsetPolyhedral(const TopologyView &topoView,
-                                  const CoordsetView &coordsetView,
-                                  const MatsetView &matsetView)
+  ExtractZonesAndMatsetPolyhedral(const TopologyView& topoView,
+                                  const CoordsetView& coordsetView,
+                                  const MatsetView& matsetView)
     : ParentClass(topoView, coordsetView, matsetView)
   { }
 
@@ -80,12 +80,12 @@ protected:
    * \param n_newTopo A node to contain the new topology.
    */
   virtual void makeTopology(const SelectedZonesView selectedZonesView,
-                            const Sizes &AXOM_UNUSED_PARAM(dataSizes),
-                            const Sizes &AXOM_UNUSED_PARAM(extra),
-                            const axom::ArrayView<ConnectivityType> &old2newView,
-                            const conduit::Node &n_topo,
-                            const conduit::Node &AXOM_UNUSED_PARAM(n_options),
-                            conduit::Node &n_newTopo) const override
+                            const Sizes& AXOM_UNUSED_PARAM(dataSizes),
+                            const Sizes& AXOM_UNUSED_PARAM(extra),
+                            const axom::ArrayView<ConnectivityType>& old2newView,
+                            const conduit::Node& n_topo,
+                            const conduit::Node& AXOM_UNUSED_PARAM(n_options),
+                            conduit::Node& n_newTopo) const override
   {
     AXOM_ANNOTATE_SCOPE("makeTopology(polyhedral)");
     namespace utils = axom::bump::utilities;
@@ -110,12 +110,10 @@ protected:
     axom::Array<std::uint8_t> zoneFlags(nzones, nzones, allocatorID);
     auto zoneFlagsView = zoneFlags.view();
     zoneFlags.fill(ZoneEmpty);
-    axom::for_all<ExecSpace>(
-      numSelectedZones,
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        zoneFlagsView[zoneIndex] = ZoneSelected;
-      });
+    axom::for_all<ExecSpace>(numSelectedZones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      zoneFlagsView[zoneIndex] = ZoneSelected;
+    });
     AXOM_ANNOTATE_END("select");
 
     //--------------------------------------------------------------------------
@@ -131,53 +129,51 @@ protected:
 
     const auto deviceTopologyView(ParentClass::m_topologyView);
     axom::ReduceSum<ExecSpace, int> faceCount_reduce(0);
-    axom::for_all<ExecSpace>(
-      numSelectedZones,
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto logicalIndex = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
+    axom::for_all<ExecSpace>(numSelectedZones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto logicalIndex = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
 
-        int faceCount = 0;
-        std::uint8_t zf = ZoneEmpty;
-        const int faceOrder[] = {0, 2, 4, 1, 3, 5};
-        for(int fi = 0; fi < FacesPerHex; fi++)
+      int faceCount = 0;
+      std::uint8_t zf = ZoneEmpty;
+      const int faceOrder[] = {0, 2, 4, 1, 3, 5};
+      for(int fi = 0; fi < FacesPerHex; fi++)
+      {
+        const int queryFace = faceOrder[fi];
+
+        // x y z x y z
+        const int dim = queryFace >> 1;
+        const int delta = (fi < 3) ? -1 : 1;
+
+        bool makeFace = false;
+        if(fi < 3)
         {
-          const int queryFace = faceOrder[fi];
+          // The zone always makes the lower faces.
+          makeFace = true;
+        }
+        else if(logicalIndex[dim] == (deviceTopologyView.indexing().logicalDimensions()[dim] - 1))
+        {
+          // The zone makes the high faces if on the edge of the mesh.
+          makeFace = true;
+        }
+        else
+        {
+          // Get the index of the face neighbor.
+          auto logicalNeighbor(logicalIndex);
+          logicalNeighbor[dim] += delta;
+          const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
 
-          // x y z x y z
-          const int dim = queryFace >> 1;
-          const int delta = (fi < 3) ? -1 : 1;
-
-          bool makeFace = false;
-          if(fi < 3)
-          {
-            // The zone always makes the lower faces.
-            makeFace = true;
-          }
-          else if(logicalIndex[dim] == (deviceTopologyView.indexing().logicalDimensions()[dim] - 1))
-          {
-            // The zone makes the high faces if on the edge of the mesh.
-            makeFace = true;
-          }
-          else
-          {
-            // Get the index of the face neighbor.
-            auto logicalNeighbor(logicalIndex);
-            logicalNeighbor[dim] += delta;
-            const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
-
-            // If that neighbor is NOT selected, we need to make the face.
-            makeFace = (zoneFlagsView[neighbor] & ZoneSelected) == 0;
-          }
-
-          zf |= makeFace ? (1 << queryFace) : 0;
-          faceCount += makeFace ? 1 : 0;
+          // If that neighbor is NOT selected, we need to make the face.
+          makeFace = (zoneFlagsView[neighbor] & ZoneSelected) == 0;
         }
 
-        zoneFlagsView[zoneIndex] |= zf;
-        zoneFaceSizesView[zoneIndex] = faceCount;
-        faceCount_reduce += faceCount;
-      });
+        zf |= makeFace ? (1 << queryFace) : 0;
+        faceCount += makeFace ? 1 : 0;
+      }
+
+      zoneFlagsView[zoneIndex] |= zf;
+      zoneFaceSizesView[zoneIndex] = faceCount;
+      faceCount_reduce += faceCount;
+    });
     const int faceCount = faceCount_reduce.get();
     if(numSelectedZones > 0)
     {
@@ -201,34 +197,34 @@ protected:
     n_newTopo["elements/shape"] = "polyhedral";
     n_newTopo["subelements/shape"] = "polygonal";
 
-    conduit::Node &n_conn = n_newTopo["elements/connectivity"];
+    conduit::Node& n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(conduitAllocatorId);
     n_conn.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
     auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
-    conduit::Node &n_sizes = n_newTopo["elements/sizes"];
+    conduit::Node& n_sizes = n_newTopo["elements/sizes"];
     n_sizes.set_allocator(conduitAllocatorId);
     n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
-    conduit::Node &n_offsets = n_newTopo["elements/offsets"];
+    conduit::Node& n_offsets = n_newTopo["elements/offsets"];
     n_offsets.set_allocator(conduitAllocatorId);
     n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
-    conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
+    conduit::Node& n_se_conn = n_newTopo["subelements/connectivity"];
     n_se_conn.set_allocator(conduitAllocatorId);
     n_se_conn.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
     auto seConnView = utils::make_array_view<ConnectivityType>(n_se_conn);
 
-    conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
+    conduit::Node& n_se_sizes = n_newTopo["subelements/sizes"];
     n_se_sizes.set_allocator(conduitAllocatorId);
     n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seSizesView = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
-    conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
+    conduit::Node& n_se_offsets = n_newTopo["subelements/offsets"];
     n_se_offsets.set_allocator(conduitAllocatorId);
     n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seOffsetsView = utils::make_array_view<ConnectivityType>(n_se_offsets);
@@ -239,106 +235,98 @@ protected:
     AXOM_ANNOTATE_BEGIN("subelements");
 
     // Fill subelement sizes, offsets
-    axom::for_all<ExecSpace>(
-      faceCount,
-      AXOM_LAMBDA(axom::IndexType index) {
-        seSizesView[index] = PointsPerQuad;
-        seOffsetsView[index] = PointsPerQuad * index;
-      });
+    axom::for_all<ExecSpace>(faceCount, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
+      seSizesView[index] = PointsPerQuad;
+      seOffsetsView[index] = PointsPerQuad * index;
+    });
 
     // Fill subelement connectivity to define the faces.
-    axom::for_all<ExecSpace>(
-      numSelectedZones,
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const auto zf = zoneFlagsView[zoneIndex];
-        int localFace = 0;
-        // Query faces in this order so we do all the low faces then all the high faces.
-        const int faceOrder[] = {0, 2, 4, 1, 3, 5};
-        for(int fi = 0; fi < FacesPerHex; fi++)
+    axom::for_all<ExecSpace>(numSelectedZones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto zone = deviceTopologyView.zone(zoneIndex);
+      const auto zf = zoneFlagsView[zoneIndex];
+      int localFace = 0;
+      // Query faces in this order so we do all the low faces then all the high faces.
+      const int faceOrder[] = {0, 2, 4, 1, 3, 5};
+      for(int fi = 0; fi < FacesPerHex; fi++)
+      {
+        const int queryFace = faceOrder[fi];
+
+        // Check whether this zone defines the face.
+        const bool zoneDefinesFace = (zf & (1 << queryFace)) > 0;
+        if(zoneDefinesFace)
         {
-          const int queryFace = faceOrder[fi];
+          // Get the node ids from the zone.
+          ConnectivityType ids[PointsPerQuad];
+          axom::IndexType numIds = 0;
+          zone.getFace(queryFace, ids, numIds);
+          SLIC_ASSERT(numIds == PointsPerQuad);
 
-          // Check whether this zone defines the face.
-          const bool zoneDefinesFace = (zf & (1 << queryFace)) > 0;
-          if(zoneDefinesFace)
+          // Map the face's node ids to the new coordset.
+          const auto faceId = zoneFaceOffsetsView[zoneIndex] + localFace;
+          const auto offset = faceId * PointsPerQuad;
+          for(int idx = 0; idx < numIds; idx++)
           {
-            // Get the node ids from the zone.
-            ConnectivityType ids[PointsPerQuad];
-            axom::IndexType numIds = 0;
-            zone.getFace(queryFace, ids, numIds);
-            SLIC_ASSERT(numIds == PointsPerQuad);
-
-            // Map the face's node ids to the new coordset.
-            const auto faceId = zoneFaceOffsetsView[zoneIndex] + localFace;
-            const auto offset = faceId * PointsPerQuad;
-            for(int idx = 0; idx < numIds; idx++)
-            {
-              seConnView[offset + idx] = old2newView[ids[idx]];
-            }
-            localFace++;
+            seConnView[offset + idx] = old2newView[ids[idx]];
           }
+          localFace++;
         }
-      });
+      }
+    });
     AXOM_ANNOTATE_END("subelements");
 
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("elements");
 
     // Fill element sizes, offsets
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        sizesView[szIndex] = FacesPerHex;
-        offsetsView[szIndex] = FacesPerHex * szIndex;
-      });
+    axom::for_all<ExecSpace>(selectedZonesView.size(), [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      sizesView[szIndex] = FacesPerHex;
+      offsetsView[szIndex] = FacesPerHex * szIndex;
+    });
 
     // Fill element connectivity
-    axom::for_all<ExecSpace>(
-      numSelectedZones,
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zf = zoneFlagsView[zoneIndex];
+    axom::for_all<ExecSpace>(numSelectedZones, [=] AXOM_HOST_DEVICE(axom::IndexType szIndex) {
+      const auto zoneIndex = selectedZonesView[szIndex];
+      const auto zf = zoneFlagsView[zoneIndex];
 
-        int localFace = 0, connOffset = 0;
-        // Query faces in this order so we do all the low faces then all the high faces.
-        const int faceOrder[] = {0, 2, 4, 1, 3, 5};
-        for(int fi = 0; fi < FacesPerHex; fi++)
+      int localFace = 0, connOffset = 0;
+      // Query faces in this order so we do all the low faces then all the high faces.
+      const int faceOrder[] = {0, 2, 4, 1, 3, 5};
+      for(int fi = 0; fi < FacesPerHex; fi++)
+      {
+        const int queryFace = faceOrder[fi];
+
+        const bool zoneDefinesFace = (zf & (1 << queryFace)) > 0;
+        if(zoneDefinesFace)
         {
-          const int queryFace = faceOrder[fi];
+          const ConnectivityType faceId = zoneFaceOffsetsView[zoneIndex] + localFace;
+          connView[szIndex * FacesPerHex + connOffset] = faceId;
+          localFace++;
+          connOffset++;
+        }
+        else
+        {
+          // Get the index of the relevant neighbor.
+          const int dim = queryFace >> 1;  // x y z x y z
+          const int delta = (fi < 3) ? -1 : 1;
+          auto logicalNeighbor = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
+          logicalNeighbor[dim] += delta;
+          const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
 
-          const bool zoneDefinesFace = (zf & (1 << queryFace)) > 0;
-          if(zoneDefinesFace)
+          // Get whether the neighbor defines the face companion.
+          const auto nzf = zoneFlagsView[neighbor];
+          const int neighborQueryFace = (fi < 3) ? (queryFace + 1) : (queryFace - 1);
+          const bool neighborDefinesFace = (nzf & (1 << neighborQueryFace)) > 0;
+
+          if(neighborDefinesFace)
           {
-            const ConnectivityType faceId = zoneFaceOffsetsView[zoneIndex] + localFace;
+            const ConnectivityType faceId = zoneFaceOffsetsView[neighbor] + dim;
             connView[szIndex * FacesPerHex + connOffset] = faceId;
-            localFace++;
             connOffset++;
           }
-          else
-          {
-            // Get the index of the relevant neighbor.
-            const int dim = queryFace >> 1;  // x y z x y z
-            const int delta = (fi < 3) ? -1 : 1;
-            auto logicalNeighbor = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
-            logicalNeighbor[dim] += delta;
-            const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
-
-            // Get whether the neighbor defines the face companion.
-            const auto nzf = zoneFlagsView[neighbor];
-            const int neighborQueryFace = (fi < 3) ? (queryFace + 1) : (queryFace - 1);
-            const bool neighborDefinesFace = (nzf & (1 << neighborQueryFace)) > 0;
-
-            if(neighborDefinesFace)
-            {
-              const ConnectivityType faceId = zoneFaceOffsetsView[neighbor] + dim;
-              connView[szIndex * FacesPerHex + connOffset] = faceId;
-              connOffset++;
-            }
-          }
         }
-      });
+      }
+    });
     AXOM_ANNOTATE_END("elements");
   }
 };

@@ -351,16 +351,13 @@ void unit_check_poly_clip()
 
   axom::copy(out_square, &square, sizeof(PolyhedronType));
 
-  axom::for_all<ExecPolicy>(
-    0,
-    1,
-    AXOM_LAMBDA(int /* idx */) {
-      PlaneType plane(VectorType {1, 0, 0}, PointType {0.5, 0.0, 0.0});
+  axom::for_all<ExecPolicy>(0, 1, [=] AXOM_HOST_DEVICE(int /* idx */) {
+    PlaneType plane(VectorType {1, 0, 0}, PointType {0.5, 0.0, 0.0});
 
-      out_clipped[0] = 0;
+    out_clipped[0] = 0;
 
-      axom::primal::detail::poly_clip_vertices(out_square[0], plane, EPS, out_clipped[0]);
-    });
+    axom::primal::detail::poly_clip_vertices(out_square[0], plane, EPS, out_clipped[0]);
+  });
 
   PolyhedronType clippedSquare;
   axom::copy(&clippedSquare, out_square, sizeof(PolyhedronType));
@@ -443,25 +440,23 @@ void check_hex_tet_clip(double EPS)
   HexahedronType hex_host;
   PolyhedronType res_host;
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      tet[0] = TetrahedronType(PointType {1, 0, 0},
-                               PointType {1, 1, 0},
-                               PointType {0, 1, 0},
-                               PointType {1, 0, 1});
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    tet[0] = TetrahedronType(PointType {1, 0, 0},
+                             PointType {1, 1, 0},
+                             PointType {0, 1, 0},
+                             PointType {1, 0, 1});
 
-      hex[0] = HexahedronType(PointType {0, 0, 0},
-                              PointType {1, 0, 0},
-                              PointType {1, 1, 0},
-                              PointType {0, 1, 0},
-                              PointType {0, 0, 1},
-                              PointType {1, 0, 1},
-                              PointType {1, 1, 1},
-                              PointType {0, 1, 1});
+    hex[0] = HexahedronType(PointType {0, 0, 0},
+                            PointType {1, 0, 0},
+                            PointType {1, 1, 0},
+                            PointType {0, 1, 0},
+                            PointType {0, 0, 1},
+                            PointType {1, 0, 1},
+                            PointType {1, 1, 1},
+                            PointType {0, 1, 1});
 
-      res[i] = axom::primal::clip(hex[i], tet[i]);
-    });
+    res[i] = axom::primal::clip(hex[i], tet[i]);
+  });
 
   axom::copy(&tet_host, tet, sizeof(TetrahedronType));
   axom::copy(&hex_host, hex, sizeof(HexahedronType));
@@ -481,9 +476,9 @@ void check_hex_tet_clip(double EPS)
   axom::copy(tet, &tet_host, sizeof(TetrahedronType));
   axom::copy(hex, &hex_host, sizeof(HexahedronType));
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) { res[i] = axom::primal::clip(hex[i], tet[i], EPS, CHECK_ORIENTATION); });
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    res[i] = axom::primal::clip(hex[i], tet[i], EPS, CHECK_ORIENTATION);
+  });
 
   axom::copy(&res_host, res, sizeof(PolyhedronType));
 
@@ -522,23 +517,21 @@ void check_oct_tet_clip(double EPS)
   OctahedronType oct_host;
   PolyhedronType res_host;
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      tet[0] = TetrahedronType(PointType {1, 0, 0},
-                               PointType {1, 1, 0},
-                               PointType {0, 1, 0},
-                               PointType {1, 0, 1});
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    tet[0] = TetrahedronType(PointType {1, 0, 0},
+                             PointType {1, 1, 0},
+                             PointType {0, 1, 0},
+                             PointType {1, 0, 1});
 
-      oct[0] = OctahedronType(PointType {1, 0, 0},
-                              PointType {1, 1, 0},
-                              PointType {0, 1, 0},
-                              PointType {0, 1, 1},
-                              PointType {0, 0, 1},
-                              PointType {1, 0, 1});
+    oct[0] = OctahedronType(PointType {1, 0, 0},
+                            PointType {1, 1, 0},
+                            PointType {0, 1, 0},
+                            PointType {0, 1, 1},
+                            PointType {0, 0, 1},
+                            PointType {1, 0, 1});
 
-      res[i] = axom::primal::clip(oct[i], tet[i]);
-    });
+    res[i] = axom::primal::clip(oct[i], tet[i]);
+  });
 
   axom::copy(&tet_host, tet, sizeof(TetrahedronType));
   axom::copy(&oct_host, oct, sizeof(OctahedronType));
@@ -557,9 +550,9 @@ void check_oct_tet_clip(double EPS)
   axom::copy(tet, &tet_host, sizeof(TetrahedronType));
   axom::copy(oct, &oct_host, sizeof(OctahedronType));
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) { res[i] = axom::primal::clip(oct[i], tet[i], EPS, CHECK_ORIENTATION); });
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    res[i] = axom::primal::clip(oct[i], tet[i], EPS, CHECK_ORIENTATION);
+  });
 
   axom::copy(&res_host, res, sizeof(PolyhedronType));
 
@@ -598,21 +591,19 @@ void check_tet_tet_clip(double EPS)
   TetrahedronType tet2_host;
   PolyhedronType res_host;
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      tet1[0] = TetrahedronType(PointType {1, 0, 0},
-                                PointType {1, 1, 0},
-                                PointType {0, 1, 0},
-                                PointType {1, 1, 1});
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    tet1[0] = TetrahedronType(PointType {1, 0, 0},
+                              PointType {1, 1, 0},
+                              PointType {0, 1, 0},
+                              PointType {1, 1, 1});
 
-      tet2[0] = TetrahedronType(PointType {0, 0, 0},
-                                PointType {1, 0, 0},
-                                PointType {1, 1, 0},
-                                PointType {1, 1, 1});
+    tet2[0] = TetrahedronType(PointType {0, 0, 0},
+                              PointType {1, 0, 0},
+                              PointType {1, 1, 0},
+                              PointType {1, 1, 1});
 
-      res[i] = axom::primal::clip(tet1[i], tet2[i]);
-    });
+    res[i] = axom::primal::clip(tet1[i], tet2[i]);
+  });
 
   axom::copy(&tet1_host, tet1, sizeof(TetrahedronType));
   axom::copy(&tet2_host, tet2, sizeof(TetrahedronType));
@@ -631,9 +622,9 @@ void check_tet_tet_clip(double EPS)
   axom::copy(tet1, &tet1_host, sizeof(TetrahedronType));
   axom::copy(tet2, &tet2_host, sizeof(TetrahedronType));
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) { res[i] = axom::primal::clip(tet1[i], tet2[i], EPS, CHECK_ORIENTATION); });
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    res[i] = axom::primal::clip(tet1[i], tet2[i], EPS, CHECK_ORIENTATION);
+  });
 
   axom::copy(&res_host, res, sizeof(PolyhedronType));
 
@@ -675,17 +666,15 @@ void check_polygon_polygon_clip(double EPS)
   axom::Array<PolygonStatic2D> output_polygon_device(1, 1, kernel_allocator);
   auto output_polygon_view = output_polygon_device.view();
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      subject_polygon_view[i] =
-        PolygonStatic2D({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1})});
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    subject_polygon_view[i] =
+      PolygonStatic2D({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1})});
 
-      clip_polygon_view[i] = PolygonStatic2D(
-        {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+    clip_polygon_view[i] = PolygonStatic2D(
+      {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
 
-      output_polygon_view[i] = axom::primal::clip(subject_polygon_view[i], clip_polygon_view[i], EPS);
-    });
+    output_polygon_view[i] = axom::primal::clip(subject_polygon_view[i], clip_polygon_view[i], EPS);
+  });
 
   // Copy output polygon back to host
   axom::Array<PolygonStatic2D> output_polygon_host =
@@ -696,24 +685,22 @@ void check_polygon_polygon_clip(double EPS)
 
   // Test tryFixOrientation optional parameter using same polygons with
   // negative volumes (clockwise ordering)
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      subject_polygon_view[i].clear();
-      clip_polygon_view[i].clear();
-      output_polygon_view[i].clear();
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    subject_polygon_view[i].clear();
+    clip_polygon_view[i].clear();
+    output_polygon_view[i].clear();
 
-      subject_polygon_view[i].addVertex(Point2D({0.5, 1}));
-      subject_polygon_view[i].addVertex(Point2D({1.0, 0.0}));
-      subject_polygon_view[i].addVertex(Point2D({0.0, 0.0}));
+    subject_polygon_view[i].addVertex(Point2D({0.5, 1}));
+    subject_polygon_view[i].addVertex(Point2D({1.0, 0.0}));
+    subject_polygon_view[i].addVertex(Point2D({0.0, 0.0}));
 
-      clip_polygon_view[i].addVertex(Point2D({0.5, -1.0 / 3.0}));
-      clip_polygon_view[i].addVertex(Point2D({0.0, 2.0 / 3.0}));
-      clip_polygon_view[i].addVertex(Point2D({1.0, 2.0 / 3.0}));
+    clip_polygon_view[i].addVertex(Point2D({0.5, -1.0 / 3.0}));
+    clip_polygon_view[i].addVertex(Point2D({0.0, 2.0 / 3.0}));
+    clip_polygon_view[i].addVertex(Point2D({1.0, 2.0 / 3.0}));
 
-      output_polygon_view[i] =
-        axom::primal::clip(subject_polygon_view[i], clip_polygon_view[i], EPS, CHECK_SIGN);
-    });
+    output_polygon_view[i] =
+      axom::primal::clip(subject_polygon_view[i], clip_polygon_view[i], EPS, CHECK_SIGN);
+  });
 
   // Copy output polygon back to host
   output_polygon_host = axom::Array<PolygonStatic2D>(output_polygon_device, host_allocator);
@@ -737,37 +724,35 @@ void check_polygon_polygon_clip_reassignment(double EPS)
   axom::Array<PolygonStatic2D> outputs_device(3, 3, kernel_allocator);
   auto outputs_view = outputs_device.view();
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      AXOM_UNUSED_VAR(i);
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    AXOM_UNUSED_VAR(i);
 
-      PolygonStatic2D working;
+    PolygonStatic2D working;
 
-      const PolygonStatic2D subject_triangle(
-        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
-      const PolygonStatic2D clip_triangle(
-        {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+    const PolygonStatic2D subject_triangle(
+      {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
+    const PolygonStatic2D clip_triangle(
+      {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
 
-      working = axom::primal::clip(subject_triangle, clip_triangle, EPS);
-      outputs_view[0] = working;
+    working = axom::primal::clip(subject_triangle, clip_triangle, EPS);
+    outputs_view[0] = working;
 
-      const PolygonStatic2D disjoint_subject(
-        {Point2D({2.0, 2.0}), Point2D({3.0, 2.0}), Point2D({3.0, 3.0}), Point2D({2.0, 3.0})});
-      const PolygonStatic2D disjoint_clip(
-        {Point2D({-1.0, -1.0}), Point2D({0.0, -1.0}), Point2D({0.0, 0.0}), Point2D({-1.0, 0.0})});
+    const PolygonStatic2D disjoint_subject(
+      {Point2D({2.0, 2.0}), Point2D({3.0, 2.0}), Point2D({3.0, 3.0}), Point2D({2.0, 3.0})});
+    const PolygonStatic2D disjoint_clip(
+      {Point2D({-1.0, -1.0}), Point2D({0.0, -1.0}), Point2D({0.0, 0.0}), Point2D({-1.0, 0.0})});
 
-      working = axom::primal::clip(disjoint_subject, disjoint_clip, EPS);
-      outputs_view[1] = working;
+    working = axom::primal::clip(disjoint_subject, disjoint_clip, EPS);
+    outputs_view[1] = working;
 
-      const PolygonStatic2D subject_square(
-        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
-      const PolygonStatic2D clip_rectangle(
-        {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
+    const PolygonStatic2D subject_square(
+      {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
+    const PolygonStatic2D clip_rectangle(
+      {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
 
-      working = axom::primal::clip(subject_square, clip_rectangle, EPS);
-      outputs_view[2] = working;
-    });
+    working = axom::primal::clip(subject_square, clip_rectangle, EPS);
+    outputs_view[2] = working;
+  });
 
   if(axom::execution_space<ExecPolicy>::async())
   {
@@ -801,38 +786,36 @@ void check_polygon_polygon_clip_with_scratch(double EPS)
   axom::Array<PolygonStatic2D> outputs_device(3, 3, kernel_allocator);
   auto outputs_view = outputs_device.view();
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      AXOM_UNUSED_VAR(i);
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    AXOM_UNUSED_VAR(i);
 
-      PolygonStatic2D working;
-      PolygonStatic2D scratch;
+    PolygonStatic2D working;
+    PolygonStatic2D scratch;
 
-      const PolygonStatic2D subject_triangle(
-        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
-      const PolygonStatic2D clip_triangle(
-        {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+    const PolygonStatic2D subject_triangle(
+      {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
+    const PolygonStatic2D clip_triangle(
+      {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
 
-      axom::primal::detail::clipPolygonPolygon(subject_triangle, clip_triangle, working, scratch, EPS);
-      outputs_view[0] = working;
+    axom::primal::detail::clipPolygonPolygon(subject_triangle, clip_triangle, working, scratch, EPS);
+    outputs_view[0] = working;
 
-      const PolygonStatic2D disjoint_subject(
-        {Point2D({2.0, 2.0}), Point2D({3.0, 2.0}), Point2D({3.0, 3.0}), Point2D({2.0, 3.0})});
-      const PolygonStatic2D disjoint_clip(
-        {Point2D({-1.0, -1.0}), Point2D({0.0, -1.0}), Point2D({0.0, 0.0}), Point2D({-1.0, 0.0})});
+    const PolygonStatic2D disjoint_subject(
+      {Point2D({2.0, 2.0}), Point2D({3.0, 2.0}), Point2D({3.0, 3.0}), Point2D({2.0, 3.0})});
+    const PolygonStatic2D disjoint_clip(
+      {Point2D({-1.0, -1.0}), Point2D({0.0, -1.0}), Point2D({0.0, 0.0}), Point2D({-1.0, 0.0})});
 
-      axom::primal::detail::clipPolygonPolygon(disjoint_subject, disjoint_clip, working, scratch, EPS);
-      outputs_view[1] = working;
+    axom::primal::detail::clipPolygonPolygon(disjoint_subject, disjoint_clip, working, scratch, EPS);
+    outputs_view[1] = working;
 
-      const PolygonStatic2D subject_square(
-        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
-      const PolygonStatic2D clip_rectangle(
-        {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
+    const PolygonStatic2D subject_square(
+      {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
+    const PolygonStatic2D clip_rectangle(
+      {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
 
-      axom::primal::detail::clipPolygonPolygon(subject_square, clip_rectangle, working, scratch, EPS);
-      outputs_view[2] = working;
-    });
+    axom::primal::detail::clipPolygonPolygon(subject_square, clip_rectangle, working, scratch, EPS);
+    outputs_view[2] = working;
+  });
 
   if(axom::execution_space<ExecPolicy>::async())
   {
@@ -867,25 +850,23 @@ void check_polygon_polygon_clip_area(double EPS)
   axom::Array<double> areas_device(2, 2, kernel_allocator);
   auto areas_view = areas_device.view();
 
-  axom::for_all<ExecPolicy>(
-    1,
-    AXOM_LAMBDA(int i) {
-      AXOM_UNUSED_VAR(i);
+  axom::for_all<ExecPolicy>(1, [=] AXOM_HOST_DEVICE(int i) {
+    AXOM_UNUSED_VAR(i);
 
-      const PolygonStatic2D subject({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
-      const PolygonStatic2D clip(
-        {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+    const PolygonStatic2D subject({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
+    const PolygonStatic2D clip(
+      {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
 
-      areas_view[0] = axom::primal::detail::clipPolygonPolygonArea(subject, clip, EPS);
+    areas_view[0] = axom::primal::detail::clipPolygonPolygonArea(subject, clip, EPS);
 
-      const PolygonStatic2D reversed_subject(
-        {Point2D({0.5, 1.0}), Point2D({1.0, 0.0}), Point2D({0.0, 0.0})});
-      const PolygonStatic2D reversed_clip(
-        {Point2D({0.5, -1.0 / 3.0}), Point2D({0.0, 2.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+    const PolygonStatic2D reversed_subject(
+      {Point2D({0.5, 1.0}), Point2D({1.0, 0.0}), Point2D({0.0, 0.0})});
+    const PolygonStatic2D reversed_clip(
+      {Point2D({0.5, -1.0 / 3.0}), Point2D({0.0, 2.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
 
-      areas_view[1] =
-        axom::primal::detail::clipPolygonPolygonArea(reversed_subject, reversed_clip, EPS, CHECK_SIGN);
-    });
+    areas_view[1] =
+      axom::primal::detail::clipPolygonPolygonArea(reversed_subject, reversed_clip, EPS, CHECK_SIGN);
+  });
 
   if(axom::execution_space<ExecPolicy>::async())
   {

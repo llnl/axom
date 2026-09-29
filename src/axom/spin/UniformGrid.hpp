@@ -475,15 +475,13 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
     min_coord[dim].reset(infinity);
     max_coord[dim].reset(neg_infinity);
   }
-  axom::for_all<ExecSpace>(
-    bboxes.size(),
-    AXOM_LAMBDA(IndexType idx) {
-      for(int dim = 0; dim < NDIMS; dim++)
-      {
-        min_coord[dim].min(bboxes[idx].getMin()[dim]);
-        max_coord[dim].max(bboxes[idx].getMax()[dim]);
-      }
-    });
+  axom::for_all<ExecSpace>(bboxes.size(), [=] AXOM_HOST_DEVICE(IndexType idx) {
+    for(int dim = 0; dim < NDIMS; dim++)
+    {
+      min_coord[dim].min(bboxes[idx].getMin()[dim]);
+      max_coord[dim].max(bboxes[idx].getMax()[dim]);
+    }
+  });
   primal::Point<double, NDIMS> min_pt, max_pt;
   for(int dim = 0; dim < NDIMS; dim++)
   {
@@ -492,9 +490,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
   }
   m_boundingBox = BoxType {min_pt, max_pt};
 #else
-  axom::for_all<ExecSpace>(
-    bboxes.size(),
-    AXOM_HOST_LAMBDA(IndexType idx) { m_boundingBox.addBox(bboxes[idx]); });
+  axom::for_all<ExecSpace>(bboxes.size(),
+                           [=] AXOM_HOST(IndexType idx) { m_boundingBox.addBox(bboxes[idx]); });
 #endif
 
   // Now that we have the bounding box and resolution, initialize the
@@ -511,36 +508,34 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
   NumericArray<int, NDIMS> resolution = m_resolution;
   LatticeType lattice = m_lattice;
 
-  axom::for_all<ExecSpace>(
-    bboxes.size(),
-    AXOM_LAMBDA(IndexType idx) {
-      const BoxType& bbox = bboxes[idx];
-      if(!bbox.isValid())
+  axom::for_all<ExecSpace>(bboxes.size(), [=] AXOM_HOST_DEVICE(IndexType idx) {
+    const BoxType& bbox = bboxes[idx];
+    if(!bbox.isValid())
+    {
+      return;
+    }
+
+    const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
+    const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
+
+    const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
+    const int kUpper = (NDIMS == 2) ? 0 : upperCell[2];
+    const int kStride = (NDIMS == 2) ? 1 : strides[2];
+
+    for(IndexType k = kLower; k <= kUpper; ++k)
+    {
+      const IndexType kOffset = k * kStride;
+      for(IndexType j = lowerCell[1]; j <= upperCell[1]; ++j)
       {
-        return;
-      }
-
-      const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
-      const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
-
-      const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
-      const int kUpper = (NDIMS == 2) ? 0 : upperCell[2];
-      const int kStride = (NDIMS == 2) ? 1 : strides[2];
-
-      for(IndexType k = kLower; k <= kUpper; ++k)
-      {
-        const IndexType kOffset = k * kStride;
-        for(IndexType j = lowerCell[1]; j <= upperCell[1]; ++j)
+        const IndexType jOffset = j * strides[1] + kOffset;
+        for(IndexType i = lowerCell[0]; i <= upperCell[0]; ++i)
         {
-          const IndexType jOffset = j * strides[1] + kOffset;
-          for(IndexType i = lowerCell[0]; i <= upperCell[0]; ++i)
-          {
-            const IndexType ibin = i + jOffset;
-            axom::atomicAdd<ExecSpace>(&binCountsView[ibin], IndexType {1});
-          }
+          const IndexType ibin = i + jOffset;
+          axom::atomicAdd<ExecSpace>(&binCountsView[ibin], IndexType {1});
         }
       }
-    });
+    }
+  });
 
   // 2. Resize bins with counts
   StoragePolicy::template initialize<ExecSpace>(binCounts);
@@ -550,38 +545,36 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
 
   typename StoragePolicy::ViewType binView(*this);
   // 4. Add elements to bins using a counting sort
-  axom::for_all<ExecSpace>(
-    bboxes.size(),
-    AXOM_LAMBDA(IndexType idx) {
-      const BoxType& bbox = bboxes[idx];
-      if(!bbox.isValid())
-      {
-        return;
-      }
+  axom::for_all<ExecSpace>(bboxes.size(), [=] AXOM_HOST_DEVICE(IndexType idx) {
+    const BoxType& bbox = bboxes[idx];
+    if(!bbox.isValid())
+    {
+      return;
+    }
 
-      const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
-      const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
-      const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
-      const int kUpper = (NDIMS == 2) ? 0 : upperCell[2];
-      const int kStride = (NDIMS == 2) ? 1 : strides[2];
+    const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
+    const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
+    const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
+    const int kUpper = (NDIMS == 2) ? 0 : upperCell[2];
+    const int kStride = (NDIMS == 2) ? 1 : strides[2];
 
-      for(int k = kLower; k <= kUpper; ++k)
+    for(int k = kLower; k <= kUpper; ++k)
+    {
+      const int kOffset = k * kStride;
+      for(int j = lowerCell[1]; j <= upperCell[1]; ++j)
       {
-        const int kOffset = k * kStride;
-        for(int j = lowerCell[1]; j <= upperCell[1]; ++j)
+        const int jOffset = j * strides[1] + kOffset;
+        for(int i = lowerCell[0]; i <= upperCell[0]; ++i)
         {
-          const int jOffset = j * strides[1] + kOffset;
-          for(int i = lowerCell[0]; i <= upperCell[0]; ++i)
-          {
-            const IndexType binIndex = i + jOffset;
-            IndexType binCurrOffset;
-            binCurrOffset = axom::atomicAdd<ExecSpace>(&binCountsView[binIndex], IndexType {1});
+          const IndexType binIndex = i + jOffset;
+          IndexType binCurrOffset;
+          binCurrOffset = axom::atomicAdd<ExecSpace>(&binCountsView[binIndex], IndexType {1});
 
-            binView.get(binIndex, binCurrOffset) = objs[idx];
-          }
+          binView.get(binIndex, binCurrOffset) = objs[idx];
         }
       }
-    });
+    }
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -711,12 +704,10 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   const auto counts_view = outCounts;
   axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
   // Step 1: count number of candidate intersections for each point
-  for_all<ExecSpace>(
-    qsize,
-    AXOM_LAMBDA(IndexType i) {
-      counts_view[i] = gridQuery.countCandidates(queryObjs[i]);
-      totalCountReduce += counts_view[i];
-    });
+  for_all<ExecSpace>(qsize, [=] AXOM_HOST_DEVICE(IndexType i) {
+    counts_view[i] = gridQuery.countCandidates(queryObjs[i]);
+    totalCountReduce += counts_view[i];
+  });
 
   // Step 2: exclusive scan for offsets in candidate array
   axom::exclusive_scan<ExecSpace>(outCounts, outOffsets);
@@ -730,20 +721,18 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   const auto candidates_view = outCandidates.view();
 
   // Step 4: fill candidate array for each query box
-  for_all<ExecSpace>(
-    qsize,
-    AXOM_LAMBDA(IndexType i) {
-      int startIdx = offsets_view[i];
-      int currCount = 0;
-      auto onCandidate = [&](int candidateIdx) -> bool {
-        candidates_view[startIdx] = candidateIdx;
-        query_idx_view[startIdx] = i;
-        currCount++;
-        startIdx++;
-        return currCount >= counts_view[i];
-      };
-      gridQuery.visitCandidates(queryObjs[i], onCandidate);
-    });
+  for_all<ExecSpace>(qsize, [=] AXOM_HOST_DEVICE(IndexType i) {
+    int startIdx = offsets_view[i];
+    int currCount = 0;
+    auto onCandidate = [&](int candidateIdx) -> bool {
+      candidates_view[startIdx] = candidateIdx;
+      query_idx_view[startIdx] = i;
+      currCount++;
+      startIdx++;
+      return currCount >= counts_view[i];
+    };
+    gridQuery.visitCandidates(queryObjs[i], onCandidate);
+  });
 
   // Step 5: Sort our resulting candidates for each query object.
   // This brings non-unique candidate intersections together.
@@ -757,18 +746,16 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   else
   {
     // On the CPU, just sort each subrange for each query object.
-    for_all<ExecSpace>(
-      qsize,
-      AXOM_LAMBDA(IndexType i) {
-        int count = counts_view[i];
-        if(count > 0)
-        {
+    for_all<ExecSpace>(qsize, [=] AXOM_HOST_DEVICE(IndexType i) {
+      int count = counts_view[i];
+      if(count > 0)
+      {
   #ifndef AXOM_DEVICE_CODE
-          int startIdx = offsets_view[i];
-          std::sort(candidates_view.begin() + startIdx, candidates_view.begin() + startIdx + count);
+        int startIdx = offsets_view[i];
+        std::sort(candidates_view.begin() + startIdx, candidates_view.begin() + startIdx + count);
   #endif
-        }
-      });
+      }
+    });
   }
 
   // Step 6: Count and flag unique intersection pairs, in order to map them
@@ -776,24 +763,22 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   axom::ReduceSum<ExecSpace, IndexType> dedupCountReduce(0);
   axom::Array<IndexType> dedupTgtIdx(totalCount, totalCount, this->getAllocatorID());
   const auto dedup_idx_view = dedupTgtIdx.view();
-  for_all<ExecSpace>(
-    totalCount,
-    AXOM_LAMBDA(IndexType i) {
-      bool duplicate = false;
-      if(i > 0)
-      {
-        // If the previous candidate pair is the same as the current pair,
-        // skip counting the current pair.
-        const bool sameQueryIdx = (query_idx_view[i - 1] == query_idx_view[i]);
-        const bool sameCandidateIdx = (candidates_view[i - 1] == candidates_view[i]);
-        duplicate = (sameQueryIdx && sameCandidateIdx);
-      }
-      if(!duplicate)
-      {
-        dedupCountReduce += 1;
-        dedup_idx_view[i] = 1;
-      }
-    });
+  for_all<ExecSpace>(totalCount, [=] AXOM_HOST_DEVICE(IndexType i) {
+    bool duplicate = false;
+    if(i > 0)
+    {
+      // If the previous candidate pair is the same as the current pair,
+      // skip counting the current pair.
+      const bool sameQueryIdx = (query_idx_view[i - 1] == query_idx_view[i]);
+      const bool sameCandidateIdx = (candidates_view[i - 1] == candidates_view[i]);
+      duplicate = (sameQueryIdx && sameCandidateIdx);
+    }
+    if(!duplicate)
+    {
+      dedupCountReduce += 1;
+      dedup_idx_view[i] = 1;
+    }
+  });
 
   // Exclusive scan over the flag array gives us the final index of unique
   // pairs in the deduplicated array.
@@ -806,28 +791,26 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   const auto dedup_cand_view = dedupedCandidates.view();
 
   // Reset counts counter for counting unique candidates per query box.
-  for_all<ExecSpace>(qsize, AXOM_LAMBDA(IndexType i) { counts_view[i] = 0; });
+  for_all<ExecSpace>(qsize, [=] AXOM_HOST_DEVICE(IndexType i) { counts_view[i] = 0; });
 
   // Store unique candidates in the deduplicated array, and count the number of
   // unique candidates for each query.
-  for_all<ExecSpace>(
-    totalCount,
-    AXOM_LAMBDA(IndexType i) {
-      bool duplicate = false;
-      if(i > 0)
-      {
-        const bool sameQueryIdx = (query_idx_view[i - 1] == query_idx_view[i]);
-        const bool sameCandidateIdx = (candidates_view[i - 1] == candidates_view[i]);
-        duplicate = (sameQueryIdx && sameCandidateIdx);
-      }
-      if(!duplicate)
-      {
-        IndexType qidx = query_idx_view[i];
-        IndexType tgt_idx = dedup_idx_view[i];
-        axom::atomicAdd<ExecSpace>(&counts_view[qidx], IndexType {1});
-        dedup_cand_view[tgt_idx] = candidates_view[i];
-      }
-    });
+  for_all<ExecSpace>(totalCount, [=] AXOM_HOST_DEVICE(IndexType i) {
+    bool duplicate = false;
+    if(i > 0)
+    {
+      const bool sameQueryIdx = (query_idx_view[i - 1] == query_idx_view[i]);
+      const bool sameCandidateIdx = (candidates_view[i - 1] == candidates_view[i]);
+      duplicate = (sameQueryIdx && sameCandidateIdx);
+    }
+    if(!duplicate)
+    {
+      IndexType qidx = query_idx_view[i];
+      IndexType tgt_idx = dedup_idx_view[i];
+      axom::atomicAdd<ExecSpace>(&counts_view[qidx], IndexType {1});
+      dedup_cand_view[tgt_idx] = candidates_view[i];
+    }
+  });
 
   // Regenerate offsets for the new candidates array.
   axom::exclusive_scan<ExecSpace>(outCounts, outOffsets);

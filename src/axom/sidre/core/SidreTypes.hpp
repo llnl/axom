@@ -69,7 +69,7 @@ inline bool indexIsValid(IndexType idx) { return idx != InvalidIndex; }
 /*!
  * \brief Returns true if name is valid, else false.
  */
-inline bool nameIsValid(const std::string &name)
+inline bool nameIsValid(const std::string& name)
 {
   return name != axom::utilities::string::InvalidName;
 }
@@ -213,10 +213,10 @@ template <>
 struct formatter<axom::sidre::DataTypeId>
 {
   // no format specifiers in this example
-  constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
   template <typename FormatContext>
-  auto format(axom::sidre::DataTypeId dt, FormatContext &ctx) const
+  auto format(axom::sidre::DataTypeId dt, FormatContext& ctx) const
   {
     // map enum to its name
     std::string name;

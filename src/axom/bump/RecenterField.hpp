@@ -57,7 +57,7 @@ public:
    * \param relation    The node that contains an o2mrelation with nodes to zones.
    * \param out_field[out] The node that will contain the new field.
    */
-  void execute(const conduit::Node &field, const conduit::Node &relation, conduit::Node &out_field) const
+  void execute(const conduit::Node& field, const conduit::Node& relation, conduit::Node& out_field) const
   {
     const std::string association = field.fetch_existing("association").as_string();
 
@@ -66,12 +66,12 @@ public:
     out_field["topology"] = field["topology"];
 
     // Make output values.
-    const conduit::Node &n_values = field["values"];
+    const conduit::Node& n_values = field["values"];
     if(n_values.number_of_children() > 0)
     {
       for(conduit::index_t c = 0; c < n_values.number_of_children(); c++)
       {
-        const conduit::Node &n_comp = n_values[c];
+        const conduit::Node& n_comp = n_values[c];
         recenterSingleComponent(n_comp, relation, out_field["values"][n_comp.name()]);
       }
     }
@@ -93,18 +93,18 @@ private:
    * \param n_comp      The input component.
    * \param n_out[out] The node that will contain the new field.
    */
-  void recenterSingleComponent(const conduit::Node &n_comp,
-                               const conduit::Node &relation,
-                               conduit::Node &n_out) const
+  void recenterSingleComponent(const conduit::Node& n_comp,
+                               const conduit::Node& relation,
+                               conduit::Node& n_out) const
   {
     namespace utils = axom::bump::utilities;
     // Get the data field for the o2m relation.
     const auto data_paths = conduit::blueprint::o2mrelation::data_paths(relation);
 
     // Use the o2mrelation to average data from n_comp to the n_out.
-    const conduit::Node &n_relvalues = relation[data_paths[0]];
-    const conduit::Node &n_sizes = relation["sizes"];
-    const conduit::Node &n_offsets = relation["offsets"];
+    const conduit::Node& n_relvalues = relation[data_paths[0]];
+    const conduit::Node& n_sizes = relation["sizes"];
+    const conduit::Node& n_offsets = relation["offsets"];
     views::indexNodeToArrayViewSame(
       n_relvalues,
       n_sizes,
@@ -141,21 +141,19 @@ private:
     using Precision = typename DataView::value_type;
     using AccumType = typename axom::bump::utilities::accumulation_traits<Precision>::type;
     const auto rel_size = sizes_view.size();
-    axom::for_all<ExecSpace>(
-      rel_size,
-      AXOM_LAMBDA(axom::IndexType rel_index) {
-        const auto n = static_cast<axom::IndexType>(sizes_view[rel_index]);
-        const auto offset = offsets_view[rel_index];
+    axom::for_all<ExecSpace>(rel_size, [=] AXOM_HOST_DEVICE(axom::IndexType rel_index) {
+      const auto n = static_cast<axom::IndexType>(sizes_view[rel_index]);
+      const auto offset = offsets_view[rel_index];
 
-        AccumType sum {};
-        for(axom::IndexType i = 0; i < n; i++)
-        {
-          const auto id = rel_view[offset + i];
-          sum += static_cast<AccumType>(comp_view[id]);
-        }
+      AccumType sum {};
+      for(axom::IndexType i = 0; i < n; i++)
+      {
+        const auto id = rel_view[offset + i];
+        sum += static_cast<AccumType>(comp_view[id]);
+      }
 
-        out_view[rel_index] = static_cast<Precision>(sum / n);
-      });
+      out_view[rel_index] = static_cast<Precision>(sum / n);
+    });
   }
 
 private:

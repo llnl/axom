@@ -11,11 +11,7 @@
 #include "axom/slam/Set.hpp"
 #include "axom/slam/policies/InterfacePolicies.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 namespace detail
 {
@@ -56,6 +52,4 @@ struct SetInterfaceSelector<VirtualInterface, PosType, ElemType>
 template <typename InterfacePolicy, typename PosType, typename ElemType>
 using SetInterface = typename detail::SetInterfaceSelector<InterfacePolicy, PosType, ElemType>::Type;
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam::policies
