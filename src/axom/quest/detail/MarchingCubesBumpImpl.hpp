@@ -530,8 +530,11 @@ private:
         Cache each node's sign in a byte. Adjacent zones share corners, so this
         avoids repeated strided reads of the double field.
       */
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingZoneAllocation");
       crossingZones = axom::Array<axom::IndexType>(0, 0, m_allocatorID);
       crossingZones.reserve(nZones);
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingZoneAllocation");
+      AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingClassificationAndCompaction");
       {
         // Node-sign plane cache: signs for logical k and k+1 (3D), or the single plane (2D).
         // Indexed [j * pi + i] over NODE counts.
@@ -618,7 +621,10 @@ private:
             }
           }
         }
+        AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingClassificationAndCompaction");
+        AXOM_ANNOTATE_BEGIN("MarchingCubesBumpImpl::crossingScratchRelease");
       }
+      AXOM_ANNOTATE_END("MarchingCubesBumpImpl::crossingScratchRelease");
 
       attachSelectedZonesOption(n_options, crossingZones);
       return !crossingZones.empty();
