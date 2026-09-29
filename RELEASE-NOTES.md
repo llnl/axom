@@ -23,6 +23,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   of whether Axom is configured with Umpire enabled. Umpire builds may opt into the Umpire `HOST` resource with
   `-DAXOM_DEFAULT_HOST_ALLOCATOR=UMPIRE_HOST`. Runtime per-use selection remains available through existing explicit
   allocator-ID arguments.
+- Tools: Replaces `gen-multidom-structured-mesh.py` with `gen-cartesian-blueprint-mesh.py`, which generates 2D or 3D,
+  single- or multidomain Cartesian Blueprint meshes with structured, strided-structured, or unstructured topology and optional analytic fields.
 
 ### Removed
 
