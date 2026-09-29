@@ -243,8 +243,6 @@ inline int isend_using_schema(conduit::Node& node,
 */
 class DistributedClosestPointImpl
 {
-protected:
-
 public:
   DistributedClosestPointImpl(int allocatorID, bool isVerbose)
     : m_allocatorID(allocatorID)
@@ -332,22 +330,158 @@ public:
     m_outputDomainIndex = outputDomainIndex;
   }
 
+  virtual void computeClosestPoints(conduit::Node& queryMesh,
+                                    const std::string& topologyName) const = 0;
+
+protected:
+  int m_allocatorID;
+  int m_mpiAllocatorID;
+  bool m_isVerbose;
+
+  MPI_Comm m_mpiComm;
+  int m_rank;
+  int m_nranks;
+
+  double m_sqDistanceThreshold;
+
+  bool m_dynamicDistanceFiltering = true;
+
+  bool m_outputRank = true;
+  bool m_outputIndex = true;
+  bool m_outputDistance = true;
+  bool m_outputCoords = true;
+  bool m_outputDomainIndex = true;
+
+  struct MinCandidate
+  {
+    /// Squared distance to query point
+    double sqDist {numerics::floating_point_limits<double>::max()};
+    /// Index of domain of closest element
+    int domainIdx {-1};
+    /// Index within domain of closest element
+    int pointIdx {-1};
+    /// MPI rank of closest element
+    int rank {-1};
+  };
+};
+
+template <int NDIMS, typename ExecSpace>
+struct DCPTransferNode
+{
+  using PointType = primal::Point<double, NDIMS>;
+  using BoxType = primal::BoundingBox<double, NDIMS>;
+
+  struct Metadata
+  {
+    int homeRank {-1};
+    int dims {0};
+    int numPoints {0};
+    bool isFirst {true};
+    BoxType aabb;
+  } metadata;
+
+  axom::ArrayView<PointType> points;
+  axom::ArrayView<PointType> cp_coords;
+  axom::ArrayView<double> cp_distance;
+  axom::ArrayView<IndexType> cp_index;
+  axom::ArrayView<IndexType> cp_rank;
+  axom::ArrayView<IndexType> cp_domain_index;
+
+  axom::Array<std::uint8_t> buffer;
+
+  DCPTransferNode(const DCPTransferNode& from, int allocatorID)
+    : metadata(from.metadata)
+    , buffer(from.buffer, allocatorID)
+  {
+    UpdateView();
+  }
+
+  DCPTransferNode(DCPTransferNode&&) noexcept = default;
+  DCPTransferNode& operator=(DCPTransferNode&&) noexcept = default;
+
+  IndexType computeSize(IndexType numPoints) const
+  {
+    constexpr IndexType PerNodeSize = sizeof(Metadata);
+    constexpr IndexType PerPointSize = sizeof(PointType) * 2 + sizeof(double) + 3 * sizeof(IndexType);
+
+    return PerNodeSize + PerPointSize * numPoints;
+  }
+
+  void Allocate(IndexType numPoints, int allocatorID)
+  {
+    IndexType total_size = computeSize(numPoints);
+    buffer = axom::Array<std::uint8_t>(total_size, total_size, allocatorID);
+    UpdateView();
+  }
+
+  void UpdateView()
+  {
+    int numPoints = metadata.numPoints;
+
+    auto* data = buffer.data() + sizeof(Metadata);
+    points = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
+    data += sizeof(PointType) * numPoints;
+
+    cp_coords = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
+    data += sizeof(PointType) * numPoints;
+
+    cp_distance = axom::ArrayView<double>(reinterpret_cast<double*>(data), numPoints);
+    data += sizeof(double) * numPoints;
+
+    cp_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+    data += sizeof(IndexType) * numPoints;
+
+    cp_rank = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+    data += sizeof(IndexType) * numPoints;
+
+    cp_domain_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
+  }
+
+  void Isend(int dst, int tag, MPI_Comm comm, MPI_Request& request)
+  {
+    IndexType total_size = computeSize(metadata.numPoints);
+    axom::copy(buffer.data(), reinterpret_cast<std::uint8_t*>(&metadata), sizeof(Metadata));
+
+    const int mpi_err =
+      MPI_Isend(buffer.data(), static_cast<int>(total_size), MPI_BYTE, dst, tag, comm, &request);
+    SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+    AXOM_UNUSED_VAR(mpi_err);
+  }
+
+  void Irecv(int src, int tag, MPI_Comm comm, MPI_Request& request)
+  {
+    const int mpi_err =
+      MPI_Irecv(buffer.data(), static_cast<int>(buffer.size()), MPI_BYTE, src, tag, comm, &request);
+    SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+    AXOM_UNUSED_VAR(mpi_err);
+  }
+
+  void UpdateMetadataFromBuffer()
+  {
+    axom::copy(reinterpret_cast<std::uint8_t*>(&metadata), buffer.data(), sizeof(Metadata));
+    UpdateView();
+  }
+
+  DCPTransferNode() = default;
+  DCPTransferNode(const DCPTransferNode&) = delete;
+  DCPTransferNode& operator=(const DCPTransferNode&) = delete;
+
   /*!
    * Copy parts of query mesh partition to a conduit::Node for
    * computation and communication.
    * queryNode must be a blueprint multidomain mesh.
    */
-  template <typename TransferNode>
-  void node_copy_query_to_xfer(conduit::Node& queryNode,
-                               TransferNode& xferNode,
-                               const std::string& topologyName) const
+  void copyFromConduitNode(conduit::Node& queryNode,
+                           const std::string& topologyName,
+                           int rank,
+                           int allocatorID)
   {
     const bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(queryNode);
     const auto domainCount = conduit::blueprint::mesh::number_of_domains(queryNode);
-    xferNode.metadata.homeRank = m_rank;
-    xferNode.metadata.isFirst = true;
-    xferNode.metadata.dims = getDimension();
-    xferNode.metadata.numPoints = 0;
+    metadata.homeRank = rank;
+    metadata.isFirst = true;
+    metadata.dims = NDIMS;
+    metadata.numPoints = 0;
     for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
     {
       auto& queryDom = isMultidomain ? queryNode.child(domainNum) : queryNode;
@@ -357,11 +491,11 @@ public:
       conduit::Node& queryCoordsValues = queryCoords.fetch_existing("values");
       const int dim = internal::extractDimension(queryCoordsValues);
       const int qPtCount = internal::extractSize(queryCoordsValues);
-      SLIC_ASSERT(dim == xferNode.metadata.dims);
-      xferNode.metadata.numPoints += qPtCount;
+      SLIC_ASSERT(dim == metadata.dims);
+      metadata.numPoints += qPtCount;
     }
 
-    xferNode.Allocate(xferNode.metadata.numPoints, m_allocatorID);
+    Allocate(metadata.numPoints, allocatorID);
 
     axom::IndexType pointOffset = 0;
     for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
@@ -372,16 +506,19 @@ public:
       conduit::Node& values =
         queryDom.fetch_existing(fmt::format("coordsets/{}/values", coordsetName));
       const int qPtCount = internal::extractSize(values);
-      copy_components_to_interleaved(values, xferNode, pointOffset);
+      copyFromConduitPoints(values, pointOffset);
       pointOffset += qPtCount;
     }
   }
 
   /// Copy xferNode back to query mesh partition.
-  template <typename TransferNode>
-  void node_copy_xfer_to_query(TransferNode& xferNode,
-                               conduit::Node& queryNode,
-                               const std::string& topologyName) const
+  void copyToConduitNode(conduit::Node& queryNode,
+                         const std::string& topologyName,
+                         bool outputRank,
+                         bool outputIndex,
+                         bool outputDomainIndex,
+                         bool outputDistance,
+                         bool outputCoords) const
   {
     const bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(queryNode);
     const auto domainCount = conduit::blueprint::mesh::number_of_domains(queryNode);
@@ -400,45 +537,41 @@ public:
       genericHeaders["association"] = "vertex";
       genericHeaders["topology"] = topologyName;
 
-      if(m_outputRank)
+      if(outputRank)
       {
         auto& dst = fields["cp_rank"];
         dst.set_node(genericHeaders);
-        dst["values"].set(xferNode.cp_rank.data() + pointOffset, qPtCount);
+        dst["values"].set(cp_rank.data() + pointOffset, qPtCount);
       }
 
-      if(m_outputIndex)
+      if(outputIndex)
       {
         auto& dst = fields["cp_index"];
         dst.set_node(genericHeaders);
-        dst["values"].set(xferNode.cp_index.data() + pointOffset, qPtCount);
+        dst["values"].set(cp_index.data() + pointOffset, qPtCount);
       }
 
-      if(m_outputDomainIndex)
+      if(outputDomainIndex)
       {
         auto& dst = fields["cp_domain_index"];
         dst.set_node(genericHeaders);
-        dst["values"].set(xferNode.cp_domain_index.data() + pointOffset, qPtCount);
+        dst["values"].set(cp_domain_index.data() + pointOffset, qPtCount);
       }
 
-      if(m_outputDistance)
+      if(outputDistance)
       {
         auto& dst = fields["cp_distance"];
         dst.set_node(genericHeaders);
-        dst["values"].set(xferNode.cp_distance.data() + pointOffset, qPtCount);
+        dst["values"].set(cp_distance.data() + pointOffset, qPtCount);
       }
 
-      if(m_outputCoords)
+      if(outputCoords)
       {
         auto& dst = fields["cp_coords"];
         dst.set_node(genericHeaders);
         auto& dstValues = dst["values"];
 
-        double* coords_data = reinterpret_cast<double*>(xferNode.cp_coords.data() + pointOffset);
-
-        conduit::Node src;
-        src.set_external(coords_data, qPtCount * xferNode.metadata.dims);
-        copy_interleaved_to_components(src, dstValues);
+        copyToConduitPoints(pointOffset, qPtCount, dstValues);
       }
       pointOffset += qPtCount;
     }
@@ -448,16 +581,13 @@ public:
     Special copy from coordinates (in a format that's not
     necessarily interleaved) to a TransferNode's interleaved point buffer.
   */
-  template <typename TransferNode>
-  void copy_components_to_interleaved(conduit::Node& components,
-                                      TransferNode& xferNode,
-                                      axom::IndexType pointOffset) const
+  void copyFromConduitPoints(conduit::Node& components, axom::IndexType pointOffset) const
   {
-    const int dim = getDimension();
+    const int dim = NDIMS;
     const int qPtCount = internal::extractSize(components);
-    SLIC_ASSERT(dim == xferNode.metadata.dims);
+    SLIC_ASSERT(dim == metadata.dims);
 
-    auto* dst = reinterpret_cast<double*>(xferNode.points.data() + pointOffset);
+    auto* dst = reinterpret_cast<double*>(points.data() + pointOffset);
     const bool interleavedSrc = conduit::blueprint::mcarray::is_interleaved(components);
     if(interleavedSrc)
     {
@@ -484,17 +614,18 @@ public:
     component-wise storage.
     This is a nop if they point to the same data.
   */
-  void copy_interleaved_to_components(const conduit::Node& interleaved, conduit::Node& components) const
+  void copyToConduitPoints(IndexType pointOffset, IndexType qPtCount, conduit::Node& components) const
   {
-    const int dim = getDimension();
-    const int qPtCount = interleaved.dtype().number_of_elements() / dim;
+    const int dim = NDIMS;
     components.reset();
+
+    const auto* interleaved = reinterpret_cast<const double*>(cp_coords.data() + pointOffset);
     // Copy from 1D-interleaved src to component-wise dst.
     for(int d = 0; d < dim; ++d)
     {
-      const double* src = interleaved.as_float64_ptr() + d;
+      const double* src = interleaved + d;
       auto& dstNode = components.append();
-      dstNode.set_dtype(conduit::DataType(interleaved.dtype().id(), qPtCount));
+      dstNode.set_dtype(conduit::DataType::float64(qPtCount));
       double* dst = dstNode.as_float64_ptr();
       for(int i = 0; i < qPtCount; ++i)
       {
@@ -504,9 +635,8 @@ public:
   }
 
   /// Wait for a receive or one or more non-blocking sends to finish.
-  template <typename TransferNode>
-  void wait_mpi_requests(std::deque<std::pair<TransferNode, MPI_Request>>& isendRequests,
-                         MPI_Request& irecvRequest) const
+  static void WaitMPIRequests(std::deque<std::pair<DCPTransferNode, MPI_Request>>& isendRequests,
+                              MPI_Request& irecvRequest)
   {
     AXOM_ANNOTATE_SCOPE("WaitMPIRequests");
     std::vector<MPI_Request> reqs;
@@ -567,41 +697,6 @@ public:
       isendRequests.pop_back();
     }
   }
-
-  virtual void computeClosestPoints(conduit::Node& queryMesh,
-                                    const std::string& topologyName) const = 0;
-
-protected:
-  int m_allocatorID;
-  int m_mpiAllocatorID;
-  bool m_isVerbose;
-
-  MPI_Comm m_mpiComm;
-  int m_rank;
-  int m_nranks;
-
-  double m_sqDistanceThreshold;
-
-  bool m_dynamicDistanceFiltering = true;
-
-  bool m_outputRank = true;
-  bool m_outputIndex = true;
-  bool m_outputDistance = true;
-  bool m_outputCoords = true;
-  bool m_outputDomainIndex = true;
-
-  struct MinCandidate
-  {
-    /// Squared distance to query point
-    double sqDist {numerics::floating_point_limits<double>::max()};
-    /// Index of domain of closest element
-    int domainIdx {-1};
-    /// Index within domain of closest element
-    int pointIdx {-1};
-    /// MPI rank of closest element
-    int rank {-1};
-  };
-
 };
 
 /*!
@@ -628,105 +723,7 @@ public:
   using BoxArray = axom::Array<BoxType>;
   using BVHTreeType = spin::BVH<DIM, ExecSpace>;
 
-private:
-  struct TransferNode
-  {
-    struct Metadata
-    {
-      int homeRank {-1};
-      int dims {0};
-      int numPoints {0};
-      bool isFirst {true};
-      BoxType aabb;
-    } metadata;
-
-    axom::ArrayView<PointType> points;
-    axom::ArrayView<PointType> cp_coords;
-    axom::ArrayView<double> cp_distance;
-    axom::ArrayView<IndexType> cp_index;
-    axom::ArrayView<IndexType> cp_rank;
-    axom::ArrayView<IndexType> cp_domain_index;
-
-    axom::Array<std::uint8_t> buffer;
-
-    TransferNode(const TransferNode& from, int allocatorID)
-      : metadata(from.metadata)
-      , buffer(from.buffer, allocatorID)
-    {
-      UpdateView();
-    }
-
-    TransferNode(TransferNode&&) noexcept = default;
-    TransferNode& operator=(TransferNode&&) noexcept = default;
-
-    IndexType computeSize(IndexType numPoints) const
-    {
-      constexpr IndexType PerNodeSize = sizeof(Metadata);
-      constexpr IndexType PerPointSize =
-        sizeof(PointType) * 2 + sizeof(double) + 3 * sizeof(IndexType);
-
-      return PerNodeSize + PerPointSize * numPoints;
-    }
-
-    void Allocate(IndexType numPoints, int allocatorID)
-    {
-      IndexType total_size = computeSize(numPoints);
-      buffer = axom::Array<std::uint8_t>(total_size, total_size, allocatorID);
-      UpdateView();
-    }
-
-    void UpdateView()
-    {
-      int numPoints = metadata.numPoints;
-
-      auto* data = buffer.data() + sizeof(Metadata);
-      points = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
-      data += sizeof(PointType) * numPoints;
-
-      cp_coords = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
-      data += sizeof(PointType) * numPoints;
-
-      cp_distance = axom::ArrayView<double>(reinterpret_cast<double*>(data), numPoints);
-      data += sizeof(double) * numPoints;
-
-      cp_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
-      data += sizeof(IndexType) * numPoints;
-
-      cp_rank = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
-      data += sizeof(IndexType) * numPoints;
-
-      cp_domain_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
-    }
-
-    void Isend(int dst, int tag, MPI_Comm comm, MPI_Request& request)
-    {
-      IndexType total_size = computeSize(metadata.numPoints);
-      axom::copy(buffer.data(), reinterpret_cast<std::uint8_t*>(&metadata), sizeof(Metadata));
-
-      const int mpi_err =
-        MPI_Isend(buffer.data(), static_cast<int>(total_size), MPI_BYTE, dst, tag, comm, &request);
-      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
-      AXOM_UNUSED_VAR(mpi_err);
-    }
-
-    void Irecv(int src, int tag, MPI_Comm comm, MPI_Request& request)
-    {
-      const int mpi_err =
-        MPI_Irecv(buffer.data(), static_cast<int>(buffer.size()), MPI_BYTE, src, tag, comm, &request);
-      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
-      AXOM_UNUSED_VAR(mpi_err);
-    }
-
-    void UpdateMetadataFromBuffer()
-    {
-      axom::copy(reinterpret_cast<std::uint8_t*>(&metadata), buffer.data(), sizeof(Metadata));
-      UpdateView();
-    }
-
-    TransferNode() = default;
-    TransferNode(const TransferNode&) = delete;
-    TransferNode& operator=(const TransferNode&) = delete;
-  };
+  using TransferNode = DCPTransferNode<NDIMS, ExecSpace>;
 
 public:
   /*!
@@ -907,7 +904,7 @@ public:
       TransferNode& xferNode = localXferNode;
       // create conduit Node containing data that has to xfer between ranks.
       // The node will be mostly empty if there are no domains on this rank
-      node_copy_query_to_xfer(queryMesh, xferNode, topologyName);
+      xferNode.copyFromConduitNode(queryMesh, topologyName, m_rank, m_allocatorID);
 
       BoxType myQueryBb = computeMeshBoundingBox(xferNode);
       xferNode.metadata.aabb = myQueryBb;
@@ -1017,7 +1014,7 @@ public:
       recvXferNode.Irecv(MPI_ANY_SOURCE, tag, m_mpiComm, recv_req);
 
       // Wait for receive to complete
-      wait_mpi_requests(isendRequests, recv_req);
+      TransferNode::WaitMPIRequests(isendRequests, recv_req);
       recvXferNode.UpdateMetadataFromBuffer();
 
       --remainingRecvs;
@@ -1066,18 +1063,23 @@ public:
         }
         auto& req = isendRequests.back();
         req.first.Isend(nextRecipient, tag, m_mpiComm, req.second);
-
       }
 
     }  // remainingRecvs loop
 
     // Complete remaining non-blocking sends.
     MPI_Request recv_req = MPI_REQUEST_NULL;
-    wait_mpi_requests(isendRequests, recv_req);
+    TransferNode::WaitMPIRequests(isendRequests, recv_req);
     SLIC_ASSERT(isendRequests.empty());
 
     {
-      node_copy_xfer_to_query(localXferNode, queryMesh, topologyName);
+      localXferNode.copyToConduitNode(queryMesh,
+                                      topologyName,
+                                      m_outputRank,
+                                      m_outputIndex,
+                                      m_outputDomainIndex,
+                                      m_outputDistance,
+                                      m_outputCoords);
     }
 
     MPI_Barrier(m_mpiComm);
