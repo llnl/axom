@@ -382,7 +382,6 @@ struct DCPTransferNode
 
   axom::ArrayView<PointType> points;
   axom::ArrayView<PointType> cp_coords;
-  axom::ArrayView<double> cp_distance;
   axom::ArrayView<IndexType> cp_index;
   axom::ArrayView<IndexType> cp_rank;
   axom::ArrayView<IndexType> cp_domain_index;
@@ -402,7 +401,7 @@ struct DCPTransferNode
   IndexType computeSize(IndexType numPoints) const
   {
     constexpr IndexType PerNodeSize = sizeof(Metadata);
-    constexpr IndexType PerPointSize = sizeof(PointType) * 2 + sizeof(double) + 3 * sizeof(IndexType);
+    constexpr IndexType PerPointSize = sizeof(PointType) * 2 + 3 * sizeof(IndexType);
 
     return PerNodeSize + PerPointSize * numPoints;
   }
@@ -424,9 +423,6 @@ struct DCPTransferNode
 
     cp_coords = axom::ArrayView<PointType>(reinterpret_cast<PointType*>(data), numPoints);
     data += sizeof(PointType) * numPoints;
-
-    cp_distance = axom::ArrayView<double>(reinterpret_cast<double*>(data), numPoints);
-    data += sizeof(double) * numPoints;
 
     cp_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
     data += sizeof(IndexType) * numPoints;
@@ -514,6 +510,7 @@ struct DCPTransferNode
   /// Copy xferNode back to query mesh partition.
   void copyToConduitNode(conduit::Node& queryNode,
                          const std::string& topologyName,
+                         int allocatorID,
                          bool outputRank,
                          bool outputIndex,
                          bool outputDomainIndex,
@@ -560,6 +557,17 @@ struct DCPTransferNode
 
       if(outputDistance)
       {
+        // Distance to closest point is a derived quantity
+        auto points_v = points;
+        auto cp_coords_v = cp_coords;
+        axom::Array<double> cp_distance(qPtCount, qPtCount, allocatorID);
+        auto cp_distance_v = cp_distance.view();
+
+        axom::for_all<ExecSpace>(qPtCount, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
+          double squared_dist = axom::primal::squared_distance(points_v[idx], cp_coords_v[idx]);
+          cp_distance_v[idx] = sqrt(squared_dist);
+        });
+
         auto& dst = fields["cp_distance"];
         dst.set_node(genericHeaders);
         dst["values"].set(cp_distance.data() + pointOffset, qPtCount);
@@ -1075,6 +1083,7 @@ public:
     {
       localXferNode.copyToConduitNode(queryMesh,
                                       topologyName,
+                                      m_allocatorID,
                                       m_outputRank,
                                       m_outputIndex,
                                       m_outputDomainIndex,
@@ -1219,11 +1228,6 @@ public:
       auto query_ranks = xferNode.cp_rank;
       auto query_pos = xferNode.cp_coords;
 
-      // DEBUG
-      const bool has_cp_distance = true;
-      auto query_min_dist = xferNode.cp_distance;
-      // END DEBUG
-
       if(is_first)
       {
         query_ranks.fill(-1);
@@ -1231,7 +1235,6 @@ public:
         query_doms.fill(-1);
         const PointType nowhere(axom::numeric_limits<double>::signaling_NaN());
         query_pos.fill(nowhere);
-        query_min_dist.fill(axom::numeric_limits<double>::signaling_NaN());
       }
 
       if(hasObjectPoints)
@@ -1293,11 +1296,6 @@ public:
               query_doms[idx] = curr_min.domainIdx;
               query_ranks[idx] = curr_min.rank;
               query_pos[idx] = ptCoordsView[curr_min.pointIdx];
-
-              if(has_cp_distance)
-              {
-                query_min_dist[idx] = sqrt(curr_min.sqDist);
-              }
             }
 
             maxSqDistance.max(curr_min.rank >= 0 ? curr_min.sqDist : sqDistThreshold);
@@ -1352,12 +1350,6 @@ public:
               query_doms[idx] = curr_min.domainIdx;
               query_ranks[idx] = curr_min.rank;
               query_pos[idx] = ptCoordsView[curr_min.pointIdx];
-
-              //DEBUG
-              if(has_cp_distance)
-              {
-                query_min_dist[idx] = sqrt(curr_min.sqDist);
-              }
             }
           });
         }
