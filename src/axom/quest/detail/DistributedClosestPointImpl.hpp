@@ -901,10 +901,12 @@ public:
 
     std::deque<std::pair<TransferNode, MPI_Request>> isendRequests;
 
+    TransferNode localXferNode;
+
     {
+      TransferNode& xferNode = localXferNode;
       // create conduit Node containing data that has to xfer between ranks.
       // The node will be mostly empty if there are no domains on this rank
-      TransferNode xferNode;
       node_copy_query_to_xfer(queryMesh, xferNode, topologyName);
 
       BoxType myQueryBb = computeMeshBoundingBox(xferNode);
@@ -958,12 +960,7 @@ public:
         SLIC_ASSERT(firstRecipForMyQuery == -1);
       }
 
-      if(firstRecipForMyQuery == -1)
-      {
-        // No need to send anywhere.  Put computed data back into queryMesh.
-        node_copy_xfer_to_query(xferNode, queryMesh, topologyName);
-      }
-      else
+      if(firstRecipForMyQuery != -1)
       {
         if(xferNode.buffer.getAllocatorID() == m_mpiAllocatorID)
         {
@@ -1046,7 +1043,7 @@ public:
       ++fullXferRecvs;
       if(homeRank == m_rank)
       {
-        node_copy_xfer_to_query(xferNode, queryMesh, topologyName);
+        localXferNode = std::move(xferNode);
       }
       else
       {
@@ -1078,6 +1075,10 @@ public:
     MPI_Request recv_req = MPI_REQUEST_NULL;
     wait_mpi_requests(isendRequests, recv_req);
     SLIC_ASSERT(isendRequests.empty());
+
+    {
+      node_copy_xfer_to_query(localXferNode, queryMesh, topologyName);
+    }
 
     MPI_Barrier(m_mpiComm);
     slic::flushStreams();
