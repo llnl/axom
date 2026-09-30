@@ -323,12 +323,9 @@ std::string Document::toJson(conduit::index_t indent,
   return this->toNode().to_json("json", indent, depth, pad, eoe);
 }
 
-std::string Document::toJson() const
-{
-  return this->toNode().to_json("json");
-}
+std::string Document::toJson() const { return this->toNode().to_json("json"); }
 
-Document loadDocument(std::string const &path, Protocol protocol)
+Document loadDocument(std::string const& path, Protocol protocol)
 {
   return loadDocument(path, createRecordLoaderWithAllKnownTypes(), protocol);
 }
