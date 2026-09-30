@@ -338,8 +338,8 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
 
     axom_add_executable(
         NAME        quest_marching_cubes_bump_test
+        HEADERS     quest_marching_cubes_testing_helpers.hpp
         SOURCES     quest_marching_cubes_bump.cpp
-                    quest_marching_cubes_testing_helpers.hpp
         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
         DEPENDS_ON  ${quest_mc_bump_depends}
         FOLDER      axom/quest/tests
@@ -357,8 +357,8 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
     # The fixtures are built in memory and do not require HDF5.
     axom_add_executable(
         NAME        quest_marching_cubes_equivalence_test
+        HEADERS     quest_marching_cubes_testing_helpers.hpp
         SOURCES     quest_marching_cubes_equivalence.cpp
-                    quest_marching_cubes_testing_helpers.hpp
         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
         DEPENDS_ON  ${quest_mc_bump_depends}
         FOLDER      axom/quest/tests

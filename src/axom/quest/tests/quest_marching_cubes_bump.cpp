@@ -942,7 +942,7 @@ TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d_seq)
   test_accumulated_analytic_fields<3>(RuntimePolicy::seq);
 }
 
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP) && !defined(_WIN32)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(quest_marching_cubes_bump, structured_round_omp) { test_structured_round(RuntimePolicy::omp); }
 TEST(quest_marching_cubes_bump, structured_planar_mask_omp)
 {

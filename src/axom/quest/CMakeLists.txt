@@ -137,6 +137,11 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
 endif()
 
 if(CONDUIT_FOUND)
+    # On MSVC shared builds where we export all symbols, the policy
+    # instantiations add too many symbols. Build them in a private static library.
+    unset(quest_marching_cubes_sources)
+    set(quest_marching_cubes_sources)
+
     blt_list_append(
         TO       quest_headers
         ELEMENTS MarchingCubes.hpp
@@ -153,21 +158,30 @@ if(CONDUIT_FOUND)
     blt_list_append(
         TO       quest_sources
         ELEMENTS MarchingCubes.cpp
-                 detail/MarchingCubesSingleDomain.cpp
-                 detail/MarchingCubesSingleDomainSeq2D.cpp
+                 detail/MarchingCubesSingleDomain.cpp)
+
+    blt_list_append(
+        TO       quest_marching_cubes_sources
+        ELEMENTS detail/MarchingCubesSingleDomainSeq2D.cpp
                  detail/MarchingCubesSingleDomainSeq3D.cpp)
 
     if(RAJA_FOUND AND AXOM_ENABLE_OPENMP)
-        list(APPEND quest_sources detail/MarchingCubesSingleDomainOpenMP2D.cpp
-                                  detail/MarchingCubesSingleDomainOpenMP3D.cpp)
+        blt_list_append(
+            TO       quest_marching_cubes_sources
+            ELEMENTS detail/MarchingCubesSingleDomainOpenMP2D.cpp
+                     detail/MarchingCubesSingleDomainOpenMP3D.cpp)
     endif()
     if(RAJA_FOUND AND UMPIRE_FOUND AND AXOM_ENABLE_CUDA)
-        list(APPEND quest_sources detail/MarchingCubesSingleDomainCuda2D.cpp
-                                  detail/MarchingCubesSingleDomainCuda3D.cpp)
+        blt_list_append(
+            TO       quest_marching_cubes_sources
+            ELEMENTS detail/MarchingCubesSingleDomainCuda2D.cpp
+                     detail/MarchingCubesSingleDomainCuda3D.cpp)
     endif()
     if(RAJA_FOUND AND UMPIRE_FOUND AND AXOM_ENABLE_HIP)
-        list(APPEND quest_sources detail/MarchingCubesSingleDomainHip2D.cpp
-                                  detail/MarchingCubesSingleDomainHip3D.cpp)
+        blt_list_append(
+            TO       quest_marching_cubes_sources
+            ELEMENTS detail/MarchingCubesSingleDomainHip2D.cpp
+                     detail/MarchingCubesSingleDomainHip3D.cpp)
     endif()
 
     blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit)
@@ -287,6 +301,26 @@ endif()
 #------------------------------------------------------------------------------
 # Make and install the library
 #------------------------------------------------------------------------------
+if(WIN32 AND BUILD_SHARED_LIBS AND quest_marching_cubes_sources)
+    # CMake's Windows auto-export scans the DLL's object files. The Marching
+    # Cubes policy implementations instantiate enough Bump templates to exceed
+    # MSVC's 65535-member import-library limit. Keep these private implementations
+    # in a static archive: they still link into Quest, but are not auto-exported.
+    # The public MarchingCubes API remains in quest_sources and is exported normally.
+    blt_add_library(
+        NAME        quest_marching_cubes_impl
+        SHARED      FALSE
+        SOURCES     ${quest_marching_cubes_sources}
+        DEPENDS_ON  ${quest_depends_on} ${axom_device_depends}
+        FOLDER      axom/quest
+        )
+    if(AXOM_ENABLE_OPENMP)
+        target_link_libraries(quest_marching_cubes_impl PRIVATE openmp)
+    endif()
+else()
+    blt_list_append(TO quest_sources ELEMENTS ${quest_marching_cubes_sources})
+endif()
+
 axom_add_library(
     NAME        quest
     SOURCES     ${quest_sources}
@@ -294,6 +328,11 @@ axom_add_library(
     DEPENDS_ON  ${quest_depends_on}
     FOLDER      axom/quest
     )
+
+if(TARGET quest_marching_cubes_impl)
+    # A private dependency of the DLL; consumers and installations do not need it.
+    target_link_libraries(quest PRIVATE quest_marching_cubes_impl)
+endif()
 
 axom_write_unified_header(NAME    quest
                           HEADERS ${quest_headers}
