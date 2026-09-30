@@ -368,35 +368,9 @@ protected:
 template <int NDIMS, typename ExecSpace>
 struct DCPTransferNode
 {
+private:
   using PointType = primal::Point<double, NDIMS>;
   using BoxType = primal::BoundingBox<double, NDIMS>;
-
-  struct Metadata
-  {
-    int homeRank {-1};
-    int dims {0};
-    int numPoints {0};
-    bool isFirst {true};
-    BoxType aabb;
-  } metadata;
-
-  axom::ArrayView<PointType> points;
-  axom::ArrayView<PointType> cp_coords;
-  axom::ArrayView<IndexType> cp_index;
-  axom::ArrayView<IndexType> cp_rank;
-  axom::ArrayView<IndexType> cp_domain_index;
-
-  axom::Array<std::uint8_t> buffer;
-
-  DCPTransferNode(const DCPTransferNode& from, int allocatorID)
-    : metadata(from.metadata)
-    , buffer(from.buffer, allocatorID)
-  {
-    UpdateView();
-  }
-
-  DCPTransferNode(DCPTransferNode&&) noexcept = default;
-  DCPTransferNode& operator=(DCPTransferNode&&) noexcept = default;
 
   IndexType computeSize(IndexType numPoints) const
   {
@@ -432,6 +406,36 @@ struct DCPTransferNode
 
     cp_domain_index = axom::ArrayView<IndexType>(reinterpret_cast<IndexType*>(data), numPoints);
   }
+
+public:
+  struct Metadata
+  {
+    int homeRank {-1};
+    int dims {0};
+    int numPoints {0};
+    bool isFirst {true};
+    BoxType aabb;
+  } metadata;
+
+  axom::ArrayView<PointType> points;
+  axom::ArrayView<PointType> cp_coords;
+  axom::ArrayView<IndexType> cp_index;
+  axom::ArrayView<IndexType> cp_rank;
+  axom::ArrayView<IndexType> cp_domain_index;
+
+  axom::Array<std::uint8_t> buffer;
+
+  DCPTransferNode(const DCPTransferNode& from, int allocatorID)
+    : metadata(from.metadata)
+    , buffer(from.buffer, allocatorID)
+  {
+    UpdateView();
+  }
+
+  DCPTransferNode(IndexType numPoints, int allocatorID) { Allocate(numPoints, allocatorID); }
+
+  DCPTransferNode(DCPTransferNode&&) noexcept = default;
+  DCPTransferNode& operator=(DCPTransferNode&&) noexcept = default;
 
   void Isend(int dst, int tag, MPI_Comm comm, MPI_Request& request)
   {
@@ -995,8 +999,7 @@ public:
     // Allocate our receive node persistently. This may improve performance by
     // avoiding repeated memory registrations in the MPI implementation.
     // TODO: test this on the CPU
-    TransferNode recvXferNode;
-    recvXferNode.Allocate(maxParticlesToRecv, m_mpiAllocatorID);
+    TransferNode recvXferNode(maxParticlesToRecv, m_mpiAllocatorID);
 
     const int totalExpectedRecvs = remainingRecvs;
     while(remainingRecvs > 0)
@@ -1125,10 +1128,9 @@ public:
                        int tag,
                        std::deque<std::pair<TransferNode, MPI_Request>>& isendRequests) const
   {
-    TransferNode skipToken;
+    TransferNode skipToken(0, m_mpiAllocatorID);
     skipToken.metadata.homeRank = -1;
     skipToken.metadata.dims = DIM;
-    skipToken.Allocate(0, m_mpiAllocatorID);
 
     isendRequests.emplace_back(std::move(skipToken), MPI_Request {});
     auto& req = isendRequests.back();
