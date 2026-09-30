@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "axom/core/ArrayView.hpp"
 #include "axom/spin/ImplicitGrid.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 
@@ -115,12 +116,13 @@ public:
    *
    * \sa PointInCell::locatePoint() for more details about parameters
    */
-  IndexType locatePoint(const double* pos, double* isoparametric) const
+  IndexType locatePoint(axom::ArrayView<const double> pos, axom::ArrayView<double> isoparametric) const
   {
     IndexType containingCell = PointInCellTraits<mesh_tag>::NO_CELL;
 
-    SLIC_ASSERT(pos != nullptr);
-    SpacePoint pt(pos);
+    SLIC_ASSERT(pos.size() == NDIMS);
+    SLIC_ASSERT(isoparametric.empty() || isoparametric.size() == NDIMS);
+    SpacePoint pt(pos.data(), static_cast<int>(pos.size()));
     SpacePoint isopar;
 
     if(DeviceExec)
@@ -134,9 +136,9 @@ public:
     }
 
     // Copy data back to input parameter isoparametric, if necessary
-    if(isoparametric != nullptr)
+    for(IndexType i = 0; i < isoparametric.size() && i < NDIMS; ++i)
     {
-      isopar.array().to_array(isoparametric);
+      isoparametric[i] = isopar[i];
     }
 
     return containingCell;
@@ -273,7 +275,9 @@ public:
       {
         const int cellIdx = candidatesHostPtr[icell + offsetsHostPtr[i]];
         // if isopar is in the proper range
-        if(meshWrapperPtr->locatePointInCell(cellIdx, pt.data(), isopar.data()))
+        if(meshWrapperPtr->locatePointInCell(cellIdx,
+                                             axom::ArrayView<const double>(pt.data(), NDIMS),
+                                             axom::ArrayView<double>(isopar.data(), NDIMS)))
         {
           // then we have found the cellID
           outCellIdsPtr[i] = cellIdx;
@@ -303,7 +307,9 @@ public:
       gridQuery.visitCandidates(pt, [&](int candidateIdx) -> bool {
         if(m_cellBBoxes[candidateIdx].contains(pt))
         {
-          if(m_meshWrapper->locatePointInCell(candidateIdx, pt.data(), isopar.data()))
+          if(m_meshWrapper->locatePointInCell(candidateIdx,
+                                              axom::ArrayView<const double>(pt.data(), NDIMS),
+                                              axom::ArrayView<double>(isopar.data(), NDIMS)))
           {
             outCellIds[i] = candidateIdx;
             return true;

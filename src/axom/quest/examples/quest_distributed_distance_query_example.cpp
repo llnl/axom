@@ -1193,8 +1193,7 @@ public:
     sidre::Group* dstDomains = m_queryMesh.root_group();
     bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(node);
     const int domainCount = dstDomains->getNumGroups();
-    const int srcDomainCount = static_cast<int>(conduit::blueprint::mesh::number_of_domains(node));
-    SLIC_ASSERT(domainCount == srcDomainCount);
+    SLIC_ASSERT(domainCount == static_cast<int>(conduit::blueprint::mesh::number_of_domains(node)));
     for(int d = 0; d < domainCount; ++d)
     {
       sidre::Group& domGroup = *dstDomains->getGroup(d);

@@ -21,16 +21,26 @@ runs = {
   "build-rzwhippet-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-gcc@13.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-intel-oneapi-compilers@2025.2.0-release" : {"policies":["seq", "omp"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzadams-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-tioga-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
+  "build-rzvernal-toss_4_x86_64_ib_cray-cce@21.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.3_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@7.2.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzadams-toss_4_x86_64_ib_cray-cce@21.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.3_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@7.2.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-cce@21.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.3_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@7.2.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
 }
+
+# Generate size arguments for the driver program.
+def size_arguments(params, s):
+  args = []
+  dimension = params["dimension"]
+  if params["driver"] == "mir_concentric_circles":
+    args = ["--gridsize", str(s), "--dimension", str(dimension)]
+  elif params["driver"] == "mir_heavily_mixed":
+    args = ["--dims"] + [str(s)]*dimension
+  return args
 
 def generate(params):
   """
@@ -42,33 +52,36 @@ def generate(params):
     if not os.path.exists(r):
       print(f"Skipping {r}")
       continue
-    filename = os.path.join(r, "run_concentric_circles.bash")
+    filename = os.path.join(r, "run_driver.bash")
 
     f = open(filename, "wt")
     f.write("#!/bin/bash\n\n")
-    f.write("CONCENTRIC_CIRCLES=./examples/mir_concentric_circles\n")
-    f.write("CONCENTRIC_CIRCLES_MPI=./examples/mir_concentric_circles_mpi\n\n")
+    f.write(f"DRIVER=./examples/{params['driver']}\n")
+    f.write(f"DRIVER_MPI=./examples/{params['driver']}_mpi\n\n")
 
     f.write("export OMP_PLACES=cores\n")
     f.write("export OMP_PROC_BIND=spread\n")
     f.write("export OMP_DYNAMIC=FALSE\n")
 
+    extra_args = " ".join(params["extra_arguments"])
+
     dimension = params["dimension"]
     trials = params["trials"]
     for s in params["sizes"]:
       f.write(f"# Size {s}\n")
+      size_args = " ".join(size_arguments(params, s))
       if len(params["parallel"]) > 0:
         # parallel
         for np in params["parallel"]:
           launch = runs[r]["launch"](np)
           for policy in runs[r]["policies"]:
-            f.write(f'echo "Running {launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
-            f.write(f'{launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
+            f.write(f'echo "Running {launch} $DRIVER_MPI {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write"\n')
+            f.write(f'{launch} $DRIVER_MPI {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
       else:
         # serial
         for policy in runs[r]["policies"]:
-          f.write(f'echo "Running --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
-          f.write(f'$CONCENTRIC_CIRCLES --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
+          f.write(f'echo "Running $DRIVER {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write"\n')
+          f.write(f'$DRIVER {size_args} {extra_args} --policy {policy} --method {method} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
 
     f.close()
     os.chmod(filename, 0o700)
@@ -461,9 +474,23 @@ def get_params():
   )
 
   parser.add_argument(
+    "--driver",
+    type=str,
+    help="Driver program to use (e.g., 'mir_concentric_circles', 'mir_heavily_mixed')",
+    required=False
+  )
+
+  parser.add_argument(
     "--method",
     type=str,
     help="MIR method to use (e.g., 'equiz', 'elvira')",
+    required=False
+    )
+
+  parser.add_argument(
+    "--cleanmesh",
+    choices=("on", "off"),
+    help="Set ELVIRA mesh cleanup for the mir_heavily_mixed driver",
     required=False
     )
 
@@ -518,6 +545,21 @@ def get_params():
 
   params = {}
   params["parallel"] = parallel
+  if args.driver is not None:
+    params["driver"] = args.driver
+  else:
+    params["driver"] = "mir_concentric_circles"
+
+  if params["driver"] == "mir_concentric_circles":
+    params["extra_arguments"] = ["--numcircles", "5"]
+  elif params["driver"] == "mir_heavily_mixed":
+    # Lower the default number of materials / refinement
+    params["extra_arguments"] = ["--materials", "20", "--refinement", "20"]
+    if args.cleanmesh is not None:
+      params["extra_arguments"].extend(["--cleanmesh", args.cleanmesh])
+  else:
+    params["extra_arguments"] = []
+
   if args.method is not None:
     params["method"] = args.method
   else:
@@ -583,7 +625,7 @@ def main():
     plot(params)
   else:
     print("Making CSV...")
-    make_csv(params, "concentric_circle_timings.csv")
+    make_csv(params, params["driver"] + "_timings.csv")
 
 if __name__ == "__main__":
   main()
