@@ -42,6 +42,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Adds policy-specific `BVH::BuildParameters` to the BVH constructor and `initialize()`.
   The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
   or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
+- Primal: Adds analytic `intersection_volume()` overloads for a sphere and tetrahedron, available on host and device.
 
 ### Removed
 
@@ -60,6 +61,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   components. For example, `values/2` now reads the second entry of `values = {5.0, 6.0}`.
 - Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
   including layouts that specify only one of those keys.
+- Quest: `MeshClipper` uses analytic sphere-tetrahedron overlap when tetrahedron screening is enabled,
+  making that path independent of sphere refinement. Lower screening levels retain discretized clipping.
+  CPU clipping also reduces traversal overhead and accelerates cone/cylinder screening.
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
