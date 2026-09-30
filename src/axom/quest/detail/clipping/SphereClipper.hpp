@@ -52,6 +52,25 @@ public:
                       axom::ArrayView<const axom::IndexType> cellIds,
                       axom::Array<LabelType>& tetLabels) override;
 
+  /*!
+   * \brief Compute overlap volumes for tetrahedra labeled as boundary tets.
+   *
+   * This sphere-specific path runs after tet screening removes interior and
+   * exterior tets. All execution policies use exact analytic sphere-tet
+   * overlap.
+   *
+   * \param [in] shapeMesh the mesh being clipped
+   * \param [in,out] ovlap the per-cell overlap volumes to accumulate
+   * \param [in] tetIds the boundary tetrahedra to clip
+   * \param [in,out] statistics the clipping statistics to update
+   * \return true when the specialized path performs the clipping
+   * \note Results do not depend on the sphere refinement level.
+   */
+  bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<double> ovlap,
+                           const axom::ArrayView<IndexType>& tetIds,
+                           conduit::Node& statistics) override;
+
   bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh,
                          axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;
 
@@ -79,6 +98,24 @@ private:
   void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                           axom::ArrayView<const axom::IndexType> cellIds,
                           axom::ArrayView<LabelType> tetLabels);
+
+  /*!
+   * \brief Execution-space implementation of the sphere-specific boundary-tet clip.
+   *
+   * All execution policies compute exact analytic sphere-tet overlap.
+   *
+   * \tparam ExecSpace the execution space
+   * \param [in] shapeMesh the mesh being clipped
+   * \param [in,out] ovlap the per-cell overlap volumes to accumulate
+   * \param [in] tetIds the boundary tetrahedra to clip
+   * \param [in,out] statistics the clipping statistics to update
+   * \return true when the specialized path performs the clipping
+   */
+  template <typename ExecSpace>
+  bool specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                               axom::ArrayView<double> ovlap,
+                               const axom::ArrayView<IndexType>& tetIds,
+                               conduit::Node& statistics);
 
   //!@brief Compute LabelType for a polyhedron (hex or tet in our case).
   template <typename Polyhedron>

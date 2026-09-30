@@ -6,6 +6,7 @@
 
 #include "axom/config.hpp"
 
+#include "axom/primal/operators/intersection_volume.hpp"
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 
@@ -73,6 +74,8 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   auto cellVolumes = shapeMesh.getCellVolumes();
   constexpr double EPS = 1e-10;
   auto sphere = m_sphere;
+
+  AXOM_ANNOTATE_SCOPE("SphereClipper::label_cells");
   axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
     LabelType& cellLabel = labels[cellId];
     if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS))
@@ -139,10 +142,12 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
                                        axom::ArrayView<LabelType> tetLabels)
 {
   const axom::IndexType cellCount = cellIds.size();
-  auto meshHexes = shapeMesh.getCellsAsHexes();
   auto tetVolumes = shapeMesh.getTetVolumes();
   constexpr double EPS = 1e-10;
   auto sphere = m_sphere;
+
+  AXOM_ANNOTATE_SCOPE("SphereClipper::label_tets");
+  auto meshHexes = shapeMesh.getCellsAsHexes();
 
   axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
     axom::IndexType cellId = cellIds[ci];
@@ -226,7 +231,7 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
 
   auto octsView = octs.view();
   auto transformer = m_transformer;
-  int allocId = shapeMesh.getAllocatorID();
+  const int allocId = shapeMesh.getAllocatorID();
   axom::for_all<axom::SEQ_EXEC>(octCount, [=] AXOM_HOST_DEVICE(axom::IndexType iOct) {
     OctahedronType& oct = octsView[iOct];
     for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
@@ -236,7 +241,7 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
     }
   });
 
-  // The disretize method uses host data.  Place into proper space if needed.
+  // The discretize method uses host data. Place into the required allocator if needed.
   if(octs.getAllocatorID() != allocId)
   {
     octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
@@ -246,6 +251,67 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
                                name(),
                                m_levelOfRefinement,
                                octs.size()));
+  return true;
+}
+
+bool SphereClipper::specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                                        axom::ArrayView<double> ovlap,
+                                        const axom::ArrayView<IndexType>& tetIds,
+                                        conduit::Node& statistics)
+{
+  // Dispatch the analytic sphere-tetrahedron overlap in the selected execution
+  // space.
+  bool didClip = false;
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    didClip = specializedClipTetsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    didClip = specializedClipTetsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    didClip = specializedClipTetsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    didClip = specializedClipTetsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return didClip;
+}
+
+template <typename ExecSpace>
+bool SphereClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                            axom::ArrayView<double> ovlap,
+                                            const axom::ArrayView<IndexType>& tetIds,
+                                            conduit::Node& statistics)
+{
+  AXOM_ANNOTATE_SCOPE("SphereClipper::specialized_clip");
+  auto meshTets = shapeMesh.getCellsAsTets();
+  const auto sphere = m_sphere;
+  const IndexType tetCount = tetIds.size();
+
+  AXOM_ANNOTATE_BEGIN("SphereClipper::exact_overlap");
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
+    const axom::IndexType tetId = tetIds[ti];
+    const axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
+    SLIC_ASSERT(cellId >= 0 && cellId < ovlap.size());
+    const auto& tet = meshTets[tetId];
+    const double volume = primal::intersection_volume(sphere, tet);
+    detail::addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, volume);
+  });
+  AXOM_ANNOTATE_END("SphereClipper::exact_overlap");
+
+  statistics["onSum"].set_int64(tetCount);
+  statistics["clipsSum"].set_int64(tetCount);
   return true;
 }
 

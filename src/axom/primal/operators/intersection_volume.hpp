@@ -14,17 +14,72 @@
  *        another primal primitive
  */
 
-#include "axom/primal/geometry/Tetrahedron.hpp"
+#include "axom/primal/geometry/Sphere.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"
 #include "axom/primal/geometry/Polyhedron.hpp"
 #include "axom/primal/geometry/Tetrahedron.hpp"
 
 #include "axom/primal/operators/clip.hpp"
+#include "axom/primal/operators/detail/intersection_volume_sphere_tet_impl.hpp"
 
 namespace axom
 {
 namespace primal
 {
+/*!
+ * \brief Finds the exact sphere-tetrahedron intersection volume.
+ *
+ * The computation normalizes the tetrahedron against a unit sphere and uses
+ * inclusion-exclusion over spherical caps, edge wedges, and vertex cones.
+ *
+ * \tparam T the coordinate type
+ * \param [in] sphere the sphere
+ * \param [in] tet the tetrahedron
+ * \return the unsigned intersection volume
+ * \note This overload is available in host and device code.
+ */
+template <typename T>
+AXOM_HOST_DEVICE T intersection_volume(const Sphere<T, 3>& sphere, const Tetrahedron<T, 3>& tet)
+{
+  const double radius = static_cast<double>(sphere.getRadius());
+  if(radius <= 0.0)
+  {
+    return T {};
+  }
+
+  const auto& center = sphere.getCenter();
+  axom::StackArray<detail::sphere_tet::Point3, detail::sphere_tet::NUM_VERTICES> vertices;
+  for(int vertex = 0; vertex < detail::sphere_tet::NUM_VERTICES; ++vertex)
+  {
+    vertices[vertex] = detail::sphere_tet::Point3 {
+      (static_cast<double>(tet[vertex][0]) - static_cast<double>(center[0])) / radius,
+      (static_cast<double>(tet[vertex][1]) - static_cast<double>(center[1])) / radius,
+      (static_cast<double>(tet[vertex][2]) - static_cast<double>(center[2])) / radius};
+  }
+  const detail::sphere_tet::Tetrahedron3 normalizedGeometry {vertices[0],
+                                                             vertices[1],
+                                                             vertices[2],
+                                                             vertices[3]};
+  const auto normalizedTet = detail::sphere_tet::makeTetCache(normalizedGeometry);
+  const double normalizedVolume = detail::sphere_tet::unitSphereTetOverlap(normalizedTet);
+  return static_cast<T>(normalizedVolume * radius * radius * radius);
+}
+
+/*!
+ * \brief Finds the exact tetrahedron-sphere intersection volume.
+ *
+ * \tparam T the coordinate type
+ * \param [in] tet the tetrahedron
+ * \param [in] sphere the sphere
+ * \return the unsigned intersection volume
+ * \note This overload is available in host and device code.
+ */
+template <typename T>
+AXOM_HOST_DEVICE T intersection_volume(const Tetrahedron<T, 3>& tet, const Sphere<T, 3>& sphere)
+{
+  return intersection_volume(sphere, tet);
+}
+
 /*!
  * \brief Finds the absolute (unsigned) intersection volume between
  *        a hexahedron and a tetrahedron

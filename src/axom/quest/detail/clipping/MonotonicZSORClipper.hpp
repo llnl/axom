@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "axom/core/StackArray.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
@@ -34,6 +35,24 @@ class MonotonicZSORClipper : public MeshClipperStrategy
 {
 public:
   /*!
+   * \brief Cache body-frame mesh vertices shared by segments of the same SOR.
+   *
+   * The mesh and coordinate pointers are non-owning identity checks. The
+   * implementation validates them before reusing \c vertices.
+   */
+  struct BodyVertexCache
+  {
+    /// \brief Mesh associated with the cached vertices.
+    const ShapeMesh* shapeMesh {nullptr};
+
+    /// \brief Coordinate-array identities associated with the cached vertices.
+    axom::StackArray<const double*, 3> sourceCoordinates {{nullptr, nullptr, nullptr}};
+
+    /// \brief Mesh vertices transformed into the SOR body frame.
+    axom::Array<Point3DType> vertices;
+  };
+
+  /*!
    * @brief Constructor.
    *
    * @param [in] kGeom Describes the shape to place
@@ -53,15 +72,24 @@ public:
   MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   /*!
-   * @brief Construct with parameters to override the specifications
+   * \brief Construct with parameters to override the specifications
    * in the klee::Geometry.
+   *
+   * \param [in] kGeom the source geometry and external transformation
+   * \param [in] name the strategy name
+   * \param [in] discreteFunction the SOR curve as \f$(z,r)\f$ points
+   * \param [in] sorOrigin the world-space origin of the SOR axis
+   * \param [in] sorDirection the world-space direction of increasing axial coordinate
+   * \param [in] levelOfRefinement the curved-boundary refinement level
+   * \param [in] bodyVertexCache optional cache shared by segments of the same SOR
    */
   MonotonicZSORClipper(const klee::Geometry& kGeom,
                        const std::string& name,
                        axom::ArrayView<const Point2DType> discreteFunction,
                        const Point3DType& sorOrigin,
                        const Vector3DType& sorDirection,
-                       axom::IndexType levelOfRefinement);
+                       axom::IndexType levelOfRefinement,
+                       std::shared_ptr<BodyVertexCache> bodyVertexCache = {});
 
   virtual ~MonotonicZSORClipper() = default;
 
@@ -163,6 +191,9 @@ private:
    * When needed, we will inverse-transform the mesh.
    */
   axom::primal::experimental::CoordinateTransformer<double> m_invTransformer;
+
+  //! \brief Body-frame vertices shared by segments of the same SOR.
+  std::shared_ptr<BodyVertexCache> m_bodyVertexCache;
 
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,

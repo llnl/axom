@@ -65,6 +65,9 @@ private:
 
   axom::Array<std::shared_ptr<MonotonicZSORClipper>> m_fsorImpls;
 
+  //! \brief Body-frame vertex cache shared by monotonic segments.
+  std::shared_ptr<MonotonicZSORClipper::BodyVertexCache> m_bodyVertexCache;
+
   /*!
    * @brief The discrete r(z) curve as an array of (z,r) coordinates.
    *

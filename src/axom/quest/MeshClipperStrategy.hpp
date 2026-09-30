@@ -9,6 +9,7 @@
 #include "axom/config.hpp"
 
 #include "axom/core/Array.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/ShapeMesh.hpp"
 #include "axom/primal.hpp"
@@ -431,6 +432,34 @@ protected:
    */
   numerics::Matrix<double> m_extTrans;
 };
+
+namespace detail
+{
+
+/*!
+ * \brief Accumulates a volume contribution using execution-space-appropriate synchronization.
+ *
+ * Sequential execution uses direct addition, while parallel execution uses an atomic update
+ * because multiple threads can contribute to the same overlap volume.
+ *
+ * \tparam ExecSpace the execution space used for synchronization
+ * \param [in,out] overlapVolume the accumulated overlap volume
+ * \param [in] value the volume contribution to add
+ */
+template <typename ExecSpace>
+AXOM_HOST_DEVICE inline void addToOverlapVolume(double* overlapVolume, double value)
+{
+  if constexpr(axom::execution_space<ExecSpace>::runtimePolicy() == axom::runtime_policy::Policy::seq)
+  {
+    *overlapVolume += value;
+  }
+  else
+  {
+    axom::atomicAdd<ExecSpace>(overlapVolume, value);
+  }
+}
+
+}  // namespace detail
 
 }  // namespace experimental
 }  // namespace quest

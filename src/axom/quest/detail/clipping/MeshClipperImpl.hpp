@@ -113,6 +113,10 @@ public:
       {
         onIndices = axom::Array<IndexType>(0, 0, labels.getAllocatorID());
       }
+      else
+      {
+        onIndices.resize(ArrayOptions::Uninitialized(), 0);
+      }
       return;
     };
 
@@ -147,12 +151,16 @@ public:
 
     // Space for output index list
     axom::IndexType onCount = onCountReduce.get();
-    if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
+    if(onIndices.getAllocatorID() != labels.getAllocatorID())
     {
       onIndices = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
                                                 onCount,
                                                 0,
                                                 labels.getAllocatorID()};
+    }
+    else
+    {
+      onIndices.resize(axom::ArrayOptions::Uninitialized(), onCount);
     }
 
     auto onIndicesView = onIndices.view();
@@ -267,10 +275,7 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("MeshClipperImpl::computeClipVolumes3DTets");
 
-    ShapeMesh& shapeMesh = getShapeMesh();
     auto meshTets = getShapeMesh().getCellsAsTets();
-
-    const int allocId = shapeMesh.getAllocatorID();
 
     /*
      * Geometry as discrete tets or octs, and their bounding boxes.
@@ -283,34 +288,12 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    /*
-     * Find which shape bounding boxes intersect hexahedron bounding boxes
-     */
-
-    AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
-    // Create a temporary subset of tet bounding boxes,
-    // containing only those listed in tetIndices.
-    // The BVH searches on this array.
     const axom::IndexType tetCount = tetIndices.size();
-    axom::Array<BoundingBoxType> tetBbs(tetCount, tetCount, allocId);
-    axom::ArrayView<BoundingBoxType> tetBbsView = tetBbs.view();
-    axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
-      auto& tetBb = tetBbsView[i];
-      axom::IndexType tetId = tetIndices[i];
-      const auto& tet = meshTets[tetId];
-      for(int j = 0; j < 4; ++j) tetBb.addPoint(tet[j]);
-    });
-
-    axom::Array<IndexType> counts(tetCount, tetCount, allocId);
-    axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
-    axom::Array<IndexType> candidates;
-    auto countsView = counts.view();
-    auto offsetsView = offsets.view();
-    // Get the BVH traverser for doing the 2-pass search manually.
     const auto bvhTraverser = bvh.getTraverser();
+
     /*
-     * Predicate for traversing the BVH.  We enter BVH nodes
-     * whose bounding boxes intersect the query bounding box.
+     * Predicate for traversing the BVH. We enter BVH nodes whose
+     * bounding boxes intersect the query tetrahedron.
      */
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
                                                   const BoundingBoxType& bvhBbox) -> bool {
@@ -318,10 +301,91 @@ public:
       return tetBoxCollision(queryTet, bvhBbox);
     };
 
+    ClippingStats clipStats;
+    const auto screenLevel = myClipper().getScreenLevel();
+
+    // Host execution fuses BVH traversal and clipping to avoid materializing
+    // collision candidates. Device execution skips this block and continues
+    // below with the two-pass candidate workflow.
+    if constexpr(!axom::execution_space<ExecSpace>::onDevice())
+    {
+      constexpr IndexType MIN_PIECES_FOR_BOX_TRAVERSAL = 32;
+      const IndexType pieceCount = useTets ? geomTetsView.size() : geomOctsView.size();
+      const bool useBoxTraversal = pieceCount >= MIN_PIECES_FOR_BOX_TRAVERSAL;
+      AXOM_ANNOTATE_SCOPE(useBoxTraversal ? "MeshClipper:fused_clip_box_traversal"
+                                          : "MeshClipper:fused_clip_exact_traversal");
+      axom::ReduceSum<ExecSpace, IndexType> candidateCountReduce(0);
+      axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+        const auto tetId = tetIndices[iTet];
+        const auto cellId = tetId / NUM_TETS_PER_HEX;
+        const auto& meshTet = meshTets[tetId];
+        BoundingBoxType meshTetBox;
+        if(useBoxTraversal)
+        {
+          meshTetBox = BoundingBoxType {meshTet[0], meshTet[1], meshTet[2], meshTet[3]};
+        }
+        Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+        CoordTransformer toUnitTet(&meshTet[0], unitTet);
+        double overlap = 0.0;
+        IndexType candidateCount = 0;
+
+        auto traversePred = [&](const IndexType&, const BoundingBoxType& bvhBbox) -> bool {
+          return useBoxTraversal ? meshTetBox.intersectsWith(bvhBbox)
+                                 : tetBoxCollision(meshTet, bvhBbox, toUnitTet);
+        };
+
+        auto clipCollision = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
+          const auto pieceId = leafNodes[currentNode];
+          if(useTets)
+          {
+            const auto& piece = geomTetsView[pieceId];
+            if(tetTetCollision(meshTet, piece, toUnitTet))
+            {
+              ++candidateCount;
+              computeMeshTetGeomPieceOverlap(meshTet, piece, toUnitTet, &overlap, clipStats, screenLevel);
+            }
+          }
+          else
+          {
+            const auto& piece = geomOctsView[pieceId];
+            if(tetOctCollision(meshTet, piece, toUnitTet))
+            {
+              ++candidateCount;
+              computeMeshTetGeomPieceOverlap(meshTet, piece, toUnitTet, &overlap, clipStats, screenLevel);
+            }
+          }
+        };
+
+        bvhTraverser.traverse_tree(iTet, clipCollision, traversePred);
+        candidateCountReduce += candidateCount;
+        if(overlap > 0.0)
+        {
+          addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, overlap);
+        }
+      });
+
+      clipStats.copyTo(statistics);
+      statistics["clipsCandidates"].set(candidateCountReduce.get());
+      return;
+    }
+
+    // The device path exposes the candidate and clipping passes as separate
+    // kernels. The host path returns above.
     /*
-     * First pass: count number of collisions each of the tetBbs makes
-     * with the BVH leaves.  Populate the counts array.
+     * Find which shape bounding boxes intersect hexahedron bounding boxes
      */
+
+    AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
+    const int allocId = getShapeMesh().getAllocatorID();
+    axom::Array<IndexType> counts(ArrayOptions::Uninitialized(), tetCount, 0, allocId);
+    axom::Array<IndexType> offsets(ArrayOptions::Uninitialized(), tetCount, 0, allocId);
+    auto countsView = counts.view();
+    auto offsetsView = offsets.view();
+
+    /*
+     * First pass: count the geometry pieces each selected tet may intersect.
+     */
+    AXOM_ANNOTATE_BEGIN("MeshClipper:count_candidates");
     axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
     axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
       axom::IndexType count = 0;
@@ -352,10 +416,13 @@ public:
       countsView[iTet] = count;
       totalCountReduce += count;
     });
+    AXOM_ANNOTATE_END("MeshClipper:count_candidates");
 
     // Compute the offsets array using a prefix scan of counts.
+    AXOM_ANNOTATE_BEGIN("MeshClipper:scan_candidate_counts");
     axom::exclusive_scan<ExecSpace>(counts, offsets);
     const IndexType nCollisions = totalCountReduce.get();
+    AXOM_ANNOTATE_END("MeshClipper:scan_candidate_counts");
 
     /*
      * Allocate 2 arrays to hold info about the meshTet/geometry piece collisions.
@@ -363,14 +430,15 @@ public:
      * - candToTetIdId: indicates the meshTets in the collision,
      *   where candToTetIdId[i] corresponds to meshTets[tetIndices[i]].
      */
-    candidates = axom::Array<IndexType>(nCollisions, nCollisions, allocId);
-    axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
+    axom::Array<IndexType> candidates(ArrayOptions::Uninitialized(), nCollisions, 0, allocId);
+    axom::Array<IndexType> candidateToTet(ArrayOptions::Uninitialized(), nCollisions, 0, allocId);
     auto candidatesView = candidates.view();
-    auto candToTetIdIdView = candToTetIdId.view();
+    auto candToTetIdIdView = candidateToTet.view();
 
     /*
      * Second pass: Populate tet-candidate piece collision arrays.
      */
+    AXOM_ANNOTATE_BEGIN("MeshClipper:populate_candidates");
     axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
       auto offset = offsetsView[iTet];
 
@@ -409,17 +477,14 @@ public:
 
       bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
     });
+    AXOM_ANNOTATE_END("MeshClipper:populate_candidates");
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     SLIC_DEBUG(axom::fmt::format(
       "Running clip loop on {} candidate pieces for the select {} tets of the full {} mesh cells",
       candidates.size(),
       tetCount,
-      shapeMesh.getCellCount()));
-
-    ClippingStats clipStats;
-
-    const auto screenLevel = myClipper().getScreenLevel();
+      getShapeMesh().getCellCount()));
 
     /*
      * Now we have the candidates.  Do the clip loop.
@@ -560,16 +625,20 @@ public:
   }
 
   /*!
-   * @brief Compute overlap volume between a reference tet (from the shape mesh)
+   * \brief Compute overlap volume between a reference tet (from the shape mesh)
    * and a piece (tet or oct) of the discretized geometry.
    *
    * Because primal::clip is so expensive, we do a conservative
    * overlap check on @c meshTet and @c geomPiece to avoid clipping.
    *
-   * @return results of check whether the piece is IN/ON/OUT of the tet.
-   *
-   * @tparam TetOrOctType either a TetrahedronType or OctahedronType,
+   * \tparam TetOrOctType either a TetrahedronType or OctahedronType,
    * the two types a geometry can be discretized into.
+   * \param [in] meshTet the reference tetrahedron from the shape mesh
+   * \param [in] geomPiece the tetrahedron or octahedron from the clipping geometry
+   * \param [in,out] overlapVolume the accumulated overlap volume
+   * \param [in,out] clipStats the clipping statistics to update
+   * \param [in] screenLevel the requested conservative screening level
+   * \return whether the geometry piece is inside, outside, or on the reference tet
    */
   template <typename TetOrOctType>
   AXOM_HOST_DEVICE static inline LabelType computeMeshTetGeomPieceOverlap(
@@ -591,7 +660,7 @@ public:
       if(geomLabel == LabelType::LABEL_IN)
       {
         auto contribVol = geomPieceVolume(geomPiece);
-        axom::atomicAdd<ExecSpace>(overlapVolume, contribVol);
+        addToOverlapVolume<ExecSpace>(overlapVolume, contribVol);
         clipStats.inSum += 1;
         return geomLabel;
       }
@@ -604,7 +673,7 @@ public:
       // Poly is valid
       auto contribVol = poly.volume();
       SLIC_ASSERT(contribVol >= 0);
-      axom::atomicAdd<ExecSpace>(overlapVolume, contribVol);
+      addToOverlapVolume<ExecSpace>(overlapVolume, contribVol);
     }
     else
     {
@@ -615,13 +684,59 @@ public:
   }
 
   /*!
-   * @brief Compute whether a tetrahedron or octhedron is inside,
+   * \brief Compute overlap volume between a reference tet (from the shape mesh)
+   * and a piece (tet or oct) of the discretized geometry using a precomputed
+   * transformation.
+   *
+   * The fused host path invokes this operation for every collision candidate. Reusing
+   * \p toUnitTet avoids reconstructing the affine transformation for each candidate.
+   *
+   * \tparam TetOrOctType either a TetrahedronType or OctahedronType
+   * \param [in] meshTet the reference tetrahedron from the shape mesh
+   * \param [in] geomPiece the tetrahedron or octahedron from the clipping geometry
+   * \param [in] toUnitTet the precomputed map from \p meshTet to the unit tetrahedron
+   * \param [in,out] overlapVolume the accumulated overlap volume
+   * \param [in,out] clipStats the clipping statistics to update
+   * \param [in] screenLevel the requested conservative screening level
+   * \return whether the geometry piece is inside, outside, or on the reference tet
+   */
+  template <typename TetOrOctType>
+  AXOM_HOST_DEVICE static inline LabelType computeMeshTetGeomPieceOverlap(
+    const TetrahedronType& meshTet,
+    const TetOrOctType& geomPiece,
+    const CoordTransformer& toUnitTet,
+    double* overlapVolume,
+    const ClippingStats& clipStats,
+    int screenLevel)
+  {
+    if(screenLevel >= 3)
+    {
+      const LabelType geomLabel = labelPieceInOutOfTet(toUnitTet, geomPiece);
+      if(geomLabel == LabelType::LABEL_OUT)
+      {
+        clipStats.outSum += 1;
+        return geomLabel;
+      }
+      if(geomLabel == LabelType::LABEL_IN)
+      {
+        addToOverlapVolume<ExecSpace>(overlapVolume, geomPieceVolume(geomPiece));
+        clipStats.inSum += 1;
+        return geomLabel;
+      }
+    }
+
+    return computeMeshTetGeomPieceOverlap(meshTet, geomPiece, overlapVolume, clipStats, 0);
+  }
+
+  /*!
+   * \brief Compute whether a tetrahedron or octahedron is inside,
    * outside or on the boundary of a reference tetrahedron,
    * and conservatively label it as on, if not known.
    *
-   * @internal To reduce repeatedly computing toUnitTet for
-   * the same tet, precompute that in the calling function
-   * and use it instead of tet.
+   * \tparam TetOrOctType either a TetrahedronType or OctahedronType
+   * \param [in] tet the reference tetrahedron
+   * \param [in] piece the tetrahedron or octahedron to classify
+   * \return whether \p piece is inside, outside, or on \p tet
    */
   template <typename TetOrOctType>
   AXOM_HOST_DEVICE static inline LabelType labelPieceInOutOfTet(const TetrahedronType& tet,
@@ -629,7 +744,25 @@ public:
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
+    return labelPieceInOutOfTet(toUnitTet, piece);
+  }
 
+  /*!
+   * \brief Compute whether a tetrahedron or octahedron is inside, outside or on
+   * the boundary of a reference tetrahedron using a precomputed transformation.
+   *
+   * Reusing \p toUnitTet avoids reconstructing the affine transformation when several
+   * geometry pieces are tested against the same mesh tetrahedron.
+   *
+   * \tparam TetOrOctType either a TetrahedronType or OctahedronType
+   * \param [in] toUnitTet the precomputed map from the reference tet to the unit tetrahedron
+   * \param [in] piece the tetrahedron or octahedron to classify
+   * \return whether \p piece is inside, outside, or on the reference tetrahedron
+   */
+  template <typename TetOrOctType>
+  AXOM_HOST_DEVICE static inline LabelType labelPieceInOutOfTet(const CoordTransformer& toUnitTet,
+                                                                const TetOrOctType& piece)
+  {
     /*
      * Count (transformed) piece vertices above/below unitTet as unitTet
      * rests on its 4 sides.  Sides 0-2 are perpendicular to the axes.
@@ -673,9 +806,12 @@ public:
   }
 
   /*!
-   * @brief Whether a tet and a bounding box (possibly) intersect.
-   * Answer may be a false positive but never a false negative
-   * (which is why this code lives here instead of in a primal::intersect method).
+   * \brief Determine whether a tetrahedron and bounding box possibly intersect.
+   *
+   * \param [in] tet the tetrahedron to test
+   * \param [in] box the bounding box to test
+   * \return true when the inputs may intersect; false when they are disjoint
+   * \note The result may be a false positive but is never a false negative.
    */
   AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
                                                       const BoundingBoxType& box)
@@ -687,7 +823,48 @@ public:
 
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
+    return tetBoxCollision(box, toUnitTet);
+  }
 
+  /*!
+   * \brief Determine whether a tetrahedron and bounding box possibly intersect using a
+   * precomputed transformation.
+   *
+   * The fused host traversal calls this overload for each visited BVH node. Reusing
+   * \p toUnitTet avoids reconstructing the affine transformation at every node.
+   *
+   * \param [in] tet the tetrahedron to test
+   * \param [in] box the bounding box to test
+   * \param [in] toUnitTet the precomputed map from \p tet to the unit tetrahedron
+   * \return true when the inputs may intersect; false when they are disjoint
+   * \note The result may be a false positive but is never a false negative.
+   */
+  AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
+                                                      const BoundingBoxType& box,
+                                                      const CoordTransformer& toUnitTet)
+  {
+    if(box.contains(tet[0]) || box.contains(tet[1]) || box.contains(tet[2]) || box.contains(tet[3]))
+    {
+      return true;
+    }
+    return tetBoxCollision(box, toUnitTet);
+  }
+
+  /*!
+   * \brief Determine whether a tetrahedron and bounding box possibly intersect using the tet's
+   * precomputed unit-tet transformation.
+   *
+   * This overload contains the shared transformed-corner test so callers can reuse
+   * \p toUnitTet across BVH nodes without duplicating the collision logic.
+   *
+   * \param [in] box the bounding box to test
+   * \param [in] toUnitTet the precomputed map from the reference tet to the unit tetrahedron
+   * \return true when the inputs may intersect; false when they are disjoint
+   * \note The result may be a false positive but is never a false negative.
+   */
+  AXOM_HOST_DEVICE static inline bool tetBoxCollision(const BoundingBoxType& box,
+                                                      const CoordTransformer& toUnitTet)
+  {
     int vsAbove[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     int vsBelow[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     for(int i = 0; i < 8; ++i)
@@ -717,15 +894,39 @@ public:
   }
 
   /*!
-   * @brief Whether a tet and the convex hull of an octahedron (possibly) intersect.
-   * Answer may be a false positive but never a false negative
-   * (which is why this code lives here instead of in a primal::intersect method).
+   * \brief Determine whether a tetrahedron and the convex hull of an octahedron
+   * possibly intersect.
+   *
+   * \param [in] tet the tetrahedron to test
+   * \param [in] oct the octahedron to test
+   * \return true when the inputs may intersect; false when they are disjoint
+   * \note The result may be a false positive but is never a false negative.
    */
   AXOM_HOST_DEVICE static inline bool tetOctCollision(const TetrahedronType& tet,
                                                       const OctahedronType& oct)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
+    return tetOctCollision(tet, oct, toUnitTet);
+  }
+
+  /*!
+   * \brief Determine whether a tetrahedron and the convex hull of an octahedron possibly intersect
+   * using a precomputed transformation.
+   *
+   * Reusing \p toUnitTet avoids reconstructing the affine transformation for each
+   * octahedron candidate encountered by the fused host traversal.
+   *
+   * \param [in] tet the tetrahedron to test
+   * \param [in] oct the octahedron to test
+   * \param [in] toUnitTet the precomputed map from \p tet to the unit tetrahedron
+   * \return true when the inputs may intersect; false when they are disjoint
+   * \note The result may be a false positive but is never a false negative.
+   */
+  AXOM_HOST_DEVICE static inline bool tetOctCollision(const TetrahedronType& tet,
+                                                      const OctahedronType& oct,
+                                                      const CoordTransformer& toUnitTet)
+  {
     int octVertsAbove[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
     int octVertsBelow[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
     for(int i = 0; i < OctahedronType::NUM_VERTS; ++i)
@@ -812,9 +1013,13 @@ public:
   }
 
   /*!
-   * @brief Whether a tet and another tet (possibly) intersect.
-   * Answer may be a false positive but never a false negative
-   * (which is why this code lives here instead of in a primal::intersect method).
+   * \brief Determine whether two tetrahedra possibly intersect.
+   *
+   * \param [in] tetA the first tetrahedron
+   * \param [in] tetB the second tetrahedron
+   * \param [in] flip whether to test \p tetA against the planes of \p tetB when needed
+   * \return true when the inputs may intersect; false when they are disjoint
+   * \note The result may be a false positive but is never a false negative.
    */
   AXOM_HOST_DEVICE static inline bool tetTetCollision(const TetrahedronType& tetA,
                                                       const TetrahedronType& tetB,
@@ -822,7 +1027,28 @@ public:
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tetA[0], unitTet);
+    return tetTetCollision(tetA, tetB, toUnitTet, flip);
+  }
 
+  /*!
+   * \brief Determine whether two tetrahedra possibly intersect using a precomputed
+   * transformation for \p tetA.
+   *
+   * Reusing \p toUnitTet avoids reconstructing the affine transformation for each
+   * tetrahedron candidate encountered by the fused host traversal.
+   *
+   * \param [in] tetA the first tetrahedron
+   * \param [in] tetB the second tetrahedron
+   * \param [in] toUnitTet the precomputed map from \p tetA to the unit tetrahedron
+   * \param [in] flip whether to test \p tetA against the planes of \p tetB when needed
+   * \return true when the inputs may intersect; false when they are disjoint
+   * \note The result may be a false positive but is never a false negative.
+   */
+  AXOM_HOST_DEVICE static inline bool tetTetCollision(const TetrahedronType& tetA,
+                                                      const TetrahedronType& tetB,
+                                                      const CoordTransformer& toUnitTet,
+                                                      bool flip = true)
+  {
     int vsAbove[TetrahedronType::NUM_VERTS] = {0, 0, 0, 0};
     int vsBelow[TetrahedronType::NUM_VERTS] = {0, 0, 0, 0};
     for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
