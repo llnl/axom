@@ -18,31 +18,16 @@
  * \c STLVectorIndirection (\c std::vector) are for interoperation with existing
  * storage, and serve as small reference implementations for custom policies.
  *
- * A valid indirection policy must support the
- * following interface:
- *   * [required]
- *   * type alias IndirectionResult -- the type of the result of an indirection
- *      (const/nonconst and ref/nonref)
- *   * indirection() : IntType  -- returns the value of the element after
- *     indirection
- *   * hasIndirection(): bool -- returns whether there is an indirection
- *     buffer
- *   * isValid() : bool -- indicates whether the Indirection policy of the set
- *      is valid
- *   * [optional]
- *     * operator(): IntType -- alternate accessor for indirection
- *     * data() : ElementType* -- allows direct access to the underlying buffer
- *       (when this exists)
+ * OrderedSet inherits an indirection policy and calls indirection(position).
+ * Map instead stores the policy's buffer type by value and uses its static
+ * access functions. These are separate contracts, defined by
+ * OrderedSetIndirectionPolicyFor and MapIndirectionPolicyFor in Concepts.hpp.
+ * Static relations use ordered-set indirection with additional buffer access.
  *
- * \note An indirection policy describes how storage is reached and, for the
- *  buffer types a Slam object holds by value, how that buffer's lifetime is handled.
- *  It does not change which data structure logically owns the data. 
- *  A \c Map holds its \c OrderedMap buffer by value: 
- *  with \c ArrayIndirection that buffer is an \c axom::Array the map allocates 
- *  and frees as part of its own lifetime, while with \c ArrayViewIndirection 
- *  it is an \c axom::ArrayView referring to a buffer whose lifetime is managed elsewhere
- *  (and which must outlive the map). 
- *  Sets and relations, by contrast, typically refer to buffers managed outside the Slam object.
+ * Ownership depends on the containing type. A Map using ArrayIndirection owns
+ * its axom::Array, while an ordered set or static relation borrows an array
+ * object. ArrayViewIndirection stores a view whose allocation is managed elsewhere.
+ * Borrowed objects and allocations must remain valid for every access.
  */
 
 #include "axom/core/Macros.hpp"
@@ -70,6 +55,7 @@ template <typename BasePolicy>
 struct IndexedIndirection : public BasePolicy
 {
   using PositionType = typename BasePolicy::PosType;
+  using ElementType = typename BasePolicy::ElemType;
 
   using typename BasePolicy::ConstIndirectionResult;
   using typename BasePolicy::IndirectionResult;
@@ -251,9 +237,11 @@ bool IndexedIndirection<BasePolicy>::isValid(PositionType size,
 /**
  * \brief A policy class for sets with no indirection
  */
-template <typename PositionType, typename ElementType>
+template <typename PositionT, typename ElementT>
 struct NoIndirection
 {
+  using PositionType = PositionT;
+  using ElementType = ElementT;
   using IndirectionResult = ElementType;
   using ConstIndirectionResult = const ElementType;
   using IndirectionBufferType = struct
@@ -323,8 +311,8 @@ private:
  * \brief A policy class for sets with C-style array-based indirection
  *
  * \note Indexes a raw pointer, for interoperation with C-style array storage.
- *  For an \c axom::Array buffer the object manages, use \c ArrayIndirection;
- *  for an \c axom::ArrayView of a buffer managed elsewhere, use \c ArrayViewIndirection.
+ *  For an external \c axom::Array buffer, use \c ArrayIndirection.
+ *  For an \c axom::ArrayView of a buffer managed elsewhere, use \c ArrayViewIndirection.
  */
 template <typename PositionType, typename ElementType>
 using CArrayIndirection =
@@ -376,8 +364,8 @@ private:
  * \brief A policy class for sets with std::vector-based indirection
  *
  * \note Indexes a (host-only) \c std::vector, for interoperation with existing \c std::vector storage.
- *  For an \c axom::Array buffer the object manages, use \c ArrayIndirection; 
- *  for an \c axom::ArrayView of a buffer managed elsewhere, use \c ArrayViewIndirection.
+ *  For an external \c axom::Array buffer, use \c ArrayIndirection.
+ *  For an \c axom::ArrayView of a buffer managed elsewhere, use \c ArrayViewIndirection.
  */
 template <typename PositionType, typename ElementType>
 using STLVectorIndirection =
@@ -427,10 +415,9 @@ private:
 /**
  * \brief A policy class for sets with axom::Array-based indirection
  *
- * \note Indexes an \c axom::Array; the default indirection for a \c Map or \c BivariateMap.
- *  A map with this policy holds its \c axom::Array by value and frees it as part of the map's lifetime;
- *  its lifetime-counterpart is \c ArrayViewIndirection, which refers to a buffer managed elsewhere.
- *  Sets and relations with this policy refer to an existing \c axom::Array buffer.
+ * \note The default indirection for Map and BivariateMap. A map with this policy
+ *  owns its axom::Array. Ordered sets and static relations borrow an existing
+ *  array object. Use ArrayViewIndirection to bind an allocation through a view.
  */
 template <typename PositionType, typename ElementType>
 using ArrayIndirection = detail::IndexedIndirection<ArrayIndirectionBase<PositionType, ElementType>>;
@@ -442,6 +429,7 @@ struct ArrayViewIndirectionBase
   using ElemType = ElementType;
 
   using IndirectionResult = ElementType&;
+  // ArrayView has shallow constness: a const view can modify external elements.
   using ConstIndirectionResult = ElementType&;
 
   using IndirectionBufferType = axom::ArrayView<ElementType>;
@@ -480,11 +468,9 @@ private:
 /**
  * \brief A policy class for sets with axom::ArrayView-based indirection
  *
- * \note Indexes an \c axom::ArrayView; the lifetime-counterpart to \c ArrayIndirection.
- *  It holds an \c axom::ArrayView by value and refers to a buffer whose lifetime is managed elsewhere, 
- *  so that backing allocation must outlive the set, map or relation that uses it.
- *  Because \c axom::ArrayView is trivially copyable, Slam objects using this policy 
- *  can be captured by value into device kernels.
+ * \note Holds an \c axom::ArrayView by value. The backing allocation must outlive
+ *  the set, map, or relation that uses it. This policy alone does not certify
+ *  device use: operations and all referenced objects must also be accessible.
  */
 template <typename PositionType, typename ElementType>
 using ArrayViewIndirection =
