@@ -365,6 +365,12 @@ protected:
   };
 };
 
+
+/*!
+ * \class DCPTransferNode
+ *
+ * \brief Holds data for a query mesh in a contiguous buffer.
+ */
 template <int NDIMS, typename ExecSpace>
 struct DCPTransferNode
 {
@@ -425,6 +431,15 @@ public:
 
   axom::Array<std::uint8_t> buffer;
 
+  /*!
+   * \brief Copy constructor for transfer node.
+   *
+   *  This constructor copies the data from a transfer node in one allocator
+   *  into memory for another allocator.
+   *
+   * \param [in] from the node to copy from
+   * \param [in] allocatorID the allocator to copy to
+   */
   DCPTransferNode(const DCPTransferNode& from, int allocatorID)
     : metadata(from.metadata)
     , buffer(from.buffer, allocatorID)
@@ -432,6 +447,15 @@ public:
     UpdateView();
   }
 
+  /*!
+   * \brief Allocate an empty transfer node with backing memroy.
+   *
+   *  This constructor is used to allocate empty memory for incoming transfer node
+   *  receives.
+   *
+   * \param [in] numPoints the max number of points to fit
+   * \param [in] allocatorID the allocator to allocate in
+   */
   DCPTransferNode(IndexType numPoints, int allocatorID) { Allocate(numPoints, allocatorID); }
 
   DCPTransferNode(DCPTransferNode&&) noexcept = default;
@@ -467,9 +491,12 @@ public:
   DCPTransferNode& operator=(const DCPTransferNode&) = delete;
 
   /*!
-   * Copy parts of query mesh partition to a conduit::Node for
-   * computation and communication.
-   * queryNode must be a blueprint multidomain mesh.
+   * \brief Copy a query mesh in Conduit Blueprint format into transfer buffer.
+   *
+   * \param [in] queryNode the blueprint mesh to copy from
+   * \param [in] topologyName name of the coordinate set to use in the blueprint mesh
+   * \param [in] rank current rank of this processor
+   * \param [in] allocatorID where to allocate the storage for the transfer node
    */
   void copyFromConduitNode(conduit::Node& queryNode,
                            const std::string& topologyName,
@@ -511,7 +538,13 @@ public:
     }
   }
 
-  /// Copy xferNode back to query mesh partition.
+  /*!
+   * \brief Write out query results in Conduit Blueprint format
+   *
+   * \param [out] queryNode the blueprint mesh to write to
+   * \param [in] topologyName name of the coordinate set used in the blueprint mesh
+   * \param [in] allocatorID where to allocate the storage for the transfer node
+   */
   void copyToConduitNode(conduit::Node& queryNode,
                          const std::string& topologyName,
                          int allocatorID,
@@ -589,10 +622,15 @@ public:
     }
   }
 
-  /*
-    Special copy from coordinates (in a format that's not
-    necessarily interleaved) to a TransferNode's interleaved point buffer.
-  */
+  /*!
+   * \brief Helper to read points from a Conduit coordinate set.
+   *
+   *  Coordinates may be interleaved in memory or stored as separate arrays for each
+   *  dimension.
+   *
+   * \param [in] components conduit node the coords are stored in
+   * \param [in] pointOffset offset in the transfer node for the current domain
+   */
   void copyFromConduitPoints(conduit::Node& components, axom::IndexType pointOffset) const
   {
     const int dim = NDIMS;
@@ -621,11 +659,15 @@ public:
     }
   }
 
-  /*
-    Special copy from 1D interleaved coordinate values back to
-    component-wise storage.
-    This is a nop if they point to the same data.
-  */
+  /*!
+   * \brief Helper to write out result closest points into Conduit Blueprint.
+   *
+   *  Points are always stored as component-wise.
+   *
+   * \param [in] pointOffset offset in the transfer node for the current domain
+   * \param [in] qptCount number of points from the transfer node to write out
+   * \param [out] components conduit node to write out to
+   */
   void copyToConduitPoints(IndexType pointOffset, IndexType qPtCount, conduit::Node& components) const
   {
     const int dim = NDIMS;
