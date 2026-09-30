@@ -19,6 +19,10 @@
 
 #include "conduit_blueprint.hpp"
 
+#include <iostream>
+#include <memory>
+#include <vector>
+
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
 #endif
@@ -934,6 +938,68 @@ static std::vector<ParMeshGroupData> getGroupData(const mfem::ParMesh& parmesh)
   return result;
 }
 
+struct MFEMCopyTemporaryParFieldCopy
+{
+  std::unique_ptr<mfem::ParFiniteElementSpace> fespace;
+  std::unique_ptr<mfem::ParGridFunction> grid_function;
+};
+
+static std::unique_ptr<mfem::ParMesh> getParMesh(const mfem::ParGridFunction& source_field)
+{
+  const auto* source_fes = source_field.FESpace();
+  EXPECT_NE(source_fes, nullptr);
+
+  if(source_fes == nullptr)
+  {
+    return nullptr;
+  }
+
+  const auto* source_mesh = dynamic_cast<const mfem::ParMesh*>(source_fes->GetMesh());
+  EXPECT_NE(source_mesh, nullptr);
+
+  if(source_mesh == nullptr)
+  {
+    return nullptr;
+  }
+
+  return std::unique_ptr<mfem::ParMesh>(new mfem::ParMesh(*source_mesh));
+}
+
+static mfem::ParGridFunction* copyIntoParGridFunction(
+  const mfem::ParGridFunction& source_field,
+  mfem::ParMesh& destination_mesh,
+  std::vector<std::unique_ptr<MFEMCopyTemporaryParFieldCopy>>& temporary_copies)
+{
+  const auto* source_grid_fes = source_field.FESpace();
+  EXPECT_NE(source_grid_fes, nullptr);
+
+  if(source_grid_fes == nullptr)
+  {
+    return nullptr;
+  }
+
+  const auto* source_fes = dynamic_cast<const mfem::ParFiniteElementSpace*>(source_grid_fes);
+  EXPECT_NE(source_fes, nullptr);
+
+  if(source_fes == nullptr)
+  {
+    return nullptr;
+  }
+
+  auto copied_field = std::make_unique<MFEMCopyTemporaryParFieldCopy>();
+  copied_field->fespace = std::make_unique<mfem::ParFiniteElementSpace>(&destination_mesh,
+                                                                        source_fes->FEColl(),
+                                                                        source_fes->GetVDim(),
+                                                                        source_fes->GetOrdering());
+  copied_field->grid_function = std::make_unique<mfem::ParGridFunction>(copied_field->fespace.get());
+  EXPECT_EQ(copied_field->grid_function->Size(), source_field.Size());
+  *copied_field->grid_function = source_field;
+
+  auto* grid_function = copied_field->grid_function.get();
+  temporary_copies.push_back(std::move(copied_field));
+  return grid_function;
+}
+
 /**
  * @brief Helper method for testing that a parallel mesh is reconstructed correctly
  * @param [in] base_mesh The serial mesh object to distribute, save, and then reload
@@ -1140,6 +1206,85 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
   EXPECT_LT(third_gf_read->ComputeL2Error(seven_and_a_half), EPSILON);
 
   EXPECT_TRUE(sdc_reader.verifyMeshBlueprint());
+}
+
+// This reproduces a user-observed restart pattern that saves GridFunctions
+// copied onto a copied ParMesh. Building this case first exposed test setup
+// issues around temporary GridFunction storage, then a sidre_hdf5 reload bug
+// for external strided coord/vector views that back reconstructed MFEM objects.
+TEST(sidre_datacollection, dc_par_reload_mfem_copies)
+{
+  const std::string scalar_field_name = "test_scalar_field";
+  const std::string vector_field_name = "test_vector_field";
+
+  auto mesh = mfem::Mesh::MakeCartesian3D(2, 2, 2, mfem::Element::TETRAHEDRON);
+  mfem::ParMesh source_parmesh(MPI_COMM_WORLD, mesh);
+
+  mfem::H1_FECollection fec(1, mesh.Dimension());
+  mfem::ParFiniteElementSpace scalar_parfes(&source_parmesh, &fec);
+  mfem::ParFiniteElementSpace vector_parfes(&source_parmesh, &fec, 3, mfem::Ordering::byVDIM);
+
+  mfem::ParGridFunction scalar_field(&scalar_parfes);
+  mfem::ParGridFunction vector_field(&vector_parfes);
+
+  mfem::ConstantCoefficient scalar_value(3.5);
+  scalar_field.ProjectCoefficient(scalar_value);
+
+  mfem::Vector vector_values(3);
+  vector_values(0) = 1.25;
+  vector_values(1) = -2.5;
+  vector_values(2) = 4.75;
+  mfem::VectorConstantCoefficient vector_value(vector_values);
+  vector_field.ProjectCoefficient(vector_value);
+
+  std::unique_ptr<mfem::ParMesh> temporary_mesh_copy;
+  std::vector<std::unique_ptr<MFEMCopyTemporaryParFieldCopy>> temporary_copies;
+
+  {
+    temporary_mesh_copy = getParMesh(scalar_field);
+    ASSERT_NE(temporary_mesh_copy, nullptr);
+
+    MFEMSidreDataCollection dc(testName(), temporary_mesh_copy.get());
+    dc.SetComm(MPI_COMM_WORLD);
+    dc.SetPrefixPath("");
+    dc.SetCycle(0);
+
+    auto* scalar_copy = copyIntoParGridFunction(scalar_field, *temporary_mesh_copy, temporary_copies);
+    auto* vector_copy = copyIntoParGridFunction(vector_field, *temporary_mesh_copy, temporary_copies);
+
+    ASSERT_NE(scalar_copy, nullptr);
+    ASSERT_NE(vector_copy, nullptr);
+
+    dc.RegisterField(scalar_field_name, scalar_copy);
+    dc.RegisterField(vector_field_name, vector_copy);
+    dc.Save();
+  }
+
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
+  MFEMSidreDataCollection dc(testName(), nullptr);
+  dc.SetComm(MPI_COMM_WORLD);
+  dc.SetPrefixPath("");
+  dc.Load();
+
+  ASSERT_NE(dc.GetMesh(), nullptr);
+
+  auto* scalar_read = dc.GetField(scalar_field_name);
+  ASSERT_NE(scalar_read, nullptr);
+  EXPECT_TRUE(dynamic_cast<mfem::ParGridFunction*>(scalar_read));
+  EXPECT_LT(scalar_read->ComputeL2Error(scalar_value), EPSILON);
+
+  auto* vector_read = dc.GetField(vector_field_name);
+  ASSERT_NE(vector_read, nullptr);
+  EXPECT_TRUE(dynamic_cast<mfem::ParGridFunction*>(vector_read));
+  EXPECT_LT(vector_read->ComputeL2Error(vector_value), EPSILON);
+
+  EXPECT_TRUE(dynamic_cast<mfem::ParMesh*>(dc.GetMesh()));
+  EXPECT_TRUE(dc.verifyMeshBlueprint());
 }
 
 TEST(sidre_datacollection, dc_par_reload_multi_datastore)
