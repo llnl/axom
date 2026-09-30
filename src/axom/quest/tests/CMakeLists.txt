@@ -307,6 +307,12 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
         endif()
 
         foreach(_testgeom ${_testgeoms})
+          set(_geometry_args)
+          if(_testgeom STREQUAL "sphere")
+            # Avoid grid symmetry so the analytic sphere path sees irregular boundary tetrahedra.
+            set(_geometry_args --center 0.137 -0.211 0.083)
+          endif()
+
           set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
             NAME ${_testname}
@@ -318,6 +324,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
                         --refinements 5
                         --scale .99 .99 .99
                         --dir 8 4 2
+                        ${_geometry_args}
                         --meshType ${_meshType}
                         inline_mesh --min -2 -2 -2 --max 2 2 2 --resolution 16 16 16
             NUM_MPI_TASKS ${_nranks}

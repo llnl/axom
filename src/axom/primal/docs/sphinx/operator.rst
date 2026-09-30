@@ -10,6 +10,8 @@ the following:
 - ``compute_bounding_box`` finds the bounding box for a given primitive.
 - ``squared_distance`` computes the squared distance from a point to another primitive.
 - ``orientation`` finds the side of a line segment or triangle where a query point lies.
+- ``intersection_volume`` computes the unsigned overlap volume of supported 3D primitives.
+  The sphere-tetrahedron overloads use an analytic formula on host and device.
 - ``intersect`` predicate tests if two primitives intersect.  Some of the combinations
   also indicate the point of intersection of a 1D primitive with another primitive.
 
