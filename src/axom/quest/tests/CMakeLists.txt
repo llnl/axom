@@ -116,6 +116,10 @@ if(MFEM_FOUND)
             )
     endfunction()
 
+    # Exercise header linkage across translation units without external mesh data.
+    add_quest_mfem_test(quest_gwn_methods_link)
+    target_sources(quest_gwn_methods_link PRIVATE quest_gwn_methods_link_other.cpp)
+
     if(AXOM_ENABLE_SIDRE)
         add_quest_mfem_test(quest_point_in_cell_mfem)
     endif()
