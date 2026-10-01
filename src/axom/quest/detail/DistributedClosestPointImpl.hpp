@@ -602,13 +602,14 @@ public:
         auto cp_distance_v = cp_distance.view();
 
         axom::for_all<ExecSpace>(qPtCount, [=] AXOM_HOST_DEVICE(axom::IndexType idx) {
-          double squared_dist = axom::primal::squared_distance(points_v[idx], cp_coords_v[idx]);
+          double squared_dist = axom::primal::squared_distance(points_v[idx + pointOffset],
+                                                               cp_coords_v[idx + pointOffset]);
           cp_distance_v[idx] = sqrt(squared_dist);
         });
 
         auto& dst = fields["cp_distance"];
         dst.set_node(genericHeaders);
-        dst["values"].set(cp_distance.data() + pointOffset, qPtCount);
+        dst["values"].set(cp_distance.data(), qPtCount);
       }
 
       if(outputCoords)
