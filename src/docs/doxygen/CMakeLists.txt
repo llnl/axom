@@ -7,7 +7,7 @@
 # Doxygen documentation targets
 #------------------------------------------------------------------------------
 
-blt_add_doxygen_target( axom_doxygen )
+blt_add_doxygen_target(TARGET axom_doxygen )
 
 # Required directory for doxygen to generate output to 
 add_custom_target( build_doxygen_output_dir 

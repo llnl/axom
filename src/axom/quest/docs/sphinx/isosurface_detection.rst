@@ -70,12 +70,9 @@ Relevant header files:
 
 Set up the user's blueprint mesh and the ``MarchingCubes`` object:
 
-The blueprint mesh must be a structured mesh in multi-domain format.
-A domain is a part of a global mesh that has been subdivided for
-reasons including parallel partitioning, geometric constraints and
-size constraints.  Any number of domains is allowed, including zero.
-(For single-domain format, see the similar
-``MarchingCubesSingleDomain`` class in the ``axom::quest`` namespace.)
+The blueprint mesh must be a structured mesh defined by a single- or multi-domain Blueprint mesh,
+where a domain is a part of a global mesh that has been subdivided for parallel partitioning.
+A multi-domain mesh may contain any number of domains, including zero.
 
 Blueprint convention allows for named coordinate sets and scalar
 fields.  Here, we tell the ``MarchingCubes`` constructor that the

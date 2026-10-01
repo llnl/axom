@@ -135,6 +135,20 @@ if (CONDUIT_DIR)
     set(CONDUIT_FOUND TRUE)
 
     blt_convert_to_system_includes(TARGET conduit::conduit)
+
+    # Prefer the user's cached Python module path over Conduit's default,
+    # then resolve it relative to the Conduit install if needed.
+    get_property(_axom_conduit_py_dir_cache
+                 CACHE CONDUIT_PYTHON_MODULE_DIR PROPERTY VALUE)
+    if(_axom_conduit_py_dir_cache)
+        set(CONDUIT_PYTHON_MODULE_DIR "${_axom_conduit_py_dir_cache}")
+    endif()
+    unset(_axom_conduit_py_dir_cache)
+
+    if(CONDUIT_PYTHON_MODULE_DIR AND NOT IS_ABSOLUTE "${CONDUIT_PYTHON_MODULE_DIR}")
+        get_filename_component(CONDUIT_PYTHON_MODULE_DIR
+                               "${CONDUIT_DIR}/${CONDUIT_PYTHON_MODULE_DIR}" ABSOLUTE)
+    endif()
 else()
     message(STATUS "Conduit support is OFF")
 endif()

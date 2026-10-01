@@ -209,7 +209,7 @@ AXOM_HOST_DEVICE void poly_clip_vertices(Polyhedron<T, NDIMS>& poly,
     if(orientation == ON_NEGATIVE_SIDE)
     {
       // Mark this vertex for removal later
-      out_clipped |= 1 << i;
+      out_clipped |= 1u << i;
 
       // Check neighbors for vertex above the plane (edge clipped by plane)
       int numNeighbors = poly.getNumNeighbors(i);
@@ -289,7 +289,7 @@ AXOM_HOST_DEVICE void poly_clip_fix_nbrs(Polyhedron<T, NDIMS>& poly,
 
           int val = 0;
 
-          while((clipped & (1 << inext)) && (val++ < poly.numVertices()))
+          while((clipped & (1u << inext)) && (val++ < poly.numVertices()))
           {
             itmp = inext;
             unsigned int next_nbrs = poly_nbrs.getNumNeighbors(inext);
@@ -375,7 +375,7 @@ AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS>& poly, const unsign
 
   for(int i = 0; i < old_poly.numVertices(); i++)
   {
-    if(!(clipped & (1 << i)))
+    if(!(clipped & (1u << i)))
     {
       // Non-clipped vertex
       newIndices[i] = curIndex++;
@@ -386,7 +386,7 @@ AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS>& poly, const unsign
   // Reinsert neighbors into polyhedron
   for(int i = 0; i < old_poly.numVertices(); i++)
   {
-    if(!(clipped & (1 << i)))
+    if(!(clipped & (1u << i)))
     {
       for(int j = 0; j < old_poly.getNumNeighbors(i); j++)
       {

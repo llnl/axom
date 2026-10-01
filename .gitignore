@@ -5,6 +5,7 @@ install-
 .project
 .settings
 build-*
+build/
 install-*
 _axom_build_and_test_*
 *.pyc

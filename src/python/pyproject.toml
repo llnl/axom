@@ -1,0 +1,77 @@
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+
+# Compile the bindings against an installed Axom. Pass its prefix as AXOM_DIR:
+#
+#   pip install ./src/python -C cmake.define.AXOM_DIR=$AXOM_INSTALL
+#
+# scikit-build-core uses CMAKE_PREFIX_PATH for its build environment.
+# See README.md for build options and package layout.
+
+[build-system]
+# Stub generation imports _sidre and needs NumPy for ndarray annotations.
+# Conduit's Python module is imported only when a Node conversion helper runs.
+requires = ["scikit-build-core>=1.0", "nanobind>=2.7.0", "numpy>=1.22"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "axom"
+dynamic = ["version"]
+description = "Python bindings for LLNL Axom, a CS infrastructure library for HPC applications"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause"
+authors = [{ name = "Axom Project Contributors" }]
+keywords = ["axom", "hpc"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+# axom-conduit.pth provides the Python module from the Conduit build 
+# that Axom was built against, not the PyPI 'conduit' or 'llnl-conduit'.
+dependencies = ["numpy>=1.22"]
+
+[project.optional-dependencies]
+# Users request the mpi extra when needed for an MPI-enabled Axom install.
+mpi = ["mpi4py>=3.1"]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/LLNL/axom"
+Documentation = "https://axom.readthedocs.io"
+Source = "https://github.com/LLNL/axom"
+
+[project.scripts]
+axom-python-config = "axom.config:main"
+
+# Read the version from Axom's CMake source. This requires a full repository
+# checkout because an sdist omits files outside src/python.
+[[tool.dynamic-metadata]]
+provider = "scikit_build_core.metadata.regex"
+field = "version"
+input = "../cmake/AxomVersion.cmake"
+regex = '''(?sx)
+set\( AXOM_VERSION_MAJOR \s+ (?P<major>\d+) \) .*?
+set\( AXOM_VERSION_MINOR \s+ (?P<minor>\d+) \) .*?
+set\( AXOM_VERSION_PATCH \s+ (?P<patch>\d+) \)
+'''
+result = "{major}.{minor}.{patch}"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+build-dir = "build/{wheel_tag}"
+# Package the Python sources here. CMake installs _sidre and _sidre.pyi into axom/sidre.
+wheel.packages = ["src/axom"]
+
+# sdist support and abi3 wheel tags are not configured here:
+# see "Source distributions (sdist)" and "Stable ABI (abi3)" in src/python/README.md.
+
+[tool.scikit-build.cmake.define]
+# Resolve libsidre/libconduit/HDF5 from their install locations at runtime with no LD_LIBRARY_PATH.
+CMAKE_INSTALL_RPATH_USE_LINK_PATH = "ON"
