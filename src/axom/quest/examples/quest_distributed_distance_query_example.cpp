@@ -437,6 +437,10 @@ public:
 
   RuntimePolicy policy {RuntimePolicy::seq};
 
+#if defined(AXOM_USE_UMPIRE)
+  std::string mpiMemoryType {"host"};
+#endif
+
   double distThreshold {axom::numeric_limits<double>::max()};
 
   bool dynamicDistanceFiltering {true};
@@ -528,6 +532,13 @@ public:
       ->description("Set runtime policy for point query method")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
+
+#if defined(AXOM_USE_UMPIRE)
+    app.add_option("--mpi-memory-type", mpiMemoryType)
+      ->description("Memory type for MPI buffers: host, pinned, or device.")
+      ->check(axom::CLI::IsMember({"host", "pinned", "device"}))
+      ->capture_default_str();
+#endif
 
     app.get_formatter()->column_width(60);
 
@@ -1718,6 +1729,15 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   axom::CLI::App app {"Driver for distributed distance query"};
 
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
+  // MPICH advertises GPU-aware MPI through this environment variable.
+  const char* mpichGpuSupport = getenv("MPICH_GPU_SUPPORT_ENABLED");
+  if(mpichGpuSupport != nullptr && std::string(mpichGpuSupport) == "1")
+  {
+    params.mpiMemoryType = "device";
+  }
+#endif
+
   try
   {
     params.parse(argc, argv, app);
@@ -1758,26 +1778,28 @@ int main(int argc, char** argv)
   auto& rm = umpire::ResourceManager::getInstance();
   umpire::Allocator umpireAllocator = rm.getAllocator(umpireResourceName);
 
-  #if defined(UMPIRE_ENABLE_PINNED)
-  const std::string mpiResourceName = "PINNED";
-  #else
-  const std::string mpiResourceName = "HOST";
-  #endif
-  umpire::Allocator mpiAllocator = rm.getAllocator(mpiResourceName);
-
-  // Check if GPU-aware MPI is supported (currently only supported for MPICH)
+  int mpiAllocatorId = axom::INVALID_ALLOCATOR_ID;
+  if(params.mpiMemoryType == "host")
   {
-    const char* mpich_gpu_aware = getenv("MPICH_GPU_SUPPORT_ENABLED");
-    if(mpich_gpu_aware && std::string(mpich_gpu_aware) == "1")
-    {
-      SLIC_INFO(
-        "Detected GPU-aware MPI support, will use GPU memory pool for "
-        "MPI buffers.");
-      // Use device allocator for MPI allocations
-      mpiAllocator = umpireAllocator;
-    }
+    mpiAllocatorId = rm.getAllocator("HOST").getId();
   }
-
+  else if(params.mpiMemoryType == "pinned")
+  {
+  #if defined(UMPIRE_ENABLE_PINNED)
+    mpiAllocatorId = rm.getAllocator("PINNED").getId();
+  #else
+    SLIC_ERROR("Pinned MPI memory requested, but Umpire pinned memory is unavailable.");
+  #endif
+  }
+  else
+  {
+  #if defined(UMPIRE_ENABLE_DEVICE)
+    mpiAllocatorId = rm.getAllocator("DEVICE").getId();
+  #else
+    SLIC_ERROR("Device MPI memory requested, but Umpire device memory is unavailable.");
+  #endif
+  }
+  SLIC_INFO(axom::fmt::format("Using '{}' memory for MPI buffers.", params.mpiMemoryType));
 #endif
 
   // Storage for meshes.
@@ -1855,7 +1877,7 @@ int main(int argc, char** argv)
   query.setRuntimePolicy(params.policy);
 #if defined(AXOM_USE_UMPIRE)
   query.setAllocatorID(umpireAllocator.getId());
-  query.setMpiAllocatorID(mpiAllocator.getId());
+  query.setMpiAllocatorID(mpiAllocatorId);
 #endif
   query.setMpiCommunicator(MPI_COMM_WORLD, true);
   query.setVerbosity(params.isVerbose());
