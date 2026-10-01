@@ -440,10 +440,11 @@ public:
    * \param [in] from the node to copy from
    * \param [in] allocatorID the allocator to copy to
    */
-  DCPTransferNode(const DCPTransferNode& from, int allocatorID)
-    : metadata(from.metadata)
-    , buffer(from.buffer, allocatorID)
+  DCPTransferNode(const DCPTransferNode& from, int allocatorID) : metadata(from.metadata)
   {
+    IndexType validSize = computeSize(metadata.numPoints);
+    auto validBuffer = from.buffer.view().subspan(0, validSize);
+    buffer = axom::Array<std::uint8_t>(validBuffer, allocatorID);
     UpdateView();
   }
 
