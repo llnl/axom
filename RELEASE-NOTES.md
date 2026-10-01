@@ -36,6 +36,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Removed `AXOM_LAMBDA` macros and migrated call sites to `[=] AXOM_HOST_DEVICE(...)` or `[=] AXOM_HOST(...)`.
 - Mir: The `axom::mir::ElviraAlgorithm` can now accept an integer "cleanmesh" option via its `conduit::Node` options that can turn off the algorithm phase for cleaning up the 3D mesh output so it can skip merging vertices and mesh faces.
 - Python: Adds Sidre binding argument names for keyword calls, IDE completion, and signature help.
+- Quest: `MarchingCubes` now validates its input with `SLIC_ERROR` in all build types.
+  Previously, a missing or incorrect coordset, mask field, function field was caught only by debug-build assertions.
+- Quest: `MarchingCubes::setMesh()` now accepts single- and multi-domain Blueprint meshes.
 
 ### Fixed
 
