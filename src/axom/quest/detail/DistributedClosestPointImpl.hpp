@@ -745,7 +745,7 @@ public:
         continue;
       }
       // Remove completed send requests to free memory
-      int completed_send_index = request_index - 1;
+      size_t completed_send_index = request_index - 1;
       if(completed_send_index + 1 != isendRequests.size())
       {
         isendRequests[completed_send_index] = std::move(isendRequests.back());
@@ -978,15 +978,14 @@ public:
 
       double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
-      const auto myObjectBb = m_objectPartitionBbs[m_rank];
       axom::Array<int> send_counts(m_nranks);
       send_counts.fill(0);
       for(int r = 0; r < m_nranks; ++r)
       {
         if(r != m_rank)
         {
-          const auto& otherQueryBb = m_objectPartitionBbs[r];
-          if(is_statically_eligible(otherQueryBb, myQueryBb))
+          const auto& otherObjectBb = m_objectPartitionBbs[r];
+          if(is_statically_eligible(otherObjectBb, myQueryBb))
           {
             send_counts[r]++;
           }
