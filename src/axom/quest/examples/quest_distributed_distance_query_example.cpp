@@ -47,6 +47,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <utility>
 #include <variant>
 #if defined(__GLIBC__)
   #include <malloc.h>  // mallinfo2 / mallinfo / malloc_trim
@@ -96,13 +97,20 @@ struct ReducedBytes
   int maxRank {-1};
 };
 
+struct AllocatorSnapshot
+{
+  std::string name;
+  ByteCount current {INVALID_BYTES};
+  ByteCount highWatermark {INVALID_BYTES};
+  ByteCount actual {INVALID_BYTES};
+};
+
 struct MemorySnapshot
 {
   ProcRss rss;
   ByteCount mallocLive {INVALID_BYTES};
   ByteCount mallocArena {INVALID_BYTES};
-  ByteCount umpireCurrent {INVALID_BYTES};
-  ByteCount umpireHighWatermark {INVALID_BYTES};
+  std::vector<AllocatorSnapshot> allocators;
 };
 
 /// Read current (VmRSS) and peak (VmHWM) resident set size in bytes.
@@ -193,7 +201,7 @@ ReducedBytes reduceBytes(ByteCount localValue, MPI_Comm comm, int rank, int comm
   return result;
 }
 
-MemorySnapshot takeMemorySnapshot(int umpireAllocatorId)
+MemorySnapshot takeMemorySnapshot(const std::vector<int>& umpireAllocatorIds)
 {
   MemorySnapshot snapshot;
   snapshot.rss = readProcRss();
@@ -211,15 +219,18 @@ MemorySnapshot takeMemorySnapshot(int umpireAllocatorId)
 #endif
 
 #if defined(AXOM_USE_UMPIRE)
-  if(umpireAllocatorId >= 0)
+  auto& rm = umpire::ResourceManager::getInstance();
+  snapshot.allocators.reserve(umpireAllocatorIds.size());
+  for(const int allocatorId : umpireAllocatorIds)
   {
-    auto& rm = umpire::ResourceManager::getInstance();
-    umpire::Allocator alloc = rm.getAllocator(umpireAllocatorId);
-    snapshot.umpireCurrent = static_cast<ByteCount>(alloc.getCurrentSize());
-    snapshot.umpireHighWatermark = static_cast<ByteCount>(alloc.getHighWatermark());
+    const umpire::Allocator allocator = rm.getAllocator(allocatorId);
+    snapshot.allocators.push_back({allocator.getName(),
+                                   static_cast<ByteCount>(allocator.getCurrentSize()),
+                                   static_cast<ByteCount>(allocator.getHighWatermark()),
+                                   static_cast<ByteCount>(allocator.getActualSize())});
   }
 #else
-  AXOM_UNUSED_VAR(umpireAllocatorId);
+  AXOM_UNUSED_VAR(umpireAllocatorIds);
 #endif
 
   return snapshot;
@@ -238,18 +249,19 @@ bool trimMallocArena()
 /*!
  * \brief Opt-in per-run memory probe for the closest-point query.
  *
- * Reports RSS, peak RSS, glibc live/arena bytes, and Umpire current/high-water bytes when available.
- * Values are reduced across the given communicator as a total and a hottest-rank maximum.
+ * Reports RSS, peak RSS, glibc live/arena bytes, and current/high-water/actual bytes for the Umpire
+ * allocators used by the example. Values are reduced across the given communicator as a total and a
+ * hottest-rank maximum.
  * The optional sampler captures transient RSS spikes during the query phase.
  */
 class MemoryProbe
 {
 public:
-  MemoryProbe(bool enabled, int sampleMs, MPI_Comm comm, int umpireAllocatorId = -1)
+  MemoryProbe(bool enabled, int sampleMs, MPI_Comm comm, std::vector<int> umpireAllocatorIds = {})
     : m_enabled(enabled)
     , m_sampleMs(sampleMs)
     , m_comm(comm)
-    , m_umpireAllocatorId(umpireAllocatorId)
+    , m_umpireAllocatorIds(std::move(umpireAllocatorIds))
   {
     MPI_Comm_rank(m_comm, &m_rank);
     MPI_Comm_size(m_comm, &m_commSize);
@@ -313,19 +325,15 @@ public:
       return;
     }
 
-    const MemorySnapshot snapshot = takeMemorySnapshot(m_umpireAllocatorId);
+    const MemorySnapshot snapshot = takeMemorySnapshot(m_umpireAllocatorIds);
     const ReducedBytes rss = reduceBytes(snapshot.rss.current, m_comm, m_rank, m_commSize);
     const ReducedBytes peakRss = reduceBytes(snapshot.rss.peak, m_comm, m_rank, m_commSize);
     const ReducedBytes mallocLive = reduceBytes(snapshot.mallocLive, m_comm, m_rank, m_commSize);
     const ReducedBytes mallocArena = reduceBytes(snapshot.mallocArena, m_comm, m_rank, m_commSize);
-    const ReducedBytes umpireCurrent =
-      reduceBytes(snapshot.umpireCurrent, m_comm, m_rank, m_commSize);
-    const ReducedBytes umpireHighWatermark =
-      reduceBytes(snapshot.umpireHighWatermark, m_comm, m_rank, m_commSize);
-
+    std::string msg;
     if(m_rank == 0)
     {
-      std::string msg = axom::fmt::format(
+      msg = axom::fmt::format(
         "[mem] {}  (total over {} ranks | max on one rank)\n"
         "         RSS           : {:>11} | {:>11} (rank {})\n"
         "         RSS peak      : {:>11} | {:>11} (rank {})\n"
@@ -345,20 +353,37 @@ public:
         humanBytes(mallocArena.sumValue),
         humanBytes(mallocArena.maxValue),
         mallocArena.maxRank);
-#if defined(AXOM_USE_UMPIRE)
-      if(umpireHighWatermark.maxValue >= 0)
+    }
+
+    for(const auto& allocator : snapshot.allocators)
+    {
+      const ReducedBytes current = reduceBytes(allocator.current, m_comm, m_rank, m_commSize);
+      const ReducedBytes highWatermark =
+        reduceBytes(allocator.highWatermark, m_comm, m_rank, m_commSize);
+      const ReducedBytes actual = reduceBytes(allocator.actual, m_comm, m_rank, m_commSize);
+      if(m_rank == 0)
       {
         msg += axom::fmt::format(
-          "\n         umpire current: {:>11} | {:>11} (rank {})"
-          "\n         umpire hi-water: {:>10} | {:>11} (rank {})",
-          humanBytes(umpireCurrent.sumValue),
-          humanBytes(umpireCurrent.maxValue),
-          umpireCurrent.maxRank,
-          humanBytes(umpireHighWatermark.sumValue),
-          humanBytes(umpireHighWatermark.maxValue),
-          umpireHighWatermark.maxRank);
+          "\n         umpire '{}' current: {} | {} (rank {})"
+          "\n         umpire '{}' hi-water: {} | {} (rank {})"
+          "\n         umpire '{}' actual: {} | {} (rank {})",
+          allocator.name,
+          humanBytes(current.sumValue),
+          humanBytes(current.maxValue),
+          current.maxRank,
+          allocator.name,
+          humanBytes(highWatermark.sumValue),
+          humanBytes(highWatermark.maxValue),
+          highWatermark.maxRank,
+          allocator.name,
+          humanBytes(actual.sumValue),
+          humanBytes(actual.maxValue),
+          actual.maxRank);
       }
-#endif
+    }
+
+    if(m_rank == 0)
+    {
       SLIC_INFO(msg);
     }
   }
@@ -386,7 +411,7 @@ private:
   MPI_Comm m_comm {MPI_COMM_NULL};
   int m_rank {-1};
   int m_commSize {-1};
-  int m_umpireAllocatorId {-1};
+  std::vector<int> m_umpireAllocatorIds;
   std::atomic<bool> m_stopSampler {false};
   std::thread m_samplerThread;
   ByteCount m_samplerPeak {INVALID_BYTES};
@@ -494,7 +519,7 @@ public:
 
     app.add_flag("--track-memory", trackMemory)
       ->description(
-        "Report RSS, glibc malloc live/arena bytes (and Umpire high-water when available) "
+        "Report RSS, glibc malloc live/arena bytes, and the Umpire allocators used by this example "
         "before/after BVH build and before/after the closest-point query, reduced across ranks.")
       ->capture_default_str();
 
@@ -1888,12 +1913,19 @@ int main(int argc, char** argv)
                       objectMeshWrapper.getTopologyName());
 
   // Optional memory instrumentation around the index build and the query.
-  int memUmpireId = -1;
+  std::vector<int> profiledUmpireAllocatorIds;
 #if defined(AXOM_USE_UMPIRE)
-  memUmpireId = umpireAllocator.getId();
+  profiledUmpireAllocatorIds.push_back(umpireAllocator.getId());
+  if(mpiAllocatorId != umpireAllocator.getId())
+  {
+    profiledUmpireAllocatorIds.push_back(mpiAllocatorId);
+  }
 #endif
   const bool trackMem = params.trackMemory || params.trimAfterQuery || params.sampleMemoryMs > 0;
-  MemoryProbe memProbe(trackMem, params.sampleMemoryMs, MPI_COMM_WORLD, memUmpireId);
+  MemoryProbe memProbe(trackMem,
+                       params.sampleMemoryMs,
+                       MPI_COMM_WORLD,
+                       std::move(profiledUmpireAllocatorIds));
   memProbe.report("baseline (meshes read, before BVH)");
 
   // Build the spatial index over the object on each rank
