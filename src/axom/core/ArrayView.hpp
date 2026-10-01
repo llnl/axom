@@ -468,7 +468,8 @@ void ArrayView<T, DIM, SPACE>::determineAllocator() const
 
     if constexpr(SPACE == MemorySpace::Dynamic)
     {
-      m_allocator_id = getAllocatorIDFromPointer(m_data);
+      m_allocator_id =
+        m_data != nullptr ? getAllocatorIDFromPointer(m_data) : axom::detail::getAllocatorID<SPACE>();
     }
     else
     {
