@@ -15,68 +15,6 @@ namespace klee
 {
 namespace internal
 {
-std::vector<double> toDoubleVector(inlet::Proxy const& field,
-                                   Dimensions expectedDims,
-                                   char const* fieldName)
-{
-  auto expectedSize = static_cast<std::size_t>(expectedDims);
-  auto values = field.get<std::vector<double>>();
-  auto actualSize = values.size();
-  if(actualSize != expectedSize)
-  {
-    throw KleeError(
-      {field.name(),
-       fmt::format("Wrong size for {}. Expected {}. Got {}.", fieldName, expectedSize, actualSize)});
-  }
-  return values;
-}
-
-template <typename T>
-T toArrayLike(inlet::Proxy const& parent, char const* fieldName, Dimensions expectedDims)
-{
-  auto values = toDoubleVector(parent[fieldName], expectedDims, fieldName);
-  return T {values.data(), static_cast<int>(expectedDims)};
-}
-
-template <typename T>
-T toArrayLike(inlet::Proxy const& parent,
-              char const* fieldName,
-              Dimensions expectedDims,
-              const T& defaultValue)
-{
-  if(parent.contains(fieldName))
-  {
-    return toArrayLike<T>(parent, fieldName, expectedDims);
-  }
-  return defaultValue;
-}
-
-primal::Point3D toPoint(inlet::Container const& parent, char const* fieldName, Dimensions expectedDims)
-{
-  return toArrayLike<primal::Point3D>(parent, fieldName, expectedDims);
-}
-
-primal::Point3D toPoint(inlet::Container const& parent,
-                        char const* fieldName,
-                        Dimensions expectedDims,
-                        const primal::Point3D& defaultValue)
-{
-  return toArrayLike(parent, fieldName, expectedDims, defaultValue);
-}
-
-primal::Vector3D toVector(inlet::Container const& parent, char const* fieldName, Dimensions expectedDims)
-{
-  return toArrayLike<primal::Vector3D>(parent, fieldName, expectedDims);
-}
-
-primal::Vector3D toVector(inlet::Container const& parent,
-                          char const* fieldName,
-                          Dimensions expectedDims,
-                          const primal::Vector3D& defaultValue)
-{
-  return toArrayLike(parent, fieldName, expectedDims, defaultValue);
-}
-
 std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container& container)
 {
   bool hasStartUnits = container.contains("start_units");

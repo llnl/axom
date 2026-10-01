@@ -10,10 +10,7 @@
 #include "axom/klee/io/IOUtil.hpp"
 #include "axom/klee/KleeError.hpp"
 
-#include "KleeMatchers.hpp"
-
 #include "gtest/gtest.h"
-#include "gmock/gmock.h"
 
 #include <memory>
 
@@ -23,13 +20,6 @@ namespace klee
 {
 namespace internal
 {
-using primal::Point3D;
-using primal::Vector3D;
-
-using test::AlmostEqPoint;
-using test::AlmostEqVector;
-using ::testing::ElementsAre;
-
 static std::unique_ptr<inlet::Reader> readYaml(const std::string& input)
 {
   auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
@@ -64,22 +54,6 @@ InletTestData::InletTestData(const std::string& input, DefOp defOp)
   {
     throw KleeError(errors);
   }
-}
-
-std::vector<double> parseDoubleVector(const std::string& vectorInput, Dimensions dims)
-{
-  std::string fullInput = "values: ";
-  fullInput += vectorInput;
-  InletTestData data {fullInput, [](inlet::Container& c) { c.addDoubleArray("values"); }};
-  return toDoubleVector(data.doc["values"], dims, "values");
-}
-
-TEST(io_util, toDoubleVector)
-{
-  EXPECT_THAT(parseDoubleVector("[1.2, 3.4]", Dimensions::Two), ElementsAre(1.2, 3.4));
-  EXPECT_THAT(parseDoubleVector("[1, 2]", Dimensions::Two), ElementsAre(1.0, 2.0));
-  EXPECT_THROW(parseDoubleVector("[1, 2]", Dimensions::Three), KleeError) << "Wrong length";
-  EXPECT_THROW(parseDoubleVector("[a, b]", Dimensions::Three), KleeError) << "Wrong type";
 }
 
 Dimensions defineAndParseDimension(const char* input)
@@ -168,109 +142,6 @@ TEST(io_util, getStartAndEndUnits_nothingSpecified)
   // Random input or Inlet issues a warning about blank input
   InletTestData data {"foo: 123", defineUnitsSchemaWithDefaults};
   EXPECT_THROW(getStartAndEndUnits(data.doc.getGlobalContainer()), KleeError);
-}
-
-template <typename T, typename Op>
-T parseArray(const char* value, Dimensions dims, Op op)
-{
-  std::string input = "value: ";
-  input += value;
-  InletTestData data {input, [](inlet::Container& c) { c.addDoubleArray("value"); }};
-  return op(data.doc.getGlobalContainer(), "value", dims);
-}
-
-template <typename T, typename Op>
-T parseArray(const char* value, Dimensions dims, const T& defaultValue, Op op)
-{
-  std::string input;
-  if(value != nullptr)
-  {
-    input = "value: ";
-    input += value;
-  }
-  else
-  {
-    // avoid warning about empty input
-    input = "foo: bar";
-  }
-  InletTestData data {input, [](inlet::Container& c) { c.addDoubleArray("value"); }};
-  return op(data.doc.getGlobalContainer(), "value", dims, defaultValue);
-}
-
-Point3D parsePoint(const char* value, Dimensions dims)
-{
-  return parseArray<Point3D>(
-    value,
-    dims,
-    static_cast<Point3D (*)(const inlet::Container&, char const*, Dimensions)>(toPoint));
-}
-
-Point3D parsePoint(const char* value, Dimensions dims, Point3D defaultValue)
-{
-  return parseArray<Point3D>(
-    value,
-    dims,
-    defaultValue,
-    static_cast<Point3D (*)(const inlet::Container&, char const*, Dimensions, const Point3D&)>(
-      toPoint));
-}
-
-Vector3D parseVector(const char* value, Dimensions dims)
-{
-  return parseArray<Vector3D>(
-    value,
-    dims,
-    static_cast<Vector3D (*)(const inlet::Container&, char const*, Dimensions)>(toVector));
-}
-
-Vector3D parseVector(const char* value, Dimensions dims, Vector3D defaultValue)
-{
-  return parseArray<Vector3D>(
-    value,
-    dims,
-    defaultValue,
-    static_cast<Vector3D (*)(const inlet::Container&, char const*, Dimensions, const Vector3D&)>(
-      toVector));
-}
-
-TEST(io_util, toPoint)
-{
-  EXPECT_THAT(parsePoint("[1, 2]", Dimensions::Two), AlmostEqPoint(Point3D {1, 2, 0}));
-  EXPECT_THAT(parsePoint("[1, 2, 3]", Dimensions::Three), AlmostEqPoint(Point3D {1, 2, 3}));
-  EXPECT_THROW(parsePoint("[1, 2]", Dimensions::Three), KleeError);
-  EXPECT_THROW(parsePoint("[1, 2, 3]", Dimensions::Two), KleeError);
-}
-
-TEST(io_util, toVector)
-{
-  EXPECT_THAT(parseVector("[1, 2]", Dimensions::Two), AlmostEqVector(Vector3D {1, 2, 0}));
-  EXPECT_THAT(parseVector("[1, 2, 3]", Dimensions::Three), AlmostEqVector(Vector3D {1, 2, 3}));
-  EXPECT_THROW(parseVector("[1, 2]", Dimensions::Three), KleeError);
-  EXPECT_THROW(parseVector("[1, 2, 3]", Dimensions::Two), KleeError);
-}
-
-TEST(io_util, toPoint_default)
-{
-  EXPECT_THAT(parsePoint("[1, 2]", Dimensions::Two, Point3D {4, 5, 6}),
-              AlmostEqPoint(Point3D {1, 2, 0}));
-  EXPECT_THAT(parsePoint("[1, 2, 3]", Dimensions::Three, Point3D {4, 5, 6}),
-              AlmostEqPoint(Point3D {1, 2, 3}));
-  EXPECT_THAT(parsePoint(nullptr, Dimensions::Two, Point3D {4, 5, 0}),
-              AlmostEqPoint(Point3D {4, 5, 0}));
-  EXPECT_THAT(parsePoint(nullptr, Dimensions::Three, Point3D {4, 5, 6}),
-              AlmostEqPoint(Point3D {4, 5, 6}));
-}
-
-TEST(io_util, toVector_default)
-{
-  EXPECT_THAT(parseVector("[1, 2]", Dimensions::Two, Vector3D {4, 5, 6}),
-              AlmostEqVector(Vector3D {1, 2, 0}));
-  EXPECT_THAT(parseVector("[1, 2, 3]", Dimensions::Three, Vector3D {4, 5, 6}),
-              AlmostEqVector(Vector3D {1, 2, 3}));
-  EXPECT_THAT(parseVector(nullptr, Dimensions::Two, Vector3D {4, 5, 0}),
-              AlmostEqVector(Vector3D {4, 5, 0}));
-  EXPECT_THAT(parseVector(nullptr, Dimensions::Three, Vector3D {4, 5, 6}),
-              AlmostEqVector(Vector3D {4, 5, 6}));
 }
 
 }  // namespace internal

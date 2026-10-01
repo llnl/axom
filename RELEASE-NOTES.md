@@ -27,6 +27,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   single- or multidomain Cartesian Blueprint meshes with structured, strided-structured, or unstructured topology and optional analytic fields.
 - Python: Adds a scikit-build-core project under `src/python/` to build an `axom` wheel for pip or uv.
   The wheel compiles the bindings against the Axom install specified by `AXOM_DIR`.
+- Inlet: Adds `addFunctionAsValueAlternative()` and associated query/access methods so schemas can
+  accept either a concrete value or a callback at the same input path.
+- Klee: Adds zero-argument Lua callbacks for supported geometry-operator fields, including translation,
+  rotation, scaling, slicing, unit conversion, and named-operator references. Callbacks are evaluated
+  once per field during input parsing, and their results undergo the same validation as concrete values.
+- Klee: Adds optional caller-provided initial state for Lua input decks through `LuaInputOptions`,
+  which contains a table of values and helper functions.
 
 ### Removed
 
@@ -36,8 +43,15 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Removed `AXOM_LAMBDA` macros and migrated call sites to `[=] AXOM_HOST_DEVICE(...)` or `[=] AXOM_HOST(...)`.
 - Mir: The `axom::mir::ElviraAlgorithm` can now accept an integer "cleanmesh" option via its `conduit::Node` options that can turn off the algorithm phase for cleaning up the 3D mesh output so it can skip merging vertices and mesh faces.
 - Python: Adds Sidre binding argument names for keyword calls, IDE completion, and signature help.
+- Inlet/Klee: Lua callback execution errors and invalid return values now throw `axom::inlet::InletError`.
+  Klee wraps these failures in `axom::klee::KleeError` diagnostics identifying the field,
+  operator location, and owning shape or named operator.
 
 ### Fixed
+- Inlet: Lua callbacks copied into `std::function` keep their Lua state alive and remain callable after
+  the Inlet and Reader are destroyed.
+- Inlet: Avoids infinite recursion when discovering names in cyclic Lua tables, including Klee
+  initialization exports.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 

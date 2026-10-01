@@ -464,6 +464,31 @@ The replacement rules are implicit -- each new shape replaces all existing mater
 >              -m ../src/examples/shaping_tutorial/lesson_04/circle_input.lua
 > ```
 
+The Klee input can also be written in Lua. In [`circles.lua`](circles.lua), the scale factors
+are zero-argument callbacks. Klee evaluates them while reading the deck
+and passes ordinary concrete operators to Quest:
+
+```bash
+./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
+  -k ../src/examples/shaping_tutorial/lesson_04/circles.lua \
+  -m ../src/examples/shaping_tutorial/lesson_04/circle_input.lua
+```
+
+An application can provide runtime values through an initialization file
+instead of embedding them in the deck. The `--lua-init-file` argument names a
+Lua chunk that returns a table of initial globals:
+
+```bash
+./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
+  -k ../src/examples/shaping_tutorial/lesson_04/circles_initialized.lua \
+  -m ../src/examples/shaping_tutorial/lesson_04/circle_input.lua \
+  --lua-init-file ../src/examples/shaping_tutorial/lesson_04/circles_initialization.lua
+```
+
+This option is valid only with a Lua Klee deck, and using it with YAML produces a
+Klee validation error. See the Klee user guide for how initialization chunks
+and callbacks behave.
+
 
 
 ### Ice cream example revisited

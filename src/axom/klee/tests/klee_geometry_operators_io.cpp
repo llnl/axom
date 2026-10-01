@@ -80,7 +80,7 @@ OperatorPointer readOperators(const TransformableGeometryProperties& startProper
     throw KleeError(errors);
   }
   auto opData = doc["test_list"].get<GeometryOperatorData>();
-  return opData.makeOperator(startProperties, namedOperators);
+  return opData.makeOperator(startProperties, namedOperators, "");
 }
 
 /**
@@ -246,6 +246,32 @@ TEST(GeometryOperatorsIO, readTranslation_3D)
   EXPECT_EQ(expectedProperties, translation.getEndProperties());
 }
 
+TEST(GeometryOperatorsIO, readTranslation_wrongDimensions)
+{
+  Dimensions all_dims[] = {Dimensions::Two, Dimensions::Three};
+  for(Dimensions dims : all_dims)
+  {
+    SCOPED_TRACE(static_cast<int>(dims));
+    const auto input = dims == Dimensions::Two ? R"(
+      translate: [1, 2, 3]
+    )"
+                                               : R"(
+      translate: [1, 2]
+    )";
+    try
+    {
+      readSingleOperator<Translation>({dims, LengthUnit::cm}, input);
+      FAIL() << "Should have rejected the translation dimension";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr("Wrong size for translate."));
+      EXPECT_THAT(err.what(),
+                  HasSubstr(dims == Dimensions::Two ? "Expected 2. Got 3." : "Expected 3. Got 2."));
+    }
+  }
+}
+
 TEST(GeometryOperatorsIO, readTranslation_unknownKeys)
 {
   try
@@ -261,6 +287,14 @@ TEST(GeometryOperatorsIO, readTranslation_unknownKeys)
   {
     EXPECT_THAT(err.what(), HasSubstr("UNKNOWN_KEY"));
   }
+}
+
+TEST(GeometryOperatorsIO, readTranslation_wrongComponentType)
+{
+  EXPECT_THROW(readSingleOperator<Translation>({Dimensions::Two, LengthUnit::cm}, R"(
+      translate: [a, b]
+    )"),
+               KleeError);
 }
 
 TEST(GeometryOperatorsIO, readRotation_2D_requiredOnly)
@@ -336,6 +370,52 @@ TEST(GeometryOperatorsIO, readRotation_3D_optionalFields)
   EXPECT_EQ(expectedProperties, rotation.getEndProperties());
 }
 
+TEST(GeometryOperatorsIO, readRotation_wrongCenterDimensions)
+{
+  Dimensions all_dims[] = {Dimensions::Two, Dimensions::Three};
+  for(Dimensions dims : all_dims)
+  {
+    SCOPED_TRACE(static_cast<int>(dims));
+    const auto input = dims == Dimensions::Two ? R"(
+      rotate: 45
+      center: [1, 2, 3]
+    )"
+                                               : R"(
+      rotate: 45
+      axis: [0, 0, 1]
+      center: [1, 2]
+    )";
+    try
+    {
+      readSingleOperator<Rotation>({dims, LengthUnit::cm}, input);
+      FAIL() << "Should have rejected the rotation center dimension";
+    }
+    catch(const KleeError& err)
+    {
+      EXPECT_THAT(err.what(), HasSubstr("Wrong size for center."));
+      EXPECT_THAT(err.what(),
+                  HasSubstr(dims == Dimensions::Two ? "Expected 2. Got 3." : "Expected 3. Got 2."));
+    }
+  }
+}
+
+TEST(GeometryOperatorsIO, readRotation_3D_zeroAxis)
+{
+  try
+  {
+    readSingleOperator<Rotation>({Dimensions::Three, LengthUnit::cm}, R"(
+      rotate: 45
+      axis: [0, 0, 0]
+    )");
+    FAIL() << "Should have rejected a zero rotation axis";
+  }
+  catch(const KleeError& err)
+  {
+    EXPECT_THAT(err.what(), HasSubstr("axis"));
+    EXPECT_THAT(err.what(), HasSubstr("zero"));
+  }
+}
+
 TEST(GeometryOperatorsIO, readRotation_3D_axisMissing)
 {
   try
@@ -348,6 +428,23 @@ TEST(GeometryOperatorsIO, readRotation_3D_axisMissing)
   catch(const KleeError& ex)
   {
     EXPECT_THAT(ex.what(), HasSubstr("axis"));
+  }
+}
+
+TEST(GeometryOperatorsIO, readOperator_unexpectedParameterNamesBothFields)
+{
+  try
+  {
+    readOperators({Dimensions::Three, LengthUnit::cm}, R"(
+          - translate: [1, 2, 3]
+            axis: [0, 0, 1]
+        )");
+    FAIL() << "Should not have parsed";
+  }
+  catch(const KleeError& ex)
+  {
+    // The unexpected parameter is "axis" and the operator is "translate"
+    EXPECT_THAT(ex.what(), HasSubstr("Unexpected parameter 'axis' for operator 'translate'"));
   }
 }
 
@@ -365,6 +462,30 @@ TEST(GeometryOperatorsIO, readScale_singleValue)
     TransformableGeometryProperties expectedProperties {dims, LengthUnit::cm};
     EXPECT_EQ(expectedProperties, scale.getStartProperties());
     EXPECT_EQ(expectedProperties, scale.getEndProperties());
+  }
+}
+
+TEST(GeometryOperatorsIO, readScale_singleValue_withCenter)
+{
+  // A uniform scale honors "center" the same way a per-axis scale does
+  Dimensions all_dims[] = {Dimensions::Two, Dimensions::Three};
+  for(Dimensions dims : all_dims)
+  {
+    auto scale = readSingleOperator<Scale>({dims, LengthUnit::cm},
+                                           dims == Dimensions::Two ? R"(
+          scale: 1.2
+          center: [10, 20]
+        )"
+                                                                   : R"(
+          scale: 1.2
+          center: [10, 20, 30]
+        )");
+    EXPECT_DOUBLE_EQ(1.2, scale.getXFactor());
+    EXPECT_DOUBLE_EQ(1.2, scale.getYFactor());
+    EXPECT_DOUBLE_EQ(1.2, scale.getZFactor());
+    const Point3D expectedCenter =
+      dims == Dimensions::Two ? Point3D {10, 20, 0} : Point3D {10, 20, 30};
+    EXPECT_THAT(scale.getCenter(), AlmostEqPoint(expectedCenter));
   }
 }
 
@@ -418,6 +539,35 @@ TEST(GeometryOperatorsIO, readScale_3d_array_withCenter)
   EXPECT_DOUBLE_EQ(3.4, scale.getYFactor());
   EXPECT_DOUBLE_EQ(5.6, scale.getZFactor());
   EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {4, 5, 6}));
+}
+
+TEST(GeometryOperatorsIO, readScale_wrongDimensions)
+{
+  Dimensions all_dims[] = {Dimensions::Two, Dimensions::Three};
+  for(Dimensions dims : all_dims)
+  {
+    SCOPED_TRACE(static_cast<int>(dims));
+    const auto input = dims == Dimensions::Two ? R"(
+      scale: [1, 2, 3]
+    )"
+                                               : R"(
+      scale: [1, 2]
+    )";
+    try
+    {
+      readSingleOperator<Scale>({dims, LengthUnit::cm}, input);
+      FAIL() << "Should have rejected the scale dimension";
+    }
+    catch(const KleeError& err)
+    {
+      ASSERT_EQ(1u, err.getErrors().size());
+      EXPECT_EQ("scale", err.getErrors()[0].path.baseName());
+      EXPECT_EQ("0", err.getErrors()[0].path.parent().baseName());
+      EXPECT_EQ(dims == Dimensions::Two ? "Wrong size for scale. Expected 2. Got 3."
+                                        : "Wrong size for scale. Expected 3. Got 2.",
+                err.getErrors()[0].message);
+    }
+  }
 }
 
 TEST(GeometryOperatorsIO, readConvertUnits)

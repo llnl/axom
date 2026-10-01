@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <memory>
@@ -467,6 +468,86 @@ TEST(inlet_Reader_lua, getDiscontiguousMap)
   EXPECT_EQ(retValue, ReaderResult::NotHomogeneous);
   std::unordered_map<int, std::string> expectedStrs {{33, "hello"}, {200, "bye"}};
   EXPECT_EQ(expectedStrs, strs);
+}
+
+TEST(inlet_Reader_lua, objectLookupReportsConsistentReaderResults)
+{
+  axom::inlet::LuaReader reader;
+  reader.parseString(R"(
+    callback = function() return {1, 2} end
+    nested = {[7] = {values = {[2] = 42, [5] = "five"}}}
+  )");
+
+  double scalar = 0.0;
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDouble("callback", scalar));
+  EXPECT_EQ(ReaderResult::NotFound, reader.getDouble("callback/value", scalar));
+
+  std::unordered_map<int, double> typedValues {{99, 99.0}};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getDoubleMap("callback", typedValues));
+  EXPECT_TRUE(typedValues.empty());
+
+  std::unordered_map<int, axom::inlet::VariantValue> values {{99, axom::inlet::VariantValue {99}}};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getVariantMap("callback", values));
+  EXPECT_TRUE(values.empty());
+  EXPECT_EQ(ReaderResult::NotFound, reader.getVariantMap("missing", values));
+  EXPECT_TRUE(values.empty());
+
+  EXPECT_EQ(ReaderResult::Success, reader.getVariantMap("nested/7/values", values));
+  const std::unordered_map<int, axom::inlet::VariantValue> expectedValues {
+    {2, axom::inlet::VariantValue {42}},
+    {5, axom::inlet::VariantValue {std::string {"five"}}}};
+  EXPECT_EQ(expectedValues, values);
+
+  std::vector<int> indices {99};
+  EXPECT_EQ(ReaderResult::WrongType, reader.getIndices("callback", indices));
+  EXPECT_TRUE(indices.empty());
+  EXPECT_EQ(ReaderResult::Success, reader.getIndices("nested/7/values", indices));
+  std::sort(indices.begin(), indices.end());
+  EXPECT_EQ((std::vector<int> {2, 5}), indices);
+}
+
+TEST(inlet_Reader_lua, getAllNamesTerminatesOnCycles)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    self = {}
+    self.loop = self
+    left = {}
+    right = {parent = left}
+    left.child = right
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"left",
+                                           "left/child",
+                                           "left/child/parent",
+                                           "right",
+                                           "right/parent",
+                                           "right/parent/child",
+                                           "self",
+                                           "self/loop"};
+  EXPECT_EQ(expected, names);
+}
+
+TEST(inlet_Reader_lua, getAllNamesVisitsSharedTablesUnderEachPath)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    local shared = {nested = {value = 42}}
+    first = shared
+    second = shared
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"first",
+                                           "first/nested",
+                                           "first/nested/value",
+                                           "second",
+                                           "second/nested",
+                                           "second/nested/value"};
+  EXPECT_EQ(expected, names);
 }
 #endif
 

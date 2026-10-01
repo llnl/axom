@@ -9,11 +9,7 @@
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
 
-#include "axom/primal/geometry/Point.hpp"
-#include "axom/primal/geometry/Vector.hpp"
-
 #include <tuple>
-#include <vector>
 
 namespace axom
 {
@@ -28,79 +24,6 @@ namespace klee
 {
 namespace internal
 {
-/**
- * Convert the given field to a std::vector<double>, ensuring that it
- * has the expected number of entries.
- *
- * @param field the field to convert
- * @param expectedDims the expected dimensionality of the array
- * @param fieldName the name of the field (used for error reporting)
- * @return the field as a std::vector<double>
- * @throws KleeError if the field does not have \a expectedDims entries
- */
-std::vector<double> toDoubleVector(inlet::Proxy const& field,
-                                   Dimensions expectedDims,
-                                   char const* fieldName);
-
-/**
- * Convert the specified field to a Point3D, ensuring that it
- * has the expected number of entries.
- *
- * @param parent the parent of the field
- * @param fieldName the name of the field
- * @param expectedDims the expected dimensionality of the point
- * @return the field as a primal::Point3D
- * @throws KleeError if the field does not have \a expectedDims entries
- */
-primal::Point3D toPoint(inlet::Container const& parent, char const* fieldName, Dimensions expectedDims);
-
-/**
- * Convert the specified field to a Point3D, ensuring that it
- * has the expected number of entries. If the field is not present, the default value is used.
- *
- * @param parent the parent of the field
- * @param fieldName the name of the field
- * @param expectedDims the expected dimensionality of the point
- * @param defaultValue the default value of the field if it is not present
- * @return the field as a primal::Point3D
- * @throws KleeError if the field is present and does not have \a expectedDims entries
- */
-primal::Point3D toPoint(inlet::Container const& parent,
-                        char const* fieldName,
-                        Dimensions expectedDims,
-                        const primal::Point3D& defaultValue);
-
-/**
- * Convert the specified field to a Vector3D, ensuring that it
- * has the expected number of entries.
- *
- * @param parent the parent of the field
- * @param fieldName the name of the field
- * @param expectedDims the expected dimensionality of the vector
- * @return the field as a primal::Vector3D
- * @throws KleeError if the field does not have \a expectedDims entries
- */
-primal::Vector3D toVector(inlet::Container const& parent,
-                          char const* fieldName,
-                          Dimensions expectedDims);
-
-/**
- * Convert the specified field to a Vector3D, ensuring that it
- * has the expected number of entries. If the field is not present, the
- * default value is used.
- *
- * @param parent the parent of the field
- * @param fieldName the name of the field
- * @param expectedDims the expected dimensionality of the vector
- * @param defaultValue the default value of the field if it is not present
- * @return the field as a primal::Vector3D
- * @throws KleeError if the field is present and does not have \a expectedDims entries
- */
-primal::Vector3D toVector(inlet::Container const& parent,
-                          char const* fieldName,
-                          Dimensions expectedDims,
-                          const primal::Vector3D& defaultValue);
-
 /**
  * Get the start and end units in a Container.
  *
