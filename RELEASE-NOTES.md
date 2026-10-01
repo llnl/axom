@@ -25,6 +25,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   allocator-ID arguments.
 - Tools: Replaces `gen-multidom-structured-mesh.py` with `gen-cartesian-blueprint-mesh.py`, which generates 2D or 3D,
   single- or multidomain Cartesian Blueprint meshes with structured, strided-structured, or unstructured topology and optional analytic fields.
+- Python: Adds a scikit-build-core project under `src/python/` to build an `axom` wheel for pip or uv.
+  The wheel compiles the bindings against the Axom install specified by `AXOM_DIR`.
 
 ### Removed
 
@@ -33,6 +35,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ### Changed
 - Removed `AXOM_LAMBDA` macros and migrated call sites to `[=] AXOM_HOST_DEVICE(...)` or `[=] AXOM_HOST(...)`.
 - Mir: The `axom::mir::ElviraAlgorithm` can now accept an integer "cleanmesh" option via its `conduit::Node` options that can turn off the algorithm phase for cleaning up the 3D mesh output so it can skip merging vertices and mesh faces.
+- Python: Adds Sidre binding argument names for keyword calls, IDE completion, and signature help.
 
 ### Fixed
 
