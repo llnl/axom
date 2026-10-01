@@ -520,6 +520,7 @@ public:
       const int dim = internal::extractDimension(queryCoordsValues);
       const int qPtCount = internal::extractSize(queryCoordsValues);
       SLIC_ASSERT(dim == metadata.dims);
+      AXOM_UNUSED_VAR(dim);
       metadata.numPoints += qPtCount;
     }
 
