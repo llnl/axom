@@ -435,7 +435,7 @@ struct dispatch_any_structured_topology<true, 3, FuncType>
     const std::string type = topo.fetch_existing("type").as_string();
     const std::string shape("hex");
 
-    if(type == "structured" && topo.has_path(offsetsKey) && topo.has_path(stridesKey))
+    if(type == "structured" && (topo.has_path(offsetsKey) || topo.has_path(stridesKey)))
     {
       auto topoView = make_strided_structured_topology<3>::view(topo);
       func(shape, topoView);
@@ -473,7 +473,7 @@ struct dispatch_any_structured_topology<true, 2, FuncType>
     const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
     const std::string type = topo.fetch_existing("type").as_string();
     const std::string shape("quad");
-    if(type == "structured" && topo.has_path(offsetsKey) && topo.has_path(stridesKey))
+    if(type == "structured" && (topo.has_path(offsetsKey) || topo.has_path(stridesKey)))
     {
       auto topoView = make_strided_structured_topology<2>::view(topo);
       func(shape, topoView);
