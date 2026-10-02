@@ -963,6 +963,88 @@ TEST(bump_views, strided_structured_dispatch_topology_seq)
 }
 
 //------------------------------------------------------------------------------
+// Treat a structured topology with offsets or strides as strided.
+//------------------------------------------------------------------------------
+template <typename TopologyView>
+std::vector<axom::IndexType> collect_zone_ids(const TopologyView& topoView)
+{
+  std::vector<axom::IndexType> ids;
+  for(axom::IndexType z = 0; z < topoView.numberOfZones(); z++)
+  {
+    const auto zone = topoView.zone(z);
+    const auto zoneIds = zone.getIds();
+    for(axom::IndexType i = 0; i < zoneIds.size(); i++)
+    {
+      ids.push_back(zoneIds[i]);
+    }
+  }
+  return ids;
+}
+
+template <int NDIMS>
+void test_strided_structured_partial_metadata(const std::string& removeKey)
+{
+  SCOPED_TRACE(axom::fmt::format("{}D, removed '{}'", NDIMS, removeKey));
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<NDIMS>(mesh);
+  conduit::Node& n_topo = mesh["topologies/mesh"];
+  if(!removeKey.empty())
+  {
+    n_topo.remove(removeKey);
+  }
+
+  // dispatch_structured_topology() already accepts either key.
+  std::vector<axom::IndexType> expected, actual;
+  bool expectedStrided = false, actualStrided = false;
+  views::dispatch_structured_topology<views::select_dimensions(NDIMS)>(
+    n_topo,
+    [&](const std::string&, auto topoView) {
+      expectedStrided = views::view_traits<decltype(topoView)>::supports_strided_structured();
+      expected = collect_zone_ids(topoView);
+    });
+  views::dispatch_structured_topologies<views::select_dimensions(NDIMS)>(
+    n_topo,
+    [&](const std::string&, auto topoView) {
+      actualStrided = views::view_traits<decltype(topoView)>::supports_strided_structured();
+      actual = collect_zone_ids(topoView);
+    });
+
+  EXPECT_TRUE(expectedStrided);
+  EXPECT_TRUE(actualStrided);
+  ASSERT_FALSE(expected.empty());
+  EXPECT_EQ(expected, actual);
+}
+
+TEST(bump_views, strided_structured_partial_metadata_dispatch)
+{
+  for(const std::string key : {"", "elements/dims/offsets", "elements/dims/strides"})
+  {
+    test_strided_structured_partial_metadata<2>(key);
+    test_strided_structured_partial_metadata<3>(key);
+  }
+
+  // Verify the strides-only result independently. With default offsets, zone
+  // (i,j) starts at node i + j * 7 in the 7-node-wide coordset.
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  mesh["topologies/mesh"].remove("elements/dims/offsets");
+  ASSERT_EQ(mesh["topologies/mesh/elements/dims/strides"].as_int_accessor()[1], 7);
+  std::vector<axom::IndexType> ids;
+  views::dispatch_structured_topologies<views::select_dimensions(2)>(
+    mesh["topologies/mesh"],
+    [&](const std::string&, auto topoView) { ids = collect_zone_ids(topoView); });
+  // clang-format off
+  const std::vector<axom::IndexType> expected {0, 1,  8,  7,
+                                               1, 2,  9,  8,
+                                               2, 3, 10,  9,
+                                               7, 8, 15, 14,
+                                               8, 9, 16, 15,
+                                               9, 10, 17, 16};
+  // clang-format on
+  EXPECT_EQ(ids, expected);
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
