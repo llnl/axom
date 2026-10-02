@@ -11,6 +11,7 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/core/StackArray.hpp"
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/BezierPatch.hpp"
@@ -18,7 +19,6 @@
 #include "axom/primal/geometry/GregoryPatch.hpp"
 #include "axom/primal/geometry/GregoryTriangle.hpp"
 
-#include <array>
 #include <sstream>
 
 namespace primal = axom::primal;
@@ -130,28 +130,59 @@ TEST(primal_gregorypatch, corner_vector_constructor)
 {
   SLIC_INFO("Testing Gregory patch corner and vector constructor");
 
-  PointType corners[4] = {PointType {0.0, 0.0, 0.0},
-                          PointType {1.0, 0.0, 0.0},
-                          PointType {1.0, 1.0, 0.0},
-                          PointType {0.0, 1.0, 0.0}};
+  constexpr CoordType eps = 1e-12;
+  const axom::StackArray<PointType, 4> corners = {
+    PointType {0.0, 0.0, 0.0},
+    PointType {2.0, 0.0, 0.2},
+    PointType {2.0, 1.0, 0.5},
+    PointType {0.0, 1.0, -0.2},
+  };
+  const axom::StackArray<VectorType, 4> normals = {
+    VectorType {0.1, -0.2, 1.0},
+    VectorType {-0.2, 0.1, 1.0},
+    VectorType {0.1, 0.2, 1.0},
+    VectorType {-0.1, -0.1, 1.0},
+  };
+  const axom::StackArray<PointType, 3> expected = {
+    PointType {0.513028224046239, 0.543322217053776, -0.029635606352038},
+    PointType {1.160773987471445, 0.301706794880165, 0.098896010873512},
+    PointType {1.013566789944491, 0.520296472500435, 0.118673113203985},
+  };
+  const axom::StackArray<axom::StackArray<CoordType, 2>, 3> params = {
+    axom::StackArray<CoordType, 2> {0.25, 0.5},
+    axom::StackArray<CoordType, 2> {0.6, 0.3},
+    axom::StackArray<CoordType, 2> {0.5, 0.5},
+  };
 
-  VectorType normals[4] = {VectorType {0.0, 0.0, 1.0},
-                           VectorType {0.0, 0.0, 1.0},
-                           VectorType {0.0, 0.0, 1.0},
-                           VectorType {0.0, 0.0, 1.0}};
-
-  GregoryPatchType patch(axom::ArrayView<const PointType>(corners, 4),
-                         axom::ArrayView<const VectorType>(normals, 4));
-
+  const GregoryPatchType patch(axom::ArrayView<const PointType>(corners.data(), 4),
+                               axom::ArrayView<const VectorType>(normals.data(), 4));
   for(int i = 0; i < 4; ++i)
   {
     EXPECT_EQ(patch.getCorner(i), corners[i]);
   }
+  EXPECT_TRUE(patch.evaluate(0.0, 0.0).isNearlyEqual(corners[0], eps));
+  EXPECT_TRUE(patch.evaluate(1.0, 0.0).isNearlyEqual(corners[1], eps));
+  EXPECT_TRUE(patch.evaluate(1.0, 1.0).isNearlyEqual(corners[2], eps));
+  EXPECT_TRUE(patch.evaluate(0.0, 1.0).isNearlyEqual(corners[3], eps));
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_TRUE(patch.evaluate(params[i][0], params[i][1]).isNearlyEqual(expected[i], eps));
+  }
 
-  EXPECT_EQ(patch.evaluate(0.0, 0.0), corners[0]);
-  EXPECT_EQ(patch.evaluate(1.0, 0.0), corners[1]);
-  EXPECT_EQ(patch.evaluate(1.0, 1.0), corners[2]);
-  EXPECT_EQ(patch.evaluate(0.0, 1.0), corners[3]);
+  // The construction uses normal directions, not normal magnitudes,
+  //  so the result should be the same regardles of normal scaling
+  axom::StackArray<VectorType, 4> scaled_normals = normals;
+  const CoordType scales[] = {2.0, 0.5, 3.0, 5.0};
+  for(int i = 0; i < 4; ++i)
+  {
+    scaled_normals[i] *= scales[i];
+  }
+  const GregoryPatchType scaled_patch(axom::ArrayView<const PointType>(corners.data(), 4),
+                                      axom::ArrayView<const VectorType>(scaled_normals.data(), 4));
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_TRUE(scaled_patch.evaluate(params[i][0], params[i][1]).isNearlyEqual(expected[i], eps));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -289,22 +320,29 @@ TEST(primal_gregorytriangle, corner_vector_constructor)
   SLIC_INFO("Testing Gregory triangle corner and vector constructor");
 
   constexpr CoordType eps = 1e-12;
-
-  const std::array<PointType, 3> corners = {
+  const axom::StackArray<PointType, 3> corners = {
     PointType {0.0, 0.0, 0.0},
-    PointType {1.0, 0.0, 0.0},
-    PointType {0.0, 1.0, 0.0},
+    PointType {2.0, 0.0, 0.2},
+    PointType {0.0, 1.0, -0.3},
+  };
+  const axom::StackArray<VectorType, 3> normals = {
+    VectorType {0.1, -0.2, 1.0},
+    VectorType {-0.2, 0.1, 1.0},
+    VectorType {0.2, 0.1, 1.0},
+  };
+  const axom::StackArray<PointType, 3> expected = {
+    PointType {0.595755158976850, 0.197859791673672, -0.036055232155618},
+    PointType {0.387823764652246, 0.488417460563691, -0.167444863129867},
+    PointType {0.656939362779253, 0.325809536866373, -0.092898244366454},
+  };
+  const axom::StackArray<axom::StackArray<CoordType, 2>, 3> params = {
+    axom::StackArray<CoordType, 2> {0.2, 0.3},
+    axom::StackArray<CoordType, 2> {0.5, 0.2},
+    axom::StackArray<CoordType, 2> {1.0 / 3.0, 1.0 / 3.0},
   };
 
-  const std::array<VectorType, 3> normals = {
-    VectorType {0.0, 0.0, 1.0},
-    VectorType {0.0, 0.0, 1.0},
-    VectorType {0.0, 0.0, 1.0},
-  };
-
-  GregoryTriangleType triangle(axom::ArrayView<const PointType>(corners.data(), 3),
-                               axom::ArrayView<const VectorType>(normals.data(), 3));
-
+  const GregoryTriangleType triangle(axom::ArrayView<const PointType>(corners.data(), 3),
+                                     axom::ArrayView<const VectorType>(normals.data(), 3));
   EXPECT_TRUE(triangle.evaluate(0.0, 0.0).isNearlyEqual(corners[0], eps));
   EXPECT_TRUE(triangle.evaluate(0.0, 1.0).isNearlyEqual(corners[1], eps));
   EXPECT_TRUE(triangle.evaluate(1.0, 0.0).isNearlyEqual(corners[2], eps));
@@ -315,19 +353,25 @@ TEST(primal_gregorytriangle, corner_vector_constructor)
   EXPECT_EQ(triangle.getBoundaryPoint(1, 4), corners[0]);
   EXPECT_EQ(triangle.getBoundaryPoint(2, 0), corners[0]);
   EXPECT_EQ(triangle.getBoundaryPoint(2, 4), corners[1]);
-
-  auto check_near = [&](const PointType& a, const PointType& b) {
-    EXPECT_NEAR(a[0], b[0], eps);
-    EXPECT_NEAR(a[1], b[1], eps);
-    EXPECT_NEAR(a[2], b[2], eps);
-  };
-
-  const CoordType tvals[] = {0.0, 0.2, 0.6, 1.0};
-  for(const CoordType t : tvals)
+  for(int i = 0; i < 3; ++i)
   {
-    check_near(triangle.evaluate(0.0, t), PointType::lerp(corners[0], corners[1], t));
-    check_near(triangle.evaluate(t, 0.0), PointType::lerp(corners[0], corners[2], t));
-    check_near(triangle.evaluate(t, 1.0 - t), PointType::lerp(corners[1], corners[2], t));
+    EXPECT_TRUE(triangle.evaluate(params[i][0], params[i][1]).isNearlyEqual(expected[i], eps));
+  }
+
+  // The construction uses normal directions, not normal magnitudes,
+  //  so the result should be the same regardles of normal scaling
+  axom::StackArray<VectorType, 3> scaled_normals = normals;
+  const CoordType scales[] = {2.0, 0.5, 3.0};
+  for(int i = 0; i < 3; ++i)
+  {
+    scaled_normals[i] *= scales[i];
+  }
+  const GregoryTriangleType scaled_triangle(
+    axom::ArrayView<const PointType>(corners.data(), 3),
+    axom::ArrayView<const VectorType>(scaled_normals.data(), 3));
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_TRUE(scaled_triangle.evaluate(params[i][0], params[i][1]).isNearlyEqual(expected[i], eps));
   }
 }
 
@@ -399,13 +443,13 @@ TEST(primal_gregorytriangle, finite_difference_first_derivatives)
   constexpr CoordType h = 1e-7;
   constexpr CoordType tol = 5e-5;
 
-  const std::array<PointType, 3> corners = {
+  const axom::StackArray<PointType, 3> corners = {
     PointType {0.0, 0.0, 0.0},
     PointType {1.0, 0.0, 0.2},
     PointType {0.0, 1.0, -0.1},
   };
 
-  const std::array<VectorType, 3> normals = {
+  const axom::StackArray<VectorType, 3> normals = {
     VectorType {0.0, 0.0, 1.0},
     VectorType {0.0, 0.0, 1.0},
     VectorType {0.0, 0.0, 1.0},
@@ -444,13 +488,13 @@ TEST(primal_gregorytriangle, finite_difference_second_derivatives)
   constexpr CoordType h = 1e-5;
   constexpr CoordType tol = 1e-4;
 
-  const std::array<PointType, 3> corners = {
+  const axom::StackArray<PointType, 3> corners = {
     PointType {0.0, 0.0, 0.0},
     PointType {1.2, 0.1, 0.3},
     PointType {-0.1, 1.1, -0.2},
   };
 
-  const std::array<VectorType, 3> normals = {
+  const axom::StackArray<VectorType, 3> normals = {
     VectorType {0.0, 0.0, 1.0},
     VectorType {0.2, 0.1, 1.0},
     VectorType {-0.1, 0.2, 1.0},

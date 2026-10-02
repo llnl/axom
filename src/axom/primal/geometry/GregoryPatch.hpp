@@ -198,6 +198,11 @@ public:
    * Deterministically compute cubic boundary control points and Gregory tangent points
    * using local corner information.
    *
+   * Algorithm derived from
+   *  A 3D contact smoothing method using Gregory patches, 
+   *  Michael Anthony Puso, Tod A. Laursen, International Journal for Numerical Methods in Engineering
+   *  Volume 54, Issue 8 (June 2002)
+   
    * \pre \a nodePositions and \a nodeVectors must each contain exactly 4 entries
    */
   GregoryPatch(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)

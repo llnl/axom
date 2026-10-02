@@ -129,6 +129,22 @@ public:
     getTangent(2, 1) = bTri(1, 2);
   }
 
+  /*!
+   * \brief Constructor from vertex points and corner normal vectors
+   *
+   * \param [in] nodePositions ArrayView of the four corner positions
+   * \param [in] nodeVectors ArrayView of the four corner normal vectors
+   *
+   * Deterministically compute hybrid cubic-quartic boundary control points and 
+   * Gregory tangent points using local vertex information.
+   *
+   * Algorithm derived from the rectangular analog in
+   *  A 3D contact smoothing method using Gregory patches, 
+   *  Michael Anthony Puso, Tod A. Laursen, International Journal for Numerical Methods in Engineering
+   *  Volume 54, Issue 8 (June 2002)
+   
+   * \pre \a nodePositions and \a nodeVectors must each contain exactly 3 entries
+   */
   GregoryTriangle(ArrayView<const PointType> nodePositions, ArrayView<const VectorType> nodeVectors)
   {
     // Store the position and orthogonal unit vector at each corner

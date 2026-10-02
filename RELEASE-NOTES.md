@@ -27,6 +27,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   single- or multidomain Cartesian Blueprint meshes with structured, strided-structured, or unstructured topology and optional analytic fields.
 - Python: Adds a scikit-build-core project under `src/python/` to build an `axom` wheel for pip or uv.
   The wheel compiles the bindings against the Axom install specified by `AXOM_DIR`.
+- Primal: Adds Gregory surface classes, with a `primal::GregoryPatch` class for cubic quadrilateral surfaces and a `primal::GregoryTriangle` class for hybrid cubic-quartic triangle surfaces.
 
 ### Removed
 
