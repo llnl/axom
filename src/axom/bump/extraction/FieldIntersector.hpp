@@ -112,14 +112,16 @@ public:
   };
 
   /*!
-   * \brief Initialize the object from options.
-   * \param n_options The node that contains the options.
-   * \param n_fields The node that contains fields.
+   * \brief Initialize the intersector.
+   *
+   * \param[in] n_options Extraction options.
+   * \param[in] n_topology Input topology.
+   * \param[in] n_fields Input fields.
    */
   void initialize(const TopologyView& AXOM_UNUSED_PARAM(topologyView),
                   const CoordsetView& AXOM_UNUSED_PARAM(coordsetView),
                   const conduit::Node& n_options,
-                  const conduit::Node& AXOM_UNUSED_PARAM(n_topology),
+                  const conduit::Node& n_topology,
                   const conduit::Node& AXOM_UNUSED_PARAM(n_coordset),
                   const conduit::Node& n_fields)
   {
@@ -134,6 +136,10 @@ public:
     const conduit::Node& n_field = n_fields.fetch_existing(opts.field());
     const conduit::Node& n_field_values = n_field["values"];
     SLIC_ASSERT(n_field["association"].as_string() == "vertex");
+
+    // A mismatched padded layout would make topology node ids address the wrong values.
+    utils::validateVertexFieldIndexing(n_topology, n_field, opts.field());
+
     SLIC_ASSERT(!n_field_values.dtype().is_object());
     if(n_field_values.dtype().id() == utils::cpp2conduit<FieldType>::id)
     {

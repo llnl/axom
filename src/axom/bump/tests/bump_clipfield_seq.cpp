@@ -308,6 +308,31 @@ TEST(bump_clipfield_seq, strided_structured_2d_seq)
   options["selectedZones"].set(std::vector<axom::IndexType> {{0, 2, 3, 5}});
   strided_structured_clip_test<seq_exec, 2>("strided_structured_2d_sel", options);
 }
+TEST(bump_clipfield_seq, strided_structured_2d_mismatched_field_layout_seq)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  // Shifting the field's i offset makes topology node ids read neighboring values.
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  conduit::index_t* offsets = mesh["fields/vert_vals/offsets"].value();
+  offsets[0] += 1;
+
+  auto coordsetView =
+    axom::bump::views::make_explicit_coordset<double, 2>::view(mesh["coordsets/coords"]);
+  auto topoView =
+    axom::bump::views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+  axom::bump::extraction::ClipField<seq_exec, decltype(topoView), decltype(coordsetView)> clipper(
+    topoView,
+    coordsetView);
+
+  conduit::Node options, clipMesh;
+  options["field"] = "vert_vals";
+  options["value"] = 6.5;
+  options["inside"] = 1;
+  options["outside"] = 1;
+  EXPECT_THROW(clipper.execute(mesh, options, clipMesh), axom::slic::SlicAbortException);
+}
 TEST(bump_clipfield_seq, tet_seq)
 {
   braid3d_clip_test<seq_exec, axom::bump::views::TetShape<int>>("tets", "tet");
