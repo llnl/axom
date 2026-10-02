@@ -242,21 +242,91 @@ public:
     }
   }
 
-  PointType& getCorner(int i) { return m_controlPoints[i]; }
-  const PointType& getCorner(int i) const { return m_controlPoints[i]; }
+  /*!
+   * \brief Returns the \a i-th corner point, oriented ccw
+   *
+   * \param [in] i Corner index in `[0, 2]`
+   */
+  PointType& getCorner(int i)
+  {
+    SLIC_ASSERT(i >= 0 && i < 3);
+    return m_controlPoints[i];
+  }
 
-  PointType& getTangent(int e, int t) { return m_controlPoints[12 + 2 * e + t]; }
-  const PointType& getTangent(int e, int t) const { return m_controlPoints[12 + 2 * e + t]; }
+  /*!
+   * \brief Returns the \a i-th corner point, oriented ccw
+   *
+   * \param [in] i Corner index in `[0, 2]`
+   */
+  const PointType& getCorner(int i) const
+  {
+    SLIC_ASSERT(i >= 0 && i < 3);
+    return m_controlPoints[i];
+  }
 
+  /*!
+   * \brief Returns a Gregory tangent point for an edge
+   *
+   * \param [in] e Edge index in `[0, 2]`, oriented ccw
+   * \param [in] t Tangent point index in `[0, 1]`
+   */
+  PointType& getTangent(int e, int t)
+  {
+    SLIC_ASSERT(e >= 0 && e < 3);
+    SLIC_ASSERT(t >= 0 && t < 2);
+    return m_controlPoints[12 + 2 * e + t];
+  }
+
+  /*!
+   * \brief Returns a Gregory tangent point for an edge
+   *
+   * \param [in] e Edge index in `[0, 2]`, oriented ccw
+   * \param [in] t Tangent point index in `[0, 1]`
+   */
+  const PointType& getTangent(int e, int t) const
+  {
+    SLIC_ASSERT(e >= 0 && e < 3);
+    SLIC_ASSERT(t >= 0 && t < 2);
+    return m_controlPoints[12 + 2 * e + t];
+  }
+
+  /*!
+   * \brief Returns the two Gregory tangent points adjacent to a corner
+   *
+   * \param [in] i Corner index in `[0, 2]`, oriented ccw
+   * \param [out] v0 Tangent point from the preceding edge
+   * \param [out] v1 Tangent point from the following edge
+   */
   void getTangentsByCorner(int i, PointType& v0, PointType& v1) const
   {
+    SLIC_ASSERT(i >= 0 && i < 3);
     v0 = getTangent((i + 1) % 3, 1);
     v1 = getTangent((i + 2) % 3, 0);
   }
 
-  PointType& getBoundaryPoint(int e, int k) { return m_controlPoints[s_edge_index_map[e][k]]; }
+  /*! 
+   * \brief Returns a control point on a boundary edge
+   *
+   * \param [in] e Edge index in `[0, 2]`
+   * \param [in] k Boundary point index in `[0, 4]`
+   */
+  PointType& getBoundaryPoint(int e, int k)
+  {
+    SLIC_ASSERT(e >= 0 && e < 3);
+    SLIC_ASSERT(k >= 0 && k < 5);
+    return m_controlPoints[s_edge_index_map[e][k]];
+  }
+
+  /*! 
+   * \brief Returns a control point on a boundary edge
+   *
+   * \param [in] e Edge index in `[0, 2]`
+   * \param [in] k Boundary point index in `[0, 4]`
+   */
   const PointType& getBoundaryPoint(int e, int k) const
   {
+    SLIC_ASSERT(e >= 0 && e < 3);
+    SLIC_ASSERT(k >= 0 && k < 5);
     return m_controlPoints[s_edge_index_map[e][k]];
   }
 
