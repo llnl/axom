@@ -31,7 +31,6 @@
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/spin/MortonIndex.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
@@ -44,11 +43,9 @@
 
 #include <array>
 #include <cmath>
-#include <cstdint>
 #include <limits>
 #include <map>
 #include <set>
-#include <unordered_map>
 #include <utility>
 
 namespace
@@ -66,7 +63,6 @@ using mctest::RoundField;
 using mctest::SinusoidalWarp;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
-using QuantizedPoint3D = axom::primal::Point<std::int64_t, 3>;
 
 template <typename Func>
 void forEachEnabledPolicy(Func&& func)
@@ -90,76 +86,6 @@ struct EdgeManifoldResult
   axom::IndexType boundaryEdges = 0;  // used exactly once
   axom::IndexType interiorEdges = 0;  // used exactly twice
 };
-
-/// Count triangle incidence after welding coincident coordinates with a quantized hash.
-EdgeManifoldResult checkEdgeManifold3D(const axom::ArrayView<const double, 2>& nodeCoords,
-                                       const axom::ArrayView<const axom::IndexType, 2>& facetCorners,
-                                       double weldTol)
-{
-  const double inv = 1.0 / weldTol;
-  auto quantize = [inv](double v) { return static_cast<std::int64_t>(std::llround(v * inv)); };
-
-  // The legacy MarchingCubes arrays duplicate coordinates per facet.
-  // Recover welded vertex ids for the helper self-test.
-  std::unordered_map<QuantizedPoint3D, axom::IndexType, axom::spin::PointHash<std::int64_t>> vmap;
-  const axom::IndexType nFacets = facetCorners.shape()[0];
-
-  auto weldedId = [&](axom::IndexType row) {
-    QuantizedPoint3D key {quantize(nodeCoords(row, 0)),
-                          quantize(nodeCoords(row, 1)),
-                          quantize(nodeCoords(row, 2))};
-    auto it = vmap.find(key);
-    if(it != vmap.end())
-    {
-      return it->second;
-    }
-    const axom::IndexType id = static_cast<axom::IndexType>(vmap.size());
-    vmap.emplace(key, id);
-    return id;
-  };
-
-  std::map<std::pair<axom::IndexType, axom::IndexType>, int> edgeUse;
-  for(axom::IndexType f = 0; f < nFacets; ++f)
-  {
-    axom::IndexType v[3];
-    for(int c = 0; c < 3; ++c)
-    {
-      v[c] = weldedId(facetCorners(f, c));
-    }
-    for(int e = 0; e < 3; ++e)
-    {
-      axom::IndexType a = v[e], b = v[(e + 1) % 3];
-      if(a == b)
-      {
-        continue;  // degenerate edge; ignore
-      }
-      if(a > b)
-      {
-        std::swap(a, b);
-      }
-      edgeUse[{a, b}]++;
-    }
-  }
-
-  EdgeManifoldResult res;
-  for(const auto& kv : edgeUse)
-  {
-    res.maxMultiplicity = std::max(res.maxMultiplicity, kv.second);
-    if(kv.second == 1)
-    {
-      res.boundaryEdges++;
-    }
-    else if(kv.second == 2)
-    {
-      res.interiorEdges++;
-    }
-    else if(kv.second >= 3)
-    {
-      res.edgesUsed3PlusTimes++;
-    }
-  }
-  return res;
-}
 
 /// Count edge incidence directly from a welded Blueprint contour.
 EdgeManifoldResult checkBlueprintEdgeManifold3D(const conduit::Node& contourDom)
@@ -607,9 +533,7 @@ void test_structured_planar_mask(RuntimePolicy policy)
   // Select only the lower k-slab. Since z=0.30 lies in that selected half,
   // the contour should be non-empty, and runAndVerify checks every reported
   // parent cell has the selected mask value.
-  mctest::addCellField<3>(mesh,
-                           [n](int, int, int k) { return k < n / 2 ? 7 : 3; },
-                           "mask");
+  mctest::addCellField<3>(mesh, [=](int, int, int k) { return k < n / 2 ? 7 : 3; }, "mask");
   runAndVerify<3>(mesh,
                   f,
                   0.0,
@@ -912,47 +836,6 @@ TEST(quest_marching_cubes_bump, accumulated_analytic_fields_2d)
 TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d)
 {
   forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_analytic_fields<3>(policy); });
-}
-
-// Test the edge-manifold helper without MarchingCubes.
-TEST(quest_marching_cubes_bump, edge_manifold_helper_selftest)
-{
-  // Two triangles sharing edge (0,0,0)-(1,0,0): a manifold pair.
-  axom::Array<double, 2> coords(axom::ArrayOptions::Uninitialized(), 6, 3);
-  // tri 0: (0,0,0),(1,0,0),(0,1,0)
-  coords(0, 0) = 0;
-  coords(0, 1) = 0;
-  coords(0, 2) = 0;
-  coords(1, 0) = 1;
-  coords(1, 1) = 0;
-  coords(1, 2) = 0;
-  coords(2, 0) = 0;
-  coords(2, 1) = 1;
-  coords(2, 2) = 0;
-  // tri 1: (0,0,0),(1,0,0),(0,-1,0)  -> shares edge (0,0,0)-(1,0,0)
-  coords(3, 0) = 0;
-  coords(3, 1) = 0;
-  coords(3, 2) = 0;
-  coords(4, 0) = 1;
-  coords(4, 1) = 0;
-  coords(4, 2) = 0;
-  coords(5, 0) = 0;
-  coords(5, 1) = -1;
-  coords(5, 2) = 0;
-
-  axom::Array<axom::IndexType, 2> corners(axom::ArrayOptions::Uninitialized(), 2, 3);
-  corners(0, 0) = 0;
-  corners(0, 1) = 1;
-  corners(0, 2) = 2;
-  corners(1, 0) = 3;
-  corners(1, 1) = 4;
-  corners(1, 2) = 5;
-
-  const auto em = checkEdgeManifold3D(coords.view(), corners.view(), 1.0e-9);
-  EXPECT_EQ(em.maxMultiplicity, 2);  // shared edge used twice
-  EXPECT_EQ(em.interiorEdges, 1);    // exactly one shared edge
-  EXPECT_EQ(em.boundaryEdges, 4);    // the other four edges used once
-  EXPECT_EQ(em.edgesUsed3PlusTimes, 0);
 }
 
 }  // namespace
