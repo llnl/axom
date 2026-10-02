@@ -1546,10 +1546,12 @@ void check_0_or_1_bbox_2d()
   // 1 src point
   spin::BVH<2, ExecType, FloatType> bvh;
   bvh_compute_point_distances_2d(bvh, src_pts, query_pts, false);
+  EXPECT_TRUE(bvh.getBounds().isValid());
 
   // 0 src points
   spin::BVH<2, ExecType, FloatType> bvh2;
   bvh_compute_point_distances_2d(bvh2, src_pts, query_pts, true);
+  EXPECT_FALSE(bvh2.getBounds().isValid());
 }
 
 //------------------------------------------------------------------------------

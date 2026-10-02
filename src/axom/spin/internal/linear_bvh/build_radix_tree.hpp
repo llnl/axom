@@ -122,7 +122,8 @@ primal::BoundingBox<FloatType, NDIMS> reduce(ArrayView<const primal::BoundingBox
     max_pt[dim] = max_coord.get();
   }
 
-  return primal::BoundingBox<FloatType, NDIMS>(min_pt, max_pt);
+  // Preserve invalid bounds when every input box is invalid.
+  return primal::BoundingBox<FloatType, NDIMS>(min_pt, max_pt, false);
 #else
   static_assert(std::is_same<ExecSpace, SEQ_EXEC>::value, "Only SEQ_EXEC supported without RAJA");
 
