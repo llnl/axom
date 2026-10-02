@@ -578,6 +578,32 @@ struct test_strided_structured
 
 TEST(bump_views, strided_structured_seq) { test_strided_structured::test(); }
 
+template <int NDIMS>
+void test_strided_structured_any_dispatch()
+{
+  conduit::Node hostMesh;
+  axom::blueprint::testing::data::strided_structured<NDIMS>(hostMesh);
+
+  bool callback_invoked = false;
+  bool supports_strided_structured = false;
+  views::dispatch_structured_topologies<views::select_dimensions(NDIMS)>(
+    hostMesh["topologies/mesh"],
+    [&](const std::string&, auto topoView) {
+      callback_invoked = true;
+      supports_strided_structured =
+        views::view_traits<decltype(topoView)>::supports_strided_structured();
+    });
+
+  EXPECT_TRUE(callback_invoked);
+  EXPECT_TRUE(supports_strided_structured);
+}
+
+TEST(bump_views, strided_structured_any_dispatch)
+{
+  test_strided_structured_any_dispatch<2>();
+  test_strided_structured_any_dispatch<3>();
+}
+
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_braid2d_mat
@@ -903,6 +929,38 @@ TEST(bump_views, matset_material_dominant_hip)
   test_braid2d_mat<hip_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #endif
+
+//------------------------------------------------------------------------------
+// dispatch_topology() sends uniform, rectilinear, and structured topologies
+// through dispatch_structured_topologies(). Check that a strided-structured
+// topology reaches the strided view and yields the expected node ids.
+//------------------------------------------------------------------------------
+TEST(bump_views, strided_structured_dispatch_topology_seq)
+{
+  conduit::Node hostMesh;
+  axom::blueprint::testing::data::strided_structured<2>(hostMesh);
+
+  int calls = 0;
+  bool stridedView = false;
+  views::dispatch_explicit_coordset(hostMesh["coordsets/coords"], [&](auto coordsetView) {
+    views::dispatch_topology<views::select_dimensions(2)>(
+      hostMesh["topologies/mesh"],
+      [&](const std::string& shape, auto topoView) {
+        using TopologyView = decltype(topoView);
+        calls++;
+        EXPECT_EQ(shape, std::string("quad"));
+        if constexpr(views::view_traits<TopologyView>::supports_strided_structured())
+        {
+          stridedView = true;
+          test_strided_structured::execute(coordsetView, topoView);
+        }
+      });
+  });
+
+  EXPECT_EQ(calls, 1);
+  EXPECT_TRUE(stridedView)
+    << "dispatch_topology() treated a strided-structured topology as compact";
+}
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
