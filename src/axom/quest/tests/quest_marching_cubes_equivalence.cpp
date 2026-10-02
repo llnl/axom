@@ -174,69 +174,6 @@ void buildRectilinear3D(conduit::Node& mesh, int n, const Field& f, const std::s
   }
 }
 
-/*!
- * @brief Build a strided-structured (ghost-padded) version of the same box.
- *
- * The coordset and field arrays cover a padded (n+1+2*g)^3 node window.
- * Topology offsets and strides select the n^3 real zones.
- */
-template <typename Field>
-void buildStridedStructured3D(conduit::Node& mesh,
-                              int n,
-                              int g,
-                              const Field& f,
-                              const std::string& fieldName)
-{
-  const int nnReal = n + 1;          // real points per axis
-  const int nnPad = nnReal + 2 * g;  // padded points per axis
-  const conduit::index_t N = static_cast<conduit::index_t>(nnPad) * nnPad * nnPad;
-  mesh.reset();
-
-  conduit::Node& cs = mesh["coordsets/coords"];
-  cs["type"] = "explicit";
-  for(const char* comp : {"x", "y", "z"})
-  {
-    cs[std::string("values/") + comp].set(conduit::DataType::float64(N));
-  }
-  auto* x = cs["values/x"].as_float64_ptr();
-  auto* y = cs["values/y"].as_float64_ptr();
-  auto* z = cs["values/z"].as_float64_ptr();
-
-  conduit::Node& fld = mesh["fields/" + fieldName];
-  fld["topology"] = "mesh";
-  fld["association"] = "vertex";
-  fld["values"].set(conduit::DataType::float64(N));
-  auto* fv = fld["values"].as_float64_ptr();
-  fld["offsets"].set(std::vector<conduit::int32> {g, g, g});
-  fld["strides"].set(std::vector<conduit::int32> {1, nnPad, nnPad * nnPad});
-
-  // Continue the field into ghost nodes so a ghost leak produces extra facets.
-  conduit::index_t idx = 0;
-  for(int k = 0; k < nnPad; ++k)
-  {
-    for(int j = 0; j < nnPad; ++j)
-    {
-      for(int i = 0; i < nnPad; ++i, ++idx)
-      {
-        const double px = double(i - g) / n, py = double(j - g) / n, pz = double(k - g) / n;
-        x[idx] = px;
-        y[idx] = py;
-        z[idx] = pz;
-        fv[idx] = f(px, py, pz);
-      }
-    }
-  }
-
-  conduit::Node& topo = mesh["topologies/mesh"];
-  topo["type"] = "structured";
-  topo["coordset"] = "coords";
-  topo["elements/dims/i"] = n;
-  topo["elements/dims/j"] = n;
-  topo["elements/dims/k"] = n;
-  topo["elements/dims/offsets"].set(std::vector<conduit::int32> {g, g, g});
-  topo["elements/dims/strides"].set(std::vector<conduit::int32> {1, nnPad, nnPad * nnPad});
-}
-
 //---------------------------------------------------------------------------
 // Comparable backend results
 //---------------------------------------------------------------------------
@@ -946,12 +883,12 @@ void test_invalid_field_layouts_rejected(RuntimePolicy policy)
   RoundField f {{0.5, 0.5, 0.5}, 0.25};
 
   conduit::Node permuted;
-  buildStridedStructured3D(permuted, n, pad, f, "fcn");
+  mctest::buildStridedStructured<3>(permuted, n, pad, f, "fcn");
   permuted["fields/fcn/strides"].set(std::vector<conduit::int32> {nnPad * nnPad, nnPad, 1});
   expectBumpFieldLayoutRejected(permuted, policy);
 
   conduit::Node mismatched;
-  buildStridedStructured3D(mismatched, n, pad, f, "fcn");
+  mctest::buildStridedStructured<3>(mismatched, n, pad, f, "fcn");
   mismatched["fields/fcn/offsets"].set(std::vector<conduit::int32> {pad + 1, pad, pad});
   expectBumpFieldLayoutRejected(mismatched, policy);
 }
@@ -1015,7 +952,7 @@ void test_strided_structured(RuntimePolicy policy)
 
   conduit::Node compact, strided;
   mctest::buildStructured<3>(compact, n, f, fieldName);
-  buildStridedStructured3D(strided, n, pad, f, fieldName);
+  mctest::buildStridedStructured<3>(strided, n, pad, f, fieldName);
 
   conduit::Node info;
   ASSERT_TRUE(conduit::blueprint::mesh::verify(strided, info)) << info.to_yaml();

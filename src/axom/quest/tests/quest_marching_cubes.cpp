@@ -74,17 +74,6 @@ int allocatorForPolicy(RuntimePolicy policy)
 // Meshes
 //---------------------------------------------------------------------------
 
-//! @brief Shift the explicit coordinates of @a dom by @a dx along x.
-void translateX(conduit::Node& dom, double dx)
-{
-  auto* x = dom["coordsets/coords/values/x"].as_float64_ptr();
-  const auto n = dom["coordsets/coords/values/x"].dtype().number_of_elements();
-  for(conduit::index_t i = 0; i < n; ++i)
-  {
-    x[i] += dx;
-  }
-}
-
 /*!
  * @brief Build a multi-domain mesh from @a ndom unit structured domains placed
  *        side by side along x, sampling the planar field @a f on each.
@@ -106,7 +95,7 @@ void buildMultiDomain(conduit::Node& mdMesh,
     conduit::Node& dom = mdMesh.append();
     // The field is sampled after translation, so it sees global coordinates.
     mctest::buildStructured<DIM>(dom, n, [](double, double, double) { return 0.0; }, "fcn");
-    translateX(dom, double(d));
+    mctest::translateExplicitCoordsX(dom, double(d));
     mctest::addVertexField<DIM>(dom, f, "fcn");
     if(setDomainIds && d + 1 < ndom)
     {

@@ -99,6 +99,17 @@ inline void copyBlueprintToHost(conduit::Node& dst, const conduit::Node& src)
   axom::bump::utilities::copy<axom::SEQ_EXEC>(dst, src, hostAllocatorID());
 }
 
+//! @brief Shift the explicit x coordinates of @a mesh by @a offset.
+inline void translateExplicitCoordsX(conduit::Node& mesh, double offset)
+{
+  conduit::Node& x_node = mesh.fetch_existing("coordsets/coords/values/x");
+  auto* x = x_node.as_float64_ptr();
+  for(conduit::index_t i = 0; i < x_node.dtype().number_of_elements(); ++i)
+  {
+    x[i] += offset;
+  }
+}
+
 //---------------------------------------------------------------------------
 // Analytic fields
 //

@@ -213,38 +213,6 @@ EdgeManifoldResult checkBlueprintEdgeManifold3D(const conduit::Node& contourDom)
   return res;
 }
 
-void addStructuredMask3D(conduit::Node& mesh,
-                         int n,
-                         const std::string& maskFieldName,
-                         int selectedValue,
-                         int rejectedValue)
-{
-  const conduit::index_t nCells = static_cast<conduit::index_t>(n) * n * n;
-
-  conduit::Node& mask = mesh["fields/" + maskFieldName];
-  mask["topology"] = "mesh";
-  mask["association"] = "element";
-  mask["values"].set(conduit::DataType::int32(nCells));
-  auto* values = mask["values"].as_int32_ptr();
-
-  // Build an element-associated mask that selects the lower half of the
-  // structured mesh in k. The masked test below verifies that Bump's
-  // selectedZones path emits contour facets only from cells with this value.
-  conduit::index_t idx = 0;
-  for(int k = 0; k < n; ++k)
-  {
-    for(int j = 0; j < n; ++j)
-    {
-      for(int i = 0; i < n; ++i, ++idx)
-      {
-        AXOM_UNUSED_VAR(i);
-        AXOM_UNUSED_VAR(j);
-        values[idx] = (k < n / 2) ? selectedValue : rejectedValue;
-      }
-    }
-  }
-}
-
 template <int DIM>
 using Point = axom::primal::Point<double, DIM>;
 
@@ -631,14 +599,17 @@ void test_structured_round(RuntimePolicy policy)
 
 void test_structured_planar_mask(RuntimePolicy policy)
 {
+  constexpr int n = 8;
   conduit::Node mesh;
   PlanarField f {{0.5, 0.5, 0.30}, {0.0, 0.0, 1.0}};  // horizontal plane z=0.30
-  mctest::buildStructured<3>(mesh, 8, f, "fcn");
+  mctest::buildStructured<3>(mesh, n, f, "fcn");
 
   // Select only the lower k-slab. Since z=0.30 lies in that selected half,
   // the contour should be non-empty, and runAndVerify checks every reported
   // parent cell has the selected mask value.
-  addStructuredMask3D(mesh, 8, "mask", /*selectedValue=*/7, /*rejectedValue=*/3);
+  mctest::addCellField<3>(mesh,
+                           [n](int, int, int k) { return k < n / 2 ? 7 : 3; },
+                           "mask");
   runAndVerify<3>(mesh,
                   f,
                   0.0,
@@ -802,17 +773,6 @@ void test_accumulated_analytic_fields(RuntimePolicy policy)
 // A combined run exercises offsets in the shared output arrays.
 //---------------------------------------------------------------------------
 
-/// Shift every x-coordinate in \a mesh by \a offset.
-void translateMeshX(conduit::Node& mesh, double offset)
-{
-  conduit::Node& n_x = mesh.fetch_existing("coordsets/coords/values/x");
-  auto* x = n_x.as_float64_ptr();
-  for(conduit::index_t i = 0; i < n_x.dtype().number_of_elements(); ++i)
-  {
-    x[i] += offset;
-  }
-}
-
 template <int DIM>
 void test_multidomain_planar(RuntimePolicy policy)
 {
@@ -827,7 +787,7 @@ void test_multidomain_planar(RuntimePolicy policy)
   conduit::Node dom0, dom1;
   mctest::buildStructured<DIM>(dom0, 10, f0, "fcn");
   mctest::buildStructured<DIM>(dom1, 10, f1, "fcn");
-  translateMeshX(dom1, 2.0);
+  mctest::translateExplicitCoordsX(dom1, 2.0);
   dom0["state/domain_id"] = 7;
   dom1["state/domain_id"] = 19;
 
