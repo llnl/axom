@@ -36,7 +36,7 @@ struct make_rectilinear_coordset<DataType, 3>
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
-   * \param topo The node containing the coordset.
+   * \param coordset The node containing the coordset.
    * \return The coordset view.
    */
   static CoordsetView view(const conduit::Node& coordset)
@@ -63,7 +63,7 @@ struct make_rectilinear_coordset<DataType, 2>
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
-   * \param topo The node containing the coordset.
+   * \param coordset The node containing the coordset.
    * \return The coordset view.
    */
   static CoordsetView view(const conduit::Node& coordset)
@@ -80,7 +80,7 @@ struct make_rectilinear_coordset<DataType, 2>
 };
 
 /*!
- * \brief Base template for creating a rectilinear coordset view.
+ * \brief Base template for creating a uniform coordset view.
  */
 template <int NDIMS>
 struct make_uniform_coordset
@@ -96,7 +96,7 @@ struct make_uniform_coordset<3>
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
-   * \param topo The node containing the coordset.
+   * \param coordset The node containing the coordset.
    * \return The coordset view.
    */
   static CoordsetView view(const conduit::Node& coordset)
@@ -118,7 +118,7 @@ struct make_uniform_coordset<3>
 };
 
 /*!
- * \brief Partial specialization for creating 2D rectilinear coordset view.
+ * \brief Partial specialization for creating a 2D uniform coordset view.
  */
 template <>
 struct make_uniform_coordset<2>
@@ -127,7 +127,7 @@ struct make_uniform_coordset<2>
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
-   * \param topo The node containing the coordset.
+   * \param coordset The node containing the coordset.
    * \return The coordset view.
    */
   static CoordsetView view(const conduit::Node& coordset)
@@ -218,7 +218,7 @@ void dispatch_rectilinear_coordset(const conduit::Node& coordset, FuncType&& fun
 }
 
 /*!
- * \brief Base template for creating a explicit coordset view.
+ * \brief Base template for creating an explicit coordset view.
  */
 template <typename DataType, int NDIMS>
 struct make_explicit_coordset
@@ -234,7 +234,7 @@ struct make_explicit_coordset<DataType, 3>
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
-   * \param topo The node containing the coordset.
+   * \param coordset The node containing the coordset.
    * \return The coordset view.
    */
   static CoordsetView view(const conduit::Node& coordset)
@@ -261,7 +261,7 @@ struct make_explicit_coordset<DataType, 2>
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
-   * \param topo The node containing the coordset.
+   * \param coordset The node containing the coordset.
    * \return The coordset view.
    */
   static CoordsetView view(const conduit::Node& coordset)
