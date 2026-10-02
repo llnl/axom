@@ -49,28 +49,6 @@ using mctest::policyName;
 constexpr double POSITION_TOL = 1e-12;
 
 //---------------------------------------------------------------------------
-// Runtime policies and memory
-//---------------------------------------------------------------------------
-
-int allocatorForPolicy(RuntimePolicy policy)
-{
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  if(policy == RuntimePolicy::cuda)
-  {
-    return axom::execution_space<axom::CUDA_EXEC<256>>::allocatorID();
-  }
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  if(policy == RuntimePolicy::hip)
-  {
-    return axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
-  }
-#endif
-  AXOM_UNUSED_VAR(policy);
-  return mctest::hostAllocatorID();
-}
-
-//---------------------------------------------------------------------------
 // Meshes
 //---------------------------------------------------------------------------
 
@@ -342,7 +320,7 @@ void forEachConfiguration(const conduit::Node& hostMesh,
 {
   for(auto policy : enabledPolicies())
   {
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node mesh;
     mctest::copyBlueprintToPolicy(mesh, hostMesh, policy, allocatorID);
 
@@ -574,7 +552,7 @@ void testMask()
     SCOPED_TRACE(axom::fmt::format("mask value {}", maskValue));
     for(auto policy : enabledPolicies())
     {
-      const int allocatorID = allocatorForPolicy(policy);
+      const int allocatorID = axom::policyToDefaultAllocatorID(policy);
       conduit::Node mesh;
       mctest::copyBlueprintToPolicy(mesh, mdMesh, policy, allocatorID);
 
@@ -615,7 +593,7 @@ void testAppendClearAndRelinquish()
   for(auto policy : enabledPolicies())
   {
     SCOPED_TRACE(policyName(policy));
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node mesh;
     mctest::copyBlueprintToPolicy(mesh, mdMesh, policy, allocatorID);
 
@@ -721,7 +699,7 @@ void testMintOutput()
   for(auto policy : enabledPolicies())
   {
     SCOPED_TRACE(policyName(policy));
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node mesh;
     mctest::copyBlueprintToPolicy(mesh, mdMesh, policy, allocatorID);
 
@@ -927,7 +905,9 @@ void expectSameContour(const HostContour& a, const HostContour& b)
 //! @brief Contour @a mesh (already in @a policy's memory) and return the host result.
 HostContour contourOf(const conduit::Node& mesh, RuntimePolicy policy, double contourValue)
 {
-  axom::quest::MarchingCubes mc(policy, allocatorForPolicy(policy), DataParallelism::byPolicy);
+  axom::quest::MarchingCubes mc(policy,
+                                axom::policyToDefaultAllocatorID(policy),
+                                DataParallelism::byPolicy);
   mc.setMesh(mesh, "mesh");
   mc.setFunctionField("fcn");
   mc.computeIsocontour(contourValue);
@@ -957,7 +937,7 @@ void testSingleDomainInput(bool setDomainId)
   for(auto policy : enabledPolicies())
   {
     SCOPED_TRACE(policyName(policy));
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node dom, md;
     mctest::copyBlueprintToPolicy(dom, hostDom, policy, allocatorID);
     mctest::copyBlueprintToPolicy(md, hostMd, policy, allocatorID);
