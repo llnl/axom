@@ -206,11 +206,13 @@ program example
   print*, 'adding curve to rec3 double', independent, curve
   call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
   
-  ! And save the hdf5 only with autodetect
-  print*, 'saving to', hdf5_fn
-  call sina_write_document(hdf5_fn)
-  call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
-  call sina_write_document(hdf5_fn)
+  if (use_hdf5) then
+    ! And save the hdf5 only with autodetect
+    print*, 'saving to', hdf5_fn
+    call sina_write_document(hdf5_fn)
+    call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
+    call sina_write_document(hdf5_fn)
+  end if
 
   ! ========== CLEANUP - Deallocate only allocatable strings ==========
   if (allocated(rec_id)) deallocate(rec_id)
