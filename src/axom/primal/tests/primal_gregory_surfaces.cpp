@@ -144,9 +144,9 @@ TEST(primal_gregorypatch, corner_vector_constructor)
     VectorType {-0.1, -0.1, 1.0},
   };
   const axom::StackArray<PointType, 3> expected = {
-    PointType {0.513028224046239, 0.543322217053776, -0.029635606352038},
-    PointType {1.160773987471445, 0.301706794880165, 0.098896010873512},
-    PointType {1.013566789944491, 0.520296472500435, 0.118673113203985},
+    PointType {0.513413161974574, 0.509641339460992, -0.0236091294272693},
+    PointType {1.21790965604773, 0.307819676781947, 0.118988027108825},
+    PointType {1.02108651891162, 0.519192716424158, 0.127029550961066},
   };
   const axom::StackArray<axom::StackArray<CoordType, 2>, 3> params = {
     axom::StackArray<CoordType, 2> {0.25, 0.5},
@@ -260,7 +260,6 @@ TEST(primal_gregorypatch, bounding_box)
     EXPECT_TRUE(obb.contains(controlPoints[i]));
   }
 }
-
 
 //------------------------------------------------------------------------------
 TEST(primal_gregorytriangle, array_constructors)

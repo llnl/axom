@@ -221,6 +221,8 @@ public:
     for(int i = 0; i < 4; ++i)
     {
       getCorner(i) = nodePositions[i];
+
+      SLIC_ASSERT(!axom::utilities::isNearlyEqual(nodeVectors[i].squared_norm(), 0.0, PRIMAL_TINY));
       v[i] = nodeVectors[i].unitVector();
     }
 
@@ -229,23 +231,30 @@ public:
     for(int i = 0; i < 4; ++i)
     {
       const int ip1 = (i + 1) % 4;
-      const int im1 = (i + 3) % 4;
 
       const VectorType dx(getCorner(i), getCorner(ip1));
+      SLIC_WARNING_IF(axom::utilities::isNearlyEqual(dx.squared_norm(), 0.0, PRIMAL_TINY),
+                      "[primal] Degenerate GregoryPatch detected");
 
       c0[i] = (dx - dx.dot(v[i]) * v[i]) / 3.0;
       a0[i] = VectorType::cross_product(v[i], dx).unitVector();
       c2[i] = (dx - dx.dot(v[ip1]) * v[ip1]) / 3.0;
       a3[i] = VectorType::cross_product(v[ip1], dx).unitVector();
 
-      // Use Chiyokura algorithm to define the interior control points
-      const PointType x1(getCorner(i).array() + c0[i].array());
-      const PointType x2(getCorner(ip1).array() - c2[i].array());
+      // Initialize the boundary control points for this edge.
+      getBoundaryPoint(i, 1) = getCorner(i) + c0[i];
+      getBoundaryPoint(i, 2) = getCorner(ip1) - c2[i];
+    }
 
-      getBoundaryPoint(i, 1) = x1;
-      getBoundaryPoint(i, 2) = x2;
-
+    // Use Chiyokura algorithm to define the interior control points.
+    for(int i = 0; i < 4; ++i)
+    {
+      const int ip1 = (i + 1) % 4;
+      const int im1 = (i + 3) % 4;
+      const auto& x1 = getBoundaryPoint(i, 1);
+      const auto& x2 = getBoundaryPoint(i, 2);
       const VectorType c1(x1, x2);
+
       const VectorType b0 = -c2[im1];
       const VectorType b3 = c0[ip1];
 
@@ -257,8 +266,8 @@ public:
       const VectorType b1 = ((k0 + k1) * a0[i] + k0 * a3[i] + 2.0 * h0 * c1 + h1 * c0[i]) / 3.0;
       const VectorType b2 = ((k0 + k1) * a3[i] + k1 * a0[i] + 2.0 * h1 * c1 + h0 * c2[i]) / 3.0;
 
-      getTangent(i, 0) = PointType(x1.array() + b1.array());
-      getTangent(i, 1) = PointType(x2.array() + b2.array());
+      getTangent(i, 0) = x1 + b1;
+      getTangent(i, 1) = x2 + b2;
     }
   }
 
@@ -666,7 +675,7 @@ private:
         const PointType& B = swap ? tPrev : tNext;
 
         const T denom = wa + wb;
-        if(axom::utilities::isNearlyEqual(denom, T(0)))
+        if(axom::utilities::isNearlyEqual(denom, T(0), PRIMAL_TINY))
         {
           out.Q[i][j] = A;
           out.Q_u[i][j] = VectorType(T(0));

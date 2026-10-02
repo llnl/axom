@@ -219,6 +219,8 @@ public:
     for(int i = 0; i < 3; ++i)
     {
       getCorner(i) = nodePositions[i];
+
+      SLIC_ASSERT(!axom::utilities::isNearlyEqual(nodeVectors[i].squared_norm(), 0.0, PRIMAL_TINY));
       v[i] = nodeVectors[i].unitVector();
     }
 
@@ -229,6 +231,8 @@ public:
       const int start = (k + 1) % 3;
       const int end = (k + 2) % 3;
       const VectorType dx(nodePositions[start], nodePositions[end]);
+      SLIC_WARNING_IF(axom::utilities::isNearlyEqual(dx.squared_norm(), 0.0, PRIMAL_TINY),
+                      "[primal] Degenerate GregoryTriangle detected");
 
       const VectorType c0 = (dx - dx.dot(v[start]) * v[start]) / 3.0;
       const VectorType c2 = (dx - dx.dot(v[end]) * v[end]) / 3.0;
@@ -276,8 +280,8 @@ public:
 
       // Compute a boundary cross derivative that varies across the edge
       const VectorType dx(getCorner(start), getCorner(end));
-      const VectorType a0 = VectorType::cross_product(nodeVectors[start], dx).unitVector();
-      const VectorType a3 = VectorType::cross_product(nodeVectors[end], dx).unitVector();
+      const VectorType a0 = VectorType::cross_product(v[start], dx).unitVector();
+      const VectorType a3 = VectorType::cross_product(v[end], dx).unitVector();
 
       // Elevate the linear cross derivative a(t) = (1-t)a0 + t*a3 to quadratic
       const axom::StackArray<VectorType, 3> aHat = {a0, 0.5 * (a0 + a3), a3};
@@ -301,8 +305,8 @@ public:
       }
 
       const auto& q2 = getBoundaryPoint(k, 2);
-      getTangent(k, 0) = PointType(PointType::lerp(q1, q2, 0.5).array() - deriv[0].array());
-      getTangent(k, 1) = PointType(PointType::lerp(q2, q3, 0.5).array() - deriv[1].array());
+      getTangent(k, 0) = PointType::lerp(q1, q2, 0.5) - deriv[0];
+      getTangent(k, 1) = PointType::lerp(q2, q3, 0.5) - deriv[1];
     }
   }
 
@@ -667,7 +671,7 @@ private:
                      VectorType& Q_u0u0, VectorType& Q_v0v0, VectorType& Q_u0v0) {
       // clang-format on
       const T denom = wa + wb;
-      if(axom::utilities::isNearlyEqual(denom, T(0)))
+      if(axom::utilities::isNearlyEqual(denom, T(0), PRIMAL_TINY))
       {
         Q = A;
         Q_u0 = VectorType(T(0));
