@@ -8,6 +8,7 @@
 
 #include "axom/slic.hpp"
 #include "axom/bump.hpp"
+#include "axom/bump/extraction/TableBasedExtractor.hpp"
 #include "axom/bump/views/StridedStructuredIndexing.hpp"
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
@@ -278,6 +279,60 @@ TEST(bump_views_indexing, element_field_indexing_strided_partial_metadata)
       EXPECT_EQ(indexing[z], z + dims[0]);
     }
   }
+}
+
+void test_element_field_slicing_partial_metadata(const char* missing_key,
+                                                 const std::vector<axom::IndexType>& field_indices)
+{
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  auto topo_view = views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+
+  conduit::Node n_field;
+  n_field["association"] = "element";
+  n_field["topology"] = "mesh";
+  if(std::string(missing_key) == "offsets")
+  {
+    n_field["strides"].set(std::vector<conduit::index_t> {1, 7});
+  }
+  else
+  {
+    n_field["offsets"].set(std::vector<conduit::index_t> {2, 2});
+  }
+
+  std::vector<double> values(field_indices.back() + 1, -1.);
+  for(axom::IndexType zone = 0; zone < topo_view.numberOfZones(); zone++)
+  {
+    values[field_indices[zone]] = static_cast<double>(zone + 1);
+  }
+  n_field["values"].set(values);
+
+  axom::Array<axom::IndexType> selected_zones {{0, 2, 3, 5}};
+  axom::bump::SliceData slice {selected_zones.view()};
+  conduit::Node sliced_field;
+  const bool handled =
+    axom::bump::extraction::detail::StridedStructuredFields<true, seq_exec, decltype(topo_view)>::sliceElementField(
+      topo_view,
+      slice,
+      n_field,
+      sliced_field);
+
+  ASSERT_TRUE(handled);
+  const auto sliced_values = sliced_field["values"].as_double_accessor();
+  ASSERT_EQ(sliced_values.number_of_elements(), selected_zones.size());
+  for(conduit::index_t i = 0; i < sliced_values.number_of_elements(); i++)
+  {
+    EXPECT_EQ(sliced_values[i], static_cast<double>(selected_zones[i] + 1));
+  }
+}
+
+TEST(bump_views_indexing, element_field_slicing_strided_partial_metadata)
+{
+  // A strides-only field has zero offsets and a j-stride of 7.
+  test_element_field_slicing_partial_metadata("offsets", {0, 1, 2, 7, 8, 9});
+
+  // An offsets-only field has compact strides and an offset of [2, 2].
+  test_element_field_slicing_partial_metadata("strides", {8, 9, 10, 11, 12, 13});
 }
 
 // Views whose element fields are stored in zone order return the identity.
