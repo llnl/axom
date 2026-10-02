@@ -57,14 +57,26 @@ namespace mctest = axom::quest::testing::marching_cubes;
 
 using mctest::copyBlueprintToHost;
 using mctest::copyBlueprintToPolicy;
+using mctest::enabledPolicies;
 using mctest::GyroidField;
 using mctest::hostAllocatorID;
 using mctest::PlanarField;
+using mctest::policyName;
 using mctest::RoundField;
 using mctest::SinusoidalWarp;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 using QuantizedPoint3D = axom::primal::Point<std::int64_t, 3>;
+
+template <typename Func>
+void forEachEnabledPolicy(Func&& func)
+{
+  for(const auto policy : enabledPolicies())
+  {
+    SCOPED_TRACE(policyName(policy));
+    func(policy);
+  }
+}
 
 //---------------------------------------------------------------------------
 // Edge-manifold checks
@@ -912,134 +924,35 @@ TEST(quest_marching_cubes_bump, structured_planar_seq)
 {
   test_structured_planar(RuntimePolicy::seq);
 }
-TEST(quest_marching_cubes_bump, structured_round_seq) { test_structured_round(RuntimePolicy::seq); }
-TEST(quest_marching_cubes_bump, structured_planar_mask_seq)
+TEST(quest_marching_cubes_bump, structured_round) { forEachEnabledPolicy(test_structured_round); }
+TEST(quest_marching_cubes_bump, structured_planar_mask)
 {
-  test_structured_planar_mask(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_structured_planar_mask);
 }
-TEST(quest_marching_cubes_bump, unstructured_hex_round_seq)
+TEST(quest_marching_cubes_bump, unstructured_hex_round)
 {
-  test_unstructured_hex_round(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_unstructured_hex_round);
 }
-TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_seq)
+TEST(quest_marching_cubes_bump, unstructured_hex_round_warped)
 {
-  test_unstructured_hex_round_warped(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_unstructured_hex_round_warped);
 }
-TEST(quest_marching_cubes_bump, multidomain_planar_2d_seq)
+TEST(quest_marching_cubes_bump, multidomain_planar_2d)
 {
-  test_multidomain_planar<2>(RuntimePolicy::seq);
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_planar<2>(policy); });
 }
-TEST(quest_marching_cubes_bump, multidomain_planar_3d_seq)
+TEST(quest_marching_cubes_bump, multidomain_planar_3d)
 {
-  test_multidomain_planar<3>(RuntimePolicy::seq);
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_multidomain_planar<3>(policy); });
 }
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_2d_seq)
+TEST(quest_marching_cubes_bump, accumulated_analytic_fields_2d)
 {
-  test_accumulated_analytic_fields<2>(RuntimePolicy::seq);
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_analytic_fields<2>(policy); });
 }
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d_seq)
+TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d)
 {
-  test_accumulated_analytic_fields<3>(RuntimePolicy::seq);
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_analytic_fields<3>(policy); });
 }
-
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(quest_marching_cubes_bump, structured_round_omp) { test_structured_round(RuntimePolicy::omp); }
-TEST(quest_marching_cubes_bump, structured_planar_mask_omp)
-{
-  test_structured_planar_mask(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_bump, multidomain_planar_2d_omp)
-{
-  test_multidomain_planar<2>(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_bump, multidomain_planar_3d_omp)
-{
-  test_multidomain_planar<3>(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_2d_omp)
-{
-  test_accumulated_analytic_fields<2>(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d_omp)
-{
-  test_accumulated_analytic_fields<3>(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_bump, unstructured_hex_round_omp)
-{
-  test_unstructured_hex_round(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_omp)
-{
-  test_unstructured_hex_round_warped(RuntimePolicy::omp);
-}
-#endif
-
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(quest_marching_cubes_bump, structured_round_cuda)
-{
-  test_structured_round(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_bump, structured_planar_mask_cuda)
-{
-  test_structured_planar_mask(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_bump, multidomain_planar_2d_cuda)
-{
-  test_multidomain_planar<2>(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_bump, multidomain_planar_3d_cuda)
-{
-  test_multidomain_planar<3>(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_2d_cuda)
-{
-  test_accumulated_analytic_fields<2>(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d_cuda)
-{
-  test_accumulated_analytic_fields<3>(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_bump, unstructured_hex_round_cuda)
-{
-  test_unstructured_hex_round(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_cuda)
-{
-  test_unstructured_hex_round_warped(RuntimePolicy::cuda);
-}
-#endif
-
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(quest_marching_cubes_bump, structured_round_hip) { test_structured_round(RuntimePolicy::hip); }
-TEST(quest_marching_cubes_bump, structured_planar_mask_hip)
-{
-  test_structured_planar_mask(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_bump, multidomain_planar_2d_hip)
-{
-  test_multidomain_planar<2>(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_bump, multidomain_planar_3d_hip)
-{
-  test_multidomain_planar<3>(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_2d_hip)
-{
-  test_accumulated_analytic_fields<2>(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_bump, accumulated_analytic_fields_3d_hip)
-{
-  test_accumulated_analytic_fields<3>(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_bump, unstructured_hex_round_hip)
-{
-  test_unstructured_hex_round(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_bump, unstructured_hex_round_warped_hip)
-{
-  test_unstructured_hex_round_warped(RuntimePolicy::hip);
-}
-#endif
 
 // Test the edge-manifold helper without MarchingCubes.
 TEST(quest_marching_cubes_bump, edge_manifold_helper_selftest)

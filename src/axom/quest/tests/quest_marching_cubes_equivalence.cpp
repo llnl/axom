@@ -52,12 +52,39 @@ namespace mctest = axom::quest::testing::marching_cubes;
 
 using mctest::copyBlueprintToHost;
 using mctest::copyBlueprintToPolicy;
+using mctest::enabledPolicies;
 using mctest::GyroidField;
 using mctest::hostAllocatorID;
 using mctest::PlanarField;
+using mctest::policyName;
 using mctest::RoundField;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
+
+template <typename Func>
+void forEachEnabledPolicy(Func&& func)
+{
+  for(const auto policy : enabledPolicies())
+  {
+    SCOPED_TRACE(policyName(policy));
+    func(policy);
+  }
+}
+
+template <typename Func>
+void forEachHostPolicy(Func&& func)
+{
+  {
+    SCOPED_TRACE(policyName(RuntimePolicy::seq));
+    func(RuntimePolicy::seq);
+  }
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  {
+    SCOPED_TRACE(policyName(RuntimePolicy::omp));
+    func(RuntimePolicy::omp);
+  }
+#endif
+}
 
 /*!
  * @brief Build the same box as mctest::buildStructured<3> with a uniform coordset and topology.
@@ -1292,30 +1319,30 @@ TEST(quest_marching_cubes_equivalence, ambiguity_detector_selftest)
   EXPECT_EQ(n2, 2);
 }
 
-TEST(quest_marching_cubes_equivalence, planar_3d_seq) { test_planar_3d(RuntimePolicy::seq); }
+TEST(quest_marching_cubes_equivalence, planar_3d) { forEachHostPolicy(test_planar_3d); }
 TEST(quest_marching_cubes_equivalence, oblique_planar_3d_seq)
 {
   test_oblique_planar_3d(RuntimePolicy::seq);
 }
-TEST(quest_marching_cubes_equivalence, round_3d_seq) { test_round_3d(RuntimePolicy::seq); }
-TEST(quest_marching_cubes_equivalence, gyroid_3d_seq) { test_gyroid_3d(RuntimePolicy::seq); }
+TEST(quest_marching_cubes_equivalence, round_3d) { forEachEnabledPolicy(test_round_3d); }
+TEST(quest_marching_cubes_equivalence, gyroid_3d) { forEachEnabledPolicy(test_gyroid_3d); }
 TEST(quest_marching_cubes_equivalence, planar_2d_seq) { test_planar_2d(RuntimePolicy::seq); }
-TEST(quest_marching_cubes_equivalence, round_2d_seq) { test_round_2d(RuntimePolicy::seq); }
-TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_seq)
+TEST(quest_marching_cubes_equivalence, round_2d) { forEachHostPolicy(test_round_2d); }
+TEST(quest_marching_cubes_equivalence, accumulated_fields_2d)
 {
-  test_accumulated_fields<2>(RuntimePolicy::seq);
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_fields<2>(policy); });
 }
-TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_seq)
+TEST(quest_marching_cubes_equivalence, accumulated_fields_3d)
 {
-  test_accumulated_fields<3>(RuntimePolicy::seq);
+  forEachEnabledPolicy([](RuntimePolicy policy) { test_accumulated_fields<3>(policy); });
 }
 TEST(quest_marching_cubes_equivalence, uniform_and_rectilinear_seq)
 {
   test_uniform_and_rectilinear(RuntimePolicy::seq);
 }
-TEST(quest_marching_cubes_equivalence, strided_structured_seq)
+TEST(quest_marching_cubes_equivalence, strided_structured)
 {
-  test_strided_structured(RuntimePolicy::seq);
+  forEachEnabledPolicy(test_strided_structured);
 }
 TEST(quest_marching_cubes_equivalence, float32_field_rejected_seq)
 {
@@ -1337,59 +1364,6 @@ TEST(quest_marching_cubes_equivalence, float_ulp_band_falsification_seq)
 {
   test_float_ulp_band_falsification(RuntimePolicy::seq);
 }
-
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(quest_marching_cubes_equivalence, planar_3d_omp) { test_planar_3d(RuntimePolicy::omp); }
-TEST(quest_marching_cubes_equivalence, round_3d_omp) { test_round_3d(RuntimePolicy::omp); }
-TEST(quest_marching_cubes_equivalence, gyroid_3d_omp) { test_gyroid_3d(RuntimePolicy::omp); }
-TEST(quest_marching_cubes_equivalence, round_2d_omp) { test_round_2d(RuntimePolicy::omp); }
-TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_omp)
-{
-  test_accumulated_fields<2>(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_omp)
-{
-  test_accumulated_fields<3>(RuntimePolicy::omp);
-}
-TEST(quest_marching_cubes_equivalence, strided_structured_omp)
-{
-  test_strided_structured(RuntimePolicy::omp);
-}
-#endif
-
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(quest_marching_cubes_equivalence, round_3d_cuda) { test_round_3d(RuntimePolicy::cuda); }
-TEST(quest_marching_cubes_equivalence, gyroid_3d_cuda) { test_gyroid_3d(RuntimePolicy::cuda); }
-TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_cuda)
-{
-  test_accumulated_fields<2>(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_cuda)
-{
-  test_accumulated_fields<3>(RuntimePolicy::cuda);
-}
-TEST(quest_marching_cubes_equivalence, strided_structured_cuda)
-{
-  test_strided_structured(RuntimePolicy::cuda);
-}
-#endif
-
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(quest_marching_cubes_equivalence, round_3d_hip) { test_round_3d(RuntimePolicy::hip); }
-TEST(quest_marching_cubes_equivalence, gyroid_3d_hip) { test_gyroid_3d(RuntimePolicy::hip); }
-TEST(quest_marching_cubes_equivalence, accumulated_fields_2d_hip)
-{
-  test_accumulated_fields<2>(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_equivalence, accumulated_fields_3d_hip)
-{
-  test_accumulated_fields<3>(RuntimePolicy::hip);
-}
-TEST(quest_marching_cubes_equivalence, strided_structured_hip)
-{
-  test_strided_structured(RuntimePolicy::hip);
-}
-#endif
 
 int main(int argc, char** argv)
 {

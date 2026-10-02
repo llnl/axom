@@ -43,27 +43,14 @@ namespace
 using RuntimePolicy = axom::runtime_policy::Policy;
 using DataParallelism = axom::quest::MarchingCubesDataParallelism;
 using Vec3 = mctest::PlanarField::VectorType;
+using mctest::enabledPolicies;
+using mctest::policyName;
 
 constexpr double POSITION_TOL = 1e-12;
 
 //---------------------------------------------------------------------------
 // Runtime policies and memory
 //---------------------------------------------------------------------------
-
-std::vector<RuntimePolicy> enabledPolicies()
-{
-  std::vector<RuntimePolicy> policies {RuntimePolicy::seq};
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-  policies.push_back(RuntimePolicy::omp);
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  policies.push_back(RuntimePolicy::cuda);
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  policies.push_back(RuntimePolicy::hip);
-#endif
-  return policies;
-}
 
 int allocatorForPolicy(RuntimePolicy policy)
 {
@@ -82,8 +69,6 @@ int allocatorForPolicy(RuntimePolicy policy)
   AXOM_UNUSED_VAR(policy);
   return mctest::hostAllocatorID();
 }
-
-std::string policyName(RuntimePolicy policy) { return axom::runtime_policy::policyToName(policy); }
 
 //---------------------------------------------------------------------------
 // Meshes

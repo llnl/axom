@@ -25,11 +25,34 @@
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 namespace axom::quest::testing::marching_cubes
 {
 
 using RuntimePolicy = axom::runtime_policy::Policy;
+
+//! @brief Return each runtime policy enabled in this build.
+inline std::vector<RuntimePolicy> enabledPolicies()
+{
+  std::vector<RuntimePolicy> policies {RuntimePolicy::seq};
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  policies.push_back(RuntimePolicy::omp);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  policies.push_back(RuntimePolicy::cuda);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  policies.push_back(RuntimePolicy::hip);
+#endif
+  return policies;
+}
+
+//! @brief Return the printable name of a runtime policy.
+inline std::string policyName(RuntimePolicy policy)
+{
+  return axom::runtime_policy::policyToName(policy);
+}
 
 //---------------------------------------------------------------------------
 // Memory copies
