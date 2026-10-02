@@ -80,6 +80,7 @@ using MyTypes = ::testing::Types<
 #endif
 #if defined(AXOM_USE_UMPIRE)
   ArrayTestParams<axom::SEQ_EXEC, axom::MemorySpace::Host>,
+  ArrayTestParams<axom::SEQ_EXEC, axom::MemorySpace::Malloc>,
 #endif
   ArrayTestParams<axom::SEQ_EXEC>>;
 
@@ -144,6 +145,40 @@ AXOM_TYPED_TEST(core_array_for_all, explicit_ArrayView)
   {
     EXPECT_EQ(localArr[i], N - i);
   }
+}
+
+//------------------------------------------------------------------------------
+AXOM_TYPED_TEST(core_array_for_all, external_ArrayView)
+{
+  using ExecSpaceType = typename TestFixture::ExecSpace;
+  using HostArrayType = typename TestFixture::HostArray;
+
+  constexpr int N = 374;
+  constexpr axom::IndexType MAGIC_NUM = 42;
+  const int kernelAllocID = TestFixture::getKernelAllocatorID();
+  const int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+
+  auto* data = axom::allocate<axom::IndexType>(N, kernelAllocID);
+  axom::ArrayView<axom::IndexType> arr_view(data, N);
+
+  arr_view.fill(MAGIC_NUM);
+
+  // handles synchronization, if necessary
+  if(axom::execution_space<ExecSpaceType>::async())
+  {
+    axom::synchronize<ExecSpaceType>();
+  }
+
+  EXPECT_EQ(arr_view.getAllocatorID(), kernelAllocID);
+
+  HostArrayType localArr(arr_view, hostAllocID);
+  for(int i = 0; i < N; ++i)
+  {
+    EXPECT_EQ(localArr[i], MAGIC_NUM);
+  }
+
+  axom::deallocate(data);
+  EXPECT_EQ(data, nullptr);
 }
 
 //------------------------------------------------------------------------------
