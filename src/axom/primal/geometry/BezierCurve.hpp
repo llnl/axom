@@ -48,6 +48,8 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve);
  * \tparam NDIMS the number of dimensions
  *
  * The order of a Bezier curve with N+1 control points is N.
+ *  Note that this class uses `order` interchangeably with `degree`.
+ *  This contrasts with NURBS objects, for which `order = degree + 1`
  * The curve is approximated by the control points, parametrized from t=0 to t=1.
  * 
  * Contains an array of positive weights to represent a rational Bezier curve.
@@ -392,6 +394,89 @@ public:
       {
         axom::utilities::swap(m_weights[i], m_weights[ord - i]);
       }
+    }
+  }
+
+  /*!
+   * \brief Degree-elevates this Bezier curve to \a target_degree
+   *
+   * Degree elevation increases the polynomial order while preserving the curve geometry.
+   * For a polynomial curve of order n, one elevation step produces an order n+1 curve
+   * with control points:
+   *   P'_0 = P_0
+   *   P'_{n+1} = P_n
+   *   P'_i = (i/(n+1)) P_{i-1} + (1 - i/(n+1)) P_i, for i=1..n
+   *
+   * For a rational curve, the degree elevation is performed in projective space by
+   * elevating both the projective control points (w*P) and the weights (w), then
+   * converting back to Euclidean control points.
+   *
+   * \param [in] target_degree Desired polynomial order (must be nonnegative)
+   *
+   * \note For BezierPatch objects, `degree` is interchangeable with `order` 
+   * \note This is a no-op for empty curves (order < 0) or when the curve already has
+   * a degree greater than or equal to \a target_degree
+   */
+  void degreeElevate(int target_degree)
+  {
+    SLIC_ASSERT(target_degree >= 0);
+
+    int ord = getOrder();
+    if(ord < 0 || ord >= target_degree)
+    {
+      return;
+    }
+
+    while(ord < target_degree)
+    {
+      const int n = ord;
+      const int np1 = n + 1;
+
+      axom::Array<PointType> newPts(np1 + 1);
+      newPts[0] = m_controlPoints[0];
+      newPts[np1] = m_controlPoints[n];
+
+      if(!isRational())
+      {
+        for(int i = 1; i <= n; ++i)
+        {
+          const T alpha = static_cast<T>(i) / static_cast<T>(np1);
+          newPts[i] = PointType(alpha * m_controlPoints[i - 1].array() +
+                                (T(1) - alpha) * m_controlPoints[i].array());
+        }
+
+        m_controlPoints = newPts;
+      }
+      else
+      {
+        axom::Array<T> newWts(np1 + 1);
+        newWts[0] = m_weights[0];
+        newWts[np1] = m_weights[n];
+
+        // Projective control points H_i = w_i * P_i
+        axom::Array<PointType> H(n + 1);
+        for(int i = 0; i <= n; ++i)
+        {
+          H[i] = PointType(m_weights[i] * m_controlPoints[i].array());
+        }
+
+        axom::Array<PointType> newH(np1 + 1);
+        newH[0] = H[0];
+        newH[np1] = H[n];
+
+        for(int i = 1; i <= n; ++i)
+        {
+          const T alpha = static_cast<T>(i) / static_cast<T>(np1);
+          newWts[i] = alpha * m_weights[i - 1] + (T(1) - alpha) * m_weights[i];
+          newH[i] = PointType(alpha * H[i - 1].array() + (T(1) - alpha) * H[i].array());
+          newPts[i] = PointType(newH[i].array() / newWts[i]);
+        }
+
+        m_controlPoints = newPts;
+        m_weights = newWts;
+      }
+
+      ord = np1;
     }
   }
 
