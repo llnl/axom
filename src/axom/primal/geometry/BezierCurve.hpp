@@ -48,6 +48,8 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve);
  * \tparam NDIMS the number of dimensions
  *
  * The order of a Bezier curve with N+1 control points is N.
+ *  Note that this class uses `order` interchangeably with `degree`.
+ *  This contrasts with NURBS objects, for which `order = degree + 1`
  * The curve is approximated by the control points, parametrized from t=0 to t=1.
  * 
  * Contains an array of positive weights to represent a rational Bezier curve.
@@ -396,7 +398,7 @@ public:
   }
 
   /*!
-   * \brief Degree-elevates this Bezier curve by \a degrees
+   * \brief Degree-elevates this Bezier curve to \a target_degree
    *
    * Degree elevation increases the polynomial order while preserving the curve geometry.
    * For a polynomial curve of order n, one elevation step produces an order n+1 curve
@@ -409,25 +411,23 @@ public:
    * elevating both the projective control points (w*P) and the weights (w), then
    * converting back to Euclidean control points.
    *
-   * \param [in] degrees Number of elevation steps to apply (must be nonnegative)
+   * \param [in] target_degree Desired polynomial order (must be nonnegative)
    *
-   * \note This is a no-op for empty curves (order < 0) or when \a degrees == 0
+   * \note For BezierPatch objects, `degree` is interchangeable with `order` 
+   * \note This is a no-op for empty curves (order < 0) or when the curve already has
+   * a degree greater than or equal to \a target_degree
    */
-  void degreeElevate(int degrees = 1)
+  void degreeElevate(int target_degree)
   {
-    SLIC_ASSERT(degrees >= 0);
-    if(degrees == 0)
-    {
-      return;
-    }
+    SLIC_ASSERT(target_degree >= 0);
 
     int ord = getOrder();
-    if(ord < 0)
+    if(ord < 0 || ord >= target_degree)
     {
       return;
     }
 
-    for(int step = 0; step < degrees; ++step)
+    while(ord < target_degree)
     {
       const int n = ord;
       const int np1 = n + 1;

@@ -182,7 +182,7 @@ public:
       cubic_deriv_cp[k][2] = VectorType(cubic[2], cubic[3]);
 
       // Do degree elevation on the cubic curve, which defines the quartic boundary control points
-      cubic.degreeElevate();
+      cubic.degreeElevate(4);
       getBoundaryPoint(k, 0) = cubic[0];
       getBoundaryPoint(k, 1) = cubic[1];
       getBoundaryPoint(k, 2) = cubic[2];

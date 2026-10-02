@@ -150,43 +150,49 @@ public:
   /*!
    * \brief Constructor from a polynomial bicubic Bezier patch
    *
-   * \param [in] bPatch A polynomial Bezier patch of order (3, 3)
+   * \param [in] bPatch A polynomial Bezier patch of order up to (3, 3)
    *
    * This creates a Gregory patch that exactly reproduces the input bicubic Bezier patch.
    * The Gregory tangent pairs are duplicated from the four Bezier interior control points,
    * causing the parameter-dependent Gregory blends to collapse to fixed Bezier points.
    *
-   * \pre \a bPatch must have order (3, 3)
+   * \pre \a bPatch must have be valid (order >= 0 in each axis) and order at most (3, 3)
    * \pre \a bPatch must be polynomial, not rational
    */
   explicit GregoryPatch(const BezierPatch<T, 3>& bPatch)
   {
-    SLIC_ASSERT(bPatch.getOrder_u() == 3);
-    SLIC_ASSERT(bPatch.getOrder_v() == 3);
+    SLIC_ASSERT(bPatch.getOrder_u() >= 0 && bPatch.getOrder_u() <= 3);
+    SLIC_ASSERT(bPatch.getOrder_v() >= 0 && bPatch.getOrder_v() <= 3);
     SLIC_ASSERT(!bPatch.isRational());
 
-    getCorner(0) = bPatch(0, 0);
-    getCorner(1) = bPatch(3, 0);
-    getCorner(2) = bPatch(3, 3);
-    getCorner(3) = bPatch(0, 3);
+    // Ensure that the working patch is bicubic
+    BezierPatch<T, 3> bicubicPatch(bPatch);
+    bicubicPatch.degreeElevate(3, 3);
 
-    getBoundaryPoint(0, 1) = bPatch(1, 0);
-    getBoundaryPoint(0, 2) = bPatch(2, 0);
-    getBoundaryPoint(1, 1) = bPatch(3, 1);
-    getBoundaryPoint(1, 2) = bPatch(3, 2);
-    getBoundaryPoint(2, 1) = bPatch(2, 3);
-    getBoundaryPoint(2, 2) = bPatch(1, 3);
-    getBoundaryPoint(3, 1) = bPatch(0, 2);
-    getBoundaryPoint(3, 2) = bPatch(0, 1);
+    bicubicPatch.degreeElevate(3, 3);
 
-    getTangent(0, 0) = bPatch(1, 1);
-    getTangent(0, 1) = bPatch(2, 1);
-    getTangent(1, 0) = bPatch(2, 1);
-    getTangent(1, 1) = bPatch(2, 2);
-    getTangent(2, 0) = bPatch(2, 2);
-    getTangent(2, 1) = bPatch(1, 2);
-    getTangent(3, 0) = bPatch(1, 2);
-    getTangent(3, 1) = bPatch(1, 1);
+    getCorner(0) = bicubicPatch(0, 0);
+    getCorner(1) = bicubicPatch(3, 0);
+    getCorner(2) = bicubicPatch(3, 3);
+    getCorner(3) = bicubicPatch(0, 3);
+
+    getBoundaryPoint(0, 1) = bicubicPatch(1, 0);
+    getBoundaryPoint(0, 2) = bicubicPatch(2, 0);
+    getBoundaryPoint(1, 1) = bicubicPatch(3, 1);
+    getBoundaryPoint(1, 2) = bicubicPatch(3, 2);
+    getBoundaryPoint(2, 1) = bicubicPatch(2, 3);
+    getBoundaryPoint(2, 2) = bicubicPatch(1, 3);
+    getBoundaryPoint(3, 1) = bicubicPatch(0, 2);
+    getBoundaryPoint(3, 2) = bicubicPatch(0, 1);
+
+    getTangent(0, 0) = bicubicPatch(1, 1);
+    getTangent(0, 1) = bicubicPatch(2, 1);
+    getTangent(1, 0) = bicubicPatch(2, 1);
+    getTangent(1, 1) = bicubicPatch(2, 2);
+    getTangent(2, 0) = bicubicPatch(2, 2);
+    getTangent(2, 1) = bicubicPatch(1, 2);
+    getTangent(3, 0) = bicubicPatch(1, 2);
+    getTangent(3, 1) = bicubicPatch(1, 1);
   }
 
   /*!

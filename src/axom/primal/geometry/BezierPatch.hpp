@@ -45,6 +45,8 @@ std::ostream& operator<<(std::ostream& os, const BezierPatch<T, NDIMS>& bPatch);
  * \tparam T the coordinate type, e.g., double, float, etc.
  *
  * The order of a Bezier patch with (N+1)(M+1) control points is (N, M).
+ *  Note that this class uses `order` interchangeably with `degree`.
+ *  This contrasts with NURBS objects, for which `order = degree + 1`
  * The patch is approximated by the control points,
  * parametrized from u=0 to u=1 and v=0 to v=1.
  * 
@@ -668,6 +670,149 @@ public:
         }
       }
     }
+  }
+
+  /*!
+   * \brief Degree-elevates this Bezier patch to \a target_degree_u in the u direction
+   *
+   * Each constant-v control-point curve is degree-elevated using BezierCurve.
+   *
+   * \note For BezierPatch objects, `degree` is interchangeable with `order` 
+   * \param [in] target_degree_u Desired polynomial order in the u direction
+   * \note This is a no-op for empty patches (order < 0) or when the axis already has
+   *       a degree greater than or equal to \a target_degree
+   */
+  void degreeElevate_u(int target_degree_u)
+  {
+    SLIC_ASSERT(target_degree_u >= 0);
+
+    const int ord_u = getOrder_u();
+    const int ord_v = getOrder_v();
+    if(ord_u < 0 || ord_u >= target_degree_u)
+    {
+      return;
+    }
+
+    CoordsMat new_controlPoints(target_degree_u + 1, ord_v + 1);
+    WeightsMat new_weights;
+    if(isRational())
+    {
+      new_weights.resize(target_degree_u + 1, ord_v + 1);
+    }
+
+    for(int q = 0; q <= ord_v; ++q)
+    {
+      BezierCurveType curve(ord_u);
+      for(int p = 0; p <= ord_u; ++p)
+      {
+        curve[p] = m_controlPoints(p, q);
+      }
+
+      if(isRational())
+      {
+        curve.makeRational();
+        for(int p = 0; p <= ord_u; ++p)
+        {
+          curve.setWeight(p, m_weights(p, q));
+        }
+      }
+
+      curve.degreeElevate(target_degree_u);
+      for(int p = 0; p <= target_degree_u; ++p)
+      {
+        new_controlPoints(p, q) = curve[p];
+        if(isRational())
+        {
+          new_weights(p, q) = curve.getWeight(p);
+        }
+      }
+    }
+
+    m_controlPoints = new_controlPoints;
+    if(isRational())
+    {
+      m_weights = new_weights;
+    }
+  }
+
+  /*!
+   * \brief Degree-elevates this Bezier patch to \a target_degree_v in the v direction
+   *
+   * Each constant-u control-point curve is degree-elevated using BezierCurve.
+   *
+   * \note For BezierPatch objects, `degree` is interchangeable with `order` 
+   * \param [in] target_degree_v Desired polynomial order in the v direction
+   * 
+   * \note This is a no-op for empty patches (order < 0) or when the axis already has
+   *       a degree greater than or equal to \a target_degree
+   */
+  void degreeElevate_v(int target_degree_v)
+  {
+    SLIC_ASSERT(target_degree_v >= 0);
+
+    const int ord_u = getOrder_u();
+    const int ord_v = getOrder_v();
+    if(ord_v < 0 || ord_v >= target_degree_v)
+    {
+      return;
+    }
+
+    CoordsMat new_controlPoints(ord_u + 1, target_degree_v + 1);
+    WeightsMat new_weights;
+    if(isRational())
+    {
+      new_weights.resize(ord_u + 1, target_degree_v + 1);
+    }
+
+    for(int p = 0; p <= ord_u; ++p)
+    {
+      BezierCurveType curve(ord_v);
+      for(int q = 0; q <= ord_v; ++q)
+      {
+        curve[q] = m_controlPoints(p, q);
+      }
+
+      if(isRational())
+      {
+        curve.makeRational();
+        for(int q = 0; q <= ord_v; ++q)
+        {
+          curve.setWeight(q, m_weights(p, q));
+        }
+      }
+
+      curve.degreeElevate(target_degree_v);
+      for(int q = 0; q <= target_degree_v; ++q)
+      {
+        new_controlPoints(p, q) = curve[q];
+        if(isRational())
+        {
+          new_weights(p, q) = curve.getWeight(q);
+        }
+      }
+    }
+
+    m_controlPoints = new_controlPoints;
+    if(isRational())
+    {
+      m_weights = new_weights;
+    }
+  }
+
+  /*!
+   * \brief Degree-elevates this Bezier patch to the given polynomial orders
+   *
+   * \param [in] target_degree_u Desired polynomial order in the u direction
+   * \param [in] target_degree_v Desired polynomial order in the v direction
+   * 
+   * \note For BezierPatch objects, `degree` is interchangeable with `order` 
+   * \note This is a no-op for empty patches (order < 0) or when the axes already have
+   *       degrees greater than or equal to \a target_degree
+   */
+  void degreeElevate(int target_degree_u, int target_degree_v)
+  {
+    degreeElevate_u(target_degree_u);
+    degreeElevate_v(target_degree_v);
   }
 
   /// Swap the axes such that s(u, v) becomes s(v, u)

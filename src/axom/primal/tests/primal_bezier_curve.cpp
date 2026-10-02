@@ -251,7 +251,7 @@ TEST(primal_beziercurve, degree_elevate_preserves_geometry)
   CoordType weights[4] = {1.0, 0.5, 2.0, 1.25};
   BezierCurveType rat(data, weights, 3);
 
-  auto check_preserve = [&](BezierCurveType curve, int elevate_by) {
+  auto check_preserve = [&](BezierCurveType curve, int target_degree) {
     const CoordType ts[] = {0.0, 0.1, 0.3, 0.7, 1.0};
     axom::Array<PointType> before;
     before.reserve(5);
@@ -260,7 +260,8 @@ TEST(primal_beziercurve, degree_elevate_preserves_geometry)
       before.push_back(curve.evaluate(t));
     }
 
-    curve.degreeElevate(elevate_by);
+    curve.degreeElevate(target_degree);
+    EXPECT_EQ(target_degree, curve.getOrder());
     for(int k = 0; k < 5; ++k)
     {
       const PointType after = curve.evaluate(ts[k]);
@@ -270,10 +271,13 @@ TEST(primal_beziercurve, degree_elevate_preserves_geometry)
     }
   };
 
-  check_preserve(poly, 1);
-  check_preserve(poly, 2);
-  check_preserve(rat, 1);
-  check_preserve(rat, 2);
+  check_preserve(poly, 4);
+  check_preserve(poly, 5);
+  check_preserve(rat, 4);
+  check_preserve(rat, 5);
+
+  poly.degreeElevate(2);
+  EXPECT_EQ(3, poly.getOrder());
 }
 
 //------------------------------------------------------------------------------
