@@ -58,8 +58,8 @@ class GregoryTriangle
 {
 public:
   // The number of control points for a hybrid quartic-cubic Gregory triangle is fixed:
-  //  - 12 exterior control points for each of three degree-elevated cubic curves
-  //  - 6 interior control points for each of 3 boundary curves
+  //  - 12 exterior control points across three degree-elevated cubic curves
+  //  - 6 interior control points, two for each boundary curve
   static constexpr int NPTS = 18;
 
   using PointType = Point<T, 3>;
@@ -75,8 +75,37 @@ public:
                          "A Gregory Triangle must be defined using an arithmetic type");
 
 public:
+  ///@{
+  /**
+   * @name Constructors for GregoryTriangle
+   *
+   * The constructors allow initialization from:
+   * - the 18 Gregory triangle control points,
+   * - a polynomial quartic Bezier triangle,
+   * - C-style arrays, Axom StackArrays, or Axom ArrayViews,
+   * - three corner positions with associated corner normal vectors.
+   *
+   * The 18-point control net is stored as:
+   * - indices 0-2: corners,
+   * - indices 3-11: three boundary control points for each edge,
+   * - indices 12-17: two Gregory tangent points for each edge.
+   *
+   * Boundary edge \a e is directed from corner `(e+1)%3` to corner `(e+2)%3`.
+   */
+
+  /*!
+   * \brief Default constructor for a Gregory triangle
+   *
+   * The fixed-size control net is default-initialized.
+   */
   GregoryTriangle() = default;
 
+  /*!
+   * \brief Constructor from an ArrayView over the control points
+   *
+   * \param [in] controlPoints ArrayView of the 18 Gregory triangle control points
+   * \pre \a controlPoints must contain exactly `NPTS` points
+   */
   explicit GregoryTriangle(ArrayView<const PointType> controlPoints)
   {
     SLIC_ASSERT(controlPoints.size() == NPTS);
@@ -87,21 +116,56 @@ public:
     }
   }
 
+  /*!
+   * \brief Constructor from a non-const ArrayView over the control points
+   *
+   * \param [in] controlPoints ArrayView of the 18 Gregory triangle control points
+   * \pre \a controlPoints must contain exactly `NPTS` points
+   */
   explicit GregoryTriangle(ArrayView<PointType> controlPoints)
     : GregoryTriangle(ArrayView<const PointType>(controlPoints.data(), controlPoints.size()))
   { }
 
+  /*!
+   * \brief Constructor from a C-style array of control points
+   *
+   * \param [in] pts A C-style array of 18 Gregory triangle control points
+   * \pre \a pts must be non-null and contain at least `NPTS` points
+   */
   explicit GregoryTriangle(const PointType* pts)
     : GregoryTriangle(ArrayView<const PointType>(pts, NPTS))
   { }
 
+  /*!
+   * \brief Constructor from a C-style array of control points
+   *
+   * \param [in] pts A C-style array of 18 Gregory triangle control points
+   * \pre \a pts must be non-null and contain at least `NPTS` points
+   */
   explicit GregoryTriangle(PointType* pts) : GregoryTriangle(ArrayView<const PointType>(pts, NPTS))
   { }
 
+  /*!
+   * \brief Constructor from an Axom StackArray of control points
+   *
+   * \param [in] pts StackArray containing the 18 Gregory triangle control points
+   */
   explicit GregoryTriangle(const CoordsVec& pts)
     : GregoryTriangle(ArrayView<const PointType>(pts.data(), pts.size()))
   { }
 
+  /*!
+   * \brief Constructor from a polynomial quartic Bezier triangle
+   *
+   * \param [in] bTri A polynomial Bezier triangle of order 4
+   *
+   * This creates a Gregory triangle that exactly reproduces the input quartic Bezier triangle.
+   * The Gregory tangent pairs are duplicated from the three Bezier interior control points,
+   * causing the parameter-dependent Gregory blends to collapse to fixed Bezier points.
+   *
+   * \pre \a bTri must have order 4
+   * \pre \a bTri must be polynomial, not rational
+   */
   explicit GregoryTriangle(const BezierTriangle<T, 3>& bTri)
   {
     SLIC_ASSERT(bTri.getOrder() == 4);
@@ -132,8 +196,8 @@ public:
   /*!
    * \brief Constructor from vertex points and corner normal vectors
    *
-   * \param [in] nodePositions ArrayView of the four corner positions
-   * \param [in] nodeVectors ArrayView of the four corner normal vectors
+   * \param [in] nodePositions ArrayView of the three corner positions
+   * \param [in] nodeVectors ArrayView of the three corner normal vectors
    *
    * Deterministically compute hybrid cubic-quartic boundary control points and 
    * Gregory tangent points using local vertex information.
@@ -242,6 +306,8 @@ public:
     }
   }
 
+  ///@}
+
   /*!
    * \brief Returns the \a i-th corner point, oriented ccw
    *
@@ -304,7 +370,7 @@ public:
     v1 = getTangent((i + 2) % 3, 0);
   }
 
-  /*! 
+  /*!
    * \brief Returns a control point on a boundary edge
    *
    * \param [in] e Edge index in `[0, 2]`
@@ -317,7 +383,7 @@ public:
     return m_controlPoints[s_edge_index_map[e][k]];
   }
 
-  /*! 
+  /*!
    * \brief Returns a control point on a boundary edge
    *
    * \param [in] e Edge index in `[0, 2]`
@@ -330,11 +396,23 @@ public:
     return m_controlPoints[s_edge_index_map[e][k]];
   }
 
+  /*!
+   * \brief Returns a reference to the triangle's control points
+   */
   CoordsVec& getControlPoints() { return m_controlPoints; }
+
+  /// \brief Returns a reference to the triangle's control points
   const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
-  // Evaluate the triangle by constructing the equivalent Bezier triangle with interior control nodes
-  //  defined in terms of the tangent vectors and the evaluation parameters
+  /*!
+   * \brief Evaluates the Gregory triangle at the given parameter values
+   *
+   * \param [in] u0 Parameter value on the first axis
+   * \param [in] v0 Parameter value on the second axis
+   *
+   * A Gregory triangle is evaluated by constructing the equivalent quartic Bezier triangle whose
+   * interior control points are blended from the Gregory tangent points at (\a u0, \a v0).
+   */
   PointType evaluate(T u0, T v0) const
   {
     const auto intermediate = setup_intermediate_bezier(u0, v0, 0);
@@ -421,6 +499,12 @@ public:
       (B[0] * intermediate.Q_uv[0] + B[1] * intermediate.Q_uv[1] + B[2] * intermediate.Q_uv[2]);
   }
 
+  /*!
+   * \brief Evaluates the first derivative in the u direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType du(T u, T v) const
   {
     PointType eval;
@@ -429,6 +513,12 @@ public:
     return Du;
   }
 
+  /*!
+   * \brief Evaluates the first derivative in the v direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dv(T u, T v) const
   {
     PointType eval;
@@ -437,6 +527,12 @@ public:
     return Dv;
   }
 
+  /*!
+   * \brief Evaluates the second derivative in the u direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dudu(T u, T v) const
   {
     PointType eval;
@@ -445,6 +541,12 @@ public:
     return DuDu;
   }
 
+  /*!
+   * \brief Evaluates the second derivative in the v direction
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dvdv(T u, T v) const
   {
     PointType eval;
@@ -453,6 +555,12 @@ public:
     return DvDv;
   }
 
+  /*!
+   * \brief Evaluates the mixed second derivative
+   *
+   * \param [in] u Parameter value on the first axis
+   * \param [in] v Parameter value on the second axis
+   */
   VectorType dudv(T u, T v) const
   {
     PointType eval;
@@ -461,36 +569,66 @@ public:
     return DuDv;
   }
 
-  /// \brief Returns an axis-aligned bounding box containing the patch
+  /// \brief Returns an axis-aligned bounding box containing the triangle
   BoundingBoxType boundingBox() const
   {
     return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
-  /// \brief Returns an oriented bounding box containing the patch
+  /// \brief Returns an oriented bounding box containing the triangle
   OrientedBoundingBoxType orientedBoundingBox() const
   {
     return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
+  /*!
+   * \brief Simple formatted print of a Gregory Triangle instance
+   *
+   * \param os The output stream to write to
+   */
   void print(std::ostream& os) const
   {
-    os << "GregoryTriangle(";
-    for(int i = 0; i < NPTS; ++i)
+    os << "GregoryTriangle(vertices [";
+    for(int i = 0; i < 3; ++i)
     {
-      os << m_controlPoints[i];
-      if(i + 1 < NPTS)
+      os << getCorner(i) << (i < 2 ? ", " : "]");
+    }
+
+    os << ", edge points [";
+    for(int e = 0; e < 3; ++e)
+    {
+      for(int k = 1; k < 4; ++k)
       {
-        os << ", ";
+        os << getBoundaryPoint(e, k) << (e < 2 || k < 3 ? ", " : "]");
       }
     }
+
+    os << ", tangent points [";
+    for(int e = 0; e < 3; ++e)
+    {
+      for(int t = 0; t < 2; ++t)
+      {
+        os << getTangent(e, t) << (e < 2 || t < 1 ? ", " : "]");
+      }
+    }
+
     os << ")";
   }
 
 private:
+  /*!
+   * \brief Stores the temporary Bezier triangle and blended interior point derivatives
+   *
+   * The Gregory triangle evaluation converts the control net to a quartic Bezier triangle at a
+   * specific parameter value. The three interior Bezier points, `Q`, depend on the evaluation
+   * parameters, so derivative evaluation also requires their first and second derivatives.
+   */
   struct IntermediateBlendingDerivatives
   {
+    /// \brief Equivalent quartic Bezier triangle for the requested parameter value
     BezierTriangle<T, 3> btri;
+
+    /// \brief Blended interior Bezier control points and derivatives
     PointType Q[3];
     VectorType Q_u[3];
     VectorType Q_v[3];
@@ -499,6 +637,16 @@ private:
     VectorType Q_uv[3];
   };
 
+  /*!
+   * \brief Constructs the equivalent Bezier triangle and parameter-dependent interior data
+   *
+   * \param [in] u0 Parameter value on the first axis
+   * \param [in] v0 Parameter value on the second axis
+   * \param [in] derivative_order Highest derivative order to compute, in `[0, 2]`
+   *
+   * The returned quartic Bezier triangle has the Gregory boundary control points copied directly
+   * and the three interior control points blended from the Gregory tangent points.
+   */
   IntermediateBlendingDerivatives setup_intermediate_bezier(T u0, T v0, int derivative_order) const
   {
     IntermediateBlendingDerivatives out;
@@ -595,19 +743,6 @@ private:
   }
 
   /*!
-   * \brief Assigns the three interior control points of a biquartic Bezier triangle
-   *
-   * \param [in,out] btri The biquartic Bezier triangle to update
-   * \param [in] Q The 3 interior control points
-   */
-  static void set_bezier_interior(BezierTriangle<T, 3>& btri, const PointType Q[3])
-  {
-    btri(1, 1) = Q[0];
-    btri(2, 1) = Q[1];
-    btri(1, 2) = Q[2];
-  }
-
-  /*!
    * \brief Evaluates triangular Bernstein basis functions and their first derivatives
    *
    * \param [in] u First standard barycentric coordinate, equal to `1-u0-v0`
@@ -637,8 +772,27 @@ private:
     B_v0[2] = T(12) * w * v * (T(2) * u - v);
   }
 
-  // Copies over the boundary points to a BezierTriangle object,
-  //  leaving the 3 interior control points uninitialized
+  /*!
+   * \brief Assigns the three interior control points of a biquartic Bezier triangle
+   *
+   * \param [in,out] btri The biquartic Bezier triangle to update
+   * \param [in] Q The 3 interior control points
+   */
+  static void set_bezier_interior(BezierTriangle<T, 3>& btri, const PointType Q[3])
+  {
+    btri(1, 1) = Q[0];
+    btri(2, 1) = Q[1];
+    btri(1, 2) = Q[2];
+  }
+
+  /*!
+   * \brief Copies the Gregory boundary into a quartic BezierTriangle object
+   *
+   * The returned triangle has its 12 exterior control points initialized from the Gregory
+   * triangle boundary. The three interior control points are intentionally left uninitialized.
+   * 
+   * \sa set_bezier_interior(bezierTriangle<T, 3>&, const PointType[3])
+   */
   BezierTriangle<T, 3> get_bezier_boundary() const
   {
     BezierTriangle<T, 3> btri(4);
@@ -669,7 +823,12 @@ private:
 
   CoordsVec m_controlPoints;
 
-  // Map of BezierTriangle-style boundary curve control points into internal storage
+  /*!
+   * \brief Maps boundary curve control point indices to control net storage indices
+   *
+   * The first index selects a directed edge. The second index selects one of the five
+   * degree-elevated cubic boundary control points on that edge.
+   */
   static constexpr int s_edge_index_map[3][5] = {
     {/*V1*/ 1, /*E01*/ 6, /*E02*/ 7, /*E03*/ 8, /*V2*/ 2},
     {/*V2*/ 2, /*E11*/ 9, /*E12*/ 10, /*E13*/ 11, /*V0*/ 0},

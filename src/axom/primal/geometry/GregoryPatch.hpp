@@ -568,19 +568,33 @@ public:
    * \brief Simple formatted print of a Gregory Patch instance
    *
    * \param os The output stream to write to
-   * \return A reference to the modified ostream
    */
   void print(std::ostream& os) const
   {
-    os << "GregoryPatch(";
-    for(int i = 0; i < NPTS; ++i)
+    os << "GregoryPatch(vertices [";
+    for(int i = 0; i < 4; ++i)
     {
-      os << m_controlPoints[i];
-      if(i + 1 < NPTS)
+      os << getCorner(i) << (i < 3 ? ", " : "]");
+    }
+
+    os << ", edge points [";
+    for(int e = 0; e < 4; ++e)
+    {
+      for(int k = 1; k < 3; ++k)
       {
-        os << ", ";
+        os << getBoundaryPoint(e, k) << (e < 3 || k < 2 ? ", " : "]");
       }
     }
+
+    os << ", tangent points [";
+    for(int e = 0; e < 4; ++e)
+    {
+      for(int t = 0; t < 2; ++t)
+      {
+        os << getTangent(e, t) << (e < 3 || t < 1 ? ", " : "]");
+      }
+    }
+
     os << ")";
   }
 
@@ -720,6 +734,8 @@ private:
    *
    * The returned patch has its 12 exterior control points initialized from the Gregory
    * patch boundary. The four interior control points are intentionally left uninitialized.
+   * 
+   * \sa set_bezier_interior(BezierPatch<T, 3>&, const PointType[2][2])
    */
   BezierPatch<T, 3> get_bezier_boundary() const
   {

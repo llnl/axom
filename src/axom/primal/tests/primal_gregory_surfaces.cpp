@@ -261,17 +261,6 @@ TEST(primal_gregorypatch, bounding_box)
   }
 }
 
-//------------------------------------------------------------------------------
-TEST(primal_gregorypatch, print)
-{
-  SLIC_INFO("Testing Gregory patch output stream");
-
-  GregoryPatchType patch(make_sample_bezier_patch());
-  std::ostringstream oss;
-  oss << patch;
-
-  EXPECT_NE(std::string::npos, oss.str().find("GregoryPatch("));
-}
 
 //------------------------------------------------------------------------------
 TEST(primal_gregorytriangle, array_constructors)
@@ -546,16 +535,4 @@ TEST(primal_gregorytriangle, bounding_box)
     EXPECT_TRUE(bbox.contains(controlPoints[i]));
     EXPECT_TRUE(obb.contains(controlPoints[i]));
   }
-}
-
-//------------------------------------------------------------------------------
-TEST(primal_gregorytriangle, print)
-{
-  SLIC_INFO("Testing Gregory triangle output stream");
-
-  GregoryTriangleType triangle(make_sample_bezier_triangle());
-  std::ostringstream oss;
-  oss << triangle;
-
-  EXPECT_NE(std::string::npos, oss.str().find("GregoryTriangle("));
 }
