@@ -1014,6 +1014,29 @@ struct ContourTestBase
       return 0;
     }
 
+    // The Bump backend reads the input domain's state when it builds Blueprint
+    // output. Do this before copying the computational mesh back to host memory,
+    // which replaces the Conduit nodes the backend references.
+    if(!m_params.blueprintContourFile.empty())
+    {
+      if(!m_params.useBumpBackend)
+      {
+        SLIC_WARNING(
+          "--blueprint-contour-file requires --useBumpBackend; the legacy kernel has no "
+          "Blueprint contour output. Skipping.");
+      }
+      else
+      {
+        AXOM_ANNOTATE_SCOPE("write blueprint contour");
+        conduit::Node contourBp;
+        mc.populateContourMeshBlueprint(contourBp);
+        SLIC_INFO(axom::fmt::format("Blueprint contour has {} domains; writing to '{}'",
+                                    contourBp.number_of_children(),
+                                    m_params.blueprintContourFile));
+        saveMesh(contourBp, m_params.blueprintContourFile);
+      }
+    }
+
     // Return conduit data to host memory.
     if(s_allocatorId != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
     {
@@ -1046,27 +1069,6 @@ struct ContourTestBase
     mc.populateContourMesh(contourMesh, m_parentCellIdField, m_domainIdField);
     extractTimer.stop();
     printTimingStats(extractTimer, "extract");
-
-    // Optionally write Bump's welded Blueprint contour.
-    if(!m_params.blueprintContourFile.empty())
-    {
-      if(!m_params.useBumpBackend)
-      {
-        SLIC_WARNING(
-          "--blueprint-contour-file requires --useBumpBackend; the legacy kernel has no "
-          "Blueprint contour output. Skipping.");
-      }
-      else
-      {
-        AXOM_ANNOTATE_SCOPE("write blueprint contour");
-        conduit::Node contourBp;
-        mc.populateContourMeshBlueprint(contourBp);
-        SLIC_INFO(axom::fmt::format("Blueprint contour has {} domains; writing to '{}'",
-                                    contourBp.number_of_children(),
-                                    m_params.blueprintContourFile));
-        saveMesh(contourBp, m_params.blueprintContourFile);
-      }
-    }
 
     {
       axom::Array<axom::IndexType, 2> facetNodeIds;
