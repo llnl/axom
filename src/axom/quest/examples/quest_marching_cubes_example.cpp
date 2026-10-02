@@ -408,16 +408,6 @@ public:
   /// Return the number of cells in a domain.
   int cellCount(axom::IndexType domId) const
   {
-    if(isStructured(domId))
-    {
-      const auto shape = domainLengths(domId);
-      int rval = 1;
-      for(const auto& l : shape)
-      {
-        rval *= l;
-      }
-      return rval;
-    }
     return static_cast<int>(
       conduit::blueprint::mesh::topology::length(domain(domId).fetch_existing(_topologyPath)));
   }
@@ -515,28 +505,6 @@ private:
   const std::string _topologyName;
   const std::string _topologyPath;
   std::string _coordsetPath;
-
-  axom::IndexType dimValue(const conduit::Node& node, int dim, axom::IndexType defaultValue = 0) const
-  {
-    static const char* dimNames[] = {"i", "j", "k"};
-    if(node.has_child(dimNames[dim]))
-    {
-      return static_cast<axom::IndexType>(node.fetch_existing(dimNames[dim]).to_int64());
-    }
-    if(node.dtype().is_int32())
-    {
-      return static_cast<axom::IndexType>(node.as_int32_ptr()[dim]);
-    }
-    if(node.dtype().is_int64())
-    {
-      return static_cast<axom::IndexType>(node.as_int64_ptr()[dim]);
-    }
-    if(dim < node.number_of_children())
-    {
-      return static_cast<axom::IndexType>(node[dim].to_int64());
-    }
-    return defaultValue;
-  }
 
   //! @brief Read a Blueprint mesh and normalize it to a multi-domain node.
   void readBlueprintMesh(const std::string& meshFilename)
