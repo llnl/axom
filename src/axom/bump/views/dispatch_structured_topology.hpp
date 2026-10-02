@@ -431,7 +431,7 @@ struct dispatch_any_structured_topology<true, 3, FuncType>
    */
   static void execute(const conduit::Node& topo, FuncType&& func)
   {
-    const std::string offsetsKey("offsets"), stridesKey("strides");
+    const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
     const std::string type = topo.fetch_existing("type").as_string();
     const std::string shape("hex");
 
@@ -470,7 +470,7 @@ struct dispatch_any_structured_topology<true, 2, FuncType>
    */
   static void execute(const conduit::Node& topo, FuncType&& func)
   {
-    const std::string offsetsKey("offsets"), stridesKey("strides");
+    const std::string offsetsKey("elements/dims/offsets"), stridesKey("elements/dims/strides");
     const std::string type = topo.fetch_existing("type").as_string();
     const std::string shape("quad");
     if(type == "structured" && topo.has_path(offsetsKey) && topo.has_path(stridesKey))
