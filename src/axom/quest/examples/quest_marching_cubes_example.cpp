@@ -1030,10 +1030,17 @@ struct ContourTestBase
         AXOM_ANNOTATE_SCOPE("write blueprint contour");
         conduit::Node contourBp;
         mc.populateContourMeshBlueprint(contourBp);
+        // Bump returns arrays in the execution space used for extraction.
+        // Relay's Blueprint writer accesses those arrays on the host.
+        conduit::Node hostContourBp;
+        axom::bump::utilities::copy<axom::SEQ_EXEC>(
+          hostContourBp,
+          contourBp,
+          axom::execution_space<axom::SEQ_EXEC>::allocatorID());
         SLIC_INFO(axom::fmt::format("Blueprint contour has {} domains; writing to '{}'",
-                                    contourBp.number_of_children(),
+                                    hostContourBp.number_of_children(),
                                     m_params.blueprintContourFile));
-        saveMesh(contourBp, m_params.blueprintContourFile);
+        saveMesh(hostContourBp, m_params.blueprintContourFile);
       }
     }
 
