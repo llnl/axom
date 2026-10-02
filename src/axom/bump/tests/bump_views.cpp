@@ -578,6 +578,118 @@ struct test_strided_structured
 
 TEST(bump_views, strided_structured_seq) { test_strided_structured::test(); }
 
+template <int NDIMS>
+void test_strided_structured_any_dispatch()
+{
+  conduit::Node hostMesh;
+  axom::blueprint::testing::data::strided_structured<NDIMS>(hostMesh);
+
+  bool callback_invoked = false;
+  bool supports_strided_structured = false;
+  views::dispatch_structured_topologies<views::select_dimensions(NDIMS)>(
+    hostMesh["topologies/mesh"],
+    [&](const std::string&, auto topoView) {
+      callback_invoked = true;
+      supports_strided_structured =
+        views::view_traits<decltype(topoView)>::supports_strided_structured();
+    });
+
+  EXPECT_TRUE(callback_invoked);
+  EXPECT_TRUE(supports_strided_structured);
+}
+
+TEST(bump_views, strided_structured_any_dispatch)
+{
+  test_strided_structured_any_dispatch<2>();
+  test_strided_structured_any_dispatch<3>();
+}
+
+//------------------------------------------------------------------------------
+// Check dimension filtering in dispatch_coordset().
+//------------------------------------------------------------------------------
+template <int SelectedDimensions>
+struct dispatch_coordset_probe
+{
+  int calls {0};
+  int dimensionSeen {-1};
+
+  void run(const conduit::Node& coordset)
+  {
+    views::dispatch_coordset<SelectedDimensions>(coordset, [&](auto coordsetView) {
+      calls++;
+      dimensionSeen = decltype(coordsetView)::dimension();
+    });
+  }
+};
+
+/// Check 2D and 3D filtering for one coordset type.
+void test_dispatch_coordset_dimensions(const std::string& braidType, const std::string& coordsetName)
+{
+  conduit::Node mesh2d, mesh3d;
+  axom::blueprint::testing::data::braid(braidType, std::vector<int> {4, 5}, mesh2d);
+  axom::blueprint::testing::data::braid(braidType, std::vector<int> {4, 5, 6}, mesh3d);
+
+  const conduit::Node& cs2d = mesh2d.fetch_existing("coordsets/" + coordsetName);
+  const conduit::Node& cs3d = mesh3d.fetch_existing("coordsets/" + coordsetName);
+
+  // Selecting 2D and 3D dispatches both inputs.
+  {
+    dispatch_coordset_probe<views::select_dimensions(1, 2, 3)> p2, p3;
+    p2.run(cs2d);
+    p3.run(cs3d);
+    EXPECT_EQ(p2.calls, 1);
+    EXPECT_EQ(p2.dimensionSeen, 2);
+    EXPECT_EQ(p3.calls, 1);
+    EXPECT_EQ(p3.dimensionSeen, 3);
+  }
+
+  // Selecting only 2D: the 2D coordset dispatches, the 3D coordset does not.
+  {
+    dispatch_coordset_probe<views::select_dimensions(2)> p2, p3;
+    p2.run(cs2d);
+    p3.run(cs3d);
+    EXPECT_EQ(p2.calls, 1);
+    EXPECT_EQ(p2.dimensionSeen, 2);
+    EXPECT_EQ(p3.calls, 0) << "A 3D coordset dispatched when only 2D was selected";
+  }
+
+  // Selecting only 3D dispatches only the 3D input.
+  {
+    dispatch_coordset_probe<views::select_dimensions(3)> p2, p3;
+    p2.run(cs2d);
+    p3.run(cs3d);
+    EXPECT_EQ(p2.calls, 0) << "A 2D coordset dispatched when only 3D was selected";
+    EXPECT_EQ(p3.calls, 1);
+    EXPECT_EQ(p3.dimensionSeen, 3);
+  }
+}
+
+TEST(bump_views, dispatch_coordset_dimensions_uniform)
+{
+  test_dispatch_coordset_dimensions("uniform", "coords");
+}
+
+TEST(bump_views, dispatch_coordset_dimensions_rectilinear)
+{
+  test_dispatch_coordset_dimensions("rectilinear", "coords");
+}
+
+TEST(bump_views, dispatch_coordset_dimensions_explicit)
+{
+  // "quads"/"hexs" braid meshes have an explicit coordset.
+  conduit::Node mesh2d, mesh3d;
+  axom::blueprint::testing::data::braid("quads", std::vector<int> {4, 5}, mesh2d);
+  axom::blueprint::testing::data::braid("hexs", std::vector<int> {4, 5, 6}, mesh3d);
+  EXPECT_EQ(mesh2d.fetch_existing("coordsets/coords/type").as_string(), std::string("explicit"));
+
+  dispatch_coordset_probe<views::select_dimensions(3)> p2, p3;
+  p2.run(mesh2d.fetch_existing("coordsets/coords"));
+  p3.run(mesh3d.fetch_existing("coordsets/coords"));
+  EXPECT_EQ(p2.calls, 0) << "A 2D explicit coordset dispatched when only 3D was selected";
+  EXPECT_EQ(p3.calls, 1);
+  EXPECT_EQ(p3.dimensionSeen, 3);
+}
+
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_braid2d_mat
@@ -903,6 +1015,148 @@ TEST(bump_views, matset_material_dominant_hip)
   test_braid2d_mat<hip_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #endif
+
+//------------------------------------------------------------------------------
+// dispatch_topology() sends uniform, rectilinear, and structured topologies
+// through dispatch_structured_topologies(). Check that a strided-structured
+// topology reaches the strided view and yields the expected node ids.
+//------------------------------------------------------------------------------
+TEST(bump_views, strided_structured_dispatch_topology_seq)
+{
+  conduit::Node hostMesh;
+  axom::blueprint::testing::data::strided_structured<2>(hostMesh);
+
+  int calls = 0;
+  bool stridedView = false;
+  views::dispatch_explicit_coordset(hostMesh["coordsets/coords"], [&](auto coordsetView) {
+    views::dispatch_topology<views::select_dimensions(2)>(
+      hostMesh["topologies/mesh"],
+      [&](const std::string& shape, auto topoView) {
+        using TopologyView = decltype(topoView);
+        calls++;
+        EXPECT_EQ(shape, std::string("quad"));
+        if constexpr(views::view_traits<TopologyView>::supports_strided_structured())
+        {
+          stridedView = true;
+          test_strided_structured::execute(coordsetView, topoView);
+        }
+      });
+  });
+
+  EXPECT_EQ(calls, 1);
+  EXPECT_TRUE(stridedView)
+    << "dispatch_topology() treated a strided-structured topology as compact";
+}
+
+//------------------------------------------------------------------------------
+// Treat a structured topology with offsets or strides as strided.
+//------------------------------------------------------------------------------
+template <typename TopologyView>
+std::vector<axom::IndexType> collect_zone_ids(const TopologyView& topoView)
+{
+  std::vector<axom::IndexType> ids;
+  for(axom::IndexType z = 0; z < topoView.numberOfZones(); z++)
+  {
+    const auto zone = topoView.zone(z);
+    const auto zoneIds = zone.getIds();
+    for(axom::IndexType i = 0; i < zoneIds.size(); i++)
+    {
+      ids.push_back(zoneIds[i]);
+    }
+  }
+  return ids;
+}
+
+template <int NDIMS>
+void test_strided_structured_partial_metadata(const std::string& removeKey)
+{
+  SCOPED_TRACE(axom::fmt::format("{}D, removed '{}'", NDIMS, removeKey));
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<NDIMS>(mesh);
+  conduit::Node& n_topo = mesh["topologies/mesh"];
+  if(!removeKey.empty())
+  {
+    n_topo.remove(removeKey);
+  }
+
+  // dispatch_structured_topology() already accepts either key.
+  std::vector<axom::IndexType> expected, actual;
+  bool expectedStrided = false, actualStrided = false;
+  views::dispatch_structured_topology<views::select_dimensions(NDIMS)>(
+    n_topo,
+    [&](const std::string&, auto topoView) {
+      expectedStrided = views::view_traits<decltype(topoView)>::supports_strided_structured();
+      expected = collect_zone_ids(topoView);
+    });
+  views::dispatch_structured_topologies<views::select_dimensions(NDIMS)>(
+    n_topo,
+    [&](const std::string&, auto topoView) {
+      actualStrided = views::view_traits<decltype(topoView)>::supports_strided_structured();
+      actual = collect_zone_ids(topoView);
+    });
+
+  EXPECT_TRUE(expectedStrided);
+  EXPECT_TRUE(actualStrided);
+  ASSERT_FALSE(expected.empty());
+  EXPECT_EQ(expected, actual);
+}
+
+TEST(bump_views, strided_structured_partial_metadata_dispatch)
+{
+  for(const std::string key : {"", "elements/dims/offsets", "elements/dims/strides"})
+  {
+    test_strided_structured_partial_metadata<2>(key);
+    test_strided_structured_partial_metadata<3>(key);
+  }
+
+  // Verify the strides-only result independently. With default offsets, zone
+  // (i,j) starts at node i + j * 7 in the 7-node-wide coordset.
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  mesh["topologies/mesh"].remove("elements/dims/offsets");
+  ASSERT_EQ(mesh["topologies/mesh/elements/dims/strides"].as_int_accessor()[1], 7);
+  std::vector<axom::IndexType> ids;
+  views::dispatch_structured_topologies<views::select_dimensions(2)>(
+    mesh["topologies/mesh"],
+    [&](const std::string&, auto topoView) { ids = collect_zone_ids(topoView); });
+  // clang-format off
+  const std::vector<axom::IndexType> expected {0, 1,  8,  7,
+                                               1, 2,  9,  8,
+                                               2, 3, 10,  9,
+                                               7, 8, 15, 14,
+                                               8, 9, 16, 15,
+                                               9, 10, 17, 16};
+  // clang-format on
+  EXPECT_EQ(ids, expected);
+}
+
+//------------------------------------------------------------------------------
+// Additional dispatch_coordset coverage.
+//------------------------------------------------------------------------------
+TEST(bump_views, dispatch_coordset_dimensions_explicit_both)
+{
+  // Braid structured meshes use explicit 2D and 3D coordsets.
+  // The helper tests every selection mask.
+  conduit::Node mesh;
+  axom::blueprint::testing::data::braid("structured", std::vector<int> {4, 5}, mesh);
+  ASSERT_EQ(mesh.fetch_existing("coordsets/coords/type").as_string(), std::string("explicit"));
+  test_dispatch_coordset_dimensions("structured", "coords");
+}
+
+TEST(bump_views, dispatch_coordset_unsupported_type)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  conduit::Node mesh;
+  axom::blueprint::testing::data::braid("uniform", std::vector<int> {4, 5}, mesh);
+  conduit::Node& n_coordset = mesh["coordsets/coords"];
+  n_coordset["type"] = "cylindrical";
+
+  // Guard against unknown coordset types falling through.
+  dispatch_coordset_probe<views::select_dimensions(1, 2, 3)> probe;
+  EXPECT_THROW(probe.run(n_coordset), axom::slic::SlicAbortException);
+  EXPECT_EQ(probe.calls, 0);
+}
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])

@@ -659,7 +659,7 @@ template <typename ExecSpace, typename TopologyView>
 struct StridedStructuredFields<true, ExecSpace, TopologyView>
 {
   /*!
-   * \brief Slice an element field if the field is strided-structured.
+   * \brief Slice an element field with offsets or strides.
    *
    * \param topologyView The topology view.
    * \param slice Slice data.
@@ -672,21 +672,15 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
                                 conduit::Node& n_newField,
                                 int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
-    bool handled = false;
-    if(n_field.has_path("offsets") && n_field.has_path("strides"))
+    if(n_field.has_path("offsets") || n_field.has_path("strides"))
     {
-      using Indexing = typename TopologyView::IndexingPolicy;
-      using IndexingPolicy = axom::bump::SSElementFieldIndexing<Indexing>;
-      IndexingPolicy indexing;
-      indexing.m_indexing = topologyView.indexing();
-      indexing.update(n_field);
-
-      axom::bump::FieldSlicer<ExecSpace, IndexingPolicy> s(indexing);
+      const auto indexing = axom::bump::makeElementFieldIndexing(topologyView, n_field);
+      axom::bump::FieldSlicer<ExecSpace, decltype(indexing)> s(indexing);
       s.setAllocatorID(allocator_id);
       s.execute(slice, n_field, n_newField);
-      handled = true;
+      return true;
     }
-    return handled;
+    return false;
   }
 
   /*!
