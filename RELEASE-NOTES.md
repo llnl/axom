@@ -41,6 +41,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: `MarchingCubes::setMesh()` now accepts single- and multi-domain Blueprint meshes.
 
 ### Fixed
+- Bump: Structured topology dispatch now recognizes strided layouts from `elements/dims/{offsets,strides}`,
+  including either key alone. Element fields use their layout metadata, and `ClipField` and `CutField` reject
+  incompatible vertex-field layouts instead of reading the wrong values.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
