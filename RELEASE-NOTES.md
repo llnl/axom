@@ -39,8 +39,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: `MarchingCubes` now validates its input with `SLIC_ERROR` in all build types.
   Previously, a missing or incorrect coordset, mask field, function field was caught only by debug-build assertions.
 - Quest: `MarchingCubes::setMesh()` now accepts single- and multi-domain Blueprint meshes.
+- Quest: Performance and memory improvements for `DistributedClosestPoint` query.
 
 ### Fixed
+- Spin:`BVH::getBounds()` now returns an invalid bounding box instead of one that covers the whole coordinate range,
+  when an empty BVH is constructed.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
