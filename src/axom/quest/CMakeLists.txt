@@ -317,7 +317,7 @@ if(WIN32 AND BUILD_SHARED_LIBS AND quest_marching_cubes_sources)
     if(AXOM_ENABLE_OPENMP)
         target_link_libraries(quest_marching_cubes_impl PRIVATE openmp)
     endif()
-else()
+elseif(quest_marching_cubes_sources)
     blt_list_append(TO quest_sources ELEMENTS ${quest_marching_cubes_sources})
 endif()
 
