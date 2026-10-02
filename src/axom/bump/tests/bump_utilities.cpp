@@ -9,12 +9,14 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/bump.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
 #include <conduit/conduit_blueprint_mesh_examples.hpp>
 
 #include <iostream>
 #include <algorithm>
+#include <vector>
 
 namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
@@ -167,11 +169,82 @@ TEST(bump_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
+// Check the indexing contract between a topology and its vertex fields.
+//
+// Bump indexes a flat field with the node ids from TopologyView::zone().
+// For a strided structured topology, any field-specific offsets and strides
+// must match the topology.
+//------------------------------------------------------------------------------
+TEST(bump_utilities, validate_vertex_field_indexing_compact)
+{
+  // This compact mesh has no offset or stride metadata.
+  conduit::Node mesh;
+  conduit::blueprint::mesh::examples::braid("hexs", 4, 4, 4, mesh);
+
+  EXPECT_NO_FATAL_FAILURE(
+    utils::validateVertexFieldIndexing(mesh["topologies/mesh"], mesh["fields/braid"], "braid"));
+}
+
+TEST(bump_utilities, validate_vertex_field_indexing_strided_matching)
+{
+  // Conduit's strided_structured example gives the field and topology the same layout.
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+
+  ASSERT_TRUE(mesh.has_path("topologies/mesh/elements/dims/offsets"));
+  ASSERT_TRUE(mesh.has_path("fields/vert_vals/offsets"));
+
+  EXPECT_NO_FATAL_FAILURE(utils::validateVertexFieldIndexing(mesh["topologies/mesh"],
+                                                             mesh["fields/vert_vals"],
+                                                             "vert_vals"));
+}
+
+TEST(bump_utilities, validate_vertex_field_indexing_rejects_mismatch)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+
+  // Change one field offset. Without this check, Bump would read shifted values
+  // and place the contour incorrectly.
+  {
+    conduit::Node perturbed;
+    perturbed.set(mesh);
+    conduit::int_accessor off = perturbed["fields/vert_vals/offsets"].as_int_accessor();
+    std::vector<int> shifted;
+    for(conduit::index_t i = 0; i < off.number_of_elements(); i++)
+    {
+      shifted.push_back(off[i] + (i == 0 ? 1 : 0));
+    }
+    perturbed["fields/vert_vals/offsets"].set(shifted);
+
+    EXPECT_THROW(utils::validateVertexFieldIndexing(perturbed["topologies/mesh"],
+                                                    perturbed["fields/vert_vals"],
+                                                    "vert_vals"),
+                 axom::slic::SlicAbortException);
+  }
+
+  // Reject field layout metadata on a compact topology.
+  {
+    conduit::Node compact;
+    conduit::blueprint::mesh::examples::braid("hexs", 4, 4, 4, compact);
+    compact["fields/braid/offsets"].set(std::vector<int> {1, 0, 0});
+    compact["fields/braid/strides"].set(std::vector<int> {1, 4, 16});
+
+    EXPECT_THROW(utils::validateVertexFieldIndexing(compact["topologies/mesh"],
+                                                    compact["fields/braid"],
+                                                    "braid"),
+                 axom::slic::SlicAbortException);
+  }
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
+  axom::slic::SimpleLogger logger;
 
   result = RUN_ALL_TESTS();
   return result;

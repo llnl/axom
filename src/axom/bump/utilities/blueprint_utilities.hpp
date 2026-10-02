@@ -29,6 +29,23 @@ namespace utilities
  */
 std::vector<std::string> coordsetAxes(const conduit::Node& n_input);
 
+/*!
+ * \brief Validate a vertex field's indexing layout against its topology.
+ *
+ * \param[in] n_topology The Conduit node containing the topology.
+ * \param[in] n_field    The Conduit node containing the vertex-associated field.
+ * \param[in] fieldName  The field's name, used only in diagnostics.
+ *
+ * Bump kernels index flat vertex fields with the node ids returned by \c TopologyView::zone().
+ * A field's Blueprint \c offsets and \c strides needs to match the topology metadata in \c elements/dims.
+ * \c StructuredTopologyView::zone() also requires an i-stride of 1.
+ *
+ * \note Without field layout metadata, Bump assumes that topology node ids directly index the field values.
+ */
+void validateVertexFieldIndexing(const conduit::Node& n_topology,
+                                 const conduit::Node& n_field,
+                                 const std::string& fieldName);
+
 }  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom

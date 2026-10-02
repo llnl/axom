@@ -27,6 +27,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   single- or multidomain Cartesian Blueprint meshes with structured, strided-structured, or unstructured topology and optional analytic fields.
 - Python: Adds a scikit-build-core project under `src/python/` to build an `axom` wheel for pip or uv.
   The wheel compiles the bindings against the Axom install specified by `AXOM_DIR`.
+- Quest: `MarchingCubes` now has an optional Bump backend. Select it by calling
+  `setUseBumpBackend(true)` before `setMesh()`. It supports `uniform`,
+  `rectilinear`, and single-shape `unstructured` topologies with quads in 2D or hexes in 3D.
+  Existing array and Mint outputs remain available, and new methods expose Bump's welded Blueprint mesh.
 
 ### Removed
 
@@ -41,6 +45,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: `MarchingCubes::setMesh()` now accepts single- and multi-domain Blueprint meshes.
 
 ### Fixed
+- Bump: Structured-topology dispatch now detects strided-structured topologies.
+  It previously looked for `offsets` and `strides` at the topology root,
+  but Blueprint stores them under `elements/dims`.
+
 
 ## [Version 0.15.0] - Release date 2026-08-28
 

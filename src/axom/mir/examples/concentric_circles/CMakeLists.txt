@@ -11,10 +11,15 @@ set( mir_example_dependencies
      bump
    )
 
+set(mir_concentric_circles_common_sources MIRApplication.cpp runMIR_seq.cpp)
+blt_list_append(TO mir_concentric_circles_common_sources ELEMENTS runMIR_omp.cpp  IF AXOM_ENABLE_OPENMP)
+blt_list_append(TO mir_concentric_circles_common_sources ELEMENTS runMIR_cuda.cpp IF AXOM_ENABLE_CUDA)
+blt_list_append(TO mir_concentric_circles_common_sources ELEMENTS runMIR_hip.cpp  IF AXOM_ENABLE_HIP)
+
 # Speed up compilation by separating out the execspaces into different runMIR_xxx.cpp files.
 axom_add_executable(
     NAME       mir_concentric_circles
-    SOURCES    mir_concentric_circles.cpp MIRApplication.cpp runMIR_seq.cpp runMIR_omp.cpp runMIR_cuda.cpp runMIR_hip.cpp
+    SOURCES    mir_concentric_circles.cpp ${mir_concentric_circles_common_sources}
     OUTPUT_DIR ${EXAMPLE_OUTPUT_DIRECTORY}
     DEPENDS_ON ${mir_example_dependencies}
     FOLDER     axom/mir/examples
@@ -24,7 +29,7 @@ if(AXOM_ENABLE_MPI AND CONDUIT_RELAY_MPI_ENABLED)
   # Add a parallel version of the executable.
   axom_add_executable(
       NAME       mir_concentric_circles_mpi
-      SOURCES    mir_concentric_circles_mpi.cpp MIRApplication.cpp runMIR_seq.cpp runMIR_omp.cpp runMIR_cuda.cpp runMIR_hip.cpp
+      SOURCES    mir_concentric_circles_mpi.cpp ${mir_concentric_circles_common_sources}
       OUTPUT_DIR ${EXAMPLE_OUTPUT_DIRECTORY}
       DEPENDS_ON ${mir_example_dependencies} conduit_relay_mpi_io
       FOLDER     axom/mir/examples

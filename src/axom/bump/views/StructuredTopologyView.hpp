@@ -76,6 +76,20 @@ public:
   AXOM_HOST_DEVICE inline IndexType numberOfZones() const { return size(); }
 
   /*!
+   * \brief Return the array index for a zone in an element-associated field.
+   *
+   * \param zoneIndex The compact zone index.
+   * \return The field index corresponding to \a zoneIndex.
+   *
+   * \note A strided structured field can contain padding, so its array index
+   *       may differ from the compact zone index.
+   */
+  AXOM_HOST_DEVICE inline IndexType zoneFieldIndex(IndexType zoneIndex) const
+  {
+    return m_zoneIndexing.localToGlobal(zoneIndex);
+  }
+
+  /*!
    * \brief Return the size of the connectivity.
    *
    * \return The size of the connectivity.
