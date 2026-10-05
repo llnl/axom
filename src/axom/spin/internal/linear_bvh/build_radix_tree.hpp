@@ -122,7 +122,10 @@ primal::BoundingBox<FloatType, NDIMS> reduce(ArrayView<const primal::BoundingBox
     max_pt[dim] = max_coord.get();
   }
 
-  return primal::BoundingBox<FloatType, NDIMS>(min_pt, max_pt);
+  // The "false" parameter disables the BoundingBox bounds-fixing logic when min_pt[i] > max_pt[i].
+  // This happens when the user provides no input boxes for the BVH, in that case we don't want to
+  // return a valid bounding box for the BVH bounds.
+  return primal::BoundingBox<FloatType, NDIMS>(min_pt, max_pt, false);
 #else
   static_assert(std::is_same<ExecSpace, SEQ_EXEC>::value, "Only SEQ_EXEC supported without RAJA");
 
