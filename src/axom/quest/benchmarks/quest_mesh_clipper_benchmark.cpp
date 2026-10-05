@@ -32,6 +32,8 @@
 
 #include "benchmark/benchmark.h"
 
+#include <math.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -57,7 +59,6 @@ using Hex3D = primal::Hexahedron<double, 3>;
 
 constexpr const char* TOPO_NAME = "mesh";
 constexpr const char* COORDSET_NAME = "coords";
-constexpr double PI = 3.14159265358979323846;
 
 // These dimensions mirror the default fixtures in quest_mesh_clipper.cpp.
 // Those fixtures are compact enough to stay inside the [-2, 2]^3 test domain
@@ -185,7 +186,7 @@ double expectedVolume(const std::string& shape)
 {
   if(shape == "sphere")
   {
-    return 4.0 * PI * SPHERE_RADIUS * SPHERE_RADIUS * SPHERE_RADIUS / 3.0;
+    return 4.0 * M_PI * SPHERE_RADIUS * SPHERE_RADIUS * SPHERE_RADIUS / 3.0;
   }
   if(shape == "cone" || shape == "cyl" || shape == "sor")
   {
