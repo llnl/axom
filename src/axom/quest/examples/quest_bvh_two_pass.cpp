@@ -126,7 +126,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
       const int numNodes = coords.getNumColumns();
       BoxType aabb;
 
-      for(int inode = 0; inode < numNodes; ++inode)
+      for(IndexType inode = 0; inode < static_cast<IndexType>(numNodes); ++inode)
       {
         const double* node = coords.getColumn(inode);
         PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};
@@ -264,7 +264,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
 
       const int numNodes = coords.getNumColumns();
       SLIC_ASSERT(numNodes == 3);
-      for(int inode = 0; inode < numNodes; ++inode)
+      for(IndexType inode = 0; inode < static_cast<IndexType>(numNodes); ++inode)
       {
         const double* node = coords.getColumn(inode);
         PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};

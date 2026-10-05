@@ -277,11 +277,15 @@ TEST(bump_blueprint_quadrature_mesh, generate_open_uniform_hex_mesh)
   axom::bump::views::dispatch_explicit_coordset(
     mesh["coordsets/quadrature_points"],
     [&](auto coordsetView) {
-      for(axom::IndexType i = 0; i < expectedX.size(); ++i)
+      using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
+      if constexpr(CoordsetView::dimension() == 3)
       {
-        EXPECT_NEAR(coordsetView[i][0], expectedX[i], 1e-6);
-        EXPECT_NEAR(coordsetView[i][1], expectedY[i], 1e-6);
-        EXPECT_NEAR(coordsetView[i][2], expectedZ[i], 1e-6);
+        for(axom::IndexType i = 0; i < expectedX.size(); ++i)
+        {
+          EXPECT_NEAR(coordsetView[i][0], expectedX[i], 1e-6);
+          EXPECT_NEAR(coordsetView[i][1], expectedY[i], 1e-6);
+          EXPECT_NEAR(coordsetView[i][2], expectedZ[i], 1e-6);
+        }
       }
     });
   EXPECT_TRUE(compareArrayView(expectedOriginalElements.view(), originalElementsView));
@@ -335,12 +339,21 @@ TEST(bump_blueprint_quadrature_mesh, mapped_zone_helper_computes_distorted_quad_
   double lowerFactor = 0.;
   double upperFactor = 0.;
 
-  axom::bump::views::dispatch_explicit_coordset(mesh["coordsets/coords"], [&](auto coordsetView) {
-    axom::bump::views::dispatch_topology(mesh["topologies/mesh"], [&](const auto&, auto topoView) {
-      const auto zone = topoView.zone(0);
-      lowerFactor = axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 0.0);
-      upperFactor = axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 1.0);
-    });
+  namespace views = axom::bump::views;
+  views::dispatch_explicit_coordset(mesh["coordsets/coords"], [&](auto coordsetView) {
+    using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
+    if constexpr(CoordsetView::dimension() == 2)
+    {
+      views::dispatch_topology<views::select_dimensions(2), views::select_shapes(views::Quad_ShapeID)>(
+        mesh["topologies/mesh"],
+        [&](const auto&, auto topoView) {
+          const auto zone = topoView.zone(0);
+          lowerFactor =
+            axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 0.0);
+          upperFactor =
+            axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 1.0);
+        });
+    }
   });
 
   EXPECT_NEAR(lowerFactor, 2.0, 1e-12);
