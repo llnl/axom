@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 #include "axom/sidre.hpp"
@@ -24,6 +25,23 @@ enum class ReaderResult
   NotFound,        // Path does not exist in the input file
   NotHomogeneous,  // Found, but elements of other type exist
   WrongType        // Found, but item at specified path was not of requested type
+};
+
+/*!
+ *****************************************************************************
+ * \brief Exception thrown when evaluating an input function fails
+ *
+ * Lua callbacks throw this exception for execution errors or invalid return
+ * values. Callers can catch it to add application context. A callback invoked
+ * by a custom verifier can also throw during verification.
+ *
+ * Inlet uses SLIC diagnostics for API and schema misuse, and verify() with
+ * VerificationError for input validation failures.
+ *****************************************************************************
+ */
+struct InletError : public std::runtime_error
+{
+  using std::runtime_error::runtime_error;
 };
 
 /*!
@@ -136,8 +154,11 @@ const std::string COLLECTION_GROUP_NAME = "_inlet_collection";
 const std::string COLLECTION_INDICES_NAME = "_inlet_collection_indices";
 const std::string STRUCT_COLLECTION_FLAG = "_inlet_struct_collection";
 const std::string VARIANT_STRUCT_COLLECTION_FLAG = "_inlet_variant_struct_collection";
+const std::string FUNCTION_ALTERNATIVE_SUFFIX = "_inlet_function_alternative";
+const std::string FUNCTION_ALTERNATIVE_NAME = "_inlet_function_alternative_name";
 const std::string REQUIRED_FLAG = "required";
 const std::string STRICT_FLAG = "strict";
+
 }  // namespace detail
 
 /*!

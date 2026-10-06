@@ -195,9 +195,9 @@ endsolid Mesh
 </div>
 </details>
 
-#### Basic shape file
+#### Basic Klee input
 
-A minimal shape file includes a ``dimensions`` field and a ``shapes`` list.
+A minimal Klee input includes a ``dimensions`` field and a ``shapes`` list.
 
 The following example has a single shape representing the boundary a tetrahedron.
 The name of the shape -- in this case ``my_tetrahedron`` -- is used internally, and it will get shaped into the ``steel`` material:
@@ -283,35 +283,14 @@ shapes:
 
 #### Lua decks
 
-Klee can also read Lua decks when Axom is configured with Lua support.
-Lua decks use the same shape schema as YAML, but Lua is evaluated before
-Inlet reads the resulting global tables. The lesson's `ice_cream.lua` deck
-mirrors the YAML setup while using local Lua variables for shared values:
+Klee can read Lua decks when Axom is configured with Lua support.
+Lua decks use the same shape schema as YAML, and runs before Inlet reads the
+resulting tables, so the deck can compute field values from local variables.
+Selected operator fields also accept zero-argument callbacks, which Klee evaluates
+once per field during parsing.
 
-```lua
-local dim = 2
-local scoop_radius = 1.1
-local scoop_offset = {0.0, 2.0}
-
-dimensions = dim
-
-shapes = {
-  {
-    name = "vanilla_scoop",
-    material = "ice_cream",
-    geometry = {
-      format = "mfem",
-      path = "ice_cream_scoop.mesh",
-      units = "cm",
-      operators = {
-        { scale = {scoop_radius} },
-        { rotate = 5 },
-        { translate = scoop_offset }
-      }
-    }
-  }
-}
-```
+The lesson's [`ice_cream.lua`](ice_cream.lua) uses helper functions to create points
+in the chosen dimension and callbacks to compute scale and translation.
 
 ### Replacement Rules
 Replacement rules give users some extra control in how shapes get overlaid. By default, a new shape of a given material will replace all other shapes.
@@ -413,30 +392,43 @@ shapes:
 
 ## Let's see some code!
 
-The code example for this lesson loads a Klee file, performs some validation and then prints out details about the geometric setup
+The code example for this lesson loads a Klee input file, performs some validation and then prints out details about the geometric setup.
 
 ### Load and validate the Klee input
 
 ```cpp
-axom::klee::ShapeSet shapeset
+axom::klee::ShapeSet shapeSet;
 try
 {
   shapeSet = axom::klee::readShapeSet(inputFilename);
 }
-catch(axom::klee::KleeError& error)
+catch(const axom::klee::KleeError& error)
 {
   std::vector<std::string> errs;
-  for(auto verificationError : error.getErrors())
+  for(const auto& verificationError : error.getErrors())
   {
     errs.push_back(axom::fmt::format(" - '{}': {}",
-                                      static_cast<std::string>(verificationError.path),
-                                      verificationError.message));
+                                     static_cast<std::string>(verificationError.path),
+                                     verificationError.message));
   }
 
   SLIC_WARNING(
-    axom::fmt::format("Error during parsing klee input. Found the following errors:\n{}",
+    axom::fmt::format("Error during parsing Klee input. Found the following errors:\n{}",
                       axom::fmt::join(errs, "\n")));
+  return 1;
 }
+
+printShapeSetInfo(shapeSet);
+```
+
+Use `--initialization-file` to supply runtime values and helper functions to a Lua
+deck. The file must return a table. Klee installs its entries as globals before
+running the deck, which may reassign them:
+
+```bash
+./bin/lesson_03_klee_operators_and_validation \
+  ../lesson_03/ice_cream_initialized.lua \
+  --initialization-file ../lesson_03/ice_cream_initialization.lua
 ```
 
 Next, we loop through the shapes and print out information about each shape. We're using an `fmt::memory_buffer` (similar to a `std::stringstream`) to write everything in a single log statement:

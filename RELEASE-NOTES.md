@@ -27,6 +27,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   single- or multidomain Cartesian Blueprint meshes with structured, strided-structured, or unstructured topology and optional analytic fields.
 - Python: Adds a scikit-build-core project under `src/python/` to build an `axom` wheel for pip or uv.
   The wheel compiles the bindings against the Axom install specified by `AXOM_DIR`.
+- Inlet: Adds `addFunctionAsValueAlternative()` and query/access methods so schemas can
+  accept either a concrete value or a callback at the same input path.
+- Klee: Adds zero-argument Lua callbacks for supported geometry-operator fields, including translation,
+  rotation, scaling, slicing, unit conversion, and named-operator references. Klee evaluates callbacks
+  once per field during parsing and validates their results like concrete values.
+- Klee: Adds `LuaInputOptions` for initializing Lua decks with values and helper functions.
+  Its initialization chunk returns a table of globals for the deck.
 
 ### Removed
 
@@ -40,10 +47,17 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   Previously, a missing or incorrect coordset, mask field, function field was caught only by debug-build assertions.
 - Quest: `MarchingCubes::setMesh()` now accepts single- and multi-domain Blueprint meshes.
 - Quest: Performance and memory improvements for `DistributedClosestPoint` query.
+- Inlet/Klee: Lua callback execution errors and invalid return values now throw `axom::inlet::InletError`.
+  Klee wraps these failures in `axom::klee::KleeError` diagnostics identifying the field,
+  operator location, and owning shape or named operator.
 
 ### Fixed
 - Spin:`BVH::getBounds()` now returns an invalid bounding box instead of one that covers the whole coordinate range,
   when an empty BVH is constructed.
+- Inlet: Lua callbacks copied into `std::function` keep their Lua state alive and remain callable after
+  the Inlet and Reader are destroyed.
+- Inlet: Avoids infinite recursion when discovering names in cyclic Lua tables, including Klee
+  initialization exports.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 
