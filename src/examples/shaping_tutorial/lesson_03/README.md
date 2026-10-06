@@ -281,17 +281,16 @@ shapes:
   <figcaption style="font-style: italic;">Figure: Example Klee inputs showing `scale`, `translate`, `rotate` and unit conversion operators.</figcaption>
 </div>
 
-#### Lua decks for generated geometry setup
+#### Lua decks
 
-Klee can also read Lua decks when Axom is configured with Lua support.
-Lua decks use the same shape schema as YAML, but Lua is evaluated first,
-which lets you keep helper constants and functions local to the deck:
+Klee can read Lua decks when Axom is configured with Lua support.
+Lua decks use the same shape schema as YAML, and runs before Inlet reads the
+resulting tables, so the deck can compute field values from local variables.
+Selected operator fields also accept zero-argument callbacks, which Klee evaluates
+once per field during parsing.
 
-- ordinary Klee fields can be generated from local variables,
-- selected affine operator fields can be zero-argument callbacks evaluated once during parsing.
-
-The lesson's `ice_cream.lua` deck mirrors the YAML ice-cream setup while using these Lua features in one small workflow.
-Helper functions generate dimensional points, and callbacks compute scale and translation fields.
+The lesson's [`ice_cream.lua`](ice_cream.lua) uses helper functions to create points
+in the chosen dimension and callbacks to compute scale and translation.
 
 ### Replacement Rules
 Replacement rules give users some extra control in how shapes get overlaid. By default, a new shape of a given material will replace all other shapes.
@@ -422,12 +421,9 @@ catch(const axom::klee::KleeError& error)
 printShapeSetInfo(shapeSet);
 ```
 
-The validator example also accepts an optional `--initialization-file` argument
-for Lua decks. The initialization file is a Lua chunk that returns a table of
-exported variables and helper functions, which are installed as initial mutable
-globals before the deck is evaluated. This lets an application provide runtime
-Lua customization without rebuilding the executable, while still allowing the
-deck to reassign those globals if it chooses:
+Use `--initialization-file` to supply runtime values and helper functions to a Lua
+deck. The file must return a table. Klee installs its entries as globals before
+running the deck, which may reassign them:
 
 ```bash
 ./bin/lesson_03_klee_operators_and_validation \

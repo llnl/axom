@@ -89,14 +89,11 @@ public:
    *
    * Includes global names and nested table entries, using `/` to separate keys.
    *
-   * Lua tables may refer to themselves, directly or through other tables.
-   * When a path leads back to a table already encountered along that path,
-   * the path is included, but the search stops there.
-   * For example, `t = {}; t.self = t` yields `t` and `t/self`,
-   * without repeating `self` indefinitely.
+   * The search records cyclic references but does not follow them.
+   * For example, `t = {}; t.self = t` yields `t` and `t/self`.
    *
-   * If different paths lead to the same table without forming a cycle, its
-   * entries are included under each path. For example, `a = {value = 1}; b = a`
+   * Shared tables appear under each path.
+   * For example, `a = {value = 1}; b = a`
    * yields `a`, `a/value`, `b`, and `b/value`.
    *
    * \return The discovered input paths

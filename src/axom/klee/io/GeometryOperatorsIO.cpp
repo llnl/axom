@@ -46,51 +46,27 @@ std::string childName(const inlet::Container& container, const std::string& name
   return result;
 }
 
-/**
- * Determine whether an operator field was supplied as a callback.
- *
- * \param container the operator container
- * \param fieldName the public operator field name
- * \return true when \a fieldName has a supplied function alternative
- */
+/// Return whether the input supplied a callback for this field.
 bool hasCallback(const inlet::Container& container, char const* fieldName)
 {
   return container.containsFunctionValueAlternative(fieldName);
 }
 
-/**
- * Determine whether an operator field was supplied directly or as a callback.
- *
- * \param container the operator container
- * \param fieldName the public operator field name
- * \return true when either supported representation was supplied
- */
+/// Return whether the field has a concrete value or a callback.
 bool containsFieldOrCallback(const inlet::Container& container, char const* fieldName)
 {
   return container.contains(fieldName) || hasCallback(container, fieldName);
 }
 
-/**
- * Construct the input path for an operator field.
- *
- * \param container the operator container
- * \param fieldName the public operator field name
- * \return the full path to \a fieldName
- */
+/// Return the field's full input path.
 Path fieldPath(const inlet::Container& container, char const* fieldName)
 {
   return Path::join({Path {container.name()}, Path {std::string {fieldName}}});
 }
 
 /**
- * Add callback context to a message when a field was supplied as a callback.
- *
- * \param container the operator or slice container
- * \param fieldName the field the message is about
- * \param ownerLabel description of the owning shape or named operator
- * \param message the message to report
- * \return \a message, prefixed with the callback, owner and operator when
- *         \a fieldName was supplied as a callback, and unchanged otherwise
+ * Prefix callback errors with the field, operator, and owning shape or named operator.
+ * Leave messages for concrete values unchanged.
  */
 std::string fieldMessage(const inlet::Container& container,
                          char const* fieldName,
@@ -115,23 +91,12 @@ std::string fieldMessage(const inlet::Container& container,
   return axom::fmt::format("Error evaluating callback for '{}' in {}: {}", fieldName, owner, message);
 }
 
-/**
- * Invoke a callback and translate its failures to contextual Klee errors.
- *
- * \tparam Result expected callback result type
- * \param container the operator or slice container
- * \param fieldName the callback field name
- * \param ownerLabel description of the owning shape or named operator
- * \return the callback result
- * \throws KleeError if callback invocation or result conversion fails
- */
+/// Invoke a callback, wrapping InletError with the field path and owner in a KleeError.
 template <typename Result>
 Result invokeCallback(const inlet::Container& container,
                       char const* fieldName,
                       const std::string& ownerLabel)
 {
-  // Convert Inlet callback failures into Klee diagnostics at the boundary
-  // where the shape, operator, and field context are all available.
   try
   {
     return container.getFunctionValueAlternative(fieldName).call<Result>();
@@ -143,15 +108,7 @@ Result invokeCallback(const inlet::Container& container,
   }
 }
 
-/**
- * Read a scalar operator field from its direct or callback representation.
- *
- * \param container the operator container
- * \param fieldName the public operator field name
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved scalar value
- * \throws KleeError if callback evaluation fails
- */
+/// Read a scalar value or call its function alternative.
 double getScalar(const inlet::Container& container, char const* fieldName, const std::string& ownerLabel)
 {
   if(hasCallback(container, fieldName))
@@ -161,15 +118,7 @@ double getScalar(const inlet::Container& container, char const* fieldName, const
   return container[fieldName].get<double>();
 }
 
-/**
- * Read a string operator field from its direct or callback representation.
- *
- * \param container the operator container
- * \param fieldName the public operator field name
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved string value
- * \throws KleeError if callback evaluation fails
- */
+/// Read a string value or call its function alternative.
 std::string getString(const inlet::Container& container,
                       char const* fieldName,
                       const std::string& ownerLabel)
@@ -181,15 +130,7 @@ std::string getString(const inlet::Container& container,
   return container[fieldName].get<std::string>();
 }
 
-/**
- * Read vector components from a direct field or callback.
- *
- * \param container the operator container
- * \param fieldName the public operator field name
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved vector components, without dimension validation
- * \throws KleeError if callback evaluation fails
- */
+/// Read vector components from a concrete value or callback, without checking the dimension.
 std::vector<double> readDoubleVector(const inlet::Container& container,
                                      char const* fieldName,
                                      const std::string& ownerLabel)
@@ -197,27 +138,12 @@ std::vector<double> readDoubleVector(const inlet::Container& container,
   if(hasCallback(container, fieldName))
   {
     const auto value = invokeCallback<inlet::FunctionType::Vector>(container, fieldName, ownerLabel);
-    std::vector<double> result;
-    result.reserve(value.dim);
-    for(int i = 0; i < value.dim; ++i)
-    {
-      result.push_back(value.vec[i]);
-    }
-    return result;
+    return {value.vec.data(), value.vec.data() + value.dim};
   }
   return container[fieldName].get<std::vector<double>>();
 }
 
-/**
- * Check the dimension of an already extracted vector.
- *
- * \param values the resolved vector components
- * \param container the operator container
- * \param fieldName the public operator field name
- * \param expectedDims required vector dimension
- * \param ownerLabel description of the owning shape or named operator
- * \throws KleeError if the vector does not have \a expectedDims components
- */
+/// Throw KleeError if the vector does not have \a expectedDims components.
 void checkVectorSize(const std::vector<double>& values,
                      const inlet::Container& container,
                      char const* fieldName,
@@ -238,16 +164,7 @@ void checkVectorSize(const std::vector<double>& values,
   }
 }
 
-/**
- * Read a point- or vector-like operator field.
- *
- * \tparam T destination point or vector type
- * \param parent the operator container
- * \param fieldName the public operator field name
- * \param expectedDims required dimension
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved value converted to \a T
- */
+/// Read a point or vector and check its dimension before converting to \a T.
 template <typename T>
 T toArrayLike(const inlet::Container& parent,
               char const* fieldName,
@@ -259,17 +176,7 @@ T toArrayLike(const inlet::Container& parent,
   return T {values.data(), static_cast<int>(expectedDims)};
 }
 
-/**
- * Read an optional point- or vector-like operator field.
- *
- * \tparam T destination point or vector type
- * \param parent the operator container
- * \param fieldName the public operator field name
- * \param expectedDims required dimension
- * \param defaultValue value returned when the field is absent
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved value, or \a defaultValue when absent
- */
+/// Read a point or vector, or return \a defaultValue if neither form is present.
 template <typename T>
 T toArrayLike(const inlet::Container& parent,
               char const* fieldName,
@@ -284,15 +191,7 @@ T toArrayLike(const inlet::Container& parent,
   return defaultValue;
 }
 
-/**
- * Read a required point field.
- *
- * \param parent the operator container
- * \param fieldName the public operator field name
- * \param expectedDims required dimension
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved point
- */
+/// Read a required point field.
 Point3D getPoint(const inlet::Container& parent,
                  char const* fieldName,
                  Dimensions expectedDims,
@@ -301,16 +200,7 @@ Point3D getPoint(const inlet::Container& parent,
   return toArrayLike<Point3D>(parent, fieldName, expectedDims, ownerLabel);
 }
 
-/**
- * Read an optional point field.
- *
- * \param parent the operator container
- * \param fieldName the public operator field name
- * \param expectedDims required dimension
- * \param defaultValue value returned when the field is absent
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved point, or \a defaultValue when absent
- */
+/// Read a point field, or return \a defaultValue if absent.
 Point3D getPoint(const inlet::Container& parent,
                  char const* fieldName,
                  Dimensions expectedDims,
@@ -320,15 +210,7 @@ Point3D getPoint(const inlet::Container& parent,
   return toArrayLike(parent, fieldName, expectedDims, defaultValue, ownerLabel);
 }
 
-/**
- * Read a required vector field.
- *
- * \param parent the operator container
- * \param fieldName the public operator field name
- * \param expectedDims required dimension
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved vector
- */
+/// Read a required vector field.
 Vector3D getVector(const inlet::Container& parent,
                    char const* fieldName,
                    Dimensions expectedDims,
@@ -337,16 +219,7 @@ Vector3D getVector(const inlet::Container& parent,
   return toArrayLike<Vector3D>(parent, fieldName, expectedDims, ownerLabel);
 }
 
-/**
- * Read an optional vector field.
- *
- * \param parent the operator container
- * \param fieldName the public operator field name
- * \param expectedDims required dimension
- * \param defaultValue value returned when the field is absent
- * \param ownerLabel description of the owning shape or named operator
- * \return the resolved vector, or \a defaultValue when absent
- */
+/// Read a vector field, or return \a defaultValue if absent.
 Vector3D getVector(const inlet::Container& parent,
                    char const* fieldName,
                    Dimensions expectedDims,
@@ -356,12 +229,7 @@ Vector3D getVector(const inlet::Container& parent,
   return toArrayLike(parent, fieldName, expectedDims, defaultValue, ownerLabel);
 }
 
-/**
- * Get the names of all the children in the given container.
- *
- * @param container the Container whose children to get
- * @return the names of all the children
- */
+/// Get the names of all the children in the given container.
 std::unordered_set<std::string> getChildNames(const inlet::Container& container)
 {
   std::unordered_set<std::string> allChildren;

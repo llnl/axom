@@ -776,8 +776,7 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Add a function that is an alternative representation of a primitive
-   * value or collection in the input deck.
+   * \brief Accept a function in place of a primitive value or collection.
    *
    * The function is read from the same input path as the concrete field or collection.
    * If the input supplies a function, Inlet treats the concrete entry as absent.
@@ -1091,8 +1090,7 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Return whether a function value alternative was supplied for the
-   * given public value name.
+   * \brief Return whether the input supplied a function for the given value name.
    *
    * \param [in] valueName Value path relative to this Container
    *
@@ -1103,11 +1101,9 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Retrieve the function value alternative associated with a public
-   * value name.
+   * \brief Retrieve the function alternative for the given value name.
    *
-   * Call containsFunctionValueAlternative() first to determine whether the
-   * function representation was supplied.
+   * Call containsFunctionValueAlternative() first to check for a supplied function.
    *
    * \param [in] valueName Value path relative to this Container
    *
@@ -1371,12 +1367,10 @@ private:
 
   /*!
    *****************************************************************************
-   * \brief Adds a Function whose schema name may differ from the input path it
-   * is read from.
+   * \brief Adds a Function whose schema name may differ from its input path.
    *
-   * This backs both addFunction(), where the two names are identical, and
-   * addFunctionAsValueAlternative(), where the function is read from a concrete
-   * value's input path but stored under a distinct schema name.
+   * addFunction() uses the input name as the schema name. Function alternatives
+   * use a distinct schema name to avoid colliding with the concrete entry.
    *
    * \param [in] schemaName   The name of the Function within this Container
    * \param [in] inputName    The name to read from in the input file

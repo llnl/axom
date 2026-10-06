@@ -399,9 +399,7 @@ template <typename... Args>
 axom::sol::protected_function_result callWith(const axom::sol::protected_function& func,
                                               Args&&... args)
 {
-  // Lua functions are exposed to clients as std::functions that can be invoked
-  // after schema verification. Use a catchable failure here so those clients can
-  // add context; SLIC errors may abort or only log and continue.
+  // Throw if invalid so callers can report callback failures after schema verification.
   auto tentative_result = func(std::forward<Args>(args)...);
   if(!tentative_result.valid())
   {
@@ -429,8 +427,6 @@ Ret extractResult(axom::sol::protected_function_result&& res)
   axom::sol::optional<Ret> option = res;
   if(!option)
   {
-    // A failed result conversion is a runtime input error for this function
-    // call. Throwing avoids dereferencing an empty optional after a SLIC log.
     throw InletError("[Inlet] Lua function call failed, return types possibly incorrect");
   }
   return option.value();
@@ -443,9 +439,7 @@ FunctionType::Void extractResult<FunctionType::Void>(axom::sol::protected_functi
 template <>
 FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_function_result&& res)
 {
-  // Keep Vector.new(...) returns supported, but also accept raw numeric Lua
-  // tables so input decks can write idiomatic vector callbacks such as
-  // function() return {1.0, 2.0, 3.0} end.
+  // Accept both Vector.new(...) and numeric Lua tables such as {1.0, 2.0, 3.0}.
   axom::sol::optional<FunctionType::Vector> vector_option = res;
   if(vector_option)
   {

@@ -2,13 +2,12 @@
 Function callbacks
 ##################
 
-For input file types that support functions, e.g., Lua, functions can also be read from the input file
-into a ``std::function``, the wrapper for callables provided by the C++ standard library.
+Inlet can read functions from input formats such as Lua into a C++ ``std::function``.
 
 Defining and storing
 --------------------
 
-This is accomplished by calling ``addFunction`` on an Inlet or Container object.
+Call ``addFunction`` on an Inlet or Container object to declare an input function.
 
 Consider the following Lua function that accepts a vector in **R**\ :sup:`2` or **R**\ :sup:`3` and returns a double:
 
@@ -22,31 +21,31 @@ Consider the following Lua function that accepts a vector in **R**\ :sup:`2` or 
     end
   end
 
-The schema for this function would be defined as follows:
+Declare its signature in the schema:
 
 .. literalinclude:: ../../examples/mfem_coefficient.cpp
    :start-after: _inlet_mfem_func_coef_start
    :end-before: _inlet_mfem_func_coef_end
    :language: C++
 
-The return type and argument types are described with the ``inlet::FunctionTag`` enumeration, which has the following members:
+Use ``inlet::FunctionTag`` to specify the return and argument types:
 
   * ``Double`` - corresponds to a C++ ``double``
   * ``String`` - corresponds to a C++ ``std::string``
   * ``Vector`` - corresponds to a C++ ``inlet::InletVector``
   * ``Void`` - corresponds to C++ ``void``, should only be used for functions that don't return a value
 
-Note that a single type tag is passed for the return type, while a vector of tags is passed
-for the argument types.  Currently a maximum of two arguments are supported.
-To declare a function with no arguments, simply leave the list of argument types empty.
+Pass one tag for the return type and a vector of tags for up to two arguments.
+Leave the argument list empty for a function with no arguments.
 
-.. note::  The ``InletVector`` type (and its Lua representation) are statically-sized vectors with
-  a maximum dimension of three.  That is, they can also be used to represent two-dimensional vectors.
+.. note::  ``InletVector`` supports both 2D and 3D vectors. Its ``dim`` member records
+   the vector's dimension.
 
-A Lua callback declared with a ``Vector`` return type may return either a ``Vector.new(...)``
-value or an ordinary Lua table containing one to three numeric components. Ordinary table
-returns must use contiguous integer indices starting at one; sparse tables, named entries,
-and non-numeric components are rejected when the callback is called.
+
+A Lua callback with a ``Vector`` return type may return ``Vector.new(...)`` or a Lua
+table with one to three numeric components. Table keys must be contiguous integers
+starting at one. When converting a callback's return value to a vector,
+Inlet throws ``InletError`` if the table has gaps, named entries, or non-numeric components.
 
 In Lua, the following operations on the ``Vector`` type are supported (for ``Vector`` s ``u``, ``v``, and ``w``):
 
@@ -75,10 +74,10 @@ Declare the function alternative before the concrete entry, using the same input
    :language: C++
    :dedent: 2
 
-Declaring the alternative afterwards is an error because Inlet has already read the
-concrete entry. Both declarations use paths relative to their ``Container``,
-with slashes separating nested names. They may use different parent or child Containers
-as long as they refer to the same input path. The example accepts either Lua input:
+Inlet reads entries as you declare them, so declaring the alternative afterwards is an error.
+Paths are relative to each ``Container``, with slashes separating nested names.
+The declarations may use different parent or child Containers if they resolve to the
+same input path. The example accepts either Lua input:
 
 .. code-block:: Lua
 
@@ -87,7 +86,7 @@ as long as they refer to the same input path. The example accepts either Lua inp
   -- or
   scale = function() return 3.0 end
 
-After verification, query which representation was supplied before retrieving it:
+After verification, check for a function before retrieving the value:
 
 .. literalinclude:: ../../examples/functions.cpp
    :start-after: _inlet_function_value_alternative_access_start
@@ -95,82 +94,68 @@ After verification, query which representation was supplied before retrieving it
    :language: C++
    :dedent: 2
 
-For the shared input name, ``contains`` reports the concrete value, including a default,
-and ``containsFunctionValueAlternative`` reports a supplied function. Check the function
-first because a concrete default can exist alongside it. Either supplied form counts as
-user-provided input, and strict Containers recognize both. An unrelated input type fails
-verification.
+For the shared input name, ``contains`` reports a concrete value, including a default.
+``containsFunctionValueAlternative`` reports a supplied function. Check the function first
+because a concrete default can exist alongside it. Either supplied form counts as
+user-provided input, and strict Containers recognize both. Other input types fail verification.
 
 ``addFunctionAsValueAlternative`` returns a ``Verifiable<Function>``.
-Calling ``required()`` on it requires a function, and a concrete value does not satisfy the reqquirement.
-Similarly, a function alone does not satisfy ``required()`` on the concrete entry.
-To require either form, leave both entries optional and register a verifier on the
-root Container that checks whether either representation exists.
+Calling ``required()`` on it requires a function. Calling ``required()`` on the concrete
+entry requires a concrete value. Neither form satisfies the other's requirement.
+To accept either form but require one, leave both entries optional and register a
+root Container verifier that checks for either form.
 
-Inlet does not evaluate the function automatically. Constraints on the concrete entry,
-such as a range, do not apply to the function result, so applications should validate the
-value after resolving and evaluating the supplied representation.
+Your application must call the function and validate its result. Inlet does not call it
+automatically or apply the concrete entry's constraints, such as a range, to its result.
 
-Generated Sphinx and JSON Schema documentation show only the concrete entry.
-Application documentation should describe the function form when it is part of the Lua interface.
+Generated Sphinx and JSON Schema documentation show only the concrete entry,
+so document the function form in your application's Lua interface.
 
 Accessing
 ---------
 
-To retrieve a function, both the implicit conversion and ``get<T>`` syntax is supported.
-For example, a function can be retrieved as follows:
+Retrieve a function with ``get<T>``:
 
 .. literalinclude:: ../../examples/mfem_coefficient.cpp
    :start-after: _inlet_mfem_coef_simple_retrieve_start
    :end-before: _inlet_mfem_coef_simple_retrieve_end
    :language: C++
 
-It can also be assigned directly to a ``std::function`` without the need to use ``get<T>``:
+Or assign it directly to a ``std::function``:
 
 .. code-block:: C++
 
   std::function<double(FunctionType::Vector)> coef = inlet["coef"];
 
-Additionally, if a function does not need to be stored, the overhead of a copy can be eliminated
-by calling it directly:
+Use ``call`` to invoke it without copying it:
 
 .. code-block:: C++
 
   double result = inlet["coef"].call<double>(axom::inlet::FunctionType::Vector{3, 5, 7});
 
-.. note::  Using ``call<ReturnType>(ArgType1, ArgType2, ...)`` requires both that the return type
-  be explicitly specified and that argument types be passed with the exact type as used in the
-  signature defined as part of the schema.  This is because the arguments do not participate in
-  overload resolution.
+.. note::  ``call<ReturnType>(ArgType1, ArgType2, ...)`` requires an explicit return type.
+   Argument types must match the schema signature exactly because they do not
+   participate in overload resolution.
 
 Lua callbacks copied into a ``std::function`` keep their Lua state alive and remain callable
 after the Inlet and Reader are destroyed. A reference to an Inlet-owned ``Function`` does
 not extend its lifetime. Callbacks from one ``LuaReader`` share mutable interpreter state
 and must not be invoked concurrently without synchronization.
 
-Lua execution errors and invalid callback return values throw ``axom::inlet::InletError``
-when the callback is invoked. Inlet uses different reporting mechanisms for schema and
-input validation:
+Inlet reports errors according to when they occur:
 
 .. list-table::
    :header-rows: 1
-   :widths: 30 30 40
+   :widths: 60 40
 
-   * - Kind of problem
+   * - Problem
      - Reported through
-     - Examples
-   * - API or schema misuse
+   * - Invalid keys, undefined entries, or ambiguous schema names
      - SLIC diagnostics
-     - an empty or malformed key, a lookup for an entry that was never defined,
-       a name that is ambiguous between a container, field, and function
-   * - Contents of the input file
+   * - Missing required input, wrong types, or failed verifiers
      - ``verify()`` and ``VerificationError``
-     - a required entry is missing, a value has the wrong type or fails a
-       registered verifier
-   * - Failure while calling an input function
-     - ``InletError`` (derived from ``std::runtime_error``)
-     - the Lua function raises an error, or returns something that cannot be
-       converted to the declared return type
+   * - Lua execution errors or callback results that cannot convert to the declared type
+     - ``axom::inlet::InletError``, derived from ``std::runtime_error``
 
 Inlet does not evaluate callbacks during ``verify()`` unless a custom verifier calls them.
 Successful verification does not guarantee that a later callback invocation will succeed.

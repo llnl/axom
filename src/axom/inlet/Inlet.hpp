@@ -433,8 +433,7 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Add a function that is an alternative representation of a primitive
-   * value or collection in the input deck.
+   * \brief Accept a function in place of a primitive value or collection.
    *
    * \pre Declare the alternative before the concrete entry.
    * \note Inlet does not evaluate the function automatically.

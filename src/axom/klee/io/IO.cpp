@@ -43,11 +43,7 @@ bool isLuaIdentifier(const std::string& name);
 class KleeLuaReader : public inlet::LuaReader
 {
 public:
-  /**
-   * Return the string keys currently installed in the Lua global environment.
-   *
-   * \return the current top-level Lua global names
-   */
+  /// Return the current top-level Lua global names.
   std::unordered_set<std::string> topLevelGlobalNames()
   {
     std::unordered_set<std::string> names;
@@ -88,9 +84,7 @@ public:
 
     try
     {
-      // Evaluate initialization in its own environment so assignments made by the
-      // chunk do not mutate the input file's globals. The fallback keeps
-      // preloaded libraries and caller-provided initial globals visible.
+      // Isolate global assignments while sharing the preloaded Lua libraries.
       axom::sol::environment initializationEnvironment {*lua, axom::sol::create, lua->globals()};
       initializationEnvironment["_G"] = initializationEnvironment;
       auto result = lua->script(initialization.source, initializationEnvironment);
@@ -456,11 +450,7 @@ InputFormat inferInputFormat(const std::string& filePath)
 {
   auto extension = utilities::filesystem::getFileExtension(filePath);
   utilities::string::toLower(extension);
-  if(extension.empty())
-  {
-    return InputFormat::YAML;
-  }
-  if(extension == ".yaml" || extension == ".yml")
+  if(extension.empty() || extension == ".yaml" || extension == ".yml")
   {
     return InputFormat::YAML;
   }
@@ -476,12 +466,7 @@ InputFormat inferInputFormat(const std::string& filePath)
                        extension)});
 }
 
-/**
- * Determine whether a name is a reserved Lua keyword.
- *
- * \param name the candidate name
- * \return true when \a name is a Lua keyword
- */
+/// Return whether the name is a reserved Lua keyword.
 bool isLuaKeyword(const std::string& name)
 {
   static const std::unordered_set<std::string> keywords {
@@ -492,12 +477,7 @@ bool isLuaKeyword(const std::string& name)
   return keywords.find(name) != keywords.end();
 }
 
-/**
- * Determine whether a name is an ASCII Lua identifier that is not a keyword.
- *
- * \param name the candidate name
- * \return true when \a name may be used as a Lua identifier
- */
+/// Return whether the name is an ASCII Lua identifier and not a keyword.
 bool isLuaIdentifier(const std::string& name)
 {
   if(name.empty())
@@ -555,9 +535,7 @@ std::unique_ptr<inlet::Reader> createReader(InputFormat format,
     auto reader = std::make_unique<KleeLuaReader>();
     if(options.initialization)
     {
-      // Exported values are ordinary Lua globals installed before deck parsing.
-      // allowedGlobals only prevents Klee's unexpected-global check from rejecting
-      // those names; it does not make them read-only inside the deck.
+      // Permit exported names in the deck's unexpected-global check.
       allowedGlobals =
         reader->applyInitializationChunk(*options.initialization, reader->topLevelGlobalNames());
     }
@@ -636,12 +614,8 @@ void appendUnexpectedGlobalErrors(const inlet::Inlet& doc,
 {
   for(const auto& name : doc.unexpectedNames())
   {
-    if(name.find('/') == std::string::npos)
+    if(name.find('/') == std::string::npos && allowedGlobals.find(name) == allowedGlobals.end())
     {
-      if(allowedGlobals.find(name) != allowedGlobals.end())
-      {
-        continue;
-      }
       errors.push_back({Path {name},
                         axom::fmt::format("Unexpected global variable '{}' in Lua input file. "
                                           "Use 'local' for helper values and functions.",

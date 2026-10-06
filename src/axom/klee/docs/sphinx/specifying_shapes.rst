@@ -125,9 +125,9 @@ ordinary table values can be generated programmatically:
 
 Lua initialization
 ^^^^^^^^^^^^^^^^^^
-You can pass a Lua initialization chunk through :code:`LuaInputOptions`
-to supply additional values or helper functions before Klee evaluates the deck.
-The chunk must return a table whose entries become globals available to the deck:
+Pass a Lua initialization chunk through :code:`LuaInputOptions` to supply values
+or helper functions before Klee evaluates the deck. The chunk must return a table
+whose entries become deck globals:
 
 .. code-block:: c++
 
@@ -163,9 +163,9 @@ The chunk must return a table whose entries become globals available to the deck
     }
 
 Exported keys must be ASCII Lua identifiers. Keywords and preloaded globals such as
-:code:`math`, :code:`package`, and :code:`Vector` are reserved. Exported values retain
-their original Lua types, including integers and userdata such as
-:code:`Vector.new(1, 2)`. Userdata may be exported directly or nested inside a table.
+:code:`math`, :code:`package`, and :code:`Vector` are reserved. Exported values keep
+their Lua types, including integers and userdata such as :code:`Vector.new(1, 2)`,
+whether exported directly or inside a table.
 Values used for Klee fields or returned by callbacks must satisfy the corresponding
 field's validation rules.
 
@@ -188,9 +188,9 @@ Use :code:`local` for other helper values to avoid unexpected-global errors.
 Operator callbacks
 ^^^^^^^^^^^^^^^^^^
 Selected operator fields accept Lua callbacks with no arguments. For valid input,
-:code:`readShapeSet` evaluates each callback field once while constructing operators.
-If several fields use the same function, each field invokes it. The returned
-:code:`ShapeSet` stores the resulting operators and does not retain Lua callbacks.
+:code:`readShapeSet` calls each field's callback once to construct its operator.
+If several fields use the same function, each field calls it. The returned
+:code:`ShapeSet` stores the operators and does not retain Lua callbacks.
 
 Callbacks must not depend on evaluation order within an operator. Klee constructs
 :code:`named_operators` before :code:`shapes`, and each :code:`ref` reuses the
@@ -244,10 +244,10 @@ The supported callback fields and their return types are:
    * - :code:`convert_units_to`, :code:`ref`
      - String
 
-Vector tables must have contiguous integer keys starting at one.
-The component count must match the operator's input dimension and not have any other entries.
+Vector tables must have contiguous integer keys starting at one and no other entries.
+The component count must match the operator's input dimension.
 For :code:`scale`, a one-entry table such as :code:`{2.0}` also permits uniform scaling,
-but a scalar (like :code:`2.0`) is invalid.
+but a scalar such as :code:`2.0` is invalid.
 Callback results must meet the same field requirements as concrete values,
 such as a nonzero rotation axis or a valid unit name.
 
