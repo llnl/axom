@@ -428,7 +428,7 @@ struct AbstractIndirection : ViewIndirection
   virtual void bind() = 0;
 };
 
-// Object queries normalize cv/ref qualification while preserving element qualification.
+// Set and map concepts ignore top-level cv/ref qualifiers and preserve element qualifiers.
 static_assert(slam::SetLike<ExternalSet>);
 static_assert(slam::SetLike<const ExternalSet&>);
 static_assert(slam::SetLike<ExtraSetAliases>);
@@ -482,7 +482,7 @@ static_assert(!slam::MapOver<BoundMap, ExternalSet>);
 static_assert(!slam::MapOver<MinimalBivariateMap, BoundMap::Domain>);
 static_assert(!slam::MapOver<int, ExternalSet>);
 
-// Refinement must participate in overload ordering, not merely yield true.
+// Concept refinement must select the more constrained overload.
 template <slam::SetLike S>
 std::integral_constant<int, 1> selectByConstraint();
 template <slam::BivariateSetLike S>
@@ -527,8 +527,8 @@ static_assert(slam::detail::OrderedSetStridePolicyFor<ScalarStride, int>);
 static_assert(!slam::detail::OrderedSetStridePolicyFor<MatrixStride, int>);
 static_assert(slam::detail::MapStridePolicyFor<ScalarStride, int>);
 static_assert(slam::detail::MapStridePolicyFor<MatrixStride, int>);
-// Maps support a stride index that converts to their (possibly wider) position type
-// OrderedSet's scalar value policy must use that exact position type.
+// Maps allow a stride index that converts to their position type, which may be wider.
+// OrderedSet's scalar value policy must use the same position type as the set.
 #if !defined(AXOM_NO_INT64_T)
 // Use explicit types for wide/narrow pairs so they do not depend on AXOM_USE_64BIT_INDEXTYPE.
 using WidePosition = std::int64_t;
@@ -575,12 +575,12 @@ static_assert(slam::MapIndirectionPolicyFor<OwningIndirection, Position, double>
 static_assert(slam::AllocatingMapIndirectionPolicyFor<OwningIndirection, Position, double>);
 static_assert(!slam::MapIndirectionPolicyFor<WrongDataIndirection, Position, double>);
 
-// The Map indirection contract that Map family reads.
-// Indirection[Const]RefType are StaticRelation's aliases
+// Map requires ResultPtr and ConstResultPtr.
+// StaticRelation uses IndirectionRefType and IndirectionConstRefType.
 static_assert(slam::MapIndirectionPolicyFor<LeanMapIndirection, Position, double>);
-// ... but the whole-buffer accessor behind Map::data_ptr() is required.
+// Map::data_ptr() requires buffer access without a position argument.
 static_assert(!slam::MapIndirectionPolicyFor<PositionedAccessOnlyIndirection, Position, double>);
-// Map's data_ptr() (private) is declared in terms of the policy's ResultPtr alias
+// Map::data_ptr() returns the policy's ResultPtr or ConstResultPtr.
 static_assert(std::same_as<typename ViewIndirection::ResultPtr, double*>);
 static_assert(std::same_as<typename ViewIndirection::ConstResultPtr, double*>,
               "ArrayView indirection has shallow constness");
@@ -610,7 +610,7 @@ static_assert(slam::TriviallyCopyableRepresentation<const TrivialCapture>);
 static_assert(!slam::TriviallyCopyableRepresentation<NonTrivialCapture>);
 static_assert(!slam::TriviallyCopyableRepresentation<TrivialCapture&>);
 
-// An algorithm over the public core needs only row traversal and coordinate access.
+// This algorithm uses only row traversal and coordinate access from BivariateSetLike.
 template <slam::BivariateSetLike S>
 void checkRowCoordinates(const S& set)
 {

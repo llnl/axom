@@ -19,14 +19,14 @@
  * storage, and serve as small reference implementations for custom policies.
  *
  * OrderedSet inherits an indirection policy and calls indirection(position).
- * Map instead stores the policy's buffer type by value and uses its static
- * access functions. These are separate contracts, defined by
- * OrderedSetIndirectionPolicyFor and MapIndirectionPolicyFor in Concepts.hpp.
+ * Map stores the policy's buffer type by value and uses its static access functions.
+ * Concepts.hpp defines these requirements in OrderedSetIndirectionPolicyFor
+ * and MapIndirectionPolicyFor.
  * Static relations use ordered-set indirection with additional buffer access.
  *
  * Ownership depends on the containing type. A Map using ArrayIndirection owns
- * its axom::Array, while an ordered set or static relation borrows an array
- * object. ArrayViewIndirection stores a view whose allocation is managed elsewhere.
+ * its axom::Array, while an ordered set or static relation borrows an array object.
+ * ArrayViewIndirection stores a view whose allocation is managed elsewhere.
  * Borrowed objects and allocations must remain valid for every access.
  */
 
@@ -39,7 +39,7 @@ namespace axom::slam::policies
 {
 namespace detail
 {
-/*!
+/**
  * \class IndexedIndirection
  *
  * \brief Provides a mixin class for a generic indexable indirection policy.
@@ -429,7 +429,7 @@ struct ArrayViewIndirectionBase
   using ElemType = ElementType;
 
   using IndirectionResult = ElementType&;
-  // ArrayView has shallow constness: a const view can modify external elements.
+  // A const ArrayView can modify the elements it references when ElementType is mutable.
   using ConstIndirectionResult = ElementType&;
 
   using IndirectionBufferType = axom::ArrayView<ElementType>;
@@ -469,8 +469,8 @@ private:
  * \brief A policy class for sets with axom::ArrayView-based indirection
  *
  * \note Holds an \c axom::ArrayView by value. The backing allocation must outlive
- *  the set, map, or relation that uses it. This policy alone does not certify
- *  device use: operations and all referenced objects must also be accessible.
+ *  the set, map, or relation that uses it. Before device use, check that operations
+ *  are device-callable and all referenced objects are accessible.
  */
 template <typename PositionType, typename ElementType>
 using ArrayViewIndirection =

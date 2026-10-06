@@ -4,7 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-/**
+/*!
  * \file ValuePolicies.hpp
  *
  * \brief Shared scalar storage for size, stride and offset policies.
@@ -69,10 +69,10 @@ struct OffsetTag
  *
  * \brief Store a scalar policy value that can change at runtime.
  *
- * Stores a single \a IntType whose default is supplied by \a Tag.
- * Provides const and mutable value() access, operator(),
- * and an `isValid()` delegating to the tag's predicate.
- * 
+ * Stores one \a IntType value. \a Tag supplies its default.
+ * value() and operator() provide const and mutable access.
+ * isValid() calls the tag's validity predicate.
+ *
  * Derived policies add size(), stride() or offset().
  *
  * \tparam Tag Supplies defaultValue() and isValidValue(). The default's type is IntType.
@@ -103,9 +103,8 @@ protected:
  *
  * \brief Supply a scalar policy value fixed at compile time.
  *
- * The value \a V is fixed at compile time.
- * The constructor accepts an argument so that callers can construct runtime and
- * compile-time policies the same way. The argument must equal \a V.
+ * The constructor accepts a value for compatibility with runtime policies
+ * and asserts that it equals \a V.
  *
  * Provides value(), operator() and isValid(). Derived policies add their named accessor.
  *
