@@ -41,6 +41,13 @@ def _fill_datastore():
     return ds
 
 
+def _num_output_files(comm):
+    # Match the C++ SPIO tests: use one file per rank for non-HDF5 protocols.
+    if sidre.Group.getDefaultIOProtocol() == "sidre_hdf5":
+        return 1
+    return comm.Get_size()
+
+
 def test_iomanager_legacy_use_scr_constructor():
     # Preserve the previous IOManager(use_scr=False) positional API.
     sidre.IOManager(False)
@@ -57,9 +64,10 @@ def test_iomanager_default_communicator(tmp_path):
     ds = _fill_datastore()
     iom = sidre.IOManager()
     base = _shared_base(tmp_path, "default_comm")
-    iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
+    num_files = _num_output_files(world)
+    iom.write(ds.getRoot(), num_files, base, sidre.Group.getDefaultIOProtocol())
     world.Barrier()
-    assert iom.getNumFilesFromRoot(base + ".root") == 1
+    assert iom.getNumFilesFromRoot(base + ".root") == num_files
     assert iom.getNumGroupsFromRoot(base + ".root") == world.Get_size()
 
 
@@ -69,7 +77,7 @@ def test_iomanager_explicit_world_communicator(tmp_path):
     ds = _fill_datastore()
     iom = sidre.IOManager(MPI.COMM_WORLD)
     base = _shared_base(tmp_path, "explicit_world")
-    iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
+    iom.write(ds.getRoot(), _num_output_files(world), base, sidre.Group.getDefaultIOProtocol())
     world.Barrier()
 
     ds_in = sidre.DataStore()
@@ -88,7 +96,8 @@ def test_iomanager_owned_duplicate_survives_comm_free(tmp_path):
 
     ds = _fill_datastore()
     base = _shared_base(tmp_path, f"freed_comm_rank{MPI.COMM_WORLD.Get_rank()}")
-    iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
+    iom.write(ds.getRoot(), _num_output_files(MPI.COMM_SELF), base,
+              sidre.Group.getDefaultIOProtocol())
     assert iom.getNumFilesFromRoot(base + ".root") == 1
     assert iom.getNumGroupsFromRoot(base + ".root") == 1
     MPI.COMM_WORLD.Barrier()
@@ -105,14 +114,15 @@ def test_iomanager_split_communicator(tmp_path):
     sub_freed = False
     try:
         sub_size = sub.Get_size()
+        num_files = _num_output_files(sub)
         ds = _fill_datastore()
         iom = sidre.IOManager(sub)
         sub.Free()
         sub_freed = True
         # tmp_path differs per rank; rendezvous on a shared, rank-0-broadcast dir
         base = _shared_base(tmp_path, f"split_color{color}")
-        iom.write(ds.getRoot(), 1, base, sidre.Group.getDefaultIOProtocol())
-        assert iom.getNumFilesFromRoot(base + ".root") == 1
+        iom.write(ds.getRoot(), num_files, base, sidre.Group.getDefaultIOProtocol())
+        assert iom.getNumFilesFromRoot(base + ".root") == num_files
         assert iom.getNumGroupsFromRoot(base + ".root") == sub_size
     finally:
         if not sub_freed:
