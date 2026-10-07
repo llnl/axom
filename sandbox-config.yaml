@@ -2,3 +2,4 @@ mounts:
   paths:
     - "ro:/collab/usr/gapps/axom/devtools"
     - "ro:/usr/WS1/axom/libs"
+    - "ro:/usr/WS2/sduser/wscdevops/spack/views"
