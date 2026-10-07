@@ -69,6 +69,79 @@ TEST(inlet_function, simple_vec3_to_vec3_raw)
   EXPECT_FLOAT_EQ(result[2], 6);
 }
 
+TEST(inlet_function, vector_function_accepts_lua_table_returns)
+{
+  auto inlet = createBasicInlet(R"(
+    function make_vector (dim)
+      local result = {}
+      for i = 1, dim do result[i] = i end
+      return result
+    end
+  )");
+
+  auto function =
+    inlet.reader().getFunction("make_vector", FunctionTag::Vector, {FunctionTag::Double});
+  ASSERT_TRUE(function);
+  for(int dim = 1; dim <= 3; ++dim)
+  {
+    const auto result = function.call<FunctionType::Vector>(static_cast<double>(dim));
+    ASSERT_EQ(result.dim, dim);
+    for(int component = 0; component < result.dim; ++component)
+    {
+      EXPECT_DOUBLE_EQ(result[component], component + 1.0);
+    }
+  }
+}
+
+TEST(inlet_function, vector_function_accepts_equivalent_table_forms)
+{
+  // Explicit keys, in any order, and float keys with integral values are the same vector
+  for(const std::string table : {"{4.5, -2}", "{[2] = -2, [1] = 4.5}", "{[1.0] = 4.5, [2.0] = -2}"})
+  {
+    auto inlet = createBasicInlet("function foo () return " + table + " end");
+    inlet.addFunction("foo", FunctionTag::Vector, {});
+    ASSERT_TRUE(inlet.verify()) << table;
+
+    // Through Proxy::call and through a std::function copy
+    const auto viaCall = inlet["foo"].call<FunctionType::Vector>();
+    const auto viaCopy = inlet["foo"].get<std::function<FunctionType::Vector()>>()();
+    for(const auto& result : {viaCall, viaCopy})
+    {
+      ASSERT_EQ(result.dim, 2) << table;
+      EXPECT_DOUBLE_EQ(result[0], 4.5) << table;
+      EXPECT_DOUBLE_EQ(result[1], -2.0) << table;
+    }
+  }
+}
+
+TEST(inlet_function, vector_function_rejects_malformed_table_returns)
+{
+  // Lua vectors must be dense numeric sequences with a supported dimension.
+  const std::array<std::string, 13> results {{
+    "2.0",
+    "'text'",
+    "{}",
+    "{1, 2, 3, 4}",
+    "{[1] = 1, [3] = 3}",
+    "{1, 'two'}",
+    "{1, true}",
+    "{1, {2}}",
+    "{1, 2, label = 3}",
+    "{[0] = 0, 1, 2}",
+    "{[1.5] = 1}",
+    "{[-1] = 1}",
+    "{[math.huge] = 1}",
+  }};
+
+  for(const auto& result : results)
+  {
+    auto inlet = createBasicInlet("function foo () return " + result + " end");
+    auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {});
+    ASSERT_TRUE(func);
+    EXPECT_THROW(func.call<FunctionType::Vector>(), axom::inlet::InletError) << result;
+  }
+}
+
 TEST(inlet_function, lua_callback_failures_are_catchable)
 {
   auto inlet = createBasicInlet(R"(

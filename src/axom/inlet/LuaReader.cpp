@@ -12,6 +12,8 @@
  *******************************************************************************
  */
 
+#include <array>
+#include <cmath>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
@@ -434,6 +436,70 @@ Ret extractResult(axom::sol::protected_function_result&& res)
 template <>
 FunctionType::Void extractResult<FunctionType::Void>(axom::sol::protected_function_result&&)
 { }
+
+template <>
+FunctionType::Vector extractResult<FunctionType::Vector>(axom::sol::protected_function_result&& res)
+{
+  // Accept both Vector.new(...) and numeric Lua tables such as {1.0, 2.0, 3.0}.
+  axom::sol::optional<FunctionType::Vector> vector_option = res;
+  if(vector_option)
+  {
+    return vector_option.value();
+  }
+
+  axom::sol::optional<axom::sol::table> table_option = res;
+  if(table_option)
+  {
+    axom::sol::table table = table_option.value();
+    std::array<double, 3> values {{0., 0., 0.}};
+    std::array<bool, 3> seen {{false, false, false}};
+    int count = 0;
+
+    for(const auto& entry : table)
+    {
+      if(entry.first.get_type() != axom::sol::type::number)
+      {
+        throw InletError("[Inlet] Lua vector function return must only contain numeric indices");
+      }
+
+      // Check the range before converting, so out-of-range keys never reach int
+      const double numeric_index = entry.first.as<double>();
+      if(!(numeric_index >= 1. && numeric_index <= 3.) || numeric_index != std::floor(numeric_index))
+      {
+        throw InletError(
+          "[Inlet] Lua vector function return indices must be integers between 1 and 3");
+      }
+      const int index = static_cast<int>(numeric_index);
+      if(entry.second.get_type() != axom::sol::type::number)
+      {
+        throw InletError("[Inlet] Lua vector function return components must be numeric");
+      }
+
+      values[index - 1] = entry.second.as<double>();
+      seen[index - 1] = true;
+      ++count;
+    }
+
+    // Indices are unique and in [1, 3], so count cannot exceed 3
+    if(count == 0)
+    {
+      throw InletError(
+        "[Inlet] Lua vector function returned an empty table; expected 1 to 3 numeric entries");
+    }
+    for(int i = 0; i < count; ++i)
+    {
+      if(!seen[i])
+      {
+        throw InletError(
+          "[Inlet] Lua vector function return indices must be contiguous starting at 1");
+      }
+    }
+
+    return FunctionType::Vector {values.data(), count};
+  }
+
+  throw InletError("[Inlet] Lua function call failed, return types possibly incorrect");
+}
 
 /*!
  *****************************************************************************
