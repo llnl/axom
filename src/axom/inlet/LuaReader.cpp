@@ -13,6 +13,7 @@
  */
 
 #include <fstream>
+#include <memory>
 #include <unordered_set>
 
 #include "axom/inlet/LuaReader.hpp"
@@ -425,12 +426,28 @@ FunctionType::Void extractResult<FunctionType::Void>(axom::sol::protected_functi
 
 /*!
  *****************************************************************************
+ * \brief A Lua function together with shared ownership of its Lua state
+ *
+ * \note Members are destroyed in reverse declaration order, so \a func
+ * releases its registry reference while \a lua_state is still alive.
+ * The order of a lambda's captures, by contrast, is unspecified.
+ *****************************************************************************
+ */
+struct LuaCallable
+{
+  std::shared_ptr<axom::sol::state> lua_state;
+  axom::sol::protected_function func;
+};
+
+/*!
+ *****************************************************************************
  * \brief Creates a std::function given a Lua function and template parameters
  * corresponding to the function signature
  *
  * \param [in] func The sol object containing the lua function of unknown signature
+ * \param [in] lua_state Shared ownership of the Lua state used by \a func
  * \tparam Ret The return type of the function
- * \tparam Args... The argument types of the function
+ * \tparam Args The argument types of the function
  *
  * \return A std::function that wraps the lua function
  * 
@@ -440,11 +457,15 @@ FunctionType::Void extractResult<FunctionType::Void>(axom::sol::protected_functi
  */
 template <typename Ret, typename... Args>
 std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buildStdFunction(
-  axom::sol::protected_function&& func)
+  axom::sol::protected_function&& func,
+  std::shared_ptr<axom::sol::state> lua_state)
 {
-  // Generalized lambda capture needed to move into lambda
-  return [func(std::move(func))](typename detail::inlet_function_arg_type<Args>::type... args) {
-    return extractResult<Ret>(callWith(func, args...));
+  // Keep the Lua state alive for the lifetime of callbacks returned to callers.
+  // A single capture makes the destruction order explicit: LuaCallable releases
+  // the function's reference before the state it refers to can be closed.
+  return [callable = LuaCallable {std::move(lua_state), std::move(func)}](
+           typename detail::inlet_function_arg_type<Args>::type... args) {
+    return extractResult<Ret>(callWith(callable.func, args...));
   };
 }
 
@@ -455,11 +476,12 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
  *
  * \param [in] func The sol object containing the lua function of unknown signature
  * \param [in] arg_types The vector of argument types
+ * \param [in] lua_state Shared ownership of the Lua state used by \a func
  * 
  * \tparam I The number of arguments processed, or "stack size", used to mitigate
  * infinite compile-time recursion
  * \tparam Ret The function's return type
- * \tparam Args... The function's current arguments (already processed), remaining
+ * \tparam Args The function's current arguments (already processed), remaining
  * arguments are in the arg_types vector
  *
  * \return A callable wrapper
@@ -468,7 +490,8 @@ std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buil
 template <std::size_t I, typename Ret, typename... Args>
 typename std::enable_if<(I > MAX_NUM_ARGS), FunctionVariant>::type bindArgType(
   axom::sol::protected_function&&,
-  const std::vector<FunctionTag>&)
+  const std::vector<FunctionTag>&,
+  std::shared_ptr<axom::sol::state>)
 {
   SLIC_ERROR("[Inlet] Maximum number of function arguments exceeded: " << I);
   return {};
@@ -477,22 +500,29 @@ typename std::enable_if<(I > MAX_NUM_ARGS), FunctionVariant>::type bindArgType(
 template <std::size_t I, typename Ret, typename... Args>
 typename std::enable_if<I <= MAX_NUM_ARGS, FunctionVariant>::type bindArgType(
   axom::sol::protected_function&& func,
-  const std::vector<FunctionTag>& arg_types)
+  const std::vector<FunctionTag>& arg_types,
+  std::shared_ptr<axom::sol::state> lua_state)
 {
   if(arg_types.size() == I)
   {
-    return buildStdFunction<Ret, Args...>(std::move(func));
+    return buildStdFunction<Ret, Args...>(std::move(func), std::move(lua_state));
   }
   else
   {
     switch(arg_types[I])
     {
     case FunctionTag::Vector:
-      return bindArgType<I + 1, Ret, Args..., FunctionType::Vector>(std::move(func), arg_types);
+      return bindArgType<I + 1, Ret, Args..., FunctionType::Vector>(std::move(func),
+                                                                    arg_types,
+                                                                    std::move(lua_state));
     case FunctionTag::Double:
-      return bindArgType<I + 1, Ret, Args..., double>(std::move(func), arg_types);
+      return bindArgType<I + 1, Ret, Args..., double>(std::move(func),
+                                                      arg_types,
+                                                      std::move(lua_state));
     case FunctionTag::String:
-      return bindArgType<I + 1, Ret, Args..., std::string>(std::move(func), arg_types);
+      return bindArgType<I + 1, Ret, Args..., std::string>(std::move(func),
+                                                           arg_types,
+                                                           std::move(lua_state));
     default:
       SLIC_ERROR("[Inlet] Unexpected function argument type");
     }
@@ -556,13 +586,13 @@ FunctionVariant LuaReader::getFunction(const std::string& id,
     switch(ret_type)
     {
     case FunctionTag::Vector:
-      return detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::Double:
-      return detail::bindArgType<0u, double>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, double>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::Void:
-      return detail::bindArgType<0u, void>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, void>(std::move(lua_func), arg_types, m_lua);
     case FunctionTag::String:
-      return detail::bindArgType<0u, std::string>(std::move(lua_func), arg_types);
+      return detail::bindArgType<0u, std::string>(std::move(lua_func), arg_types, m_lua);
     default:
       SLIC_ERROR("[Inlet] Unexpected function return type");
     }

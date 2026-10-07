@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 #include <array>
+#include <functional>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -123,6 +124,58 @@ TEST(inlet_function, simple_double_to_double_through_container)
   double arg = -6.37;
   double result = callable(arg);
   EXPECT_FLOAT_EQ(result, (arg * 3.4) + 9.64);
+}
+
+TEST(inlet_function, returned_function_keeps_lua_state_alive)
+{
+  // An extracted callback must retain its Lua state after Inlet is destroyed.
+  std::function<double(double)> callback;
+  {
+    auto inlet = createBasicInlet("offset = 3.0; function foo (value) return value + offset end");
+    inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::Double});
+    callback = inlet["foo"].get<std::function<double(double)>>();
+  }
+
+  EXPECT_DOUBLE_EQ(callback(4.0), 7.0);
+}
+
+TEST(inlet_function, returned_functions_share_lua_state_after_inlet_is_destroyed)
+{
+  // Callbacks from one input share its Lua state, including after the Inlet is gone.
+  // Copying, calling, and destroying them in any order must leave the state usable.
+  std::function<double()> increment;
+  std::function<double()> current;
+  {
+    auto inlet = createBasicInlet(R"(
+      count = 0
+      function increment () count = count + 1; return count end
+      function current () return count end
+    )");
+    inlet.addFunction("increment", FunctionTag::Double, {});
+    inlet.addFunction("current", FunctionTag::Double, {});
+    increment = inlet["increment"].get<std::function<double()>>();
+    current = inlet["current"].get<std::function<double()>>();
+  }
+
+  EXPECT_DOUBLE_EQ(increment(), 1.0);
+  auto incrementCopy = increment;
+  increment = nullptr;
+  EXPECT_DOUBLE_EQ(incrementCopy(), 2.0);
+  incrementCopy = nullptr;
+  EXPECT_DOUBLE_EQ(current(), 2.0);
+}
+
+TEST(inlet_function, reader_function_outlives_reader)
+{
+  axom::inlet::FunctionVariant function;
+  {
+    LuaReader reader;
+    reader.parseString("function foo (value) return 2 * value end");
+    function = reader.getFunction("foo", FunctionTag::Double, {FunctionTag::Double});
+  }
+
+  ASSERT_TRUE(function);
+  EXPECT_DOUBLE_EQ(function.call<double>(4.0), 8.0);
 }
 
 TEST(inlet_function, simple_void_to_double_through_container)
