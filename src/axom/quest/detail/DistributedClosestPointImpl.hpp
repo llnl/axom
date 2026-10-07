@@ -579,6 +579,8 @@ public:
   using BoxArray = axom::Array<BoxType>;
   using BVHTreeType = spin::BVH<DIM, ExecSpace>;
 
+  struct ReplicationGroup;
+
   /*!
     @brief Constructor
 
@@ -713,6 +715,60 @@ public:
       PointType lower(&recvbuf[i * 2 * DIM]);
       PointType upper(&recvbuf[i * 2 * DIM + DIM]);
       all_aabbs.emplace_back(BoxType(lower, upper, false));
+    }
+  }
+
+  void buildReplicationMap()
+  {
+    // Gather number of points from all ranks.
+    const int npts = m_objectPtCoords.size();
+    axom::Array<int> npts_all(m_nranks);
+    npts_all.fill(0);
+    npts_all[m_rank] = npts;
+
+    int mpi_err =
+      MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, npts_all.data(), 1, MPI_INT, m_mpiComm);
+    SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+    AXOM_UNUSED_VAR(mpi_err);
+
+    // Loop through ranks with points, and create replication groups.
+    axom::Array<int> objRanks;
+    for(int irank = 0; irank < m_nranks; irank++)
+    {
+      if(npts_all[irank] > 0)
+      {
+        objRanks.push_back(irank);
+        m_replicationMap[irank].npts = npts_all[irank];
+      }
+    }
+
+    if(objRanks.empty())
+    {
+      // Exit out early, no ranks have objects.
+      return;
+    }
+
+    // Assign empty ranks round-robin to replication groups.
+    int emptyRankCount = 0;
+    for(int irank = 0; irank < m_nranks; irank++)
+    {
+      if(npts_all[irank] == 0)
+      {
+        int objIndex = emptyRankCount % objRanks.size();
+        int replicatedRank = objRanks[objIndex];
+        m_replicationMap[replicatedRank].replicas.push_back(irank);
+
+        if(m_rank == irank)
+        {
+          m_replicatedObjRank = replicatedRank;
+        }
+        emptyRankCount++;
+      }
+      else
+      {
+        // Not-empty, but we still need to include it in the replica list
+        m_replicationMap[irank].replicas.push_back(irank);
+      }
     }
   }
 
@@ -1272,6 +1328,21 @@ public:
   BoxArray m_objectPartitionBbs;
 
   std::unique_ptr<BVHTreeType> m_bvh;
+
+  /*!
+   * \brief Helper data structure for object domain replication.
+   */
+  struct ReplicationGroup
+  {
+    int npts;
+    BoxType bounds;
+    axom::Array<int> replicas;
+  };
+
+  // maps home rank -> replication group
+  std::map<int, ReplicationGroup> m_replicationMap;
+  // if not -1, object points on this rank are replicated from another rank
+  int m_replicatedObjRank {-1};
 };  // DistributedClosestPointExec
 
 }  // namespace internal
