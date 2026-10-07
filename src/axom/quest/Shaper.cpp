@@ -19,12 +19,10 @@
 #if defined(AXOM_USE_CONDUIT)
   #include "conduit_blueprint_mesh.hpp"
   #include "conduit/conduit_relay_io.hpp"
-  #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-    #ifdef CONDUIT_RELAY_MPI_ENABLED
-      #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
-    #else
-      #include "conduit/conduit_relay_io_blueprint.hpp"
-    #endif
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+    #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
+  #else
+    #include "conduit/conduit_relay_io_blueprint.hpp"
   #endif
 #endif
 
