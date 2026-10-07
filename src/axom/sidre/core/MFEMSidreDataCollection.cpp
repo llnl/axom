@@ -12,7 +12,10 @@
   #include <string>
   #include <iomanip>      // for setw, setfill
   #include <cstdio>       // for snprintf()
+  #include <cstdint>      // for std::int64_t, std::uint8_t
+  #include <functional>   // for std::function
   #include <type_traits>  // for checking layout
+  #include <vector>
 
   #include "conduit_blueprint.hpp"
   #include "axom/fmt.hpp"
@@ -1027,6 +1030,11 @@ void MFEMSidreDataCollection::addMaterialSetToIndex()
   }
 }
 
+#ifdef AXOM_USE_ZFPOLY
+void decompressL2ToGridFunction(GridFunction* gf, Mesh* mesh, sidre::Group* compression_grp);
+void decompressH1ToGridFunction(GridFunction* gf, Mesh* mesh, sidre::Group* compression_grp);
+#endif
+
 void MFEMSidreDataCollection::UpdateMeshAndFieldsFromDS()
 {
   // 1. Start by constructing the mesh
@@ -1060,11 +1068,31 @@ void MFEMSidreDataCollection::UpdateMeshAndFieldsFromDS()
   reconstructFields();
 }
 
+#ifdef AXOM_USE_ZFPOLY
+void MFEMSidreDataCollection::SetCompression(zfpoly_config config)
+{
+  m_enable_compression = true;
+  m_compression_config = config;
+}
+
+void MFEMSidreDataCollection::DisableCompression()
+{
+  m_enable_compression = false;
+}
+#endif
+
 void MFEMSidreDataCollection::PrepareToSave()
 {
   verifyMeshBlueprint();
   addMaterialSetToIndex();
   UpdateStateToDS();
+
+#ifdef AXOM_USE_ZFPOLY
+  if(m_enable_compression)
+  {
+    compressFields();
+  }
+#endif
 }
 
 void MFEMSidreDataCollection::Save()
@@ -1424,6 +1452,23 @@ void MFEMSidreDataCollection::RegisterField(const std::string& field_name,
   // Register field_name in the blueprint group.
   sidre::Group* f = m_bp_grp->getGroup("fields");
 
+#ifdef AXOM_USE_ZFPOLY
+  bool has_compressed_data = false;
+  if(f->hasGroup(field_name))
+  {
+    sidre::Group* existing_grp = f->getGroup(field_name);
+    if(existing_grp->hasGroup("compression"))
+    {
+      sidre::Group* comp_grp = existing_grp->getGroup("compression");
+      if(comp_grp->hasView("enabled"))
+      {
+        int enabled = comp_grp->getView("enabled")->getData<int>();
+        has_compressed_data = (enabled != 0);
+      }
+    }
+  }
+#endif
+
   if(f->hasGroup(field_name))
   {
     // There are two possibilities:
@@ -1494,6 +1539,24 @@ void MFEMSidreDataCollection::RegisterField(const std::string& field_name,
 
   // Register field_name + gf in field_map.
   DataCollection::RegisterField(field_name, gf);
+
+#ifdef AXOM_USE_ZFPOLY
+  if(has_compressed_data && grp->hasGroup("compression") && mesh)
+  {
+    sidre::Group* comp_grp = grp->getGroup("compression");
+    std::string compression_type = comp_grp->getView("type")->getString();
+    if(compression_type == "zfpoly_l2")
+    {
+      decompressL2ToGridFunction(gf, mesh, comp_grp);
+    }
+    else if(compression_type == "zfpoly_h1")
+    {
+      decompressH1ToGridFunction(gf, mesh, comp_grp);
+    }
+
+    grp->destroyGroup("compression");
+  }
+#endif
 }
 
 void MFEMSidreDataCollection::RegisterQField(const std::string& field_name,
@@ -2687,6 +2750,609 @@ void MFEMSidreDataCollection::reconstructFields()
     }
   }
 }
+
+#ifdef AXOM_USE_ZFPOLY
+
+void applyZfpolyConfig(zfpoly_stream* stream, const zfpoly_config& config, uint dims);
+
+// Returns an empty vector on failure.
+std::vector<std::uint8_t> compressDofBlock(double* values,
+                                           uint dims,
+                                           std::size_t num_elements,
+                                           zfpoly_fe_space fe_space,
+                                           int order,
+                                           const zfpoly_config& config,
+                                           const char* label)
+{
+  std::vector<std::uint8_t> out;
+
+  zfpoly_stream* stream = zfpoly_stream_open(NULL);
+  if(!stream)
+  {
+    SLIC_ERROR(axom::fmt::format("Failed to open zfpoly stream ({})", label));
+    return out;
+  }
+  applyZfpolyConfig(stream, config, dims);
+
+  zfpoly_dofs* dofs =
+    zfpoly_dofs_init(values, zfpoly_type_double, dims, num_elements, fe_space, order);
+  if(!dofs)
+  {
+    SLIC_ERROR(axom::fmt::format("Failed to init zfpoly_dofs ({})", label));
+    zfpoly_stream_close(stream);
+    return out;
+  }
+
+  std::size_t max_size = zfpoly_stream_maximum_size(stream, dofs);
+  out.resize(max_size);
+
+  bitstream* bs = stream_open(out.data(), max_size);
+  if(!bs)
+  {
+    SLIC_ERROR(axom::fmt::format("Failed to open bitstream ({})", label));
+    zfpoly_dofs_free(dofs);
+    zfpoly_stream_close(stream);
+    out.clear();
+    return out;
+  }
+  zfpoly_stream_set_bit_stream(stream, bs);
+
+  // Embed the stream's compression mode in the bitstream so decompress can
+  // recover it; otherwise the reader has no way to know which params were used.
+  zfpoly_write_header(stream, dofs, ZFPOLY_HEADER_MODE);
+
+  std::size_t compressed_size = zfpoly_compress(stream, dofs);
+  zfpoly_stream_flush(stream);
+  compressed_size = stream_size(bs);
+
+  stream_close(bs);
+  zfpoly_dofs_free(dofs);
+  zfpoly_stream_close(stream);
+
+  if(compressed_size == 0)
+  {
+    SLIC_WARNING(axom::fmt::format("zfpoly_compress returned 0 bytes ({})", label));
+    out.clear();
+  }
+  else
+  {
+    out.resize(compressed_size);
+  }
+  return out;
+}
+
+// Returns false on failure.
+bool decompressDofBlock(const std::uint8_t* compressed_data,
+                        std::size_t compressed_size,
+                        double* out_values,
+                        uint dims,
+                        std::size_t num_elements,
+                        zfpoly_fe_space fe_space,
+                        int order,
+                        const char* label)
+{
+  zfpoly_dofs* dofs =
+    zfpoly_dofs_init(out_values, zfpoly_type_double, dims, num_elements, fe_space, order);
+  if(!dofs)
+  {
+    SLIC_ERROR(axom::fmt::format("Failed to init zfpoly_dofs ({})", label));
+    return false;
+  }
+
+  zfpoly_stream* stream = zfpoly_stream_open(NULL);
+  if(!stream)
+  {
+    SLIC_ERROR(axom::fmt::format("Failed to open zfpoly stream ({})", label));
+    zfpoly_dofs_free(dofs);
+    return false;
+  }
+
+  bitstream* bs =
+    stream_open(const_cast<std::uint8_t*>(compressed_data), compressed_size);
+  if(!bs)
+  {
+    SLIC_ERROR(axom::fmt::format("Failed to open bitstream ({})", label));
+    zfpoly_stream_close(stream);
+    zfpoly_dofs_free(dofs);
+    return false;
+  }
+  zfpoly_stream_set_bit_stream(stream, bs);
+
+  // Recover the compression mode the writer used (mirrors zfpoly_write_header
+  // in compressDofBlock).
+  if(zfpoly_read_header(stream, dofs, ZFPOLY_HEADER_MODE) == 0)
+  {
+    SLIC_ERROR(axom::fmt::format("zfpoly_read_header failed ({})", label));
+    stream_close(bs);
+    zfpoly_stream_close(stream);
+    zfpoly_dofs_free(dofs);
+    return false;
+  }
+
+  std::size_t result = zfpoly_decompress(stream, dofs);
+
+  stream_close(bs);
+  zfpoly_stream_close(stream);
+  zfpoly_dofs_free(dofs);
+
+  if(result == 0)
+  {
+    SLIC_WARNING(axom::fmt::format("zfpoly_decompress returned 0 ({})", label));
+    return false;
+  }
+  return true;
+}
+
+void applyZfpolyConfig(zfpoly_stream* stream, const zfpoly_config& config, uint dims)
+{
+  switch(config.mode)
+  {
+    case zfpoly_mode_fixed_rate:
+      zfpoly_stream_set_rate(stream, config.arg.rate, zfpoly_type_double, dims, zfpoly_false);
+      break;
+    case zfpoly_mode_fixed_precision:
+      zfpoly_stream_set_precision(stream, config.arg.precision);
+      break;
+    case zfpoly_mode_fixed_accuracy:
+      zfpoly_stream_set_accuracy(stream, config.arg.tolerance);
+      break;
+    case zfpoly_mode_expert:
+      zfpoly_stream_set_params(stream,
+                               config.arg.expert.minbits,
+                               config.arg.expert.maxbits,
+                               config.arg.expert.maxprec,
+                               config.arg.expert.minexp);
+      break;
+    default:
+      zfpoly_stream_set_accuracy(stream, 1e-8);
+      break;
+  }
+}
+
+void compressL2GridFunction(GridFunction* gf,
+                            const zfpoly_config& config,
+                            sidre::Group* compression_grp)
+{
+  mfem::FiniteElementSpace* fes = gf->FESpace();
+  if(!fes)
+  {
+    return;
+  }
+
+  Mesh* mesh = fes->GetMesh();
+  int dim = mesh->Dimension();
+  int mesh_NE = mesh->GetNE();
+  int order = fes->FEColl()->GetOrder();
+
+  mfem::ChangeOfBasis op_l2(*fes, mfem::ChangeOfBasis::LEGENDRE);
+  GridFunction gf_leg(fes);
+  op_l2.Mult(*gf, gf_leg);
+
+  auto compressed = compressDofBlock(gf_leg.GetData(),
+                                     dim,
+                                     mesh_NE,
+                                     zfpoly_fe_space_l2,
+                                     order,
+                                     config,
+                                     "L2");
+  if(compressed.empty())
+  {
+    return;
+  }
+
+  compression_grp->createViewScalar("enabled", 1);
+  compression_grp->createViewString("type", "zfpoly_l2");
+  compression_grp->createViewString("basis_transform", "legendre");
+  compression_grp->createViewScalar("original_size", static_cast<std::int64_t>(gf->Size()));
+  compression_grp->createViewScalar("compressed_size",
+                                    static_cast<std::int64_t>(compressed.size()));
+  compression_grp->createViewScalar("mesh_dim", dim);
+  compression_grp->createViewScalar("order", order);
+  compression_grp->createViewScalar("mesh_NE", static_cast<std::int64_t>(mesh_NE));
+
+  sidre::View* comp_view = compression_grp->createViewAndAllocate("compressed_data",
+                                                                  sidre::UINT8_ID,
+                                                                  compressed.size());
+  memcpy(comp_view->getData<std::uint8_t*>(), compressed.data(), compressed.size());
+
+  SLIC_INFO(axom::fmt::format("Applied L2 ZFPoly compression: {} values -> {} bytes",
+                              gf->Size(),
+                              compressed.size()));
+}
+
+mfem::Vector gatherInteriorDofs(const GridFunction& src,
+                                int n_entities,
+                                std::function<void(int, mfem::Array<int>&)> get_dofs,
+                                int total_dofs)
+{
+  mfem::Vector values(total_dofs);
+  mfem::Array<int> dofs;
+  int idx = 0;
+  for(int e = 0; e < n_entities; ++e)
+  {
+    get_dofs(e, dofs);
+    for(int i = 0; i < dofs.Size(); ++i)
+    {
+      values[idx++] = src[dofs[i]];
+    }
+  }
+  return values;
+}
+
+void compressH1GridFunction(GridFunction* gf,
+                            const zfpoly_config& config,
+                            sidre::Group* compression_grp)
+{
+  mfem::FiniteElementSpace* fes = gf->FESpace();
+  if(!fes)
+  {
+    return;
+  }
+
+  Mesh* mesh = fes->GetMesh();
+  int dim = mesh->Dimension();
+  int mesh_NE = mesh->GetNE();
+  int order = fes->FEColl()->GetOrder();
+
+  int ndofs = fes->GetNDofs();
+  int nvdofs = fes->GetNVDofs();
+  int nedofs = fes->GetNEDofs();
+  int nfdofs = fes->GetNFDofs();
+  int neldofs = ndofs - (nvdofs + nedofs + nfdofs);
+
+  mfem::ChangeOfBasis op_h1(*fes, mfem::ChangeOfBasis::INTEGRATED_LEGENDRE);
+  GridFunction gf_intleg(fes);
+  op_h1.Mult(*gf, gf_intleg);
+
+  // Vertex DOFs are written as raw doubles; edge/face/element DOFs go through
+  // ZFPoly individually so they can use the appropriate per-entity dimension.
+  std::size_t vertex_size = static_cast<std::size_t>(nvdofs) * sizeof(double);
+
+  std::vector<std::uint8_t> edge_bytes;
+  if(nedofs > 0)
+  {
+    mfem::Vector edge_values =
+      gatherInteriorDofs(gf_intleg, mesh->GetNEdges(),
+                         [&](int e, mfem::Array<int>& d) { fes->GetEdgeInteriorDofs(e, d); },
+                         nedofs);
+    edge_bytes = compressDofBlock(edge_values.GetData(), 1, mesh->GetNEdges(),
+                                  zfpoly_fe_space_h1, order, config, "H1 edge");
+    if(edge_bytes.empty())
+    {
+      return;
+    }
+  }
+
+  std::vector<std::uint8_t> face_bytes;
+  if(nfdofs > 0)
+  {
+    mfem::Vector face_values =
+      gatherInteriorDofs(gf_intleg, mesh->GetNFaces(),
+                         [&](int f, mfem::Array<int>& d) { fes->GetFaceInteriorDofs(f, d); },
+                         nfdofs);
+    face_bytes = compressDofBlock(face_values.GetData(), 2, mesh->GetNFaces(),
+                                  zfpoly_fe_space_h1, order, config, "H1 face");
+    if(face_bytes.empty())
+    {
+      return;
+    }
+  }
+
+  std::vector<std::uint8_t> element_bytes;
+  if(neldofs > 0)
+  {
+    mfem::Vector el_values(neldofs);
+    std::size_t el_offset = static_cast<std::size_t>(nvdofs) + nedofs + nfdofs;
+    for(int i = 0; i < neldofs; ++i)
+    {
+      el_values[i] = gf_intleg[el_offset + i];
+    }
+    element_bytes = compressDofBlock(el_values.GetData(), dim, mesh_NE,
+                                     zfpoly_fe_space_h1, order, config, "H1 element");
+    if(element_bytes.empty())
+    {
+      return;
+    }
+  }
+
+  std::size_t total_compressed_size =
+    vertex_size + edge_bytes.size() + face_bytes.size() + element_bytes.size();
+
+  compression_grp->createViewScalar("enabled", 1);
+  compression_grp->createViewString("type", "zfpoly_h1");
+  compression_grp->createViewString("basis_transform", "integrated_legendre");
+  compression_grp->createViewScalar("original_size", static_cast<std::int64_t>(gf->Size()));
+  compression_grp->createViewScalar("total_compressed_size",
+                                    static_cast<std::int64_t>(total_compressed_size));
+  compression_grp->createViewScalar("mesh_dim", dim);
+  compression_grp->createViewScalar("order", order);
+  compression_grp->createViewScalar("mesh_NE", static_cast<std::int64_t>(mesh_NE));
+  compression_grp->createViewScalar("nvdofs", static_cast<std::int64_t>(nvdofs));
+  compression_grp->createViewScalar("nedofs", static_cast<std::int64_t>(nedofs));
+  compression_grp->createViewScalar("nfdofs", static_cast<std::int64_t>(nfdofs));
+  compression_grp->createViewScalar("neldofs", static_cast<std::int64_t>(neldofs));
+  compression_grp->createViewScalar("vertex_size", static_cast<std::int64_t>(vertex_size));
+  compression_grp->createViewScalar("edge_compressed_size",
+                                    static_cast<std::int64_t>(edge_bytes.size()));
+  compression_grp->createViewScalar("face_compressed_size",
+                                    static_cast<std::int64_t>(face_bytes.size()));
+  compression_grp->createViewScalar("element_compressed_size",
+                                    static_cast<std::int64_t>(element_bytes.size()));
+
+  sidre::View* comp_view = compression_grp->createViewAndAllocate("compressed_data",
+                                                                  sidre::UINT8_ID,
+                                                                  total_compressed_size);
+  std::uint8_t* write_ptr = comp_view->getData<std::uint8_t*>();
+  if(nvdofs > 0)
+  {
+    memcpy(write_ptr, gf_intleg.GetData(), vertex_size);
+    write_ptr += vertex_size;
+  }
+  if(!edge_bytes.empty())
+  {
+    memcpy(write_ptr, edge_bytes.data(), edge_bytes.size());
+    write_ptr += edge_bytes.size();
+  }
+  if(!face_bytes.empty())
+  {
+    memcpy(write_ptr, face_bytes.data(), face_bytes.size());
+    write_ptr += face_bytes.size();
+  }
+  if(!element_bytes.empty())
+  {
+    memcpy(write_ptr, element_bytes.data(), element_bytes.size());
+  }
+
+  SLIC_INFO(axom::fmt::format("Applied H1 ZFPoly compression: {} values -> {} bytes",
+                              gf->Size(),
+                              total_compressed_size));
+}
+
+void MFEMSidreDataCollection::compressFields()
+{
+  if(!mesh)
+  {
+    return;
+  }
+
+  sidre::Group* fields_grp = m_bp_grp->getGroup("fields");
+  if(!fields_grp)
+  {
+    return;
+  }
+
+  for(auto it = field_map.begin(); it != field_map.end(); ++it)
+  {
+    const std::string& field_name = it->first;
+    GridFunction* gf = it->second;
+
+    // Mesh nodes are written via the blueprint coordset, not compressed.
+    if(field_name == m_meshNodesGFName)
+    {
+      continue;
+    }
+
+    if(!gf || !gf->FESpace())
+    {
+      continue;
+    }
+
+    mfem::FiniteElementSpace* fes = gf->FESpace();
+    const mfem::FiniteElementCollection* fec = fes->FEColl();
+
+    sidre::Group* field_grp = fields_grp->getGroup(field_name);
+    if(!field_grp)
+    {
+      continue;
+    }
+
+    if(field_grp->hasGroup("compression"))
+    {
+      field_grp->destroyGroup("compression");
+    }
+    sidre::Group* compression_grp = field_grp->createGroup("compression");
+
+    bool is_h1 = (dynamic_cast<const mfem::H1_FECollection*>(fec) != nullptr);
+    bool is_l2 = (dynamic_cast<const mfem::L2_FECollection*>(fec) != nullptr);
+
+    bool compressed = false;
+    if(is_l2)
+    {
+      compressL2GridFunction(gf, m_compression_config, compression_grp);
+      compressed = compression_grp->hasView("enabled");
+    }
+    else if(is_h1)
+    {
+      compressH1GridFunction(gf, m_compression_config, compression_grp);
+      compressed = compression_grp->hasView("enabled");
+    }
+    else
+    {
+      SLIC_WARNING(axom::fmt::format(
+        "Unsupported FE collection for ZFPoly compression: {}",
+        fec->Name()));
+      field_grp->destroyGroup("compression");
+    }
+
+    if(compressed)
+    {
+      if(field_grp->hasView("values"))
+      {
+        field_grp->destroyView("values");
+      }
+      else if(field_grp->hasGroup("values"))
+      {
+        field_grp->destroyGroup("values");
+      }
+    }
+  }
+}
+
+void decompressL2ToGridFunction(GridFunction* gf, Mesh* /*mesh*/, sidre::Group* compression_grp)
+{
+  mfem::FiniteElementSpace* fes = gf->FESpace();
+  if(!fes)
+  {
+    return;
+  }
+
+  std::int64_t original_size =
+    compression_grp->getView("original_size")->getData<std::int64_t>();
+  int mesh_dim = compression_grp->getView("mesh_dim")->getData<int>();
+  int order = compression_grp->getView("order")->getData<int>();
+  std::int64_t mesh_NE = compression_grp->getView("mesh_NE")->getData<std::int64_t>();
+  std::int64_t compressed_size =
+    compression_grp->getView("compressed_size")->getData<std::int64_t>();
+
+  sidre::View* comp_view = compression_grp->getView("compressed_data");
+  const std::uint8_t* compressed_data = comp_view->getData<const std::uint8_t*>();
+
+  mfem::Vector legendre_data(static_cast<int>(original_size));
+  if(!decompressDofBlock(compressed_data,
+                         static_cast<std::size_t>(compressed_size),
+                         legendre_data.GetData(),
+                         static_cast<uint>(mesh_dim),
+                         static_cast<std::size_t>(mesh_NE),
+                         zfpoly_fe_space_l2,
+                         order,
+                         "L2"))
+  {
+    return;
+  }
+
+  mfem::ChangeOfBasis op_l2(*fes, mfem::ChangeOfBasis::LEGENDRE);
+  op_l2.MultInverse(legendre_data, *gf);
+
+  SLIC_INFO(axom::fmt::format("Decompressed L2 field: {} values", original_size));
+}
+
+void scatterInteriorDofs(const mfem::Vector& values,
+                         int n_entities,
+                         std::function<void(int, mfem::Array<int>&)> get_dofs,
+                         mfem::Vector& dst)
+{
+  mfem::Array<int> dofs;
+  int idx = 0;
+  for(int e = 0; e < n_entities; ++e)
+  {
+    get_dofs(e, dofs);
+    for(int i = 0; i < dofs.Size(); ++i)
+    {
+      dst[dofs[i]] = values[idx++];
+    }
+  }
+}
+
+void decompressH1ToGridFunction(GridFunction* gf, Mesh* mesh, sidre::Group* compression_grp)
+{
+  mfem::FiniteElementSpace* fes = gf->FESpace();
+  if(!fes)
+  {
+    return;
+  }
+
+  std::int64_t original_size =
+    compression_grp->getView("original_size")->getData<std::int64_t>();
+  int mesh_dim = compression_grp->getView("mesh_dim")->getData<int>();
+  int order = compression_grp->getView("order")->getData<int>();
+  std::int64_t mesh_NE = compression_grp->getView("mesh_NE")->getData<std::int64_t>();
+  std::int64_t nvdofs = compression_grp->getView("nvdofs")->getData<std::int64_t>();
+  std::int64_t nedofs = compression_grp->getView("nedofs")->getData<std::int64_t>();
+  std::int64_t nfdofs = compression_grp->getView("nfdofs")->getData<std::int64_t>();
+  std::int64_t neldofs = compression_grp->getView("neldofs")->getData<std::int64_t>();
+  std::int64_t vertex_size = compression_grp->getView("vertex_size")->getData<std::int64_t>();
+  std::int64_t edge_compressed_size =
+    compression_grp->getView("edge_compressed_size")->getData<std::int64_t>();
+  std::int64_t face_compressed_size = 0;
+  if(compression_grp->hasView("face_compressed_size"))
+  {
+    face_compressed_size =
+      compression_grp->getView("face_compressed_size")->getData<std::int64_t>();
+  }
+  std::int64_t element_compressed_size =
+    compression_grp->getView("element_compressed_size")->getData<std::int64_t>();
+
+  sidre::View* comp_view = compression_grp->getView("compressed_data");
+  const std::uint8_t* compressed_data = comp_view->getData<const std::uint8_t*>();
+  const std::uint8_t* read_ptr = compressed_data;
+
+  mfem::Vector intleg_data(static_cast<int>(original_size));
+  intleg_data = 0.0;
+
+  if(nvdofs > 0)
+  {
+    memcpy(intleg_data.GetData(), read_ptr, static_cast<std::size_t>(vertex_size));
+    read_ptr += vertex_size;
+  }
+
+  if(nedofs > 0 && edge_compressed_size > 0)
+  {
+    mfem::Vector edge_values(static_cast<int>(nedofs));
+    if(!decompressDofBlock(read_ptr,
+                           static_cast<std::size_t>(edge_compressed_size),
+                           edge_values.GetData(),
+                           1,
+                           mesh->GetNEdges(),
+                           zfpoly_fe_space_h1,
+                           order,
+                           "H1 edge"))
+    {
+      return;
+    }
+    scatterInteriorDofs(edge_values, mesh->GetNEdges(),
+                        [&](int e, mfem::Array<int>& d) { fes->GetEdgeInteriorDofs(e, d); },
+                        intleg_data);
+    read_ptr += edge_compressed_size;
+  }
+
+  if(nfdofs > 0 && face_compressed_size > 0)
+  {
+    mfem::Vector face_values(static_cast<int>(nfdofs));
+    if(!decompressDofBlock(read_ptr,
+                           static_cast<std::size_t>(face_compressed_size),
+                           face_values.GetData(),
+                           2,
+                           mesh->GetNFaces(),
+                           zfpoly_fe_space_h1,
+                           order,
+                           "H1 face"))
+    {
+      return;
+    }
+    scatterInteriorDofs(face_values, mesh->GetNFaces(),
+                        [&](int f, mfem::Array<int>& d) { fes->GetFaceInteriorDofs(f, d); },
+                        intleg_data);
+    read_ptr += face_compressed_size;
+  }
+
+  if(neldofs > 0 && element_compressed_size > 0)
+  {
+    mfem::Vector el_data(static_cast<int>(neldofs));
+    if(!decompressDofBlock(read_ptr,
+                           static_cast<std::size_t>(element_compressed_size),
+                           el_data.GetData(),
+                           static_cast<uint>(mesh_dim),
+                           static_cast<std::size_t>(mesh_NE),
+                           zfpoly_fe_space_h1,
+                           order,
+                           "H1 element"))
+    {
+      return;
+    }
+    std::size_t el_offset = static_cast<std::size_t>(nvdofs) + nedofs + nfdofs;
+    for(int i = 0; i < neldofs; ++i)
+    {
+      intleg_data[el_offset + i] = el_data[i];
+    }
+  }
+
+  mfem::ChangeOfBasis op_h1(*fes, mfem::ChangeOfBasis::INTEGRATED_LEGENDRE);
+  op_h1.MultInverse(intleg_data, *gf);
+
+  SLIC_INFO(axom::fmt::format("Decompressed H1 field: {} values", original_size));
+}
+
+#endif  // AXOM_USE_ZFPOLY
 
 }  // namespace sidre
 }  // namespace axom
