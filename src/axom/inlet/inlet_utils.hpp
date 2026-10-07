@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 #include "axom/sidre.hpp"
@@ -24,6 +25,23 @@ enum class ReaderResult
   NotFound,        // Path does not exist in the input file
   NotHomogeneous,  // Found, but elements of other type exist
   WrongType        // Found, but item at specified path was not of requested type
+};
+
+/*!
+ *****************************************************************************
+ * \brief Exception thrown when evaluating an input function fails
+ *
+ * Lua callbacks throw this exception for execution errors or invalid return
+ * values. Callers can catch it to add application context. A callback invoked
+ * by a custom verifier can also throw during verification.
+ *
+ * Inlet uses SLIC diagnostics for API and schema misuse, and verify() with
+ * VerificationError for input validation failures.
+ *****************************************************************************
+ */
+struct InletError : public std::runtime_error
+{
+  using std::runtime_error::runtime_error;
 };
 
 /*!

@@ -14,7 +14,9 @@
 
 #include <array>
 #include <functional>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 #include <unordered_map>
 #include <iostream>
@@ -65,6 +67,74 @@ TEST(inlet_function, simple_vec3_to_vec3_raw)
   EXPECT_FLOAT_EQ(result[0], 2);
   EXPECT_FLOAT_EQ(result[1], 4);
   EXPECT_FLOAT_EQ(result[2], 6);
+}
+
+TEST(inlet_function, lua_callback_failures_are_catchable)
+{
+  auto inlet = createBasicInlet(R"(
+    function runtime_error () error('callback failed') end
+    function wrong_type () return 'not a number' end
+  )");
+
+  auto wrongType = inlet.reader().getFunction("wrong_type", FunctionTag::Double, {});
+  ASSERT_TRUE(wrongType);
+  EXPECT_THROW(wrongType.call<FunctionType::Double>(), axom::inlet::InletError);
+
+  auto runtimeError = inlet.reader().getFunction("runtime_error", FunctionTag::Double, {});
+  ASSERT_TRUE(runtimeError);
+
+  try
+  {
+    runtimeError.call<FunctionType::Double>();
+    FAIL() << "Expected the Lua callback to throw";
+  }
+  catch(const axom::inlet::InletError& error)
+  {
+    EXPECT_NE(std::string(error.what()).find("callback failed"), std::string::npos);
+  }
+}
+
+TEST(inlet_function, lua_callback_failures_throw_through_every_access_path)
+{
+  static_assert(std::is_base_of_v<std::runtime_error, axom::inlet::InletError>,
+                "InletError must be catchable as a std::runtime_error");
+
+  auto inlet = createBasicInlet(R"(
+    function fail_void (x) error('void failed') end
+    function add_one (x) return x + 1 end
+  )");
+  inlet.addFunction("fail_void", FunctionTag::Void, {FunctionTag::Double});
+  inlet.addFunction("add_one", FunctionTag::Double, {FunctionTag::String});
+  ASSERT_TRUE(inlet.verify());
+
+  // A void callback still reports an execution error
+  EXPECT_THROW(inlet["fail_void"].call<void>(1.0), axom::inlet::InletError);
+
+  // Lua's own message is preserved, e.g. for arithmetic on a non-numeric string
+  // (Lua 5.4: "attempt to add a 'string' with a 'number'")
+  try
+  {
+    inlet["add_one"].call<double>(std::string {"text"});
+    FAIL() << "Expected the Lua callback to throw";
+  }
+  catch(const axom::inlet::InletError& error)
+  {
+    EXPECT_NE(std::string(error.what()).find("attempt to add"), std::string::npos) << error.what();
+  }
+
+  // Copies made with get<std::function> throw the same way
+  auto addOne = inlet["add_one"].get<std::function<double(std::string)>>();
+  EXPECT_DOUBLE_EQ(addOne("2"), 3.0);
+  EXPECT_THROW(addOne("text"), axom::inlet::InletError);
+}
+
+TEST(inlet_function, lua_callback_failure_in_verifier_propagates_from_verify)
+{
+  auto inlet = createBasicInlet("function scale () error('scale failed') end");
+  inlet.addFunction("scale", FunctionTag::Double, {})
+    .registerVerifier([](const axom::inlet::Function& func) { return func.call<double>() > 0.0; });
+
+  EXPECT_THROW(inlet.verify(), axom::inlet::InletError);
 }
 
 TEST(inlet_function, simple_vec3_to_vec3_raw_partial_init)

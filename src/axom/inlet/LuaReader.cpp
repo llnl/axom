@@ -14,6 +14,7 @@
 
 #include <fstream>
 #include <memory>
+#include <stdexcept>
 #include <unordered_set>
 
 #include "axom/inlet/LuaReader.hpp"
@@ -386,18 +387,24 @@ namespace detail
  * \brief Templated function for calling a sol function
  *
  * \param [in] func The sol function of unknown concrete type
+ * \param [in] args Arguments forwarded to the Lua function
  * \tparam Args The argument types of the function
  *
  * \return A checkable version of the function's result
+ * \throws InletError if the Lua function reports an execution error
  *****************************************************************************
  */
 template <typename... Args>
 axom::sol::protected_function_result callWith(const axom::sol::protected_function& func,
                                               Args&&... args)
 {
+  // Throw if invalid so callers can report callback failures after schema verification.
   auto tentative_result = func(std::forward<Args>(args)...);
-  SLIC_ERROR_IF(!tentative_result.valid(),
-                "[Inlet] Lua function call failed, argument types possibly incorrect");
+  if(!tentative_result.valid())
+  {
+    axom::sol::error err = tentative_result;
+    throw InletError(fmt::format("[Inlet] Lua function call failed: {0}", err.what()));
+  }
   return tentative_result;
 }
 
@@ -410,13 +417,17 @@ axom::sol::protected_function_result callWith(const axom::sol::protected_functio
  * \tparam Ret The return type of the function
  *
  * \return The function's result
+ * \throws InletError if the result cannot be converted to \a Ret
  *****************************************************************************
  */
 template <typename Ret>
 Ret extractResult(axom::sol::protected_function_result&& res)
 {
   axom::sol::optional<Ret> option = res;
-  SLIC_ERROR_IF(!option, "[Inlet] Lua function call failed, return types possibly incorrect");
+  if(!option)
+  {
+    throw InletError("[Inlet] Lua function call failed, return types possibly incorrect");
+  }
   return option.value();
 }
 
