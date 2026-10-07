@@ -772,6 +772,115 @@ public:
     }
   }
 
+  void replicateObjectPoints()
+  {
+    if(m_replicationMap.empty())
+    {
+      // Nothing to replicate.
+      return;
+    }
+
+    axom::Array<PointType> tmpPoints;
+    axom::Array<IndexType> tmpDomainIds;
+    MPI_Request recvRequests[2] = {MPI_REQUEST_NULL, MPI_REQUEST_NULL};
+    if(m_replicatedObjRank != -1)
+    {
+      int recvPts = m_replicationMap[m_replicatedObjRank].npts;
+
+      // Set up point-to-point buffers for communication.
+      {
+        // Allocate receive space for incoming points.
+        tmpPoints = axom::Array<PointType>(recvPts);
+        int data_size = recvPts * sizeof(PointType);
+        const int mpi_err = MPI_Irecv(tmpPoints.data(),
+                                      data_size,
+                                      MPI_BYTE,
+                                      m_replicatedObjRank,
+                                      0,
+                                      m_mpiComm,
+                                      &recvRequests[0]);
+        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+        AXOM_UNUSED_VAR(mpi_err);
+      }
+
+      {
+        // Also allocate domain ID space
+        tmpDomainIds = axom::Array<IndexType>(recvPts);
+        int int_data_size = recvPts * sizeof(IndexType);
+        const int mpi_err = MPI_Irecv(tmpDomainIds.data(),
+                                      int_data_size,
+                                      MPI_BYTE,
+                                      m_replicatedObjRank,
+                                      1,
+                                      m_mpiComm,
+                                      &recvRequests[1]);
+        SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+        AXOM_UNUSED_VAR(mpi_err);
+      }
+
+      // Receiving processors wait here for incoming sends.
+      const int mpi_err = MPI_Waitall(2, &recvRequests[0], MPI_STATUSES_IGNORE);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
+
+      m_objectPtCoords = axom::Array<PointType>(tmpPoints, m_allocatorID);
+      m_objectPtDomainIds = axom::Array<IndexType>(tmpDomainIds, m_allocatorID);
+    }
+
+    // Sending processors: copy potentially device-side points to host and setup sends.
+    if(m_replicatedObjRank == -1)
+    {
+      SLIC_ASSERT(m_objectPtCoords.size() > 0);
+      int hostAllocID = axom::detail::getDefaultHostAllocatorID();
+
+      // Points may have been allocated in GPU memory.
+      tmpPoints = axom::Array<PointType>(m_objectPtCoords, hostAllocID);
+      int data_size = tmpPoints.size() * sizeof(PointType);
+
+      tmpDomainIds = axom::Array<IndexType>(m_objectPtDomainIds, hostAllocID);
+      int int_data_size = tmpDomainIds.size() * sizeof(IndexType);
+
+      axom::Array<MPI_Request> sendRequests;
+      sendRequests.resize(2 * m_replicationMap[m_rank].replicas.size(), MPI_REQUEST_NULL);
+
+      int sendidx = 0;
+      for(int sendRank : m_replicationMap[m_rank].replicas)
+      {
+        if(sendRank == m_rank)
+        {
+          continue;
+        }
+        {
+          const int mpi_err = MPI_Isend(tmpPoints.data(),
+                                        data_size,
+                                        MPI_BYTE,
+                                        sendRank,
+                                        0,
+                                        m_mpiComm,
+                                        &sendRequests[sendidx++]);
+          SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+          AXOM_UNUSED_VAR(mpi_err);
+        }
+        {
+          const int mpi_err = MPI_Isend(tmpDomainIds.data(),
+                                        int_data_size,
+                                        MPI_BYTE,
+                                        sendRank,
+                                        1,
+                                        m_mpiComm,
+                                        &sendRequests[sendidx++]);
+          SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+          AXOM_UNUSED_VAR(mpi_err);
+        }
+      }
+
+      // Wait for all sends to complete.
+      const int mpi_err = MPI_Waitall(sendRequests.size(), sendRequests.data(), MPI_STATUSES_IGNORE);
+      SLIC_ASSERT(mpi_err == MPI_SUCCESS);
+      AXOM_UNUSED_VAR(mpi_err);
+    }
+  }
+
   /// Compute bounding box for local part of a mesh.
   BoxType computeMeshBoundingBox(conduit::Node& xferNode) const
   {
