@@ -653,6 +653,61 @@ TEST(inlet_Reader_lua, getIndicesClearsOutputWhenNotFound)
   EXPECT_EQ(ReaderResult::NotFound, reader.getIndices("missing", indices));
   EXPECT_TRUE(indices.empty());
 }
+
+TEST(inlet_Reader_lua, getAllNamesTerminatesOnCycles)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    self = {}
+    self.loop = self
+    left = {}
+    right = {parent = left}
+    left.child = right
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"left",
+                                           "left/child",
+                                           "left/child/parent",
+                                           "right",
+                                           "right/parent",
+                                           "right/parent/child",
+                                           "self",
+                                           "self/loop"};
+  EXPECT_EQ(expected, names);
+}
+
+TEST(inlet_Reader_lua, getAllNamesTerminatesOnGlobalTableAlias)
+{
+  // The global table is the root of the traversal, so an alias to it is a cycle
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString("value = 1; env = _G"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  EXPECT_EQ((std::vector<std::string> {"env", "value"}), names);
+}
+
+TEST(inlet_Reader_lua, getAllNamesVisitsSharedTablesUnderEachPath)
+{
+  axom::inlet::LuaReader reader;
+  ASSERT_TRUE(reader.parseString(R"(
+    local shared = {nested = {value = 42}}
+    first = shared
+    second = shared
+  )"));
+
+  auto names = reader.getAllNames();
+  std::sort(names.begin(), names.end());
+  const std::vector<std::string> expected {"first",
+                                           "first/nested",
+                                           "first/nested/value",
+                                           "second",
+                                           "second/nested",
+                                           "second/nested/value"};
+  EXPECT_EQ(expected, names);
+}
 #endif
 
 //------------------------------------------------------------------------------

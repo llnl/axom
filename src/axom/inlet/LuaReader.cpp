@@ -13,6 +13,7 @@
  */
 
 #include <fstream>
+#include <unordered_set>
 
 #include "axom/inlet/LuaReader.hpp"
 
@@ -100,13 +101,22 @@ bool extractVariantValue(const axom::sol::object& obj, VariantValue& value)
  * \param [in] prefix The Inlet-style path to \a table relative to the "root" of
  * the input file
  * \param [out] names The vector of paths to add to
+ * \param [in,out] ancestors The table identities on the current traversal path
  *******************************************************************************
  */
 void nameRetrievalHelper(const std::vector<std::string>& ignores,
                          const axom::sol::table& table,
                          const std::string& prefix,
-                         std::vector<std::string>& names)
+                         std::vector<std::string>& names,
+                         std::unordered_set<const void*>& ancestors)
 {
+  const auto table_id = table.pointer();
+  if(!ancestors.insert(table_id).second)
+  {
+    // The caller already recorded the name of this cyclic reference.
+    return;
+  }
+
   auto toString = [](const VariantKey& key) {
     return key.type() == InletType::String ? static_cast<std::string>(key)
                                            : std::to_string(static_cast<int>(key));
@@ -120,10 +130,22 @@ void nameRetrievalHelper(const std::vector<std::string>& ignores,
       names.push_back(fullName);
       if(entry.second.get_type() == axom::sol::type::table && (ignores.back() != fullName))
       {
-        nameRetrievalHelper(ignores, entry.second, fullName, names);
+        nameRetrievalHelper(ignores, entry.second, fullName, names, ancestors);
       }
     }
   }
+  // Shared tables must still be visited through other, noncyclic paths.
+  ancestors.erase(table_id);
+}
+
+/// \brief Start name retrieval with an empty ancestor set.
+void nameRetrievalHelper(const std::vector<std::string>& ignores,
+                         const axom::sol::table& table,
+                         const std::string& prefix,
+                         std::vector<std::string>& names)
+{
+  std::unordered_set<const void*> ancestors;
+  nameRetrievalHelper(ignores, table, prefix, names, ancestors);
 }
 
 }  // end namespace detail

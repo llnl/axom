@@ -83,6 +83,22 @@ public:
                               const FunctionTag ret_type,
                               const std::vector<FunctionTag>& arg_types) override;
 
+  /*!
+   *****************************************************************************
+   * \brief Return input names as paths, excluding preloaded globals.
+   *
+   * Includes global names and nested table entries, using `/` to separate keys.
+   *
+   * The search records cyclic references but does not follow them.
+   * For example, `t = {}; t.self = t` yields `t` and `t/self`.
+   *
+   * Shared tables appear under each path.
+   * For example, `a = {value = 1}; b = a`
+   * yields `a`, `a/value`, `b`, and `b/value`.
+   *
+   * \return The discovered input paths
+   *****************************************************************************
+   */
   std::vector<std::string> getAllNames() override;
 
   /*!
