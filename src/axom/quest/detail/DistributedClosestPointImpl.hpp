@@ -1225,7 +1225,7 @@ public:
         auto query_order_view = query_order.view();
         const double sqDistThreshold = m_sqDistanceThreshold;
         auto it = m_bvh->getTraverser();
-        const int rank = m_rank;
+        const int rank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
         auto ptCoordsView = m_objectPtCoords.view();
         auto ptDomainIdsView = m_objectPtDomainIds.view();
 
