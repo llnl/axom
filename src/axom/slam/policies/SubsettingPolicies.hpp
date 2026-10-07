@@ -11,15 +11,16 @@
  *
  * \brief Subsetting policies for SLAM
  *
- * Subsetting policies encompass the type and availability of a set's parent
+ * Subsetting policies describe whether a set has a parent and check its selection.
  * A valid subset policy must support the following interface:
- *   * [required]
- *   * isSubset(): bool -- returns whether the set is a subset of another set
- *   * parentSet() : ParentSetType -- returns a pointer to the parent set.
- *                                     nullptr when isSubset() is false
- *   * isValid() : bool -- indicates whether the Subsetting policy of the set is valid
- *   * [optional]
- *   * operator(): IntType -- alternate accessor for indirection
+ *   * isSubset(): returns whether the set is a subset of another set
+ *   * ParentSetType: the type of the parent set
+ *   * parentSet(): returns a pointer to the parent set, or nullptr when isSubset() is false
+ *   * isValid(begin, end, verbose): validates the selected elements using
+ *     the OrderedSet's const iterators
+ *
+ * Policies support default construction, copying, and construction from ParentSetType*.
+ * The parent must outlive the set and its iterators.
  */
 
 #include "axom/config.hpp"
@@ -48,9 +49,7 @@ struct NoSubset
   // This empty .ctor is here to satisfy the SubsettingPolicy API
   NoSubset(ParentSetType*) { }
 
-  /**
-   * \brief Checks whether the set containing this policy class is a subset
-   */
+  /// \brief Checks whether the set containing this policy class is a subset
   bool isSubset() const { return false; }
   const ParentSetType* parentSet() const { return nullptr; }
 
@@ -69,9 +68,7 @@ struct VirtualParentSubset
 
   VirtualParentSubset(ParentSetType* parSet = &s_nullSet) : m_parentSet(parSet) { }
 
-  /**
-   * \brief Checks whether the set containing this policy class is a subset
-   */
+  /// \brief Checks whether the set containing this policy class is a subset
   bool isSubset() const { return *m_parentSet != s_nullSet; }
   const ParentSetType* parentSet() const { return m_parentSet; }
   ParentSetType*& parentSet() { return m_parentSet; }
@@ -136,9 +133,7 @@ struct ConcreteParentSubset
 
   ConcreteParentSubset(ParentSetType* parSet = nullptr) : m_parentSet(parSet) { }
 
-  /**
-   * \brief Checks whether the set containing this policy class is a subset
-   */
+  /// \brief Checks whether the set containing this policy class is a subset
   bool isSubset() const { return m_parentSet != nullptr; }
 
   ParentSetType* const& parentSet() const { return m_parentSet; }
