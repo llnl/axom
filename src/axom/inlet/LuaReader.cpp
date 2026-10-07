@@ -312,44 +312,36 @@ ReaderResult LuaReader::getVariantMap(const std::string& id,
   return getVariantMapInternal(id, values);
 }
 
-template <typename Iter>
-bool LuaReader::traverseToTable(Iter begin, Iter end, axom::sol::table& table)
+axom::sol::object LuaReader::getObject(const std::string& id)
 {
-  // Nothing to traverse
-  if(begin == end)
+  const auto tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
+  if(tokens.empty())
   {
-    return true;
+    return {};
   }
 
-  if(!(*m_lua)[*begin].valid())
+  axom::sol::object object = (*m_lua)[tokens.front()];
+  for(std::size_t i = 1; i < tokens.size(); ++i)
   {
-    return false;
-  }
+    if(!object.valid() || object.get_type() != axom::sol::type::table)
+    {
+      return {};
+    }
 
-  // Use the first one to index into the global lua state
-  table = (*m_lua)[*begin];
-  ++begin;
-
-  // Then use the remaining keys to walk down to the requested table
-  for(auto curr = begin; curr != end; ++curr)
-  {
-    auto key = *curr;
-    bool is_int = conduit::utils::string_is_integer(key);
-    int key_as_int = conduit::utils::string_to_value<int>(key);
-    if(is_int && table[key_as_int].valid())
+    const auto table = object.as<axom::sol::table>();
+    const auto& key = tokens[i];
+    axom::sol::object child;
+    if(conduit::utils::string_is_integer(key))
     {
-      table = table[key_as_int];
+      child = table[conduit::utils::string_to_value<int>(key)];
     }
-    else if(table[key].valid())
+    if(!child.valid())
     {
-      table = table[key];
+      child = table[key];
     }
-    else
-    {
-      return false;
-    }
+    object = std::move(child);
   }
-  return true;
+  return object;
 }
 
 ReaderResult LuaReader::getIndices(const std::string& id, std::vector<int>& indices)
@@ -488,22 +480,43 @@ typename std::enable_if<I <= MAX_NUM_ARGS, FunctionVariant>::type bindArgType(
 
 /*!
  *****************************************************************************
- * \brief Performs a type-checked access to a Lua table
+ * \brief Performs a type-checked access to a Lua object
  *
- * \param [in]  proxy The axom::sol::proxy object to retrieve from
+ * \param [in] object The Lua object to retrieve from
  * \param [out] val The value to write to, if it is of the correct type
  *
  * \return ReaderResult::Success if the object was of the correct type,
  * ReaderResult::WrongType otherwise
  *****************************************************************************
  */
-template <typename Proxy, typename Value>
-ReaderResult checkedGet(const Proxy& proxy, Value& val)
+template <typename Value>
+ReaderResult checkedGet(const axom::sol::object& object, Value& val)
 {
-  axom::sol::optional<Value> option = proxy;
-  if(option)
+  if(object.template is<Value>())
   {
-    val = option.value();
+    val = object.template as<Value>();
+    return ReaderResult::Success;
+  }
+  return ReaderResult::WrongType;
+}
+
+/*!
+ *****************************************************************************
+ * \brief Reads a Lua number as an int, truncating toward zero
+ *
+ * Sol's \a as<int>() rounds a non-integral number to the nearest integer.
+ * Truncation matches the C++ conversion used by ConduitReader::getValue,
+ * so the same input yields the same int from each reader.
+ *
+ * \note Numeric strings are not converted and report ReaderResult::WrongType
+ *****************************************************************************
+ */
+template <>
+ReaderResult checkedGet<int>(const axom::sol::object& object, int& val)
+{
+  if(object.get_type() == axom::sol::type::number)
+  {
+    val = static_cast<int>(object.as<double>());
     return ReaderResult::Success;
   }
   return ReaderResult::WrongType;
@@ -538,28 +551,13 @@ FunctionVariant LuaReader::getFunction(const std::string& id,
 template <typename T>
 ReaderResult LuaReader::getValue(const std::string& id, T& value)
 {
-  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
-
-  if(tokens.size() == 1)
+  const auto object = getObject(id);
+  if(!object.valid())
   {
-    if((*m_lua)[tokens[0]].valid())
-    {
-      return detail::checkedGet((*m_lua)[tokens[0]], value);
-    }
     return ReaderResult::NotFound;
   }
 
-  axom::sol::table t;
-  // Don't traverse through the last token as it doesn't contain a table
-  if(traverseToTable(tokens.begin(), tokens.end() - 1, t))
-  {
-    if(t[tokens.back()].valid())
-    {
-      return detail::checkedGet(t[tokens.back()], value);
-    }
-  }
-
-  return ReaderResult::NotFound;
+  return detail::checkedGet(object, value);
 }
 
 std::vector<std::string> LuaReader::getAllNames()
@@ -575,13 +573,17 @@ ReaderResult LuaReader::getMap(const std::string& id,
                                axom::sol::type type)
 {
   values.clear();
-  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
-
-  axom::sol::table t;
-  if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), t))
+  const auto object = getObject(id);
+  if(!object.valid())
   {
     return ReaderResult::NotFound;
   }
+  if(object.get_type() != axom::sol::type::table)
+  {
+    return ReaderResult::WrongType;
+  }
+
+  const auto table = object.as<axom::sol::table>();
 
   // Allows for filtering out keys of incorrect type
   const auto is_correct_key_type = [](const axom::sol::type type) {
@@ -598,7 +600,7 @@ ReaderResult LuaReader::getMap(const std::string& id,
     }
   };
   bool contains_other_type = false;
-  for(const auto& entry : t)
+  for(const auto& entry : table)
   {
     // Gets only indexed items in the table.
     if(is_correct_key_type(entry.first.get_type()) && entry.second.get_type() == type)
@@ -618,13 +620,17 @@ ReaderResult LuaReader::getVariantMapInternal(const std::string& id,
                                               std::unordered_map<Key, VariantValue>& values)
 {
   values.clear();
-  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
-
-  axom::sol::table t;
-  if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), t))
+  const auto object = getObject(id);
+  if(!object.valid())
   {
     return ReaderResult::NotFound;
   }
+  if(object.get_type() != axom::sol::type::table)
+  {
+    return ReaderResult::WrongType;
+  }
+
+  const auto table = object.as<axom::sol::table>();
 
   const auto is_correct_key_type = [](const axom::sol::type type) {
     const bool is_number = type == axom::sol::type::number;
@@ -639,7 +645,7 @@ ReaderResult LuaReader::getVariantMapInternal(const std::string& id,
   };
 
   bool contains_other_type = false;
-  for(const auto& entry : t)
+  for(const auto& entry : table)
   {
     VariantValue value;
     if(is_correct_key_type(entry.first.get_type()) && detail::extractVariantValue(entry.second, value))
@@ -657,19 +663,20 @@ ReaderResult LuaReader::getVariantMapInternal(const std::string& id,
 template <typename T>
 ReaderResult LuaReader::getIndicesInternal(const std::string& id, std::vector<T>& indices)
 {
-  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
-
-  axom::sol::table t;
-
-  if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), t))
+  indices.clear();
+  const auto object = getObject(id);
+  if(!object.valid())
   {
     return ReaderResult::NotFound;
   }
+  if(object.get_type() != axom::sol::type::table)
+  {
+    return ReaderResult::WrongType;
+  }
 
-  indices.clear();
-
+  const auto table = object.as<axom::sol::table>();
   // std::transform ends up being messier here
-  for(const auto& entry : t)
+  for(const auto& entry : table)
   {
     indices.push_back(detail::extractAs<T>(entry.first));
   }
@@ -678,25 +685,11 @@ ReaderResult LuaReader::getIndicesInternal(const std::string& id, std::vector<T>
 
 axom::sol::protected_function LuaReader::getFunctionInternal(const std::string& id)
 {
-  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
   axom::sol::protected_function lua_func;
-
-  if(tokens.size() == 1)
+  const auto object = getObject(id);
+  if(object.valid())
   {
-    if((*m_lua)[tokens[0]].valid())
-    {
-      lua_func = (*m_lua)[tokens[0]];
-      detail::checkedGet((*m_lua)[tokens[0]], lua_func);
-    }
-  }
-  else
-  {
-    axom::sol::table t;
-    // Don't traverse through the last token as it doesn't contain a table
-    if(traverseToTable(tokens.begin(), tokens.end() - 1, t) && t[tokens.back()].valid())
-    {
-      detail::checkedGet(t[tokens.back()], lua_func);
-    }
+    detail::checkedGet(object, lua_func);
   }
   return lua_func;
 }
