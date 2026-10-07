@@ -161,15 +161,15 @@ LuaReader::LuaReader()
                         axom::sol::lib::math,
                         axom::sol::lib::string,
                         axom::sol::lib::package);
-  auto vec_type = m_lua->new_usertype<FunctionType::Vector>(
+  // Register a custom "Vector" usertype
+  m_lua->new_usertype<FunctionType::Vector>(
     "Vector",  // Name of the class in Lua
-    // Add make_vector as a constructor to enable "new Vector(x,y,z)"
-    // Use lambdas for 2D and "default" cases - default arguments cannot be
-    // propagated automatically
+    // Register factories for Vector.new(x, y, z), Vector.new(x, y), and Vector.new().
+    // Separate lambdas expose each supported argument count to Lua.
     "new",
     axom::sol::factories([](double x, double y, double z) { return FunctionType::Vector {x, y, z}; },
                          [](double x, double y) { return FunctionType::Vector {x, y}; },
-                         // Assume three for a default constructor
+                         // Vector.new() creates a zero vector with dimension 3.
                          [] { return FunctionType::Vector {}; }),
     // Add vector addition operation
     axom::sol::meta_function::addition,
@@ -234,8 +234,8 @@ LuaReader::LuaReader()
     "z",
     axom::sol::property([](const FunctionType::Vector& u) { return u.vec[2]; }));
 
-  // Pass the preloaded globals as both the set to ignore and the set to add
-  // to, such that only the top-level preloaded globals are added
+  // Pass the preloaded globals as both the set to ignore and the set to add to,
+  // such that only the top-level preloaded globals are added
   detail::nameRetrievalHelper(m_preloaded_globals, m_lua->globals(), "", m_preloaded_globals);
 }
 
