@@ -19,6 +19,7 @@
 
 #include "conduit_blueprint.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -33,6 +34,56 @@ using axom::sidre::MFEMSidreDataCollection;
 constexpr double EPSILON = 1.0e-6;
 
 std::string testName() { return ::testing::UnitTest::GetInstance()->current_test_info()->name(); }
+
+class ScopedTestOutputDir
+{
+public:
+  explicit ScopedTestOutputDir(const std::string& test_name = testName())
+    : m_base_dir(axom::utilities::filesystem::joinPath(axom::utilities::filesystem::getCWD(),
+                                                       ".axom_test_outputs"))
+    , m_component_dir(axom::utilities::filesystem::joinPath(m_base_dir, "sidre_mfem_datacollection"))
+    , m_path(axom::utilities::filesystem::joinPath(m_component_dir, test_name))
+  {
+    EXPECT_EQ(axom::utilities::filesystem::makeDirsForPath(m_path), 0);
+  }
+
+  ~ScopedTestOutputDir() { cleanup(); }
+
+  const std::string& getPrefixPath() const { return m_path; }
+
+private:
+  void cleanup() const
+  {
+#if defined(AXOM_USE_MPI)
+    int mpi_initialized = 0;
+    MPI_Initialized(&mpi_initialized);
+    if(mpi_initialized)
+    {
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      int rank = 0;
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      if(rank == 0)
+      {
+        std::filesystem::remove_all(m_path);
+        std::filesystem::remove(m_component_dir);
+        std::filesystem::remove(m_base_dir);
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      return;
+    }
+#endif
+
+    std::filesystem::remove_all(m_path);
+    std::filesystem::remove(m_component_dir);
+    std::filesystem::remove(m_base_dir);
+  }
+
+  std::string m_base_dir;
+  std::string m_component_dir;
+  std::string m_path;
+};
 
 void checkMcarrayFieldValues(axom::sidre::Group* bp_grp,
                              const std::string& field_name,
@@ -179,9 +230,12 @@ TEST(sidre_datacollection, dc_update_state)
 
 TEST(sidre_datacollection, dc_save)
 {
+  ScopedTestOutputDir test_output;
+
   // 1D mesh divided into 10 segments
   auto mesh = mfem::Mesh::MakeCartesian1D(10);
   MFEMSidreDataCollection sdc(testName(), &mesh);
+  sdc.SetPrefixPath(test_output.getPrefixPath());
 
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc.SetComm(MPI_COMM_WORLD);
@@ -194,9 +248,12 @@ TEST(sidre_datacollection, dc_save)
 
 TEST(sidre_datacollection, dc_save_single_file)
 {
+  ScopedTestOutputDir test_output;
+
   // 1D mesh divided into 10 segments
   auto mesh = mfem::Mesh::MakeCartesian1D(10);
   MFEMSidreDataCollection sdc(testName(), &mesh);
+  sdc.SetPrefixPath(test_output.getPrefixPath());
 
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc.SetComm(MPI_COMM_WORLD);
@@ -210,9 +267,12 @@ TEST(sidre_datacollection, dc_save_single_file)
 
 TEST(sidre_datacollection, dc_save_two_files)
 {
+  ScopedTestOutputDir test_output;
+
   // 1D mesh divided into 10 segments
   auto mesh = mfem::Mesh::MakeCartesian1D(10);
   MFEMSidreDataCollection sdc(testName());
+  sdc.SetPrefixPath(test_output.getPrefixPath());
 
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc.SetMesh(MPI_COMM_WORLD, &mesh);
@@ -240,6 +300,8 @@ TEST(sidre_datacollection, dc_save_two_files)
 
 TEST(sidre_datacollection, dc_reload_gf)
 {
+  ScopedTestOutputDir test_output;
+
   const std::string field_name = "test_field";
   // 2D mesh divided into triangles
   auto* mesh = new mfem::Mesh(mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::TRIANGLE));
@@ -250,6 +312,7 @@ TEST(sidre_datacollection, dc_reload_gf)
   // a simulated restart (save -> load)
   const bool owns_mesh_data = true;
   MFEMSidreDataCollection sdc_writer(testName(), mesh, owns_mesh_data);
+  sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   auto* gf_write = new mfem::GridFunction(fes, nullptr);
   gf_write->MakeOwner(fec);
 
@@ -277,6 +340,7 @@ TEST(sidre_datacollection, dc_reload_gf)
 
   // No mesh is used here
   MFEMSidreDataCollection sdc_reader(testName());
+  sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc_reader.SetComm(MPI_COMM_WORLD);
@@ -296,6 +360,8 @@ TEST(sidre_datacollection, dc_reload_gf)
 
 TEST(sidre_datacollection, dc_reload_gf_vdim)
 {
+  ScopedTestOutputDir test_output;
+
   const std::string field_name = "test_field";
   const int vdim = 2;
   // 2D mesh divided into triangles
@@ -307,6 +373,7 @@ TEST(sidre_datacollection, dc_reload_gf_vdim)
   // a simulated restart (save -> load)
   const bool owns_mesh_data = true;
   MFEMSidreDataCollection sdc_writer(testName(), &mesh, owns_mesh_data);
+  sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   // the following prevents mfem::DataCollection from deleting the mesh and gfs
   // see 'dc_reload_gf' test for a case where the DataCollection also owns the mesh and gf data
   sdc_writer.SetOwnData(false);
@@ -337,6 +404,7 @@ TEST(sidre_datacollection, dc_reload_gf_vdim)
 
   // No mesh is used here
   MFEMSidreDataCollection sdc_reader(testName());
+  sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc_reader.SetComm(MPI_COMM_WORLD);
@@ -364,6 +432,7 @@ TEST(sidre_datacollection, dc_reload_externaldata)
                "for the 'sidre_hdf5' protocol";
   return;
 #endif
+  ScopedTestOutputDir test_output;
 
   const std::string view_name = "external_data";
   const bool owns_mesh_data = true;
@@ -376,6 +445,7 @@ TEST(sidre_datacollection, dc_reload_externaldata)
   {
     auto mesh = mfem::Mesh::MakeCartesian1D(10);
     MFEMSidreDataCollection sdc_writer(testName(), &mesh, owns_mesh_data);
+    sdc_writer.SetPrefixPath(test_output.getPrefixPath());
     // After creation set owning to false so data doesn't get double free'd by reader and writer
     sdc_writer.SetOwnData(false);
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
@@ -396,6 +466,7 @@ TEST(sidre_datacollection, dc_reload_externaldata)
   // Load DC from file
   {
     MFEMSidreDataCollection sdc_reader(testName());
+    sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
     sdc_reader.SetComm(MPI_COMM_WORLD);
 #endif
@@ -423,6 +494,8 @@ TEST(sidre_datacollection, dc_reload_externaldata)
 
 TEST(sidre_datacollection, dc_reload_mesh)
 {
+  ScopedTestOutputDir test_output;
+
   const std::string field_name = "test_field";
   // 2D mesh divided into triangles
   auto mesh = mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::TRIANGLE);
@@ -433,6 +506,7 @@ TEST(sidre_datacollection, dc_reload_mesh)
   // a simulated restart (save -> load)
   const bool owns_mesh_data = true;
   MFEMSidreDataCollection sdc_writer(testName(), &mesh, owns_mesh_data);
+  sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   sdc_writer.SetOwnData(false);
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc_writer.SetComm(MPI_COMM_WORLD);
@@ -456,6 +530,7 @@ TEST(sidre_datacollection, dc_reload_mesh)
 
   // No mesh is used here to construct as it will be read in
   MFEMSidreDataCollection sdc_reader(testName());
+  sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc_reader.SetComm(MPI_COMM_WORLD);
 #endif
@@ -472,6 +547,8 @@ TEST(sidre_datacollection, dc_reload_mesh)
 
 TEST(sidre_datacollection, dc_reload_qf)
 {
+  ScopedTestOutputDir test_output;
+
   // Set up a high-order quadrature space so each element has multiple quadrature points.
   auto mesh = mfem::Mesh::MakeCartesian2D(2, 3, mfem::Element::QUADRILATERAL, 0, 2., 3.);
 
@@ -492,6 +569,7 @@ TEST(sidre_datacollection, dc_reload_qf)
   // a simulated restart (save -> load)
   const bool owns_mesh_data = true;
   MFEMSidreDataCollection sdc_writer(testName(), &mesh, owns_mesh_data);
+  sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   sdc_writer.SetOwnData(false);
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc_writer.SetComm(MPI_COMM_WORLD);
@@ -527,6 +605,7 @@ TEST(sidre_datacollection, dc_reload_qf)
 #endif
 
   MFEMSidreDataCollection sdc_reader(testName());
+  sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   sdc_reader.SetComm(MPI_COMM_WORLD);
 #endif
@@ -1007,12 +1086,15 @@ static mfem::ParGridFunction* copyIntoParGridFunction(
  */
 static void testParallelMeshReload(mfem::Mesh& base_mesh, const int part_method = 1)
 {
+  ScopedTestOutputDir test_output(axom::fmt::format("{}_{}", testName(), part_method));
+
   auto* parmesh = new mfem::ParMesh(MPI_COMM_WORLD, base_mesh, nullptr, part_method);
 
   // The mesh must be owned by Sidre to properly manage data in case of
   // a simulated restart (save -> load)
   const bool owns_mesh_data = true;
   MFEMSidreDataCollection sdc_writer(testName(), parmesh, owns_mesh_data);
+  sdc_writer.SetPrefixPath(test_output.getPrefixPath());
 
   // Save some basic info about the mesh
   const int n_verts = sdc_writer.GetMesh()->GetNV();
@@ -1035,6 +1117,7 @@ static void testParallelMeshReload(mfem::Mesh& base_mesh, const int part_method 
   sdc_writer.Save();
 
   MFEMSidreDataCollection sdc_reader(testName());
+  sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 
   // Needs to be set "manually" in order for everything to be loaded in properly
   sdc_reader.SetComm(MPI_COMM_WORLD);
@@ -1081,6 +1164,8 @@ static void testParallelMeshReloadAllPartitionings(mfem::Mesh& base_mesh)
 
 TEST(sidre_datacollection, dc_par_reload_gf)
 {
+  ScopedTestOutputDir test_output;
+
   const std::string field_name = "test_field";
   // 3D tet mesh
   auto mesh = mfem::Mesh::MakeCartesian3D(2, 2, 2, mfem::Element::TETRAHEDRON);
@@ -1093,6 +1178,7 @@ TEST(sidre_datacollection, dc_par_reload_gf)
   // a simulated restart (save -> load)
   bool owns_mesh_data = true;
   MFEMSidreDataCollection sdc_writer(testName(), &parmesh, owns_mesh_data);
+  sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   sdc_writer.SetOwnData(false);
 
   // The mesh and field(s) must be owned by Sidre to properly manage data in case of
@@ -1115,6 +1201,7 @@ TEST(sidre_datacollection, dc_par_reload_gf)
   #endif
 
   MFEMSidreDataCollection sdc_reader(testName());
+  sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 
   // Needs to be set "manually" in order for everything to be loaded in properly
   sdc_reader.SetComm(MPI_COMM_WORLD);
@@ -1131,6 +1218,8 @@ TEST(sidre_datacollection, dc_par_reload_gf)
 
 TEST(sidre_datacollection, dc_par_reload_gf_ordering)
 {
+  ScopedTestOutputDir test_output;
+
   const std::string first_field_name = "test_field_1";
   const std::string second_field_name = "test_field_2";
   const std::string third_field_name = "test_field_3";
@@ -1148,6 +1237,7 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
   // a simulated restart (save -> load)
   bool owns_mesh_data = true;
   MFEMSidreDataCollection sdc_writer(testName(), &parmesh, owns_mesh_data);
+  sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   sdc_writer.SetOwnData(false);
 
   // The mesh and field(s) must be owned by Sidre to properly manage data in case of
@@ -1184,6 +1274,7 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
   #endif
 
   MFEMSidreDataCollection sdc_reader(testName());
+  sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 
   // Needs to be set "manually" in order for everything to be loaded in properly
   sdc_reader.SetComm(MPI_COMM_WORLD);
@@ -1214,6 +1305,8 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
 // for external strided coord/vector views that back reconstructed MFEM objects.
 TEST(sidre_datacollection, dc_par_reload_mfem_copies)
 {
+  ScopedTestOutputDir test_output;
+
   const std::string scalar_field_name = "test_scalar_field";
   const std::string vector_field_name = "test_vector_field";
 
@@ -1246,7 +1339,7 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
 
     MFEMSidreDataCollection dc(testName(), temporary_mesh_copy.get());
     dc.SetComm(MPI_COMM_WORLD);
-    dc.SetPrefixPath("");
+    dc.SetPrefixPath(test_output.getPrefixPath());
     dc.SetCycle(0);
 
     auto* scalar_copy = copyIntoParGridFunction(scalar_field, *temporary_mesh_copy, temporary_copies);
@@ -1268,7 +1361,7 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
 
   MFEMSidreDataCollection dc(testName(), nullptr);
   dc.SetComm(MPI_COMM_WORLD);
-  dc.SetPrefixPath("");
+  dc.SetPrefixPath(test_output.getPrefixPath());
   dc.Load();
 
   ASSERT_NE(dc.GetMesh(), nullptr);
@@ -1289,6 +1382,8 @@ TEST(sidre_datacollection, dc_par_reload_mfem_copies)
 
 TEST(sidre_datacollection, dc_par_reload_multi_datastore)
 {
+  ScopedTestOutputDir test_output;
+
   const std::string first_coll_name = testName() + "first";
   const std::string second_coll_name = testName() + "second";
   const std::string field_name = "test_field";
@@ -1324,6 +1419,7 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
                                            first_bp_index_grp,
                                            first_domain_grp,
                                            owns_mesh_data);
+  first_sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   first_sdc_writer.SetComm(MPI_COMM_WORLD);
   first_sdc_writer.SetMesh(&first_parmesh);
 
@@ -1331,6 +1427,7 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
                                             second_bp_index_grp,
                                             second_domain_grp,
                                             owns_mesh_data);
+  second_sdc_writer.SetPrefixPath(test_output.getPrefixPath());
   second_sdc_writer.SetComm(MPI_COMM_WORLD);
   second_sdc_writer.SetMesh(&second_parmesh);
 
@@ -1375,10 +1472,12 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
                                            first_bp_index_grp,
                                            first_domain_grp,
                                            owns_mesh_data);
+  first_sdc_reader.SetPrefixPath(test_output.getPrefixPath());
   MFEMSidreDataCollection second_sdc_reader(second_coll_name,
                                             second_bp_index_grp,
                                             second_domain_grp,
                                             owns_mesh_data);
+  second_sdc_reader.SetPrefixPath(test_output.getPrefixPath());
 
   // Needs to be set "manually" in order for everything to be loaded in properly
   first_sdc_reader.SetComm(MPI_COMM_WORLD);
