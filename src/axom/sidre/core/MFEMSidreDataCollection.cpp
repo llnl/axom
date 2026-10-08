@@ -166,10 +166,9 @@ void prepareExternalDoubleViewForLoad(ExternalDoubleViewLoadPlan& plan)
  * @param[in] named_buffer_view The named buffer that will own the final data.
  * @param[in,out] load_plans The collection of staged load plans.
  */
-void addPreparedExternalDoubleViewLoadPlan(
-  View* view,
-  View* named_buffer_view,
-  std::vector<ExternalDoubleViewLoadPlan>& load_plans)
+void addPreparedExternalDoubleViewLoadPlan(View* view,
+                                           View* named_buffer_view,
+                                           std::vector<ExternalDoubleViewLoadPlan>& load_plans)
 {
   load_plans.emplace_back();
   load_plans.back().view = view;
