@@ -1120,6 +1120,13 @@ public:
   {
     SLIC_ASSERT(bvh != nullptr);
 
+    if(m_replicateObjectDomains)
+    {
+      // Before constructing BVH, replicate points across any ranks without object points.
+      buildReplicationMap();
+      replicateObjectPoints();
+    }
+
     const int npts = m_objectPtCoords.size();
     axom::Array<BoxType> boxesArray(npts, npts, m_allocatorID);
     auto boxesView = boxesArray.view();
