@@ -958,14 +958,35 @@ public:
       double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
       const auto& myObjectBb = m_objectPartitionBbs[m_rank];
-      for(int r = 0; r < m_nranks; ++r)
+      if(m_replicateObjectDomains)
       {
-        if(r != m_rank)
+        const int origRank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
+        const auto groupIt = m_replicationMap.find(origRank);
+        SLIC_ASSERT(groupIt != m_replicationMap.end());
+
+        for(int r = 0; r < m_nranks; ++r)
         {
-          const auto& otherQueryBb = allQueryBbs[r];
-          if(is_statically_eligible(otherQueryBb, myObjectBb))
+          if(r != m_rank && selectReplica(groupIt->second, r) == m_rank)
           {
-            ++remainingRecvs;
+            const auto& otherQueryBb = allQueryBbs[r];
+            if(is_statically_eligible(otherQueryBb, myObjectBb))
+            {
+              ++remainingRecvs;
+            }
+          }
+        }
+      }
+      else
+      {
+        for(int r = 0; r < m_nranks; ++r)
+        {
+          if(r != m_rank)
+          {
+            const auto& otherQueryBb = allQueryBbs[r];
+            if(is_statically_eligible(otherQueryBb, myObjectBb))
+            {
+              ++remainingRecvs;
+            }
           }
         }
       }
@@ -1108,9 +1129,35 @@ private:
     BoxType bb;
     get_bounding_box_from_conduit_node(bb, xferNode.fetch_existing("aabb"));
 
-    for(int i = 1; i < m_nranks; ++i)
+    int numObjGroups = m_nranks;
+
+    auto groupIt = m_replicationMap.begin();
+    if(m_replicateObjectDomains)
+    {
+      numObjGroups = m_replicationMap.size();
+      // Get an iterator to this rank's replication group.
+      int origRank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
+      groupIt = m_replicationMap.find(origRank);
+    }
+
+    // Loop over either physical rank offsets, or group offsets.
+    for(int i = 1; i < numObjGroups; ++i)
     {
       int maybeNextRecip = (m_rank + i) % m_nranks;
+      if(m_replicateObjectDomains)
+      {
+        // Get the next group to check.
+        SLIC_ASSERT(groupIt != m_replicationMap.end());
+        groupIt++;
+
+        if(groupIt == m_replicationMap.end())
+        {
+          // Loop back to start of sorted replication list.
+          groupIt = m_replicationMap.begin();
+        }
+        maybeNextRecip = selectReplica(groupIt->second, homeRank);
+      }
+
       if(maybeNextRecip == homeRank)
       {
         return maybeNextRecip;
