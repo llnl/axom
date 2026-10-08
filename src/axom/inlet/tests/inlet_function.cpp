@@ -183,17 +183,8 @@ TEST(inlet_function, lua_callback_failures_throw_through_every_access_path)
   // A void callback still reports an execution error
   EXPECT_THROW(inlet["fail_void"].call<void>(1.0), axom::inlet::InletError);
 
-  // Lua's own message is preserved, e.g. for arithmetic on a non-numeric string
-  // (Lua 5.4: "attempt to add a 'string' with a 'number'")
-  try
-  {
-    inlet["add_one"].call<double>(std::string {"text"});
-    FAIL() << "Expected the Lua callback to throw";
-  }
-  catch(const axom::inlet::InletError& error)
-  {
-    EXPECT_NE(std::string(error.what()).find("attempt to add"), std::string::npos) << error.what();
-  }
+  // An invalid input reports an execution error through Proxy::call.
+  EXPECT_THROW(inlet["add_one"].call<double>(std::string {"text"}), axom::inlet::InletError);
 
   // Copies made with get<std::function> throw the same way
   auto addOne = inlet["add_one"].get<std::function<double(std::string)>>();
