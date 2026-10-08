@@ -882,6 +882,25 @@ public:
     }
   }
 
+  int selectReplica(const ReplicationGroup& group, int homeRank) const
+  {
+    const auto& replica_ranks = group.replicas;
+    SLIC_ASSERT(!replica_ranks.empty());
+
+    const bool homeRankInGroup =
+      std::find(replica_ranks.begin(), replica_ranks.end(), homeRank) != replica_ranks.end();
+    if(homeRankInGroup)
+    {
+      // Home rank in replica set: just send this node home.
+      return homeRank;
+    }
+    else
+    {
+      // Select a round-robin replica rank.
+      return replica_ranks[homeRank % replica_ranks.size()];
+    }
+  }
+
   /// Compute bounding box for local part of a mesh.
   BoxType computeMeshBoundingBox(conduit::Node& xferNode) const
   {
