@@ -535,6 +535,7 @@ protected:
   double m_sqDistanceThreshold;
 
   bool m_dynamicDistanceFiltering = true;
+  bool m_replicateObjectDomains = true;
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
