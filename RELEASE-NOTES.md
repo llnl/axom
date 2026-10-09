@@ -44,6 +44,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Improves handling of `Array` and `ArrayView` with memory allocated with the system allocator.
 
 ### Fixed
+- Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
 - Spin:`BVH::getBounds()` now returns an invalid bounding box instead of one that covers the whole coordinate range,
   when an empty BVH is constructed.
 

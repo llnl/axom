@@ -44,6 +44,316 @@ const std::string MFEMSidreDataCollection::s_coordset_name = "coords";
 
 namespace detail
 {
+// During parallel reload we first read into a temporary Sidre subtree, but the
+// Blueprint coordset and field views there can still describe MFEM's external,
+// interleaved buffers. We therefore stage those views into owned contiguous
+// arrays for I/O, then scatter the loaded values back into named buffers that
+// preserve the original interleaved layout expected by MFEM.
+
+/**
+ * @brief Computes the backing-buffer size required by a described Sidre view.
+ *
+ * @param[in] view The described view whose offset/stride layout should be
+ *   covered by the returned size.
+ *
+ * @return The minimum number of entries needed to store the view's data in a
+ *   buffer that honors its offset and stride.
+ */
+IndexType getRequiredBufferSize(const View* view)
+{
+  SLIC_ASSERT_MSG(view != nullptr && view->isDescribed(), "Expected a described view");
+
+  if(view->getNumElements() == 0)
+  {
+    return 0;
+  }
+
+  return view->getOffset() + (view->getNumElements() - 1) * view->getStride() + 1;
+}
+
+/**
+ * @brief Returns an allocated named buffer view of the requested size and type.
+ *
+ * @param[in] named_bufs_grp The group that owns the named buffer views.
+ * @param[in] buffer_name The name of the buffer view to create or reuse.
+ * @param[in] size The minimum number of elements required in the buffer.
+ * @param[in] type The element type required by the buffer.
+ *
+ * @return The allocated named buffer view.
+ */
+View* ensureNamedBuffer(Group* named_bufs_grp,
+                        const std::string& buffer_name,
+                        IndexType size,
+                        TypeID type)
+{
+  SLIC_ASSERT_MSG(named_bufs_grp != nullptr, "Named buffers group must not be null");
+
+  size = std::max(size, sidre::IndexType(0));
+  View* view = nullptr;
+
+  if(!named_bufs_grp->hasView(buffer_name))
+  {
+    view = named_bufs_grp->createViewAndAllocate(buffer_name, type, size);
+  }
+  else
+  {
+    view = named_bufs_grp->getView(buffer_name);
+    SLIC_ASSERT_MSG(view->getTypeID() == type, "Named buffer type does not match existing type");
+
+    if(!view->isApplied() || view->getNumElements() < size)
+    {
+      DataType dtype(view->getSchema().dtype());
+      dtype.set_number_of_elements(size);
+      named_bufs_grp->destroyViewAndData(buffer_name);
+      view = named_bufs_grp->createViewAndAllocate(buffer_name, dtype);
+    }
+  }
+
+  SLIC_ASSERT_MSG(view != nullptr && view->hasBuffer() && view->isApplied(),
+                  "Failed to allocate named buffer");
+  return view;
+}
+
+/**
+ * @brief Describes how an external Blueprint view is staged through load.
+ *
+ * The load path temporarily redirects an external view into `staging_data`,
+ * then scatters the loaded values back into `named_buffer_view` using the
+ * original offset and stride captured here.
+ */
+struct ExternalDoubleViewLoadPlan
+{
+  View* view {nullptr};
+  View* named_buffer_view {nullptr};
+  IndexType num_elements {0};
+  IndexType offset {0};
+  IndexType stride {1};
+  std::vector<double> staging_data;
+};
+
+/**
+ * @brief Redirects an external Blueprint view into contiguous staging storage.
+ *
+ * @param[in,out] plan The load plan whose view will be rebound to
+ *   `plan.staging_data` until external data has been loaded.
+ */
+void prepareExternalDoubleViewForLoad(ExternalDoubleViewLoadPlan& plan)
+{
+  SLIC_ASSERT_MSG(plan.view != nullptr && plan.named_buffer_view != nullptr,
+                  "Views must not be null");
+  SLIC_ASSERT_MSG(plan.view->isDescribed(), "Expected a described blueprint view");
+  SLIC_ASSERT_MSG(plan.named_buffer_view->hasBuffer() && plan.named_buffer_view->isApplied(),
+                  "Expected an allocated named buffer view");
+  SLIC_ASSERT_MSG(plan.view->getTypeID() == DOUBLE_ID, "Expected a double-valued blueprint view");
+
+  plan.num_elements = plan.view->getNumElements();
+  plan.offset = plan.view->getOffset();
+  plan.stride = plan.view->getStride();
+  plan.staging_data.resize(plan.num_elements);
+
+  plan.view->clear();
+  if(plan.num_elements > 0)
+  {
+    plan.view->setExternalDataPtr(plan.staging_data.data());
+    plan.view->apply(DOUBLE_ID, plan.num_elements);
+  }
+}
+
+/**
+ * @brief Adds and prepares a load plan for one external Blueprint view.
+ *
+ * @param[in] view The Blueprint view whose data will be staged for loading.
+ * @param[in] named_buffer_view The named buffer that will own the final data.
+ * @param[in,out] load_plans The collection of staged load plans.
+ */
+void addPreparedExternalDoubleViewLoadPlan(View* view,
+                                           View* named_buffer_view,
+                                           std::vector<ExternalDoubleViewLoadPlan>& load_plans)
+{
+  load_plans.emplace_back();
+  load_plans.back().view = view;
+  load_plans.back().named_buffer_view = named_buffer_view;
+  prepareExternalDoubleViewForLoad(load_plans.back());
+}
+
+/**
+ * @brief Restores a staged view to its named buffer after loading completes.
+ *
+ * @param[in,out] plan The load plan whose staged values should be scattered
+ *   back into the final interleaved buffer layout.
+ */
+void finalizeExternalDoubleViewAfterLoad(ExternalDoubleViewLoadPlan& plan)
+{
+  SLIC_ASSERT_MSG(plan.view != nullptr && plan.named_buffer_view != nullptr,
+                  "Views must not be null");
+  SLIC_ASSERT_MSG(plan.named_buffer_view->hasBuffer() && plan.named_buffer_view->isApplied(),
+                  "Expected an allocated named buffer view");
+
+  double* named_buffer_data = plan.named_buffer_view->getData<double*>();
+  for(IndexType i = 0; i < plan.num_elements; ++i)
+  {
+    named_buffer_data[plan.offset + i * plan.stride] = plan.staging_data[i];
+  }
+
+  plan.view->clear();
+  plan.view->attachBuffer(plan.named_buffer_view->getBuffer());
+  plan.view->apply(DOUBLE_ID, plan.num_elements, plan.offset, plan.stride);
+}
+
+/**
+ * @brief Stages external coordinate-set views for loading.
+ *
+ * @param[in] bp_grp The Blueprint group being loaded.
+ * @param[in] named_bufs_grp The named-buffers group that owns reconstructed
+ *   coordinate storage.
+ * @param[in,out] load_plans The collection of staged load plans to append to.
+ */
+void prepareCoordsetViewsForLoad(Group* bp_grp,
+                                 Group* named_bufs_grp,
+                                 std::vector<ExternalDoubleViewLoadPlan>& load_plans)
+{
+  constexpr const char* coord_paths[] = {"coordsets/coords/values/x",
+                                         "coordsets/coords/values/y",
+                                         "coordsets/coords/values/z"};
+
+  std::vector<View*> coord_views;
+  IndexType required_size = 0;
+
+  for(const char* path : coord_paths)
+  {
+    if(bp_grp->hasView(path))
+    {
+      View* view = bp_grp->getView(path);
+      if(view->isExternal())
+      {
+        coord_views.push_back(view);
+        required_size = std::max(required_size, getRequiredBufferSize(view));
+      }
+    }
+  }
+
+  if(coord_views.empty())
+  {
+    return;
+  }
+
+  View* buffer_view =
+    ensureNamedBuffer(named_bufs_grp, "vertex_coords", required_size, coord_views.front()->getTypeID());
+
+  for(View* view : coord_views)
+  {
+    addPreparedExternalDoubleViewLoadPlan(view, buffer_view, load_plans);
+  }
+}
+
+/**
+ * @brief Stages external field-value views for loading.
+ *
+ * @param[in] bp_grp The Blueprint group being loaded.
+ * @param[in] named_bufs_grp The named-buffers group that owns reconstructed
+ *   field storage.
+ * @param[in,out] load_plans The collection of staged load plans to append to.
+ */
+void prepareFieldViewsForLoad(Group* bp_grp,
+                              Group* named_bufs_grp,
+                              std::vector<ExternalDoubleViewLoadPlan>& load_plans)
+{
+  if(!bp_grp->hasGroup("fields"))
+  {
+    return;
+  }
+
+  Group* fields_grp = bp_grp->getGroup("fields");
+  for(Group& field_grp : fields_grp->groups())
+  {
+    if(field_grp.hasView("association"))
+    {
+      continue;
+    }
+
+    const std::string buffer_name = field_grp.getName();
+
+    if(field_grp.hasView("values"))
+    {
+      View* values_view = field_grp.getView("values");
+      if(values_view->isExternal())
+      {
+        View* buffer_view = ensureNamedBuffer(named_bufs_grp,
+                                              buffer_name,
+                                              getRequiredBufferSize(values_view),
+                                              values_view->getTypeID());
+        addPreparedExternalDoubleViewLoadPlan(values_view, buffer_view, load_plans);
+      }
+    }
+    else if(field_grp.hasGroup("values"))
+    {
+      Group* values_grp = field_grp.getGroup("values");
+      std::vector<View*> component_views;
+      IndexType required_size = 0;
+
+      for(View& component_view : values_grp->views())
+      {
+        if(component_view.isExternal())
+        {
+          component_views.push_back(&component_view);
+          required_size = std::max(required_size, getRequiredBufferSize(&component_view));
+        }
+      }
+
+      if(!component_views.empty())
+      {
+        View* buffer_view = ensureNamedBuffer(named_bufs_grp,
+                                              buffer_name,
+                                              required_size,
+                                              component_views.front()->getTypeID());
+        for(View* component_view : component_views)
+        {
+          addPreparedExternalDoubleViewLoadPlan(component_view, buffer_view, load_plans);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * @brief Builds staged load plans for external Blueprint coordset and field
+ *   views under a loaded domain group.
+ *
+ * @param[in] domain_grp The loaded domain group containing `blueprint` and
+ *   `named_buffers` children.
+ *
+ * @return The staged load plans needed to restore interleaved MFEM buffers
+ *   after the external payloads are loaded.
+ */
+std::vector<ExternalDoubleViewLoadPlan> prepareBlueprintViewsForLoad(Group* domain_grp)
+{
+  SLIC_ASSERT_MSG(domain_grp != nullptr, "Domain group must not be null");
+
+  Group* bp_grp = domain_grp->getGroup("blueprint");
+  Group* named_bufs_grp = domain_grp->getGroup("named_buffers");
+  SLIC_ASSERT_MSG(bp_grp != nullptr && named_bufs_grp != nullptr,
+                  "Expected blueprint and named_buffers groups in loaded domain");
+
+  std::vector<ExternalDoubleViewLoadPlan> load_plans;
+  prepareCoordsetViewsForLoad(bp_grp, named_bufs_grp, load_plans);
+  prepareFieldViewsForLoad(bp_grp, named_bufs_grp, load_plans);
+  return load_plans;
+}
+
+/**
+ * @brief Finalizes all staged Blueprint views after external data has loaded.
+ *
+ * @param[in,out] load_plans The staged load plans produced by
+ *   prepareBlueprintViewsForLoad().
+ */
+void finalizeBlueprintViewsAfterLoad(std::vector<ExternalDoubleViewLoadPlan>& load_plans)
+{
+  for(auto& load_plan : load_plans)
+  {
+    finalizeExternalDoubleViewAfterLoad(load_plan);
+  }
+}
+
 /**
  * @brief Implements an analogue to mfem::FiniteElementCollection::New
  * for mfem::QuadratureSpaces - basis currently must be of form QF_Default_[ORDER]_[VDIM]
@@ -854,6 +1164,14 @@ void MFEMSidreDataCollection::Load(const std::string& path, const std::string& p
     // This is done instead of creating a temp DataStore so the buffers are intact
     Group* temp_root = m_bp_grp->getDataStore()->getRoot()->createGroup("_sidre_tmp_load");
     reader.read(temp_root, suffixedPath);
+    Group* temp_domain_group = temp_root->getGroup(domain_grp->getPathName());
+
+    // Stage external Blueprint views into temporary contiguous arrays before
+    // IOManager materializes them, then scatter the loaded values back into
+    // named buffers that retain MFEM's interleaved in-memory layout.
+    auto load_plans = detail::prepareBlueprintViewsForLoad(temp_domain_group);
+    reader.loadExternalData(temp_root, suffixedPath);
+    detail::finalizeBlueprintViewsAfterLoad(load_plans);
 
     // First transfer the global group from the temp group to its correct location
     Group* datastore_root = m_bp_grp->getDataStore()->getRoot();
@@ -2425,7 +2743,6 @@ void MFEMSidreDataCollection::reconstructMesh()
   // mfem::ConduitDataCollection::BlueprintMeshToMesh would be useful here, but
   // we need all the parameters to construct a ParMesh (the Mesh base subobject
   // is initialized manually)
-
   SLIC_ERROR_IF(!verifyMeshBlueprint(),
                 "Cannot reconstruct mesh, data does not satisfy Conduit Blueprint");
 
