@@ -1,6 +1,7 @@
 {
   "name": "umpire",
-  "version-string": "2026.07.1",
+  "$comment":"TODO: We're planning to update to release 2026.07.2 when it is available",
+  "version-string": "develop-commit-a74bd731992348a4860f040a5748ba1a7abc7a95",
   "homepage": "https://github.com/llnl/umpire",
   "description": "An application-focused API for memory management on NUMA and GPU architectures",
   "dependencies": [

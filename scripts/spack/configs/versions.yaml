@@ -9,9 +9,10 @@ packages:
   caliper:
     require:
       - spec: "@2.15.0"
+  # v2026.07.2
   camp:
     require:
-      - spec: "@2026.07.1"
+      - spec: "@git.b4edd077937245c120e25e6080be8caee5926347=main"
   conduit:
     require:
       - spec: "@0.9.8"
@@ -31,12 +32,14 @@ packages:
   py-nanobind:
     require:
       - spec: "@2.13.0"
+  # v2026.07.1
   raja:
     require:
-      - spec: "@2026.07.0"
+      - spec: "@git.a7230d0fd7b2d8df7433f8f0464e833db42d38df=develop"
   scr:
     require:
       - spec: "@3.0.1"
+  # Unreleased v2026.07.2 (develop as of 10/7/26)
   umpire:
     require:
-      - spec: "@2026.07.1"
+      - spec: "@git.a74bd731992348a4860f040a5748ba1a7abc7a95=develop"
