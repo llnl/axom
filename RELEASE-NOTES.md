@@ -28,6 +28,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Python: Adds a scikit-build-core project under `src/python/` to build an `axom` wheel for pip or uv.
   The wheel compiles the bindings against the Axom install specified by `AXOM_DIR`.
 - Slam: Adds C++20 concepts for sets, relations, maps, and policies in `Concepts.hpp`.
+- Inlet: A Lua callback declared to return a `Vector` may return a Lua table of one to three numbers,
+  such as `{1.0, 2.0, 3.0}`, as well as `Vector.new(...)`.
 
 ### Removed
 
@@ -42,11 +44,21 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: `MarchingCubes::setMesh()` now accepts single- and multi-domain Blueprint meshes.
 - Quest: Performance and memory improvements for `DistributedClosestPoint` query.
 - Core: Improves handling of `Array` and `ArrayView` with memory allocated with the system allocator.
+- Inlet: `LuaReader` looks up a numeric final path component as an integer key first, like the other
+  components. For example, `values/2` now reads the second entry of `values = {5.0, 6.0}`.
+- Inlet: Lua callback execution errors and return values that cannot convert to the declared type now
+  throw `axom::inlet::InletError`, derived from `std::runtime_error`, instead of reporting a SLIC error.
+  The message includes Lua's error message.
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
 - Spin:`BVH::getBounds()` now returns an invalid bounding box instead of one that covers the whole coordinate range,
   when an empty BVH is constructed.
+- Inlet: `LuaReader` no longer terminates the process when the input supplies a non-table where a table
+  is expected, or a non-function where a function is expected. They now report a wrong-type or missing entry.
+- Inlet: `LuaReader::getAllNames()` no longer recurses infinitely on cyclic Lua tables, such as `t.self = t`.
+- Inlet: Lua callbacks copied into a `std::function` keep their Lua state alive and remain callable
+  after the `Inlet` and `LuaReader` are destroyed.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 

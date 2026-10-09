@@ -13,7 +13,10 @@
 #include "gtest/gtest.h"
 
 #include <array>
+#include <functional>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 #include <unordered_map>
 #include <iostream>
@@ -64,6 +67,138 @@ TEST(inlet_function, simple_vec3_to_vec3_raw)
   EXPECT_FLOAT_EQ(result[0], 2);
   EXPECT_FLOAT_EQ(result[1], 4);
   EXPECT_FLOAT_EQ(result[2], 6);
+}
+
+TEST(inlet_function, vector_function_accepts_lua_table_returns)
+{
+  auto inlet = createBasicInlet(R"(
+    function make_vector (dim)
+      local result = {}
+      for i = 1, dim do result[i] = i end
+      return result
+    end
+  )");
+
+  auto function =
+    inlet.reader().getFunction("make_vector", FunctionTag::Vector, {FunctionTag::Double});
+  ASSERT_TRUE(function);
+  for(int dim = 1; dim <= 3; ++dim)
+  {
+    const auto result = function.call<FunctionType::Vector>(static_cast<double>(dim));
+    ASSERT_EQ(result.dim, dim);
+    for(int component = 0; component < result.dim; ++component)
+    {
+      EXPECT_DOUBLE_EQ(result[component], component + 1.0);
+    }
+  }
+}
+
+TEST(inlet_function, vector_function_accepts_equivalent_table_forms)
+{
+  // Explicit keys, in any order, and float keys with integral values are the same vector
+  for(const std::string table : {"{4.5, -2}", "{[2] = -2, [1] = 4.5}", "{[1.0] = 4.5, [2.0] = -2}"})
+  {
+    auto inlet = createBasicInlet("function foo () return " + table + " end");
+    inlet.addFunction("foo", FunctionTag::Vector, {});
+    ASSERT_TRUE(inlet.verify()) << table;
+
+    // Through Proxy::call and through a std::function copy
+    const auto viaCall = inlet["foo"].call<FunctionType::Vector>();
+    const auto viaCopy = inlet["foo"].get<std::function<FunctionType::Vector()>>()();
+    for(const auto& result : {viaCall, viaCopy})
+    {
+      ASSERT_EQ(result.dim, 2) << table;
+      EXPECT_DOUBLE_EQ(result[0], 4.5) << table;
+      EXPECT_DOUBLE_EQ(result[1], -2.0) << table;
+    }
+  }
+}
+
+TEST(inlet_function, vector_function_rejects_malformed_table_returns)
+{
+  // Lua vectors must be dense numeric sequences with a supported dimension.
+  const std::array<std::string, 13> results {{
+    "2.0",
+    "'text'",
+    "{}",
+    "{1, 2, 3, 4}",
+    "{[1] = 1, [3] = 3}",
+    "{1, 'two'}",
+    "{1, true}",
+    "{1, {2}}",
+    "{1, 2, label = 3}",
+    "{[0] = 0, 1, 2}",
+    "{[1.5] = 1}",
+    "{[-1] = 1}",
+    "{[math.huge] = 1}",
+  }};
+
+  for(const auto& result : results)
+  {
+    auto inlet = createBasicInlet("function foo () return " + result + " end");
+    auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {});
+    ASSERT_TRUE(func);
+    EXPECT_THROW(func.call<FunctionType::Vector>(), axom::inlet::InletError) << result;
+  }
+}
+
+TEST(inlet_function, lua_callback_failures_are_catchable)
+{
+  auto inlet = createBasicInlet(R"(
+    function runtime_error () error('callback failed') end
+    function wrong_type () return 'not a number' end
+  )");
+
+  auto wrongType = inlet.reader().getFunction("wrong_type", FunctionTag::Double, {});
+  ASSERT_TRUE(wrongType);
+  EXPECT_THROW(wrongType.call<FunctionType::Double>(), axom::inlet::InletError);
+
+  auto runtimeError = inlet.reader().getFunction("runtime_error", FunctionTag::Double, {});
+  ASSERT_TRUE(runtimeError);
+
+  try
+  {
+    runtimeError.call<FunctionType::Double>();
+    FAIL() << "Expected the Lua callback to throw";
+  }
+  catch(const axom::inlet::InletError& error)
+  {
+    EXPECT_NE(std::string(error.what()).find("callback failed"), std::string::npos);
+  }
+}
+
+TEST(inlet_function, lua_callback_failures_throw_through_every_access_path)
+{
+  static_assert(std::is_base_of_v<std::runtime_error, axom::inlet::InletError>,
+                "InletError must be catchable as a std::runtime_error");
+
+  auto inlet = createBasicInlet(R"(
+    function fail_void (x) error('void failed') end
+    function add_one (x) return x + 1 end
+  )");
+  inlet.addFunction("fail_void", FunctionTag::Void, {FunctionTag::Double});
+  inlet.addFunction("add_one", FunctionTag::Double, {FunctionTag::String});
+  ASSERT_TRUE(inlet.verify());
+
+  // A void callback still reports an execution error
+  EXPECT_THROW(inlet["fail_void"].call<void>(1.0), axom::inlet::InletError);
+
+  // An invalid input reports an execution error through Proxy::call.
+  EXPECT_THROW(inlet["add_one"].call<double>(std::string {"text"}), axom::inlet::InletError);
+
+  // Copies made with get<std::function> throw the same way
+  auto addOne = inlet["add_one"].get<std::function<double(std::string)>>();
+  EXPECT_DOUBLE_EQ(addOne("2"), 3.0);
+  EXPECT_THROW(addOne("text"), axom::inlet::InletError);
+}
+
+TEST(inlet_function, lua_callback_failure_in_verifier_propagates_from_verify)
+{
+  auto inlet = createBasicInlet("function scale () error('scale failed') end");
+  inlet.addFunction("scale", FunctionTag::Double, {})
+    .registerVerifier([](const axom::inlet::Function& func) { return func.call<double>() > 0.0; });
+
+  EXPECT_THROW(inlet.verify(), axom::inlet::InletError);
 }
 
 TEST(inlet_function, simple_vec3_to_vec3_raw_partial_init)
@@ -123,6 +258,58 @@ TEST(inlet_function, simple_double_to_double_through_container)
   double arg = -6.37;
   double result = callable(arg);
   EXPECT_FLOAT_EQ(result, (arg * 3.4) + 9.64);
+}
+
+TEST(inlet_function, returned_function_keeps_lua_state_alive)
+{
+  // An extracted callback must retain its Lua state after Inlet is destroyed.
+  std::function<double(double)> callback;
+  {
+    auto inlet = createBasicInlet("offset = 3.0; function foo (value) return value + offset end");
+    inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::Double});
+    callback = inlet["foo"].get<std::function<double(double)>>();
+  }
+
+  EXPECT_DOUBLE_EQ(callback(4.0), 7.0);
+}
+
+TEST(inlet_function, returned_functions_share_lua_state_after_inlet_is_destroyed)
+{
+  // Callbacks from one input share its Lua state, including after the Inlet is gone.
+  // Copying, calling, and destroying them in any order must leave the state usable.
+  std::function<double()> increment;
+  std::function<double()> current;
+  {
+    auto inlet = createBasicInlet(R"(
+      count = 0
+      function increment () count = count + 1; return count end
+      function current () return count end
+    )");
+    inlet.addFunction("increment", FunctionTag::Double, {});
+    inlet.addFunction("current", FunctionTag::Double, {});
+    increment = inlet["increment"].get<std::function<double()>>();
+    current = inlet["current"].get<std::function<double()>>();
+  }
+
+  EXPECT_DOUBLE_EQ(increment(), 1.0);
+  auto incrementCopy = increment;
+  increment = nullptr;
+  EXPECT_DOUBLE_EQ(incrementCopy(), 2.0);
+  incrementCopy = nullptr;
+  EXPECT_DOUBLE_EQ(current(), 2.0);
+}
+
+TEST(inlet_function, reader_function_outlives_reader)
+{
+  axom::inlet::FunctionVariant function;
+  {
+    LuaReader reader;
+    reader.parseString("function foo (value) return 2 * value end");
+    function = reader.getFunction("foo", FunctionTag::Double, {FunctionTag::Double});
+  }
+
+  ASSERT_TRUE(function);
+  EXPECT_DOUBLE_EQ(function.call<double>(4.0), 8.0);
 }
 
 TEST(inlet_function, simple_void_to_double_through_container)
