@@ -168,6 +168,33 @@ TEST(bump_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
 TEST(bump_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
+TEST(bump_utilities, fill_from_node_lengths)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  conduit::Node n;
+  n["exact"].set(std::vector<int> {2, 3});
+  n["long"].set(std::vector<int> {4, 5, 6});
+  n["short"].set(std::vector<int> {7});
+
+  axom::StackArray<int, 2> arr {{-1, -1}};
+  EXPECT_FALSE(utils::fillFromNode(n, "missing", arr));
+  EXPECT_EQ(arr[0], -1);
+
+  EXPECT_TRUE(utils::fillFromNode(n, "exact", arr));
+  EXPECT_EQ(arr[0], 2);
+  EXPECT_EQ(arr[1], 3);
+
+  // Extra values are ignored.
+  EXPECT_TRUE(utils::fillFromNode(n, "long", arr, true));
+  EXPECT_EQ(arr[0], 4);
+  EXPECT_EQ(arr[1], 5);
+
+  // Too few values would read past the end of the node's data.
+  EXPECT_THROW(utils::fillFromNode(n, "short", arr), axom::slic::SlicAbortException);
+  EXPECT_THROW(utils::fillFromNode(n, "short", arr, true), axom::slic::SlicAbortException);
+}
+
 //------------------------------------------------------------------------------
 // Bump uses topology node ids to access flat vertex fields.
 // A strided field's offsets and strides must match the topology.
