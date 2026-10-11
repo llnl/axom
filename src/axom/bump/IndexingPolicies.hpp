@@ -7,8 +7,7 @@
 #pragma once
 
 #include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/views/StridedStructuredIndexing.hpp"
-#include "axom/bump/views/StructuredTopologyView.hpp"
+#include "axom/bump/views/view_traits.hpp"
 #include "axom/fmt.hpp"
 #include "axom/slic.hpp"
 
@@ -34,25 +33,110 @@ struct DirectIndexing
   inline axom::IndexType operator[](axom::IndexType index) const { return index; }
 };
 
+namespace detail
+{
+/*!
+ * \brief Apply a field's Blueprint offsets and strides to a strided indexing.
+ *
+ * This preserves the indexing's logical dimensions. Missing \c offsets default to zero.
+ * Missing \c strides describe a compact layout over the logical dimensions.
+ *
+ * \note With \c offsets but no \c strides, a nonzero i-offset moves the last entries of each
+ *       row to the start of the next row. Supply \c strides for padded data.
+ *
+ * \tparam Indexing A StridedStructuredIndexing of some dimension.
+ *
+ * \param field A node that may contain \c offsets and \c strides. It can be in device memory.
+ * \param[in,out] indexing The indexing to update.
+ *
+ * \note Executes on the host. Raises SLIC_ERROR if \c offsets or \c strides does not have one
+ *       entry per dimension, if an offset is negative, or if a stride is not positive.
+ */
+template <typename Indexing>
+void setLayoutFromField(const conduit::Node& field, Indexing& indexing)
+{
+  using LogicalIndex = typename Indexing::LogicalIndex;
+  constexpr int NDIMS = Indexing::dimension();
+
+  const LogicalIndex dims = indexing.logicalDimensions();
+  LogicalIndex offsets, strides;
+  typename Indexing::IndexType stride = 1;
+  for(int d = 0; d < NDIMS; d++)
+  {
+    offsets[d] = 0;
+    strides[d] = stride;
+    stride *= dims[d];
+  }
+
+  for(const char* key : {"offsets", "strides"})
+  {
+    if(field.has_path(key))
+    {
+      const auto count = field.fetch_existing(key).dtype().number_of_elements();
+      SLIC_ERROR_IF(count != NDIMS,
+                    axom::fmt::format("'{}' has {} {} entries, but a {}D topology requires {}.",
+                                      field.path(),
+                                      count,
+                                      key,
+                                      NDIMS,
+                                      NDIMS));
+    }
+  }
+  axom::bump::utilities::fillFromNode(field, "offsets", offsets, true);
+  axom::bump::utilities::fillFromNode(field, "strides", strides, true);
+  for(int d = 0; d < NDIMS; d++)
+  {
+    SLIC_ERROR_IF(offsets[d] < 0 || strides[d] < 1,
+                  axom::fmt::format("'{}' has offset {} and stride {} in dimension {}. "
+                                    "Offsets must be nonnegative and strides must be positive.",
+                                    field.path(),
+                                    offsets[d],
+                                    strides[d],
+                                    d));
+  }
+  indexing = Indexing(dims, offsets, strides);
+}
+}  // end namespace detail
+
 //------------------------------------------------------------------------------
 /*!
- * \brief Help turn slice data zone indices into strided structured element field indices.
+ * \brief Map compact zone indices to a strided-structured element field.
+ *
+ * Bump assigns compact indices from 0 to numberOfZones() - 1. A field on a strided-structured
+ * topology may have padding. Blueprint stores that field's \c offsets and \c strides separately
+ * from the topology's \c elements/dims metadata.
+ *
+ * The object is trivially copyable and can be captured by value in device kernels.
+ *
  * \tparam Indexing A StridedStructuredIndexing of some dimension.
  */
 template <typename Indexing>
 struct SSElementFieldIndexing
 {
+  SSElementFieldIndexing() = default;
+
   /*!
-   * \brief Update the indexing offsets/strides from a Conduit node.
-   * \param field The Conduit node for a field.
+   * \brief Create an index map from the topology's zone indexing and an element field.
+   *
+   * \param zoneIndexing The topology's zone indexing. It supplies the zone dimensions.
+   * \param field The Conduit node for the element field.
    *
    * \note Executes on the host.
    */
-  void update(const conduit::Node& field)
+  SSElementFieldIndexing(const Indexing& zoneIndexing, const conduit::Node& field)
+    : m_indexing(zoneIndexing)
   {
-    axom::bump::utilities::fillFromNode(field, "offsets", m_indexing.m_offsets, true);
-    axom::bump::utilities::fillFromNode(field, "strides", m_indexing.m_strides, true);
+    update(field);
   }
+
+  /*!
+   * \brief Update the field layout.
+   *
+   * \param field The Conduit node for an element field.
+   *
+   * \note Preserves the zone dimensions in \c m_indexing. Executes on the host.
+   */
+  void update(const conduit::Node& field) { detail::setLayoutFromField(field, m_indexing); }
 
   /*!
    * \brief Transforms the index from local to global through an indexing object.
@@ -70,23 +154,43 @@ struct SSElementFieldIndexing
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Help turn blend group node indices (global) into vertex field indices.
+ * \brief Map topology node indices to a strided-structured vertex field.
+ *
+ * Topology node indices address the coordset layout in \c elements/dims.
+ * A vertex field can have its own \c offsets and \c strides.
+ *
+ * The object is trivially copyable and can be captured by value in device kernels.
+ *
  * \tparam Indexing A StridedStructuredIndexing of some dimension.
  */
 template <typename Indexing>
 struct SSVertexFieldIndexing
 {
+  SSVertexFieldIndexing() = default;
+
   /*!
-   * \brief Update the indexing offsets/strides from a Conduit node.
-   * \param field The Conduit node for a field.
+   * \brief Create an index map from the topology's node indexing and a vertex field.
+   *
+   * \param nodeIndexing The topology's node indexing, such as zone indexing's expand().
+   * \param field The Conduit node for the vertex field.
    *
    * \note Executes on the host.
    */
-  void update(const conduit::Node& field)
+  SSVertexFieldIndexing(const Indexing& nodeIndexing, const conduit::Node& field)
+    : m_topoIndexing(nodeIndexing)
+    , m_fieldIndexing(nodeIndexing)
   {
-    axom::bump::utilities::fillFromNode(field, "offsets", m_fieldIndexing.m_offsets, true);
-    axom::bump::utilities::fillFromNode(field, "strides", m_fieldIndexing.m_strides, true);
+    update(field);
   }
+
+  /*!
+   * \brief Update the field layout.
+   *
+   * \param field The Conduit node for a vertex field.
+   *
+   * \note Preserves the node dimensions in \c m_fieldIndexing. Executes on the host.
+   */
+  void update(const conduit::Node& field) { detail::setLayoutFromField(field, m_fieldIndexing); }
 
   /*!
    * \brief Transforms the index from local to global through an indexing object.
@@ -113,155 +217,45 @@ struct SSVertexFieldIndexing
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Map compact zone indices to indices in an element-associated field.
+ * \brief Make an index map from compact zone indices to an element field.
  *
- * Bump numbers zones compactly, from 0 to numberOfZones() - 1.
- * An element field on a strided-structured topology can include padding.
- * Since Blueprint stores its \c offsets and \c strides on the field
- * separately from the topology's \c elements/dims metadata,
- * the mapping depends on the field.
- *
- * This template covers views whose element fields are stored in zone order.
- * Its update() rejects fields with \c offsets or \c strides,
- * since that would require strided zone indexing.
- *
- * Use makeElementFieldIndexing() to construct this type. It is trivially
- * copyable and can be captured by value in device kernels.
- *
- * \tparam TopologyView The topology view type.
- */
-template <typename TopologyView>
-struct ElementFieldIndexing
-{
-  /*!
-   * \brief Initialize the indexing from a field.
-   *
-   * \param topologyView (unused) The topology view.
-   * \param n_field The Conduit node for the element-associated field.
-   *
-   * \note Executes on the host.
-   */
-  void update(const TopologyView& AXOM_UNUSED_PARAM(topologyView), const conduit::Node& n_field)
-  {
-    SLIC_ERROR_IF(n_field.has_path("offsets") || n_field.has_path("strides"),
-                  axom::fmt::format("Field '{}' has Blueprint offsets or strides, but its topology "
-                                    "view does not support strided-structured element fields.",
-                                    n_field.name()));
-  }
-
-  /*!
-   * \brief Return the field index for a zone.
-   * \param zoneIndex The compact zone index.
-   * \return \a zoneIndex because the field is stored in zone order.
-   */
-  AXOM_HOST_DEVICE
-  inline axom::IndexType operator[](axom::IndexType zoneIndex) const { return zoneIndex; }
-};
-
-/*!
- * \brief Map compact zone indices to indices in an element field on a strided-structured topology.
- *
- * The field's \c offsets and \c strides determine the layout.
- * Missing \c offsets default to zero, and missing \c strides default to the compact zone layout.
- * A field with neither is indexed in zone order, and a field with both matches SSElementFieldIndexing.
- *
- * \tparam IndexT The index type of the strided indexing.
- * \tparam NDIMS  The number of topological dimensions.
- */
-template <typename IndexT, int NDIMS>
-struct ElementFieldIndexing<views::StructuredTopologyView<views::StridedStructuredIndexing<IndexT, NDIMS>>>
-{
-  using Indexing = views::StridedStructuredIndexing<IndexT, NDIMS>;
-  using TopologyView = views::StructuredTopologyView<Indexing>;
-  using LogicalIndex = typename Indexing::LogicalIndex;
-
-  /*!
-   * \brief Initialize the indexing from the topology's zone dimensions and the field's layout metadata.
-   *
-   * \param topologyView The topology view.
-   * \param n_field The Conduit node for the element-associated field.
-   *
-   * \note Executes on the host. The metadata can be in device memory.
-   */
-  void update(const TopologyView& topologyView, const conduit::Node& n_field)
-  {
-    const LogicalIndex zoneDims = topologyView.indexing().logicalDimensions();
-    LogicalIndex offsets, strides;
-    IndexT stride = 1;
-    for(int d = 0; d < NDIMS; d++)
-    {
-      offsets[d] = 0;
-      strides[d] = stride;
-      stride *= zoneDims[d];
-    }
-
-    auto validate_layout_size = [&](const char* key) {
-      if(n_field.has_path(key))
-      {
-        const conduit::Node& n_layout = n_field.fetch_existing(key);
-        SLIC_ERROR_IF(
-          n_layout.dtype().number_of_elements() != NDIMS,
-          axom::fmt::format("Field '{}' has {} {} entries, but a {}D topology requires {}.",
-                            n_field.name(),
-                            n_layout.dtype().number_of_elements(),
-                            key,
-                            NDIMS,
-                            NDIMS));
-      }
-    };
-    validate_layout_size("offsets");
-    validate_layout_size("strides");
-
-    axom::bump::utilities::fillFromNode(n_field, "offsets", offsets, true);
-    axom::bump::utilities::fillFromNode(n_field, "strides", strides, true);
-    for(int d = 0; d < NDIMS; d++)
-    {
-      SLIC_ERROR_IF(offsets[d] < 0 || strides[d] < 1,
-                    axom::fmt::format("Field '{}' has offset {} and stride {} in dimension {}. "
-                                      "Offsets must be nonnegative and strides must be positive.",
-                                      n_field.name(),
-                                      offsets[d],
-                                      strides[d],
-                                      d));
-    }
-    m_indexing = Indexing(zoneDims, offsets, strides);
-  }
-
-  /*!
-   * \brief Return the field index for a zone.
-   * \param zoneIndex The compact zone index.
-   * \return The index of \a zoneIndex in the field's values.
-   */
-  AXOM_HOST_DEVICE
-  inline axom::IndexType operator[](axom::IndexType zoneIndex) const
-  {
-    return m_indexing.localToGlobal(zoneIndex);
-  }
-
-  Indexing m_indexing {};
-};
-
-/*!
- * \brief Make an ElementFieldIndexing for a topology view and an element field.
+ * Element fields normally store one value per zone in compact zone order.
+ * On a strided-structured topology, a field's Blueprint \c offsets and \c strides can place those
+ * values in a larger array. This function maps a compact zone index to that array position.
  *
  * \param topologyView The topology view.
  * \param n_field The Conduit node for the element-associated field.
  *
- * \return An indexing object that maps compact zone indices to field indices.
+ * \return An SSElementFieldIndexing that reads the field layout for strided-structured views,
+ *         or DirectIndexing for fields stored in compact zone order. Both are trivially copyable
+ *         and can be captured by value in device kernels.
  *
- * \note Executes on the host. Raises SLIC_ERROR if the field is not element-associated,
- *       if its layout cannot be honored for this view, or if any zone maps outside the field's values.
+ * \note Executes on the host. Raises SLIC_ERROR if the field is not element-associated, if it
+ *       has \c offsets or \c strides on a view that is not strided-structured, if its layout
+ *       metadata is invalid, or if any zone maps outside the field's values.
  */
 template <typename TopologyView>
-ElementFieldIndexing<TopologyView> makeElementFieldIndexing(const TopologyView& topologyView,
-                                                            const conduit::Node& n_field)
+auto makeElementFieldIndexing(const TopologyView& topologyView, const conduit::Node& n_field)
 {
   SLIC_ERROR_IF(!n_field.has_path("association") ||
                   n_field.fetch_existing("association").as_string() != "element",
                 axom::fmt::format("Field '{}' is not element-associated.", n_field.name()));
 
-  ElementFieldIndexing<TopologyView> indexing;
-  indexing.update(topologyView, n_field);
+  const auto indexing = [&]() {
+    if constexpr(views::view_traits<TopologyView>::supports_strided_structured())
+    {
+      return SSElementFieldIndexing<typename TopologyView::IndexingPolicy>(topologyView.indexing(),
+                                                                           n_field);
+    }
+    else
+    {
+      SLIC_ERROR_IF(n_field.has_path("offsets") || n_field.has_path("strides"),
+                    axom::fmt::format("Field '{}' has Blueprint offsets or strides, but its "
+                                      "topology view does not support strided-structured fields.",
+                                      n_field.name()));
+      return DirectIndexing {};
+    }
+  }();
 
   // Strides are positive and offsets nonnegative,
   // so the first and last zones bound the range of field indices.

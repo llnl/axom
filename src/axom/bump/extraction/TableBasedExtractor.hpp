@@ -700,17 +700,13 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
     bool handled = false;
     if(n_field.has_path("offsets") && n_field.has_path("strides"))
     {
-      // Make node indexing that the field blender can use.
+      // Build the node indexing used by the field blender.
       using Indexing = typename TopologyView::IndexingPolicy;
       using IndexingPolicy = axom::bump::SSVertexFieldIndexing<Indexing>;
-      IndexingPolicy indexing;
-      indexing.m_topoIndexing = topologyView.indexing().expand();
-      indexing.m_fieldIndexing = topologyView.indexing().expand();
-      indexing.update(n_field);
+      const IndexingPolicy indexing(topologyView.indexing().expand(), n_field);
 
-      // If the topo and field offsets/strides are different then we need to go through
-      // SSVertexFieldIndexing. Otherwise, we can let the normal case further below
-      // handle the field.
+      // Use SSVertexFieldIndexing when the topology and field layouts differ.
+      // The normal path below handles matching layouts.
       if(indexing.m_topoIndexing.m_offsets != indexing.m_fieldIndexing.m_offsets ||
          indexing.m_topoIndexing.m_strides != indexing.m_fieldIndexing.m_strides)
       {

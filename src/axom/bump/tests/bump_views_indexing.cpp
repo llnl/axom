@@ -190,17 +190,20 @@ void test_element_field_indexing_strided()
   axom::Array<axom::IndexType> hostIndices(indices,
                                            axom::execution_space<axom::SEQ_EXEC>::allocatorID());
 
-  // TableBasedExtractor uses this policy to slice element fields.
-  using Indexing = typename decltype(topoView)::IndexingPolicy;
-  axom::bump::SSElementFieldIndexing<Indexing> reference;
-  reference.m_indexing = topoView.indexing();
-  reference.update(hostMesh["fields/ele_vals"]);
-
-  // The Conduit strided_structured example gives each real element the 1-based zone number.
+  // Sum (logical[d] + offsets[d]) * strides[d] for each dimension.
+  const auto zoneDims = topoView.indexing().logicalDimensions();
+  const auto fieldOffsets = hostMesh["fields/ele_vals/offsets"].as_index_t_accessor();
   for(axom::IndexType z = 0; z < nzones; z++)
   {
+    axom::IndexType rest = z, expectedIndex = 0;
+    for(int d = 0; d < NDIMS; d++)
+    {
+      expectedIndex += (rest % zoneDims[d] + fieldOffsets[d]) * fieldStrides[d];
+      rest /= zoneDims[d];
+    }
+    // The Conduit strided_structured example gives each real element the 1-based zone number.
     EXPECT_EQ(hostGathered[z], static_cast<double>(z + 1)) << "zone " << z;
-    EXPECT_EQ(hostIndices[z], reference[z]) << "zone " << z;
+    EXPECT_EQ(hostIndices[z], expectedIndex) << "zone " << z;
   }
 }
 
