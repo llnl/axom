@@ -262,6 +262,37 @@ TEST(bump_utilities, validate_vertex_field_indexing_rejects_mismatch)
   }
 }
 
+TEST(bump_utilities, validate_vertex_field_indexing_resolves_defaults)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  // The topology omits offsets, so they default to 0. The field explicitly uses [0, 0].
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  mesh["topologies/mesh/elements/dims"].remove("offsets");
+  conduit::Node& n_field = mesh["fields/vert_vals"];
+  conduit::index_t* offsets = n_field["offsets"].value();
+  offsets[0] = 0;
+  offsets[1] = 0;
+  EXPECT_NO_THROW(utils::validateVertexFieldIndexing(mesh["topologies/mesh"], n_field, "vert_vals"));
+
+  // An explicit compact field layout matches a compact structured topology.
+  conduit::Node compact;
+  conduit::blueprint::mesh::examples::braid("structured", 4, 5, 0, compact);
+  conduit::Node& n_compactField = compact["fields/braid"];
+  n_compactField["offsets"].set(std::vector<conduit::index_t> {0, 0});
+  n_compactField["strides"].set(std::vector<conduit::index_t> {1, 4});
+  EXPECT_NO_THROW(
+    utils::validateVertexFieldIndexing(compact["topologies/mesh"], n_compactField, "braid"));
+
+  // A different j-stride on the same compact topology is rejected.
+  conduit::index_t* strides = n_compactField["strides"].value();
+  strides[1] = 5;
+  EXPECT_THROW(
+    utils::validateVertexFieldIndexing(compact["topologies/mesh"], n_compactField, "braid"),
+    axom::slic::SlicAbortException);
+}
+
 TEST(bump_utilities, validate_vertex_field_indexing_rejects_stride_mismatch)
 {
   axom::slic::ScopedAbortToThrow abort_guard;
