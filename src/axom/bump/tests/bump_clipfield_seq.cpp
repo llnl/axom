@@ -410,6 +410,12 @@ TEST(bump_clipfield_seq, strided_structured_2d_field_layout_seq)
   test_strided_structured_2d_field_layout(true);
 }
 
+TEST(bump_clipfield_seq, strided_structured_2d_partial_field_layout_seq)
+{
+  // Strides only: offsets default to 0 for both vertex and element fields.
+  test_strided_structured_2d_field_layout(false);
+}
+
 TEST(bump_clipfield_seq, tet_seq)
 {
   braid3d_clip_test<seq_exec, axom::bump::views::TetShape<int>>("tets", "tet");
