@@ -26,6 +26,7 @@ please add your name to the list below as part of your commit.
 * Jordan Backes
 * Aaron Black
 * Evan Desantola
+* Sylvester Kaczmarek
 * Randy Settgast
 * Austin Stromme
 * Raine Yeh
