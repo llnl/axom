@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO llnl/umpire
-    REF v2026.07.1
-    SHA512 b88c68094f6e009b96893a8bf0bd0d4a045eb233fb10a5c0be5ff8da5c185de9fe8182c6f71ff60d48c885339501e0f4fc15c0f4fc8f510d131bbac8ef4d42bc
+    REF v2026.07.2
+    SHA512 0b6750e9231a6a2e75e21c0619bdbef40781fb2c4f2aded6a4be8ed127b2204f8f0bf65a610c55e2feeabcbd19ce01cdd18fdb70b8eff73c44fb90c1c4adf8f8
     HEAD_REF develop
 )
 
