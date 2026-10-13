@@ -37,9 +37,8 @@ std::vector<std::string> coordsetAxes(const conduit::Node& n_input);
  * \param[in] fieldName  The field's name, used only in diagnostics.
  *
  * Bump uses the node ids returned by \c TopologyView::zone() to index flat vertex fields.
- * Offsets and strides form a strided layout, missing offsets are zero and missing strides describe
- * a compact layout over the node dimensions. The field layout must match the topology's node layout,
- * and the topology's i-stride must be 1.
+ * Strided field layouts require strides, while offsets default to zero if not provided.
+ * The field layout must match the topology's node layout, and the topology's i-stride must be 1.
  *
  * \note Without field layout metadata, topology node ids directly index the field values.
  *       The function rejects layout metadata on a topology without \c elements/dims.

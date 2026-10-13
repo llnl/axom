@@ -248,6 +248,17 @@ TEST(bump_utilities, validate_vertex_field_indexing_rejects_mismatch)
                  axom::slic::SlicAbortException);
   }
 
+  // Strided fields require strides. Offsets are optional.
+  {
+    conduit::Node offsets_only;
+    offsets_only.set(mesh);
+    offsets_only["fields/vert_vals"].remove("strides");
+    EXPECT_THROW(utils::validateVertexFieldIndexing(offsets_only["topologies/mesh"],
+                                                    offsets_only["fields/vert_vals"],
+                                                    "vert_vals"),
+                 axom::slic::SlicAbortException);
+  }
+
   // Reject field layout metadata on a compact topology.
   {
     conduit::Node compact;
@@ -284,6 +295,17 @@ TEST(bump_utilities, validate_vertex_field_indexing_resolves_defaults)
   n_compactField["strides"].set(std::vector<conduit::index_t> {1, 4});
   EXPECT_NO_THROW(
     utils::validateVertexFieldIndexing(compact["topologies/mesh"], n_compactField, "braid"));
+
+  // Strided topology metadata requires strides, like strided field metadata.
+  conduit::Node offsets_only_topology;
+  offsets_only_topology.set(mesh);
+  offsets_only_topology["topologies/mesh/elements/dims/offsets"].set(
+    std::vector<conduit::index_t> {0, 0});
+  offsets_only_topology["topologies/mesh/elements/dims"].remove("strides");
+  EXPECT_THROW(utils::validateVertexFieldIndexing(offsets_only_topology["topologies/mesh"],
+                                                  offsets_only_topology["fields/vert_vals"],
+                                                  "vert_vals"),
+               axom::slic::SlicAbortException);
 
   // A different j-stride on the same compact topology is rejected.
   conduit::index_t* strides = n_compactField["strides"].value();

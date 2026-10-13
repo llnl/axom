@@ -234,7 +234,7 @@ TEST(bump_views_indexing, element_field_indexing_strided_hip)
 }
 #endif
 
-TEST(bump_views_indexing, element_field_indexing_strided_partial_metadata)
+TEST(bump_views_indexing, element_field_indexing_strided_without_offsets)
 {
   conduit::Node mesh;
   axom::blueprint::testing::data::strided_structured<2>(mesh);
@@ -268,25 +268,13 @@ TEST(bump_views_indexing, element_field_indexing_strided_partial_metadata)
       EXPECT_EQ(indexing[z], (z % dims[0]) + (z / dims[0]) * 5);
     }
   }
-
-  // With offsets only, strides default to the compact zone layout.
-  {
-    conduit::Node n_field;
-    n_field["association"] = "element";
-    n_field["topology"] = "mesh";
-    n_field["offsets"].set(std::vector<conduit::index_t> {0, 1});
-    n_field["values"].set(std::vector<double>(dims[0] * (dims[1] + 1), 0.));
-    const auto indexing = axom::bump::makeElementFieldIndexing(topoView, n_field);
-    for(axom::IndexType z = 0; z < nzones; z++)
-    {
-      EXPECT_EQ(indexing[z], z + dims[0]);
-    }
-  }
 }
 
-void test_element_field_slicing_partial_metadata(const char* missing_key,
-                                                 const std::vector<axom::IndexType>& field_indices)
+TEST(bump_views_indexing, element_field_slicing_strided_without_offsets)
 {
+  // A strides-only field has zero offsets and a j-stride of 7.
+  std::vector<axom::IndexType> field_indices {0, 1, 2, 7, 8, 9};
+
   conduit::Node mesh;
   axom::blueprint::testing::data::strided_structured<2>(mesh);
   auto topo_view = views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
@@ -294,14 +282,7 @@ void test_element_field_slicing_partial_metadata(const char* missing_key,
   conduit::Node n_field;
   n_field["association"] = "element";
   n_field["topology"] = "mesh";
-  if(std::string(missing_key) == "offsets")
-  {
-    n_field["strides"].set(std::vector<conduit::index_t> {1, 7});
-  }
-  else
-  {
-    n_field["offsets"].set(std::vector<conduit::index_t> {2, 2});
-  }
+  n_field["strides"].set(std::vector<conduit::index_t> {1, 7});
 
   std::vector<double> values(field_indices.back() + 1, -1.);
   for(axom::IndexType zone = 0; zone < topo_view.numberOfZones(); zone++)
@@ -329,13 +310,27 @@ void test_element_field_slicing_partial_metadata(const char* missing_key,
   }
 }
 
-TEST(bump_views_indexing, element_field_slicing_strided_partial_metadata)
+TEST(bump_views_indexing, element_field_slicing_rejects_offsets_without_strides)
 {
-  // A strides-only field has zero offsets and a j-stride of 7.
-  test_element_field_slicing_partial_metadata("offsets", {0, 1, 2, 7, 8, 9});
+  axom::slic::ScopedAbortToThrow abort_guard;
 
-  // An offsets-only field has compact strides and an offset of [2, 2].
-  test_element_field_slicing_partial_metadata("strides", {8, 9, 10, 11, 12, 13});
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  auto topo_view = views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+
+  conduit::Node n_field;
+  n_field["association"] = "element";
+  n_field["topology"] = "mesh";
+  n_field["offsets"].set(std::vector<conduit::index_t> {2, 2});
+  n_field["values"].set(std::vector<double>(42, 0.));
+
+  axom::Array<axom::IndexType> selected_zones {0};
+  axom::bump::SliceData slice {selected_zones.view()};
+  conduit::Node sliced_field;
+  using Fields =
+    axom::bump::extraction::detail::StridedStructuredFields<true, seq_exec, decltype(topo_view)>;
+  EXPECT_THROW(Fields::sliceElementField(topo_view, slice, n_field, sliced_field),
+               axom::slic::SlicAbortException);
 }
 
 // Views whose element fields are stored in zone order return the identity.
@@ -415,6 +410,15 @@ TEST(bump_views_indexing, element_field_indexing_rejects_bad_fields)
                  axom::slic::SlicAbortException);
   }
 
+  // Strided fields require strides. Offsets are optional.
+  {
+    conduit::Node n_field;
+    n_field.set(strided["fields/ele_vals"]);
+    n_field.remove("strides");
+    EXPECT_THROW(axom::bump::makeElementFieldIndexing(stridedView, n_field),
+                 axom::slic::SlicAbortException);
+  }
+
   // Layout metadata must have one entry per topology dimension.
   {
     conduit::Node n_field;
@@ -452,7 +456,7 @@ int main(int argc, char* argv[])
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
 
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
+  axom::slic::SimpleLogger logger;
 
   result = RUN_ALL_TESTS();
   return result;

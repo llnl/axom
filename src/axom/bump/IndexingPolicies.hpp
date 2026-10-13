@@ -36,24 +36,23 @@ struct DirectIndexing
 namespace detail
 {
 /*!
- * \brief Apply a field's Blueprint offsets and strides to a strided indexing.
+ * \brief Apply Blueprint offsets and strides to a strided indexing.
  *
- * This preserves the indexing's logical dimensions. Missing \c offsets default to zero.
- * Missing \c strides describe a compact layout over the logical dimensions.
- *
- * \note With \c offsets but no \c strides, a nonzero i-offset moves the last entries of each
- *       row to the start of the next row. Supply \c strides for padded data.
+ * This preserves the indexing's logical dimensions. A strided layout requires \c strides,
+ * while missing \c offsets default to zero.
  *
  * \tparam Indexing A StridedStructuredIndexing of some dimension.
  *
- * \param field A node that may contain \c offsets and \c strides. It can be in device memory.
+ * \param node A field or topology-dimensions node that contains \c strides and may contain \c offsets.
+ *        It can be in device memory.
  * \param[in,out] indexing The indexing to update.
  *
- * \note Executes on the host. Raises SLIC_ERROR if \c offsets or \c strides does not have one
- *       entry per dimension, if an offset is negative, or if a stride is not positive.
+ * \note Executes on the host. Raises SLIC_ERROR if a layout has \c offsets without \c strides,
+ *       if metadata does not have one entry per dimension, if an offset is negative,
+ *       or if a stride is not positive.
  */
 template <typename Indexing>
-void setLayoutFromField(const conduit::Node& field, Indexing& indexing)
+void setLayoutFromNode(const conduit::Node& node, Indexing& indexing)
 {
   using LogicalIndex = typename Indexing::LogicalIndex;
   constexpr int NDIMS = Indexing::dimension();
@@ -68,28 +67,33 @@ void setLayoutFromField(const conduit::Node& field, Indexing& indexing)
     stride *= dims[d];
   }
 
+  SLIC_ERROR_IF(node.has_path("offsets") && !node.has_path("strides"),
+                axom::fmt::format("Blueprint layout '{}' has offsets but no strides. "
+                                  "Strided-structured layouts require strides.",
+                                  node.path()));
+
   for(const char* key : {"offsets", "strides"})
   {
-    if(field.has_path(key))
+    if(node.has_path(key))
     {
-      const auto count = field.fetch_existing(key).dtype().number_of_elements();
+      const auto count = node.fetch_existing(key).dtype().number_of_elements();
       SLIC_ERROR_IF(count != NDIMS,
                     axom::fmt::format("'{}' has {} {} entries, but a {}D topology requires {}.",
-                                      field.path(),
+                                      node.path(),
                                       count,
                                       key,
                                       NDIMS,
                                       NDIMS));
     }
   }
-  axom::bump::utilities::fillFromNode(field, "offsets", offsets, true);
-  axom::bump::utilities::fillFromNode(field, "strides", strides, true);
+  axom::bump::utilities::fillFromNode(node, "offsets", offsets, true);
+  axom::bump::utilities::fillFromNode(node, "strides", strides, true);
   for(int d = 0; d < NDIMS; d++)
   {
     SLIC_ERROR_IF(offsets[d] < 0 || strides[d] < 1,
                   axom::fmt::format("'{}' has offset {} and stride {} in dimension {}. "
                                     "Offsets must be nonnegative and strides must be positive.",
-                                    field.path(),
+                                    node.path(),
                                     offsets[d],
                                     strides[d],
                                     d));
@@ -136,7 +140,7 @@ struct SSElementFieldIndexing
    *
    * \note Preserves the zone dimensions in \c m_indexing. Executes on the host.
    */
-  void update(const conduit::Node& field) { detail::setLayoutFromField(field, m_indexing); }
+  void update(const conduit::Node& field) { detail::setLayoutFromNode(field, m_indexing); }
 
   /*!
    * \brief Transforms the index from local to global through an indexing object.
@@ -190,7 +194,7 @@ struct SSVertexFieldIndexing
    *
    * \note Preserves the node dimensions in \c m_fieldIndexing. Executes on the host.
    */
-  void update(const conduit::Node& field) { detail::setLayoutFromField(field, m_fieldIndexing); }
+  void update(const conduit::Node& field) { detail::setLayoutFromNode(field, m_fieldIndexing); }
 
   /*!
    * \brief Transforms the index from local to global through an indexing object.

@@ -76,7 +76,7 @@ void validateStructuredVertexField(const conduit::Node& n_dims,
     ones[d] = 1;
   }
   Indexing topoLayout(nodeDims, zeros, ones);
-  axom::bump::detail::setLayoutFromField(n_dims, topoLayout);
+  axom::bump::detail::setLayoutFromNode(n_dims, topoLayout);
 
   // StructuredTopologyView::zone() constructs adjacent corner ids by adding 1.
   SLIC_ERROR_IF(topoLayout.m_strides[0] != 1,
@@ -91,7 +91,7 @@ void validateStructuredVertexField(const conduit::Node& n_dims,
   }
 
   Indexing fieldLayout(nodeDims, zeros, ones);
-  axom::bump::detail::setLayoutFromField(n_field, fieldLayout);
+  axom::bump::detail::setLayoutFromNode(n_field, fieldLayout);
   SLIC_ERROR_IF(
     fieldLayout.m_offsets != topoLayout.m_offsets || fieldLayout.m_strides != topoLayout.m_strides,
     axom::fmt::format(

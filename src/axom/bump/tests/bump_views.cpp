@@ -1049,7 +1049,7 @@ TEST(bump_views, strided_structured_dispatch_topology_seq)
 }
 
 //------------------------------------------------------------------------------
-// Treat a structured topology with offsets or strides as strided.
+// Strided structured topologies require strides; offsets are optional.
 //------------------------------------------------------------------------------
 template <typename TopologyView>
 std::vector<axom::IndexType> collect_zone_ids(const TopologyView& topoView)
@@ -1068,18 +1068,15 @@ std::vector<axom::IndexType> collect_zone_ids(const TopologyView& topoView)
 }
 
 template <int NDIMS>
-void test_strided_structured_partial_metadata(const std::string& removeKey)
+void test_strided_structured_without_offsets()
 {
-  SCOPED_TRACE(axom::fmt::format("{}D, removed '{}'", NDIMS, removeKey));
+  SCOPED_TRACE(axom::fmt::format("{}D", NDIMS));
   conduit::Node mesh;
   axom::blueprint::testing::data::strided_structured<NDIMS>(mesh);
   conduit::Node& n_topo = mesh["topologies/mesh"];
-  if(!removeKey.empty())
-  {
-    n_topo.remove(removeKey);
-  }
+  n_topo.remove("elements/dims/offsets");
 
-  // dispatch_structured_topology() already accepts either key.
+  // dispatch_structured_topology() accepts strides without offsets.
   std::vector<axom::IndexType> expected, actual;
   bool expectedStrided = false, actualStrided = false;
   views::dispatch_structured_topology<views::select_dimensions(NDIMS)>(
@@ -1101,13 +1098,35 @@ void test_strided_structured_partial_metadata(const std::string& removeKey)
   EXPECT_EQ(expected, actual);
 }
 
+template <int NDIMS>
+void test_strided_structured_requires_strides()
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<NDIMS>(mesh);
+  conduit::Node& n_topo = mesh["topologies/mesh"];
+  n_topo.remove("elements/dims/strides");
+
+  const auto make_view = [&]() {
+    return views::make_strided_structured_topology<NDIMS>::view(n_topo);
+  };
+  EXPECT_THROW(make_view(), axom::slic::SlicAbortException);
+  EXPECT_THROW(views::dispatch_structured_topology<views::select_dimensions(NDIMS)>(
+                 n_topo,
+                 [](const std::string&, auto) { }),
+               axom::slic::SlicAbortException);
+  EXPECT_THROW(views::dispatch_structured_topologies<views::select_dimensions(NDIMS)>(
+                 n_topo,
+                 [](const std::string&, auto) { }),
+               axom::slic::SlicAbortException);
+}
+
 TEST(bump_views, strided_structured_partial_metadata_dispatch)
 {
-  for(const std::string key : {"", "elements/dims/offsets", "elements/dims/strides"})
-  {
-    test_strided_structured_partial_metadata<2>(key);
-    test_strided_structured_partial_metadata<3>(key);
-  }
+  test_strided_structured_without_offsets<2>();
+  test_strided_structured_without_offsets<3>();
+  test_strided_structured_requires_strides<2>();
+  test_strided_structured_requires_strides<3>();
 
   // Verify the strides-only result independently. With default offsets, zone
   // (i,j) starts at node i + j * 7 in the 7-node-wide coordset.

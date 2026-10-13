@@ -652,14 +652,14 @@ struct StridedStructuredFields
  * \tparam ExecSpace The execution space.
  * \tparam TopologyView The topology view type.
  *
- * \note This was extracted from TableBasedExtractor to remove some "if constexpr". Put
- *       it back someday.
+ * \note This was extracted from TableBasedExtractor to remove some "if constexpr".
+         Put it back someday.
  */
 template <typename ExecSpace, typename TopologyView>
 struct StridedStructuredFields<true, ExecSpace, TopologyView>
 {
   /*!
-   * \brief Slice an element field with offsets or strides.
+   * \brief Slice an element field with strides and optional offsets.
    *
    * \param topologyView The topology view.
    * \param slice Slice data.
@@ -672,7 +672,11 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
                                 conduit::Node& n_newField,
                                 int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
-    if(n_field.has_path("offsets") || n_field.has_path("strides"))
+    SLIC_ERROR_IF(n_field.has_path("offsets") && !n_field.has_path("strides"),
+                  axom::fmt::format("Field '{}' has offsets but no strides. "
+                                    "Strided-structured fields require strides.",
+                                    n_field.name()));
+    if(n_field.has_path("strides"))
     {
       const auto indexing = axom::bump::makeElementFieldIndexing(topologyView, n_field);
       axom::bump::FieldSlicer<ExecSpace, decltype(indexing)> s(indexing);
@@ -684,10 +688,9 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
   }
 
   /*!
-   * \brief Blend a vertex field with offsets or strides.
+   * \brief Blend a vertex field with strides and optional offsets.
    *
-   * Missing \c offsets default to zero, and missing \c strides default to the compact
-   * node layout, as for element fields.
+   * Missing \c offsets default to zero.
    *
    * \param topologyView The topology view.
    * \param blend Blend data.
@@ -701,7 +704,11 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
                                int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     bool handled = false;
-    if(n_field.has_path("offsets") || n_field.has_path("strides"))
+    SLIC_ERROR_IF(n_field.has_path("offsets") && !n_field.has_path("strides"),
+                  axom::fmt::format("Field '{}' has offsets but no strides. "
+                                    "Strided-structured fields require strides.",
+                                    n_field.name()));
+    if(n_field.has_path("strides"))
     {
       // Build the node indexing used by the field blender.
       using Indexing = typename TopologyView::IndexingPolicy;
