@@ -83,7 +83,7 @@ void validateStructuredVertexField(const conduit::Node& n_hostDims,
 
   if(!n_field.has_path("offsets") && !n_field.has_path("strides"))
   {
-    // Without field layout metadata, topology node ids index the values directly.
+    // Topology node ids directly index fields without layout metadata.
     return;
   }
 
@@ -116,7 +116,7 @@ void validateVertexFieldIndexing(const conduit::Node& n_topology,
     return;
   }
 
-  // Read the dimensions on the host, since the topology can be in device memory.
+  // Copy dimensions to the host because the topology may reside in device memory.
   const conduit::Node& n_dims = n_topology.fetch_existing("elements/dims");
   conduit::Node n_host;
   conduit::Node& n_hostDims = n_host[n_dims.path()];

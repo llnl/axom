@@ -76,7 +76,7 @@ struct StridedStructuredIndexing
    *
    * \param dims The number of values in each logical dimension.
    *
-   * Offsets are zero and strides are compact, with dimension 0 fastest.
+   * Sets zero offsets and compact strides with dimension 0 fastest.
    */
   AXOM_HOST_DEVICE
   explicit StridedStructuredIndexing(const LogicalIndex& dims)
@@ -94,7 +94,7 @@ struct StridedStructuredIndexing
 #if !defined(AXOM_DEVICE_CODE)
     for(int d = 0; d < NDIMS; d++)
     {
-      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must greater than or equal to 1.");
+      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must be greater than or equal to 1.");
     }
 #endif
   }
@@ -117,7 +117,7 @@ struct StridedStructuredIndexing
 #if !defined(AXOM_DEVICE_CODE)
     for(int d = 0; d < NDIMS; d++)
     {
-      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must greater than or equal to 1.");
+      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must be greater than or equal to 1.");
     }
 #endif
   }

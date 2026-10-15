@@ -38,16 +38,16 @@ namespace detail
 /*!
  * \brief Apply Blueprint offsets and strides to a strided indexing.
  *
- * This preserves the indexing's logical dimensions. A strided layout requires \c strides,
+ * Keeps the indexing's logical dimensions. Strided layouts require \c strides,
  * while missing \c offsets default to zero.
  *
  * \tparam Indexing A StridedStructuredIndexing of some dimension.
  *
  * \param node A field or topology-dimensions node that contains \c strides and may contain \c offsets.
- *        It can be in device memory.
+ *        The node may reside in device memory.
  * \param[in,out] indexing The indexing to update.
  *
- * \note Executes on the host. Raises SLIC_ERROR if a layout has \c offsets without \c strides,
+ * \note Runs on the host. Raises SLIC_ERROR if a layout has \c offsets without \c strides,
  *       if metadata does not have one entry per dimension, if an offset is negative,
  *       or if a stride is not positive.
  */

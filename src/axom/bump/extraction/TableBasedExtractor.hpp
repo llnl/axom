@@ -2021,8 +2021,7 @@ private:
             axom::bump::SSVertexFieldIndexing<typename TopologyView::IndexingPolicy>;
           const IndexingPolicy indexing(m_topologyView.indexing().expand(), n_field);
 
-          // A field whose layout matches the topology's node layout is indexed by node id,
-          // so only differing layouts need the remapping blender.
+          // Matching layouts use topology node ids. Remap only mismatched layouts.
           if(indexing.m_topoIndexing.m_offsets != indexing.m_fieldIndexing.m_offsets ||
              indexing.m_topoIndexing.m_strides != indexing.m_fieldIndexing.m_strides)
           {
