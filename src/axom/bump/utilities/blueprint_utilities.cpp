@@ -58,8 +58,7 @@ std::string formatLayout(const Indexing& indexing)
 
 // Compare a vertex field's resolved layout with the structured topology's node layout.
 template <int NDIMS>
-void validateStructuredVertexField(const conduit::Node& n_dims,
-                                   const conduit::Node& n_hostDims,
+void validateStructuredVertexField(const conduit::Node& n_hostDims,
                                    const conduit::Node& n_field,
                                    const std::string& fieldName)
 {
@@ -74,7 +73,7 @@ void validateStructuredVertexField(const conduit::Node& n_dims,
     nodeDims[d] = n_hostDims.fetch_existing(axes[d]).to_index_t() + 1;
   }
   Indexing topoLayout(nodeDims);
-  axom::bump::detail::setLayoutFromNode(n_dims, topoLayout);
+  axom::bump::detail::setLayoutFromNode(n_hostDims, topoLayout);
 
   // StructuredTopologyView::zone() constructs adjacent corner ids by adding 1.
   SLIC_ERROR_IF(topoLayout.m_strides[0] != 1,
@@ -119,19 +118,20 @@ void validateVertexFieldIndexing(const conduit::Node& n_topology,
 
   // Read the dimensions on the host, since the topology can be in device memory.
   const conduit::Node& n_dims = n_topology.fetch_existing("elements/dims");
-  conduit::Node n_hostDims;
+  conduit::Node n_host;
+  conduit::Node& n_hostDims = n_host[n_dims.path()];
   axom::bump::utilities::copy<axom::SEQ_EXEC>(n_hostDims, n_dims);
   if(n_hostDims.has_child("k"))
   {
-    validateStructuredVertexField<3>(n_dims, n_hostDims, n_field, fieldName);
+    validateStructuredVertexField<3>(n_hostDims, n_field, fieldName);
   }
   else if(n_hostDims.has_child("j"))
   {
-    validateStructuredVertexField<2>(n_dims, n_hostDims, n_field, fieldName);
+    validateStructuredVertexField<2>(n_hostDims, n_field, fieldName);
   }
   else
   {
-    validateStructuredVertexField<1>(n_dims, n_hostDims, n_field, fieldName);
+    validateStructuredVertexField<1>(n_hostDims, n_field, fieldName);
   }
 }
 
