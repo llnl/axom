@@ -8,7 +8,8 @@
 
 #include "axom/slic.hpp"
 #include "axom/bump.hpp"
-#include "axom/bump/extraction/TableBasedExtractor.hpp"
+#include "axom/bump/FieldSlicer.hpp"
+#include "axom/bump/IndexingPolicies.hpp"
 #include "axom/bump/views/StridedStructuredIndexing.hpp"
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
@@ -330,14 +331,10 @@ TEST(bump_views_indexing, element_field_slicing_strided_without_offsets)
   axom::Array<axom::IndexType> selected_zones {{0, 2, 3, 5}};
   axom::bump::SliceData slice {selected_zones.view()};
   conduit::Node sliced_field;
-  const bool handled =
-    axom::bump::extraction::detail::StridedStructuredFields<true, seq_exec, decltype(topo_view)>::sliceElementField(
-      topo_view,
-      slice,
-      n_field,
-      sliced_field);
+  const auto indexing = axom::bump::makeElementFieldIndexing(topo_view, n_field);
+  axom::bump::FieldSlicer<seq_exec, decltype(indexing)> slicer(indexing);
+  slicer.execute(slice, n_field, sliced_field);
 
-  ASSERT_TRUE(handled);
   const auto sliced_values = sliced_field["values"].as_double_accessor();
   ASSERT_EQ(sliced_values.number_of_elements(), selected_zones.size());
   for(conduit::index_t i = 0; i < sliced_values.number_of_elements(); i++)
