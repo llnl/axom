@@ -594,144 +594,6 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
 };
 #endif
 
-/*!
- * \brief Base template for handling fields on a strided-structured mesh. The
- *        default is that the mesh is not strided-structured so do nothing.
- *
- * \tparam enabled Whether the mesh is strided-structured.
- * \tparam ExecSpace The execution space.
- * \tparam TopologyView The topology view type.
- *
- * \note This was extracted from TableBasedExtractor to remove some "if constexpr". Put
- *       it back someday.
- */
-template <bool enabled, typename ExecSpace, typename TopologyView>
-struct StridedStructuredFields
-{
-  /*!
-   * \brief Slice an element field.
-   *
-   * \param topologyView The topology view.
-   * \param slice Slice data.
-   * \param n_field The field being sliced.
-   * \param n_newField The node that will contain the new field.
-   */
-  static bool sliceElementField(
-    const TopologyView& AXOM_UNUSED_PARAM(topologyView),
-    const axom::bump::SliceData& AXOM_UNUSED_PARAM(slice),
-    const conduit::Node& AXOM_UNUSED_PARAM(n_field),
-    conduit::Node& AXOM_UNUSED_PARAM(n_newField),
-    int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
-  {
-    return false;
-  }
-
-  /*!
-   * \brief Blend a vertex field.
-   *
-   * \param topologyView The topology view.
-   * \param blend Blend data.
-   * \param n_field The field being sliced.
-   * \param n_newField The node that will contain the new field.
-   */
-  static bool blendVertexField(
-    const TopologyView& AXOM_UNUSED_PARAM(topologyView),
-    const axom::bump::BlendData& AXOM_UNUSED_PARAM(blend),
-    const conduit::Node& AXOM_UNUSED_PARAM(n_field),
-    conduit::Node& AXOM_UNUSED_PARAM(n_newField),
-    int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
-  {
-    return false;
-  }
-};
-
-/*!
- * \brief Partial specialization to handle fields on strided-structured mesh.
- *        This is the strided-structured case.
- *
- * \tparam ExecSpace The execution space.
- * \tparam TopologyView The topology view type.
- *
- * \note This was extracted from TableBasedExtractor to remove some "if constexpr".
-         Put it back someday.
- */
-template <typename ExecSpace, typename TopologyView>
-struct StridedStructuredFields<true, ExecSpace, TopologyView>
-{
-  /*!
-   * \brief Slice an element field with strides and optional offsets.
-   *
-   * \param topologyView The topology view.
-   * \param slice Slice data.
-   * \param n_field The field being sliced.
-   * \param n_newField The node that will contain the new field.
-   */
-  static bool sliceElementField(const TopologyView& topologyView,
-                                const axom::bump::SliceData& slice,
-                                const conduit::Node& n_field,
-                                conduit::Node& n_newField,
-                                int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
-  {
-    SLIC_ERROR_IF(n_field.has_path("offsets") && !n_field.has_path("strides"),
-                  axom::fmt::format("Field '{}' has offsets but no strides. "
-                                    "Strided-structured fields require strides.",
-                                    n_field.name()));
-    if(n_field.has_path("strides"))
-    {
-      const auto indexing = axom::bump::makeElementFieldIndexing(topologyView, n_field);
-      axom::bump::FieldSlicer<ExecSpace, decltype(indexing)> s(indexing);
-      s.setAllocatorID(allocator_id);
-      s.execute(slice, n_field, n_newField);
-      return true;
-    }
-    return false;
-  }
-
-  /*!
-   * \brief Blend a vertex field with strides and optional offsets.
-   *
-   * Missing \c offsets default to zero.
-   *
-   * \param topologyView The topology view.
-   * \param blend Blend data.
-   * \param n_field The field being sliced.
-   * \param n_newField The node that will contain the new field.
-   */
-  static bool blendVertexField(const TopologyView& topologyView,
-                               const axom::bump::BlendData& blend,
-                               const conduit::Node& n_field,
-                               conduit::Node& n_newField,
-                               int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
-  {
-    bool handled = false;
-    SLIC_ERROR_IF(n_field.has_path("offsets") && !n_field.has_path("strides"),
-                  axom::fmt::format("Field '{}' has offsets but no strides. "
-                                    "Strided-structured fields require strides.",
-                                    n_field.name()));
-    if(n_field.has_path("strides"))
-    {
-      // Build the node indexing used by the field blender.
-      using Indexing = typename TopologyView::IndexingPolicy;
-      using IndexingPolicy = axom::bump::SSVertexFieldIndexing<Indexing>;
-      const IndexingPolicy indexing(topologyView.indexing().expand(), n_field);
-
-      // Use SSVertexFieldIndexing when the topology and field layouts differ.
-      // The normal path below handles matching layouts.
-      if(indexing.m_topoIndexing.m_offsets != indexing.m_fieldIndexing.m_offsets ||
-         indexing.m_topoIndexing.m_strides != indexing.m_fieldIndexing.m_strides)
-      {
-        // Blend the field.
-        axom::bump::FieldBlender<ExecSpace, axom::bump::SelectSubsetPolicy, IndexingPolicy> b(
-          indexing);
-        b.setAllocatorID(allocator_id);
-        b.execute(blend, n_field, n_newField);
-        handled = true;
-      }
-    }
-    return handled;
-  }
-};
-
 }  // end namespace detail
 
 //------------------------------------------------------------------------------
@@ -2117,14 +1979,23 @@ private:
 
     if(association == "element")
     {
-      // Conditionally support strided-structured.
-      bool handled =
-        detail::StridedStructuredFields<ss, FieldExecSpace, TopologyView>::sliceElementField(
-          m_topologyView,
-          slice,
-          n_field,
-          n_out_field,
-          getAllocatorID());
+      bool handled = false;
+      if constexpr(ss)
+      {
+        SLIC_ERROR_IF(n_field.has_path("offsets") && !n_field.has_path("strides"),
+                      axom::fmt::format("Field '{}' has offsets but no strides. "
+                                        "Strided-structured fields require strides.",
+                                        n_field.name()));
+        if(n_field.has_path("strides"))
+        {
+          // Map compact zone ids into the field's padded layout.
+          const auto indexing = axom::bump::makeElementFieldIndexing(m_topologyView, n_field);
+          axom::bump::FieldSlicer<FieldExecSpace, decltype(indexing)> s(indexing);
+          s.setAllocatorID(getAllocatorID());
+          s.execute(slice, n_field, n_out_field);
+          handled = true;
+        }
+      }
 
       if(!handled)
       {
@@ -2137,14 +2008,32 @@ private:
     }
     else if(association == "vertex")
     {
-      // Conditionally support strided-structured.
-      bool handled =
-        detail::StridedStructuredFields<ss, FieldExecSpace, TopologyView>::blendVertexField(
-          m_topologyView,
-          blend,
-          n_field,
-          n_out_field,
-          getAllocatorID());
+      bool handled = false;
+      if constexpr(ss)
+      {
+        SLIC_ERROR_IF(n_field.has_path("offsets") && !n_field.has_path("strides"),
+                      axom::fmt::format("Field '{}' has offsets but no strides. "
+                                        "Strided-structured fields require strides.",
+                                        n_field.name()));
+        if(n_field.has_path("strides"))
+        {
+          using IndexingPolicy =
+            axom::bump::SSVertexFieldIndexing<typename TopologyView::IndexingPolicy>;
+          const IndexingPolicy indexing(m_topologyView.indexing().expand(), n_field);
+
+          // A field whose layout matches the topology's node layout is indexed by node id,
+          // so only differing layouts need the remapping blender.
+          if(indexing.m_topoIndexing.m_offsets != indexing.m_fieldIndexing.m_offsets ||
+             indexing.m_topoIndexing.m_strides != indexing.m_fieldIndexing.m_strides)
+          {
+            axom::bump::FieldBlender<FieldExecSpace, axom::bump::SelectSubsetPolicy, IndexingPolicy> b(
+              indexing);
+            b.setAllocatorID(getAllocatorID());
+            b.execute(blend, n_field, n_out_field);
+            handled = true;
+          }
+        }
+      }
 
       if(!handled)
       {

@@ -343,29 +343,6 @@ TEST(bump_views_indexing, element_field_slicing_strided_without_offsets)
   }
 }
 
-TEST(bump_views_indexing, element_field_slicing_rejects_offsets_without_strides)
-{
-  axom::slic::ScopedAbortToThrow abort_guard;
-
-  conduit::Node mesh;
-  axom::blueprint::testing::data::strided_structured<2>(mesh);
-  auto topo_view = views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
-
-  conduit::Node n_field;
-  n_field["association"] = "element";
-  n_field["topology"] = "mesh";
-  n_field["offsets"].set(std::vector<conduit::index_t> {2, 2});
-  n_field["values"].set(std::vector<double>(42, 0.));
-
-  axom::Array<axom::IndexType> selected_zones {0};
-  axom::bump::SliceData slice {selected_zones.view()};
-  conduit::Node sliced_field;
-  using Fields =
-    axom::bump::extraction::detail::StridedStructuredFields<true, seq_exec, decltype(topo_view)>;
-  EXPECT_THROW(Fields::sliceElementField(topo_view, slice, n_field, sliced_field),
-               axom::slic::SlicAbortException);
-}
-
 // Views whose element fields are stored in zone order return the identity.
 TEST(bump_views_indexing, element_field_indexing_zone_order_views)
 {
