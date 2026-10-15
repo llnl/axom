@@ -29,6 +29,7 @@
 #include "axom/primal/geometry/CurvedPolygon.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
+#include "axom/primal/geometry/Dipole.hpp"
 
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 #include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
@@ -53,6 +54,45 @@ struct WindingTolerances
   double edge_tol {1e-8};
   double EPS {1e-8};
 };
+
+///@{
+//! @name Winding number operations between 2D points and primitives
+
+/*!
+ * \brief Compute the GWN for a 2D point wrt a dipole
+ *
+ * \param [in] q The query point to test
+ * \param [in] d The dipole generating the scalar field
+ *
+ * \return The GWN
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d)
+{
+  return 0.5 * M_1_PI * d.evaluate(q);
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt to a collection of Dipoles
+ *
+ * \param [in] q The query point to test
+ * \param [in] darray The array of Dipoles
+ *
+ * Sums the GWN at \a q for each dipole.
+ *
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q, const axom::Array<Dipole<T, 2>>& darray)
+{
+  double ret_val = 0.0;
+  for(const auto& dipole : darray)
+  {
+    ret_val += winding_number(q, dipole);
+  }
+
+  return ret_val;
+}
 
 /*!
  * \brief Compute the GWN for a 2D point wrt a 2D line segment
@@ -515,9 +555,46 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 
   return ret_val;
 }
+///@}
 
 ///@{
 //! @name Winding number operations between 3D points and primitives
+
+/*!
+ * \brief Compute the GWN for a 3D point wrt a dipole
+ *
+ * \param [in] q The query point to test
+ * \param [in] d The dipole generating the scalar field
+ *
+ * \return The GWN
+ */
+template <typename T>
+double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d)
+{
+  return 0.25 * M_1_PI * d.evaluate(q);
+}
+
+/*!
+ * \brief Computes the GWN for a 3D point wrt to a collection of Dipoles
+ *
+ * \param [in] q The query point to test
+ * \param [in] darray The array of Dipoles
+ *
+ * Sums the GWN at \a q for each dipole.
+ *
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 3>& q, const axom::Array<Dipole<T, 3>>& darray)
+{
+  double ret_val = 0.0;
+  for(const auto& dipole : darray)
+  {
+    ret_val += winding_number(q, dipole);
+  }
+
+  return ret_val;
+}
 
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D triangle
