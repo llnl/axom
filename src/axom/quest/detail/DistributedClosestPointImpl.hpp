@@ -958,7 +958,7 @@ public:
       double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
       const auto& myObjectBb = m_objectPartitionBbs[m_rank];
-      if(m_replicateObjectDomains)
+      if(m_replicateObjectDomains && !m_replicationMap.empty())
       {
         const int origRank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
         const auto groupIt = m_replicationMap.find(origRank);
