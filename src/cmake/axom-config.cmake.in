@@ -84,6 +84,10 @@ if(NOT AXOM_FOUND)
   # Component-specific options
   set(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING "@AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING@")
 
+  if (NOT BLT_LOADED)
+    include("${CMAKE_CURRENT_LIST_DIR}/BLTInstallableMacros.cmake")
+  endif()
+
   #----------------------------------------------------------------------------
   # Bring in required dependencies for this axom configuration
   #----------------------------------------------------------------------------
@@ -109,7 +113,15 @@ if(NOT AXOM_FOUND)
   # c2c
   if(AXOM_USE_C2C)
     set(AXOM_C2C_DIR     "@C2C_DIR@")
-    # Note: 'c2c' target is exported as 'axom::c2c'
+    if(NOT C2C_DIR)
+      set(C2C_DIR ${AXOM_C2C_DIR})
+    endif()
+    if (NOT TARGET c2c)
+      blt_import_library( NAME          c2c
+                          INCLUDES      "@C2C_INCLUDE_DIR@"
+                          LIBRARIES     "@C2C_LIBRARY@"
+                          TREAT_INCLUDES_AS_SYSTEM ON)
+    endif()
   endif()
 
   # caliper
@@ -188,13 +200,28 @@ if(NOT AXOM_FOUND)
   # hdf5
   if(AXOM_USE_HDF5)
     set(AXOM_HDF5_DIR     "@HDF5_DIR@")
-    # Note: 'hdf5' target is exported as 'axom::hdf5'
-  endif()
+    if(NOT HDF5_DIR)
+      set(HDF5_DIR ${AXOM_HDF5_DIR})
+    endif()
+    if (NOT TARGET hdf5)
+      blt_import_library( NAME hdf5
+                          DEFINES   "@HDF5_DEFINITIONS@"
+                          INCLUDES  "@HDF5_INCLUDE_DIRS@"
+                          LIBRARIES "@HDF5_LIBRARIES@"
+                          TREAT_INCLUDES_AS_SYSTEM ON)
+    endif()
 
   # lua
   if(AXOM_USE_LUA)
     set(AXOM_LUA_DIR     "@LUA_DIR@")
-    # Note: 'lua' target is exported as 'axom::lua'
+    if(NOT LUA_DIR)
+      set(LUA_DIR ${AXOM_LUA_DIR})
+    endif()
+    if (NOT TARGET lua)
+      blt_import_library( NAME        lua
+                          LIBRARIES   "@LUA_LIBRARIES@"
+                          INCLUDES    "@LUA_INCLUDE_DIR@")
+    endif()
   endif()
 
   # mfem
@@ -205,9 +232,14 @@ if(NOT AXOM_FOUND)
       find_dependency(mfem REQUIRED NO_DEFAULT_PATH PATHS "${AXOM_MFEM_DIR}/lib/cmake/mfem" NAMES MFEM)
       # MFEM include directories are added as the variable but not always added to the target itself
       target_include_directories(mfem SYSTEM INTERFACE "${MFEM_INCLUDE_DIRS}")
+    elseif(NOT TARGET mfem)
+      blt_import_library( NAME mfem
+                          INCLUDES "@MFEM_INCLUDE_DIRS@"
+                          TREAT_INCLUDES_AS_SYSTEM ON
+                          DEPENDS_ON "@MFEM_LIBRARIES@")
+    else()
+      # mfem target already exists, no need to import it again
     endif()
-    # else MFEM was built with Make and not cmake so there is no cmake target to recreate
-    # Note: 'mfem' target is exported as 'axom::mfem'
   endif()
 
   # OpenCASCADE
@@ -220,12 +252,26 @@ if(NOT AXOM_FOUND)
     # Re-find OpenCASCADE so imported targets like TKernel exist
     find_dependency(OpenCASCADE CONFIG REQUIRED NO_DEFAULT_PATH
                     HINTS "${OPENCASCADE_DIR}/lib/cmake" "${OPENCASCADE_DIR}")
+    if (NOT TARGET opencascade)
+      blt_import_library( NAME          opencascade
+                          INCLUDES      "@OpenCASCADE_INCLUDE_DIR@"
+                          LIBRARIES     "@OpenCASCADE_LIBRARIES@"
+                          TREAT_INCLUDES_AS_SYSTEM ON)
+    endif()
   endif()
 
   # scr
   if(AXOM_USE_SCR)
     set(AXOM_SCR_DIR      "@SCR_DIR@")
-    # Note: 'scr' target is exported as 'axom::scr'
+    if(NOT SCR_DIR)
+      set(SCR_DIR ${AXOM_SCR_DIR})
+    endif()
+    if (NOT TARGET scr)
+      blt_import_library( NAME       scr
+                          INCLUDES   "@SCR_INCLUDE_DIRS@"
+                          LIBRARIES  "@SCR_LIBRARIES@;ZLIB::ZLIB"
+                          TREAT_INCLUDES_AS_SYSTEM ON)
+    endif()
   endif()
 
   #----------------------------------------------------------------------------
