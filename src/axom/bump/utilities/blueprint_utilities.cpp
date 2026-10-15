@@ -68,14 +68,12 @@ void validateStructuredVertexField(const conduit::Node& n_dims,
 
   // elements/dims holds zone counts. A vertex field has one more node along each axis.
   const char* axes[] = {"i", "j", "k"};
-  LogicalIndex nodeDims, zeros, ones;
+  LogicalIndex nodeDims;
   for(int d = 0; d < NDIMS; d++)
   {
     nodeDims[d] = n_hostDims.fetch_existing(axes[d]).to_index_t() + 1;
-    zeros[d] = 0;
-    ones[d] = 1;
   }
-  Indexing topoLayout(nodeDims, zeros, ones);
+  Indexing topoLayout(nodeDims);
   axom::bump::detail::setLayoutFromNode(n_dims, topoLayout);
 
   // StructuredTopologyView::zone() constructs adjacent corner ids by adding 1.
@@ -90,7 +88,7 @@ void validateStructuredVertexField(const conduit::Node& n_dims,
     return;
   }
 
-  Indexing fieldLayout(nodeDims, zeros, ones);
+  Indexing fieldLayout(nodeDims);
   axom::bump::detail::setLayoutFromNode(n_field, fieldLayout);
   SLIC_ERROR_IF(
     fieldLayout.m_offsets != topoLayout.m_offsets || fieldLayout.m_strides != topoLayout.m_strides,

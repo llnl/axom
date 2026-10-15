@@ -57,15 +57,9 @@ void setLayoutFromNode(const conduit::Node& node, Indexing& indexing)
   using LogicalIndex = typename Indexing::LogicalIndex;
   constexpr int NDIMS = Indexing::dimension();
 
-  const LogicalIndex dims = indexing.logicalDimensions();
-  LogicalIndex offsets, strides;
-  typename Indexing::IndexType stride = 1;
-  for(int d = 0; d < NDIMS; d++)
-  {
-    offsets[d] = 0;
-    strides[d] = stride;
-    stride *= dims[d];
-  }
+  const Indexing compact(indexing.logicalDimensions());
+  LogicalIndex offsets = compact.m_offsets;
+  LogicalIndex strides = compact.m_strides;
 
   SLIC_ERROR_IF(node.has_path("offsets") && !node.has_path("strides"),
                 axom::fmt::format("Blueprint layout '{}' has offsets but no strides. "
@@ -98,7 +92,7 @@ void setLayoutFromNode(const conduit::Node& node, Indexing& indexing)
                                     strides[d],
                                     d));
   }
-  indexing = Indexing(dims, offsets, strides);
+  indexing = Indexing(compact.logicalDimensions(), offsets, strides);
 }
 }  // end namespace detail
 

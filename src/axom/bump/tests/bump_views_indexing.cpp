@@ -148,6 +148,42 @@ TEST(bump_views_indexing, strided_structured_indexing_3d)
 }
 
 //----------------------------------------------------------------------
+TEST(bump_views_indexing, strided_structured_indexing_compact_ctor)
+{
+  {
+    constexpr int DIM = 1;
+    using Indexing = views::StridedStructuredIndexing<axom::IndexType, DIM>;
+    const Indexing indexing(Indexing::LogicalIndex {5});
+    EXPECT_EQ(indexing.m_offsets[0], 0);
+    EXPECT_EQ(indexing.m_strides[0], 1);
+    EXPECT_EQ(indexing.size(), 5);
+  }
+  {
+    constexpr int DIM = 2;
+    using Indexing = views::StridedStructuredIndexing<axom::IndexType, DIM>;
+    const Indexing indexing(Indexing::LogicalIndex {4, 3});
+    EXPECT_EQ(indexing.m_offsets, (Indexing::LogicalIndex {0, 0}));
+    EXPECT_EQ(indexing.m_strides, (Indexing::LogicalIndex {1, 4}));
+  }
+  {
+    constexpr int DIM = 3;
+    using Indexing = views::StridedStructuredIndexing<axom::IndexType, DIM>;
+    using LogicalIndex = Indexing::LogicalIndex;
+    const LogicalIndex dims {4, 3, 2};
+    const Indexing indexing(dims);
+    EXPECT_EQ(indexing.logicalDimensions(), dims);
+    EXPECT_EQ(indexing.m_offsets, (LogicalIndex {0, 0, 0}));
+    EXPECT_EQ(indexing.m_strides, (LogicalIndex {1, 4, 12}));
+
+    // A compact layout maps logical indices onto [0, size()) in i-fastest order.
+    for(axom::IndexType index = 0; index < indexing.size(); index++)
+    {
+      EXPECT_EQ(indexing.localToGlobal(index), index);
+    }
+  }
+}
+
+//----------------------------------------------------------------------
 // ElementFieldIndexing maps compact zone indices to element field indices.
 //
 // Conduit's strided_structured example fills each real element with its 1-based
