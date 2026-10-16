@@ -381,6 +381,12 @@ public:
 
     /// Return the NURBSCacheArrayView.
     NURBSCacheArrayView caches() const { return m_view; }
+
+    /// Return the number of cached patches.
+    axom::IndexType size() const { return m_view.size(); }
+
+    /// Return the cache for the given patch.
+    const NURBSCache& operator[](axom::IndexType index) const { return m_view[index]; }
   };
 
   /// Return a view of this manager to pass into a device function.
@@ -463,6 +469,12 @@ public:
 
     /// Return the NURBSCacheArrayView for the current OMP thread.
     NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+
+    /// Return the number of cached patches per OMP thread.
+    axom::IndexType size() const { return m_views[0].size(); }
+
+    /// Return the cache for the given patch on the current OMP thread.
+    const NURBSCache& operator[](axom::IndexType index) const { return caches()[index]; }
   };
 
   /// Return a view of this manager to pass into a device function.
