@@ -8,7 +8,20 @@
 
 #include "axom/slic.hpp"
 #include "axom/bump.hpp"
+#include "axom/bump/FieldSlicer.hpp"
+#include "axom/bump/IndexingPolicies.hpp"
 #include "axom/bump/views/StridedStructuredIndexing.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
+
+#include <conduit/conduit_blueprint_mesh_examples.hpp>
+#include <conduit/conduit_blueprint_mesh_utils.hpp>
+
+#include <string>
+#include <vector>
+
+namespace views = axom::bump::views;
+namespace utils = axom::bump::utilities;
 
 //----------------------------------------------------------------------
 TEST(bump_views_indexing, strided_structured_indexing_2d)
@@ -136,13 +149,324 @@ TEST(bump_views_indexing, strided_structured_indexing_3d)
 }
 
 //----------------------------------------------------------------------
+TEST(bump_views_indexing, strided_structured_indexing_compact_ctor)
+{
+  {
+    constexpr int DIM = 1;
+    using Indexing = views::StridedStructuredIndexing<axom::IndexType, DIM>;
+    const Indexing indexing(Indexing::LogicalIndex {5});
+    EXPECT_EQ(indexing.m_offsets[0], 0);
+    EXPECT_EQ(indexing.m_strides[0], 1);
+    EXPECT_EQ(indexing.size(), 5);
+  }
+  {
+    constexpr int DIM = 2;
+    using Indexing = views::StridedStructuredIndexing<axom::IndexType, DIM>;
+    const Indexing indexing(Indexing::LogicalIndex {4, 3});
+    EXPECT_EQ(indexing.m_offsets, (Indexing::LogicalIndex {0, 0}));
+    EXPECT_EQ(indexing.m_strides, (Indexing::LogicalIndex {1, 4}));
+  }
+  {
+    constexpr int DIM = 3;
+    using Indexing = views::StridedStructuredIndexing<axom::IndexType, DIM>;
+    using LogicalIndex = Indexing::LogicalIndex;
+    const LogicalIndex dims {4, 3, 2};
+    const Indexing indexing(dims);
+    EXPECT_EQ(indexing.logicalDimensions(), dims);
+    EXPECT_EQ(indexing.m_offsets, (LogicalIndex {0, 0, 0}));
+    EXPECT_EQ(indexing.m_strides, (LogicalIndex {1, 4, 12}));
+
+    // A compact layout maps logical indices onto [0, size()) in i-fastest order.
+    for(axom::IndexType index = 0; index < indexing.size(); index++)
+    {
+      EXPECT_EQ(indexing.localToGlobal(index), index);
+    }
+  }
+}
+
+//----------------------------------------------------------------------
+// ElementFieldIndexing maps compact zone indices to element field indices.
+//
+// Conduit's strided_structured example fills each real element with its 1-based
+// zone number and padding with 0. Therefore, values[indexing[z]] equals z + 1.
+//----------------------------------------------------------------------
+template <typename ExecSpace, int NDIMS>
+void test_element_field_indexing_strided()
+{
+  conduit::Node hostMesh, deviceMesh;
+  axom::blueprint::testing::data::strided_structured<NDIMS>(hostMesh);
+
+  // The field and topology have different strides.
+  // The field mapping must use the metadata on ele_vals, not the topology's node strides.
+  const auto topoStrides = hostMesh["topologies/mesh/elements/dims/strides"].as_int_accessor();
+  const auto fieldStrides = hostMesh["fields/ele_vals/strides"].as_index_t_accessor();
+  ASSERT_NE(topoStrides[1] - 1, fieldStrides[1]);
+
+  utils::copy<ExecSpace>(deviceMesh, hostMesh);
+  const conduit::Node& n_field = deviceMesh["fields/ele_vals"];
+  auto topoView =
+    views::make_strided_structured_topology<NDIMS>::view(deviceMesh["topologies/mesh"]);
+  const auto indexing = axom::bump::makeElementFieldIndexing(topoView, n_field);
+
+  // Capture the mapping in the selected execution space
+  // and gather the padded field at each compact zone index.
+  const axom::IndexType nzones = topoView.numberOfZones();
+  ASSERT_GT(nzones, 0);
+  const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  axom::Array<double> gathered(nzones, nzones, allocatorID);
+  axom::Array<axom::IndexType> indices(nzones, nzones, allocatorID);
+  auto gatheredView = gathered.view();
+  auto indicesView = indices.view();
+  auto valuesView = utils::make_array_view<double>(n_field["values"]);
+  axom::for_all<ExecSpace>(nzones, [=] AXOM_HOST_DEVICE(axom::IndexType zoneIndex) {
+    indicesView[zoneIndex] = indexing[zoneIndex];
+    gatheredView[zoneIndex] = valuesView[indexing[zoneIndex]];
+  });
+
+  axom::Array<double> hostGathered(gathered, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+  axom::Array<axom::IndexType> hostIndices(indices,
+                                           axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+
+  // Sum (logical[d] + offsets[d]) * strides[d] for each dimension.
+  const auto zoneDims = topoView.indexing().logicalDimensions();
+  const auto fieldOffsets = hostMesh["fields/ele_vals/offsets"].as_index_t_accessor();
+  for(axom::IndexType z = 0; z < nzones; z++)
+  {
+    axom::IndexType rest = z, expectedIndex = 0;
+    for(int d = 0; d < NDIMS; d++)
+    {
+      expectedIndex += (rest % zoneDims[d] + fieldOffsets[d]) * fieldStrides[d];
+      rest /= zoneDims[d];
+    }
+    // The Conduit strided_structured example gives each real element the 1-based zone number.
+    EXPECT_EQ(hostGathered[z], static_cast<double>(z + 1)) << "zone " << z;
+    EXPECT_EQ(hostIndices[z], expectedIndex) << "zone " << z;
+  }
+}
+
+TEST(bump_views_indexing, element_field_indexing_strided_seq)
+{
+  test_element_field_indexing_strided<seq_exec, 2>();
+  test_element_field_indexing_strided<seq_exec, 3>();
+}
+#if defined(AXOM_USE_OPENMP)
+TEST(bump_views_indexing, element_field_indexing_strided_omp)
+{
+  test_element_field_indexing_strided<omp_exec, 2>();
+  test_element_field_indexing_strided<omp_exec, 3>();
+}
+#endif
+#if defined(AXOM_USE_CUDA)
+TEST(bump_views_indexing, element_field_indexing_strided_cuda)
+{
+  test_element_field_indexing_strided<cuda_exec, 2>();
+  test_element_field_indexing_strided<cuda_exec, 3>();
+}
+#endif
+#if defined(AXOM_USE_HIP)
+TEST(bump_views_indexing, element_field_indexing_strided_hip)
+{
+  test_element_field_indexing_strided<hip_exec, 2>();
+  test_element_field_indexing_strided<hip_exec, 3>();
+}
+#endif
+
+TEST(bump_views_indexing, element_field_indexing_strided_without_offsets)
+{
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  auto topoView = views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+  const axom::IndexType nzones = topoView.numberOfZones();
+  const auto dims = topoView.indexing().logicalDimensions();
+
+  // No layout metadata: the field is stored in zone order.
+  {
+    conduit::Node n_field;
+    n_field["association"] = "element";
+    n_field["topology"] = "mesh";
+    n_field["values"].set(std::vector<double>(nzones, 0.));
+    const auto indexing = axom::bump::makeElementFieldIndexing(topoView, n_field);
+    for(axom::IndexType z = 0; z < nzones; z++)
+    {
+      EXPECT_EQ(indexing[z], z);
+    }
+  }
+
+  // With strides only, offsets default to 0.
+  {
+    conduit::Node n_field;
+    n_field["association"] = "element";
+    n_field["topology"] = "mesh";
+    n_field["strides"].set(std::vector<conduit::index_t> {1, 5});
+    n_field["values"].set(std::vector<double>(5 * dims[1], 0.));
+    const auto indexing = axom::bump::makeElementFieldIndexing(topoView, n_field);
+    for(axom::IndexType z = 0; z < nzones; z++)
+    {
+      EXPECT_EQ(indexing[z], (z % dims[0]) + (z / dims[0]) * 5);
+    }
+  }
+}
+
+TEST(bump_views_indexing, element_field_slicing_strided_without_offsets)
+{
+  // A strides-only field has zero offsets and a j-stride of 7.
+  std::vector<axom::IndexType> field_indices {0, 1, 2, 7, 8, 9};
+
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  auto topo_view = views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+
+  conduit::Node n_field;
+  n_field["association"] = "element";
+  n_field["topology"] = "mesh";
+  n_field["strides"].set(std::vector<conduit::index_t> {1, 7});
+
+  std::vector<double> values(field_indices.back() + 1, -1.);
+  for(axom::IndexType zone = 0; zone < topo_view.numberOfZones(); zone++)
+  {
+    values[field_indices[zone]] = static_cast<double>(zone + 1);
+  }
+  n_field["values"].set(values);
+
+  axom::Array<axom::IndexType> selected_zones {{0, 2, 3, 5}};
+  axom::bump::SliceData slice {selected_zones.view()};
+  conduit::Node sliced_field;
+  const auto indexing = axom::bump::makeElementFieldIndexing(topo_view, n_field);
+  axom::bump::FieldSlicer<seq_exec, decltype(indexing)> slicer(indexing);
+  slicer.execute(slice, n_field, sliced_field);
+
+  const auto sliced_values = sliced_field["values"].as_double_accessor();
+  ASSERT_EQ(sliced_values.number_of_elements(), selected_zones.size());
+  for(conduit::index_t i = 0; i < sliced_values.number_of_elements(); i++)
+  {
+    EXPECT_EQ(sliced_values[i], static_cast<double>(selected_zones[i] + 1));
+  }
+}
+
+// Views whose element fields are stored in zone order return the identity.
+TEST(bump_views_indexing, element_field_indexing_zone_order_views)
+{
+  const std::vector<std::pair<std::string, std::vector<int>>> cases {{"uniform", {4, 5, 3}},
+                                                                     {"rectilinear", {4, 5}},
+                                                                     {"structured", {4, 5, 3}},
+                                                                     {"quads", {4, 5}},
+                                                                     {"hexs", {3, 3, 3}},
+                                                                     {"mixed_2d", {4, 5}}};
+  for(const auto& c : cases)
+  {
+    SCOPED_TRACE(c.first);
+    conduit::Node mesh;
+    conduit::blueprint::mesh::examples::braid(c.first,
+                                              c.second[0],
+                                              c.second[1],
+                                              c.second.size() > 2 ? c.second[2] : 0,
+                                              mesh);
+    if(!mesh.has_path("fields/radial"))
+    {
+      // The mixed-shape Braid examples have no element field.
+      // Create one with the Blueprint element count.
+      const auto nelem = conduit::blueprint::mesh::utils::topology::length(mesh["topologies/mesh"]);
+      mesh["fields/radial/association"] = "element";
+      mesh["fields/radial/topology"] = "mesh";
+      mesh["fields/radial/values"].set(std::vector<double>(nelem, 0.));
+    }
+    const conduit::Node& n_field = mesh["fields/radial"];
+    ASSERT_EQ(n_field["association"].as_string(), std::string("element"));
+
+    int calls = 0;
+    views::dispatch_topology(mesh["topologies/mesh"], [&](const std::string&, auto topoView) {
+      calls++;
+      const auto indexing = axom::bump::makeElementFieldIndexing(topoView, n_field);
+      const axom::IndexType nzones = topoView.numberOfZones();
+      EXPECT_EQ(nzones, n_field["values"].dtype().number_of_elements());
+      for(axom::IndexType z = 0; z < nzones; z++)
+      {
+        EXPECT_EQ(indexing[z], z);
+      }
+    });
+    EXPECT_EQ(calls, 1);
+  }
+}
+
+TEST(bump_views_indexing, element_field_indexing_rejects_bad_fields)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  conduit::Node strided;
+  axom::blueprint::testing::data::strided_structured<2>(strided);
+  auto stridedView = views::make_strided_structured_topology<2>::view(strided["topologies/mesh"]);
+
+  // A vertex field is not an element field.
+  EXPECT_THROW(axom::bump::makeElementFieldIndexing(stridedView, strided["fields/vert_vals"]),
+               axom::slic::SlicAbortException);
+
+  // A layout that maps the last zone past the end of the values.
+  {
+    conduit::Node n_field;
+    n_field.set(strided["fields/ele_vals"]);
+    conduit::index_t* offsets = n_field["offsets"].value();
+    offsets[1] += 3;
+    EXPECT_THROW(axom::bump::makeElementFieldIndexing(stridedView, n_field),
+                 axom::slic::SlicAbortException);
+  }
+
+  // Nonpositive strides are not supported.
+  {
+    conduit::Node n_field;
+    n_field.set(strided["fields/ele_vals"]);
+    conduit::index_t* strides = n_field["strides"].value();
+    strides[1] = 0;
+    EXPECT_THROW(axom::bump::makeElementFieldIndexing(stridedView, n_field),
+                 axom::slic::SlicAbortException);
+  }
+
+  // Strided fields require strides. Offsets are optional.
+  {
+    conduit::Node n_field;
+    n_field.set(strided["fields/ele_vals"]);
+    n_field.remove("strides");
+    EXPECT_THROW(axom::bump::makeElementFieldIndexing(stridedView, n_field),
+                 axom::slic::SlicAbortException);
+  }
+
+  // Layout metadata must have one entry per topology dimension.
+  {
+    conduit::Node n_field;
+    n_field.set(strided["fields/ele_vals"]);
+    n_field.remove("offsets");
+    n_field["offsets"].set(std::vector<conduit::index_t> {0});
+    EXPECT_THROW(axom::bump::makeElementFieldIndexing(stridedView, n_field),
+                 axom::slic::SlicAbortException);
+  }
+  {
+    conduit::Node n_field;
+    n_field.set(strided["fields/ele_vals"]);
+    n_field["strides"].set(std::vector<conduit::index_t> {1, 5, 25});
+    EXPECT_THROW(axom::bump::makeElementFieldIndexing(stridedView, n_field),
+                 axom::slic::SlicAbortException);
+  }
+
+  // Layout metadata on a view that cannot apply it.
+  {
+    conduit::Node mesh;
+    conduit::blueprint::mesh::examples::braid("uniform", 4, 5, 0, mesh);
+    conduit::Node& n_field = mesh["fields/radial"];
+    n_field["offsets"].set(std::vector<conduit::index_t> {1, 1});
+    n_field["strides"].set(std::vector<conduit::index_t> {1, 5});
+    auto uniformView = views::make_uniform_topology<2>::view(mesh["topologies/mesh"]);
+    EXPECT_THROW(axom::bump::makeElementFieldIndexing(uniformView, n_field),
+                 axom::slic::SlicAbortException);
+  }
+}
+
+//----------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
 
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
+  axom::slic::SimpleLogger logger;
 
   result = RUN_ALL_TESTS();
   return result;

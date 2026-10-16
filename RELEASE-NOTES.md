@@ -35,6 +35,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Inlet: Adds `orFunction()`, which lets a double, string, or array-of-doubles entry accept either
   a value or a function at the same input path, e.g. `addDouble("scale").orFunction({FunctionTag::Double})`.
   `Proxy::evaluate<T>(args...)` calls the supplied function or returns the value.
+- Bump: The coordset dispatchers accept a `SelectedDimensions` mask, like the topology dispatchers.
 
 ### Removed
 
@@ -51,6 +52,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Improves handling of `Array` and `ArrayView` with memory allocated with the system allocator.
 - Inlet: `LuaReader` looks up a numeric final path component as an integer key first, like the other
   components. For example, `values/2` now reads the second entry of `values = {5.0, 6.0}`.
+- Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
+  including layouts that specify only one of those keys.
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
