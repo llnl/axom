@@ -79,6 +79,56 @@ class GWNMomentData
 public:
   GWNMomentData() = default;
 
+  /// Construct moments from a point-supported dipole.
+  explicit GWNMomentData(const axom::primal::Dipole<T, NDIMS>& dipole)
+  {
+    const auto source = dipole.getSource();
+    const T magnitude = static_cast<T>(dipole.getMagnitude());
+
+    // `a` and `ap` track an unsigned measure solely to locate the expansion
+    // center. A dipole's source is its exact center, independent of direction.
+    a = magnitude;
+    for(int i = 0; i < NDIMS; ++i)
+    {
+      ap[i] = magnitude * source[i];
+    }
+
+    // Store the outward-oriented dipole strength directly in both dimensions.
+    const auto strength = magnitude * dipole.getDirection();
+    for(int i = 0; i < NDIMS; ++i)
+    {
+      rm[i] = strength[i];
+    }
+
+    if constexpr(ORD >= 1)
+    {
+      int m = NDIMS;
+      for(int i = 0; i < NDIMS; ++i)
+      {
+        for(int j = 0; j < NDIMS; ++j, ++m)
+        {
+          rm[m] = source[i] * strength[j];
+        }
+      }
+
+      if constexpr(ORD >= 2)
+      {
+        for(int i = 0; i < NDIMS; ++i)
+        {
+          for(int j = 0; j < NDIMS; ++j)
+          {
+            for(int k = 0; k < NDIMS; ++k, ++m)
+            {
+              rm[m] = source[i] * source[j] * strength[k];
+            }
+          }
+        }
+      }
+    }
+
+    compute_coefficients();
+  }
+
   /// Construct moments from a 3D triangle
   explicit GWNMomentData(const axom::primal::Triangle<T, 3>& a_tri)
   {
@@ -161,10 +211,10 @@ public:
     const auto x1 = p1[0];
     const auto y1 = p1[1];
 
-    // Needed to track the centroid across the tree
-    const auto dx = x1 - x0;
-    const auto dy = y0 - y1;  // actually -dy since it was more useful.
-    a = sqrt(dx * dx + dy * dy);
+    // The right normal is outward for a counterclockwise-oriented boundary.
+    const auto normal_x = y1 - y0;
+    const auto normal_y = x0 - x1;
+    a = sqrt(normal_x * normal_x + normal_y * normal_y);
     ap[0] = a * 0.5 * (x0 + x1);
     ap[1] = a * 0.5 * (y0 + y1);
 
@@ -181,29 +231,29 @@ public:
     const auto x1y0 = x1 * y0;
     const auto x1y1 = x1 * y1;
 
-    rm[0] = dy;
-    rm[1] = dx;
+    rm[0] = normal_x;
+    rm[1] = normal_y;
 
     if constexpr(ORD >= 1)
     {
-      rm[2] = 0.5 * dy * (x0 + x1);
-      rm[3] = 0.5 * (x1x1 - x0x0);
-      rm[4] = 0.5 * (y0y0 - y1y1);
-      rm[5] = 0.5 * (dx) * (y0 + y1);
+      rm[2] = 0.5 * normal_x * (x0 + x1);
+      rm[3] = 0.5 * (x0x0 - x1x1);
+      rm[4] = 0.5 * (y1y1 - y0y0);
+      rm[5] = 0.5 * normal_y * (y0 + y1);
 
       if constexpr(ORD == 2)
       {
         const auto A = (x0x0 + x0x1 + x1x1) / 3.0;
-        rm[6] = dy * A;
+        rm[6] = normal_x * A;
         const auto B = (x0y0 + 0.5 * (x0y1 + x1y0) + x1y1) / 3.0;
-        rm[7] = dy * B;
+        rm[7] = normal_x * B;
         rm[8] = rm[7];
         const auto C = (y0y0 + y0y1 + y1y1) / 3.0;
-        rm[9] = dy * C;
-        rm[10] = dx * A;
-        rm[11] = dx * B;
+        rm[9] = normal_x * C;
+        rm[10] = normal_y * A;
+        rm[11] = normal_y * B;
         rm[12] = rm[11];
-        rm[13] = dx * C;
+        rm[13] = normal_y * C;
       }
     }
 
@@ -252,7 +302,7 @@ public:
         }
       }
 
-      return -0.5 * M_1_PI * (terms[0] + terms[1] + terms[2]);
+      return 0.5 * M_1_PI * (terms[0] + terms[1] + terms[2]);
     }
 
     if constexpr(NDIMS == 3)
