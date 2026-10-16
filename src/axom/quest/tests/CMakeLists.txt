@@ -133,6 +133,8 @@ if(MFEM_FOUND)
             )
     endfunction()
 
+    add_quest_mfem_test(quest_fast_gwn_query)
+
     if(AXOM_ENABLE_SIDRE)
         add_quest_mfem_test(quest_point_in_cell_mfem)
     endif()
