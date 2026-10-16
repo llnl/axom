@@ -124,6 +124,154 @@ void generate_gwn_query_mesh(mfem::DataCollection& dc,
 // Query classes
 //------------------------------------------------------------------------------
 
+/*!
+ * \class FastGWNQuery
+ *
+ * \brief Shared acceleration state and evaluation interface for fast GWN queries.
+ *
+ * \tparam ExecSpace The execution space for the algorithm.
+ * \tparam NDIMS The spatial dimension of the query and BVH.
+ * \tparam ORDER The order of the Taylor expansion used for agglomeration.
+ *
+ * This class is the prospective common core for the geometry-specific GWN
+ * query classes below. It will own the BVH and internal moment data shared by
+ * accelerated evaluation. Geometry-specific adapters retain responsibility for
+ * converting their public input to source leaves, subdivision, cache creation,
+ * query-point normalization, and direct leaf evaluation. This core validates
+ * MFEM fields, traverses their nodal degrees of freedom, and writes the
+ * winding and in/out fields.
+ *
+ * The source geometry used to construct moments may differ from the direct
+ * evaluation geometry. For example, NURBS moments are built from patches or
+ * curves, while direct evaluation may use their cache objects.
+ *
+ * \note This class is not used by the existing query classes yet.
+ */
+template <typename ExecSpace, int NDIMS, int ORDER = 2>
+class FastGWNQuery
+{
+public:
+  using PointType = primal::Point<double, NDIMS>;
+  using BoundingBoxType = primal::BoundingBox<double, NDIMS>;
+  using MomentType = GWNMomentData<double, NDIMS, ORDER>;
+  using BVHType = axom::spin::BVH<NDIMS, ExecSpace>;
+
+  FastGWNQuery() = default;
+
+  /// Returns whether this query has acceleration data available.
+  bool isInitialized() const { return m_bvh.isInitialized(); }
+
+  /*!
+   * \brief Build acceleration data from the source geometry used for moments.
+   *
+   * \tparam SourceGeometry The geometry type used to construct bounding boxes
+   *         and `GWNMomentData`.
+   * \param [in] source_leaves The processed source leaves, in BVH order.
+   *
+   * Builds leaf bounding boxes, initializes `m_bvh`, and reduces source-leaf
+   * moments into `m_internal_moments`.
+   */
+  template <typename SourceGeometry>
+  void initialize(const axom::ArrayView<const SourceGeometry>& source_leaves)
+  {
+    if(source_leaves.empty())
+    {
+      SLIC_WARNING("Quest: Input shape contains no leaves; skipping fast GWN initialization.");
+      return;
+    }
+
+    const int num_leaves = source_leaves.size();
+    axom::Array<BoundingBoxType> leaf_boxes(num_leaves, num_leaves);
+    auto leaf_boxes_view = leaf_boxes.view();
+
+    {
+      AXOM_ANNOTATE_SCOPE("bvh_initialization");
+      axom::for_all<ExecSpace>(num_leaves, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        leaf_boxes_view[i] = source_leaves[i].boundingBox();
+      });
+      m_bvh.initialize(leaf_boxes_view, num_leaves);
+    }
+
+    {
+      AXOM_ANNOTATE_SCOPE("moment_precomputation");
+      const auto compute_moments = [source_leaves](std::int32_t current_node,
+                                                   const std::int32_t* leaf_nodes) -> MomentType {
+        return MomentType(source_leaves[leaf_nodes[current_node]]);
+      };
+      const auto traverser = m_bvh.getTraverser();
+      m_internal_moments = traverser.template reduce_tree<ExecSpace, MomentType>(compute_moments);
+    }
+  }
+
+  /*!
+   * \brief Evaluate the GWN at every nodal degree of freedom of an MFEM mesh.
+   *
+   * \tparam DirectLeaves An indexed collection of direct-evaluation leaves.
+   * \tparam QueryPointFunction A callable that maps a nodal DOF index to a
+   *         point in the GWN coordinate system.
+   * \param [in,out] dc The data collection containing `winding` and `inout`
+   *        fields.
+   * \param [in] direct_leaves Leaves corresponding to the BVH source order.
+   * \param [in] tolerances Evaluation tolerances.
+   * \param [in] query_point Maps a nodal DOF index to a query point.
+   */
+  template <typename DirectLeaves, typename QueryPointFunction>
+  void evaluate(mfem::DataCollection& dc,
+                const DirectLeaves& direct_leaves,
+                const primal::WindingTolerances& tolerances,
+                QueryPointFunction query_point)
+  {
+    if(!dc.HasField("winding") || !dc.HasField("inout"))
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Quest: Input data collection has no field `{}`. Exiting early.",
+                          dc.HasField("winding") ? "inout" : "winding"));
+      return;
+    }
+
+    const auto* query_mesh = dc.GetMesh();
+    auto& winding = *dc.GetField("winding");
+    auto& inout = *dc.GetField("inout");
+    const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+    const auto tolerances_copy = tolerances;
+
+    AXOM_ANNOTATE_SCOPE("query");
+    if(isInitialized())
+    {
+      // Use fast approximation
+      const auto traverser = m_bvh.getTraverser();
+      const auto internal_moments_view = m_internal_moments.view();
+      axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        const double gwn = fast_approximate_winding_number(query_point(index),
+                                                           traverser,
+                                                           direct_leaves,
+                                                           internal_moments_view,
+                                                           tolerances_copy);
+        winding[static_cast<int>(index)] = gwn;
+        inout[static_cast<int>(index)] = std::lround(gwn);
+      });
+    }
+    else
+    {
+      // Use direct evaluation
+      axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        const auto query = query_point(index);
+        double gwn = 0.0;
+        for(axom::IndexType i = 0; i < direct_leaves.size(); ++i)
+        {
+          gwn += primal::winding_number(query, direct_leaves[i], tolerances_copy);
+        }
+        winding[static_cast<int>(index)] = gwn;
+        inout[static_cast<int>(index)] = std::lround(gwn);
+      });
+    }
+  }
+
+private:
+  BVHType m_bvh;
+  axom::Array<MomentType> m_internal_moments;
+};
+
 ///@{
 /// \name Query methods for 2D GWN applications
 
@@ -370,6 +518,146 @@ private:
 };
 
 /*!
+ * \class NURBSCurveGWNQueryFactored
+ *
+ * \brief Experimental NURBS curve GWN query using `FastGWNQuery` for shared work.
+ *
+ * This class is retained beside `NURBSCurveGWNQuery` to compare the factored
+ * implementation before replacing the existing public query API.
+ */
+template <typename ExecSpace, int ORDER = 2>
+class NURBSCurveGWNQueryFactored
+{
+public:
+  using CurveType = axom::primal::NURBSCurve<double, 2>;
+  using CurveArrayType = axom::Array<CurveType>;
+  using NURBSCacheManager = typename axom::primal::nurbs_cache_2d_traits<ExecSpace>::type;
+  using FastQuery = FastGWNQuery<ExecSpace, 2, ORDER>;
+
+  NURBSCurveGWNQueryFactored() = default;
+
+  ///@{
+  /// \name Setters for misc algorithm parameters
+  void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
+  {
+    m_subdivision_bbox_threshold = subdivision_bbox_threshold;
+  }
+
+  void setSubdivisionMaxPasses(int subdivision_max_passes)
+  {
+    m_subdivision_max_passes = subdivision_max_passes;
+  }
+
+  void setSubdivisionMaxNumCurves(int subdivision_max_curves)
+  {
+    m_subdivision_max_curves = subdivision_max_curves;
+  }
+  ///@}
+
+  /*!
+   * \brief Process input curves, optionally building a BVH.
+   *
+   * \param [in] input_curves A view to the input curves.
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH.
+   * \param [in] use_memoization If true, allocate a per-thread cache for each curve.
+   */
+  void preprocess(const CurveArrayType& input_curves,
+                  bool use_direct_eval = false,
+                  bool use_memoization = true)
+  {
+    m_input_curves_view = input_curves.view();
+    if(m_input_curves_view.empty())
+    {
+      SLIC_WARNING("Quest: Input shape contains no curves; skipping preprocessing.");
+      return;
+    }
+
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+    if(!use_direct_eval)
+    {
+      // Fast approximation requires smaller curve leaves for useful moments.
+      {
+        AXOM_ANNOTATE_SCOPE("subdivision");
+        m_subdivided_curves = subdivide_curves(m_input_curves_view,
+                                               m_subdivision_bbox_threshold,
+                                               m_subdivision_max_curves,
+                                               m_subdivision_max_passes);
+        m_processed_curves_view = m_subdivided_curves.view();
+      }
+
+      // Build boxes and moments from the processed curves. A cache, if requested,
+      // is only a direct-evaluation representation of these same leaves.
+      m_fast_query.initialize(m_processed_curves_view);
+    }
+    else
+    {
+      // Without fast approximation, processing is unnecessary.
+      m_processed_curves_view = m_input_curves_view;
+    }
+
+    if(use_memoization)
+    {
+      AXOM_ANNOTATE_SCOPE("cache_initialization");
+      m_nurbs_cache_mgr = NURBSCacheManager(m_processed_curves_view);
+    }
+  }
+
+  /*!
+   * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh.
+   *
+   * \param [in] dc A query grid to be evaluated at the DOFs.
+   * \param [in] tolerances A collection of possible tolerances for GWN evaluation.
+   */
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tolerances)
+  {
+    if(m_input_curves_view.empty())
+    {
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
+      return;
+    }
+
+    const auto* query_mesh = dc.GetMesh();
+    const auto query_point = [query_mesh](axom::IndexType index) -> primal::Point<double, 2> {
+      primal::Point<double, 2> point;
+      query_mesh->GetNode(static_cast<int>(index), point.data());
+      return point;
+    };
+
+    if(m_nurbs_cache_mgr.empty())
+    {
+      // Use the un-memoized version
+      m_fast_query.evaluate(dc, m_processed_curves_view, tolerances, query_point);
+    }
+    else
+    {
+      // Use the memoized version
+      const auto cache_manager_view = m_nurbs_cache_mgr.view();
+
+      // `FastGWNQuery` indexes direct leaves with the BVH's processed-curve
+      // indices. The cache manager creates exactly one cache per processed
+      // curve, and selects each OMP thread's cache during indexed access.
+      SLIC_ASSERT(cache_manager_view.size() == m_processed_curves_view.size());
+      m_fast_query.evaluate(dc, cache_manager_view, tolerances, query_point);
+    }
+  }
+
+private:
+  // For the input curves and direct evaluation leaves.
+  axom::ArrayView<const CurveType> m_input_curves_view;
+  NURBSCacheManager m_nurbs_cache_mgr;
+
+  // For preprocessed curves and their corresponding fast-GWN source leaves.
+  axom::Array<CurveType> m_subdivided_curves;
+  axom::ArrayView<const CurveType> m_processed_curves_view;
+  FastQuery m_fast_query;
+
+  // Additional algorithm parameters.
+  double m_subdivision_bbox_threshold {1.0};
+  int m_subdivision_max_passes {10};
+  int m_subdivision_max_curves {1000000};
+};
+
+/*!
  * \class PolylineGWNQuery
  *
  * \tparam ExecSpace The execution space for the algorithm.
@@ -540,6 +828,77 @@ private:
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
   axom::spin::BVH<2, ExecSpace> m_bvh;
+};
+
+/*!
+ * \class PolylineGWNQueryFactored
+ *
+ * \brief Experimental Polyline GWN query using `FastGWNQuery` for shared work.
+ *
+ * This class is retained beside `PolylineGWNQuery` to compare the factored
+ * implementation before replacing the existing public query API.
+ */
+template <typename ExecSpace, int ORDER = 2>
+class PolylineGWNQueryFactored
+{
+public:
+  using Point2D = axom::primal::Point<double, 2>;
+  using SegmentType = axom::primal::Segment<double, 2>;
+  using FastQuery = FastGWNQuery<ExecSpace, 2, ORDER>;
+
+  PolylineGWNQueryFactored() = default;
+
+  /*! \brief Process a Mint mesh into segments and optionally initialize acceleration data. */
+  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
+                  bool use_direct_eval)
+  {
+    if(poly_mesh == nullptr || poly_mesh->getNumberOfCells() <= 0)
+    {
+      SLIC_WARNING("Quest: Input mesh contains no segments; skipping preprocessing.");
+      return;
+    }
+
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+    m_segments.resize(poly_mesh->getNumberOfCells());
+    auto segments_view = m_segments.view();
+    axom::mint::for_all_cells<ExecSpace, axom::mint::xargs::coords>(
+      poly_mesh,
+      [=] AXOM_HOST_DEVICE(axom::IndexType cell_idx,
+                           const axom::numerics::Matrix<double>& coords,
+                           const axom::IndexType* AXOM_UNUSED_PARAM(node_ids)) {
+        segments_view[cell_idx] =
+          SegmentType {Point2D {coords(0, 0), coords(1, 0)}, Point2D {coords(0, 1), coords(1, 1)}};
+      });
+
+    if(!use_direct_eval)
+    {
+      const axom::Array<SegmentType>& const_segments = m_segments;
+      m_fast_query.initialize(const_segments.view());
+    }
+  }
+
+  /*! \brief Evaluate the GWN at the nodal degrees of freedom in \a dc. */
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tolerances)
+  {
+    if(m_segments.empty())
+    {
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
+      return;
+    }
+
+    const auto* query_mesh = dc.GetMesh();
+    const auto query_point = [query_mesh](axom::IndexType index) -> Point2D {
+      Point2D point {0.0, 0.0};
+      query_mesh->GetNode(static_cast<int>(index), point.data());
+      return point;
+    };
+    const axom::Array<SegmentType>& const_segments = m_segments;
+    m_fast_query.evaluate(dc, const_segments.view(), tolerances, query_point);
+  }
+
+private:
+  axom::Array<SegmentType> m_segments;
+  FastQuery m_fast_query;
 };
 ///@}
 
@@ -840,6 +1199,172 @@ private:
 };
 
 /*!
+ * \class NURBSPatchGWNQueryFactored
+ *
+ * \brief Experimental NURBS patch GWN query using `FastGWNQuery` for shared work.
+ *
+ * This class is retained beside `NURBSPatchGWNQuery` to compare the factored
+ * implementation before replacing the existing public query API.
+ */
+template <typename ExecSpace, int ORDER = 2>
+class NURBSPatchGWNQueryFactored
+{
+public:
+  using PatchType = axom::primal::NURBSPatch<double, 3>;
+  using PatchArrayType = axom::Array<PatchType>;
+  using NURBSCacheManager = typename axom::primal::nurbs_cache_3d_traits<ExecSpace>::type;
+  using FastQuery = FastGWNQuery<ExecSpace, 3, ORDER>;
+
+  NURBSPatchGWNQueryFactored() = default;
+
+  ///@{
+  /// \name Setters for misc algorithm parameters
+  void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
+  {
+    m_subdivision_bbox_threshold = subdivision_bbox_threshold;
+  }
+
+  void setSubdivisionMaxPasses(int subdivision_max_passes)
+  {
+    m_subdivision_max_passes = subdivision_max_passes;
+  }
+
+  void setSubdivisionMaxNumPatches(int subdivision_max_patches)
+  {
+    m_subdivision_max_patches = subdivision_max_patches;
+  }
+  ///@}
+
+  /*!
+   * \brief Process input patches, optionally building a BVH.
+   *
+   * Processing involves "cleaning" input surfaces for more robust GWN evaluation by
+   *  - Normalizing the parameter space of each surface according to the number of knot spans
+   *  - Ensuring each input is represented as a trimmed surface
+   *  - Clipping the parameter space of each surface to the visible (i.e. trimmed) portion
+   *
+   * \param [in] input_patches A view to the input trimmed NURBS surfaces.
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH.
+   * \param [in] use_memoization If true, allocate a per-thread cache for each patch.
+   */
+  void preprocess(const PatchArrayType& input_patches,
+                  bool use_direct_eval = false,
+                  bool use_memoization = true)
+  {
+    m_input_patches_view = input_patches.view();
+    if(m_input_patches_view.empty())
+    {
+      SLIC_WARNING("Quest: Input shape contains no patches; skipping preprocessing.");
+      return;
+    }
+
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+    if(!use_direct_eval)
+    {
+      {
+        AXOM_ANNOTATE_SCOPE("subdivision");
+        m_subdivided_patches = subdivide_patches(m_input_patches_view,
+                                                 m_subdivision_bbox_threshold,
+                                                 m_subdivision_max_patches,
+                                                 m_subdivision_max_passes);
+        m_processed_patches_view = m_subdivided_patches.view();
+      }
+
+      m_fast_query.initialize(m_processed_patches_view);
+    }
+    else
+    {
+      // Without fast approximation, processing is unnecessary, but we still clean the
+      // trimmed representation for more precise moment calculation.
+      for(auto& surface : m_input_patches_view)
+      {
+        auto cleaned = surface.cleanedTrimmedRepresentation();
+        if(cleaned.getNumTrimmingCurves() == 0)
+        {
+          continue;
+        }
+
+        m_subdivided_patches.push_back(std::move(cleaned));
+      }
+      m_processed_patches_view = m_subdivided_patches.view();
+    }
+
+    if(use_memoization)
+    {
+      AXOM_ANNOTATE_SCOPE("cache_initialization");
+
+      // TODO: Patch caches recompute normals and surface areas already used
+      // for moments. Keep that optimization in this adapter if profiling
+      // justifies it, rather than complicating FastGWNQuery.
+      axom::Array<primal::Vector<double, 3>> no_precomputed_normals;
+      axom::Array<double> no_precomputed_surface_areas;
+      m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view,
+                                            no_precomputed_normals.view(),
+                                            no_precomputed_surface_areas.view());
+    }
+  }
+
+  /*!
+   * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh.
+   *
+   * \param [in] dc A query grid to be evaluated at the DOFs.
+   * \param [in] tolerances A collection of possible tolerances for GWN evaluation.
+   * \param [in] slice_z If the dc mesh is 2D, evaluate on an x-y-parallel slice at this offset.
+   */
+  void query(mfem::DataCollection& dc,
+             const primal::WindingTolerances& tolerances,
+             const double slice_z = 0.0)
+  {
+    if(m_input_patches_view.empty())
+    {
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
+      return;
+    }
+
+    const auto* query_mesh = dc.GetMesh();
+    const auto query_point = [query_mesh, slice_z](axom::IndexType index) -> primal::Point<double, 3> {
+      primal::Point<double, 3> point {0.0, 0.0, slice_z};
+      query_mesh->GetNode(static_cast<int>(index), point.data());
+      return point;
+    };
+
+    if(m_nurbs_cache_mgr.empty())
+    {
+      // Use the non-memoized version.
+      SLIC_WARNING(
+        "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
+      m_fast_query.evaluate(dc, m_processed_patches_view, tolerances, query_point);
+    }
+    else
+    {
+      // Use the memoized version.
+      const auto cache_manager_view = m_nurbs_cache_mgr.view();
+
+      // `FastGWNQuery` indexes direct leaves with the BVH's processed-patch
+      // indices. The cache manager creates exactly one cache per processed
+      // patch, and selects each OMP thread's cache during indexed access.
+      SLIC_ASSERT(cache_manager_view.size() == m_processed_patches_view.size());
+      m_fast_query.evaluate(dc, cache_manager_view, tolerances, query_point);
+    }
+  }
+
+private:
+  // For the input patches and direct evaluation leaves.
+  axom::ArrayView<const PatchType> m_input_patches_view;
+  NURBSCacheManager m_nurbs_cache_mgr;
+
+  // For preprocessed patches and their corresponding fast-GWN source leaves.
+  axom::Array<PatchType> m_subdivided_patches;
+  axom::ArrayView<const PatchType> m_processed_patches_view;
+  FastQuery m_fast_query;
+
+  // Additional algorithm parameters.
+  double m_subdivision_bbox_threshold {1.0};
+  int m_subdivision_max_passes {10};
+  int m_subdivision_max_patches {10000};
+};
+
+/*!
  * \class TriangleGWNQuery
  *
  * \tparam ExecSpace The execution space for the algorithm.
@@ -1046,6 +1571,135 @@ private:
   // Parameters for normalization
   axom::primal::Point<double, 3> m_shape_center;
   double m_scale;
+};
+
+/*!
+ * \class TriangleGWNQueryFactored
+ *
+ * \brief Experimental triangle-mesh GWN query using `FastGWNQuery` for shared work.
+ *
+ * This class is retained beside `TriangleGWNQuery` to compare the factored
+ * implementation before replacing the existing public query API.
+ */
+template <typename ExecSpace, int ORDER = 2>
+class TriangleGWNQueryFactored
+{
+public:
+  using Point3D = axom::primal::Point<double, 3>;
+  using TriangleType = axom::primal::Triangle<double, 3>;
+  using FastQuery = FastGWNQuery<ExecSpace, 3, ORDER>;
+
+  TriangleGWNQueryFactored() = default;
+
+  /*!
+   * \brief Load triangles from mint::mesh to normalized primal::Triangles,
+   *        optionally building a BVH.
+   *
+   * \param [in] tri_mesh The input mesh.
+   * \param [in] use_direct_eval If false, use accelerated agglomeration algorithm via BVH.
+   */
+  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh,
+                  bool use_direct_eval)
+  {
+    if(tri_mesh == nullptr || tri_mesh->getNumberOfCells() <= 0)
+    {
+      SLIC_WARNING("Quest: Input mesh contains no triangles; skipping preprocessing.");
+      return;
+    }
+
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+    {
+      AXOM_ANNOTATE_SCOPE("extract_triangles");
+
+      // Iterate over mesh nodes and get a bounding box for the shape.
+      primal::BoundingBox<double, 3> shape_bbox;
+      auto* shape_bbox_ptr = &shape_bbox;
+      axom::mint::for_all_nodes<ExecSpace, axom::mint::xargs::xyz>(
+        tri_mesh,
+        [=] AXOM_HOST_DEVICE(axom::IndexType, double x, double y, double z) {
+          shape_bbox_ptr->addPoint(Point3D {x, y, z});
+        });
+
+      // Extract triangles from the mesh into Axom primitives, scaled and
+      // translated so the shape is centered at the origin and has roughly unit
+      // volume. Otherwise, small triangles introduce numerical issues.
+      m_shape_center = shape_bbox.getCentroid();
+      const auto longest_dim = shape_bbox.getLongestDimension();
+      m_scale = shape_bbox.getMax()[longest_dim] - shape_bbox.getMin()[longest_dim];
+      const auto shape_center = m_shape_center;
+      const double scale = m_scale;
+
+      m_triangles.resize(tri_mesh->getNumberOfCells());
+      auto triangles_view = m_triangles.view();
+      axom::mint::for_all_cells<ExecSpace, axom::mint::xargs::coords>(
+        tri_mesh,
+        [=] AXOM_HOST_DEVICE(axom::IndexType cell_idx,
+                             const axom::numerics::Matrix<double>& coords,
+                             const axom::IndexType* AXOM_UNUSED_PARAM(node_ids)) {
+          triangles_view[cell_idx] =
+            TriangleType {Point3D {(coords(0, 0) - shape_center[0]) / scale,
+                                   (coords(1, 0) - shape_center[1]) / scale,
+                                   (coords(2, 0) - shape_center[2]) / scale},
+                          Point3D {(coords(0, 1) - shape_center[0]) / scale,
+                                   (coords(1, 1) - shape_center[1]) / scale,
+                                   (coords(2, 1) - shape_center[2]) / scale},
+                          Point3D {(coords(0, 2) - shape_center[0]) / scale,
+                                   (coords(1, 2) - shape_center[1]) / scale,
+                                   (coords(2, 2) - shape_center[2]) / scale}};
+        });
+    }
+
+    // If direct evaluation is preferred, skip BVH initialization.
+    if(!use_direct_eval)
+    {
+      const axom::Array<TriangleType>& const_triangles = m_triangles;
+      m_fast_query.initialize(const_triangles.view());
+    }
+  }
+
+  /*!
+   * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh.
+   *
+   * \param [in] dc A query grid to be evaluated at the DOFs.
+   * \param [in] tolerances A collection of possible tolerances for GWN evaluation.
+   * \param [in] slice_z If the dc mesh is 2D, evaluate on an x-y-parallel slice at this offset.
+   */
+  void query(mfem::DataCollection& dc,
+             const primal::WindingTolerances& tolerances,
+             const double slice_z = 0.0)
+  {
+    if(m_triangles.empty())
+    {
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
+      return;
+    }
+
+    const auto* query_mesh = dc.GetMesh();
+
+    // Get the query point from the mesh, scaled to the proper normalization.
+    const auto shape_center = m_shape_center;
+    const double scale = m_scale;
+    const auto scaled_query_point =
+      [query_mesh, slice_z, shape_center, scale](axom::IndexType index) -> Point3D {
+      Point3D point {0.0, 0.0, slice_z};
+      query_mesh->GetNode(static_cast<int>(index), point.data());
+      point.array() = (point.array() - shape_center.array()) / scale;
+      return point;
+    };
+    const axom::Array<TriangleType>& const_triangles = m_triangles;
+    m_fast_query.evaluate(dc, const_triangles.view(), tolerances, scaled_query_point);
+  }
+
+private:
+  // For the processed input triangles/BVH leaf nodes.
+  axom::Array<TriangleType> m_triangles;
+
+  // Shared BVH and moment data for the fast approximation method.
+  FastQuery m_fast_query;
+
+  // Parameters for normalization.
+  Point3D m_shape_center;
+  double m_scale {1.0};
 };
 ///@}
 
