@@ -331,7 +331,7 @@ public:
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
-    // Do cache initialization serially to avoid issues with concurrent memory management
+    // Do cache initialization serially to avoid issues with concurrent memory management.
 
     // Make the first one
     nurbs_caches_view[0].resize(curves.size());

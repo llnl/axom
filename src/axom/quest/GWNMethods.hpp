@@ -519,7 +519,11 @@ public:
 
   PolylineGWNQuery() = default;
 
-  /*! \brief Process a Mint mesh into segments and optionally initialize acceleration data. */
+  /*!
+   * \brief Processes a Mint mesh into segments and optionally initializes acceleration data.
+   * \param[in] poly_mesh The input polyline mesh.
+   * \param[in] use_direct_eval If false, initialize BVH-based acceleration data.
+   */
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
                   bool use_direct_eval)
   {
@@ -548,7 +552,11 @@ public:
     }
   }
 
-  /*! \brief Evaluate the GWN at the nodal degrees of freedom in \a dc. */
+  /*!
+   * \brief Evaluates the GWN at the nodal degrees of freedom in \a dc.
+   * \param[in,out] dc The query data collection containing `winding` and `inout` fields.
+   * \param[in] tolerances Evaluation tolerances.
+   */
   void query(mfem::DataCollection& dc, const primal::WindingTolerances& tolerances)
   {
     if(m_segments.empty())

@@ -9,13 +9,14 @@
 /*!
  * \file Dipole.hpp
  *
- * \brief A Dipole primitive containing a source, direction, and magnitude.
- * 
- * A collection of Dipoles defines a generalized winding number field
+ * \brief A dipole primitive containing a source, direction, and magnitude.
+ *
+ * A collection of dipoles defines a generalized winding number field.
  */
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/fmt.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
@@ -24,8 +25,6 @@
 #include <cmath>
 #include <ostream>
 #include <type_traits>
-
-#include "axom/fmt.hpp"
 
 namespace axom::primal
 {
@@ -40,13 +39,13 @@ std::ostream& operator<<(std::ostream& os, const Dipole<T, NDIMS>& dipole);
 /*!
  * \class Dipole
  *
- * \brief Represents a Dipole, an oriented point source with a given magnitude
+ * \brief Represents a dipole, an oriented point source with a given magnitude.
  * \tparam T the coordinate type, e.g., double, float, etc.
  * \tparam NDIMS the number of dimensions (restricted to 2 or 3)
  *
  * The stored direction is normalized. The magnitude represents the measure
  * of the source: length in 2-D and area in 3-D.
- * 
+ *
  * A collection of dipoles defines a generalized winding number field.
  * Conversely, any GWN field is the accumulation of infinitely many dipole objects.
  */
@@ -67,12 +66,12 @@ public:
 
 public:
   /*!
-   * \brief Constructor for a Dipole from a point, direction, and magnitude
+   * \brief Constructs a dipole from a point, direction, and magnitude.
    *
    * \param [in] source An N-D point
-   * \param [in] direction An N-D vector, normalized to represent direction
+   * \param [in] direction An N-D vector. It is normalized before storage.
    * \param [in] magnitude The nonnegative strength of the dipole. Defaults to 1.0.
-   * 
+   *
    * \pre Assumes that the direction is non-zero, and that the magnitude is nonnegative
    */
   Dipole(const PointType& source, const VectorType& direction, double magnitude = 1.0)
@@ -86,29 +85,29 @@ public:
   ///@{
   /// \name Query/modify dipole properties
 
-  /// Sets the dipole source
+  /// \brief Sets the dipole source.
   void setSource(const PointType& source) { m_source = source; }
 
-  /// Returns the dipole source
+  /// \brief Returns the dipole source.
   const PointType& getSource() const { return m_source; }
 
-  /// Sets the dipole direction
+  /// \brief Sets the dipole direction.
   void setDirection(const VectorType& direction) { m_direction = normalize_direction(direction); }
 
-  /// Returns the dipole direction
+  /// \brief Returns the dipole direction.
   const VectorType& getDirection() const { return m_direction; }
 
-  /// Sets the dipole magnitude
+  /// \brief Sets the dipole magnitude.
   void setMagnitude(double magnitude)
   {
     SLIC_ASSERT(magnitude >= 0.0);
     m_magnitude = magnitude;
   }
 
-  /// Returns the dipole magnitude
+  /// \brief Returns the dipole magnitude.
   double getMagnitude() const { return m_magnitude; }
 
-  /// Returns an axis-aligned bounding box containing the dipole (i.e. a trivial boundingBox)
+  /// \brief Returns the degenerate axis-aligned bounding box containing the dipole.
   BoundingBoxType boundingBox() const { return BoundingBoxType(m_source); }
 
   ///@}
@@ -130,9 +129,9 @@ public:
   }
 
   /*!
-   * \brief Simple formatted print of a Dipole instance
+   * \brief Writes a simple formatted representation of this dipole.
    *
-   * \param os The output stream to write to
+   * \param[in,out] os The output stream to write to.
    * \return A reference to the modified ostream
    */
   std::ostream& print(std::ostream& os) const
@@ -143,7 +142,7 @@ public:
     return os;
   }
 
-  /// Checks equality of two Dipoles
+  /// \brief Checks equality of two dipoles.
   friend inline bool operator==(const Dipole<T, NDIMS>& lhs, const Dipole<T, NDIMS>& rhs)
   {
     return (lhs.m_source == rhs.m_source) && (lhs.m_direction == rhs.m_direction) &&
@@ -156,7 +155,7 @@ public:
   }
 
 private:
-  /// \brief Helper function to return a normalized vector and check its magnitude in debug mode
+  /// \brief Returns a normalized vector, checking its magnitude in debug mode.
   static VectorType normalize_direction(const VectorType& direction)
   {
     SLIC_ASSERT(!utilities::isNearlyEqual(direction.squared_norm(), 0.0, PRIMAL_TINY));
@@ -169,7 +168,7 @@ private:
 };
 
 //------------------------------------------------------------------------------
-/// Free functions related to Dipole
+/// Free functions related to Dipole.
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
 std::ostream& operator<<(std::ostream& os, const Dipole<T, NDIMS>& dipole)
@@ -180,7 +179,7 @@ std::ostream& operator<<(std::ostream& os, const Dipole<T, NDIMS>& dipole)
 
 }  // namespace axom::primal
 
-/// Overload to format a primal::Dipole using fmt
+/// \brief Formats a primal::Dipole using fmt.
 template <typename T, int NDIMS>
 struct axom::fmt::formatter<axom::primal::Dipole<T, NDIMS>> : ostream_formatter
 { };

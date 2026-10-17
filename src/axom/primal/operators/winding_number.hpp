@@ -59,7 +59,7 @@ struct WindingTolerances
 //! @name Winding number operations between 2D points and primitives
 
 /*!
- * \brief Compute the GWN for a 2D point wrt a dipole
+ * \brief Computes the GWN for a 2D point wrt a dipole.
  *
  * \param [in] q The query point to test
  * \param [in] d The dipole generating the scalar field
@@ -72,7 +72,7 @@ double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d)
   return 0.5 * M_1_PI * d.evaluate(q);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with batched tolerances (none of which are used by dipoles).
 template <typename T>
 double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d, const WindingTolerances&)
 {
@@ -80,7 +80,7 @@ double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d, const Winding
 }
 
 /*!
- * \brief Computes the GWN for a 2D point wrt to a collection of Dipoles
+ * \brief Computes the GWN for a 2D point wrt a collection of dipoles.
  *
  * \param [in] q The query point to test
  * \param [in] darray The array of Dipoles
@@ -593,7 +593,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 //! @name Winding number operations between 3D points and primitives
 
 /*!
- * \brief Compute the GWN for a 3D point wrt a dipole
+ * \brief Computes the GWN for a 3D point wrt a dipole.
  *
  * \param [in] q The query point to test
  * \param [in] d The dipole generating the scalar field
@@ -606,7 +606,7 @@ double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d)
   return 0.25 * M_1_PI * d.evaluate(q);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with batched tolerances (none of which are used by dipoles).
 template <typename T>
 double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d, const WindingTolerances&)
 {
@@ -614,7 +614,7 @@ double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d, const Winding
 }
 
 /*!
- * \brief Computes the GWN for a 3D point wrt to a collection of Dipoles
+ * \brief Computes the GWN for a 3D point wrt a collection of dipoles.
  *
  * \param [in] q The query point to test
  * \param [in] darray The array of Dipoles

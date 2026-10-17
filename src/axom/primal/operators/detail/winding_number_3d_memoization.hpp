@@ -435,8 +435,8 @@ public:
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
-    // Do cache initialization serially to avoid issues with concurrent memory management
-    // Issues were only actually observed in the 2D case, but we do the fix here to be safe
+    // Do cache initialization serially to avoid issues with concurrent memory management.
+    // Issues were observed only in the 2D case, but apply the same approach here for safety.
 
     // Make the first one
     nurbs_caches_view[0].resize(patches.size());

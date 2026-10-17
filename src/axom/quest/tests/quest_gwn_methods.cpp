@@ -289,7 +289,7 @@ void check_dipole_gwn_query_3d_cube()
       const double j_ref = (j + 0.5) * cell_width;
 
       // Map the reference coordinate to the corresponding cell of each face,
-      //  using the corresponding outwards normal to orient the dipole
+      //  using the corresponding outward normal to orient the dipole
       dipoles.emplace_back(Point3D {0.0, i_ref, j_ref}, Vector3D {-1.0, 0.0, 0.0}, cell_area);
       dipoles.emplace_back(Point3D {1.0, i_ref, j_ref}, Vector3D {1.0, 0.0, 0.0}, cell_area);
       dipoles.emplace_back(Point3D {i_ref, 0.0, j_ref}, Vector3D {0.0, -1.0, 0.0}, cell_area);
