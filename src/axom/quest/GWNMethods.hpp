@@ -343,6 +343,7 @@ public:
                               slice_z](axom::IndexType index) -> primal::Point<double, NDIMS> {
       if constexpr(NDIMS == 2)
       {
+        AXOM_UNUSED_VAR(slice_z);  // unused in 2D
         primal::Point<double, 2> point;
         query_mesh->GetNode(static_cast<int>(index), point.data());
         return point;

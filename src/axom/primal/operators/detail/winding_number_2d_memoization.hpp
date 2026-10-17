@@ -331,16 +331,20 @@ public:
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
+    // Do cache initialization serially to avoid issues with concurrent memory management
+
     // Make the first one
     nurbs_caches_view[0].resize(curves.size());
-    axom::for_all<axom::OMP_EXEC>(curves.size(), [=] AXOM_HOST(axom::IndexType i) {
+    for(axom::IndexType i = 0; i < curves.size(); ++i)
+    {
       nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
-    });
+    }
 
-    // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
+    // Copy the constructed cache to the other copies (less work than construction)
+    for(int t = 1; t < nt; ++t)
+    {
       nurbs_caches_view[t] = nurbs_caches_view[0];
-    });
+    }
   }
 
   /// A view of the manager object.

@@ -435,31 +435,30 @@ public:
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
-    // Make the first cache
-    nurbs_caches_view[0].resize(patches.size());
-    axom::for_all<axom::OMP_EXEC>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
-      nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
-    });
+    // Do cache initialization serially to avoid issues with concurrent memory management
+    // Issues were only actually observed in the 2D case, but we do the fix here to be safe
 
-    // If we didn't comptue normals in NURBSCache constructor,
-    //  need to get them from the moments
-    if(!mustComputeNormal)
+    // Make the first one
+    nurbs_caches_view[0].resize(patches.size());
+    for(axom::IndexType i = 0; i < patches.size(); ++i)
     {
-      axom::for_all<axom::OMP_EXEC>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
-        nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
-      });
+      nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
     }
 
-    // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
-      nurbs_caches_view[t].resize(nurbs_caches_view[0].size());
-    });
-    axom::for_all<axom::OMP_EXEC>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
-      for(int t = 0; t < nt; t++)
+    // If the cache did not calculate normals, use the precomputed moment data instead.
+    if(!mustComputeNormal)
+    {
+      for(axom::IndexType i = 0; i < patches.size(); ++i)
       {
-        nurbs_caches_view[t][i] = nurbs_caches_view[0][i];
+        nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
       }
-    });
+    }
+
+    // Copy the constructed cache to the other copies (less work than construction)
+    for(int t = 1; t < nt; ++t)
+    {
+      nurbs_caches_view[t] = nurbs_caches_view[0];
+    }
   }
 
   /// A view of the manager object.

@@ -170,12 +170,12 @@ TEST(quest_gwn_methods, gwn_moment_data_dipole_2d)
   const Dipole2D dipole(Point2D {1.0, -2.0}, Vector2D {3.0, 4.0}, 5.0);
   const Moments moments(dipole);
   const Point2D query {4.0, 1.0};
-  const primal::WindingTolerances tolerances;
+  const axom::primal::WindingTolerances tolerances;
 
   // For a single dipole, the zeroth order GWN "approximation" is itself
   EXPECT_EQ(moments.getCenter(), dipole.getSource());
   EXPECT_NEAR(moments.approx_winding_number(query),
-              primal::winding_number(query, dipole, tolerances),
+              axom::primal::winding_number(query, dipole, tolerances),
               1.e-14);
 }
 
@@ -190,13 +190,158 @@ TEST(quest_gwn_methods, gwn_moment_data_dipole_3d)
   const Dipole3D dipole(Point3D {1.0, -2.0, 3.0}, Vector3D {2.0, -1.0, 2.0}, 4.0);
   const Moments moments(dipole);
   const Point3D query {5.0, 1.0, -1.0};
-  const primal::WindingTolerances tolerances;
+  const axom::primal::WindingTolerances tolerances;
 
   // For a single dipole, the zeroth order GWN "approximation" is itself
   EXPECT_EQ(moments.getCenter(), dipole.getSource());
   EXPECT_NEAR(moments.approx_winding_number(query),
-              primal::winding_number(query, dipole, tolerances),
+              axom::primal::winding_number(query, dipole, tolerances),
               1.e-14);
+}
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+void check_dipole_gwn_query_2d_square()
+{
+  using Point2D = axom::primal::Point<double, 2>;
+  using Vector2D = axom::primal::Vector<double, 2>;
+  using Dipole2D = axom::primal::Dipole<double, 2>;
+
+  constexpr int cells_per_side = 8;
+  constexpr double cell_length = 1.0 / cells_per_side;
+
+  // Treating each edge of the unit square as tiled by a 1D cartesian grid,
+  //  we approximate each cell by a dipole of fixed length.
+  axom::Array<Dipole2D> dipoles;
+  for(int i = 0; i < cells_per_side; ++i)
+  {
+    const double coordinate = (i + 0.5) * cell_length;
+    dipoles.emplace_back(Point2D {0.0, coordinate}, Vector2D {-1.0, 0.0}, cell_length);
+    dipoles.emplace_back(Point2D {1.0, coordinate}, Vector2D {1.0, 0.0}, cell_length);
+    dipoles.emplace_back(Point2D {coordinate, 0.0}, Vector2D {0.0, -1.0}, cell_length);
+    dipoles.emplace_back(Point2D {coordinate, 1.0}, Vector2D {0.0, 1.0}, cell_length);
+  }
+
+  // Generate a grid of sample points
+  axom::primal::BoundingBox<double, 2> shape_bbox(Point2D {0.0, 0.0}, Point2D {1.0, 1.0});
+  mfem::DataCollection dc("dipole_gwn_2d");
+  axom::quest::generate_gwn_query_mesh(dc,
+                                       shape_bbox,
+                                       std::vector<double> {-0.5, -0.5},  // bbox min
+                                       std::vector<double> {1.5, 1.5},    // bbox max
+                                       std::vector<int> {4, 4},
+                                       1);
+
+  // Construct the GWN query
+  axom::quest::DipoleGWNQuery<ExecSpace, 2> query;
+  query.preprocess(dipoles);
+  query.query(dc, axom::primal::WindingTolerances {});
+
+  // Iterate over the query points. A dipole collection doesn't define a precise near-field geometry,
+  //  but the 0.5 isosurface is well-defined and gives a good proxy for containment
+  const auto* mesh = dc.GetMesh();
+  const auto num_query_points = mesh->GetNodalFESpace()->GetNDofs();
+  const auto& winding = *dc.GetField("winding");
+  for(int i = 0; i < num_query_points; ++i)
+  {
+    Point2D point;
+    mesh->GetNode(i, point.data());
+
+    // Skip any point on the square boundary, as we don't expect a good containment decision there
+    if(point[0] == 0.0 || point[0] == 1.0 || point[1] == 0.0 || point[1] == 1.0)
+    {
+      continue;
+    }
+
+    const bool inside = point[0] > 0.0 && point[0] < 1.0 && point[1] > 0.0 && point[1] < 1.0;
+    if(inside)
+    {
+      EXPECT_GT(winding[i], 0.5) << "at " << point;
+    }
+    else
+    {
+      EXPECT_LT(winding[i], 0.5) << "at " << point;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+void check_dipole_gwn_query_3d_cube()
+{
+  using Point3D = axom::primal::Point<double, 3>;
+  using Vector3D = axom::primal::Vector<double, 3>;
+  using Dipole3D = axom::primal::Dipole<double, 3>;
+
+  constexpr int cells_per_side = 6;
+  constexpr double cell_width = 1.0 / cells_per_side;
+  constexpr double cell_area = cell_width * cell_width;
+
+  // Treating each edge of the unit cube as tiled by a 2D cartesian grid,
+  //  we approximate each cell by a dipole of fixed area.
+  axom::Array<Dipole3D> dipoles;
+  for(int i = 0; i < cells_per_side; ++i)
+  {
+    for(int j = 0; j < cells_per_side; ++j)
+    {
+      // Define the center of a reference cell
+      const double i_ref = (i + 0.5) * cell_width;
+      const double j_ref = (j + 0.5) * cell_width;
+
+      // Map the reference coordinate to the corresponding cell of each face,
+      //  using the corresponding outwards normal to orient the dipole
+      dipoles.emplace_back(Point3D {0.0, i_ref, j_ref}, Vector3D {-1.0, 0.0, 0.0}, cell_area);
+      dipoles.emplace_back(Point3D {1.0, i_ref, j_ref}, Vector3D {1.0, 0.0, 0.0}, cell_area);
+      dipoles.emplace_back(Point3D {i_ref, 0.0, j_ref}, Vector3D {0.0, -1.0, 0.0}, cell_area);
+      dipoles.emplace_back(Point3D {i_ref, 1.0, j_ref}, Vector3D {0.0, 1.0, 0.0}, cell_area);
+      dipoles.emplace_back(Point3D {i_ref, j_ref, 0.0}, Vector3D {0.0, 0.0, -1.0}, cell_area);
+      dipoles.emplace_back(Point3D {i_ref, j_ref, 1.0}, Vector3D {0.0, 0.0, 1.0}, cell_area);
+    }
+  }
+
+  // Generate a grid of sample points
+  axom::primal::BoundingBox<double, 3> shape_bbox(Point3D {0.0, 0.0, 0.0}, Point3D {1.0, 1.0, 1.0});
+  mfem::DataCollection dc("dipole_gwn_3d");
+  axom::quest::generate_gwn_query_mesh(dc,
+                                       shape_bbox,
+                                       std::vector<double> {-0.5, -0.5, -0.5},  // bbox min
+                                       std::vector<double> {1.5, 1.5, 1.5},     // bbox max
+                                       std::vector<int> {4, 4, 4},
+                                       1);
+
+  // Construct the GWN query
+  axom::quest::DipoleGWNQuery<ExecSpace, 3> query;
+  query.preprocess(dipoles);
+  query.query(dc, axom::primal::WindingTolerances {});
+
+  // Iterate over the query points. A dipole collection doesn't define a precise near-field geometry,
+  //  but the 0.5 isosurface is well-defined and gives a good proxy for containment
+  const auto* mesh = dc.GetMesh();
+  const auto num_query_points = mesh->GetNodalFESpace()->GetNDofs();
+  const auto& winding = *dc.GetField("winding");
+  for(int i = 0; i < num_query_points; ++i)
+  {
+    Point3D point;
+    mesh->GetNode(i, point.data());
+
+    // Skip any point on the cube boundary, as we don't expect a good containment decision there
+    if(point[0] == 0.0 || point[0] == 1.0 || point[1] == 0.0 || point[1] == 1.0 ||
+       point[2] == 0.0 || point[2] == 1.0)
+    {
+      continue;
+    }
+
+    const bool inside = point[0] > 0.0 && point[0] < 1.0 && point[1] > 0.0 && point[1] < 1.0 &&
+      point[2] > 0.0 && point[2] < 1.0;
+    if(inside)
+    {
+      EXPECT_GT(winding[i], 0.5) << "at " << point;
+    }
+    else
+    {
+      EXPECT_LT(winding[i], 0.5) << "at " << point;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -404,8 +549,28 @@ void check_step_file_evaluation()
 //------------------------------------------------------------------------------
 TEST(quest_gwn_methods, mfem_mesh_evaluation) { check_mfem_mesh_evaluation<axom::SEQ_EXEC>(); }
 
+TEST(quest_gwn_methods, dipole_gwn_query_2d_square)
+{
+  check_dipole_gwn_query_2d_square<axom::SEQ_EXEC>();
+}
+
+TEST(quest_gwn_methods, dipole_gwn_query_3d_cube)
+{
+  check_dipole_gwn_query_3d_cube<axom::SEQ_EXEC>();
+}
+
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
 TEST(quest_gwn_methods, mfem_mesh_evaluation_omp) { check_mfem_mesh_evaluation<axom::OMP_EXEC>(); }
+
+TEST(quest_gwn_methods, dipole_gwn_query_2d_square_omp)
+{
+  check_dipole_gwn_query_2d_square<axom::OMP_EXEC>();
+}
+
+TEST(quest_gwn_methods, dipole_gwn_query_3d_cube_omp)
+{
+  check_dipole_gwn_query_3d_cube<axom::OMP_EXEC>();
+}
 #endif
 
 #ifdef AXOM_USE_OPENCASCADE
