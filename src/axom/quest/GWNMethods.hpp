@@ -395,7 +395,7 @@ public:
       // indices. The cache manager creates exactly one cache per processed
       // curve, and selects each OMP thread's cache during calls to operator[].
       SLIC_ASSERT(cache_manager_view.size() == m_processed_curves_view.size());
-      m_fast_query.evaluate(dc, cache_manager_view, tolerances, query_point);
+      m_fast_query.evaluate(dc, cache_manager_view, tol, query_point);
     }
   }
 
@@ -494,14 +494,14 @@ public:
     }
 
     const auto* query_mesh = dc.GetMesh();
-    const auto query_point = [query_mesh](axom::IndexType inidxdex) -> Point2D {
+    const auto query_point = [query_mesh](axom::IndexType idx) -> Point2D {
       axom::primal::Point<double, 2> pt({0., 0.});
       query_mesh->GetNode(static_cast<int>(idx), pt.data());
       return pt;
     };
 
     const axom::Array<SegmentType>& const_segments = m_segments;
-    m_fast_query.evaluate(dc, const_segments.view(), tolerances, query_point);
+    m_fast_query.evaluate(dc, const_segments.view(), tol, query_point);
   }
 
 private:
@@ -656,7 +656,7 @@ public:
       // Use the non-memoized version.
       SLIC_WARNING(
         "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
-      m_fast_query.evaluate(dc, m_processed_patches_view, tolerances, query_point);
+      m_fast_query.evaluate(dc, m_processed_patches_view, tol, query_point);
     }
     else
     {
@@ -667,7 +667,7 @@ public:
       // indices. The cache manager creates exactly one cache per processed
       // patch, and selects each OMP thread's cache during calls to operator[].
       SLIC_ASSERT(cache_manager_view.size() == m_processed_patches_view.size());
-      m_fast_query.evaluate(dc, cache_manager_view, tolerances, query_point);
+      m_fast_query.evaluate(dc, cache_manager_view, tol, query_point);
     }
   }
 
@@ -807,7 +807,7 @@ public:
     };
 
     const axom::Array<TriangleType>& const_triangles = m_triangles;
-    m_fast_query.evaluate(dc, const_triangles.view(), tolerances, scaled_query_point);
+    m_fast_query.evaluate(dc, const_triangles.view(), tol, scaled_query_point);
   }
 
 private:
