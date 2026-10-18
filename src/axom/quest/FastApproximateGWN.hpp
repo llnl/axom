@@ -7,6 +7,8 @@
 
 #include "axom/primal.hpp"
 
+#include <type_traits>
+
 namespace axom
 {
 namespace quest
