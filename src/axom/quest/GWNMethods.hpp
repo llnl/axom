@@ -288,6 +288,8 @@ private:
   axom::IndexType m_source_primitive_count {0};
 };
 
+}  // namespace detail
+
 /*!
  * \class DipoleGWNQuery
  *
@@ -308,7 +310,7 @@ public:
 
   using DipoleType = primal::Dipole<double, NDIMS>;
   using DipoleArrayType = axom::Array<DipoleType>;
-  using FastQuery = FastGWNQuery<ExecSpace, NDIMS, ORDER>;
+  using FastQuery = detail::FastGWNQuery<ExecSpace, NDIMS, ORDER>;
 
   DipoleGWNQuery() = default;
 
