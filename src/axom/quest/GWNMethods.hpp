@@ -124,6 +124,9 @@ void generate_gwn_query_mesh(mfem::DataCollection& dc,
 // Query classes
 //------------------------------------------------------------------------------
 
+namespace detail
+{
+
 /*!
  * \class FastGWNQuery
  *
@@ -266,6 +269,8 @@ private:
   axom::Array<MomentType> m_internal_moments;
 };
 
+}  // namespace detail
+
 ///@{
 /// \name Query methods for 2D GWN applications
 
@@ -290,7 +295,7 @@ public:
   using CurveType = axom::primal::NURBSCurve<double, 2>;
   using CurveArrayType = axom::Array<CurveType>;
   using NURBSCacheManager = typename axom::primal::nurbs_cache_2d_traits<ExecSpace>::type;
-  using FastQuery = FastGWNQuery<ExecSpace, 2, ORDER>;
+  using FastQuery = detail::FastGWNQuery<ExecSpace, 2, ORDER>;
 
   NURBSCurveGWNQuery() = default;
 
@@ -434,7 +439,7 @@ class PolylineGWNQuery
 public:
   using Point2D = axom::primal::Point<double, 2>;
   using SegmentType = axom::primal::Segment<double, 2>;
-  using FastQuery = FastGWNQuery<ExecSpace, 2, ORDER>;
+  using FastQuery = detail::FastGWNQuery<ExecSpace, 2, ORDER>;
 
   PolylineGWNQuery() = default;
 
@@ -535,7 +540,7 @@ public:
   using PatchType = axom::primal::NURBSPatch<double, 3>;
   using PatchArrayType = axom::Array<PatchType>;
   using NURBSCacheManager = typename axom::primal::nurbs_cache_3d_traits<ExecSpace>::type;
-  using FastQuery = FastGWNQuery<ExecSpace, 3, ORDER>;
+  using FastQuery = detail::FastGWNQuery<ExecSpace, 3, ORDER>;
 
   NURBSPatchGWNQuery() = default;
 
@@ -707,7 +712,7 @@ public:
   using Point3D = axom::primal::Point<double, 3>;
   using BoxType = axom::primal::BoundingBox<double, 3>;
   using TriangleType = axom::primal::Triangle<double, 3>;
-  using FastQuery = FastGWNQuery<ExecSpace, 3, ORDER>;
+  using FastQuery = detail::FastGWNQuery<ExecSpace, 3, ORDER>;
 
   TriangleGWNQuery() = default;
 
