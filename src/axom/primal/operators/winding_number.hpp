@@ -70,6 +70,13 @@ double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_
   return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
 }
 
+//! \brief Overload with batched tolerances.
+template <typename T>
+double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, const WindingTolerances& tolerances)
+{
+  return winding_number(q, s, tolerances.edge_tol);
+}
+
 /*!
  * \brief Compute the winding number for a 2D point wrt a 2D triangle
  *
@@ -156,6 +163,15 @@ double winding_number(const Point<T, 2>& q,
 {
   bool dummy_isOnCurve = false;
   return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
+}
+
+//! \brief Overload with batched tolerances.
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const NURBSCurve<T, 2>& n,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(q, n, tolerances.edge_tol, tolerances.EPS);
 }
 
 /*!
@@ -314,6 +330,15 @@ double winding_number(const Point<T, 2>& q,
 {
   bool dummy_isOnCurve;
   return winding_number(q, nurbs_cache, dummy_isOnCurve, edge_tol, EPS);
+}
+
+//! \brief Overload with batched tolerances.
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const detail::NURBSCurveGWNCache<T>& nurbs_cache,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(q, nurbs_cache, tolerances.edge_tol, tolerances.EPS);
 }
 
 /*!
@@ -515,6 +540,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 
   return ret_val;
 }
+///@}
 
 ///@{
 //! @name Winding number operations between 3D points and primitives
@@ -626,6 +652,15 @@ double winding_number(const Point<T, 3>& q,
 {
   bool isOnFace = false;
   return winding_number(q, tri, isOnFace, edge_tol, EPS);
+}
+
+//! \brief Overload with batched tolerances.
+template <typename T>
+double winding_number(const Point<T, 3>& q,
+                      const Triangle<T, 3>& tri,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(q, tri, tolerances.edge_tol, tolerances.EPS);
 }
 
 /*!
@@ -782,6 +817,21 @@ double winding_number(const Point<T, 3>& query,
                                       EPS);
 }
 
+//! \brief Overload with batched tolerances.
+template <typename T>
+double winding_number(const Point<T, 3>& query,
+                      const detail::NURBSPatchGWNCache<T>& nurbs,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(query,
+                        nurbs,
+                        tolerances.edge_tol,
+                        tolerances.ls_tol,
+                        tolerances.quad_tol,
+                        tolerances.disk_size,
+                        tolerances.EPS);
+}
+
 /// \brief Overload for a single query and an ArrayView
 template <typename T>
 double winding_number(const Point<T, 3>& query,
@@ -842,6 +892,21 @@ double winding_number(const Point<T, 3>& query,
                         quad_tol,
                         disk_size,
                         EPS);
+}
+
+//! \brief Overload with batched tolerances.
+template <typename T, typename SurfaceType>
+double winding_number(const Point<T, 3>& query,
+                      const SurfaceType& surf,
+                      const WindingTolerances& tolerances)
+{
+  return winding_number(query,
+                        surf,
+                        tolerances.edge_tol,
+                        tolerances.ls_tol,
+                        tolerances.quad_tol,
+                        tolerances.disk_size,
+                        tolerances.EPS);
 }
 
 /*!

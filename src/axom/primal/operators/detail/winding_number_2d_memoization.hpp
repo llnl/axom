@@ -285,6 +285,12 @@ public:
 
     /// Return the NURBSCacheArrayView.
     NURBSCacheArrayView caches() const { return m_view; }
+
+    /// Return the number of cached curves.
+    axom::IndexType size() const { return m_view.size(); }
+
+    /// Return the cache for the given curve.
+    const NURBSCache& operator[](axom::IndexType index) const { return m_view[index]; }
   };
 
   /// Return a view of this manager to pass into a device function.
@@ -325,16 +331,20 @@ public:
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
+    // Do cache initialization serially to avoid issues with concurrent memory management.
+
     // Make the first one
     nurbs_caches_view[0].resize(curves.size());
-    axom::for_all<axom::OMP_EXEC>(curves.size(), [=] AXOM_HOST(axom::IndexType i) {
+    for(axom::IndexType i = 0; i < curves.size(); ++i)
+    {
       nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
-    });
+    }
 
-    // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
+    // Copy the constructed cache to the other copies (less work than construction)
+    for(int t = 1; t < nt; ++t)
+    {
       nurbs_caches_view[t] = nurbs_caches_view[0];
-    });
+    }
   }
 
   /// A view of the manager object.
@@ -344,6 +354,12 @@ public:
 
     /// Return the NURBSCacheArrayView for the current OMP thread.
     NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+
+    /// Return the number of cached curves per OMP thread.
+    axom::IndexType size() const { return m_views[0].size(); }
+
+    /// Return the cache for the given curve on the current OMP thread.
+    const NURBSCache& operator[](axom::IndexType index) const { return caches()[index]; }
   };
 
   /// Return a view of this manager to pass into a device function.
