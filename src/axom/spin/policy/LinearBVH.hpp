@@ -29,6 +29,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 namespace axom::spin::policy
@@ -37,6 +38,21 @@ namespace lbvh = internal::linear_bvh;
 
 template <typename FloatType, int NDIMS>
 using BVH2Node = lbvh::BVH2Node<FloatType, NDIMS>;
+
+/*!
+ * \brief Tags the leaf representations supported by LinearBVH.
+ *
+ * The default single-primitive representation preserves LinearBVH's existing
+ * behavior: every input bounding box is one BVH leaf. Future leaf
+ * representations, such as buckets of Morton-nearby primitives, belong under
+ * this linear-BVH-specific dispatch rather than the top-level BVH policy.
+ */
+struct LinearBVHType
+{
+  /// A leaf stores the index of exactly one input primitive.
+  struct SinglePrimitiveLeaf
+  { };
+};
 
 /*
  * \brief Interface for a BVH tree through a traversal operation (which 
@@ -65,10 +81,15 @@ using BVH2Node = lbvh::BVH2Node<FloatType, NDIMS>;
  *
  * \see internal::linear_bvh::bvh_traverse
  */
-template <typename FloatType, int NDIMS>
+template <typename FloatType,
+          int NDIMS,
+          typename LeafType = LinearBVHType::SinglePrimitiveLeaf>
 class LinearBVHTraverser
 {
 public:
+  static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
+                "Only LinearBVHType::SinglePrimitiveLeaf is currently supported.");
+
   using BoxType = primal::BoundingBox<FloatType, NDIMS>;
   using PointType = primal::Point<FloatType, NDIMS>;
   using BVHNode = BVH2Node<FloatType, NDIMS>;
@@ -241,11 +262,17 @@ private:
  *  ones-complement if leaf node).
  *
  */
-template <typename FloatType, int NDIMS, typename ExecSpace>
+template <typename FloatType,
+          int NDIMS,
+          typename ExecSpace,
+          typename LeafType = LinearBVHType::SinglePrimitiveLeaf>
 class LinearBVH
 {
 public:
-  using TraverserType = LinearBVHTraverser<FloatType, NDIMS>;
+  static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
+                "Only LinearBVHType::SinglePrimitiveLeaf is currently supported.");
+
+  using TraverserType = LinearBVHTraverser<FloatType, NDIMS, LeafType>;
   using BoundingBoxType = primal::BoundingBox<FloatType, NDIMS>;
   using BVHNode = BVH2Node<FloatType, NDIMS>;
 
@@ -314,13 +341,14 @@ private:
   primal::BoundingBox<FloatType, NDIMS> m_bounds;
 };
 
-template <typename FloatType, int NDIMS, typename ExecSpace>
+template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
 template <typename BoxIndexable>
-void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
-                                                       IndexType numBoxes,
-                                                       FloatType scaleFactor,
-                                                       int allocatorID,
-                                                       SpaceFillingCurve ordering)
+void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(
+  const BoxIndexable boxes,
+  IndexType numBoxes,
+  FloatType scaleFactor,
+  int allocatorID,
+  SpaceFillingCurve ordering)
 {
   AXOM_ANNOTATE_SCOPE("LinearBVH::buildImpl");
 
@@ -395,9 +423,9 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
   m_initialized = true;
 }
 
-template <typename FloatType, int NDIMS, typename ExecSpace>
+template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
 template <typename PrimitiveType, typename Predicate, typename PrimitiveIndexable>
-axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImpl(
+axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::findCandidatesImpl(
   Predicate&& predicate,
   const axom::ArrayView<IndexType> offsets,
   const axom::ArrayView<IndexType> counts,
@@ -494,8 +522,9 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 #endif
 }
 
-template <typename FloatType, int NDIMS, typename ExecSpace>
-void LinearBVH<FloatType, NDIMS, ExecSpace>::writeVtkFileImpl(const std::string& fileName) const
+template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
+void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::writeVtkFileImpl(
+  const std::string& fileName) const
 {
   std::ostringstream nodes;
   std::ostringstream cells;

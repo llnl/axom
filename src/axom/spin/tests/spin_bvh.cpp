@@ -34,6 +34,16 @@ using IndexType = axom::IndexType;
 
 constexpr double EPS = 1e-6;
 
+using DefaultLinearBVH = spin::policy::LinearBVH<double, 2, axom::SEQ_EXEC>;
+using SinglePrimitiveLinearBVH =
+  spin::policy::LinearBVH<double,
+                          2,
+                          axom::SEQ_EXEC,
+                          spin::policy::LinearBVHType::SinglePrimitiveLeaf>;
+
+static_assert(std::is_same_v<DefaultLinearBVH, SinglePrimitiveLinearBVH>,
+              "SinglePrimitiveLeaf must remain LinearBVH's default leaf representation.");
+
 //------------------------------------------------------------------------------
 template <typename FloatType, int NDIMS>
 void dump_ray(const std::string& file, FloatType t, const primal::Ray<FloatType, NDIMS>& ray)
