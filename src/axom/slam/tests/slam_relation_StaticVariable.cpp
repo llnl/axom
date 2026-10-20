@@ -299,13 +299,12 @@ TEST(slam_static_variable_relation, empty_relation_out_of_bounds)
 {
   StaticVariableRelationType emptyRel;
 
-#ifdef AXOM_DEBUG
-  // NOTE: AXOM_DEBUG is disabled in release mode, so this test will only fail
-  // in debug mode
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
+  // This check is only active when Slic debug macros are enabled.
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(emptyRel[FROMSET_SIZE], "");
 #else
-  SLIC_INFO("Skipped assertion failure check in release mode.");
+  SLIC_INFO("Skipped assertion failure check because Slic debug macros are disabled.");
 #endif
 }
 
@@ -323,13 +322,12 @@ TEST(slam_static_variable_relation, initialized_rel_out_of_bounds)
   incrementingRel.bindBeginOffsets(fromSet.size(), &relOffsets);
   incrementingRel.bindIndices(relIndices.size(), &relIndices);
 
-#ifdef AXOM_DEBUG
-  // NOTE: AXOM_DEBUG is disabled in release mode, so this test will only fail
-  // in debug mode
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
+  // This check is only active when Slic debug macros are enabled.
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(incrementingRel[FROMSET_SIZE], "");
 #else
-  SLIC_INFO("Skipped assertion failure check in release mode.");
+  SLIC_INFO("Skipped assertion failure check because Slic debug macros are disabled.");
 #endif
 }
 

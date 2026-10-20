@@ -1619,7 +1619,7 @@ void InOutOctree<DIM>::printOctreeStats() const
 template <int DIM>
 void InOutOctree<DIM>::checkAllLeavesColoredAtLevel(int AXOM_DEBUG_PARAM(level)) const
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   detail::InOutOctreeValidator<DIM> validator(*this);
   validator.checkAllLeavesColoredAtLevel(level);
 #endif

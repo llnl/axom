@@ -65,13 +65,13 @@ inline axom::IndexType relation_from_size(const FromSet* fromSet)
  * This check inspects only sizes, so it is safe for relations built over device-resident storage.
  * Deeper validity (e.g. monotonicity of begins and the terminal offset relative to the index count)
  * is left to StaticRelation::isValid(), which reads the buffers on the appropriate memory space.
- * Asserts in debug builds; a no-op in release builds.
+ * Asserts when Slic debug macros are enabled.
  */
 template <typename FromSet>
 inline void check_variable_relation_size(const FromSet* fromSet,
                                          axom::IndexType AXOM_DEBUG_PARAM(beginsSize))
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   const axom::IndexType expected = relation_from_size(fromSet) + 1;
   SLIC_ASSERT_MSG(beginsSize == expected,
                   "slam::make_variable_relation -- begins has "
@@ -90,14 +90,14 @@ inline void check_variable_relation_size(const FromSet* fromSet,
  * A constant-cardinality relation indexes through `pos * stride`, so \a indices must
  * contain exactly `fromSet->size() * stride` entries.
  * This check inspects only sizes, so it is safe for device-resident storage.
- * Asserts in debug builds; a no-op in release builds.
+ * Asserts when Slic debug macros are enabled.
  */
 template <typename FromSet, typename PosType>
 inline void check_constant_relation_size(const FromSet* fromSet,
                                          PosType AXOM_DEBUG_PARAM(stride),
                                          axom::IndexType AXOM_DEBUG_PARAM(indicesSize))
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   const axom::IndexType expected = relation_from_size(fromSet) * static_cast<axom::IndexType>(stride);
   SLIC_ASSERT_MSG(indicesSize == expected,
                   "slam::make_constant_relation -- indices has "

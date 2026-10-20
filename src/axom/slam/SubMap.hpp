@@ -231,7 +231,7 @@ private:  //helper functions
   void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx),
                           ComponentIndex... AXOM_DEBUG_PARAM(comp)) const
   {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     ElementShape indexArray {{comp...}};
     bool validIndexes = true;
     for(int dim = 0; dim < StridePolicyType::NumDims; dim++)

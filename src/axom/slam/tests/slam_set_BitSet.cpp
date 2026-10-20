@@ -432,7 +432,7 @@ TEST(slam_set_bitset, settingOutOfRange)
   {
     slam::BitSet bitset(0);
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     SLIC_INFO("** Expecting error ** ");
     EXPECT_DEATH_IF_SUPPORTED(bitset.set(0), "");
 #else
@@ -446,7 +446,7 @@ TEST(slam_set_bitset, settingOutOfRange)
     int const NBITS = 20;
     slam::BitSet bitset(NBITS);
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     SLIC_INFO("** Expecting error ** ");
     EXPECT_DEATH_IF_SUPPORTED(bitset.set(NBITS), "");
 #else
@@ -460,7 +460,7 @@ TEST(slam_set_bitset, settingOutOfRange)
     int const NBITS = 120;
     slam::BitSet bitset(NBITS);
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     SLIC_INFO("** Expecting error ** ");
     EXPECT_DEATH_IF_SUPPORTED(bitset.set(200), "");
 #else
@@ -524,7 +524,7 @@ int main(int argc, char* argv[])
 
   ::testing::InitGoogleTest(&argc, argv);
 
-#if AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   // add this line to avoid a warning in the output about thread safety
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 #endif

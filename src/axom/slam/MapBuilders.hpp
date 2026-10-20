@@ -38,14 +38,14 @@ axom::IndexType map_storage_size(const SetType* set, PosType stride)
  * storage must contain exactly `set->size() * stride` elements. Unlike the raw-pointer
  * make_map overloads (which size the view themselves), the ArrayView overloads trust the
  * caller's view length; an undersized view would index out of bounds. This asserts the
- * invariant in debug builds and is a no-op in release builds.
+ * invariant when Slic debug macros are enabled.
  */
 template <typename SetType, typename T, typename PosType>
 inline void check_map_view_size(const SetType* set,
                                 PosType stride,
                                 const axom::ArrayView<T>& AXOM_DEBUG_PARAM(data))
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   const axom::IndexType expected = map_storage_size(set, stride);
   SLIC_ASSERT_MSG(static_cast<axom::IndexType>(data.size()) == expected,
                   "slam::make_map -- ArrayView backing storage has "

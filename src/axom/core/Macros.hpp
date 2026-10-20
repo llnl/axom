@@ -203,8 +203,8 @@
 
 /*!
  * \def AXOM_DEBUG_PARAM(x)
- * \brief Macro used to silence compiler warnings about parameters
- *        that are only used when AXOM_DEBUG is defined
+ * \brief Macro used to silence compiler warnings about parameters that are
+ *        only used when AXOM_DEBUG or Slic debug macros are enabled
  * \note Default values are ok
  * \code
  *
@@ -216,7 +216,7 @@
  *
  * \endcode
  */
-#ifdef AXOM_DEBUG
+#if defined(AXOM_DEBUG) || (defined(AXOM_ENABLE_SLIC_DEBUG_MACROS) && AXOM_ENABLE_SLIC_DEBUG_MACROS)
   #define AXOM_DEBUG_PARAM(_x) _x
 #else
   #define AXOM_DEBUG_PARAM(_x)

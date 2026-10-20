@@ -700,7 +700,7 @@ private:
   inline void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(setIdx),
                                  ComponentIndex... AXOM_DEBUG_PARAM(compIdx)) const
   {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     ElementShape indexArray {{compIdx...}};
     bool validIndexes = true;
     for(int dim = 0; dim < StridePolicyType::NumDims; dim++)

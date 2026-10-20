@@ -632,7 +632,7 @@ private:
 
   inline void verifyFieldsKey(std::string_view AXOM_DEBUG_PARAM(key)) const
   {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     auto it = m_maps.find(key);
     SLIC_ASSERT_MSG(it != m_maps.end(), "Didn't find field named " << key);
     SLIC_ASSERT_MSG(std::holds_alternative<MapType>(it->second),
