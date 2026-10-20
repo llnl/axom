@@ -53,12 +53,12 @@ dane-llvm_19_1_3-release-werror-src:
     EXTRA_CMAKE_OPTIONS: "-DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DENABLE_WARNINGS_AS_ERRORS:BOOL=ON"
   extends: .src_build_on_dane
 
-dane-gcc_13_3_1-release-werror-src:
+dane-gcc_13_3_1-release-with-slic-debug-macros-enabled-werror-src:
   variables:
     COMPILER: "gcc@13.3.1"
     HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
     BUILD_TYPE: "Release"
-    EXTRA_CMAKE_OPTIONS: "-DENABLE_WARNINGS_AS_ERRORS:BOOL=ON"
+    EXTRA_CMAKE_OPTIONS: "-DAXOM_ENABLE_SLIC_DEBUG_MACROS=ON -DENABLE_WARNINGS_AS_ERRORS:BOOL=ON"
   extends: .src_build_on_dane
 
 dane-gcc_13_3_1-umpire_host_default-werror-src:
