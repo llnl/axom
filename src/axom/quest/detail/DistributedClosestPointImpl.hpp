@@ -957,6 +957,7 @@ public:
 
       double currentMaxSqDistance = computeLocalClosestPoints(xferNode);
 
+      std::vector<int> route;
       const auto& myObjectBb = m_objectPartitionBbs[m_rank];
       if(m_replicateObjectDomains && !m_replicationMap.empty())
       {
@@ -975,21 +976,35 @@ public:
             }
           }
         }
+
+        auto routeGroupIt = groupIt;
+        for(std::size_t i = 1; i < m_replicationMap.size(); ++i)
+        {
+          if(++routeGroupIt == m_replicationMap.end())
+          {
+            routeGroupIt = m_replicationMap.begin();
+          }
+          route.push_back(selectReplica(routeGroupIt->second, m_rank));
+        }
       }
       else
       {
         for(int r = 0; r < m_nranks; ++r)
         {
-          if(r != m_rank)
+          const auto& otherQueryBb = allQueryBbs[r];
+          if(r != m_rank && is_statically_eligible(otherQueryBb, myObjectBb))
           {
-            const auto& otherQueryBb = allQueryBbs[r];
-            if(is_statically_eligible(otherQueryBb, myObjectBb))
-            {
-              ++remainingRecvs;
-            }
+            ++remainingRecvs;
           }
         }
+
+        for(int i = 1; i < m_nranks; ++i)
+        {
+          route.push_back((m_rank + i) % m_nranks);
+        }
       }
+      xferNode["route_list"].set(route);
+      xferNode["route_index"] = 0;
 
       /*
         Send local query mesh to next rank with close-enough object
@@ -1120,63 +1135,42 @@ private:
    * Sends skip tokens to statically eligible ranks that dynamic distance
    * filtering can prove will not improve the current closest point results.
    */
-  int next_recipient(const conduit::Node& xferNode,
+  int next_recipient(conduit::Node& xferNode,
                      double currentMaxSqDistance,
                      int tag,
                      std::list<conduit::relay::mpi::Request>& isendRequests) const
   {
-    int homeRank = xferNode.fetch_existing("homeRank").value();
+    const int homeRank = xferNode.fetch_existing("homeRank").as_int();
     BoxType bb;
     get_bounding_box_from_conduit_node(bb, xferNode.fetch_existing("aabb"));
 
-    int numObjGroups = m_nranks;
+    const conduit::Node& routeNode = xferNode.fetch_existing("route_list");
+    const int routeSize = routeNode.dtype().number_of_elements();
+    const int* route = routeSize > 0 ? routeNode.as_int_ptr() : nullptr;
+    int& routeIndex = *xferNode.fetch_existing("route_index").as_int_ptr();
 
-    auto groupIt = m_replicationMap.begin();
-    if(m_replicateObjectDomains)
+    for(int i = routeIndex; i < routeSize; ++i)
     {
-      numObjGroups = m_replicationMap.size();
-      // Get an iterator to this rank's replication group.
-      int origRank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
-      groupIt = m_replicationMap.find(origRank);
-    }
+      const int maybeNextRecip = route[i];
+      routeIndex = i + 1;
 
-    // Loop over either physical rank offsets, or group offsets.
-    for(int i = 1; i < numObjGroups; ++i)
-    {
-      int maybeNextRecip = (m_rank + i) % m_nranks;
-      if(m_replicateObjectDomains)
+      double sqDistance = 0.0;
+      if(!is_statically_eligible(bb, m_objectPartitionBbs[maybeNextRecip], sqDistance))
       {
-        // Get the next group to check.
-        SLIC_ASSERT(groupIt != m_replicationMap.end());
-        groupIt++;
-
-        if(groupIt == m_replicationMap.end())
-        {
-          // Loop back to start of sorted replication list.
-          groupIt = m_replicationMap.begin();
-        }
-        maybeNextRecip = selectReplica(groupIt->second, homeRank);
+        continue;
       }
 
-      if(maybeNextRecip == homeRank)
+      /// Use the next recipient if that rank may be able to update one of the
+      /// points in the query, otherwise skip that rank. An update is possible
+      /// if the minimum distance between the bounding boxes is less than
+      /// the current distance of any of the query points.
+      if(sqDistance <= currentMaxSqDistance)
       {
         return maybeNextRecip;
       }
-      if(double sqDistance = 0.0;
-         is_statically_eligible(bb, m_objectPartitionBbs[maybeNextRecip], sqDistance))
-      {
-        /// Use the next recipient if that rank may be able to update one of the
-        /// points in the query, otherwise skip that rank. An update is possible
-        /// if the minimum distance between the bounding boxes is less than
-        /// the current distance of any of the query points.
-        if(sqDistance <= currentMaxSqDistance)
-        {
-          return maybeNextRecip;
-        }
-        send_skip_token(maybeNextRecip, tag, isendRequests);
-      }
+      send_skip_token(maybeNextRecip, tag, isendRequests);
     }
-    return -1;
+    return m_rank == homeRank ? -1 : homeRank;
   }
 
   // Note: following should be private, but nvcc complains about lambdas in private scope
