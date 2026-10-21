@@ -406,6 +406,14 @@ struct nurbs_cache_3d_traits
 };
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_UMPIRE)
+// Temporary fix to avoid threaded cache initialization when Umpire is present
+// Can be removed when malloc is the default memory space for Array and ArrayView
+using NURBSPatchCacheInitExec = axom::SEQ_EXEC;
+  #else
+using NURBSPatchCacheInitExec = axom::OMP_EXEC;
+  #endif
+
 /*!
  * \brief Manage per-thread arrays of NURBSPatchGWNCache<double>
  */
@@ -435,30 +443,31 @@ public:
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
-    // Do cache initialization serially to avoid issues with concurrent memory management.
-    // Issues were observed only in the 2D case, but apply the same approach here for safety.
-
-    // Make the first one
+    // Make the first cache
     nurbs_caches_view[0].resize(patches.size());
-    for(axom::IndexType i = 0; i < patches.size(); ++i)
-    {
+    axom::for_all<NURBSPatchCacheInitExec>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
       nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
-    }
+    });
 
-    // If the cache did not calculate normals, use the precomputed moment data instead.
+    // If we didn't comptue normals in NURBSCache constructor,
+    //  need to get them from the moments
     if(!mustComputeNormal)
     {
-      for(axom::IndexType i = 0; i < patches.size(); ++i)
-      {
+      axom::for_all<NURBSPatchCacheInitExec>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
         nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
-      }
+      });
     }
 
-    // Copy the constructed cache to the other copies (less work than construction)
-    for(int t = 1; t < nt; ++t)
-    {
-      nurbs_caches_view[t] = nurbs_caches_view[0];
-    }
+    // Copy the constructed cache to the other threads' copies (less work than construction)
+    axom::for_all<NURBSPatchCacheInitExec>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
+      nurbs_caches_view[t].resize(nurbs_caches_view[0].size());
+    });
+    axom::for_all<NURBSPatchCacheInitExec>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
+      for(int t = 0; t < nt; t++)
+      {
+        nurbs_caches_view[t][i] = nurbs_caches_view[0][i];
+      }
+    });
   }
 
   /// A view of the manager object.

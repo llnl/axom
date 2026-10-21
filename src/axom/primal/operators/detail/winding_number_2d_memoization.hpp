@@ -310,6 +310,14 @@ struct nurbs_cache_2d_traits
 };
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_UMPIRE)
+// Temporary fix to avoid threaded cache initialization when Umpire is present
+// Can be removed when malloc is the default memory space for Array and ArrayView
+using NURBSCurveCacheInitExec = axom::SEQ_EXEC;
+  #else
+using NURBSCurveCacheInitExec = axom::OMP_EXEC;
+  #endif
+
 /*!
  * \brief Manage per-thread arrays of NURBSCurveGWNCache<double>
  */
@@ -331,20 +339,16 @@ public:
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
-    // Do cache initialization serially to avoid issues with concurrent memory management.
-
     // Make the first one
     nurbs_caches_view[0].resize(curves.size());
-    for(axom::IndexType i = 0; i < curves.size(); ++i)
-    {
+    axom::for_all<NURBSCurveCacheInitExec>(curves.size(), [=] AXOM_HOST(axom::IndexType i) {
       nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
-    }
+    });
 
-    // Copy the constructed cache to the other copies (less work than construction)
-    for(int t = 1; t < nt; ++t)
-    {
+    // Copy the constructed cache to the other threads' copies (less work than construction)
+    axom::for_all<NURBSCurveCacheInitExec>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
       nurbs_caches_view[t] = nurbs_caches_view[0];
-    }
+    });
   }
 
   /// A view of the manager object.
