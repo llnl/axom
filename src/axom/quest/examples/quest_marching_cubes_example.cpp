@@ -1124,7 +1124,8 @@ int main(int argc, char** argv)
     MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
-    exit(retval);
+    finalizeLogger();
+    return retval;
   }
 
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(params.annotationMode);
