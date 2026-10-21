@@ -204,17 +204,56 @@ void moveConduitDataToNewMemorySpace(conduit::Node& node, const std::string& pat
   }
 }
 
-void getIntMinMax(int inVal, int& minVal, int& maxVal, int& sumVal)
+namespace
+{
+
+enum class ReductionOperation
+{
+  Min,
+  Max,
+  Sum,
+  LogicalAnd
+};
+
+template <typename T>
+T allReduce(T value, ReductionOperation operation)
 {
 #ifdef AXOM_USE_MPI
-  MPI_Allreduce(&inVal, &minVal, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&inVal, &maxVal, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&inVal, &sumVal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Op mpiOperation = MPI_OP_NULL;
+  switch(operation)
+  {
+  case ReductionOperation::Min:
+    mpiOperation = MPI_MIN;
+    break;
+  case ReductionOperation::Max:
+    mpiOperation = MPI_MAX;
+    break;
+  case ReductionOperation::Sum:
+    mpiOperation = MPI_SUM;
+    break;
+  case ReductionOperation::LogicalAnd:
+    mpiOperation = MPI_LAND;
+    break;
+  }
+  SLIC_ASSERT(mpiOperation != MPI_OP_NULL);
+
+  T result {};
+  MPI_Allreduce(&value, &result, 1, axom::mpi_traits<T>::type, mpiOperation, MPI_COMM_WORLD);
+  return result;
 #else
-  minVal = inVal;
-  maxVal = inVal;
-  sumVal = inVal;
+  AXOM_UNUSED_VAR(operation);
+  return value;
 #endif
+}
+
+}  // namespace
+
+template <typename T>
+void getMinMaxSum(T inVal, T& minVal, T& maxVal, T& sumVal)
+{
+  minVal = allReduce(inVal, ReductionOperation::Min);
+  maxVal = allReduce(inVal, ReductionOperation::Max);
+  sumVal = allReduce(inVal, ReductionOperation::Sum);
 }
 
 Input params;
@@ -422,9 +461,7 @@ private:
       const conduit::Node coordsetNode = _mdMesh[0].fetch_existing(_coordsetPath);
       _ndims = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
-#ifdef AXOM_USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &_ndims, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-#endif
+    _ndims = allReduce(_ndims, ReductionOperation::Max);
     SLIC_ASSERT(_ndims > 0);
 
     SLIC_ASSERT(isValid());
@@ -433,45 +470,6 @@ private:
 
 namespace
 {
-
-enum class ReductionOperation
-{
-  Min,
-  Max,
-  Sum,
-  LogicalAnd
-};
-
-template <typename T>
-T allReduce(T value, ReductionOperation operation)
-{
-#ifdef AXOM_USE_MPI
-  MPI_Op mpiOperation = MPI_OP_NULL;
-  switch(operation)
-  {
-  case ReductionOperation::Min:
-    mpiOperation = MPI_MIN;
-    break;
-  case ReductionOperation::Max:
-    mpiOperation = MPI_MAX;
-    break;
-  case ReductionOperation::Sum:
-    mpiOperation = MPI_SUM;
-    break;
-  case ReductionOperation::LogicalAnd:
-    mpiOperation = MPI_LAND;
-    break;
-  }
-  SLIC_ASSERT(mpiOperation != MPI_OP_NULL);
-
-  T result {};
-  MPI_Allreduce(&value, &result, 1, axom::mpi_traits<T>::type, mpiOperation, MPI_COMM_WORLD);
-  return result;
-#else
-  AXOM_UNUSED_VAR(operation);
-  return value;
-#endif
-}
 
 std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
 {
@@ -658,21 +656,9 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
 /// Output some timing stats
 void printTimingStats(axom::utilities::Timer& t, const std::string& description)
 {
-  auto getDoubleMinMax = [](double inVal, double& minVal, double& maxVal, double& sumVal) {
-#ifdef AXOM_USE_MPI
-    MPI_Allreduce(&inVal, &minVal, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &maxVal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    MPI_Allreduce(&inVal, &sumVal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-#else
-    minVal = inVal;
-    maxVal = inVal;
-    sumVal = inVal;
-#endif
-  };
-
   {
     double minCompute, maxCompute, sumCompute;
-    getDoubleMinMax(t.elapsedTimeInSec(), minCompute, maxCompute, sumCompute);
+    getMinMaxSum(t.elapsedTimeInSec(), minCompute, maxCompute, sumCompute);
 
     const auto count = t.cycleCount();
     if(count > 1)
@@ -973,8 +959,8 @@ struct ContourRunner
   void printRunStats(const quest::MarchingCubes& mc)
   {
     {
-      int mn, mx, sum;
-      getIntMinMax(mc.getContourCellCount(), mn, mx, sum);
+      axom::IndexType mn, mx, sum;
+      getMinMaxSum(mc.getContourCellCount(), mn, mx, sum);
       SLIC_INFO(axom::fmt::format("Contour mesh has {{min:{}, max:{}, sum:{}, avg:{}}} cells",
                                   mn,
                                   mx,
@@ -1173,7 +1159,7 @@ int main(int argc, char** argv)
   // Output some global mesh size stats
   {
     int mn, mx, sum;
-    getIntMinMax(computationalMesh.cellCount(), mn, mx, sum);
+    getMinMaxSum(computationalMesh.cellCount(), mn, mx, sum);
     SLIC_INFO(axom::fmt::format("Computational mesh has {{min:{}, max:{}, sum:{}, avg:{}}} cells",
                                 mn,
                                 mx,
@@ -1181,8 +1167,8 @@ int main(int argc, char** argv)
                                 (double)sum / numRanks));
   }
   {
-    int mn, mx, sum;
-    getIntMinMax(computationalMesh.domainCount(), mn, mx, sum);
+    axom::IndexType mn, mx, sum;
+    getMinMaxSum(computationalMesh.domainCount(), mn, mx, sum);
     SLIC_INFO(axom::fmt::format("Computational mesh has {{min:{}, max:{}, sum:{}, avg:{}}} domains",
                                 mn,
                                 mx,
