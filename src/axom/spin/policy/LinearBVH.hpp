@@ -305,9 +305,9 @@ private:
 /*
  * \brief Interface for a linear BVH tree whose leaves are buckets of primitives.
  *
- * This specialization for LinearBVHType == BucketedPrimitiveLeaves performs tree
- *  traversal/reduction by wrapping the default SinglePrimitive version, and providing
- *  a leaf action which iterates over the primitives in the bucket.
+ * This specialization for LinearBVHType == BucketedPrimitiveLeaves performs
+ * traversal/reduction by wrapping the default SinglePrimitive version and
+ * adapting the leaf action to receive a LinearBVHLeafRange.
  */
 template <typename FloatType, int NDIMS>
 class LinearBVHTraverser<FloatType, NDIMS, LinearBVHType::BucketedPrimitiveLeaves>
@@ -371,11 +371,8 @@ public:
   }
 
   /*!
-   * \brief Iterate over the tree, invoking the leaf action over each primitive
-   *        in the bucket at each leaf node. These values are summed to produce 
-   *        a value at that leaf node. Then, iterate back up the tree, combining 
-   *        nodes using a "+" reduction. Return the Array that contains values for
-   *        all tree nodes.
+   * \brief Iterate over the tree, invoking the leaf action on each leaf's
+   *        primitive range, then sum values upward through the tree.
    */
   template <typename ExecSpace, typename ValueType, typename LeafAction>
   axom::Array<ValueType> reduce_tree(LeafAction&& leaf_action,
@@ -421,6 +418,9 @@ public:
 
   LinearBVH() = default;
 
+  /// Returns whether this BVH has been built.
+  bool isInitialized() const { return m_initialized; }
+
   /*!
    * \brief Builds a linear BVH with the given bounding boxes as leaf nodes.
    *
@@ -436,6 +436,26 @@ public:
                  FloatType scaleFactor,
                  int allocatorID,
                  SpaceFillingCurve ordering = SpaceFillingCurve::Morton);
+
+  /*!
+   * \brief Builds a bucketed linear BVH using adaptive Morton-code prefixes.
+   *
+   * \param [in] boxes the bounding boxes for each leaf node
+   * \param [in] numBoxes the number of bounding boxes
+   * \param [in] maxBucketSize maximum number of primitives in a bucket. The
+   *               builder first subdivides on spatial Morton-prefix boundaries,
+   *               then splits indistinguishable full-code runs in stable
+   *               Morton order to enforce this limit.
+   * \param [in] scaleFactor scale factor applied to each bounding box before insertion into the BVH
+   * \param [in] allocatorID allocator for BVH and bucket storage
+   * \pre This LinearBVH requires BucketedPrimitiveLeaves.
+   */
+  template <typename BoxIndexable>
+  void buildImpl(const BoxIndexable boxes,
+                 IndexType numBoxes,
+                 IndexType maxBucketSize,
+                 FloatType scaleFactor,
+                 int allocatorID);
 
   /*!
    * \brief Performs a traversal to find the candidates for each query primitive.
@@ -477,6 +497,18 @@ public:
   }
 
 private:
+  /*!
+   * \brief Emit LinearBVH node and leaf storage from a completed radix tree.
+   *
+   * \param[in,out] radix_tree Intermediate tree whose leaf-ID array is moved
+   *            into this BVH.
+   * \param[in] bounds Bounds of the original primitive boxes.
+   * \param[in] allocatorID Allocator for the emitted internal-node storage.
+   */
+  void emitRadixTree(lbvh::RadixTree<FloatType, NDIMS>& radix_tree,
+                     const BoundingBoxType& bounds,
+                     int allocatorID);
+
   void allocate(std::int32_t size, int allocID)
   {
     AXOM_ANNOTATE_SCOPE("LinearBVH::allocate");
@@ -509,7 +541,7 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(
   SpaceFillingCurve ordering)
 {
   static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
-                "Bucketed LinearBVH construction is not implemented yet.");
+                "This build overload requires LinearBVHType::SinglePrimitiveLeaf.");
 
   AXOM_ANNOTATE_SCOPE("LinearBVH::buildImpl");
 
@@ -527,11 +559,59 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(
                                     allocatorID,
                                     ordering);
 
-  // STEP 2: emit the BVH data-structure from the radix tree
-  m_bounds = global_bounds;
-  allocate(numBoxesInt, allocatorID);
-
+  // STEP 2: emit the BVH data-structure from the radix tree via LinearBVH::allocate
   // STEP 3: emit the BVH
+  emitRadixTree(radix_tree, global_bounds, allocatorID);
+}
+
+template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
+template <typename BoxIndexable>
+void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexable boxes,
+                                                                 IndexType numBoxes,
+                                                                 IndexType maxBucketSize,
+                                                                 FloatType scaleFactor,
+                                                                 int allocatorID)
+{
+  static_assert(std::is_same_v<LeafType, LinearBVHType::BucketedPrimitiveLeaves>,
+                "This build overload requires LinearBVHType::BucketedPrimitiveLeaves.");
+
+  AXOM_ANNOTATE_SCOPE("LinearBVH::buildBucketedImpl");
+  SLIC_ASSERT(numBoxes <= std::numeric_limits<std::int32_t>::max());
+  SLIC_ASSERT(maxBucketSize > 0);
+  SLIC_ASSERT(maxBucketSize <= std::numeric_limits<std::int32_t>::max());
+  const auto numBoxesInt = static_cast<std::int32_t>(numBoxes);
+  const auto maxBucketSizeInt = static_cast<std::int32_t>(maxBucketSize);
+
+  lbvh::RadixTree<FloatType, NDIMS> radix_tree;
+  primal::BoundingBox<FloatType, NDIMS> global_bounds;
+  axom::Array<IndexType> bucket_offsets;
+  axom::Array<std::int32_t> bucket_primitive_ids;
+  lbvh::build_bucketed_radix_tree<ExecSpace>(boxes,
+                                             numBoxesInt,
+                                             global_bounds,
+                                             radix_tree,
+                                             bucket_offsets,
+                                             bucket_primitive_ids,
+                                             maxBucketSizeInt,
+                                             scaleFactor,
+                                             allocatorID);
+
+  emitRadixTree(radix_tree, global_bounds, allocatorID);
+  m_leaf_storage.m_leaf_bucket_ids = std::move(m_leaf_nodes);
+  m_leaf_storage.m_bucket_offsets = std::move(bucket_offsets);
+  m_leaf_storage.m_bucket_primitive_ids = std::move(bucket_primitive_ids);
+}
+
+template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
+void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::emitRadixTree(
+  lbvh::RadixTree<FloatType, NDIMS>& radix_tree,
+  const BoundingBoxType& bounds,
+  int allocatorID)
+{
+  // Emit the LinearBVH representation from a completed radix tree.
+  m_bounds = bounds;
+  allocate(radix_tree.m_size, allocatorID);
+
   const std::int32_t size = radix_tree.m_size;
   AXOM_UNUSED_VAR(size);
   const std::int32_t inner_size = radix_tree.m_inner_size;
@@ -595,6 +675,9 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::findCan
   int allocatorID) const
 
 {
+  static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
+                "findCandidatesImpl() is not implemented for bucketed leaves.");
+
   AXOM_ANNOTATE_SCOPE("LinearBVH::findCandidatesImpl");
 
   SLIC_ERROR_IF(offsets.size() != numObjs, "offsets length not equal to numObjs");

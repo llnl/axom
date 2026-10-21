@@ -16,6 +16,8 @@
 // gtest includes
 #include "gtest/gtest.h"
 
+#include <vector>
+
 // Uncomment the following for debugging
 //#define VTK_DEBUG
 
@@ -1655,6 +1657,144 @@ TEST(spin_bvh, build2D_sequential)
 {
   check_build_bvh<2, axom::SEQ_EXEC, double>();
   check_build_bvh<2, axom::SEQ_EXEC, float>();
+}
+
+//------------------------------------------------------------------------------
+TEST(spin_bvh, bucketed_linear_bvh_sequential)
+{
+  constexpr int NDIMS = 2;
+  constexpr axom::IndexType NUM_BOXES = 4;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using BucketedLinearBVH =
+    spin::policy::LinearBVH<FloatType, NDIMS, axom::SEQ_EXEC, spin::policy::LinearBVHType::BucketedPrimitiveLeaves>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
+  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
+  {
+    boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
+  }
+
+  BucketedLinearBVH bvh;
+  // A target equal to the input size produces one real bucket. The builder
+  // supplies one empty padded bucket because the binary topology requires two
+  // leaves.
+  bvh.buildImpl(boxes.view(), NUM_BOXES, NUM_BOXES, 1.0, allocator_id);
+
+  const auto traverser = bvh.getTraverserImpl();
+  axom::IndexType primitive_count = 0;
+  std::int32_t primitive_id_sum = 0;
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  traverser.traverse_tree(
+    PointType {0., 0.},
+    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+      primitive_count += primitive_ids.size();
+      for(axom::IndexType i = 0; i < primitive_ids.size(); ++i)
+      {
+        primitive_id_sum += primitive_ids[i];
+      }
+    },
+    accept_all);
+
+  EXPECT_EQ(NUM_BOXES, primitive_count);
+  EXPECT_EQ(6, primitive_id_sum);
+
+  const auto primitive_count_in_bucket =
+    [](const spin::policy::LinearBVHLeafRange& primitive_ids) -> axom::IndexType {
+    return primitive_ids.size();
+  };
+  const auto counts =
+    traverser.template reduce_tree<axom::SEQ_EXEC, axom::IndexType>(primitive_count_in_bucket,
+                                                                    allocator_id);
+
+  ASSERT_EQ(2, counts.size());
+  EXPECT_EQ(NUM_BOXES, counts[0] + counts[1]);
+}
+
+//------------------------------------------------------------------------------
+TEST(spin_bvh, bucketed_linear_bvh_adaptive_morton_prefixes)
+{
+  constexpr int NDIMS = 2;
+  constexpr axom::IndexType NUM_BOXES = 4;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using BucketedLinearBVH =
+    spin::policy::LinearBVH<FloatType, NDIMS, axom::SEQ_EXEC, spin::policy::LinearBVHType::BucketedPrimitiveLeaves>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
+  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
+  {
+    // The normalized x coordinates occupy both values of the first useful
+    // Morton bit. A target of two therefore produces two spatial buckets.
+    boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
+  }
+
+  BucketedLinearBVH bvh;
+  bvh.buildImpl(boxes.view(), NUM_BOXES, 2, 1.0, allocator_id);
+
+  std::vector<axom::IndexType> bucket_sizes;
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  bvh.getTraverserImpl().traverse_tree(
+    PointType {0., 0.},
+    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+      if(primitive_ids.size() > 0)
+      {
+        bucket_sizes.push_back(primitive_ids.size());
+      }
+    },
+    accept_all);
+
+  ASSERT_EQ(2, bucket_sizes.size());
+  EXPECT_EQ(2, bucket_sizes[0]);
+  EXPECT_EQ(2, bucket_sizes[1]);
+}
+
+//------------------------------------------------------------------------------
+TEST(spin_bvh, bucketed_linear_bvh_splits_equal_morton_codes_at_target_size)
+{
+  constexpr int NDIMS = 2;
+  constexpr axom::IndexType NUM_BOXES = 3;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using BucketedLinearBVH =
+    spin::policy::LinearBVH<FloatType, NDIMS, axom::SEQ_EXEC, spin::policy::LinearBVHType::BucketedPrimitiveLeaves>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
+  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
+  {
+    // Identical centroids have identical full Morton codes and therefore
+    // exercise the stable-order fallback after spatial bits are exhausted.
+    boxes[i] = BoxType(PointType {0., 0.});
+  }
+
+  BucketedLinearBVH bvh;
+  bvh.buildImpl(boxes.view(), NUM_BOXES, 2, 1.0, allocator_id);
+
+  axom::IndexType largest_bucket_size = 0;
+  axom::IndexType primitive_count = 0;
+  axom::IndexType nonempty_bucket_count = 0;
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  bvh.getTraverserImpl().traverse_tree(
+    PointType {0., 0.},
+    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+      if(primitive_ids.size() > largest_bucket_size)
+      {
+        largest_bucket_size = primitive_ids.size();
+      }
+      primitive_count += primitive_ids.size();
+      nonempty_bucket_count += primitive_ids.size() > 0 ? 1 : 0;
+    },
+    accept_all);
+
+  EXPECT_EQ(2, largest_bucket_size);
+  EXPECT_EQ(NUM_BOXES, primitive_count);
+  EXPECT_EQ(2, nonempty_bucket_count);
 }
 
 //------------------------------------------------------------------------------
