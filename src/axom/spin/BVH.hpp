@@ -7,35 +7,32 @@
 #pragma once
 
 // axom core includes
-#include "axom/config.hpp"                               // for Axom compile-time definitions
-#include "axom/core/Macros.hpp"                          // for Axom macros
-#include "axom/core/Types.hpp"                           // for axom::IndexType
-#include "axom/core/numerics/floating_point_limits.hpp"  // floating_point_limits
+#include "axom/config.hpp"
+#include "axom/core/Macros.hpp"
+#include "axom/core/Types.hpp"
+#include "axom/core/numerics/floating_point_limits.hpp"
 
-#include "axom/core/execution/execution_space.hpp"  // for execution spaces
+#include "axom/core/execution/execution_space.hpp"
 
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Ray.hpp"
 
-#include "axom/primal/operators/intersect.hpp"  // for detail::intersect_ray()
+#include "axom/primal/operators/intersect.hpp"
 
+#include "axom/spin/SpaceFillingCurve.hpp"
 #include "axom/spin/policy/LinearBVH.hpp"
 
 // slic includes
-#include "axom/slic/interface/slic.hpp"  // for SLIC macros
+#include "axom/slic/interface/slic.hpp"
 
 // C/C++ includes
-#include <type_traits>  // for std::is_floating_point(), std::is_same()
+#include <type_traits>
 #include <memory>
 
-namespace axom
+namespace axom::spin
 {
-namespace spin
-{
-/*!
- * \brief Enumerates the list of return codes for various BVH operations.
- */
+//! \brief Return codes for BVH operations.
 enum BVHReturnCodes
 {
   BVH_BUILD_FAILED = -1,  //!< indicates that generation of the BVH failed
@@ -69,6 +66,9 @@ struct BVHPolicy<FloatType, NDIMS, ExecType, BVHType::LinearBVH>
  * queries, such as, collision detection, ray tracing, etc., by reducing the
  * search space for a given operation to an abbreviated list of candidate
  * geometric entities to check for a particular query.
+ *
+ * Candidate IDs refer to the original input boxes. Candidate traversal order
+ * may differ between spatial orderings.
  *
  * \tparam NDIMS the number of dimensions, e.g., 2 or 3.
  * \tparam ExecSpace the execution space to use, e.g. SEQ_EXEC, CUDA_EXEC, etc.
@@ -202,8 +202,8 @@ public:
    *  with the execution space. The code currently does not check for these
    *  conditions.
    *
-   * \pre boxes != nullptr
-   * \pre numItems > 0
+   * \pre boxes provides at least numItems bounding boxes when numItems > 0
+   * \pre numItems >= 0
    * \pre allocatorID must correspond to an Umpire allocator and be compatible
    *      with the execution space
    */
@@ -222,13 +222,13 @@ public:
 
   /*!
    * \brief Initializes a BVH instance of specified dimension over a given set
-   *  of geometric entities, each represented by its corresponding axis-aligned
-   *  bounding box.
+   *  of geometric entities, each represented by its corresponding axis-aligned bounding box.
    *
    * \param [in] boxes buffer consisting of bounding boxes for each entity.
    * \param [in] numItems the total number of items to store in the BVH.
    *
-   * \return status set to BVH_BUILD_OK on success.
+   * \return BVH_BUILD_OK on success. If the policy does not support the selected ordering,
+   * returns BVH_BUILD_FAILED and leaves the current tree unchanged.
    *
    * \note If an allocatorID has not been set in a call to setAllocatorID(),
    *  the code will use the default allocator ID for the execution space
@@ -240,13 +240,24 @@ public:
    *  CUDA_EXEC, boxes must be in unified memory or GPU memory. The code
    *  currently does not check for that.
    *
-   * \pre boxes != nullptr
-   * \pre numItems > 0
+   * \pre boxes provides at least numItems bounding boxes when numItems > 0
+   * \pre numItems >= 0
    */
   template <typename BoxIndexable>
   int initialize(const BoxIndexable boxes, IndexType numItems);
 
   bool isInitialized() const { return m_bvh != nullptr; }
+
+  /*!
+   * \brief Sets the space-filling curve for builds. Defaults to Morton.
+   *
+   * \note Changing this setting does not rebuild the current tree.
+   * \note Policies with a four-argument buildImpl support only Morton.
+   */
+  void setOrdering(SpaceFillingCurve ordering) { m_ordering = ordering; }
+
+  //! \brief Returns the space-filling curve selected for builds.
+  SpaceFillingCurve getOrdering() const { return m_ordering; }
 
   /*!
    * \brief Sets the ID of the allocator used by the BVH.
@@ -331,8 +342,7 @@ public:
    *  * counts[ i ] candidates
    *  * Stored in the candidates array in the following range:
    *    [ offsets[ i ], offsets[ i ]+counts[ i ] ]
-   *  * The sum of all counts is the size of the candidates array,
-   *    candidates.size()
+   *  * The sum of all counts is the size of the candidates array, candidates.size()
    *
    * \pre offsets.size() == numPts
    * \pre counts.size()  == numPts
@@ -357,8 +367,7 @@ public:
    * \note After the call to findRays(), the ith ray has:
    *  * counts[ i ] candidates
    *  * candidates stored in [ offsets[ i ], offsets[i]+counts[i] ]
-   *  * The sum of all counts is the size of the candidates array,
-   *    candidates.size()
+   *  * The sum of all counts is the size of the candidates array, candidates.size()
    *
    * \pre offsets.size() == numRays
    * \pre counts.size()  == numRays
@@ -383,8 +392,7 @@ public:
    * \note After the call to findBoundingBoxes(), the ith bounding box has:
    *  * counts[ i ] candidates
    *  * candidates stored in [ offsets[ i ], offsets[i]+counts[i] ]
-   *  * The sum of all counts is the size of the candidates array,
-   *    candidates.size()
+   *  * The sum of all counts is the size of the candidates array, candidates.size()
    *
    * \pre offsets.size() == numBoxes
    * \pre counts.size()  == numBoxes
@@ -399,12 +407,50 @@ public:
 
   /*!
    * \brief Writes the BVH to the specified VTK file for visualization.
+   *
    * \param [in] fileName the name of VTK file.
    * \note Primarily used for debugging.
    */
   void writeVtkFile(const std::string& fileName) const;
 
 private:
+  /*!
+   * \brief Whether the policy's buildImpl accepts an ordering for this box input type.
+   *
+   * \tparam BoxIndexable Array-like type used to access input bounding boxes.
+   */
+  template <typename BoxIndexable>
+  static constexpr bool supportsOrdering = requires(ImplType& impl,
+                                                    const BoxIndexable boxes,
+                                                    IndexType count,
+                                                    FloatType scale,
+                                                    int allocator,
+                                                    SpaceFillingCurve ordering) {
+    impl.buildImpl(boxes, count, scale, allocator, ordering);
+  };
+
+  /*!
+   * \brief Builds the tree through the policy's supported buildImpl overload.
+   *
+   * \tparam BoxIndexable Array-like type used to access input bounding boxes.
+   * \param[in] boxes Input bounding boxes.
+   * \param[in] numBoxes Number of input boxes.
+   * \pre m_bvh != nullptr
+   * \pre supportsOrdering<BoxIndexable> || m_ordering == SpaceFillingCurve::Morton
+   */
+  template <typename BoxIndexable>
+  void build(const BoxIndexable boxes, IndexType numBoxes)
+  {
+    if constexpr(supportsOrdering<BoxIndexable>)
+    {
+      m_bvh->buildImpl(boxes, numBoxes, m_scaleFactor, m_AllocatorID, m_ordering);
+    }
+    else
+    {
+      m_bvh->buildImpl(boxes, numBoxes, m_scaleFactor, m_AllocatorID);
+    }
+  }
+
   /// \name Private Members
   /// @{
   static constexpr FloatType DEFAULT_SCALE_FACTOR = 1.000123;
@@ -414,6 +460,7 @@ private:
   int m_AllocatorID;
   FloatType m_tolerance {DEFAULT_TOLERANCE};
   FloatType m_scaleFactor {DEFAULT_SCALE_FACTOR};
+  SpaceFillingCurve m_ordering {SpaceFillingCurve::Morton};
   std::unique_ptr<ImplType> m_bvh {};
   /// @}
 };
@@ -432,6 +479,13 @@ int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
   // Ensure that the iterator returns objects convertible to primal::BoundingBox.
   static_assert(std::is_convertible<IterBase, BoxType>::value,
                 "Iterator must return objects convertible to primal::BoundingBox.");
+
+  // Preserve the current tree if the policy does not support this ordering.
+  if(m_ordering != SpaceFillingCurve::Morton &&
+     !(numBoxes <= 1 ? supportsOrdering<BoxType*> : supportsOrdering<BoxIndexable>))
+  {
+    return BVH_BUILD_FAILED;
+  }
 
   // STEP 1: Allocate a BVH, potentially deleting the existing BVH if it exists
   m_bvh.reset(new ImplType);
@@ -458,11 +512,11 @@ int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
         boxesptr[i] = empty_box;
       }
     });
-    m_bvh->buildImpl(boxesptr, numBoxes, m_scaleFactor, m_AllocatorID);
+    build(boxesptr, numBoxes);
   }
   else
   {
-    m_bvh->buildImpl(boxes, numBoxes, m_scaleFactor, m_AllocatorID);
+    build(boxes, numBoxes);
   }
 
   // STEP 5: deallocate boxesptr if user supplied a single box
@@ -574,5 +628,4 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::writeVtkFile(const std::string& fil
   m_bvh->writeVtkFileImpl(fileName);
 }
 
-}  // namespace spin
-}  // namespace axom
+}  // namespace axom::spin

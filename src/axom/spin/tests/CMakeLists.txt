@@ -8,6 +8,7 @@
 #------------------------------------------------------------------------------
 
 set(spin_tests
+    spin_bvh_ordering.cpp
     spin_bvh_stack.cpp
     spin_hilbert_index.cpp
     spin_implicit_grid.cpp
@@ -24,6 +25,12 @@ set(spin_tests_depends
     fmt
     )
 
+# Set the number of threads for tests using the OpenMP execution space
+set(_num_threads)
+if(AXOM_ENABLE_OPENMP)
+    set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+endif()
+
 foreach ( test ${spin_tests} )
 
     get_filename_component( test_name ${test} NAME_WE )
@@ -39,6 +46,7 @@ foreach ( test ${spin_tests} )
     axom_add_test(
       NAME    ${test_name}
       COMMAND ${test_name}_test
+      NUM_OMP_THREADS ${_num_threads}
       )
 
 endforeach()
@@ -52,12 +60,6 @@ if (AXOM_ENABLE_MINT)
       DEPENDS_ON ${spin_tests_depends} mint
       FOLDER     axom/spin/tests
       )
-
-    # sets the number of threads for the omp policy; leave empty for non-omp policies
-    set(_num_threads)
-    if(AXOM_ENABLE_OPENMP)
-        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
-    endif()
 
     axom_add_test(
       NAME            spin_bvh

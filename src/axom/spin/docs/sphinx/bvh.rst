@@ -49,6 +49,25 @@ Finally, test the point against all candidate neighbor triangles.
    :end-before: _bvh_cand_int_end
    :language: C++
 
+Spatial ordering
+----------------
+
+BVH construction uses Morton ordering by default. To select Hilbert ordering,
+set the curve before initializing the tree:
+
+.. code-block:: C++
+
+   axom::spin::BVH<3> bvh;
+   bvh.setOrdering(axom::spin::SpaceFillingCurve::Hilbert);
+   bvh.initialize(boxes, numBoxes);
+
+``setOrdering()`` sets the curve for future builds, but does not rebuild the
+current tree. ``getOrdering()`` returns that setting.
+
+Both Morton and Hilbert normalize and clamp centroids in the same way.
+They use 16 bits per axis in 2D and 10 bits per axis in 3D.
+Degenerate axes map to coordinate zero.
+
 Device Traversal API
 --------------------
 

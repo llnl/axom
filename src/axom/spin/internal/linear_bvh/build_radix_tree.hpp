@@ -25,6 +25,8 @@
 
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/MortonIndex.hpp"
+#include "axom/spin/HilbertIndex.hpp"
+#include "axom/spin/SpaceFillingCurve.hpp"
 
 #include <atomic>
 
@@ -33,23 +35,19 @@
   #include "cub/device/device_radix_sort.cuh"
 #endif
 
-namespace axom
-{
-namespace spin
-{
-namespace internal
-{
-namespace linear_bvh
+namespace axom::spin::internal::linear_bvh
 {
 //------------------------------------------------------------------------------
-//Returns 30 bit morton code for coordinates point is expected to be between [0,1]
+// Encodes normalized coordinates in [0,1] using the selected spatial ordering.
+// Uses 16 bits per axis in 2D and 10 bits per axis in 3D.
 template <typename FloatType, int Dims>
-static inline AXOM_HOST_DEVICE std::uint32_t morton32_encode(const primal::Vector<FloatType, Dims>& point)
+static inline AXOM_HOST_DEVICE std::uint32_t encode_spatial_key(
+  const primal::Vector<FloatType, Dims>& point,
+  SpaceFillingCurve ordering)
 {
   using PointType = primal::Point<std::int32_t, Dims>;
   using axom::utilities::clampVal;
 
-  //for a float, take the first 10 bits. Note, 2^10 = 1024
   constexpr int NUM_BITS_PER_DIM = 32 / Dims;
   constexpr FloatType FLOAT_TO_INT = 1 << NUM_BITS_PER_DIM;
   constexpr FloatType FLOAT_CEILING = FLOAT_TO_INT - 1;
@@ -62,7 +60,10 @@ static inline AXOM_HOST_DEVICE std::uint32_t morton32_encode(const primal::Vecto
       static_cast<std::int32_t>(clampVal(point[i] * FLOAT_TO_INT, FLOAT_ZERO, FLOAT_CEILING));
   }
 
-  return convertPointToMorton<std::uint32_t>(PointType(int_coords));
+  const PointType cell(int_coords);
+  return ordering == SpaceFillingCurve::Hilbert
+    ? convertPointToHilbert<std::uint32_t>(cell, NUM_BITS_PER_DIM)
+    : convertPointToMorton<std::uint32_t>(cell);
 }
 
 //------------------------------------------------------------------------------
@@ -139,12 +140,13 @@ primal::BoundingBox<FloatType, NDIMS> reduce(ArrayView<const primal::BoundingBox
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace, typename FloatType, int NDIMS>
-void get_mcodes(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> aabbs,
-                std::int32_t size,
-                const primal::BoundingBox<FloatType, NDIMS>& bounds,
-                const ArrayView<std::uint32_t> mcodes)
+void get_spatial_keys(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> aabbs,
+                      std::int32_t size,
+                      const primal::BoundingBox<FloatType, NDIMS>& bounds,
+                      const ArrayView<std::uint32_t> keys,
+                      SpaceFillingCurve ordering)
 {
-  AXOM_ANNOTATE_SCOPE("get_mcodes");
+  AXOM_ANNOTATE_SCOPE("get_spatial_keys");
 
   primal::Vector<FloatType, NDIMS> extent, inv_extent, min_coord;
 
@@ -163,7 +165,7 @@ void get_mcodes(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> aabbs,
     // get the center and normalize it
     primal::Vector<FloatType, NDIMS> centroid(aabb.getCentroid());
     centroid = primal::Vector<FloatType, NDIMS>((centroid - min_coord).array() * inv_extent.array());
-    mcodes[i] = morton32_encode(centroid);
+    keys[i] = encode_spatial_key(centroid, ordering);
   });
 }
 
@@ -211,17 +213,17 @@ void reorder(const ArrayView<const std::int32_t> indices,
   ((RAJA_VERSION_MAJOR > 0) || ((RAJA_VERSION_MAJOR == 0) && (RAJA_VERSION_MINOR >= 12)))
 
 template <typename ExecSpace>
-void sort_mcodes(ArrayView<std::uint32_t> mcodes, std::int32_t size, ArrayView<std::int32_t> iter)
+void sort_spatial_keys(ArrayView<std::uint32_t> keys, std::int32_t size, ArrayView<std::int32_t> iter)
 {
-  AXOM_ANNOTATE_SCOPE("sort_mcodes");
+  AXOM_ANNOTATE_SCOPE("sort_spatial_keys");
 
   array_counting<ExecSpace>(iter, size, 0, 1);
 
   {
     AXOM_ANNOTATE_SCOPE("raja_stable_sort");
-    ArrayView<std::uint32_t> mcode_view(mcodes.data(), size);
+    ArrayView<std::uint32_t> keys_view(keys.data(), size);
     ArrayView<std::int32_t> iter_view(iter.data(), size);
-    axom::stable_sort_pairs<ExecSpace>(mcode_view, iter_view);
+    axom::stable_sort_pairs<ExecSpace>(keys_view, iter_view);
   }
 }
 
@@ -229,9 +231,9 @@ void sort_mcodes(ArrayView<std::uint32_t> mcodes, std::int32_t size, ArrayView<s
 
 // fall back to std::stable_sort
 template <typename ExecSpace>
-void sort_mcodes(Array<std::uint32_t>& mcodes, std::int32_t size, const ArrayView<std::int32_t> iter)
+void sort_spatial_keys(Array<std::uint32_t>& keys, std::int32_t size, const ArrayView<std::int32_t> iter)
 {
-  AXOM_ANNOTATE_SCOPE("sort_mcodes");
+  AXOM_ANNOTATE_SCOPE("sort_spatial_keys");
 
   array_counting<ExecSpace>(iter, size, 0, 1);
 
@@ -239,29 +241,29 @@ void sort_mcodes(Array<std::uint32_t>& mcodes, std::int32_t size, const ArrayVie
     AXOM_ANNOTATE_SCOPE("cpu_sort");
 
     std::stable_sort(iter.begin(), iter.begin() + size, [&](std::int32_t i1, std::int32_t i2) {
-      return mcodes[i1] < mcodes[i2];
+      return keys[i1] < keys[i2];
     });
   }
 
   const int allocID = axom::execution_space<ExecSpace>::allocatorID();
-  reorder<ExecSpace>(iter, mcodes, size, allocID);
+  reorder<ExecSpace>(iter, keys, size, allocID);
 }
 
 #endif /* RAJA version 0.12.0 and above */
 
 //------------------------------------------------------------------------------
-template <typename IntType, typename MCType>
+template <typename IntType, typename KeyType>
 AXOM_HOST_DEVICE IntType
-delta(const IntType& a, const IntType& b, const IntType& inner_size, axom::ArrayView<MCType> mcodes)
+delta(const IntType& a, const IntType& b, const IntType& inner_size, axom::ArrayView<KeyType> keys)
 {
   bool tie = false;
   bool out_of_range = (b < 0 || b > inner_size);
   //still make the call but with a valid adderss
   const std::int32_t bb = (out_of_range) ? 0 : b;
-  const std::uint32_t acode = mcodes[a];
-  const std::uint32_t bcode = mcodes[bb];
+  const std::uint32_t a_key = keys[a];
+  const std::uint32_t b_key = keys[bb];
   //use xor to find where they differ
-  std::uint32_t exor = acode ^ bcode;
+  std::uint32_t exor = a_key ^ b_key;
   tie = (exor == 0);
   //break the tie, a and b must always differ
   exor = tie ? std::uint32_t(a) ^ std::uint32_t(bb) : exor;
@@ -290,18 +292,17 @@ void build_tree(RadixTree<FloatType, NDIMS>& data)
   const auto lchildren_ptr = data.m_left_children.view();
   const auto rchildren_ptr = data.m_right_children.view();
   const auto parent_ptr = data.m_parents.view();
-  const auto mcodes_ptr = data.m_mcodes.view();
+  const auto keys_ptr = data.m_keys.view();
 
   for_all<ExecSpace>(inner_size, [=] AXOM_HOST_DEVICE(std::int32_t i) {
     //determine range direction
     std::int32_t d =
-      0 > (delta(i, i + 1, inner_size, mcodes_ptr) - delta(i, i - 1, inner_size, mcodes_ptr)) ? -1
-                                                                                              : 1;
+      0 > (delta(i, i + 1, inner_size, keys_ptr) - delta(i, i - 1, inner_size, keys_ptr)) ? -1 : 1;
 
     //find upper bound for the length of the range
-    std::int32_t min_delta = delta(i, i - d, inner_size, mcodes_ptr);
+    std::int32_t min_delta = delta(i, i - d, inner_size, keys_ptr);
     std::int32_t lmax = 2;
-    while(delta(i, i + lmax * d, inner_size, mcodes_ptr) > min_delta)
+    while(delta(i, i + lmax * d, inner_size, keys_ptr) > min_delta)
     {
       lmax *= 2;
     }
@@ -310,21 +311,21 @@ void build_tree(RadixTree<FloatType, NDIMS>& data)
     std::int32_t l = 0;
     for(std::int32_t t = lmax / 2; t >= 1; t /= 2)
     {
-      if(delta(i, i + (l + t) * d, inner_size, mcodes_ptr) > min_delta)
+      if(delta(i, i + (l + t) * d, inner_size, keys_ptr) > min_delta)
       {
         l += t;
       }
     }
 
     std::int32_t j = i + l * d;
-    std::int32_t delta_node = delta(i, j, inner_size, mcodes_ptr);
+    std::int32_t delta_node = delta(i, j, inner_size, keys_ptr);
     std::int32_t s = 0;
     FloatType div_factor = 2.f;
     //find the split postition using a binary search
     for(std::int32_t t = (std::int32_t)ceil(float32(l) / div_factor);;
         div_factor *= 2, t = (std::int32_t)ceil(float32(l) / div_factor))
     {
-      if(delta(i, i + (s + t) * d, inner_size, mcodes_ptr) > delta_node)
+      if(delta(i, i + (s + t) * d, inner_size, keys_ptr) > delta_node)
       {
         s += t;
       }
@@ -586,7 +587,8 @@ void build_radix_tree(const BoxIndexable boxes,
                       primal::BoundingBox<FloatType, NDIMS>& bounds,
                       RadixTree<FloatType, NDIMS>& radix_tree,
                       FloatType scale_factor,
-                      int allocatorID)
+                      int allocatorID,
+                      SpaceFillingCurve ordering = SpaceFillingCurve::Morton)
 {
   AXOM_ANNOTATE_SCOPE("build_radix_tree");
 
@@ -601,11 +603,13 @@ void build_radix_tree(const BoxIndexable boxes,
   // evaluate global bounds
   bounds = reduce<ExecSpace, FloatType, NDIMS>(radix_tree.m_leaf_aabbs, size);
 
-  // sort aabbs based on morton code
-  // original positions of the sorted morton codes.
-  // allows us to gather / sort other arrays.
-  get_mcodes<ExecSpace, FloatType, NDIMS>(radix_tree.m_leaf_aabbs, size, bounds, radix_tree.m_mcodes);
-  sort_mcodes<ExecSpace>(radix_tree.m_mcodes, size, radix_tree.m_leafs);
+  // Keep original box IDs when sorting so queries can return input indices.
+  get_spatial_keys<ExecSpace, FloatType, NDIMS>(radix_tree.m_leaf_aabbs,
+                                                size,
+                                                bounds,
+                                                radix_tree.m_keys,
+                                                ordering);
+  sort_spatial_keys<ExecSpace>(radix_tree.m_keys, size, radix_tree.m_leafs);
 
   reorder<ExecSpace>(radix_tree.m_leafs, radix_tree.m_leaf_aabbs, size, allocatorID);
 
@@ -614,7 +618,4 @@ void build_radix_tree(const BoxIndexable boxes,
   propagate_aabbs<ExecSpace>(radix_tree, allocatorID);
 }
 
-} /* namespace linear_bvh */
-} /* namespace internal */
-} /* namespace spin */
-} /* namespace axom */
+}  // namespace axom::spin::internal::linear_bvh
