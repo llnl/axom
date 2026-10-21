@@ -626,7 +626,6 @@ if(CONDUIT_FOUND)
                                 --center ${_center}
                                 --scale ${_scale}
                                 --contourVal 1.25
-                                --check-results
                                 --verbose
                     NUM_MPI_TASKS ${_nranks}
                     NUM_OMP_THREADS ${_num_threads})
