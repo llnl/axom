@@ -42,6 +42,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Adds policy-specific `BVH::BuildParameters` to the BVH constructor and `initialize()`.
   The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
   or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
+- Spin: Adds optional Hilbert ordering for BVH construction through
+  `SpaceFillingCurve` and `BVH::setOrdering/getOrdering`; Morton remains the default.
+- Spin: Adds a Morton/Hilbert visualization example that exports 2D/3D Blueprint
+  point, grid, and curve meshes.
 
 ### Removed
 
