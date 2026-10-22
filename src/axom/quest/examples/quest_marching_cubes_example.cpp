@@ -5,8 +5,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- \file marching_cubes_example.cpp
- \brief Extract an isocontour from a scalar field in a Conduit Blueprint mesh
+ * \file marching_cubes_example.cpp
+ * \brief Extract an isocontour from a scalar field in a Conduit Blueprint mesh
 */
 
 #include "axom/config.hpp"
@@ -126,7 +126,7 @@ public:
 
     app.add_option("-f,--field", fieldName)
       ->description(
-        "Name of the vertex-associated scalar field to contour; "
+        "Name of the vertex-associated float64 scalar field to contour; "
         "required unless --list-fields is used");
 
     app.add_flag("--list-fields", listFields)
@@ -470,6 +470,55 @@ private:
 
 namespace
 {
+
+bool validateContourField(const BlueprintStructuredMesh& mesh,
+                          const std::string& fieldName,
+                          const std::string& topologyName)
+{
+  bool localValid = true;
+  for(axom::IndexType domainIdx = 0; domainIdx < mesh.domainCount(); ++domainIdx)
+  {
+    const conduit::Node& domain = mesh.domain(domainIdx);
+    std::string reason;
+    if(!domain.has_child("fields") || !domain.fetch_existing("fields").has_child(fieldName))
+    {
+      reason = "field is missing";
+    }
+    else
+    {
+      const conduit::Node& field = domain.fetch_existing("fields").child(fieldName);
+      if(!field.has_child("topology") || !field.fetch_existing("topology").dtype().is_string() ||
+         field.fetch_existing("topology").as_string() != topologyName)
+      {
+        reason = axom::fmt::format("topology must be '{}'", topologyName);
+      }
+      else if(!field.has_child("association") ||
+              !field.fetch_existing("association").dtype().is_string() ||
+              field.fetch_existing("association").as_string() != "vertex")
+      {
+        reason = "association must be 'vertex'";
+      }
+      else if(!field.has_child("values"))
+      {
+        reason = "values are missing";
+      }
+      else if(!field.fetch_existing("values").dtype().is_float64())
+      {
+        reason = axom::fmt::format("values must be float64 scalars, but have type '{}'",
+                                   field.fetch_existing("values").dtype().name());
+      }
+    }
+    if(!reason.empty())
+    {
+      localValid = false;
+      SLIC_ERROR(axom::fmt::format("Cannot contour field '{}' in local domain {}: {}.",
+                                   fieldName,
+                                   domainIdx,
+                                   reason));
+    }
+  }
+  return allReduce(localValid ? 1 : 0, ReductionOperation::LogicalAnd) != 0;
+}
 
 std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
 {
@@ -1147,6 +1196,12 @@ int main(int argc, char** argv)
     printFieldSummary(computationalMesh);
     finalizeLogger();
     return 0;
+  }
+
+  if(!validateContourField(computationalMesh, params.fieldName, "mesh"))
+  {
+    finalizeLogger();
+    return 1;
   }
 
   const int dimension = computationalMesh.dimension();
