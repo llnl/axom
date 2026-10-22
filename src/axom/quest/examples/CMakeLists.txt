@@ -588,9 +588,9 @@ if(CONDUIT_FOUND)
             COMMAND quest_marching_cubes_ex
                         --mesh-file ${quest_data_dir}/mdmesh.2x1.root
                         --list-fields
-            NUM_MPI_TASKS 1)
+            NUM_MPI_TASKS ${_mc_nranks})
         set_tests_properties(${_mc_list_test}
-            PROPERTIES PROCESSORS 1
+            PROPERTIES PROCESSORS ${_mc_nranks}
                        REQUIRED_FILES "${quest_data_dir}/mdmesh.2x1.root"
                        PASS_REGULAR_EXPRESSION "dist_to_plane +\\| mesh +\\| float64 +\\| vertex +\\| \\[0, 2\\.6\\]")
 

@@ -530,8 +530,15 @@ std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
   }
 
 #ifdef AXOM_USE_MPI
+  // find ID of a rank w/ fields; handles case where fields are missing from rank 0 (or from all ranks)
+  const int sourceRank = allReduce(mesh.empty() ? numRanks : myRank, ReductionOperation::Min);
+  if(sourceRank == numRanks)
+  {
+    return fieldNames;
+  }
+
   conduit::Node rootFieldNamesNode;
-  if(myRank == 0)
+  if(myRank == sourceRank)
   {
     rootFieldNamesNode.set(conduit::DataType::list());
     for(const auto& fieldName : fieldNames)
@@ -539,7 +546,7 @@ std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
       rootFieldNamesNode.append() = fieldName;
     }
   }
-  conduit::relay::mpi::broadcast_using_schema(rootFieldNamesNode, 0, MPI_COMM_WORLD);
+  conduit::relay::mpi::broadcast_using_schema(rootFieldNamesNode, sourceRank, MPI_COMM_WORLD);
 
   std::vector<std::string> rootFieldNames;
   rootFieldNames.reserve(rootFieldNamesNode.number_of_children());
@@ -547,9 +554,10 @@ std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
   {
     rootFieldNames.push_back(fieldName.as_string());
   }
-  const bool namesAgree =
-    allReduce(fieldNames == rootFieldNames ? 1 : 0, ReductionOperation::LogicalAnd) != 0;
-  SLIC_ERROR_IF(!namesAgree, "Field names must agree with the field names on MPI rank 0.");
+  const bool namesAgree = allReduce(mesh.empty() || fieldNames == rootFieldNames ? 1 : 0,
+                                    ReductionOperation::LogicalAnd) != 0;
+  SLIC_ERROR_IF(!namesAgree, "Field names must agree across nonempty MPI ranks.");
+  fieldNames = rootFieldNames;
 #endif
   return fieldNames;
 }
