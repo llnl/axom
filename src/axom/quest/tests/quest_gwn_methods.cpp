@@ -160,6 +160,33 @@ TEST(quest_gwn_methods, gwn_moment_data_triangle)
 }
 
 //------------------------------------------------------------------------------
+TEST(quest_gwn_methods, fast_gwn_query_clear)
+{
+  using Point2D = axom::primal::Point<double, 2>;
+  using Segment2D = axom::primal::Segment<double, 2>;
+  using FastQuery = axom::quest::detail::FastGWNQuery<axom::SEQ_EXEC, 2>;
+
+  axom::Array<Segment2D> first_segments;
+  first_segments.emplace_back(Point2D {0.0, 0.0}, Point2D {1.0, 0.0});
+  first_segments.emplace_back(Point2D {1.0, 0.0}, Point2D {1.0, 1.0});
+
+  axom::Array<Segment2D> second_segments;
+  second_segments.emplace_back(Point2D {0.0, 0.0}, Point2D {0.0, 1.0});
+
+  FastQuery fast_query;
+  const auto& first_segments_const = first_segments;
+  fast_query.initialize(first_segments_const.view());
+  EXPECT_TRUE(fast_query.isInitialized());
+
+  const auto& second_segments_const = second_segments;
+  fast_query.initialize(second_segments_const.view());
+  EXPECT_TRUE(fast_query.isInitialized());
+
+  fast_query.clear();
+  EXPECT_FALSE(fast_query.isInitialized());
+}
+
+//------------------------------------------------------------------------------
 template <typename ExecSpace>
 void check_mfem_mesh_evaluation()
 {
