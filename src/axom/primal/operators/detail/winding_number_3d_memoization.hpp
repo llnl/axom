@@ -157,6 +157,8 @@ public:
   NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch, bool computeNormal = true)
     : m_alteredPatch(a_patch.cleanedTrimmedRepresentation())
   {
+    // If requested, we can defer calculation of the surface normal (and therefore cast direction)
+    //  and use a value provided externally via setNormalAndSurfaceArea() and setCastDirection()
     if(computeNormal)
     {
       // In a GWN context, the surface has been sufficiently subdivided to
@@ -164,8 +166,7 @@ public:
       const auto normal_area =
         m_alteredPatch.calculateTrimmedPatchNormalArea(/*npts*/ 10, /*useBezierExtraction*/ false);
 
-      m_surfaceArea = normal_area.second;
-      if(m_surfaceArea <= 0.0)
+      if(normal_area.second <= 0.0)
       {
         // Degenerate or invalid surface: ignore it by clearing trimming curves so
         // winding-number evaluation returns early with 0.
@@ -174,13 +175,14 @@ public:
 
         m_normal = Vector<T, 3> {};
         m_castDirection = Vector<T, 3> {};
+        m_surfaceArea = normal_area.second;
         m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
         m_bBox = m_alteredPatch.boundingBox();
         m_oBox = m_alteredPatch.orientedBoundingBox();
         return;
       }
 
-      setNormal(normal_area.first, normal_area.second);
+      setNormalAndSurfaceArea(normal_area.first, normal_area.second);
     }
 
     // Make a bounding box by doing (trimmed) bezier extraction,
@@ -215,6 +217,14 @@ public:
       m_bBox.addBox(p2.boundingBox());
       m_bBox.addBox(p3.boundingBox());
       m_bBox.addBox(p4.boundingBox());
+    }
+
+    if(computeNormal)
+    {
+      // If we computed the normal on-the-fly in the constructor,
+      //  we need to also compute a cast-direction,
+      //  possibly randomly with the bbox as the seed
+      setCastDirection(m_bBox);
     }
 
     // Expand parameter space so trimming curves aren't on the boundary of the
@@ -255,23 +265,26 @@ public:
   const Vector<T, 3>& getCastDirection() const { return m_castDirection; }
   double getSurfaceArea() const { return m_surfaceArea; }
 
-  void setNormal(const Vector<T, 3>& v, double sa)
+  void setNormalAndSurfaceArea(const Vector<T, 3>& normal, double surface_area)
   {
-    m_normal = v;
-    m_surfaceArea = sa;
+    m_normal = normal;
+    m_surfaceArea = surface_area;
+  }
 
-    // Cast direction is always set to average normal, unless it is near zero,
-    //  which is the case for high-symmetry surfaces
-
+  // Cast direction is always set to average normal, unless it is near zero,
+  //  which is the case for high-symmetry surfaces. In those cases, we pick a random direction
+  //  seeded by a bounding box, typically the bbox of the patch itself
+  void setCastDirection(const BoundingBox<T, 3>& bbox)
+  {
     // Scale-invariant symmetry detector: ||\int n dA|| / \int ||n|| dA.
     // For symmetric patches (e.g. cylinders), the numerator can be close to 0 due to cancellation.
     constexpr double k_dir_eps = 1e-3;
 
     // Generate a random direction with simple hashes
     unsigned int seed1 = static_cast<unsigned int>(
-      std::hash<T> {}(m_bBox.getMin()[0] + m_bBox.getMin()[1] + m_bBox.getMin()[2]));
+      std::hash<T> {}(bbox.getMin()[0] + bbox.getMin()[1] + bbox.getMin()[2]));
     unsigned int seed2 = static_cast<unsigned int>(
-      std::hash<T> {}(m_bBox.getMax()[0] + m_bBox.getMax()[1] + m_bBox.getMax()[2]));
+      std::hash<T> {}(bbox.getMax()[0] + bbox.getMax()[1] + bbox.getMax()[2]));
 
     double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed1);
     double u = axom::utilities::random_real(-1.0, 1.0, seed2);
@@ -369,7 +382,9 @@ public:
     {
       for(axom::IndexType n = 0; n < precomputed_normals.size(); ++n)
       {
-        m_nurbs_caches[n].setNormal(precomputed_normals[n], precomputed_surface_areas[n]);
+        auto& cache = m_nurbs_caches[n];
+        cache.setNormalAndSurfaceArea(precomputed_normals[n], precomputed_surface_areas[n]);
+        cache.setCastDirection(cache.boundingBox());
       }
     }
   }
@@ -449,12 +464,14 @@ public:
       nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
     });
 
-    // If we didn't comptue normals in NURBSCache constructor,
+    // If we didn't compute normals in NURBSCache constructor,
     //  need to get them from the moments
     if(!mustComputeNormal)
     {
       axom::for_all<NURBSPatchCacheInitExec>(patches.size(), [=] AXOM_HOST(axom::IndexType i) {
-        nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
+        auto& cache = nurbs_caches_view[0][i];
+        cache.setNormalAndSurfaceArea(precomputed_normals[i], precomputed_surface_areas[i]);
+        cache.setCastDirection(cache.boundingBox());
       });
     }
 

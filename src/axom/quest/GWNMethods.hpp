@@ -818,7 +818,7 @@ public:
   }
 
 private:
-  // For the procesed input curves/BVH leaf nodes
+  // For the processed input curves/BVH leaf nodes
   axom::Array<TriangleType> m_triangles;
 
   FastQuery m_fast_query;
