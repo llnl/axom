@@ -1714,7 +1714,7 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, bucketed_linear_bvh_adaptive_morton_prefixes)
+TEST(spin_bvh, bucketed_linear_bvh_adaptive_spatial_key_prefixes)
 {
   constexpr int NDIMS = 2;
   constexpr axom::IndexType NUM_BOXES = 4;
@@ -1729,28 +1729,31 @@ TEST(spin_bvh, bucketed_linear_bvh_adaptive_morton_prefixes)
   for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
   {
     // The normalized x coordinates occupy both values of the first useful
-    // Morton bit. A target of two therefore produces two spatial buckets.
+    // spatial-key bit. A target of two therefore produces two spatial buckets.
     boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
   }
 
-  BucketedLinearBVH bvh;
-  bvh.buildImpl(boxes.view(), NUM_BOXES, 2, 1.0, allocator_id);
-
-  std::vector<axom::IndexType> bucket_sizes;
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-  bvh.getTraverserImpl().traverse_tree(
-    PointType {0., 0.},
-    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
-      if(primitive_ids.size() > 0)
-      {
-        bucket_sizes.push_back(primitive_ids.size());
-      }
-    },
-    accept_all);
+  for(const auto ordering : {spin::SpaceFillingCurve::Morton, spin::SpaceFillingCurve::Hilbert})
+  {
+    BucketedLinearBVH bvh;
+    bvh.buildImpl(boxes.view(), NUM_BOXES, 2, 1.0, allocator_id, ordering);
 
-  ASSERT_EQ(2, bucket_sizes.size());
-  EXPECT_EQ(2, bucket_sizes[0]);
-  EXPECT_EQ(2, bucket_sizes[1]);
+    std::vector<axom::IndexType> bucket_sizes;
+    bvh.getTraverserImpl().traverse_tree(
+      PointType {0., 0.},
+      [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+        if(primitive_ids.size() > 0)
+        {
+          bucket_sizes.push_back(primitive_ids.size());
+        }
+      },
+      accept_all);
+
+    ASSERT_EQ(2, bucket_sizes.size());
+    EXPECT_EQ(2, bucket_sizes[0]);
+    EXPECT_EQ(2, bucket_sizes[1]);
+  }
 }
 
 //------------------------------------------------------------------------------
