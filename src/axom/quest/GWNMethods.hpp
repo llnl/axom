@@ -138,9 +138,8 @@ namespace detail
  *
  * This class is the common core for the geometry-specific GWN query classes, 
  *   and manages the BVH and internal moment data shared by fast evaluation.
- * Each geometry-specific adapter retains handles preprocessing their input
- *   to source leaves and mapping mesh points to evaluation points (e.g. 
- *   accounting for scaling transforms).
+ * Each geometry-specific adapter handles preprocessing its input geometry and maps mesh points
+ *   to evaluation points (e.g., accounting for scaling transforms).
  */
 template <typename ExecSpace, int NDIMS, int ORDER = 2>
 class FastGWNQuery
@@ -156,42 +155,54 @@ public:
   /// Returns whether this query has acceleration data available.
   bool isInitialized() const { return m_bvh.isInitialized(); }
 
+  /// \brief Clear all acceleration data.
+  void clear()
+  {
+    m_bvh = BVHType {};
+    m_internal_moments.clear();
+    m_source_geometry_count = 0;
+  }
+
   /*!
    * \brief Build acceleration data from the source geometry used for moments.
    *
    * \tparam SourceGeometry The geometry type used to construct bounding boxes
    *         and `GWNMomentData`.
-   * \param [in] source_leaves The processed source leaves, in BVH order.
+   * \param [in] source_geometries The processed source geometries, in BVH order.
    *
-   * Builds leaf bounding boxes, initializes `m_bvh`, and reduces source-leaf
+   * Builds geometry bounding boxes, initializes `m_bvh`, and reduces source-geometry
    * moments into `m_internal_moments`.
    */
   template <typename SourceGeometry>
-  void initialize(const axom::ArrayView<const SourceGeometry>& source_leaves)
+  void initialize(const axom::ArrayView<const SourceGeometry>& source_geometries)
   {
-    if(source_leaves.empty())
+    clear();
+
+    if(source_geometries.empty())
     {
-      SLIC_WARNING("Quest: Input shape contains no leaves; skipping fast GWN initialization.");
+      SLIC_WARNING("Quest: Input shape contains no geometries; skipping fast GWN initialization.");
       return;
     }
 
-    const int num_leaves = source_leaves.size();
-    axom::Array<BoundingBoxType> leaf_boxes(axom::ArrayOptions::Uninitialized {}, num_leaves);
-    auto leaf_boxes_view = leaf_boxes.view();
+    m_source_geometry_count = source_geometries.size();
+    const auto source_geometry_count = m_source_geometry_count;
+    axom::Array<BoundingBoxType> geometry_boxes(axom::ArrayOptions::Uninitialized {},
+                                                source_geometry_count);
+    auto geometry_boxes_view = geometry_boxes.view();
 
     {
       AXOM_ANNOTATE_SCOPE("bvh_initialization");
-      axom::for_all<ExecSpace>(num_leaves, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
-        leaf_boxes_view[i] = source_leaves[i].boundingBox();
+      axom::for_all<ExecSpace>(source_geometry_count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        geometry_boxes_view[i] = source_geometries[i].boundingBox();
       });
-      m_bvh.initialize(leaf_boxes_view, num_leaves);
+      m_bvh.initialize(geometry_boxes_view, source_geometry_count);
     }
 
     {
       AXOM_ANNOTATE_SCOPE("moment_precomputation");
-      const auto compute_moments = [source_leaves](std::int32_t current_node,
-                                                   const std::int32_t* leaf_nodes) -> MomentType {
-        return MomentType(source_leaves[leaf_nodes[current_node]]);
+      const auto compute_moments = [source_geometries](std::int32_t current_node,
+                                                       const std::int32_t* leaf_nodes) -> MomentType {
+        return MomentType(source_geometries[leaf_nodes[current_node]]);
       };
       const auto traverser = m_bvh.getTraverser();
       m_internal_moments = traverser.template reduce_tree<ExecSpace, MomentType>(compute_moments);
@@ -201,20 +212,20 @@ public:
   /*!
    * \brief Evaluate the GWN at every nodal degree of freedom of an MFEM mesh.
    *
-   * \tparam DirectEvalGeometry An indexed collection of direct-evaluation leaves.
-   *           Note: DirectEvalGeometry may differ from SourceGeometry, as is the case 
+   * \tparam EvaluationGeometry An indexed collection of primitives used for direct evaluation.
+   *           Note: The type EvaluationGeometry may differ from SourceGeometry, as is the case
    *           with, for example, NURBSCurve vs NURBSCurveGWNCache
    * \tparam QueryPointFunction A callable that maps a nodal DOF index to a
    *         point in the GWN coordinate system.
    * \param [in,out] dc The data collection containing `winding` and `inout`
    *        fields.
-   * \param [in] eval_leaves Leaves corresponding to the BVH source order.
+   * \param [in] evaluation_primitives Primitive objects corresponding to the source-geometry order.
    * \param [in] tolerances Evaluation tolerances.
    * \param [in] query_point Maps a nodal DOF index to a query point.
    */
-  template <typename DirectEvalGeometry, typename QueryPointFunction>
+  template <typename EvaluationGeometry, typename QueryPointFunction>
   void evaluate(mfem::DataCollection& dc,
-                const DirectEvalGeometry& eval_leaves,
+                const EvaluationGeometry& evaluation_primitives,
                 const primal::WindingTolerances& tolerances,
                 QueryPointFunction query_point)
   {
@@ -236,12 +247,18 @@ public:
     if(isInitialized())
     {
       // Use fast approximation
+      SLIC_ERROR_IF(
+        evaluation_primitives.size() != m_source_geometry_count,
+        axom::fmt::format("FastGWNQuery: {} evaluation geometries, but acceleration data was "
+                          "initialized for {} source geometries.",
+                          evaluation_primitives.size(),
+                          m_source_geometry_count));
       const auto traverser = m_bvh.getTraverser();
       const auto internal_moments_view = m_internal_moments.view();
       axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
         const double gwn = fast_approximate_winding_number(query_point(index),
                                                            traverser,
-                                                           eval_leaves,
+                                                           evaluation_primitives,
                                                            internal_moments_view,
                                                            tolerances_copy);
         winding[static_cast<int>(index)] = gwn;
@@ -254,9 +271,9 @@ public:
       axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
         const auto query = query_point(index);
         double gwn = 0.0;
-        for(axom::IndexType i = 0; i < eval_leaves.size(); ++i)
+        for(axom::IndexType i = 0; i < evaluation_primitives.size(); ++i)
         {
-          gwn += primal::winding_number(query, eval_leaves[i], tolerances_copy);
+          gwn += primal::winding_number(query, evaluation_primitives[i], tolerances_copy);
         }
         winding[static_cast<int>(index)] = gwn;
         inout[static_cast<int>(index)] = std::lround(gwn);
@@ -267,6 +284,7 @@ public:
 private:
   BVHType m_bvh;
   axom::Array<MomentType> m_internal_moments;
+  axom::IndexType m_source_geometry_count {0};
 };
 
 }  // namespace detail
@@ -331,6 +349,12 @@ public:
                   bool use_direct_eval = false,
                   bool use_memoization = true)
   {
+    // Clear stale data
+    m_fast_query.clear();
+    m_nurbs_cache_mgr = NURBSCacheManager {};
+    m_subdivided_curves.clear();
+    m_processed_curves_view = {};
+
     m_input_curves_view = input_curves.view();
     if(m_input_curves_view.size() <= 0)
     {
@@ -453,6 +477,10 @@ public:
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
                   bool use_direct_eval)
   {
+    // Clear stale data
+    m_fast_query.clear();
+    m_segments.clear();
+
     if(poly_mesh == nullptr || poly_mesh->getNumberOfCells() <= 0)
     {
       SLIC_WARNING("Quest: Input mesh contains no segments; skipping preprocessing.");
@@ -582,6 +610,12 @@ public:
                   bool use_direct_eval = false,
                   bool use_memoization = true)
   {
+    // Clear stale data
+    m_fast_query.clear();
+    m_nurbs_cache_mgr = NURBSCacheManager {};
+    m_subdivided_patches.clear();
+    m_processed_patches_view = {};
+
     m_input_patches_view = input_patches.view();
     if(m_input_patches_view.size() <= 0)
     {
@@ -727,6 +761,12 @@ public:
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh,
                   bool use_direct_eval)
   {
+    // Clear stale data
+    m_fast_query.clear();
+    m_triangles.clear();
+    m_shape_center = Point3D {};
+    m_scale = 1.0;
+
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
     if(tri_mesh == nullptr || tri_mesh->getNumberOfCells() <= 0)
