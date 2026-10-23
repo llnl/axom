@@ -34,6 +34,7 @@ set( spin_headers
 
      ## internal
      internal/HilbertIndexImpl.hpp
+     internal/HilbertTables.hpp
      internal/linear_bvh/BVHNode.hpp
      internal/linear_bvh/RadixTree.hpp
      internal/linear_bvh/build_radix_tree.hpp
