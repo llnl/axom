@@ -160,7 +160,7 @@ public:
   {
     m_bvh = BVHType {};
     m_internal_moments.clear();
-    m_source_geometry_count = 0;
+    m_source_primitive_count = 0;
   }
 
   /*!
@@ -168,41 +168,41 @@ public:
    *
    * \tparam SourceGeometry The geometry type used to construct bounding boxes
    *         and `GWNMomentData`.
-   * \param [in] source_geometries The processed source geometries, in BVH order.
+   * \param [in] source_primitives The processed source primitives, in BVH order.
    *
-   * Builds geometry bounding boxes, initializes `m_bvh`, and reduces source-geometry
+   * Builds bounding boxes, initializes `m_bvh`, and reduces source-primtiive
    * moments into `m_internal_moments`.
    */
   template <typename SourceGeometry>
-  void initialize(const axom::ArrayView<const SourceGeometry>& source_geometries)
+  void initialize(const axom::ArrayView<const SourceGeometry>& source_primitives)
   {
     clear();
 
-    if(source_geometries.empty())
+    if(source_primitives.empty())
     {
-      SLIC_WARNING("Quest: Input shape contains no geometries; skipping fast GWN initialization.");
+      SLIC_WARNING("Quest: Input shape contains no primitives; skipping fast GWN initialization.");
       return;
     }
 
-    m_source_geometry_count = source_geometries.size();
-    const auto source_geometry_count = m_source_geometry_count;
+    m_source_primitive_count = source_primitives.size();
+    const auto source_primitive_count = m_source_primitive_count;
     axom::Array<BoundingBoxType> geometry_boxes(axom::ArrayOptions::Uninitialized {},
-                                                source_geometry_count);
+                                                source_primitive_count);
     auto geometry_boxes_view = geometry_boxes.view();
 
     {
       AXOM_ANNOTATE_SCOPE("bvh_initialization");
-      axom::for_all<ExecSpace>(source_geometry_count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
-        geometry_boxes_view[i] = source_geometries[i].boundingBox();
+      axom::for_all<ExecSpace>(source_primitive_count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+        geometry_boxes_view[i] = source_primitives[i].boundingBox();
       });
-      m_bvh.initialize(geometry_boxes_view, source_geometry_count);
+      m_bvh.initialize(geometry_boxes_view, source_primitive_count);
     }
 
     {
       AXOM_ANNOTATE_SCOPE("moment_precomputation");
-      const auto compute_moments = [source_geometries](std::int32_t current_node,
+      const auto compute_moments = [source_primitives](std::int32_t current_node,
                                                        const std::int32_t* leaf_nodes) -> MomentType {
-        return MomentType(source_geometries[leaf_nodes[current_node]]);
+        return MomentType(source_primitives[leaf_nodes[current_node]]);
       };
       const auto traverser = m_bvh.getTraverser();
       m_internal_moments = traverser.template reduce_tree<ExecSpace, MomentType>(compute_moments);
@@ -248,11 +248,11 @@ public:
     {
       // Use fast approximation
       SLIC_ERROR_IF(
-        evaluation_primitives.size() != m_source_geometry_count,
-        axom::fmt::format("FastGWNQuery: {} evaluation geometries, but acceleration data was "
-                          "initialized for {} source geometries.",
+        evaluation_primitives.size() != m_source_primitive_count,
+        axom::fmt::format("FastGWNQuery: {} evaluation primitives, but acceleration data was "
+                          "initialized for {} source primitives.",
                           evaluation_primitives.size(),
-                          m_source_geometry_count));
+                          m_source_primitive_count));
       const auto traverser = m_bvh.getTraverser();
       const auto internal_moments_view = m_internal_moments.view();
       axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
@@ -284,7 +284,7 @@ public:
 private:
   BVHType m_bvh;
   axom::Array<MomentType> m_internal_moments;
-  axom::IndexType m_source_geometry_count {0};
+  axom::IndexType m_source_primitive_count {0};
 };
 
 }  // namespace detail
