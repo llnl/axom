@@ -438,16 +438,17 @@ public:
                  SpaceFillingCurve ordering = SpaceFillingCurve::Morton);
 
   /*!
-   * \brief Builds a bucketed linear BVH using adaptive Morton-code prefixes.
+   * \brief Builds a bucketed linear BVH using adaptive spatial-key prefixes.
    *
    * \param [in] boxes the bounding boxes for each leaf node
    * \param [in] numBoxes the number of bounding boxes
    * \param [in] maxBucketSize maximum number of primitives in a bucket. The
-   *               builder first subdivides on spatial Morton-prefix boundaries,
+   *               builder first subdivides on spatial-key-prefix boundaries,
    *               then splits indistinguishable full-code runs in stable
-   *               Morton order to enforce this limit.
+   *               spatial-key order to enforce this limit.
    * \param [in] scaleFactor scale factor applied to each bounding box before insertion into the BVH
    * \param [in] allocatorID allocator for BVH and bucket storage
+   * \param [in] ordering curve used to order box centroids.
    * \pre This LinearBVH requires BucketedPrimitiveLeaves.
    */
   template <typename BoxIndexable>
@@ -455,7 +456,8 @@ public:
                  IndexType numBoxes,
                  IndexType maxBucketSize,
                  FloatType scaleFactor,
-                 int allocatorID);
+                 int allocatorID,
+                 SpaceFillingCurve ordering = SpaceFillingCurve::Morton);
 
   /*!
    * \brief Performs a traversal to find the candidates for each query primitive.
@@ -570,7 +572,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexa
                                                                  IndexType numBoxes,
                                                                  IndexType maxBucketSize,
                                                                  FloatType scaleFactor,
-                                                                 int allocatorID)
+                                                                 int allocatorID,
+                                                                 SpaceFillingCurve ordering)
 {
   static_assert(std::is_same_v<LeafType, LinearBVHType::BucketedPrimitiveLeaves>,
                 "This build overload requires LinearBVHType::BucketedPrimitiveLeaves.");
@@ -594,7 +597,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexa
                                              bucket_primitive_ids,
                                              maxBucketSizeInt,
                                              scaleFactor,
-                                             allocatorID);
+                                             allocatorID,
+                                             ordering);
 
   emitRadixTree(radix_tree, global_bounds, allocatorID);
   m_leaf_storage.m_leaf_bucket_ids = std::move(m_leaf_nodes);

@@ -59,14 +59,43 @@ struct BVHBuildParameters<BVHType::LinearBVH>
   SpaceFillingCurve ordering {SpaceFillingCurve::Morton};
 };
 
-//! \brief Maps a BVH policy to its implementation type.
+template <>
+struct BVHBuildParameters<BVHType::BucketedLinearBVH>
+{
+  /// Maximum number of primitives stored in one bucket.
+  IndexType maxBucketSize {1};
+
+  /// Spatial curve used to order primitives before adaptive bucketing.
+  SpaceFillingCurve ordering {SpaceFillingCurve::Morton};
+};
+
+/*!
+ * \brief Describes whether primitive candidates can be returned one per leaf.
+ *
+ * BucketedLinearBVH leaves contain multiple primitive IDs, and the find*()
+ * methods currently expect a one-to-one mapping of leaf nodes to primitives.
+ */
+template <BVHType Impl>
+concept SupportsCandidateQueries = Impl != BVHType::BucketedLinearBVH;
+
+/*!
+ * \brief Mapping from BVHType to templated BVH implementation type
+ */
 template <typename FloatType, int NDIMS, typename ExecType, BVHType Policy>
 struct BVHPolicy;
 
 template <typename FloatType, int NDIMS, typename ExecType>
 struct BVHPolicy<FloatType, NDIMS, ExecType, BVHType::LinearBVH>
 {
-  using ImplType = policy::LinearBVH<FloatType, NDIMS, ExecType>;
+  using ImplType =
+    policy::LinearBVH<FloatType, NDIMS, ExecType, policy::LinearBVHType::SinglePrimitiveLeaf>;
+};
+
+template <typename FloatType, int NDIMS, typename ExecType>
+struct BVHPolicy<FloatType, NDIMS, ExecType, BVHType::BucketedLinearBVH>
+{
+  using ImplType =
+    policy::LinearBVH<FloatType, NDIMS, ExecType, policy::LinearBVHType::BucketedPrimitiveLeaves>;
 };
 
 /*!
@@ -372,6 +401,7 @@ public:
    * \pre points != nullptr
    */
   template <typename PointIndexable>
+    requires SupportsCandidateQueries<BVHImpl>
   void findPoints(axom::ArrayView<IndexType> offsets,
                   axom::ArrayView<IndexType> counts,
                   axom::Array<IndexType>& candidates,
@@ -397,6 +427,7 @@ public:
    * \pre rays != nullptr
    */
   template <typename RayIndexable>
+    requires SupportsCandidateQueries<BVHImpl>
   void findRays(axom::ArrayView<IndexType> offsets,
                 axom::ArrayView<IndexType> counts,
                 axom::Array<IndexType>& candidates,
@@ -422,6 +453,7 @@ public:
    * \pre boxes != nullptr
    */
   template <typename BoxIndexable>
+    requires SupportsCandidateQueries<BVHImpl>
   void findBoundingBoxes(axom::ArrayView<IndexType> offsets,
                          axom::ArrayView<IndexType> counts,
                          axom::Array<IndexType>& candidates,
@@ -453,7 +485,15 @@ private:
     {
       m_bvh->buildImpl(boxes, numBoxes, m_scaleFactor, m_AllocatorID, parameters.ordering);
     }
-    // Other policy types forthcoming
+    if constexpr(BVHImpl == BVHType::BucketedLinearBVH)
+    {
+      m_bvh->buildImpl(boxes,
+                       numBoxes,
+                       parameters.maxBucketSize,
+                       m_scaleFactor,
+                       m_AllocatorID,
+                       parameters.ordering);
+    }
   }
 
   /// \name Private Members
@@ -530,6 +570,7 @@ int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename PointIndexable>
+  requires SupportsCandidateQueries<Impl>
 void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexType> offsets,
                                                         axom::ArrayView<IndexType> counts,
                                                         axom::Array<IndexType>& candidates,
@@ -558,6 +599,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexTyp
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename RayIndexable>
+  requires SupportsCandidateQueries<Impl>
 void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType> offsets,
                                                       axom::ArrayView<IndexType> counts,
                                                       axom::Array<IndexType>& candidates,
@@ -589,6 +631,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType>
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename BoxIndexable>
+  requires SupportsCandidateQueries<Impl>
 void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(axom::ArrayView<IndexType> offsets,
                                                                axom::ArrayView<IndexType> counts,
                                                                axom::Array<IndexType>& candidates,
