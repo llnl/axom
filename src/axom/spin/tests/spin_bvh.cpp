@@ -1714,6 +1714,50 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential)
 }
 
 //------------------------------------------------------------------------------
+TEST(spin_bvh, bucketed_linear_bvh_facade_sequential)
+{
+  constexpr int NDIMS = 2;
+  constexpr axom::IndexType NUM_BOXES = 4;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using BucketedBVH = spin::BVH<NDIMS, axom::SEQ_EXEC, FloatType, spin::BVHType::BucketedLinearBVH>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
+  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
+  {
+    boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
+  }
+
+  BucketedBVH::BuildParameters parameters {.maxBucketSize = 2,
+                                             .ordering = spin::SpaceFillingCurve::Hilbert};
+  BucketedBVH bvh;
+  ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), NUM_BOXES, parameters));
+
+  BucketedBVH constructed_bvh(
+    boxes.view(), NUM_BOXES, parameters, allocator_id, FloatType {0.0}, FloatType {1.0});
+  EXPECT_TRUE(constructed_bvh.isInitialized());
+
+  axom::IndexType primitive_count = 0;
+  axom::IndexType largest_bucket_size = 0;
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  bvh.getTraverser().traverse_tree(
+    PointType {0., 0.},
+    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+      primitive_count += primitive_ids.size();
+      if(primitive_ids.size() > largest_bucket_size)
+      {
+        largest_bucket_size = primitive_ids.size();
+      }
+    },
+    accept_all);
+
+  EXPECT_EQ(NUM_BOXES, primitive_count);
+  EXPECT_EQ(parameters.maxBucketSize, largest_bucket_size);
+}
+
+//------------------------------------------------------------------------------
 TEST(spin_bvh, bucketed_linear_bvh_adaptive_spatial_key_prefixes)
 {
   constexpr int NDIMS = 2;
