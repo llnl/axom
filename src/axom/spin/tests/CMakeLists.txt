@@ -11,6 +11,7 @@ set(spin_tests
     spin_bvh_ordering.cpp
     spin_bvh_stack.cpp
     spin_hilbert_index.cpp
+    spin_hilbert_tables.cpp
     spin_implicit_grid.cpp
     spin_morton.cpp
     spin_octree.cpp
