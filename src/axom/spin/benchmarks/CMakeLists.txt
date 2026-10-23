@@ -8,21 +8,21 @@
 #------------------------------------------------------------------------------
 
 axom_add_executable(
-    NAME       spin_hilbert_codec_benchmark
-    SOURCES    spin_hilbert_codec.cpp
+    NAME       spin_sfc_codec_benchmark
+    SOURCES    spin_sfc_codec.cpp
     OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
     DEPENDS_ON spin slic fmt cli11 gbenchmark
     FOLDER     axom/spin/benchmarks
     )
 
 blt_add_benchmark(
-    NAME    spin_hilbert_codec_benchmark
-    COMMAND spin_hilbert_codec_benchmark --benchmark_min_time=0.0001s
+    NAME    spin_sfc_codec_benchmark
+    COMMAND spin_sfc_codec_benchmark --benchmark_min_time=0.0001s
     )
 
 if (AXOM_ENABLE_TESTS)
     axom_add_test(
-        NAME    spin_hilbert_codec_candidates
-        COMMAND spin_hilbert_codec_benchmark --verify-only
+        NAME    spin_sfc_codec_candidates
+        COMMAND spin_sfc_codec_benchmark --verify-only
         )
 endif()

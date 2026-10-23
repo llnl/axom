@@ -5,8 +5,9 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file spin_hilbert_codec.cpp
- * \brief Benchmarks public and scalar Hilbert conversions in 2D, 3D, and 4D.
+ * \file spin_sfc_codec.cpp
+ * \brief Compares Hilbert and Morton space filling curve conversions
+ * in 2D, 3D, and 4D.
  *
  * Use Google Benchmark's --benchmark_filter and --benchmark_repetitions options
  * for timing in Release. Run --verify-only to check the adapters.
@@ -14,17 +15,24 @@
  * Each timed iteration processes a batch. Divide its time by
  * `batch * operations_per_item` to get the average time per conversion.
  * Mixed cases encode a point and decode an independent key for each item.
+ * Cases identify both the curve and its implementation. All use the same inputs.
+ * Morton has no depth argument, so Variable changes its input ranges while
+ * Hilbert also receives each item's depth.
  */
 
 #include "axom/config.hpp"
 
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
+#include "axom/primal/geometry/Point.hpp"
 #include "axom/slic.hpp"
 #include "axom/spin/HilbertIndex.hpp"
+#include "axom/spin/MortonIndex.hpp"
+#include "axom/spin/SpaceFillingCurve.hpp"
 
 #include "benchmark/benchmark.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -54,44 +62,75 @@ constexpr std::size_t CACHE_PRESSURE_BUFFER_BYTES = 8 * 1024 * 1024;
 constexpr std::size_t CACHE_PRESSURE_STRIDE_BYTES = 64;
 constexpr int CACHE_PRESSURE_ITERATIONS = 32;
 
-// Public follows Hilbertizer's dispatch. Scalar calls the reference transform
-// directly to keep a baseline as dispatch changes. Both allow normal inlining.
-enum Method
+using Curve = axom::spin::SpaceFillingCurve;
+
+// Public calls the selected curve's public API. Scalar is a Hilbert baseline
+// that bypasses public dispatch. All adapters allow normal inlining.
+enum Implementation
 {
   Public,
   Scalar
 };
 
-const char* methodName(Method method) { return method == Public ? "Public" : "Scalar"; }
+const char* curveName(Curve curve) { return curve == Curve::Hilbert ? "Hilbert" : "Morton"; }
 
-template <int DIM, typename U, Method METHOD>
+const char* implementationName(Implementation impl)
+{
+  constexpr const char* names[] = {"Public", "Scalar"};
+  return names[impl];
+}
+
+// Setup bounds inputs to the requested depth, so Morton can ignore bits and
+// call its native API without adding masking work to the timed conversions.
+template <int DIM, typename U, Curve CURVE, Implementation IMPL>
 struct Codec
 {
-  using Hilbert = axom::spin::Hilbertizer<std::uint32_t, U, DIM>;
-  using ScalarTransform = axom::spin::internal::hilbert::HilbertTransform<std::uint32_t, U, DIM>;
-  using Point = typename Hilbert::PointType;
+  static_assert(CURVE == Curve::Hilbert || IMPL == Public,
+                "Morton has only a public benchmark adapter");
+  using Point = axom::primal::Point<std::uint32_t, DIM>;
+  static constexpr int MAX_BITS =
+    std::min(std::numeric_limits<std::uint32_t>::digits, std::numeric_limits<U>::digits / DIM);
+
+  using HilbertPublicTransform = axom::spin::Hilbertizer<std::uint32_t, U, DIM>;
+  using HilbertScalarTransform =
+    axom::spin::internal::hilbert::HilbertTransform<std::uint32_t, U, DIM>;
+  using MortonPublicTransform = axom::spin::Mortonizer<std::uint32_t, U, DIM>;
+
+  static_assert(MAX_BITS == HilbertPublicTransform::MAX_UNIQUE_BITS &&
+                  MAX_BITS == MortonPublicTransform::MAX_UNIQUE_BITS,
+                "Codec depths must match the shared input domain");
 
   static U encode(const Point& point, int bits)
   {
-    if constexpr(METHOD == Public)
+    if constexpr(CURVE == Curve::Morton)
     {
-      return Hilbert::toIndex(point, bits);
+      AXOM_UNUSED_VAR(bits);
+      return MortonPublicTransform::mortonize(point);
+    }
+    else if constexpr(IMPL == Public)
+    {
+      return HilbertPublicTransform::toIndex(point, bits);
     }
     else
     {
-      return ScalarTransform::toIndex(point, bits);
+      return HilbertScalarTransform::toIndex(point, bits);
     }
   }
 
   static Point decode(U key, int bits)
   {
-    if constexpr(METHOD == Public)
+    if constexpr(CURVE == Curve::Morton)
     {
-      return Hilbert::toPoint(key, bits);
+      AXOM_UNUSED_VAR(bits);
+      return MortonPublicTransform::demortonize(key);
+    }
+    else if constexpr(IMPL == Public)
+    {
+      return HilbertPublicTransform::toPoint(key, bits);
     }
     else
     {
-      return ScalarTransform::toPoint(key, bits);
+      return HilbertScalarTransform::toPoint(key, bits);
     }
   }
 };
@@ -116,14 +155,12 @@ enum Dataset
   Clustered
 };
 
-// The scalar transform defines the expected ordering for these compatibility checks.
-template <int DIM, typename U, Method METHOD>
+// Check Hilbert against the scalar transform and Morton against bit interleaving.
+template <int DIM, typename U, Curve CURVE, Implementation IMPL>
 bool verifyCodec()
 {
-  using CodecType = Codec<DIM, U, METHOD>;
-  using Hilbert = typename CodecType::Hilbert;
-  using ScalarTransform = typename CodecType::ScalarTransform;
-  constexpr int max_bits = Hilbert::MAX_UNIQUE_BITS;
+  using CodecType = Codec<DIM, U, CURVE, IMPL>;
+  constexpr int max_bits = CodecType::MAX_BITS;
   std::mt19937_64 random(VERIFICATION_SEED + DIM);
   for(int bits = 1; bits <= max_bits; ++bits)
   {
@@ -153,14 +190,41 @@ bool verifyCodec()
                                                           : static_cast<U>(random()) & key_mask);
       const U encoded = CodecType::encode(point, bits);
       const auto decoded = CodecType::decode(key, bits);
-      if(!Hilbert::isValidIndex(encoded, bits) || !Hilbert::isValidPoint(decoded, bits) ||
-         encoded != ScalarTransform::toIndex(point, bits) ||
-         decoded != ScalarTransform::toPoint(key, bits) ||
+      U expected_key = 0;
+      typename CodecType::Point expected_point;
+      if constexpr(CURVE == Curve::Morton)
+      {
+        // Interleave each bit plane explicitly, with x in its lowest bit.
+        // This reference is independent of Mortonizer's expand/contract helpers.
+        for(int bit = 0; bit < bits; ++bit)
+        {
+          for(int axis = 0; axis < DIM; ++axis)
+          {
+            const int key_bit = bit * DIM + axis;
+            expected_key |= static_cast<U>((point[axis] >> bit) & 1) << key_bit;
+            expected_point[axis] |= static_cast<std::uint32_t>((key >> key_bit) & U {1}) << bit;
+          }
+        }
+      }
+      else
+      {
+        using HilbertScalarTransform =
+          axom::spin::internal::hilbert::HilbertTransform<std::uint32_t, U, DIM>;
+        expected_key = HilbertScalarTransform::toIndex(point, bits);
+        expected_point = HilbertScalarTransform::toPoint(key, bits);
+      }
+      bool valid_point = true;
+      for(int axis = 0; axis < DIM; ++axis)
+      {
+        valid_point = valid_point && decoded[axis] <= coord_mask;
+      }
+      if(encoded > key_mask || !valid_point || encoded != expected_key || decoded != expected_point ||
          CodecType::encode(decoded, bits) != key || CodecType::decode(encoded, bits) != point)
       {
         SLIC_WARNING(
-          axom::fmt::format("Verification failed: {} D={} key bits={} depth={} sample={}",
-                            methodName(METHOD),
+          axom::fmt::format("Verification failed: {}/{} D={} key bits={} depth={} sample={}",
+                            curveName(CURVE),
+                            implementationName(IMPL),
                             DIM,
                             sizeof(U) * 8,
                             bits,
@@ -169,30 +233,33 @@ bool verifyCodec()
       }
     }
   }
-  SLIC_INFO(
-    axom::fmt::format("Verified {}/{}D/u{} at every depth", methodName(METHOD), DIM, sizeof(U) * 8));
+  SLIC_INFO(axom::fmt::format("Verified {}/{}/{}D/u{} at every depth",
+                              curveName(CURVE),
+                              implementationName(IMPL),
+                              DIM,
+                              sizeof(U) * 8));
   return true;
 }
 
 template <int DIM, typename U>
 bool verifyCodecsForShape()
 {
-  return verifyCodec<DIM, U, Public>() && verifyCodec<DIM, U, Scalar>();
+  return verifyCodec<DIM, U, Curve::Hilbert, Public>() &&
+    verifyCodec<DIM, U, Curve::Hilbert, Scalar>() && verifyCodec<DIM, U, Curve::Morton, Public>();
 }
 
-template <int DIM, typename U, Method METHOD, Direction DIR, Workload WORK, Dataset DATA>
-void benchmarkHilbertCodec(benchmark::State& state)
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR, Workload WORK, Dataset DATA>
+void benchmarkCodec(benchmark::State& state)
 {
-  using CodecType = Codec<DIM, U, METHOD>;
-  using Hilbert = typename CodecType::Hilbert;
+  using CodecType = Codec<DIM, U, CURVE, IMPL>;
   using Point = typename CodecType::Point;
-  constexpr int max_bits = Hilbert::MAX_UNIQUE_BITS;
+  constexpr int max_bits = CodecType::MAX_BITS;
   const int count = WORK == Small || WORK == Pressure ? SMALL_BATCH_SIZE : LARGE_BATCH_SIZE;
   // Allocation and input generation precede the state loop, so neither is timed.
   std::vector<Point> points(count), decoded(count);
   std::vector<U> keys(count), encoded(count);
   std::vector<int> depths(count);
-  // Vary the sequence by dimension. Both codecs use the same seed.
+  // Vary the sequence by dimension. All codecs use the same seed and inputs.
   std::mt19937_64 random(BENCHMARK_SEED + DIM);
   Point centers[CLUSTER_COUNT];
   U key_centers[CLUSTER_COUNT];
@@ -268,8 +335,8 @@ void benchmarkHilbertCodec(benchmark::State& state)
     }
     for(int i = 0; i < count; ++i)
     {
-      // Fixed-depth cases let the compiler specialize the codec. Variable reads
-      // a depth per item to exercise calls whose depth is only known at runtime.
+      // Fixed-depth cases let the compiler specialize Hilbert. Variable supplies
+      // a runtime depth per item; Morton uses the same inputs without this argument.
       const int bits = WORK == Variable ? depths[i] : max_bits;
       if constexpr(DIR == Encode || DIR == Mixed)
       {
@@ -288,21 +355,22 @@ void benchmarkHilbertCodec(benchmark::State& state)
   state.counters["operations_per_item"] = DIR == Mixed ? 2 : 1;
 }
 
-template <int DIM, typename U, Method METHOD, Direction DIR, Workload WORK, Dataset DATA>
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR, Workload WORK, Dataset DATA>
 void registerBenchmark()
 {
   const char* directions[] = {"Encode", "Decode", "Mixed"};
   const char* workloads[] = {"Warm", "Small", "Pressure", "Variable"};
   const char* datasets[] = {"Uniform", "Sequential", "Clustered"};
-  const auto label = axom::fmt::format("{}/{}D/u{}/{}/{}/{}",
-                                       methodName(METHOD),
+  const auto label = axom::fmt::format("{}/{}/{}D/u{}/{}/{}/{}",
+                                       curveName(CURVE),
+                                       implementationName(IMPL),
                                        DIM,
                                        sizeof(U) * 8,
                                        directions[DIR],
                                        workloads[WORK],
                                        datasets[DATA]);
   auto* b = benchmark::RegisterBenchmark(label.c_str(),
-                                         &benchmarkHilbertCodec<DIM, U, METHOD, DIR, WORK, DATA>);
+                                         &benchmarkCodec<DIM, U, CURVE, IMPL, DIR, WORK, DATA>);
   b->UseRealTime()->Unit(benchmark::kNanosecond);
   // Limit the untimed buffer walks per repetition.
   if constexpr(WORK == Pressure)
@@ -311,30 +379,31 @@ void registerBenchmark()
   }
 }
 
-template <int DIM, typename U, Method METHOD, Direction DIR>
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
 void registerWorkloads()
 {
-  registerBenchmark<DIM, U, METHOD, DIR, Warm, Uniform>();
-  registerBenchmark<DIM, U, METHOD, DIR, Small, Uniform>();
-  registerBenchmark<DIM, U, METHOD, DIR, Pressure, Uniform>();
-  registerBenchmark<DIM, U, METHOD, DIR, Variable, Uniform>();
-  registerBenchmark<DIM, U, METHOD, DIR, Warm, Sequential>();
-  registerBenchmark<DIM, U, METHOD, DIR, Warm, Clustered>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Warm, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Small, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Pressure, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Variable, Uniform>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Warm, Sequential>();
+  registerBenchmark<DIM, U, CURVE, IMPL, DIR, Warm, Clustered>();
 }
 
-template <int DIM, typename U, Method METHOD>
-void registerMethodBenchmarks()
+template <int DIM, typename U, Curve CURVE, Implementation IMPL>
+void registerCodecBenchmarks()
 {
-  registerWorkloads<DIM, U, METHOD, Encode>();
-  registerWorkloads<DIM, U, METHOD, Decode>();
-  registerWorkloads<DIM, U, METHOD, Mixed>();
+  registerWorkloads<DIM, U, CURVE, IMPL, Encode>();
+  registerWorkloads<DIM, U, CURVE, IMPL, Decode>();
+  registerWorkloads<DIM, U, CURVE, IMPL, Mixed>();
 }
 
 template <int DIM, typename U>
 void registerBenchmarksForShape()
 {
-  registerMethodBenchmarks<DIM, U, Public>();
-  registerMethodBenchmarks<DIM, U, Scalar>();
+  registerCodecBenchmarks<DIM, U, Curve::Hilbert, Public>();
+  registerCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar>();
+  registerCodecBenchmarks<DIM, U, Curve::Morton, Public>();
 }
 }  // namespace
 
@@ -342,10 +411,8 @@ int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger logger;
   bool verify_only = false;
-  axom::CLI::App app {"Axom Hilbert codec benchmarks"};
-  app.add_flag("--verify-only",
-               verify_only,
-               "Check both codecs at every valid depth without timing");
+  axom::CLI::App app {"Axom space-filling curve codec benchmarks"};
+  app.add_flag("--verify-only", verify_only, "Check all codecs at every valid depth without timing");
   app.allow_extras();
   CLI11_PARSE(app, argc, argv);
 
