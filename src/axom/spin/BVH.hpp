@@ -45,10 +45,8 @@ enum class BVHType
   LinearBVH
 };
 
-/*!
- *  \brief Build parameters for a BVH policy.
- *
- *  Each policy specializes this type with the parameters it supports.
+/*! \brief Build-time configuration for a BVH policy.
+ *  Each BVH policy specializes this type to expose only the parameters it uses.
  */
 template <BVHType Policy>
 struct BVHBuildParameters;
@@ -64,8 +62,6 @@ struct BVHBuildParameters<BVHType::BucketedLinearBVH>
 {
   /// Maximum number of primitives stored in one bucket.
   IndexType maxBucketSize {1};
-
-  /// Spatial curve used to order primitives before adaptive bucketing.
   SpaceFillingCurve ordering {SpaceFillingCurve::Morton};
 };
 
@@ -266,7 +262,8 @@ public:
     initialize(boxes, numItems);
   }
 
-  //! \brief Constructs a BVH using the supplied build parameters.
+  /*! \brief Constructs a BVH with policy-specific build parameters.
+   */
   template <typename BoxIndexable>
   BVH(const BoxIndexable boxes,
       IndexType numItems,
