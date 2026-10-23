@@ -139,7 +139,7 @@ public:
   /// \brief Returns an axis-aligned bounding box containing the segment.
   AXOM_HOST_DEVICE BoundingBoxType boundingBox() const
   {
-    return BoundingBoxType {m_source, m_target};
+    return BoundingBoxType(m_source, m_target, true);
   }
 
   /*!

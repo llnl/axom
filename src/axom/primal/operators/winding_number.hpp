@@ -70,7 +70,7 @@ double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_
   return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with a struct of tolerance options
 template <typename T>
 double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, const WindingTolerances& tolerances)
 {
@@ -165,7 +165,7 @@ double winding_number(const Point<T, 2>& q,
   return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with a struct of tolerance options
 template <typename T>
 double winding_number(const Point<T, 2>& q,
                       const NURBSCurve<T, 2>& n,
@@ -332,7 +332,7 @@ double winding_number(const Point<T, 2>& q,
   return winding_number(q, nurbs_cache, dummy_isOnCurve, edge_tol, EPS);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with a struct of tolerance options
 template <typename T>
 double winding_number(const Point<T, 2>& q,
                       const detail::NURBSCurveGWNCache<T>& nurbs_cache,
@@ -654,7 +654,7 @@ double winding_number(const Point<T, 3>& q,
   return winding_number(q, tri, isOnFace, edge_tol, EPS);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with a struct of tolerance options
 template <typename T>
 double winding_number(const Point<T, 3>& q,
                       const Triangle<T, 3>& tri,
@@ -817,7 +817,7 @@ double winding_number(const Point<T, 3>& query,
                                       EPS);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with a struct of tolerance options
 template <typename T>
 double winding_number(const Point<T, 3>& query,
                       const detail::NURBSPatchGWNCache<T>& nurbs,
@@ -894,7 +894,7 @@ double winding_number(const Point<T, 3>& query,
                         EPS);
 }
 
-//! \brief Overload with batched tolerances.
+//! \brief Overload with a struct of tolerance options
 template <typename T, typename SurfaceType>
 double winding_number(const Point<T, 3>& query,
                       const SurfaceType& surf,

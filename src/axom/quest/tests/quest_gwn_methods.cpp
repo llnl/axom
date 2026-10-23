@@ -220,11 +220,15 @@ void check_mfem_mesh_evaluation()
 
   SLIC_INFO("Testing Curve Evaluation");
   axom::quest::NURBSCurveGWNQuery<ExecSpace> gwn_curves {};
+  EXPECT_FALSE(gwn_curves.is_memoized());
   gwn_curves.preprocess(curves, useDirectEvaluation, !useMemoization);
+  EXPECT_FALSE(gwn_curves.is_memoized());
   gwn_curves.query(dc[0], tol);
 
   axom::quest::NURBSCurveGWNQuery<ExecSpace> gwn_curves_memoized {};
+  EXPECT_FALSE(gwn_curves_memoized.is_memoized());
   gwn_curves_memoized.preprocess(curves, useDirectEvaluation, useMemoization);
+  EXPECT_TRUE(gwn_curves_memoized.is_memoized());
   gwn_curves_memoized.query(dc[1], tol);
 
   axom::quest::NURBSCurveGWNQuery<ExecSpace, 0> gwn_curves_fast {};

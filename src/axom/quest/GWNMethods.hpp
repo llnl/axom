@@ -176,7 +176,7 @@ public:
     }
 
     const int num_leaves = source_leaves.size();
-    axom::Array<BoundingBoxType> leaf_boxes(num_leaves, num_leaves);
+    axom::Array<BoundingBoxType> leaf_boxes(axom::ArrayOptions::Uninitialized {}, num_leaves);
     auto leaf_boxes_view = leaf_boxes.view();
 
     {
@@ -299,6 +299,9 @@ public:
 
   NURBSCurveGWNQuery() = default;
 
+  /// \brief Returns whether this query uses memoization during evaluation.
+  bool is_memoized() const { return !m_nurbs_cache_mgr.empty(); }
+
   ///@{
   /// \name Setters for misc algorithm parameters
   void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
@@ -386,14 +389,8 @@ public:
       return pt;
     };
 
-    if(m_nurbs_cache_mgr.empty())
+    if(is_memoized())
     {
-      // Use the un-memoized version
-      m_fast_query.evaluate(dc, m_processed_curves_view, tol, query_point);
-    }
-    else
-    {
-      // Use the memoized version
       const auto cache_manager_view = m_nurbs_cache_mgr.view();
 
       // `FastGWNQuery` indexes direct leaves with the BVH's processed-curve
@@ -401,6 +398,10 @@ public:
       // curve, and selects each OMP thread's cache during calls to operator[].
       SLIC_ASSERT(cache_manager_view.size() == m_processed_curves_view.size());
       m_fast_query.evaluate(dc, cache_manager_view, tol, query_point);
+    }
+    else
+    {
+      m_fast_query.evaluate(dc, m_processed_curves_view, tol, query_point);
     }
   }
 
@@ -544,6 +545,9 @@ public:
 
   NURBSPatchGWNQuery() = default;
 
+  /// \brief Returns whether this query uses memoization during evaluation.
+  bool is_memoized() const { return !m_nurbs_cache_mgr.empty(); }
+
   ///@{
   /// \name Setters for misc algorithm parameters
   void setSubdivisionBboxThreshold(double subdivision_bbox_threshold)
@@ -656,16 +660,8 @@ public:
       return pt;
     };
 
-    if(m_nurbs_cache_mgr.empty())
+    if(is_memoized())
     {
-      // Use the non-memoized version.
-      SLIC_WARNING(
-        "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
-      m_fast_query.evaluate(dc, m_processed_patches_view, tol, query_point);
-    }
-    else
-    {
-      // Use the memoized version.
       const auto cache_manager_view = m_nurbs_cache_mgr.view();
 
       // `FastGWNQuery` indexes direct leaves with the BVH's processed-patch
@@ -673,6 +669,12 @@ public:
       // patch, and selects each OMP thread's cache during calls to operator[].
       SLIC_ASSERT(cache_manager_view.size() == m_processed_patches_view.size());
       m_fast_query.evaluate(dc, cache_manager_view, tol, query_point);
+    }
+    else
+    {
+      SLIC_WARNING(
+        "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
+      m_fast_query.evaluate(dc, m_processed_patches_view, tol, query_point);
     }
   }
 

@@ -418,14 +418,16 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     requires(const LeafCollection& collection, axom::IndexType index) { collection[index]; },
     "LeafCollection must support const indexed access.");
 
+  const double beta_scale_factor = 0.25 * beta * beta;
   double gwn = 0.0;
 
-  auto bbContain = [&gwn, internal_moments, &beta](const primal::Point<T, NDIMS>& query,
-                                                   const primal::BoundingBox<T, NDIMS>& bvhBbox,
-                                                   std::int32_t node_index) -> bool {
+  auto bbContain = [&gwn, internal_moments, &beta_scale_factor](
+                     const primal::Point<T, NDIMS>& query,
+                     const primal::BoundingBox<T, NDIMS>& bvhBbox,
+                     std::int32_t node_index) -> bool {
     const bool near_tree =
       axom::primal::squared_distance(query, internal_moments[node_index].getCenter()) <
-      beta * beta * bvhBbox.range().squared_norm() / 4;
+      beta_scale_factor * bvhBbox.range().squared_norm();
 
     // If we're inside an internal node bbox, need to keep recurring
     if(near_tree)
