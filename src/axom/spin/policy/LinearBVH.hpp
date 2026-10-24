@@ -41,11 +41,6 @@ using BVH2Node = lbvh::BVH2Node<FloatType, NDIMS>;
 
 /*!
  * \brief Tags the leaf representations supported by LinearBVH.
- *
- * The default single-primitive representation preserves LinearBVH's existing
- * behavior: every input bounding box is one BVH leaf. Future leaf
- * representations, such as buckets of Morton-nearby primitives, belong under
- * this linear-BVH-specific dispatch rather than the top-level BVH policy.
  */
 struct LinearBVHType
 {
@@ -283,122 +278,6 @@ private:
 };
 
 /*!
- * \brief A device-copyable view of the original primitive IDs in one BVH leaf bucket.
- */
-class LinearBVHLeafRange
-{
-public:
-  AXOM_HOST_DEVICE LinearBVHLeafRange(const std::int32_t* primitive_ids, IndexType size)
-    : m_primitive_ids(primitive_ids)
-    , m_size(size)
-  { }
-
-  AXOM_HOST_DEVICE IndexType size() const { return m_size; }
-
-  AXOM_HOST_DEVICE std::int32_t operator[](IndexType index) const { return m_primitive_ids[index]; }
-
-private:
-  const std::int32_t* m_primitive_ids;
-  IndexType m_size;
-};
-
-/*
- * \brief Interface for a linear BVH tree whose leaves are buckets of primitives.
- *
- * This specialization for LinearBVHType == BucketedPrimitiveLeaves performs
- * traversal/reduction by wrapping the default SinglePrimitive version and
- * adapting the leaf action to receive a LinearBVHLeafRange.
- */
-template <typename FloatType, int NDIMS>
-class LinearBVHTraverser<FloatType, NDIMS, LinearBVHType::BucketedPrimitiveLeaves>
-{
-public:
-  using BVHNode = BVH2Node<FloatType, NDIMS>;
-  using SinglePrimitiveTraverser = LinearBVHTraverser<FloatType, NDIMS>;
-
-  LinearBVHTraverser(axom::ArrayView<const BVHNode> nodes,
-                     axom::ArrayView<const std::int32_t> leaf_bucket_ids,
-                     axom::ArrayView<const IndexType> bucket_offsets,
-                     axom::ArrayView<const std::int32_t> bucket_primitive_ids)
-    : m_traverser(nodes, leaf_bucket_ids)
-    , m_bucket_offsets(bucket_offsets)
-    , m_bucket_primitive_ids(bucket_primitive_ids)
-  { }
-
-  /*
-   * Functors \a leaf_action and \a predicate should access only memory compatible
-   * with the execution space.  For example, GPU execution should access
-   * only device and unified memory.
-   */
-  template <typename Primitive, typename LeafAction, typename Predicate>
-  AXOM_HOST_DEVICE void traverse_tree(const Primitive& p,
-                                      LeafAction&& leaf_action,
-                                      Predicate&& predicate) const
-  {
-    auto action = std::forward<LeafAction>(leaf_action);
-    const auto bucket_offsets = m_bucket_offsets;
-    const auto bucket_primitive_ids = m_bucket_primitive_ids;
-    auto bucket_action = [=] AXOM_HOST_DEVICE(std::int32_t leaf_slot,
-                                              const std::int32_t* leaf_bucket_ids) mutable {
-      const auto bucket_id = leaf_bucket_ids[leaf_slot];
-      const IndexType begin = bucket_offsets[bucket_id];
-      action(LinearBVHLeafRange(bucket_primitive_ids.data() + begin,
-                                bucket_offsets[bucket_id + 1] - begin));
-    };
-
-    m_traverser.traverse_tree(p, bucket_action, std::forward<Predicate>(predicate));
-  }
-
-  template <typename ExecSpace, typename Primitive, typename LeafAction, typename Predicate>
-  AXOM_HOST_DEVICE void traverseTreeShared(const Primitive& p,
-                                           LeafAction&& leaf_action,
-                                           Predicate&& predicate) const
-  {
-    auto action = std::forward<LeafAction>(leaf_action);
-    const auto bucket_offsets = m_bucket_offsets;
-    const auto bucket_primitive_ids = m_bucket_primitive_ids;
-    auto bucket_action = [=] AXOM_HOST_DEVICE(std::int32_t leaf_slot,
-                                              const std::int32_t* leaf_bucket_ids) mutable {
-      const auto bucket_id = leaf_bucket_ids[leaf_slot];
-      const IndexType begin = bucket_offsets[bucket_id];
-      action(LinearBVHLeafRange(bucket_primitive_ids.data() + begin,
-                                bucket_offsets[bucket_id + 1] - begin));
-    };
-
-    m_traverser.template traverseTreeShared<ExecSpace>(p,
-                                                       bucket_action,
-                                                       std::forward<Predicate>(predicate));
-  }
-
-  /*!
-   * \brief Iterate over the tree, invoking the leaf action on each leaf's
-   *        primitive range, then sum values upward through the tree.
-   */
-  template <typename ExecSpace, typename ValueType, typename LeafAction>
-  axom::Array<ValueType> reduce_tree(LeafAction&& leaf_action,
-                                     int allocatorID = axom::getDefaultAllocatorID()) const
-  {
-    auto action = std::forward<LeafAction>(leaf_action);
-    const auto bucket_offsets = m_bucket_offsets;
-    const auto bucket_primitive_ids = m_bucket_primitive_ids;
-    auto bucket_action = [=](std::int32_t leaf_slot,
-                             const std::int32_t* leaf_bucket_ids) mutable -> ValueType {
-      const auto bucket_id = leaf_bucket_ids[leaf_slot];
-      const IndexType begin = bucket_offsets[bucket_id];
-      return action(LinearBVHLeafRange(bucket_primitive_ids.data() + begin,
-                                       bucket_offsets[bucket_id + 1] - begin));
-    };
-
-    return m_traverser.template reduce_tree<ExecSpace, ValueType>(bucket_action, allocatorID);
-  }
-
-private:
-  SinglePrimitiveTraverser m_traverser;
-  axom::ArrayView<const IndexType> m_bucket_offsets;
-  axom::ArrayView<const std::int32_t> m_bucket_primitive_ids;
-};
-
-/*!
  * \brief LinearBVH provides a policy for a BVH implementation which supports
  *  parallel linear construction on both CPU and GPU.
  *
@@ -535,12 +414,11 @@ private:
 
 template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
 template <typename BoxIndexable>
-void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(
-  const BoxIndexable boxes,
-  IndexType numBoxes,
-  FloatType scaleFactor,
-  int allocatorID,
-  SpaceFillingCurve ordering)
+void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexable boxes,
+                                                                 IndexType numBoxes,
+                                                                 FloatType scaleFactor,
+                                                                 int allocatorID,
+                                                                 SpaceFillingCurve ordering)
 {
   static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
                 "This build overload requires LinearBVHType::SinglePrimitiveLeaf.");
@@ -821,5 +699,122 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::writeVtkFileImpl(const st
   // STEP 7: close file
   ofs.close();
 }
+
+///@{
+//! @name Specializations for LinearBVHTraverser<FloatType, NDIMS, LinearBVHType::BucketedPrimitiveLeaves>
+
+/*!
+ * \brief A device-copyable view of the original primitive IDs in one BVH leaf bucket.
+ */
+class LinearBVHLeafRange
+{
+public:
+  AXOM_HOST_DEVICE LinearBVHLeafRange(const std::int32_t* primitive_ids, IndexType size)
+    : m_primitive_ids(primitive_ids)
+    , m_size(size)
+  { }
+
+  AXOM_HOST_DEVICE IndexType size() const { return m_size; }
+
+  AXOM_HOST_DEVICE std::int32_t operator[](IndexType index) const { return m_primitive_ids[index]; }
+
+private:
+  const std::int32_t* m_primitive_ids;
+  IndexType m_size;
+};
+
+/*!
+ * \brief Traverses or reduces a linear BVH whose leaves contain primitive buckets.
+ *
+ * This specialization adapts the single-primitive traverser so each leaf action
+ * receives a LinearBVHLeafRange for the primitives in that leaf's bucket.
+ * Bucketed leaves do not support shared-memory traversal.
+ */
+template <typename FloatType, int NDIMS>
+class LinearBVHTraverser<FloatType, NDIMS, LinearBVHType::BucketedPrimitiveLeaves>
+{
+public:
+  using BVHNode = BVH2Node<FloatType, NDIMS>;
+  using SinglePrimitiveTraverser = LinearBVHTraverser<FloatType, NDIMS>;
+
+  LinearBVHTraverser(axom::ArrayView<const BVHNode> nodes,
+                     axom::ArrayView<const std::int32_t> leaf_bucket_ids,
+                     axom::ArrayView<const IndexType> bucket_offsets,
+                     axom::ArrayView<const std::int32_t> bucket_primitive_ids)
+    : m_traverser(nodes, leaf_bucket_ids)
+    , m_bucket_offsets(bucket_offsets)
+    , m_bucket_primitive_ids(bucket_primitive_ids)
+  { }
+
+  /*!
+   * \brief Traverse the tree and invoke an action for each intersected leaf bucket.
+   *
+   * \param[in] p The primitive to use for traversal.
+   * \param[in] leaf_action Action invoked with a LinearBVHLeafRange for each
+   *            visited leaf bucket.
+   * \param[in] predicate Predicate that determines whether to descend a branch.
+   *
+   * \note Functors must access only memory compatible with the execution space.
+   */
+  template <typename Primitive, typename LeafAction, typename Predicate>
+  AXOM_HOST_DEVICE void traverse_tree(const Primitive& p,
+                                      LeafAction&& leaf_action,
+                                      Predicate&& predicate) const
+  {
+    auto action = std::forward<LeafAction>(leaf_action);
+    const auto bucket_offsets = m_bucket_offsets;
+    const auto bucket_primitive_ids = m_bucket_primitive_ids;
+    auto bucket_action = [=] AXOM_HOST_DEVICE(std::int32_t leaf_slot,
+                                              const std::int32_t* leaf_bucket_ids) mutable {
+      const auto bucket_id = leaf_bucket_ids[leaf_slot];
+      const IndexType begin = bucket_offsets[bucket_id];
+      action(LinearBVHLeafRange(bucket_primitive_ids.data() + begin,
+                                bucket_offsets[bucket_id + 1] - begin));
+    };
+
+    m_traverser.traverse_tree(p, bucket_action, std::forward<Predicate>(predicate));
+  }
+
+  template <typename ExecSpace, typename Primitive, typename LeafAction, typename Predicate>
+  AXOM_HOST_DEVICE void traverseTreeShared(const Primitive&, LeafAction&&, Predicate&&) const
+  {
+    static_assert(!std::is_same_v<ExecSpace, ExecSpace>,
+                  "traverseTreeShared() is not supported for bucketed leaves.");
+  }
+
+  /*!
+   * \brief Invoke a leaf action for each primitive bucket, then sum the values
+   *        upward through the tree.
+   *
+   * \param[in] leaf_action Action invoked with a LinearBVHLeafRange for each
+   *            leaf bucket. It returns the value used in the reduction.
+   * \param[in] allocatorID Allocator used for the returned array.
+   *
+   * \return An array of reduced values for all BVH nodes.
+   */
+  template <typename ExecSpace, typename ValueType, typename LeafAction>
+  axom::Array<ValueType> reduce_tree(LeafAction&& leaf_action,
+                                     int allocatorID = axom::getDefaultAllocatorID()) const
+  {
+    auto action = std::forward<LeafAction>(leaf_action);
+    const auto bucket_offsets = m_bucket_offsets;
+    const auto bucket_primitive_ids = m_bucket_primitive_ids;
+    auto bucket_action = [=](std::int32_t leaf_slot,
+                             const std::int32_t* leaf_bucket_ids) mutable -> ValueType {
+      const auto bucket_id = leaf_bucket_ids[leaf_slot];
+      const IndexType begin = bucket_offsets[bucket_id];
+      return action(LinearBVHLeafRange(bucket_primitive_ids.data() + begin,
+                                       bucket_offsets[bucket_id + 1] - begin));
+    };
+
+    return m_traverser.template reduce_tree<ExecSpace, ValueType>(bucket_action, allocatorID);
+  }
+
+private:
+  SinglePrimitiveTraverser m_traverser;
+  axom::ArrayView<const IndexType> m_bucket_offsets;
+  axom::ArrayView<const std::int32_t> m_bucket_primitive_ids;
+};
+///@}
 
 }  // namespace axom::spin::policy

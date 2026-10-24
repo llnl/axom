@@ -584,7 +584,7 @@ void propagate_aabbs(RadixTree<FloatType, NDIMS>& data, int allocatorID)
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Allocate and Morton-sort the leaves of a radix tree.
+ * \brief Allocate and sort the leaves of a radix tree.
  *
  * \note This does not construct the radix-tree topology. Call
  * `build_radix_tree_hierarchy()` after this function to complete the
@@ -626,10 +626,10 @@ void initialize_spatially_sorted_leaves(const BoxIndexable boxes,
  * \a max_bucket_size primitives. When a cell exceeds that size, it is split
  * along its next key bit. If a run of equal full keys still exceeds
  * the target after every spatial bit is exhausted, it is split into consecutive
- * Morton-order chunks. This enforces the target as a hard upper bound while
- * preserving the best spatial locality available at the key precision.
+ * chunks. This enforces the target as a hard upper bound while preserving the
+ *  best spatial locality available at the key precision.
  *
- * \note The recursion depth is bounded by the 32 bits in a Morton code. This
+ * \note The recursion depth is bounded by the 32 bits in the code. This
  * CPU-first partitioning phase is intentionally serial; the following bucket
  * hierarchy construction continues to use the requested execution space.
  */
@@ -640,13 +640,12 @@ struct SpatialKeyBucketRange
 };
 
 //------------------------------------------------------------------------------
-inline void append_adaptive_spatial_key_prefix_buckets(
-  const ArrayView<const std::uint32_t> keys,
-  std::int32_t begin,
-  std::int32_t end,
-  int bit,
-  std::int32_t max_bucket_size,
-  std::vector<SpatialKeyBucketRange>& bucket_ranges)
+inline void append_adaptive_spatial_key_prefix_buckets(const ArrayView<const std::uint32_t> keys,
+                                                       std::int32_t begin,
+                                                       std::int32_t end,
+                                                       int bit,
+                                                       std::int32_t max_bucket_size,
+                                                       std::vector<SpatialKeyBucketRange>& bucket_ranges)
 {
   // Check if the current bucket is bigger than allowed
   const std::int32_t bucket_size = end - begin;
@@ -658,8 +657,8 @@ inline void append_adaptive_spatial_key_prefix_buckets(
 
   if(bit < 0)
   {
-     // Equal full keys have no remaining spatial boundary. Split their
-     // stable spatial-key order into target-sized chunks so a GWN leaf has bounded
+    // Equal full keys have no remaining spatial boundary. Split their
+    // stable spatial-key order into target-sized chunks so a GWN leaf has bounded
     // direct-evaluation work. Future policies may instead keep this run intact.
     std::int32_t chunk_begin = begin;
     while(chunk_begin < end)
@@ -672,7 +671,7 @@ inline void append_adaptive_spatial_key_prefix_buckets(
     return;
   }
 
-   // Spatial-key sorting ensures the zero-valued side of this bit precedes the
+  // Spatial-key sorting ensures the zero-valued side of this bit precedes the
   // one-valued side. Find their boundary without examining every primitive.
   const std::uint32_t mask = std::uint32_t {1} << bit;
   std::int32_t split = begin;
@@ -682,7 +681,7 @@ inline void append_adaptive_spatial_key_prefix_buckets(
     // Do a binary search to find where the bit flips, e.g.
     //  for bit == 1: 0000 0001 | 0010 0011
     const std::int32_t middle = split + (search_end - split) / 2;
-     if((keys[middle] & mask) == 0)
+    if((keys[middle] & mask) == 0)
     {
       split = middle + 1;
     }
@@ -696,14 +695,12 @@ inline void append_adaptive_spatial_key_prefix_buckets(
   // Continue to the next bit and attempt to split the group there instead.
   if(split == begin || split == end)
   {
-     append_adaptive_spatial_key_prefix_buckets(
-       keys, begin, end, bit - 1, max_bucket_size, bucket_ranges);
+    append_adaptive_spatial_key_prefix_buckets(keys, begin, end, bit - 1, max_bucket_size, bucket_ranges);
     return;
   }
 
-   append_adaptive_spatial_key_prefix_buckets(
-     keys, begin, split, bit - 1, max_bucket_size, bucket_ranges);
-   append_adaptive_spatial_key_prefix_buckets(keys, split, end, bit - 1, max_bucket_size, bucket_ranges);
+  append_adaptive_spatial_key_prefix_buckets(keys, begin, split, bit - 1, max_bucket_size, bucket_ranges);
+  append_adaptive_spatial_key_prefix_buckets(keys, split, end, bit - 1, max_bucket_size, bucket_ranges);
 }
 
 //------------------------------------------------------------------------------
@@ -716,11 +713,11 @@ inline void append_adaptive_spatial_key_prefix_buckets(
  */
 template <typename FloatType, int NDIMS>
 void build_adaptive_spatial_key_prefix_buckets(const RadixTree<FloatType, NDIMS>& primitive_tree,
-                                                std::int32_t max_bucket_size,
-                                                RadixTree<FloatType, NDIMS>& bucket_tree,
-                                                Array<IndexType>& bucket_offsets,
-                                                Array<std::int32_t>& bucket_primitive_ids,
-                                                int allocatorID)
+                                               std::int32_t max_bucket_size,
+                                               RadixTree<FloatType, NDIMS>& bucket_tree,
+                                               Array<IndexType>& bucket_offsets,
+                                               Array<std::int32_t>& bucket_primitive_ids,
+                                               int allocatorID)
 {
   SLIC_ASSERT(primitive_tree.m_size > 0);
   SLIC_ASSERT(max_bucket_size > 0);
@@ -732,15 +729,15 @@ void build_adaptive_spatial_key_prefix_buckets(const RadixTree<FloatType, NDIMS>
 
   std::vector<SpatialKeyBucketRange> bucket_ranges;
   append_adaptive_spatial_key_prefix_buckets(primitive_keys,
-                                        /* begin */ 0,
-                                        /*  end  */ num_primitives,
-                                        /*  bit  */ 31,
-                                        max_bucket_size,
-                                        bucket_ranges);
+                                             /* begin */ 0,
+                                             /*  end  */ num_primitives,
+                                             /*  bit  */ 31,
+                                             max_bucket_size,
+                                             bucket_ranges);
   const auto num_buckets = static_cast<std::int32_t>(bucket_ranges.size());
 
   // Radix tree for buckets: each leaf stores a bucket union AABB, a
-  // representative Morton key, and its bucket ID.
+  // representative key, and its bucket ID.
   bucket_tree.allocate(num_buckets, allocatorID);
   auto bucket_tree_aabbs = bucket_tree.m_leaf_aabbs.view();
   auto bucket_tree_keys = bucket_tree.m_keys.view();
@@ -765,13 +762,13 @@ void build_adaptive_spatial_key_prefix_buckets(const RadixTree<FloatType, NDIMS>
     {
       bucket_aabb.addBox(primitive_aabbs[primitive]);
 
-       // Preserve the original primitive ID at this spatially sorted position.
+      // Preserve the original primitive ID at this spatially sorted position.
       bucket_primitive_ids_view[primitive] = primitive_ids[primitive];
     }
 
     // Add bucket parameters to radix tree
     bucket_tree_aabbs[bucket] = bucket_aabb;
-     bucket_tree_keys[bucket] = primitive_keys[begin];
+    bucket_tree_keys[bucket] = primitive_keys[begin];
     bucket_tree_ids[bucket] = bucket;
 
     // Store the offset for this bucket
@@ -818,9 +815,9 @@ void build_bucketed_radix_tree(const BoxIndexable boxes,
                                Array<IndexType>& bucket_offsets,
                                Array<std::int32_t>& bucket_primitive_ids,
                                std::int32_t max_bucket_size,
-                                FloatType scale_factor,
-                                int allocatorID,
-                                SpaceFillingCurve ordering)
+                               FloatType scale_factor,
+                               int allocatorID,
+                               SpaceFillingCurve ordering)
 {
   AXOM_ANNOTATE_SCOPE("build_bucketed_radix_tree");
   static_assert(
@@ -893,8 +890,13 @@ void build_radix_tree(const BoxIndexable boxes,
   // sanity checks
   SLIC_ASSERT(size > 0);
 
-  initialize_spatially_sorted_leaves<ExecSpace>(
-    boxes, size, bounds, radix_tree, scale_factor, allocatorID, ordering);
+  initialize_spatially_sorted_leaves<ExecSpace>(boxes,
+                                                size,
+                                                bounds,
+                                                radix_tree,
+                                                scale_factor,
+                                                allocatorID,
+                                                ordering);
   build_radix_tree_hierarchy<ExecSpace>(radix_tree, allocatorID);
 }
 
