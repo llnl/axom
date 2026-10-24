@@ -81,6 +81,56 @@ class GWNMomentData
 public:
   GWNMomentData() = default;
 
+  /// Construct moments from a point-supported dipole.
+  explicit GWNMomentData(const axom::primal::Dipole<T, NDIMS>& dipole)
+  {
+    const auto source = dipole.getSource();
+    const T magnitude = static_cast<T>(dipole.getMagnitude());
+
+    // `a` and `ap` track an unsigned measure solely to locate the expansion
+    // center. A dipole's source is its exact center, independent of direction.
+    a = magnitude;
+    for(int i = 0; i < NDIMS; ++i)
+    {
+      ap[i] = magnitude * source[i];
+    }
+
+    // Store the outward-oriented dipole strength directly in both dimensions.
+    const auto strength = magnitude * dipole.getDirection();
+    for(int i = 0; i < NDIMS; ++i)
+    {
+      rm[i] = strength[i];
+    }
+
+    if constexpr(ORD >= 1)
+    {
+      int m = NDIMS;
+      for(int i = 0; i < NDIMS; ++i)
+      {
+        for(int j = 0; j < NDIMS; ++j, ++m)
+        {
+          rm[m] = source[i] * strength[j];
+        }
+      }
+
+      if constexpr(ORD >= 2)
+      {
+        for(int i = 0; i < NDIMS; ++i)
+        {
+          for(int j = 0; j < NDIMS; ++j)
+          {
+            for(int k = 0; k < NDIMS; ++k, ++m)
+            {
+              rm[m] = source[i] * source[j] * strength[k];
+            }
+          }
+        }
+      }
+    }
+
+    compute_coefficients();
+  }
+
   /// Construct moments from a 3D triangle
   explicit GWNMomentData(const axom::primal::Triangle<T, 3>& a_tri)
   {
