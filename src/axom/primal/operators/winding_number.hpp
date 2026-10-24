@@ -72,7 +72,7 @@ double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d)
   return 0.5 * M_1_PI * d.evaluate(q);
 }
 
-//! \brief Overload with batched tolerances (none of which are used by dipoles).
+//! \brief Overload with a struct of tolerance options (none of which are used by dipoles).
 template <typename T>
 double winding_number(const Point<T, 2>& q, const Dipole<T, 2>& d, const WindingTolerances&)
 {
@@ -606,7 +606,7 @@ double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d)
   return 0.25 * M_1_PI * d.evaluate(q);
 }
 
-//! \brief Overload with batched tolerances (none of which are used by dipoles).
+//! \brief Overload with a struct of tolerance options (none of which are used by dipoles).
 template <typename T>
 double winding_number(const Point<T, 3>& q, const Dipole<T, 3>& d, const WindingTolerances&)
 {
