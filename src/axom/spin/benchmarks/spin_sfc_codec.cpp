@@ -29,6 +29,7 @@
 #include "axom/spin/HilbertIndex.hpp"
 #include "axom/spin/MortonIndex.hpp"
 #include "axom/spin/SpaceFillingCurve.hpp"
+#include "axom/spin/internal/HilbertFSM.hpp"
 
 #include "benchmark/benchmark.h"
 
@@ -64,19 +65,24 @@ constexpr int CACHE_PRESSURE_ITERATIONS = 32;
 
 using Curve = axom::spin::SpaceFillingCurve;
 
-// Public calls the selected curve's public API. Scalar is a Hilbert baseline
-// that bypasses public dispatch. All adapters allow normal inlining.
+// Public calls the selected curve's API. Scalar calls the reference Hilbert transform.
+// FSM uses the production tables.
+// The number in each adapter name gives bits per coordinate per lookup.
+// All adapters allow normal inlining.
 enum Implementation
 {
   Public,
-  Scalar
+  Scalar,
+  FSM1,
+  FSM2,
+  FSM3
 };
 
 const char* curveName(Curve curve) { return curve == Curve::Hilbert ? "Hilbert" : "Morton"; }
 
 const char* implementationName(Implementation impl)
 {
-  constexpr const char* names[] = {"Public", "Scalar"};
+  constexpr const char* names[] = {"Public", "Scalar", "FSM1", "FSM2", "FSM3"};
   return names[impl];
 }
 
@@ -95,6 +101,9 @@ struct Codec
   using HilbertScalarTransform =
     axom::spin::internal::hilbert::HilbertTransform<std::uint32_t, U, DIM>;
   using MortonPublicTransform = axom::spin::Mortonizer<std::uint32_t, U, DIM>;
+  static constexpr int LEVELS = IMPL == FSM3 ? 3 : IMPL == FSM2 ? 2 : 1;
+  using HilbertFSMTransform =
+    axom::spin::internal::hilbert::HilbertFSMTransform<std::uint32_t, U, DIM, LEVELS>;
 
   static_assert(MAX_BITS == HilbertPublicTransform::MAX_UNIQUE_BITS &&
                   MAX_BITS == MortonPublicTransform::MAX_UNIQUE_BITS,
@@ -111,9 +120,13 @@ struct Codec
     {
       return HilbertPublicTransform::toIndex(point, bits);
     }
-    else
+    else if constexpr(IMPL == Scalar)
     {
       return HilbertScalarTransform::toIndex(point, bits);
+    }
+    else
+    {
+      return HilbertFSMTransform::toIndex(point, bits);
     }
   }
 
@@ -128,9 +141,13 @@ struct Codec
     {
       return HilbertPublicTransform::toPoint(key, bits);
     }
-    else
+    else if constexpr(IMPL == Scalar)
     {
       return HilbertScalarTransform::toPoint(key, bits);
+    }
+    else
+    {
+      return HilbertFSMTransform::toPoint(key, bits);
     }
   }
 };
@@ -244,8 +261,18 @@ bool verifyCodec()
 template <int DIM, typename U>
 bool verifyCodecsForShape()
 {
-  return verifyCodec<DIM, U, Curve::Hilbert, Public>() &&
-    verifyCodec<DIM, U, Curve::Hilbert, Scalar>() && verifyCodec<DIM, U, Curve::Morton, Public>();
+  bool valid = verifyCodec<DIM, U, Curve::Hilbert, Public>() &&
+    verifyCodec<DIM, U, Curve::Hilbert, Scalar>() && verifyCodec<DIM, U, Curve::Morton, Public>() &&
+    verifyCodec<DIM, U, Curve::Hilbert, FSM1>();
+  if constexpr(DIM <= 3)
+  {
+    valid = verifyCodec<DIM, U, Curve::Hilbert, FSM2>() && valid;
+  }
+  if constexpr(DIM == 2)
+  {
+    valid = verifyCodec<DIM, U, Curve::Hilbert, FSM3>() && valid;
+  }
+  return valid;
 }
 
 template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR, Workload WORK, Dataset DATA>
@@ -404,6 +431,15 @@ void registerBenchmarksForShape()
   registerCodecBenchmarks<DIM, U, Curve::Hilbert, Public>();
   registerCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar>();
   registerCodecBenchmarks<DIM, U, Curve::Morton, Public>();
+  registerCodecBenchmarks<DIM, U, Curve::Hilbert, FSM1>();
+  if constexpr(DIM <= 3)
+  {
+    registerCodecBenchmarks<DIM, U, Curve::Hilbert, FSM2>();
+  }
+  if constexpr(DIM == 2)
+  {
+    registerCodecBenchmarks<DIM, U, Curve::Hilbert, FSM3>();
+  }
 }
 }  // namespace
 
