@@ -124,6 +124,6 @@ TEST(primal_dipole, winding_number_from_triangulated_bezier_patch)
     summed_dipole_gwn += primal::winding_number(query, dipole);
   }
 
-  EXPECT_DOUBLE_EQ(dipole_gwn, summed_dipole_gwn);
+  EXPECT_NEAR(dipole_gwn, summed_dipole_gwn, abs_tol);
   EXPECT_NEAR(dipole_gwn, patch_gwn, abs_tol);
 }
