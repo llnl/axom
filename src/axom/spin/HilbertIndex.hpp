@@ -16,6 +16,7 @@
 #include "axom/core/NumericLimits.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/slic/interface/slic.hpp"
+#include "axom/spin/internal/HilbertFSM.hpp"
 #include "axom/spin/internal/HilbertIndexImpl.hpp"
 
 #include <type_traits>
@@ -46,9 +47,10 @@ namespace axom::spin
  *
  * Uses J. Skilling's algorithm from "Programming the Hilbert curve",
  * AIP Conference Proceedings 707, 381 (2004), https://doi.org/10.1063/1.1751381.
- * The implementation adjusts coordinate bits for the curve's orientation,
- * then uses Mortonizer to interleave the transformed bits into one integer index.
- * \see internal::hilbert::HilbertTransform for the algorithm and bit layout.
+ * Host calls use a finite state machine with precomputed tables.
+ * Device calls use the scalar transform. Both produce the same indices at every depth.
+ * \see internal::hilbert::HilbertFSMTransform for the host implementation.
+ * \see internal::hilbert::HilbertTransform for the scalar algorithm and bit layout.
  *
  * \tparam CoordType Integral coordinate type other than bool, at most 64 bits.
  * \tparam IndexType Integral index type other than bool, at most 64 bits.
@@ -137,7 +139,11 @@ struct Hilbertizer
   AXOM_HOST_DEVICE static IndexType toIndex(const PointType& point, int bits)
   {
     SLIC_ASSERT(isValidPoint(point, bits));
+#ifdef AXOM_DEVICE_CODE
     return HilbertTransform::toIndex(point, bits);
+#else
+    return HilbertFSMTransform::toIndex(point, bits);
+#endif
   }
 
   /*!
@@ -149,7 +155,11 @@ struct Hilbertizer
   AXOM_HOST_DEVICE static PointType toPoint(IndexType index, int bits)
   {
     SLIC_ASSERT(isValidIndex(index, bits));
+#ifdef AXOM_DEVICE_CODE
     return HilbertTransform::toPoint(index, bits);
+#else
+    return HilbertFSMTransform::toPoint(index, bits);
+#endif
   }
 
   /// Maximum supported depth.
@@ -157,6 +167,10 @@ struct Hilbertizer
 
 private:
   using HilbertTransform = internal::hilbert::HilbertTransform<CoordType, IndexType, DIM>;
+  // Bit planes per table lookup, selected from host benchmarks.
+  static constexpr int FSM_LEVELS = DIM == 2 ? 3 : DIM == 3 ? 2 : 1;
+  using HilbertFSMTransform =
+    internal::hilbert::HilbertFSMTransform<CoordType, IndexType, DIM, FSM_LEVELS>;
 };
 
 /// Encodes a valid integer lattice point; see Hilbertizer::toIndex().
