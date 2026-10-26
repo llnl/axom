@@ -21,6 +21,7 @@
 #include "axom/primal/operators/intersect.hpp"
 
 #include "axom/spin/SpaceFillingCurve.hpp"
+#include "axom/spin/BucketedBVHGrouping.hpp"
 #include "axom/spin/policy/LinearBVH.hpp"
 
 // slic includes
@@ -62,7 +63,12 @@ struct BVHBuildParameters<BVHType::BucketedLinearBVH>
 {
   /// Maximum number of primitives stored in one bucket.
   IndexType maxBucketSize {1};
+
+  /// Spatial curve used to order primitives before bucketing.
   SpaceFillingCurve ordering {SpaceFillingCurve::Morton};
+
+  /// Policy used to group the spatially sorted primitives into bucket leaves.
+  BucketedBVHGrouping grouping {BucketedBVHGrouping::SharedPrefix};
 };
 
 /*!
@@ -489,7 +495,8 @@ private:
                        parameters.maxBucketSize,
                        m_scaleFactor,
                        m_AllocatorID,
-                       parameters.ordering);
+                       parameters.ordering,
+                       parameters.grouping);
     }
   }
 

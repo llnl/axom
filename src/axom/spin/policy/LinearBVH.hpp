@@ -18,6 +18,7 @@
 
 // linear bvh includes
 #include "axom/spin/SpaceFillingCurve.hpp"
+#include "axom/spin/BucketedBVHGrouping.hpp"
 #include "axom/spin/internal/linear_bvh/BVHNode.hpp"
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/internal/linear_bvh/build_radix_tree.hpp"
@@ -317,17 +318,16 @@ public:
                  SpaceFillingCurve ordering = SpaceFillingCurve::Morton);
 
   /*!
-   * \brief Builds a bucketed linear BVH using adaptive spatial-key prefixes.
+   * \brief Builds a bucketed linear BVH from spatially sorted primitives.
    *
    * \param [in] boxes the bounding boxes for each leaf node
    * \param [in] numBoxes the number of bounding boxes
    * \param [in] maxBucketSize maximum number of primitives in a bucket. The
-   *               builder first subdivides on spatial-key-prefix boundaries,
-   *               then splits indistinguishable full-code runs in stable
-   *               spatial-key order to enforce this limit.
+   *               grouping policy enforces this upper bound.
    * \param [in] scaleFactor scale factor applied to each bounding box before insertion into the BVH
    * \param [in] allocatorID allocator for BVH and bucket storage
    * \param [in] ordering curve used to order box centroids.
+   * \param [in] grouping policy used to form buckets from spatially sorted primitives.
    * \pre This LinearBVH requires BucketedPrimitiveLeaves.
    */
   template <typename BoxIndexable>
@@ -336,7 +336,8 @@ public:
                  IndexType maxBucketSize,
                  FloatType scaleFactor,
                  int allocatorID,
-                 SpaceFillingCurve ordering = SpaceFillingCurve::Morton);
+                 SpaceFillingCurve ordering = SpaceFillingCurve::Morton,
+                 BucketedBVHGrouping grouping = BucketedBVHGrouping::SharedPrefix);
 
   /*!
    * \brief Performs a traversal to find the candidates for each query primitive.
@@ -451,7 +452,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexa
                                                                  IndexType maxBucketSize,
                                                                  FloatType scaleFactor,
                                                                  int allocatorID,
-                                                                 SpaceFillingCurve ordering)
+                                                                 SpaceFillingCurve ordering,
+                                                                 BucketedBVHGrouping grouping)
 {
   static_assert(std::is_same_v<LeafType, LinearBVHType::BucketedPrimitiveLeaves>,
                 "This build overload requires LinearBVHType::BucketedPrimitiveLeaves.");
@@ -476,7 +478,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexa
                                              maxBucketSizeInt,
                                              scaleFactor,
                                              allocatorID,
-                                             ordering);
+                                             ordering,
+                                             grouping);
 
   emitRadixTree(radix_tree, global_bounds, allocatorID);
   m_leaf_storage.m_leaf_bucket_ids = std::move(m_leaf_nodes);

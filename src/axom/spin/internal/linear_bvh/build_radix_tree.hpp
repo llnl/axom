@@ -22,6 +22,7 @@
 
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
+#include "axom/spin/BucketedBVHGrouping.hpp"
 
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/MortonIndex.hpp"
@@ -620,7 +621,7 @@ void initialize_spatially_sorted_leaves(const BoxIndexable boxes,
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Append adaptive spatial-key-prefix bucket ranges for a sorted key range.
+ * \brief Append shared-spatial-key-prefix bucket ranges for a sorted key range.
  *
  * A bucket is the largest nonempty spatial-key-prefix cell containing at most
  * \a max_bucket_size primitives. When a cell exceeds that size, it is split
@@ -640,12 +641,12 @@ struct SpatialKeyBucketRange
 };
 
 //------------------------------------------------------------------------------
-inline void append_adaptive_spatial_key_prefix_buckets(const ArrayView<const std::uint32_t> keys,
-                                                       std::int32_t begin,
-                                                       std::int32_t end,
-                                                       int bit,
-                                                       std::int32_t max_bucket_size,
-                                                       std::vector<SpatialKeyBucketRange>& bucket_ranges)
+inline void append_shared_prefix_buckets(const ArrayView<const std::uint32_t> keys,
+                                         std::int32_t begin,
+                                         std::int32_t end,
+                                         int bit,
+                                         std::int32_t max_bucket_size,
+                                         std::vector<SpatialKeyBucketRange>& bucket_ranges)
 {
   // Check if the current bucket is bigger than allowed
   const std::int32_t bucket_size = end - begin;
@@ -695,46 +696,37 @@ inline void append_adaptive_spatial_key_prefix_buckets(const ArrayView<const std
   // Continue to the next bit and attempt to split the group there instead.
   if(split == begin || split == end)
   {
-    append_adaptive_spatial_key_prefix_buckets(keys, begin, end, bit - 1, max_bucket_size, bucket_ranges);
+    append_shared_prefix_buckets(keys, begin, end, bit - 1, max_bucket_size, bucket_ranges);
     return;
   }
 
-  append_adaptive_spatial_key_prefix_buckets(keys, begin, split, bit - 1, max_bucket_size, bucket_ranges);
-  append_adaptive_spatial_key_prefix_buckets(keys, split, end, bit - 1, max_bucket_size, bucket_ranges);
+  append_shared_prefix_buckets(keys, begin, split, bit - 1, max_bucket_size, bucket_ranges);
+  append_shared_prefix_buckets(keys, split, end, bit - 1, max_bucket_size, bucket_ranges);
 }
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Form adaptive spatial-key-prefix buckets from sorted primitive leaves.
+ * \brief Form shared spatial-key-prefix buckets from sorted primitive leaves.
  *
  * The resulting bucket ranges retain spatial-key order, so their first primitive
  * code can serve as a representative key for the existing Karras hierarchy
  * builder. No primitive spatial key is recalculated or resorted.
  */
-template <typename FloatType, int NDIMS>
-void build_adaptive_spatial_key_prefix_buckets(const RadixTree<FloatType, NDIMS>& primitive_tree,
-                                               std::int32_t max_bucket_size,
-                                               RadixTree<FloatType, NDIMS>& bucket_tree,
-                                               Array<IndexType>& bucket_offsets,
-                                               Array<std::int32_t>& bucket_primitive_ids,
-                                               int allocatorID)
+template <typename ExecSpace, typename FloatType, int NDIMS>
+void build_bucket_tree_from_ranges(const RadixTree<FloatType, NDIMS>& primitive_tree,
+                                   const std::vector<SpatialKeyBucketRange>& bucket_ranges,
+                                   RadixTree<FloatType, NDIMS>& bucket_tree,
+                                   Array<IndexType>& bucket_offsets,
+                                   Array<std::int32_t>& bucket_primitive_ids,
+                                   int allocatorID)
 {
-  SLIC_ASSERT(primitive_tree.m_size > 0);
-  SLIC_ASSERT(max_bucket_size > 0);
-
+  AXOM_ANNOTATE_SCOPE("LinearBVH::bucketTreeMaterialization");
   const auto primitive_aabbs = primitive_tree.m_leaf_aabbs.view();
   const auto primitive_keys = primitive_tree.m_keys.view();
   const auto primitive_ids = primitive_tree.m_leafs.view();
   const std::int32_t num_primitives = primitive_tree.m_size;
-
-  std::vector<SpatialKeyBucketRange> bucket_ranges;
-  append_adaptive_spatial_key_prefix_buckets(primitive_keys,
-                                             /* begin */ 0,
-                                             /*  end  */ num_primitives,
-                                             /*  bit  */ 31,
-                                             max_bucket_size,
-                                             bucket_ranges);
   const auto num_buckets = static_cast<std::int32_t>(bucket_ranges.size());
+  const auto* bucket_ranges_data = bucket_ranges.data();
 
   // Radix tree for buckets: each leaf stores a bucket union AABB, a
   // representative key, and its bucket ID.
@@ -751,10 +743,11 @@ void build_adaptive_spatial_key_prefix_buckets(const RadixTree<FloatType, NDIMS>
   bucket_primitive_ids = Array<std::int32_t>(num_primitives, num_primitives, allocatorID);
   auto bucket_primitive_ids_view = bucket_primitive_ids.view();
 
-  for(std::int32_t bucket = 0; bucket < num_buckets; ++bucket)
-  {
-    const std::int32_t begin = bucket_ranges[bucket].begin;
-    const std::int32_t end = bucket_ranges[bucket].end;
+  // Bucket ranges partition the sorted primitive list. Each iteration writes
+  // a distinct bucket entry and a disjoint primitive-ID subrange.
+  for_all<ExecSpace>(num_buckets, [=] AXOM_HOST_DEVICE(std::int32_t bucket) {
+    const std::int32_t begin = bucket_ranges_data[bucket].begin;
+    const std::int32_t end = bucket_ranges_data[bucket].end;
 
     // Combine all boxes for primitives in this Morton-prefix range.
     primal::BoundingBox<FloatType, NDIMS> bucket_aabb;
@@ -773,10 +766,73 @@ void build_adaptive_spatial_key_prefix_buckets(const RadixTree<FloatType, NDIMS>
 
     // Store the offset for this bucket
     bucket_offsets_view[bucket] = begin;
-  }
+  });
 
   // Store the offset for the last bucket
   bucket_offsets_view[num_buckets] = num_primitives;
+}
+
+//------------------------------------------------------------------------------
+/*! \brief Form buckets from the largest shared spatial-key-prefix ranges within a size limit. */
+template <typename ExecSpace, typename FloatType, int NDIMS>
+void build_shared_prefix_buckets(const RadixTree<FloatType, NDIMS>& primitive_tree,
+                                 std::int32_t max_bucket_size,
+                                 RadixTree<FloatType, NDIMS>& bucket_tree,
+                                 Array<IndexType>& bucket_offsets,
+                                 Array<std::int32_t>& bucket_primitive_ids,
+                                 int allocatorID)
+{
+  AXOM_ANNOTATE_SCOPE("LinearBVH::sharedPrefixBucketCreation");
+  SLIC_ASSERT(primitive_tree.m_size > 0);
+  SLIC_ASSERT(max_bucket_size > 0);
+
+  std::vector<SpatialKeyBucketRange> bucket_ranges;
+  {
+    AXOM_ANNOTATE_SCOPE("LinearBVH::sharedPrefixBucketRanges");
+    append_shared_prefix_buckets(primitive_tree.m_keys.view(),
+                                 /* begin */ 0,
+                                 /* end */ primitive_tree.m_size,
+                                 /* bit */ 31,
+                                 max_bucket_size,
+                                 bucket_ranges);
+  }
+  build_bucket_tree_from_ranges<ExecSpace>(primitive_tree,
+                                           bucket_ranges,
+                                           bucket_tree,
+                                           bucket_offsets,
+                                           bucket_primitive_ids,
+                                           allocatorID);
+}
+
+//------------------------------------------------------------------------------
+/*! \brief Form consecutive fixed-size buckets from spatially sorted primitives. */
+template <typename ExecSpace, typename FloatType, int NDIMS>
+void build_sequential_buckets(const RadixTree<FloatType, NDIMS>& primitive_tree,
+                              std::int32_t max_bucket_size,
+                              RadixTree<FloatType, NDIMS>& bucket_tree,
+                              Array<IndexType>& bucket_offsets,
+                              Array<std::int32_t>& bucket_primitive_ids,
+                              int allocatorID)
+{
+  AXOM_ANNOTATE_SCOPE("LinearBVH::sequentialBucketCreation");
+  SLIC_ASSERT(primitive_tree.m_size > 0);
+  SLIC_ASSERT(max_bucket_size > 0);
+
+  std::vector<SpatialKeyBucketRange> bucket_ranges;
+  {
+    AXOM_ANNOTATE_SCOPE("LinearBVH::sequentialBucketRanges");
+    bucket_ranges.reserve((primitive_tree.m_size + max_bucket_size - 1) / max_bucket_size);
+    for(std::int32_t begin = 0; begin < primitive_tree.m_size; begin += max_bucket_size)
+    {
+      bucket_ranges.push_back({begin, utilities::min(begin + max_bucket_size, primitive_tree.m_size)});
+    }
+  }
+  build_bucket_tree_from_ranges<ExecSpace>(primitive_tree,
+                                           bucket_ranges,
+                                           bucket_tree,
+                                           bucket_offsets,
+                                           bucket_primitive_ids,
+                                           allocatorID);
 }
 
 //------------------------------------------------------------------------------
@@ -798,10 +854,9 @@ void build_radix_tree_hierarchy(RadixTree<FloatType, NDIMS>& radix_tree, int all
 /*!
  * \brief Build a CPU bucketed radix tree from primitive bounding boxes.
  *
- * Primitive leaves are first spatially sorted, then grouped into adaptive
- * spatial-key-prefix cells. A cell is subdivided only when it contains more than
- * \a max_bucket_size primitives. The resulting bucket leaves are used to
- * assemble the final radix-tree hierarchy.
+ * Primitive leaves are first spatially sorted, then grouped according to
+ * \a grouping. The resulting bucket leaves are used to assemble the final
+ * radix-tree hierarchy.
  *
  * \note This CPU-first implementation requires host-accessible input and
  * allocator memory. GPU bucketing will use the same stages with parallel
@@ -817,7 +872,8 @@ void build_bucketed_radix_tree(const BoxIndexable boxes,
                                std::int32_t max_bucket_size,
                                FloatType scale_factor,
                                int allocatorID,
-                               SpaceFillingCurve ordering)
+                               SpaceFillingCurve ordering,
+                               BucketedBVHGrouping grouping)
 {
   AXOM_ANNOTATE_SCOPE("build_bucketed_radix_tree");
   static_assert(
@@ -833,12 +889,25 @@ void build_bucketed_radix_tree(const BoxIndexable boxes,
                                                 scale_factor,
                                                 allocatorID,
                                                 ordering);
-  build_adaptive_spatial_key_prefix_buckets(primitive_tree,
-                                            max_bucket_size,
-                                            bucket_tree,
-                                            bucket_offsets,
-                                            bucket_primitive_ids,
-                                            allocatorID);
+  if(grouping == BucketedBVHGrouping::SharedPrefix)
+  {
+    build_shared_prefix_buckets<ExecSpace>(primitive_tree,
+                                           max_bucket_size,
+                                           bucket_tree,
+                                           bucket_offsets,
+                                           bucket_primitive_ids,
+                                           allocatorID);
+  }
+  else
+  {
+    SLIC_ASSERT(grouping == BucketedBVHGrouping::Sequential);
+    build_sequential_buckets<ExecSpace>(primitive_tree,
+                                        max_bucket_size,
+                                        bucket_tree,
+                                        bucket_offsets,
+                                        bucket_primitive_ids,
+                                        allocatorID);
+  }
 
   if(bucket_tree.m_size == 1)
   {
