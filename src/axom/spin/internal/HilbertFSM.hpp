@@ -40,15 +40,10 @@ inline unsigned int lookup(unsigned int state, unsigned int digits)
     }
     else
     {
-      if constexpr(INVERSE)
-      {
-        // Each word stores one byte for each of the four states.
-        return (inverseTable2D3[digits] >> (state * 8)) & 0xffu;
-      }
-      else
-      {
-        return table2D3[offset];
-      }
+      // Load all four state bytes using only the input digits, then select the current state's byte.
+      // This keeps the load address independent of the preceding lookup's state update.
+      const auto entry = INVERSE ? inverseTable2D3[digits] : table2D3[digits];
+      return (entry >> (state * 8)) & 0xffu;
     }
   }
   else if constexpr(DIM == 3)
