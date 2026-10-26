@@ -146,6 +146,10 @@ Quantize floating-point positions before encoding, for example with
 cell coordinate is nonnegative and fits the selected depth before encoding.
 Decoding returns the integer cell coordinates.
 
+``Hilbertizer`` uses a finite state machine with precomputed tables on the
+host and the scalar Skilling algorithm on CUDA and HIP devices. Both produce
+the same indices at every supported depth.
+
 
 .. rubric:: Footnotes
 
