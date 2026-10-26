@@ -60,6 +60,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   components. For example, `values/2` now reads the second entry of `values = {5.0, 6.0}`.
 - Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
   including layouts that specify only one of those keys.
+- Spin: Speeds up `Hilbertizer` encoding and decoding with finite state machine tables.
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
