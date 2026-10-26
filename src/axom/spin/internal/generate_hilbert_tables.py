@@ -281,47 +281,31 @@ def convert_factored(key, bits, dim, levels, tables, inverse_direction=False):
     return result
 
 
-def encode(point, bits, rows):
-    dim = len(point)
-    state = key = 0
-    for bit in range(bits - 1, -1, -1):
-        digit = sum(((value >> bit) & 1) << axis for axis, value in enumerate(point))
-        out, state = rows[state][digit]
-        key = (key << dim) | out
-    return key
-
-
-def verify(rows, dim):
+def verify(dim):
+    """Check the emitted table representations against the scalar transform."""
     count = 0
     groups = PRODUCTION_LEVELS[dim]
-    forward = {levels: grouped(rows, dim, levels) for levels in groups}
-    backward = {levels: inverse(table, dim, levels) for levels, table in forward.items()}
-    factored_forward = {levels: factored(dim, levels) for levels in groups} if dim >= 3 else {}
-    factored_backward = {
-        levels: inverse(table, dim, levels)
-        for levels, table in factored_forward.items()
+    rows = machine(dim) if dim == 2 else None
+    forward = {
+        levels: grouped(rows, dim, levels) if dim == 2 else factored(dim, levels)
+        for levels in groups
     }
+    backward = {levels: inverse(table, dim, levels) for levels, table in forward.items()}
 
     def check(point, bits):
         expected = scalar_reference(point, bits)
         morton = sum(((value >> bit) & 1) << (dim * bit + axis) for axis, value in enumerate(point)
                      for bit in range(bits))
         context = f'{dim}D, depth {bits}, point {point}'
-        require(encode(point, bits, rows) == expected, f'One-plane encode: {context}')
         for levels in groups:
-            require(
-                convert(morton, bits, dim, levels, forward) == expected,
-                f'{levels}-plane encode: {context}')
-            require(
-                convert(expected, bits, dim, levels, backward) == morton,
-                f'{levels}-plane decode: {context}')
-            if dim >= 3:
-                require(
-                    convert_factored(morton, bits, dim, levels, factored_forward) == expected,
-                    f'{levels}-plane factored encode: {context}')
-                require(
-                    convert_factored(expected, bits, dim, levels, factored_backward,
-                                     True) == morton, f'{levels}-plane factored decode: {context}')
+            if dim == 2:
+                encoded = convert(morton, bits, dim, levels, forward)
+                decoded = convert(expected, bits, dim, levels, backward)
+            else:
+                encoded = convert_factored(morton, bits, dim, levels, forward)
+                decoded = convert_factored(expected, bits, dim, levels, backward, True)
+            require(encoded == expected, f'{levels}-plane encode: {context}')
+            require(decoded == morton, f'{levels}-plane decode: {context}')
 
     # Exhaust 4D through depth 4, which covers 65,536 points at that depth.
     for bits in range(1, (5 if dim < 4 else 4) + 1):
@@ -435,12 +419,9 @@ def main():
             print('Generated tables match the checked-in header (allowing CRLF).', flush=True)
         if args.verify:
             for dim in PRODUCTION_LEVELS:
-                rows = machine(dim)
-                count = verify(rows, dim)
-                print(
-                    f'{dim}D: {RAW_STATE_COUNTS[dim]} raw / {len(rows)} minimized states; '
-                    f'{count} exhaustive/boundary/random scalar comparisons passed.',
-                    flush=True)
+                count = verify(dim)
+                print(f'{dim}D: {count} exhaustive/boundary/random scalar comparisons passed.',
+                      flush=True)
                 if dim >= 3:
                     count = verify_factored(dim)
                     print(f'{dim}D: {count} factored transitions and inverses verified.',

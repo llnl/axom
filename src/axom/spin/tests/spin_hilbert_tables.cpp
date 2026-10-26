@@ -84,7 +84,6 @@ void check2DTable(const std::uint8_t (&forward)[N], InverseLookup inverse)
 
   for(unsigned state = 0; state < states; ++state)
   {
-    std::array<bool, size> seen {};
     for(unsigned digits = 0; digits < size; ++digits)
     {
       SCOPED_TRACE(::testing::Message()
@@ -93,24 +92,9 @@ void check2DTable(const std::uint8_t (&forward)[N], InverseLookup inverse)
       const auto output = entry & mask;
       const auto next = entry >> width;
       ASSERT_LT(next, states);
-      ASSERT_FALSE(seen[output]);
-      seen[output] = true;
       const auto decoded = inverse(state, output);
       EXPECT_EQ(decoded & mask, digits);
       EXPECT_EQ(decoded >> width, next);
-
-      unsigned composed_state = state;
-      unsigned composed_output = 0;
-      for(int plane = LEVELS - 1; plane >= 0; --plane)
-      {
-        const auto digit = (digits >> (dim * plane)) & plane_mask;
-        const auto step = tables::table2D1[(composed_state << dim) | digit];
-        composed_output = (composed_output << dim) | (step & plane_mask);
-        composed_state = step >> dim;
-        ASSERT_LT(composed_state, states);
-      }
-      EXPECT_EQ(output, composed_output);
-      EXPECT_EQ(next, composed_state);
 
       const auto source = (prefixes[state] << width) | digits;
       const int bits = depths[state] + LEVELS;
@@ -152,7 +136,6 @@ void checkFactoredTable(const std::uint16_t (&forward)[N],
     for(unsigned flips = 0; flips <= plane_mask; ++flips)
     {
       const auto state = (row << width) | flips * repeat;
-      std::array<bool, size> seen {};
       for(unsigned digits = 0; digits < size; ++digits)
       {
         SCOPED_TRACE(::testing::Message() << "dimension " << DIM << ", planes " << LEVELS << ", row "
@@ -164,27 +147,11 @@ void checkFactoredTable(const std::uint16_t (&forward)[N],
         const auto next_flips = next & plane_mask;
         ASSERT_LT(next_permutation, permutations);
         EXPECT_EQ(next & mask, next_flips * repeat);
-        ASSERT_FALSE(seen[output]);
-        seen[output] = true;
 
         const unsigned decoded = inverse[(row << width) | output];
         EXPECT_EQ((decoded ^ state) & mask, digits);
         EXPECT_EQ(state ^ (decoded >> width), next);
 
-        // Compose the one-plane table in its own packed-state representation.
-        unsigned composed_state = (row << DIM) | flips;
-        unsigned composed_output = 0;
-        for(int plane = LEVELS - 1; plane >= 0; --plane)
-        {
-          const auto digit = (digits >> (DIM * plane)) & plane_mask;
-          const unsigned step = single[composed_state ^ digit];
-          composed_output = (composed_output << DIM) | (step & plane_mask);
-          composed_state ^= step >> DIM;
-          ASSERT_LT(composed_state >> DIM, permutations);
-        }
-        EXPECT_EQ(output, composed_output);
-        EXPECT_EQ(next_permutation, composed_state >> DIM);
-        EXPECT_EQ(next_flips, composed_state & plane_mask);
         EXPECT_EQ(output, referenceIndex<DIM>(digits, LEVELS, permutation, flips));
 
         // Append every possible digit and compare with the scalar transform
