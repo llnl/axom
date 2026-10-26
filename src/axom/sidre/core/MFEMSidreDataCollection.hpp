@@ -15,6 +15,10 @@
 
   #include "mfem.hpp"
 
+  #ifdef AXOM_USE_ZFPOLY
+    #include "zfpoly.h"
+  #endif
+
 namespace axom
 {
 namespace sidre
@@ -343,6 +347,22 @@ public:
     }
   }
 
+#ifdef AXOM_USE_ZFPOLY
+  // Expose the base-class bool overload alongside our zfpoly_config one.
+  using mfem::DataCollection::SetCompression;
+
+  /** Enable ZFPoly compression for field data. Build with
+      AXOM_USE_ZFPOLY=ON. L2 fields are transformed to the Legendre basis
+      before compression; H1 fields use integrated Legendre. Compression
+      metadata is stored in the Sidre DataStore alongside the compressed
+      data. Construct @a config with zfpoly_config_accuracy() /
+      zfpoly_config_rate() / zfpoly_config_precision().
+   */
+  void SetCompression(zfpoly_config config);
+
+  void DisableCompression();
+#endif
+
   /// De-register @a field_name from the MFEMSidreDataCollection.
   /** The field is removed from the #field_map and the DataStore, including
       deleting it from the named_buffers group, if allocated. */
@@ -557,6 +577,12 @@ private:
   // Otherwise, this pointer is nullptr.
   DataStore* m_datastore_ptr {nullptr};
 
+#ifdef AXOM_USE_ZFPOLY
+  // ZFPoly compression settings
+  bool m_enable_compression {false};
+  zfpoly_config m_compression_config;
+#endif
+
 protected:
   Group* named_buffers_grp() const;
 
@@ -753,6 +779,13 @@ private:
   /// Before saving the file, add any fields that look like materials to the
   /// blueprint index.
   void addMaterialSetToIndex();
+
+#ifdef AXOM_USE_ZFPOLY
+  // Called from PrepareToSave() when ZFPoly compression is enabled.
+  // The reverse direction (decompression) is handled per-field inside
+  // RegisterField() at load time, so there's no decompressFields() peer.
+  void compressFields();
+#endif
 
   // The names for the mesh and boundary topologies in the blueprint group,
   // and the suffix used to store their attributes (as fields)
