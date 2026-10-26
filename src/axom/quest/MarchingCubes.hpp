@@ -35,11 +35,14 @@ class MarchingCubesSingleDomain;
 }  // namespace detail::marching_cubes
 
 /*!
- * @brief Selects the scan implementation.
+ * @brief Selects the legacy backend's scan implementation.
  *
  * \c hybridParallel uses a serial loop but processes less data.
  * \c fullParallel processes more data but has no serial loop.
  * \c byPolicy chooses between them based on the runtime policy.
+ *
+ * @note This setting controls only the legacy structured-mesh backend.
+ *       Bump manages its own parallelism for the selected runtime policy.
  */
 enum class MarchingCubesDataParallelism
 {
@@ -51,7 +54,7 @@ enum class MarchingCubesDataParallelism
 /*!
  * @brief Extracts a contour mesh from a scalar field.
  *
- * This implementation is for the original 1987 algorithm:
+ * The legacy backend implements the original 1987 algorithm:
  * Lorensen, William E.; Cline, Harvey E. (1 August 1987).
  * "Marching cubes: A high resolution 3D surface construction algorithm".
  * ACM SIGGRAPH Computer Graphics. 21 (4): 163-169
@@ -66,9 +69,10 @@ enum class MarchingCubesDataParallelism
  *             const std::string &functionName,
  *             double contourValue )
  *   {
- *     axom::quest::MarchingCubes mc(axom::runtime_policy::Policy::seq,
- *                                   axom::getDefaultAllocatorID(),
- *                                   axom::quest::MarchingCubesDataParallelism::byPolicy);
+ *     axom::quest::MarchingCubes mc(
+ *       axom::runtime_policy::Policy::seq,
+ *       axom::getDefaultAllocatorID(),
+ *       axom::quest::MarchingCubesDataParallelism::byPolicy);
  *     mc.setMesh(meshNode, topologyName);
  *     mc.setFunctionField(functionName);
  *     mc.computeIsocontour(contourValue);
@@ -82,6 +86,7 @@ enum class MarchingCubesDataParallelism
  *
  * Output is available as arrays or an \c axom::mint::UnstructuredMesh.
  * The arrays identify the parent cell and domain of each facet.
+ * The Bump backend can also return its welded Blueprint mesh.
  *
  * If a domain contains \c state/domain_id, that value becomes its domain id.
  * Otherwise, MarchingCubes uses the domain's iteration index.
@@ -95,14 +100,16 @@ public:
   using RuntimePolicy = axom::runtime_policy::Policy;
   using DomainIdType = axom::IndexType;
   /*!
-   * @brief Configure the execution policy, allocator, and scan strategy.
+   * @brief Configure the execution policy, allocator, and legacy scan strategy.
    *
    * @param [in] runtimePolicy A value from RuntimePolicy.
    *             The simplest policy is RuntimePolicy::seq, which specifies
    *             running sequentially on the CPU.
    * @param [in] allocatorId Data allocator ID. Choose one compatible with \c runtimePolicy.
    *             See \c execution_space.
-   * @param [in] dataParallelism Data-parallel implementation choice.
+   * @param [in] dataParallelism Data-parallel implementation choice for the legacy backend.
+   *             The Bump backend accepts but ignores this setting because
+   *             Bump manages its own parallelism.
    */
   MarchingCubes(RuntimePolicy runtimePolicy,
                 int allocatorId,
@@ -143,11 +150,28 @@ public:
   void setMaskValue(int maskVal) { m_maskVal = maskVal; }
 
   /*!
+   * @brief Enable or disable the \c bump::extraction::CutField backend.
+   * @param [in] useBump If true, use Bump. If false, use the legacy backend.
+   *
+   * The legacy backend accepts structured meshes. Bump also accepts uniform
+   * and rectilinear topologies and single-shape unstructured quad or hex meshes.
+   * Enabling Bump requires \c AXOM_USE_BUMP.
+   *
+   * Call this method before setMesh(), which constructs backend-specific
+   * workers for the input domains.
+   *
+   * @note The MarchingCubesDataParallelism constructor argument selects the
+   *       legacy backend's scan strategy. Bump ignores it.
+   */
+  void setUseBumpBackend(bool useBump);
+
+  /*!
    * @brief Compute the isocontour.
    * @param [in] contourVal Isocontour value.
    *
    * Each call appends to the array output used by populateContourMesh().
    * Call clearOutput() first to replace prior results.
+   * Bump's Blueprint output contains only the most recent call for each domain.
    */
   void computeIsocontour(double contourVal = 0.0);
 
@@ -173,11 +197,31 @@ public:
    *  The method creates the requested fields when they do not exist.
    *
    *  mint::UnstructuredMesh supports only host memory, so this method always
-   *  deep-copies data to the host. Use the array output methods to avoid that copy.
+   *  deep-copies data to the host. Use the array or Blueprint output methods
+   *  to avoid that copy.
+   *
+   *  Bump may produce polygonal faces in 3D. This method fan-triangulates
+   *  those faces and reuses Bump's welded vertices.
    */
   void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
                            const std::string& cellIdField = {},
                            const std::string& domainIdField = {}) const;
+
+  /*!
+   * @brief Copy Bump's welded contour into a Blueprint multi-domain mesh.
+   * @param [out] bpMesh Output Blueprint multi-domain mesh.
+   * @param [in] triangulate If true, convert 3D polygonal surface elements
+   *        into triangles while preserving Bump's welded coordset.
+   *
+   * This method requires the Bump backend. Without triangulation, it preserves
+   * Bump's welded segments in 2D and polygonal faces in 3D. The topology stores
+   * Blueprint connectivity, sizes, and offsets.
+   *
+   * Arrays in \a bpMesh use the allocator supplied to the constructor.
+   * Callers must copy device data to host before reading it on the host.
+   * The mesh contains only the most recent computeIsocontour() result for each input domain.
+   */
+  void populateContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate = false) const;
 
   /*!
    * @brief Return a view of the facet connectivity array.
@@ -232,7 +276,9 @@ public:
    *  @see getContourFacetDomainIds().
    *
    *  @pre computeIsocontour() must have been called.
-   *  @post The array accessors return empty views, as though clearOutput() had been called.
+   *  @post The array accessors return empty views. Cached Bump Blueprint output
+   *        remains available until clearOutput() or
+   *        relinquishContourDataBlueprint() is called.
    */
   void relinquishContourData(axom::Array<axom::IndexType, 2>& facetNodeIds,
                              axom::Array<double, 2>& facetNodeCoords,
@@ -260,6 +306,18 @@ public:
     m_facetParentIds = axom::Array<axom::IndexType>(0, 0, m_allocatorID);
     m_facetDomainIds = axom::Array<axom::IndexType>(0, 0, m_allocatorID);
   }
+
+  /*!
+   * @brief Transfer ownership of Bump's welded Blueprint contour to the caller.
+   * @param [out] bpMesh Output Blueprint multi-domain mesh.
+   *
+   * This moves the cached Bump output nodes without deep-copying them.
+   * It is available only for contours computed with the Bump backend
+   * and leaves this MarchingCubes object with no accessible contour output,
+   * as though clearOutput() had been called.
+   * Only the most recent computeIsocontour() call for each domain is moved.
+   */
+  void relinquishContourDataBlueprint(conduit::Node& bpMesh);
   ///@}
 
   //! @brief Clear the computed contour mesh.
@@ -285,7 +343,7 @@ private:
   RuntimePolicy m_runtimePolicy;
   int m_allocatorID {axom::INVALID_ALLOCATOR_ID};
 
-  //! @brief Data-parallel scan strategy, or byPolicy.
+  //! @brief Legacy backend data-parallel scan strategy, or byPolicy.
   MarchingCubesDataParallelism m_dataParallelism {MarchingCubesDataParallelism::byPolicy};
 
   //! @brief Number of domains.
@@ -313,6 +371,9 @@ private:
   std::string m_maskPath;
 
   int m_maskVal {1};
+
+  //! @brief Whether to use the Bump CutField backend.
+  bool m_useBumpBackend {false};
 
   //! @brief First facet index from each parent domain.
   axom::Array<axom::IndexType> m_facetIndexOffsets;

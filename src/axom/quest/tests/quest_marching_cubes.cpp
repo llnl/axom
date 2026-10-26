@@ -43,62 +43,14 @@ namespace
 using RuntimePolicy = axom::runtime_policy::Policy;
 using DataParallelism = axom::quest::MarchingCubesDataParallelism;
 using Vec3 = mctest::PlanarField::VectorType;
+using mctest::enabledPolicies;
+using mctest::policyName;
 
 constexpr double POSITION_TOL = 1e-12;
 
 //---------------------------------------------------------------------------
-// Runtime policies and memory
-//---------------------------------------------------------------------------
-
-std::vector<RuntimePolicy> enabledPolicies()
-{
-  std::vector<RuntimePolicy> policies {RuntimePolicy::seq};
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-  policies.push_back(RuntimePolicy::omp);
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  policies.push_back(RuntimePolicy::cuda);
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  policies.push_back(RuntimePolicy::hip);
-#endif
-  return policies;
-}
-
-int allocatorForPolicy(RuntimePolicy policy)
-{
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  if(policy == RuntimePolicy::cuda)
-  {
-    return axom::execution_space<axom::CUDA_EXEC<256>>::allocatorID();
-  }
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  if(policy == RuntimePolicy::hip)
-  {
-    return axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
-  }
-#endif
-  AXOM_UNUSED_VAR(policy);
-  return mctest::hostAllocatorID();
-}
-
-std::string policyName(RuntimePolicy policy) { return axom::runtime_policy::policyToName(policy); }
-
-//---------------------------------------------------------------------------
 // Meshes
 //---------------------------------------------------------------------------
-
-//! @brief Shift the explicit coordinates of @a dom by @a dx along x.
-void translateX(conduit::Node& dom, double dx)
-{
-  auto* x = dom["coordsets/coords/values/x"].as_float64_ptr();
-  const auto n = dom["coordsets/coords/values/x"].dtype().number_of_elements();
-  for(conduit::index_t i = 0; i < n; ++i)
-  {
-    x[i] += dx;
-  }
-}
 
 /*!
  * @brief Build a multi-domain mesh from @a ndom unit structured domains placed
@@ -121,7 +73,7 @@ void buildMultiDomain(conduit::Node& mdMesh,
     conduit::Node& dom = mdMesh.append();
     // The field is sampled after translation, so it sees global coordinates.
     mctest::buildStructured<DIM>(dom, n, [](double, double, double) { return 0.0; }, "fcn");
-    translateX(dom, double(d));
+    mctest::translateExplicitCoordsX(dom, double(d));
     mctest::addVertexField<DIM>(dom, f, "fcn");
     if(setDomainIds && d + 1 < ndom)
     {
@@ -368,7 +320,7 @@ void forEachConfiguration(const conduit::Node& hostMesh,
 {
   for(auto policy : enabledPolicies())
   {
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node mesh;
     mctest::copyBlueprintToPolicy(mesh, hostMesh, policy, allocatorID);
 
@@ -600,7 +552,7 @@ void testMask()
     SCOPED_TRACE(axom::fmt::format("mask value {}", maskValue));
     for(auto policy : enabledPolicies())
     {
-      const int allocatorID = allocatorForPolicy(policy);
+      const int allocatorID = axom::policyToDefaultAllocatorID(policy);
       conduit::Node mesh;
       mctest::copyBlueprintToPolicy(mesh, mdMesh, policy, allocatorID);
 
@@ -641,7 +593,7 @@ void testAppendClearAndRelinquish()
   for(auto policy : enabledPolicies())
   {
     SCOPED_TRACE(policyName(policy));
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node mesh;
     mctest::copyBlueprintToPolicy(mesh, mdMesh, policy, allocatorID);
 
@@ -747,7 +699,7 @@ void testMintOutput()
   for(auto policy : enabledPolicies())
   {
     SCOPED_TRACE(policyName(policy));
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node mesh;
     mctest::copyBlueprintToPolicy(mesh, mdMesh, policy, allocatorID);
 
@@ -953,7 +905,9 @@ void expectSameContour(const HostContour& a, const HostContour& b)
 //! @brief Contour @a mesh (already in @a policy's memory) and return the host result.
 HostContour contourOf(const conduit::Node& mesh, RuntimePolicy policy, double contourValue)
 {
-  axom::quest::MarchingCubes mc(policy, allocatorForPolicy(policy), DataParallelism::byPolicy);
+  axom::quest::MarchingCubes mc(policy,
+                                axom::policyToDefaultAllocatorID(policy),
+                                DataParallelism::byPolicy);
   mc.setMesh(mesh, "mesh");
   mc.setFunctionField("fcn");
   mc.computeIsocontour(contourValue);
@@ -983,7 +937,7 @@ void testSingleDomainInput(bool setDomainId)
   for(auto policy : enabledPolicies())
   {
     SCOPED_TRACE(policyName(policy));
-    const int allocatorID = allocatorForPolicy(policy);
+    const int allocatorID = axom::policyToDefaultAllocatorID(policy);
     conduit::Node dom, md;
     mctest::copyBlueprintToPolicy(dom, hostDom, policy, allocatorID);
     mctest::copyBlueprintToPolicy(md, hostMd, policy, allocatorID);

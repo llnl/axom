@@ -16,20 +16,27 @@ set(mir_tutorial_simple_sources
     runMIR_seq.cpp
     runMIR_seq_tri.cpp
     runMIR_seq_quad.cpp
-    runMIR_seq_hex.cpp
-    runMIR_omp.cpp
-    runMIR_omp_tri.cpp
-    runMIR_omp_quad.cpp
-    runMIR_omp_hex.cpp
-    runMIR_cuda.cpp
-    runMIR_cuda_tri.cpp
-    runMIR_cuda_quad.cpp
-    runMIR_cuda_hex.cpp
-    runMIR_hip.cpp
-    runMIR_hip_tri.cpp
-    runMIR_hip_quad.cpp
-    runMIR_hip_hex.cpp
-    )
+    runMIR_seq_hex.cpp)
+
+blt_list_append(TO mir_tutorial_simple_sources 
+                IF AXOM_ENABLE_OPENMP
+                ELEMENTS runMIR_omp.cpp
+                         runMIR_omp_tri.cpp
+                         runMIR_omp_quad.cpp
+                         runMIR_omp_hex.cpp)
+
+blt_list_append(TO mir_tutorial_simple_sources
+                IF AXOM_ENABLE_CUDA
+                ELEMENTS runMIR_cuda.cpp
+                         runMIR_cuda_tri.cpp
+                         runMIR_cuda_quad.cpp
+                         runMIR_cuda_hex.cpp)
+blt_list_append(TO mir_tutorial_simple_sources
+                IF AXOM_ENABLE_HIP
+                ELEMENTS runMIR_hip.cpp
+                         runMIR_hip_tri.cpp
+                         runMIR_hip_quad.cpp
+                         runMIR_hip_hex.cpp)
 
 axom_add_executable(
     NAME       mir_tutorial_simple
