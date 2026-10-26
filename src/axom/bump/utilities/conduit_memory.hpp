@@ -161,6 +161,11 @@ void copy(conduit::Node& dest,
  * \param key The name of the node that contains the data in \a n.
  * \param[out] arr The array being filled.
  * \param moveToHost Sometimes data are on device and need to be moved to host first.
+ *
+ * \return true if \a key exists in \a n, in which case \a arr is filled.
+ *
+ * \note Fills the first arr.size() entries. Raises SLIC_ERROR if the node has fewer
+ *       values than that. Extra values in the node are ignored.
  */
 template <typename ArrayType>
 bool fillFromNode(const conduit::Node& n, const std::string& key, ArrayType& arr, bool moveToHost = false)
@@ -168,25 +173,27 @@ bool fillFromNode(const conduit::Node& n, const std::string& key, ArrayType& arr
   bool found = false;
   if((found = n.has_path(key)) == true)
   {
+    const auto fill = [&](const conduit::int_accessor& acc) {
+      SLIC_ERROR_IF(static_cast<axom::IndexType>(acc.number_of_elements()) <
+                      static_cast<axom::IndexType>(arr.size()),
+                    "Node '" << key << "' has " << acc.number_of_elements() << " values, but "
+                             << arr.size() << " are required.");
+      for(int i = 0; i < static_cast<int>(arr.size()); i++)
+      {
+        arr[i] = acc[i];
+      }
+    };
+
     if(moveToHost)
     {
       // Make sure data are on host.
       conduit::Node hostNode;
       copy<axom::SEQ_EXEC>(hostNode, n.fetch_existing(key));
-
-      const auto acc = hostNode.as_int_accessor();
-      for(int i = 0; i < arr.size(); i++)
-      {
-        arr[i] = acc[i];
-      }
+      fill(hostNode.as_int_accessor());
     }
     else
     {
-      const auto acc = n.fetch_existing(key).as_int_accessor();
-      for(int i = 0; i < arr.size(); i++)
-      {
-        arr[i] = acc[i];
-      }
+      fill(n.fetch_existing(key).as_int_accessor());
     }
   }
   return found;

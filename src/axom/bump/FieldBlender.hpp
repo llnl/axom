@@ -173,8 +173,7 @@ private:
    * \param out_view The output values view.
    *
    * \note This method was broken out into a template member method since nvcc
-   *       would not instantiate the lambda for axom::for_all() from an anonymous
-   *       lambda.
+   *       would not instantiate the lambda for axom::for_all() from an anonymous lambda.
    */
   template <typename SrcView, typename OutputView>
   void blendSingleComponentImpl(const BlendData& blend, SrcView comp_view, OutputView out_view) const
@@ -182,8 +181,8 @@ private:
     using value_type = typename decltype(comp_view)::value_type;
     using accum_type = typename utilities::accumulation_traits<value_type>::type;
 
-    // We're allowing selectedIndicesView to be used to select specific blend
-    // groups. If the user did not provide that, use all blend groups.
+    // We're allowing selectedIndicesView to be used to select specific blend groups.
+    // If the user did not provide that, use all blend groups.
     const auto orig_size = blend.m_originalIdsView.size();
     const auto blend_size = SelectionPolicy::size(blend);
     //    const auto output_size = orig_size + blend_size;
@@ -192,8 +191,9 @@ private:
     const BlendData device_blend(blend);
 
     // Copy over some original values to the start of the array.
+    // Original ids are topology node ids, so map them into the field like blend ids.
     axom::for_all<ExecSpace>(orig_size, [=] AXOM_HOST_DEVICE(axom::IndexType index) {
-      const auto src_index = device_blend.m_originalIdsView[index];
+      const auto src_index = device_indexing[device_blend.m_originalIdsView[index]];
       out_view[index] = comp_view[src_index];
     });
 

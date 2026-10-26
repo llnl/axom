@@ -308,6 +308,114 @@ TEST(bump_clipfield_seq, strided_structured_2d_seq)
   options["selectedZones"].set(std::vector<axom::IndexType> {{0, 2, 3, 5}});
   strided_structured_clip_test<seq_exec, 2>("strided_structured_2d_sel", options);
 }
+TEST(bump_clipfield_seq, strided_structured_2d_mismatched_field_layout_seq)
+{
+  axom::slic::ScopedAbortToThrow abort_guard;
+
+  // Shifting the field's i offset makes topology node ids read neighboring values.
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  conduit::index_t* offsets = mesh["fields/vert_vals/offsets"].value();
+  offsets[0] += 1;
+
+  auto coordsetView =
+    axom::bump::views::make_explicit_coordset<double, 2>::view(mesh["coordsets/coords"]);
+  auto topoView =
+    axom::bump::views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+  axom::bump::extraction::ClipField<seq_exec, decltype(topoView), decltype(coordsetView)> clipper(
+    topoView,
+    coordsetView);
+
+  conduit::Node options, clipMesh;
+  options["field"] = "vert_vals";
+  options["value"] = 6.5;
+  options["inside"] = 1;
+  options["outside"] = 1;
+  EXPECT_THROW(clipper.execute(mesh, options, clipMesh), axom::slic::SlicAbortException);
+}
+
+/*!
+ * \brief Clip the strided example with copies of vert_vals and ele_vals that use
+ *        a zero-offset layout, and check that both copies come through unchanged.
+ *
+ * \param withOffsets Give the copies explicit offsets [0, 0] in addition to strides.
+ */
+void test_strided_structured_2d_field_layout(bool withOffsets)
+{
+  conduit::Node mesh;
+  axom::blueprint::testing::data::strided_structured<2>(mesh);
+  ASSERT_EQ(mesh["topologies/mesh/elements/dims/strides"].as_int_accessor()[1], 7);
+
+  // 4x3 logical nodes and 3x2 logical zones start at offsets [2, 2] in 7-wide arrays.
+  const auto vertVals = mesh["fields/vert_vals/values"].as_double_accessor();
+  const auto eleVals = mesh["fields/ele_vals/values"].as_double_accessor();
+  std::vector<double> vertCopy(42, -1000.), eleCopy(42, -1000.);
+  for(int j = 0; j < 3; j++)
+  {
+    for(int i = 0; i < 4; i++)
+    {
+      vertCopy[i + 7 * j] = vertVals[(i + 2) + (j + 2) * 7];
+      if(i < 3 && j < 2)
+      {
+        eleCopy[i + 7 * j] = eleVals[(i + 2) + (j + 2) * 7];
+      }
+    }
+  }
+
+  for(const std::string association : {"vertex", "element"})
+  {
+    conduit::Node& n_field = mesh["fields/" + association + "_copy"];
+    n_field["association"] = association;
+    n_field["topology"] = "mesh";
+    n_field["strides"].set(std::vector<conduit::index_t> {1, 7});
+    if(withOffsets)
+    {
+      n_field["offsets"].set(std::vector<conduit::index_t> {0, 0});
+    }
+    n_field["values"].set(association == "vertex" ? vertCopy : eleCopy);
+  }
+
+  auto coordsetView =
+    axom::bump::views::make_explicit_coordset<double, 2>::view(mesh["coordsets/coords"]);
+  auto topoView =
+    axom::bump::views::make_strided_structured_topology<2>::view(mesh["topologies/mesh"]);
+  axom::bump::extraction::ClipField<seq_exec, decltype(topoView), decltype(coordsetView)> clipper(
+    topoView,
+    coordsetView);
+
+  conduit::Node options, clipMesh;
+  options["field"] = "vert_vals";
+  options["value"] = 6.5;
+  options["inside"] = 1;
+  options["outside"] = 1;
+  clipper.execute(mesh, options, clipMesh);
+
+  for(const auto& names :
+      {std::make_pair("vertex_copy", "vert_vals"), std::make_pair("element_copy", "ele_vals")})
+  {
+    SCOPED_TRACE(names.first);
+    const auto actual = clipMesh["fields"][names.first]["values"].as_double_accessor();
+    const auto expected = clipMesh["fields"][names.second]["values"].as_double_accessor();
+    ASSERT_EQ(actual.number_of_elements(), expected.number_of_elements());
+    ASSERT_GT(actual.number_of_elements(), 0);
+    for(conduit::index_t k = 0; k < actual.number_of_elements(); k++)
+    {
+      EXPECT_EQ(actual[k], expected[k]) << "value " << k;
+    }
+  }
+}
+
+TEST(bump_clipfield_seq, strided_structured_2d_field_layout_seq)
+{
+  test_strided_structured_2d_field_layout(true);
+}
+
+TEST(bump_clipfield_seq, strided_structured_2d_partial_field_layout_seq)
+{
+  // Strides only: offsets default to 0 for both vertex and element fields.
+  test_strided_structured_2d_field_layout(false);
+}
+
 TEST(bump_clipfield_seq, tet_seq)
 {
   braid3d_clip_test<seq_exec, axom::bump::views::TetShape<int>>("tets", "tet");
