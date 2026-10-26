@@ -62,6 +62,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
   including layouts that specify only one of those keys.
 - Spin: Replaces `LinearBVHTraverser::reduce_tree()` with `reduce_leaves()` and passes the original primitive ID to its leaf action.
+- Spin: Speeds up `Hilbertizer` encoding and decoding with finite state machine tables.
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
