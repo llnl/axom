@@ -45,8 +45,8 @@ std::uint64_t referenceIndex(std::uint64_t digits,
   return Scalar::toIndex(point, bits);
 }
 
-template <int LEVELS, std::size_t N, typename InverseLookup>
-void check2DTable(const std::uint8_t (&forward)[N], InverseLookup inverse)
+template <int LEVELS, typename Entry, std::size_t N>
+void check2DTable(const Entry (&forward)[N], const Entry (&inverse)[N])
 {
   constexpr unsigned dim = 2;
   constexpr unsigned states = 4;
@@ -54,7 +54,19 @@ void check2DTable(const std::uint8_t (&forward)[N], InverseLookup inverse)
   constexpr unsigned width = dim * LEVELS;
   constexpr unsigned size = 1u << width;
   constexpr unsigned mask = size - 1;
-  static_assert(N == states * size, "2D tables have four rows");
+  static_assert(N == (LEVELS == 3 ? size : states * size),
+                "2D tables store four states for each input group");
+  const auto lookup = [](const Entry(&table)[N], unsigned state, unsigned digit) {
+    if constexpr(LEVELS == 3)
+    {
+      // Three-plane tables pack the four state bytes into one word per digit.
+      return (table[digit] >> (state * 8)) & 0xffu;
+    }
+    else
+    {
+      return static_cast<unsigned>(table[state * size + digit]);
+    }
+  };
 
   // Find a short input prefix reaching each state. Compare each prefix and group
   // with the scalar transform to check every row's orientation.
@@ -88,11 +100,11 @@ void check2DTable(const std::uint8_t (&forward)[N], InverseLookup inverse)
     {
       SCOPED_TRACE(::testing::Message()
                    << "planes " << LEVELS << ", state " << state << ", digits " << digits);
-      const unsigned entry = forward[state * size + digits];
+      const unsigned entry = lookup(forward, state, digits);
       const auto output = entry & mask;
       const auto next = entry >> width;
       ASSERT_LT(next, states);
-      const auto decoded = inverse(state, output);
+      const auto decoded = lookup(inverse, state, output);
       EXPECT_EQ(decoded & mask, digits);
       EXPECT_EQ(decoded >> width, next);
 
@@ -171,18 +183,11 @@ void checkFactoredTable(const std::uint16_t (&forward)[N],
 }
 }  // namespace
 
-TEST(HilbertTablesTest, two_dimensional_rows_and_packed_inverse)
+TEST(HilbertTablesTest, two_dimensional_rows_and_packed_states)
 {
-  ASSERT_NO_FATAL_FAILURE(check2DTable<1>(tables::table2D1, [](unsigned state, unsigned digit) {
-    return tables::inverseTable2D1[(state << 2) | digit];
-  }));
-  ASSERT_NO_FATAL_FAILURE(check2DTable<2>(tables::table2D2, [](unsigned state, unsigned digit) {
-    return tables::inverseTable2D2[(state << 4) | digit];
-  }));
-  // The three-plane inverse stores four state bytes in each uint32_t entry.
-  ASSERT_NO_FATAL_FAILURE(check2DTable<3>(tables::table2D3, [](unsigned state, unsigned digit) {
-    return (tables::inverseTable2D3[digit] >> (state * 8)) & 0xffu;
-  }));
+  ASSERT_NO_FATAL_FAILURE(check2DTable<1>(tables::table2D1, tables::inverseTable2D1));
+  ASSERT_NO_FATAL_FAILURE(check2DTable<2>(tables::table2D2, tables::inverseTable2D2));
+  ASSERT_NO_FATAL_FAILURE(check2DTable<3>(tables::table2D3, tables::inverseTable2D3));
 }
 
 TEST(HilbertTablesTest, three_dimensional_rows_and_reflections)

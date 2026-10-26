@@ -330,16 +330,16 @@ def verify(dim):
     return count
 
 
-def pack_inverse2d(table):
+def pack_2d(table):
     """Pack the four state bytes for each three-plane digit into one word."""
-    require(len(table) == 256 and max(table) < 256, '2D packed inverse requires 256 byte entries')
+    require(len(table) == 256 and max(table) < 256, '2D packing requires 256 byte entries')
     packed = [
         sum(table[state * 64 + digit] << (state * 8) for state in range(4)) for digit in range(64)
     ]
     for state in range(4):
         for digit in range(64):
             require((packed[digit] >> (state * 8)) & 255 == table[state * 64 + digit],
-                    '2D inverse lane packing')
+                    '2D state byte packing')
     return packed
 
 
@@ -388,8 +388,8 @@ def render():
                                   ('inverseTable', inverse(forward, dim, levels))]:
                 ctype = 'std::uint8_t' if max(table) < 256 else 'std::uint16_t'
                 require(max(table) < 65536, f'{dim}D/{levels} planes exceed 16-bit entries')
-                if dim == 2 and levels == 3 and prefix == 'inverseTable':
-                    table = pack_inverse2d(table)
+                if dim == 2 and levels == 3:
+                    table = pack_2d(table)
                     ctype = 'std::uint32_t'
                     lines.append(
                         '// One byte per state, packed into a 32-bit word; select with state * 8.')
