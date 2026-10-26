@@ -79,6 +79,8 @@ public:
 
   double contourVal {1.0};
 
+  std::string outputName {"contour_mesh"};
+
   RuntimePolicy policy {RuntimePolicy::seq};
 
   quest::MarchingCubesDataParallelism dataParallelism = quest::MarchingCubesDataParallelism::byPolicy;
@@ -138,6 +140,10 @@ public:
       ->capture_default_str();
 
     app.add_option("--contourVal", contourVal)->description("Contour value")->capture_default_str();
+
+    app.add_option("-o,--output", outputName)
+      ->description("Base name of the output contour mesh files")
+      ->capture_default_str();
 
     //
     // Number of repetitions to run
@@ -1003,9 +1009,8 @@ struct ContourRunner
     {
       assert(contourMesh.getSidreGroup() == meshGroup);
       // Write contour mesh to file.
-      std::string outputName = "contour_mesh";
-      saveMesh(*contourMesh.getSidreGroup(), outputName);
-      SLIC_INFO(axom::fmt::format("Wrote contour mesh to {}", outputName));
+      saveMesh(*contourMesh.getSidreGroup(), params.outputName);
+      SLIC_INFO(axom::fmt::format("Wrote contour mesh to {}", params.outputName));
     }
     objectDS.getRoot()->destroyGroupAndData(sidreGroupName);
 #endif

@@ -627,10 +627,12 @@ if(CONDUIT_FOUND)
                                     --mesh-file ${quest_data_dir}/${_mesh}.root
                                     --field ${_field}
                                     --contourVal 1.25
+                                    --output ${_test}
                         NUM_MPI_TASKS ${_mc_nranks}
                         NUM_OMP_THREADS ${_num_threads})
                     set_tests_properties(${_test}
-                        PROPERTIES REQUIRED_FILES "${quest_data_dir}/${_mesh}.root"
+                        PROPERTIES PROCESSORS ${_mc_nranks}
+                                   REQUIRED_FILES "${quest_data_dir}/${_mesh}.root"
                                    PASS_REGULAR_EXPRESSION "Contour mesh has .* cells")
                 endforeach()
             endforeach()
