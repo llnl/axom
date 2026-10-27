@@ -341,9 +341,9 @@ def build_and_test_host_config(test_root, host_config,
     if should_test_installed_cmake_example:
         install_example_dir = pjoin(install_dir, "examples", "axom", "using-with-cmake")
 
-        # Keep the default installed-consumer smoke test, which inherits Axom's
-        # installed setting, then verify that a downstream project can explicitly
-        # enable or disable SLIC debug macros. The override cases check SLIC_DEBUG
+        # Keep the default installed-consumer smoke test, using the same build
+        # type as Axom, then verify that a downstream project can explicitly enable
+        # or disable SLIC debug macros. The override cases check SLIC_DEBUG
         # evaluation and compile a parameter used only by SLIC_ASSERT to catch
         # configuration-dependent declarations.
         slic_debug_cases = [
@@ -366,7 +366,7 @@ def build_and_test_host_config(test_root, host_config,
                 f"cd {example_build_dir}",
                 f"""echo "[Configuring 'using-with-cmake' example: {case_name}]" """,
                 ("cmake -C ../host-config.cmake "
-                 f"{slic_debug_options} .."),
+                 f"-DCMAKE_BUILD_TYPE={build_type} {slic_debug_options} .."),
                 f"""echo "[Building 'using-with-cmake' example: {case_name}]" """,
                 "make ",
                 f"""echo "[Running 'using-with-cmake' example: {case_name}]" """,
