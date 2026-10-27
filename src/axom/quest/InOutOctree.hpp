@@ -1628,7 +1628,7 @@ void InOutOctree<DIM>::checkAllLeavesColoredAtLevel(int AXOM_DEBUG_PARAM(level))
 template <int DIM>
 void InOutOctree<DIM>::checkValid() const
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   SLIC_DEBUG(axom::fmt::format("Inside InOutOctree::checkValid() to verify state of {} octree",
                                (m_generationState >= INOUTOCTREE_ELEMENTS_INSERTED ? "PM" : "PR")));
 

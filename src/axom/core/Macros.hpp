@@ -202,27 +202,6 @@
 #define AXOM_UNUSED_VAR(_x) static_cast<void>(_x)
 
 /*!
- * \def AXOM_DEBUG_PARAM(x)
- * \brief Macro used to silence compiler warnings about parameters that are
- *        only used when AXOM_DEBUG or Slic debug macros are enabled
- * \note Default values are ok
- * \code
- *
- *  void my_function(int x, int AXOM_DEBUG_PARAM(y))
- *  {
- *    // my implementation
- *    SLIC_ASSERT(y > 0)
- *  }
- *
- * \endcode
- */
-#if defined(AXOM_DEBUG) || (defined(AXOM_ENABLE_SLIC_DEBUG_MACROS) && AXOM_ENABLE_SLIC_DEBUG_MACROS)
-  #define AXOM_DEBUG_PARAM(_x) _x
-#else
-  #define AXOM_DEBUG_PARAM(_x)
-#endif
-
-/*!
  * \def AXOM_MAYBE_UNUSED
  * \brief Macro that is used to silence compiler warnings about variables that
  *        might be unused in some build configurations.
@@ -241,6 +220,30 @@
   #define AXOM_MAYBE_UNUSED [[maybe_unused]]
 #else
   #define AXOM_MAYBE_UNUSED
+#endif
+
+/*!
+ * \def AXOM_DEBUG_PARAM(x)
+ * \brief Macro used to silence compiler warnings about parameters that are
+ *        only used when AXOM_DEBUG or Slic debug macros are enabled
+ * \note Default values are ok
+ * \note Retained parameter names are marked maybe-unused because AXOM and Slic
+ *       debug settings can be enabled independently, and the active setting
+ *       might not use every debug-only parameter.
+ * \code
+ *
+ *  void my_function(int x, int AXOM_DEBUG_PARAM(y))
+ *  {
+ *    // my implementation
+ *    SLIC_ASSERT(y > 0)
+ *  }
+ *
+ * \endcode
+ */
+#if defined(AXOM_DEBUG) || (defined(AXOM_ENABLE_SLIC_DEBUG_MACROS) && AXOM_ENABLE_SLIC_DEBUG_MACROS)
+  #define AXOM_DEBUG_PARAM(_x) _x AXOM_MAYBE_UNUSED
+#else
+  #define AXOM_DEBUG_PARAM(_x)
 #endif
 
 /*!

@@ -25,10 +25,15 @@ TEST(slic_disable_debug_macros, disabled_with_axom_debug)
   axom::slic::SimpleLogger logger;
   int evaluation_count = 0;
 
+  const auto verify_value = [](int AXOM_DEBUG_PARAM(value)) {
+    SLIC_ASSERT_MSG(value == 4, "Unexpected value: " << value);
+  };
+
   SLIC_ASSERT(++evaluation_count == 1);
   SLIC_CHECK(++evaluation_count == 1);
   SLIC_DEBUG(++evaluation_count);
 
+  verify_value(4);
   EXPECT_EQ(evaluation_count, 0);
 }
 

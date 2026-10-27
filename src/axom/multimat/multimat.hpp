@@ -1039,7 +1039,7 @@ int MultiMat::addFieldArray_impl(const std::string& field_name,
   SLIC_ASSERT(m_fieldNameVec.size() == m_fieldSparsityLayoutVec.size());
   SLIC_ASSERT(m_fieldNameVec.size() == m_fieldStrideVec.size());
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   if(field_mapping == FieldMapping::PER_CELL_MAT)
   {
     const BivariateSetType* s = get_mapped_biSet(data_layout, sparsity_layout);
