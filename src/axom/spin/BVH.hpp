@@ -39,16 +39,16 @@ enum BVHReturnCodes
   BVH_BUILD_OK,           //!< indicates that the BVH was generated successfully
 };
 
-/*!
- * \brief Enumerates the list of possible BVH policies.
- */
+//! \brief BVH construction policies.
 enum class BVHType
 {
   LinearBVH
 };
 
-/*! \brief Build-time configuration for a BVH policy.
- *  Each BVH policy specializes this type to expose only the parameters it uses.
+/*!
+ *  \brief Build parameters for a BVH policy.
+ *
+ *  Each policy specializes this type with the parameters it supports.
  */
 template <BVHType Policy>
 struct BVHBuildParameters;
@@ -59,9 +59,7 @@ struct BVHBuildParameters<BVHType::LinearBVH>
   SpaceFillingCurve ordering {SpaceFillingCurve::Morton};
 };
 
-/*!
- * \brief Mapping from BVHType to templated BVH implementation type
- */
+//! \brief Maps a BVH policy to its implementation type.
 template <typename FloatType, int NDIMS, typename ExecType, BVHType Policy>
 struct BVHPolicy;
 
@@ -198,9 +196,7 @@ public:
   using BuildParameters = BVHBuildParameters<BVHImpl>;
 
 public:
-  /*!
-   * \brief Default constructor.
-   */
+  //! \brief Default constructor.
   BVH() : m_AllocatorID(axom::execution_space<ExecSpace>::allocatorID()) { }
 
   /*!
@@ -214,7 +210,7 @@ public:
    * \param [in] scaleFactor the scale factor for the given bounding boxes.
    * \param [in] tolerance the tolerance to use when querying the BVH.
    *
-   * Uses default options for policy-specific parameters
+   * Uses the policy's default build parameters.
    *
    * \warning The supplied boxes array must point to a buffer in a memory space
    *  that is compatible with the execution space. For example, when using
@@ -241,8 +237,7 @@ public:
     initialize(boxes, numItems);
   }
 
-  /*! \brief Constructs a BVH with policy-specific build parameters.
-   */
+  //! \brief Constructs a BVH using the supplied build parameters.
   template <typename BoxIndexable>
   BVH(const BoxIndexable boxes,
       IndexType numItems,
@@ -263,7 +258,7 @@ public:
    *
    * \param [in] boxes buffer consisting of bounding boxes for each entity.
    * \param [in] numItems the total number of items to store in the BVH.
-   * \param [in] parameters configuration used to build this BVH policy.
+   * \param [in] parameters build parameters for the selected policy.
    *
    * \return BVH_BUILD_OK on success.
    *
@@ -443,27 +438,12 @@ public:
 
 private:
   /*!
-   * \brief Whether the policy's buildImpl accepts an ordering for this box input type.
-   *
-   * \tparam BoxIndexable Array-like type used to access input bounding boxes.
-   */
-  template <typename BoxIndexable>
-  static constexpr bool supportsOrdering = requires(ImplType& impl,
-                                                    const BoxIndexable boxes,
-                                                    IndexType count,
-                                                    FloatType scale,
-                                                    int allocator,
-                                                    SpaceFillingCurve ordering) {
-    impl.buildImpl(boxes, count, scale, allocator, ordering);
-  };
-
-  /*!
-   * \brief Builds the tree through the policy's supported buildImpl overload.
+   * \brief Builds the tree with the selected policy.
    *
    * \tparam BoxIndexable Array-like type used to access input bounding boxes.
    * \param[in] boxes Input bounding boxes.
    * \param[in] numBoxes Number of input boxes.
-   * \param[in] parameters Runtime configuration options for BVH build.
+   * \param[in] parameters Build parameters for the selected policy.
    * \pre m_bvh != nullptr
    */
   template <typename BoxIndexable>

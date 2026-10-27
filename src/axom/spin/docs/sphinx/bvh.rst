@@ -52,9 +52,9 @@ Finally, test the point against all candidate neighbor triangles.
 Spatial ordering
 ----------------
 
-BVH construction uses Morton ordering by default. To select Hilbert ordering,
-pass it in the policy-specific build parameters, which exposes only the options
-supported by the selected policy:
+BVH construction uses Morton ordering by default. The ``BuildParameters`` type
+contains the options supported by the selected policy. To use Hilbert ordering,
+set ``ordering`` and pass the parameters to ``initialize()``:
 
 .. code-block:: C++
 
@@ -63,7 +63,7 @@ supported by the selected policy:
    parameters.ordering = axom::spin::SpaceFillingCurve::Hilbert;
    bvh.initialize(boxes, numBoxes, parameters);
 
-or using designated initializers:
+You can also use a designated initializer:
 
 .. code-block:: C++
 
