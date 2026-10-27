@@ -18,32 +18,6 @@ namespace
 using axom::IndexType;
 using axom::spin::SpaceFillingCurve;
 
-// A test-only policy tag lets us exercise the public BVHPolicy extension point.
-constexpr auto legacyPolicy = static_cast<axom::spin::BVHType>(-1);
-
-// Policy with only the four-argument buildImpl interface.
-class LegacyLinearBVH : public axom::spin::policy::LinearBVH<double, 2, axom::SEQ_EXEC>
-{
-public:
-  template <typename BoxIndexable>
-  void buildImpl(const BoxIndexable boxes, IndexType count, double scale, int allocator)
-  {
-    axom::spin::policy::LinearBVH<double, 2, axom::SEQ_EXEC>::buildImpl(boxes, count, scale, allocator);
-  }
-};
-}  // namespace
-
-namespace axom::spin
-{
-template <>
-struct BVHPolicy<double, 2, SEQ_EXEC, legacyPolicy>
-{
-  using ImplType = LegacyLinearBVH;
-};
-}  // namespace axom::spin
-
-namespace
-{
 // Check each query's expected input IDs, allowing any traversal order.
 void expectCandidates(const char* queryKind,
                       const axom::Array<IndexType>& offsets,
@@ -167,8 +141,10 @@ AXOM_TYPED_TEST(BVHOrderingTest, query_candidates)
   for(auto ordering : {SpaceFillingCurve::Morton, SpaceFillingCurve::Hilbert})
   {
     SCOPED_TRACE(ordering == SpaceFillingCurve::Morton ? "Morton" : "Hilbert");
-    bvh.setOrdering(ordering);
-    ASSERT_EQ(bvh.initialize(boxes.view(), boxes.size()), axom::spin::BVH_BUILD_OK);
+
+    axom::spin::BVH<3>::BuildParameters parameters;
+    parameters.ordering = ordering;
+    ASSERT_EQ(bvh.initialize(boxes.view(), boxes.size(), parameters), axom::spin::BVH_BUILD_OK);
 
     bvh.findPoints(offsets, counts, candidates, points.size(), points.view());
     expectCandidates("points", offsets, counts, candidates, {{0, 1, 2}, {1}, {3}, {}});
@@ -201,8 +177,8 @@ AXOM_TYPED_TEST(BVHOrderingTest, degenerate_bounds)
     for(auto ordering : {SpaceFillingCurve::Morton, SpaceFillingCurve::Hilbert})
     {
       SCOPED_TRACE(ordering == SpaceFillingCurve::Morton ? "Morton" : "Hilbert");
-      bvh.setOrdering(ordering);
-      ASSERT_EQ(bvh.initialize(boxes.view(), boxes.size()), axom::spin::BVH_BUILD_OK);
+      axom::spin::BVH<3>::BuildParameters parameters {.ordering = ordering};
+      ASSERT_EQ(bvh.initialize(boxes.view(), boxes.size(), parameters), axom::spin::BVH_BUILD_OK);
       bvh.findPoints(offsets, counts, candidates, queries.size(), queries.view());
       expectCandidates("points", offsets, counts, candidates, {{0, 1, 2}, {}});
     }
@@ -224,11 +200,11 @@ AXOM_TYPED_TEST(BVHOrderingTest, reinitialize)
   for(auto ordering : {SpaceFillingCurve::Morton, SpaceFillingCurve::Hilbert})
   {
     SCOPED_TRACE(ordering == SpaceFillingCurve::Morton ? "Morton" : "Hilbert");
-    bvh.setOrdering(ordering);
     for(IndexType count : {2, 1, 0, 2})
     {
       SCOPED_TRACE(::testing::Message() << "box count " << count);
-      ASSERT_EQ(bvh.initialize(boxes.view(), count), axom::spin::BVH_BUILD_OK);
+      ASSERT_EQ(bvh.initialize(boxes.view(), count, {.ordering = ordering}),
+                axom::spin::BVH_BUILD_OK);
       EXPECT_TRUE(bvh.isInitialized());
       bvh.findPoints(offsets, counts, candidates, queries.size(), queries.view());
       expectCandidates("points", offsets, counts, candidates, expectedByBoxCount[count]);
@@ -268,18 +244,17 @@ AXOM_TYPED_TEST(BVHOrderingTest, leaf_order_and_stable_ties)
 
   TypeParam bvh;
   const axom::Array<Box> deviceBoxes(boxes, bvh.getAllocatorID());
-  ASSERT_EQ(bvh.initialize(deviceBoxes.data(), boxes.size()), axom::spin::BVH_BUILD_OK);
-  EXPECT_EQ(bvh.getOrdering(), SpaceFillingCurve::Morton);
+  ASSERT_EQ(bvh.initialize(deviceBoxes.data(), boxes.size(), {.ordering = SpaceFillingCurve::Morton}),
+            axom::spin::BVH_BUILD_OK);
   EXPECT_EQ(leafOrder(bvh, boxes.size()), morton);
 
-  bvh.setOrdering(SpaceFillingCurve::Hilbert);
-  EXPECT_EQ(bvh.getOrdering(), SpaceFillingCurve::Hilbert);
-  EXPECT_EQ(leafOrder(bvh, boxes.size()), morton);  // The setting takes effect on the next build.
-  ASSERT_EQ(bvh.initialize(deviceBoxes.view(), boxes.size()), axom::spin::BVH_BUILD_OK);
+  ASSERT_EQ(
+    bvh.initialize(deviceBoxes.view(), boxes.size(), {.ordering = SpaceFillingCurve::Hilbert}),
+    axom::spin::BVH_BUILD_OK);
   EXPECT_EQ(leafOrder(bvh, boxes.size()), hilbert);
 
-  bvh.setOrdering(SpaceFillingCurve::Morton);
-  ASSERT_EQ(bvh.initialize(deviceBoxes.view(), boxes.size()), axom::spin::BVH_BUILD_OK);
+  ASSERT_EQ(bvh.initialize(deviceBoxes.view(), boxes.size(), {.ordering = SpaceFillingCurve::Morton}),
+            axom::spin::BVH_BUILD_OK);
   EXPECT_EQ(leafOrder(bvh, boxes.size()), morton);
 }
 
@@ -324,45 +299,6 @@ AXOM_TYPED_TEST(BVHOrderingTest, quantization)
   }
 }
 }  // namespace
-
-// A four-argument policy accepts Morton and rejects Hilbert without replacing its tree.
-TEST(spin_bvh_ordering, legacy_policy)
-{
-  using BVH = axom::spin::BVH<2, axom::SEQ_EXEC, double, legacyPolicy>;
-  using Box = BVH::BoxType;
-  using Point = BVH::PointType;
-  const axom::Array<Box> boxes {Box(Point(0.), Point(1)), Box(Point(2), Point(3))};
-  const axom::Array<Point> queries {Point(.5), Point(2.5)};
-  axom::Array<IndexType> offsets(2), counts(2), candidates;
-  BVH bvh;
-  EXPECT_EQ(bvh.getOrdering(), SpaceFillingCurve::Morton);
-  ASSERT_EQ(bvh.initialize(boxes.view(), boxes.size()), axom::spin::BVH_BUILD_OK);
-  const auto bounds = bvh.getBounds();
-
-  bvh.setOrdering(SpaceFillingCurve::Hilbert);
-  for(IndexType count : {0, 1, 2})
-  {
-    EXPECT_EQ(bvh.initialize(boxes.view(), count), axom::spin::BVH_BUILD_FAILED);
-    ASSERT_TRUE(bvh.isInitialized());
-    EXPECT_EQ(bvh.getBounds(), bounds);
-    bvh.findPoints(offsets, counts, candidates, queries.size(), queries.view());
-    expectCandidates("preserved tree", offsets, counts, candidates, {{0}, {1}});
-  }
-
-  bvh.setOrdering(SpaceFillingCurve::Morton);
-  const std::vector<std::vector<IndexType>> expectedByBoxCount[] = {{{}, {}}, {{0}, {}}, {{0}, {1}}};
-  for(IndexType count : {0, 1, 2})
-  {
-    ASSERT_EQ(bvh.initialize(boxes.data(), count), axom::spin::BVH_BUILD_OK);
-    bvh.findPoints(offsets, counts, candidates, queries.size(), queries.view());
-    expectCandidates("legacy Morton", offsets, counts, candidates, expectedByBoxCount[count]);
-  }
-
-  BVH uninitialized;
-  uninitialized.setOrdering(SpaceFillingCurve::Hilbert);
-  EXPECT_EQ(uninitialized.initialize(boxes.data(), boxes.size()), axom::spin::BVH_BUILD_FAILED);
-  EXPECT_FALSE(uninitialized.isInitialized());
-}
 
 int main(int argc, char* argv[])
 {

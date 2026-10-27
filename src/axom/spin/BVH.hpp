@@ -39,11 +39,29 @@ enum BVHReturnCodes
   BVH_BUILD_OK,           //!< indicates that the BVH was generated successfully
 };
 
+/*!
+ * \brief Enumerates the list of possible BVH policies.
+ */
 enum class BVHType
 {
   LinearBVH
 };
 
+/*! \brief Build-time configuration for a BVH policy.
+ *  Each BVH policy specializes this type to expose only the parameters it uses.
+ */
+template <BVHType Policy>
+struct BVHBuildParameters;
+
+template <>
+struct BVHBuildParameters<BVHType::LinearBVH>
+{
+  SpaceFillingCurve ordering {SpaceFillingCurve::Morton};
+};
+
+/*!
+ * \brief Mapping from BVHType to templated BVH implementation type
+ */
 template <typename FloatType, int NDIMS, typename ExecType, BVHType Policy>
 struct BVHPolicy;
 
@@ -177,6 +195,7 @@ public:
 
   using TraverserType = typename ImplType::TraverserType;
   using ExecSpaceType = ExecSpace;
+  using BuildParameters = BVHBuildParameters<BVHImpl>;
 
 public:
   /*!
@@ -194,6 +213,8 @@ public:
    * \param [in] allocatorID the ID of the allocator to use in BVH construction.
    * \param [in] scaleFactor the scale factor for the given bounding boxes.
    * \param [in] tolerance the tolerance to use when querying the BVH.
+   *
+   * Uses default options for policy-specific parameters
    *
    * \warning The supplied boxes array must point to a buffer in a memory space
    *  that is compatible with the execution space. For example, when using
@@ -220,15 +241,31 @@ public:
     initialize(boxes, numItems);
   }
 
+  /*! \brief Constructs a BVH with policy-specific build parameters.
+   */
+  template <typename BoxIndexable>
+  BVH(const BoxIndexable boxes,
+      IndexType numItems,
+      const BuildParameters& parameters,
+      int allocatorID = axom::execution_space<ExecSpace>::allocatorID(),
+      FloatType tolerance = DEFAULT_TOLERANCE,
+      FloatType scaleFactor = DEFAULT_SCALE_FACTOR)
+    : m_AllocatorID {allocatorID}
+    , m_tolerance {tolerance}
+    , m_scaleFactor {scaleFactor}
+  {
+    initialize(boxes, numItems, parameters);
+  }
+
   /*!
    * \brief Initializes a BVH instance of specified dimension over a given set
    *  of geometric entities, each represented by its corresponding axis-aligned bounding box.
    *
    * \param [in] boxes buffer consisting of bounding boxes for each entity.
    * \param [in] numItems the total number of items to store in the BVH.
+   * \param [in] parameters configuration used to build this BVH policy.
    *
-   * \return BVH_BUILD_OK on success. If the policy does not support the selected ordering,
-   * returns BVH_BUILD_FAILED and leaves the current tree unchanged.
+   * \return BVH_BUILD_OK on success.
    *
    * \note If an allocatorID has not been set in a call to setAllocatorID(),
    *  the code will use the default allocator ID for the execution space
@@ -244,20 +281,11 @@ public:
    * \pre numItems >= 0
    */
   template <typename BoxIndexable>
-  int initialize(const BoxIndexable boxes, IndexType numItems);
+  int initialize(const BoxIndexable boxes,
+                 IndexType numItems,
+                 const BuildParameters& parameters = BuildParameters {});
 
   bool isInitialized() const { return m_bvh != nullptr; }
-
-  /*!
-   * \brief Sets the space-filling curve for builds. Defaults to Morton.
-   *
-   * \note Changing this setting does not rebuild the current tree.
-   * \note Policies with a four-argument buildImpl support only Morton.
-   */
-  void setOrdering(SpaceFillingCurve ordering) { m_ordering = ordering; }
-
-  //! \brief Returns the space-filling curve selected for builds.
-  SpaceFillingCurve getOrdering() const { return m_ordering; }
 
   /*!
    * \brief Sets the ID of the allocator used by the BVH.
@@ -435,20 +463,17 @@ private:
    * \tparam BoxIndexable Array-like type used to access input bounding boxes.
    * \param[in] boxes Input bounding boxes.
    * \param[in] numBoxes Number of input boxes.
+   * \param[in] parameters Runtime configuration options for BVH build.
    * \pre m_bvh != nullptr
-   * \pre supportsOrdering<BoxIndexable> || m_ordering == SpaceFillingCurve::Morton
    */
   template <typename BoxIndexable>
-  void build(const BoxIndexable boxes, IndexType numBoxes)
+  void build(const BoxIndexable boxes, IndexType numBoxes, const BuildParameters& parameters)
   {
-    if constexpr(supportsOrdering<BoxIndexable>)
+    if constexpr(BVHImpl == BVHType::LinearBVH)
     {
-      m_bvh->buildImpl(boxes, numBoxes, m_scaleFactor, m_AllocatorID, m_ordering);
+      m_bvh->buildImpl(boxes, numBoxes, m_scaleFactor, m_AllocatorID, parameters.ordering);
     }
-    else
-    {
-      m_bvh->buildImpl(boxes, numBoxes, m_scaleFactor, m_AllocatorID);
-    }
+    // Other policy types forthcoming
   }
 
   /// \name Private Members
@@ -460,7 +485,6 @@ private:
   int m_AllocatorID;
   FloatType m_tolerance {DEFAULT_TOLERANCE};
   FloatType m_scaleFactor {DEFAULT_SCALE_FACTOR};
-  SpaceFillingCurve m_ordering {SpaceFillingCurve::Morton};
   std::unique_ptr<ImplType> m_bvh {};
   /// @}
 };
@@ -470,7 +494,9 @@ private:
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename BoxIndexable>
-int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes, IndexType numBoxes)
+int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
+                                                       IndexType numBoxes,
+                                                       const BuildParameters& parameters)
 {
   AXOM_ANNOTATE_SCOPE("BVH::initialize");
 
@@ -479,13 +505,6 @@ int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
   // Ensure that the iterator returns objects convertible to primal::BoundingBox.
   static_assert(std::is_convertible<IterBase, BoxType>::value,
                 "Iterator must return objects convertible to primal::BoundingBox.");
-
-  // Preserve the current tree if the policy does not support this ordering.
-  if(m_ordering != SpaceFillingCurve::Morton &&
-     !(numBoxes <= 1 ? supportsOrdering<BoxType*> : supportsOrdering<BoxIndexable>))
-  {
-    return BVH_BUILD_FAILED;
-  }
 
   // STEP 1: Allocate a BVH, potentially deleting the existing BVH if it exists
   m_bvh.reset(new ImplType);
@@ -512,11 +531,11 @@ int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
         boxesptr[i] = empty_box;
       }
     });
-    build(boxesptr, numBoxes);
+    build(boxesptr, numBoxes, parameters);
   }
   else
   {
-    build(boxes, numBoxes);
+    build(boxes, numBoxes, parameters);
   }
 
   // STEP 5: deallocate boxesptr if user supplied a single box
