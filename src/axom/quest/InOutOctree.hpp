@@ -397,7 +397,7 @@ private:
   void checkValid() const;
 
   /// \brief Helper function to verify that all leaves at the given level have a color
-  void checkAllLeavesColoredAtLevel(int AXOM_DEBUG_PARAM(level)) const;
+  void checkAllLeavesColoredAtLevel(AXOM_MAYBE_UNUSED int level) const;
 
   void dumpOctreeMeshVTK(const std::string& name) const;
   void dumpSurfaceMeshVTK(const std::string& name) const;
@@ -1617,7 +1617,7 @@ void InOutOctree<DIM>::printOctreeStats() const
 }
 
 template <int DIM>
-void InOutOctree<DIM>::checkAllLeavesColoredAtLevel(int AXOM_DEBUG_PARAM(level)) const
+void InOutOctree<DIM>::checkAllLeavesColoredAtLevel(AXOM_MAYBE_UNUSED int level) const
 {
 #if AXOM_SLIC_DEBUG_MACROS_ENABLED
   detail::InOutOctreeValidator<DIM> validator(*this);

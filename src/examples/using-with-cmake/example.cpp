@@ -22,7 +22,7 @@ int main()
   axom::slic::SimpleLogger logger;
   int debug_evaluations = 0;
 
-  const auto verify_debug_param = [](int AXOM_DEBUG_PARAM(value)) {
+  const auto verify_debug_param = [](AXOM_MAYBE_UNUSED int value) {
     SLIC_ASSERT_MSG(value == 4, "Unexpected value: " << value);
   };
 

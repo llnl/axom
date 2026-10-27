@@ -454,7 +454,7 @@ private:
   inline void verifyPosition(PositionType pos) const { verifyPositionImpl(pos); };
 
   /** \brief Debug check that the index \a pos is not out-of-range */
-  inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos)) const
+  inline void verifyPositionImpl(AXOM_MAYBE_UNUSED PositionType pos) const
   {
     SLIC_ASSERT_MSG((pos >= 0) && (pos < size()),
                     "SLAM::DynamicSet -- requested out-of-range element at position "

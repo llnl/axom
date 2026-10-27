@@ -679,7 +679,7 @@ private:
     verifyPositionImpl(setIdx, compIdx);
   }
 
-  inline void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(idx)) const
+  inline void verifyPositionImpl(AXOM_MAYBE_UNUSED SetPosition idx) const
   {
     SLIC_ASSERT_MSG(
       idx >= 0 && idx < SetPosition(m_data.size()),
@@ -687,8 +687,8 @@ private:
   }
 
   template <typename ComponentIndex>
-  inline void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(setIdx),
-                                 ComponentIndex AXOM_DEBUG_PARAM(compIdx)) const
+  inline void verifyPositionImpl(AXOM_MAYBE_UNUSED SetPosition setIdx,
+                                 AXOM_MAYBE_UNUSED ComponentIndex compIdx) const
   {
     SLIC_ASSERT_MSG(setIdx >= 0 && setIdx < size() && compIdx >= 0 && compIdx < numComp(),
                     "Attempted to access element at (" << setIdx << "," << compIdx
@@ -697,8 +697,8 @@ private:
   }
 
   template <typename... ComponentIndex>
-  inline void verifyPositionImpl(SetPosition AXOM_DEBUG_PARAM(setIdx),
-                                 ComponentIndex... AXOM_DEBUG_PARAM(compIdx)) const
+  inline void verifyPositionImpl(AXOM_MAYBE_UNUSED SetPosition setIdx,
+                                 AXOM_MAYBE_UNUSED ComponentIndex... compIdx) const
   {
 #if AXOM_SLIC_DEBUG_MACROS_ENABLED
     ElementShape indexArray {{compIdx...}};

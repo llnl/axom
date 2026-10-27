@@ -25,7 +25,7 @@ TEST(slic_disable_debug_macros, disabled_with_axom_debug)
   axom::slic::SimpleLogger logger;
   int evaluation_count = 0;
 
-  const auto verify_value = [](int AXOM_DEBUG_PARAM(value)) {
+  const auto verify_value = [](AXOM_MAYBE_UNUSED int value) {
     SLIC_ASSERT_MSG(value == 4, "Unexpected value: " << value);
   };
 

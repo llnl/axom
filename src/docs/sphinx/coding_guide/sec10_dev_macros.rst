@@ -25,22 +25,23 @@ system that we use in day-to-day code development.
 Unused variables
 ------------------------------------
 
-10.2 To silence compiler warnings and express variable usage intent more 
-clearly, macros in the `AxomMacros.hpp` header file in the source include 
-directory **must** be used when appropriate. For example,::
+10.2 To silence compiler warnings and express variable usage intent more
+clearly, macros in the ``axom/core/Macros.hpp`` header file **must** be used
+when appropriate. For example,::
 
-    void my_function(int x, int AXOM_DEBUG_PARAM(y))
+    void my_function(AXOM_MAYBE_UNUSED int y)
     {
-      // use variable y only for debug compilation
+      SLIC_ASSERT(y > 0);
     }
 
-Here, the `AXOM_DEBUG_PARAM` macro indicates that the variable 'y' is only
-used when the code is compiled in debug mode. It also removes the variable
-name in the argument list in non-debug compilation to prevent unwanted
-compiler warnings.
+Here, ``AXOM_MAYBE_UNUSED`` indicates that the parameter ``y`` might be unused
+in configurations where ``SLIC_ASSERT`` is disabled. The parameter remains
+named in every configuration, while the annotation prevents unwanted compiler
+warnings. Prefer this macro for variables and parameters whose use depends on
+debug or SLIC macros.
 
-Please see the `AxomMacros.hpp` header file for other available macros and 
-usage examples.
+Please see the ``axom/core/Macros.hpp`` header file for other available macros
+and usage examples.
 
 
 ------------------------------------

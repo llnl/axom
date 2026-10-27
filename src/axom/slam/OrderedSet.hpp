@@ -462,7 +462,7 @@ public:
 
 private:
   inline void verifyPosition(PositionType pos) const { verifyPositionImpl(pos); }
-  inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos)) const
+  inline void verifyPositionImpl(AXOM_MAYBE_UNUSED PositionType pos) const
   {
     SLIC_ASSERT_MSG(isValidIndex(pos),
                     "SLAM::OrderedSet -- requested out-of-range element at position "

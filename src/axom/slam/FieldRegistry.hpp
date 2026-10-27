@@ -630,7 +630,7 @@ private:
     return axom::fmt::format("__field_{}", cnt++);
   }
 
-  inline void verifyFieldsKey(std::string_view AXOM_DEBUG_PARAM(key)) const
+  inline void verifyFieldsKey(AXOM_MAYBE_UNUSED std::string_view key) const
   {
 #if AXOM_SLIC_DEBUG_MACROS_ENABLED
     auto it = m_maps.find(key);
@@ -640,22 +640,22 @@ private:
 #endif
   }
 
-  inline void verifyFieldViewKey(std::string_view AXOM_DEBUG_PARAM(key)) const
+  inline void verifyFieldViewKey(AXOM_MAYBE_UNUSED std::string_view key) const
   {
     SLIC_ASSERT_MSG(hasFieldView(key), "Didn't find view field named " << key);
   }
 
-  inline void verifyBufferKey(std::string_view AXOM_DEBUG_PARAM(key)) const
+  inline void verifyBufferKey(AXOM_MAYBE_UNUSED std::string_view key) const
   {
     SLIC_ASSERT_MSG(hasBuffer(key), "Didn't find buffer named " << key);
   }
 
-  inline void verifyBufferViewKey(std::string_view AXOM_DEBUG_PARAM(key)) const
+  inline void verifyBufferViewKey(AXOM_MAYBE_UNUSED std::string_view key) const
   {
     SLIC_ASSERT_MSG(hasBufferView(key), "Didn't find view buffer named " << key);
   }
 
-  inline void verifyScalarKey(std::string_view AXOM_DEBUG_PARAM(key)) const
+  inline void verifyScalarKey(AXOM_MAYBE_UNUSED std::string_view key) const
   {
     SLIC_ASSERT_MSG(hasScalar(key), "Didn't find scalar named " << key);
   }

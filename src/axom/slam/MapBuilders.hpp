@@ -43,7 +43,7 @@ axom::IndexType map_storage_size(const SetType* set, PosType stride)
 template <typename SetType, typename T, typename PosType>
 inline void check_map_view_size(const SetType* set,
                                 PosType stride,
-                                const axom::ArrayView<T>& AXOM_DEBUG_PARAM(data))
+                                AXOM_MAYBE_UNUSED const axom::ArrayView<T>& data)
 {
 #if AXOM_SLIC_DEBUG_MACROS_ENABLED
   const axom::IndexType expected = map_storage_size(set, stride);

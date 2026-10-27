@@ -98,7 +98,7 @@ TEST(slam_set_positionset, construct_set_builder)
   // The two sets should be equal
   EXPECT_EQ(s, s2);
 
-#if AXOM_SLIC_DEBUG_MACROS_ENABLED
+#ifdef AXOM_DEBUG
   // Using inappropriate SetBuilder features generates an assert failure
   SLIC_INFO("Cannot construct a PositionSets with an invalid SetBuilder");
 

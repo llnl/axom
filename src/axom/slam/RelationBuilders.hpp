@@ -69,7 +69,7 @@ inline axom::IndexType relation_from_size(const FromSet* fromSet)
  */
 template <typename FromSet>
 inline void check_variable_relation_size(const FromSet* fromSet,
-                                         axom::IndexType AXOM_DEBUG_PARAM(beginsSize))
+                                         AXOM_MAYBE_UNUSED axom::IndexType beginsSize)
 {
 #if AXOM_SLIC_DEBUG_MACROS_ENABLED
   const axom::IndexType expected = relation_from_size(fromSet) + 1;
@@ -94,8 +94,8 @@ inline void check_variable_relation_size(const FromSet* fromSet,
  */
 template <typename FromSet, typename PosType>
 inline void check_constant_relation_size(const FromSet* fromSet,
-                                         PosType AXOM_DEBUG_PARAM(stride),
-                                         axom::IndexType AXOM_DEBUG_PARAM(indicesSize))
+                                         AXOM_MAYBE_UNUSED PosType stride,
+                                         AXOM_MAYBE_UNUSED axom::IndexType indicesSize)
 {
 #if AXOM_SLIC_DEBUG_MACROS_ENABLED
   const axom::IndexType expected = relation_from_size(fromSet) * static_cast<axom::IndexType>(stride);

@@ -206,8 +206,8 @@
  * \brief Macro that is used to silence compiler warnings about variables that
  *        might be unused in some build configurations.
  *
- * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR and AXOM_DEBUG_PARAM but it
- *       is applied before the variable type declaration.
+ * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR. It is
+ *       applied before a variable or parameter type declaration.
  * \code
  *
  *  AXOM_MAYBE_UNUSED double myVar = ...
@@ -225,11 +225,8 @@
 /*!
  * \def AXOM_DEBUG_PARAM(x)
  * \brief Macro used to silence compiler warnings about parameters that are
- *        only used when AXOM_DEBUG or Slic debug macros are enabled
+ *        only used when AXOM_DEBUG is enabled
  * \note Default values are ok
- * \note Retained parameter names are marked maybe-unused because AXOM and Slic
- *       debug settings can be enabled independently, and the active setting
- *       might not use every debug-only parameter.
  * \code
  *
  *  void my_function(int x, int AXOM_DEBUG_PARAM(y))
@@ -240,8 +237,8 @@
  *
  * \endcode
  */
-#if defined(AXOM_DEBUG) || (defined(AXOM_ENABLE_SLIC_DEBUG_MACROS) && AXOM_ENABLE_SLIC_DEBUG_MACROS)
-  #define AXOM_DEBUG_PARAM(_x) _x AXOM_MAYBE_UNUSED
+#ifdef AXOM_DEBUG
+  #define AXOM_DEBUG_PARAM(_x) _x
 #else
   #define AXOM_DEBUG_PARAM(_x)
 #endif

@@ -411,7 +411,7 @@ void write_multidim_data(const Field* field, std::ofstream& file)
  * \param [in] file the stream to write to.
  * \pre field_data != nullptr
  */
-void write_data(const FieldData* field_data, IndexType AXOM_DEBUG_PARAM(num_values), std::ofstream& file)
+void write_data(const FieldData* field_data, AXOM_MAYBE_UNUSED IndexType num_values, std::ofstream& file)
 {
   const int numFields = field_data->getNumFields();
   for(int i = 0; i < numFields; ++i)
