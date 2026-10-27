@@ -81,6 +81,56 @@ class GWNMomentData
 public:
   GWNMomentData() = default;
 
+  /// Construct moments from a point-supported dipole.
+  explicit GWNMomentData(const axom::primal::Dipole<T, NDIMS>& dipole)
+  {
+    const auto source = dipole.getSource();
+    const T magnitude = static_cast<T>(dipole.getMagnitude());
+
+    // `a` and `ap` track an unsigned measure solely to locate the expansion
+    // center. A dipole's source is its exact center, independent of direction.
+    a = magnitude;
+    for(int i = 0; i < NDIMS; ++i)
+    {
+      ap[i] = magnitude * source[i];
+    }
+
+    // Store the outward-oriented dipole strength directly in both dimensions.
+    const auto strength = magnitude * dipole.getDirection();
+    for(int i = 0; i < NDIMS; ++i)
+    {
+      rm[i] = strength[i];
+    }
+
+    if constexpr(ORD >= 1)
+    {
+      int m = NDIMS;
+      for(int i = 0; i < NDIMS; ++i)
+      {
+        for(int j = 0; j < NDIMS; ++j, ++m)
+        {
+          rm[m] = source[i] * strength[j];
+        }
+      }
+
+      if constexpr(ORD >= 2)
+      {
+        for(int i = 0; i < NDIMS; ++i)
+        {
+          for(int j = 0; j < NDIMS; ++j)
+          {
+            for(int k = 0; k < NDIMS; ++k, ++m)
+            {
+              rm[m] = source[i] * source[j] * strength[k];
+            }
+          }
+        }
+      }
+    }
+
+    compute_coefficients();
+  }
+
   /// Construct moments from a 3D triangle
   explicit GWNMomentData(const axom::primal::Triangle<T, 3>& a_tri)
   {
@@ -163,10 +213,10 @@ public:
     const auto x1 = p1[0];
     const auto y1 = p1[1];
 
-    // Needed to track the centroid across the tree
-    const auto dx = x1 - x0;
-    const auto dy = y0 - y1;  // actually -dy since it was more useful.
-    a = sqrt(dx * dx + dy * dy);
+    // The right normal is outward for a counterclockwise-oriented boundary.
+    const auto normal_x = y1 - y0;
+    const auto normal_y = x0 - x1;
+    a = sqrt(normal_x * normal_x + normal_y * normal_y);
     ap[0] = a * 0.5 * (x0 + x1);
     ap[1] = a * 0.5 * (y0 + y1);
 
@@ -183,29 +233,29 @@ public:
     const auto x1y0 = x1 * y0;
     const auto x1y1 = x1 * y1;
 
-    rm[0] = dy;
-    rm[1] = dx;
+    rm[0] = normal_x;
+    rm[1] = normal_y;
 
     if constexpr(ORD >= 1)
     {
-      rm[2] = 0.5 * dy * (x0 + x1);
-      rm[3] = 0.5 * (x1x1 - x0x0);
-      rm[4] = 0.5 * (y0y0 - y1y1);
-      rm[5] = 0.5 * (dx) * (y0 + y1);
+      rm[2] = 0.5 * normal_x * (x0 + x1);
+      rm[3] = 0.5 * (x0x0 - x1x1);
+      rm[4] = 0.5 * (y1y1 - y0y0);
+      rm[5] = 0.5 * normal_y * (y0 + y1);
 
       if constexpr(ORD == 2)
       {
         const auto A = (x0x0 + x0x1 + x1x1) / 3.0;
-        rm[6] = dy * A;
+        rm[6] = normal_x * A;
         const auto B = (x0y0 + 0.5 * (x0y1 + x1y0) + x1y1) / 3.0;
-        rm[7] = dy * B;
+        rm[7] = normal_x * B;
         rm[8] = rm[7];
         const auto C = (y0y0 + y0y1 + y1y1) / 3.0;
-        rm[9] = dy * C;
-        rm[10] = dx * A;
-        rm[11] = dx * B;
+        rm[9] = normal_x * C;
+        rm[10] = normal_y * A;
+        rm[11] = normal_y * B;
         rm[12] = rm[11];
-        rm[13] = dx * C;
+        rm[13] = normal_y * C;
       }
     }
 
@@ -254,7 +304,7 @@ public:
         }
       }
 
-      return -0.5 * M_1_PI * (terms[0] + terms[1] + terms[2]);
+      return 0.5 * M_1_PI * (terms[0] + terms[1] + terms[2]);
     }
 
     if constexpr(NDIMS == 3)
@@ -387,12 +437,13 @@ public:
  * \tparam T Numeric type of geometric primitives
  * \tparam NDIMS The spatial dimensions of the shape (2 or 3)
  * \tparam ORD The number of terms in the Taylor expansion
- * \tparam LeafGeometry The type of the objects which could require direct evaluation
+ * \tparam LeafCollection An indexed collection of objects which could require direct evaluation
  * \tparam TraverserType The derived type of the traverser for the BVH tree
  * \param [in] query The query point at which to evaluate the GWN
  * \param [in] traverser A traverser for the BVH tree 
- * \param [in] leaf_objects A view of all individual geometric objects in the shape,
- *                           indexed by position in the BVH tree
+ * \param [in] leaf_objects All individual geometric objects in the shape,
+ *                           indexed by position in the BVH tree. This collection
+ *                           may select a thread-local object during indexed access.
  * \param [in] internal_moments A view of GWNMomentData objects for each internal node 
  *                               of the BVH tree, each representing a cluster of leaf objects
  * \param [in] wt A structure of possible tolerances for GWN evaluation to permit
@@ -405,26 +456,28 @@ public:
  * 
  * \return The approximated GWN at the query point
  */
-template <typename T, int NDIMS, int ORD, typename LeafGeometry, typename TraverserType>
+template <typename T, int NDIMS, int ORD, typename LeafCollection, typename TraverserType>
 double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
                                        const TraverserType& traverser,
-                                       const ArrayView<LeafGeometry>& leaf_objects,
+                                       const LeafCollection& leaf_objects,
                                        const ArrayView<GWNMomentData<T, NDIMS, ORD>>& internal_moments,
                                        const primal::WindingTolerances& wt,
                                        double beta = 2.0)
 {
+  static_assert(
+    requires(const LeafCollection& collection, axom::IndexType index) { collection[index]; },
+    "LeafCollection must support const indexed access.");
+
+  const double beta_scale_factor = 0.25 * beta * beta;
   double gwn = 0.0;
 
-  const auto leaf_objects_view = leaf_objects;
-  const auto internal_moments_view = internal_moments;
-  using LeafGeom = std::decay_t<LeafGeometry>;
-
-  auto bbContain = [&gwn, &internal_moments_view, &beta](const primal::Point<T, NDIMS>& query,
-                                                         const primal::BoundingBox<T, NDIMS>& bvhBbox,
-                                                         std::int32_t node_index) -> bool {
+  auto bbContain = [&gwn, internal_moments, &beta_scale_factor](
+                     const primal::Point<T, NDIMS>& query,
+                     const primal::BoundingBox<T, NDIMS>& bvhBbox,
+                     std::int32_t node_index) -> bool {
     const bool near_tree =
-      axom::primal::squared_distance(query, internal_moments_view[node_index].getCenter()) <
-      beta * beta * bvhBbox.range().squared_norm() / 4;
+      axom::primal::squared_distance(query, internal_moments[node_index].getCenter()) <
+      beta_scale_factor * bvhBbox.range().squared_norm();
 
     // If we're inside an internal node bbox, need to keep recurring
     if(near_tree)
@@ -434,53 +487,18 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     // If we're outside an internal node bbox, we can add its contribution to the GWN
     else
     {
-      gwn += internal_moments_view[node_index].approx_winding_number(query);
+      gwn += internal_moments[node_index].approx_winding_number(query);
       return false;
     }
   };
 
-  if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>> ||
-               std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>> ||
-               std::is_same_v<LeafGeom, axom::primal::detail::NURBSCurveGWNCache<T>>)
-  {
-    auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
-                                                           const std::int32_t* leafNodes) -> void {
-      const auto idx = leafNodes[currentNode];
-      gwn += axom::primal::winding_number(query, leaf_objects_view[idx], wt.edge_tol, wt.EPS);
-    };
+  auto leaf_gwn = [&query, &gwn, leaf_objects, &wt](std::int32_t currentNode,
+                                                    const std::int32_t* leafNodes) -> void {
+    const auto index = leafNodes[currentNode];
+    gwn += axom::primal::winding_number(query, leaf_objects[index], wt);
+  };
 
-    traverser.traverse_tree(query, leaf_gwn, bbContain);
-  }
-
-  if constexpr(std::is_same_v<LeafGeom, axom::primal::Segment<T, 2>>)
-  {
-    auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
-                                                           const std::int32_t* leafNodes) -> void {
-      const auto idx = leafNodes[currentNode];
-      gwn += axom::primal::winding_number(query, leaf_objects_view[idx], wt.edge_tol);
-    };
-
-    traverser.traverse_tree(query, leaf_gwn, bbContain);
-  }
-
-  if constexpr(std::is_same_v<LeafGeom, axom::primal::NURBSPatch<T, 3>> ||
-               std::is_same_v<LeafGeom, axom::primal::detail::NURBSPatchGWNCache<T>>)
-  {
-    auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
-                                                           const std::int32_t* leafNodes) -> void {
-      const auto idx = leafNodes[currentNode];
-      gwn += axom::primal::winding_number(query,
-                                          leaf_objects_view[idx],
-                                          wt.edge_tol,
-                                          wt.ls_tol,
-                                          wt.quad_tol,
-                                          wt.disk_size,
-                                          wt.EPS);
-    };
-
-    traverser.traverse_tree(query, leaf_gwn, bbContain);
-  }
-  // Support for other leaf types forthcoming...
+  traverser.traverse_tree(query, leaf_gwn, bbContain);
 
   return gwn;
 }
