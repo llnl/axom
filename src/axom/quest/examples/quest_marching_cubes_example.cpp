@@ -517,13 +517,20 @@ bool validateContourField(const BlueprintStructuredMesh& mesh,
     if(!reason.empty())
     {
       localValid = false;
-      SLIC_ERROR(axom::fmt::format("Cannot contour field '{}' in local domain {}: {}.",
-                                   fieldName,
-                                   domainIdx,
-                                   reason));
+      // Warn rather than error so ranks reports invalid domains before agreeing on an outcome below.
+      SLIC_WARNING(axom::fmt::format("Cannot contour field '{}' in local domain {}: {}.",
+                                     fieldName,
+                                     domainIdx,
+                                     reason));
     }
   }
-  return allReduce(localValid ? 1 : 0, ReductionOperation::LogicalAnd) != 0;
+
+  const bool globalValid = allReduce(localValid ? 1 : 0, ReductionOperation::LogicalAnd) != 0;
+  SLIC_INFO_IF(
+    !globalValid && myRank == 0,
+    axom::fmt::format("Field '{}' cannot be contoured; see the warnings above.", fieldName));
+
+  return globalValid;
 }
 
 std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
