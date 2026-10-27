@@ -568,6 +568,41 @@ std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
   return fieldNames;
 }
 
+/// Returns the union of \a localStrings over all MPI ranks.
+std::set<std::string> allUnion(const std::set<std::string>& localStrings)
+{
+#ifdef AXOM_USE_MPI
+  // Pack the strings into one null-separated buffer and all-gather the buffers.
+  std::string packed = axom::fmt::format("{}", axom::fmt::join(localStrings, std::string(1, '\0')));
+  if(!localStrings.empty())
+  {
+    packed.push_back('\0');
+  }
+
+  int localSize = static_cast<int>(packed.size());
+  std::vector<int> sizes(numRanks);
+  MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+  std::vector<int> displacements(numRanks);
+  axom::exclusive_scan<axom::SEQ_EXEC>(sizes, displacements);
+
+  std::string gathered(displacements.back() + sizes.back(), '\0');
+  MPI_Allgatherv(packed.data(),
+                 localSize,
+                 MPI_CHAR,
+                 gathered.data(),
+                 sizes.data(),
+                 displacements.data(),
+                 MPI_CHAR,
+                 MPI_COMM_WORLD);
+
+  const auto strings = axom::utilities::string::split(gathered, '\0');
+  return {strings.begin(), strings.end()};
+#else
+  return localStrings;
+#endif
+}
+
 using ScalarRange = axom::primal::BoundingBox<double, 1>;
 
 struct FieldSummary
@@ -648,6 +683,9 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
     FieldSummary global;
     global.numericDomains = allReduce(local.numericDomains, ReductionOperation::Sum);
     global.hasNan = allReduce(local.hasNan, ReductionOperation::Max);
+    global.topologies = allUnion(local.topologies);
+    global.types = allUnion(local.types);
+    global.centerings = allUnion(local.centerings);
 
     const int hasRange = allReduce(local.valueRange.isValid() ? 1 : 0, ReductionOperation::Max);
     if(hasRange != 0)
@@ -680,9 +718,9 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
     }
 
     rows.push_back({{fieldName,
-                     axom::fmt::format("{}", axom::fmt::join(local.topologies, ", ")),
-                     axom::fmt::format("{}", axom::fmt::join(local.types, ", ")),
-                     axom::fmt::format("{}", axom::fmt::join(local.centerings, ", ")),
+                     axom::fmt::format("{}", axom::fmt::join(global.topologies, ", ")),
+                     axom::fmt::format("{}", axom::fmt::join(global.types, ", ")),
+                     axom::fmt::format("{}", axom::fmt::join(global.centerings, ", ")),
                      range}});
   }
 
