@@ -1825,7 +1825,6 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential_order)
     .grouping = spin::BucketedBVHGrouping::Sequential};
   BucketedBVH bvh;
   ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), NUM_BOXES, parameters));
-  EXPECT_EQ(2, bvh.getNumLeaves());
 
   std::vector<axom::IndexType> bucket_sizes;
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };

@@ -43,7 +43,8 @@ enum BVHReturnCodes
 //! \brief BVH construction policies.
 enum class BVHType
 {
-  LinearBVH
+  LinearBVH,
+  BucketedLinearBVH
 };
 
 /*! \brief Build-time configuration for a BVH policy.

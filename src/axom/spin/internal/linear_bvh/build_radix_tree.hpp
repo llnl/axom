@@ -31,7 +31,6 @@
 
 #include <atomic>
 #include <type_traits>
-#include <vector>
 
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA)
   // NOTE: uses the cub installation that is  bundled with RAJA
@@ -634,11 +633,8 @@ void initialize_spatially_sorted_leaves(const BoxIndexable boxes,
  * CPU-first partitioning phase is intentionally serial; the following bucket
  * hierarchy construction continues to use the requested execution space.
  */
-struct SpatialKeyBucketRange
-{
-  std::int32_t begin;
-  std::int32_t end;
-};
+
+using BucketRange = std::pair<std::int32_t, std::int32_t>;
 
 //------------------------------------------------------------------------------
 inline void append_shared_prefix_buckets(const ArrayView<const std::uint32_t> keys,
@@ -646,7 +642,7 @@ inline void append_shared_prefix_buckets(const ArrayView<const std::uint32_t> ke
                                          std::int32_t end,
                                          int bit,
                                          std::int32_t max_bucket_size,
-                                         std::vector<SpatialKeyBucketRange>& bucket_ranges)
+                                         Array<BucketRange>& bucket_ranges)
 {
   // Check if the current bucket is bigger than allowed
   const std::int32_t bucket_size = end - begin;
@@ -714,7 +710,7 @@ inline void append_shared_prefix_buckets(const ArrayView<const std::uint32_t> ke
  */
 template <typename ExecSpace, typename FloatType, int NDIMS>
 void build_bucket_tree_from_ranges(const RadixTree<FloatType, NDIMS>& primitive_tree,
-                                   const std::vector<SpatialKeyBucketRange>& bucket_ranges,
+                                   const Array<BucketRange>& bucket_ranges,
                                    RadixTree<FloatType, NDIMS>& bucket_tree,
                                    Array<IndexType>& bucket_offsets,
                                    Array<std::int32_t>& bucket_primitive_ids,
@@ -726,7 +722,6 @@ void build_bucket_tree_from_ranges(const RadixTree<FloatType, NDIMS>& primitive_
   const auto primitive_ids = primitive_tree.m_leafs.view();
   const std::int32_t num_primitives = primitive_tree.m_size;
   const auto num_buckets = static_cast<std::int32_t>(bucket_ranges.size());
-  const auto* bucket_ranges_data = bucket_ranges.data();
 
   // Radix tree for buckets: each leaf stores a bucket union AABB, a
   // representative key, and its bucket ID.
@@ -745,9 +740,10 @@ void build_bucket_tree_from_ranges(const RadixTree<FloatType, NDIMS>& primitive_
 
   // Bucket ranges partition the sorted primitive list. Each iteration writes
   // a distinct bucket entry and a disjoint primitive-ID subrange.
+  const auto bucket_ranges_view = bucket_ranges.view();
   for_all<ExecSpace>(num_buckets, [=] AXOM_HOST_DEVICE(std::int32_t bucket) {
-    const std::int32_t begin = bucket_ranges_data[bucket].begin;
-    const std::int32_t end = bucket_ranges_data[bucket].end;
+    const std::int32_t begin = bucket_ranges_view[bucket].first;
+    const std::int32_t end = bucket_ranges_view[bucket].second;
 
     // Combine all boxes for primitives in this Morton-prefix range.
     primal::BoundingBox<FloatType, NDIMS> bucket_aabb;
@@ -786,7 +782,7 @@ void build_shared_prefix_buckets(const RadixTree<FloatType, NDIMS>& primitive_tr
   SLIC_ASSERT(primitive_tree.m_size > 0);
   SLIC_ASSERT(max_bucket_size > 0);
 
-  std::vector<SpatialKeyBucketRange> bucket_ranges;
+  Array<BucketRange> bucket_ranges;
   {
     AXOM_ANNOTATE_SCOPE("LinearBVH::sharedPrefixBucketRanges");
     append_shared_prefix_buckets(primitive_tree.m_keys.view(),
@@ -818,7 +814,7 @@ void build_sequential_buckets(const RadixTree<FloatType, NDIMS>& primitive_tree,
   SLIC_ASSERT(primitive_tree.m_size > 0);
   SLIC_ASSERT(max_bucket_size > 0);
 
-  std::vector<SpatialKeyBucketRange> bucket_ranges;
+  Array<BucketRange> bucket_ranges;
   {
     AXOM_ANNOTATE_SCOPE("LinearBVH::sequentialBucketRanges");
     bucket_ranges.reserve((primitive_tree.m_size + max_bucket_size - 1) / max_bucket_size);
