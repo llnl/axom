@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file marching_cubes_example.cpp
+ * \file quest_marching_cubes_example.cpp
  * \brief Extract an isocontour from a scalar field in a Conduit Blueprint mesh
 */
 
@@ -13,7 +13,7 @@
 
 // Implementation requires Conduit.
 #ifndef AXOM_USE_CONDUIT
-  #error "MarchingCubesFullParallel.hpp requires conduit"
+  #error "quest_marching_cubes_example.cpp requires conduit"
 #endif
 
 // Axom includes
@@ -32,7 +32,6 @@
 #include "conduit_relay_io_blueprint.hpp"
 #ifdef AXOM_USE_MPI
   #include "conduit_blueprint_mpi.hpp"
-  #include "conduit_relay_mpi.hpp"
   #include "conduit_relay_mpi_io_blueprint.hpp"
 #endif
 
@@ -131,14 +130,15 @@ public:
       ->description("Name of the structured Blueprint topology to contour")
       ->capture_default_str();
 
-    app.add_option("-f,--field", fieldName)
-      ->description(
-        "Name of the vertex-associated float64 scalar field to contour; "
-        "required unless --list-fields is used");
+    auto* fieldOption = app.add_option("-f,--field", fieldName)
+                          ->description(
+                            "Name of the vertex-associated float64 scalar field to contour; "
+                            "required unless --list-fields is used");
 
     app.add_flag("--list-fields", listFields)
       ->description("List scalar fields, their centering, and ranges, then exit")
-      ->capture_default_str();
+      ->capture_default_str()
+      ->excludes(fieldOption);
 
     app.add_flag("-v,--verbose,!--no-verbose", _verboseOutput)
       ->description("Enable/disable verbose output")
@@ -443,7 +443,6 @@ private:
   int _ndims {-1};
   conduit::Node _mdMesh;
   axom::IndexType _domCount;
-  bool _coordsAreStrided = false;
   const std::string _topologyName;
   const std::string _topologyPath;
   std::string _coordsetPath;
@@ -478,9 +477,6 @@ private:
       auto coordsetName = _mdMesh[0].fetch_existing(_topologyPath + "/coordset").as_string();
       _coordsetPath = axom::fmt::format("coordsets/{}", coordsetName);
       SLIC_ASSERT(_mdMesh[0].has_path(_coordsetPath));
-
-      _coordsAreStrided =
-        _mdMesh[0].fetch_existing(_topologyPath + "/elements/dims").has_child("strides");
       const conduit::Node coordsetNode = _mdMesh[0].fetch_existing(_coordsetPath);
       _ndims = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
@@ -540,7 +536,7 @@ bool validateContourField(const BlueprintStructuredMesh& mesh,
     if(!reason.empty())
     {
       localValid = false;
-      // Warn rather than error so ranks reports invalid domains before agreeing on an outcome below.
+      // Warn rather than error so ranks report invalid domains before agreeing on an outcome below.
       SLIC_WARNING(axom::fmt::format("Cannot contour field '{}' in local domain {}: {}.",
                                      fieldName,
                                      domainIdx,
@@ -554,48 +550,6 @@ bool validateContourField(const BlueprintStructuredMesh& mesh,
     axom::fmt::format("Field '{}' cannot be contoured; see the warnings above.", fieldName));
 
   return globalValid;
-}
-
-std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
-{
-  std::vector<std::string> fieldNames;
-  if(!mesh.empty() && mesh.domain(0).has_child("fields"))
-  {
-    fieldNames = mesh.domain(0).fetch_existing("fields").child_names();
-    std::sort(fieldNames.begin(), fieldNames.end());
-  }
-
-#ifdef AXOM_USE_MPI
-  // find ID of a rank w/ fields; handles case where fields are missing from rank 0 (or from all ranks)
-  const int sourceRank = allReduce(mesh.empty() ? numRanks : myRank, ReductionOperation::Min);
-  if(sourceRank == numRanks)
-  {
-    return fieldNames;
-  }
-
-  conduit::Node rootFieldNamesNode;
-  if(myRank == sourceRank)
-  {
-    rootFieldNamesNode.set(conduit::DataType::list());
-    for(const auto& fieldName : fieldNames)
-    {
-      rootFieldNamesNode.append() = fieldName;
-    }
-  }
-  conduit::relay::mpi::broadcast_using_schema(rootFieldNamesNode, sourceRank, MPI_COMM_WORLD);
-
-  std::vector<std::string> rootFieldNames;
-  rootFieldNames.reserve(rootFieldNamesNode.number_of_children());
-  for(const conduit::Node& fieldName : rootFieldNamesNode.children())
-  {
-    rootFieldNames.push_back(fieldName.as_string());
-  }
-  const bool namesAgree = allReduce(mesh.empty() || fieldNames == rootFieldNames ? 1 : 0,
-                                    ReductionOperation::LogicalAnd) != 0;
-  SLIC_ERROR_IF(!namesAgree, "Field names must agree across nonempty MPI ranks.");
-  fieldNames = rootFieldNames;
-#endif
-  return fieldNames;
 }
 
 /// Returns the union of \a localStrings over all MPI ranks.
@@ -633,6 +587,26 @@ std::set<std::string> allUnion(const std::set<std::string>& localStrings)
 #endif
 }
 
+/// Returns the sorted names of the fields on any domain of any rank.
+std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
+{
+  std::set<std::string> localNames;
+  for(axom::IndexType domainIdx = 0; domainIdx < mesh.domainCount(); ++domainIdx)
+  {
+    const conduit::Node& domain = mesh.domain(domainIdx);
+    if(domain.has_child("fields"))
+    {
+      for(const auto& name : domain.fetch_existing("fields").child_names())
+      {
+        localNames.insert(name);
+      }
+    }
+  }
+
+  const std::set<std::string> globalNames = allUnion(localNames);
+  return std::vector<std::string>(globalNames.begin(), globalNames.end());
+}
+
 using ScalarRange = axom::primal::BoundingBox<double, 1>;
 
 struct FieldSummary
@@ -644,6 +618,17 @@ struct FieldSummary
   std::set<std::string> types;
   std::set<std::string> centerings;
 };
+
+/// Returns the string at \a field[\a child], or a placeholder if it is missing or not a string.
+std::string stringOrPlaceholder(const conduit::Node& field, const std::string& child)
+{
+  if(!field.has_child(child))
+  {
+    return "<missing>";
+  }
+  const conduit::Node& node = field.fetch_existing(child);
+  return node.dtype().is_string() ? node.as_string() : "<invalid>";
+}
 
 FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh, const std::string& fieldName)
 {
@@ -657,10 +642,8 @@ FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh, const std:
     }
 
     const conduit::Node& field = domain.fetch_existing("fields").child(fieldName);
-    const std::string association =
-      field.has_child("association") ? field.fetch_existing("association").as_string() : "<missing>";
-    const std::string topology =
-      field.has_child("topology") ? field.fetch_existing("topology").as_string() : "<missing>";
+    const std::string association = stringOrPlaceholder(field, "association");
+    const std::string topology = stringOrPlaceholder(field, "topology");
     summary.topologies.insert(topology);
     summary.centerings.insert(association);
 
@@ -1008,7 +991,6 @@ struct ContourRunner
                                 params.objectRepCount,
                                 params.contourGenCount));
     printTimingStats(initializationTimer, axom::fmt::format("init"));
-    printTimingStats(contourTimerM, axom::fmt::format("setMeshContour"));
     printTimingStats(setMeshTimer, axom::fmt::format("setMesh"));
     printTimingStats(contourTimer, axom::fmt::format("steady-contour"));
     printTimingStats(contourTimerM, axom::fmt::format("first-contour"));
