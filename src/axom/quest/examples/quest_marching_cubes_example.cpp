@@ -74,6 +74,7 @@ struct Input
 {
 public:
   std::string meshFile;
+  std::string topologyName {"mesh"};
   std::string fieldName;
   bool listFields {false};
 
@@ -126,6 +127,10 @@ public:
       ->check(axom::CLI::ExistingFile)
       ->required();
 
+    app.add_option("-t,--topology", topologyName)
+      ->description("Name of the structured Blueprint topology to contour")
+      ->capture_default_str();
+
     app.add_option("-f,--field", fieldName)
       ->description(
         "Name of the vertex-associated float64 scalar field to contour; "
@@ -160,7 +165,8 @@ public:
     app.add_option("--maskCount", maskCount)
       ->description(
         "Group the cells using this many masking groups to test masking "
-        "(default to 1).")
+        "(default to 1). The groups are stored in a generated element field "
+        "named 'mask', so the input mesh must not already have a field of that name.")
       ->capture_default_str()
       ->check(axom::CLI::Range(1, std::numeric_limits<int>::max()));
 
@@ -263,6 +269,9 @@ void getMinMaxSum(T inVal, T& minVal, T& maxVal, T& sumVal)
 }
 
 Input params;
+
+/// Name of the element field the example generates to test masking.
+const std::string s_maskFieldName {"mask"};
 
 int myRank = -1, numRanks = -1;  // MPI stuff, set in main().
 
@@ -457,7 +466,15 @@ private:
 
     if(_domCount > 0)
     {
-      SLIC_ASSERT(_mdMesh[0].has_path(_topologyPath));
+      if(!_mdMesh[0].has_path(_topologyPath))
+      {
+        const std::vector<std::string> topologyNames = _mdMesh[0].has_child("topologies")
+          ? _mdMesh[0].fetch_existing("topologies").child_names()
+          : std::vector<std::string> {};
+        SLIC_ERROR(axom::fmt::format("Mesh has no topology '{}'. Its topologies are: [{}].",
+                                     _topologyName,
+                                     axom::fmt::join(topologyNames, ", ")));
+      }
       auto coordsetName = _mdMesh[0].fetch_existing(_topologyPath + "/coordset").as_string();
       _coordsetPath = axom::fmt::format("coordsets/{}", coordsetName);
       SLIC_ASSERT(_mdMesh[0].has_path(_coordsetPath));
@@ -486,7 +503,13 @@ bool validateContourField(const BlueprintStructuredMesh& mesh,
   {
     const conduit::Node& domain = mesh.domain(domainIdx);
     std::string reason;
-    if(!domain.has_child("fields") || !domain.fetch_existing("fields").has_child(fieldName))
+    if(domain.has_path("fields/" + s_maskFieldName))
+    {
+      reason = axom::fmt::format(
+        "the mesh already has a field named '{}', which this example generates for masking",
+        s_maskFieldName);
+    }
+    else if(!domain.has_child("fields") || !domain.fetch_existing("fields").has_child(fieldName))
     {
       reason = "field is missing";
     }
@@ -857,7 +880,7 @@ struct ContourRunner
         axom::fmt::format("fields/{}/values", params.fieldName),
         s_allocatorId);
       computationalMesh.moveMeshDataToNewMemorySpace<int>(
-        axom::fmt::format("fields/{}/values", "mask"),
+        axom::fmt::format("fields/{}/values", s_maskFieldName),
         s_allocatorId);
     }
 
@@ -931,14 +954,14 @@ struct ContourRunner
         initializationTimer.start();
         mcPtr =
           std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
-        mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
+        mcPtr->setMesh(computationalMesh.asConduitNode(), params.topologyName, s_maskFieldName);
         initializationTimer.stop();
       }
       auto& mc = *mcPtr;
 
       // Clear and set MarchingCubes object for a "new" mesh.
       setMeshTimer.start();
-      mc.setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
+      mc.setMesh(computationalMesh.asConduitNode(), params.topologyName, s_maskFieldName);
       setMeshTimer.stop();
 
 #ifdef AXOM_USE_MPI
@@ -1011,7 +1034,7 @@ struct ContourRunner
         axom::fmt::format("fields/{}/values", params.fieldName),
         axom::execution_space<axom::SEQ_EXEC>::allocatorID());
       computationalMesh.moveMeshDataToNewMemorySpace<int>(
-        axom::fmt::format("fields/{}/values", "mask"),
+        axom::fmt::format("fields/{}/values", s_maskFieldName),
         axom::execution_space<axom::SEQ_EXEC>::allocatorID());
     }
 
@@ -1082,7 +1105,6 @@ struct ContourRunner
 
   void addMaskField(BlueprintStructuredMesh& bpMesh)
   {
-    std::string maskFieldName = "mask";
     axom::StackArray<axom::IndexType, DIM> zeros;
     for(int d = 0; d < DIM; ++d)
     {
@@ -1098,13 +1120,13 @@ struct ContourRunner
       {
         fastestDirs[d] = slowestDirs[DIM - 1 - d];
       }
-      domainView.createField(maskFieldName,
+      domainView.createField(s_maskFieldName,
                              "element",
                              conduit::DataType::c_int(cellCount),
                              zeros,
                              zeros,
                              fastestDirs);
-      auto maskView = domainView.template getFieldView<int>(maskFieldName);
+      auto maskView = domainView.template getFieldView<int>(s_maskFieldName);
       int maskCount = params.maskCount;
       axom::for_all<axom::SEQ_EXEC>(0, cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
         maskView.flatIndex(cellId) = (cellId % maskCount);
@@ -1246,7 +1268,7 @@ int main(int argc, char** argv)
   // Load computational mesh.
   //---------------------------------------------------------------------------
   AXOM_ANNOTATE_BEGIN("load mesh");
-  BlueprintStructuredMesh computationalMesh(params.meshFile, "mesh");
+  BlueprintStructuredMesh computationalMesh(params.meshFile, params.topologyName);
   AXOM_ANNOTATE_END("load mesh");
 
   if(params.listFields)
@@ -1256,7 +1278,7 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  if(!validateContourField(computationalMesh, params.fieldName, "mesh"))
+  if(!validateContourField(computationalMesh, params.fieldName, params.topologyName))
   {
     finalizeLogger();
     return 1;
