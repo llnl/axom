@@ -34,7 +34,7 @@
 //  #define DEBUG_OCTREE_ACTIVE
 #endif
 
-#if defined(DEBUG_OCTREE_ACTIVE) && defined(AXOM_DEBUG)
+#if defined(DEBUG_OCTREE_ACTIVE) && AXOM_SLIC_DEBUG_MACROS_ENABLED
   #define QUEST_OCTREE_DEBUG_LOG_IF(_cond, _msg) \
     if(_cond) SLIC_DEBUG(_msg)
 #else

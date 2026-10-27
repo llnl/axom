@@ -74,7 +74,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   `SLIC_DEBUG` macro families independently of `AXOM_DEBUG`. Downstream CMake
   projects can override the setting exported by Axom. With `DEFAULT`, the
   macros are enabled when `AXOM_DEBUG` is defined and compiled to no-ops
-  otherwise.
+  otherwise. The read-only `AXOM_SLIC_DEBUG_MACROS_ENABLED` preprocessor macro
+  provides the effective `0` or `1` state for source-code guards; it must not be
+  defined directly.
 
 ## [Version 0.15.0] - Release date 2026-08-28
 

@@ -340,6 +340,12 @@ def build_and_test_host_config(test_root, host_config,
 
     if should_test_installed_cmake_example:
         install_example_dir = pjoin(install_dir, "examples", "axom", "using-with-cmake")
+
+        # Keep the default installed-consumer smoke test, which inherits Axom's
+        # installed setting, then verify that a downstream project can explicitly
+        # enable or disable SLIC debug macros. The override cases check SLIC_DEBUG
+        # evaluation and compile a parameter used only by SLIC_ASSERT to catch
+        # configuration-dependent declarations.
         slic_debug_cases = [
             ("default", ""),
             ("on", "-DAXOM_ENABLE_SLIC_DEBUG_MACROS=ON -DAXOM_EXAMPLE_EXPECT_SLIC_DEBUG=ON"),

@@ -153,7 +153,29 @@ definition to downstream targets, independently of the downstream build type.
 ``ON`` or ``OFF`` explicitly enables or disables the Slic macros without
 changing other code guarded by ``AXOM_DEBUG``. A downstream CMake project can
 set this variable before calling ``find_package(axom)`` to override the setting
-exported by Axom. When disabled, the macros are empty and do nothing. When a
+exported by Axom.
+
+Choose a preprocessor guard according to the behavior it controls:
+
+* Use ``AXOM_DEBUG`` for general debug-only behavior that is independent of
+  whether Slic debug macros are active.
+* Use ``AXOM_SLIC_DEBUG_MACROS_ENABLED`` for work performed exclusively to
+  support ``SLIC_ASSERT``, ``SLIC_CHECK``, or ``SLIC_DEBUG``. Enabling Slic
+  debug macros must not enable unrelated ``AXOM_DEBUG`` behavior.
+
+For example, guard supporting work used only by Slic debug macros as follows::
+
+   #if AXOM_SLIC_DEBUG_MACROS_ENABLED
+     // Compute values or perform validation used only by Slic debug macros.
+   #endif
+
+This read-only macro evaluates to ``0`` or ``1`` and reflects the effective
+state after applying ``AXOM_ENABLE_SLIC_DEBUG_MACROS`` and its default
+``AXOM_DEBUG`` behavior. Do not define it directly. In particular, do not use
+``AXOM_ENABLE_SLIC_DEBUG_MACROS`` as a source-code condition because it is
+undefined in ``DEFAULT`` mode.
+
+When disabled, the Slic debug macros are empty and do nothing. When a
 condition is encountered that is problematic, such as 'in_val < 0' or
 'in_foo == nullptr', the code will
 emit the condition and an optional message and not halt. This allows calling

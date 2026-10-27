@@ -298,8 +298,19 @@
 
 ///@}
 
-// An explicit Slic setting controls these macros directly. Without one, they
-// are enabled when AXOM_DEBUG is defined and disabled otherwise.
+/*!
+ * \def AXOM_SLIC_DEBUG_MACROS_ENABLED
+ * \brief Read-only condition indicating whether SLIC debug macros are enabled.
+ *
+ * This macro is derived from \c AXOM_ENABLE_SLIC_DEBUG_MACROS when that
+ * setting is explicit. In its default mode, the value follows \c AXOM_DEBUG.
+ * The result is suitable for preprocessor guards around supporting code that
+ * should be compiled only when \c SLIC_ASSERT, \c SLIC_CHECK, and
+ * \c SLIC_DEBUG are enabled.
+ *
+ * \warning Do not define this macro directly. Configure
+ *          \c AXOM_ENABLE_SLIC_DEBUG_MACROS instead.
+ */
 #if defined(AXOM_ENABLE_SLIC_DEBUG_MACROS)
   #define AXOM_SLIC_DEBUG_MACROS_ENABLED AXOM_ENABLE_SLIC_DEBUG_MACROS
 #elif defined(AXOM_DEBUG)

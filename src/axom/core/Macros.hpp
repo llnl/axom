@@ -202,27 +202,6 @@
 #define AXOM_UNUSED_VAR(_x) static_cast<void>(_x)
 
 /*!
- * \def AXOM_MAYBE_UNUSED
- * \brief Macro that is used to silence compiler warnings about variables that
- *        might be unused in some build configurations.
- *
- * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR. It is
- *       applied before a variable or parameter type declaration.
- * \code
- *
- *  AXOM_MAYBE_UNUSED double myVar = ...
- *  SLIC_ASSERT(myVar > 0)
- *
- * \endcode
- */
-#if __cplusplus >= 201703L
-  // C++17 and later.
-  #define AXOM_MAYBE_UNUSED [[maybe_unused]]
-#else
-  #define AXOM_MAYBE_UNUSED
-#endif
-
-/*!
  * \def AXOM_DEBUG_PARAM(x)
  * \brief Macro used to silence compiler warnings about parameters that are
  *        only used when AXOM_DEBUG is enabled
@@ -241,6 +220,27 @@
   #define AXOM_DEBUG_PARAM(_x) _x
 #else
   #define AXOM_DEBUG_PARAM(_x)
+#endif
+
+/*!
+ * \def AXOM_MAYBE_UNUSED
+ * \brief Macro that is used to silence compiler warnings about variables that
+ *        might be unused in some build configurations.
+ *
+ * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR. It is
+ *       applied before a variable or parameter type declaration.
+ * \code
+ *
+ *  AXOM_MAYBE_UNUSED double myVar = ...
+ *  SLIC_ASSERT(myVar > 0)
+ *
+ * \endcode
+ */
+#if __cplusplus >= 201703L
+  // C++17 and later.
+  #define AXOM_MAYBE_UNUSED [[maybe_unused]]
+#else
+  #define AXOM_MAYBE_UNUSED
 #endif
 
 /*!
