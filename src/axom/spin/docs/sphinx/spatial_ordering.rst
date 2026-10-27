@@ -21,8 +21,7 @@ consecutive Hilbert cells share an edge in 2D or a face in 3D.
 From positions to keys
 ----------------------
 
-This example constructs a lattice over the unit square and encodes a point
-with both curves:
+This example constructs a lattice over the unit square and encodes a point with both curves:
 
 .. code-block:: cpp
 
@@ -31,25 +30,29 @@ with both curves:
    #include "axom/spin/HilbertIndex.hpp"
    #include <cstdint>
 
-   using Key = std::uint32_t;
+   using KeyType = std::uint32_t;
    using Point = axom::primal::Point<double, 2>;
    constexpr int level = 4;
 
    const axom::primal::BoundingBox<double, 2> domain(Point {0., 0.}, Point {1., 1.});
    const auto lattice = axom::spin::rectangular_lattice_from_bounding_box(
-     domain, axom::NumericArray<Key, 2>(Key {1} << level));
+     domain, axom::NumericArray<KeyType, 2>(KeyType {1} << level));
 
    const auto cell = lattice.gridCell(Point {0.3, 0.7});
-   const auto morton = axom::spin::convertPointToMorton<Key>(cell);
-   const auto hilbert = axom::spin::convertPointToHilbert<Key>(cell, level);
+   const auto morton = axom::spin::convertPointToMorton<KeyType>(cell);
+   const auto hilbert = axom::spin::convertPointToHilbert<KeyType>(cell, level);
 
-   const auto morton_cell = axom::spin::convertMortonToPoint<Key, 2>(morton);
-   const auto hilbert_cell = axom::spin::convertHilbertToPoint<Key, 2>(hilbert, level);
+   const auto morton_cell = axom::spin::convertMortonToPoint<KeyType, 2>(morton);
+   const auto hilbert_cell = axom::spin::convertHilbertToPoint<KeyType, 2>(hilbert, level);
    const auto center = lattice.cellBounds(hilbert_cell).getCentroid();
 
 Decoding recovers the integer cell; ``cellBounds()`` gives its spatial extent.
-Use the same level when encoding and decoding Hilbert keys. The lattice is
-unbounded, so ensure encoded cell coordinates lie in ``[0, 2^level - 1]``.
+Hilbert's rotations and reflections depend on the curve's level, so use the
+same level to encode and decode its keys. Morton interleaves coordinate bits
+in a fixed order and needs no level parameter.
+
+The lattice is unbounded, so ensure encoded cell coordinates lie in
+``[0, 2^level - 1]``.
 
 Compute a key for each point and sort by that key. Points in the same cell
 share a key; a stable sort preserves their input order.
