@@ -227,6 +227,12 @@ enum class ReductionOperation
   LogicalAnd
 };
 
+/*!
+ * \brief Applies \a operation to \a value across all ranks.
+ *
+ * \return The reduced value, or \a value in builds without MPI.
+ * \note Collective: All MPI ranks must call this function in the same order.
+ */
 template <typename T>
 T allReduce(T value, ReductionOperation operation)
 {
@@ -260,6 +266,8 @@ T allReduce(T value, ReductionOperation operation)
 
 }  // namespace
 
+/// Computes the global min, max and sum of \a inVal.
+/// \note Collective: All MPI ranks must call this function.
 template <typename T>
 void getMinMaxSum(T inVal, T& minVal, T& maxVal, T& sumVal)
 {
@@ -279,6 +287,8 @@ int myRank = -1, numRanks = -1;  // MPI stuff, set in main().
 struct BlueprintStructuredMesh
 {
 public:
+  /// Loads \a meshFile in parallel and computes global mesh properties.
+  /// \note Collective: All MPI ranks must call this constructor.
   explicit BlueprintStructuredMesh(const std::string& meshFile, const std::string& topologyName)
     : _topologyName(topologyName)
     , _topologyPath("topologies/" + topologyName)
@@ -403,7 +413,8 @@ public:
 
   const std::string& coordsetPath() const { return _coordsetPath; }
 
-  /// Checks whether the blueprint is valid and prints diagnostics
+  /// Checks whether the blueprint is valid and prints diagnostics.
+  /// \note Collective: All MPI ranks must call this function.
   bool isValid() const
   {
     conduit::Node info;
@@ -490,6 +501,12 @@ private:
 namespace
 {
 
+/*!
+ * \brief Checks \a fieldName in each local domain and warns about invalid domains.
+ *
+ * \return True if every domain on every rank can contour the field.
+ * \note Collective: All MPI ranks must call this function.
+ */
 bool validateContourField(const BlueprintStructuredMesh& mesh,
                           const std::string& fieldName,
                           const std::string& topologyName)
@@ -553,6 +570,7 @@ bool validateContourField(const BlueprintStructuredMesh& mesh,
 }
 
 /// Returns the union of \a localStrings over all MPI ranks.
+/// \note Collective: All MPI ranks must call this function.
 std::set<std::string> allUnion(const std::set<std::string>& localStrings)
 {
 #ifdef AXOM_USE_MPI
@@ -588,6 +606,7 @@ std::set<std::string> allUnion(const std::set<std::string>& localStrings)
 }
 
 /// Returns the sorted names of the fields on any domain of any rank.
+/// \note Collective: All MPI ranks must call this function.
 std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
 {
   std::set<std::string> localNames;
@@ -678,6 +697,12 @@ FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh, const std:
   return summary;
 }
 
+/*!
+ * \brief Prints a table of numeric fields and their global properties on rank 0.
+ *
+ * \note Collective: All MPI ranks must call this function. Each rank performs the same sequence
+ * of reductions for every field, including fields it does not have.
+ */
 void printFieldSummary(const BlueprintStructuredMesh& mesh)
 {
   const auto fieldNames = getFieldNames(mesh);
@@ -767,7 +792,8 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
 
 }  // namespace
 
-/// Output some timing stats
+/// Prints global timing statistics.
+/// \note Collective: All MPI ranks must call this function.
 void printTimingStats(axom::utilities::Timer& t, const std::string& description)
 {
   {
@@ -797,7 +823,8 @@ void printTimingStats(axom::utilities::Timer& t, const std::string& description)
   }
 }
 
-/// Write blueprint mesh to disk
+/// Writes the blueprint mesh to disk.
+/// \note Collective: All MPI ranks must call this function.
 void saveMesh(const conduit::Node& mesh, const std::string& filename)
 {
   AXOM_ANNOTATE_SCOPE("save mesh (conduit)");
@@ -810,7 +837,8 @@ void saveMesh(const conduit::Node& mesh, const std::string& filename)
 }
 
 #if defined(AXOM_USE_SIDRE)
-/// Write blueprint mesh to disk
+/// Writes the blueprint mesh to disk.
+/// \note Collective: All MPI ranks must call this function.
 void saveMesh(const sidre::Group& mesh, const std::string& filename)
 {
   AXOM_ANNOTATE_SCOPE("save mesh (sidre)");
@@ -843,6 +871,8 @@ struct ContourRunner
   const std::string m_parentCellIdField;
   const std::string m_domainIdField;
 
+  /// Runs the contour loops, prints statistics, and writes the output mesh.
+  /// \note Collective: All MPI ranks must call this function.
   void run(BlueprintStructuredMesh& computationalMesh)
   {
     AXOM_ANNOTATE_SCOPE("run contour");
@@ -1068,6 +1098,8 @@ struct ContourRunner
     AXOM_ANNOTATE_END("contour output");
   }
 
+  /// Reports global contour sizes.
+  /// \note Collective: All MPI ranks must call this function.
   void printRunStats(const quest::MarchingCubes& mc)
   {
     {
@@ -1189,6 +1221,7 @@ void finalizeLogger()
 }
 
 //! Run contour extraction for one dimension and execution space.
+//! \note Collective: All MPI ranks must call this function.
 template <int DIM, typename ExecSpace>
 void runNdimInstance(BlueprintStructuredMesh& computationalMesh)
 {

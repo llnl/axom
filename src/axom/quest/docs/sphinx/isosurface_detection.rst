@@ -60,6 +60,18 @@ The following example shows usage of the ``MarchingCubes`` class.
 (A complete example is provided in
 ``src/axom/quest/examples/quest_marching_cubes_example.cpp``.)
 
+To run the example, first list the scalar fields in a Blueprint mesh.
+Then choose a vertex-associated ``float64`` field to contour:
+
+.. code-block:: bash
+
+   ./examples/quest_marching_cubes_ex -m mdmesh.2x2x1.root --list-fields
+   ./examples/quest_marching_cubes_ex -m mdmesh.2x2x1.root -f gyroid_fcn --contourVal 1.25
+
+If the topology is not named ``mesh``, set ``--topology`` to its name.
+Use ``src/tools/gen-cartesian-blueprint-mesh.py --field all`` to generate
+an input mesh with scalar fields.
+
 Relevant header files:
 
 .. sourcecode:: C++
