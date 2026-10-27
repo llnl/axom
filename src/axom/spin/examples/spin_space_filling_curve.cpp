@@ -6,27 +6,27 @@
 
 /*!
  *  \file spin_space_filling_curve.cpp
- *  \brief Visualize Morton or Hilbert ordering on random points and a regular grid.
+ *  \brief Visualize Morton and Hilbert ordering of random points and a BVH.
  *
- *  Sample points in the unit square or cube and sort them with Spin's Morton
- *  or Hilbert codec. A Primal bounding box defines the domain, and Spin's
- *  RectangularLattice maps each point to an integer cell for encoding.
+ *  Sample uniform points in the unit square or cube, and use a RectangularLattice
+ *  to maps them to integer cells for Morton or Hilbert encoding.
+ *  Point keys use 32 bits, with 16 bits per axis in 2D and 10 in 3D.
  *
- *  Random points use the full depth available to a 32-bit key (16 in 2D, 10 in 3D).
- *  The embedding grid has 2^level cells per axis, selected by `--level`.
- *  We also construct the complete curve through that grid's cell centers.
- *  Changing `--level` leaves the random-point keys and sort order unchanged.
- *  The default, --level 0, chooses a grid level from the point count.
+ *  A separate display grid has 2^level cells per axis.
+ *  Level 0 chooses its resolution from the point count and changing the level
+ *  does not affect point keys, sort order, or BVH construction.
  *
- *  We use SLAM to encode the point set and segment mesh connecting them as well as the
- *  fields defined on them, and write out four meshes as Conduit Blueprint:
+ *  The example uses SLAM to encode the coordinates, fields, and line connectivity
+ *  and outputs them as Blueprint meshes:
  *
- *  - _points.root: Random points with their original IDs, 32-bit keys, and ranks.
- *  - _grid.root: The embedding grid with a key for each cell at --level.
- *  - _curve.root: The complete curve joining all grid cell centers in key order.
- *  - _point_segments.root: Segments joining random points in sorted key order.
+ *  - _points.root: Points with their original IDs, keys, and sort ranks.
+ *  - _grid.root: Display grid with a key for each cell.
+ *  - _curve.root: Curve joining all display cell centers in key order.
+ *  - _point_segments.root: Segments joining sampled points in key order.
+ *  - _bvh.vtk: BVH boxes with a "level" cell field for depth, starting at zero.
  *
- *  You can modify the prefix for these meshes using the `--output` option.
+ *  The BVH uses the selected ordering and one box with zero extent per point.
+ *  It normalizes coordinates to the input bounds. Point mesh keys use the unit square or cube.
  */
 
 #include "axom/config.hpp"
@@ -76,7 +76,7 @@ using Point = axom::primal::Point<double, DIM>;
 template <int DIM, typename CoordType>
 using Lattice = axom::spin::RectangularLattice<DIM, double, CoordType>;
 
-// Command-line options and derived sizes for the sorting and display lattices.
+// Options and grid sizes.
 struct Input
 {
   SpaceFillingCurve order {SpaceFillingCurve::Hilbert};
@@ -88,7 +88,6 @@ struct Input
   std::string output {"space_filling_curve"};
   std::string protocol {"json"};
 
-  // Parse options, choose the display level, and check sizes before allocating meshes.
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     const std::map<std::string, SpaceFillingCurve> orders {{"morton", SpaceFillingCurve::Morton},
@@ -102,22 +101,20 @@ struct Input
     app.add_option("-l,--level", level, "Display grid depth; 0 chooses from the point count")
       ->check(axom::CLI::Range(0, 16))
       ->capture_default_str();
-    app
-      .add_option("-n,--num-points", num_points, "Number of random points in the unit square/cube")
+    app.add_option("-n,--num-points", num_points)
+      ->description("Number of uniform points in the unit square or cube")
       ->check(axom::CLI::PositiveNumber)
       ->capture_default_str();
-    app.add_option("--seed", seed, "Random seed (use the same seed to compare curves)")
+    app.add_option("--seed", seed, "Random seed. Reuse it to compare curves on the same points")
       ->check(axom::CLI::NonNegativeNumber)
       ->capture_default_str();
     app.add_option("--max-cells", max_cells, "Maximum cells to create in the grid and curve")
       ->check(axom::CLI::PositiveNumber)
       ->capture_default_str();
-    app
-      .add_option("-o,--output",
-                  output,
-                  "Output prefix for _points.root, _grid.root, _curve.root, _point_segments.root")
+    app.add_option("-o,--output", output)
+      ->description("Output prefix for the four Blueprint meshes and _bvh.vtk")
       ->capture_default_str();
-    app.add_option("--protocol", protocol, "Conduit Relay output format")
+    app.add_option("--protocol", protocol, "Blueprint output format")
       ->check(axom::CLI::IsMember({"json", "hdf5"}))
       ->capture_default_str();
     app.parse(argc, argv);
@@ -142,14 +139,6 @@ struct Input
       throw axom::CLI::ValidationError("--output", "The output prefix must not be empty");
     }
 
-    // Check before shifting or allocating. Connectivity has two entries per segment.
-    const int key_bits = dimension * level;
-    if(key_bits >= std::numeric_limits<IndexType>::digits ||
-       key_bits >= std::numeric_limits<KeyType>::digits)
-    {
-      throw axom::CLI::ValidationError("--level",
-                                       "Grid and line connectivity exceed index capacity");
-    }
     if(numCells() > max_cells)
     {
       throw axom::CLI::ValidationError(
@@ -161,30 +150,43 @@ struct Input
           numCells(),
           max_cells));
     }
-    if(num_points - 1 > std::numeric_limits<IndexType>::max() / 2)
+    // The VTK writer uses 32-bit counts for 2*N-1 boxes and their corner connectivity.
+    const auto max_bvh_nodes = std::numeric_limits<std::int32_t>::max() / ((1 << dimension) + 1);
+    if(num_points > (max_bvh_nodes + 1) / 2)
     {
-      throw axom::CLI::ValidationError("--num-points", "Point connectivity exceeds index capacity");
+      throw axom::CLI::ValidationError("--num-points", "BVH export exceeds VTK index capacity");
     }
-    // Check the largest per-entity allocation: a point or two endpoint indices.
-    const auto entry_bytes = std::max(dimension * sizeof(double), 2 * sizeof(IndexType));
-    const auto max_entries = std::numeric_limits<std::size_t>::max() / entry_bytes;
+    // Each segment needs two indices. Check array sizes and Conduit's byte offsets.
+    const auto point_bytes = dimension * sizeof(double);
+    const auto segment_bytes = 2 * sizeof(IndexType);
+    const auto max_entries = std::min<KeyType>(
+      {std::numeric_limits<IndexType>::max() / 2 + 1,
+       std::numeric_limits<std::size_t>::max() / std::max(2 * point_bytes, segment_bytes),
+       std::numeric_limits<conduit::index_t>::max() / std::max(point_bytes, segment_bytes)});
     if(numCells() > max_entries || static_cast<KeyType>(num_points) > max_entries)
     {
       throw axom::CLI::ValidationError("--level/--num-points",
-                                       "Requested arrays exceed addressable storage");
+                                       "Requested arrays exceed index or storage capacity");
+    }
+
+    conduit::Node relay_info;
+    conduit::relay::io::about(relay_info);
+    if(relay_info["protocols/" + protocol].as_string() != "enabled")
+    {
+      throw axom::CLI::ValidationError("--protocol",
+                                       protocol + " is unavailable in this Conduit build");
     }
   }
 
   // Number of display cells along each axis.
   KeyType cellsPerAxis() const { return KeyType {1} << level; }
 
-  // Total display cells, also the number of vertices in the complete curve.
+  // Number of display cells and curve vertices.
   KeyType numCells() const { return KeyType {1} << (dimension * level); }
 
-  // Maximum per-coordinate depth that fits the random-point key type.
+  // Bits per axis in a point key.
   int sortLevel() const { return std::numeric_limits<SortKeyType>::digits / dimension; }
 
-  // Lowercase curve name used in output metadata.
   std::string orderName() const
   {
     return order == SpaceFillingCurve::Hilbert ? "hilbert" : "morton";
@@ -227,8 +229,7 @@ Point<DIM> getRandomPoint(const axom::primal::BoundingBox<double, DIM>& bbox, un
   return point;
 }
 
-// Sample points, assign full-depth keys, and connect neighbors in stable key order.
-// Coordinates and fields retain original point IDs; ranks give their sorted positions.
+// Sample points and connect them in key order. Keep coordinates in input order.
 template <int DIM>
 void orderPoints(const Input& params,
                  const axom::primal::BoundingBox<double, DIM>& domain,
@@ -253,15 +254,14 @@ void orderPoints(const Input& params,
     keys[i] = encode(cell, params.order, bits);
   }
 
-  // Sort point IDs, leaving coordinates and keys in input order.
-  // A stable sort keeps equal-key points in their original ID order.
+  // Stable sorting preserves input order for equal keys.
   Field<IndexType> permutation(&points);
   std::iota(permutation.begin(), permutation.end(), IndexType {0});
   std::stable_sort(permutation.begin(), permutation.end(), [&](IndexType a, IndexType b) {
     return keys[a] < keys[b];
   });
 
-  // The permutation maps rank to original ID; ranks stores the inverse.
+  // Map each original ID to its sort rank.
   for(const auto rank : points)
   {
     ranks[permutation[rank]] = rank;
@@ -277,14 +277,14 @@ void orderPoints(const Input& params,
   SLIC_ASSERT(segment_to_point.isValid());
 }
 
-// Decode every display-level key into a cell center and connect centers in key order.
+// Connect display cell centers in key order.
 // Grid keys use Cartesian cell IDs; curve vertices use their keys as IDs.
 template <int DIM>
-void makeCurve(const Input& params,
-               const Lattice<DIM, KeyType>& lattice,
-               Field<KeyType>& grid_keys,
-               Field<Point<DIM>>& centers,
-               SegmentToVertex& segment_to_vertex)
+void makeSpaceFillingCurve(const Input& params,
+                           const Lattice<DIM, KeyType>& lattice,
+                           Field<KeyType>& grid_keys,
+                           Field<Point<DIM>>& centers,
+                           SegmentToVertex& segment_to_vertex)
 {
   const auto side = params.cellsPerAxis();
   for(const auto key : *centers.set())
@@ -310,12 +310,29 @@ void makeCurve(const Input& params,
   SLIC_ASSERT(segment_to_vertex.isValid());
 }
 
-// Export helpers below translate the SLAM data into Blueprint meshes.
+// Build a BVH over point boxes in input order.
+template <int DIM>
+void buildBVH(const Input& params, const Field<Point<DIM>>& positions, axom::spin::BVH<DIM>& bvh)
+{
+  using Box = typename axom::spin::BVH<DIM>::BoxType;
+  Field<Box> boxes(positions.set());
+  for(const auto i : *positions.set())
+  {
+    boxes[i] = Box(positions[i]);
+  }
+  bvh.setScaleFactor(1.);
+  if(bvh.initialize(boxes.data().view(), boxes.size(), {.ordering = params.order}) !=
+     axom::spin::BVH_BUILD_OK)
+  {
+    throw std::runtime_error("Failed to build the point BVH");
+  }
+}
+
 constexpr const char* AXES[] = {"x", "y", "z"};
 constexpr const char* GRID_AXES[] = {"i", "j", "k"};
 constexpr const char* SPACING_AXES[] = {"dx", "dy", "dz"};
 
-// Expose each coordinate as a strided view of the SLAM point buffer, without copying.
+// Share the point buffer with Conduit using one strided array per axis.
 template <int DIM>
 void writeCoordinates(conduit::Node& mesh, Field<Point<DIM>>& positions)
 {
@@ -331,7 +348,7 @@ void writeCoordinates(conduit::Node& mesh, Field<Point<DIM>>& positions)
   }
 }
 
-// Bind a vertex or element field to its existing buffer, retaining its numeric type.
+// Share a field's buffer with Conduit.
 template <typename T>
 void writeField(conduit::Node& mesh,
                 const std::string& name,
@@ -344,7 +361,7 @@ void writeField(conduit::Node& mesh,
   field["values"].set_external(values.data(), values.size());
 }
 
-// Record the display and key levels, verify Blueprint, and save <prefix>_<suffix>.root.
+// Add metadata, verify Blueprint, and write the mesh.
 void saveMesh(conduit::Node& mesh, const Input& params, const std::string& suffix, int key_level)
 {
   mesh["state/domain_id"] = 0;
@@ -366,7 +383,7 @@ void saveMesh(conduit::Node& mesh, const Input& params, const std::string& suffi
   SLIC_INFO(axom::fmt::format("Wrote {}.root ({})", path, params.protocol));
 }
 
-// Export the points, embedding grid, complete curve, and sorted-point segments.
+// Write the four Blueprint meshes and the BVH.
 template <int DIM>
 void writeMeshes(Input params,
                  const Lattice<DIM, KeyType>& grid,
@@ -376,37 +393,20 @@ void writeMeshes(Input params,
                  SegmentToVertex& segment_to_point,
                  Field<KeyType>& grid_keys,
                  Field<Point<DIM>>& centers,
-                 SegmentToVertex& segment_to_vertex)
+                 SegmentToVertex& segment_to_vertex,
+                 const axom::spin::BVH<DIM>& bvh)
 {
-  conduit::Node relay_info;
-  conduit::relay::io::about(relay_info);
-  if(relay_info["protocols/" + params.protocol].as_string() != "enabled")
-  {
-    throw axom::CLI::ValidationError("--protocol",
-                                     params.protocol + " is unavailable in this Conduit build");
-  }
-  // Account for strided coordinates and two indices per line segment.
-  const auto max_bytes = std::min<KeyType>(std::numeric_limits<conduit::index_t>::max(),
-                                           std::numeric_limits<std::size_t>::max());
-  const auto max_entries = max_bytes / std::max(sizeof(Point<DIM>), 2 * sizeof(IndexType));
-  if(params.numCells() > max_entries || static_cast<KeyType>(params.num_points) > max_entries)
-  {
-    throw axom::CLI::ValidationError("--level/--num-points",
-                                     "Requested arrays exceed Conduit storage capacity");
-  }
-
   // Relay treats ':' as a subpath separator, so save from the output directory
   // to avoid passing a Windows drive letter to Relay.
   const auto output_prefix = std::filesystem::absolute(params.output);
   std::filesystem::current_path(output_prefix.parent_path());
   params.output = output_prefix.filename().string();
 
-  // Position sets have no backing buffer. Share one ID array across the exported fields.
-  // SLAM buffers and IDs stay alive and unchanged until every saveMesh() completes.
+  // Share one ID array across the output fields. Keep all buffers alive until saving finishes.
   axom::Array<KeyType> ids(std::max(positions.size(), centers.size()));
   std::iota(ids.begin(), ids.end(), KeyType {0});
 
-  // Random points in original ID order, with keys and sort ranks as vertex fields.
+  // Points and sorted segments share coordinates and vertex fields.
   {
     conduit::Node mesh;
     writeCoordinates(mesh, positions);
@@ -416,16 +416,27 @@ void writeMeshes(Input params,
     writeField(mesh, "point_id", "vertex", ids.view().subspan(0, positions.size()));
     writeField(mesh, "sort_rank", "vertex", ranks.data().view());
     saveMesh(mesh, params, "points", params.sortLevel());
+
+    auto& topology = mesh["topologies/mesh"];
+    topology["type"] = "unstructured";
+    topology["elements/shape"] = "line";
+    auto& connectivity = segment_to_point.relationData();
+    topology["elements/connectivity"].set_external(connectivity.data(), connectivity.size());
+    writeField(mesh,
+               "segment_index",
+               "element",
+               ids.view().subspan(0, segment_to_point.fromSet()->size()));
+    saveMesh(mesh, params, "point_segments", params.sortLevel());
   }
 
-  // Embedding grid at --level, with a curve key for each cell.
+  // Display grid with a key for each cell.
   {
     conduit::Node mesh;
     auto& coords = mesh["coordsets/coords"];
     coords["type"] = "uniform";
     for(int d = 0; d < DIM; ++d)
     {
-      // Blueprint uniform dimensions count vertices, so each dim needs one extra entry.
+      // Blueprint dimensions count vertices, not cells.
       coords["dims"][GRID_AXES[d]] = params.cellsPerAxis() + 1;
       coords["origin"][AXES[d]] = grid.origin()[d];
       coords["spacing"][SPACING_AXES[d]] = grid.spacing()[d];
@@ -436,7 +447,7 @@ void writeMeshes(Input params,
     saveMesh(mesh, params, "grid", params.level);
   }
 
-  // Complete Morton/Hilbert curve through every cell center of the embedding grid.
+  // Curve through all display cell centers.
   {
     conduit::Node mesh;
     writeCoordinates(mesh, centers);
@@ -454,28 +465,12 @@ void writeMeshes(Input params,
     saveMesh(mesh, params, "curve", params.level);
   }
 
-  // Random-point segments join consecutive sort ranks and share the point mesh's vertex fields.
-  {
-    conduit::Node mesh;
-    writeCoordinates(mesh, positions);
-    auto& topology = mesh["topologies/mesh"];
-    topology["type"] = "unstructured";
-    topology["coordset"] = "coords";
-    topology["elements/shape"] = "line";
-    auto& connectivity = segment_to_point.relationData();
-    topology["elements/connectivity"].set_external(connectivity.data(), connectivity.size());
-    writeField(mesh, params.indexField(), "vertex", keys.data().view());
-    writeField(mesh, "point_id", "vertex", ids.view().subspan(0, positions.size()));
-    writeField(mesh, "sort_rank", "vertex", ranks.data().view());
-    writeField(mesh,
-               "segment_index",
-               "element",
-               ids.view().subspan(0, segment_to_point.fromSet()->size()));
-    saveMesh(mesh, params, "point_segments", params.sortLevel());
-  }
+  const auto bvh_path = params.output + "_bvh.vtk";
+  bvh.writeVtkFile(bvh_path);
+  SLIC_INFO(axom::fmt::format("Wrote {}", bvh_path));
 }
 
-// Build both lattices and the SLAM fields and relations, then export the four meshes.
+// Generate the points, display curve, and BVH, then write the output files.
 template <int DIM>
 void run(const Input& params)
 {
@@ -506,6 +501,9 @@ void run(const Input& params)
     axom::slam::make_constant_relation_ct<2>(&point_segments, &points, point_connectivity);
   orderPoints(params, domain, sorting_lattice, positions, keys, ranks, segment_to_point);
 
+  axom::spin::BVH<DIM> bvh;
+  buildBVH(params, positions, bvh);
+
   EntitySet cells(static_cast<IndexType>(params.numCells()));
   EntitySet vertices(cells.size());
   EntitySet segments(vertices.size() - 1);
@@ -514,7 +512,7 @@ void run(const Input& params)
   axom::Array<IndexType> connectivity(2 * segments.size());
   auto segment_to_vertex =
     axom::slam::make_constant_relation_ct<2>(&segments, &vertices, connectivity);
-  makeCurve(params, display_lattice, grid_keys, centers, segment_to_vertex);
+  makeSpaceFillingCurve(params, display_lattice, grid_keys, centers, segment_to_vertex);
 
   writeMeshes(params,
               display_lattice,
@@ -524,17 +522,16 @@ void run(const Input& params)
               segment_to_point,
               grid_keys,
               centers,
-              segment_to_vertex);
+              segment_to_vertex,
+              bvh);
 }
 }  // namespace
 
-// Run the example in the requested dimension and report option or export errors.
 int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger logger;
   Input params;
-  axom::CLI::App app {
-    "Write Blueprint point, Cartesian grid, and line meshes in Morton or Hilbert order"};
+  axom::CLI::App app {"Write Morton or Hilbert Blueprint meshes and BVH boxes in VTK format"};
   try
   {
     params.parse(argc, argv, app);
