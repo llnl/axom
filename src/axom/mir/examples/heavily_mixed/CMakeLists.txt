@@ -11,10 +11,18 @@ set( mir_example_dependencies
      bump
    )
 
-# Speed up compilation by separating out the execspaces into different runMIR_xxx.cpp files.
+# Speed up compilation by separating the execution spaces into different files.
+set(mir_heavily_mixed_sources
+    mir_heavily_mixed.cpp
+    HMApplication.cpp
+    runMIR_seq.cpp)
+blt_list_append(TO mir_heavily_mixed_sources ELEMENTS runMIR_omp.cpp IF AXOM_ENABLE_OPENMP)
+blt_list_append(TO mir_heavily_mixed_sources ELEMENTS runMIR_cuda.cpp IF AXOM_ENABLE_CUDA)
+blt_list_append(TO mir_heavily_mixed_sources ELEMENTS runMIR_hip.cpp IF AXOM_ENABLE_HIP)
+
 axom_add_executable(
     NAME       mir_heavily_mixed
-    SOURCES    mir_heavily_mixed.cpp HMApplication.cpp runMIR_seq.cpp runMIR_omp.cpp runMIR_cuda.cpp runMIR_hip.cpp
+    SOURCES    ${mir_heavily_mixed_sources}
     OUTPUT_DIR ${EXAMPLE_OUTPUT_DIRECTORY}
     DEPENDS_ON ${mir_example_dependencies}
     FOLDER     axom/mir/examples
