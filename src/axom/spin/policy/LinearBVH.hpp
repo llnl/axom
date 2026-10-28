@@ -17,6 +17,7 @@
 #include "axom/primal/geometry/Vector.hpp"
 
 // linear bvh includes
+#include "axom/spin/SpaceFillingCurve.hpp"
 #include "axom/spin/internal/linear_bvh/BVHNode.hpp"
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/internal/linear_bvh/build_radix_tree.hpp"
@@ -30,11 +31,7 @@
 #include <string>
 #include <vector>
 
-namespace axom
-{
-namespace spin
-{
-namespace policy
+namespace axom::spin::policy
 {
 namespace lbvh = internal::linear_bvh;
 
@@ -260,9 +257,15 @@ public:
    * \param [in] boxes the bounding boxes for each leaf node
    * \param [in] numBoxes the number of bounding boxes
    * \param [in] scaleFactor scale factor applied to each bounding box before insertion into the BVH
+   * \param [in] allocatorID allocator used to store the BVH
+   * \param [in] ordering curve used to order box centroids. Defaults to Morton.
    */
   template <typename BoxIndexable>
-  void buildImpl(const BoxIndexable boxes, IndexType numBoxes, FloatType scaleFactor, int allocatorID);
+  void buildImpl(const BoxIndexable boxes,
+                 IndexType numBoxes,
+                 FloatType scaleFactor,
+                 int allocatorID,
+                 SpaceFillingCurve ordering = SpaceFillingCurve::Morton);
 
   /*!
    * \brief Performs a traversal to find the candidates for each query primitive.
@@ -316,12 +319,12 @@ template <typename BoxIndexable>
 void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
                                                        IndexType numBoxes,
                                                        FloatType scaleFactor,
-                                                       int allocatorID)
+                                                       int allocatorID,
+                                                       SpaceFillingCurve ordering)
 {
   AXOM_ANNOTATE_SCOPE("LinearBVH::buildImpl");
 
-  // STEP 1: Build a RadixTree consisting of the bounding boxes, sorted
-  // by their corresponding morton code.
+  // STEP 1: Sort the boxes by spatial key and build a RadixTree.
   SLIC_ASSERT(numBoxes <= std::numeric_limits<std::int32_t>::max());
   const auto numBoxesInt = static_cast<std::int32_t>(numBoxes);
 
@@ -332,7 +335,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::buildImpl(const BoxIndexable boxes,
                                     global_bounds,
                                     radix_tree,
                                     scaleFactor,
-                                    allocatorID);
+                                    allocatorID,
+                                    ordering);
 
   // STEP 2: emit the BVH data-structure from the radix tree
   m_bounds = global_bounds;
@@ -542,6 +546,4 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::writeVtkFileImpl(const std::string&
   ofs.close();
 }
 
-}  // namespace policy
-}  // namespace spin
-}  // namespace axom
+}  // namespace axom::spin::policy

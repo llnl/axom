@@ -49,6 +49,31 @@ Finally, test the point against all candidate neighbor triangles.
    :end-before: _bvh_cand_int_end
    :language: C++
 
+Spatial ordering
+----------------
+
+BVH construction uses Morton ordering by default. The ``BuildParameters`` type
+contains the options supported by the selected policy. To use Hilbert ordering,
+set ``ordering`` and pass the parameters to ``initialize()``:
+
+.. code-block:: C++
+
+   axom::spin::BVH<3> bvh;
+   axom::spin::BVH<3>::BuildParameters parameters;
+   parameters.ordering = axom::spin::SpaceFillingCurve::Hilbert;
+   bvh.initialize(boxes, numBoxes, parameters);
+
+You can also use a designated initializer:
+
+.. code-block:: C++
+
+   axom::spin::BVH<3> bvh;
+   bvh.initialize(boxes, numBoxes, {.ordering = axom::spin::SpaceFillingCurve::Hilbert});
+
+Both Morton and Hilbert normalize and clamp centroids in the same way.
+They use 16 bits per axis in 2D and 10 bits per axis in 3D.
+Degenerate axes map to coordinate zero.
+
 Device Traversal API
 --------------------
 

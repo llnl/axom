@@ -27,6 +27,7 @@ set( spin_headers
      OctreeBase.hpp
      OctreeLevel.hpp
      RectangularLattice.hpp
+     SpaceFillingCurve.hpp
      SparseOctreeLevel.hpp
      SpatialOctree.hpp
      UniformGrid.hpp

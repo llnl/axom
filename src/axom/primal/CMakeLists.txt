@@ -28,6 +28,7 @@ set( primal_headers
     geometry/CoordinateTransformer.hpp
     geometry/Cone.hpp
     geometry/CurvedPolygon.hpp
+    geometry/Dipole.hpp
     geometry/GregoryPatch.hpp
     geometry/GregoryTriangle.hpp
     geometry/Hexahedron.hpp

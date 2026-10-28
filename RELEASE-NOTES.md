@@ -37,6 +37,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   `Proxy::evaluate<T>(args...)` calls the supplied function or returns the value.
 - Primal: Adds Gregory surface classes, with a `primal::GregoryPatch` class for cubic quadrilateral surfaces and a `primal::GregoryTriangle` class for hybrid cubic-quartic triangle surfaces.
 - Bump: The coordset dispatchers accept a `SelectedDimensions` mask, like the topology dispatchers.
+- Quest: Adds `DipoleGWNQuery` which provides fast, robust containment queries on (oriented) point clouds. 
+  Built on a new `primal::Dipole` class which holds source, direction, and magnitude of each point in a cloud.
+- Spin: Adds policy-specific `BVH::BuildParameters` to the BVH constructor and `initialize()`.
+  The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
+  or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
 
 ### Removed
 

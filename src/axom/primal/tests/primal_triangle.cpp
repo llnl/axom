@@ -87,6 +87,24 @@ TEST(primal_triangle, triangle_area_3D)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_triangle, bounding_box)
+{
+  using PointType = primal::Point<double, 3>;
+  using TriangleType = primal::Triangle<double, 3>;
+
+  const TriangleType triangle(PointType {3.0, -2.0, 1.0},
+                              PointType {-1.0, 4.0, 7.0},
+                              PointType {2.0, 0.0, -5.0});
+  const auto bbox = triangle.boundingBox();
+  const PointType expected_min {-1.0, -2.0, -5.0};
+  const PointType expected_max {3.0, 4.0, 7.0};
+
+  EXPECT_TRUE(bbox.isValid());
+  EXPECT_EQ(expected_min, bbox.getMin());
+  EXPECT_EQ(expected_max, bbox.getMax());
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_triangle, triangle_physical_to_bary)
 {
   constexpr int DIM = 3;
