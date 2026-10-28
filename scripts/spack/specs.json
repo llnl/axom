@@ -24,13 +24,13 @@
 
     "__comment__":"# Configs are for rzvector",
     "rzvector":
-    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
-      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %%clang_19"],
+    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13 ^mfem+raja+umpire",
+      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %%clang_19 ^mfem+raja+umpire"],
 
     "__comment__":"# Configs are for matrix",
     "matrix":
-    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
-      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %%clang_19"],
+    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13 ^mfem+raja+umpire",
+      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %%clang_19 ^mfem+raja+umpire"],
 
     "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
     "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",
