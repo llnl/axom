@@ -47,9 +47,10 @@ namespace axom::spin
  *
  * Uses J. Skilling's algorithm from "Programming the Hilbert curve",
  * AIP Conference Proceedings 707, 381 (2004), https://doi.org/10.1063/1.1751381.
- * Host calls use a finite state machine with precomputed tables.
- * Device calls use the scalar transform. Both produce the same indices at every depth.
- * \see internal::hilbert::HilbertFSMTransform for the host implementation.
+ * Host calls use a finite state machine with precomputed tables. HIP device
+ * calls also use it, except 4D decoding with 32-bit or narrower indices,
+ * where the scalar transform is faster. CUDA device calls use the scalar transform.
+ * \see internal::hilbert::HilbertFSMTransform for the table implementation.
  * \see internal::hilbert::HilbertTransform for the scalar algorithm and bit layout.
  *
  * \tparam CoordType Integral coordinate type other than bool, at most 64 bits.
@@ -139,7 +140,7 @@ struct Hilbertizer
   AXOM_HOST_DEVICE static IndexType toIndex(const PointType& point, int bits)
   {
     SLIC_ASSERT(isValidPoint(point, bits));
-#ifdef AXOM_DEVICE_CODE
+#if defined(AXOM_DEVICE_CODE) && !defined(__HIP_DEVICE_COMPILE__)
     return HilbertTransform::toIndex(point, bits);
 #else
     return HilbertFSMTransform::toIndex(point, bits);
@@ -155,8 +156,18 @@ struct Hilbertizer
   AXOM_HOST_DEVICE static PointType toPoint(IndexType index, int bits)
   {
     SLIC_ASSERT(isValidIndex(index, bits));
-#ifdef AXOM_DEVICE_CODE
+#if defined(AXOM_DEVICE_CODE) && !defined(__HIP_DEVICE_COMPILE__)
     return HilbertTransform::toPoint(index, bits);
+#elif defined(__HIP_DEVICE_COMPILE__)
+    // Scalar decoding was faster for 4D/32-bit keys on gfx942.
+    if constexpr(DIM == 4 && sizeof(IndexType) <= 4)
+    {
+      return HilbertTransform::toPoint(index, bits);
+    }
+    else
+    {
+      return HilbertFSMTransform::toPoint(index, bits);
+    }
 #else
     return HilbertFSMTransform::toPoint(index, bits);
 #endif

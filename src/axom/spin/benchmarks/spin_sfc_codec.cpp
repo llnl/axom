@@ -15,14 +15,20 @@
  * Each timed iteration processes a batch. Divide its time by
  * `batch * operations_per_item` to get the average time per conversion.
  * Mixed cases encode a point and decode an independent key for each item.
- * Cases identify both the curve and its implementation. All use the same inputs.
+ * Cases identify both the curve and its implementation. Implementations in each
+ * execution space use the same inputs.
  * Morton has no depth argument, so Variable changes its input ranges while
  * Hilbert also receives each item's depth.
+ * HIP cases report either host batch time including launch and synchronization,
+ * or device kernel time from HIP events. Inputs and outputs stay on the device.
  */
 
 #include "axom/config.hpp"
 
 #include "axom/CLI11.hpp"
+#include "axom/core/Array.hpp"
+#include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/synchronize.hpp"
 #include "axom/fmt.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/slic.hpp"
@@ -32,6 +38,10 @@
 #include "axom/spin/internal/HilbertFSM.hpp"
 
 #include "benchmark/benchmark.h"
+
+#if defined(AXOM_USE_HIP)
+  #include <hip/hip_runtime.h>
+#endif
 
 #include <algorithm>
 #include <cstddef>
@@ -109,7 +119,7 @@ struct Codec
                   MAX_BITS == MortonPublicTransform::MAX_UNIQUE_BITS,
                 "Codec depths must match the shared input domain");
 
-  static U encode(const Point& point, int bits)
+  AXOM_HOST_DEVICE static U encode(const Point& point, int bits)
   {
     if constexpr(CURVE == Curve::Morton)
     {
@@ -130,7 +140,7 @@ struct Codec
     }
   }
 
-  static Point decode(U key, int bits)
+  AXOM_HOST_DEVICE static Point decode(U key, int bits)
   {
     if constexpr(CURVE == Curve::Morton)
     {
@@ -441,6 +451,223 @@ void registerBenchmarksForShape()
     registerCodecBenchmarks<DIM, U, Curve::Hilbert, FSM3>();
   }
 }
+
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+bool checkHip(benchmark::State& state, hipError_t error)
+{
+  if(error != hipSuccess)
+  {
+    state.SkipWithError(hipGetErrorString(error));
+    return false;
+  }
+  return true;
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
+void benchmarkHipCodec(benchmark::State& state, int count, bool variable, bool kernel_only)
+{
+  using CodecType = Codec<DIM, U, CURVE, IMPL>;
+  using Point = typename CodecType::Point;
+  constexpr int max_bits = CodecType::MAX_BITS;
+  const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int device_allocator = axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
+  axom::Array<Point> points(count, count, host_allocator);
+  axom::Array<U> keys(count, count, host_allocator);
+  axom::Array<int> depths(count, count, host_allocator);
+  std::mt19937_64 random(BENCHMARK_SEED + DIM);
+  for(int i = 0; i < count; ++i)
+  {
+    const int bits = variable ? 1 + static_cast<int>(random() % max_bits) : max_bits;
+    depths[i] = bits;
+    const auto coord_mask = static_cast<std::uint32_t>((std::uint64_t {1} << bits) - 1);
+    const U key_mask = std::numeric_limits<U>::max() >> (sizeof(U) * 8 - bits * DIM);
+    for(int axis = 0; axis < DIM; ++axis)
+    {
+      points[i][axis] = static_cast<std::uint32_t>(random()) & coord_mask;
+    }
+    keys[i] = static_cast<U>(random()) & key_mask;
+  }
+
+  const axom::Array<Point> device_points(points, device_allocator);
+  const axom::Array<U> device_keys(keys, device_allocator);
+  const axom::Array<int> device_depths(depths, device_allocator);
+  axom::Array<U> encoded(count, count, device_allocator);
+  axom::Array<Point> decoded(count, count, device_allocator);
+  const auto points_view = device_points.view();
+  const auto keys_view = device_keys.view();
+  const auto depths_view = device_depths.view();
+  const auto encoded_view = encoded.view();
+  const auto decoded_view = decoded.view();
+  const auto codec_kernel = [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    const int bits = variable ? depths_view[i] : max_bits;
+    if constexpr(DIR == Encode)
+    {
+      encoded_view[i] = CodecType::encode(points_view[i], bits);
+    }
+    else
+    {
+      decoded_view[i] = CodecType::decode(keys_view[i], bits);
+    }
+  };
+  const auto launch_kernel = [=]() {
+    axom::for_all<axom::HIP_EXEC<256, axom::ASYNC>>(count, codec_kernel);
+  };
+  const auto run_batch = [=]() {
+    launch_kernel();
+    axom::synchronize<axom::HIP_EXEC<256, axom::ASYNC>>();
+  };
+
+  run_batch();
+  hipEvent_t start_event {};
+  hipEvent_t stop_event {};
+  if(kernel_only)
+  {
+    if(!checkHip(state, hipEventCreate(&start_event)))
+    {
+      return;
+    }
+    if(!checkHip(state, hipEventCreate(&stop_event)))
+    {
+      checkHip(state, hipEventDestroy(start_event));
+      return;
+    }
+  }
+  const auto stream = RAJA::resources::Hip::get_default().get_stream();
+  double total_kernel_ns = 0.0;
+  bool valid = true;
+  for(auto _ : state)
+  {
+    if(kernel_only)
+    {
+      if(!checkHip(state, hipEventRecord(start_event, stream)))
+      {
+        valid = false;
+        break;
+      }
+      launch_kernel();
+      if(!checkHip(state, hipEventRecord(stop_event, stream)) ||
+         !checkHip(state, hipEventSynchronize(stop_event)))
+      {
+        valid = false;
+        break;
+      }
+      float elapsed_ms = 0.f;
+      if(!checkHip(state, hipEventElapsedTime(&elapsed_ms, start_event, stop_event)))
+      {
+        valid = false;
+        break;
+      }
+      const double elapsed_seconds = static_cast<double>(elapsed_ms) * 1e-3;
+      state.SetIterationTime(elapsed_seconds);
+      total_kernel_ns += elapsed_seconds * 1e9;
+    }
+    else
+    {
+      run_batch();
+    }
+  }
+  if(kernel_only)
+  {
+    const bool start_destroyed = checkHip(state, hipEventDestroy(start_event));
+    const bool stop_destroyed = checkHip(state, hipEventDestroy(stop_event));
+    valid = valid && start_destroyed && stop_destroyed;
+  }
+  if(!valid)
+  {
+    return;
+  }
+  state.SetItemsProcessed(state.iterations() * count);
+  state.counters["batch"] = count;
+  if(kernel_only)
+  {
+    state.counters["ns_per_query"] = total_kernel_ns / (state.iterations() * count);
+  }
+
+  // A small output sample catches bad device dispatch without timing transfers.
+  constexpr int check_count = 128;
+  if constexpr(DIR == Encode)
+  {
+    const axom::Array<U> host_encoded(encoded, host_allocator);
+    for(int i = 0; i < std::min(count, check_count); ++i)
+    {
+      using Reference = Codec<DIM, U, CURVE, CURVE == Curve::Morton ? Public : Scalar>;
+      if(host_encoded[i] != Reference::encode(points[i], depths[i]))
+      {
+        state.SkipWithError("HIP encoding disagrees with scalar reference");
+        break;
+      }
+    }
+  }
+  else
+  {
+    const axom::Array<Point> host_decoded(decoded, host_allocator);
+    for(int i = 0; i < std::min(count, check_count); ++i)
+    {
+      using Reference = Codec<DIM, U, CURVE, CURVE == Curve::Morton ? Public : Scalar>;
+      if(host_decoded[i] != Reference::decode(keys[i], depths[i]))
+      {
+        state.SkipWithError("HIP decoding disagrees with scalar reference");
+        break;
+      }
+    }
+  }
+}
+
+template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
+void registerHipCodecBenchmarks()
+{
+  for(const int count : {SMALL_BATCH_SIZE, LARGE_BATCH_SIZE, 1048576})
+  {
+    for(const bool variable : {false, true})
+    {
+      for(const bool kernel_only : {false, true})
+      {
+        if(kernel_only && count == SMALL_BATCH_SIZE)
+        {
+          continue;
+        }
+        const auto label = axom::fmt::format("{}/{}/{}/{}D/u{}/{}/{}/{}",
+                                             kernel_only ? "HIPKernel" : "HIP",
+                                             curveName(CURVE),
+                                             implementationName(IMPL),
+                                             DIM,
+                                             sizeof(U) * 8,
+                                             DIR == Encode ? "Encode" : "Decode",
+                                             variable ? "Variable" : "Fixed",
+                                             count);
+        auto* entry = benchmark::RegisterBenchmark(label.c_str(),
+                                                   &benchmarkHipCodec<DIM, U, CURVE, IMPL, DIR>,
+                                                   count,
+                                                   variable,
+                                                   kernel_only);
+        if(kernel_only)
+        {
+          entry->UseManualTime();
+        }
+        else
+        {
+          entry->UseRealTime();
+        }
+        entry->Unit(benchmark::kNanosecond);
+      }
+    }
+  }
+}
+
+template <int DIM, typename U>
+void registerHipBenchmarksForShape()
+{
+  constexpr Implementation production = DIM == 2 ? FSM3 : DIM == 3 ? FSM2 : FSM1;
+  registerHipCodecBenchmarks<DIM, U, Curve::Morton, Public, Encode>();
+  registerHipCodecBenchmarks<DIM, U, Curve::Morton, Public, Decode>();
+  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Encode>();
+  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Decode>();
+  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, production, Encode>();
+  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, production, Decode>();
+  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Encode>();
+  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Decode>();
+}
+#endif
 }  // namespace
 
 int main(int argc, char** argv)
@@ -485,6 +712,14 @@ int main(int argc, char** argv)
   registerBenchmarksForShape<3, std::uint64_t>();
   registerBenchmarksForShape<4, std::uint32_t>();
   registerBenchmarksForShape<4, std::uint64_t>();
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+  registerHipBenchmarksForShape<2, std::uint32_t>();
+  registerHipBenchmarksForShape<2, std::uint64_t>();
+  registerHipBenchmarksForShape<3, std::uint32_t>();
+  registerHipBenchmarksForShape<3, std::uint64_t>();
+  registerHipBenchmarksForShape<4, std::uint32_t>();
+  registerHipBenchmarksForShape<4, std::uint64_t>();
+#endif
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();
   return 0;

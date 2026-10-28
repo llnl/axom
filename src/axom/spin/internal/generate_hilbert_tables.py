@@ -344,7 +344,7 @@ def pack_2d(table):
 
 
 def append_table(lines, name, table, ctype):
-    lines.append(f'inline constexpr {ctype} {name}[{len(table)}] = {{')
+    lines.append(f'AXOM_HILBERT_TABLE {ctype} {name}[{len(table)}] = {{')
     line = ' '
     for value in table:
         item = f' {value},'
@@ -377,8 +377,12 @@ def render():
         '// Conversion starts at state zero and processes the most significant bits first.',
         '// Use a smaller table for a short leading group; padding with zeros changes the result.',
         '//', '// See the generator for table construction, entry packing, and verification.', '',
-        '#include <cstdint>', '', 'namespace axom::spin::internal::hilbert', '{',
-        '// clang-format off'
+        '#include "axom/core/Macros.hpp"', '', '#include <cstdint>', '',
+        '// Dynamic device lookups need device storage; the host copy stays constexpr.',
+        '#if defined(AXOM_DEVICE_CODE)',
+        '  #define AXOM_HILBERT_TABLE inline __device__ __constant__ const', '#else',
+        '  #define AXOM_HILBERT_TABLE inline constexpr', '#endif', '',
+        'namespace axom::spin::internal::hilbert', '{', '// clang-format off'
     ]
     for dim, groups in PRODUCTION_LEVELS.items():
         rows = machine(dim) if dim == 2 else None
@@ -394,7 +398,10 @@ def render():
                     lines.append(
                         '// One byte per state, packed into a 32-bit word; select with state * 8.')
                 append_table(lines, f'{prefix}{dim}D{levels}', table, ctype)
-    lines += ['// clang-format on', '}  // namespace axom::spin::internal::hilbert', '']
+    lines += [
+        '// clang-format on', '}  // namespace axom::spin::internal::hilbert', '',
+        '#undef AXOM_HILBERT_TABLE', ''
+    ]
     return '\n'.join(lines)
 
 
