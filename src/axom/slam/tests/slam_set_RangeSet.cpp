@@ -293,13 +293,12 @@ TEST(slam_range_set, out_of_range)
 
   SLIC_INFO("Using random access on invalid address "
             << "-- Note: We are testing for the expected failures.");
-#ifdef AXOM_DEBUG
-  // NOTE: AXOM_DEBUG is disabled in release mode,
-  // so this test will only fail in debug mode
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
+  // This check is only active when Slic debug macros are enabled.
   EXPECT_DEATH_IF_SUPPORTED((void)s.at(upperIndex), "");
   EXPECT_DEATH_IF_SUPPORTED((void)s.at(MAX_SIZE), "");
 #else
-  SLIC_INFO("Skipped assertion failure check in release mode.");
+  SLIC_INFO("Skipped assertion failure check because Slic debug macros are disabled.");
 #endif
 }
 
@@ -480,7 +479,7 @@ int main(int argc, char* argv[])
   int result = 0;
 
   ::testing::InitGoogleTest(&argc, argv);
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   // add this line to avoid a warning in the output about thread safety
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 #endif

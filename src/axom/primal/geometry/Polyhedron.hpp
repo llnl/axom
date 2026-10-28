@@ -446,7 +446,7 @@ public:
     std::int8_t checkedEdges[MAX_VERTS * 2 * 2] = {0};
 
     // Check each vertex
-    for(int i = 0; i < numVertices(); ++i)
+    for(int i = 0; i < numVertices() && i < MAX_VERTS; ++i)
     {
       // Check each neighbor index (edge) of the vertex
       for(int j = 0; j < m_neighbors.getNumNeighbors(i); j++)

@@ -1069,7 +1069,7 @@ void View::deepCopyToConduit(Node& dst, int allocId) const
     // the Conduit default (not what we want) if dst is an object or
     // list.  Fortunately, Sidre never uses a Conduit node in those
     // modes.
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
     const auto oldAllocatorId = dst.allocator();
 #endif
     dst.set_node(m_node);

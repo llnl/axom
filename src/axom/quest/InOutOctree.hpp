@@ -34,7 +34,7 @@
 //  #define DEBUG_OCTREE_ACTIVE
 #endif
 
-#if defined(DEBUG_OCTREE_ACTIVE) && defined(AXOM_DEBUG)
+#if defined(DEBUG_OCTREE_ACTIVE) && AXOM_SLIC_DEBUG_MACROS_ENABLED
   #define QUEST_OCTREE_DEBUG_LOG_IF(_cond, _msg) \
     if(_cond) SLIC_DEBUG(_msg)
 #else
@@ -397,7 +397,7 @@ private:
   void checkValid() const;
 
   /// \brief Helper function to verify that all leaves at the given level have a color
-  void checkAllLeavesColoredAtLevel(int AXOM_DEBUG_PARAM(level)) const;
+  void checkAllLeavesColoredAtLevel(AXOM_MAYBE_UNUSED int level) const;
 
   void dumpOctreeMeshVTK(const std::string& name) const;
   void dumpSurfaceMeshVTK(const std::string& name) const;
@@ -1617,9 +1617,9 @@ void InOutOctree<DIM>::printOctreeStats() const
 }
 
 template <int DIM>
-void InOutOctree<DIM>::checkAllLeavesColoredAtLevel(int AXOM_DEBUG_PARAM(level)) const
+void InOutOctree<DIM>::checkAllLeavesColoredAtLevel(AXOM_MAYBE_UNUSED int level) const
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   detail::InOutOctreeValidator<DIM> validator(*this);
   validator.checkAllLeavesColoredAtLevel(level);
 #endif
@@ -1628,7 +1628,7 @@ void InOutOctree<DIM>::checkAllLeavesColoredAtLevel(int AXOM_DEBUG_PARAM(level))
 template <int DIM>
 void InOutOctree<DIM>::checkValid() const
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   SLIC_DEBUG(axom::fmt::format("Inside InOutOctree::checkValid() to verify state of {} octree",
                                (m_generationState >= INOUTOCTREE_ELEMENTS_INSERTED ? "PM" : "PR")));
 

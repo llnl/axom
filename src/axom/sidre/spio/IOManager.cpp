@@ -65,14 +65,7 @@ std::string broadcastString(const std::string& str, MPI_Comm comm, int rank)
 }
 
 #ifdef AXOM_USE_HDF5
-inline void checkHDF5Status(herr_t status)
-{
-  #ifdef AXOM_DEBUG
-  SLIC_ASSERT(status >= 0);
-  #else
-  AXOM_UNUSED_VAR(status);
-  #endif
-}
+inline void checkHDF5Status(AXOM_MAYBE_UNUSED herr_t status) { SLIC_ASSERT(status >= 0); }
 
 inline void closeHDF5Group(hid_t group_id) { checkHDF5Status(H5Gclose(group_id)); }
 

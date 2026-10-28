@@ -58,6 +58,10 @@ option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)
 option(AXOM_ENABLE_TUTORIALS "Builds Axom tutorials as part of the Axom build" ON)
 mark_as_advanced(AXOM_ENABLE_TUTORIALS)
 
+set(AXOM_ENABLE_SLIC_DEBUG_MACROS "DEFAULT" CACHE STRING
+    "Controls SLIC_ASSERT, SLIC_CHECK, and SLIC_DEBUG macros independently of AXOM_DEBUG")
+set_property(CACHE AXOM_ENABLE_SLIC_DEBUG_MACROS PROPERTY STRINGS "DEFAULT" "ON" "OFF")
+
 #------------------------------------------------------------------------------
 # Test execution controls
 #------------------------------------------------------------------------------
