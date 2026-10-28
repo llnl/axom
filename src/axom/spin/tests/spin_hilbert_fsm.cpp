@@ -12,6 +12,8 @@
 #include "axom/spin/internal/HilbertFSM.hpp"
 #include "axom/spin/internal/HilbertIndexImpl.hpp"
 #include "axom/spin/HilbertIndex.hpp"
+#include "axom/core/Array.hpp"
+#include "axom/core/execution/for_all.hpp"
 #include "axom/slic.hpp"
 
 #include "gtest/gtest.h"
@@ -122,6 +124,78 @@ void exhaustive()
   }
 }
 
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+template <typename Coord, typename Index, int DIM, int LEVELS>
+void hipAllDepths()
+{
+  using FSM = hilbert::HilbertFSMTransform<Coord, Index, DIM, LEVELS>;
+  using Scalar = hilbert::HilbertTransform<Coord, Index, DIM>;
+  using Public = axom::spin::Hilbertizer<Coord, Index, DIM>;
+  using Point = typename FSM::PointType;
+  constexpr int max_bits = Public::MAX_UNIQUE_BITS;
+  constexpr int count = max_bits * 128;
+  const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int device_allocator = axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
+  axom::Array<Point> points(count, count, host_allocator);
+  axom::Array<Index> keys(count, count, host_allocator);
+  axom::Array<int> depths(count, count, host_allocator);
+  std::mt19937_64 random(TEST_SEED + DIM);
+  for(int i = 0; i < count; ++i)
+  {
+    const int bits = 1 + i % max_bits;
+    depths[i] = bits;
+    const auto coord_mask = (std::uint64_t {1} << bits) - 1;
+    const auto key_mask = std::numeric_limits<std::uint64_t>::max() >> (64 - DIM * bits);
+    for(int axis = 0; axis < DIM; ++axis)
+    {
+      points[i][axis] =
+        static_cast<Coord>(i / max_bits < (1 << DIM) ? ((i / max_bits >> axis) & 1) * coord_mask
+                                                     : random() & coord_mask);
+    }
+    keys[i] = static_cast<Index>(i / max_bits == 0     ? 0
+                                   : i / max_bits == 1 ? key_mask
+                                   : i / max_bits <= DIM * bits + 1
+                                   ? std::uint64_t {1} << ((i / max_bits - 2) % (DIM * bits))
+                                   : random() & key_mask);
+  }
+
+  const axom::Array<Point> device_points(points, device_allocator);
+  const axom::Array<Index> device_keys(keys, device_allocator);
+  const axom::Array<int> device_depths(depths, device_allocator);
+  axom::Array<Index> encoded(count, count, device_allocator);
+  axom::Array<Point> decoded(count, count, device_allocator);
+  axom::Array<Index> public_encoded(count, count, device_allocator);
+  axom::Array<Point> public_decoded(count, count, device_allocator);
+  const auto points_view = device_points.view();
+  const auto keys_view = device_keys.view();
+  const auto depths_view = device_depths.view();
+  const auto encoded_view = encoded.view();
+  const auto decoded_view = decoded.view();
+  const auto public_encoded_view = public_encoded.view();
+  const auto public_decoded_view = public_decoded.view();
+  axom::for_all<axom::HIP_EXEC<256>>(count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+    encoded_view[i] = FSM::toIndex(points_view[i], depths_view[i]);
+    decoded_view[i] = FSM::toPoint(keys_view[i], depths_view[i]);
+    public_encoded_view[i] = Public::toIndex(points_view[i], depths_view[i]);
+    public_decoded_view[i] = Public::toPoint(keys_view[i], depths_view[i]);
+  });
+
+  const axom::Array<Index> host_encoded(encoded, host_allocator);
+  const axom::Array<Point> host_decoded(decoded, host_allocator);
+  const axom::Array<Index> host_public_encoded(public_encoded, host_allocator);
+  const axom::Array<Point> host_public_decoded(public_decoded, host_allocator);
+  for(int i = 0; i < count; ++i)
+  {
+    SCOPED_TRACE(::testing::Message() << "dimension " << DIM << ", group " << LEVELS << ", depth "
+                                      << depths[i] << ", sample " << i);
+    EXPECT_EQ(host_encoded[i], Scalar::toIndex(points[i], depths[i]));
+    EXPECT_EQ(host_decoded[i], Scalar::toPoint(keys[i], depths[i]));
+    EXPECT_EQ(host_public_encoded[i], Scalar::toIndex(points[i], depths[i]));
+    EXPECT_EQ(host_public_decoded[i], Scalar::toPoint(keys[i], depths[i]));
+  }
+}
+#endif
+
 // Public API tests cover signed and narrow types, orientation, adjacency, and prefixes.
 // Here, exercise every lookup group with both working widths.
 using IndexTypes = ::testing::Types<std::uint32_t, std::uint64_t>;
@@ -153,6 +227,27 @@ TEST(HilbertFSMTest, exhaustive_scalar_agreement)
   ASSERT_NO_FATAL_FAILURE((exhaustive<3, 2>()));
   ASSERT_NO_FATAL_FAILURE((exhaustive<4, 1>()));
 }
+
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+TEST(HilbertFSMTest, hip_scalar_agreement_at_every_depth)
+{
+  hipAllDepths<std::uint32_t, std::uint32_t, 2, 1>();
+  hipAllDepths<std::uint32_t, std::uint32_t, 2, 2>();
+  hipAllDepths<std::uint32_t, std::uint32_t, 2, 3>();
+  hipAllDepths<std::uint32_t, std::uint32_t, 3, 1>();
+  hipAllDepths<std::uint32_t, std::uint32_t, 3, 2>();
+  hipAllDepths<std::uint32_t, std::uint32_t, 4, 1>();
+  hipAllDepths<std::uint32_t, std::uint64_t, 2, 1>();
+  hipAllDepths<std::uint32_t, std::uint64_t, 2, 2>();
+  hipAllDepths<std::uint32_t, std::uint64_t, 2, 3>();
+  hipAllDepths<std::uint32_t, std::uint64_t, 3, 1>();
+  hipAllDepths<std::uint32_t, std::uint64_t, 3, 2>();
+  hipAllDepths<std::uint32_t, std::uint64_t, 4, 1>();
+  hipAllDepths<std::int64_t, std::int64_t, 2, 3>();
+  hipAllDepths<std::int64_t, std::int64_t, 3, 2>();
+  hipAllDepths<std::int64_t, std::int64_t, 4, 1>();
+}
+#endif
 
 int main(int argc, char* argv[])
 {

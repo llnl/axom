@@ -8,7 +8,7 @@
 
 /*!
  * \file HilbertFSM.hpp
- * \brief Host Hilbert encoding and decoding with grouped finite state machine (FSM) lookups.
+ * \brief Hilbert encoding and decoding with grouped finite state machine (FSM) lookups.
  */
 
 #include "axom/spin/MortonIndex.hpp"
@@ -22,7 +22,7 @@ namespace axom::spin::internal::hilbert
 /// Returns converted bits and a state update for one group.
 /// The row is a 2D orientation state or a 3D/4D axis permutation.
 template <int DIM, int LEVELS, bool INVERSE>
-inline unsigned int lookup(unsigned int state, unsigned int digits)
+AXOM_HOST_DEVICE inline unsigned int lookup(unsigned int state, unsigned int digits)
 {
   static_assert(DIM >= 2 && DIM <= 4, "Supported dimensions are 2, 3, and 4");
   static_assert(LEVELS >= 1 && LEVELS <= 5 - DIM,
@@ -76,7 +76,7 @@ inline unsigned int lookup(unsigned int state, unsigned int digits)
  * \pre source uses only the lowest \c DIM*bits bits.
  */
 template <int DIM, int LEVELS, bool INVERSE, typename U>
-inline U convert(U source, int bits)
+AXOM_HOST_DEVICE inline U convert(U source, int bits)
 {
   static_assert(std::is_unsigned<U>::value, "Key conversion requires unsigned arithmetic");
   constexpr int group_bits = DIM * LEVELS;
@@ -150,7 +150,7 @@ inline U convert(U source, int bits)
  * \brief Converts integer points and Hilbert indices through Morton packing and FSM tables.
  *
  * \tparam LEVELS Bits per coordinate processed by each full lookup group.
- * \note Host only. Callers must satisfy Hilbertizer's point, index, and depth preconditions.
+ * \note Callers must satisfy Hilbertizer's point, index, and depth preconditions.
  *       These routines do not validate inputs.
  */
 template <typename CoordType, typename IndexType, int DIM, int LEVELS>
@@ -161,12 +161,12 @@ struct HilbertFSMTransform
   using WorkType = std::conditional_t<(sizeof(IndexType) <= 4), std::uint32_t, std::uint64_t>;
   using MortonizerType = Mortonizer<CoordType, WorkType, DIM>;
 
-  static IndexType toIndex(const PointType& point, int bits)
+  AXOM_HOST_DEVICE static IndexType toIndex(const PointType& point, int bits)
   {
     return static_cast<IndexType>(convert<DIM, LEVELS, false>(MortonizerType::mortonize(point), bits));
   }
 
-  static PointType toPoint(IndexType index, int bits)
+  AXOM_HOST_DEVICE static PointType toPoint(IndexType index, int bits)
   {
     return MortonizerType::demortonize(convert<DIM, LEVELS, true>(static_cast<WorkType>(index), bits));
   }
