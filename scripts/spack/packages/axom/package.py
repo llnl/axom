@@ -279,12 +279,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("adiak")
         depends_on("caliper+adiak~papi")
 
-        depends_on("caliper+cuda", when="+cuda")
-        depends_on("caliper~cuda", when="~cuda")
-
-        depends_on("caliper+rocm", when="+rocm")
-        depends_on("caliper~rocm", when="~rocm")
-
         for dep in ["adiak", "caliper"]:
             depends_on(f"{dep}+mpi", when="+mpi")
             depends_on(f"{dep}~mpi", when="~mpi")
@@ -296,23 +290,19 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             depends_on(f"adiak+{fwd}", when=f"+{fwd}")
 
     with when("+caliper"):
-        for fwd in ("cuda", "rocm", "mpi", "shared"):
+        for fwd in ("mpi", "shared"):
             depends_on(f"caliper+{fwd}", when=f"+{fwd}")
 
     for val in CudaPackage.cuda_arch_values:
         ext_cuda_dep = f"+cuda cuda_arch={val}"
         depends_on(f"raja {ext_cuda_dep}", when=f"+raja {ext_cuda_dep}")
         depends_on(f"umpire {ext_cuda_dep}", when=f"+umpire {ext_cuda_dep}")
-        depends_on(f"caliper {ext_cuda_dep}", when=f"+caliper {ext_cuda_dep}")
-        depends_on(f"caliper {ext_cuda_dep}", when=f"+profiling {ext_cuda_dep}")
         depends_on(f"mfem {ext_cuda_dep}", when=f"+mfem {ext_cuda_dep}")
 
     for val in ROCmPackage.amdgpu_targets:
         ext_rocm_dep = f"+rocm amdgpu_target={val}"
         depends_on(f"raja {ext_rocm_dep}", when=f"+raja {ext_rocm_dep}")
         depends_on(f"umpire {ext_rocm_dep}", when=f"+umpire {ext_rocm_dep}")
-        depends_on(f"caliper {ext_rocm_dep}", when=f"+caliper {ext_rocm_dep}")
-        depends_on(f"caliper {ext_rocm_dep}", when=f"+profiling {ext_rocm_dep}")
         depends_on(f"mfem {ext_rocm_dep}", when=f"+mfem {ext_rocm_dep}")
 
     depends_on("rocprim", when="+rocm")
