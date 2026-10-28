@@ -198,15 +198,14 @@ public:
 
     {
       AXOM_ANNOTATE_SCOPE("moment_precomputation");
-      const auto compute_moments = [source_primitives](std::int32_t current_node,
-                                                       const std::int32_t* leaf_nodes) -> MomentType {
-        const auto source_primitive_index = leaf_nodes[current_node];
+      const auto compute_moments =
+        [source_primitives](std::int32_t source_primitive_index) -> MomentType {
         return source_primitive_index >= 0 && source_primitive_index < source_primitives.size()
           ? MomentType(source_primitives[source_primitive_index])
           : MomentType {};
       };
       const auto traverser = m_bvh.getTraverser();
-      m_internal_moments = traverser.template reduce_tree<ExecSpace, MomentType>(compute_moments);
+      m_internal_moments = traverser.template reduce_leaves<ExecSpace, MomentType>(compute_moments);
     }
   }
 

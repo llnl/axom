@@ -116,7 +116,7 @@ void generate_aabbs(const mint::Mesh* mesh,
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
     [=] AXOM_HOST_DEVICE(IndexType cellIdx,
-                         numerics::Matrix<double>& coords,
+                         numerics::Matrix<double> & coords,
                          const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       primal::BoundingBox<double, NDIMS> range;
 
@@ -170,7 +170,7 @@ void generate_aabbs_and_centroids(const mint::Mesh* mesh,
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
     [=] AXOM_HOST_DEVICE(IndexType cellIdx,
-                         numerics::Matrix<double>& coords,
+                         numerics::Matrix<double> & coords,
                          const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       BoxType range;
       PointType sum;
@@ -1566,7 +1566,7 @@ void check_0_or_1_bbox_2d()
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Tests LinearBVHTraverser::reduce_tree by reducing across BVH of points
+ * \brief Tests LinearBVHTraverser::reduce_leaves by reducing across BVH of points
  *        a field that counts how many points are contained in each node.
  *
  * For a BVH with N leaves, LinearBVH stores 2*(N-1) "node slots" in its
@@ -1574,7 +1574,7 @@ void check_0_or_1_bbox_2d()
  * When each leaf contributes 1, internal nodes must reduce to a value > 1.
  */
 template <typename ExecSpace, typename FloatType>
-void check_reduce_tree_point_counts_2d()
+void check_reduce_leaves_point_counts_2d()
 {
   constexpr int NDIMS = 2;
 
@@ -1612,12 +1612,12 @@ void check_reduce_tree_point_counts_2d()
 
   // Reduce the BVH into a field that counts points per node.
   const auto traverser = bvh.getTraverser();
-  auto leafToOne = [=] AXOM_HOST_DEVICE(std::int32_t, const std::int32_t*) -> CountType {
+  auto leafToOne = [=] AXOM_HOST_DEVICE(std::int32_t) -> CountType {
     return static_cast<CountType>(1);
   };
 
   axom::Array<CountType> counts =
-    traverser.template reduce_tree<ExecSpace, CountType>(leafToOne, hostAllocatorID);
+    traverser.template reduce_leaves<ExecSpace, CountType>(leafToOne, hostAllocatorID);
 
   // For a BVH with N leaves, LinearBVH stores 2*(N-1) node slots.
   ASSERT_EQ(counts.size(), static_cast<axom::IndexType>(2 * (NPTS - 1)));
@@ -1658,6 +1658,41 @@ TEST(spin_bvh, build2D_sequential)
 }
 
 //------------------------------------------------------------------------------
+TEST(spin_bvh, linear_bvh_traverse_leaves)
+{
+  constexpr int NDIMS = 2;
+  constexpr axom::IndexType NUM_BOXES = 4;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using LinearBVH = spin::policy::LinearBVH<FloatType, NDIMS, axom::SEQ_EXEC>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
+  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
+  {
+    boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
+  }
+
+  LinearBVH bvh;
+  bvh.buildImpl(boxes.view(), NUM_BOXES, 1.0, allocator_id);
+
+  axom::IndexType primitive_count = 0;
+  std::int32_t primitive_id_sum = 0;
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  bvh.getTraverserImpl().traverse_leaves(
+    PointType {0., 0.},
+    [&](const auto primitive_id) {
+      ++primitive_count;
+      primitive_id_sum += primitive_id;
+    },
+    accept_all);
+
+  EXPECT_EQ(NUM_BOXES, primitive_count);
+  EXPECT_EQ(6, primitive_id_sum);
+}
+
+//------------------------------------------------------------------------------
 TEST(spin_bvh, bucketed_linear_bvh_sequential)
 {
   constexpr int NDIMS = 2;
@@ -1685,13 +1720,13 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential)
   axom::IndexType primitive_count = 0;
   std::int32_t primitive_id_sum = 0;
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-  traverser.traverse_tree(
+  traverser.traverse_leaves(
     PointType {0., 0.},
-    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+    [&](const auto& primitive_ids) {
       primitive_count += primitive_ids.size();
-      for(axom::IndexType i = 0; i < primitive_ids.size(); ++i)
+      for(const auto primitive_id : primitive_ids)
       {
-        primitive_id_sum += primitive_ids[i];
+        primitive_id_sum += primitive_id;
       }
     },
     accept_all);
@@ -1699,13 +1734,33 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential)
   EXPECT_EQ(NUM_BOXES, primitive_count);
   EXPECT_EQ(6, primitive_id_sum);
 
-  const auto primitive_count_in_bucket =
-    [](const spin::policy::LinearBVHLeafRange& primitive_ids) -> axom::IndexType {
+  axom::IndexType raw_primitive_count = 0;
+  std::int32_t raw_primitive_id_sum = 0;
+  traverser.traverse_tree(
+    PointType {0., 0.},
+    [&](std::int32_t leaf_slot,
+        axom::IndexType storage_offset,
+        axom::IndexType storage_size,
+        const std::int32_t* primitive_id_storage) {
+      EXPECT_GE(leaf_slot, 0);
+      EXPECT_GE(storage_offset, 0);
+      for(axom::IndexType i = 0; i < storage_size; ++i)
+      {
+        ++raw_primitive_count;
+        raw_primitive_id_sum += primitive_id_storage[storage_offset + i];
+      }
+    },
+    accept_all);
+
+  EXPECT_EQ(NUM_BOXES, raw_primitive_count);
+  EXPECT_EQ(6, raw_primitive_id_sum);
+
+  const auto primitive_count_in_bucket = [](const auto& primitive_ids) -> axom::IndexType {
     return primitive_ids.size();
   };
   const auto counts =
-    traverser.template reduce_tree<axom::SEQ_EXEC, axom::IndexType>(primitive_count_in_bucket,
-                                                                    allocator_id);
+    traverser.template reduce_leaves<axom::SEQ_EXEC, axom::IndexType>(primitive_count_in_bucket,
+                                                                      allocator_id);
 
   ASSERT_EQ(2, counts.size());
   EXPECT_EQ(NUM_BOXES, counts[0] + counts[1]);
@@ -1744,9 +1799,9 @@ TEST(spin_bvh, bucketed_linear_bvh_facade_sequential)
   axom::IndexType primitive_count = 0;
   axom::IndexType largest_bucket_size = 0;
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-  bvh.getTraverser().traverse_tree(
+  bvh.getTraverser().traverse_leaves(
     PointType {0., 0.},
-    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+    [&](const auto& primitive_ids) {
       primitive_count += primitive_ids.size();
       if(primitive_ids.size() > largest_bucket_size)
       {
@@ -1786,9 +1841,9 @@ TEST(spin_bvh, bucketed_linear_bvh_shared_prefix_order)
     bvh.buildImpl(boxes.view(), NUM_BOXES, 2, 1.0, allocator_id, ordering);
 
     std::vector<axom::IndexType> bucket_sizes;
-    bvh.getTraverserImpl().traverse_tree(
+    bvh.getTraverserImpl().traverse_leaves(
       PointType {0., 0.},
-      [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+      [&](const auto& primitive_ids) {
         if(primitive_ids.size() > 0)
         {
           bucket_sizes.push_back(primitive_ids.size());
@@ -1819,18 +1874,17 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential_order)
     boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
   }
 
-  BucketedBVH::BuildParameters parameters {
-    .maxBucketSize = 3,
-    .ordering = spin::SpaceFillingCurve::Morton,
-    .grouping = spin::BucketedBVHGrouping::Sequential};
+  BucketedBVH::BuildParameters parameters {.maxBucketSize = 3,
+                                           .ordering = spin::SpaceFillingCurve::Morton,
+                                           .grouping = spin::BucketedBVHGrouping::Sequential};
   BucketedBVH bvh;
   ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), NUM_BOXES, parameters));
 
   std::vector<axom::IndexType> bucket_sizes;
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-  bvh.getTraverser().traverse_tree(
+  bvh.getTraverser().traverse_leaves(
     PointType {0., 0.},
-    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+    [&](const auto& primitive_ids) {
       if(primitive_ids.size() > 0)
       {
         bucket_sizes.push_back(primitive_ids.size());
@@ -1871,9 +1925,9 @@ TEST(spin_bvh, bucketed_linear_bvh_splits_equal_morton_codes_at_target_size)
   axom::IndexType primitive_count = 0;
   axom::IndexType nonempty_bucket_count = 0;
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-  bvh.getTraverserImpl().traverse_tree(
+  bvh.getTraverserImpl().traverse_leaves(
     PointType {0., 0.},
-    [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+    [&](const auto& primitive_ids) {
       if(primitive_ids.size() > largest_bucket_size)
       {
         largest_bucket_size = primitive_ids.size();
@@ -1994,10 +2048,10 @@ TEST(spin_bvh, single_bbox_sequential)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, reduce_tree_point_counts_sequential)
+TEST(spin_bvh, reduce_leaves_point_counts_sequential)
 {
-  check_reduce_tree_point_counts_2d<axom::SEQ_EXEC, double>();
-  check_reduce_tree_point_counts_2d<axom::SEQ_EXEC, float>();
+  check_reduce_leaves_point_counts_2d<axom::SEQ_EXEC, double>();
+  check_reduce_leaves_point_counts_2d<axom::SEQ_EXEC, float>();
 }
 
 //------------------------------------------------------------------------------
@@ -2021,8 +2075,8 @@ TEST(spin_bvh, bucketed_linear_bvh_omp)
   }
 
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-  for(const auto grouping : {spin::BucketedBVHGrouping::SharedPrefix,
-                             spin::BucketedBVHGrouping::Sequential})
+  for(const auto grouping :
+      {spin::BucketedBVHGrouping::SharedPrefix, spin::BucketedBVHGrouping::Sequential})
   {
     BucketedBVH::BuildParameters parameters {.maxBucketSize = MAX_BUCKET_SIZE,
                                              .ordering = spin::SpaceFillingCurve::Morton,
@@ -2032,9 +2086,9 @@ TEST(spin_bvh, bucketed_linear_bvh_omp)
 
     axom::IndexType primitive_count = 0;
     axom::IndexType largest_bucket_size = 0;
-    bvh.getTraverser().traverse_tree(
+    bvh.getTraverser().traverse_leaves(
       PointType {0., 0.},
-      [&](const spin::policy::LinearBVHLeafRange& primitive_ids) {
+      [&](const auto& primitive_ids) {
         primitive_count += primitive_ids.size();
         largest_bucket_size = std::max(largest_bucket_size, primitive_ids.size());
       },
@@ -2133,10 +2187,10 @@ TEST(spin_bvh, single_bbox_omp)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, reduce_tree_point_counts_omp)
+TEST(spin_bvh, reduce_leaves_point_counts_omp)
 {
-  check_reduce_tree_point_counts_2d<axom::OMP_EXEC, double>();
-  check_reduce_tree_point_counts_2d<axom::OMP_EXEC, float>();
+  check_reduce_leaves_point_counts_2d<axom::OMP_EXEC, double>();
+  check_reduce_leaves_point_counts_2d<axom::OMP_EXEC, float>();
 }
 
 #endif
