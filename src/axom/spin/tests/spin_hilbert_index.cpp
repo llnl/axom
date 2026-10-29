@@ -10,6 +10,7 @@
  */
 
 #include "axom/spin/HilbertIndex.hpp"
+#include "axom/spin/tests/hilbert_reference.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/execution/for_all.hpp"
@@ -93,9 +94,8 @@ template <typename Coord, typename Index, int DIM>
 void allDepths()
 {
   using H = axom::spin::Hilbertizer<Coord, Index, DIM>;
-  // Keys depend only on the point and the depth, so each type pair must agree
-  // with the widest pair at every depth that both support.
-  using Reference = axom::spin::Hilbertizer<std::uint64_t, std::uint64_t, DIM>;
+  // The scalar reference uses 64-bit types to cover every supported type pair and depth.
+  using Reference = axom::spin::testing::HilbertReference<std::uint64_t, std::uint64_t, DIM>;
   const auto widen = [](const typename H::PointType& point) {
     typename Reference::PointType wide;
     for(int axis = 0; axis < DIM; ++axis)
@@ -275,33 +275,42 @@ void checkExecutionSpace()
   const axom::Array<int> device_depths(depths, allocator);
   const axom::Array<std::uint64_t> device_keys(keys, allocator);
   const axom::Array<typename H::PointType> device_points(points, allocator);
-  axom::Array<std::uint64_t> results(count * 3, count * 3, allocator);
+  axom::Array<std::uint64_t> results(count * 4, count * 4, allocator);
+  axom::Array<typename H::PointType> decoded(count, count, allocator);
   axom::Array<typename H::PointType> round_trips(count, count, allocator);
   const auto depths_view = device_depths.view();
   const auto keys_view = device_keys.view();
   const auto points_view = device_points.view();
   const auto results_view = results.view();
+  const auto decoded_view = decoded.view();
   const auto round_trips_view = round_trips.view();
 
   axom::for_all<ExecSpace>(count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
     const int bits = depths_view[i];
     const auto key = keys_view[i];
     const auto point = H::toPoint(key, bits);
-    results_view[3 * i] = H::toIndex(point, bits);
-    results_view[3 * i + 1] = axom::spin::convertPointToHilbert<std::uint64_t>(
+    results_view[4 * i] = H::toIndex(point, bits);
+    results_view[4 * i + 1] = axom::spin::convertPointToHilbert<std::uint64_t>(
       axom::spin::convertHilbertToPoint<std::uint32_t, DIM>(key, bits),
       bits);
-    results_view[3 * i + 2] = H::isValidPoint(point, bits) && H::isValidIndex(key, bits);
+    results_view[4 * i + 2] = H::isValidPoint(point, bits) && H::isValidIndex(key, bits);
+    results_view[4 * i + 3] = H::toIndex(points_view[i], bits);
+    decoded_view[i] = point;
     round_trips_view[i] = H::toPoint(H::toIndex(points_view[i], bits), bits);
   });
 
   const axom::Array<std::uint64_t> host(results, host_allocator);
+  const axom::Array<typename H::PointType> host_decoded(decoded, host_allocator);
   const axom::Array<typename H::PointType> host_round_trips(round_trips, host_allocator);
   for(int i = 0; i < count; ++i)
   {
-    EXPECT_EQ(host[3 * i], keys[i]);
-    EXPECT_EQ(host[3 * i + 1], keys[i]);
-    EXPECT_EQ(host[3 * i + 2], 1);
+    SCOPED_TRACE(::testing::Message() << "sample " << i << ", depth " << depths[i]);
+    EXPECT_EQ(host[4 * i], keys[i]);
+    EXPECT_EQ(host[4 * i + 1], keys[i]);
+    EXPECT_EQ(host[4 * i + 2], 1);
+    // Round trips can pass even if host and device use different curve orientations.
+    EXPECT_EQ(host[4 * i + 3], H::toIndex(points[i], depths[i]));
+    EXPECT_EQ(host_decoded[i], H::toPoint(keys[i], depths[i]));
     EXPECT_EQ(host_round_trips[i], points[i]);
   }
 }
