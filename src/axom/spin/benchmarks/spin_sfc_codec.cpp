@@ -19,8 +19,8 @@
  * execution space use the same inputs.
  * Morton has no depth argument, so Variable changes its input ranges while
  * Hilbert also receives each item's depth.
- * HIP cases report either host batch time including launch and synchronization,
- * or device kernel time from HIP events. Inputs and outputs stay on the device.
+ * GPU cases report either host batch time including launch and synchronization,
+ * or device kernel time from GPU events. Inputs and outputs stay on the device.
  */
 
 #include "axom/config.hpp"
@@ -39,7 +39,9 @@
 
 #include "benchmark/benchmark.h"
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_USE_CUDA)
+  #include <cuda_runtime.h>
+#elif defined(AXOM_USE_HIP)
   #include <hip/hip_runtime.h>
 #endif
 
@@ -452,25 +454,58 @@ void registerBenchmarksForShape()
   }
 }
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-bool checkHip(benchmark::State& state, hipError_t error)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+struct GpuRuntime
 {
-  if(error != hipSuccess)
+  #if defined(AXOM_USE_CUDA)
+  using ExecSpace = axom::CUDA_EXEC<256, axom::ASYNC>;
+  using Resource = RAJA::resources::Cuda;
+  using Error = cudaError_t;
+  using Event = cudaEvent_t;
+  static constexpr auto success = cudaSuccess;
+  static constexpr auto errorString = cudaGetErrorString;
+  static constexpr Error (*eventCreate)(Event*) = cudaEventCreate;
+  static constexpr auto eventDestroy = cudaEventDestroy;
+  static constexpr auto eventRecord = cudaEventRecord;
+  static constexpr auto eventSynchronize = cudaEventSynchronize;
+  static constexpr auto eventElapsedTime = cudaEventElapsedTime;
+  static constexpr const char* batch_label = "CUDA";
+  static constexpr const char* kernel_label = "CUDAKernel";
+  #else
+  using ExecSpace = axom::HIP_EXEC<256, axom::ASYNC>;
+  using Resource = RAJA::resources::Hip;
+  using Error = hipError_t;
+  using Event = hipEvent_t;
+  static constexpr auto success = hipSuccess;
+  static constexpr auto errorString = hipGetErrorString;
+  static constexpr Error (*eventCreate)(Event*) = hipEventCreate;
+  static constexpr auto eventDestroy = hipEventDestroy;
+  static constexpr auto eventRecord = hipEventRecord;
+  static constexpr auto eventSynchronize = hipEventSynchronize;
+  static constexpr auto eventElapsedTime = hipEventElapsedTime;
+  static constexpr const char* batch_label = "HIP";
+  static constexpr const char* kernel_label = "HIPKernel";
+  #endif
+};
+
+bool checkGpu(benchmark::State& state, GpuRuntime::Error error)
+{
+  if(error != GpuRuntime::success)
   {
-    state.SkipWithError(hipGetErrorString(error));
+    state.SkipWithError(GpuRuntime::errorString(error));
     return false;
   }
   return true;
 }
 
 template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
-void benchmarkHipCodec(benchmark::State& state, int count, bool variable, bool kernel_only)
+void benchmarkGpuCodec(benchmark::State& state, int count, bool variable, bool kernel_only)
 {
   using CodecType = Codec<DIM, U, CURVE, IMPL>;
   using Point = typename CodecType::Point;
   constexpr int max_bits = CodecType::MAX_BITS;
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  const int device_allocator = axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
+  const int device_allocator = axom::execution_space<GpuRuntime::ExecSpace>::allocatorID();
   axom::Array<Point> points(count, count, host_allocator);
   axom::Array<U> keys(count, count, host_allocator);
   axom::Array<int> depths(count, count, host_allocator);
@@ -498,61 +533,61 @@ void benchmarkHipCodec(benchmark::State& state, int count, bool variable, bool k
   const auto depths_view = device_depths.view();
   const auto encoded_view = encoded.view();
   const auto decoded_view = decoded.view();
-  const auto codec_kernel = [=] AXOM_HOST_DEVICE(axom::IndexType i) {
-    const int bits = variable ? depths_view[i] : max_bits;
-    if constexpr(DIR == Encode)
-    {
-      encoded_view[i] = CodecType::encode(points_view[i], bits);
-    }
-    else
-    {
-      decoded_view[i] = CodecType::decode(keys_view[i], bits);
-    }
-  };
-  const auto launch_kernel = [=]() {
-    axom::for_all<axom::HIP_EXEC<256, axom::ASYNC>>(count, codec_kernel);
-  };
+  const auto codec_kernel =
+    [points_view, keys_view, depths_view, encoded_view, decoded_view, variable] AXOM_HOST_DEVICE(
+      axom::IndexType i) {
+      const int bits = variable ? depths_view[i] : max_bits;
+      if constexpr(DIR == Encode)
+      {
+        encoded_view[i] = CodecType::encode(points_view[i], bits);
+      }
+      else
+      {
+        decoded_view[i] = CodecType::decode(keys_view[i], bits);
+      }
+    };
+  const auto launch_kernel = [=]() { axom::for_all<GpuRuntime::ExecSpace>(count, codec_kernel); };
   const auto run_batch = [=]() {
     launch_kernel();
-    axom::synchronize<axom::HIP_EXEC<256, axom::ASYNC>>();
+    axom::synchronize<GpuRuntime::ExecSpace>();
   };
 
   run_batch();
-  hipEvent_t start_event {};
-  hipEvent_t stop_event {};
+  GpuRuntime::Event start_event {};
+  GpuRuntime::Event stop_event {};
   if(kernel_only)
   {
-    if(!checkHip(state, hipEventCreate(&start_event)))
+    if(!checkGpu(state, GpuRuntime::eventCreate(&start_event)))
     {
       return;
     }
-    if(!checkHip(state, hipEventCreate(&stop_event)))
+    if(!checkGpu(state, GpuRuntime::eventCreate(&stop_event)))
     {
-      checkHip(state, hipEventDestroy(start_event));
+      checkGpu(state, GpuRuntime::eventDestroy(start_event));
       return;
     }
   }
-  const auto stream = RAJA::resources::Hip::get_default().get_stream();
+  const auto stream = GpuRuntime::Resource::get_default().get_stream();
   double total_kernel_ns = 0.0;
   bool valid = true;
   for(auto _ : state)
   {
     if(kernel_only)
     {
-      if(!checkHip(state, hipEventRecord(start_event, stream)))
+      if(!checkGpu(state, GpuRuntime::eventRecord(start_event, stream)))
       {
         valid = false;
         break;
       }
       launch_kernel();
-      if(!checkHip(state, hipEventRecord(stop_event, stream)) ||
-         !checkHip(state, hipEventSynchronize(stop_event)))
+      if(!checkGpu(state, GpuRuntime::eventRecord(stop_event, stream)) ||
+         !checkGpu(state, GpuRuntime::eventSynchronize(stop_event)))
       {
         valid = false;
         break;
       }
       float elapsed_ms = 0.f;
-      if(!checkHip(state, hipEventElapsedTime(&elapsed_ms, start_event, stop_event)))
+      if(!checkGpu(state, GpuRuntime::eventElapsedTime(&elapsed_ms, start_event, stop_event)))
       {
         valid = false;
         break;
@@ -568,8 +603,8 @@ void benchmarkHipCodec(benchmark::State& state, int count, bool variable, bool k
   }
   if(kernel_only)
   {
-    const bool start_destroyed = checkHip(state, hipEventDestroy(start_event));
-    const bool stop_destroyed = checkHip(state, hipEventDestroy(stop_event));
+    const bool start_destroyed = checkGpu(state, GpuRuntime::eventDestroy(start_event));
+    const bool stop_destroyed = checkGpu(state, GpuRuntime::eventDestroy(stop_event));
     valid = valid && start_destroyed && stop_destroyed;
   }
   if(!valid)
@@ -593,7 +628,7 @@ void benchmarkHipCodec(benchmark::State& state, int count, bool variable, bool k
       using Reference = Codec<DIM, U, CURVE, CURVE == Curve::Morton ? Public : Scalar>;
       if(host_encoded[i] != Reference::encode(points[i], depths[i]))
       {
-        state.SkipWithError("HIP encoding disagrees with scalar reference");
+        state.SkipWithError("GPU encoding disagrees with scalar reference");
         break;
       }
     }
@@ -606,7 +641,7 @@ void benchmarkHipCodec(benchmark::State& state, int count, bool variable, bool k
       using Reference = Codec<DIM, U, CURVE, CURVE == Curve::Morton ? Public : Scalar>;
       if(host_decoded[i] != Reference::decode(keys[i], depths[i]))
       {
-        state.SkipWithError("HIP decoding disagrees with scalar reference");
+        state.SkipWithError("GPU decoding disagrees with scalar reference");
         break;
       }
     }
@@ -614,7 +649,7 @@ void benchmarkHipCodec(benchmark::State& state, int count, bool variable, bool k
 }
 
 template <int DIM, typename U, Curve CURVE, Implementation IMPL, Direction DIR>
-void registerHipCodecBenchmarks()
+void registerGpuCodecBenchmarks()
 {
   for(const int count : {SMALL_BATCH_SIZE, LARGE_BATCH_SIZE, 1048576})
   {
@@ -622,21 +657,18 @@ void registerHipCodecBenchmarks()
     {
       for(const bool kernel_only : {false, true})
       {
-        if(kernel_only && count == SMALL_BATCH_SIZE)
-        {
-          continue;
-        }
-        const auto label = axom::fmt::format("{}/{}/{}/{}D/u{}/{}/{}/{}",
-                                             kernel_only ? "HIPKernel" : "HIP",
-                                             curveName(CURVE),
-                                             implementationName(IMPL),
-                                             DIM,
-                                             sizeof(U) * 8,
-                                             DIR == Encode ? "Encode" : "Decode",
-                                             variable ? "Variable" : "Fixed",
-                                             count);
+        const auto label =
+          axom::fmt::format("{}/{}/{}/{}D/u{}/{}/{}/{}",
+                            kernel_only ? GpuRuntime::kernel_label : GpuRuntime::batch_label,
+                            curveName(CURVE),
+                            implementationName(IMPL),
+                            DIM,
+                            sizeof(U) * 8,
+                            DIR == Encode ? "Encode" : "Decode",
+                            variable ? "Variable" : "Fixed",
+                            count);
         auto* entry = benchmark::RegisterBenchmark(label.c_str(),
-                                                   &benchmarkHipCodec<DIM, U, CURVE, IMPL, DIR>,
+                                                   &benchmarkGpuCodec<DIM, U, CURVE, IMPL, DIR>,
                                                    count,
                                                    variable,
                                                    kernel_only);
@@ -655,17 +687,17 @@ void registerHipCodecBenchmarks()
 }
 
 template <int DIM, typename U>
-void registerHipBenchmarksForShape()
+void registerGpuBenchmarksForShape()
 {
   constexpr Implementation production = DIM == 2 ? FSM3 : DIM == 3 ? FSM2 : FSM1;
-  registerHipCodecBenchmarks<DIM, U, Curve::Morton, Public, Encode>();
-  registerHipCodecBenchmarks<DIM, U, Curve::Morton, Public, Decode>();
-  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Encode>();
-  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Decode>();
-  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, production, Encode>();
-  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, production, Decode>();
-  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Encode>();
-  registerHipCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Decode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Morton, Public, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Morton, Public, Decode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Scalar, Decode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, production, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, production, Decode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Encode>();
+  registerGpuCodecBenchmarks<DIM, U, Curve::Hilbert, Public, Decode>();
 }
 #endif
 }  // namespace
@@ -712,13 +744,13 @@ int main(int argc, char** argv)
   registerBenchmarksForShape<3, std::uint64_t>();
   registerBenchmarksForShape<4, std::uint32_t>();
   registerBenchmarksForShape<4, std::uint64_t>();
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  registerHipBenchmarksForShape<2, std::uint32_t>();
-  registerHipBenchmarksForShape<2, std::uint64_t>();
-  registerHipBenchmarksForShape<3, std::uint32_t>();
-  registerHipBenchmarksForShape<3, std::uint64_t>();
-  registerHipBenchmarksForShape<4, std::uint32_t>();
-  registerHipBenchmarksForShape<4, std::uint64_t>();
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+  registerGpuBenchmarksForShape<2, std::uint32_t>();
+  registerGpuBenchmarksForShape<2, std::uint64_t>();
+  registerGpuBenchmarksForShape<3, std::uint32_t>();
+  registerGpuBenchmarksForShape<3, std::uint64_t>();
+  registerGpuBenchmarksForShape<4, std::uint32_t>();
+  registerGpuBenchmarksForShape<4, std::uint64_t>();
 #endif
   benchmark::RunSpecifiedBenchmarks();
   benchmark::Shutdown();

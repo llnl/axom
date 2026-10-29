@@ -379,9 +379,8 @@ def render():
         '//', '// See the generator for table construction, entry packing, and verification.', '',
         '#include "axom/core/Macros.hpp"', '', '#include <cstdint>', '',
         '// Dynamic device lookups need device storage; the host copy stays constexpr.',
-        '#if defined(AXOM_DEVICE_CODE)',
-        '  #define AXOM_HILBERT_TABLE inline __device__ __constant__ const', '#else',
-        '  #define AXOM_HILBERT_TABLE inline constexpr', '#endif', '',
+        '#if defined(AXOM_DEVICE_CODE)', '  #define AXOM_HILBERT_TABLE inline __device__ const',
+        '#else', '  #define AXOM_HILBERT_TABLE inline constexpr', '#endif', '',
         'namespace axom::spin::internal::hilbert', '{', '// clang-format off'
     ]
     for dim, groups in PRODUCTION_LEVELS.items():

@@ -37,7 +37,7 @@
 
 // Dynamic device lookups need device storage; the host copy stays constexpr.
 #if defined(AXOM_DEVICE_CODE)
-  #define AXOM_HILBERT_TABLE inline __device__ __constant__ const
+  #define AXOM_HILBERT_TABLE inline __device__ const
 #else
   #define AXOM_HILBERT_TABLE inline constexpr
 #endif
