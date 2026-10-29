@@ -16,7 +16,7 @@
 #include "axom/core/NumericLimits.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/slic/interface/slic.hpp"
-#include "axom/spin/internal/HilbertFSM.hpp"
+#include "axom/spin/internal/HilbertCodec.hpp"
 
 #include <type_traits>
 
@@ -44,12 +44,11 @@ namespace axom::spin
  * The corresponding limits for int64_t keys are 31, 21, and 15 bits per axis.
  * Narrower coordinate types can reduce these limits.
  *
- * Uses precomputed finite state machine tables derived from J. Skilling's
- * algorithm in "Programming the Hilbert curve",
+ * Encoding and decoding use a table-based codec. Host tables are constexpr,
+ * while GPU tables use read-only global device memory.
+ * The tables follow J. Skilling's algorithm in "Programming the Hilbert curve",
  * AIP Conference Proceedings 707, 381 (2004), https://doi.org/10.1063/1.1751381.
- * Encoding and decoding use the same table implementation on the host and
- * CUDA and HIP devices for all supported dimensions and integer types.
- * Host tables are constexpr; GPU tables use read-only device storage.
+ * The scalar Skilling codec is a test and benchmark reference, not a library option.
  * \see internal::hilbert::HilbertFSMTransform for the table implementation.
  *
  * \tparam CoordType Integral coordinate type other than bool, at most 64 bits.

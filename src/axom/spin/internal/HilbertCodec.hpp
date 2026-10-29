@@ -7,8 +7,8 @@
 #pragma once
 
 /*!
- * \file HilbertFSM.hpp
- * \brief Hilbert encoding and decoding with grouped finite state machine (FSM) lookups.
+ * \file HilbertCodec.hpp
+ * \brief Encodes and decodes Hilbert indices with table lookups.
  */
 
 #include "axom/spin/MortonIndex.hpp"
@@ -67,7 +67,7 @@ AXOM_HOST_DEVICE inline unsigned int lookup(unsigned int state, unsigned int dig
  * \brief Converts Morton to Hilbert keys, or Hilbert to Morton when INVERSE is true.
  *
  * Each full lookup processes LEVELS bits per coordinate, starting with the most significant bits.
- * A partial leading group uses a smaller table. Padding it with zeros changes the curve's orientation.
+ * A short leading group uses a smaller table. Zero padding changes the curve's orientation.
  * In 2D, an entry holds the output bits in its low bits and the next state in its high bits.
  * In 3D/4D, the state holds the axis permutation and a reflection mask repeated for each input plane.
  * An entry's low bits hold the output; its high bits hold an XOR mask for updating the state.
@@ -147,11 +147,11 @@ AXOM_HOST_DEVICE inline U convert(U source, int bits)
 }
 
 /*!
- * \brief Converts integer points and Hilbert indices through Morton packing and FSM tables.
+ * \brief Encodes and decodes Hilbert indices with Morton packing and FSM tables.
  *
  * \tparam LEVELS Bits per coordinate processed by each full lookup group.
- * \note Callers must satisfy Hilbertizer's point, index, and depth preconditions.
- *       These routines do not validate inputs.
+ * \note Inputs must satisfy Hilbertizer's point, index, and depth preconditions.
+ *       This codec does not validate inputs.
  */
 template <typename CoordType, typename IndexType, int DIM, int LEVELS>
 struct HilbertFSMTransform

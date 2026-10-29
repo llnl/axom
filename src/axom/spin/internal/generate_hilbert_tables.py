@@ -5,7 +5,7 @@
 # files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
-"""Generate Hilbert finite state machine (FSM) tables for Axom's Skilling convention.
+"""Generate Hilbert finite state machine tables for Axom's Skilling convention.
 
 Each transition reads one bit plane from the input coordinates.
 The state holds an axis permutation, axis flips, and a Gray correction parity bit.
@@ -54,8 +54,8 @@ def require(condition, message):
 def scalar_reference(point, bits):
     """Skilling's axes/transpose transform with explicit bit packing.
 
-    This is separate from the state machine, but uses the same curve algorithm
-    as the C++ test reference. Convention fixtures remain in the C++ tests.
+    This reference does not use the tables. It follows the same algorithm as
+    the C++ test helper. The C++ tests also check fixed keys for Axom's convention.
     """
     axes = list(point)
     dim = len(axes)

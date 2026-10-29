@@ -6,10 +6,10 @@
 
 /*!
  * \file spin_hilbert_fsm.cpp
- * \brief Tests Hilbert FSM conversion against the scalar transform.
+ * \brief Checks the Hilbert table codec against the scalar Skilling reference.
  */
 
-#include "axom/spin/internal/HilbertFSM.hpp"
+#include "axom/spin/internal/HilbertCodec.hpp"
 #include "axom/spin/tests/hilbert_reference.hpp"
 #include "axom/spin/HilbertIndex.hpp"
 #include "axom/core/Array.hpp"
@@ -29,8 +29,7 @@ constexpr std::uint64_t TEST_SEED = 42;
 constexpr int SAMPLES_PER_DEPTH = 100;
 
 /*!
- * \brief Compares finite state machine (FSM) encoding and decoding against
- * the scalar transform at every valid depth.
+ * \brief Checks finite state machine (FSM) encoding and decoding against the scalar reference at every valid depth.
  *
  * Covers corners, individual coordinate bits, and deterministic random points,
  * along with independently sampled keys.
@@ -91,7 +90,7 @@ void allDepths()
 }
 
 /*!
- * \brief Compares FSM and scalar encoding and decoding for every point and key on small grids.
+ * \brief Checks FSM results against the scalar reference for every point and key on small grids.
  *
  * \tparam DIM Number of coordinates in each point.
  * \tparam LEVELS Number of bits per coordinate processed by each table lookup.
