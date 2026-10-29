@@ -36,6 +36,7 @@
 #include "axom/spin/MortonIndex.hpp"
 #include "axom/spin/SpaceFillingCurve.hpp"
 #include "axom/spin/internal/HilbertFSM.hpp"
+#include "axom/spin/tests/hilbert_reference.hpp"
 
 #include "benchmark/benchmark.h"
 
@@ -110,8 +111,7 @@ struct Codec
     std::min(std::numeric_limits<std::uint32_t>::digits, std::numeric_limits<U>::digits / DIM);
 
   using HilbertPublicTransform = axom::spin::Hilbertizer<std::uint32_t, U, DIM>;
-  using HilbertScalarTransform =
-    axom::spin::internal::hilbert::HilbertTransform<std::uint32_t, U, DIM>;
+  using HilbertScalarTransform = axom::spin::testing::HilbertReference<std::uint32_t, U, DIM>;
   using MortonPublicTransform = axom::spin::Mortonizer<std::uint32_t, U, DIM>;
   static constexpr int LEVELS = IMPL == FSM3 ? 3 : IMPL == FSM2 ? 2 : 1;
   using HilbertFSMTransform =
@@ -237,8 +237,7 @@ bool verifyCodec()
       }
       else
       {
-        using HilbertScalarTransform =
-          axom::spin::internal::hilbert::HilbertTransform<std::uint32_t, U, DIM>;
+        using HilbertScalarTransform = axom::spin::testing::HilbertReference<std::uint32_t, U, DIM>;
         expected_key = HilbertScalarTransform::toIndex(point, bits);
         expected_point = HilbertScalarTransform::toPoint(key, bits);
       }

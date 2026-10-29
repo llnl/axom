@@ -10,7 +10,7 @@
  */
 
 #include "axom/spin/internal/HilbertTables.hpp"
-#include "axom/spin/internal/HilbertIndexImpl.hpp"
+#include "axom/spin/tests/hilbert_reference.hpp"
 #include "axom/slic.hpp"
 
 #include "gtest/gtest.h"
@@ -31,7 +31,7 @@ std::uint64_t referenceIndex(std::uint64_t digits,
                              const std::array<int, DIM>& permutation,
                              unsigned flips)
 {
-  using Scalar = tables::HilbertTransform<std::uint32_t, std::uint64_t, DIM>;
+  using Scalar = axom::spin::testing::HilbertReference<std::uint32_t, std::uint64_t, DIM>;
   typename Scalar::PointType point;
   for(int axis = 0; axis < DIM; ++axis)
   {

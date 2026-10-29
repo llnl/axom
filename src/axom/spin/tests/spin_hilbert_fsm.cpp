@@ -10,7 +10,7 @@
  */
 
 #include "axom/spin/internal/HilbertFSM.hpp"
-#include "axom/spin/internal/HilbertIndexImpl.hpp"
+#include "axom/spin/tests/hilbert_reference.hpp"
 #include "axom/spin/HilbertIndex.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/execution/for_all.hpp"
@@ -43,7 +43,7 @@ template <typename Index, int DIM, int LEVELS>
 void allDepths()
 {
   using FSM = hilbert::HilbertFSMTransform<std::uint32_t, Index, DIM, LEVELS>;
-  using Scalar = hilbert::HilbertTransform<std::uint32_t, Index, DIM>;
+  using Scalar = axom::spin::testing::HilbertReference<std::uint32_t, Index, DIM>;
   using Public = axom::spin::Hilbertizer<std::uint32_t, Index, DIM>;
   std::mt19937_64 random(TEST_SEED + DIM);
   for(int bits = 1; bits <= Public::MAX_UNIQUE_BITS; ++bits)
@@ -100,7 +100,7 @@ template <int DIM, int LEVELS>
 void exhaustive()
 {
   using FSM = hilbert::HilbertFSMTransform<std::uint32_t, std::uint64_t, DIM, LEVELS>;
-  using Scalar = hilbert::HilbertTransform<std::uint32_t, std::uint64_t, DIM>;
+  using Scalar = axom::spin::testing::HilbertReference<std::uint32_t, std::uint64_t, DIM>;
   constexpr int max_depth = DIM == 4 ? 4 : 5;
   for(int bits = 1; bits <= max_depth; ++bits)
   {
@@ -129,7 +129,7 @@ template <typename ExecSpace, typename Coord, typename Index, int DIM, int LEVEL
 void gpuAllDepths()
 {
   using FSM = hilbert::HilbertFSMTransform<Coord, Index, DIM, LEVELS>;
-  using Scalar = hilbert::HilbertTransform<Coord, Index, DIM>;
+  using Scalar = axom::spin::testing::HilbertReference<Coord, Index, DIM>;
   using Public = axom::spin::Hilbertizer<Coord, Index, DIM>;
   using Point = typename FSM::PointType;
   constexpr int max_bits = Public::MAX_UNIQUE_BITS;
