@@ -9,18 +9,20 @@
  * \brief Compares Hilbert and Morton space filling curve conversions
  * in 2D, 3D, and 4D.
  *
- * Use Google Benchmark's --benchmark_filter and --benchmark_repetitions options
- * for timing in Release. Run --verify-only to check the adapters.
+ * Use --benchmark_filter and --benchmark_repetitions for timing in Release.
+ * Run --verify-only to check each codec against its reference.
+ * Hilbert/Public calls the library's table codec.
+ * Hilbert/Scalar uses the scalar Skilling test reference, which is not installed.
+ * Hilbert/FSM1, FSM2, and FSM3 select the number of bit planes per table lookup in supported dimensions.
  *
  * Each timed iteration processes a batch. Divide its time by
  * `batch * operations_per_item` to get the average time per conversion.
  * Mixed cases encode a point and decode an independent key for each item.
- * Cases identify both the curve and its implementation. Implementations in each
- * execution space use the same inputs.
+ * Each codec in an execution space receives the same inputs.
  * Morton has no depth argument, so Variable changes its input ranges while
  * Hilbert also receives each item's depth.
- * GPU cases report either host batch time including launch and synchronization,
- * or device kernel time from GPU events. Inputs and outputs stay on the device.
+ * CUDA/HIP cases include host launch and synchronization. CUDAKernel/HIPKernel
+ * cases use GPU event time. Inputs and outputs stay on the device.
  */
 
 #include "axom/config.hpp"
@@ -35,7 +37,7 @@
 #include "axom/spin/HilbertIndex.hpp"
 #include "axom/spin/MortonIndex.hpp"
 #include "axom/spin/SpaceFillingCurve.hpp"
-#include "axom/spin/internal/HilbertFSM.hpp"
+#include "axom/spin/internal/HilbertCodec.hpp"
 #include "axom/spin/tests/hilbert_reference.hpp"
 
 #include "benchmark/benchmark.h"
@@ -78,9 +80,8 @@ constexpr int CACHE_PRESSURE_ITERATIONS = 32;
 
 using Curve = axom::spin::SpaceFillingCurve;
 
-// Public calls the selected curve's API. Scalar calls the reference Hilbert transform.
-// FSM uses the production tables.
-// The number in each adapter name gives bits per coordinate per lookup.
+// Public calls the library API. Scalar uses the Skilling test reference.
+// FSM1/FSM2/FSM3 use library tables with one/two/three bit planes per lookup.
 // All adapters allow normal inlining.
 enum Implementation
 {

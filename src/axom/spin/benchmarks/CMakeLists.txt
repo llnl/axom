@@ -10,6 +10,7 @@
 axom_add_executable(
     NAME       spin_sfc_codec_benchmark
     SOURCES    spin_sfc_codec.cpp
+    HEADERS    ../tests/hilbert_reference.hpp
     OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
     DEPENDS_ON spin slic fmt cli11 gbenchmark
     FOLDER     axom/spin/benchmarks

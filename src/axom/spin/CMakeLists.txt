@@ -33,7 +33,7 @@ set( spin_headers
      UniformGrid.hpp
 
      ## internal
-     internal/HilbertFSM.hpp
+     internal/HilbertCodec.hpp
      internal/HilbertTables.hpp
      internal/linear_bvh/BVHNode.hpp
      internal/linear_bvh/RadixTree.hpp
