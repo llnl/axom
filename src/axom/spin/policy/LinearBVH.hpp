@@ -46,7 +46,7 @@ using BVH2Node = lbvh::BVH2Node<FloatType, NDIMS>;
 struct LinearBVHType
 {
   /// A leaf stores the index of exactly one input primitive.
-  struct SinglePrimitiveLeaf
+  struct SinglePrimitiveLeaves
   { };
 
   /// A leaf stores a Morton-local bucket of input primitive indices.
@@ -109,12 +109,13 @@ struct BucketLeafData<true>
  *
  * \see internal::linear_bvh::bvh_traverse
  */
-template <typename FloatType, int NDIMS, typename LeafType = LinearBVHType::SinglePrimitiveLeaf>
+template <typename FloatType, int NDIMS, typename LeafType = LinearBVHType::SinglePrimitiveLeaves>
 class LinearBVHTraverser
 {
 public:
-  static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
-                "Only LinearBVHType::SinglePrimitiveLeaf is currently supported.");
+  static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaves>,
+                "The primary LinearBVHTraverser requires a SinglePrimitiveLeaves leaf type. "
+                "Other leaf representations require a specialization.");
 
   using BoxType = primal::BoundingBox<FloatType, NDIMS>;
   using PointType = primal::Point<FloatType, NDIMS>;
@@ -310,7 +311,7 @@ private:
  *  ones-complement if leaf node).
  *
  */
-template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType = LinearBVHType::SinglePrimitiveLeaf>
+template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType = LinearBVHType::SinglePrimitiveLeaves>
 class LinearBVH
 {
 public:
@@ -331,8 +332,10 @@ public:
    * \param [in] scaleFactor scale factor applied to each bounding box before insertion into the BVH
    * \param [in] allocatorID allocator used to store the BVH
    * \param [in] ordering curve used to order box centroids. Defaults to Morton.
-   */
+   * \pre This LinearBVH requires SinglePrimitiveLeaves.
+  */
   template <typename BoxIndexable>
+    requires std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaves>
   void buildImpl(const BoxIndexable boxes,
                  IndexType numBoxes,
                  FloatType scaleFactor,
@@ -351,8 +354,9 @@ public:
    * \param [in] ordering curve used to order box centroids.
    * \param [in] grouping policy used to form buckets from spatially sorted primitives.
    * \pre This LinearBVH requires BucketedPrimitiveLeaves.
-   */
+  */
   template <typename BoxIndexable>
+    requires std::is_same_v<LeafType, LinearBVHType::BucketedPrimitiveLeaves>
   void buildImpl(const BoxIndexable boxes,
                  IndexType numBoxes,
                  IndexType maxBucketSize,
@@ -372,8 +376,9 @@ public:
    * \param [in] objs array of primitives to query against the BVH
    *
    * \return total_count the total count of candidates for all query primitives.
-   */
+  */
   template <typename PrimitiveType, typename Predicate, typename PrimitiveIndexable>
+    requires std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaves>
   axom::Array<IndexType> findCandidatesImpl(Predicate&& predicate,
                                             const axom::ArrayView<IndexType> offsets,
                                             const axom::ArrayView<IndexType> counts,
@@ -387,7 +392,7 @@ public:
 
   TraverserType getTraverserImpl() const
   {
-    if constexpr(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>)
+    if constexpr(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaves>)
     {
       return TraverserType(m_inner_nodes.view(), m_leaf_nodes.view());
     }
@@ -437,15 +442,13 @@ private:
 
 template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
 template <typename BoxIndexable>
+  requires std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaves>
 void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexable boxes,
                                                                  IndexType numBoxes,
                                                                  FloatType scaleFactor,
                                                                  int allocatorID,
                                                                  SpaceFillingCurve ordering)
 {
-  static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
-                "This build overload requires LinearBVHType::SinglePrimitiveLeaf.");
-
   AXOM_ANNOTATE_SCOPE("LinearBVH::buildImpl");
 
   // STEP 1: Sort the boxes by spatial key and build a RadixTree.
@@ -469,6 +472,7 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexa
 
 template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
 template <typename BoxIndexable>
+  requires std::is_same_v<LeafType, LinearBVHType::BucketedPrimitiveLeaves>
 void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexable boxes,
                                                                  IndexType numBoxes,
                                                                  IndexType maxBucketSize,
@@ -477,10 +481,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::buildImpl(const BoxIndexa
                                                                  SpaceFillingCurve ordering,
                                                                  BucketedBVHGrouping grouping)
 {
-  static_assert(std::is_same_v<LeafType, LinearBVHType::BucketedPrimitiveLeaves>,
-                "This build overload requires LinearBVHType::BucketedPrimitiveLeaves.");
+  AXOM_ANNOTATE_SCOPE("build_bucketed_linear_bvh");
 
-  AXOM_ANNOTATE_SCOPE("LinearBVH::buildBucketedImpl");
   SLIC_ASSERT(numBoxes <= std::numeric_limits<std::int32_t>::max());
   SLIC_ASSERT(maxBucketSize > 0);
   SLIC_ASSERT(maxBucketSize <= std::numeric_limits<std::int32_t>::max());
@@ -573,6 +575,7 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::emitRadixTree(
 
 template <typename FloatType, int NDIMS, typename ExecSpace, typename LeafType>
 template <typename PrimitiveType, typename Predicate, typename PrimitiveIndexable>
+  requires std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaves>
 axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::findCandidatesImpl(
   Predicate&& predicate,
   const axom::ArrayView<IndexType> offsets,
@@ -582,9 +585,6 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::findCan
   int allocatorID) const
 
 {
-  static_assert(std::is_same_v<LeafType, LinearBVHType::SinglePrimitiveLeaf>,
-                "findCandidatesImpl() is not implemented for bucketed leaves.");
-
   AXOM_ANNOTATE_SCOPE("LinearBVH::findCandidatesImpl");
 
   SLIC_ERROR_IF(offsets.size() != numObjs, "offsets length not equal to numObjs");
@@ -803,13 +803,6 @@ public:
     };
 
     traverse_tree(p, leaf_action_wrapper, std::forward<Predicate>(predicate));
-  }
-
-  template <typename ExecSpace, typename Primitive, typename LeafAction, typename Predicate>
-  AXOM_HOST_DEVICE void traverseTreeShared(const Primitive&, LeafAction&&, Predicate&&) const
-  {
-    static_assert(!std::is_same_v<ExecSpace, ExecSpace>,
-                  "traverseTreeShared() is not supported for bucketed leaves.");
   }
 
   /*!

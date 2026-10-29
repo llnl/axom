@@ -39,10 +39,10 @@ constexpr double EPS = 1e-6;
 
 using DefaultLinearBVH = spin::policy::LinearBVH<double, 2, axom::SEQ_EXEC>;
 using SinglePrimitiveLinearBVH =
-  spin::policy::LinearBVH<double, 2, axom::SEQ_EXEC, spin::policy::LinearBVHType::SinglePrimitiveLeaf>;
+  spin::policy::LinearBVH<double, 2, axom::SEQ_EXEC, spin::policy::LinearBVHType::SinglePrimitiveLeaves>;
 
 static_assert(std::is_same_v<DefaultLinearBVH, SinglePrimitiveLinearBVH>,
-              "SinglePrimitiveLeaf must remain LinearBVH's default leaf representation.");
+              "SinglePrimitiveLeaves must remain LinearBVH's default leaf representation.");
 
 //------------------------------------------------------------------------------
 template <typename FloatType, int NDIMS>
@@ -1693,7 +1693,7 @@ TEST(spin_bvh, linear_bvh_traverse_leaves)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, bucketed_linear_bvh_sequential)
+TEST(spin_bvh, bucketed_policy_traversal_and_reduction)
 {
   constexpr int NDIMS = 2;
   constexpr axom::IndexType NUM_BOXES = 4;
@@ -1718,24 +1718,25 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential)
 
   const auto traverser = bvh.getTraverserImpl();
   axom::IndexType primitive_count = 0;
-  std::int32_t primitive_id_sum = 0;
+  std::vector<std::int32_t> all_primitive_ids;
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
   traverser.traverse_leaves(
     PointType {0., 0.},
-    [&](const auto& primitive_ids) {
-      primitive_count += primitive_ids.size();
-      for(const auto primitive_id : primitive_ids)
+    [&](const auto& bucket_primitive_ids) {
+      primitive_count += bucket_primitive_ids.size();
+      for(const auto primitive_id : bucket_primitive_ids)
       {
-        primitive_id_sum += primitive_id;
+        all_primitive_ids.push_back(primitive_id);
       }
     },
     accept_all);
 
   EXPECT_EQ(NUM_BOXES, primitive_count);
-  EXPECT_EQ(6, primitive_id_sum);
+  std::sort(all_primitive_ids.begin(), all_primitive_ids.end());
+  EXPECT_EQ((std::vector<std::int32_t> {0, 1, 2, 3}), all_primitive_ids);
 
   axom::IndexType raw_primitive_count = 0;
-  std::int32_t raw_primitive_id_sum = 0;
+  std::vector<std::int32_t> raw_primitive_ids;
   traverser.traverse_tree(
     PointType {0., 0.},
     [&](std::int32_t leaf_slot,
@@ -1747,13 +1748,14 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential)
       for(axom::IndexType i = 0; i < storage_size; ++i)
       {
         ++raw_primitive_count;
-        raw_primitive_id_sum += primitive_id_storage[storage_offset + i];
+        raw_primitive_ids.push_back(primitive_id_storage[storage_offset + i]);
       }
     },
     accept_all);
 
   EXPECT_EQ(NUM_BOXES, raw_primitive_count);
-  EXPECT_EQ(6, raw_primitive_id_sum);
+  std::sort(raw_primitive_ids.begin(), raw_primitive_ids.end());
+  EXPECT_EQ((std::vector<std::int32_t> {0, 1, 2, 3}), raw_primitive_ids);
 
   const auto primitive_count_in_bucket = [](const auto& primitive_ids) -> axom::IndexType {
     return primitive_ids.size();
@@ -1767,7 +1769,7 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, bucketed_linear_bvh_facade_sequential)
+TEST(spin_bvh, bucketed_bvh_facade_construction)
 {
   constexpr int NDIMS = 2;
   constexpr axom::IndexType NUM_BOXES = 4;
@@ -1815,7 +1817,46 @@ TEST(spin_bvh, bucketed_linear_bvh_facade_sequential)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, bucketed_linear_bvh_shared_prefix_order)
+TEST(spin_bvh, bucketed_bvh_facade_zero_and_one_input)
+{
+  constexpr int NDIMS = 2;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using BucketedBVH = spin::BVH<NDIMS, axom::SEQ_EXEC, FloatType, spin::BVHType::BucketedLinearBVH>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const axom::Array<BoxType> boxes({BoxType(PointType {1., 2.})}, allocator_id);
+  const BucketedBVH::BuildParameters parameters {.maxBucketSize = 1};
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  const auto collect_primitive_ids = [&](const BucketedBVH& bvh) {
+    std::vector<std::int32_t> primitive_ids;
+    bvh.getTraverser().traverse_leaves(
+      PointType {1., 2.},
+      [&](const auto& bucket_primitive_ids) {
+        primitive_ids.insert(primitive_ids.end(),
+                             bucket_primitive_ids.begin(),
+                             bucket_primitive_ids.end());
+      },
+      accept_all);
+    std::sort(primitive_ids.begin(), primitive_ids.end());
+    return primitive_ids;
+  };
+
+  BucketedBVH bvh;
+  ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 0, parameters));
+  EXPECT_TRUE(bvh.isInitialized());
+  EXPECT_FALSE(bvh.getBounds().isValid());
+  EXPECT_TRUE(collect_primitive_ids(bvh).empty());
+
+  ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 1, parameters));
+  EXPECT_TRUE(bvh.isInitialized());
+  EXPECT_TRUE(bvh.getBounds().isValid());
+  EXPECT_EQ((std::vector<std::int32_t> {0}), collect_primitive_ids(bvh));
+}
+
+//------------------------------------------------------------------------------
+TEST(spin_bvh, bucketed_policy_shared_prefix_grouping)
 {
   constexpr int NDIMS = 2;
   constexpr axom::IndexType NUM_BOXES = 4;
@@ -1858,7 +1899,7 @@ TEST(spin_bvh, bucketed_linear_bvh_shared_prefix_order)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, bucketed_linear_bvh_sequential_order)
+TEST(spin_bvh, bucketed_bvh_facade_sequential_grouping)
 {
   constexpr int NDIMS = 2;
   constexpr axom::IndexType NUM_BOXES = 5;
@@ -1899,7 +1940,7 @@ TEST(spin_bvh, bucketed_linear_bvh_sequential_order)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, bucketed_linear_bvh_splits_equal_morton_codes_at_target_size)
+TEST(spin_bvh, bucketed_policy_splits_equal_morton_codes_at_target_size)
 {
   constexpr int NDIMS = 2;
   constexpr axom::IndexType NUM_BOXES = 3;
@@ -1941,6 +1982,54 @@ TEST(spin_bvh, bucketed_linear_bvh_splits_equal_morton_codes_at_target_size)
   EXPECT_EQ(NUM_BOXES, primitive_count);
   EXPECT_EQ(2, nonempty_bucket_count);
 }
+
+//------------------------------------------------------------------------------
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+
+TEST(spin_bvh, bucketed_bvh_facade_omp)
+{
+  constexpr int NDIMS = 2;
+  constexpr axom::IndexType NUM_BOXES = 257;
+  constexpr axom::IndexType MAX_BUCKET_SIZE = 3;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using BucketedBVH = spin::BVH<NDIMS, axom::OMP_EXEC, FloatType, spin::BVHType::BucketedLinearBVH>;
+
+  const int allocator_id = axom::execution_space<axom::OMP_EXEC>::allocatorID();
+  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
+  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
+  {
+    boxes[i] = BoxType(PointType {static_cast<FloatType>(i), static_cast<FloatType>(i % 7)});
+  }
+
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  for(const auto grouping :
+      {spin::BucketedBVHGrouping::SharedPrefix, spin::BucketedBVHGrouping::Sequential})
+  {
+    BucketedBVH::BuildParameters parameters {.maxBucketSize = MAX_BUCKET_SIZE,
+                                             .ordering = spin::SpaceFillingCurve::Morton,
+                                             .grouping = grouping};
+    BucketedBVH bvh;
+    ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), NUM_BOXES, parameters));
+
+    axom::IndexType primitive_count = 0;
+    axom::IndexType largest_bucket_size = 0;
+    bvh.getTraverser().traverse_leaves(
+      PointType {0., 0.},
+      [&](const auto& primitive_ids) {
+        primitive_count += primitive_ids.size();
+        largest_bucket_size = std::max(largest_bucket_size, primitive_ids.size());
+      },
+      accept_all);
+
+    EXPECT_EQ(NUM_BOXES, primitive_count);
+    EXPECT_LE(largest_bucket_size, MAX_BUCKET_SIZE);
+  }
+}
+
+//------------------------------------------------------------------------------
+#endif
 
 //------------------------------------------------------------------------------
 TEST(spin_bvh, construct2D_sequential)
@@ -2057,49 +2146,6 @@ TEST(spin_bvh, reduce_leaves_point_counts_sequential)
 //------------------------------------------------------------------------------
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
 
-TEST(spin_bvh, bucketed_linear_bvh_omp)
-{
-  constexpr int NDIMS = 2;
-  constexpr axom::IndexType NUM_BOXES = 257;
-  constexpr axom::IndexType MAX_BUCKET_SIZE = 3;
-  using FloatType = double;
-  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
-  using PointType = primal::Point<FloatType, NDIMS>;
-  using BucketedBVH = spin::BVH<NDIMS, axom::OMP_EXEC, FloatType, spin::BVHType::BucketedLinearBVH>;
-
-  const int allocator_id = axom::execution_space<axom::OMP_EXEC>::allocatorID();
-  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
-  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
-  {
-    boxes[i] = BoxType(PointType {static_cast<FloatType>(i), static_cast<FloatType>(i % 7)});
-  }
-
-  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-  for(const auto grouping :
-      {spin::BucketedBVHGrouping::SharedPrefix, spin::BucketedBVHGrouping::Sequential})
-  {
-    BucketedBVH::BuildParameters parameters {.maxBucketSize = MAX_BUCKET_SIZE,
-                                             .ordering = spin::SpaceFillingCurve::Morton,
-                                             .grouping = grouping};
-    BucketedBVH bvh;
-    ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), NUM_BOXES, parameters));
-
-    axom::IndexType primitive_count = 0;
-    axom::IndexType largest_bucket_size = 0;
-    bvh.getTraverser().traverse_leaves(
-      PointType {0., 0.},
-      [&](const auto& primitive_ids) {
-        primitive_count += primitive_ids.size();
-        largest_bucket_size = std::max(largest_bucket_size, primitive_ids.size());
-      },
-      accept_all);
-
-    EXPECT_EQ(NUM_BOXES, primitive_count);
-    EXPECT_LE(largest_bucket_size, MAX_BUCKET_SIZE);
-  }
-}
-
-//------------------------------------------------------------------------------
 TEST(spin_bvh, build2D_omp)
 {
   check_build_bvh<2, axom::OMP_EXEC, double>();

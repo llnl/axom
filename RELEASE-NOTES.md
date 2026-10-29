@@ -46,6 +46,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   policy-specific `BVHBuildParameters`; Morton remains the default.
 - Spin: Adds a Morton/Hilbert visualization example that exports 2D/3D Blueprint
   point, grid, and curve meshes.
+- Spin: Adds a `BucketedLinearBVH` policy to `spin::BVH` which allows multiple primitives in the same leaf node.
+- Spin: Adds a `LinearBVHTraverser::traverse_leaves` method which accepts leaf actions that index directly
+  into the original array of primitives without referencing the internal BVH structure.
 
 ### Removed
 
@@ -64,6 +67,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   components. For example, `values/2` now reads the second entry of `values = {5.0, 6.0}`.
 - Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
   including layouts that specify only one of those keys.
+- Spin: The function of `LinearBVHTraverser::reduce_tree` has been supplant with `LinearBVHTraverser::reduce_leaves`,
+  which accepts leaf actions that index directly into the original array of primitives. 
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
