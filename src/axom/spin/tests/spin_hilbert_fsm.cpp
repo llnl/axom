@@ -124,9 +124,9 @@ void exhaustive()
   }
 }
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-template <typename Coord, typename Index, int DIM, int LEVELS>
-void hipAllDepths()
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+template <typename ExecSpace, typename Coord, typename Index, int DIM, int LEVELS>
+void gpuAllDepths()
 {
   using FSM = hilbert::HilbertFSMTransform<Coord, Index, DIM, LEVELS>;
   using Scalar = hilbert::HilbertTransform<Coord, Index, DIM>;
@@ -135,7 +135,7 @@ void hipAllDepths()
   constexpr int max_bits = Public::MAX_UNIQUE_BITS;
   constexpr int count = max_bits * 128;
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  const int device_allocator = axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
+  const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
   axom::Array<Point> points(count, count, host_allocator);
   axom::Array<Index> keys(count, count, host_allocator);
   axom::Array<int> depths(count, count, host_allocator);
@@ -173,7 +173,7 @@ void hipAllDepths()
   const auto decoded_view = decoded.view();
   const auto public_encoded_view = public_encoded.view();
   const auto public_decoded_view = public_decoded.view();
-  axom::for_all<axom::HIP_EXEC<256>>(count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+  axom::for_all<ExecSpace>(count, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
     encoded_view[i] = FSM::toIndex(points_view[i], depths_view[i]);
     decoded_view[i] = FSM::toPoint(keys_view[i], depths_view[i]);
     public_encoded_view[i] = Public::toIndex(points_view[i], depths_view[i]);
@@ -228,24 +228,29 @@ TEST(HilbertFSMTest, exhaustive_scalar_agreement)
   ASSERT_NO_FATAL_FAILURE((exhaustive<4, 1>()));
 }
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-TEST(HilbertFSMTest, hip_scalar_agreement_at_every_depth)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+TEST(HilbertFSMTest, gpu_scalar_agreement_at_every_depth)
 {
-  hipAllDepths<std::uint32_t, std::uint32_t, 2, 1>();
-  hipAllDepths<std::uint32_t, std::uint32_t, 2, 2>();
-  hipAllDepths<std::uint32_t, std::uint32_t, 2, 3>();
-  hipAllDepths<std::uint32_t, std::uint32_t, 3, 1>();
-  hipAllDepths<std::uint32_t, std::uint32_t, 3, 2>();
-  hipAllDepths<std::uint32_t, std::uint32_t, 4, 1>();
-  hipAllDepths<std::uint32_t, std::uint64_t, 2, 1>();
-  hipAllDepths<std::uint32_t, std::uint64_t, 2, 2>();
-  hipAllDepths<std::uint32_t, std::uint64_t, 2, 3>();
-  hipAllDepths<std::uint32_t, std::uint64_t, 3, 1>();
-  hipAllDepths<std::uint32_t, std::uint64_t, 3, 2>();
-  hipAllDepths<std::uint32_t, std::uint64_t, 4, 1>();
-  hipAllDepths<std::int64_t, std::int64_t, 2, 3>();
-  hipAllDepths<std::int64_t, std::int64_t, 3, 2>();
-  hipAllDepths<std::int64_t, std::int64_t, 4, 1>();
+  #if defined(AXOM_USE_CUDA)
+  using ExecSpace = axom::CUDA_EXEC<256>;
+  #else
+  using ExecSpace = axom::HIP_EXEC<256>;
+  #endif
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint32_t, 2, 1>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint32_t, 2, 2>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint32_t, 2, 3>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint32_t, 3, 1>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint32_t, 3, 2>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint32_t, 4, 1>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint64_t, 2, 1>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint64_t, 2, 2>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint64_t, 2, 3>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint64_t, 3, 1>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint64_t, 3, 2>();
+  gpuAllDepths<ExecSpace, std::uint32_t, std::uint64_t, 4, 1>();
+  gpuAllDepths<ExecSpace, std::int64_t, std::int64_t, 2, 3>();
+  gpuAllDepths<ExecSpace, std::int64_t, std::int64_t, 3, 2>();
+  gpuAllDepths<ExecSpace, std::int64_t, std::int64_t, 4, 1>();
 }
 #endif
 

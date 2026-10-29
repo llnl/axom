@@ -45,11 +45,12 @@ namespace axom::spin
  * The corresponding limits for int64_t keys are 31, 21, and 15 bits per axis.
  * Narrower coordinate types can reduce these limits.
  *
- * Uses J. Skilling's algorithm from "Programming the Hilbert curve",
+ * Uses precomputed finite state machine tables derived from J. Skilling's
+ * algorithm in "Programming the Hilbert curve",
  * AIP Conference Proceedings 707, 381 (2004), https://doi.org/10.1063/1.1751381.
- * Host calls use a finite state machine with precomputed tables. HIP device
- * calls also use it, except 4D decoding with 32-bit or narrower indices,
- * where the scalar transform is faster. CUDA device calls use the scalar transform.
+ * Encoding and decoding use the same table implementation on the host and
+ * CUDA and HIP devices for all supported dimensions and integer types.
+ * Host tables are constexpr; GPU tables use read-only device storage.
  * \see internal::hilbert::HilbertFSMTransform for the table implementation.
  * \see internal::hilbert::HilbertTransform for the scalar algorithm and bit layout.
  *
@@ -140,11 +141,7 @@ struct Hilbertizer
   AXOM_HOST_DEVICE static IndexType toIndex(const PointType& point, int bits)
   {
     SLIC_ASSERT(isValidPoint(point, bits));
-#if defined(AXOM_DEVICE_CODE) && !defined(__HIP_DEVICE_COMPILE__)
-    return HilbertTransform::toIndex(point, bits);
-#else
     return HilbertFSMTransform::toIndex(point, bits);
-#endif
   }
 
   /*!
@@ -156,21 +153,7 @@ struct Hilbertizer
   AXOM_HOST_DEVICE static PointType toPoint(IndexType index, int bits)
   {
     SLIC_ASSERT(isValidIndex(index, bits));
-#if defined(AXOM_DEVICE_CODE) && !defined(__HIP_DEVICE_COMPILE__)
-    return HilbertTransform::toPoint(index, bits);
-#elif defined(__HIP_DEVICE_COMPILE__)
-    // Scalar decoding was faster for 4D/32-bit keys on gfx942.
-    if constexpr(DIM == 4 && sizeof(IndexType) <= 4)
-    {
-      return HilbertTransform::toPoint(index, bits);
-    }
-    else
-    {
-      return HilbertFSMTransform::toPoint(index, bits);
-    }
-#else
     return HilbertFSMTransform::toPoint(index, bits);
-#endif
   }
 
   /// Maximum supported depth.
@@ -178,7 +161,7 @@ struct Hilbertizer
 
 private:
   using HilbertTransform = internal::hilbert::HilbertTransform<CoordType, IndexType, DIM>;
-  // Bit planes per table lookup, selected from host benchmarks.
+  // Bit planes per table lookup, shared by host and GPU calls.
   static constexpr int FSM_LEVELS = DIM == 2 ? 3 : DIM == 3 ? 2 : 1;
   using HilbertFSMTransform =
     internal::hilbert::HilbertFSMTransform<CoordType, IndexType, DIM, FSM_LEVELS>;
