@@ -163,6 +163,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Status-returning reader/writer operations in `C2CReader`, `MFEMReader`, `ProEReader`,
   `STEPReader`, `STLReader`, `STLWriter`, and their parallel variants are now marked `[[nodiscard]]`.
   Callers that previously ignored returned status values must check them to avoid compiler diagnostics.
+- No longer exporting CMake targets of external projects (mfem, scr, c2c, hdf5, lua, opencascade)
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
