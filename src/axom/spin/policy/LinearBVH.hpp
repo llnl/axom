@@ -150,7 +150,8 @@ public:
    * \brief Traverse the tree and invoke an action with the primitive ID in each visited leaf.
    *
    * \param[in] p The primitive to use for traversal.
-   * \param[in] leaf_action Action invoked with the primitive ID in a visited leaf.
+   * \param[in] leaf_action Action invoked as
+   *   `leaf_action(std::int32_t primitive_id)` for each visited leaf.
    * \param[in] predicate Predicate that determines whether to descend a branch.
    *
    * \note Functors must access only memory compatible with the execution space.

@@ -116,7 +116,7 @@ void generate_aabbs(const mint::Mesh* mesh,
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
     [=] AXOM_HOST_DEVICE(IndexType cellIdx,
-                         numerics::Matrix<double> & coords,
+                         numerics::Matrix<double>& coords,
                          const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       primal::BoundingBox<double, NDIMS> range;
 
@@ -170,7 +170,7 @@ void generate_aabbs_and_centroids(const mint::Mesh* mesh,
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
     [=] AXOM_HOST_DEVICE(IndexType cellIdx,
-                         numerics::Matrix<double> & coords,
+                         numerics::Matrix<double>& coords,
                          const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       BoxType range;
       PointType sum;
@@ -1671,25 +1671,31 @@ TEST(spin_bvh, linear_bvh_traverse_leaves)
   axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
   for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
   {
+    // The input position is the primitive ID stored in the corresponding leaf.
     boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
   }
 
+  // The unbucketed (default) policy stores one original primitive ID in every leaf.
   LinearBVH bvh;
   bvh.buildImpl(boxes.view(), NUM_BOXES, 1.0, allocator_id);
 
   axom::IndexType primitive_count = 0;
   std::int32_t primitive_id_sum = 0;
+
+  // Define dummy predicate that always accepts the bounding box
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+
+  // The leaf callback receives one original primitive ID for each visited leaf.
   bvh.getTraverserImpl().traverse_leaves(
     PointType {0., 0.},
-    [&](const auto primitive_id) {
+    [&](const std::int32_t primitive_id) {
       ++primitive_count;
       primitive_id_sum += primitive_id;
     },
     accept_all);
 
-  EXPECT_EQ(NUM_BOXES, primitive_count);
-  EXPECT_EQ(6, primitive_id_sum);
+  EXPECT_EQ(primitive_count, NUM_BOXES);
+  EXPECT_EQ(primitive_id_sum, 0 + 1 + 2 + 3);
 }
 
 //------------------------------------------------------------------------------
@@ -1707,22 +1713,28 @@ TEST(spin_bvh, bucketed_policy_traversal_and_reduction)
   axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
   for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
   {
+    // The input position is the primitive ID expected from traversal.
     boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
   }
 
+  // Build the policy directly when testing its traversal interface.
   BucketedLinearBVH bvh;
-  // A target equal to the input size produces one real bucket. The builder
-  // supplies one empty padded bucket because the binary topology requires two
-  // leaves.
+
+  // A max_bucket_size equal to the input size produces one real bucket.
+  // The builder supplies one empty padded bucket to match a binary topology.
   bvh.buildImpl(boxes.view(), NUM_BOXES, NUM_BOXES, 1.0, allocator_id);
 
   const auto traverser = bvh.getTraverserImpl();
   axom::IndexType primitive_count = 0;
   std::vector<std::int32_t> all_primitive_ids;
+
+  // Define dummy predicate that always accepts the bounding box
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+
+  // traverse_leaves() presents the IDs in each visited bucket as an ArrayView.
   traverser.traverse_leaves(
     PointType {0., 0.},
-    [&](const auto& bucket_primitive_ids) {
+    [&](const axom::ArrayView<const std::int32_t> bucket_primitive_ids) {
       primitive_count += bucket_primitive_ids.size();
       for(const auto primitive_id : bucket_primitive_ids)
       {
@@ -1737,6 +1749,9 @@ TEST(spin_bvh, bucketed_policy_traversal_and_reduction)
 
   axom::IndexType raw_primitive_count = 0;
   std::vector<std::int32_t> raw_primitive_ids;
+
+  // traverse_tree() exposes the bucket's storage range for clients that need
+  // direct access to the flattened primitive-ID storage.
   traverser.traverse_tree(
     PointType {0., 0.},
     [&](std::int32_t leaf_slot,
@@ -1757,7 +1772,10 @@ TEST(spin_bvh, bucketed_policy_traversal_and_reduction)
   std::sort(raw_primitive_ids.begin(), raw_primitive_ids.end());
   EXPECT_EQ((std::vector<std::int32_t> {0, 1, 2, 3}), raw_primitive_ids);
 
-  const auto primitive_count_in_bucket = [](const auto& primitive_ids) -> axom::IndexType {
+  // reduce_leaves() evaluates one value per bucket, then sums child values
+  // upward through the BVH. Counting IDs therefore gives subtree populations.
+  const auto primitive_count_in_bucket =
+    [](const axom::ArrayView<const std::int32_t> primitive_ids) -> axom::IndexType {
     return primitive_ids.size();
   };
   const auto counts =
@@ -1787,9 +1805,13 @@ TEST(spin_bvh, bucketed_bvh_facade_construction)
 
   BucketedBVH::BuildParameters parameters {.maxBucketSize = 2,
                                            .ordering = spin::SpaceFillingCurve::Hilbert};
+
+  // The public facade selects the bucketed policy from its fourth template
+  // parameter and accepts its policy-specific build parameters.
   BucketedBVH bvh;
   ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), NUM_BOXES, parameters));
 
+  // The constructor overload accepts the same build parameters as initialize().
   BucketedBVH constructed_bvh(boxes.view(),
                               NUM_BOXES,
                               parameters,
@@ -1800,7 +1822,11 @@ TEST(spin_bvh, bucketed_bvh_facade_construction)
 
   axom::IndexType primitive_count = 0;
   axom::IndexType largest_bucket_size = 0;
+
+  // Define dummy predicate that always accepts the bounding box
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+
+  // The facade forwards traversal to the selected policy's bucketed traverser.
   bvh.getTraverser().traverse_leaves(
     PointType {0., 0.},
     [&](const auto& primitive_ids) {
@@ -1826,6 +1852,8 @@ TEST(spin_bvh, bucketed_bvh_facade_zero_and_one_input)
   using BucketedBVH = spin::BVH<NDIMS, axom::SEQ_EXEC, FloatType, spin::BVHType::BucketedLinearBVH>;
 
   const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  // Keep one valid box available; initialize() must not access it for the
+  // zero-input case.
   const axom::Array<BoxType> boxes({BoxType(PointType {1., 2.})}, allocator_id);
   const BucketedBVH::BuildParameters parameters {.maxBucketSize = 1};
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
@@ -1844,11 +1872,13 @@ TEST(spin_bvh, bucketed_bvh_facade_zero_and_one_input)
   };
 
   BucketedBVH bvh;
+  // A zero-input BVH has no valid bounds and no primitive IDs to traverse.
   ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 0, parameters));
   EXPECT_TRUE(bvh.isInitialized());
   EXPECT_FALSE(bvh.getBounds().isValid());
   EXPECT_TRUE(collect_primitive_ids(bvh).empty());
 
+  // Reinitialize the same facade with one input primitive and recover its ID.
   ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 1, parameters));
   EXPECT_TRUE(bvh.isInitialized());
   EXPECT_TRUE(bvh.getBounds().isValid());
@@ -1875,7 +1905,11 @@ TEST(spin_bvh, bucketed_policy_shared_prefix_grouping)
     boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
   }
 
+  // Define dummy predicate that always accepts the bounding box
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+
+  // The same spatial layout is built with both key orderings. Shared-prefix
+  // grouping should form two spatially coherent buckets in either ordering.
   for(const auto ordering : {spin::SpaceFillingCurve::Morton, spin::SpaceFillingCurve::Hilbert})
   {
     BucketedLinearBVH bvh;
@@ -1918,11 +1952,15 @@ TEST(spin_bvh, bucketed_bvh_facade_sequential_grouping)
   BucketedBVH::BuildParameters parameters {.maxBucketSize = 3,
                                            .ordering = spin::SpaceFillingCurve::Morton,
                                            .grouping = spin::BucketedBVHGrouping::Sequential};
+  // Sequential grouping fills consecutive spatially ordered buckets to the
+  // target size, leaving only the final bucket short.
   BucketedBVH bvh;
   ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), NUM_BOXES, parameters));
 
-  std::vector<axom::IndexType> bucket_sizes;
+  // Define dummy predicate that always accepts the bounding box
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+
+  std::vector<axom::IndexType> bucket_sizes;
   bvh.getTraverser().traverse_leaves(
     PointType {0., 0.},
     [&](const auto& primitive_ids) {
@@ -1960,12 +1998,16 @@ TEST(spin_bvh, bucketed_policy_splits_equal_morton_codes_at_target_size)
   }
 
   BucketedLinearBVH bvh;
+  // Equal keys have no spatial bit at which to split, so the policy falls back
+  // to sequential chunks while retaining the requested bucket-size limit.
   bvh.buildImpl(boxes.view(), NUM_BOXES, 2, 1.0, allocator_id);
+
+  // Define dummy predicate that always accepts the bounding box
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
 
   axom::IndexType largest_bucket_size = 0;
   axom::IndexType primitive_count = 0;
   axom::IndexType nonempty_bucket_count = 0;
-  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
   bvh.getTraverserImpl().traverse_leaves(
     PointType {0., 0.},
     [&](const auto& primitive_ids) {
@@ -2004,6 +2046,7 @@ TEST(spin_bvh, bucketed_bvh_facade_omp)
   }
 
   const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+  // Exercise both grouping policies through the facade with OpenMP construction.
   for(const auto grouping :
       {spin::BucketedBVHGrouping::SharedPrefix, spin::BucketedBVHGrouping::Sequential})
   {
