@@ -17,7 +17,6 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/slic/interface/slic.hpp"
 #include "axom/spin/internal/HilbertFSM.hpp"
-#include "axom/spin/internal/HilbertIndexImpl.hpp"
 
 #include <type_traits>
 
@@ -52,7 +51,6 @@ namespace axom::spin
  * CUDA and HIP devices for all supported dimensions and integer types.
  * Host tables are constexpr; GPU tables use read-only device storage.
  * \see internal::hilbert::HilbertFSMTransform for the table implementation.
- * \see internal::hilbert::HilbertTransform for the scalar algorithm and bit layout.
  *
  * \tparam CoordType Integral coordinate type other than bool, at most 64 bits.
  * \tparam IndexType Integral index type other than bool, at most 64 bits.
@@ -160,7 +158,6 @@ struct Hilbertizer
   AXOM_HOST_DEVICE static constexpr int maxBitsPerCoord() { return MAX_UNIQUE_BITS; }
 
 private:
-  using HilbertTransform = internal::hilbert::HilbertTransform<CoordType, IndexType, DIM>;
   // Bit planes per table lookup, shared by host and GPU calls.
   static constexpr int FSM_LEVELS = DIM == 2 ? 3 : DIM == 3 ? 2 : 1;
   using HilbertFSMTransform =

@@ -7,8 +7,8 @@
 #pragma once
 
 /*! 
- * \file HilbertIndexImpl.hpp
- * \brief Implements Hilbert index encoding and decoding.
+ * \file hilbert_reference.hpp
+ * \brief Provides a scalar Hilbert reference for tests and benchmarks.
  */
 
 #include "axom/core/Macros.hpp"
@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace axom::spin::internal::hilbert
+namespace axom::spin::testing
 {
 /*!
  * \brief Converts between integer grid points and Hilbert indices.
@@ -39,7 +39,7 @@ namespace axom::spin::internal::hilbert
  * This class also packs and unpacks that single integer using Morton interleaving.
  */
 template <typename CoordType, typename IndexType, int DIM>
-struct HilbertTransform
+struct HilbertReference
 {
   using PointType = primal::Point<CoordType, DIM>;
   // Use unsigned words of at least 32 bits to avoid integer promotion in shifts.
@@ -189,4 +189,4 @@ private:
     }
   }
 };
-}  // namespace axom::spin::internal::hilbert
+}  // namespace axom::spin::testing

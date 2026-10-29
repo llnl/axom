@@ -10,7 +10,7 @@
  */
 
 #include "axom/spin/HilbertIndex.hpp"
-#include "axom/spin/internal/HilbertIndexImpl.hpp"
+#include "axom/spin/tests/hilbert_reference.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/execution/for_all.hpp"
@@ -95,8 +95,7 @@ void allDepths()
 {
   using H = axom::spin::Hilbertizer<Coord, Index, DIM>;
   // The scalar reference uses 64-bit types to cover every supported type pair and depth.
-  using Reference =
-    axom::spin::internal::hilbert::HilbertTransform<std::uint64_t, std::uint64_t, DIM>;
+  using Reference = axom::spin::testing::HilbertReference<std::uint64_t, std::uint64_t, DIM>;
   const auto widen = [](const typename H::PointType& point) {
     typename Reference::PointType wide;
     for(int axis = 0; axis < DIM; ++axis)

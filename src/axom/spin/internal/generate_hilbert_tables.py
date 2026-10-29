@@ -55,7 +55,7 @@ def scalar_reference(point, bits):
     """Skilling's axes/transpose transform with explicit bit packing.
 
     This is separate from the state machine, but uses the same curve algorithm
-    as Axom's scalar implementation. Convention fixtures remain in the C++ tests.
+    as the C++ test reference. Convention fixtures remain in the C++ tests.
     """
     axes = list(point)
     dim = len(axes)
