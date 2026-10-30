@@ -740,13 +740,13 @@ class LinearBVHTraverser<FloatType, NDIMS, LinearBVHType::BucketedPrimitiveLeave
 {
 public:
   using BVHNode = BVH2Node<FloatType, NDIMS>;
-  using SinglePrimitiveTraverser = LinearBVHTraverser<FloatType, NDIMS>;
+  using BucketTraverser = LinearBVHTraverser<FloatType, NDIMS, LinearBVHType::SinglePrimitiveLeaves>;
 
   LinearBVHTraverser(axom::ArrayView<const BVHNode> nodes,
                      axom::ArrayView<const std::int32_t> leaf_bucket_ids,
                      axom::ArrayView<const IndexType> bucket_offsets,
                      axom::ArrayView<const std::int32_t> bucket_primitive_ids)
-    : m_traverser(nodes, leaf_bucket_ids)
+    : m_bucket_traverser(nodes, leaf_bucket_ids)
     , m_bucket_offsets(bucket_offsets)
     , m_bucket_primitive_ids(bucket_primitive_ids)
   { }
@@ -776,7 +776,7 @@ public:
       action(leaf_slot, begin, bucket_offsets[bucket_id + 1] - begin, bucket_primitive_ids.data());
     };
 
-    m_traverser.traverse_tree(p, bucket_action, std::forward<Predicate>(predicate));
+    m_bucket_traverser.traverse_tree(p, bucket_action, std::forward<Predicate>(predicate));
   }
 
   /*!
@@ -829,11 +829,12 @@ public:
                                                         bucket_offsets[bucket_id + 1] - begin));
     };
 
-    return m_traverser.template reduce_leaves<ExecSpace, ValueType>(bucket_action, allocatorID);
+    return m_bucket_traverser.template reduce_leaves<ExecSpace, ValueType>(bucket_action,
+                                                                           allocatorID);
   }
 
 private:
-  SinglePrimitiveTraverser m_traverser;
+  BucketTraverser m_bucket_traverser;
   axom::ArrayView<const IndexType> m_bucket_offsets;
   axom::ArrayView<const std::int32_t> m_bucket_primitive_ids;
 };
