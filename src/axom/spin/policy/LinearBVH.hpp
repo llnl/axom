@@ -154,16 +154,13 @@ public:
    *   `leaf_action(std::int32_t primitive_id)` for each visited leaf.
    * \param[in] predicate Predicate that determines whether to descend a branch.
    *
-   * \note Functors must access only memory compatible with the execution space.
+   * \note Leaf traversal and functors require host-accessible memory.
    */
   template <typename Primitive, typename LeafAction, typename Predicate>
-  AXOM_HOST_DEVICE void traverse_leaves(const Primitive& p,
-                                        LeafAction&& leaf_action,
-                                        Predicate&& predicate) const
+  AXOM_HOST void traverse_leaves(const Primitive& p, LeafAction&& leaf_action, Predicate&& predicate) const
   {
     auto action = std::forward<LeafAction>(leaf_action);
-    auto leaf_action_wrapper = [=] AXOM_HOST_DEVICE(std::int32_t leaf_slot,
-                                                    const std::int32_t* leaf_nodes) mutable {
+    auto leaf_action_wrapper = [=](std::int32_t leaf_slot, const std::int32_t* leaf_nodes) mutable {
       action(leaf_nodes[leaf_slot]);
     };
 
@@ -406,7 +403,6 @@ public:
     }
   }
 
-private:
   /*!
    * \brief Emit LinearBVH node and leaf storage from a completed radix tree.
    *
@@ -419,6 +415,7 @@ private:
                      const BoundingBoxType& bounds,
                      int allocatorID);
 
+private:
   void allocate(std::int32_t size, int allocID)
   {
     AXOM_ANNOTATE_SCOPE("LinearBVH::allocate");
@@ -733,7 +730,8 @@ void LinearBVH<FloatType, NDIMS, ExecSpace, LeafType>::writeVtkFileImpl(const st
  * \brief Traverses or reduces a linear BVH whose leaves contain primitive buckets.
  *
  * This specialization adapts the single-primitive traverser for buckets of primitive IDs.
- * Bucketed leaves do not support shared-memory traversal.
+ * Bucketed traversal currently supports only host execution and does not provide
+ * traverseTreeShared.
  */
 template <typename FloatType, int NDIMS>
 class LinearBVHTraverser<FloatType, NDIMS, LinearBVHType::BucketedPrimitiveLeaves>
@@ -759,18 +757,15 @@ public:
    *            of the bucket in primitive-ID storage, and the base storage pointer.
    * \param[in] predicate Predicate that determines whether to descend a branch.
    *
-   * \note Functors must access only memory compatible with the execution space.
+   * \note Functors and bucket storage must be accessible on the host.
    */
   template <typename Primitive, typename LeafAction, typename Predicate>
-  AXOM_HOST_DEVICE void traverse_tree(const Primitive& p,
-                                      LeafAction&& leaf_action,
-                                      Predicate&& predicate) const
+  AXOM_HOST void traverse_tree(const Primitive& p, LeafAction&& leaf_action, Predicate&& predicate) const
   {
     auto action = std::forward<LeafAction>(leaf_action);
     const auto bucket_offsets = m_bucket_offsets;
     const auto bucket_primitive_ids = m_bucket_primitive_ids;
-    auto bucket_action = [=] AXOM_HOST_DEVICE(std::int32_t leaf_slot,
-                                              const std::int32_t* leaf_bucket_ids) mutable {
+    auto bucket_action = [=](std::int32_t leaf_slot, const std::int32_t* leaf_bucket_ids) mutable {
       const auto bucket_id = leaf_bucket_ids[leaf_slot];
       const IndexType begin = bucket_offsets[bucket_id];
       action(leaf_slot, begin, bucket_offsets[bucket_id + 1] - begin, bucket_primitive_ids.data());
@@ -788,20 +783,16 @@ public:
    * \param[in] leaf_action Action invoked with an iterable view of primitive IDs.
    * \param[in] predicate Predicate that determines whether to descend a branch.
    *
-   * \note Functors must access only memory compatible with the execution space.
+   * \note Functors and bucket storage must be accessible on the host.
    */
   template <typename Primitive, typename LeafAction, typename Predicate>
-  AXOM_HOST_DEVICE void traverse_leaves(const Primitive& p,
-                                        LeafAction&& leaf_action,
-                                        Predicate&& predicate) const
+  AXOM_HOST void traverse_leaves(const Primitive& p, LeafAction&& leaf_action, Predicate&& predicate) const
   {
     auto action = std::forward<LeafAction>(leaf_action);
-    auto leaf_action_wrapper = [=] AXOM_HOST_DEVICE(std::int32_t,
-                                                    IndexType offset,
-                                                    IndexType size,
-                                                    const std::int32_t* primitive_ids) mutable {
-      action(axom::ArrayView<const std::int32_t>(primitive_ids + offset, size));
-    };
+    auto leaf_action_wrapper =
+      [=](std::int32_t, IndexType offset, IndexType size, const std::int32_t* primitive_ids) mutable {
+        action(axom::ArrayView<const std::int32_t>(primitive_ids + offset, size));
+      };
 
     traverse_tree(p, leaf_action_wrapper, std::forward<Predicate>(predicate));
   }

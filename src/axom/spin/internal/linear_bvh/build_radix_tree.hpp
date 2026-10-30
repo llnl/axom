@@ -908,9 +908,14 @@ void build_bucketed_radix_tree(const BoxIndexable boxes,
                                BucketedBVHGrouping grouping)
 {
   AXOM_ANNOTATE_SCOPE("build_bucketed_radix_tree");
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
   static_assert(
     std::is_same_v<ExecSpace, axom::SEQ_EXEC> || std::is_same_v<ExecSpace, axom::OMP_EXEC>,
     "Bucketed radix-tree construction currently supports only SEQ_EXEC and OMP_EXEC.");
+#else
+  static_assert(std::is_same_v<ExecSpace, axom::SEQ_EXEC>,
+                "Bucketed radix-tree construction currently supports only SEQ_EXEC and OMP_EXEC.");
+#endif
   SLIC_ASSERT(size > 0);
 
   RadixTree<FloatType, NDIMS> primitive_tree;
