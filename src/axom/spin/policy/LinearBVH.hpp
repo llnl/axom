@@ -141,9 +141,10 @@ public:
       return LinearBVHTraverser::traverseClosestFirst(l, r, p);
     };
 
+    lbvh::BVHStack::LocalStack local_mem;
     lbvh::BVHStack stack;
 
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, traversePref);
+    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, local_mem, predicate, leaf_action, traversePref);
   }
 
   /*!
@@ -179,13 +180,22 @@ public:
     constexpr int BlockSize = axom::execution_space<ExecSpace>::BlockSize;
 
 #ifdef AXOM_DEVICE_CODE
+    typename lbvh::SharedBVHStack<BlockSize>::LocalStack local_mem;
     lbvh::SharedBVHStack<BlockSize> stack;
 #else
     AXOM_UNUSED_VAR(BlockSize);
+    lbvh::BVHStack::LocalStack local_mem;
     lbvh::BVHStack stack;
 #endif
 
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, noTraversePref);
+    lbvh::bvh_traverse(m_inner_nodes,
+                       m_leaf_nodes,
+                       p,
+                       stack,
+                       local_mem,
+                       predicate,
+                       leaf_action,
+                       noTraversePref);
   }
 
   /*!
