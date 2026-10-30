@@ -22,6 +22,7 @@
 
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
+#include "axom/spin/BucketedBVHGrouping.hpp"
 
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/MortonIndex.hpp"
@@ -29,6 +30,7 @@
 #include "axom/spin/SpaceFillingCurve.hpp"
 
 #include <atomic>
+#include <type_traits>
 
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA)
   // NOTE: uses the cub installation that is  bundled with RAJA
@@ -581,20 +583,22 @@ void propagate_aabbs(RadixTree<FloatType, NDIMS>& data, int allocatorID)
 }
 
 //------------------------------------------------------------------------------
+/*!
+ * \brief Allocate and sort the leaves of a radix tree.
+ *
+ * \note This does not construct the radix-tree topology. Call
+ * `build_radix_tree_hierarchy()` after this function to complete the
+ * tree.
+ */
 template <typename ExecSpace, typename BoxIndexable, typename FloatType, int NDIMS>
-void build_radix_tree(const BoxIndexable boxes,
-                      int size,
-                      primal::BoundingBox<FloatType, NDIMS>& bounds,
-                      RadixTree<FloatType, NDIMS>& radix_tree,
-                      FloatType scale_factor,
-                      int allocatorID,
-                      SpaceFillingCurve ordering = SpaceFillingCurve::Morton)
+void initialize_spatially_sorted_leaves(const BoxIndexable boxes,
+                                        int size,
+                                        primal::BoundingBox<FloatType, NDIMS>& bounds,
+                                        RadixTree<FloatType, NDIMS>& radix_tree,
+                                        FloatType scale_factor,
+                                        int allocatorID,
+                                        SpaceFillingCurve ordering)
 {
-  AXOM_ANNOTATE_SCOPE("build_radix_tree");
-
-  // sanity checks
-  SLIC_ASSERT(size > 0);
-
   radix_tree.allocate(size, allocatorID);
 
   // copy so we don't reorder the input
@@ -612,10 +616,410 @@ void build_radix_tree(const BoxIndexable boxes,
   sort_spatial_keys<ExecSpace>(radix_tree.m_keys, size, radix_tree.m_leafs);
 
   reorder<ExecSpace>(radix_tree.m_leafs, radix_tree.m_leaf_aabbs, size, allocatorID);
+}
 
+///@{
+//! @name Functions which construct bucket ranges from a sorted list of keys,
+
+using BucketRange = std::pair<std::int32_t, std::int32_t>;
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Collect indices for primitives in each bucket based on range
+ *
+ * The resulting bucket ranges partition the sorted list of keys and retain 
+ * spatial-key order, so their first primitive code can serve as a representative
+ * key for the existing Karras hierarchy builder. 
+ * 
+ * \note Although the BucketedLinearBVH implementation is general enough to
+ *   support non-contiugous bucket membership, all currently supported grouping
+ *   strategies assume contiguous bucket membership. 
+ */
+template <typename ExecSpace, typename FloatType, int NDIMS>
+void build_bucket_tree_from_ranges(const RadixTree<FloatType, NDIMS>& primitive_tree,
+                                   const Array<BucketRange>& bucket_ranges,
+                                   RadixTree<FloatType, NDIMS>& bucket_tree,
+                                   Array<IndexType>& bucket_offsets,
+                                   Array<std::int32_t>& bucket_primitive_ids,
+                                   int allocatorID)
+{
+  AXOM_ANNOTATE_SCOPE("bucket_materialization");
+
+  // Collect data from the original specialized BucketedLinearBVH
+  const auto primitive_aabbs = primitive_tree.m_leaf_aabbs.view();
+  const auto primitive_keys = primitive_tree.m_keys.view();
+  const auto primitive_ids = primitive_tree.m_leafs.view();
+  const std::int32_t num_primitives = primitive_tree.m_size;
+  const auto num_buckets = static_cast<std::int32_t>(bucket_ranges.size());
+
+  // Radix tree for buckets: each leaf stores a bucket union AABB, a
+  // representative key (the first in the range), and its bucket ID.
+  bucket_tree.allocate(num_buckets, allocatorID);
+  auto bucket_tree_aabbs = bucket_tree.m_leaf_aabbs.view();
+  auto bucket_tree_keys = bucket_tree.m_keys.view();
+  auto bucket_tree_ids = bucket_tree.m_leafs.view();
+
+  // This array maps each bucket ID to its first position in the flattened primitive-ID array.
+  bucket_offsets = Array<IndexType>(num_buckets + 1, num_buckets + 1, allocatorID);
+  auto bucket_offsets_view = bucket_offsets.view();
+
+  // This array maps each position in the flattened bucket list to an original primitive ID.
+  bucket_primitive_ids = Array<std::int32_t>(num_primitives, num_primitives, allocatorID);
+  auto bucket_primitive_ids_view = bucket_primitive_ids.view();
+
+  // Bucket ranges partition the sorted primitive list. Each iteration writes
+  // a distinct bucket entry and a disjoint primitive-ID subrange.
+  const auto bucket_ranges_view = bucket_ranges.view();
+  for_all<ExecSpace>(num_buckets, [=] AXOM_HOST_DEVICE(std::int32_t bucket) {
+    const std::int32_t begin = bucket_ranges_view[bucket].first;
+    const std::int32_t end = bucket_ranges_view[bucket].second;
+
+    // Combine all boxes for primitives in this Morton-prefix range.
+    primal::BoundingBox<FloatType, NDIMS> bucket_aabb;
+    for(std::int32_t primitive = begin; primitive < end; ++primitive)
+    {
+      bucket_aabb.addBox(primitive_aabbs[primitive]);
+
+      // Preserve the original primitive ID at this spatially sorted position.
+      bucket_primitive_ids_view[primitive] = primitive_ids[primitive];
+    }
+
+    // Add bucket parameters to radix tree
+    bucket_tree_aabbs[bucket] = bucket_aabb;
+    bucket_tree_keys[bucket] = primitive_keys[begin];
+    bucket_tree_ids[bucket] = bucket;
+
+    // Store the offset for this bucket
+    bucket_offsets_view[bucket] = begin;
+  });
+
+  // Store the offset for the last bucket
+  bucket_offsets_view[num_buckets] = num_primitives;
+}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Append shared-spatial-key-prefix bucket ranges for a sorted key range.
+ *
+ * This grouping strategy defines a bucket as the largest range of sorted primitive keys
+ * which share a bit prefix. If this range exceeds \a max_bucket_size, it is split
+ * along its next key bit. Ties are broken by splitting the range sequentially.
+ * 
+ * \param[in] keys The sorted list of spatial keys
+ * \param[in] begin, end The range of primitive indices to accept or split
+ * \param[in] bit The bit position for a possible split
+ * \param[in] max_bucket_size The maximum number of primitives allowed in a bucket
+ * \param[out] bucket_ranges The output range for the primitives in each bucket 
+ */
+inline void append_shared_prefix_buckets(const ArrayView<const std::uint32_t> keys,
+                                         std::int32_t begin,
+                                         std::int32_t end,
+                                         int bit,
+                                         std::int32_t max_bucket_size,
+                                         Array<BucketRange>& bucket_ranges)
+{
+  // Check if the current bucket is bigger than allowed
+  const std::int32_t bucket_size = end - begin;
+  if(bucket_size <= max_bucket_size)
+  {
+    bucket_ranges.push_back({begin, end});
+    return;
+  }
+
+  if(bit < 0)
+  {
+    // If the current range has equal spatial keys, split it sequentially
+    std::int32_t chunk_begin = begin;
+    while(chunk_begin < end)
+    {
+      const std::int32_t chunk_size = utilities::min(max_bucket_size, end - chunk_begin);
+      const std::int32_t chunk_end = chunk_begin + chunk_size;
+      bucket_ranges.push_back({chunk_begin, chunk_end});
+      chunk_begin = chunk_end;
+    }
+    return;
+  }
+
+  // Spatial-key sorting ensures the zero-valued side of this bit precedes the
+  // one-valued side. Find their boundary without examining every primitive.
+  const std::uint32_t mask = std::uint32_t {1} << bit;
+  std::int32_t split = begin;
+  std::int32_t search_end = end;
+  while(split < search_end)
+  {
+    // Do a binary search to find where the bit flips, e.g.
+    //  for bit == 1: 0000 0001 | 0010 0011
+    const std::int32_t middle = split + (search_end - split) / 2;
+    if((keys[middle] & mask) == 0)
+    {
+      split = middle + 1;
+    }
+    else
+    {
+      search_end = middle;
+    }
+  }
+
+  // An empty child means every primitive has the same value at this bit.
+  // Continue to the next bit and attempt to split the group there instead.
+  if(split == begin || split == end)
+  {
+    append_shared_prefix_buckets(keys, begin, end, bit - 1, max_bucket_size, bucket_ranges);
+    return;
+  }
+
+  // Recurse into the two halves of the input range, split at `bit`
+  append_shared_prefix_buckets(keys, begin, split, bit - 1, max_bucket_size, bucket_ranges);
+  append_shared_prefix_buckets(keys, split, end, bit - 1, max_bucket_size, bucket_ranges);
+}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Form primitive buckets based on shared prefixes in the spatial keys of each primitive
+ *
+ * This policy will result in many buckets with fewer than \a max_bucket_size primitives,
+ * but the buckets that result have very high spatial coherence, as primtiives *must* have
+ * a shared prefix key to be bucketed together.  
+ * 
+ * \param[in] primitive_tree The radix tree with spatially sorted keys for each primitive
+ * \param[in] max_bucket_size The maximum number of primitives allowed in a bucket
+ * \param[out] bucket_tree The radix tree with spatially sorted keys for each bucket
+ * \param[out] bucket_offsets Map from bucket ID to first primitive ID
+ * \param[out] primitive_bucket_ids Map from positions in the bucket list to a primitive ID
+ */
+template <typename ExecSpace, typename FloatType, int NDIMS>
+void build_shared_prefix_buckets(const RadixTree<FloatType, NDIMS>& primitive_tree,
+                                 std::int32_t max_bucket_size,
+                                 RadixTree<FloatType, NDIMS>& bucket_tree,
+                                 Array<IndexType>& bucket_offsets,
+                                 Array<std::int32_t>& bucket_primitive_ids,
+                                 int allocatorID)
+{
+  AXOM_ANNOTATE_SCOPE("create_shared_prefix_buckets");
+  SLIC_ASSERT(primitive_tree.m_size > 0);
+  SLIC_ASSERT(max_bucket_size > 0);
+
+  Array<BucketRange> bucket_ranges;
+  append_shared_prefix_buckets(primitive_tree.m_keys.view(),
+                               /* begin */ 0,
+                               /* end */ primitive_tree.m_size,
+                               /* bit */ 31,
+                               max_bucket_size,
+                               bucket_ranges);
+
+  build_bucket_tree_from_ranges<ExecSpace>(primitive_tree,
+                                           bucket_ranges,
+                                           bucket_tree,
+                                           bucket_offsets,
+                                           bucket_primitive_ids,
+                                           allocatorID);
+}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Form primitive buckets sequentially by primitive spatial keys
+ *
+ * This policy will result in every bucket (except the last) having exactly \a max_bucket_size
+ * primitives, This minimizes the number of buckets, but may result in low spatial coherence, 
+ * as bucketed primtiives can have far-away spatial keys.
+ * 
+ * \param[in] primitive_tree The radix tree with spatially sorted keys for each primitive
+ * \param[in] max_bucket_size The maximum number of primitives allowed in a bucket
+ * \param[out] bucket_tree The radix tree with spatially sorted keys for each bucket
+ * \param[out] bucket_offsets Maps each bucket ID to its range in \a bucket_primitive_ids.
+ * \param[out] bucket_primitive_ids Flattened original primitive IDs for all buckets.
+ */
+template <typename ExecSpace, typename FloatType, int NDIMS>
+void build_sequential_buckets(const RadixTree<FloatType, NDIMS>& primitive_tree,
+                              std::int32_t max_bucket_size,
+                              RadixTree<FloatType, NDIMS>& bucket_tree,
+                              Array<IndexType>& bucket_offsets,
+                              Array<std::int32_t>& bucket_primitive_ids,
+                              int allocatorID)
+{
+  AXOM_ANNOTATE_SCOPE("create_sequential_buckets");
+  SLIC_ASSERT(primitive_tree.m_size > 0);
+  SLIC_ASSERT(max_bucket_size > 0);
+
+  Array<BucketRange> bucket_ranges;
+  bucket_ranges.reserve((primitive_tree.m_size + max_bucket_size - 1) / max_bucket_size);
+  for(std::int32_t begin = 0; begin < primitive_tree.m_size; begin += max_bucket_size)
+  {
+    bucket_ranges.push_back({begin, utilities::min(begin + max_bucket_size, primitive_tree.m_size)});
+  }
+
+  build_bucket_tree_from_ranges<ExecSpace>(primitive_tree,
+                                           bucket_ranges,
+                                           bucket_tree,
+                                           bucket_offsets,
+                                           bucket_primitive_ids,
+                                           allocatorID);
+}
+///@}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Construct a radix-tree topology from spatially sorted leaves.
+ *
+ * \pre \a radix_tree was populated by `initialize_spatially_sorted_leaves()` or has
+ *      equivalent sorted leaf AABBs, spatial keys, and leaf IDs (such as from buckets)
+ */
+template <typename ExecSpace, typename FloatType, int NDIMS>
+void build_radix_tree_hierarchy(RadixTree<FloatType, NDIMS>& radix_tree, int allocatorID)
+{
   build_tree<ExecSpace>(radix_tree);
 
   propagate_aabbs<ExecSpace>(radix_tree, allocatorID);
+}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Build a bucketed radix tree from primitive bounding boxes.
+ *
+ * Primitive leaves are scaled, spatially sorted according to \a ordering, 
+ * then partitioned according to \a grouping. The resulting bucket leaves
+ * are used to assemble the final radix-tree hierarchy.
+ *
+ * \param[in] boxes Indexed collection of input primitive bounding boxes.
+ * \param[in] size Number of primitive bounding boxes in \a boxes.
+ * \param[out] bounds Bounds of the scaled input primitive bounding boxes.
+ * \param[out] bucket_tree Radix tree whose leaves represent primitive buckets.
+ * \param[out] bucket_offsets Maps each bucket ID to its range in \a bucket_primitive_ids.
+ * \param[out] bucket_primitive_ids Flattened original primitive IDs for all buckets.
+ * \param[in] max_bucket_size Maximum number of primitives in a bucket.
+ * \param[in] scale_factor Factor applied to each primitive bounding box.
+ * \param[in] allocatorID AllocatFor for intermediate and output tree storage.
+ * \param[in] ordering Space-filling curve used to spatially order primitives.
+ * \param[in] grouping Policy used to group spatially sorted primitives into buckets.
+ *
+ * \pre Currently only supported for CPU execution spaces
+ */
+template <typename ExecSpace, typename BoxIndexable, typename FloatType, int NDIMS>
+void build_bucketed_radix_tree(const BoxIndexable boxes,
+                               int size,
+                               primal::BoundingBox<FloatType, NDIMS>& bounds,
+                               RadixTree<FloatType, NDIMS>& bucket_tree,
+                               Array<IndexType>& bucket_offsets,
+                               Array<std::int32_t>& bucket_primitive_ids,
+                               std::int32_t max_bucket_size,
+                               FloatType scale_factor,
+                               int allocatorID,
+                               SpaceFillingCurve ordering,
+                               BucketedBVHGrouping grouping)
+{
+  AXOM_ANNOTATE_SCOPE("build_bucketed_radix_tree");
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+  static_assert(
+    std::is_same_v<ExecSpace, axom::SEQ_EXEC> || std::is_same_v<ExecSpace, axom::OMP_EXEC>,
+    "Bucketed radix-tree construction currently supports only SEQ_EXEC and OMP_EXEC.");
+#else
+  static_assert(std::is_same_v<ExecSpace, axom::SEQ_EXEC>,
+                "Bucketed radix-tree construction currently supports only SEQ_EXEC and OMP_EXEC.");
+#endif
+  SLIC_ASSERT(size > 0);
+
+  RadixTree<FloatType, NDIMS> primitive_tree;
+  initialize_spatially_sorted_leaves<ExecSpace>(boxes,
+                                                size,
+                                                bounds,
+                                                primitive_tree,
+                                                scale_factor,
+                                                allocatorID,
+                                                ordering);
+  if(grouping == BucketedBVHGrouping::SharedPrefix)
+  {
+    build_shared_prefix_buckets<ExecSpace>(primitive_tree,
+                                           max_bucket_size,
+                                           bucket_tree,
+                                           bucket_offsets,
+                                           bucket_primitive_ids,
+                                           allocatorID);
+  }
+  else
+  {
+    SLIC_ASSERT(grouping == BucketedBVHGrouping::Sequential);
+    build_sequential_buckets<ExecSpace>(primitive_tree,
+                                        max_bucket_size,
+                                        bucket_tree,
+                                        bucket_offsets,
+                                        bucket_primitive_ids,
+                                        allocatorID);
+  }
+
+  if(bucket_tree.m_size == 1)
+  {
+    // The binary hierarchy requires two leaves. Add an empty bucket whose
+    // invalid AABB is skipped by traversal and whose offset range is empty.
+    using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+    const BoxType valid_bucket_aabb = bucket_tree.m_leaf_aabbs[0];
+    const auto bucket_key = bucket_tree.m_keys[0];
+
+    RadixTree<FloatType, NDIMS> padded_bucket_tree;
+    padded_bucket_tree.allocate(2, allocatorID);
+
+    // Create an empty box
+    BoxType empty_bucket_aabb;
+    empty_bucket_aabb.clear();
+
+    // Populate the padded tree
+    padded_bucket_tree.m_leaf_aabbs[0] = valid_bucket_aabb;
+    padded_bucket_tree.m_leaf_aabbs[1] = empty_bucket_aabb;
+    padded_bucket_tree.m_keys[0] = bucket_key;
+    padded_bucket_tree.m_keys[1] = bucket_key;
+    padded_bucket_tree.m_leafs[0] = 0;
+    padded_bucket_tree.m_leafs[1] = 1;
+    bucket_tree = std::move(padded_bucket_tree);
+
+    // Populate the indirection arrays for the padded tree
+    Array<IndexType> padded_offsets(3, 3, allocatorID);
+    padded_offsets[0] = 0;
+    padded_offsets[1] = size;
+    padded_offsets[2] = size;
+    bucket_offsets = std::move(padded_offsets);
+  }
+
+  build_radix_tree_hierarchy<ExecSpace>(bucket_tree, allocatorID);
+}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Build a radix tree from primitive bounding boxes.
+ *
+ * The primitive bounding boxes are scaled, spatially sorted using \a ordering,
+ * and used to construct the radix-tree topology and internal bounding boxes.
+ *
+ * \param[in] boxes Indexed collection of input primitive bounding boxes.
+ * \param[in] size Number of primitive bounding boxes in \a boxes.
+ * \param[out] bounds Bounds of the scaled input primitive bounding boxes.
+ * \param[out] radix_tree Radix tree populated with primitive leaves and hierarchy.
+ * \param[in] scale_factor Factor applied to each primitive bounding box.
+ * \param[in] allocatorID Allocator for radix-tree storage.
+ * \param[in] ordering Space-filling curve used to spatially order primitives.
+ *
+ * \pre \a size is positive.
+ */
+template <typename ExecSpace, typename BoxIndexable, typename FloatType, int NDIMS>
+void build_radix_tree(const BoxIndexable boxes,
+                      int size,
+                      primal::BoundingBox<FloatType, NDIMS>& bounds,
+                      RadixTree<FloatType, NDIMS>& radix_tree,
+                      FloatType scale_factor,
+                      int allocatorID,
+                      SpaceFillingCurve ordering = SpaceFillingCurve::Morton)
+{
+  AXOM_ANNOTATE_SCOPE("build_radix_tree");
+
+  // sanity checks
+  SLIC_ASSERT(size > 0);
+
+  initialize_spatially_sorted_leaves<ExecSpace>(boxes,
+                                                size,
+                                                bounds,
+                                                radix_tree,
+                                                scale_factor,
+                                                allocatorID,
+                                                ordering);
+  build_radix_tree_hierarchy<ExecSpace>(radix_tree, allocatorID);
 }
 
 }  // namespace axom::spin::internal::linear_bvh

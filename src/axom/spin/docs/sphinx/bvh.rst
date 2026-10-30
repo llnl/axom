@@ -63,12 +63,10 @@ set ``ordering`` and pass the parameters to ``initialize()``:
    parameters.ordering = axom::spin::SpaceFillingCurve::Hilbert;
    bvh.initialize(boxes, numBoxes, parameters);
 
-You can also use a designated initializer:
-
-.. code-block:: C++
-
-   axom::spin::BVH<3> bvh;
-   bvh.initialize(boxes, numBoxes, {.ordering = axom::spin::SpaceFillingCurve::Hilbert});
+``BVHBuildParameters`` exposes only the options supported by the selected
+policy. Bucketed linear BVHs additionally use ``maxBucketSize`` and a grouping
+policy. ``SharedPrefix`` preserves shared spatial-key-prefix ranges, while
+``Sequential`` forms fixed-size consecutive ranges.
 
 Both Morton and Hilbert normalize and clamp centroids in the same way.
 They use 16 bits per axis in 2D and 10 bits per axis in 3D.
@@ -77,11 +75,11 @@ Degenerate axes map to coordinate zero.
 Device Traversal API
 --------------------
 
-The ``BVH`` class contains a ``getTraverser()`` method, which returns an object
-that can be used to traverse a BVH with user-defined actions.
+The ``BVH`` class with a ``LinearBVH`` implementation contains a ``getTraverser()``
+method, which returns an object that can be used to traverse a BVH with user-defined actions.
 
-The returned traverser type has one function, ``traverse_tree()``, which takes the
-following arguments:
+The returned traverser provides ``traverse_tree()``, which takes the following 
+arguments:
 
 - ``const QueryObject& p``: the object to traverse the BVH with. This is passed
   into each invocation of the traversal predicate.
@@ -90,8 +88,12 @@ following arguments:
   the index of the leaf node in the BVH, and a pointer to an array mapping leaf
   node indices to the original index of elements.
 - ``Predicate&& predicate``: a function which determines whether to traverse
-  down to a given internal node. It should take in two arguments: the query
-  object, and the tentative node's bounding box.
+  down to a given internal node. It should take in two arguments: the query 
+  object, and the tentative node's bounding box. Optionally, it may take a 
+  third argument for the child-slot index in the BVH's flattened node layout.
+
+It also provides ``traverse_leaves()`` with the same query and predicate arguments,
+but requires a leaf action which indexes directly into the original element array.
 
 This object may be used within a CUDA kernel, so long as the execution space
 parameter of ``BVH`` is set correctly.

@@ -442,7 +442,7 @@ public:
  * \param [in] query The query point at which to evaluate the GWN
  * \param [in] traverser A traverser for the BVH tree 
  * \param [in] leaf_objects All individual geometric objects in the shape,
- *                           indexed by position in the BVH tree. This collection
+ *                           indexed by original primitive ID. This collection
  *                           may select a thread-local object during indexed access.
  * \param [in] internal_moments A view of GWNMomentData objects for each internal node 
  *                               of the BVH tree, each representing a cluster of leaf objects
@@ -492,13 +492,11 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     }
   };
 
-  auto leaf_gwn = [&query, &gwn, leaf_objects, &wt](std::int32_t currentNode,
-                                                    const std::int32_t* leafNodes) -> void {
-    const auto index = leafNodes[currentNode];
-    gwn += axom::primal::winding_number(query, leaf_objects[index], wt);
+  auto leaf_gwn = [&query, &gwn, leaf_objects, &wt](std::int32_t primitive_id) -> void {
+    gwn += axom::primal::winding_number(query, leaf_objects[primitive_id], wt);
   };
 
-  traverser.traverse_tree(query, leaf_gwn, bbContain);
+  traverser.traverse_leaves(query, leaf_gwn, bbContain);
 
   return gwn;
 }
