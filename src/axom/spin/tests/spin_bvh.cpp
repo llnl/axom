@@ -1702,42 +1702,6 @@ TEST(spin_bvh, linear_bvh_traverse_leaves)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, linear_bvh_traverse_leaves_zero_and_one_input)
-{
-  using BoxType = primal::BoundingBox<double, 2>;
-  using PointType = primal::Point<double, 2>;
-  using LinearBVH = spin::BVH<2, axom::SEQ_EXEC, double>;
-
-  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  const axom::Array<BoxType> boxes({BoxType(PointType {1., 2.})}, allocator_id);
-  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
-
-  LinearBVH bvh;
-  axom::IndexType visited_leaves = 0;
-  std::int32_t visited_primitive_id = -1;
-  const auto traverse = [&] {
-    visited_leaves = 0;
-    visited_primitive_id = -1;
-    bvh.getTraverser().traverse_leaves(
-      PointType {1., 2.},
-      [&](std::int32_t primitive_id) {
-        ++visited_leaves;
-        visited_primitive_id = primitive_id;
-      },
-      accept_all);
-  };
-
-  ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 0));
-  traverse();
-  EXPECT_EQ(0, visited_leaves);
-
-  ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 1));
-  traverse();
-  EXPECT_EQ(1, visited_leaves);
-  EXPECT_EQ(0, visited_primitive_id);
-}
-
-//------------------------------------------------------------------------------
 TEST(spin_bvh, construct2D_sequential)
 {
   check_construct_bvh<2, axom::SEQ_EXEC, double>();

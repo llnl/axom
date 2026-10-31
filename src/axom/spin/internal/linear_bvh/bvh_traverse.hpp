@@ -223,8 +223,6 @@ private:
  * \param [in] inner_node_children pointer to pairs of child indices.
  * \param [in] leaf_nodes pointer to the leaf node IDs.
  * \param [in] p the primitive in query, e.g., a point, ray, etc.
- * \param [in,out] stack traversal stack.
- * \param [in,out] local_mem storage for the traversal stack, owned by the caller.
  * \param [in] B functor that defines the check for the bins
  * \param [in] A functor that defines the leaf action
  * \param [in] Comp functor used for determining which child node to traverse
@@ -265,7 +263,6 @@ AXOM_HOST_DEVICE inline void bvh_traverse(axom::ArrayView<const BVH2Node<FloatTy
                                           axom::ArrayView<const std::int32_t> leaf_nodes,
                                           const PrimitiveType& p,
                                           TraverseStack& stack,
-                                          typename TraverseStack::LocalStack& local_mem,
                                           InBinCheck&& B,
                                           LeafAction&& A,
                                           TraversePref&& Comp)
@@ -274,6 +271,7 @@ AXOM_HOST_DEVICE inline void bvh_traverse(axom::ArrayView<const BVH2Node<FloatTy
   using BVHNode = BVH2Node<FloatType, NDIMS>;
 
   // setup stack
+  typename TraverseStack::LocalStack local_mem;
   stack.setLocalStack(local_mem);
 
   std::int32_t found_leaf = 0;
