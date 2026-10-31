@@ -42,6 +42,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Adds policy-specific `BVH::BuildParameters` to the BVH constructor and `initialize()`.
   The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
   or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
+- Spin: Adds a host-only `LinearBVHTraverser::traverse_leaves()` for actions that receive the original primitive ID directly.
 
 ### Removed
 
@@ -60,8 +61,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   components. For example, `values/2` now reads the second entry of `values = {5.0, 6.0}`.
 - Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
   including layouts that specify only one of those keys.
+- Spin: Renames `LinearBVHTraverser::reduce_tree()` to `reduce_leaves()` and passes the original primitive ID to its leaf action.
 
 ### Fixed
+- Spin: Keeps BVH traversal stack storage in the caller's scope for the full traversal.
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
 - Spin:`BVH::getBounds()` now returns an invalid bounding box instead of one that covers the whole coordinate range,
   when an empty BVH is constructed.
