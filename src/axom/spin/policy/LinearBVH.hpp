@@ -56,7 +56,7 @@ using BVH2Node = lbvh::BVH2Node<FloatType, NDIMS>;
  * each leaf node, then iterating up the tree so the value at each node
  * is a sum of the value for its children.
  *
- * To initiate reductions, use \a reduce_tree. It requires
+ * To initiate reductions, use \a reduce_leaves. It requires
  * -# an action functor to call at the leaves,
  *
  * All functors should only access memory that's available to the
@@ -93,9 +93,31 @@ public:
       return LinearBVHTraverser::traverseClosestFirst(l, r, p);
     };
 
+    lbvh::BVHStack::LocalStack local_mem;
     lbvh::BVHStack stack;
 
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, traversePref);
+    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, local_mem, predicate, leaf_action, traversePref);
+  }
+
+  /*!
+   * \brief Traverse the tree and invoke an action with the primitive ID in each visited leaf.
+   *
+   * \param[in] p The primitive to use for traversal.
+   * \param[in] leaf_action Action invoked as
+   *   `leaf_action(std::int32_t primitive_id)` for each visited leaf.
+   * \param[in] predicate Predicate that determines whether to descend a branch.
+   *
+   * \note Leaf traversal and functors require host-accessible memory.
+   */
+  template <typename Primitive, typename LeafAction, typename Predicate>
+  AXOM_HOST void traverse_leaves(const Primitive& p, LeafAction&& leaf_action, Predicate&& predicate) const
+  {
+    auto action = std::forward<LeafAction>(leaf_action);
+    auto leaf_action_wrapper = [=](std::int32_t leaf_slot, const std::int32_t* leaf_nodes) mutable {
+      action(leaf_nodes[leaf_slot]);
+    };
+
+    traverse_tree(p, leaf_action_wrapper, std::forward<Predicate>(predicate));
   }
 
   template <typename ExecSpace, typename Primitive, typename LeafAction, typename Predicate>
@@ -110,13 +132,22 @@ public:
     constexpr int BlockSize = axom::execution_space<ExecSpace>::BlockSize;
 
 #ifdef AXOM_DEVICE_CODE
+    typename lbvh::SharedBVHStack<BlockSize>::LocalStack local_mem;
     lbvh::SharedBVHStack<BlockSize> stack;
 #else
     AXOM_UNUSED_VAR(BlockSize);
+    lbvh::BVHStack::LocalStack local_mem;
     lbvh::BVHStack stack;
 #endif
 
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, noTraversePref);
+    lbvh::bvh_traverse(m_inner_nodes,
+                       m_leaf_nodes,
+                       p,
+                       stack,
+                       local_mem,
+                       predicate,
+                       leaf_action,
+                       noTraversePref);
   }
 
   /*!
@@ -125,23 +156,25 @@ public:
    *        using a "+" reduction. Return the Array that contains values for
    *        all tree nodes.
    *
-   * \param leaf_action The function to invoke on a leaf node to make its data.
+   * \param leaf_action The function to invoke with a leaf primitive ID to make its data.
    * \param allocatorID The allocator to use to allocate array data.
    *
    * \return An Array that contains the reduced data for all nodes in the BVH.
    */
   template <typename ExecSpace, typename ValueType, typename LeafAction>
-  axom::Array<ValueType> reduce_tree(LeafAction&& leaf_action,
-                                     int allocatorID = axom::getDefaultAllocatorID()) const
+  axom::Array<ValueType> reduce_leaves(LeafAction&& leaf_action,
+                                       int allocatorID = axom::getDefaultAllocatorID()) const
   {
+    auto action = std::forward<LeafAction>(leaf_action);
+
     // Make a field over all of the nodes (the return field).
     const auto num_node_slots = 2 * m_inner_nodes.size();
     axom::Array<ValueType> reducedField(num_node_slots, num_node_slots, allocatorID);
 
     if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
     {
-      reduce_recursion(std::forward<LeafAction>(leaf_action), reducedField.view(), 0);
-      reduce_recursion(std::forward<LeafAction>(leaf_action), reducedField.view(), 1);
+      reduce_recursion(action, reducedField.view(), 0);
+      reduce_recursion(action, reducedField.view(), 1);
     }
     else
     {
@@ -153,18 +186,15 @@ public:
       const std::int32_t* leaf_nodes_data = m_leaf_nodes.data();
       axom::for_all<ExecSpace>(m_leaf_nodes.size(), [&](axom::IndexType currentNode) {
         const auto idx = leaf_nodes_data[currentNode];
-        leafFieldView[idx] = leaf_action(static_cast<std::int32_t>(currentNode), leaf_nodes_data);
+        leafFieldView[idx] = action(idx);
       });
 
       // Return the precomputed values in the reduction.
-      auto returnLeafValue = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
-        const auto idx = leafNodes[currentNode];
-        return leafFieldView[idx];
-      };
+      auto return_leaf_value = [&](std::int32_t primitive_id) { return leafFieldView[primitive_id]; };
 
       // TODO: Replace this with GPU-compatible code.
-      reduce_recursion(returnLeafValue, reducedField.view(), 0);
-      reduce_recursion(returnLeafValue, reducedField.view(), 1);
+      reduce_recursion(return_leaf_value, reducedField.view(), 0);
+      reduce_recursion(return_leaf_value, reducedField.view(), 1);
     }
 
     return reducedField;
@@ -192,14 +222,14 @@ private:
   }
 
   /*!
-   * \brief This is a helper method used in reduce_tree.
+   * \brief This is a helper method used in reduce_leaves.
    *
-   * \param leaf_action The function to invoke on a leaf node to make its data.
+   * \param leaf_action The function to invoke with a leaf primitive ID to make its data.
    * \param node_data The view that contains the traversal order for leaf nodes.
    * \param current_node The current node.
    */
   template <typename ValueType, typename LeafAction>
-  void reduce_recursion(LeafAction&& leaf_action,
+  void reduce_recursion(LeafAction& leaf_action,
                         axom::ArrayView<ValueType> node_data,
                         std::int32_t current_node) const
   {
@@ -214,14 +244,14 @@ private:
     // Check if node is a leaf
     if(child_index < 0)
     {
-      node_data[current_node] = leaf_action(-child_index - 1, m_leaf_nodes.data());
+      node_data[current_node] = leaf_action(m_leaf_nodes[-child_index - 1]);
 
       return;
     }
 
     // Populate children
-    reduce_recursion(std::forward<LeafAction>(leaf_action), node_data, child_index + 0);
-    reduce_recursion(std::forward<LeafAction>(leaf_action), node_data, child_index + 1);
+    reduce_recursion(leaf_action, node_data, child_index + 0);
+    reduce_recursion(leaf_action, node_data, child_index + 1);
 
     // Sum to get value for current node
     node_data[current_node] = node_data[child_index + 0] + node_data[child_index + 1];
