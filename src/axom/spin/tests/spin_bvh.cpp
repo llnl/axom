@@ -106,7 +106,7 @@ void generate_aabbs(const mint::Mesh* mesh,
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
     [=] AXOM_HOST_DEVICE(IndexType cellIdx,
-                         numerics::Matrix<double> & coords,
+                         numerics::Matrix<double>& coords,
                          const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       primal::BoundingBox<double, NDIMS> range;
 
@@ -160,7 +160,7 @@ void generate_aabbs_and_centroids(const mint::Mesh* mesh,
   mint::for_all_cells<exec_policy, xargs::coords>(
     mesh,
     [=] AXOM_HOST_DEVICE(IndexType cellIdx,
-                         numerics::Matrix<double> & coords,
+                         numerics::Matrix<double>& coords,
                          const IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
       BoxType range;
       PointType sum;
@@ -1556,7 +1556,7 @@ void check_0_or_1_bbox_2d()
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Tests LinearBVHTraverser::reduce_tree by reducing across BVH of points
+ * \brief Tests LinearBVHTraverser::reduce_leaves by reducing across BVH of points
  *        a field that counts how many points are contained in each node.
  *
  * For a BVH with N leaves, LinearBVH stores 2*(N-1) "node slots" in its
@@ -1564,7 +1564,7 @@ void check_0_or_1_bbox_2d()
  * When each leaf contributes 1, internal nodes must reduce to a value > 1.
  */
 template <typename ExecSpace, typename FloatType>
-void check_reduce_tree_point_counts_2d()
+void check_reduce_leaves_point_counts_2d()
 {
   constexpr int NDIMS = 2;
 
@@ -1602,12 +1602,12 @@ void check_reduce_tree_point_counts_2d()
 
   // Reduce the BVH into a field that counts points per node.
   const auto traverser = bvh.getTraverser();
-  auto leafToOne = [=] AXOM_HOST_DEVICE(std::int32_t, const std::int32_t*) -> CountType {
+  auto leafToOne = [=] AXOM_HOST_DEVICE(std::int32_t) -> CountType {
     return static_cast<CountType>(1);
   };
 
   axom::Array<CountType> counts =
-    traverser.template reduce_tree<ExecSpace, CountType>(leafToOne, hostAllocatorID);
+    traverser.template reduce_leaves<ExecSpace, CountType>(leafToOne, hostAllocatorID);
 
   // For a BVH with N leaves, LinearBVH stores 2*(N-1) node slots.
   ASSERT_EQ(counts.size(), static_cast<axom::IndexType>(2 * (NPTS - 1)));
@@ -1634,6 +1634,14 @@ void check_reduce_tree_point_counts_2d()
 
   // There should be exactly N leaf nodes.
   EXPECT_EQ(nleaf_nodes, NPTS);
+
+  // Original primitive IDs, rather than BVH leaf slots, determine the result.
+  auto leafToId = [=] AXOM_HOST_DEVICE(std::int32_t primitive_id) -> CountType {
+    return static_cast<CountType>(primitive_id + 1);
+  };
+  const auto id_sums =
+    traverser.template reduce_leaves<ExecSpace, CountType>(leafToId, hostAllocatorID);
+  EXPECT_EQ(id_sums[0] + id_sums[1], NPTS * (NPTS + 1) / 2);
 }
 
 } /* end unnamed namespace */
@@ -1645,6 +1653,88 @@ TEST(spin_bvh, build2D_sequential)
 {
   check_build_bvh<2, axom::SEQ_EXEC, double>();
   check_build_bvh<2, axom::SEQ_EXEC, float>();
+}
+
+//------------------------------------------------------------------------------
+TEST(spin_bvh, linear_bvh_traverse_leaves)
+{
+  constexpr int NDIMS = 2;
+  constexpr axom::IndexType NUM_BOXES = 4;
+  using FloatType = double;
+  using BoxType = primal::BoundingBox<FloatType, NDIMS>;
+  using PointType = primal::Point<FloatType, NDIMS>;
+  using LinearBVH = spin::policy::LinearBVH<FloatType, NDIMS, axom::SEQ_EXEC>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  axom::Array<BoxType> boxes(NUM_BOXES, NUM_BOXES, allocator_id);
+  for(axom::IndexType i = 0; i < NUM_BOXES; ++i)
+  {
+    // The input position is the primitive ID stored in the corresponding leaf.
+    boxes[i] = BoxType(PointType {static_cast<FloatType>(i), 0.});
+  }
+
+  // The unbucketed (default) policy stores one original primitive ID in every leaf.
+  LinearBVH bvh;
+  bvh.buildImpl(boxes.view(), NUM_BOXES, 1.0, allocator_id);
+
+  std::int32_t primitive_id_mask = 0;
+  axom::IndexType primitive_count = 0;
+
+  // Define dummy predicate that always accepts the bounding box
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+
+  // The leaf callback receives one original primitive ID for each visited leaf.
+  bvh.getTraverserImpl().traverse_leaves(
+    PointType {0., 0.},
+    [&](std::int32_t primitive_id) {
+      EXPECT_GE(primitive_id, 0);
+      EXPECT_LT(primitive_id, NUM_BOXES);
+      if(primitive_id >= 0 && primitive_id < NUM_BOXES)
+      {
+        primitive_id_mask |= 1 << primitive_id;
+      }
+      ++primitive_count;
+    },
+    accept_all);
+
+  EXPECT_EQ(NUM_BOXES, primitive_count);
+  EXPECT_EQ((1 << NUM_BOXES) - 1, primitive_id_mask);
+}
+
+//------------------------------------------------------------------------------
+TEST(spin_bvh, linear_bvh_traverse_leaves_zero_and_one_input)
+{
+  using BoxType = primal::BoundingBox<double, 2>;
+  using PointType = primal::Point<double, 2>;
+  using LinearBVH = spin::BVH<2, axom::SEQ_EXEC, double>;
+
+  const int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const axom::Array<BoxType> boxes({BoxType(PointType {1., 2.})}, allocator_id);
+  const auto accept_all = [](const PointType&, const BoxType&) { return true; };
+
+  LinearBVH bvh;
+  axom::IndexType visited_leaves = 0;
+  std::int32_t visited_primitive_id = -1;
+  const auto traverse = [&] {
+    visited_leaves = 0;
+    visited_primitive_id = -1;
+    bvh.getTraverser().traverse_leaves(
+      PointType {1., 2.},
+      [&](std::int32_t primitive_id) {
+        ++visited_leaves;
+        visited_primitive_id = primitive_id;
+      },
+      accept_all);
+  };
+
+  ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 0));
+  traverse();
+  EXPECT_EQ(0, visited_leaves);
+
+  ASSERT_EQ(spin::BVH_BUILD_OK, bvh.initialize(boxes.view(), 1));
+  traverse();
+  EXPECT_EQ(1, visited_leaves);
+  EXPECT_EQ(0, visited_primitive_id);
 }
 
 //------------------------------------------------------------------------------
@@ -1753,10 +1843,10 @@ TEST(spin_bvh, single_bbox_sequential)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, reduce_tree_point_counts_sequential)
+TEST(spin_bvh, reduce_leaves_point_counts_sequential)
 {
-  check_reduce_tree_point_counts_2d<axom::SEQ_EXEC, double>();
-  check_reduce_tree_point_counts_2d<axom::SEQ_EXEC, float>();
+  check_reduce_leaves_point_counts_2d<axom::SEQ_EXEC, double>();
+  check_reduce_leaves_point_counts_2d<axom::SEQ_EXEC, float>();
 }
 
 //------------------------------------------------------------------------------
@@ -1849,10 +1939,10 @@ TEST(spin_bvh, single_bbox_omp)
 }
 
 //------------------------------------------------------------------------------
-TEST(spin_bvh, reduce_tree_point_counts_omp)
+TEST(spin_bvh, reduce_leaves_point_counts_omp)
 {
-  check_reduce_tree_point_counts_2d<axom::OMP_EXEC, double>();
-  check_reduce_tree_point_counts_2d<axom::OMP_EXEC, float>();
+  check_reduce_leaves_point_counts_2d<axom::OMP_EXEC, double>();
+  check_reduce_leaves_point_counts_2d<axom::OMP_EXEC, float>();
 }
 
 #endif
