@@ -93,10 +93,9 @@ public:
       return LinearBVHTraverser::traverseClosestFirst(l, r, p);
     };
 
-    lbvh::BVHStack::LocalStack local_mem;
     lbvh::BVHStack stack;
 
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, local_mem, predicate, leaf_action, traversePref);
+    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, traversePref);
   }
 
   /*!
