@@ -46,40 +46,28 @@ inline OctType from_segment(const Point2D& a, const Point2D& b)
   return OctType(p, q, r, s, t, u);
 }
 
-/* How many octahedra will we generate in each segment of the polyline,
- * summed over all levels of refinement?  We generate the octahedra in
- * discretizeSegment() (which see for further details).
- *  - One oct for the central octahedron (level 0),
+/* How many prisms (stored as octahedra) will we generate in each segment
+ * of the polyline, summed over all levels of refinement?  We generate the
+ * prisms in discrSeg() (which see for further details).
+ *  - One prism for the central prism (level 0),
  *  - three more for its side faces (level 1),
- *  - and for level i > 1, two times the octahedron count in level i-1,
+ *  - and for level i > 1, two times the prism count in level i-1,
  *    to refine each exposed face.
  *
- * Total = 1 + 3*sum[i=0 to levels-1](2^i)
+ * So level i (i >= 1) holds 3 * 2^(i-1) prisms, and
+ *
+ * Total = 1 + 3*sum[k=0 to levels-1](2^k) = 3 * 2^levels - 2
  *
  * For levels < 0, we return 0.  This lets us call the routine to find
  * the offset in an array to store prisms for level (levels + 1).
+ *
+ * The result overflows int for levels >= 30.
  */
 inline int count_segment_prisms(int levels)
 {
-  int octcount = 1;
-  for(int level = levels; level > 0; --level)
-  {
-    if(level == 1)
-    {
-      octcount *= 3;
-    }
-    else
-    {
-      octcount *= 2;
-    }
-    octcount += 1;
-  }
-  if(levels < 0)
-  {
-    octcount = 0;
-  }
-
-  return octcount;
+  //A033484
+  if (levels < 0) { return 0; }
+  return 3 * (1 << levels) - 2;
 }
 
 AXOM_HOST_DEVICE
