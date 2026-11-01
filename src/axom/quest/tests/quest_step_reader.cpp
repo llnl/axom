@@ -13,16 +13,27 @@
 
 #include "gtest/gtest.h"
 
+#include "opencascade/BRep_Tool.hxx"
+#include "opencascade/BRepTools_WireExplorer.hxx"
+#include "opencascade/GeomAPI_ProjectPointOnCurve.hxx"
+#include "opencascade/STEPControl_Reader.hxx"
+#include "opencascade/TopExp_Explorer.hxx"
+#include "opencascade/TopoDS.hxx"
+#include "opencascade/TopoDS_Wire.hxx"
 #include "opencascade/BRep_Builder.hxx"
 #include "opencascade/BRepBuilderAPI_MakeEdge.hxx"
 #include "opencascade/BRepBuilderAPI_MakeFace.hxx"
 #include "opencascade/BRepBuilderAPI_MakeWire.hxx"
+#include "opencascade/BRepBuilderAPI_MakeVertex.hxx"
+#include "opencascade/BRepCheck_Analyzer.hxx"
 #include "opencascade/BRepLib.hxx"
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_CylindricalSurface.hxx"
+#include "opencascade/Geom_ConicalSurface.hxx"
 #include "opencascade/Geom_Plane.hxx"
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
 #include "opencascade/Geom2d_BSplineCurve.hxx"
+#include "opencascade/Geom2d_Line.hxx"
 #include "opencascade/GeomConvert.hxx"
 #include "opencascade/STEPControl_Writer.hxx"
 #include "opencascade/TColgp_Array1OfPnt2d.hxx"
@@ -30,10 +41,13 @@
 #include "opencascade/TColStd_Array1OfReal.hxx"
 #include "opencascade/TopoDS_Compound.hxx"
 #include "opencascade/TopoDS_Face.hxx"
+#include "opencascade/TopoDS_Vertex.hxx"
+#include "opencascade/gp_Dir2d.hxx"
 #include "opencascade/gp_Ax1.hxx"
 #include "opencascade/gp_Ax3.hxx"
 #include "opencascade/gp_Trsf.hxx"
 
+#include <array>
 #include <cmath>
 #include <string>
 
@@ -360,6 +374,92 @@ void expectPositiveTrimWinding(const primal::NURBSPatch<double, 3>& patch,
   EXPECT_TRUE(patch.isVisible(inside_u, inside_v));
   EXPECT_FALSE(patch.isVisible(outside_u, outside_v));
 }
+
+// Compare each occurrence with its source edge, including direction and closure.
+void expectSingleWireTrimGeometry(const quest::STEPReader& reader,
+                                  int patchIndex,
+                                  TopoDS_Face sourceFace)
+{
+  const bool faceReversed = sourceFace.Orientation() == TopAbs_REVERSED;
+  sourceFace.Orientation(TopAbs_FORWARD);
+  struct SourceEdge
+  {
+    Handle(Geom_Curve) curve;
+    double first, last, tolerance;
+    bool reversed;
+  };
+  axom::Array<SourceEdge> originals;
+  for(TopExp_Explorer w(sourceFace, TopAbs_WIRE); w.More(); w.Next())
+  {
+    for(BRepTools_WireExplorer e(TopoDS::Wire(w.Current()), sourceFace); e.More(); e.Next())
+    {
+      double a, b;
+      const auto curve = BRep_Tool::Curve(e.Current(), a, b);
+      ASSERT_FALSE(curve.IsNull());
+      originals.push_back(
+        {curve,
+         a,
+         b,
+         std::max({1e-7, BRep_Tool::Tolerance(sourceFace), BRep_Tool::Tolerance(e.Current())}),
+         (e.Current().Orientation() == TopAbs_REVERSED) != faceReversed});
+    }
+  }
+  const auto& patch = reader.getPatchArray()[patchIndex];
+  ASSERT_EQ(originals.size(), patch.getNumTrimmingCurves());
+
+  primal::BoundingBox<double, 2> domain({patch.getMinKnot_u(), patch.getMinKnot_v()},
+                                        {patch.getMaxKnot_u(), patch.getMaxKnot_v()});
+  domain.expand(1e-7);
+  ASSERT_EQ(reader.getTrimmingCurveWireIds(patchIndex).size(), patch.getNumTrimmingCurves());
+  for(int i = 0; i < patch.getNumTrimmingCurves(); ++i)
+  {
+    SCOPED_TRACE(i);
+    EXPECT_EQ(reader.getTrimmingCurveWireIds(patchIndex)[i], 0);
+    const auto& curve = patch.getTrimmingCurve(i);
+    const auto& edge = originals[i];
+    constexpr int numSamples = 258;
+    constexpr int samplesPerSpan = 18;
+    axom::Array<double> parameters(numSamples);
+    axom::numerics::linspace(curve.getMinKnot(), curve.getMaxKnot(), parameters.data(), numSamples);
+    for(int k = 0; k + 1 < curve.getNumKnots(); ++k)
+    {
+      const double a = curve.getKnot(k), b = curve.getKnot(k + 1);
+      if(b > a)
+      {
+        double spanSamples[samplesPerSpan];
+        axom::numerics::linspace(a, b, spanSamples, samplesPerSpan);
+        parameters.append(axom::ArrayView<double>(spanSamples, samplesPerSpan));
+      }
+    }
+    for(double t : parameters)
+    {
+      const auto uv = curve.evaluate(t);
+      EXPECT_TRUE(domain.contains(uv)) << uv << " outside " << domain;
+      const auto xyz = patch.evaluate(uv[0], uv[1]);
+      const gp_Pnt point(xyz[0], xyz[1], xyz[2]);
+      GeomAPI_ProjectPointOnCurve projection(point, edge.curve, edge.first, edge.last);
+      double error = std::min(point.Distance(edge.curve->Value(edge.first)),
+                              point.Distance(edge.curve->Value(edge.last)));
+      if(projection.NbPoints() > 0)
+      {
+        error = std::min(error, projection.LowerDistance());
+      }
+      EXPECT_LE(error, edge.tolerance);
+    }
+    for(bool atEnd : {false, true})
+    {
+      const auto uv = curve.evaluate(atEnd ? curve.getMaxKnot() : curve.getMinKnot());
+      const auto xyz = patch.evaluate(uv[0], uv[1]);
+      const auto expected = edge.curve->Value(atEnd != edge.reversed ? edge.last : edge.first);
+      EXPECT_LE(gp_Pnt(xyz[0], xyz[1], xyz[2]).Distance(expected), edge.tolerance);
+    }
+    const auto end = curve.evaluate(faceReversed ? curve.getMinKnot() : curve.getMaxKnot());
+    const auto& next = patch.getTrimmingCurve((i + 1) % patch.getNumTrimmingCurves());
+    const auto start = next.evaluate(faceReversed ? next.getMaxKnot() : next.getMinKnot());
+    EXPECT_LT(primal::squared_distance(end, start), 1e-14);
+  }
+}
+
 }  // namespace
 
 TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
@@ -485,6 +585,202 @@ TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
     const double radialDot = center[0] * normal[0] + center[1] * normal[1];
     EXPECT_GT((i == 0 ? 1. : -1.) * radialDot, 0.);
   }
+}
+
+// Exercise seam crossings in U and V, on translated domains and reversed faces.
+TEST(quest_step_reader, periodic_bspline_seam_crossing)
+{
+  const double period = 2 * std::acos(-1.);
+  for(bool periodic_u : {true, false})
+  {
+    for(bool reversed : {false, true})
+    {
+      for(double seam : {-period, 2 * period})
+      {
+        SCOPED_TRACE(
+          axom::fmt::format("periodic_u={} reversed={} seam={}", periodic_u, reversed, seam));
+        Handle(Geom_BSplineSurface) surface = GeomConvert::SurfaceToBSplineSurface(
+          new Geom_RectangularTrimmedSurface(new Geom_CylindricalSurface(gp_Ax3(), 2.),
+                                             0.,
+                                             period,
+                                             0.,
+                                             2.));
+        if(!periodic_u)
+        {
+          surface->ExchangeUV();
+        }
+        const double u0 = periodic_u ? seam - 0.25 : 0.25;
+        const double u1 = periodic_u ? seam + 0.25 : 1.25;
+        const double v0 = periodic_u ? 0.25 : seam - 0.25;
+        const double v1 = periodic_u ? 1.25 : seam + 0.25;
+        auto face = BRepBuilderAPI_MakeFace(surface, u0, u1, v0, v1, 1e-7).Face();
+        if(reversed)
+        {
+          face.Reverse();
+        }
+        fs::TempFile file("axom_step_seam_", "step");
+        STEPControl_Writer writer;
+        ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
+        ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+        quest::STEPReader reader;
+        reader.setFileName(file.getPath());
+        int status = -1;
+        ASSERT_NO_THROW(status = reader.read(false));
+        ASSERT_EQ(status, 0);
+        ASSERT_EQ(reader.numPatches(), 1);
+        ASSERT_EQ(reader.getPatchIds().size(), 1);
+        EXPECT_EQ(reader.getPatchIds()[0], 0);
+        EXPECT_EQ(reader.patchWasOriginallyPeriodic_u(0), periodic_u);
+        EXPECT_EQ(reader.patchWasOriginallyPeriodic_v(0), !periodic_u);
+        const auto& patch = reader.getPatchArray()[0];
+        ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
+        ASSERT_EQ(reader.getTrimmingCurveWireIds(0).size(), 4);
+        for(int wire_id : reader.getTrimmingCurveWireIds(0))
+        {
+          EXPECT_EQ(wire_id, 0);
+        }
+        primal::BoundingBox<double, 2> trimBounds;
+        primal::BoundingBox<double, 2> domain({patch.getMinKnot_u(), patch.getMinKnot_v()},
+                                              {patch.getMaxKnot_u(), patch.getMaxKnot_v()});
+        domain.expand(1e-8);
+        for(const auto& curve : patch.getTrimmingCurves())
+        {
+          constexpr int numSamples = 129;
+          double parameters[numSamples];
+          axom::numerics::linspace(curve.getMinKnot(), curve.getMaxKnot(), parameters, numSamples);
+          for(double t : parameters)
+          {
+            const auto uv = curve.evaluate(t);
+            trimBounds.addPoint(uv);
+            EXPECT_TRUE(domain.contains(uv)) << uv << " outside " << domain;
+            const auto actual = patch.evaluate(uv[0], uv[1]);
+            const double source_u =
+              reversed ? patch.getMinKnot_u() + patch.getMaxKnot_u() - uv[0] : uv[0];
+            const auto expected = surface->Value(source_u, uv[1]);
+            EXPECT_NEAR(actual[0], expected.X(), 1e-8);
+            EXPECT_NEAR(actual[1], expected.Y(), 1e-8);
+            EXPECT_NEAR(actual[2], expected.Z(), 1e-8);
+            EXPECT_GT(actual[0], 1.8);
+            EXPECT_GE(actual[2], 0.25 - 1e-8);
+            EXPECT_LE(actual[2], 1.25 + 1e-8);
+          }
+        }
+        const auto center = trimBounds.getCentroid();
+        expectPositiveTrimWinding(patch,
+                                  center[0],
+                                  center[1],
+                                  periodic_u ? center[0] : trimBounds.getMax()[0] + 0.25,
+                                  periodic_u ? trimBounds.getMax()[1] + 0.25 : center[1]);
+      }
+    }
+  }
+}
+
+TEST(quest_step_reader, periodic_analytic_cone)
+{
+  const double period = 2 * std::acos(-1.);
+  for(bool reversed : {false, true})
+  {
+    SCOPED_TRACE(reversed);
+    Handle(Geom_ConicalSurface) surface = new Geom_ConicalSurface(gp_Ax3(), 0.35, 3.);
+    const double cut = -0.2 * period;
+    BRep_Builder builder;
+    TopoDS_Face face;
+    builder.MakeFace(face, surface, 1e-7);
+    const auto bottom = BRepBuilderAPI_MakeVertex(surface->Value(cut, 0.5)).Vertex();
+    const auto top = BRepBuilderAPI_MakeVertex(surface->Value(cut, 2.5)).Vertex();
+    auto seam = BRepBuilderAPI_MakeEdge(surface->UIso(cut), bottom, top, 0.5, 2.5).Edge();
+    builder.UpdateEdge(seam,
+                       new Geom2d_Line(gp_Pnt2d(cut + period, 0.), gp_Dir2d(0., 1.)),
+                       new Geom2d_Line(gp_Pnt2d(cut, 0.), gp_Dir2d(0., 1.)),
+                       face,
+                       1e-7);
+    builder.Range(seam, face, 0.5, 2.5);
+
+    // Split each rim at its circle's origin and reuse both seam occurrences.
+    auto splitRim = [&](double v, const TopoDS_Vertex& vertex) {
+      const auto circle = surface->VIso(v);
+      const auto marker = BRepBuilderAPI_MakeVertex(surface->Value(0., v)).Vertex();
+      const double split = cut + period;
+      std::array<TopoDS_Edge, 2> edges {
+        BRepBuilderAPI_MakeEdge(circle, vertex, marker, split, period).Edge(),
+        BRepBuilderAPI_MakeEdge(circle, marker, vertex, 0., split).Edge()};
+      builder.UpdateEdge(edges[0], new Geom2d_Line(gp_Pnt2d(-period, v), gp_Dir2d(1., 0.)), face, 1e-7);
+      builder.Range(edges[0], face, split, period);
+      builder.UpdateEdge(edges[1], new Geom2d_Line(gp_Pnt2d(0., v), gp_Dir2d(1., 0.)), face, 1e-7);
+      builder.Range(edges[1], face, 0., split);
+      return edges;
+    };
+    const auto lower = splitRim(0.5, bottom);
+    const auto upper = splitRim(2.5, top);
+    BRepBuilderAPI_MakeWire wire;
+    wire.Add(lower[0]);
+    wire.Add(lower[1]);
+    wire.Add(seam);
+    wire.Add(TopoDS::Edge(upper[1].Reversed()));
+    wire.Add(TopoDS::Edge(upper[0].Reversed()));
+    wire.Add(TopoDS::Edge(seam.Reversed()));
+    ASSERT_TRUE(wire.IsDone());
+    builder.Add(face, wire.Wire());
+    ASSERT_TRUE(BRepCheck_Analyzer(face).IsValid());
+    if(reversed)
+    {
+      face.Reverse();
+    }
+    fs::TempFile file("axom_step_cone_", "step");
+    STEPControl_Writer writer;
+    ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
+    ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+    STEPControl_Reader reference;
+    ASSERT_EQ(reference.ReadFile(file.getPath().c_str()), IFSelect_RetDone);
+    ASSERT_GT(reference.TransferRoots(), 0);
+    TopExp_Explorer faceExp(reference.OneShape(), TopAbs_FACE);
+    ASSERT_TRUE(faceExp.More());
+
+    quest::STEPReader reader;
+    reader.setFileName(file.getPath());
+    int status = -1;
+    ASSERT_NO_THROW(status = reader.read(false));
+    ASSERT_EQ(status, 0);
+    ASSERT_EQ(reader.numPatches(), 1);
+    ASSERT_EQ(reader.getPatchIds().size(), 1);
+    EXPECT_EQ(reader.getPatchIds()[0], 0);
+    EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
+    EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
+    ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), 6);
+    expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faceExp.Current()));
+  }
+}
+
+TEST(quest_step_reader, solid56_periodic_face26)
+{
+  // Gmsh benchmarks/step/Solid_56.step at af3c98576c3d09637b4b6c85f32d7025ea1aa6b8.
+  const auto path = pjoin(AXOM_DATA_DIR, "quest", "step", "Solid_56.step");
+  if(!fs::pathExists(path))
+  {
+    GTEST_SKIP() << "Solid_56.step is not available in AXOM_DATA_DIR";
+  }
+  STEPControl_Reader reference;
+  ASSERT_EQ(reference.ReadFile(path.c_str()), IFSelect_RetDone);
+  ASSERT_GT(reference.TransferRoots(), 0);
+  TopExp_Explorer faceExp(reference.OneShape(), TopAbs_FACE);
+  for(int i = 0; i < 26 && faceExp.More(); ++i)
+  {
+    faceExp.Next();
+  }
+  ASSERT_TRUE(faceExp.More());
+  auto sourceFace = TopoDS::Face(faceExp.Current());
+  quest::STEPReader reader;
+  reader.setFileName(path);
+  int status = -1;
+  ASSERT_NO_THROW(status = reader.read(false));
+  ASSERT_EQ(status, 0);
+  ASSERT_EQ(reader.numPatches(), 48);
+  ASSERT_EQ(reader.getPatchIds().size(), 48);
+  ASSERT_EQ(reader.getPatchIds()[26], 26);
+  EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(26));
+  ASSERT_EQ(reader.getPatchArray()[26].getNumTrimmingCurves(), 8);
+  expectSingleWireTrimGeometry(reader, 26, sourceFace);
 }
 
 #ifdef AXOM_TEST_EXPENSIVE_STEP
