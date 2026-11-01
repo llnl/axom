@@ -20,6 +20,7 @@
 #include "opencascade/BRepBuilderAPI_MakeFace.hxx"
 #include "opencascade/BRepBuilderAPI_Sewing.hxx"
 #include "opencascade/BRepBuilderAPI_NurbsConvert.hxx"
+#include "opencascade/BRepBuilderAPI_Copy.hxx"
 #include "opencascade/BRepCheck_Analyzer.hxx"
 #include "opencascade/BRepCheck_Edge.hxx"
 #include "opencascade/BRepCheck_Face.hxx"
@@ -35,6 +36,7 @@
 #include "opencascade/Geom_Surface.hxx"
 #include "opencascade/Geom2d_BSplineCurve.hxx"
 #include "opencascade/Geom2d_Curve.hxx"
+#include "opencascade/Geom2d_TrimmedCurve.hxx"
 #include "opencascade/Geom2dConvert.hxx"
 #include "opencascade/GeomAbs_CurveType.hxx"
 #include "opencascade/Interface_Static.hxx"
@@ -57,6 +59,7 @@
 #include "opencascade/TopoDS.hxx"
 
 #include <iostream>
+#include <vector>
 
 namespace axom::quest
 {
@@ -114,29 +117,10 @@ public:
   using PatchToTrimmingCurvesMap = std::map<int, NCurveArray>;
 
 private:
-  /// Reflect a trimming curve in u to match a u-reversed patch parameterization.
-  static void reflectCurve_u(NCurve& curve, double umin, double umax)
+  /// Look up a source shape in the copy and NURBS conversion histories.
+  TopoDS_Shape convertedShape(const TopoDS_Shape& source) const
   {
-    auto& ctrl = curve.getControlPoints();
-    for(int i = 0; i < ctrl.size(); ++i)
-    {
-      ctrl[i][0] = umin + umax - ctrl[i][0];
-    }
-  }
-
-  /// Returns a bounding box convering the patch's knot spans in 2D parametric space
-  BBox2D faceBoundingBox(const TopoDS_Face& face) const
-  {
-    BBox2D bbox;
-
-    opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
-
-    Standard_Real u1, u2, v1, v2;
-    surface->Bounds(u1, u2, v1, v2);
-    bbox.addPoint(PointType {u1, v1});
-    bbox.addPoint(PointType {u2, v2});
-
-    return bbox;
+    return m_converter->ModifiedShape(m_source_copy->ModifiedShape(source));
   }
 
   /// Helper class to convert the face geometry of CAD mesh to valid NURBSPatch instances
@@ -147,7 +131,7 @@ private:
     PatchProcessor() = delete;
 
     PatchProcessor(const opencascade::handle<Geom_BSplineSurface>& surface, bool verbose = false)
-      : m_surface(surface)
+      : m_surface(opencascade::handle<Geom_BSplineSurface>::DownCast(surface->Copy()))
       , m_verbose(verbose)
     {
       m_inputSurfaceWasPeriodic_u = m_surface->IsUPeriodic();
@@ -469,11 +453,9 @@ private:
     CurveProcessor(const opencascade::handle<Geom2d_BSplineCurve>& curve,
                    bool verbose = false,
                    bool ensure_clamped = true)
-      : m_curve(curve)
+      : m_curve(opencascade::handle<Geom2d_BSplineCurve>::DownCast(curve->Copy()))
       , m_verbose(verbose)
     {
-      m_inputSurfaceWasPeriodic = m_curve->IsPeriodic();
-
       if(ensure_clamped)
       {
         ensureClamped();
@@ -490,8 +472,6 @@ private:
         ? NCurve(extractControlPoints(), extractWeights(), extractCombinedKnots())
         : NCurve(extractControlPoints(), extractCombinedKnots());
     }
-
-    bool curveWasOriginallyPeriodic() const { return m_inputSurfaceWasPeriodic; }
 
     /**
      * Utility function to compare the represented curve to \a otherCurve
@@ -649,7 +629,6 @@ private:
   private:
     opencascade::handle<Geom2d_BSplineCurve> m_curve;
     bool m_verbose {false};
-    bool m_inputSurfaceWasPeriodic {false};
   };
 
 public:
@@ -679,13 +658,13 @@ public:
   /// Extracts data from the faces of the mesh and converts each patch to a NURBSPatch
   void extractPatches(NPatchArray& patches)
   {
-    patches.resize(numPatchesInFile());
+    patches.resize(m_source_faces.size());
 
-    int patchIndex = 0;
-    for(TopExp_Explorer ex(m_shape, TopAbs_FACE); ex.More(); ex.Next(), ++patchIndex)
+    for(int patchIndex = 0; patchIndex < static_cast<int>(m_source_faces.size()); ++patchIndex)
     {
       SLIC_DEBUG_ROOT_IF(m_verbose, "*** Processing patch " << patchIndex);
-      const TopoDS_Face& face = TopoDS::Face(ex.Current());
+      const auto& source_face = m_source_faces[patchIndex];
+      const auto face = TopoDS::Face(convertedShape(source_face));
 
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
       if(surface->IsKind(STANDARD_TYPE(Geom_BSplineSurface)))
@@ -701,16 +680,12 @@ public:
         patchData.patchIndex = patchIndex;
         patchData.wasOriginallyPeriodic_u = patchProcessor.patchWasOriginallyPeriodic_u();
         patchData.wasOriginallyPeriodic_v = patchProcessor.patchWasOriginallyPeriodic_v();
-        patchData.was_reversed_u = (face.Orientation() != TopAbs_FORWARD);
-        patchData.parametricBBox = faceBoundingBox(face);
+        // History maps may return a canonical orientation rather than this occurrence's.
+        patchData.was_reversed_u = (source_face.Orientation() != TopAbs_FORWARD);
+        patchData.parametricBBox =
+          BBox2D(PointType {patches[patchIndex].getMinKnot_u(), patches[patchIndex].getMinKnot_v()},
+                 PointType {patches[patchIndex].getMaxKnot_u(), patches[patchIndex].getMaxKnot_v()});
         patchData.physicalBBox = patches[patchIndex].boundingBox();
-
-        // Apply the face orientation to the Axom patch so that normals are
-        // consistent with the original B-Rep.
-        if(patchData.was_reversed_u)
-        {
-          patches[patchIndex].reverseOrientation_u();
-        }
 
         if(patchData.wasOriginallyPeriodic_u || patchData.wasOriginallyPeriodic_v)
         {
@@ -859,14 +834,14 @@ public:
                                                              {GeomAbs_OffsetCurve, "Offset Curve"},
                                                              {GeomAbs_OtherCurve, "Other Curve"}};
 
-    int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
+    for(int patchIndex = 0; patchIndex < static_cast<int>(m_source_faces.size()); ++patchIndex)
     {
       PatchData& patchData = m_patchData[patchIndex];
       auto& patch = patches[patchIndex];
-
-      const double patch_umin = patch.getMinKnot_u();
-      const double patch_umax = patch.getMaxKnot_u();
+      auto source_face = m_source_faces[patchIndex];
+      auto face = TopoDS::Face(convertedShape(source_face));
+      source_face.Orientation(TopAbs_FORWARD);
+      face.Orientation(TopAbs_FORWARD);
 
       // Get span of this patch in u and v directions
       BBox2D patchBbox = patchData.parametricBBox;
@@ -881,16 +856,26 @@ public:
                           expandedPatchBbox));
 
       int wireIndex = 0;
-      for(TopExp_Explorer wireExp(faceExp.Current(), TopAbs_WIRE); wireExp.More();
+      for(TopExp_Explorer wireExp(source_face, TopAbs_WIRE); wireExp.More();
           wireExp.Next(), ++wireIndex)
       {
         const TopoDS_Wire& wire = TopoDS::Wire(wireExp.Current());
 
+        int expected_edges = 0;
+        for(TopExp_Explorer edgeExp(wire, TopAbs_EDGE); edgeExp.More(); edgeExp.Next())
+        {
+          ++expected_edges;
+        }
+
+        // A converted wire's UV chart can hide a seam occurrence from WireExplorer.
+        // Traverse the source wire to retain both occurrences.
         int edgeIndex = 0;
-        BRepTools_WireExplorer edgeExp(wire, TopoDS::Face(faceExp.Current()));
+        BRepTools_WireExplorer edgeExp(wire, source_face);
         for(; edgeExp.More(); edgeExp.Next(), ++edgeIndex)
         {
-          const TopoDS_Edge& edge = TopoDS::Edge(edgeExp.Current());
+          const auto& source_edge = edgeExp.Current();
+          auto edge = TopoDS::Edge(convertedShape(source_edge));
+          edge.Orientation(source_edge.Orientation());
 
           if(m_verbose)
           {
@@ -904,27 +889,22 @@ public:
 
           Standard_Real first, last;
           opencascade::handle<Geom2d_Curve> parametricCurve =
-            BRep_Tool::CurveOnSurface(edge, TopoDS::Face(faceExp.Current()), first, last);
-          opencascade::handle<Geom2d_BSplineCurve> bsplineCurve =
-            Geom2dConvert::CurveToBSplineCurve(parametricCurve);
+            BRep_Tool::CurveOnSurface(edge, face, first, last);
 
-          if(!parametricCurve.IsNull() && !bsplineCurve.IsNull())
+          if(!parametricCurve.IsNull())
           {
-            const bool originalCurvePeriodic = bsplineCurve->IsPeriodic();
+            const bool originalCurvePeriodic = parametricCurve->IsPeriodic();
+            // Trim to the edge's interval without shifting periodic parameters.
+            auto bsplineCurve = Geom2dConvert::CurveToBSplineCurve(
+              new Geom2d_TrimmedCurve(parametricCurve, first, last, true, false));
 
             CurveProcessor curveProcessor(bsplineCurve, m_verbose);
             auto curve = curveProcessor.nurbsCurve();
-            patchData.trimmingCurves_originallyPeriodic.push_back(
-              curveProcessor.curveWasOriginallyPeriodic());
+            patchData.trimmingCurves_originallyPeriodic.push_back(originalCurvePeriodic);
             patchData.trimmingCurves_wireIds.push_back(wireIndex);
 
             SLIC_ASSERT(curve.isValidNURBS());
             SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
-
-            if(patchData.was_reversed_u)
-            {
-              reflectCurve_u(curve, patch_umin, patch_umax);
-            }
 
             if(edge.Orientation() == TopAbs_REVERSED)
             {
@@ -940,12 +920,10 @@ public:
                                                 edgeIndex,
                                                 curve));
 
-            // Check to ensure that curve did not change geometrically after making non-periodic
+            // CurveProcessor clamps a copy, so compare it with the original spline.
             if(originalCurvePeriodic)
             {
-              opencascade::handle<Geom2d_BSplineCurve> origCurve =
-                Geom2dConvert::CurveToBSplineCurve(parametricCurve);
-              const bool withinThreshold = curveProcessor.compareToCurve(origCurve, 25);
+              const bool withinThreshold = curveProcessor.compareToCurve(bsplineCurve, 25);
               SLIC_WARNING_ROOT_IF(
                 !withinThreshold,
                 axom::fmt::format("[Patch {} Wire {} Edge {}] Trimming curve was not "
@@ -958,6 +936,19 @@ public:
             // TODO: Check that curve control points are within UV patch after adjusting periodicity
           }
         }
+        SLIC_WARNING_ROOT_IF(
+          edgeIndex != expected_edges,
+          axom::fmt::format("[Patch {} Wire {}] Source traversal visited {} of {} "
+                            "edge occurrences; the exported boundary may be incomplete.",
+                            patchIndex,
+                            wireIndex,
+                            edgeIndex,
+                            expected_edges));
+      }
+      if(patchData.was_reversed_u)
+      {
+        // Reverse the surface, UV coordinates, and trim directions together.
+        patch.reverseOrientation_u();
       }
     }
   }
@@ -1006,9 +997,14 @@ private:
       return TopoDS_Shape();
     }
 
-    // Convert to NURBS
-    BRepBuilderAPI_NurbsConvert converter(shape);
-    TopoDS_Shape nurbsShape = converter.Shape();
+    // Keep the source faces for traversal. Convert a copy to preserve their geometry.
+    for(TopExp_Explorer faceExp(shape, TopAbs_FACE); faceExp.More(); faceExp.Next())
+    {
+      m_source_faces.push_back(TopoDS::Face(faceExp.Current()));
+    }
+    m_source_copy = std::make_unique<BRepBuilderAPI_Copy>(shape, true, false);
+    m_converter = std::make_unique<BRepBuilderAPI_NurbsConvert>(m_source_copy->Shape());
+    TopoDS_Shape nurbsShape = m_converter->Shape();
 
     if(nurbsShape.IsNull())
     {
@@ -1032,6 +1028,9 @@ private:
   std::string m_fileUnits {"mm"};
 
   PatchDataMap m_patchData;
+  std::vector<TopoDS_Face> m_source_faces;
+  std::unique_ptr<BRepBuilderAPI_Copy> m_source_copy;
+  std::unique_ptr<BRepBuilderAPI_NurbsConvert> m_converter;
 };
 
 /**
