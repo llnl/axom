@@ -198,7 +198,8 @@ public:
 
     {
       AXOM_ANNOTATE_SCOPE("moment_precomputation");
-      const auto compute_moments = [source_primitives](std::int32_t source_primitive_index) -> MomentType {
+      const auto compute_moments =
+        [source_primitives](std::int32_t source_primitive_index) -> MomentType {
         return source_primitive_index >= 0 && source_primitive_index < source_primitives.size()
           ? MomentType(source_primitives[source_primitive_index])
           : MomentType {};
