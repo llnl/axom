@@ -132,7 +132,7 @@ public:
   template <typename Primitive, typename LeafAction, typename Predicate>
   void traverse_leaves(const Primitive& p, LeafAction&& leaf_action, Predicate&& predicate) const
   {
-    auto action = std::forward<LeafAction>(leaf_action);
+    auto&& action = std::forward<LeafAction>(leaf_action);
     auto leaf_action_wrapper = [=](std::int32_t leaf_slot, const std::int32_t* leaf_nodes) mutable {
       action(leaf_nodes[leaf_slot]);
     };
@@ -155,7 +155,7 @@ public:
   axom::Array<ValueType> reduce_leaves(LeafAction&& leaf_action,
                                        int allocatorID = axom::getDefaultAllocatorID()) const
   {
-    auto action = std::forward<LeafAction>(leaf_action);
+    auto&& action = std::forward<LeafAction>(leaf_action);
 
     // Make a field over all of the nodes (the return field).
     const auto num_node_slots = 2 * m_inner_nodes.size();
@@ -219,7 +219,7 @@ private:
    * \param current_node The current node.
    */
   template <typename ValueType, typename LeafAction>
-  void reduce_recursion(LeafAction& leaf_action,
+  void reduce_recursion(LeafAction&& leaf_action,
                         axom::ArrayView<ValueType> node_data,
                         std::int32_t current_node) const
   {
