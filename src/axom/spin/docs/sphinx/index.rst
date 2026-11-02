@@ -26,6 +26,7 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    :caption: Helper classes, single-level indexes
 
    helper
+   spatial_ordering
    uniformgrid
    implicitgrid
 
