@@ -19,6 +19,7 @@ axom_component_requires(NAME       SPIN
 set( spin_headers
 
      BVH.hpp
+     BucketedBVHGrouping.hpp
      Brood.hpp
      DenseOctreeLevel.hpp
      HilbertIndex.hpp

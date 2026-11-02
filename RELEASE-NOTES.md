@@ -45,6 +45,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Adds a host-only `LinearBVHTraverser::traverse_leaves()` for actions that receive the original primitive ID directly.
 - Quest: Adds support for replicating object ranks across empty processors to spread out communication.
   This is controlled via a `DistributedClosestPoint::setMaxReplicationFactor()` method.
+- Spin: Adds a `BucketedLinearBVH` policy to `spin::BVH` which allows multiple primitives in the same leaf node.
 
 ### Removed
 
