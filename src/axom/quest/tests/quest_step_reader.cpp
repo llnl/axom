@@ -28,6 +28,7 @@
 #include "opencascade/BRepCheck_Analyzer.hxx"
 #include "opencascade/BRepLib.hxx"
 #include "opencascade/Geom_BSplineSurface.hxx"
+#include "opencascade/Geom_BSplineCurve.hxx"
 #include "opencascade/Geom_CylindricalSurface.hxx"
 #include "opencascade/Geom_ConicalSurface.hxx"
 #include "opencascade/Geom_Plane.hxx"
@@ -37,6 +38,8 @@
 #include "opencascade/GeomConvert.hxx"
 #include "opencascade/STEPControl_Writer.hxx"
 #include "opencascade/TColgp_Array1OfPnt2d.hxx"
+#include "opencascade/TColgp_Array1OfPnt.hxx"
+#include "opencascade/TColgp_Array2OfPnt.hxx"
 #include "opencascade/TColStd_Array1OfInteger.hxx"
 #include "opencascade/TColStd_Array1OfReal.hxx"
 #include "opencascade/TopoDS_Compound.hxx"
@@ -49,6 +52,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 #include <string>
 
 namespace fs = axom::utilities::filesystem;
@@ -460,6 +464,97 @@ void expectSingleWireTrimGeometry(const quest::STEPReader& reader,
   }
 }
 
+// S(u,v) = (0.004u,v,0) on [0,1]^2. A UV gap of 2e-5 is only 8e-8 in 3D.
+// The physical gap stays within Open Cascade's vertex tolerance
+// while the UV gap exceeds the diagnostic threshold.
+TopoDS_Face makeTrimDiagnosticFace(double topControlV, double gap, bool addHole = false)
+{
+  TColgp_Array2OfPnt poles(1, 2, 1, 2);
+  for(int i = 1; i <= 2; ++i)
+  {
+    for(int j = 1; j <= 2; ++j)
+    {
+      poles(i, j) = gp_Pnt(0.004 * (i - 1), j - 1, 0.);
+    }
+  }
+  TColStd_Array1OfReal knots(1, 2);
+  knots(1) = 0.;
+  knots(2) = 1.;
+  TColStd_Array1OfInteger mults(1, 2);
+  mults(1) = mults(2) = 2;
+  Handle(Geom_BSplineSurface) surface =
+    new Geom_BSplineSurface(poles, knots, knots, mults, mults, 1, 1);
+  BRep_Builder builder;
+  TopoDS_Face face;
+  builder.MakeFace(face, surface, 1e-7);
+  auto makeWire = [&](double lo, double hi, double midV, double gapUV) {
+    const std::array<gp_Pnt2d, 4> corners {gp_Pnt2d(lo, lo),
+                                           gp_Pnt2d(hi, lo),
+                                           gp_Pnt2d(hi, hi),
+                                           gp_Pnt2d(lo, hi)};
+    std::array<TopoDS_Vertex, 4> vertices;
+    for(int i = 0; i < 4; ++i)
+    {
+      vertices[i] =
+        BRepBuilderAPI_MakeVertex(surface->Value(corners[i].X(), corners[i].Y())).Vertex();
+      builder.UpdateVertex(vertices[i], 1e-7);
+    }
+    TopoDS_Wire wire;
+    builder.MakeWire(wire);
+    for(int i = 0; i < 4; ++i)
+    {
+      const int degree = i == 2 ? 2 : 1;
+      TColgp_Array1OfPnt2d uv(1, degree + 1);
+      uv(1) = corners[i];
+      uv(degree + 1) = corners[(i + 1) % 4];
+      if(i == 1)
+      {
+        uv(1).SetX(uv(1).X() + gapUV);
+      }
+      if(degree == 2)
+      {
+        uv(2) = gp_Pnt2d((lo + hi) * .5, midV);
+      }
+      // This affine surface maps the pcurve poles to an exact 3D curve with
+      // the same parameterization, so SameRange and SameParameter hold below.
+      TColgp_Array1OfPnt xyz(1, degree + 1);
+      for(int j = 1; j <= degree + 1; ++j)
+      {
+        xyz(j) = surface->Value(uv(j).X(), uv(j).Y());
+      }
+      mults(1) = mults(2) = degree + 1;
+      Handle(Geom2d_BSplineCurve) pcurve = new Geom2d_BSplineCurve(uv, knots, mults, degree);
+      Handle(Geom_BSplineCurve) spaceCurve = new Geom_BSplineCurve(xyz, knots, mults, degree);
+      auto edge =
+        BRepBuilderAPI_MakeEdge(spaceCurve, vertices[i], vertices[(i + 1) % 4], 0., 1.).Edge();
+      builder.UpdateEdge(edge, pcurve, face, 1e-7);
+      builder.Range(edge, face, 0., 1.);
+      builder.SameRange(edge, true);
+      builder.SameParameter(edge, true);
+      builder.Add(wire, edge);
+    }
+    wire.Closed(true);
+    return wire;
+  };
+  builder.Add(face, makeWire(.2, .8, topControlV, addHole ? 0. : gap));
+  if(addHole)
+  {
+    builder.Add(face, makeWire(.35, .65, .65, gap).Reversed());
+  }
+  return face;
+}
+
+std::string readWithDiagnostics(quest::STEPReader& reader, bool validate)
+{
+  ::testing::internal::CaptureStdout();
+  int status = -1;
+  EXPECT_NO_THROW(status = reader.read(validate));
+  axom::slic::flushStreams();
+  const auto messages = ::testing::internal::GetCapturedStdout();
+  EXPECT_EQ(status, 0) << messages;
+  return messages;
+}
+
 }  // namespace
 
 TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
@@ -624,9 +719,9 @@ TEST(quest_step_reader, periodic_bspline_seam_crossing)
         ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
         quest::STEPReader reader;
         reader.setFileName(file.getPath());
-        int status = -1;
-        ASSERT_NO_THROW(status = reader.read(false));
-        ASSERT_EQ(status, 0);
+        const auto messages = readWithDiagnostics(reader, true);
+        EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+        EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
         ASSERT_EQ(reader.numPatches(), 1);
         ASSERT_EQ(reader.getPatchIds().size(), 1);
         EXPECT_EQ(reader.getPatchIds()[0], 0);
@@ -739,9 +834,9 @@ TEST(quest_step_reader, periodic_analytic_cone)
 
     quest::STEPReader reader;
     reader.setFileName(file.getPath());
-    int status = -1;
-    ASSERT_NO_THROW(status = reader.read(false));
-    ASSERT_EQ(status, 0);
+    const auto messages = readWithDiagnostics(reader, true);
+    EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+    EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
     ASSERT_EQ(reader.numPatches(), 1);
     ASSERT_EQ(reader.getPatchIds().size(), 1);
     EXPECT_EQ(reader.getPatchIds()[0], 0);
@@ -781,6 +876,135 @@ TEST(quest_step_reader, solid56_periodic_face26)
   EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(26));
   ASSERT_EQ(reader.getPatchArray()[26].getNumTrimmingCurves(), 8);
   expectSingleWireTrimGeometry(reader, 26, sourceFace);
+}
+
+TEST(quest_step_reader, exported_uv_domain_diagnostics)
+{
+  for(bool reversed : {false, true})
+  {
+    // Both curves have control points outside [0,1]^2. Only the second curve leaves it.
+    for(double topControlV : {1.1, 1.6})
+    {
+      SCOPED_TRACE(axom::fmt::format("reversed={} topControlV={}", reversed, topControlV));
+      auto face = makeTrimDiagnosticFace(topControlV, 0.);
+      if(reversed)
+      {
+        face.Reverse();
+      }
+      fs::TempFile file("axom_step_uv_domain_", "step");
+      STEPControl_Writer writer;
+      ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
+      ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+      for(bool validate : {false, true})
+      {
+        SCOPED_TRACE(validate);
+        quest::STEPReader reader;
+        reader.setFileName(file.getPath());
+        const auto messages = readWithDiagnostics(reader, validate);
+        EXPECT_EQ(messages.find("leave the exported UV domain") != std::string::npos,
+                  validate && topControlV == 1.6)
+          << messages;
+        EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+        ASSERT_EQ(reader.numPatches(), 1);
+        const auto& patch = reader.getPatchArray()[0];
+        ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
+        EXPECT_EQ(patch.getMinKnot_v(), 0.);
+        EXPECT_EQ(patch.getMaxKnot_v(), 1.);
+        primal::BoundingBox<double, 2> domain({0., 0.}, {1., 1.});
+        double maxV = 0.;
+        for(const auto& curve : patch.getTrimmingCurves())
+        {
+          EXPECT_TRUE(domain.contains(curve.evaluate(curve.getMinKnot())));
+          EXPECT_TRUE(domain.contains(curve.evaluate(curve.getMaxKnot())));
+          maxV = std::max(maxV, curve.evaluate((curve.getMinKnot() + curve.getMaxKnot()) * .5)[1]);
+        }
+        EXPECT_NEAR(maxV, (.8 + topControlV) * .5, 1e-12);
+      }
+    }
+  }
+}
+
+TEST(quest_step_reader, exported_uv_gap_diagnostics)
+{
+  for(bool reversed : {false, true})
+  {
+    for(bool addHole : {false, true})
+    {
+      for(double gap : {0., 2e-5})
+      {
+        SCOPED_TRACE(axom::fmt::format("reversed={} addHole={} gap={}", reversed, addHole, gap));
+        auto face = makeTrimDiagnosticFace(.8, gap, addHole);
+        ASSERT_TRUE(BRepCheck_Analyzer(face).IsValid());
+        if(reversed)
+        {
+          face.Reverse();
+        }
+        fs::TempFile file("axom_step_uv_gap_", "step");
+        STEPControl_Writer writer;
+        ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
+        ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+        STEPControl_Reader reference;
+        ASSERT_EQ(reference.ReadFile(file.getPath().c_str()), IFSelect_RetDone);
+        ASSERT_GT(reference.TransferRoots(), 0);
+        ASSERT_TRUE(BRepCheck_Analyzer(reference.OneShape()).IsValid());
+        for(bool validate : {false, true})
+        {
+          SCOPED_TRACE(validate);
+          quest::STEPReader reader;
+          reader.setFileName(file.getPath());
+          const auto messages = readWithDiagnostics(reader, validate);
+          EXPECT_EQ(messages.find("UV endpoint gap") != std::string::npos, validate && gap > 0.)
+            << messages;
+          EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+          if(validate && gap > 0.)
+          {
+            EXPECT_NE(messages.find(axom::fmt::format("[Patch 0 Wire {}] Exported trimming wire",
+                                                      addHole ? 1 : 0)),
+                      std::string::npos)
+              << messages;
+          }
+          ASSERT_EQ(reader.numPatches(), 1);
+          const auto& patch = reader.getPatchArray()[0];
+          const auto wireIds = reader.getTrimmingCurveWireIds(0);
+          ASSERT_EQ(patch.getNumTrimmingCurves(), addHole ? 8 : 4);
+          ASSERT_EQ(wireIds.size(), patch.getNumTrimmingCurves());
+          EXPECT_EQ(wireIds[0], 0);
+          EXPECT_EQ(wireIds[wireIds.size() - 1], addHole ? 1 : 0);
+          double maxSquaredGap = 0.;
+          double maxPhysicalGap = 0.;
+          // Match endpoints within each wire without assuming traversal order.
+          for(int i = 0; i < patch.getNumTrimmingCurves(); ++i)
+          {
+            const auto& curve = patch.getTrimmingCurve(i);
+            const auto end = curve.evaluate(curve.getMaxKnot());
+            double nearest = std::numeric_limits<double>::max();
+            double physicalGap = 0.;
+            for(int j = 0; j < patch.getNumTrimmingCurves(); ++j)
+            {
+              if(wireIds[i] == wireIds[j])
+              {
+                const auto& next = patch.getTrimmingCurve(j);
+                const auto start = next.evaluate(next.getMinKnot());
+                const double squaredGap = primal::squared_distance(end, start);
+                if(squaredGap < nearest)
+                {
+                  nearest = squaredGap;
+                  physicalGap =
+                    std::sqrt(primal::squared_distance(patch.evaluate(end[0], end[1]),
+                                                       patch.evaluate(start[0], start[1])));
+                }
+              }
+            }
+            maxSquaredGap = std::max(maxSquaredGap, nearest);
+            maxPhysicalGap = std::max(maxPhysicalGap, physicalGap);
+          }
+          EXPECT_NEAR(std::sqrt(maxSquaredGap), gap, 1e-12);
+          EXPECT_NEAR(maxPhysicalGap, .004 * gap, 1e-12);
+          EXPECT_LT(maxPhysicalGap, 1e-7);
+        }
+      }
+    }
+  }
 }
 
 #ifdef AXOM_TEST_EXPENSIVE_STEP

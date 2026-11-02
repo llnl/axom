@@ -72,7 +72,7 @@ namespace axom::quest
 {
 namespace internal
 {
-// OCCT can convert an analytic periodic surface to a closed, nonperiodic spline.
+// Open Cascade can convert an analytic periodic surface to a closed, nonperiodic spline.
 // Preserve its periodic basis so pcurve projection can cross the seam.
 class PeriodicNurbsModification : public BRepTools_NurbsConvertModification
 {
@@ -124,7 +124,7 @@ public:
       {
         surface = stockSurface;
         SLIC_WARNING_ROOT(
-          "Could not preserve a periodic STEP surface; using OCCT's default conversion.");
+          "Could not preserve a periodic STEP surface; using Open Cascade's default conversion.");
       }
     }
     return changed;
@@ -140,7 +140,7 @@ public:
     double first, last;
     const auto source = BRep_Tool::Surface(face);
     const auto curve3d = BRep_Tool::Curve(edge, first, last);
-    // OCCT leaves spline surfaces and 3D spline curves unchanged.
+    // Open Cascade leaves spline surfaces and 3D spline curves unchanged.
     // Reuse their pcurves to avoid projection errors at seams.
     if(source->IsKind(STANDARD_TYPE(Geom_BSplineSurface)) && !curve3d.IsNull() &&
        curve3d->IsKind(STANDARD_TYPE(Geom_BSplineCurve)))
@@ -159,7 +159,7 @@ public:
       catch(const Standard_Failure&)
       {
         SLIC_WARNING_ROOT(
-          "Could not preserve a STEP spline pcurve; using OCCT's default conversion.");
+          "Could not preserve a STEP spline pcurve; using Open Cascade's default conversion.");
       }
     }
     return BRepTools_NurbsConvertModification::NewCurve2d(edge, face, newEdge, newFace, curve, tolerance);
@@ -1263,6 +1263,88 @@ public:
     }
   }
 
+  /// Check the exported trims in UV space
+  void validatePatchCharts(const NPatchArray& patches) const
+  {
+    // Open Cascade's tolerances are in physical space. A small 3D gap can still be large in UV.
+    constexpr double uvTolerance = 1e-7;
+    constexpr int numSamples = 1001;
+    constexpr int samplesPerSpan = 21;
+    axom::Array<double> parameters(numSamples);
+    for(const auto& entry : m_patchData)
+    {
+      const int patchIndex = entry.first;
+      const auto& data = entry.second;
+      const auto& curves = patches[patchIndex].getTrimmingCurves();
+      auto bounds = data.parametricBBox;
+      bounds.expand(uvTolerance);
+
+      // A control point outside the domain doesn't necessarily put the curve outside it.
+      // Sample the curve itself to avoid false positives.
+      auto intervalIsInside = [&](const NCurve& curve, double first, double last, int count) {
+        axom::numerics::linspace(first, last, parameters.data(), count);
+        for(int i = 0; i < count; ++i)
+        {
+          if(!bounds.contains(curve.evaluate(parameters[i])))
+          {
+            return false;
+          }
+        }
+        return true;
+      };
+
+      bool outside = false;
+      int wireBegin = 0;
+      // Extraction appends each wire's trimming curves contiguously.
+      // Close each group separately so holes are not joined to the outer boundary.
+      while(wireBegin < curves.size())
+      {
+        const int wireId = data.trimmingCurves_wireIds[wireBegin];
+        int wireEnd = wireBegin + 1;
+        while(wireEnd < curves.size() && data.trimmingCurves_wireIds[wireEnd] == wireId)
+        {
+          ++wireEnd;
+        }
+
+        double maxSquaredGap = 0.;
+        for(int i = wireBegin; i < wireEnd; ++i)
+        {
+          const auto& curve = curves[i];
+          outside |= !intervalIsInside(curve, curve.getMinKnot(), curve.getMaxKnot(), numSamples);
+          // Include short knot spans that the whole-curve samples can miss.
+          for(int k = 0; !outside && k + 1 < curve.getNumKnots(); ++k)
+          {
+            const double first = curve.getKnot(k), last = curve.getKnot(k + 1);
+            if(last > first)
+            {
+              outside |= !intervalIsInside(curve, first, last, samplesPerSpan);
+            }
+          }
+
+          const auto& next = curves[i + 1 == wireEnd ? wireBegin : i + 1];
+          // Face reversal reverses each trim while preserving their array order.
+          const auto end =
+            curve.evaluate(data.was_reversed_u ? curve.getMinKnot() : curve.getMaxKnot());
+          const auto start =
+            next.evaluate(data.was_reversed_u ? next.getMaxKnot() : next.getMinKnot());
+          maxSquaredGap = std::max(maxSquaredGap, axom::primal::squared_distance(end, start));
+        }
+        SLIC_WARNING_ROOT_IF(
+          maxSquaredGap > uvTolerance * uvTolerance,
+          axom::fmt::format(
+            "[Patch {} Wire {}] Exported trimming wire has a UV endpoint gap of {}.",
+            patchIndex,
+            wireId,
+            std::sqrt(maxSquaredGap)));
+        wireBegin = wireEnd;
+      }
+      SLIC_WARNING_ROOT_IF(
+        outside,
+        axom::fmt::format("[Patch {}] Sampled trimming curves leave the exported UV domain.",
+                          patchIndex));
+    }
+  }
+
   const PatchDataMap& getPatchDataMap() const { return m_patchData; }
 
   std::string getFileUnits() const { return m_fileUnits; }
@@ -1833,6 +1915,11 @@ int STEPReader::read(bool validate_model)
   }
 
   m_stepProcessor->extractPatches(m_patches);
+  if(validate_model)
+  {
+    // Check the exported curves after chart shifts and face reversal.
+    m_stepProcessor->validatePatchCharts(m_patches);
+  }
 
   // Record stable ids that match the input STEP enumeration, even if consumers
   // later filter/skip patches or trimming curves.

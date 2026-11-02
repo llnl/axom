@@ -10,7 +10,7 @@
 #include "axom/mint.hpp"
 
 #ifndef AXOM_USE_OPENCASCADE
-  #error STEPReader should only be included when Axom is configured with opencascade
+  #error STEPReader should only be included when Axom is configured with Open Cascade
 #endif
 
 #include "axom/core.hpp"
@@ -52,9 +52,15 @@ public:
   void setVerbosity(bool verbosity) { m_verbosity = verbosity; }
 
   /*!
-   * \brief Read the contour file provided by \a setFileName()
+   * \brief Read the STEP file provided by \a setFileName()
    *
-   * \param[in] validate Adds validation tests on the model, when true
+   * \param[in] validate Logs validation checks, sampled UV containment,
+   *  and trimming curve gaps, when true.
+   *
+   * \note UV checks use an absolute tolerance of 1e-7 on the exported patches.
+   *
+   * Validation reports problems without changing the geometry or read status.
+   * A successful read can still contain out-of-domain trims or open wires.
    * \return 0 for a successful read; non-zero otherwise
    */
   [[nodiscard]] virtual int read(bool validate);
@@ -92,7 +98,7 @@ public:
   /// Returns some information about the loaded BRep
   std::string getBRepStats() const;
 
-  /// Returns an AABB for the loaded BRep as evaluated by OpenCascade
+  /// Returns an AABB for the loaded BRep as evaluated by Open Cascade
   axom::primal::BoundingBox<double, 3> getBRepBoundingBox(bool useTriangulation = false) const;
 
   /*!
@@ -117,7 +123,7 @@ public:
                                             bool trimmed = true);
 
 protected:
-  // open cascade does not appear to offer a direct way to get the number of patches
+  // Open Cascade does not appear to offer a direct way to get the number of patches
   int numPatchesInFile() const;
 
 protected:
