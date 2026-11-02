@@ -737,30 +737,36 @@ public:
     AXOM_UNUSED_VAR(mpi_err);
 
     // Loop through ranks with points, and create replication groups.
-    axom::Array<int> objRanks;
+    m_objRanks.clear();
     for(int irank = 0; irank < m_nranks; irank++)
     {
       if(npts_all[irank] > 0)
       {
-        objRanks.push_back(irank);
+        m_objRanks.push_back(irank);
         m_replicationMap[irank].npts = npts_all[irank];
       }
     }
 
-    if(objRanks.empty())
+    if(m_objRanks.empty())
     {
       // Exit out early, no ranks have objects.
       return;
     }
 
     // Assign empty ranks round-robin to replication groups.
+    const int objRankCount = m_objRanks.size();
     int emptyRankCount = 0;
     for(int irank = 0; irank < m_nranks; irank++)
     {
       if(npts_all[irank] == 0)
       {
-        int objIndex = emptyRankCount % objRanks.size();
-        int replicatedRank = objRanks[objIndex];
+        if(m_maxReplicasPerObjectRank >= 0 &&
+           emptyRankCount / objRankCount >= m_maxReplicasPerObjectRank)
+        {
+          continue;
+        }
+        int objIndex = emptyRankCount % objRankCount;
+        int replicatedRank = m_objRanks[objIndex];
         m_replicationMap[replicatedRank].replicas.push_back(irank);
 
         if(m_rank == irank)
@@ -833,9 +839,8 @@ public:
     }
 
     // Sending processors: copy potentially device-side points to host and setup sends.
-    if(m_replicatedObjRank == -1)
+    if(m_replicatedObjRank == -1 && m_objectPtCoords.size() > 0)
     {
-      SLIC_ASSERT(m_objectPtCoords.size() > 0);
       int hostAllocID = axom::detail::getDefaultHostAllocatorID();
 
       // Points may have been allocated in GPU memory.
@@ -967,28 +972,42 @@ public:
       {
         const int origRank = (m_replicatedObjRank == -1) ? m_rank : m_replicatedObjRank;
         const auto groupIt = m_replicationMap.find(origRank);
-        SLIC_ASSERT(groupIt != m_replicationMap.end());
-
-        for(int r = 0; r < m_nranks; ++r)
+        auto routeGroupIt = groupIt;
+        const bool hasLocalObjects = groupIt != m_replicationMap.end();
+        if(hasLocalObjects)
         {
-          if(r != m_rank && selectReplica(groupIt->second, r) == m_rank)
+          for(int r = 0; r < m_nranks; ++r)
           {
-            const auto& otherQueryBb = allQueryBbs[r];
-            if(is_statically_eligible(otherQueryBb, myObjectBb))
+            if(r != m_rank && selectReplica(groupIt->second, r) == m_rank)
             {
-              ++remainingRecvs;
+              const auto& otherQueryBb = allQueryBbs[r];
+              if(is_statically_eligible(otherQueryBb, myObjectBb))
+              {
+                ++remainingRecvs;
+              }
             }
           }
-        }
-
-        auto routeGroupIt = groupIt;
-        for(std::size_t i = 1; i < m_replicationMap.size(); ++i)
-        {
+          // The local group has already processed this rank's query.
           if(++routeGroupIt == m_replicationMap.end())
           {
             routeGroupIt = m_replicationMap.begin();
           }
+        }
+        else
+        {
+          // This rank was not replicated. Select a group to start on round-robin.
+          SLIC_ASSERT(m_replicatedObjRank == -1);
+          routeGroupIt = m_replicationMap.find(m_objRanks[m_rank % m_objRanks.size()]);
+        }
+
+        const std::size_t routeSize = m_replicationMap.size() - (hasLocalObjects ? 1 : 0);
+        for(std::size_t i = 0; i < routeSize; ++i)
+        {
           route.push_back(selectReplica(routeGroupIt->second, m_rank));
+          if(++routeGroupIt == m_replicationMap.end())
+          {
+            routeGroupIt = m_replicationMap.begin();
+          }
         }
       }
       else
@@ -1520,6 +1539,7 @@ public:
     axom::Array<int> replicas;
   };
 
+  axom::Array<int> m_objRanks;
   // maps home rank -> replication group
   std::map<int, ReplicationGroup> m_replicationMap;
   // if not -1, object points on this rank are replicated from another rank
