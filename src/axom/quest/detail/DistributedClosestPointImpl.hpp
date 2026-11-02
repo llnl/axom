@@ -307,7 +307,7 @@ public:
   void setDynamicDistanceFiltering(bool on) { m_dynamicDistanceFiltering = on; }
 
   //! @brief Sets the number of extra copies allowed per object-owning rank.
-  void setMaxReplicasPerObjectRank(int count) { m_maxReplicasPerObjectRank = count; }
+  void setMaxReplicationFactor(int count) { m_maxReplicationFactor = count; }
 
   /*!
     @brief Set which output data fields to generate.
@@ -539,7 +539,7 @@ protected:
 
   bool m_dynamicDistanceFiltering = true;
   bool m_replicateObjectDomains = true;
-  int m_maxReplicasPerObjectRank = -1;
+  int m_maxReplicationFactor = -1;
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
@@ -760,8 +760,7 @@ public:
     {
       if(npts_all[irank] == 0)
       {
-        if(m_maxReplicasPerObjectRank >= 0 &&
-           emptyRankCount / objRankCount >= m_maxReplicasPerObjectRank)
+        if(m_maxReplicationFactor >= 0 && emptyRankCount / objRankCount >= m_maxReplicationFactor)
         {
           continue;
         }
