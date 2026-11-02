@@ -17,8 +17,6 @@
 #include "axom/primal.hpp"
 
 #include <string>
-#include <memory>
-#include <map>
 
 namespace axom::quest
 {

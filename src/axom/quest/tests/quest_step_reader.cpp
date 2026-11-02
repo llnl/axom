@@ -334,6 +334,20 @@ TEST(quest_step_reader, test_bolt_clip) { runStepFileTest("bolt_clip.step"); }
 
 namespace
 {
+void writeStepFile(const TopoDS_Shape& shape, const std::string& path)
+{
+  STEPControl_Writer writer;
+  ASSERT_EQ(writer.Transfer(shape, STEPControl_AsIs), IFSelect_RetDone);
+  ASSERT_EQ(writer.Write(path.c_str()), IFSelect_RetDone) << path;
+}
+
+// Import the source geometry without going through Axom's conversion and export.
+void readStepReference(const std::string& path, STEPControl_Reader& reader)
+{
+  ASSERT_EQ(reader.ReadFile(path.c_str()), IFSelect_RetDone) << path;
+  ASSERT_GT(reader.TransferRoots(), 0) << path;
+}
+
 // Every edge uses [0,1], but its stored B-spline pcurve spans [-1,2].
 // B-spline pcurves keep their unused tails through the STEP round trip.
 TopoDS_Face makeRestrictedPcurveFace()
@@ -600,6 +614,29 @@ void expectTrimGaps(const quest::STEPReader::NURBSPatch& patch,
 
 }  // namespace
 
+TEST(quest_step_reader, read_failure)
+{
+  fs::TempFile empty_file("axom_step_empty_", "step");
+  const axom::Array<std::string> paths {empty_file.getPath(), empty_file.getPath() + ".missing"};
+  for(const auto& path : paths)
+  {
+    SCOPED_TRACE(path);
+    for(bool validate : {false, true})
+    {
+      SCOPED_TRACE(validate);
+      quest::STEPReader reader;
+      reader.setFileName(path);
+      EXPECT_NE(reader.read(validate), 0);
+      EXPECT_TRUE(reader.getPatchArray().empty());
+      EXPECT_TRUE(reader.getPatchIds().empty());
+      EXPECT_FALSE(reader.getBRepBoundingBox().isValid());
+      mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(3, mint::TRIANGLE);
+      EXPECT_NE(reader.getTriangleMesh(&mesh), 0);
+      EXPECT_EQ(mesh.getNumberOfCells(), 0);
+    }
+  }
+}
+
 TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
 {
   for(bool reversed : {false, true})
@@ -616,9 +653,7 @@ TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
     }
 
     fs::TempFile file("axom_step_restricted_", "step");
-    STEPControl_Writer writer;
-    ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
-    ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+    ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
     quest::STEPReader reader;
     reader.setFileName(file.getPath());
     ASSERT_EQ(reader.read(false), 0);
@@ -654,10 +689,45 @@ TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
     }
     gp_Vec expectedNormal(0., 0., reversed ? -1. : 1.);
     expectedNormal.Transform(transform);
+    const primal::Vector<double, 3> expected_normal {expectedNormal.X(),
+                                                     expectedNormal.Y(),
+                                                     expectedNormal.Z()};
     const auto normal = patch.normal(0.5, 0.5);
-    const double dot = normal[0] * expectedNormal.X() + normal[1] * expectedNormal.Y() +
-      normal[2] * expectedNormal.Z();
-    EXPECT_GT(dot, 0.);
+    EXPECT_GT(normal.dot(expected_normal), 0.);
+
+    // Both triangulation modes must preserve the face's location and orientation.
+    // The trim encloses a unit square; the untrimmed support spans [-2,3]^2.
+    for(bool trimmed : {true, false})
+    {
+      SCOPED_TRACE(axom::fmt::format("trimmed={}", trimmed));
+      mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(3, mint::TRIANGLE);
+      ASSERT_EQ(reader.getTriangleMesh(&mesh, 0.1, 0.5, false, trimmed), 0);
+      ASSERT_GT(mesh.getNumberOfCells(), 0);
+      const auto* patch_ids = mesh.getFieldPtr<int>("patch_index", mint::CELL_CENTERED);
+      ASSERT_NE(patch_ids, nullptr);
+      double area = 0.0;
+      for(axom::IndexType cell = 0; cell < mesh.getNumberOfCells(); ++cell)
+      {
+        EXPECT_EQ(patch_ids[cell], 0);
+        axom::IndexType nodes[3];
+        mesh.getCellNodeIDs(cell, nodes);
+        primal::Triangle<double, 3> triangle;
+        for(int j = 0; j < 3; ++j)
+        {
+          mesh.getNode(nodes[j], triangle[j].data());
+          const auto& point = triangle[j];
+          const auto local = gp_Pnt(point[0], point[1], point[2]).Transformed(transform.Inverted());
+          EXPECT_NEAR(local.Z(), 0.0, 1e-8);
+          EXPECT_GE(local.X(), (trimmed ? 0.0 : -2.0) - 1e-8);
+          EXPECT_LE(local.X(), (trimmed ? 1.0 : 3.0) + 1e-8);
+          EXPECT_GE(local.Y(), (trimmed ? 0.0 : -2.0) - 1e-8);
+          EXPECT_LE(local.Y(), (trimmed ? 1.0 : 3.0) + 1e-8);
+        }
+        EXPECT_GT(triangle.normal().dot(expected_normal), 0.0);
+        area += triangle.area();
+      }
+      EXPECT_NEAR(area, trimmed ? 1.0 : 25.0, 1e-8);
+    }
   }
 }
 
@@ -681,9 +751,7 @@ TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
     builder.Add(compound, face);
   }
   fs::TempFile file("axom_step_periodic_", "step");
-  STEPControl_Writer writer;
-  ASSERT_EQ(writer.Transfer(compound, STEPControl_AsIs), IFSelect_RetDone);
-  ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+  ASSERT_NO_FATAL_FAILURE(writeStepFile(compound, file.getPath()));
   quest::STEPReader reader;
   reader.setFileName(file.getPath());
   ASSERT_EQ(reader.read(false), 0);
@@ -757,9 +825,7 @@ TEST(quest_step_reader, periodic_bspline_seam_crossing)
           face.Reverse();
         }
         fs::TempFile file("axom_step_seam_", "step");
-        STEPControl_Writer writer;
-        ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
-        ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+        ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
         quest::STEPReader reader;
         reader.setFileName(file.getPath());
         const auto messages = readWithDiagnostics(reader, true);
@@ -866,12 +932,9 @@ TEST(quest_step_reader, periodic_analytic_cone)
       face.Reverse();
     }
     fs::TempFile file("axom_step_cone_", "step");
-    STEPControl_Writer writer;
-    ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
-    ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+    ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
     STEPControl_Reader reference;
-    ASSERT_EQ(reference.ReadFile(file.getPath().c_str()), IFSelect_RetDone);
-    ASSERT_GT(reference.TransferRoots(), 0);
+    ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
     TopExp_Explorer faceExp(reference.OneShape(), TopAbs_FACE);
     ASSERT_TRUE(faceExp.More());
 
@@ -899,8 +962,7 @@ TEST(quest_step_reader, solid56_periodic_face26)
     GTEST_SKIP() << "Solid_56.step is not available in AXOM_DATA_DIR";
   }
   STEPControl_Reader reference;
-  ASSERT_EQ(reference.ReadFile(path.c_str()), IFSelect_RetDone);
-  ASSERT_GT(reference.TransferRoots(), 0);
+  ASSERT_NO_FATAL_FAILURE(readStepReference(path, reference));
   TopExp_Explorer faceExp(reference.OneShape(), TopAbs_FACE);
   for(int i = 0; i < 26 && faceExp.More(); ++i)
   {
@@ -935,8 +997,7 @@ TEST(quest_step_reader, stored_periodic_cone_fixtures)
     // Load the source model separately, before Axom's NURBS conversion,
     // and use its 3D edges and tolerances as references for the exported trims below.
     STEPControl_Reader reference;
-    ASSERT_EQ(reference.ReadFile(path.c_str()), IFSelect_RetDone);
-    ASSERT_GT(reference.TransferRoots(), 0);
+    ASSERT_NO_FATAL_FAILURE(readStepReference(path, reference));
     ASSERT_TRUE(BRepCheck_Analyzer(reference.OneShape()).IsValid());
     TopExp_Explorer face_exp(reference.OneShape(), TopAbs_FACE);
     ASSERT_TRUE(face_exp.More());
@@ -1002,8 +1063,7 @@ TEST(quest_step_reader, stored_uv_diagnostic_fixtures)
     // Confirm that Open Cascade accepts the source BRep. Axom's exported UV containment
     // and closure checks must still distinguish the excursion, gap, and control.
     STEPControl_Reader reference;
-    ASSERT_EQ(reference.ReadFile(path.c_str()), IFSelect_RetDone);
-    ASSERT_GT(reference.TransferRoots(), 0);
+    ASSERT_NO_FATAL_FAILURE(readStepReference(path, reference));
     ASSERT_TRUE(BRepCheck_Analyzer(reference.OneShape()).IsValid());
 
     for(bool validate : {false, true})
@@ -1082,9 +1142,7 @@ TEST(quest_step_reader, exported_uv_domain_diagnostics)
         face.Reverse();
       }
       fs::TempFile file("axom_step_uv_domain_", "step");
-      STEPControl_Writer writer;
-      ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
-      ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+      ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
       for(bool validate : {false, true})
       {
         SCOPED_TRACE(validate);
@@ -1130,12 +1188,9 @@ TEST(quest_step_reader, exported_uv_gap_diagnostics)
           face.Reverse();
         }
         fs::TempFile file("axom_step_uv_gap_", "step");
-        STEPControl_Writer writer;
-        ASSERT_EQ(writer.Transfer(face, STEPControl_AsIs), IFSelect_RetDone);
-        ASSERT_EQ(writer.Write(file.getPath().c_str()), IFSelect_RetDone);
+        ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
         STEPControl_Reader reference;
-        ASSERT_EQ(reference.ReadFile(file.getPath().c_str()), IFSelect_RetDone);
-        ASSERT_GT(reference.TransferRoots(), 0);
+        ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
         ASSERT_TRUE(BRepCheck_Analyzer(reference.OneShape()).IsValid());
         for(bool validate : {false, true})
         {
