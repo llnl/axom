@@ -555,6 +555,49 @@ std::string readWithDiagnostics(quest::STEPReader& reader, bool validate)
   return messages;
 }
 
+void expectTrimGaps(const quest::STEPReader::NURBSPatch& patch,
+                    axom::ArrayView<const int> wire_ids,
+                    double expected_uv_gap,
+                    double expected_physical_gap)
+{
+  using Vector3D = primal::Vector<double, 3>;
+  constexpr double eps = 1e-12;
+  constexpr double source_tol = 1e-7;
+
+  ASSERT_EQ(wire_ids.size(), patch.getNumTrimmingCurves());
+  double max_squared_gap = 0.0;
+  double max_physical_gap = 0.0;
+  // Match endpoints within each wire without assuming traversal order.
+  // This avoids reusing STEPReader's consecutive-curve gap calculation.
+  for(int i = 0; i < patch.getNumTrimmingCurves(); ++i)
+  {
+    const auto& curve = patch.getTrimmingCurve(i);
+    const auto end = curve.evaluate(curve.getMaxKnot());
+    const auto end_point = patch.evaluate(end[0], end[1]);
+    double nearest_squared_gap = std::numeric_limits<double>::max();
+    double physical_gap = 0.0;
+    for(int j = 0; j < patch.getNumTrimmingCurves(); ++j)
+    {
+      if(wire_ids[i] == wire_ids[j])
+      {
+        const auto& next = patch.getTrimmingCurve(j);
+        const auto start = next.evaluate(next.getMinKnot());
+        const double squared_gap = primal::squared_distance(end, start);
+        if(squared_gap < nearest_squared_gap)
+        {
+          nearest_squared_gap = squared_gap;
+          physical_gap = Vector3D(end_point, patch.evaluate(start[0], start[1])).norm();
+        }
+      }
+    }
+    max_squared_gap = std::max(max_squared_gap, nearest_squared_gap);
+    max_physical_gap = std::max(max_physical_gap, physical_gap);
+  }
+  EXPECT_NEAR(std::sqrt(max_squared_gap), expected_uv_gap, eps);
+  EXPECT_NEAR(max_physical_gap, expected_physical_gap, eps);
+  EXPECT_LT(max_physical_gap, source_tol);
+}
+
 }  // namespace
 
 TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
@@ -878,6 +921,153 @@ TEST(quest_step_reader, solid56_periodic_face26)
   expectSingleWireTrimGeometry(reader, 26, sourceFace);
 }
 
+TEST(quest_step_reader, stored_periodic_cone_fixtures)
+{
+  using Vector3D = primal::Vector<double, 3>;
+  constexpr double geom_tol = 1e-7;
+
+  // The same wavy conical region, with shifted and native seam cuts.
+  for(const char* filename : {"periodic_seam_cone.step", "fixed_seam_offset_cone.step"})
+  {
+    SCOPED_TRACE(filename);
+    const auto path = pjoin(AXOM_DATA_DIR, "quest", "step", filename);
+    ASSERT_TRUE(fs::pathExists(path)) << "Missing STEP regression fixture: " << path;
+    // Load the source model separately, before Axom's NURBS conversion,
+    // and use its 3D edges and tolerances as references for the exported trims below.
+    STEPControl_Reader reference;
+    ASSERT_EQ(reference.ReadFile(path.c_str()), IFSelect_RetDone);
+    ASSERT_GT(reference.TransferRoots(), 0);
+    ASSERT_TRUE(BRepCheck_Analyzer(reference.OneShape()).IsValid());
+    TopExp_Explorer face_exp(reference.OneShape(), TopAbs_FACE);
+    ASSERT_TRUE(face_exp.More());
+    const auto source_face = TopoDS::Face(face_exp.Current());
+    face_exp.Next();
+    ASSERT_FALSE(face_exp.More());
+
+    // Both validation modes must preserve the six trim occurrences and their geometry.
+    for(bool validate : {false, true})
+    {
+      SCOPED_TRACE(validate);
+      quest::STEPReader reader;
+      reader.setFileName(path);
+      const auto messages = readWithDiagnostics(reader, validate);
+      EXPECT_EQ(messages.find("leave the exported UV domain"), std::string::npos) << messages;
+      EXPECT_EQ(messages.find("UV endpoint gap"), std::string::npos) << messages;
+      ASSERT_EQ(reader.numPatches(), 1);
+      ASSERT_EQ(reader.getPatchIds().size(), 1);
+      EXPECT_EQ(reader.getPatchIds()[0], 0);
+      EXPECT_TRUE(reader.patchWasOriginallyPeriodic_u(0));
+      EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
+      const auto& patch = reader.getPatchArray()[0];
+      EXPECT_TRUE(patch.isValidNURBS());
+      ASSERT_EQ(patch.getNumTrimmingCurves(), 6);
+      // Compare in physical space because the rational patch's U parameter
+      // differs from the source cone's angle.
+      expectSingleWireTrimGeometry(reader, 0, source_face);
+      const double u = (patch.getMinKnot_u() + patch.getMaxKnot_u()) * 0.5;
+      const double v = (patch.getMinKnot_v() + patch.getMaxKnot_v()) * 0.5;
+      expectPositiveTrimWinding(patch, u, v, u, patch.getMaxKnot_v() + 0.25);
+      // The cone has radius 3 at z=0, half-angle 0.35, and an outward normal.
+      const auto point = patch.evaluate(u, v);
+      const Vector3D radial {point[0], point[1], 0.0};
+      EXPECT_NEAR(radial.norm(), 3.0 + point[2] * std::tan(0.35), geom_tol);
+      EXPECT_GT(radial.dot(patch.normal(u, v)), 0.0);
+    }
+  }
+}
+
+TEST(quest_step_reader, stored_uv_diagnostic_fixtures)
+{
+  constexpr double eps = 1e-12;
+  constexpr int num_samples = 129;
+
+  // Expected values come from the fixture construction. On the gap fixture's
+  // S(u,v) = (0.004u,v,0), a 2e-5 UV gap is 8e-8 in 3D, within its 1e-7 tolerance.
+  struct TestCase
+  {
+    const char* filename;
+    double scale_u;
+    double max_v;
+    double uv_gap;
+  };
+  const axom::Array<TestCase> test_cases = {{"nonperiodic_trim_excursion.step", 1.0, 1.2, 0.0},
+                                            {"trim_gap.step", 0.004, 0.9, 2e-5},
+                                            {"closed_control.step", 0.004, 0.9, 0.0}};
+
+  for(const auto& test_case : test_cases)
+  {
+    SCOPED_TRACE(test_case.filename);
+    const auto path = pjoin(AXOM_DATA_DIR, "quest", "step", test_case.filename);
+    ASSERT_TRUE(fs::pathExists(path)) << "Missing STEP regression fixture: " << path;
+    // Confirm that Open Cascade accepts the source BRep. Axom's exported UV containment
+    // and closure checks must still distinguish the excursion, gap, and control.
+    STEPControl_Reader reference;
+    ASSERT_EQ(reference.ReadFile(path.c_str()), IFSelect_RetDone);
+    ASSERT_GT(reference.TransferRoots(), 0);
+    ASSERT_TRUE(BRepCheck_Analyzer(reference.OneShape()).IsValid());
+
+    for(bool validate : {false, true})
+    {
+      SCOPED_TRACE(validate);
+      quest::STEPReader reader;
+      reader.setFileName(path);
+      const auto messages = readWithDiagnostics(reader, validate);
+      EXPECT_EQ(messages.find("leave the exported UV domain") != std::string::npos,
+                validate && test_case.max_v > 1.0)
+        << messages;
+      EXPECT_EQ(messages.find("UV endpoint gap") != std::string::npos, validate && test_case.uv_gap > 0.0)
+        << messages;
+      ASSERT_EQ(reader.numPatches(), 1);
+      ASSERT_EQ(reader.getPatchIds().size(), 1);
+      EXPECT_EQ(reader.getPatchIds()[0], 0);
+      EXPECT_FALSE(reader.patchWasOriginallyPeriodic_u(0));
+      EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(0));
+      const auto& patch = reader.getPatchArray()[0];
+      EXPECT_TRUE(patch.isValidNURBS());
+      ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
+      const auto wire_ids = reader.getTrimmingCurveWireIds(0);
+      ASSERT_EQ(wire_ids.size(), 4);
+      for(int wire_id : wire_ids)
+      {
+        EXPECT_EQ(wire_id, 0);
+      }
+      EXPECT_DOUBLE_EQ(patch.getMinKnot_u(), 0.0);
+      EXPECT_DOUBLE_EQ(patch.getMaxKnot_u(), 1.0);
+      EXPECT_DOUBLE_EQ(patch.getMinKnot_v(), 0.0);
+      EXPECT_DOUBLE_EQ(patch.getMaxKnot_v(), 1.0);
+      for(double u : {0.0, 0.5, 1.0})
+      {
+        for(double v : {0.0, 0.5, 1.0})
+        {
+          const auto point = patch.evaluate(u, v);
+          EXPECT_NEAR(point[0], test_case.scale_u * u, eps);
+          EXPECT_NEAR(point[1], v, eps);
+          EXPECT_NEAR(point[2], 0.0, eps);
+        }
+      }
+
+      // Validation must preserve the excursion and gap. All trim endpoints lie inside
+      // the patch domain, including those of the bowed trim.
+      const primal::BoundingBox<double, 2> domain({0.0, 0.0}, {1.0, 1.0});
+      double max_v = 0.0;
+      axom::Array<double> parameters(num_samples);
+      for(const auto& curve : patch.getTrimmingCurves())
+      {
+        EXPECT_TRUE(curve.isValidNURBS());
+        EXPECT_TRUE(domain.contains(curve.evaluate(curve.getMinKnot())));
+        EXPECT_TRUE(domain.contains(curve.evaluate(curve.getMaxKnot())));
+        axom::numerics::linspace(curve.getMinKnot(), curve.getMaxKnot(), parameters.data(), num_samples);
+        for(double t : parameters)
+        {
+          max_v = std::max(max_v, curve.evaluate(t)[1]);
+        }
+      }
+      EXPECT_NEAR(max_v, test_case.max_v, eps);
+      expectTrimGaps(patch, wire_ids, test_case.uv_gap, test_case.scale_u * test_case.uv_gap);
+    }
+  }
+}
+
 TEST(quest_step_reader, exported_uv_domain_diagnostics)
 {
   for(bool reversed : {false, true})
@@ -970,37 +1160,7 @@ TEST(quest_step_reader, exported_uv_gap_diagnostics)
           ASSERT_EQ(wireIds.size(), patch.getNumTrimmingCurves());
           EXPECT_EQ(wireIds[0], 0);
           EXPECT_EQ(wireIds[wireIds.size() - 1], addHole ? 1 : 0);
-          double maxSquaredGap = 0.;
-          double maxPhysicalGap = 0.;
-          // Match endpoints within each wire without assuming traversal order.
-          for(int i = 0; i < patch.getNumTrimmingCurves(); ++i)
-          {
-            const auto& curve = patch.getTrimmingCurve(i);
-            const auto end = curve.evaluate(curve.getMaxKnot());
-            double nearest = std::numeric_limits<double>::max();
-            double physicalGap = 0.;
-            for(int j = 0; j < patch.getNumTrimmingCurves(); ++j)
-            {
-              if(wireIds[i] == wireIds[j])
-              {
-                const auto& next = patch.getTrimmingCurve(j);
-                const auto start = next.evaluate(next.getMinKnot());
-                const double squaredGap = primal::squared_distance(end, start);
-                if(squaredGap < nearest)
-                {
-                  nearest = squaredGap;
-                  physicalGap =
-                    std::sqrt(primal::squared_distance(patch.evaluate(end[0], end[1]),
-                                                       patch.evaluate(start[0], start[1])));
-                }
-              }
-            }
-            maxSquaredGap = std::max(maxSquaredGap, nearest);
-            maxPhysicalGap = std::max(maxPhysicalGap, physicalGap);
-          }
-          EXPECT_NEAR(std::sqrt(maxSquaredGap), gap, 1e-12);
-          EXPECT_NEAR(maxPhysicalGap, .004 * gap, 1e-12);
-          EXPECT_LT(maxPhysicalGap, 1e-7);
+          expectTrimGaps(patch, wireIds, gap, .004 * gap);
         }
       }
     }
