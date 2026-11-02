@@ -442,6 +442,7 @@ public:
   double distThreshold {axom::numeric_limits<double>::max()};
 
   bool dynamicDistanceFiltering {true};
+  int maxReplicasPerObjectRank {-1};
 
 private:
   bool m_verboseOutput {false};
@@ -524,6 +525,11 @@ public:
       .add_flag("--dynamic-distance-filtering,!--no-dynamic-distance-filtering",
                 dynamicDistanceFiltering)
       ->description("Enable/disable dynamic distance filtering")
+      ->capture_default_str();
+
+    app.add_option("--max-replicas-per-object-rank", maxReplicasPerObjectRank)
+      ->description("Maximum extra copies per object-owning rank; "
+                    "0 makes no extra copies, negative values remove the limit")
       ->capture_default_str();
 
     app.add_option("-p, --policy", policy)
@@ -1841,6 +1847,7 @@ int main(int argc, char** argv)
   query.setVerbosity(params.isVerbose());
   query.setDistanceThreshold(params.distThreshold);
   query.setDynamicDistanceFiltering(params.dynamicDistanceFiltering);
+  query.setMaxReplicasPerObjectRank(params.maxReplicasPerObjectRank);
   // To test support for single-domain format, use single-domain when possible.
   query.setObjectMesh(objectMeshNode.number_of_children() == 1 ? objectMeshNode[0] : objectMeshNode,
                       objectMeshWrapper.getTopologyName());

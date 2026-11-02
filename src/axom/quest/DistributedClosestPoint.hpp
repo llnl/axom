@@ -111,6 +111,18 @@ public:
    */
   void setDynamicDistanceFiltering(bool on);
 
+  /**
+   * \brief Limits the number of extra ranks holding each object rank's points.
+   *
+   * \param [in] count Maximum number of replicas per object-owning rank,
+   * excluding the original. Use 0 for no extra copies. Negative values
+   * remove the limit. The default is -1 (unlimited). Only empty ranks
+   * receive replicas.
+   *
+   * Set the same value on all ranks before calling generateBVHTree().
+   */
+  void setMaxReplicasPerObjectRank(int count);
+
   /*!
     @brief Set what fields to output.
 
@@ -207,6 +219,7 @@ private:
   bool m_isVerbose {false};
   double m_sqDistanceThreshold;
   bool m_dynamicDistanceFiltering {true};
+  int m_maxReplicasPerObjectRank {-1};
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
