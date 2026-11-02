@@ -53,6 +53,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <string>
 
 namespace fs = axom::utilities::filesystem;
@@ -612,6 +613,19 @@ void expectTrimGaps(const quest::STEPReader::NURBSPatch& patch,
   EXPECT_LT(max_physical_gap, source_tol);
 }
 
+void expectEmptyReader(quest::STEPReader& reader)
+{
+  EXPECT_TRUE(reader.getPatchArray().empty());
+  EXPECT_TRUE(reader.getPatchIds().empty());
+  EXPECT_TRUE(reader.getTrimmingCurveWireIds(0).empty());
+  EXPECT_TRUE(reader.getFileUnits().empty());
+  EXPECT_TRUE(reader.getBRepStats().empty());
+  EXPECT_FALSE(reader.getBRepBoundingBox().isValid());
+  mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(3, mint::TRIANGLE);
+  EXPECT_NE(reader.getTriangleMesh(&mesh), 0);
+  EXPECT_EQ(mesh.getNumberOfCells(), 0);
+}
+
 }  // namespace
 
 TEST(quest_step_reader, read_failure)
@@ -625,15 +639,61 @@ TEST(quest_step_reader, read_failure)
     {
       SCOPED_TRACE(validate);
       quest::STEPReader reader;
+      expectEmptyReader(reader);
       reader.setFileName(path);
       EXPECT_NE(reader.read(validate), 0);
-      EXPECT_TRUE(reader.getPatchArray().empty());
-      EXPECT_TRUE(reader.getPatchIds().empty());
-      EXPECT_FALSE(reader.getBRepBoundingBox().isValid());
-      mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(3, mint::TRIANGLE);
-      EXPECT_NE(reader.getTriangleMesh(&mesh), 0);
-      EXPECT_EQ(mesh.getNumberOfCells(), 0);
+      expectEmptyReader(reader);
     }
+  }
+}
+
+TEST(quest_step_reader, repeated_reads)
+{
+  struct TestCase
+  {
+    const char* filename;
+    int patches;
+    int trims_per_patch;
+    bool periodic_u;
+  };
+  const axom::Array<TestCase> test_cases = {{"periodic_seam_cone.step", 1, 6, true},
+                                            {"tet.step", 4, 3, false},
+                                            {"closed_control.step", 1, 4, false}};
+  fs::TempFile empty_file("axom_step_reuse_empty_", "step");
+  quest::STEPReader reader;
+  for(bool validate : {false, true})
+  {
+    SCOPED_TRACE(validate);
+    // Reuse the reader across changes in patch count, trims, and periodicity,
+    // then check that a failed read clears the model and allows another read.
+    for(const auto& test_case : test_cases)
+    {
+      SCOPED_TRACE(test_case.filename);
+      reader.setFileName(pjoin(AXOM_DATA_DIR, "quest", "step", test_case.filename));
+      ASSERT_EQ(reader.read(validate), 0);
+      ASSERT_EQ(reader.numPatches(), test_case.patches);
+      ASSERT_EQ(reader.getPatchIds().size(), test_case.patches);
+      EXPECT_FALSE(reader.getFileUnits().empty());
+      EXPECT_FALSE(reader.getBRepStats().empty());
+      EXPECT_TRUE(reader.getBRepBoundingBox().isValid());
+      for(int i = 0; i < reader.numPatches(); ++i)
+      {
+        EXPECT_EQ(reader.getPatchIds()[i], i);
+        EXPECT_EQ(reader.patchWasOriginallyPeriodic_u(i), test_case.periodic_u);
+        EXPECT_FALSE(reader.patchWasOriginallyPeriodic_v(i));
+        const auto& patch = reader.getPatchArray()[i];
+        EXPECT_TRUE(patch.isValidNURBS());
+        EXPECT_EQ(patch.getNumTrimmingCurves(), test_case.trims_per_patch);
+        ASSERT_EQ(reader.getTrimmingCurveWireIds(i).size(), test_case.trims_per_patch);
+        for(int wire_id : reader.getTrimmingCurveWireIds(i))
+        {
+          EXPECT_EQ(wire_id, 0);
+        }
+      }
+    }
+    reader.setFileName(empty_file.getPath());
+    EXPECT_NE(reader.read(validate), 0);
+    expectEmptyReader(reader);
   }
 }
 
@@ -733,7 +793,7 @@ TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
 
 TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
 {
-  const double period = 2 * std::acos(-1.);
+  constexpr double period = 2 * std::numbers::pi;
   Handle(Geom_BSplineSurface) surface = GeomConvert::SurfaceToBSplineSurface(
     new Geom_RectangularTrimmedSurface(new Geom_CylindricalSurface(gp_Ax3(), 2.), 0., period, 0., 4.));
   ASSERT_TRUE(surface->IsUPeriodic());
@@ -796,7 +856,7 @@ TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
 // Exercise seam crossings in U and V, on translated domains and reversed faces.
 TEST(quest_step_reader, periodic_bspline_seam_crossing)
 {
-  const double period = 2 * std::acos(-1.);
+  constexpr double period = 2 * std::numbers::pi;
   for(bool periodic_u : {true, false})
   {
     for(bool reversed : {false, true})
@@ -882,7 +942,7 @@ TEST(quest_step_reader, periodic_bspline_seam_crossing)
 
 TEST(quest_step_reader, periodic_analytic_cone)
 {
-  const double period = 2 * std::acos(-1.);
+  constexpr double period = 2 * std::numbers::pi;
   for(bool reversed : {false, true})
   {
     SCOPED_TRACE(reversed);

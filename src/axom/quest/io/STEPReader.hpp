@@ -17,6 +17,7 @@
 #include "axom/primal.hpp"
 
 #include <string>
+#include <memory>
 
 namespace axom::quest
 {
@@ -25,11 +26,11 @@ namespace internal
 class StepFileProcessor;
 }
 
-/*
+/*!
  * \class STEPReader
  *
- * \brief A class to help with reading a STEP file containing a parametric BRep (Boundary Representation)
- * consisting of trimmed NURBS patches.
+ * \brief A class to help with reading a STEP file containing a parametric 
+ *  BRep (Boundary Representation) consisting of trimmed NURBS patches.
  */
 class STEPReader
 {
@@ -40,7 +41,7 @@ public:
   using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
   using IndexArray = axom::Array<int>;
 
-  STEPReader() = default;
+  STEPReader();
   virtual ~STEPReader();
 
 public:
@@ -59,10 +60,12 @@ public:
    *
    * Validation reports problems without changing the geometry or read status.
    * A successful read can still contain out-of-domain trims or open wires.
+   * Each read replaces the previous model; a failed read leaves no patches.
    * \return 0 for a successful read; non-zero otherwise
    */
   [[nodiscard]] virtual int read(bool validate);
 
+  /// Returns the file units, or an empty string if no model is loaded on this rank.
   std::string getFileUnits() const;
 
   PatchArray& getPatchArray() { return m_patches; }
@@ -121,18 +124,25 @@ public:
                                             bool trimmed = true);
 
 protected:
+  /// Releases the loaded model and exported patches, retaining reader settings.
+  void clear();
+
   // Open Cascade does not appear to offer a direct way to get the number of patches
   int numPatchesInFile() const;
 
 protected:
   std::string m_fileName;
   bool m_verbosity {false};
-  internal::StepFileProcessor* m_stepProcessor {nullptr};
+  std::unique_ptr<internal::StepFileProcessor> m_stepProcessor;
   PatchArray m_patches;
   IndexArray m_patchIds;
   axom::Array<IndexArray> m_trimmingCurveWireIds;
   IndexArray m_patchOriginallyPeriodic_u;
   IndexArray m_patchOriginallyPeriodic_v;
+
+private:
+  DISABLE_COPY_AND_ASSIGNMENT(STEPReader);
+  DISABLE_MOVE_AND_ASSIGNMENT(STEPReader);
 };
 
 }  // namespace axom::quest

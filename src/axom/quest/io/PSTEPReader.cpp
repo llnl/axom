@@ -100,13 +100,12 @@ int PSTEPReader::read(bool validate_model)
     break;
   //handle other ranks
   default:
-    m_stepProcessor = nullptr;
+    clear();
     rc = bcast_int();
     if(rc == READER_SUCCESS)
     {
       // receive and reconstruct each NURBSPatch
       const int numPatches = bcast_int();
-      m_patches.clear();
       m_patches.reserve(numPatches);
       for(int i = 0; i < numPatches; ++i)
       {
@@ -174,7 +173,6 @@ int PSTEPReader::read(bool validate_model)
 
       // Receive stable ids that match the input STEP enumeration
       bcast_array(m_patchIds);
-      m_trimmingCurveWireIds.clear();
       m_trimmingCurveWireIds.resize(numPatches);
       for(int i = 0; i < numPatches; ++i)
       {

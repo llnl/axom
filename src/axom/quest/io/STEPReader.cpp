@@ -53,9 +53,12 @@
 #include "opencascade/TopTools_MapOfShape.hxx"
 #include "opencascade/gp_Vec2d.hxx"
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <vector>
 
 namespace axom::quest
@@ -1279,7 +1282,10 @@ private:
 
 }  // namespace internal
 
-std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
+std::string STEPReader::getFileUnits() const
+{
+  return m_stepProcessor && m_stepProcessor->isLoaded() ? m_stepProcessor->getFileUnits() : "";
+}
 
 axom::ArrayView<const int> STEPReader::getTrimmingCurveWireIds(int patchArrayIndex) const
 {
@@ -1295,7 +1301,7 @@ std::string STEPReader::getBRepStats() const
 {
   // early return if the step file has not been loaded
   // (or, e.g. for the derived PSTEPReader class, if it's not loaded on this rank)
-  if(!m_stepProcessor)
+  if(!m_stepProcessor || !m_stepProcessor->isLoaded())
   {
     return "";
   }
@@ -1311,16 +1317,17 @@ std::string STEPReader::getBRepStats() const
 
   // Lambda to generate AccumStatistics for a list of integers
   auto computeStatistics = [](const std::vector<int>& data) -> AccumStatistics {
-    AccumStatistics stats;
-    stats.min = *std::min_element(data.begin(), data.end());
-    stats.max = *std::max_element(data.begin(), data.end());
+    if(data.empty())
+    {
+      return {};
+    }
 
+    const auto [min, max] = std::ranges::minmax(data);
     const double sum = std::accumulate(data.begin(), data.end(), 0.0);
     const double sumSquared =
       std::accumulate(data.begin(), data.end(), 0.0, [](double a, double b) { return a + b * b; });
-    stats.mean = sum / data.size();
-    stats.stddev = std::sqrt(sumSquared / data.size() - stats.mean * stats.mean);
-    return stats;
+    const double mean = sum / data.size();
+    return {min, max, mean, std::sqrt(sumSquared / data.size() - mean * mean)};
   };
 
   axom::fmt::memory_buffer out;
@@ -1534,7 +1541,7 @@ std::string STEPReader::getBRepStats() const
 
 axom::primal::BoundingBox<double, 3> STEPReader::getBRepBoundingBox(bool useTriangulation) const
 {
-  if(!m_stepProcessor->isLoaded())
+  if(!m_stepProcessor || !m_stepProcessor->isLoaded())
   {
     SLIC_WARNING_ROOT("Cannot compute bounding box until calling STEPReader::read()");
     return axom::primal::BoundingBox<double, 3> {};
@@ -1555,13 +1562,18 @@ axom::primal::BoundingBox<double, 3> STEPReader::getBRepBoundingBox(bool useTria
                                                axom::primal::Point<double, 3> {xmax, ymax, zmax}};
 }
 
-STEPReader::~STEPReader()
+// Define these where StepFileProcessor is complete so unique_ptr can destroy it.
+STEPReader::STEPReader() = default;
+STEPReader::~STEPReader() = default;
+
+void STEPReader::clear()
 {
-  if(m_stepProcessor)
-  {
-    delete m_stepProcessor;
-    m_stepProcessor = nullptr;
-  }
+  m_stepProcessor.reset();
+  m_patches.clear();
+  m_patchIds.clear();
+  m_trimmingCurveWireIds.clear();
+  m_patchOriginallyPeriodic_u.clear();
+  m_patchOriginallyPeriodic_v.clear();
 }
 
 bool STEPReader::patchWasOriginallyPeriodic_u(int patchArrayIndex) const
@@ -1578,7 +1590,8 @@ bool STEPReader::patchWasOriginallyPeriodic_v(int patchArrayIndex) const
 
 int STEPReader::read(bool validate_model)
 {
-  m_stepProcessor = new internal::StepFileProcessor(m_fileName, m_verbosity);
+  clear();
+  m_stepProcessor = std::make_unique<internal::StepFileProcessor>(m_fileName, m_verbosity);
   if(!m_stepProcessor->isLoaded())
   {
     return 1;
@@ -1598,14 +1611,10 @@ int STEPReader::read(bool validate_model)
 
   // Record stable ids that match the input STEP enumeration, even if consumers
   // later filter/skip patches or trimming curves.
-  m_patchIds.clear();
   m_patchIds.resize(m_patches.size());
-  m_trimmingCurveWireIds.clear();
   m_trimmingCurveWireIds.resize(m_patches.size());
-  m_patchOriginallyPeriodic_u.clear();
   m_patchOriginallyPeriodic_u.resize(m_patches.size());
   m_patchOriginallyPeriodic_u.fill(0);
-  m_patchOriginallyPeriodic_v.clear();
   m_patchOriginallyPeriodic_v.resize(m_patches.size());
   m_patchOriginallyPeriodic_v.fill(0);
 
