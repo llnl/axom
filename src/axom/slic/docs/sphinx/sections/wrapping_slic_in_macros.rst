@@ -119,9 +119,10 @@ no-ops otherwise. With ``AXOM_DEBUG_DEFINE=DEFAULT``, Axom defines
 ``Release`` or ``MinSizeRel``. An installed Axom exports its ``AXOM_DEBUG``
 definition to targets that link to it, so a downstream target can inherit the
 definition from Axom regardless of the downstream target's own build
-configuration. ``ON`` and ``OFF`` instead explicitly enable or disable these
-Slic macro families without changing other code guarded by ``AXOM_DEBUG``. A
-downstream CMake project can set this variable before calling
+configuration. ``ON`` and ``OFF`` instead explicitly enable or disable the
+``SLIC_ASSERT``, ``SLIC_CHECK``, and ``SLIC_DEBUG`` families without changing
+other code guarded by ``AXOM_DEBUG``. A downstream CMake project can set
+``AXOM_ENABLE_SLIC_DEBUG_MACROS`` before calling
 ``find_package(axom)`` to override the setting exported by Axom.
 
 The table below details the built-in SLIC macros as well as some notes about when they are collective calls:
