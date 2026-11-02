@@ -43,6 +43,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
   or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
 - Spin: Adds a host-only `LinearBVHTraverser::traverse_leaves()` for actions that receive the original primitive ID directly.
+  `SpaceFillingCurve` and `BVH::setOrdering/getOrdering`; Morton remains the default.
+- Spin: Adds a Morton/Hilbert visualization example that exports 2D/3D Blueprint
+  point, grid, and curve meshes.
+- Spin: Adds a `BucketedLinearBVH` policy to `spin::BVH` which allows multiple primitives in the same leaf node.
+- Spin: Adds a `LinearBVHTraverser::traverse_leaves` method which accepts leaf actions that index directly
+  into the original array of primitives without referencing the internal BVH structure.
 
 ### Removed
 
