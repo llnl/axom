@@ -121,7 +121,7 @@ public:
    *
    * Set the same value on all ranks before calling generateBVHTree().
    */
-  void setMaxReplicasPerObjectRank(int count);
+  void setMaxReplicationFactor(int count);
 
   /*!
     @brief Set what fields to output.
@@ -219,7 +219,7 @@ private:
   bool m_isVerbose {false};
   double m_sqDistanceThreshold;
   bool m_dynamicDistanceFiltering {true};
-  int m_maxReplicasPerObjectRank {-1};
+  int m_maxReplicationFactor {-1};
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
