@@ -65,6 +65,25 @@ namespace axom::quest
 {
 namespace internal
 {
+opencascade::handle<Geom2d_BSplineCurve> trimPcurve(const opencascade::handle<Geom2d_Curve>& curve,
+                                                    double first,
+                                                    double last)
+{
+  const opencascade::handle<Geom2d_TrimmedCurve> trimmed =
+    new Geom2d_TrimmedCurve(curve, first, last, true, false);
+  const auto spline = opencascade::handle<Geom2d_BSplineCurve>::DownCast(trimmed->BasisCurve());
+  if(!spline.IsNull())
+  {
+    // The trimmed curve owns this copy. Retain Open Cascade's default tolerance for ordinary
+    // ranges, but keep the endpoint tolerance neighborhoods disjoint on short ranges.
+    const double tolerance = std::min(Precision::PConfusion(),
+                                      0.25 * (trimmed->LastParameter() - trimmed->FirstParameter()));
+    spline->Segment(trimmed->FirstParameter(), trimmed->LastParameter(), tolerance);
+    return spline;
+  }
+  return Geom2dConvert::CurveToBSplineCurve(trimmed);
+}
+
 // Open Cascade can convert an analytic periodic surface to a closed, nonperiodic spline.
 // Preserve its periodic basis so pcurve projection can cross the seam.
 class PeriodicNurbsModification : public BRepTools_NurbsConvertModification
@@ -143,8 +162,7 @@ public:
         const auto original = BRep_Tool::CurveOnSurface(edge, face, first, last);
         if(!original.IsNull())
         {
-          curve = Geom2dConvert::CurveToBSplineCurve(
-            new Geom2d_TrimmedCurve(original, first, last, true, false));
+          curve = trimPcurve(original, first, last);
           tolerance = BRep_Tool::Tolerance(edge);
           return true;
         }
@@ -262,8 +280,7 @@ opencascade::handle<Geom2d_BSplineCurve> refinePeriodicPcurve(
     {
       return curve;
     }
-    auto candidate = Geom2dConvert::CurveToBSplineCurve(
-      new Geom2d_TrimmedCurve(projected, first, last, true, false));
+    auto candidate = trimPcurve(projected, first, last);
     const auto oldStart = curve->Value(curve->FirstParameter());
     const auto newStart = candidate->Value(candidate->FirstParameter());
     const double du = surface->IsUPeriodic()
@@ -464,8 +481,7 @@ private:
         }
 
         // Trim to the edge's interval without shifting periodic parameters.
-        auto spline = Geom2dConvert::CurveToBSplineCurve(
-          new Geom2d_TrimmedCurve(pcurve, first, last, true, false));
+        auto spline = trimPcurve(pcurve, first, last);
         if(refine)
         {
           spline =

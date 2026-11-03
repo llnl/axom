@@ -349,9 +349,9 @@ void readStepReference(const std::string& path, STEPControl_Reader& reader)
   ASSERT_GT(reader.TransferRoots(), 0) << path;
 }
 
-// Every edge uses [0,1], but its stored B-spline pcurve spans [-1,2].
+// Every edge uses [0,parameterSpan], but its stored pcurve has unused tails on both sides.
 // B-spline pcurves keep their unused tails through the STEP round trip.
-TopoDS_Face makeRestrictedPcurveFace()
+TopoDS_Face makeRestrictedPcurveFace(double parameterSpan = 1.)
 {
   Handle(Geom_BSplineSurface) surface = GeomConvert::SurfaceToBSplineSurface(
     new Geom_RectangularTrimmedSurface(new Geom_Plane(gp_Ax3()), -2., 3., -2., 3.));
@@ -365,12 +365,12 @@ TopoDS_Face makeRestrictedPcurveFace()
     poles(1) = gp_Pnt2d(2 * a[0] - b[0], 2 * a[1] - b[1]);
     poles(2) = gp_Pnt2d(2 * b[0] - a[0], 2 * b[1] - a[1]);
     TColStd_Array1OfReal knots(1, 2);
-    knots(1) = -1.;
-    knots(2) = 2.;
+    knots(1) = -parameterSpan;
+    knots(2) = 2. * parameterSpan;
     TColStd_Array1OfInteger multiplicities(1, 2);
     multiplicities(1) = multiplicities(2) = 2;
     Handle(Geom2d_BSplineCurve) curve = new Geom2d_BSplineCurve(poles, knots, multiplicities, 1);
-    wire.Add(BRepBuilderAPI_MakeEdge(curve, surface, 0., 1.).Edge());
+    wire.Add(BRepBuilderAPI_MakeEdge(curve, surface, 0., parameterSpan).Edge());
   }
   TopoDS_Face face = BRepBuilderAPI_MakeFace(surface, wire.Wire(), true).Face();
   BRepLib::BuildCurves3d(face);
@@ -789,6 +789,74 @@ TEST(quest_step_reader, restricted_pcurves_and_located_reversed_face)
       EXPECT_NEAR(area, trimmed ? 1.0 : 25.0, 1e-8);
     }
   }
+}
+
+TEST(quest_step_reader, short_pcurve_parameter_range)
+{
+  // A small parameter range can still describe a full unit-square boundary.
+  // Open Cascade's default segmentation tolerance collapsed these trims in ABC model 00006257.
+  for(double span : {1e-10, 1e-16})
+  {
+    SCOPED_TRACE(span);
+    for(bool reversed : {false, true})
+    {
+      SCOPED_TRACE(reversed);
+      auto face = makeRestrictedPcurveFace(span);
+      if(reversed)
+      {
+        face.Reverse();
+      }
+      fs::TempFile file("axom_step_short_pcurve_", "step");
+      ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
+      quest::STEPReader reader;
+      reader.setFileName(file.getPath());
+      ASSERT_EQ(reader.read(true), 0);
+      ASSERT_EQ(reader.numPatches(), 1);
+      const auto& patch = reader.getPatchArray()[0];
+      ASSERT_EQ(patch.getNumTrimmingCurves(), 4);
+      for(const auto& curve : patch.getTrimmingCurves())
+      {
+        EXPECT_TRUE(curve.isValidNURBS());
+        EXPECT_NEAR(curve.getMinKnot(), 0., span * 1e-10);
+        EXPECT_NEAR(curve.getMaxKnot(), span, span * 1e-10);
+      }
+      expectPositiveTrimWinding(patch, 0.5, 0.5, 1.5, 0.5);
+      STEPControl_Reader reference;
+      ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
+      TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
+      ASSERT_TRUE(faces.More());
+      expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faces.Current()));
+    }
+  }
+}
+
+TEST(quest_step_reader, pcurve_endpoint_roundoff)
+{
+  auto face = makeRestrictedPcurveFace();
+  // Edge ranges can extend slightly beyond a stored pcurve's knot domain.
+  // Keep Open Cascade's tolerance for this roundoff, as needed by ABC model 00000108.
+  for(TopExp_Explorer edges(face, TopAbs_EDGE); edges.More(); edges.Next())
+  {
+    double first, last;
+    const auto pcurve = BRep_Tool::CurveOnSurface(TopoDS::Edge(edges.Current()), face, first, last);
+    const auto spline = Handle(Geom2d_BSplineCurve)::DownCast(pcurve);
+    ASSERT_FALSE(spline.IsNull());
+    spline->Segment(first, last);
+    spline->SetKnot(spline->NbKnots(), last - 1e-12);
+  }
+  fs::TempFile file("axom_step_pcurve_roundoff_", "step");
+  ASSERT_NO_FATAL_FAILURE(writeStepFile(face, file.getPath()));
+  quest::STEPReader reader;
+  reader.setFileName(file.getPath());
+  ASSERT_EQ(reader.read(true), 0);
+  ASSERT_EQ(reader.numPatches(), 1);
+  ASSERT_EQ(reader.getPatchArray()[0].getNumTrimmingCurves(), 4);
+  expectPositiveTrimWinding(reader.getPatchArray()[0], 0.5, 0.5, 1.5, 0.5);
+  STEPControl_Reader reference;
+  ASSERT_NO_FATAL_FAILURE(readStepReference(file.getPath(), reference));
+  TopExp_Explorer faces(reference.OneShape(), TopAbs_FACE);
+  ASSERT_TRUE(faces.More());
+  expectSingleWireTrimGeometry(reader, 0, TopoDS::Face(faces.Current()));
 }
 
 TEST(quest_step_reader, periodic_faces_and_both_seam_occurrences)
