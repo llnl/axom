@@ -430,7 +430,7 @@ private:
    * \brief Debug check that an index in the FromSet is not out-of-range
    * \param fromSetIndex An (alleged) index in the FromSet
    */
-  inline void verifyPosition(SetPosition AXOM_DEBUG_PARAM(fromSetIndex)) const
+  inline void verifyPosition(AXOM_MAYBE_UNUSED SetPosition fromSetIndex) const
   {
     SLIC_ASSERT_MSG(fromSetIndex >= 0 && fromSetIndex < m_currentFromSize,
                     fmt::format("Index {} out of range [0,{})", fromSetIndex, m_currentFromSize));

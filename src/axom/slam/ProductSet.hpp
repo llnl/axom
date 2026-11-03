@@ -254,7 +254,7 @@ public:
    *
    * \return  An OrderedSet of the elements in the row.
    */
-  SubsetType getElements(PositionType AXOM_DEBUG_PARAM(pos1)) const
+  SubsetType getElements(AXOM_MAYBE_UNUSED PositionType pos1) const
   {
     SLIC_ASSERT(pos1 >= 0 && pos1 < this->firstSetSize());
 
@@ -305,7 +305,7 @@ private:
   }
 
   /// \brief implementation for verifyPosition
-  inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos)) const
+  inline void verifyPositionImpl(AXOM_MAYBE_UNUSED PositionType pos) const
   {  //from RangeSet, overloading to avoid warning in compiler
     SLIC_ASSERT_MSG(pos >= 0 && pos < size(),
                     "SLAM::ProductSet -- requested out-of-range element at position "
@@ -319,8 +319,8 @@ private:
   }
 
   /// \brief verify the SparseIndex (which is the same as its DenseIndex) is within the valid range.
-  inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos1),
-                                 PositionType AXOM_DEBUG_PARAM(pos2)) const
+  inline void verifyPositionImpl(AXOM_MAYBE_UNUSED PositionType pos1,
+                                 AXOM_MAYBE_UNUSED PositionType pos2) const
   {
     SLIC_ASSERT_MSG(isValidIndex(pos1, pos2),
                     "SLAM::ProductSet -- requested out-of-range element at position ("

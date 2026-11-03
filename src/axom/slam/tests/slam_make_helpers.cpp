@@ -232,12 +232,11 @@ TEST(slam_make_helpers, make_variable_relation_carray_rejects_short_begins_size)
   auto toSet = slam::make_range_set(5);
 
   // begins claims 3 offsets for a size-3 from-set, but needs 4
-  // make_variable_relation asserts this invariant at construction in debug builds
-  // in release the check compiles out and the malformed relation is instead caught by isValid().
+  // make_variable_relation asserts this invariant when Slic debug macros are enabled.
   Pos begins[4] = {0, 2, 3, 3};
   Pos indices[3] = {1, 2, 3};
 
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   EXPECT_DEATH_IF_SUPPORTED(
     slam::make_variable_relation(&fromSet, &toSet, begins, Pos {3}, indices, Pos {3}),
     "");
@@ -249,7 +248,7 @@ TEST(slam_make_helpers, make_variable_relation_carray_rejects_short_begins_size)
 
 TEST(slam_make_helpers, make_constant_relation_rejects_undersized_indices)
 {
-#ifdef AXOM_DEBUG
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   auto fromSet = slam::make_range_set(3);
   auto toSet = slam::make_range_set(5);
 
@@ -547,11 +546,10 @@ TEST(slam_make_helpers, make_map_raw_pointer_overloads_size_the_view)
 TEST(slam_make_helpers, make_map_undersized_view_is_a_precondition_violation)
 {
   // The ArrayView-taking make_map overloads require data.size() == set->size() * stride.
-  // An undersized view is checked in debug builds (no-op in release).
+  // An undersized view is checked when Slic debug macros are enabled.
   auto set = slam::make_range_set(4);
 
-#ifdef AXOM_DEBUG
-  // NOTE: AXOM_DEBUG is disabled in release mode, so these checks are skipped there.
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
   axom::Array<double> tooSmall {1., 2., 3.};  // need 4 for stride one
   EXPECT_DEATH_IF_SUPPORTED(slam::make_map(&set, tooSmall.view()), "");
 

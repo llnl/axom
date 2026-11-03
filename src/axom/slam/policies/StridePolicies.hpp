@@ -104,7 +104,7 @@ public:
   AXOM_HOST_DEVICE constexpr IntType stride() const { return INT_VAL; }
   AXOM_HOST_DEVICE constexpr IntType shape() const { return INT_VAL; }
 
-  AXOM_HOST_DEVICE void setStride(IntType AXOM_DEBUG_PARAM(val))
+  AXOM_HOST_DEVICE void setStride(AXOM_MAYBE_UNUSED IntType val)
   {
     SLIC_ASSERT_MSG(val == INT_VAL,
                     "slam::CompileTimeStride -- tried to set a compile time stride"

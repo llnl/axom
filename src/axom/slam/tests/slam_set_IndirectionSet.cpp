@@ -415,13 +415,12 @@ TYPED_TEST(IndirectionSetTester, out_of_bounds)
               .size(MAX_SET_SIZE)           //
               .data(bufPtr));
 
-#ifdef AXOM_DEBUG
-  // NOTE: AXOM_DEBUG is disabled in release mode,
-  // so this test will only fail in debug mode
+#if AXOM_SLIC_DEBUG_MACROS_ENABLED
+  // This check is only active when Slic debug macros are enabled.
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(s[MAX_SET_SIZE], "");
 #else
-  SLIC_INFO("Skipped assertion failure check in release mode.");
+  SLIC_INFO("Skipped assertion failure check because Slic debug macros are disabled.");
 #endif
 }
 
