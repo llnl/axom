@@ -75,7 +75,7 @@ They use 16 bits per axis in 2D and 10 bits per axis in 3D.
 Degenerate axes map to coordinate zero.
 
 Device Traversal API
--------------
+--------------------
 
 The ``BVH`` class contains a ``getTraverser()`` method, which returns an object
 that can be used to traverse a BVH with user-defined actions.
