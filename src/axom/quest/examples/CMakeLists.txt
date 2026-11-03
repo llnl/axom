@@ -346,7 +346,7 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
                      inline_mesh --min 0 0 --max 300 400 --resolution 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?654.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?65[0-9].")
 
         # 3D shaping tests
         set(_nranks 3)

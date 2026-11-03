@@ -160,7 +160,8 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
             examples/axom/shaping_tutorial
     )
 
-    foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04)
+    set(_lessons lesson_00 lesson_01 lesson_02 lesson_03 lesson_04)
+    foreach(_lesson ${_lessons})
         install(DIRECTORY shaping_tutorial/${_lesson}
                 DESTINATION examples/axom/shaping_tutorial)
     endforeach()
@@ -177,7 +178,7 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
                   lesson_02:validated_inlet_metadata.cpp
                   lesson_02:improved_inlet_metadata.cpp
                   lesson_03:klee_operators_and_validation.cpp)
-    if(LUA_FOUND AND MFEM_FOUND)
+    if(MFEM_FOUND)
         blt_list_append(TO _examples ELEMENTS lesson_04:quest_sampling_shaper.cpp)
     endif()
 

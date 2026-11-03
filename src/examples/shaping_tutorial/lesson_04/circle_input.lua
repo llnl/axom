@@ -8,6 +8,6 @@ mesh = {
   background_material = "void",
   volume_fraction_order = 2,
   mesh_order = 2,
-  quadrature_order = 5,
+  sampling_resolution = 5,
   sampling_method = "inout",
 }

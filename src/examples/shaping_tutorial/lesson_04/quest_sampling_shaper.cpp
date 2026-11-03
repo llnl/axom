@@ -11,7 +11,7 @@
  *
  * This example demonstrates how to use the Quest SamplingShaper to shape
  * a Klee input onto a computational mesh. The program:
- * 1. Creates a structured mesh from Inlet mesh metadata
+ * 1. Creates a structured mesh from YAML or Lua Inlet mesh metadata
  * 2. Loads Klee shapes from a YAML file
  * 3. Generates volume fraction fields for each material based on the input shapes
  * 4. Outputs the generated mesh to disk
@@ -19,7 +19,7 @@
  * This example supports both serial and MPI execution.
  * 
  * Example run:
- * > [srun -n8] ./quest_sampling_shaper -m mesh_metadata.lua -k shapes.yaml [-v]
+ * > [srun -n8] ./quest_sampling_shaper -m mesh_metadata.yaml -k shapes.yaml [-v]
  * 
  */
 //-----------------------------------------------------------------------------
@@ -305,16 +305,40 @@ int main(int argc, char** argv)
   // CLI for input files
   // --------------------------------------------------------------------------
   axom::CLI::App app {"Shaping pipeline using separate Inlet mesh metadata and Klee shapes"};
-  std::string inputFilename;  // Mesh metadata Inlet Lua
-  std::string kleeFilename;   // Klee shape set YAML
+  std::string inputFilename;
+  std::string kleeFilename;
   bool verbose = false;
 
+  const std::vector<std::string> supported_extensions = []() {
+    std::vector<std::string> extensions = {".yaml", ".yml"};
+#ifdef AXOM_USE_LUA
+    extensions.push_back(".lua");
+#endif
+    return extensions;
+  }();
+
+  auto supported_extension_check = [&supported_extensions](const std::string& filename) {
+    auto extension = axom::utilities::filesystem::getFileExtension(filename);
+    axom::utilities::string::toLower(extension);
+    for(const auto& supported_extension : supported_extensions)
+    {
+      if(extension == supported_extension)
+      {
+        return std::string();
+      }
+    }
+    return axom::fmt::format("Invalid extension for file '{}'; supported extensions: {}",
+                             filename,
+                             supported_extensions);
+  };
+
   app.add_option("-m,--mesh_file", inputFilename)
-    ->description("Mesh metadata Inlet Lua file")
+    ->description(axom::fmt::format("Mesh metadata file; supported formats: {}", supported_extensions))
     ->required()
-    ->check(axom::CLI::ExistingFile);
+    ->check(axom::CLI::ExistingFile)
+    ->check(supported_extension_check);
   app.add_option("-k,--klee_file", kleeFilename)
-    ->description("Klee shape set YAML file")
+    ->description("Klee shape set file")
     ->required()
     ->check(axom::CLI::ExistingFile);
   app.add_flag("-v,--verbose", verbose)->description("Enable verbose (debug) logging");
@@ -338,7 +362,21 @@ int main(int argc, char** argv)
   // Parse and validate inlet input into MeshMetadata
   // --------------------------------------------------------------------------
   MeshMetadata meta = [&]() -> MeshMetadata {
-    std::unique_ptr<inlet::Reader> reader = std::make_unique<inlet::LuaReader>();
+    std::unique_ptr<inlet::Reader> reader;
+    auto extension = axom::utilities::filesystem::getFileExtension(inputFilename);
+    axom::utilities::string::toLower(extension);
+
+    if(extension == ".yaml" || extension == ".yml")
+    {
+      reader = std::make_unique<inlet::YAMLReader>();
+    }
+#ifdef AXOM_USE_LUA
+    else if(extension == ".lua")
+    {
+      reader = std::make_unique<inlet::LuaReader>();
+    }
+#endif
+
     reader->parseFile(inputFilename);
     inlet::Inlet input(std::move(reader));
 
