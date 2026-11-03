@@ -18,17 +18,45 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
-#include "axom/sidre/core/ConduitMemory.hpp"
+
+#if defined(AXOM_USE_BUMP)
+  #include "axom/bump/utilities/conduit_memory.hpp"
+#else
+  #include "axom/sidre/core/ConduitMemory.hpp"
+#endif
 
 #include <conduit/conduit.hpp>
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 namespace axom::quest::testing::marching_cubes
 {
 
 using RuntimePolicy = axom::runtime_policy::Policy;
+
+//! @brief Return each runtime policy enabled in this build.
+inline std::vector<RuntimePolicy> enabledPolicies()
+{
+  std::vector<RuntimePolicy> policies {RuntimePolicy::seq};
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  policies.push_back(RuntimePolicy::omp);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  policies.push_back(RuntimePolicy::cuda);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  policies.push_back(RuntimePolicy::hip);
+#endif
+  return policies;
+}
+
+//! @brief Return the printable name of a runtime policy.
+inline std::string policyName(RuntimePolicy policy)
+{
+  return axom::runtime_policy::policyToName(policy);
+}
 
 //---------------------------------------------------------------------------
 // Memory copies
@@ -36,6 +64,7 @@ using RuntimePolicy = axom::runtime_policy::Policy;
 
 inline int hostAllocatorID() { return axom::execution_space<axom::SEQ_EXEC>::allocatorID(); }
 
+#if !defined(AXOM_USE_BUMP)
 /*!
  * @brief Deep-copy a Conduit tree, placing its arrays in \a allocatorID memory.
  *
@@ -76,6 +105,7 @@ inline void copyBlueprintToAllocator(conduit::Node& dst, const conduit::Node& sr
   dst.set(conduit::DataType(compactSrc->dtype().id(), compactSrc->dtype().number_of_elements()));
   axom::copy(dst.data_ptr(), compactSrc->data_ptr(), compactSrc->dtype().bytes_compact());
 }
+#endif
 
 /*!
  * @brief Copy a Blueprint tree into memory accessible to a runtime policy.
@@ -90,7 +120,11 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(policy == RuntimePolicy::cuda)
   {
+  #if defined(AXOM_USE_BUMP)
+    axom::bump::utilities::copy<axom::CUDA_EXEC<256>>(dst, src, allocatorID);
+  #else
     copyBlueprintToAllocator(dst, src, allocatorID);
+  #endif
     return;
   }
 #endif
@@ -98,7 +132,11 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(policy == RuntimePolicy::hip)
   {
+  #if defined(AXOM_USE_BUMP)
+    axom::bump::utilities::copy<axom::HIP_EXEC<256>>(dst, src, allocatorID);
+  #else
     copyBlueprintToAllocator(dst, src, allocatorID);
+  #endif
     return;
   }
 #endif
@@ -111,7 +149,22 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
 //! @brief Copy a Blueprint tree back to host memory for inspection.
 inline void copyBlueprintToHost(conduit::Node& dst, const conduit::Node& src)
 {
+#if defined(AXOM_USE_BUMP)
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(dst, src, hostAllocatorID());
+#else
   copyBlueprintToAllocator(dst, src, hostAllocatorID());
+#endif
+}
+
+//! @brief Shift the explicit x coordinates of @a mesh by @a offset.
+inline void translateExplicitCoordsX(conduit::Node& mesh, double offset)
+{
+  conduit::Node& x_node = mesh.fetch_existing("coordsets/coords/values/x");
+  auto* x_values = x_node.as_float64_ptr();
+  for(conduit::index_t node_index = 0; node_index < x_node.dtype().number_of_elements(); ++node_index)
+  {
+    x_values[node_index] += offset;
+  }
 }
 
 //---------------------------------------------------------------------------
