@@ -145,6 +145,12 @@ if(CONDUIT_FOUND)
                  detail/MarchingCubesSingleDomain.hpp
                  detail/MarchingCubesImpl.hpp)
 
+    blt_list_append(
+        TO       quest_headers
+        IF       AXOM_ENABLE_BUMP
+        ELEMENTS detail/MarchingCubesBumpAdaptor.hpp
+                 detail/MarchingCubesBumpImpl.hpp)
+
     # To keep device compile times manageable, we instantiate each MC impl in its own translation unit
     blt_list_append(
         TO       quest_sources
