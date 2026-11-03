@@ -6,27 +6,33 @@
 
 /*!
  * \file quest_marching_cubes_example.cpp
- * \brief Extract an isocontour from a scalar field in a Conduit Blueprint mesh
-*/
+ * \brief Driver for Marching Cubes isocontour generation
+ *
+ * Extracts an isocontour from a scalar field in a Conduit Blueprint mesh.
+ */
 
 #include "axom/config.hpp"
 
-// Implementation requires Conduit.
+// This example requires Conduit and Bump
 #ifndef AXOM_USE_CONDUIT
-  #error "quest_marching_cubes_example.cpp requires conduit"
+  #error "quest_marching_cubes_example.cpp requires Conduit"
+#endif
+#ifndef AXOM_USE_BUMP
+  #error "quest_marching_cubes_example.cpp requires Bump"
 #endif
 
 // Axom includes
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/MeshViewUtil.hpp"
+
 #if defined(AXOM_USE_SIDRE)
   #include "axom/sidre.hpp"
 #endif
-#include "axom/core/Types.hpp"
 
 #include "conduit_blueprint.hpp"
 #include "conduit_relay_io_blueprint.hpp"
@@ -51,6 +57,8 @@
 #include <limits>
 #include <memory>
 #include <set>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 namespace quest = axom::quest;
@@ -62,13 +70,15 @@ namespace mint = axom::mint;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
-///////////////////////////////////////////////////////////////
+//-----------------------------------------------------------------------------
 // converts the input string into an 80 character string
 // padded on both sides with '=' symbols
+//-----------------------------------------------------------------------------
 std::string banner(const std::string& str) { return axom::fmt::format("{:=^80}", str); }
 
-///////////////////////////////////////////////////////////////
-/// Struct to parse and store the input parameters
+//-----------------------------------------------------------------------------
+// Struct to parse and store the input parameters
+//-----------------------------------------------------------------------------
 struct Input
 {
 public:
@@ -76,35 +86,39 @@ public:
   std::string topologyName {"mesh"};
   std::string fieldName;
   bool listFields {false};
+  bool skipContourOutput {false};
+  std::string contourFile {"contour_mesh"};
+  //! @brief Optional file for Bump's welded Blueprint contour.
+  std::string blueprintContourFile {};
 
   double contourVal {1.0};
-
-  std::string outputName {"contour_mesh"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
 
   quest::MarchingCubesDataParallelism dataParallelism = quest::MarchingCubesDataParallelism::byPolicy;
 
-  // Distinct MarchingCubes objects count.
-  int objectRepCount = 1;
-  // Contour generation count for each MarchingCubes objects.
-  int contourGenCount = 1;
+  // Use Bump's CutField backend instead of the legacy backend.
+  bool useBumpBackend {false};
+
+  bool useDevicePool {false};
+  int devicePoolInitialSizeGiB {0};
+
+  // Number of distinct MarchingCubes objects.
+  int objectRepCount {1};
+  // Number of contour extractions per MarchingCubes object.
+  int contourGenCount {1};
   // Number of masking cycles.
-  int maskCount = 1;
+  int maskCount {1};
 
   std::string annotationMode {"none"};
 
 private:
   bool _verboseOutput {false};
 
-  // clang-format off
-  const std::map<std::string, quest::MarchingCubesDataParallelism> s_validImplChoices
-  {
-    {"byPolicy", quest::MarchingCubesDataParallelism::byPolicy}
-    , {"hybridParallel", quest::MarchingCubesDataParallelism::hybridParallel}
-    , {"fullParallel", quest::MarchingCubesDataParallelism::fullParallel}
-  };
-  // clang-format on
+  const std::map<std::string, quest::MarchingCubesDataParallelism> s_validImplChoices {
+    {"byPolicy", quest::MarchingCubesDataParallelism::byPolicy},
+    {"hybridParallel", quest::MarchingCubesDataParallelism::hybridParallel},
+    {"fullParallel", quest::MarchingCubesDataParallelism::fullParallel}};
 
 public:
   bool isVerbose() const { return _verboseOutput; }
@@ -112,14 +126,32 @@ public:
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_option("-p, --policy", policy)
-      ->description("Set runtime policy for point query method")
+      ->description("Set the runtime policy for contour extraction")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
     app.add_option("--dataParallelism", dataParallelism)
-      ->description("Set full or partial data-parallelism, or by-policy")
+      ->description(
+        "Select the scan mode for the legacy backend "
+        "(ignored by --useBumpBackend)")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validImplChoices));
+
+    app.add_flag("--useBumpBackend", useBumpBackend)
+      ->description("Use the Bump CutField backend instead of the legacy structured-only backend")
+      ->capture_default_str();
+
+#if defined(AXOM_USE_UMPIRE)
+    app.add_flag("--useDevicePool", useDevicePool)
+      ->description("Use an Umpire QuickPool for MarchingCubes allocations")
+      ->capture_default_str();
+
+    app.add_option("--devicePoolInitialSizeGiB", devicePoolInitialSizeGiB)
+      ->description("Set the initial MarchingCubes device pool size in GiB")
+      ->capture_default_str()
+      ->check(axom::CLI::NonNegativeNumber);
+
+#endif
 
     app.add_option("-m,--mesh-file", meshFile)
       ->description("Path to a Conduit Blueprint computational mesh")
@@ -127,7 +159,7 @@ public:
       ->required();
 
     app.add_option("-t,--topology", topologyName)
-      ->description("Name of the structured Blueprint topology to contour")
+      ->description("Name of the Blueprint topology to contour")
       ->capture_default_str();
 
     auto* fieldOption = app.add_option("-f,--field", fieldName)
@@ -140,40 +172,43 @@ public:
       ->capture_default_str()
       ->excludes(fieldOption);
 
+    app.add_flag("--skip-contour-output", skipContourOutput)
+      ->description("Skip conversion and file output of the contour mesh")
+      ->capture_default_str();
+
+    app.add_option("-o,--output,--contour-file", contourFile)
+      ->description("Set the basename for converted Mint contour output")
+      ->capture_default_str();
+
+    app.add_option("--blueprint-contour-file", blueprintContourFile)
+      ->description("Write Bump's welded contour to a Blueprint file; requires --useBumpBackend")
+      ->capture_default_str();
+
     app.add_flag("-v,--verbose,!--no-verbose", _verboseOutput)
       ->description("Enable/disable verbose output")
       ->capture_default_str();
 
     app.add_option("--contourVal", contourVal)->description("Contour value")->capture_default_str();
 
-    app.add_option("-o,--output", outputName)
-      ->description("Base name of the output contour mesh files")
-      ->capture_default_str();
-
-    //
-    // Number of repetitions to run
-    //
-
     app.add_option("--objectReps", objectRepCount)
-      ->description("Number of MarchingCube object repetitions to run")
+      ->description("Number of setMesh and extraction batches to run")
       ->capture_default_str();
 
     app.add_option("--contourGenReps", contourGenCount)
-      ->description("Number of contour repetitions to run for each MarchingCubes object")
+      ->description("Number of contour extractions after each setMesh call")
       ->capture_default_str();
 
     app.add_option("--maskCount", maskCount)
       ->description(
-        "Group the cells using this many masking groups to test masking "
-        "(default to 1). The groups are stored in a generated element field "
-        "named 'mask', so the input mesh must not already have a field of that name.")
+        "Assign cells cyclically to this many mask values. The generated element field "
+        "is named 'mask', so the input mesh must not contain a field of that name.")
       ->capture_default_str()
       ->check(axom::CLI::Range(1, std::numeric_limits<int>::max()));
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
       ->description(
-        "caliper annotation mode. Valid options include 'none' and 'report'. "
+        "Caliper annotation mode. Valid options include 'none' and 'report'. "
         "Use 'help' to see full list.")
       ->capture_default_str()
       ->check(axom::utilities::ValidCaliperMode);
@@ -181,7 +216,6 @@ public:
 
     app.get_formatter()->column_width(60);
 
-    // could throw an exception
     app.parse(argc, argv);
 
     if(fieldName.empty() && !listFields)
@@ -196,29 +230,31 @@ public:
 //!@brief Our allocator id, based on execution policy.
 static int s_allocatorId = axom::INVALID_ALLOCATOR_ID;  // Set in main.
 
-//!@brief Put a conduit::Node array data into the specified memory space.
-template <typename T>
-void moveConduitDataToNewMemorySpace(conduit::Node& node, const std::string& path, int allocId)
+#if defined(AXOM_USE_UMPIRE)
+int makeMarchingCubesPoolAllocator(int allocatorId, int initialPoolSizeGiB)
 {
-  conduit::Node& dataNode = node.fetch_existing(path);
-  SLIC_ASSERT(!dataNode.dtype().is_empty() && !dataNode.dtype().is_object() &&
-              !dataNode.dtype().is_list());
+  constexpr std::size_t nextPoolSize = 1 << 20;
+  constexpr std::size_t alignment = 256;
+  const std::size_t initialPoolSize =
+    initialPoolSizeGiB > 0 ? static_cast<std::size_t>(initialPoolSizeGiB) << 30 : 1;
 
-  std::size_t count = dataNode.dtype().number_of_elements();
-  T* oldPtr = static_cast<T*>(dataNode.data_ptr());
-  bool deleteOld = dataNode.is_data_external();
-  T* newPtr = axom::allocate<T>(count, allocId);
-  axom::copy(newPtr, oldPtr, count * sizeof(T));
-  dataNode.set_external(newPtr, count);
-  if(deleteOld)
-  {
-    axom::deallocate(oldPtr);
-  }
+  auto& resourceManager = umpire::ResourceManager::getInstance();
+  auto allocator = resourceManager.getAllocator(allocatorId);
+  const std::string poolName = allocator.getName() + "_MC_POOL";
+  auto pool = resourceManager.makeAllocator<umpire::strategy::QuickPool>(poolName,
+                                                                         allocator,
+                                                                         initialPoolSize,
+                                                                         nextPoolSize,
+                                                                         alignment);
+  SLIC_INFO(axom::fmt::format("Using MarchingCubes pool allocator {} with {} initial bytes",
+                              pool.getId(),
+                              initialPoolSize));
+  return pool.getId();
 }
+#endif
 
 namespace
 {
-
 enum class ReductionOperation
 {
   Min,
@@ -227,12 +263,6 @@ enum class ReductionOperation
   LogicalAnd
 };
 
-/*!
- * \brief Applies \a operation to \a value across all ranks.
- *
- * \return The reduced value, or \a value in builds without MPI.
- * \note Collective: All MPI ranks must call this function in the same order.
- */
 template <typename T>
 T allReduce(T value, ReductionOperation operation)
 {
@@ -263,11 +293,8 @@ T allReduce(T value, ReductionOperation operation)
   return value;
 #endif
 }
-
 }  // namespace
 
-/// Computes the global min, max and sum of \a inVal.
-/// \note Collective: All MPI ranks must call this function.
 template <typename T>
 void getMinMaxSum(T inVal, T& minVal, T& maxVal, T& sumVal)
 {
@@ -276,41 +303,67 @@ void getMinMaxSum(T inVal, T& minVal, T& maxVal, T& sumVal)
   sumVal = allReduce(inVal, ReductionOperation::Sum);
 }
 
-Input params;
+void loadBlueprintMesh(const std::string& meshFilename, conduit::Node& mesh)
+{
+#ifdef AXOM_USE_MPI
+  conduit::relay::mpi::io::blueprint::load_mesh(meshFilename, mesh, MPI_COMM_WORLD);
+#else
+  conduit::relay::io::blueprint::load_mesh(meshFilename, mesh);
+#endif
+}
 
-/// Name of the element field the example generates to test masking.
-const std::string s_maskFieldName {"mask"};
+bool verifyBlueprintMesh(const conduit::Node& mesh, conduit::Node& info)
+{
+#ifdef AXOM_USE_MPI
+  return conduit::blueprint::mpi::verify("mesh", mesh, info, MPI_COMM_WORLD);
+#else
+  return conduit::blueprint::verify("mesh", mesh, info);
+#endif
+}
 
 int myRank = -1, numRanks = -1;  // MPI stuff, set in main().
 
-/// Generic computational mesh, to hold cell and node data.
+/// Name of the element field this example generates to test masking.
+const std::string s_maskFieldName {"mask"};
+
+/// \brief Host-side access to the example's Blueprint mesh and derived sizes.
 struct BlueprintStructuredMesh
 {
 public:
-  /// Loads \a meshFile in parallel and computes global mesh properties.
-  /// \note Collective: All MPI ranks must call this constructor.
-  explicit BlueprintStructuredMesh(const std::string& meshFile, const std::string& topologyName)
+  explicit BlueprintStructuredMesh(const std::string& meshFile,
+                                   const std::string& topologyName,
+                                   bool verboseOutput = false)
     : _topologyName(topologyName)
     , _topologyPath("topologies/" + topologyName)
   {
     readBlueprintMesh(meshFile);
-    for(int d = 0; d < _mdMesh.number_of_children(); ++d)
+
+    if(verboseOutput)
     {
-      auto dl = domainLengths(d);
-      SLIC_INFO_IF(params.isVerbose(), axom::fmt::format("dom[{}] size={}", d, dl));
+      for(int d = 0; d < _mdMesh.number_of_children(); ++d)
+      {
+        if(isStructured(d))
+        {
+          SLIC_INFO(axom::fmt::format("dom[{}] size={}", d, domainLengths(d)));
+        }
+        else
+        {
+          SLIC_INFO(axom::fmt::format("dom[{}] cells={}, nodes={}", d, cellCount(d), nodeCount(d)));
+        }
+      }
     }
   }
 
-  /// Return the blueprint mesh in a conduit::Node
+  /// Return the Blueprint mesh.
   conduit::Node& asConduitNode() { return _mdMesh; }
 
-  /// Get number of domains in the multidomain mesh
+  /// Return the number of local domains.
   axom::IndexType domainCount() const { return _domCount; }
 
-  //// Whether mesh is empty locally.
+  /// Return whether this rank has no domains.
   bool empty() const { return _domCount == 0; }
 
-  /// Get domain group.
+  /// Return one local domain.
   conduit::Node& domain(axom::IndexType domainIdx)
   {
     SLIC_ASSERT(domainIdx >= 0 && domainIdx < _domCount);
@@ -336,14 +389,15 @@ public:
   }
 
   /*!
-   * @brief Get the number of cells in each direction of a blueprint single domain.
+   * @brief Return the logical cell dimensions of a structured Blueprint domain.
    *
-   * @param domId Index of domain
-   * @lengths Space for dimension() numbers.
+   * @param[in] domId Local domain index.
+   * @param[out] lengths Buffer for dimension() values.
    */
   void domainLengths(axom::IndexType domId, axom::IndexType* lengths) const
   {
     const conduit::Node& dom = domain(domId);
+    SLIC_ASSERT_MSG(isStructured(domId), "domainLengths() is only defined for structured domains.");
     SLIC_ASSERT_MSG(dom.fetch_existing(_coordsetPath + "/type").as_string() == "explicit",
                     axom::fmt::format("Currently only supporting explicit coordinate types."
                                       "  '{}/type' is '{}'",
@@ -352,7 +406,7 @@ public:
     const conduit::Node& dimsNode = dom.fetch_existing(_topologyPath + "/elements/dims");
     for(int i = 0; i < _ndims; ++i)
     {
-      lengths[i] = dimsNode[i].as_int();
+      lengths[i] = static_cast<axom::IndexType>(dimsNode[i].to_int64());
     }
   }
 
@@ -363,19 +417,14 @@ public:
     return rval;
   }
 
-  /// Returns the number of cells in a domain
+  /// Return the number of cells in a domain.
   int cellCount(axom::IndexType domId) const
   {
-    auto shape = domainLengths(domId);
-    int rval = 1;
-    for(const auto& l : shape)
-    {
-      rval *= l;
-    }
-    return rval;
+    return static_cast<int>(
+      conduit::blueprint::mesh::topology::length(domain(domId).fetch_existing(_topologyPath)));
   }
 
-  /// Returns the number of cells in all mesh domains
+  /// Return the number of cells in all local domains.
   int cellCount() const
   {
     int rval = 0;
@@ -386,19 +435,24 @@ public:
     return rval;
   }
 
-  /// Returns the number of nodes in a domain
+  /// Return the number of nodes in a domain.
   int nodeCount(axom::IndexType domId) const
   {
-    auto shape = domainLengths(domId);
-    int rval = 1;
-    for(const auto& l : shape)
+    if(isStructured(domId))
     {
-      rval *= 1 + l;
+      auto shape = domainLengths(domId);
+      int rval = 1;
+      for(const auto& l : shape)
+      {
+        rval *= 1 + l;
+      }
+      return rval;
     }
-    return rval;
+    return static_cast<int>(
+      conduit::blueprint::mesh::coordset::length(domain(domId).fetch_existing(_coordsetPath)));
   }
 
-  /// Returns the number of nodes in all mesh domains
+  /// Return the number of nodes in all local domains.
   int nodeCount() const
   {
     int rval = 0;
@@ -411,18 +465,32 @@ public:
 
   int dimension() const { return _ndims; }
 
-  const std::string& coordsetPath() const { return _coordsetPath; }
+  std::string topologyType(axom::IndexType domId) const
+  {
+    return domain(domId).fetch_existing(_topologyPath + "/type").as_string();
+  }
 
-  /// Checks whether the blueprint is valid and prints diagnostics.
-  /// \note Collective: All MPI ranks must call this function.
+  bool isStructured(axom::IndexType domId) const { return topologyType(domId) == "structured"; }
+
+  bool isStridedStructured(axom::IndexType domId) const
+  {
+    return isStructured(domId) &&
+      domain(domId).fetch_existing(_topologyPath + "/elements/dims").has_child("strides");
+  }
+
+  /*!
+   * @brief Whether this domain uses compact field indexing.
+   *
+   * Strided structured fields occupy a padded window and require their offsets
+   * and strides. Other supported fields use flat node indices.
+   */
+  bool useFlatFields(axom::IndexType domId) const { return !isStridedStructured(domId); }
+
+  /// Check the Blueprint mesh and print diagnostics when validation fails.
   bool isValid() const
   {
     conduit::Node info;
-#ifdef AXOM_USE_MPI
-    if(!conduit::blueprint::mpi::verify("mesh", _mdMesh, info, MPI_COMM_WORLD))
-#else
-    if(!conduit::blueprint::verify("mesh", _mdMesh, info))
-#endif
+    if(!verifyBlueprintMesh(_mdMesh, info))
     {
       SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
       slic::flushStreams();
@@ -433,21 +501,13 @@ public:
 
   void printMeshInfo() const { _mdMesh.print(); }
 
-  /*!
-    @param[in] path Path to existing data in the blueprint mesh,
-    relative to each domain in the mesh.
-    @param[in] allocId Allocator id for the new memory space.
-    @tparam Type of data being moved.  Should be something Conduit
-    supports, i.e., not custom user data.
-  */
-  template <typename T>
-  void moveMeshDataToNewMemorySpace(const std::string& path, int allocId)
+  template <typename ExecSpace>
+  void copyMeshToMemorySpace(int allocId = axom::execution_space<ExecSpace>::allocatorID())
   {
-    AXOM_ANNOTATE_SCOPE("moveMeshDataToNewMemorySpace");
-    for(auto& dom : _mdMesh.children())
-    {
-      moveConduitDataToNewMemorySpace<T>(dom, path, allocId);
-    }
+    AXOM_ANNOTATE_SCOPE("copyMeshToMemorySpace");
+    conduit::Node newMesh;
+    axom::bump::utilities::copy<ExecSpace>(newMesh, _mdMesh, allocId);
+    _mdMesh.swap(newMesh);
   }
 
 private:
@@ -458,20 +518,25 @@ private:
   const std::string _topologyPath;
   std::string _coordsetPath;
 
-  /*!
-    @brief Read a blueprint mesh into conduit::Node _mdMesh.
-  */
+  //! @brief Read a Blueprint mesh and normalize it to a multi-domain node.
   void readBlueprintMesh(const std::string& meshFilename)
   {
     SLIC_ASSERT(!meshFilename.empty());
 
+    conduit::Node loadedMesh;
+    loadBlueprintMesh(meshFilename, loadedMesh);
+    // Normalize to a multi-domain node. MarchingCubes::setMesh() performs the
+    // equivalent normalization for its input. This wrapper needs its own copy
+    // because its size and coordset helpers operate independently of MarchingCubes.
     _mdMesh.reset();
-#ifdef AXOM_USE_MPI
-    conduit::relay::mpi::io::blueprint::load_mesh(meshFilename, _mdMesh, MPI_COMM_WORLD);
-#else
-    conduit::relay::io::blueprint::load_mesh(meshFilename, _mdMesh);
-#endif
-    SLIC_ASSERT(conduit::blueprint::mesh::is_multi_domain(_mdMesh));
+    if(conduit::blueprint::mesh::is_multi_domain(loadedMesh))
+    {
+      _mdMesh.swap(loadedMesh);
+    }
+    else
+    {
+      _mdMesh.append().set(loadedMesh);
+    }
     _domCount = conduit::blueprint::mesh::number_of_domains(_mdMesh);
 
     if(_domCount > 0)
@@ -488,6 +553,7 @@ private:
       auto coordsetName = _mdMesh[0].fetch_existing(_topologyPath + "/coordset").as_string();
       _coordsetPath = axom::fmt::format("coordsets/{}", coordsetName);
       SLIC_ASSERT(_mdMesh[0].has_path(_coordsetPath));
+
       const conduit::Node coordsetNode = _mdMesh[0].fetch_existing(_coordsetPath);
       _ndims = conduit::blueprint::mesh::coordset::dims(coordsetNode);
     }
@@ -598,8 +664,15 @@ std::set<std::string> allUnion(const std::set<std::string>& localStrings)
                  MPI_CHAR,
                  MPI_COMM_WORLD);
 
-  const auto strings = axom::utilities::string::split(gathered, '\0');
-  return {strings.begin(), strings.end()};
+  std::set<std::string> result;
+  for(const auto& value : axom::utilities::string::split(gathered, '\0'))
+  {
+    if(!value.empty())
+    {
+      result.insert(value);
+    }
+  }
+  return result;
 #else
   return localStrings;
 #endif
@@ -630,7 +703,11 @@ using ScalarRange = axom::primal::BoundingBox<double, 1>;
 
 struct FieldSummary
 {
+  int presentDomains {0};
+  int vertexDomains {0};
   int numericDomains {0};
+  int float64Domains {0};
+  int topologyDomains {0};
   int hasNan {0};
   ScalarRange valueRange;
   std::set<std::string> topologies;
@@ -649,7 +726,9 @@ std::string stringOrPlaceholder(const conduit::Node& field, const std::string& c
   return node.dtype().is_string() ? node.as_string() : "<invalid>";
 }
 
-FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh, const std::string& fieldName)
+FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh,
+                                 const std::string& fieldName,
+                                 const std::string& topologyName)
 {
   FieldSummary summary;
   for(axom::IndexType domainIdx = 0; domainIdx < mesh.domainCount(); ++domainIdx)
@@ -660,11 +739,14 @@ FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh, const std:
       continue;
     }
 
+    ++summary.presentDomains;
     const conduit::Node& field = domain.fetch_existing("fields").child(fieldName);
     const std::string association = stringOrPlaceholder(field, "association");
     const std::string topology = stringOrPlaceholder(field, "topology");
     summary.topologies.insert(topology);
     summary.centerings.insert(association);
+    summary.topologyDomains += topology == topologyName ? 1 : 0;
+    summary.vertexDomains += association == "vertex" ? 1 : 0;
 
     if(!field.has_child("values"))
     {
@@ -680,6 +762,7 @@ FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh, const std:
     }
 
     ++summary.numericDomains;
+    summary.float64Domains += values.dtype().is_float64() ? 1 : 0;
     const auto accessor = values.as_double_accessor();
     for(conduit::index_t valueIdx = 0; valueIdx < accessor.number_of_elements(); ++valueIdx)
     {
@@ -703,7 +786,7 @@ FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh, const std:
  * \note Collective: All MPI ranks must call this function. Each rank performs the same sequence
  * of reductions for every field, including fields it does not have.
  */
-void printFieldSummary(const BlueprintStructuredMesh& mesh)
+void printFieldSummary(const BlueprintStructuredMesh& mesh, const std::string& topologyName)
 {
   const auto fieldNames = getFieldNames(mesh);
   const int globalDomainCount =
@@ -712,14 +795,19 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
   std::string output = axom::fmt::format("Scalar fields across {} domain{}:\n",
                                          globalDomainCount,
                                          globalDomainCount == 1 ? "" : "s");
-  using TableRow = std::array<std::string, 5>;
-  std::vector<TableRow> rows {{{"Name", "Topology", "Type", "Centering", "Global range"}}};
+  using TableRow = std::array<std::string, 7>;
+  std::vector<TableRow> rows {
+    {{"Name", "Topology", "Type", "Centering", "Domains", "Global range", "Marching Cubes"}}};
 
   for(const auto& fieldName : fieldNames)
   {
-    const FieldSummary local = summarizeLocalField(mesh, fieldName);
+    const FieldSummary local = summarizeLocalField(mesh, fieldName, topologyName);
     FieldSummary global;
+    global.presentDomains = allReduce(local.presentDomains, ReductionOperation::Sum);
+    global.vertexDomains = allReduce(local.vertexDomains, ReductionOperation::Sum);
     global.numericDomains = allReduce(local.numericDomains, ReductionOperation::Sum);
+    global.float64Domains = allReduce(local.float64Domains, ReductionOperation::Sum);
+    global.topologyDomains = allReduce(local.topologyDomains, ReductionOperation::Sum);
     global.hasNan = allReduce(local.hasNan, ReductionOperation::Max);
     global.topologies = allUnion(local.topologies);
     global.types = allUnion(local.types);
@@ -728,10 +816,14 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
     const int hasRange = allReduce(local.valueRange.isValid() ? 1 : 0, ReductionOperation::Max);
     if(hasRange != 0)
     {
+      const double localMin = local.valueRange.isValid() ? local.valueRange.getMin()[0]
+                                                         : std::numeric_limits<double>::infinity();
+      const double localMax = local.valueRange.isValid() ? local.valueRange.getMax()[0]
+                                                         : -std::numeric_limits<double>::infinity();
       global.valueRange.addPoint(
-        ScalarRange::PointType {allReduce(local.valueRange.getMin()[0], ReductionOperation::Min)});
+        ScalarRange::PointType {allReduce(localMin, ReductionOperation::Min)});
       global.valueRange.addPoint(
-        ScalarRange::PointType {allReduce(local.valueRange.getMax()[0], ReductionOperation::Max)});
+        ScalarRange::PointType {allReduce(localMax, ReductionOperation::Max)});
     }
 
     if(global.numericDomains == 0)
@@ -742,7 +834,7 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
     std::string range = "empty";
     if(global.valueRange.isValid())
     {
-      range = axom::fmt::format("[{:.3g}, {:.3g}]",
+      range = axom::fmt::format("[{:.17g}, {:.17g}]",
                                 global.valueRange.getMin()[0],
                                 global.valueRange.getMax()[0]);
       if(global.hasNan != 0)
@@ -755,14 +847,41 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
       range = "NaN only";
     }
 
+    std::vector<std::string> incompatibilities;
+    if(global.presentDomains != globalDomainCount)
+    {
+      incompatibilities.emplace_back("missing domains");
+    }
+    if(global.vertexDomains != global.presentDomains)
+    {
+      incompatibilities.emplace_back("association must be vertex");
+    }
+    if(global.numericDomains != global.presentDomains)
+    {
+      incompatibilities.emplace_back("values must be numeric scalars");
+    }
+    if(global.float64Domains != global.presentDomains)
+    {
+      incompatibilities.emplace_back("type must be float64");
+    }
+    if(global.topologyDomains != global.presentDomains)
+    {
+      incompatibilities.emplace_back("topology must be " + topologyName);
+    }
+    const std::string compatibility = incompatibilities.empty()
+      ? "compatible"
+      : "incompatible: " + axom::fmt::format("{}", axom::fmt::join(incompatibilities, "; "));
+
     rows.push_back({{fieldName,
                      axom::fmt::format("{}", axom::fmt::join(global.topologies, ", ")),
                      axom::fmt::format("{}", axom::fmt::join(global.types, ", ")),
                      axom::fmt::format("{}", axom::fmt::join(global.centerings, ", ")),
-                     range}});
+                     axom::fmt::format("{}/{}", global.presentDomains, globalDomainCount),
+                     range,
+                     compatibility}});
   }
 
-  std::array<std::size_t, 5> widths {};
+  std::array<std::size_t, 7> widths {};
   for(const auto& row : rows)
   {
     for(std::size_t column = 0; column < row.size(); ++column)
@@ -792,13 +911,13 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh)
 
 }  // namespace
 
-/// Prints global timing statistics.
-/// \note Collective: All MPI ranks must call this function.
+/// Output some timing stats
 void printTimingStats(axom::utilities::Timer& t, const std::string& description)
 {
   {
-    double minCompute, maxCompute, sumCompute;
-    getMinMaxSum(t.elapsedTimeInSec(), minCompute, maxCompute, sumCompute);
+    const double minCompute = allReduce(t.elapsedTimeInSec(), ReductionOperation::Min);
+    const double maxCompute = allReduce(t.elapsedTimeInSec(), ReductionOperation::Max);
+    const double sumCompute = allReduce(t.elapsedTimeInSec(), ReductionOperation::Sum);
 
     const auto count = t.cycleCount();
     if(count > 1)
@@ -823,8 +942,7 @@ void printTimingStats(axom::utilities::Timer& t, const std::string& description)
   }
 }
 
-/// Writes the blueprint mesh to disk.
-/// \note Collective: All MPI ranks must call this function.
+/// Write blueprint mesh to disk
 void saveMesh(const conduit::Node& mesh, const std::string& filename)
 {
   AXOM_ANNOTATE_SCOPE("save mesh (conduit)");
@@ -837,8 +955,7 @@ void saveMesh(const conduit::Node& mesh, const std::string& filename)
 }
 
 #if defined(AXOM_USE_SIDRE)
-/// Writes the blueprint mesh to disk.
-/// \note Collective: All MPI ranks must call this function.
+/// Write blueprint mesh to disk
 void saveMesh(const sidre::Group& mesh, const std::string& filename)
 {
   AXOM_ANNOTATE_SCOPE("save mesh (sidre)");
@@ -847,11 +964,7 @@ void saveMesh(const sidre::Group& mesh, const std::string& filename)
   mesh.createNativeLayout(tmpMesh);
   {
     conduit::Node info;
-  #ifdef AXOM_USE_MPI
-    if(!conduit::blueprint::mpi::verify("mesh", tmpMesh, info, MPI_COMM_WORLD))
-  #else
-    if(!conduit::blueprint::verify("mesh", tmpMesh, info))
-  #endif
+    if(!verifyBlueprintMesh(tmpMesh, info))
     {
       SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
       slic::flushStreams();
@@ -864,37 +977,28 @@ void saveMesh(const sidre::Group& mesh, const std::string& filename)
 #endif
 
 template <int DIM, typename ExecSpace>
-struct ContourRunner
+struct ContourTestBase
 {
-  ContourRunner() : m_parentCellIdField("parentCellIds"), m_domainIdField("domainIdField") { }
+  explicit ContourTestBase(const Input& params)
+    : m_params(params)
+    , m_parentCellIdField("parentCellIds")
+    , m_domainIdField("domainIdField")
+  { }
 
+  const Input& m_params;
   const std::string m_parentCellIdField;
   const std::string m_domainIdField;
 
-  /// Runs the contour loops, prints statistics, and writes the output mesh.
-  /// \note Collective: All MPI ranks must call this function.
-  void run(BlueprintStructuredMesh& computationalMesh)
+  int runTest(BlueprintStructuredMesh& computationalMesh)
   {
-    AXOM_ANNOTATE_SCOPE("run contour");
+    AXOM_ANNOTATE_SCOPE("runTest");
 
-    // Conduit data is in host memory. Move the contour input to device memory when needed.
+    // Conduit data is in host memory, move to devices for testing.
     if(s_allocatorId != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
     {
       AXOM_ANNOTATE_SCOPE("move mesh to device memory");
 
-      const std::string axes[3] = {"x", "y", "z"};
-      for(int d = 0; d < DIM; ++d)
-      {
-        computationalMesh.moveMeshDataToNewMemorySpace<double>(
-          computationalMesh.coordsetPath() + "/values/" + axes[d],
-          s_allocatorId);
-      }
-      computationalMesh.moveMeshDataToNewMemorySpace<double>(
-        axom::fmt::format("fields/{}/values", params.fieldName),
-        s_allocatorId);
-      computationalMesh.moveMeshDataToNewMemorySpace<int>(
-        axom::fmt::format("fields/{}/values", s_maskFieldName),
-        s_allocatorId);
+      computationalMesh.template copyMeshToMemorySpace<ExecSpace>(s_allocatorId);
     }
 
 #if defined(AXOM_USE_UMPIRE)
@@ -908,7 +1012,7 @@ struct ContourRunner
 
       std::string resourceName = "HOST";
       umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-      const std::string dataPath = axom::fmt::format("fields/{}/values", params.fieldName);
+      const std::string dataPath = axom::fmt::format("fields/{}/values", m_params.fieldName);
       void* dataPtr = computationalMesh.domain(0).fetch_existing(dataPath).data_ptr();
       bool dataFromUmpire = rm.hasAllocator(dataPtr);
       if(dataFromUmpire)
@@ -916,16 +1020,15 @@ struct ContourRunner
         umpire::Allocator allocator = rm.getAllocator(dataPtr);
         resourceName = allocator.getName();
       }
-      SLIC_INFO(axom::fmt::format("Running with policy {} and field '{}' on {}",
-                                  params.policy,
-                                  params.fieldName,
+      SLIC_INFO(axom::fmt::format("Testing with policy {} and function data on {}",
+                                  m_params.policy,
                                   resourceName));
-      if(params.policy == axom::runtime_policy::Policy::seq)
+      if(m_params.policy == axom::runtime_policy::Policy::seq)
       {
         SLIC_ASSERT(resourceName == "HOST");
       }
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-      else if(params.policy == axom::runtime_policy::Policy::omp)
+      else if(m_params.policy == axom::runtime_policy::Policy::omp)
       {
         SLIC_ASSERT(resourceName == "HOST");
       }
@@ -934,6 +1037,16 @@ struct ContourRunner
       {
         SLIC_ASSERT(resourceName == "DEVICE");
       }
+    }
+#endif
+
+    int marchingCubesAllocatorId = s_allocatorId;
+#if defined(AXOM_USE_UMPIRE)
+    if(m_params.useDevicePool)
+    {
+      AXOM_ANNOTATE_SCOPE("create MarchingCubes device pool");
+      marchingCubesAllocatorId =
+        makeMarchingCubesPoolAllocator(s_allocatorId, m_params.devicePoolInitialSizeGiB);
     }
 #endif
 
@@ -946,7 +1059,7 @@ struct ContourRunner
     // All contourGenCount loops.
     axom::utilities::Timer contourGenLoopTimer(false);
 
-    // params.objectRepCount setMesh calls
+    // objectRepCount setMesh calls
     axom::utilities::Timer setMeshTimer(false);
 
     // Time steady-state computeIsocontour calls
@@ -956,25 +1069,27 @@ struct ContourRunner
     axom::utilities::Timer contourTimerM(false);
 
     std::unique_ptr<quest::MarchingCubes> mcPtr;
-    const auto objectLoopName = axom::fmt::format("objectRepLoop {}", params.objectRepCount);
+    const auto objectLoopName = axom::fmt::format("objectRepLoop {}", m_params.objectRepCount);
     AXOM_ANNOTATE_BEGIN(objectLoopName);
     objectRepLoopTimer.start();
-    for(int j = 0; j < params.objectRepCount; ++j)
+    for(int j = 0; j < m_params.objectRepCount; ++j)
     {
       if(!mcPtr)
       {
         AXOM_ANNOTATE_SCOPE("MCInit");
         initializationTimer.start();
-        mcPtr =
-          std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
-        mcPtr->setMesh(computationalMesh.asConduitNode(), params.topologyName, s_maskFieldName);
+        mcPtr = std::make_unique<quest::MarchingCubes>(m_params.policy,
+                                                       marchingCubesAllocatorId,
+                                                       m_params.dataParallelism);
+        mcPtr->setUseBumpBackend(m_params.useBumpBackend);
+        mcPtr->setMesh(computationalMesh.asConduitNode(), m_params.topologyName, s_maskFieldName);
         initializationTimer.stop();
       }
       auto& mc = *mcPtr;
 
       // Clear and set MarchingCubes object for a "new" mesh.
       setMeshTimer.start();
-      mc.setMesh(computationalMesh.asConduitNode(), params.topologyName, s_maskFieldName);
+      mc.setMesh(computationalMesh.asConduitNode(), m_params.topologyName, s_maskFieldName);
       setMeshTimer.stop();
 
 #ifdef AXOM_USE_MPI
@@ -982,34 +1097,37 @@ struct ContourRunner
 #endif
 
       contourGenLoopTimer.start();
-      for(int i = 0; i < params.contourGenCount; ++i)
+      for(int i = 0; i < m_params.contourGenCount; ++i)
       {
         SLIC_DEBUG(axom::fmt::format("MarchingCubes object rep {} of {}, contour run {} of {}:",
                                      j,
-                                     params.objectRepCount,
+                                     m_params.objectRepCount,
                                      i,
-                                     params.contourGenCount));
+                                     m_params.contourGenCount));
         mc.clearOutput();
-        mc.setFunctionField(params.fieldName);
-        for(int iMask = 0; iMask < params.maskCount; ++iMask)
+        mc.setFunctionField(m_params.fieldName);
+        for(int iMask = 0; iMask < m_params.maskCount; ++iMask)
         {
           mc.setMaskValue(iMask);
           if(i == 0)
           {
+            axom::synchronize<ExecSpace>();
+            AXOM_ANNOTATE_BEGIN("MarchingCubes::firstContour");
             contourTimerM.start();
-          }
-          else
-          {
-            contourTimer.start();
-          }
-          mc.computeIsocontour(params.contourVal);
-          if(i == 0)
-          {
+            mc.computeIsocontour(m_params.contourVal);
+            axom::synchronize<ExecSpace>();
             contourTimerM.stop();
+            AXOM_ANNOTATE_END("MarchingCubes::firstContour");
           }
           else
           {
+            axom::synchronize<ExecSpace>();
+            AXOM_ANNOTATE_BEGIN("MarchingCubes::steadyContour");
+            contourTimer.start();
+            mc.computeIsocontour(m_params.contourVal);
+            axom::synchronize<ExecSpace>();
             contourTimer.stop();
+            AXOM_ANNOTATE_END("MarchingCubes::steadyContour");
           }
         }
       }
@@ -1018,8 +1136,8 @@ struct ContourRunner
     objectRepLoopTimer.stop();
     AXOM_ANNOTATE_END(objectLoopName);
     SLIC_INFO(axom::fmt::format("Finished {} object reps x {} contour reps",
-                                params.objectRepCount,
-                                params.contourGenCount));
+                                m_params.objectRepCount,
+                                m_params.contourGenCount));
     printTimingStats(initializationTimer, axom::fmt::format("init"));
     printTimingStats(setMeshTimer, axom::fmt::format("setMesh"));
     printTimingStats(contourTimer, axom::fmt::format("steady-contour"));
@@ -1030,23 +1148,47 @@ struct ContourRunner
     auto& mc = *mcPtr;
     printRunStats(mc);
 
+    if(m_params.skipContourOutput)
+    {
+      return 0;
+    }
+
+    // The Bump backend reads the input domain's state when it builds Blueprint
+    // output. Do this before copying the computational mesh back to host memory,
+    // which replaces the Conduit nodes the backend references.
+    if(!m_params.blueprintContourFile.empty())
+    {
+      if(!m_params.useBumpBackend)
+      {
+        SLIC_WARNING(
+          "--blueprint-contour-file requires --useBumpBackend; the legacy kernel has no "
+          "Blueprint contour output. Skipping.");
+      }
+      else
+      {
+        AXOM_ANNOTATE_SCOPE("write blueprint contour");
+        conduit::Node contourBp;
+        mc.populateContourMeshBlueprint(contourBp);
+        // Bump returns arrays in the execution space used for extraction.
+        // Relay's Blueprint writer accesses those arrays on the host.
+        conduit::Node hostContourBp;
+        axom::bump::utilities::copy<axom::SEQ_EXEC>(
+          hostContourBp,
+          contourBp,
+          axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+        SLIC_INFO(axom::fmt::format("Blueprint contour has {} domains; writing to '{}'",
+                                    hostContourBp.number_of_children(),
+                                    m_params.blueprintContourFile));
+        saveMesh(hostContourBp, m_params.blueprintContourFile);
+      }
+    }
+
     // Return conduit data to host memory.
     if(s_allocatorId != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
     {
       AXOM_ANNOTATE_SCOPE("copy mesh back to host memory");
 
-      const std::string axes[3] = {"x", "y", "z"};
-      for(int d = 0; d < DIM; ++d)
-      {
-        computationalMesh.moveMeshDataToNewMemorySpace<double>(
-          computationalMesh.coordsetPath() + "/values/" + axes[d],
-          axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-      }
-      computationalMesh.moveMeshDataToNewMemorySpace<double>(
-        axom::fmt::format("fields/{}/values", params.fieldName),
-        axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-      computationalMesh.moveMeshDataToNewMemorySpace<int>(
-        axom::fmt::format("fields/{}/values", s_maskFieldName),
+      computationalMesh.template copyMeshToMemorySpace<axom::SEQ_EXEC>(
         axom::execution_space<axom::SEQ_EXEC>::allocatorID());
     }
 
@@ -1089,17 +1231,17 @@ struct ContourRunner
     {
       assert(contourMesh.getSidreGroup() == meshGroup);
       // Write contour mesh to file.
-      saveMesh(*contourMesh.getSidreGroup(), params.outputName);
-      SLIC_INFO(axom::fmt::format("Wrote contour mesh to {}", params.outputName));
+      saveMesh(*contourMesh.getSidreGroup(), m_params.contourFile);
+      SLIC_INFO(axom::fmt::format("Wrote contour mesh to {}", m_params.contourFile));
     }
     objectDS.getRoot()->destroyGroupAndData(sidreGroupName);
 #endif
 
     AXOM_ANNOTATE_END("contour output");
+
+    return 0;
   }
 
-  /// Reports global contour sizes.
-  /// \note Collective: All MPI ranks must call this function.
   void printRunStats(const quest::MarchingCubes& mc)
   {
     {
@@ -1111,7 +1253,7 @@ struct ContourRunner
                                   sum,
                                   (double)sum / numRanks));
     }
-    SLIC_INFO_IF(params.isVerbose(),
+    SLIC_INFO_IF(m_params.isVerbose(),
                  axom::fmt::format("Contour mesh has locally {} cells, {} nodes.",
                                    mc.getContourCellCount(),
                                    mc.getContourNodeCount()));
@@ -1126,6 +1268,12 @@ struct ContourRunner
     }
     for(axom::IndexType domId = 0; domId < bpMesh.domainCount(); ++domId)
     {
+      if(bpMesh.useFlatFields(domId))
+      {
+        addMaskFieldFlat(bpMesh.domain(domId));
+        continue;
+      }
+
       auto domainView = bpMesh.getDomainView<DIM>(domId);
       auto cellCount = domainView.getCellCount();
       auto slowestDirs = domainView.getConstCoordsViews()[0].mapping().slowestDirs();
@@ -1141,10 +1289,29 @@ struct ContourRunner
                              zeros,
                              fastestDirs);
       auto maskView = domainView.template getFieldView<int>(s_maskFieldName);
-      int maskCount = params.maskCount;
+      int maskCount = m_params.maskCount;
       axom::for_all<axom::SEQ_EXEC>(0, cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
         maskView.flatIndex(cellId) = (cellId % maskCount);
       });
+    }
+  }
+
+  void addMaskFieldFlat(conduit::Node& dom)
+  {
+    const axom::IndexType cellCount =
+      static_cast<axom::IndexType>(conduit::blueprint::mesh::topology::length(
+        dom.fetch_existing("topologies/" + m_params.topologyName)));
+
+    conduit::Node& mask = dom["fields/" + s_maskFieldName];
+    mask["association"] = "element";
+    mask["topology"] = m_params.topologyName;
+    mask["values"].set(conduit::DataType::c_int(cellCount));
+    auto* maskValues = mask["values"].as_int_ptr();
+
+    const int maskCount = m_params.maskCount;
+    for(axom::IndexType cellId = 0; cellId < cellCount; ++cellId)
+    {
+      maskValues[cellId] = static_cast<int>(cellId % maskCount);
     }
   }
 };
@@ -1177,64 +1344,134 @@ int allocatorIdToTest(axom::runtime_policy::Policy policy)
   return allocatorID;
 }
 
-/// Utility function to initialize the logger
-void initializeLogger()
+// ----------------------------------------------------------------------------
+// Utility RAII struct to set up and tear down the example's logger
+// ----------------------------------------------------------------------------
+struct ParallelLoggerRAII
 {
-  // Initialize Logger
-  slic::initialize();
-  slic::setLoggingMsgLevel(slic::message::Info);
+  ParallelLoggerRAII()
+  {
+    // Initialize Logger
+    slic::initialize();
+    slic::setLoggingMsgLevel(slic::message::Info);
 
-  slic::LogStream* logStream;
+    slic::LogStream* logStream;
 
 #ifdef AXOM_USE_MPI
-  std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
+    std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
   #ifdef AXOM_USE_LUMBERJACK
-  const int RLIMIT = 8;
-  logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
+    const int RLIMIT = 8;
+    logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
   #else
-  logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
+    logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
   #endif
 #else
-  std::string fmt = "[<LEVEL>]: <MESSAGE>\n";
-  logStream = new slic::GenericOutputStream(&std::cout, fmt);
+    std::string fmt = "[<LEVEL>]: <MESSAGE>\n";
+    logStream = new slic::GenericOutputStream(&std::cout, fmt);
 #endif  // AXOM_USE_MPI
 
-  slic::addStreamToAllMsgLevels(logStream);
+    slic::addStreamToAllMsgLevels(logStream);
 
-  conduit::utils::set_error_handler(
-    [](auto& msg, auto& file, int line) { slic::logErrorMessage(msg, file, line); });
-  conduit::utils::set_warning_handler(
-    [](auto& msg, auto& file, int line) { slic::logWarningMessage(msg, file, line); });
-  conduit::utils::set_info_handler([](auto& msg, auto& file, int line) {
-    slic::logMessage(slic::message::Info, msg, file, line);
-  });
-}
-
-/// Utility function to finalize the logger
-void finalizeLogger()
-{
-  if(slic::isInitialized())
-  {
-    slic::flushStreams();
-    slic::finalize();
-  }
-}
-
-//! Run contour extraction for one dimension and execution space.
-//! \note Collective: All MPI ranks must call this function.
-template <int DIM, typename ExecSpace>
-void runNdimInstance(BlueprintStructuredMesh& computationalMesh)
-{
-  ContourRunner<DIM, ExecSpace> contour;
-  contour.addMaskField(computationalMesh);
-
-  if(params.isVerbose())
-  {
-    computationalMesh.printMeshInfo();
+    conduit::utils::set_error_handler(
+      [](auto& msg, auto& file, int line) { slic::logErrorMessage(msg, file, line); });
+    conduit::utils::set_warning_handler(
+      [](auto& msg, auto& file, int line) { slic::logWarningMessage(msg, file, line); });
+    conduit::utils::set_info_handler([](auto& msg, auto& file, int line) {
+      slic::logMessage(slic::message::Info, msg, file, line);
+    });
   }
 
-  contour.run(computationalMesh);
-  SLIC_INFO(banner("Normal exit."));
+  void flush() { slic::flushStreams(); }
+
+  /// Utility function to finalize the logger
+  ~ParallelLoggerRAII()
+  {
+    if(slic::isInitialized())
+    {
+      slic::flushStreams();
+      slic::finalize();
+    }
+  }
+};
+
+// ----------------------------------------------------------------------------
+// Tag dispatch for choosing the desired execution policy and dimension
+// ----------------------------------------------------------------------------
+template <typename T>
+struct TypeTag
+{
+  using type = T;
+};
+
+template <int DIM_, typename ExecSpace_>
+struct TestInstance
+{
+  static constexpr int DIM = DIM_;
+  using ExecSpace = ExecSpace_;
+};
+
+using TestInstanceVariant = std::variant<TestInstance<2, axom::SEQ_EXEC>,
+                                         TestInstance<3, axom::SEQ_EXEC>
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+                                         ,
+                                         TestInstance<2, axom::OMP_EXEC>,
+                                         TestInstance<3, axom::OMP_EXEC>
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+                                         ,
+                                         TestInstance<2, axom::CUDA_EXEC<256>>,
+                                         TestInstance<3, axom::CUDA_EXEC<256>>
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+                                         ,
+                                         TestInstance<2, axom::HIP_EXEC<256>>,
+                                         TestInstance<3, axom::HIP_EXEC<256>>
+#endif
+                                         >;
+
+template <typename ExecSpace>
+TestInstanceVariant selectTestDimension(TypeTag<ExecSpace>, int dimension)
+{
+  if(dimension == 2)
+  {
+    return TestInstance<2, ExecSpace> {};
+  }
+  if(dimension == 3)
+  {
+    return TestInstance<3, ExecSpace> {};
+  }
+
+  SLIC_ERROR(axom::fmt::format("Unsupported mesh dimension {}", dimension));
+  return TestInstance<2, axom::SEQ_EXEC> {};
+}
+
+TestInstanceVariant selectTestInstance(const Input& params, int dimension)
+{
+  if(params.policy == RuntimePolicy::seq)
+  {
+    return selectTestDimension(TypeTag<axom::SEQ_EXEC> {}, dimension);
+  }
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  if(params.policy == RuntimePolicy::omp)
+  {
+    return selectTestDimension(TypeTag<axom::OMP_EXEC> {}, dimension);
+  }
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  if(params.policy == RuntimePolicy::cuda)
+  {
+    return selectTestDimension(TypeTag<axom::CUDA_EXEC<256>> {}, dimension);
+  }
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  if(params.policy == RuntimePolicy::hip)
+  {
+    return selectTestDimension(TypeTag<axom::HIP_EXEC<256>> {}, dimension);
+  }
+#endif
+
+  SLIC_ERROR(axom::fmt::format("Unsupported runtime policy {}", params.policy));
+  return TestInstance<2, axom::SEQ_EXEC> {};
 }
 
 //------------------------------------------------------------------------------
@@ -1244,13 +1481,14 @@ int main(int argc, char** argv)
   myRank = mpi_raii_wrapper.my_rank();
   numRanks = mpi_raii_wrapper.num_ranks();
 
-  initializeLogger();
+  ParallelLoggerRAII raii_logger;
   //slic::setAbortOnWarning(true);
 
   //---------------------------------------------------------------------------
   // Set up and parse command line arguments
   //---------------------------------------------------------------------------
   axom::CLI::App app {"Marching Cubes isocontour example"};
+  Input params;
 
   try
   {
@@ -1268,8 +1506,7 @@ int main(int argc, char** argv)
     MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
-    finalizeLogger();
-    return retval;
+    exit(retval);
   }
 
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(params.annotationMode);
@@ -1282,30 +1519,29 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Load computational mesh.
   //---------------------------------------------------------------------------
+
   AXOM_ANNOTATE_BEGIN("load mesh");
-  BlueprintStructuredMesh computationalMesh(params.meshFile, params.topologyName);
+  BlueprintStructuredMesh computationalMesh(params.meshFile, params.topologyName, params.isVerbose());
   AXOM_ANNOTATE_END("load mesh");
 
   if(params.listFields)
   {
-    printFieldSummary(computationalMesh);
-    finalizeLogger();
+    printFieldSummary(computationalMesh, params.topologyName);
+    raii_logger.flush();
     return 0;
   }
 
   if(!validateContourField(computationalMesh, params.fieldName, params.topologyName))
   {
-    finalizeLogger();
+    raii_logger.flush();
     return 1;
   }
-
-  const int dimension = computationalMesh.dimension();
 
   SLIC_INFO_IF(params.isVerbose(),
                axom::fmt::format("Computational mesh has {} cells in {} domains locally",
                                  computationalMesh.cellCount(),
                                  computationalMesh.domainCount()));
-  slic::flushStreams();
+  raii_logger.flush();
 
   // Output some global mesh size stats
   {
@@ -1327,67 +1563,46 @@ int main(int argc, char** argv)
                                 (double)sum / numRanks));
   }
 
-  slic::flushStreams();
+  raii_logger.flush();
 
   //---------------------------------------------------------------------------
-  // Run contour extraction in the selected execution space.
+  // Run test in the execution space set by command line.
   //---------------------------------------------------------------------------
-  if(params.policy == axom::runtime_policy::Policy::seq)
-  {
-    if(dimension == 2)
-    {
-      runNdimInstance<2, axom::SEQ_EXEC>(computationalMesh);
-    }
-    else if(dimension == 3)
-    {
-      runNdimInstance<3, axom::SEQ_EXEC>(computationalMesh);
-    }
-  }
-#if defined(AXOM_USE_RAJA)
-  #ifdef AXOM_USE_OPENMP
-  else if(params.policy == axom::runtime_policy::Policy::omp)
-  {
-    if(dimension == 2)
-    {
-      runNdimInstance<2, axom::OMP_EXEC>(computationalMesh);
-    }
-    else if(dimension == 3)
-    {
-      runNdimInstance<3, axom::OMP_EXEC>(computationalMesh);
-    }
-  }
-  #endif
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
-  else if(params.policy == axom::runtime_policy::Policy::cuda)
-  {
-    if(dimension == 2)
-    {
-      runNdimInstance<2, axom::CUDA_EXEC<256>>(computationalMesh);
-    }
-    else if(dimension == 3)
-    {
-      runNdimInstance<3, axom::CUDA_EXEC<256>>(computationalMesh);
-    }
-  }
-  #endif
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
-  else if(params.policy == axom::runtime_policy::Policy::hip)
-  {
-    if(dimension == 2)
-    {
-      runNdimInstance<2, axom::HIP_EXEC<256>>(computationalMesh);
-    }
-    else if(dimension == 3)
-    {
-      runNdimInstance<3, axom::HIP_EXEC<256>>(computationalMesh);
-    }
-  }
-  #endif
-#endif
+  auto testInstance = selectTestInstance(params, computationalMesh.dimension());
+  int errCount = std::visit(
+    [&](const auto& instance) {
+      AXOM_UNUSED_VAR(instance);
+      using Instance = std::decay_t<decltype(instance)>;
+      constexpr int DIM = Instance::DIM;
+      using ExecSpace = typename Instance::ExecSpace;
+
+      ContourTestBase<DIM, ExecSpace> contourTest(params);
+      contourTest.addMaskField(computationalMesh);
+
+      if(params.isVerbose())
+      {
+        computationalMesh.printMeshInfo();
+      }
+
+      int localErrCount = contourTest.runTest(computationalMesh);
+
+      const int globalErrCount = allReduce(localErrCount, ReductionOperation::Sum);
+
+      if(globalErrCount)
+      {
+        SLIC_INFO(axom::fmt::format(" Error exit: {} errors found.", globalErrCount));
+      }
+      else
+      {
+        SLIC_INFO(banner("Normal exit."));
+      }
+
+      return globalErrCount;
+    },
+    testInstance);
 
   questMarchingCubesExample.stop();
   printTimingStats(questMarchingCubesExample, "questMarchingCubesExample");
-  finalizeLogger();
 
-  return 0;
+  return errCount != 0;
 }

@@ -33,7 +33,7 @@ namespace detail
 namespace marching_cubes
 {
 /*!
- * @brief Implements Marching Cubes for one dimension and execution space.
+ * @brief Implements the legacy backend for one dimension and execution space.
  *
  * @tparam DIM Spatial dimension.
  * @tparam ExecSpace Execution space for parallel work.

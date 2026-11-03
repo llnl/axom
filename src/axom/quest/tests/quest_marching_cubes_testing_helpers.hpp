@@ -18,64 +18,47 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
-#include "axom/sidre/core/ConduitMemory.hpp"
+
+#include "axom/bump/utilities/conduit_memory.hpp"
 
 #include <conduit/conduit.hpp>
 
 #include <cmath>
 #include <string>
+#include <vector>
 
 namespace axom::quest::testing::marching_cubes
 {
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
+//! @brief Return each runtime policy enabled in this build.
+inline std::vector<RuntimePolicy> enabledPolicies()
+{
+  std::vector<RuntimePolicy> policies {RuntimePolicy::seq};
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  policies.push_back(RuntimePolicy::omp);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  policies.push_back(RuntimePolicy::cuda);
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  policies.push_back(RuntimePolicy::hip);
+#endif
+  return policies;
+}
+
+//! @brief Return the printable name of a runtime policy.
+inline std::string policyName(RuntimePolicy policy)
+{
+  return axom::runtime_policy::policyToName(policy);
+}
+
 //---------------------------------------------------------------------------
 // Memory copies
 //---------------------------------------------------------------------------
 
 inline int hostAllocatorID() { return axom::execution_space<axom::SEQ_EXEC>::allocatorID(); }
-
-/*!
- * @brief Deep-copy a Conduit tree, placing its arrays in \a allocatorID memory.
- *
- * Leaves with more than one element are copied into memory from \a allocatorID.
- * Scalars and strings stay in host memory, so Blueprint metadata
- * such as \c elements/dims/i remains readable on the host,
- * while metadata arrays such as \c elements/dims/strides move with the data.
- */
-inline void copyBlueprintToAllocator(conduit::Node& dst, const conduit::Node& src, int allocatorID)
-{
-  dst.reset();
-  if(src.number_of_children() > 0)
-  {
-    for(conduit::index_t i = 0; i < src.number_of_children(); ++i)
-    {
-      conduit::Node& dstChild = src.dtype().is_list() ? dst.append() : dst[src.child(i).name()];
-      copyBlueprintToAllocator(dstChild, src.child(i), allocatorID);
-    }
-    return;
-  }
-
-  const bool isArray = !src.dtype().is_string() && src.dtype().number_of_elements() > 1;
-  if(!isArray)
-  {
-    dst.set(src);
-    return;
-  }
-
-  conduit::Node compacted;
-  const conduit::Node* compactSrc = &src;
-  if(!src.is_compact())
-  {
-    src.compact_to(compacted);
-    compactSrc = &compacted;
-  }
-
-  dst.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID));
-  dst.set(conduit::DataType(compactSrc->dtype().id(), compactSrc->dtype().number_of_elements()));
-  axom::copy(dst.data_ptr(), compactSrc->data_ptr(), compactSrc->dtype().bytes_compact());
-}
 
 /*!
  * @brief Copy a Blueprint tree into memory accessible to a runtime policy.
@@ -87,10 +70,12 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
                                   RuntimePolicy policy,
                                   int allocatorID)
 {
+  namespace bputils = axom::bump::utilities;
+
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(policy == RuntimePolicy::cuda)
   {
-    copyBlueprintToAllocator(dst, src, allocatorID);
+    bputils::copy<axom::CUDA_EXEC<256>>(dst, src, allocatorID);
     return;
   }
 #endif
@@ -98,7 +83,7 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(policy == RuntimePolicy::hip)
   {
-    copyBlueprintToAllocator(dst, src, allocatorID);
+    bputils::copy<axom::HIP_EXEC<256>>(dst, src, allocatorID);
     return;
   }
 #endif
@@ -111,7 +96,18 @@ inline void copyBlueprintToPolicy(conduit::Node& dst,
 //! @brief Copy a Blueprint tree back to host memory for inspection.
 inline void copyBlueprintToHost(conduit::Node& dst, const conduit::Node& src)
 {
-  copyBlueprintToAllocator(dst, src, hostAllocatorID());
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(dst, src, hostAllocatorID());
+}
+
+//! @brief Shift the explicit x coordinates of @a mesh by @a offset.
+inline void translateExplicitCoordsX(conduit::Node& mesh, double offset)
+{
+  conduit::Node& x_node = mesh.fetch_existing("coordsets/coords/values/x");
+  auto* x = x_node.as_float64_ptr();
+  for(conduit::index_t i = 0; i < x_node.dtype().number_of_elements(); ++i)
+  {
+    x[i] += offset;
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -135,13 +131,7 @@ struct PlanarField
   //! @brief The plane through @a origin with the given @a normal.
   PlanarField(const PointType& origin, const VectorType& normal) : plane(normal, origin) { }
 
-  /*!
-   * @brief The plane \f$\hat{n} \cdot p = offset\f$, where \f$\hat{n}\f$ is
-   *        @a normal scaled to unit length.
-   *
-   * @a offset is a distance along the unit normal, so scaling @a normal
-   * does not move the plane.
-   */
+  //! @brief The plane {p : normal . p == offset}.  @a normal need not be unit.
   PlanarField(const VectorType& normal, double offset) : plane(normal, offset) { }
 
   double operator()(double x, double y, double z) const
@@ -171,7 +161,7 @@ struct RoundField
 /*!
  * @brief A gyroid.
  *
- * Its curvature produces many differently shaped cut cells.
+ * Its curvature produces non-planar cut polygons for triangulation tests.
  */
 struct GyroidField
 {
@@ -300,8 +290,8 @@ void addCellField(conduit::Node& mesh, const CellFunction& g, const std::string&
  * @brief Build a single-domain structured mesh with an explicit coordset on
  *        [0,1]^DIM with @a n cells per side.
  *
+ * Nodes use i-fastest order to match Bump's StructuredIndexing.
  * If @a warp is supplied, the function is evaluated at the warped coordinates.
- * Nodes use i-fastest order.
  */
 template <int DIM, typename Field, typename Warp = NoWarp>
 void buildStructured(conduit::Node& mesh,

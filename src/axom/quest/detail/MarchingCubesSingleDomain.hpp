@@ -66,7 +66,8 @@ public:
    * This object retains references to data in \a dom. Do not modify or destroy
    * that data until setDomain() is called again or this object is destroyed.
    *
-   * The topology must be structured, and its coordinates must not be interleaved.
+   * The legacy backend requires non-interleaved coordinates.
+   * The Bump backend accepts any layout supported by its coordset views.
    */
   void setDomain(const conduit::Node& dom,
                  const std::string& topologyName,
@@ -171,6 +172,29 @@ public:
 
     //! @brief Return the number of generated contour nodes.
     virtual axom::IndexType getContourNodeCount() const = 0;
+
+    //! @brief Whether this implementation has a Blueprint contour.
+    virtual bool hasContourMeshBlueprint() const { return false; }
+
+    /*!
+     * @brief Copy the implementation's Blueprint contour.
+     *
+     * The legacy backend does not provide this representation; callers should
+     * check hasContourMeshBlueprint() before invoking this method.
+     */
+    virtual void copyContourMeshBlueprint(conduit::Node& bpMesh, bool triangulate) const
+    {
+      AXOM_UNUSED_VAR(triangulate);
+      bpMesh.reset();
+    }
+
+    /*!
+     * @brief Move the implementation's Blueprint contour.
+     *
+     * The legacy backend does not provide this representation; callers should
+     * check hasContourMeshBlueprint() before invoking this method.
+     */
+    virtual void relinquishContourMeshBlueprint(conduit::Node& bpMesh) { bpMesh.reset(); }
     ///@}
 
     void setOutputBuffers(axom::ArrayView<axom::IndexType, 2>& facetNodeIds,
@@ -202,6 +226,7 @@ public:
   };
 
   ImplBase& getImpl() { return *m_impl; }
+  const ImplBase& getImpl() const { return *m_impl; }
 
 private:
   /*!
@@ -211,7 +236,7 @@ private:
    */
   void setDomain(const conduit::Node& dom);
 
-  //! @brief Create the implementation selected at runtime.
+  //! @brief Create the backend implementation selected at runtime.
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
   std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 2>);
   std::unique_ptr<ImplBase> newMarchingCubesSeqImpl(std::integral_constant<int, 3>);

@@ -153,7 +153,7 @@ struct Unique
     });
 
     // Do a scan on the mask array to build an offset array.
-    axom::Array<axom::IndexType> offsets(n, n, allocatorID);
+    axom::Array<axom::IndexType> offsets(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto offsets_view = offsets.view();
     axom::exclusive_scan<ExecSpace>(mask_view, offsets_view);
 
@@ -212,6 +212,7 @@ struct Unique<axom::SEQ_EXEC, KeyType>
     // Make unique values and store the indices.
     std::unordered_map<KeyType, axom::IndexType> unique_map;
     const axom::IndexType n = keys_orig_view.size();
+    unique_map.reserve(static_cast<std::size_t>(n));
     for(axom::IndexType index = 0; index < n; ++index)
     {
       const auto k = keys_orig_view[index];
