@@ -204,11 +204,11 @@ spack:
     cray-mpich:
       buildable: false
       externals:
-      - spec: cray-mpich@9.1.0.rocm_7.2.1+slurm
+      - spec: cray-mpich@9.1.0.rocm_7.2.1
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.1.0-rocmcc-7.2.1/
-      - spec: cray-mpich@8.1.29.rocm_6_4_3+slurm
+      - spec: cray-mpich@8.1.29.rocm_6_4_3
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.4.3/
-      - spec: cray-mpich@9.1.0.cce_21+slurm
+      - spec: cray-mpich@9.1.0.cce_21
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.1.0-cce-21.0.0/
 
     # blas is a bit more complicated because its a virtual package so fake it with
@@ -388,9 +388,7 @@ spack:
         prefix: /usr
     libyogrt:
       externals:
-      - spec: libyogrt@1.24 scheduler=lsf
-        prefix: /usr
-      - spec: libyogrt@1.24 scheduler=slurm
+      - spec: libyogrt@1.24
         prefix: /usr
     pdsh:
       buildable: false

@@ -285,6 +285,12 @@ public:
 
     /// Return the NURBSCacheArrayView.
     NURBSCacheArrayView caches() const { return m_view; }
+
+    /// Return the number of cached curves.
+    axom::IndexType size() const { return m_view.size(); }
+
+    /// Return the cache for the given curve.
+    const NURBSCache& operator[](axom::IndexType index) const { return m_view[index]; }
   };
 
   /// Return a view of this manager to pass into a device function.
@@ -304,6 +310,14 @@ struct nurbs_cache_2d_traits
 };
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_UMPIRE)
+// Temporary fix to avoid threaded cache initialization when Umpire is present
+// Can be removed when malloc is the default memory space for Array and ArrayView
+using NURBSCurveCacheInitExec = axom::SEQ_EXEC;
+  #else
+using NURBSCurveCacheInitExec = axom::OMP_EXEC;
+  #endif
+
 /*!
  * \brief Manage per-thread arrays of NURBSCurveGWNCache<double>
  */
@@ -327,12 +341,12 @@ public:
 
     // Make the first one
     nurbs_caches_view[0].resize(curves.size());
-    axom::for_all<axom::OMP_EXEC>(curves.size(), [=] AXOM_HOST(axom::IndexType i) {
+    axom::for_all<NURBSCurveCacheInitExec>(curves.size(), [=] AXOM_HOST(axom::IndexType i) {
       nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
     });
 
     // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
+    axom::for_all<NURBSCurveCacheInitExec>(1, nt, [=] AXOM_HOST(axom::IndexType t) {
       nurbs_caches_view[t] = nurbs_caches_view[0];
     });
   }
@@ -344,6 +358,12 @@ public:
 
     /// Return the NURBSCacheArrayView for the current OMP thread.
     NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+
+    /// Return the number of cached curves per OMP thread.
+    axom::IndexType size() const { return m_views[0].size(); }
+
+    /// Return the cache for the given curve on the current OMP thread.
+    const NURBSCache& operator[](axom::IndexType index) const { return caches()[index]; }
   };
 
   /// Return a view of this manager to pass into a device function.

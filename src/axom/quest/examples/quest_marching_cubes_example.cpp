@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file marching_cubes_example.cpp
+ * \file quest_marching_cubes_example.cpp
  * \brief Driver for Marching Cubes isocontour generation
  *
  * Extracts an isocontour from a scalar field in a Conduit Blueprint mesh.
@@ -38,7 +38,6 @@
 #include "conduit_relay_io_blueprint.hpp"
 #ifdef AXOM_USE_MPI
   #include "conduit_blueprint_mpi.hpp"
-  #include "conduit_relay_mpi.hpp"
   #include "conduit_relay_mpi_io_blueprint.hpp"
 #endif
 
@@ -51,6 +50,7 @@
 
 // C/C++ includes
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <string>
 #include <map>
@@ -83,6 +83,7 @@ struct Input
 {
 public:
   std::string meshFile;
+  std::string topologyName {"mesh"};
   std::string fieldName;
   bool listFields {false};
   bool skipContourOutput {false};
@@ -157,20 +158,25 @@ public:
       ->check(axom::CLI::ExistingFile)
       ->required();
 
-    app.add_option("-f,--field", fieldName)
-      ->description(
-        "Name of the vertex-associated scalar field to contour; "
-        "required unless --list-fields is used");
+    app.add_option("-t,--topology", topologyName)
+      ->description("Name of the Blueprint topology to contour")
+      ->capture_default_str();
+
+    auto* fieldOption = app.add_option("-f,--field", fieldName)
+                          ->description(
+                            "Name of the vertex-associated float64 scalar field to contour; "
+                            "required unless --list-fields is used");
 
     app.add_flag("--list-fields", listFields)
-      ->description("List scalar vertex fields and exit")
-      ->capture_default_str();
+      ->description("List scalar fields, their centering, and ranges, then exit")
+      ->capture_default_str()
+      ->excludes(fieldOption);
 
     app.add_flag("--skip-contour-output", skipContourOutput)
       ->description("Skip conversion and file output of the contour mesh")
       ->capture_default_str();
 
-    app.add_option("-o,--contour-file", contourFile)
+    app.add_option("-o,--output,--contour-file", contourFile)
       ->description("Set the basename for converted Mint contour output")
       ->capture_default_str();
 
@@ -193,7 +199,9 @@ public:
       ->capture_default_str();
 
     app.add_option("--maskCount", maskCount)
-      ->description("Assign cells cyclically to this many mask values")
+      ->description(
+        "Assign cells cyclically to this many mask values. The generated element field "
+        "is named 'mask', so the input mesh must not contain a field of that name.")
       ->capture_default_str()
       ->check(axom::CLI::Range(1, std::numeric_limits<int>::max()));
 
@@ -287,7 +295,8 @@ T allReduce(T value, ReductionOperation operation)
 }
 }  // namespace
 
-void getIntMinMax(int inVal, int& minVal, int& maxVal, int& sumVal)
+template <typename T>
+void getMinMaxSum(T inVal, T& minVal, T& maxVal, T& sumVal)
 {
   minVal = allReduce(inVal, ReductionOperation::Min);
   maxVal = allReduce(inVal, ReductionOperation::Max);
@@ -313,6 +322,9 @@ bool verifyBlueprintMesh(const conduit::Node& mesh, conduit::Node& info)
 }
 
 int myRank = -1, numRanks = -1;  // MPI stuff, set in main().
+
+/// Name of the element field this example generates to test masking.
+const std::string s_maskFieldName {"mask"};
 
 /// \brief Host-side access to the example's Blueprint mesh and derived sizes.
 struct BlueprintStructuredMesh
@@ -529,7 +541,15 @@ private:
 
     if(_domCount > 0)
     {
-      SLIC_ASSERT(_mdMesh[0].has_path(_topologyPath));
+      if(!_mdMesh[0].has_path(_topologyPath))
+      {
+        const std::vector<std::string> topologyNames = _mdMesh[0].has_child("topologies")
+          ? _mdMesh[0].fetch_existing("topologies").child_names()
+          : std::vector<std::string> {};
+        SLIC_ERROR(axom::fmt::format("Mesh has no topology '{}'. Its topologies are: [{}].",
+                                     _topologyName,
+                                     axom::fmt::join(topologyNames, ", ")));
+      }
       auto coordsetName = _mdMesh[0].fetch_existing(_topologyPath + "/coordset").as_string();
       _coordsetPath = axom::fmt::format("coordsets/{}", coordsetName);
       SLIC_ASSERT(_mdMesh[0].has_path(_coordsetPath));
@@ -547,51 +567,138 @@ private:
 namespace
 {
 
-std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
+/*!
+ * \brief Checks \a fieldName in each local domain and warns about invalid domains.
+ *
+ * \return True if every domain on every rank can contour the field.
+ * \note Collective: All MPI ranks must call this function.
+ */
+bool validateContourField(const BlueprintStructuredMesh& mesh,
+                          const std::string& fieldName,
+                          const std::string& topologyName)
 {
-  // lambda that sends rank 0's fields to the other ranks and checks that they're all present
-  // It's a no-op when not using MPI
-  const auto fieldNamesAgree = [](const std::vector<std::string>& fieldNames) {
-#ifdef AXOM_USE_MPI
-    conduit::Node rootFieldNamesNode;
-    if(myRank == 0)
+  bool localValid = true;
+  for(axom::IndexType domainIdx = 0; domainIdx < mesh.domainCount(); ++domainIdx)
+  {
+    const conduit::Node& domain = mesh.domain(domainIdx);
+    std::string reason;
+    if(domain.has_path("fields/" + s_maskFieldName))
     {
-      rootFieldNamesNode.set(conduit::DataType::list());
-      for(const auto& fieldName : fieldNames)
+      reason = axom::fmt::format(
+        "the mesh already has a field named '{}', which this example generates for masking",
+        s_maskFieldName);
+    }
+    else if(!domain.has_child("fields") || !domain.fetch_existing("fields").has_child(fieldName))
+    {
+      reason = "field is missing";
+    }
+    else
+    {
+      const conduit::Node& field = domain.fetch_existing("fields").child(fieldName);
+      if(!field.has_child("topology") || !field.fetch_existing("topology").dtype().is_string() ||
+         field.fetch_existing("topology").as_string() != topologyName)
       {
-        rootFieldNamesNode.append() = fieldName;
+        reason = axom::fmt::format("topology must be '{}'", topologyName);
+      }
+      else if(!field.has_child("association") ||
+              !field.fetch_existing("association").dtype().is_string() ||
+              field.fetch_existing("association").as_string() != "vertex")
+      {
+        reason = "association must be 'vertex'";
+      }
+      else if(!field.has_child("values"))
+      {
+        reason = "values are missing";
+      }
+      else if(!field.fetch_existing("values").dtype().is_float64())
+      {
+        reason = axom::fmt::format("values must be float64 scalars, but have type '{}'",
+                                   field.fetch_existing("values").dtype().name());
       }
     }
-    conduit::relay::mpi::broadcast_using_schema(rootFieldNamesNode, 0, MPI_COMM_WORLD);
-
-    std::vector<std::string> rootFieldNames;
-    rootFieldNames.reserve(rootFieldNamesNode.number_of_children());
-    for(const conduit::Node& fieldName : rootFieldNamesNode.children())
+    if(!reason.empty())
     {
-      rootFieldNames.push_back(fieldName.as_string());
+      localValid = false;
+      // Warn rather than error so ranks report invalid domains before agreeing on an outcome below.
+      SLIC_WARNING(axom::fmt::format("Cannot contour field '{}' in local domain {}: {}.",
+                                     fieldName,
+                                     domainIdx,
+                                     reason));
     }
-
-    return allReduce(fieldNames == rootFieldNames ? 1 : 0, ReductionOperation::LogicalAnd) != 0;
-#else
-    AXOM_UNUSED_VAR(fieldNames);
-    return true;
-#endif
-  };
-
-  // collect the sorted list of field names on this rank
-  std::vector<std::string> fieldNames;
-  if(!mesh.empty() && mesh.domain(0).has_child("fields"))
-  {
-    fieldNames = mesh.domain(0).fetch_existing("fields").child_names();
-    std::sort(fieldNames.begin(), fieldNames.end());
   }
 
-  SLIC_ERROR_IF(!fieldNamesAgree(fieldNames),
-                "Field names must agree with the field names on MPI rank 0.");
-  return fieldNames;
+  const bool globalValid = allReduce(localValid ? 1 : 0, ReductionOperation::LogicalAnd) != 0;
+  SLIC_INFO_IF(
+    !globalValid && myRank == 0,
+    axom::fmt::format("Field '{}' cannot be contoured; see the warnings above.", fieldName));
+
+  return globalValid;
 }
 
-// A one-dimensional bounding box represents the minimum and maximum of a scalar range.
+/// Returns the union of \a localStrings over all MPI ranks.
+/// \note Collective: All MPI ranks must call this function.
+std::set<std::string> allUnion(const std::set<std::string>& localStrings)
+{
+#ifdef AXOM_USE_MPI
+  // Pack the strings into one null-separated buffer and all-gather the buffers.
+  std::string packed = axom::fmt::format("{}", axom::fmt::join(localStrings, std::string(1, '\0')));
+  if(!localStrings.empty())
+  {
+    packed.push_back('\0');
+  }
+
+  int localSize = static_cast<int>(packed.size());
+  std::vector<int> sizes(numRanks);
+  MPI_Allgather(&localSize, 1, MPI_INT, sizes.data(), 1, MPI_INT, MPI_COMM_WORLD);
+
+  std::vector<int> displacements(numRanks);
+  axom::exclusive_scan<axom::SEQ_EXEC>(sizes, displacements);
+
+  std::string gathered(displacements.back() + sizes.back(), '\0');
+  MPI_Allgatherv(packed.data(),
+                 localSize,
+                 MPI_CHAR,
+                 gathered.data(),
+                 sizes.data(),
+                 displacements.data(),
+                 MPI_CHAR,
+                 MPI_COMM_WORLD);
+
+  std::set<std::string> result;
+  for(const auto& value : axom::utilities::string::split(gathered, '\0'))
+  {
+    if(!value.empty())
+    {
+      result.insert(value);
+    }
+  }
+  return result;
+#else
+  return localStrings;
+#endif
+}
+
+/// Returns the sorted names of the fields on any domain of any rank.
+/// \note Collective: All MPI ranks must call this function.
+std::vector<std::string> getFieldNames(const BlueprintStructuredMesh& mesh)
+{
+  std::set<std::string> localNames;
+  for(axom::IndexType domainIdx = 0; domainIdx < mesh.domainCount(); ++domainIdx)
+  {
+    const conduit::Node& domain = mesh.domain(domainIdx);
+    if(domain.has_child("fields"))
+    {
+      for(const auto& name : domain.fetch_existing("fields").child_names())
+      {
+        localNames.insert(name);
+      }
+    }
+  }
+
+  const std::set<std::string> globalNames = allUnion(localNames);
+  return std::vector<std::string>(globalNames.begin(), globalNames.end());
+}
+
 using ScalarRange = axom::primal::BoundingBox<double, 1>;
 
 struct FieldSummary
@@ -605,7 +712,19 @@ struct FieldSummary
   ScalarRange valueRange;
   std::set<std::string> topologies;
   std::set<std::string> types;
+  std::set<std::string> centerings;
 };
+
+/// Returns the string at \a field[\a child], or a placeholder if it is missing or not a string.
+std::string stringOrPlaceholder(const conduit::Node& field, const std::string& child)
+{
+  if(!field.has_child(child))
+  {
+    return "<missing>";
+  }
+  const conduit::Node& node = field.fetch_existing(child);
+  return node.dtype().is_string() ? node.as_string() : "<invalid>";
+}
 
 FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh,
                                  const std::string& fieldName,
@@ -622,18 +741,12 @@ FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh,
 
     ++summary.presentDomains;
     const conduit::Node& field = domain.fetch_existing("fields").child(fieldName);
-    const std::string association =
-      field.has_child("association") ? field.fetch_existing("association").as_string() : "<missing>";
-    const std::string topology =
-      field.has_child("topology") ? field.fetch_existing("topology").as_string() : "<missing>";
+    const std::string association = stringOrPlaceholder(field, "association");
+    const std::string topology = stringOrPlaceholder(field, "topology");
     summary.topologies.insert(topology);
+    summary.centerings.insert(association);
     summary.topologyDomains += topology == topologyName ? 1 : 0;
-
-    if(association != "vertex")
-    {
-      continue;
-    }
-    ++summary.vertexDomains;
+    summary.vertexDomains += association == "vertex" ? 1 : 0;
 
     if(!field.has_child("values"))
     {
@@ -667,21 +780,28 @@ FieldSummary summarizeLocalField(const BlueprintStructuredMesh& mesh,
   return summary;
 }
 
+/*!
+ * \brief Prints a table of numeric fields and their global properties on rank 0.
+ *
+ * \note Collective: All MPI ranks must call this function. Each rank performs the same sequence
+ * of reductions for every field, including fields it does not have.
+ */
 void printFieldSummary(const BlueprintStructuredMesh& mesh, const std::string& topologyName)
 {
   const auto fieldNames = getFieldNames(mesh);
   const int globalDomainCount =
     allReduce(static_cast<int>(mesh.domainCount()), ReductionOperation::Sum);
 
-  std::string output = axom::fmt::format("Scalar vertex fields across {} domain{}:\n",
+  std::string output = axom::fmt::format("Scalar fields across {} domain{}:\n",
                                          globalDomainCount,
                                          globalDomainCount == 1 ? "" : "s");
-  output += "Name | Topology | Type | Domain coverage | Global range | Marching Cubes\n";
+  using TableRow = std::array<std::string, 7>;
+  std::vector<TableRow> rows {
+    {{"Name", "Topology", "Type", "Centering", "Domains", "Global range", "Marching Cubes"}}};
 
-  int listedFieldCount = 0;
   for(const auto& fieldName : fieldNames)
   {
-    FieldSummary local = summarizeLocalField(mesh, fieldName, topologyName);
+    const FieldSummary local = summarizeLocalField(mesh, fieldName, topologyName);
     FieldSummary global;
     global.presentDomains = allReduce(local.presentDomains, ReductionOperation::Sum);
     global.vertexDomains = allReduce(local.vertexDomains, ReductionOperation::Sum);
@@ -689,24 +809,28 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh, const std::string& t
     global.float64Domains = allReduce(local.float64Domains, ReductionOperation::Sum);
     global.topologyDomains = allReduce(local.topologyDomains, ReductionOperation::Sum);
     global.hasNan = allReduce(local.hasNan, ReductionOperation::Max);
+    global.topologies = allUnion(local.topologies);
+    global.types = allUnion(local.types);
+    global.centerings = allUnion(local.centerings);
 
     const int hasRange = allReduce(local.valueRange.isValid() ? 1 : 0, ReductionOperation::Max);
     if(hasRange != 0)
     {
+      const double localMin = local.valueRange.isValid() ? local.valueRange.getMin()[0]
+                                                         : std::numeric_limits<double>::infinity();
+      const double localMax = local.valueRange.isValid() ? local.valueRange.getMax()[0]
+                                                         : -std::numeric_limits<double>::infinity();
       global.valueRange.addPoint(
-        ScalarRange::PointType {allReduce(local.valueRange.getMin()[0], ReductionOperation::Min)});
+        ScalarRange::PointType {allReduce(localMin, ReductionOperation::Min)});
       global.valueRange.addPoint(
-        ScalarRange::PointType {allReduce(local.valueRange.getMax()[0], ReductionOperation::Max)});
+        ScalarRange::PointType {allReduce(localMax, ReductionOperation::Max)});
     }
 
-    const auto& topologies = local.topologies;
-    const auto& types = local.types;
     if(global.numericDomains == 0)
     {
       continue;
     }
 
-    ++listedFieldCount;
     std::string range = "empty";
     if(global.valueRange.isValid())
     {
@@ -732,11 +856,11 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh, const std::string& t
     {
       incompatibilities.emplace_back("association must be vertex");
     }
-    if(global.numericDomains != global.vertexDomains)
+    if(global.numericDomains != global.presentDomains)
     {
       incompatibilities.emplace_back("values must be numeric scalars");
     }
-    if(global.float64Domains != global.numericDomains)
+    if(global.float64Domains != global.presentDomains)
     {
       incompatibilities.emplace_back("type must be float64");
     }
@@ -744,21 +868,37 @@ void printFieldSummary(const BlueprintStructuredMesh& mesh, const std::string& t
     {
       incompatibilities.emplace_back("topology must be " + topologyName);
     }
-
     const std::string compatibility = incompatibilities.empty()
       ? "compatible"
       : "incompatible: " + axom::fmt::format("{}", axom::fmt::join(incompatibilities, "; "));
-    output += axom::fmt::format("{} | {} | {} | {}/{} | {} | {}\n",
-                                fieldName,
-                                axom::fmt::join(topologies, ", "),
-                                axom::fmt::join(types, ", "),
-                                global.presentDomains,
-                                globalDomainCount,
-                                range,
-                                compatibility);
+
+    rows.push_back({{fieldName,
+                     axom::fmt::format("{}", axom::fmt::join(global.topologies, ", ")),
+                     axom::fmt::format("{}", axom::fmt::join(global.types, ", ")),
+                     axom::fmt::format("{}", axom::fmt::join(global.centerings, ", ")),
+                     axom::fmt::format("{}/{}", global.presentDomains, globalDomainCount),
+                     range,
+                     compatibility}});
   }
 
-  if(listedFieldCount == 0)
+  std::array<std::size_t, 7> widths {};
+  for(const auto& row : rows)
+  {
+    for(std::size_t column = 0; column < row.size(); ++column)
+    {
+      widths[column] = std::max(widths[column], row[column].size());
+    }
+  }
+  for(const auto& row : rows)
+  {
+    for(std::size_t column = 0; column < row.size() - 1; ++column)
+    {
+      output += axom::fmt::format("{:<{}} | ", row[column], widths[column]);
+    }
+    output += row.back() + "\n";
+  }
+
+  if(rows.size() == 1)
   {
     output += "(none)\n";
   }
@@ -942,14 +1082,14 @@ struct ContourTestBase
                                                        marchingCubesAllocatorId,
                                                        m_params.dataParallelism);
         mcPtr->setUseBumpBackend(m_params.useBumpBackend);
-        mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
+        mcPtr->setMesh(computationalMesh.asConduitNode(), m_params.topologyName, s_maskFieldName);
         initializationTimer.stop();
       }
       auto& mc = *mcPtr;
 
       // Clear and set MarchingCubes object for a "new" mesh.
       setMeshTimer.start();
-      mc.setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
+      mc.setMesh(computationalMesh.asConduitNode(), m_params.topologyName, s_maskFieldName);
       setMeshTimer.stop();
 
 #ifdef AXOM_USE_MPI
@@ -999,7 +1139,6 @@ struct ContourTestBase
                                 m_params.objectRepCount,
                                 m_params.contourGenCount));
     printTimingStats(initializationTimer, axom::fmt::format("init"));
-    printTimingStats(contourTimerM, axom::fmt::format("setMeshContour"));
     printTimingStats(setMeshTimer, axom::fmt::format("setMesh"));
     printTimingStats(contourTimer, axom::fmt::format("steady-contour"));
     printTimingStats(contourTimerM, axom::fmt::format("first-contour"));
@@ -1087,9 +1226,6 @@ struct ContourTestBase
     }
     AXOM_ANNOTATE_END("convert to mint mesh");
 
-    // main() reduces this value so all ranks return the same exit code.
-    const int localErrCount = 0;
-
 #if defined(AXOM_MINT_USE_SIDRE)
     if(contourMesh.hasSidreGroup())
     {
@@ -1103,14 +1239,14 @@ struct ContourTestBase
 
     AXOM_ANNOTATE_END("contour output");
 
-    return localErrCount;
+    return 0;
   }
 
   void printRunStats(const quest::MarchingCubes& mc)
   {
     {
-      int mn, mx, sum;
-      getIntMinMax(mc.getContourCellCount(), mn, mx, sum);
+      axom::IndexType mn, mx, sum;
+      getMinMaxSum(mc.getContourCellCount(), mn, mx, sum);
       SLIC_INFO(axom::fmt::format("Contour mesh has {{min:{}, max:{}, sum:{}, avg:{}}} cells",
                                   mn,
                                   mx,
@@ -1125,7 +1261,6 @@ struct ContourTestBase
 
   void addMaskField(BlueprintStructuredMesh& bpMesh)
   {
-    std::string maskFieldName = "mask";
     axom::StackArray<axom::IndexType, DIM> zeros;
     for(int d = 0; d < DIM; ++d)
     {
@@ -1147,13 +1282,13 @@ struct ContourTestBase
       {
         fastestDirs[d] = slowestDirs[DIM - 1 - d];
       }
-      domainView.createField(maskFieldName,
+      domainView.createField(s_maskFieldName,
                              "element",
                              conduit::DataType::c_int(cellCount),
                              zeros,
                              zeros,
                              fastestDirs);
-      auto maskView = domainView.template getFieldView<int>(maskFieldName);
+      auto maskView = domainView.template getFieldView<int>(s_maskFieldName);
       int maskCount = m_params.maskCount;
       axom::for_all<axom::SEQ_EXEC>(0, cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
         maskView.flatIndex(cellId) = (cellId % maskCount);
@@ -1163,12 +1298,13 @@ struct ContourTestBase
 
   void addMaskFieldFlat(conduit::Node& dom)
   {
-    const axom::IndexType cellCount = static_cast<axom::IndexType>(
-      conduit::blueprint::mesh::topology::length(dom.fetch_existing("topologies/mesh")));
+    const axom::IndexType cellCount =
+      static_cast<axom::IndexType>(conduit::blueprint::mesh::topology::length(
+        dom.fetch_existing("topologies/" + m_params.topologyName)));
 
-    conduit::Node& mask = dom["fields/mask"];
+    conduit::Node& mask = dom["fields/" + s_maskFieldName];
     mask["association"] = "element";
-    mask["topology"] = "mesh";
+    mask["topology"] = m_params.topologyName;
     mask["values"].set(conduit::DataType::c_int(cellCount));
     auto* maskValues = mask["values"].as_int_ptr();
 
@@ -1351,7 +1487,7 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Set up and parse command line arguments
   //---------------------------------------------------------------------------
-  axom::CLI::App app {"Driver/test code for marching cubes algorithm"};
+  axom::CLI::App app {"Marching Cubes isocontour example"};
   Input params;
 
   try
@@ -1385,14 +1521,20 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
 
   AXOM_ANNOTATE_BEGIN("load mesh");
-  BlueprintStructuredMesh computationalMesh(params.meshFile, "mesh", params.isVerbose());
+  BlueprintStructuredMesh computationalMesh(params.meshFile, params.topologyName, params.isVerbose());
   AXOM_ANNOTATE_END("load mesh");
 
   if(params.listFields)
   {
-    printFieldSummary(computationalMesh, "mesh");
+    printFieldSummary(computationalMesh, params.topologyName);
     raii_logger.flush();
     return 0;
+  }
+
+  if(!validateContourField(computationalMesh, params.fieldName, params.topologyName))
+  {
+    raii_logger.flush();
+    return 1;
   }
 
   SLIC_INFO_IF(params.isVerbose(),
@@ -1404,7 +1546,7 @@ int main(int argc, char** argv)
   // Output some global mesh size stats
   {
     int mn, mx, sum;
-    getIntMinMax(computationalMesh.cellCount(), mn, mx, sum);
+    getMinMaxSum(computationalMesh.cellCount(), mn, mx, sum);
     SLIC_INFO(axom::fmt::format("Computational mesh has {{min:{}, max:{}, sum:{}, avg:{}}} cells",
                                 mn,
                                 mx,
@@ -1412,8 +1554,8 @@ int main(int argc, char** argv)
                                 (double)sum / numRanks));
   }
   {
-    int mn, mx, sum;
-    getIntMinMax(computationalMesh.domainCount(), mn, mx, sum);
+    axom::IndexType mn, mx, sum;
+    getMinMaxSum(computationalMesh.domainCount(), mn, mx, sum);
     SLIC_INFO(axom::fmt::format("Computational mesh has {{min:{}, max:{}, sum:{}, avg:{}}} domains",
                                 mn,
                                 mx,

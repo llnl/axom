@@ -10,20 +10,12 @@
 #include "axom/core/AnnotationMacros.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 
-namespace axom
-{
-namespace spin
-{
-namespace internal
-{
-namespace linear_bvh
+namespace axom::spin::internal::linear_bvh
 {
 /*!
- * \brief RadixTree provides a binary radix tree representation that stores a
- *  list of axis-aligned bounding boxes sorted according to their Morton code.
+ * \brief A binary radix tree of axis-aligned boxes sorted by spatial key.
  *
- * \note This data-structure provides an intermediate representation that serves
- *  as the building-block to construct a BVH in parallel.
+ * \note LinearBVH uses this intermediate tree to build its traversal nodes in parallel.
  */
 template <typename FloatType, int NDIMS>
 struct RadixTree
@@ -39,7 +31,7 @@ struct RadixTree
   axom::Array<BoxType> m_inner_aabbs;
 
   axom::Array<std::int32_t> m_leafs;
-  axom::Array<std::uint32_t> m_mcodes;
+  axom::Array<std::uint32_t> m_keys;
   axom::Array<BoxType> m_leaf_aabbs;
 
   void allocate(std::int32_t size, int allocID)
@@ -57,12 +49,9 @@ struct RadixTree
       axom::Array<BoxType>(ArrayOptions::Uninitialized {}, m_inner_size, m_inner_size, allocID);
 
     m_leafs = axom::Array<std::int32_t>(m_size, m_size, allocID);
-    m_mcodes = axom::Array<std::uint32_t>(m_size, m_size, allocID);
+    m_keys = axom::Array<std::uint32_t>(m_size, m_size, allocID);
     m_leaf_aabbs = axom::Array<BoxType>(ArrayOptions::Uninitialized {}, m_size, m_size, allocID);
   }
 };
 
-} /* namespace linear_bvh */
-} /* namespace internal */
-} /* namespace spin */
-} /* namespace axom */
+}  // namespace axom::spin::internal::linear_bvh

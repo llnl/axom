@@ -18,7 +18,7 @@ set(mir_tutorial_simple_sources
     runMIR_seq_quad.cpp
     runMIR_seq_hex.cpp)
 
-blt_list_append(TO mir_tutorial_simple_sources 
+blt_list_append(TO mir_tutorial_simple_sources
                 IF AXOM_ENABLE_OPENMP
                 ELEMENTS runMIR_omp.cpp
                          runMIR_omp_tri.cpp
