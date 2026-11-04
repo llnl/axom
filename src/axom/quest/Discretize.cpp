@@ -59,26 +59,27 @@ OctType from_sphere(const SphereType& sphere)
   return OctType(P, Q, R, S, T, U);
 }
 
-/* How many octahedra will we generate?  One oct for the central octahedron
- * (level 0), eight more for its faces (level 1), and four more to refine
- * each exposed face of the last generation.
+/* How many octahedra will we generate?  We generate them in discretize()
+ * (which see for further details).
+ *  - One oct for the central octahedron (level 0),
+ *  - eight more, one on each of its faces (level 1),
+ *  - and for level i > 1, four times the oct count in level i-1, since
+ *    each oct of the last generation gets four children, one on each of
+ *    its four exposed faces.
  *
- * Total = 1 + 8*sum[i=0 to levels-1](4^i)
+ * So level i (i >= 1) holds 8 * 4^(i-1) octs, and
+ *
+ * Total = 1 + 8*sum[k=0 to levels-1](4^k) = (8 * 4^levels - 5) / 3
+ *
+ * For levels <= 0, we return 1.
+ *
+ * The result overflows int for levels >= 15.
  */
 int count_sphere_octahedra(int levels)
 {
-  int octcount = 1;
-  for(int level = levels; level > 0; --level)
-  {
-    octcount *= 4;
-    if(level == 1)
-    {
-      octcount *= 2;
-    }
-    octcount += 1;
-  }
-
-  return octcount;
+  //A083584
+  if(levels <= 0) { return 1; }
+  return 8 * (((1 << (2 * levels)) - 1) / 3) + 1;
 }
 
 /* Given a sphere, a parent octahedron with vertices lying on the
