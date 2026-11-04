@@ -80,8 +80,8 @@ Device Traversal API
 The ``BVH`` class contains a ``getTraverser()`` method, which returns an object
 that can be used to traverse a BVH with user-defined actions.
 
-The returned traverser provides ``traverse_tree()``, which takes the following
-arguments:
+The returned traverser provides the device function ``traverse_tree()``, which 
+takes the following arguments:
 
 - ``const QueryObject& p``: the object to traverse the BVH with. This is passed
   into each invocation of the traversal predicate.
@@ -115,14 +115,14 @@ is set to the new surface element. The predicate used for traversal also utilize
 current-minimum candidate data to avoid traversing internal nodes that are farther than
 the current minimum squared distance.
 
-The traverser also provides a host-only ``reduce_leaves()`` calls its leaf action with 
+The traverser also provides a host-only ``reduce_leaves()`` which calls its leaf action with 
 the original primitive ID and returns the values reduced over the BVH's flattened node slots.
 
 Example: Broad-phase collision detection
 ========================================
 
 The following example tests each element of a surface mesh for intersection with
-each other element. It provides an example of how the device traversal object
+each other element. It provides an example of how a device traversal object
 might be used in a broad-phase collision detection problem. First, we initialize
 the BVH with the bounding boxes of all the query objects (mesh elements), and
 create a traverser object:
