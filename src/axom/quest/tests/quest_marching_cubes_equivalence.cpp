@@ -30,6 +30,7 @@
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
+#include "axom/spin/UniformGrid.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
@@ -42,10 +43,9 @@
 
 #include <array>
 #include <cmath>
-#include <cstdint>
+#include <limits>
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace
@@ -238,95 +238,45 @@ std::array<BackendResult, 3> runAccumulatedBackend(const conduit::Node& mesh,
 
 //---------------------------------------------------------------------------
 // Check each point set against the other within a fixed tolerance.
-// Search adjacent hash cells so nearby points still match across a cell boundary.
 //---------------------------------------------------------------------------
 
-using CellKey = std::int64_t;
-
-CellKey cellKey(std::int64_t i, std::int64_t j, std::int64_t k)
-{
-  // Resolve hash collisions by checking the points stored in each bucket.
-  const std::int64_t h = (i * 73856093) ^ (j * 19349663) ^ (k * 83492791);
-  return h;
-}
-
-class PointLocator
-{
-public:
-  PointLocator(const std::vector<axom::primal::Point<double, 3>>& pts, double tol)
-    : m_pts(pts)
-    , m_tol(tol)
-  {
-    for(std::size_t n = 0; n < pts.size(); ++n)
-    {
-      m_buckets[keyOf(pts[n])].push_back(n);
-    }
-  }
-
-  //! @brief Distance from @a q to the nearest stored point, or infinity if none
-  //!   lies within the search neighborhood.
-  double nearestDistance(const axom::primal::Point<double, 3>& q) const
-  {
-    const auto ci = cellIndex(q);
-    double best = std::numeric_limits<double>::infinity();
-    for(std::int64_t di = -1; di <= 1; ++di)
-    {
-      for(std::int64_t dj = -1; dj <= 1; ++dj)
-      {
-        for(std::int64_t dk = -1; dk <= 1; ++dk)
-        {
-          const auto it = m_buckets.find(cellKey(ci[0] + di, ci[1] + dj, ci[2] + dk));
-          if(it == m_buckets.end())
-          {
-            continue;
-          }
-          for(const auto n : it->second)
-          {
-            const double d = axom::primal::Vector<double, 3>(q, m_pts[n]).norm();
-            best = std::min(best, d);
-          }
-        }
-      }
-    }
-    return best;
-  }
-
-private:
-  axom::StackArray<std::int64_t, 3> cellIndex(const axom::primal::Point<double, 3>& p) const
-  {
-    axom::StackArray<std::int64_t, 3> c;
-    for(int d = 0; d < 3; ++d)
-    {
-      c[d] = static_cast<std::int64_t>(std::floor(p[d] / m_tol));
-    }
-    return c;
-  }
-
-  CellKey keyOf(const axom::primal::Point<double, 3>& p) const
-  {
-    const auto c = cellIndex(p);
-    return cellKey(c[0], c[1], c[2]);
-  }
-
-  const std::vector<axom::primal::Point<double, 3>>& m_pts;
-  double m_tol;
-  std::unordered_map<CellKey, std::vector<std::size_t>> m_buckets;
-};
-
-//! @brief Return the one-sided Hausdorff distance and its source point index.
+//! @brief Return the largest nearest-candidate distance and its source point index.
 double oneSidedHausdorff(const std::vector<axom::primal::Point<double, 3>>& from,
-                         const PointLocator& to,
+                         const std::vector<axom::primal::Point<double, 3>>& to,
+                         double tolerance,
                          std::size_t& argMax)
 {
-  double worst = 0.0;
   argMax = 0;
-  for(std::size_t n = 0; n < from.size(); ++n)
+  if(from.empty() || to.empty())
   {
-    const double d = to.nearestDistance(from[n]);
-    if(d > worst)
+    return from.empty() ? 0.0 : std::numeric_limits<double>::infinity();
+  }
+
+  using Grid = axom::spin::UniformGrid<std::size_t, 3>;
+  Grid::BoxType bounds(to.data(), static_cast<int>(to.size()));
+  bounds.expand(tolerance);
+  const int resolution[3] {16, 16, 16};
+  Grid grid(bounds, resolution, hostAllocatorID());
+  for(std::size_t vertex = 0; vertex < to.size(); ++vertex)
+  {
+    grid.insert(Grid::BoxType(to[vertex]), vertex);
+  }
+
+  const auto grid_query = grid.getQueryObject();
+  double worst = 0.0;
+  for(std::size_t vertex = 0; vertex < from.size(); ++vertex)
+  {
+    Grid::BoxType query_bounds(from[vertex]);
+    query_bounds.expand(tolerance);
+    double nearest = std::numeric_limits<double>::infinity();
+    grid_query.visitCandidates(query_bounds, [&](std::size_t candidate) {
+      const double distance = axom::primal::Vector<double, 3>(from[vertex], to[candidate]).norm();
+      nearest = std::min(nearest, distance);
+    });
+    if(nearest > worst)
     {
-      worst = d;
-      argMax = n;
+      worst = nearest;
+      argMax = vertex;
     }
   }
   return worst;
@@ -334,12 +284,10 @@ double oneSidedHausdorff(const std::vector<axom::primal::Point<double, 3>>& from
 
 void compareVertexSets(const BackendResult& reference, const BackendResult& result, double tolerance)
 {
-  const PointLocator reference_locator(reference.vertices, tolerance);
-  const PointLocator result_locator(result.vertices, tolerance);
   std::size_t worst_vertex = 0;
-  EXPECT_LT(oneSidedHausdorff(result.vertices, reference_locator, worst_vertex), tolerance)
+  EXPECT_LT(oneSidedHausdorff(result.vertices, reference.vertices, tolerance, worst_vertex), tolerance)
     << "result vertex " << worst_vertex << " has no reference counterpart within tolerance";
-  EXPECT_LT(oneSidedHausdorff(reference.vertices, result_locator, worst_vertex), tolerance)
+  EXPECT_LT(oneSidedHausdorff(reference.vertices, result.vertices, tolerance, worst_vertex), tolerance)
     << "reference vertex " << worst_vertex << " has no result counterpart within tolerance";
 }
 
