@@ -329,6 +329,40 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
 endif()
 
 #------------------------------------------------------------------------------
+# MarchingCubes tests for the Bump backend on structured meshes and
+# single-shape unstructured hex meshes.
+#------------------------------------------------------------------------------
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
+    set(quest_mc_bump_depends ${quest_tests_depends} conduit::conduit)
+    blt_list_append(TO quest_mc_bump_depends IF RAJA_FOUND ELEMENTS RAJA)
+    blt_list_append(TO quest_mc_bump_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
+
+    set(quest_mc_bump_mpi_tasks)
+    if(AXOM_ENABLE_MPI)
+        set(quest_mc_bump_mpi_tasks 1)
+    endif()
+
+    foreach(_suite quest_marching_cubes_bump
+                   quest_marching_cubes_equivalence)
+        axom_add_executable(
+            NAME        ${_suite}_test
+            HEADERS     quest_marching_cubes_testing_helpers.hpp
+            SOURCES     ${_suite}.cpp
+            OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON  ${quest_mc_bump_depends}
+            FOLDER      axom/quest/tests
+            )
+
+        axom_add_test(
+            NAME    ${_suite}
+            COMMAND ${_suite}_test
+            NUM_MPI_TASKS ${quest_mc_bump_mpi_tasks}
+            )
+        set_tests_properties(${_suite} PROPERTIES PROCESSORS 1)
+    endforeach()
+endif()
+
+#------------------------------------------------------------------------------
 # Regression tests for quest signed distance and inout queries
 #
 # Note: By default we only run a small subset of the quest regression tests.
