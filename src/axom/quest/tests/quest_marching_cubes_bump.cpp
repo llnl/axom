@@ -22,17 +22,14 @@
 #ifndef AXOM_USE_BUMP
   #error "quest_marching_cubes_bump.cpp requires bump"
 #endif
-#ifndef AXOM_USE_SIDRE
-  #error "quest_marching_cubes_bump.cpp requires sidre"
-#endif
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
-#include "axom/sidre.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/quest/MarchingCubes.hpp"
+#include "axom/quest/detail/MarchingCubesBumpAdaptor.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
 
 #include "conduit_blueprint.hpp"
@@ -56,7 +53,7 @@ namespace mctest = axom::quest::testing::marching_cubes;
 
 using mctest::copyBlueprintToHost;
 using mctest::copyBlueprintToPolicy;
-using mctest::enabledPolicies;
+using mctest::forEachEnabledPolicy;
 using mctest::GyroidField;
 using mctest::hostAllocatorID;
 using mctest::PlanarField;
@@ -65,16 +62,6 @@ using mctest::RoundField;
 using mctest::SinusoidalWarp;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
-
-template <typename Func>
-void forEachEnabledPolicy(Func&& func)
-{
-  for(const auto policy : enabledPolicies())
-  {
-    SCOPED_TRACE(policyName(policy));
-    func(policy);
-  }
-}
 
 //---------------------------------------------------------------------------
 // Edge-manifold checks
@@ -622,21 +609,12 @@ void test_strided_planar_mask_with_field_layout(RuntimePolicy policy)
 // The conversion helper operates on a Sidre group.
 void test_unstructured_hex_round(RuntimePolicy policy)
 {
-  axom::sidre::DataStore ds;
-  axom::sidre::Group* meshGrp = ds.getRoot()->createGroup("mesh");
-
-  conduit::Node structured;
-  RoundField f {{0.5, 0.5, 0.5}, 0.25};
-  mctest::buildStructured<3>(structured, 16, f, "fcn");
-  meshGrp->importConduitTree(structured);
-
-  // Keep the mesh in host memory for the analytic checks in runAndVerify().
-  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(meshGrp,
-                                                                              "mesh",
-                                                                              RuntimePolicy::seq);
-
   conduit::Node unstructured;
-  meshGrp->createNativeLayout(unstructured);
+  RoundField f {{0.5, 0.5, 0.5}, 0.25};
+  mctest::buildStructured<3>(unstructured, 16, f, "fcn");
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(unstructured,
+                                                                           "mesh",
+                                                                           RuntimePolicy::seq);
 
   ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
   runAndVerify<3>(unstructured,
@@ -651,20 +629,12 @@ void test_unstructured_hex_round(RuntimePolicy policy)
 // Exercise physical-edge interpolation on a curvilinear hex mesh.
 void test_unstructured_hex_round_warped(RuntimePolicy policy)
 {
-  axom::sidre::DataStore ds;
-  axom::sidre::Group* meshGrp = ds.getRoot()->createGroup("mesh");
-
-  conduit::Node structured;
-  RoundField f {{0.5, 0.5, 0.5}, 0.22};  // stays inside the warped mesh
-  mctest::buildStructured<3>(structured, 16, f, "fcn", SinusoidalWarp {0.015});
-  meshGrp->importConduitTree(structured);
-
-  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(meshGrp,
-                                                                              "mesh",
-                                                                              RuntimePolicy::seq);
-
   conduit::Node unstructured;
-  meshGrp->createNativeLayout(unstructured);
+  RoundField f {{0.5, 0.5, 0.5}, 0.22};  // stays inside the warped mesh
+  mctest::buildStructured<3>(unstructured, 16, f, "fcn", SinusoidalWarp {0.015});
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(unstructured,
+                                                                           "mesh",
+                                                                           RuntimePolicy::seq);
 
   ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
   // Cell distortion increases the piecewise-linear contour's residual.
@@ -877,6 +847,71 @@ void test_multidomain_planar(RuntimePolicy policy)
 //---------------------------------------------------------------------------
 // gtest registration
 //---------------------------------------------------------------------------
+
+TEST(quest_marching_cubes_bump, triangulation_preserves_fields)
+{
+  const auto policy = RuntimePolicy::seq;
+  namespace bumpviews = axom::bump::views;
+  conduit::Node mesh;
+  mesh["coordsets/coords/type"] = "explicit";
+  mesh["coordsets/coords/values/x"].set(std::vector<double> {0., 1., 1., 0., -1.});
+  mesh["coordsets/coords/values/y"].set(std::vector<double> {0., 0., 1., 1., 0.});
+  mesh["coordsets/coords/values/z"].set(std::vector<double>(5, 0.));
+  mesh["topologies/surface/type"] = "unstructured";
+  mesh["topologies/surface/coordset"] = "coords";
+  auto& elements = mesh["topologies/surface/elements"];
+  elements["shape"] = "mixed";
+  elements["shape_map/tri"] = bumpviews::Tri_ShapeID;
+  elements["shape_map/quad"] = bumpviews::Quad_ShapeID;
+  elements["shapes"].set(
+    std::vector<axom::IndexType> {bumpviews::Tri_ShapeID, bumpviews::Quad_ShapeID});
+  elements["sizes"].set(std::vector<axom::IndexType> {3, 4});
+  elements["offsets"].set(std::vector<axom::IndexType> {0, 3});
+  elements["connectivity"].set(std::vector<axom::IndexType> {0, 1, 2, 0, 2, 3, 4});
+  auto& scalar = mesh["fields/scalar"];
+  scalar["association"] = "element";
+  scalar["topology"] = "surface";
+  scalar["units"] = "ids";
+  scalar["values"].set(std::vector<conduit::int32> {7, 11});
+  auto& vector = mesh["fields/vector"];
+  vector["association"] = "element";
+  vector["topology"] = "surface";
+  vector["values/x"].set(std::vector<float> {1.5f, 2.5f});
+  vector["values/y"].set(std::vector<float> {3.5f, 4.5f});
+  auto& vertex = mesh["fields/vertex"];
+  vertex["association"] = "vertex";
+  vertex["topology"] = "surface";
+  vertex["values"].set(std::vector<double> {0., 1., 2., 3., 4.});
+  conduit::Node info;
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
+
+  const int allocatorID = axom::policyToDefaultAllocatorID(policy);
+  conduit::Node execMesh;
+  copyBlueprintToPolicy(execMesh, mesh, policy, allocatorID);
+  axom::quest::detail::marching_cubes::triangulateBlueprintMesh<3, axom::SEQ_EXEC>(execMesh,
+                                                                                   allocatorID);
+  conduit::Node triangles;
+  copyBlueprintToHost(triangles, execMesh);
+  ASSERT_TRUE(conduit::blueprint::mesh::verify(triangles, info)) << info.to_yaml();
+  EXPECT_EQ(conduit::blueprint::mesh::topology::length(triangles["topologies/surface"]), 3);
+  EXPECT_FALSE(mesh["coordsets"].diff(triangles["coordsets"], info)) << info.to_yaml();
+  EXPECT_FALSE(vertex.diff(triangles["fields/vertex"], info)) << info.to_yaml();
+  EXPECT_EQ(triangles["fields/scalar/units"].as_string(), "ids");
+  EXPECT_TRUE(triangles["fields/scalar/values"].dtype().is_int32());
+  EXPECT_TRUE(triangles["fields/vector/values/x"].dtype().is_float32());
+  const auto parentValues = triangles["fields/scalar/values"].as_int32_accessor();
+  const auto xValues = triangles["fields/vector/values/x"].as_float_accessor();
+  const auto yValues = triangles["fields/vector/values/y"].as_float_accessor();
+  ASSERT_EQ(parentValues.number_of_elements(), 3);
+  ASSERT_EQ(xValues.number_of_elements(), 3);
+  ASSERT_EQ(yValues.number_of_elements(), 3);
+  for(conduit::index_t triangle = 0; triangle < 3; ++triangle)
+  {
+    EXPECT_EQ(parentValues[triangle], triangle == 0 ? 7 : 11);
+    EXPECT_EQ(xValues[triangle], triangle == 0 ? 1.5f : 2.5f);
+    EXPECT_EQ(yValues[triangle], triangle == 0 ? 3.5f : 4.5f);
+  }
+}
 
 TEST(quest_marching_cubes_bump, structured_planar_seq)
 {

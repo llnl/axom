@@ -29,6 +29,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
+#include "axom/sidre.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/quest/MarchingCubes.hpp"
 
@@ -52,7 +53,8 @@ namespace mctest = axom::quest::testing::marching_cubes;
 
 using mctest::copyBlueprintToHost;
 using mctest::copyBlueprintToPolicy;
-using mctest::enabledPolicies;
+using mctest::forEachEnabledPolicy;
+using mctest::forEachHostPolicy;
 using mctest::GyroidField;
 using mctest::hostAllocatorID;
 using mctest::PlanarField;
@@ -60,31 +62,6 @@ using mctest::policyName;
 using mctest::RoundField;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
-
-template <typename Func>
-void forEachEnabledPolicy(Func&& func)
-{
-  for(const auto policy : enabledPolicies())
-  {
-    SCOPED_TRACE(policyName(policy));
-    func(policy);
-  }
-}
-
-template <typename Func>
-void forEachHostPolicy(Func&& func)
-{
-  {
-    SCOPED_TRACE(policyName(RuntimePolicy::seq));
-    func(RuntimePolicy::seq);
-  }
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-  {
-    SCOPED_TRACE(policyName(RuntimePolicy::omp));
-    func(RuntimePolicy::omp);
-  }
-#endif
-}
 
 /*!
  * @brief Build the same box as mctest::buildStructured<3> with a uniform coordset and topology.
@@ -646,25 +623,8 @@ void compareBackendResults(const BackendResult& legacy,
   ASSERT_GT(legacy.facetCount, 0) << "[" << label << "] legacy produced an empty contour";
   ASSERT_GT(bump.facetCount, 0) << "[" << label << "] bump produced an empty contour";
 
-  std::vector<axom::IndexType> only_legacy;
-  std::vector<axom::IndexType> only_bump;
-  std::set_difference(legacy.crossingCells.begin(),
-                      legacy.crossingCells.end(),
-                      bump.crossingCells.begin(),
-                      bump.crossingCells.end(),
-                      std::back_inserter(only_legacy));
-  std::set_difference(bump.crossingCells.begin(),
-                      bump.crossingCells.end(),
-                      legacy.crossingCells.begin(),
-                      legacy.crossingCells.end(),
-                      std::back_inserter(only_bump));
-
-  EXPECT_TRUE(only_legacy.empty()) << "E1 [" << label << "]: " << only_legacy.size()
-                                   << " cells produce facets in legacy but not bump (first: "
-                                   << (only_legacy.empty() ? -1 : only_legacy.front()) << ").";
-  EXPECT_TRUE(only_bump.empty()) << "E1 [" << label << "]: " << only_bump.size()
-                                 << " cells produce facets in bump but not legacy (first: "
-                                 << (only_bump.empty() ? -1 : only_bump.front()) << ").";
+  EXPECT_EQ(legacy.crossingCells, bump.crossingCells)
+    << "E1 [" << label << "]: backends report different parent cells.";
 
   const PointLocator legacy_locator(legacy.vertices, vertex_tolerance);
   const PointLocator bump_locator(bump.vertices, vertex_tolerance);
@@ -743,6 +703,9 @@ void test_empty_contour(RuntimePolicy policy)
   mc.setUseBumpBackend(true);
   mc.setMesh(mesh, "mesh");
   mc.setFunctionField("fcn");
+  mc.computeIsocontour(0.0);
+  ASSERT_GT(mc.getContourCellCount(), 0);
+  mc.clearOutput();
   mc.computeIsocontour(1000.0);  // far outside the range of the signed distance
 
   EXPECT_EQ(mc.getContourCellCount(), 0);
@@ -751,6 +714,8 @@ void test_empty_contour(RuntimePolicy policy)
   // Neither of these may throw or abort.
   conduit::Node bp;
   mc.populateContourMeshBlueprint(bp);
+  ASSERT_EQ(bp.number_of_children(), 1);
+  EXPECT_FALSE(bp.child(0).has_path("topologies"));
   conduit::Node bpTri;
   mc.populateContourMeshBlueprint(bpTri, /*triangulate=*/true);
 
@@ -910,9 +875,11 @@ void test_original_elements_collision(RuntimePolicy policy)
   poisoned.set(clean);
 
   // Use negative decoy values that cannot be valid zone indices.
+  for(const char* field_name :
+      {"originalElements", "__axom_mc_originalElements", "__axom_mc_originalElements_"})
   {
     const conduit::index_t nCells = static_cast<conduit::index_t>(n) * n * n;
-    conduit::Node& fld = poisoned["fields/originalElements"];
+    conduit::Node& fld = poisoned[std::string("fields/") + field_name];
     fld["topology"] = "mesh";
     fld["association"] = "element";
     fld["values"].set(conduit::DataType::int64(nCells));
@@ -993,6 +960,92 @@ void test_planar_3d(RuntimePolicy policy)
   // An axis-aligned plane has no ambiguous cells, so compare its area.
   PlanarField f {{0.0, 0.0, 1.0}, 0.5};
   compareBackends<3>(8, f, 0.0, policy, "planar3d");
+}
+
+void test_sidre_native_layout(RuntimePolicy policy)
+{
+  constexpr int cells_per_axis = 4;
+  constexpr int cell_count = cells_per_axis * cells_per_axis * cells_per_axis;
+  constexpr double plane_height = 0.375;
+  constexpr conduit::int32 mask_value = 3;
+  const PlanarField field {{0.0, 0.0, 1.0}, plane_height};
+  conduit::Node mesh;
+  mctest::buildStructured<3>(mesh, cells_per_axis, field, "fcn");
+
+  conduit::Node& mask = mesh["fields/mask"];
+  mask["association"] = "element";
+  mask["topology"] = "mesh";
+  mask["values"].set(conduit::DataType::int32(cell_count));
+  auto* mask_values = mask["values"].as_int32_ptr();
+  std::set<axom::IndexType> expected_parents;
+  for(int cell = 0; cell < cell_count; ++cell)
+  {
+    const bool selected = cell % cells_per_axis < cells_per_axis / 2;
+    mask_values[cell] = selected ? mask_value : 0;
+    if(selected && cell / (cells_per_axis * cells_per_axis) == 1)
+    {
+      expected_parents.insert(cell);
+    }
+  }
+
+  axom::sidre::DataStore datastore;
+  auto* mesh_group = datastore.getRoot()->createGroup("mesh");
+  mesh_group->setDefaultAllocator(hostAllocatorID());
+  ASSERT_TRUE(mesh_group->importConduitTree(mesh));
+  conduit::Node native_layout;
+  ASSERT_TRUE(mesh_group->createNativeLayout(native_layout));
+
+  for(const auto* path : {"coordsets/coords/values/x",
+                          "coordsets/coords/values/y",
+                          "coordsets/coords/values/z",
+                          "fields/fcn/values",
+                          "fields/mask/values"})
+  {
+    SCOPED_TRACE(path);
+    const auto* view = mesh_group->getView(path);
+    ASSERT_NE(view, nullptr);
+    EXPECT_EQ(native_layout[path].data_ptr(), view->getVoidPtr());
+    EXPECT_NE(native_layout[path].data_ptr(), mesh[path].data_ptr());
+  }
+
+  for(const bool use_bump : {false, true})
+  {
+    SCOPED_TRACE(use_bump ? "bump" : "legacy");
+    std::array<BackendResult, 2> results;
+    int result_index = 0;
+    for(const auto* input : {&mesh, &native_layout})
+    {
+      SCOPED_TRACE(result_index == 0 ? "conduit" : "sidre");
+      axom::quest::MarchingCubes mc(policy,
+                                    hostAllocatorID(),
+                                    axom::quest::MarchingCubesDataParallelism::byPolicy);
+      mc.setUseBumpBackend(use_bump);
+      mc.setMesh(*input, "mesh", "mask");
+      mc.setMaskValue(mask_value);
+      mc.setFunctionField("fcn");
+      mc.computeIsocontour(0.0);
+      auto& result = results[result_index++];
+      result = extractBackendResult<3>(mc);
+      ASSERT_GT(result.facetCount, 0);
+      EXPECT_EQ(result.crossingCells, expected_parents);
+      EXPECT_NEAR(result.measure, 0.5, 1.0e-12);
+      for(const auto& vertex : result.vertices)
+      {
+        EXPECT_NEAR(vertex[2], plane_height, 1.0e-12);
+      }
+    }
+
+    const auto& reference = results[0];
+    const auto& sidre = results[1];
+    EXPECT_EQ(sidre.facetCount, reference.facetCount);
+    EXPECT_EQ(sidre.nodeCount, reference.nodeCount);
+    constexpr double vertex_tolerance = 1.0e-8;
+    const PointLocator reference_locator(reference.vertices, vertex_tolerance);
+    const PointLocator sidre_locator(sidre.vertices, vertex_tolerance);
+    std::size_t worst_vertex = 0;
+    EXPECT_LT(oneSidedHausdorff(sidre.vertices, reference_locator, worst_vertex), vertex_tolerance);
+    EXPECT_LT(oneSidedHausdorff(reference.vertices, sidre_locator, worst_vertex), vertex_tolerance);
+  }
 }
 
 void test_oblique_planar_3d(RuntimePolicy policy)
@@ -1257,6 +1310,10 @@ TEST(quest_marching_cubes_equivalence, ambiguity_detector_selftest)
 }
 
 TEST(quest_marching_cubes_equivalence, planar_3d) { forEachHostPolicy(test_planar_3d); }
+TEST(quest_marching_cubes_equivalence, sidre_native_layout)
+{
+  forEachHostPolicy(test_sidre_native_layout);
+}
 TEST(quest_marching_cubes_equivalence, oblique_planar_3d_seq)
 {
   test_oblique_planar_3d(RuntimePolicy::seq);
