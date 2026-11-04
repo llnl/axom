@@ -43,6 +43,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   The linear BVH's `ordering` option selects `SpaceFillingCurve::Morton`
   or `SpaceFillingCurve::Hilbert` in 2D and 3D; Morton remains the default.
 - Spin: Adds a host-only `LinearBVHTraverser::traverse_leaves()` for actions that receive the original primitive ID directly.
+- Quest: `MarchingCubes` supports an optional Bump backend.
+  Select it by calling `setBackend(axom::quest::MarchingCubesBackend::bump)` before `setMesh()`.
+  It supports `structured`, `uniform`, `rectilinear`, and single-shape `unstructured` topologies
+  with quads in 2D or hexes in 3D.
 
 ### Removed
 
@@ -62,6 +66,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Bump: Supports Blueprint `offsets` and `strides` on structured and strided-structured topologies and fields,
   including layouts that specify only one of those keys.
 - Spin: Replaces `LinearBVHTraverser::reduce_tree()` with `reduce_leaves()` and passes the original primitive ID to its leaf action.
+- Build: Stop exporting CMake targets for external projects (mfem, scr, c2c, hdf5, lua, opencascade)
 
 ### Fixed
 - Sidre: Fixed `MFEMSidreDataCollection` parallel reload for workflows that save copied `ParMesh` and `ParGridFunction` objects backed by external strided coord/vector views.
@@ -173,7 +178,6 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Status-returning reader/writer operations in `C2CReader`, `MFEMReader`, `ProEReader`,
   `STEPReader`, `STLReader`, `STLWriter`, and their parallel variants are now marked `[[nodiscard]]`.
   Callers that previously ignored returned status values must check them to avoid compiler diagnostics.
-- No longer exporting CMake targets of external projects (mfem, scr, c2c, hdf5, lua, opencascade)
 
 ### Fixed
 - MIR/Bump: `MergeCoordsetPoints` now only emits its node-merge `SLIC_INFO` when MIR `verbose` is enabled on the Conduit options passed through ELVIRA.
