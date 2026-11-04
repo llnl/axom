@@ -92,7 +92,7 @@ struct BucketLeafData<true>
  * user-provided predicate.
  * 
  * To initiate traversals, use \a traverse_tree. It requires
- * -# an action functor to call at the leaves,
+ * -# an action functor to call at the leaves
  * -# a predicate functor to decide whether to descend a branch and
  * -# some data to pass to the functors
  * 
@@ -101,7 +101,7 @@ struct BucketLeafData<true>
  * is a sum of the value for its children.
  *
  * To initiate reductions, use \a reduce_leaves. It requires
- * -# an action functor to call at the leaves,
+ * -# an action functor to call at the leaves
  *
  * All functors should only access memory that's available to the
  * execution space.  For example, GPU execution should access only
