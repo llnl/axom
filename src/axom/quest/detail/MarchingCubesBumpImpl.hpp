@@ -288,21 +288,6 @@ private:
     return std::nextafter(value, -std::numeric_limits<FieldType>::infinity());
   }
 
-  void attachSelectedZonesOption(conduit::Node& n_options,
-                                 axom::Array<axom::IndexType>& selectedZones) const
-  {
-    conduit::Node& n_selectedZones = n_options["selectedZones"];
-    if(selectedZones.empty())
-    {
-      n_selectedZones.set(
-        conduit::DataType(axom::bump::utilities::cpp2conduit<axom::IndexType>::id, 0));
-    }
-    else
-    {
-      n_selectedZones.set_external(selectedZones.data(), selectedZones.size());
-    }
-  }
-
   template <typename SelectionPredicate>
   void buildSelectedZones(axom::IndexType nZones,
                           SelectionPredicate isSelected,
@@ -321,6 +306,10 @@ private:
 
     const axom::IndexType selectedCount = selectedCountReduce.get();
     selectedZones = axom::Array<axom::IndexType>(selectedCount, selectedCount, m_allocatorID);
+    if(selectedCount == 0)
+    {
+      return;
+    }
 
     axom::Array<axom::IndexType> selectedOffsets(nZones, nZones, m_allocatorID);
     auto selectedOffsetsView = selectedOffsets.view();
@@ -334,7 +323,7 @@ private:
       }
     });
 
-    attachSelectedZonesOption(n_options, selectedZones);
+    n_options["selectedZones"].set_external(selectedZones.data(), selectedZones.size());
   }
 
   /*!
@@ -415,7 +404,6 @@ private:
     // Options shared by all dispatch branches.
     conduit::Node n_options;
     n_options["field"] = m_fcnFieldName;
-    n_options["value"] = m_contourVal;
     // Ask Bump to record the input zone that produced each output element.
     std::string originalElementsField = kOriginalElementsField;
     const conduit::Node& n_fields = m_dom->fetch_existing("fields");
