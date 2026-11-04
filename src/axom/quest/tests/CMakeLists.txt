@@ -358,6 +358,24 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE)
         NUM_MPI_TASKS ${quest_mc_bump_mpi_tasks}
         )
     set_tests_properties(quest_marching_cubes_bump PROPERTIES PROCESSORS 1)
+
+    # Compare the legacy and Bump backends on structured meshes with explicit coordinates.
+    # The fixtures are built in memory and do not require HDF5.
+    axom_add_executable(
+        NAME        quest_marching_cubes_equivalence_test
+        HEADERS     quest_marching_cubes_testing_helpers.hpp
+        SOURCES     quest_marching_cubes_equivalence.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mc_bump_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME    quest_marching_cubes_equivalence
+        COMMAND quest_marching_cubes_equivalence_test
+        NUM_MPI_TASKS ${quest_mc_bump_mpi_tasks}
+        )
+    set_tests_properties(quest_marching_cubes_equivalence PROPERTIES PROCESSORS 1)
 endif()
 
 #------------------------------------------------------------------------------
